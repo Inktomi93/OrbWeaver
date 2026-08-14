@@ -14,6 +14,11 @@ const EXECUTABLE_MODE = 0o755;
 const TARGET_ISSUE = 11;
 const FIRST_BLOCKER = 7;
 const SECOND_BLOCKER = 8;
+const STATUS_FIELD = "Status";
+const EVIDENCE_FIELD = "Evidence";
+const WAKE_CONDITION_FIELD = "Wake condition";
+const DISPOSITION_FIELD = "Disposition";
+const PRIORITY_FIELD = "Priority";
 const defineTest = test;
 
 interface FakeIssue {
@@ -25,6 +30,11 @@ interface FakeIssue {
   readonly comments: string[];
 }
 
+type FakeProjectItem = {
+  readonly id: string;
+  readonly content: { readonly number: number; readonly url: string };
+} & Record<string, string | { readonly number: number; readonly url: string }>;
+
 interface FakeState {
   readonly fields: readonly {
     readonly id: string;
@@ -32,11 +42,7 @@ interface FakeState {
     readonly type: string;
     readonly options?: readonly { readonly id: string; readonly name: string }[];
   }[];
-  readonly items: readonly {
-    readonly id: string;
-    readonly content: { readonly number: number; readonly url: string };
-    readonly fieldValues: { readonly field: { readonly name: string }; name?: string; text?: string }[];
-  }[];
+  readonly items: readonly FakeProjectItem[];
   readonly issues: Record<string, FakeIssue> & { readonly "11": FakeIssue };
   readonly calls: string[][];
 }
@@ -69,15 +75,13 @@ if (args[0] === "issue" && args[1] === "view") {
   const current = state.items.find((candidate) => candidate.id === value("--id"));
   const field = state.fields.find((candidate) => candidate.id === value("--field-id"));
   if (args.includes("--clear")) {
-    const index = current.fieldValues.findIndex((candidate) => candidate.field.name === field.name);
-    if (index !== -1) current.fieldValues.splice(index, 1);
+    delete current[field.name];
     text({});
     return;
   }
   const option = field.options?.find((candidate) => candidate.id === value("--single-select-option-id"));
   const next = option?.name ?? value("--text");
-  const old = current.fieldValues.find((candidate) => candidate.field.name === field.name);
-  if (old) { old.name = option ? next : undefined; old.text = option ? undefined : next; } else { current.fieldValues.push({ field: { name: field.name }, ...(option ? { name: next } : { text: next }) }); }
+  current[field.name] = next;
   text({});
 } else if (args[0] === "issue" && args[1] === "comment") {
   issue().comments.push(value("--body"));
@@ -128,7 +132,7 @@ function createState(status: string, blockers: number[] = []): FakeState {
       { id: "disposition", name: "Disposition", type: "ProjectV2SingleSelectField", options: [{ id: "parked", name: "Parked" }] },
       { id: "priority", name: "Priority", type: "ProjectV2SingleSelectField", options: [{ id: "high", name: "High" }] },
     ],
-    items: [{ id: "item-11", content: { number: 11, url: "https://example.test/issues/11" }, fieldValues: [{ field: { name: "Status" }, name: status }] }],
+    items: [{ id: "item-11", content: { number: 11, url: "https://example.test/issues/11" }, [STATUS_FIELD]: status, [PRIORITY_FIELD]: "High" }],
     issues: {
       "7": { id: "issue-7", number: 7, url: "https://example.test/issues/7", state: "OPEN", blockers: [], comments: [] },
       "8": { id: "issue-8", number: 8, url: "https://example.test/issues/8", state: "OPEN", blockers: [], comments: [] },
@@ -173,12 +177,16 @@ function targetIssue(state: FakeState): FakeIssue {
 }
 
 function addParkedMetadata(state: FakeState): void {
-  state.items[0]?.fieldValues.push({ field: { name: "Wake condition" }, text: "await owner decision" }, { field: { name: "Disposition" }, name: "Parked" });
+  const item = state.items[0];
+  if (item !== undefined) {
+    item[WAKE_CONDITION_FIELD] = "await owner decision";
+    item[DISPOSITION_FIELD] = "Parked";
+  }
 }
 
 function fieldValue(state: FakeState, name: string): string | undefined {
-  const item = state.items[0];
-  return item?.fieldValues.find((value) => value.field.name === name)?.name ?? item?.fieldValues.find((value) => value.field.name === name)?.text;
+  const value = Object.entries(state.items[0] ?? {}).find(([field]) => field.toLowerCase() === name.toLowerCase())?.[1];
+  return typeof value === "string" ? value : undefined;
 }
 
 defineTest("claim requires a lane and produces the mutation intent", () => {
@@ -196,7 +204,7 @@ defineTest("parser errors become misuse exits at the CLI boundary", () => {
 defineTest("unblock keeps an item blocked until every blocker relation is gone", () => {
   const state = createState("Blocked", [FIRST_BLOCKER, SECOND_BLOCKER]);
   expect(drive(state, "unblock", String(TARGET_ISSUE), "--by", String(FIRST_BLOCKER)).status).toBe(0);
-  expect(state.items[0]?.fieldValues.find((value) => value.field.name === "Status")?.name).toBe("Blocked");
+  expect(fieldValue(state, STATUS_FIELD)).toBe("Blocked");
   expect(state.issues[String(TARGET_ISSUE)]?.blockers).toEqual([SECOND_BLOCKER]);
 });
 
@@ -210,6 +218,19 @@ defineTest("lifecycle commands reject invalid current status and unresolved bloc
   const done = drive(running, "done", "11", "--evidence", "all tests passed");
   expect(done.status).toBe(TOOL_ERROR_EXIT);
   expect(done.stderr).toContain("must be Verify before Done");
+});
+
+defineTest("verify reads a flattened live Project item and persists evidence", () => {
+  const state = createState("Running");
+  expect(drive(state, "verify", "11", "--evidence", "all tests passed").status).toBe(0);
+  expect(fieldValue(state, EVIDENCE_FIELD)).toBe("all tests passed");
+  expect(fieldValue(state, STATUS_FIELD)).toBe("Verify");
+});
+
+defineTest("set compares flattened field names case-insensitively", () => {
+  const state = createState("Running");
+  expect(drive(state, "set", "11", "priority", "High").status).toBe(0);
+  expect(state.calls.some((args) => args[0] === "project" && args[1] === "item-edit")).toBe(false);
 });
 
 defineTest("ready accepts live ingress and resume statuses but not review", () => {
@@ -251,7 +272,7 @@ defineTest("block and unblock retries reconcile without repeating relations", ()
   const unblocked = createState("Blocked");
   expect(drive(unblocked, "unblock", "11", "--by", String(FIRST_BLOCKER)).status).toBe(0);
   expect(targetIssue(unblocked).blockers).toEqual([]);
-  expect(unblocked.items[0]?.fieldValues.find((value) => value.field.name === "Status")?.name).toBe("Ready");
+  expect(fieldValue(unblocked, STATUS_FIELD)).toBe("Ready");
 });
 
 defineTest("block sends the blocker-query issue number as a typed GraphQL input", () => {
@@ -264,7 +285,10 @@ defineTest("block sends the blocker-query issue number as a typed GraphQL input"
 
 defineTest("done is reconcilable after a partial failure and posts evidence once", () => {
   const state = createState("Verify");
-  state.items[0]?.fieldValues.push({ field: { name: "Evidence" }, text: "all tests passed" });
+  const item = state.items[0];
+  if (item !== undefined) {
+    item[EVIDENCE_FIELD] = "all tests passed";
+  }
   targetIssue(state).comments.push("Verification evidence: all tests passed");
   expect(drive(state, "done", "11", "--evidence", "all tests passed").status).toBe(0);
   expect(targetIssue(state).comments).toEqual(["Verification evidence: all tests passed"]);

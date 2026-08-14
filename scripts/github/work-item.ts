@@ -20,12 +20,6 @@ interface Field {
   readonly options?: readonly { readonly id: string; readonly name: string }[];
 }
 
-interface FieldValue {
-  readonly field?: { readonly name?: string };
-  readonly name?: string;
-  readonly text?: string;
-}
-
 interface Project {
   readonly id: string;
 }
@@ -33,7 +27,6 @@ interface Project {
 interface ProjectItem {
   readonly id: string;
   readonly content?: { readonly number?: number; readonly url?: string };
-  readonly fieldValues?: readonly FieldValue[];
 }
 
 interface Issue {
@@ -166,8 +159,8 @@ function loadContext(issue: number): WorkItemContext {
 }
 
 function currentValue(item: ProjectItem, name: string): string | undefined {
-  const value = item.fieldValues?.find((candidate) => candidate.field?.name?.toLowerCase() === name.toLowerCase());
-  return value?.name ?? value?.text;
+  const value = Object.entries(item).find(([field]) => field.toLowerCase() === name.toLowerCase())?.[1];
+  return typeof value === "string" ? value : undefined;
 }
 
 function namedField(fields: readonly Field[], name: string): Field {
