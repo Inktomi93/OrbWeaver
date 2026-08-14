@@ -8,7 +8,7 @@ import type {
   RefineryForgeArm,
   RefineryRewritePayload,
   RefinerySchemaStage,
-  RefinerySelection,
+  RefinerySelectionPatch,
   RefinerySessionStatus,
   RefineryStage,
   RefineryStageConfig,
@@ -39,11 +39,16 @@ export interface ListRunsParams extends RefineryActorParams {
 /** The session-config patch (the D62 Setup surface's write). Absent = leave unchanged; `null` on the two
  *  nullable text fields = clear. Each present member is re-parsed through its contracts schema AT THE VERB
  *  (the internal-boundary re-parse posture, security pass §3.A) — the tRPC wire parse does not cover a
- *  future internal caller. */
+ *  future internal caller.
+ *
+ *  `selection` is a DELTA, not a value — it is the one column `applyFields` also writes (the
+ *  greeting-removal remap), so it merges key-wise onto the stored selection instead of replacing it. Its
+ *  three-state greeting arm (absent = keep · null = every greeting · array = exactly these) is stated on
+ *  `refinerySelectionPatchSchema`. */
 export interface UpdateSessionPatch {
   readonly name?: string | null | undefined;
   readonly guidance?: string | null | undefined;
-  readonly selection?: RefinerySelection | undefined;
+  readonly selection?: RefinerySelectionPatch | undefined;
   readonly stageConfig?: RefineryStageConfig | undefined;
   readonly status?: RefinerySessionStatus | undefined;
 }
