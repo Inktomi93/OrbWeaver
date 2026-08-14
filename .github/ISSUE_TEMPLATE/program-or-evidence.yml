@@ -23,7 +23,7 @@ body:
     id: outcome
     attributes:
       label: Program outcome or finding
-      description: For Program: the observable sprint outcome. For Evidence: one falsifiable claim; separate unrelated findings.
+      description: "For Program: the observable sprint outcome. For Evidence: one falsifiable claim; separate unrelated findings."
     validations:
       required: true
   - type: textarea
@@ -66,6 +66,6 @@ body:
     id: done
     attributes:
       label: Graduation or resolution evidence
-      description: For Program: owner rulings, slices, and verification needed at activation. For Evidence: the exact issue, ruling, implementation, test, or wake condition that closes it.
+      description: "For Program: owner rulings, slices, and verification needed at activation. For Evidence: the exact issue, ruling, implementation, test, or wake condition that closes it."
     validations:
       required: true

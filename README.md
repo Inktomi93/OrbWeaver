@@ -11,7 +11,7 @@ per-feature template) and rebuilds the rest so the **file structure is self-docu
 
 ## Read first
 
-- **`docs/architecture/core/BUILD-PLAN.md`** — the ordered build runbook (start here to build).
+- **`docs/architecture/core/AGENTS.md`** — the cold-start reading router and current architecture map.
 - **`docs/architecture/core/Core-0-Architecture-and-Structure.md`** — the constitution: package layout, server tiers, per-feature
   template, central test mirror, the partitioning rule, and the 13 enforcement gates.
 
