@@ -11,13 +11,13 @@
 //     `{{expr::rpg.scene.location}}` / `{{expr::rpg.quests.filter(q, q.status == "active").size()}}` evaluate.
 //     A non-game chat stages NO `rpg` binding ⇒ `{{expr::rpg.…}}` errors-to-"" (the built CEL degrade).
 //
-// THE STRING PROJECTIONS ARE THE REMINDER'S LINES (the third-surface parity fix, 2026-08-01) — this file
-// COMPOSES `substrate/reminder.ts`'s exported builders (`ambientLine`/`actorLine`/`castHeader`/`castLine`/
-// `gameTrackerLine`/`questLine`/`plotLine`) rather than carrying its own. It used to carry its own, and they
-// had drifted into a strict subset of the reminder's: no volatile plane on ANY carrier (hp · wallet · carrying ·
-// status · conditions), none of the standing guides, no attribute readings, no sheet flavor, no game-subject
-// readings, no quest status/description, no time-of-day, no weather description. Each of those is a field the
-// host or the model can WRITE that reached this surface nowhere — the reachability class. What stays per-plane
+// THE STRING PROJECTIONS ARE THE REMINDER'S LINES — this file COMPOSES `substrate/reminder.ts`'s exported
+// builders (`ambientLine`/`actorLine`/`castHeader`/`castLine`/`gameTrackerLine`/`questLine`/`plotLine`) rather
+// than carrying its own. A file that carries its own line grammar drifts into a strict subset of the
+// reminder's: no volatile plane on ANY carrier (hp · wallet · carrying · status · conditions), none of the
+// standing guides, no attribute readings, no sheet flavor, no game-subject readings, no quest status/
+// description, no time-of-day, no weather description — each a field the host or the model can WRITE that
+// would reach this surface nowhere, the reachability class. What stays per-plane
 // is the ASSEMBLY (which blocks a given macro carries), never the line grammar.
 //
 // WHAT THIS SURFACE DELIBERATELY DOES NOT STAGE: the two VOCABULARY lines (`Trackers: …`/`Attributes: …`) and

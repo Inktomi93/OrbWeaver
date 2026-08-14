@@ -10,7 +10,7 @@
 //   • folded   — needs `capability.tools` too (the R1 fold mounts the SAME tools on the character turn; a
 //                connection that cannot carry wire `tools[]` on a chat turn falls back to cheap's post-commit
 //                round, which needs the identical capability — so ONE verdict covers both delivery shapes).
-// (The third mode, a dedicated structured-output round, was DELETED 2026-08-01 — owner ruling; the structured
+// (The third mode, a dedicated structured-output round, was DELETED — owner ruling; the structured
 // WRITE PATH itself survives as the agent-sdk degrade + the host resync, whose gate is `hasStructuredWriter`.)
 // ABSENT (or an unresolved capability) ⇒ readonly = manual-steering: the model gets NO write path, the host
 // hand-edits every plane, and those hand values STILL steer via the gather injection (not inert). A caller warns
@@ -28,7 +28,7 @@ const HAS_WRITE_PATH: Readonly<Record<RpgExtractionMode, (capability: ModelCapab
 };
 
 /** Does this connection have the TOOL-CALL write path (wire `tools[]`)? The vehicle both delivery modes ride,
- *  and — since 2026-08-03 — the host `resyncFromStory` catch-up round's first choice as well: a multi-call tool
+ *  and the host `resyncFromStory` catch-up round's first choice as well: a multi-call tool
  *  round asks for one SMALL schema per plane instead of one 46-optional monolith, which is what the hosted
  *  grammar walls are made of. Same fail-closed contract as the rest of this module. */
 export function hasToolWriter(capability: ModelCapability | null): boolean {

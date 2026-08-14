@@ -349,7 +349,7 @@ export interface ResyncFromStoryParams {
   readonly chatId: ChatId;
 }
 
-/** `populateFromCharacter` — the HOST born-state round over ONE character (owner ruling 2026-08-01). Chat- +
+/** `populateFromCharacter` — the HOST born-state round over ONE character (owner ruling). Chat- +
  *  actor-scoped; the verb resolves the HOST floor (`resolveHost`) so a member can never trigger the
  *  host-principal model call, then resolves the card corpus under the room host. `actorRef` names WHICH roster
  *  character the round fills — a `user`/`cast` ref carries no card and is refused (the honest applicability
@@ -416,7 +416,7 @@ export interface RpgMacroFeed {
 
 /** The `buildLiteReminder` inputs the gather resolves and hands in (§4.7). `steeringNote` is
  *  `config.lite.steeringNote` (the always-wins tail). No tool-capability input: the char turn is always
- *  tool-less prose (owner ruling 2026-07-27), so the reminder never carries tool-update guidance.
+ *  tool-less prose (owner ruling), so the reminder never carries tool-update guidance.
  *
  *  `curSnapshot` + `prevSnapshot` feed the DELTA BLOCK (§2.7 — the always-on prev→current diff rendered before
  *  the license). Both are the RESOLVED committed snapshot states on the selected lineage (the gather's second

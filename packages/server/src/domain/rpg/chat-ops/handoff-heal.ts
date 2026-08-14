@@ -1,7 +1,7 @@
 // domain/rpg/chat-ops/handoff-heal — `ChatRpgOps.handoffHealStatements` + `handoffRekeyActors`, the rpg side
 // of `chat.acceptHostHandoff`.
 //
-// ── THE HEAL (stickler 2026-08-03 F1), unchanged when no offer rides ────────────────────────────────────
+// ── THE HEAL (F1), unchanged when no offer rides ────────────────────────────────────
 // The HOST-HANDOFF twin of the fork's `resolveForkGmPreset` gate: the accept moves room authority to the
 // nominee, and from that moment the game's `gmPresetId` is resolved under the NEW host — owner-scoped, via
 // `resolvePresetOverride` → `preset.get`. A preset the new host cannot read therefore degrades SILENTLY (the
@@ -13,7 +13,7 @@
 // ever occurs on either side of the heal; `resolvePresetOwned` is the injected ownership question, and rpg
 // never touches a preset row.
 //
-// ── THE OFFER ARMS (the copy, 2026-08-03) ───────────────────────────────────────────────────────────────
+// ── THE OFFER ARMS (the copy) ───────────────────────────────────────────────────────────────
 // `copyGmPreset` turns the heal from a clear into a GIFT: the departing host's preset is copied into the
 // nominee's library (the injected `copyPresetToUser` — preset owns its table) and the knob is re-pointed at
 // the copy, so the room keeps the voice it had instead of losing it. The copy is only attempted for a knob

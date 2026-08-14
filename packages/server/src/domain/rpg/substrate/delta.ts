@@ -256,8 +256,8 @@ const walletRenderer: PlaneDiffRenderer<ActorState> = {
     }),
 };
 
-/** Ambient — scene transitions + the GAME-CALENDAR-AGNOSTIC date/time-of-last-turn diff (owner ruling
- *  2026-07-27, fold-in #6). The diff reports the NEW value on any change (a transition — the prose reacts to the
+/** Ambient — scene transitions + the GAME-CALENDAR-AGNOSTIC date/time-of-last-turn diff (fold-in #6). The
+ *  diff reports the NEW value on any change (a transition — the prose reacts to the
  *  destination). Three orthogonal time arms, each firing only when changed, ALL able to fire together (a long
  *  rest advances day, date-string, AND time-of-day):
  *    • `date` — the free-text GAME-DEFINED calendar string, diffed as an OPAQUE string. Fantasy calendars live

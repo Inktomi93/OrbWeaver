@@ -388,7 +388,7 @@ type RpgResolveCanonWindow = (chatId: ChatId, opts: { readonly maxTokens: number
 
 /** The STRUCTURED-OUTPUT extraction op (§4.6 / the delivery-model amendment). It reads the committed beat + the
  *  resolved base state and emits the whole state delta in ONE object. It is no longer a delivery MODE of its own
- *  (the `reliable` knob was deleted 2026-08-01 — owner ruling): it survives as the vehicle two capability-keyed
+ *  (the `reliable` knob was deleted — owner ruling): it survives as the vehicle two capability-keyed
  *  paths still need — the agent-sdk degrade INSIDE `runToolRound` (that wire carries no `tools[]`) and the host
  *  `resyncFromStory` rebuild. The IMPL (the structured-output schema + the model call + the parse) is W1c.
  *
@@ -399,7 +399,7 @@ type RpgResolveCanonWindow = (chatId: ChatId, opts: { readonly maxTokens: number
  *  capability never reaches here (readonly/manual-steering; §4.6). */
 export type RpgRunExtraction = (input: RpgStateRoundInput) => Promise<RpgStateDelta>;
 
-/** CHEAP mode's DEDICATED TOOL ROUND (owner ruling 2026-07-27) — the SIBLING of the structured extraction,
+/** CHEAP mode's DEDICATED TOOL ROUND (owner ruling) — the SIBLING of the structured extraction,
  *  structurally symmetric: a state-only request (NOT tools on the character turn) that reads the committed beat + base state
  *  and emits its writes as PARALLEL tool calls (`tool_choice:"required"` + a `no_changes` escape). The parsed
  *  calls fold to the SAME `RpgStateDelta` the flush stages + writes — the shared-plane proof (a tool round IS
@@ -479,7 +479,7 @@ interface RpgResyncInput {
   readonly transcript: readonly RpgTurnTranscriptMessage[];
 }
 
-/** The `populateFromCharacter` model call (owner ruling 2026-08-01 — the host BORN-STATE round). Reads ONE
+/** The `populateFromCharacter` model call (owner ruling — the host BORN-STATE round). Reads ONE
  *  character's card + the room's opening line and returns the born state they establish: the identity sheet
  *  fields no beat can write, plus the inventory/wallet/quest planes the background implies. Like the resync it
  *  resolves the ROOM connection AS THE HOST fresh at the verb (a host-INITIATED interactive action — the
@@ -633,7 +633,7 @@ export interface RpgContext {
    *  character's card prose + the room's opening line, resolved under the room host's card ownership. `null` =
    *  no card (a gone card / a hostless room) and the verb refuses the round. A fake returns a fixed corpus. */
   readonly resolveCardCorpus: ResolveRpgCardCorpus;
-  /** The host BORN-STATE model call (owner ruling 2026-08-01 — `populateFromCharacter`). The resync's sibling:
+  /** The host BORN-STATE model call (owner ruling — `populateFromCharacter`). The resync's sibling:
    *  host-initiated, non-inherited, structured-writer-gated — but it reads the CARD + opening instead of the
    *  story window, and it fills the hand-only identity sheet the turn vehicles are forbidden to reach. Wired at
    *  compose; a fake returns a fixed delta in tests. */
@@ -869,7 +869,7 @@ export interface RpgService {
    *  ERRORS-AS-DATA (`ResyncResult`): the three endings — rebuilt / ran-and-changed-nothing / could-not-run —
    *  are DISTINCT on the wire. A provider refusal is `{ok:false, reason}`, never a silent success. */
   readonly resyncFromStory: (params: ResyncFromStoryParams) => Promise<ResyncResult>;
-  /** HOST (owner ruling 2026-08-01 — the born-state doorway). ONE model call over a character's CARD + the
+  /** HOST (owner ruling — the born-state doorway). ONE model call over a character's CARD + the
    *  room's opening line, filling what a card establishes and play cannot: the identity sheet's `title`/`level`
    *  (hand-only everywhere else — `patchSheet` is their only other door), the starting inventory + purse, and
    *  the quests the background already implies. Host-gated INSIDE the verb (a member gets leak-free NOT_FOUND /

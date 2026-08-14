@@ -19,7 +19,7 @@
 //     the message plane: the old empty-body "state anchor" slot it used to mint was a non-message that every
 //     canon reader had to filter (render, export, digest, plugin, automation, counts), and the row class is
 //     now unspellable — `postNarratorMessage` refuses blank content.
-// THE THIRD DOOR IS THE FLUSH'S (HAND-EDIT-VS-FLUSH, 2026-08-07): `foldTurnWriteIntoHandHead` is what a turn's
+// THE THIRD DOOR IS THE FLUSH'S: `foldTurnWriteIntoHandHead` is what a turn's
 // flush calls at its own write boundary when a HAND ROW outranks the row it just wrote. It is not a fourth
 // mechanism — it is `writeHandState` again, deriving `applyLockedPatch(handState, turnColumns, handLocks)`
 // inside the same head resolve. The two writers can no longer erase each other: a mid-flight hand edit keeps
@@ -48,7 +48,7 @@ const UNCOMMITTED = 0;
  *  (this turn's own draft) — a committed row is a locked-in past, a HAND row is born committed, and a turnless
  *  game has no row at all; all three clone forward as a new hand row.
  *
- *  THE ARM CHECK IS THE FIX, NOT A BELT (HAND-EDIT-VS-FLUSH, 2026-08-07). "Uncommitted turn row" alone does
+ *  THE ARM CHECK IS THE FIX, NOT A BELT. "Uncommitted turn row" alone does
  *  NOT mean "this turn's draft", and the gap is reachable in ordinary play: while a turn's post-commit state
  *  round is in flight its slot has NO snapshot yet (that is what in-flight means), so the ladder's turn arm
  *  comes back empty and the game-wide `fallback` walk answers with the PREVIOUS speaker's still-uncommitted
@@ -56,12 +56,12 @@ const UNCOMMITTED = 0;
  *  own row then strictly outranked, and the edit vanished silently, auto-lock and all (a group round is the
  *  live shape: two assistants speak back-to-back, so no `onUserCommit` has locked the first row in).
  *
- *  THE `turn` ARM ALONE NO LONGER CARRIES THAT MEANING, AND THE SEQ CHECK RESTORES IT (RPG-REWIND-STUCK,
- *  2026-08-13). The 08-07 fix read "`arm === "turn"`" as "this row is at the ladder's TIP", which was true only
+ *  THE `turn` ARM ALONE NO LONGER CARRIES THAT MEANING, AND THE SEQ CHECK RESTORES IT.
+ *  Reading "`arm === "turn"`" as "this row is at the ladder's TIP" is true only
  *  because the turn arm inspected exactly ONE slot: an in-flight flush made it go dark, and the earlier row came
  *  back wearing `fallback`. The turn arm now WALKS DOWN the selected lineage (`persistence/snapshots.ts`), so
- *  that very same earlier uncommitted draft comes back wearing `turn` — which would have silently reopened the
- *  2026-08-07 loss. The tip test is therefore made EXPLICIT rather than inferred from the arm: the head must sit
+ *  that very same earlier uncommitted draft comes back wearing `turn` — which would silently reopen the
+ *  same loss. The tip test is therefore made EXPLICIT rather than inferred from the arm: the head must sit
  *  at the story's CURRENT beat. `findLatestAssistantSlotSeq` is the same "which beat is the story on" reader the
  *  flush's fold uses, so the two cannot disagree about the tip. */
 async function resolveHead(
@@ -188,7 +188,7 @@ export async function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: 
  *  second one. The same shadowing is reachable without any race — a hand edit made at the tail slot before a
  *  REGEN of that slot is excluded from the regen's base the same way — so the fold is not gated on timing.
  *
- *  IT REPLAYS THE PATCHES, NEVER THE COMPOSED STATE (the fix leg's regression, verifier-driven). The turn's
+ *  IT REPLAYS THE PATCHES, NEVER THE COMPOSED STATE. The turn's
  *  `state` is `preSlotBase + writes`, and the base half of it is STALE the instant a hand edit lands. Folding
  *  the whole state re-asserted that stale base over the human's gesture, and the REMOVAL verbs are where it
  *  bit: `dismissActor`/`deleteQuest` deliberately CLEAR the locks of what they removed (the symmetric grammar —
@@ -203,7 +203,7 @@ export async function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: 
  *  order, that the staging accumulator used to compose them in the first place. The human keeps every field
  *  they claimed; the turn keeps every field they did not.
  *
- *  A NEWER HAND HEAD IS STILL FOLDED INTO (the second verifier counterexample). If the user sends their next
+ *  A NEWER HAND HEAD IS STILL FOLDED INTO. If the user sends their next
  *  message mid-flight and then steers, the hand row lands one beat DOWN the story and the earlier shape bailed
  *  out silently, erasing the turn's writes with no trail at all. The state planes are cumulative and the
  *  round's patches are the newest MODEL knowledge regardless of which beat produced them, so replaying them
@@ -241,25 +241,23 @@ export async function foldTurnWriteIntoHandHead(
     // game-wide fallback answering. There is no hand gesture to reconcile against and no defensible merge —
     // but the turn's writes ARE lost, so the caller says so.
     //
-    // TRUTH-REPAIR (leg 3): this comment used to also claim "a concurrent later turn". It does NOT reach here
-    // — the regen guard above returns first for any head past our beat, so a later turn that flushed while we
-    // were in flight is classified as a supersede and stays SILENT. The re-verifier DROVE that loss (speaker 2
-    // commits mid-flight, speaker 1's write gone, empty trail); it is the boarded REGEN-VS-LATER-FLUSH row,
-    // which needs ladder state that does not exist today. Naming it here so the next reader finds the row
-    // instead of trusting a comment that denied the case.
+    // This does NOT reach here for "a concurrent later turn" — the regen guard above returns first for any
+    // head past our beat, so a later turn that flushed while we were in flight is classified as a supersede
+    // and stays SILENT (speaker 2 commits mid-flight, speaker 1's write is gone with no trail). That gap is
+    // the boarded REGEN-VS-LATER-FLUSH row, which needs ladder state that does not exist today.
     return { kind: "shadowed", headId: head.row.id, reason: `the ${head.arm} row ${head.row.id} outranks this flush's row at seq ${head.seq}` };
   }
   const folded = await writeHandState(ctx, game, (hand) => {
     // Replayed in STAGE ORDER against the hand head's CURRENT locks — the identical composition the accumulator
     // performed over the pre-slot base, differing only in which state it starts from and whose locks arbitrate.
     //
-    // REBASED FIRST (leg 3): every applier in `tools/apply.ts` composes WHOLE PLANES from the base it was
+    // REBASED FIRST: every applier in `tools/apply.ts` composes WHOLE PLANES from the base it was
     // handed, so a staged patch is not a delta — a round that merely mentions the scene carries every on-stage
     // actor in it. Replaying that verbatim re-inserted an actor the host had dismissed mid-flight, silently,
     // because the removal verbs release the very lock that would have stopped it. The rebase keeps what the
     // round ADDED, CHANGED or REMOVED and drops what it merely CARRIED (`substrate/merge.ts`).
     //
-    // EACH ENTRY AGAINST ITS OWN BASE (leg 4): a turn stages once per tool call, and patch N was composed
+    // EACH ENTRY AGAINST ITS OWN BASE: a turn stages once per tool call, and patch N was composed
     // against `seed + patches[0..N-1]`. Measuring every patch against the SEED re-scored an element patch 1
     // had already added as a fresh ADD for patch 2 and appended it a second time — two `update_scene` calls
     // wrote the opening beat twice and put a character on stage twice. The pairing is carried by the

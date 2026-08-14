@@ -250,7 +250,7 @@ export function applyLockedPatch<T extends Record<string, unknown>>(base: T, pat
   return mergeAt(base, patch, fieldLocks, "") as T;
 }
 
-// ── REBASING A PATCH ONTO A DIFFERENT HEAD (HAND-EDIT-VS-FLUSH, leg 3) ───────────────────────────────────
+// ── REBASING A PATCH ONTO A DIFFERENT HEAD (HAND-EDIT-VS-FLUSH) ───────────────────────────────────
 //
 // EVERY applier in `tools/apply.ts` is a READ-MODIFY-WRITE against the base it was handed, not an author of a
 // delta: `applyPresencePatch` emits `presentCharacters` AND `actorState` as WHOLE ARRAYS, `applyUpdateScene`
