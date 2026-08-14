@@ -1,9 +1,21 @@
-name: Build or operational work
-description: A bounded implementation, refactor, maintenance, or operations outcome.
+name: Work
+description: A bounded build, operations, or documentation outcome.
 title: "work: "
 labels: ["kind:build", "triage"]
 projects: ["Inktomi93/1"]
 body:
+  - type: dropdown
+    id: work-type
+    attributes:
+      label: Work type
+      description: Select the primary execution surface; this does not create a separate work graph.
+      options:
+        - Build
+        - Operations
+        - Documentation
+      default: 0
+    validations:
+      required: true
   - type: textarea
     id: outcome
     attributes:
