@@ -1235,15 +1235,25 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **vLLM is forced into strict mode at all times.** Receipt: `strictByDefault(format: ResponseFormat)`
   in `packages/server/src/infra/providers/vllm/surfaces/chat.ts`. Decide whether strict is a floor, a
   default, or a knob — it interacts with the #36 structured-output vehicle work.
-- [ ] **CARD FENCE-CLOSE MOUNT GATE (owner dogfood 08-14 afternoon: interactive cards "wont render
-  fully until the message is done … even when the html is done being written") — SECURITY LANE
-  RUNNING:** diagnosed at dispatch — the §4.5 forming-card design (`ghost-message-row.tsx:43-46`)
-  gates chip→real-card on message COMMIT; the right granularity is FENCE CLOSE (bytes final).
-  Routed security-executor because `srcdoc.ts:19` owns allow-scripts timing; lane owes the
-  four-point trust analysis (close-detection exactness · ONE trust resolver, no call-site re-derive
-  · abort-after-close drops the card · sandbox attrs byte-identical) + stable-key no-iframe-reload
-  pins + a commit-swap remount verdict. Refusal-with-receipt allowed if §4.5's one-hard-cut was
-  ruled for a reason that still binds.
+- [x] **CARD FENCE-CLOSE MOUNT GATE — FIXED + MERGED (`47f2bbe16`; 128 CT green, 5 genuine red
+  pins).** Cards now mount the instant their `:::` close line is NEWLINE-TERMINATED. The lane
+  caught the dispatch diagnosis WRONG on a security point: close detection was SPOOFABLE on HEAD
+  (an unterminated `…\n:::` read closed:true, one more token un-closed it — live receipt) — fixed
+  with the terminated-line predicate + an immutability-under-append proof in the kit header. Trust:
+  ONE resolver threaded (no call-site re-derive); tier-B scripts DON'T execute today anyway
+  (SANDBOX\_ATTR="" — the flip never happened); the real hazard was pre-commit model-controlled
+  FETCHES, so the ghost pins allowExternalMedia=false + srcdoc floor. **OWNER NOTE (deliberate,
+  cited in the file header as a security decision):** a card's external/`data:` images show at
+  COMMIT, not mid-stream — widening is one line if you want them live, and it re-opens a
+  pre-commit exfil channel. FOLLOW-UP LEAD: one iframe reload flash at ghost→settled swap
+  (GHOST\_APPEND\_KEY vs message.id — keyed-handoff work, message-list-surface scope). §4.5 spec
+  truth-repaired with a dated AMENDED block.
+- [ ] **MEMBER-STRIP CARD-FENCE HOLE (found by the card lane, SECURITY LANE RUNNING
+  `strip-card-hole`):** `stripHiddenSpans` never reaches inside a closed `:::card` span — a
+  `<lie truth>` in a card body re-emits VERBATIM in the member's COMMITTED view (mid-stream
+  scrubber is clean, so it looks fine while streaming and betrays on reload). D16 member-visible
+  bytes. Fix = strip totality over card bodies (order swap or recursive strip), host view
+  byte-identical, projection-only.
 - [ ] **SWIPE GHOST-VISIBILITY — ROOT-CAUSED (diagnosis FLAG merged at createSwipe, `e62b8c16f`);
   TWO FIX LANES RUNNING.** Cause: `swipe`/`continueTurn`/`generate` NEVER emit `turnAccepted` —
   the slot opens only at the engine's `turnStarted`, which lands AFTER resolveTurnBase (assembly +
