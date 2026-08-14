@@ -19,8 +19,8 @@ clean). Every other battery stage was green.**
 
 > **THIS IS THE WORKING DOC** (owner-stated). Not law, not a deliverable — the durable state an
 > orchestrator resumes from cold. Authority for LAW = `docs/architecture/core/**`; the D-ledger
-> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D138** — D137 landed
-> 08-08 with the persona cast substrate, D138 landed 08-14 with the W10 freshness contract) wins on
+> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D139** — D138 landed
+> 08-14 with the W10 freshness contract, D139 with the documentation control plane) wins on
 > ANY conflict. `docs/architecture/proposed/**`
 > is pre-rollback REBUILD REFERENCE — never cite its status as current.
 >
@@ -130,6 +130,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-14 | **EVENING SITTING (question tool):** guard **D GO** (quoted rm-rf target fix, own A/B leg — lane `guard-quoted-rm` dispatched); A/B narrowings NOT taken (stay strict — absence of a pick is not consent to loosen); E stays defer · **M4 probe config AUTHORIZED** (reasoning-emitting connection on a scratch room, restore after; lane queued next slot) · **client second belt SKIP** (server boundary suffices, twin-pinned) · **max-output KEEP 2048** (longer-outputs row CLOSES as ruled-keep). Also: **lanes-full posture re-affirmed** (owner: "stop worrying so much about draining, keep them lanes full"). |
 | 08-14 | **QUOTED-RM = STRICT + SAME-COMMAND VAR EXPANSION, in-lane (question tool):** the tighten ships (122,880-cmd A/B, 130 stricter/0 looser) AND variables assigned earlier in the same command resolve before the safe-test (evidence-gated, never a blanket $-hint; own A/B owed); comment-span false positive NOT taken (stays the standing owner item). |
 | 08-14 | **CODEX DOC-MISS SITTING (question tool, evening):** D129 = **TRUTH-REPAIR + BUILD BOTH** (ledger annotated owner-authorized same hour; one chat-area lane builds the narrator wire-mapping capability probe + the swipe re-resolution verb wiring — QUEUED next free slot) · **Charlotte live-validation = KILLED** (handoff doc superseded-whole, link repaired). Sweep-method lesson adopted: git additions, not dir walks. |
+| 08-14 | **DOCUMENTATION CONTROL PLANE = GITHUB PROJECT 1 + REPO TRUTH, NO WIKI (owner, Codex sitting).** Issue #1 is the migration parent; #2–#11 are native sub-issues for the fact-check/tooling lanes. `docs/retro-workboard.md` stays intact as recovery + standing operations. During migration, an item has exactly one mutable home: unmigrated legacy rows stay here; migrated rows move once to Project and leave a pointer rather than mirrored status. D139 owns the boundary. |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -445,7 +446,13 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   agent-sdk path is not honoring the output ceiling on the paid sub. Four-hop trace + two candidate
   arms in shape-churn doc §7/§7.5. Lane fixes: throw-path outcome row · errors-ring capture at the
   chokepoint · the cap verdict (never-passed / wrong-field / documented-refusal).
-- [x] **SHAPE-CHURN PROGRAM COMPLETE:** M4 demoted UNMEASURED → STRUCTURALLY UNREACHABLE on
+- [ ] **SHAPE-CHURN M4 — OWNER CORRECTION (verbatim: "agent sdk cant report reasoning when using
+  the sub, use the openrouter key and test that shit on chat completions"):** §7's "the model
+  declined to think" framing was WRONG — the max-pro-sub wire never REPORTS reasoning bytes
+  (transport opacity, not model behavior). Probe RE-DISPATCHED on an OR chat-completions reasoning
+  model (`m4-or-probe`, scratch connection off the env key, per-room scoped, small run); §8 will
+  carry the real M4 verdict + the §7 amendment. Prior row text (M5>M1 fixed, vLLM parser trap,
+  M5 re-receipt gap) otherwise stands:
   defaults (adaptive Opus declines to think; effort reached the wire, reasoningChars 0; no
   user-reachable force — buildThinking reads mode off capability). Final ranking M5 > M1 > M4,
   first two FIXED + merged. vLLM unblock documented-not-taken (parser gated on request
