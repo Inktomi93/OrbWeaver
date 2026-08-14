@@ -197,6 +197,140 @@ test("P1: the model's own `Name:` prefix never flashes in the bubble mid-stream"
   await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
+// ── §4.5 the FENCE-CLOSE card upgrade (owner dogfood 2026-08-14: "interactive html cards pop up in rpg
+// lite but they wont render fully until the message is done ... even when the html is done being written")
+//
+// The chip is the placeholder for a card whose BODY IS STILL ARRIVING — not for one that is finished. Once
+// the closing `:::` line lands (terminated), the card's bytes are final and the real card mounts, while the
+// message keeps streaming below it. These pin all four sides: the upgrade, the still-forming hold, the
+// no-reload invariant, and the abort drop. The GHOST's frame posture is pinned too — srcdoc floor,
+// `sandbox=""`, no external media — because "mount the card earlier" must not also mean "widen it".
+
+const CARD_OPEN = ':::card title="Terminal"\n';
+const CARD_BODY = '<div id="t">ACCESS GRANTED</div>\n<style>#t{color:#0f0}</style>\n';
+const CARD_CLOSE = ":::\n";
+const FRAME = '[data-slot="sandbox-frame"]';
+const CHIP = '[data-slot="forming-card-chip"]';
+
+test("§4.5: a fence CLOSED mid-stream mounts the real card while the message is still streaming", async ({ mount }) => {
+  const component = await mount(<GhostRowScriptedStory chunks={[CARD_OPEN, CARD_BODY, CARD_CLOSE, "The screen flickers. "]} cardTier="tierB" />);
+
+  // Open line + body: the chip holds, no frame (the body is genuinely still forming).
+  await driveScript(component, 2);
+  await expect(component.locator(CHIP)).toBeVisible();
+  await expect(component.locator(FRAME)).toHaveCount(0);
+
+  // The CLOSE line lands — the bytes are final, so the real card mounts NOW, not at commit.
+  await component.getByTestId("next-chunk").click();
+  await expect(component.locator(FRAME)).toHaveCount(1);
+  await expect(component.locator(CHIP)).toHaveCount(0);
+  await expect(component.locator('[data-slot="immersive-card-title"]')).toContainText("Terminal");
+  // …and the turn has NOT settled: the ghost row is still the live row.
+  await expect(component.getByTestId("phase")).toHaveText("streaming");
+  await expect(component.locator('[data-slot="ghost-message-row"]')).toHaveCount(1);
+
+  // Prose continues to stream BELOW the mounted card.
+  await component.getByTestId("next-chunk").click();
+  await expect(component.getByText("The screen flickers", { exact: false })).toBeVisible();
+  await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
+});
+
+test("§4.5: a fence still OPEN keeps the chip and never paints a byte of the partial HTML", async ({ mount }) => {
+  const component = await mount(
+    <GhostRowScriptedStory chunks={[CARD_OPEN, '<div>half-streamed <img src="https://attacker.example/p.png"']} cardTier="tierB" />,
+  );
+  await driveScript(component, 2);
+
+  await expect(component.locator(CHIP)).toBeVisible();
+  await expect(component.locator(FRAME)).toHaveCount(0);
+  await expect(component.locator("iframe")).toHaveCount(0);
+  await expect(component.locator("img")).toHaveCount(0);
+  // Not as an iframe, not as literal text either — the accumulating body stays behind the chip.
+  await expect(component.getByText("attacker.example", { exact: false })).toHaveCount(0);
+  await expect(component.getByText("half-streamed", { exact: false })).toHaveCount(0);
+});
+
+test("SECURITY: an UNTERMINATED close line does not mount a card — the next token can still revoke it", async ({ mount }) => {
+  // `:::` with no newline yet matches the close grammar but is not final: `:::x` on the next token turns it
+  // back into body. Mounting on it would render a NON-final body and then flicker back to a chip.
+  const component = await mount(<GhostRowScriptedStory chunks={[CARD_OPEN, CARD_BODY, ":::", "x\n"]} cardTier="tierB" />);
+  await driveScript(component, 3);
+  await expect(component.locator(CHIP)).toBeVisible();
+  await expect(component.locator(FRAME)).toHaveCount(0);
+
+  await component.getByTestId("next-chunk").click();
+  await expect(component.locator(CHIP)).toBeVisible();
+  await expect(component.locator(FRAME)).toHaveCount(0);
+});
+
+test("§4.5: prose streaming after a closed card never reloads the card's iframe", async ({ mount }) => {
+  // A remount would re-fetch/re-paint the card on EVERY token — the ST flicker class the one-mount rule
+  // exists to prevent. Stamp the live element, then prove the SAME element (same srcdoc) survives.
+  const component = await mount(
+    <GhostRowScriptedStory chunks={[CARD_OPEN, CARD_BODY, CARD_CLOSE, "The screen ", "flickers ", "and dies. "]} cardTier="tierB" />,
+  );
+  await driveScript(component, 3);
+  const frame = component.locator(FRAME);
+  await expect(frame).toHaveCount(1);
+
+  await frame.evaluate((el) => el.setAttribute("data-ct-mount-stamp", "1"));
+  const srcdocBefore = await frame.getAttribute("srcdoc");
+
+  await component.getByTestId("next-chunk").click();
+  await expect(component.getByText("The screen", { exact: false })).toBeVisible();
+  await component.getByTestId("next-chunk").click();
+  await component.getByTestId("next-chunk").click();
+  await expect(component.getByText("and dies", { exact: false })).toBeVisible();
+
+  await expect(frame).toHaveCount(1);
+  // The stamp survives ⇒ React never unmounted the iframe; the srcdoc is byte-identical ⇒ no reload.
+  await expect(frame).toHaveAttribute("data-ct-mount-stamp", "1");
+  await expect.poll(() => frame.getAttribute("srcdoc")).toBe(srcdocBefore);
+});
+
+test("SECURITY: the ghost's card frame is the srcdoc FLOOR — sandbox='', no routed mint, no external media", async ({ mount }) => {
+  // Mounting a card EARLIER must not also widen it. The ghost pins the two axes commit owns: delivery
+  // (srcdoc, which additionally inherits the app document's img-src) and the external-media verdict. The
+  // sandbox attribute is the shared `SANDBOX_ATTR` — every restriction on, no scripts, no same-origin.
+  const component = await mount(<GhostRowScriptedStory chunks={[CARD_OPEN, CARD_BODY, CARD_CLOSE]} cardTier="tierB" />);
+  await driveScript(component, 3);
+
+  const frame = component.locator(FRAME);
+  await expect(frame).toHaveAttribute("sandbox", "");
+  await expect(frame).toHaveAttribute("data-delivery", "srcdoc");
+  const srcdoc = (await frame.getAttribute("srcdoc")) ?? "";
+  expect(srcdoc).toContain("default-src 'none'");
+  expect(srcdoc).toContain("img-src 'self'");
+  // No `https:` on the media directives — the row's external-media verdict arrives with the settled row.
+  expect(srcdoc).not.toContain("https:");
+  // The card's own CSS rides the sandboxed document, never the app DOM.
+  expect(srcdoc).toContain("#t{color:#0f0}");
+});
+
+test("§4.5: a tierA row renders the closed card INERT (no iframe) — the tier is the resolver's, not the ghost's", async ({ mount }) => {
+  // The default tier for a mount with no resolved policy is the fail-closed tierA: the sanitized allowlist
+  // in the main DOM, which forbids <style> and drops <img> — never a sandbox the room did not consent to.
+  const component = await mount(<GhostRowScriptedStory chunks={[CARD_OPEN, CARD_BODY, CARD_CLOSE]} />);
+  await driveScript(component, 3);
+
+  await expect(component.locator('[data-slot="inert-card"]')).toHaveCount(1);
+  await expect(component.locator("iframe")).toHaveCount(0);
+  await expect(component.locator(CHIP)).toHaveCount(0);
+  await expect(component.getByText("ACCESS GRANTED", { exact: false })).toBeVisible();
+});
+
+test("§4.5: an ABORT after the card mounted drops the card with the ghost row (no false card)", async ({ mount }) => {
+  const component = await mount(<GhostRowScriptedStory chunks={[CARD_OPEN, CARD_BODY, CARD_CLOSE]} cardTier="tierB" />);
+  await driveScript(component, 3);
+  await expect(component.locator(FRAME)).toHaveCount(1);
+
+  await component.getByTestId("abort").click();
+  await expect(component.getByTestId("phase")).toHaveText("aborted");
+  await expect(component.locator('[data-slot="ghost-message-row"]')).toHaveCount(0);
+  await expect(component.locator(FRAME)).toHaveCount(0);
+  await expect(component.locator("iframe")).toHaveCount(0);
+});
+
 test("reduced motion: the full streamed text lands immediately, with no pacing lag", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const longChunk = Array.from({ length: 40 }, (_, i) => `word${i}`).join(" ");

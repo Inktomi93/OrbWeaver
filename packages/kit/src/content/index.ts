@@ -830,23 +830,39 @@ export function createHiddenSpanStreamScrubber(): HiddenSpanStreamScrubber {
   };
 }
 
-// ── The GHOST forming-card scan (§4.5 — the streaming placeholder's pure half) ───────────────────────────
+// ── The GHOST card scan (§4.5 — the streaming placeholder's pure half) ───────────────────────────────────
 //
 // The ghost row streams raw model text per-token; once a card's OPENING fence line completes (the line plus
 // its newline — unambiguous, no body speculation), the reader should see a pretty forming-state chip instead
 // of the accumulating raw HTML. This scanner is that recognition, PURE: split the accumulating ghost text
-// into ordered text/forming-card segments. A card segment runs from its completed open line to its balanced
-// close (or the end of the text while still streaming — the chip stays up as body bytes accumulate behind
-// it). NO iframe, NO partial-HTML render ever rides this — the CLIENT renders a chip for a card segment and
-// markdown for text; the real card mounts only at commit (the committed path re-tokenizes the stored body).
-// Markdown code-fence regions are excluded exactly like the committed grammar (a ```-shown fence stays text).
+// into ordered text / forming-card / card segments. Markdown code-fence regions are excluded exactly like
+// the committed grammar (a ```-shown fence stays text).
+//
+// THE TWO CARD ARMS ARE THE §4.5 TRUST LINE, MADE STRUCTURAL (2026-08-14 — the granularity fix). A card
+// that is still FORMING carries NO bytes on its segment at all, so a renderer CANNOT paint partial HTML
+// even by mistake; a card whose fence has CLOSED carries its `body`, because those bytes are final:
+//
+//   TERMINATION IS REQUIRED ON BOTH FENCE LINES. The open line is recognized only once its newline arrived
+//   (`completedCardOpen`), and — the arm this note exists for — the CLOSE line counts only once ITS newline
+//   arrived (`ghostCardStep`). Without that, an accumulating text whose last three bytes are `:::` matches
+//   `FENCE_CLOSE_RE` and reads as closed, and the very next token (`:::x`) REVOKES it: a "final" body that
+//   is not final, a card that flickers back to a chip, and a close a model can spoof by merely typing a
+//   line that LOOKS like one. With it, a closed card's byte range is provably immutable under append: every
+//   line up to and including the close is newline-terminated, so no later token can edit them; the scan is
+//   left-to-right, so no later token can change the code-fence state or the open-line parse that precedes
+//   them; and `findFenceClose` returns the FIRST balanced close, which those frozen lines already fix.
+//
+// A card whose close never arrives (aborted stream, truncation) stays a `forming-card` forever and dies
+// with the ghost row — no false card, per the §4.5 abort rule. The client renders: chip for `forming-card`,
+// the REAL card for `card`, markdown for text.
 
-/** One segment of the accumulating ghost text: literal text to stream as markdown, or a forming card
- *  (open-fence recognized) to render as the §4.5 building-state chip. `closed` reports whether the balanced
- *  `:::` close has arrived (the chip may subtly settle); the body bytes are deliberately NOT exposed. */
+/** One segment of the accumulating ghost text: literal text to stream as markdown, a card still FORMING
+ *  (open fence recognized, body deliberately not exposed — see the section note), or a CLOSED card whose
+ *  `body` bytes are final and safe to mount. */
 export type GhostContentSegment =
   | { readonly kind: "text"; readonly text: string }
-  | { readonly kind: "forming-card"; readonly title: string | null; readonly closed: boolean };
+  | { readonly kind: "forming-card"; readonly title: string | null }
+  | { readonly kind: "card"; readonly title: string | null; readonly body: string };
 
 /** True when line `i` is a COMPLETED `:::card …` open (its newline arrived — §4.5's unambiguous trigger). */
 function completedCardOpen(content: string, lines: readonly Line[], i: number): Readonly<Record<string, string>> | null {
@@ -863,8 +879,9 @@ function completedCardOpen(content: string, lines: readonly Line[], i: number): 
   return parseFenceAttrs(open[2] ?? "", true);
 }
 
-/** One consumed forming-card block: its segment + where the next text run / line scan resumes. A card whose
- *  close hasn't arrived consumes the REST of the text (everything after the open is the card's body). */
+/** One consumed card block: its segment + where the next text run / line scan resumes. A card whose close
+ *  hasn't arrived (or hasn't been TERMINATED — see the section note) consumes the REST of the text and stays
+ *  a `forming-card`; everything after the open is the card's still-accumulating body. */
 interface GhostCardStep {
   readonly segment: GhostContentSegment;
   readonly pendingStart: number;
@@ -872,17 +889,22 @@ interface GhostCardStep {
 }
 
 function ghostCardStep(content: string, lines: readonly Line[], i: number, attrs: Readonly<Record<string, string>>): GhostCardStep {
+  const title = attrs["title"] ?? null;
   const closeIdx = findFenceClose(lines, i + 1);
   const closeLine = closeIdx === -1 ? undefined : lines[closeIdx];
-  const segment: GhostContentSegment = { kind: "forming-card", title: attrs["title"] ?? null, closed: closeLine !== undefined };
-  if (closeLine === undefined) {
-    return { segment, pendingStart: content.length, next: lines.length }; // still streaming — the tail is the card's body.
+  // `closeLine.end >= content.length` means the close line is the buffer's TAIL with no newline yet: a
+  // trailing `:::` that the next token can still turn into `:::x`. Not a close — the body is not final.
+  if (closeLine === undefined || closeLine.end >= content.length) {
+    return { segment: { kind: "forming-card", title }, pendingStart: content.length, next: lines.length };
   }
-  return { segment, pendingStart: lines[closeIdx + 1]?.start ?? content.length, next: closeIdx + 1 };
+  const body = sliceTexts(lines, i + 1, closeIdx).join("\n");
+  return { segment: { kind: "card", title, body }, pendingStart: lines[closeIdx + 1]?.start ?? content.length, next: closeIdx + 1 };
 }
 
-/** Split accumulating GHOST text into text/forming-card segments (§4.5). Pure + degrade-never-throw: text
- *  with no completed `:::card` open is one text segment (byte-identical). */
+/** Split accumulating GHOST text into text / forming-card / card segments (§4.5). Pure + degrade-never-throw:
+ *  text with no completed `:::card` open is one text segment (byte-identical). A `card` segment's `body` is
+ *  the SAME projection the committed grammar produces for the same bytes (`tryDirectiveFence`), so the ghost
+ *  mount and the settled mount render one card, not two spellings of one. */
 export function scanGhostContent(content: string): GhostContentSegment[] {
   const lines = splitLines(content);
   const segments: GhostContentSegment[] = [];

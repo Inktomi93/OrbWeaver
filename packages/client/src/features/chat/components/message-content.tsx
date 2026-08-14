@@ -6,20 +6,19 @@
 // so a <speaker> NAME position never sees an unresolved {{char}}/{{user}}.
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
-import { ImmersiveCard, InertCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
-import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
-import { useCardFrameSrc } from "#data";
 import type { MessageRenderContext, RowRenderPolicy } from "#lib";
 import { renderMessageForDisplay } from "#lib";
 import { toContentBlocks } from "../lib/content-blocks.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
+import type { CardOrigin } from "./card-block.tsx";
+import { CardBlock } from "./card-block.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
 
@@ -28,64 +27,6 @@ const NO_CAST_NAMES: readonly string[] = [];
 
 function assertNever(value: never): never {
   throw new Error(`MessageContent: unhandled block ${JSON.stringify(value)}`);
-}
-
-/** The room a card was authored in — the card-frame doorway's POLICY SELECTOR (the server resolves this
- *  character's `renderPolicy` and builds the frame CSP from it). Absent ⇒ the srcdoc floor renders.
- *  Deliberately NOT exported — callers pass an object literal through `MessageContentProps.cardOrigin`. */
-interface CardOrigin {
-  readonly chatId: ChatId;
-  readonly characterId: CharacterId | null;
-}
-
-/** The tierB card, as a COMPONENT rather than a render helper: the routed card-frame handle is minted with
- *  a hook, and the mint needs the theme-resolved tokens the frame will actually carry (a card that recolors
- *  on a theme flip must re-mint, or the routed document would serve yesterday's palette). Without a
- *  `cardOrigin` there is no room, hence no roster, hence no trust verdict — it renders the floor. */
-function TierBCard({
-  block,
-  allowExternal,
-  cardOrigin,
-}: {
-  readonly block: Extract<MessageContentBlock, { kind: "html-card" }>;
-  readonly allowExternal: boolean;
-  readonly cardOrigin: CardOrigin | undefined;
-}): ReactElement {
-  const { themeTokens, fontFamily } = useSandboxTheme();
-  const frameSrc = useCardFrameSrc(cardOrigin === undefined ? undefined : { ...cardOrigin, html: block.html, css: block.css, themeTokens, fontFamily });
-  return (
-    <ImmersiveCard
-      html={block.html}
-      allowExternalMedia={allowExternal}
-      {...(frameSrc === undefined ? {} : { frameSrc })}
-      {...(block.css === undefined ? {} : { css: block.css })}
-      {...(block.title === undefined ? {} : { title: block.title })}
-      {...(block.origin === undefined ? {} : { origin: block.origin })}
-    />
-  );
-}
-
-/** The `html-card` arm, extracted so `renderBlock` stays inside the cognitive-complexity budget. */
-function renderCardBlock(
-  block: Extract<MessageContentBlock, { kind: "html-card" }>,
-  key: string,
-  allowExternal: boolean,
-  cardOrigin: CardOrigin | undefined,
-): ReactElement {
-  if (block.trust === "tierB") {
-    return <TierBCard key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
-  }
-  // Tier A: the sanitized body inside the inert frame. No `authorName` is threaded yet — the row policy
-  // does not carry one, and InertCard degrades to "this character" rather than printing an empty name.
-  // Threading the real name is a follow-up worth doing (it makes the remedy one click more obvious), not a
-  // reason to hold the visibility fix.
-  return (
-    <InertCard key={key} {...(block.title === undefined ? {} : { title: block.title })}>
-      <Markdown trust="untrusted" mode="static">
-        {block.html}
-      </Markdown>
-    </InertCard>
-  );
 }
 
 // biome can't infer `z.infer` of the contracts discriminatedUnion (it reads `block` as `never` →
@@ -119,7 +60,7 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // refuse-VISIBLY posture MessageMedia's click-to-load gate has always had.
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "html-card":
-      return renderCardBlock(block, key, allowExternal, cardOrigin);
+      return <CardBlock key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
     // The parity-plus §5.2-5.3 choice set — clickable send-affordances: a click sends the option as the
     // user's next turn through the room's choice-send capability (P5; provider-less mounts render the
     // same buttons disabled). The block contract is untouched.
