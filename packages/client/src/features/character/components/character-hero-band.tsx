@@ -151,7 +151,7 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
           aria-label="Replace portrait"
           intent="ghost"
           size="media"
-          className={confirming ? "relative shrink-0 rounded-card ring-2 ring-accent" : "relative shrink-0 rounded-card"}
+          className={confirming ? "relative shrink-0 rounded-base ring-2 ring-accent" : "relative shrink-0 rounded-base"}
           onClick={open}
         >
           <Avatar hueSeed={detail.id} shape="square" size="hero" {...avatarSrc}>

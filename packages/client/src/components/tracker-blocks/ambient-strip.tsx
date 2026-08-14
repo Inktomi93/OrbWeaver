@@ -237,7 +237,7 @@ function AmbientFieldControl({
 export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, lockSlot }: AmbientStripProps): ReactElement {
   const values: Readonly<Record<AmbientField, string | undefined>> = { location, date, timeOfDay, weather };
   return (
-    <Row gap="block" align="center" className="flex-wrap rounded-card border border-border bg-card px-block py-row" data-slot="ambient-strip">
+    <Row gap="block" align="center" className="flex-wrap rounded-base border border-border bg-card px-block py-row" data-slot="ambient-strip">
       <Icon icon={MapPin} size="sm" label="Scene" />
       {AMBIENT_FIELDS.map(({ key, label }) => {
         const value = values[key];

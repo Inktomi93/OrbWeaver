@@ -311,7 +311,7 @@ function ExampleTranscript({ value, trusted }: { readonly value: string; readonl
           key={index}
           gap="row"
           padding="field"
-          className="rounded-card border border-border"
+          className="rounded-base border border-border"
         >
           <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes}>
             {block}

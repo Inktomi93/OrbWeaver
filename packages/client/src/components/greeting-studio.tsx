@@ -120,7 +120,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
         <Text size="label" tone="muted">
           Preview
         </Text>
-        <Stack gap="row" className="rounded-card bg-ai-bubble p-block">
+        <Stack gap="row" className="rounded-base bg-ai-bubble p-block">
           <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes}>
             {preview}
           </Markdown>
