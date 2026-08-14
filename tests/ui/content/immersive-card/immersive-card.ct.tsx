@@ -113,5 +113,8 @@ test("the ROUTED delivery: a real navigation to frameSrc renders the served page
   // assertions can't give: reach INTO the null-origin iframe's own document.
   const frameHandle = await frame.elementHandle();
   const contentFrame = await frameHandle?.contentFrame();
-  await expect(contentFrame?.locator("p")).toHaveText("routed card body");
+  if (contentFrame === null || contentFrame === undefined) {
+    throw new Error("routed iframe has no content frame — navigation never completed");
+  }
+  await expect(contentFrame.locator("p")).toHaveText("routed card body");
 });
