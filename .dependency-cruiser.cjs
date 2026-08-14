@@ -315,6 +315,14 @@ module.exports = {
       to: { path: `${CLIENT}(agent-nav|agent-seed)/` },
     },
     {
+      name: "client-compose-door-only",
+      comment:
+        "client/src/compose/ is the DOOR'S OWN half, not a tier: it holds every registry assembly (the `registry-assembly-at-door-only` gate names main.tsx OR a compose/ module as the two legal call sites) and therefore imports every feature front door — the whole app. Since the #43 boot code-split it is reached through routes/router.tsx's lazy `/` boundary, which is what keeps the 3.4 MB feature graph out of the boot chunk an unauthenticated visitor downloads. Exactly three importers: main.tsx (the boot half), routes/router.tsx (the lazy boundary), and a compose/ sibling. Without this wall a feature could reach another feature's front door THROUGH the assembly module (features/x -> compose/authed-app -> features/chat) with every individual hop passing client-feature-front-door AND client-features-no-cross — the same backdoor client-composition-tier-door-only closes for agent-nav/agent-seed. (client-architecture-lockdown.md §5/§7.)",
+      severity: "error",
+      from: { path: CLIENT, pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}routes/router\\.tsx$`, `${CLIENT}compose/`] },
+      to: { path: `${CLIENT}compose/` },
+    },
+    {
       name: "client-components-tier",
       comment:
         "components/ (tier 2, domain-aware cross-feature composites) never imports UP into features/routes/main.tsx — a composite is consumed BY features, it never depends on one (client-architecture-lockdown.md §3/§16 G5).",
