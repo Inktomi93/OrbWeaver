@@ -179,53 +179,37 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
-## ═══ LIVE STATE (2026-08-13 — ⚠ TREE DIRTY + RED; fleet down; owner out sick) ═══
+## ═══ LIVE STATE (2026-08-14 \~05:30 — OVERNIGHT RUN, cold-resume snapshot at the 91% sentinel) ═══
 
-**⚠ STEP 0 — NOTHING DISPATCHES UNTIL THE TREE IS CLEAN.** Main is `e777c47e5` (7 ahead, unpushed, zero
-worktrees) but the WORKING TREE carries an **uncommitted, unrecorded vLLM thinking-checkpoint swap** (9
-files) that is **RED**: `pnpm vitest run tests/server/infra/providers/vllm/engine/build-argv.test.ts` =
-**4 failed / 25 passed** (verified 08-13). Lane worktrees spawn from HEAD, so lanes silently build
-against pre-swap code and any merge touching these paths collides. The swap moves gen off
-`Qwen/Qwen3-VL-8B-Instruct` to a local W8A8-int8 Qwen3.6-27B, bumps the vLLM pin `0.22`→`0.26`, and fires
-the dormant thinking-checkpoint playbook for real. Good work, half-landed. **Five findings, all STATIC
-(no GPU needed) — fix in place on main, ONE commit, no branch:**
+**Main \~55 commits ahead of origin (owner pushes himself). Tree CLEAN except Codex's untracked audit
+files (.codex/ gitignored; docs/reviews/repository-audit-* + scripts/audit/ + .agents/skills/* are
+CODEX'S, leave alone). STACK UP (localhost:5173→200, :8788 healthz ok) + FLEET UP on the 27B
+(19.04x concurrency, fixed jinja template, enable\_in\_reasoning:false — flag semantics were INVERTED,
+A/B receipts in build-argv.ts). ComfyUI stopped idle → `docker start comfyui` to restore.\*\*
 
-1. **`env/index.ts:81` — the presence-penalty change never landed.** Comment says *"1.5 → 0.0 with the
-   THINKING-checkpoint swap"*; the constant is still `1.5`. `surfaces/chat.ts` DID move its
-   `CARD_DEFAULT_PRESENCE_PENALTY` to `0.0`, but compose always injects the resolved getter, so the LIVE
-   wire still sends 1.5 — punishing a thinking model for reusing its own scratchpad, the exact failure
-   the comment describes. The updated test only covers the no-getter fallback, so it greens while live
-   behavior is unchanged. **Owes a test on the INJECTED-getter path.**
-2. **`env/index.ts:59` — comment vs value contradict.** Comment narrates *"0.6 → 0.55"* and mints a rule
-   (*"utils must stay near \~0.85 on a 2-card box"*); the constant is `0.8`. With embed at `0.1` that is
-   0.9/card, breaking the rule the comment just wrote. Pick one, rewrite the other.
-3. **`env/index.ts:44-46` — embed/rerank utils dropped to `0.1`** while the comment block still cites the
-   0.14/0.16/0.22 measurements that justified the old floors, including embed *actually* taking 7.68 GiB
-   (0.162 effective) at a 0.14 budget. `--enforce-eager` was added to both pooling engines which claws
-   some back, but the pairing is unverified. Re-justify or restore.
-4. **rerank topology is a confirmed TWO-HOME miss.** `build-argv.ts:379` now returns `"1"` (reversing
-   `4805fb0ba`); `wake-budget.ts:69-70` still pins rerank to GPU0 and its comment claims it *"mirrors
-   engineCudaVisibleDevices"* — now false. Wake budget reserves on the wrong card.
-   (\[\[vllm-concurrency-topology-tuning]])
-5. **Snapshot + assertion re-record:** `build-argv.test.ts` inline snapshot (new flags:
-   `--max-num-batched-tokens 2096`, `--max-num-seqs 150`, `--default-chat-template-kwargs`; `--dtype
-   bfloat16` REMOVED) and the topology assertion at `:331`.
-   **Undocumented, decide + write down:** `2096` is an odd batched-tokens value against 32768 max-model-len;
-   `--dtype` removal is probably right for compressed-tensors but unexplained in a file that explains every
-   other flag; and `enable_thinking:false` means thinking is OFF by default while every sampler around it
-   was retuned FOR thinking (defensible buy-per-call, but nowhere stated).
+**STILL RUNNING (2 lanes):** databank lenses+bankHealth (agent a811b7784ada5cb32 — rebases onto bus-2's
+use-databank-mutations.ts rewrite at merge; helpers listRead/detailRead/globalRead are DELETED, answer
+is busDriven) · staleness-2 W5+W7a (agent a11533cee105f8c80). **QUEUED:** W7b identityChanged + W8
+quiet-mode (unblocked NOW — bus-2 merged) · gates G-A/G-B/G-C/G-D (G-B starts from survey §2.3's
+plant-receipt; belt const is NEVER inert) · smalls batch · Codex final-synthesis re-sweep.
 
-**Not fixable statically:** whether the fleet boots and performs on these numbers. Supervised live window,
-stays owed. **⚠ FLEET STILL DOWN** (all 3 engines since 08-10 12:49 under score-sweep+backfill load on the
-98%-tight GPU0; state is the 08-10 claim carried forward, NOT re-probed 08-13).
+**MERGED OVERNIGHT (all hook-gated or branch-receipted, chronological):** WAVE-0 vLLM swap statics
+`c46e282ea` + tooling `348d3fa7a` · agents revamp (then maxTurns owner-BANNED, reverted `579f28161`) ·
+staleness design + W1-W4/W6 build `b0f3343e1` · PROD-LEAK `57b091d74` · rpg stat+rewind `73041bf59` ·
+bus survey + refineryChanged `7c7d14fa4`-era · residue strip (samplers per-request) · ast scan-ledger
+`d9f2d5726` · T2 PID-lock `8f54440` · T3 gate denominators `abd3f2fac` · SID-01 `6cf7ffc68` · character
+lenses `7605c5ee5` + type re-home `de6a5157c` · selector hot-reload `4720512e6` · chats eviction
+`181684772` · client bundle (settings phantom-scroll + follow-mode) `cd9e88406` · bus wave 2
+`b46281df4` (rulesChanged + databankChanged + corpusRecomputed; 32 STATIC self-cleans; G-B receipt).
+Draft-mode replacement DESIGNED (7 forks, morning sitting). Autosave inventory: NO leftovers;
+theme-editor fork for morning.
 
-**SICK-WINDOW POSTURE (08-13 → until owner returns).** Norovirus in the house; owner unavailable to
-oversee. Deltas from STANDING LAWS, in force until he lifts them: **static-verifiable work only** (no
-rendered-surface lenses, no GPU); **no fleet ops** (no `engines:start`, no `stack restart --force`, do NOT
-boot on the §3 util numbers); **no pushes** (standing law already needs a fresh word he can't give — main
-drifts further ahead, fine); **no DB wipe, no re-import** (owner-triggered by ruling); **no baseline-squashing
-schema changes** (drops the dev db). Owner-free queue = the LANE-READY rows below; everything under
-OWNER-GATED and LIVE-WINDOW VERIFICATION is parked by definition.
+**CLOSE-OUT OWED (after last 2 lanes):** consolidated `pnpm check` (read every exit) · `verify --push`
+FULL battery (value-changing lanes merged; owner HOLDS the push himself) · selector live receipt (restart
+→ flip summarize selector → wire-capture) · staleness live revoke probe · morning delta at board top.
+**MORNING OWNER PILE:** draft-mode F1-F7 · 33-proc intent sitting · longer-outputs numbers (cap
+inventory on board) · theme-editor autosave fork · fp8 stays BANNED · 3-strike auto-revoke on local
+endpoints (one-liner if unwanted) · Codex reply ledger (5 SHAs + verify commands, on the punch-list row).
 
 ### ═══ PRIOR (2026-08-10 — backfill PHASE-4 + refinery score-sweep fix) ═══
 
