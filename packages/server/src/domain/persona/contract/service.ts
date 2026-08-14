@@ -41,6 +41,14 @@ export interface PersonaContext {
    *  `emitUserEvent`, which only ever reaches the editor's own devices. Fire-and-forget + error-isolated by
    *  the bus; the two emits are a PAIR at every content write, never one or the other. */
   readonly emit: EmitDomainEvent;
+  /** PRE-WRITE reach capture for `remove` (the entity→room bridge's DELETE residual, design §3.6). A persona
+   *  delete NULLs every seat's `activePersonaId` and every chat's `anchorPersonaId`, so a post-write reach
+   *  (the `emit` path above) would resolve ∅ and no co-member would repaint — their roster identity would
+   *  stay stale until reload. Called BEFORE the delete, it snapshots the rooms this persona is live in while
+   *  the pointers still exist and returns a thunk that fans `roomEntityChanged` to that captured set; the verb
+   *  fires the thunk AFTER the row is confirmed gone. Live-only + error-isolated: it never rejects, so the
+   *  capture cannot fault the delete. A persona seated/anchored nowhere captures ∅ (a no-op thunk). */
+  readonly captureRoomReachForDelete: (personaId: PersonaId) => Promise<() => void>;
 
   readonly requireChatAuthorOrHost: (principal: Principal, chatId: ChatId, targetUserId: UserId) => Promise<void>;
   readonly setChatActivePersona: (chatId: ChatId, targetUserId: UserId, personaId: PersonaId | null) => Promise<void>;

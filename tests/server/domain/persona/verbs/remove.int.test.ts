@@ -2,14 +2,17 @@
 // character_personas rows vanish with it); a not-owned/missing target throws (no cross-user delete); a
 // real delete audits; the caller's LAST persona is refused (`last_persona` — the PD-100 always-one belt).
 
+import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { characterPersonas, personas } from "@orb/db";
 import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersonaService, LastPersonaError, PersonaNotFoundError } from "@orb/server/domain/persona";
+import { createDeleteReachCapture } from "@orb/server/entry/compose";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
 describe("remove", () => {
@@ -100,5 +103,46 @@ describe("remove", () => {
     await expect(svc.remove({ principal: principal(owner), personaId: only.id })).resolves.toEqual({
       deleted: true,
     });
+  });
+
+  // The entity→room bridge's DELETE residual (design §3.6): deleting a SEATED persona NULLs the seat, so a
+  // post-write reach would reach no member (stale until reload). The verb captures the reach PRE-write and fans
+  // the captured set past its own success guard. The room fan is wired here with the REAL composed capture over
+  // a live spy — an affordance a member's device actually receives.
+  test("a SEATED persona delete fans roomEntityChanged to the room it was live in", async () => {
+    const db = await freshDb();
+    const captured: LiveOnlyChatBusEvent[] = [];
+    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const h = makeHarness(db, { captureRoomReachForDelete: capture.persona });
+    const svc = createPersonaService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    // A second persona keeps the delete legal (the last-persona belt).
+    await svc.create({ principal: principal(owner), input: { name: "Keeper", description: "k" } });
+    const doomed = await svc.create({ principal: principal(owner), input: { name: "Doomed", description: "d" } });
+    const room = await seedChat(db, "seat");
+    await seedParticipant(db, { chatId: room, key: "del_seat", userId: owner, activePersonaId: doomed.id });
+
+    await svc.remove({ principal: principal(owner), personaId: doomed.id });
+
+    const fanned = captured.filter((e) => e.type === "roomEntityChanged" && e.entity === "persona").map((e) => e.chatId);
+    expect(fanned).toEqual([room]);
+    // The row is gone AND the room still heard it — proof the reach was snapshotted before the seat was NULLed.
+    expect(await db.select().from(personas).where(eq(personas.id, doomed.id))).toHaveLength(0);
+  });
+
+  test("a refused (NotFound) delete of a SEATED foreign persona fans NO room event — the thunk is past the guard", async () => {
+    const db = await freshDb();
+    const captured: LiveOnlyChatBusEvent[] = [];
+    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const h = makeHarness(db, { captureRoomReachForDelete: capture.persona });
+    const svc = createPersonaService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    const theirs = await svc.create({ principal: principal(other), input: { name: "Theirs", description: "d" } });
+    const room = await seedChat(db, "seat");
+    await seedParticipant(db, { chatId: room, key: "del_foreign_seat", userId: other, activePersonaId: theirs.id });
+
+    await expect(svc.remove({ principal: principal(owner), personaId: theirs.id })).rejects.toThrow(PersonaNotFoundError);
+    expect(captured).toEqual([]);
   });
 });

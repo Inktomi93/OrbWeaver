@@ -15,6 +15,7 @@ export type { ImageRefAssets } from "./resolve-image-ref.ts";
 export { resolveImageRefToUrl } from "./resolve-image-ref.ts";
 export type { RoleClientsBinderDeps } from "./role-clients.ts";
 export { bindRoleClientsForUser } from "./role-clients.ts";
-export { createRoomEntityFan } from "./room-reach.ts";
+export type { DeleteReachCapture } from "./room-reach.ts";
+export { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 export type { ServicesDeps, ServicesResult } from "./services.ts";
 export { createServices } from "./services.ts";
