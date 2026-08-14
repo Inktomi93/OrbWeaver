@@ -29,16 +29,28 @@ interface Violation {
   readonly line: number;
   readonly message: string;
 }
+/** Optional: absent in pre-2026-08-13 artifacts (pass.ts `GateScan`). */
+interface GateScanView {
+  readonly candidates: number;
+  readonly scanned: number;
+  readonly admitted: number;
+  readonly declared?: { readonly unit: string; readonly candidates: number; readonly scanned: number };
+}
 interface GateReport {
   readonly name: string;
   readonly ok: boolean;
   readonly violations: readonly Violation[];
+  readonly scan?: GateScanView;
 }
 interface StructureReport {
   readonly gates: readonly GateReport[];
   /** Optional: absent in pre-2026-08-03 artifacts. A gate that THREW (exit 2) — without rendering
    *  these, an ok:false report with zero violations displayed as inexplicably empty. */
   readonly toolErrors?: readonly { readonly gate: string; readonly phase: string; readonly message: string }[];
+  /** Optional: absent in pre-2026-08-13 artifacts. Gates that ran and read NOTHING — rendered here for the
+   *  same reason toolErrors are: this view is where the doctrine says to LOOK, so a signal missing here is
+   *  a signal nobody sees. */
+  readonly scanAlarms?: readonly string[];
   readonly total: number;
   readonly ok: boolean;
 }
@@ -116,8 +128,24 @@ function filteredViolations(g: GateReport, f: Filter): readonly Violation[] {
   return g.violations.filter((v) => v.file.toLowerCase().includes(needle));
 }
 
+/** The scan denominator behind a gate's verdict, for the artifact view. Absent on a pre-2026-08-13
+ *  artifact — printed as nothing rather than a fabricated zero. */
+function scanNote(scan: GateScanView | undefined): string {
+  if (scan === undefined) {
+    return "";
+  }
+  const parts = [`scanned ${scan.scanned}/${scan.candidates} files`];
+  if (scan.declared !== undefined) {
+    parts.push(`${scan.declared.scanned}/${scan.declared.candidates} ${scan.declared.unit}s`);
+  }
+  if (scan.admitted > 0) {
+    parts.push(`admitted-by-ratchet: ${scan.admitted}`);
+  }
+  return ANSI.dim(`  ·  ${parts.join(" · ")}`);
+}
+
 function printGate(g: GateReport, violations: readonly Violation[], f: Filter): void {
-  const header = `${g.ok ? ANSI.green("✓") : ANSI.red("✗")} ${ANSI.bold(g.name)} (${violations.length} violation${violations.length === 1 ? "" : "s"})`;
+  const header = `${g.ok ? ANSI.green("✓") : ANSI.red("✗")} ${ANSI.bold(g.name)} (${violations.length} violation${violations.length === 1 ? "" : "s"})${scanNote(g.scan)}`;
   print(header);
   if (f.errorsOnly || violations.length === 0) {
     print("");
@@ -138,17 +166,23 @@ function printGate(g: GateReport, violations: readonly Violation[], f: Filter): 
  *  rendered before the gate list so an otherwise-empty failing report explains itself. */
 function printVerdictAndToolErrors(report: StructureReport): void {
   const toolErrors = report.toolErrors ?? [];
+  const blind = report.scanAlarms ?? [];
   print(
     report.ok
       ? ANSI.green("✓ check:structure passed (filter view)\n")
       : ANSI.red(
-          `✗ check:structure FAILED — ${report.total} violation(s)${toolErrors.length > 0 ? ` + ${toolErrors.length} TOOL ERROR(S)` : ""} across its gates\n`,
+          `✗ check:structure FAILED — ${report.total} violation(s)${toolErrors.length > 0 ? ` + ${toolErrors.length} TOOL ERROR(S)` : ""}${blind.length > 0 ? ` + ${blind.length} BLIND GATE(S)` : ""} across its gates\n`,
         ),
   );
   for (const e of toolErrors) {
     print(`${ANSI.red("✗ TOOL ERROR")} ${ANSI.bold(e.gate)} [${e.phase}]  ${e.message}`);
   }
-  if (toolErrors.length > 0) {
+  for (const name of blind) {
+    print(
+      `${ANSI.red("✗ SCANNED ZERO FILES")} ${ANSI.bold(name)}  the gate ran and read nothing — its verdict is a placebo (scripts/check/GATE-AUTHORING.md §3).`,
+    );
+  }
+  if (toolErrors.length + blind.length > 0) {
     print("");
   }
 }
@@ -159,7 +193,11 @@ function main(): void {
   const filtersActive = filter.gate !== null || filter.file !== null;
 
   if (report.ok && !filtersActive) {
-    print(ANSI.green(`✓ check:structure passed — ${report.gates.length} gates, 0 violations`));
+    // The admitted total rides the PASS line: a ratchet baseline is declared debt a green run is still
+    // carrying, and "green" was the only thing this line said until 2026-08-13 (Codex GA-H-02).
+    const admitted = report.gates.reduce((n, g) => n + (g.scan?.admitted ?? 0), 0);
+    const debt = admitted > 0 ? ANSI.dim(` · ${admitted} finding(s) admitted by ratchet baselines`) : "";
+    print(`${ANSI.green(`✓ check:structure passed — ${report.gates.length} gates, 0 violations`)}${debt}`);
     process.exit(0);
   }
 

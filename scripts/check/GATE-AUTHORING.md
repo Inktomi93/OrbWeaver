@@ -84,6 +84,28 @@ arm is legitimate and takes the marker, not a conversion** — `baseui-derives-n
 exemption") and `schema-banned-shapes` (a ledger verdict's only escape is contesting the D-cite) are the
 worked precedents.
 
+**SCAN HEALTH — `ctx.scan`, and why a ✓ now carries a denominator** (2026-08-13, Codex GA-H-01/GA-H-02).
+The harness tallies, for EVERY gate, from the one walk: how many files the run offered (`candidates`), how
+many this gate's `scanRoot` admitted (`scanned`), how many a hook actually ran on (`visited`). They land on
+each gate's line (`✓ own-tables-only · scanned 915/4796 files`), in `reports/check-structure.json` under
+`gates[].scan`, and in `pnpm check:show`. No gate opts in and no descriptor field changed.
+
+- **`scanned === 0` at real-tree scope is a TOOL ERROR (exit 2), not a pass.** It renders `⚠ <gate> …
+  SCANNED ZERO FILES` and `report.ts` refuses the verdict. Every way of arriving there — a `scanRoot` that
+  stopped matching after a rename, the absolute-vs-repo-relative path bug in §3, a fileset the run never
+  loaded — was previously a SILENT ✓. Judged only at `report.ts`: a scoped run and a conformance
+  mini-project both legitimately hand a gate zero in-scope files (§4.5 — `scope.kind` cannot tell them
+  apart, so the entrypoint has to).
+- **`ctx.scan({ … })` is the opt-in half**, for the two things the harness structurally cannot see. It is a
+  context method, not a descriptor field, so all ~200 existing gates are untouched. Numerics accumulate.
+  - `admitted` — findings a committed RATCHET BUDGET absolved this run, printed as
+    `admitted-by-ratchet: N`. **Declared debt is not absence.** Both live ratchets declare it
+    (`density-tier`, `finding-overload-provenance`); any new baseline ratchet owes the same call, or its
+    population is knowable only by running the generator.
+  - `unit`/`candidates`/`scanned`/`skipped` — for a gate whose units are NOT workspace source files
+    (`dangling-refs` reads markdown: `ctx.scan({ unit: "doc", scanned: docs.length })`). Without it such a
+    gate's row reports a file count it never read, and it cannot distinguish itself from a blind gate.
+
 **AND THE PHASE MATTERS: a node-anchored report must not happen in `finalize`.** `gate-ignore-inventory`'s
 STALE sweep also runs in `finalize`, and gates finalize in load (filename) order — so a marker consumed
 after the sweep read its count is reported stale by mistake, which is the same author-hostile double-red.
@@ -303,6 +325,8 @@ against the real tree before inheriting it, and expect "already migrated" claims
 | isolation | every hook is guarded; a throw becomes a `ToolError` attributed to gate+phase and does NOT abort siblings |
 | ordering | findings canonical-sorted by (file, line, column, token, message) |
 | DORMANT | `status:"dormant"` ⇒ `runPass` skips it, `report.ts` never prints it, `check-gates.int`'s `DORMANT_GATES` must list it. Conformance still runs it as-active. The descriptor's `status` is ground truth; the doc table and the test set are MIRRORS |
+| scan health | every gate's `candidates`/`scanned`/`visited`/`admitted` are tallied from the same walk and printed on its line + written to `gates[].scan`. A gate declares extras via `ctx.scan` (§1) |
+| zero-scan alarm | `scanned === 0` (and nothing declared) at `report.ts` scope ⇒ `⚠ … SCANNED ZERO FILES`, `scanAlarms` in the artifact, exit 2. NOT applied by `scoped.ts` or conformance — their zeros are legitimate |
 | probe artifacts | findings on `__g_*` / `__dc_*` paths are stripped at the real-tree entrypoints (`report.ts`, `scoped.ts`) so a concurrent battery's transient fixtures can't red an independent run. `check-gates.int` opts out with `ORB_GATE_FIXTURES=1`. A gate whose fixture must live at a `__g_` path therefore CANNOT be fixture-driven — mark it `UNFIXTURABLE` |
 | conformance substrate | pure-AST ⇒ in-memory Project rooted at `/repo`; `fsBacked:true` ⇒ a real auto-cleaned temp dir |
 | scoped runs | `scoped.ts` runs only `incremental-safe` gates over the changed set — hence the `scopeSafety` trap in §1 |
@@ -327,7 +351,9 @@ against the real tree before inheriting it, and expect "already migrated" claims
 
 Run all of these before calling a gate done:
 
-1. `pnpm exec tsx scripts/check/report.ts` — the live pass. READ the full output.
+1. `pnpm exec tsx scripts/check/report.ts` — the live pass. READ the full output, **including your gate's
+   scan denominator** (`scanned N/M files`): a ✓ over a count you did not expect is the §3 scanRoot trap
+   mid-flight, and zero is a refused verdict.
 2. **Plant a REAL violation of the REAL shape** at a real path, watch it RED, remove it. Not a strawman: the
    machine proves the gate self-CONSISTENT, it cannot prove the examples are HONEST. A `mustFlag` that bites
    a toy while the real shape slips through is the failure mode.
