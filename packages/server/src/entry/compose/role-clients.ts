@@ -1,7 +1,38 @@
-// The single `RoleClients` binder the composition root mints: a bundle of pre-bound callables
+// The single `RoleClients` binder the composition root mints: a bundle of callables
 // (embed/rerank/imageEmbed/summarize) + their `*Model` provenance tags. Downstream never sees a credential
 // or picks a model — it calls `clients.embed(text)`. There is no vLLM-floor binder: a sync floor would
 // silently route workload roles to vLLM even when the user pinned OpenRouter.
+//
+// SELECTOR HOT-RELOAD (owner dogfood 2026-08-13: "summarization and other selectors besides chat-completion
+// require a server restart to take effect"). THE ASYMMETRY, source-derived: `connection.resolveRole` is
+// already per-call hot — it reads the user's `routing.roleDefaults` through `loadUserSettings`, which is an
+// uncached DB read (`domain/settings/verbs/load-user-settings.ts`). Chat therefore re-routes live, because
+// chat resolves its connection per TURN. The derive roles did not, because THIS binder called `resolveRole`
+// exactly FOUR TIMES — once, at boot (`entry/compose/services.ts` awaits one bundle and threads it into
+// embeddings / search / refinery / imagery / assets-character / chat) — and baked the resulting
+// `{credential, model}` into four closures. Nothing downstream was stale; the resolution was. The engine's
+// LAUNCH config (which models the local fleet serves, ports, utilization) legitimately stays restart-gated:
+// this file is the app's role ROUTING, not the fleet's serve config.
+//
+// THE FIX IS PER-CALL RESOLUTION, not an invalidation hook. A hook set is an ENUMERATION of write seams
+// (`updateUserSettingsSection`, the settings import, every credential mutation, a users-row role change) and
+// the one seam nobody enumerated is exactly where the restart requirement silently comes back. Per-call is
+// TOTAL by construction. It costs one settings read + one credential resolve per provider call — both local
+// sqlite reads in front of a network round trip that is three orders of magnitude longer — so there is no
+// TTL here and no cache to invalidate.
+//
+// The `*Model` / `summarizerContextTokens` fields are GETTERS over the most recent resolution (seeded by the
+// bind below so the composition root can read them while wiring, refreshed by every call). They are read at
+// REQUEST time by the vector-space taggers (`domain/embeddings`, `domain/search`, the indexer handlers), so
+// a getter makes the provenance tag follow the routing instead of contradicting it.
+//
+// PRESERVED FROM THE PRIOR RULING (this file, "One resolve per bundle … a per-role re-resolve would let one
+// bundle straddle two verdicts"): the anti-straddle mechanism is intact — a principal is resolved ONCE per
+// RESOLUTION PASS and every role in that pass sees it. The bind pass resolves one principal for all four
+// roles; a live call resolves one principal for its one role. No pass ever mixes two verdicts. What the old
+// wording additionally implied — that a bundle's verdict is frozen for the bundle's LIFETIME — is what the
+// owner reported as the defect, and a request-time re-read of `users.role` is also the stricter half of
+// D135 clause G (a demotion applies to the next call, not the next boot).
 //
 // D135 clause G — THIS FILE MINTS NO PRINCIPAL AND STAMPS NO ROLE. It used to build one inline with a
 // literal `role:"owner"` over whatever `UserId` it was handed, which was fine while the only caller was
@@ -17,6 +48,7 @@
 // The binder now RESOLVES the caller through the one row→`Principal` home (`entry/auth/seam.ts`), so its
 // principal reads `users.role` like every other path.
 
+import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, ResponseFormat, StructuredOutputVehicle, SummarizeInput } from "@orb/contracts/role-clients";
@@ -86,55 +118,90 @@ function resolveVehicle(format: ResponseFormat, deployment: StructuredOutputVehi
   return { ...format, vehicle: modelDoesStructured ? "response-format" : "forced-tool" };
 }
 
+/** The four derive roles this bundle serves. `structured` is not a member: it is the `summarize` facade's
+ *  constrained arm and rides the SAME resolved summarize connection (owner ruling 2026-07-27). */
+const DERIVE_ROLES = ["embed", "rerank", "imageEmbed", "summarize"] as const;
+type DeriveRole = (typeof DERIVE_ROLES)[number];
+
+/** The most recent resolution per role — the backing store for both the per-call dispatch and the sync
+ *  provenance getters. Mutable by construction: it IS the hot-reload. */
+type RoleSnapshot = { [K in DeriveRole]: ResolvedConnection };
+
 /**
- * Bind a `RoleClients` bundle for one user by resolving each derive-role's `{credential, model}` once via
- * `connection.resolveRole`, then binding a callable per role over the executor.
+ * Bind a `RoleClients` bundle for one user. Each callable resolves its role's `{credential, model}` through
+ * `connection.resolveRole` AT CALL TIME, so a settings write that re-points a role governs the very next
+ * call with no restart (see the header for why this is per-call rather than an invalidation hook).
  *
- * The `ownerId` name is the CALLER's word for the bundle's subject, never an authority claim: what the four
- * `resolveRole` calls see is whatever `deps.resolvePrincipal` reads off that user's row. One resolve per
- * bundle, shared by all four roles — a per-role re-resolve would let one bundle straddle two verdicts.
+ * The `ownerId` name is the CALLER's word for the bundle's subject, never an authority claim: what every
+ * `resolveRole` call sees is whatever `deps.resolvePrincipal` reads off that user's row, re-read per
+ * resolution pass. One principal per pass, shared by every role in it — a pass never straddles two verdicts.
+ *
+ * The initial bind resolves all four roles eagerly: the composition root reads `embedModel` /
+ * `summarizerContextTokens` synchronously while wiring, so the snapshot must be populated before the bundle
+ * is handed out — and a role that cannot resolve at all should fail the boot, not the first search.
  */
 export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerId: UserId): Promise<RoleClientsWithSignal> {
-  const principal = await deps.resolvePrincipal(ownerId);
-  const [embedConn, rerankConn, imageEmbedConn, summarizeConn] = await Promise.all([
-    deps.connection.resolveRole({ role: "embed", principal }),
-    deps.connection.resolveRole({ role: "rerank", principal }),
-    deps.connection.resolveRole({ role: "imageEmbed", principal }),
-    deps.connection.resolveRole({ role: "summarize", principal }),
-  ]);
+  const bindPrincipal = await deps.resolvePrincipal(ownerId);
+  const [embedConn, rerankConn, imageEmbedConn, summarizeConn] = await Promise.all(
+    DERIVE_ROLES.map((role) => deps.connection.resolveRole({ role, principal: bindPrincipal })),
+  );
+  // `Promise.all` over a fixed-length tuple source still widens to `(T|undefined)[]` under
+  // noUncheckedIndexedAccess; the four are present by construction (one per DERIVE_ROLES member).
+  if (embedConn === undefined || rerankConn === undefined || imageEmbedConn === undefined || summarizeConn === undefined) {
+    throw new Error("compose: the role-clients bind resolved fewer connections than there are derive roles");
+  }
+  const snapshot: RoleSnapshot = { embed: embedConn, rerank: rerankConn, imageEmbed: imageEmbedConn, summarize: summarizeConn };
+
+  /** Re-resolve ONE role for the CURRENT settings + the CURRENT users row, and publish it to the snapshot the
+   *  provenance getters read. Every callable below goes through this — there is no other path to a
+   *  credential/model, so a future role cannot forget to be hot. */
+  const live = async (role: DeriveRole): Promise<ResolvedConnection> => {
+    const principal = await deps.resolvePrincipal(ownerId);
+    const resolved = await deps.connection.resolveRole({ role, principal });
+    snapshot[role] = resolved;
+    return resolved;
+  };
+
   return {
-    embed: (input: string | string[], opts?: { inputType?: "query" | "document"; instruction?: string }): Promise<EmbedResult> =>
-      deps.executor.embed({
-        credential: embedConn.credential,
-        model: embedConn.model,
+    embed: async (input: string | string[], opts?: { inputType?: "query" | "document"; instruction?: string }): Promise<EmbedResult> => {
+      const conn = await live("embed");
+      return deps.executor.embed({
+        credential: conn.credential,
+        model: conn.model,
         input,
         ...(opts?.inputType !== undefined ? { inputType: opts.inputType } : {}),
         ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}),
-      }),
-    rerank: (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }): Promise<RerankResult> =>
-      deps.executor.rerank({
-        credential: rerankConn.credential,
-        model: rerankConn.model,
+      });
+    },
+    rerank: async (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }): Promise<RerankResult> => {
+      const conn = await live("rerank");
+      return deps.executor.rerank({
+        credential: conn.credential,
+        model: conn.model,
         query,
         documents,
         ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}),
-      }),
-    imageEmbed: (req: ImageEmbedInput): Promise<ImageEmbedResult> =>
-      deps.executor.imageEmbed({
-        credential: imageEmbedConn.credential,
-        model: imageEmbedConn.model,
+      });
+    },
+    imageEmbed: async (req: ImageEmbedInput): Promise<ImageEmbedResult> => {
+      const conn = await live("imageEmbed");
+      return deps.executor.imageEmbed({
+        credential: conn.credential,
+        model: conn.model,
         input: req,
-      }),
+      });
+    },
     // ONE facade, TWO wire roles (owner ruling 2026-07-27 — summarize is summarization, structured is
     // schema-constrained generation). A caller passing `responseFormat` genuinely wants CONSTRAINED output →
     // route it to the `structured` role; a plain call is real summarization → `summarize`. Callers are
     // unchanged (the facade name stays `summarize`), but the WIRE role + its observability tag + its firewall
     // row are now HONEST — a debugging session filters `provider.structured-item` for constrained calls.
     // The caller's cancellation (a chat turn's active-turn handle) rides straight onto either role's request.
-    summarize: (inputs: SummarizeInput[], opts?: SummarizeCallOptions): Promise<SummarizeResult> => {
+    summarize: async (inputs: SummarizeInput[], opts?: SummarizeCallOptions): Promise<SummarizeResult> => {
+      const conn = await live("summarize");
       const common = {
-        credential: summarizeConn.credential,
-        model: summarizeConn.model,
+        credential: conn.credential,
+        model: conn.model,
         inputs,
         ...(opts?.signal !== undefined ? { signal: opts.signal } : {}),
         ...summarizeSamplerFields(opts),
@@ -142,15 +209,28 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
       return opts?.responseFormat !== undefined
         ? deps.executor.structured({
             ...common,
-            responseFormat: resolveVehicle(opts.responseFormat, deps.structuredOutputVehicle(), summarizeConn.capability.output.structured === true),
+            responseFormat: resolveVehicle(opts.responseFormat, deps.structuredOutputVehicle(), conn.capability.output.structured === true),
           })
         : deps.executor.summarize(common);
     },
-    embedModel: embedConn.model,
-    rerankModel: rerankConn.model,
-    imageEmbedModel: imageEmbedConn.model,
-    summarizerModel: summarizeConn.model,
+    // GETTERS, not baked values: these are the provenance/space tags the vector writers stamp rows with, and
+    // they are read at REQUEST time. Reading them off the live snapshot is what keeps a row's `model` column
+    // agreeing with the model that actually produced the vector after a role re-point.
+    get embedModel(): string {
+      return snapshot.embed.model;
+    },
+    get rerankModel(): string {
+      return snapshot.rerank.model;
+    },
+    get imageEmbedModel(): string {
+      return snapshot.imageEmbed.model;
+    },
+    get summarizerModel(): string {
+      return snapshot.summarize.model;
+    },
     // A catalog with no real window (0) falls back to the conservative floor.
-    summarizerContextTokens: summarizeConn.capability.context.window || SUMMARIZER_CONTEXT_FALLBACK,
+    get summarizerContextTokens(): number {
+      return snapshot.summarize.capability.context.window || SUMMARIZER_CONTEXT_FALLBACK;
+    },
   };
 }
