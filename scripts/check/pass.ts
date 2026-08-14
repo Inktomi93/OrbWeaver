@@ -4,15 +4,51 @@
 // Every visit/run/finalize call is wrapped per-gate: a throw becomes a ToolError attributed to the
 // gate+phase and does NOT abort the sibling gates. Findings are canonical-sorted here so output is
 // deterministic.
+//
+// It also tallies PER-GATE SCAN HEALTH (`GateScan`) from that same walk — the denominator behind every
+// verdict, so a gate that read nothing can no longer render ✓ (`zeroScanGates`).
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { getWorkspace } from "../ts-workspace.ts";
-import type { Finding, GateDescriptor, GateRunCtx, Scope } from "./contract.ts";
+import type { Finding, GateDescriptor, GateRunCtx, GateScanDeclaration, Scope } from "./contract.ts";
+
+/** A gate's own count of units the shared walk cannot see (`ctx.scan({unit,…})`). Reachable to consumers
+ *  as `GateScan["declared"]` — kept unexported so it isn't a nameless orphan export. */
+type DeclaredScan = {
+  readonly unit: string;
+  readonly candidates: number;
+  readonly scanned: number;
+  readonly skipReasons: Readonly<Record<string, number>>;
+};
+
+/** PER-GATE SCAN HEALTH — the DENOMINATOR behind a gate's verdict, recorded by the harness for every
+ *  gate from the one walk (no gate opts in). Without it a `scanRoot`/predicate regression is invisible:
+ *  the gate runs, reads NOTHING, finds nothing, and renders ✓ — the zero-scan placebo. `scanned === 0`
+ *  at real-tree scope is therefore a BROKEN CHECKER (report.ts exits 2), not a clean gate. */
+export type GateScan = {
+  /** Files this run offered to the walk (the whole scoped fileset) — the denominator. */
+  readonly candidates: number;
+  /** Files this gate's `scanRoot` ADMITTED. This is the number the zero-scan alarm reads. */
+  readonly scanned: number;
+  /** `candidates - scanned`. */
+  readonly skipped: number;
+  /** Why they were skipped. The harness knows exactly one reason; gates add their own via `ctx.scan`. */
+  readonly skipReasons: Readonly<Record<string, number>>;
+  /** Files a hook ACTUALLY ran on (`visitFile` called, or ≥1 subscribed node dispatched). Read it BESIDE
+   *  `scanned`, never instead: a `run`-only gate walks the project itself, so 0 here is normal for it,
+   *  while `visited === 0` with `scanned` large on a visit/visitFile gate means a dead kind subscription. */
+  readonly visited: number;
+  /** Findings a committed ratchet BUDGET absolved this run — declared debt, not violations. */
+  readonly admitted: number;
+  /** Present only when the gate declared units of its own. */
+  readonly declared?: DeclaredScan;
+};
 
 export type GatePassResult = {
   readonly name: string;
   readonly ok: boolean;
   readonly findings: readonly Finding[];
+  readonly scan: GateScan;
 };
 
 export type ToolError = {
@@ -77,13 +113,70 @@ export function canonicalSort(findings: readonly Finding[]): Finding[] {
   });
 }
 
-/** Per-gate run state: the descriptor, its private finding sink, and the context whose `report` drains
- *  into that sink. Carried together so no phase has to re-look-up either (avoids non-null assertions). */
+/** The mutable scan tally one gate accumulates during a pass — the harness-observed half (`scanned`,
+ *  `visited`) plus whatever the gate declared through `ctx.scan`. Folded into the immutable `GateScan`
+ *  at the end of `runPass`. */
+type ScanState = {
+  scanned: number;
+  visited: number;
+  /** The last file a hook ran on, so `visited` counts FILES and not dispatched nodes (the walk hands one
+   *  gate thousands of nodes from the same file). */
+  lastVisited: string;
+  admitted: number;
+  unit: string | undefined;
+  declaredCandidates: number;
+  declaredScanned: number;
+  declaredSkip: Record<string, number>;
+};
+
+/** Per-gate run state: the descriptor, its private finding sink, its scan tally, and the context whose
+ *  `report`/`scan` drain into them. Carried together so no phase has to re-look-up either (avoids
+ *  non-null assertions). */
 type GateRun = {
   readonly gate: GateDescriptor;
   readonly sink: Finding[];
+  readonly scan: ScanState;
   readonly ctx: GateRunCtx;
 };
+
+/** Fold one `ctx.scan(...)` declaration into the gate's tally. Numerics ACCUMULATE (a gate may declare
+ *  per batch); `unit` is last-wins. Nothing here can lower a harness-observed count. */
+function acceptDeclaration(state: ScanState, counts: GateScanDeclaration): void {
+  state.admitted += counts.admitted ?? 0;
+  state.declaredScanned += counts.scanned ?? 0;
+  state.declaredCandidates += counts.candidates ?? counts.scanned ?? 0;
+  if (counts.unit !== undefined) {
+    state.unit = counts.unit;
+  }
+  for (const [reason, n] of Object.entries(counts.skipped ?? {})) {
+    state.declaredSkip[reason] = (state.declaredSkip[reason] ?? 0) + n;
+  }
+}
+
+const DEFAULT_DECLARED_UNIT = "unit";
+
+/** The gate's finished scan record: the harness's own file counts, plus a `declared` block only when the
+ *  gate actually declared units of its own. */
+function finishScan(state: ScanState, candidates: number): GateScan {
+  const skipped = candidates - state.scanned;
+  const declaresUnits = state.declaredScanned > 0 || state.declaredCandidates > 0 || state.unit !== undefined;
+  const declared: DeclaredScan = {
+    unit: state.unit ?? DEFAULT_DECLARED_UNIT,
+    candidates: Math.max(state.declaredCandidates, state.declaredScanned),
+    scanned: state.declaredScanned,
+    skipReasons: state.declaredSkip,
+  };
+  return {
+    candidates,
+    scanned: state.scanned,
+    skipped,
+    skipReasons: skipped > 0 ? { "out-of-scanRoot": skipped } : {},
+    visited: state.visited,
+    admitted: state.admitted,
+    // exactOptionalPropertyTypes: the key exists only when the gate declared something.
+    ...(declaresUnits ? { declared } : {}),
+  };
+}
 
 /** Is this a ts-morph Node (vs an explicit Finding literal)? Nodes expose `getSourceFile`; a Finding
  *  is a plain object without it. */
@@ -305,8 +398,18 @@ function findGateIgnore(node: Node, gateName: string, token: string | undefined)
   return line;
 }
 
-function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report">): GateRun {
+function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | "scan">): GateRun {
   const sink: Finding[] = [];
+  const scan: ScanState = {
+    scanned: 0,
+    visited: 0,
+    lastVisited: "",
+    admitted: 0,
+    unit: undefined,
+    declaredCandidates: 0,
+    declaredScanned: 0,
+    declaredSkip: {},
+  };
   const report = (nodeOrFinding: Node | Finding, atToken?: { readonly token: string; readonly offset: number }): void => {
     if (!isNode(nodeOrFinding)) {
       sink.push(nodeOrFinding);
@@ -330,7 +433,10 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report">):
     const { line, column } = locateToken(node, atToken.offset);
     sink.push({ file, line, column, token: atToken.token });
   };
-  return { gate, sink, ctx: { ...ctxBase, report: report as GateRunCtx["report"] } };
+  const declare = (counts: GateScanDeclaration): void => {
+    acceptDeclaration(scan, counts);
+  };
+  return { gate, sink, scan, ctx: { ...ctxBase, report: report as GateRunCtx["report"], scan: declare } };
 }
 
 function guard(gate: string, phase: ToolError["phase"], errors: ToolError[], fn: () => void): void {
@@ -365,19 +471,59 @@ function indexByKind(runs: readonly GateRun[]): Map<SyntaxKind, GateRun[]> {
   return byKind;
 }
 
-/** One file's node walk — dispatch each descendant to the in-scanRoot subscribers of its kind. */
-function walkFile(sf: SourceFile, rel: string, byKind: ReadonlyMap<SyntaxKind, readonly GateRun[]>, errors: ToolError[]): void {
+/** Record that a hook actually ran on this file. Files are processed one at a time, so a gate's
+ *  dispatches for one file are contiguous — comparing against the last one counts FILES, not nodes. */
+function markVisited(run: GateRun, sf: SourceFile): void {
+  const path = sf.getFilePath();
+  if (run.scan.lastVisited !== path) {
+    run.scan.lastVisited = path;
+    run.scan.visited += 1;
+  }
+}
+
+/** One file's node walk — dispatch each descendant to the in-scanRoot subscribers of its kind. The
+ *  in-scope membership is resolved ONCE per file by the caller (it is also the scan-health tally), so the
+ *  hot loop does a Set hit instead of re-running every gate's scanRoot predicate per node. */
+function walkFile(sf: SourceFile, byKind: ReadonlyMap<SyntaxKind, readonly GateRun[]>, errors: ToolError[], inScope: ReadonlySet<GateRun>): void {
   sf.forEachDescendant((node) => {
     const subs = byKind.get(node.getKind());
     if (subs === undefined) {
       return;
     }
     for (const run of subs) {
-      if (inRoot(run.gate, rel)) {
+      if (inScope.has(run)) {
+        markVisited(run, sf);
         guard(run.gate.name, "visit", errors, () => runVisit(run, node, sf));
       }
     }
   });
+}
+
+/** The per-FILE phase: for each file resolve which gates its path is in scanRoot for (ONE predicate
+ *  evaluation per gate/file — the scan tally and the dispatch membership are the same question), then run
+ *  the `visitFile` hooks and the node walk for exactly those gates. */
+function runFilePhase(runs: readonly GateRun[], ctxBase: Omit<GateRunCtx, "report" | "scan">, errors: ToolError[]): void {
+  const byKind = indexByKind(runs);
+  const fileRuns = runs.filter((run) => run.gate.visitFile !== undefined);
+  for (const sf of ctxBase.files) {
+    const rel = repoRel(ctxBase.root, sf.getFilePath());
+    const inScope = new Set<GateRun>();
+    for (const run of runs) {
+      if (inRoot(run.gate, rel)) {
+        inScope.add(run);
+        run.scan.scanned += 1;
+      }
+    }
+    for (const run of fileRuns) {
+      if (inScope.has(run)) {
+        markVisited(run, sf);
+        guard(run.gate.name, "visitFile", errors, () => run.gate.visitFile?.(sf, run.ctx));
+      }
+    }
+    if (byKind.size > 0) {
+      walkFile(sf, byKind, errors, inScope);
+    }
+  }
 }
 
 function runVisit(run: GateRun, node: Node, sf: SourceFile): void {
@@ -386,7 +532,7 @@ function runVisit(run: GateRun, node: Node, sf: SourceFile): void {
 
 /** The pass over a given descriptor set and fileset. Each node is touched once; only subscribed gates
  *  see it. Whole-project `run` gates get their declared pass over the SAME project. */
-export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunCtx, "report">): PassResult {
+export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunCtx, "report" | "scan">): PassResult {
   gateIgnoreUses.clear();
   gateIgnoreLateUse = false;
   const runs: readonly GateRun[] = gates.filter((g) => g.status === "active").map((g) => makeGateRun(g, ctxBase));
@@ -396,20 +542,7 @@ export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunC
     guard(run.gate.name, "begin", errors, () => run.gate.begin?.(run.ctx));
   }
 
-  const byKind = indexByKind(runs);
-  const fileRuns = runs.filter((run) => run.gate.visitFile !== undefined);
-
-  for (const sf of ctxBase.files) {
-    const rel = repoRel(ctxBase.root, sf.getFilePath());
-    for (const run of fileRuns) {
-      if (inRoot(run.gate, rel)) {
-        guard(run.gate.name, "visitFile", errors, () => run.gate.visitFile?.(sf, run.ctx));
-      }
-    }
-    if (byKind.size > 0) {
-      walkFile(sf, rel, byKind, errors);
-    }
-  }
+  runFilePhase(runs, ctxBase, errors);
 
   for (const run of runs) {
     if (run.gate.run !== undefined) {
@@ -422,7 +555,7 @@ export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunC
 
   const results: GatePassResult[] = runs.map((run) => {
     const findings = canonicalSort(run.sink);
-    return { name: run.gate.name, ok: findings.length === 0, findings };
+    return { name: run.gate.name, ok: findings.length === 0, findings, scan: finishScan(run.scan, ctxBase.files.length) };
   });
   return { gates: results, toolErrors: errors };
 }
@@ -438,13 +571,33 @@ export const PROBE_ARTIFACT_RE = /(^|\/)__(?:g|dc)_/u;
 export function stripProbeFindings(pass: PassResult): PassResult {
   const gates = pass.gates.map((g) => {
     const findings = g.findings.filter((f) => !PROBE_ARTIFACT_RE.test(f.file));
-    return findings.length === g.findings.length ? g : { name: g.name, ok: findings.length === 0, findings };
+    return findings.length === g.findings.length ? g : { name: g.name, ok: findings.length === 0, findings, scan: g.scan };
   });
   return { gates, toolErrors: pass.toolErrors };
 }
 
+/** THE ZERO-SCAN PLACEBO (Codex GA-H-01): a gate that ran, read NOTHING, and rendered ✓. Its verdict is
+ *  vacuous, and every failure mode that produces it — a `scanRoot` predicate that stopped matching after a
+ *  rename, an absolute path compared against a repo-relative one (GATE-AUTHORING.md §3), a fileset the run
+ *  never loaded — is SILENT by construction. A gate reading non-file units escapes by declaring them
+ *  (`ctx.scan({unit,scanned})`); nothing else does.
+ *
+ *  Judged ONLY at the real-tree entrypoint (report.ts), never inside runPass: a SCOPED run legitimately
+ *  offers a gate zero in-scope files, and conformance's synthetic mini-projects are `scope.kind:"project"`
+ *  too (§4.5) — so the scope field cannot tell them apart and the entrypoint has to. */
+export function zeroScanGates(pass: PassResult): readonly string[] {
+  return pass.gates.filter((g) => isBlindScan(g.scan)).map((g) => g.name);
+}
+
+/** Did this gate read NOTHING — no in-scanRoot file and no unit of its own? ONE spelling, shared by the
+ *  alarm (`zeroScanGates`) and the renderer, so the loud line and the refused exit can never disagree. */
+export function isBlindScan(scan: GateScan): boolean {
+  const declared = scan.declared === undefined ? 0 : scan.declared.scanned;
+  return scan.scanned === 0 && declared === 0;
+}
+
 /** Build a full-project run context over the shared workspace (the default `pnpm check:structure` run). */
-export function projectCtx(root: string): Omit<GateRunCtx, "report"> {
+export function projectCtx(root: string): Omit<GateRunCtx, "report" | "scan"> {
   const project = getWorkspace({ root });
   const scope: Scope = { kind: "project" };
   let checker: ReturnType<GateRunCtx["checker"]> | undefined;
