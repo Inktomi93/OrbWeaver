@@ -1,7 +1,7 @@
 // domain/automation/persistence/fires — the `automation_fires` log: audit + budget counting + testRun
-// provenance (04 §1). A4 writes the `test_run` row (from `testRule`) and reads the log (`listFires`); the
-// dispatch terminals (fired/predicate_*/budget_refused/…) are the A5 engine's writes through the same
-// `insertFire`. `detail` is open JSON, read-seam parsed onto the view.
+// provenance. The rule-lifecycle slice writes the `test_run` row (from `testRule`) and reads the log
+// (`listFires`); the dispatch terminals (fired/predicate_*/budget_refused/…) are the engine's writes through
+// the same `insertFire`. `detail` is open JSON, read-seam parsed onto the view.
 
 import type { AutomationFireOutcome } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
@@ -52,7 +52,7 @@ export async function listFiresForRule(db: Db, ruleId: AutomationRuleId, limit: 
 }
 
 /** Count the actual FIRES (`outcome='fired'`) for a rule since `sinceMs` — the per-rule/hour budget source
- *  (04 §1: the fire log IS the count source, on the `(rule_id, fired_at)` index). */
+ *  (the fire log IS the count source, on the `(rule_id, fired_at)` index). */
 export async function countRuleFiresSince(db: Db, ruleId: AutomationRuleId, sinceMs: number): Promise<number> {
   const rows = await db
     .select({ count: sql<number>`count(*)` })

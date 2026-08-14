@@ -257,9 +257,9 @@ export interface TurnPrep {
    *  caller (Principal.userId) never reaches this path. */
   readonly triggeredBy: UserId;
   readonly runAsUserId: UserId;
-  /** The turn's origin (automation-design/03 §4 — the cascade guard's non-human-initiator seam). Absent ⇒
+  /** The turn's origin (the cascade guard's non-human-initiator seam). Absent ⇒
    *  a human turn (`'human'`/depth 0 — the DB column defaults), so every human/character/agent verb stays
-   *  byte-identical. An automation `requestTurn` (A6) threads `'automation'` + `parentDepth + 1`; the engine
+   *  byte-identical. An automation `requestTurn` threads `'automation'` + `parentDepth + 1`; the engine
    *  stamps both onto the reply slot (new-slot only — a swipe/continue re-voices nothing), and `getTurnOrigin`
    *  reads them back. NOT a bus-event field (the D19/D50 allowlist). */
   readonly initiator?: TurnInitiator | undefined;

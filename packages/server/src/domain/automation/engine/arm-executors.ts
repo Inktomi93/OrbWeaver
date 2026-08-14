@@ -1,4 +1,4 @@
-// domain/automation/engine/arm-executors — the ARM DISPATCHER (03; A6). ONE `runArm` function that switches on
+// domain/automation/engine/arm-executors — the ARM DISPATCHER. ONE `runArm` function that switches on
 // the CLEAN `AutomationActionType` string union (NOT `action.type`) with `default: never` as the exhaustiveness
 // pin (a new action type fails `tsc`), NO suppression. Why a switch and not the spine-§5.5 mapped-type Record:
 // (1) biome's `noUnnecessaryConditions` cannot narrow a `z.infer` zod discriminated union — PROVEN via scratch
@@ -9,11 +9,11 @@
 // property names). The per-arm `as Extract<>` cast at each case is the price of narrowing off the string union,
 // not the object union — sound by construction. Each live arm renders its templates (the ONE `renderArmTemplate`
 // home — test/live parity) then dispatches through an INJECTED cross-feature op (`deps.ops`, wired at
-// entry/compose — one-directional flow). `trigger_turn` is WIRED (its chat `requestTurn` seam landed — §AC-B) and
+// entry/compose — one-directional flow). `trigger_turn` is WIRED (its chat `requestTurn` seam landed) and
 // dispatches a real autonomous turn; the sole v1-unwired arm is `transform_draft` (it registers into the prompt
-// PIPELINE (A7), it never dispatches here) and the three reserved arms — both return a TYPED REFUSAL, never a
+// PIPELINE, it never dispatches here) and the three reserved arms — both return a TYPED REFUSAL, never a
 // fabricated success. A refusal is an `arm_error`. The first non-ok outcome aborts the rule's remaining arms
-// (04 §3 step 5).
+// (dispatch step 5).
 
 import type { AutomationAction } from "@orb/contracts/automation";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
@@ -28,9 +28,9 @@ import { renderArmTemplate } from "../substrate/macro-render.ts";
 const DECIMAL_RADIX = 10;
 const DEFAULT_INC_DEC_OPERAND = 1;
 /** A rule's `insert_world_info_entry` entries are title-namespaced by the ruleId so a re-upsert with the same
- *  `entryKey` UPDATES its own prior entry (03 §1.3) and two rules never collide on one title. */
+ *  `entryKey` UPDATES its own prior entry and two rules never collide on one title. */
 const AUTO_ENTRY_TITLE_PREFIX = "auto/";
-/** The per-rule ≤64-entries-per-book cap (03 §1.3) — a looping inserter fills a book otherwise. */
+/** The per-rule ≤64-entries-per-book cap — a looping inserter fills a book otherwise. */
 const RULE_MAX_ENTRIES_PER_BOOK = 64;
 
 const OK: ArmOutcome = { ok: true };
@@ -59,7 +59,7 @@ async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationA
   if (op === "delete") {
     if (scope === "chat") {
       await deps.ops.chat.applyVariableOps(frame.chatId, [{ op: "delete", key }]);
-      // WRITE-THROUGH (03 §0 / 04 §3 — arms mutate the SHARED env; order IS semantics): the CEL env is built
+      // WRITE-THROUGH (arms mutate the SHARED env; order IS semantics): the CEL env is built
       // once per chat per batch and cached. The DB delta alone is invisible to later arms + later rules on the
       // same chat this batch, so mirror the delete onto the shared in-memory `vars` (a delete is `has()`-false).
       delete frame.env.vars[key];
@@ -105,7 +105,7 @@ async function runInsertWorldInfo(
   action: Extract<AutomationAction, { type: "insert_world_info_entry" }>,
   frame: DispatchFrame,
 ): Promise<ArmOutcome> {
-  // The book must be attached to the rule's chat — the attachment IS the room's consent (03 §1.3).
+  // The book must be attached to the rule's chat — the attachment IS the room's consent.
   if (!(await isBookAttachedToChat(deps.db, frame.chatId, action.bookId))) {
     return armError(`book ${action.bookId} is not attached to this chat`);
   }
@@ -137,8 +137,8 @@ function runSurfaceQuickReply(deps: ArmExecutorDeps, action: Extract<AutomationA
     }
     choices.push({ label: choice.label, sendText: rendered.text });
   }
-  // The one MEMBER-visible automation-bus event (04 §5) — rendered display strings, no row (the chips are
-  // transient). The `notify` sink is wired at compose to `publishAutomationEvent` (A8b), which fans this to the
+  // The one MEMBER-visible automation-bus event — rendered display strings, no row (the chips are
+  // transient). The `notify` sink is wired at compose to `publishAutomationEvent`, which fans this to the
   // chat's `automation.stream` subscribers; the client renders it as transient chips above the composer.
   deps.notify({ type: "quickReplySurfaced", chatId: frame.chatId, source: { kind: "rule", ruleId: frame.origin.ruleId }, choices });
   return OK;
@@ -156,7 +156,7 @@ async function runPostNotification(
   }
   // The rendered output can expand past the template cap; the `automation-notice` member caps the wire string.
   const message = rendered.text.slice(0, AUTOMATION_NOTICE_MESSAGE_MAX);
-  // host = the rule author (v1 authors ARE hosts — 03 §2); all_members = the present human roster.
+  // host = the rule author (v1 authors ARE hosts); all_members = the present human roster.
   const recipients = action.recipient === "host" ? [frame.authorUserId] : await loadPresentHumanMemberIds(deps.db, frame.chatId);
   const source = { kind: "rule", ruleId: frame.origin.ruleId } as const;
   await Promise.all(
@@ -171,7 +171,7 @@ async function runGenerateImage(
   action: Extract<AutomationAction, { type: "generate_image" }>,
   frame: DispatchFrame,
 ): Promise<ArmOutcome> {
-  // The prompt is a template like every arm field (§0); absent ⇒ imagery extracts from chat (a portrait mode).
+  // The prompt is a template like every arm field; absent ⇒ imagery extracts from chat (a portrait mode).
   let prompt: string | undefined;
   if (action.prompt !== undefined) {
     const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.prompt });
@@ -184,7 +184,7 @@ async function runGenerateImage(
     authorUserId: frame.authorUserId,
     chatId: frame.chatId,
     // The firing rule's child depth — compose stamps it onto the non-quiet posted image so the resulting
-    // `messageCommitted` fact rides at depth ≥ 1 and a non-opted re-fire is cascade-suppressed (F1 → N1).
+    // `messageCommitted` fact rides at depth ≥ 1 and a non-opted re-fire is cascade-suppressed.
     automationDepth: frame.origin.automationDepth,
     mode: action.mode,
     ...(prompt !== undefined ? { prompt } : {}),
@@ -194,7 +194,7 @@ async function runGenerateImage(
     ...(action.subjectCharacterId !== undefined ? { subjectCharacterId: action.subjectCharacterId } : {}),
     useAvatarReference: action.useAvatarReference,
     reuse: action.reuse,
-    // 03 §1.7 "one /imagine path": honour `quiet`. `false` (the default) ⇒ the op POSTS the generated image into
+    // ONE /imagine path: honour `quiet`. `false` (the default) ⇒ the op POSTS the generated image into
     // the chat as a message; `true` ⇒ generate silently (gallery-only). The arm passes the flag; compose owns
     // the single posting seam (imagery has no posting concept).
     quiet: action.quiet,
@@ -204,7 +204,7 @@ async function runGenerateImage(
 
 // ── 1.6 trigger_turn (an autonomous chat turn) ─────────────────────────────────────────────────────────
 async function runTriggerTurn(deps: ArmExecutorDeps, action: Extract<AutomationAction, { type: "trigger_turn" }>, frame: DispatchFrame): Promise<ArmOutcome> {
-  // The guided steer is a template like every arm field (§0); absent ⇒ no steer.
+  // The guided steer is a template like every arm field; absent ⇒ no steer.
   let guided: string | undefined;
   if (action.guidedTemplate !== undefined) {
     const rendered = renderArmTemplate({ env: frame.env, nowMs: frame.now, prng: deps.prng, template: action.guidedTemplate });
@@ -299,9 +299,9 @@ async function runSetChatBackground(
   return OK;
 }
 
-const TRANSFORM_DRAFT_REFUSAL = "transform_draft applies via the prompt-transform pipeline (A7), not the dispatch engine";
+const TRANSFORM_DRAFT_REFUSAL = "transform_draft applies via the prompt-transform pipeline, not the dispatch engine";
 
-/** The arm dispatcher (04 §4). Switches on the CLEAN `AutomationActionType` string union (via the local `type`
+/** The arm dispatcher. Switches on the CLEAN `AutomationActionType` string union (via the local `type`
  *  binding) — NOT `action.type`: biome's `noUnnecessaryConditions` cannot narrow a `z.infer` zod discriminated
  *  union (PROVEN via scratch probes — a 2-member TOY zod discriminatedUnion trips "unreachable" on every case
  *  identically, while a hand-written plain TS union narrows fine; it is NOT the `generate_image` `.extend` as an
@@ -339,8 +339,8 @@ function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: Dispatch
   }
 }
 
-/** Bind the arm dispatcher to its deps (04 §4) — the injected `ArmDispatch` the compose root hands the
- *  automation context (`ctx.runArm`); A5's dispatch invokes it per matched arm. */
+/** Bind the arm dispatcher to its deps — the injected `ArmDispatch` the compose root hands the
+ *  automation context (`ctx.runArm`); the dispatch invokes it per matched arm. */
 export function createArmExecutors(deps: ArmExecutorDeps): ArmDispatch {
   return (action, frame) => runArm(deps, action, frame);
 }

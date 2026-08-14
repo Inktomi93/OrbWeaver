@@ -40,7 +40,7 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
     }
     // An enabled rule's trigger BUS can change (chat↔domain) — refresh the pre-check's domain-rule flag.
     await ctx.enabled.reload();
-    // A rule edit can add/remove transform_draft arms or change their target/template/predicate/order (A7).
+    // A rule edit can add/remove transform_draft arms or change their target/template/predicate/order.
     await ctx.transforms.reload();
     // The roster announces itself AFTER the write AND after both in-process indexes reconcile (survey H2/F5):
     // a subscriber that re-reads on this event must not observe a rule whose transform registration is still

@@ -1,6 +1,6 @@
-// domain/automation/substrate/dry-run — the `testRule` engine (04 §2): build the CEL activation, evaluate
+// domain/automation/substrate/dry-run — the `testRule` engine: build the CEL activation, evaluate
 // the predicate, and MACRO-RENDER each arm's template — executing NOTHING (no injected op, no budget). The
-// same `toCelBindings`/`nowFields` helpers the A5 dispatch will reuse to build its live env; here they run
+// same `toCelBindings`/`nowFields` helpers the dispatch engine reuses to build its live env; here they run
 // over a host-supplied sample. Determinism: the injected clock + prng feed the macro engine (test-determinism).
 
 import type { AutomationAction, AutomationCelEnv, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
@@ -10,26 +10,26 @@ import type { ChatId } from "@orb/kit/ids";
 import type { ArmPreview } from "../contract/results.ts";
 import { renderArmTemplate } from "./macro-render.ts";
 
-/** The `now` projection CEL binds (02 §1) — UTC hour + day-of-week off the injected epoch (deterministic). */
+/** The `now` projection CEL binds — UTC hour + day-of-week off the injected epoch (deterministic). */
 export function nowFields(epochMs: number): AutomationCelEnv["now"] {
   const d = new Date(epochMs);
   return { epochMs, hour: d.getUTCHours(), dayOfWeek: d.getUTCDay() };
 }
 
 /** Flatten the env into the CEL activation's named bindings. `event` is present only for a predicate (a
- *  `{{expr::…}}` render passes `withEvent:false` — assembly has no trigger, 02 §3). */
+ *  `{{expr::…}}` render passes `withEvent:false` — assembly has no trigger). */
 function toCelBindings(env: AutomationCelEnv, withEvent: boolean): CelBindings {
   const base: CelBindings = { vars: env.vars, choice: env.choice, global: env.global, chat: env.chat, now: env.now };
   return withEvent && env.event !== undefined ? { ...base, event: env.event } : base;
 }
 
-/** Synthesize a minimal fact from a rule's trigger when the host supplies no sample (04 §2). */
+/** Synthesize a minimal fact from a rule's trigger when the host supplies no sample. */
 export function synthFact(trigger: AutomationTrigger, chatId: ChatId | null): TriggerFact {
   return { type: trigger.type, bus: trigger.bus, chatId };
 }
 
 /** Evaluate a rule predicate: `null` ⇒ always fire (`true`); a parse/eval error or a non-boolean result
- *  ⇒ the error branch (04 §2 — the dry-run surfaces it without a spend). */
+ *  ⇒ the error branch (the dry-run surfaces it without a spend). */
 export function evaluatePredicate(predicateCel: string | null, env: AutomationCelEnv): boolean | { readonly error: string } {
   if (predicateCel === null || predicateCel === "") {
     return true;
@@ -69,7 +69,7 @@ function armTemplate(action: AutomationAction): string | undefined {
 /** Render one arm to a preview: the macro-rendered template, or a first-error message when strict-arg
  *  validation flags the template. Executes NO op. A `transform_draft` template addresses `{{draft}}` (the
  *  turn's live target text, unknown at test time) — the preview seeds it EMPTY so the render exercises the
- *  rest of the template without a strict `unknown-macro` error on the absent draft (A7). */
+ *  rest of the template without a strict `unknown-macro` error on the absent draft. */
 export function renderArmPreview(action: AutomationAction, env: AutomationCelEnv, nowMs: number, prng: () => number): ArmPreview {
   const template = armTemplate(action);
   if (template === undefined) {
@@ -80,7 +80,7 @@ export function renderArmPreview(action: AutomationAction, env: AutomationCelEnv
   return rendered.error === undefined ? { type: action.type, renderedPreview: rendered.text } : { type: action.type, error: rendered.error };
 }
 
-/** The empty-context env for a dry run with no live chat vars/choice (A4). `global` is the author's own
+/** The empty-context env for a dry run with no live chat vars/choice. `global` is the author's own
  *  plane (read via the global-var persistence); `chat` carries the id + message count. */
 export function emptyDryRunEnv(parts: {
   chatId: ChatId;

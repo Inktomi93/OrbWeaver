@@ -73,7 +73,7 @@ type CharacterSeatRow = typeof chatParticipants.$inferSelect & {
 
 /** The per-forker copy verdict, resolved ONCE at the verb and threaded to every row projector.
  *  `stripHidden` = the forker is a NON-HOST of the SOURCE room (§3.6 — they never held the host plane);
- *  `stripReasoning` = that AND the source game is deception-active (P3). Both `false` for a host forker. */
+ *  `stripReasoning` = that AND the source game is deception-active. Both `false` for a host forker. */
 interface ForkCopyPosture {
   readonly stripHidden: boolean;
   readonly stripReasoning: boolean;

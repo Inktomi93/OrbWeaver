@@ -233,7 +233,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     },
   };
 
-  // F1 (P1): databank was born AFTER the portability spec froze its kind list, so a full-account backup
+  // databank was born AFTER the portability spec froze its kind list, so a full-account backup
   // silently lost the whole document library. One file per document — `extractedText` IS the canon and can be
   // megabytes, so the stream pulls one body at a time.
   const listOwnedDocumentIds = createListOwnedDocumentIds(deps.databankCtx);

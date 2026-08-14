@@ -1,11 +1,11 @@
-// Room source: `automation` — the per-chat automation feedback feed (SSE-1 §4.2/S4), MOVED from
+// Room source: `automation` — the per-chat automation feedback feed, MOVED from
 // `routers/automation.ts::stream` (`automationStream`, body intact). Every authorization verdict and its
 // ORDERING are unchanged; only the transport underneath moved. This is a PURE SERVER-SIDE fold: the channel
-// has no client consumer today — it is the sanctioned-dormant DOORWAY (spec §14 PLUS), and whoever builds the
+// has no client consumer today — it is a sanctioned-dormant DOORWAY, and whoever builds the
 // quick-reply chips UI gets the multiplex for free instead of a sixth browser connection.
 //
 // EPHEMERAL BY DESIGN — the classification that decides everything else here. The automation bus has no
-// durable half at all (automation-design/03 §1.4: the chips are transient, `automation-bus.ts` is the WHOLE
+// durable half at all (the chips are transient, `automation-bus.ts` is the WHOLE
 // story), so this room is `resumable: false`: no cursor, no replay, no reconnect barrier, and its queue
 // overflow policy is `collapse` (`frame-queue.ts`) rather than the `lag` a durable room can afford. The
 // `resumable` ⟺ `lag` correspondence is pinned at runtime in `room-sources.test.ts` — this room is on the
@@ -25,14 +25,14 @@
 // promised the gate→listen gap loses nothing), and it re-derives the tier on every pump START: a reconnect or
 // a lag-restart therefore re-reads membership, so a demoted host is narrowed and a kicked member's pump
 // throws into a `roomFailed` instead of silently keeping a stale verdict. Cached-verdict-in-the-cell is
-// exactly what §5.5 forbids.
+// exactly the failure mode this design forbids.
 
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { StreamDataFrame } from "@orb/contracts/stream";
 import { subscribeAutomation } from "../../automation-bus.ts";
 import type { RoomSourceDef } from "../room-source.ts";
 
-/** The one MEMBER-visible automation-bus event (04 §5) — the transient quick-reply chips. Every OTHER event
+/** The one MEMBER-visible automation-bus event — the transient quick-reply chips. Every OTHER event
  *  (ruleFired/ruleErrored/ruleAutoDisabled/rulesChanged) is the host's hidden hand, filtered out below for a
  *  `member`-tier subscriber. */
 const MEMBER_VISIBLE_EVENT: AutomationBusEvent["type"] = "quickReplySurfaced";

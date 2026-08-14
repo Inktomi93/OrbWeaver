@@ -1,7 +1,7 @@
-// verb: setEnabled — activate or deactivate an installed plugin (02 §4). Authority = install authority
+// verb: setEnabled — activate or deactivate an installed plugin. Authority = install authority
 // (owner ∪ admin). Enable ⇒ (idempotent clean slate: deactivate any stale resident) → activate on the CAS
 // bundle under the granted subset; a contained activation failure surfaces as `PluginCrashedError` after the
-// row lands `errored` (03 §2). Disable ⇒ dispose the instance + deregister its tools/transforms/subs (03 §5) →
+// row lands `errored`. Disable ⇒ dispose the instance + deregister its tools/transforms/subs →
 // status `disabled`. Idempotent per target state.
 
 import { PluginCrashedError, PluginNotFoundError } from "../contract/errors.ts";

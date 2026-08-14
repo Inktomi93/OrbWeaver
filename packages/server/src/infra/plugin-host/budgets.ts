@@ -1,19 +1,19 @@
-// The plugin-host DoS budget numbers — the ONE home for every limit (03 §3). Named constants, never
-// scattered literals, so the "budget-number review against soak data" (04 P6) touches one file. Every
+// The plugin-host DoS budget numbers — the ONE home for every limit. Named constants, never
+// scattered literals, so the budget-number review against soak data touches one file. Every
 // value is a LEAN: its resolution criterion is measured abuse or measured legitimate need, whichever
-// arrives first. P1 spike PROVES the enforcement mechanism for each; the exact numbers stay tunable.
+// arrives first. The spike PROVES the enforcement mechanism for each; the exact numbers stay tunable.
 //
-// Two clocks, do NOT conflate (P1 finding — see README §Sharp edges): the DoS deadline below is driven by
+// Two clocks, do NOT conflate (see README's Sharp Edges section): the DoS deadline below is driven by
 // a MONOTONIC real clock (`performance.now()` host-side, in the interrupt handler). The guest-VISIBLE
 // clock is the injected deterministic seam (`host.clock.nowEpochMs`). A frozen test clock (or a system
 // time jump) must never be able to disable the DoS kill — so the interrupt reads real monotonic time, the
 // guest reads the seam.
 
 /** Per-invocation guest CPU budget (installed plugin handler/tool/transform). Enforced by the QuickJS
- *  interrupt handler comparing REAL wall-time against the invocation deadline (03 §3). */
+ *  interrupt handler comparing REAL wall-time against the invocation deadline. */
 export const PLUGIN_INVOCATION_CPU_MS = 1000;
 
-/** Inline snippet total wall-clock run (03 §1) — the whole snippet, not per-call. */
+/** Inline snippet total wall-clock run — the whole snippet, not per-call. */
 export const SNIPPET_WALL_MS = 5000;
 
 /** WASM memory cap per QuickJSContext (setMemoryLimit), in bytes (= 32 MiB). Over-limit allocation fails
@@ -21,7 +21,7 @@ export const SNIPPET_WALL_MS = 5000;
  *  rejected `isolated-vm` precisely because V8 cannot unwind OOM). */
 export const PLUGIN_MEMORY_LIMIT_BYTES = 33_554_432;
 
-/** Explicit guest stack ceiling (bytes) — MANDATORY, not cosmetic. P1 FINDING: QuickJS-ng's DEFAULT
+/** Explicit guest stack ceiling (bytes) — MANDATORY, not cosmetic. FINDING: QuickJS-ng's DEFAULT
  *  stack-overflow detection does NOT reliably catch deep recursion — a recursive guest blows the real
  *  WASM/native stack, which surfaces as a HOST-side `RangeError` (escaping the sandbox) AND leaves the
  *  runtime un-disposable (`ctx.dispose()` aborts the WASM module: `list_empty(&rt->gc_obj_list)` assertion
@@ -32,7 +32,7 @@ export const PLUGIN_MEMORY_LIMIT_BYTES = 33_554_432;
 export const GUEST_MAX_STACK_BYTES = 262_144;
 
 /** Host-function self-bound deadline. The interrupt handler does NOT preempt a blocking HOST call — only
- *  guest bytecode — so every host fn self-bounds (03 §3 "reentrancy footgun"). `boundHostFn` races the
+ *  guest bytecode — so every host fn self-bounds (the "reentrancy footgun"). `boundHostFn` races the
  *  fn against this real-time deadline; an unbounded host fn cannot be written by omission. */
 export const HOST_FN_DEADLINE_MS = 5000;
 
@@ -65,7 +65,7 @@ export const PLUGIN_INVOKE_ARGS_MAX_BYTES = 1_048_576;
 export const LOG_LINES_PER_INVOCATION = 256;
 export const LOG_BYTES_PER_INVOCATION = 16_384;
 
-/** Per-resident-instance invoke FIFO depth (03 §2). A resident sandbox is a SINGLE shared QuickJSContext, so
+/** Per-resident-instance invoke FIFO depth. A resident sandbox is a SINGLE shared QuickJSContext, so
  *  every invoke (tool / D50 transform apply / event-subscriber delivery) SERIALIZES per instance — the queue is
  *  homed at `port.invoke` (the shared-scope concurrency belt). This bounds the pending (queued + running)
  *  invokes: the N+1 concurrent invoke is REFUSED with a contained typed error (a DoS backstop — a hostile flood
@@ -74,7 +74,7 @@ export const LOG_BYTES_PER_INVOCATION = 16_384;
  *  queued item still rides the per-invocation `cpuDeadlineMs`, so a hung guest deadlines and the queue advances. */
 export const EVENT_QUEUE_DEPTH = 16;
 
-// NOTE: the consecutive-crash auto-disable threshold (03 §4) is DOMAIN lifecycle policy, not a sandbox runtime
+// NOTE: the consecutive-crash auto-disable threshold is DOMAIN lifecycle policy, not a sandbox runtime
 // budget — it lives in `domain/plugin/activation/crash-policy.ts` (`PLUGIN_CRASH_DISABLE_THRESHOLD`). It is NOT
-// re-minted here (the P1 scaffold's `CRASH_DISABLE_THRESHOLD` never found a consumer; the cake bans the domain
+// re-minted here (the original scaffold's `CRASH_DISABLE_THRESHOLD` never found a consumer; the cake bans the domain
 // from value-importing infra, so its one home is the domain that enforces it).

@@ -1,5 +1,5 @@
-// QUIET MODE — the bulk-fanout coalescer, for BOTH live audience planes (W8 / owner fork F5, generalized to
-// room pairs by the entity→room member-freshness bridge §5 / fork F-G). One AsyncLocalStorage scope, one pair
+// QUIET MODE — the bulk-fanout coalescer, for BOTH live audience planes (chat rooms, generalized to
+// room pairs by the entity→room member-freshness bridge). One AsyncLocalStorage scope, one pair
 // map, two registration doors.
 //
 // THE STORM. Every per-entity write announces itself, which is right for a single gesture and wrong for a
@@ -7,10 +7,10 @@
 // (`entry/import/build-import-context`), so an N-hundred-card library fans N `charactersChanged` — and
 // `invalidateQueries` CANCELS and RESTARTS an in-flight fetch rather than deduping against it (the client
 // seam's own measured note), so the visible library churned continuously for the whole import. The owner
-// ruled the containment SERVER-side rather than as a client debounce (staleness design §4.5/F5, confirmed
+// ruled the containment SERVER-side rather than as a client debounce (confirmed
 // with the counter-argument on the table). The ROOM plane inherits the identical math: a bulk run touching N
 // seated entities fans N×rooms `roomEntityChanged`, and each tick cancels+restarts every open member's
-// in-flight refetch (fork F-B: yes, silence and coalesce, coarse terminal per (room, kind)).
+// in-flight refetch (yes, silence and coalesce, coarse terminal per (room, kind)).
 //
 // THE SEMANTICS, per PAIR, for the dynamic extent of `withQuietBulkFanout`:
 //   • the FIRST fan of a pair passes straight through — the START MARKER, so a watching surface refetches
@@ -106,7 +106,7 @@ export function silenceRoomEntityFan(chatId: ChatId, entity: RoomEntityKind, ter
  * NESTED scopes join the outer one rather than opening a second — the outer run is the gesture, and an inner
  * scope with its own terminal would re-introduce the per-sub-batch fan this exists to remove.
  *
- * (Named `withQuietUserEvents` until it learned room pairs — fork F-G: a name claiming one plane while
+ * (Named `withQuietUserEvents` until it learned room pairs — a name claiming one plane while
  * silencing two is a lying comment in function form.)
  */
 export async function withQuietBulkFanout<T>(run: () => Promise<T>): Promise<T> {

@@ -1,9 +1,9 @@
 // transport/trpc/routers/plugin — the D46 plugin management surface (core/Tier-4-Transport.md). authed; every
 // verb passes the resolved `Principal` as `caller` (the domain enforces install authority = owner∪admin via
-// its injected `can()` — 02 §4 — so no `adminProcedure` here; the service is the authoritative gate). The
+// its injected `can()` — so no `adminProcedure` here; the service is the authoritative gate). The
 // bundle bytes ride as base64 in the mutation input (a zip is ≤ 1 MiB — `substrate/manifest.ts` re-caps + is
 // the untrusted-input boundary); a multipart upload route can supersede this later without a domain change
-// (the bundle funnel is source-agnostic — 02 §4 rider). `runSnippet` is the inline mode (03 §1): the service
+// (the bundle funnel is source-agnostic). `runSnippet` is the inline mode: the service
 // gates the caller's chat authority leak-free (foreign chat ⇒ NOT_FOUND). Event delivery / tool invocation are
 // P4b.
 //
@@ -58,7 +58,7 @@ export const pluginRouter = t.router({
       ctx.services.plugin.getLog({ caller: ctx.auth, pluginId: input.pluginId, ...(input.limit !== undefined ? { limit: input.limit } : {}) }),
     ),
 
-  // The inline mode (03 §1): run `code` once as the caller in `chatId`. The service gates chat authority
+  // The inline mode: run `code` once as the caller in `chatId`. The service gates chat authority
   // leak-free (a chat the caller can't read ⇒ NOT_FOUND) and returns the drained log + a contained `error`.
   runSnippet: authedProcedure
     .input(z.object({ chatId: chatIdSchema, code: z.string().max(SNIPPET_CODE_MAX) }))

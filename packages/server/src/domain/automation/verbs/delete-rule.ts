@@ -13,7 +13,7 @@ export function createDeleteRule(ctx: AutomationContext): AutomationService["del
     await deleteRuleRow(ctx.db, ruleId);
     // Deleting an enabled rule can empty a chat's rule set (or the last domain rule) — refresh the pre-check.
     await ctx.enabled.reload();
-    // Deleting an enabled transform_draft rule must deregister its pipeline transform (A7).
+    // Deleting an enabled transform_draft rule must deregister its pipeline transform.
     await ctx.transforms.reload();
     // The roster announces itself (survey H2/F5). D50 rules out per-entity DELETION events, and this is not
     // one: `rulesChanged` is the coarse "this chat's rule set moved" member — the same event a create sends.

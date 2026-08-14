@@ -47,7 +47,7 @@ export interface SessionsService {
   /** Revoke all of a user's live sessions → count revoked. @internal */
   revokeAllForUser: (userId: UserId) => Promise<number>;
   /** A5 — revoke every live session for the user(s) bound to a stable external subject (`sub`), for OIDC
-   *  back-channel logout → the count revoked + WHOSE (the entry tier evicts those users' live sockets, W7a).
+   *  back-channel logout → the count revoked + WHOSE (the entry tier evicts those users' live sockets).
    *  Idempotent (re-delivered logout tokens re-revoke nothing, and name no users). @internal */
   revokeByExternalId: (externalId: ExternalId) => Promise<RevokedSessionsSummary>;
   /** A user's sessions for the admin device list. @internal */

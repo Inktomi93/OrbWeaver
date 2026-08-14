@@ -438,8 +438,8 @@ function buildCommitPlan(args: {
       characterId,
       authorUserId: persist.authorUserId ?? null,
       personaId: persist.personaId ?? null,
-      // Turn origin (03 §4) — stamped on the reply slot. Absent on `prep` ⇒ the DB default ('human'/0), so a
-      // human/character/agent turn is byte-identical; an automation `requestTurn` (A6) threads these through.
+      // Turn origin — stamped on the reply slot. Absent on `prep` ⇒ the DB default ('human'/0), so a
+      // human/character/agent turn is byte-identical; an automation `requestTurn` threads these through.
       ...(prep.initiator !== undefined ? { initiator: prep.initiator } : {}),
       ...(prep.automationDepth !== undefined ? { automationDepth: prep.automationDepth } : {}),
       now,
@@ -1380,7 +1380,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       // The per-turn user-macro RENDER registry (WAVE MU) — drives the BUILD section walk + the RECEIVE
       // AI_OUTPUT/REASONING macro pass. Absent ⇒ the pipeline's `globalMacroRegistry` default (byte-identical).
       macroRegistry: prep.macroRegistry,
-      // The D50 `assembled_dynamic` PromptTransform op (04 §6); null ⇒ byte-identical dynamic half.
+      // The D50 `assembled_dynamic` PromptTransform op; null ⇒ byte-identical dynamic half.
       applyPromptTransforms: ctx.promptTransforms,
       connection,
       intent: prep.intent,

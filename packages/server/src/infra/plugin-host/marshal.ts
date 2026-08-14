@@ -1,4 +1,4 @@
-// infra/plugin-host/marshal — the guest↔host VALUE boundary (01 §1.2). Only JSON-safe primitives / arrays /
+// infra/plugin-host/marshal — the guest↔host VALUE boundary. Only JSON-safe primitives / arrays /
 // plain objects and OPAQUE HANDLES cross; nothing live. `jsToHandle` builds a fresh guest handle from a host
 // JS value (the membrane host-fn RESULT direction) — the mirror of quickjs-emscripten's `ctx.dump` (the guest
 // ARG direction). Every intermediate handle is disposed as it is attached (the ownership discipline the runtime

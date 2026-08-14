@@ -310,15 +310,15 @@ export interface ChatComposeInput {
 export interface ChatComposeResult {
   readonly service: ChatService;
   readonly emitBusEvent: (event: DurableChatBusEvent) => Promise<void>;
-  /** The generic, principal-free chat ops domain/rpg receives by injection (02 §1.1) — built over chat's own
+  /** The generic, principal-free chat ops domain/rpg receives by injection — built over chat's own
    *  ctx here (chat never learns rpg). Wired onto `RpgContext.chat` at the rpg compose block. */
   readonly rpgChatOps: {
     readonly getMembership: GetMembership;
     readonly postNarratorMessage: PostNarratorMessage;
     readonly getPendingUserText: GetPendingUserText;
-    /** The opaque pointer write (rpg-design/05 §3.1) — `createGame` calls it once. */
+    /** The opaque pointer write — `createGame` calls it once. */
     readonly setRpgPointer: SetRpgPointer;
-    /** The roster projection (rpg-design/05 §4.3) — the tracker view's roster ∪ sheets source. */
+    /** The roster projection — the tracker view's roster ∪ sheets source. */
     readonly resolveRpgRoster: ResolveRpgRoster;
     /** The chat's PRESENT host userId (role='host', D19) — the human the rpg resync resolves its
      *  connection/creds under + the capability verdict keys on. Resolved by ROLE, never join order (a handoff
@@ -347,11 +347,11 @@ export interface ChatComposeResult {
      *  clicked a button and this IS the moment, exactly as `resolvePromptUserMacros` is for the picks pane. */
     readonly resolveChatPresetProse: (chatId: ChatId) => Promise<ProseOverrides>;
   };
-  /** The D50 PromptTransform registrar (automation-design/04 §6) — surfaced so automation's rule lifecycle
-   *  (A7) + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the
+  /** The D50 PromptTransform registrar — surfaced so automation's rule lifecycle
+   *  + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the
    *  turn pipeline applies. Zero registrants today (byte-identical no-op). */
   readonly promptTransforms: PromptTransformRegistry;
-  /** The standalone (out-of-turn) runtime-variable write (automation-design/03 §1.1), bound over chat's own
+  /** The standalone (out-of-turn) runtime-variable write, bound over chat's own
    *  ctx — automation's `set_variable` chat-scope arm injects this at the composition root (chat learns
    *  nothing automation-shaped; principal-free — the author's authority was gated upstream). */
   readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
@@ -1120,13 +1120,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveTempChatTtlHours: async (userId) => (await input.settings.loadUserSettings(userId)).chat.tempChatTtlHours,
     resolvePromptVariables,
     resolvePromptUserMacros,
-    // Null ⇒ expressions not wired (byte-identical no-op — the `tools` precedent). The E3 classify hook fires
-    // fire-and-forget after a variant commits (expressions-design/02 §0).
+    // Null ⇒ expressions not wired (byte-identical no-op — the `tools` precedent). The classify hook fires
+    // fire-and-forget after a variant commits.
     expressions: input.expressions ?? null,
     // Null ⇒ rpg not wired (byte-identical no-op — the `expressions`/`tools` precedent). The 5 injected rpg
-    // turn ops (rpg-design/05 §0) fire at GATHER / preset-resolve / send-commit / turn-end.
+    // turn ops fire at GATHER / preset-resolve / send-commit / turn-end.
     rpg: input.rpg ?? null,
-    // The D50 PromptTransform apply op (04 §6) — the registry's `apply`. Zero registrants ⇒ byte-identical.
+    // The D50 PromptTransform apply op — the registry's `apply`. Zero registrants ⇒ byte-identical.
     promptTransforms: promptTransformRegistry.apply,
   };
 

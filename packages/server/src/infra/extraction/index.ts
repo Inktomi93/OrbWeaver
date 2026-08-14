@@ -1,4 +1,4 @@
-// infra/extraction — the server-side text-extraction adapter (databank-design/04). A SEALED, db-free,
+// infra/extraction — the server-side text-extraction adapter. A SEALED, db-free,
 // domain-free I/O executor (dep-cruiser `infra-no-db` + `infra-below-domain`) behind ONE injected op:
 // `(bytes, declaredMime) → ExtractionResult`. `entry/compose` constructs `createExtractText()` once and injects
 // it into `DatabankContext.extractText`; the domain's only compile-time dependency is
@@ -6,7 +6,7 @@
 // precedent). Superseded the dep-free `entry/compose/databank-extract.ts` textlike passthrough (deleted): its
 // `textlike` loader is now `loaders/textlike.ts`, and the pdf/html loaders slotted in behind the same op.
 //
-// Error taxonomy (04 §1): an unknown mime throws `UnsupportedDocTypeError` BEFORE any parse (a 415-class,
+// Error taxonomy: an unknown mime throws `UnsupportedDocTypeError` BEFORE any parse (a 415-class,
 // never retried, never wrapped); any loader failure is wrapped as `ExtractionFailedError(format, {cause})`
 // (corrupt/encrypted/invalid file — a corrupt zip for docx/epub included). Empty text is NOT an error — the op
 // returns it truthfully (`charCount` tells the story; the upload verb surfaces an `empty-extraction` warning,

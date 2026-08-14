@@ -1,14 +1,14 @@
-// transport/trpc/routers/automation — the client-facing surface of the automation LEAF (automation-design/05
-// §A8: the rule editor + list/reorder + fire log + budget panel the settings pane consumes). Every verb is
-// host-authored room authority in v1 (04 §2): the domain guard gates `can(principal, "host", {kind:"chat",
+// transport/trpc/routers/automation — the client-facing surface of the automation LEAF (the rule editor +
+// list/reorder + fire log + budget panel the settings pane consumes). Every verb is
+// host-authored room authority in v1: the domain guard gates `can(principal, "host", {kind:"chat",
 // roster})` over the chat's membership — a non-member collapses to a leak-free NOT_FOUND, a member-not-host
 // propagates `can()`'s FORBIDDEN. Thin: validate the wire schema → `principal: ctx.auth` → the acting verb.
 // The trigger/action VOCABULARY is NOT re-spelled here — the wire wrappers reference `@orb/contracts/automation`'s
 // `automationTriggerSchema` + `automationActionsSchema` (one home per shape — `no-inline-union-redecl`); the
 // scalar rule fields + budget knobs are inline wire wrappers (imagery router precedent). testRule's optional
 // `sampleEvent` (a `TriggerFact`) has no wire schema home — the pane's dry-run synthesizes from the rule's
-// trigger, so the wire omits it (the verb's `sampleEvent?` absent path). The A3 per-user global-variable verbs
-// are NOT exposed here (the §A8 pane is rule-scoped; globals are a later settings surface). Result shapes flow
+// trigger, so the wire omits it (the verb's `sampleEvent?` absent path). The per-user global-variable verbs
+// are NOT exposed here (this pane is rule-scoped; globals are a later settings surface). Result shapes flow
 // to the client via tRPC `inferOutput` — no domain result type (RuleView/FireView/TestRunResult) duplicated.
 // THE LIVE FEED IS NOT HERE: the per-chat automation bus folded onto the multiplexed socket at SSE-1 S4 and
 // is now the `automation` ROOM (`transport/trpc/stream/sources/automation.ts`) — this router is request/

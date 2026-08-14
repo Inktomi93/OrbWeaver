@@ -1,6 +1,6 @@
 // The Sandbox — one guest instance = one QuickJSContext (own globals, own memory cap, own interrupt budget).
-// P1 delivered the skeleton (boot/teardown, injected-seam realm, per-invocation DoS budget, the async promise
-// bridge, `boundHostFn`). P4b-CORE adds the MEMBRANE: the capability-gated host-fn call surface (membrane.ts),
+// It provides the skeleton (boot/teardown, injected-seam realm, per-invocation DoS budget, the async promise
+// bridge, `boundHostFn`) and the MEMBRANE: the capability-gated host-fn call surface (membrane.ts),
 // the invocation-chat-context (a mutable per-invocation `InvocationChat` + its host-minted opaque token), and
 // the RESIDENT-HANDLER runtime — `main.js` registers guest tool callbacks at activation; the Sandbox keeps each
 // live handler HANDLE (keyed by a minted ref), and `invokeHandler` calls it under the per-invocation budget.
@@ -26,7 +26,7 @@ import { getPluginQuickJS } from "./module.ts";
 import type { HostSeams } from "./realm.ts";
 import { installRealm, LogRing } from "./realm.ts";
 
-/** Per-instance DoS limits. Both default to the 03 §3 budget constants; a snippet passes a wider wall. */
+/** Per-instance DoS limits. Both default to the shared budget constants; a snippet passes a wider wall. */
 export interface SandboxLimits {
   /** Per-invocation guest CPU deadline (real wall-time), ms. */
   readonly cpuDeadlineMs: number;
@@ -35,7 +35,7 @@ export interface SandboxLimits {
 }
 
 /** The membrane wiring an instance boots with: the granted capability set + the authority-agnostic op bridge
- *  (the DOMAIN built + gated it). Absent ⇒ the determinism-floor-only realm (the P1 spike shape). */
+ *  (the DOMAIN built + gated it). Absent ⇒ the determinism-floor-only realm. */
 export interface SandboxMembrane {
   readonly grants: ReadonlySet<PluginCapability>;
   readonly bridge: PluginBridge;
@@ -76,7 +76,7 @@ function readError(ctx: QuickJSContext, handle: QuickJSHandle): GuestError {
 
 function serializeGuest(ctx: QuickJSContext, handle: QuickJSHandle): string {
   const dumped: unknown = ctx.dump(handle);
-  // A guest STRING return flows back VERBATIM (03 §5 — a tool handler's string IS the result, never
+  // A guest STRING return flows back VERBATIM (a tool handler's string IS the result, never
   // re-JSON-stringified: a handler that returns `JSON.stringify(x)` yields exactly that JSON to the model).
   if (typeof dumped === "string") {
     return dumped;
@@ -95,7 +95,7 @@ interface ResidentState {
   readonly events: PluginEventSubscription[];
   readonly handlers: Map<PluginHandlerRef, QuickJSHandle>;
   /** Host-call deferreds still UNSETTLED (a fire-and-forget guest promise still in flight). MUST be disposed
-   *  before `ctx.dispose()` — an unsettled guest Promise left in the heap aborts `JS_FreeRuntime` (03 §3). The
+   *  before `ctx.dispose()` — an unsettled guest Promise left in the heap aborts `JS_FreeRuntime`. The
    *  membrane's `attachAsync` registers on create + deregisters on settle; `dispose()` drains the remainder. */
   readonly pending: Set<QuickJSDeferredPromise>;
 }
@@ -170,7 +170,7 @@ export class Sandbox implements Disposable {
   }
 
   /** Handles minted-but-not-yet-disposed by this sandbox's invocations. MUST be 0 between invocations — the
-   *  dispose-discipline assertion (04 P1). Excludes the resident handler handles (they live for the instance
+   *  dispose-discipline assertion. Excludes the resident handler handles (they live for the instance
    *  lifetime by design). */
   get pendingHandles(): number {
     return this.outstanding;
@@ -181,19 +181,19 @@ export class Sandbox implements Disposable {
     return this.ctx.alive;
   }
 
-  /** The tool registrations `main.js` collected at activation (03 §5) — the domain hands each to its registrar. */
+  /** The tool registrations `main.js` collected at activation — the domain hands each to its registrar. */
   get collectedTools(): readonly PluginToolRegistration[] {
     return this.state.tools;
   }
 
-  /** The D50 transform registrations `main.js` collected at activation (03 §6) — the domain wires each into the
+  /** The D50 transform registrations `main.js` collected at activation — the domain wires each into the
    *  shared prompt-transform registry (assigning the 1000+ plugin band, building the apply, unregistering on
    *  deactivate). The guest `apply` handles live in `handlers` (disposed at teardown alongside tool handlers). */
   get collectedTransforms(): readonly PluginTransformRegistration[] {
     return this.state.transforms;
   }
 
-  /** The event subscriptions `main.js` collected at activation (03 §2) — the domain wires each onto the
+  /** The event subscriptions `main.js` collected at activation — the domain wires each onto the
    *  automation plugin-subscriber fan-out (delivery + unregister). The guest handler handles live in `handlers`
    *  (disposed at teardown alongside tool/transform handlers). */
   get collectedEvents(): readonly PluginEventSubscription[] {
@@ -263,13 +263,13 @@ export class Sandbox implements Disposable {
   }
 
   /** Run guest source under the per-invocation budget (activation `main.js` / a snippet). Deadline / OOM / throw
-   *  all return `ok:false` with `error` — the host PROCESS is never fatal on guest behavior (03 §4). */
+   *  all return `ok:false` with `error` — the host PROCESS is never fatal on guest behavior. */
   async evalGuest(code: string): Promise<EvalOutcome> {
     return await this.runToSettlement(() => this.ctx.evalCode(code, "plugin-guest.js"));
   }
 
   /** Invoke a resident guest handler (a collected tool/transform/event callback) with JSON-encoded args, under
-   *  the invocation budget. The handler's string return IS the tool result (03 §5); a throw/deadline is contained
+   *  the invocation budget. The handler's string return IS the tool result; a throw/deadline is contained
    *  as `ok:false`. The caller sets the invocation chat first (`setInvocationChat`). The `argsJson` is bounded by
    *  `PLUGIN_INVOKE_ARGS_MAX_BYTES` at THIS guest-inbound seam — a TF-1 event fact has no content cap, so an
    *  oversized delivery fails CONTAINED before it ever reaches the guest heap (the domain field-caps the fact
@@ -336,9 +336,9 @@ function capResult(value: string, capBytes: number, name: string): string {
   return value;
 }
 
-/** Build a host function that self-bounds (03 §3 "the interrupt does NOT preempt a blocking host call"). Args
+/** Build a host function that self-bounds ("the interrupt does NOT preempt a blocking host call"). Args
  *  cross as JSON-safe strings; a sync impl marshals immediately, an async impl bridges through a deferred
- *  promise RACED against a real-time deadline and its result is size-capped. Retained from the P1 spike as the
+ *  promise RACED against a real-time deadline and its result is size-capped. Retained from the original spike as the
  *  string-in/string-out primitive; the membrane's `attachAsync` is the object-marshalling generalization.
  *
  *  DISPOSE CONTRACT (async impl): the returned guest promise (the internal deferred) must SETTLE before the

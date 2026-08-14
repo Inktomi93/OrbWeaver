@@ -1,4 +1,4 @@
-// infra/plugin-host/membrane — the capability-gated host-fn CALL surface (01 §2, P4b-CORE). Attaches the
+// infra/plugin-host/membrane — the capability-gated host-fn CALL surface. Attaches the
 // gated namespaces onto the `orb.host(1)` surface the determinism floor already built (realm.ts). Every gated
 // function is bound host-side through ONE async bridge: guest args cross via `ctx.dump` (JSON-safe only), the
 // injected `PluginBridge` op runs host-side under the installing/calling principal (the DOMAIN gated the
@@ -36,7 +36,7 @@ import { jsToHandle } from "./marshal.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
 
-/** The per-instance concurrent-host-call counter (03 §3 back-pressure). Lives on the Sandbox (one per context),
+/** The per-instance concurrent-host-call counter (back-pressure). Lives on the Sandbox (one per context),
  *  reset between invocations — a rejected call 33 never poisons the next invocation. */
 export interface InFlightCounter {
   count: number;
@@ -55,7 +55,7 @@ export interface MembraneRuntime {
   /** Host-call deferreds still in flight (registered on create, deregistered on settle). The Sandbox drains any
    *  remainder before `ctx.dispose()` — an unsettled guest Promise at teardown aborts `JS_FreeRuntime`.
    *
-   *  STANDING INVARIANT (the must-drain rule — P6 escape review): EVERY host-created guest Promise that can
+   *  STANDING INVARIANT (the must-drain rule): EVERY host-created guest Promise that can
    *  still be UNSETTLED when its invocation ends MUST be registered here on creation and deregistered on settle,
    *  so the dispose-drain frees it (fire a host call, never await it, end the invocation = a guest-REACHABLE host
    *  crash otherwise). Today `attachAsync` below is the ONLY live constructor of such a promise and it obeys this
@@ -70,7 +70,7 @@ export interface MembraneRuntime {
     reg: { readonly name: string; readonly description: string; readonly parameters: Record<string, unknown> },
     handler: QuickJSHandle,
   ) => void;
-  /** Collect a D50 transform registration (03 §6) — the SYNC activation-time mirror of `collectTool`. The
+  /** Collect a D50 transform registration — the SYNC activation-time mirror of `collectTool`. The
    *  Sandbox keeps the guest `apply` HANDLE alive (keyed by a minted ref) + records a
    *  `PluginTransformRegistration` on the instance. The DOMAIN wires each into the shared prompt-transform
    *  registry at activation (`registerTransform`): it assigns the plugin ORDER BAND (1000+, ABOVE the 0–999
@@ -78,7 +78,7 @@ export interface MembraneRuntime {
    *  budget, and unregisters on deactivate. Infra cannot import that domain registry (the cake) — it only
    *  collects; the band + apply-under-budget + unregister live domain-side. */
   readonly collectTransform: (reg: { readonly name: string; readonly point: TransformPoint }, handler: QuickJSHandle) => void;
-  /** Collect an event subscription (03 §2) — the SYNC activation-time mirror of `collectTool`. The guest
+  /** Collect an event subscription — the SYNC activation-time mirror of `collectTool`. The guest
    *  `handler` HANDLE is kept alive (keyed by a minted ref) + a `PluginEventSubscription` is recorded on the
    *  instance. The DOMAIN wires each onto the automation plugin-subscriber fan-out at activation (`subscribeEvent`):
    *  it delivers matching TF-1-validated `TriggerFact`s (already depth/visibility/declared-gated on the automation
@@ -86,7 +86,7 @@ export interface MembraneRuntime {
    *  the membrane never bypasses the automation-side delivery gates. `type` is validated to the closed Tier-1
    *  taxonomy at THIS boundary (a garbage type is refused at collection, never a dead subscription). */
   readonly collectEvent: (reg: { readonly type: ChatTriggerType | DomainTriggerType }, handler: QuickJSHandle) => void;
-  /** The manifest-declared `net.fetch` allowlist (the SSRF wall — 02 §2). Threaded as plain-string DATA from
+  /** The manifest-declared `net.fetch` allowlist (the SSRF wall). Threaded as plain-string DATA from
    *  the validated manifest (`netHosts`); NEVER `ANY_HOST`, NEVER guest-supplied. Empty ⇒ every fetch is
    *  refused (fail-closed): a `net.fetch` grant with no declared host reaches nothing. */
   readonly netHosts: readonly string[];
@@ -97,14 +97,14 @@ export interface MembraneRuntime {
 type TransformPoint = PluginTransformRegistration["point"];
 
 /** The closed Tier-1 trigger taxonomy (chat + domain buses) an `events.on` type must belong to — DERIVED
- *  from the automation contract's tuples (never re-spelled); plugins get no private event vocabulary (01 §2). */
+ *  from the automation contract's tuples (never re-spelled); plugins get no private event vocabulary. */
 const TRIGGER_TYPES: ReadonlySet<string> = new Set([...CHAT_TRIGGER_TYPES, ...DOMAIN_TRIGGER_TYPES]);
 
 /** The capability gate, DERIVED from the ONE contract map (`HOST_FUNCTION_CAPABILITY`) — the membrane reads the
- *  cap→fn lookup at runtime instead of hand-rolling it (derive-don't-redeclare, §7.5). `ref` is a typed
+ *  cap→fn lookup at runtime instead of hand-rolling it (derive-don't-redeclare). `ref` is a typed
  *  `HostFunctionRef` (`"namespace.method"`), so a wrong/renamed ref fails `tsc` against the surface AND the map
  *  stays the single source. Throws the TYPED `PluginCapabilityError` so its `.name` crosses the QuickJS boundary
- *  (a guest feature-detects by `e.name === "PluginCapabilityError"`, never a message substring — 01 §1.3). */
+ *  (a guest feature-detects by `e.name === "PluginCapabilityError"`, never a message substring). */
 function requireCapability(runtime: MembraneRuntime, ref: HostFunctionRef): void {
   const capability = HOST_FUNCTION_CAPABILITY[ref];
   if (!runtime.grants.has(capability)) {
@@ -216,7 +216,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
       requireCapability(runtime, "chat.applyVariableOps");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
-        // Host authority is the write ceiling (02 §2) — a non-host caller lacks it even with the grant.
+        // Host authority is the write ceiling — a non-host caller lacks it even with the grant.
         throw new Error("plugin host: chat.variables.write requires host authority on this chat");
       }
       const ops = Array.isArray(args[1]) ? (args[1] as readonly VarOp[]) : [];
@@ -233,14 +233,14 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
       requireCapability(runtime, "chat.requestTurn");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
-        // A turn is a host-gated SPEND action (02 §2) — a non-host caller lacks the authority even with the grant.
+        // A turn is a host-gated SPEND action — a non-host caller lacks the authority even with the grant.
         throw new Error("plugin host: chat.requestTurn requires host authority on this chat");
       }
       // The FUNDER (installer) is closed over DOMAIN-SIDE — the membrane supplies NONE (authority-blind): a plugin
       // can never fund a foreign budget because it cannot name the funder. The child cascade depth = the
       // invocation's context depth + 1; the domain `requestTurn` refuses a value past AUTOMATION_DEPTH_HARD_CAP,
       // so a plugin cannot launder an event→turn→event loop past the ceiling. Spend rides D17 + the per-member
-      // turn budget (NOT the automation §3 spend ceiling — the LOW-2 deferral, same class as plugin imagery).
+      // turn budget (NOT the automation spend ceiling — the LOW-2 deferral, same class as plugin imagery).
       await runtime.bridge.chat.requestTurn(scope.chatId, scope.automationDepth + 1, buildTurnHints(args[1]));
       return null;
     },
@@ -254,7 +254,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
       requireCapability(runtime, "chat.surfaceQuickReply");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
-        // Surfacing chips writes room-visible state — host authority is the ceiling (02 §2), the SAME gate the
+        // Surfacing chips writes room-visible state — host authority is the ceiling, the SAME gate the
         // plugin's other chat writes take; a non-host caller lacks it even with the grant.
         throw new Error("plugin host: chat.surfaceQuickReply requires host authority on this chat");
       }
@@ -295,7 +295,7 @@ function buildTurnHints(raw: unknown): { readonly speakerCharacterId?: string; r
   };
 }
 
-/** worldInfo.upsertEntry — capability worldinfo.write + host authority (02 §2: room-state writes are host
+/** worldInfo.upsertEntry — capability worldinfo.write + host authority (room-state writes are host
  *  authority). The guest entry crosses as a JSON object; the authority-agnostic bridge maps it onto the shared
  *  lore writer under the installer. */
 function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
@@ -317,13 +317,13 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   ctx.setProp(surface, "worldInfo", worldInfo);
 }
 
-/** imagery.generatePicture — capability imagery.generate + host authority (02 §2: host-gated). Returns the
+/** imagery.generatePicture — capability imagery.generate + host authority (host-gated). Returns the
  *  primary image's `{assetId}` (the bridge forwards the admitted chat + action args to the front door; compose
  *  re-validates the args + applies the action-arg defaults). v1 SPEND BOUND (honest, docs-are-law): the
  *  generation is funded by the INSTALLER's own credential (compose resolves the installer Principal for
  *  connection + spend attribution), fan-out is clamped to n≤4 (generateImageActionArgsSchema), host calls are
  *  capped at ≤32 concurrent per invocation, and plugin install is admin-only. There is NO per-call
- *  D17/automation_budgets SPEND-CEILING debit on this path — that ceiling is a deliberate P4b-tail deferral (the
+ *  D17/automation_budgets SPEND-CEILING debit on this path — that ceiling is a deliberate deferral (the
  *  same unwired class as turn.trigger). Do not claim a spend ceiling this path does not enforce. */
 function setImagery(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using imagery = ctx.newObject();
@@ -377,7 +377,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   ctx.setProp(surface, "variables", vars);
 }
 
-/** storage.get/set/delete/list — capability storage.kv. The plugin-PRIVATE KV (01 §2 / 02 §3): the bridge op
+/** storage.get/set/delete/list — capability storage.kv. The plugin-PRIVATE KV: the bridge op
  *  is closed DOMAIN-side over the pluginId + installer (owner), so a guest names only the key/prefix and can
  *  NEVER read another plugin's (or owner's) keys. Not host-authority gated (a plugin's own private store is not
  *  room state) — the grant alone suffices. The value/key-size + 256-key caps are enforced by the domain op. */
@@ -425,14 +425,14 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
   ctx.setProp(surface, "storage", storage);
 }
 
-/** notifications.post — capability notify. Post a durable participant notice (01 §2 / 03 §1.5): the guest supplies
+/** notifications.post — capability notify. Post a durable participant notice: the guest supplies
  *  the recipient selector (`"host"|"all_members"`) + the message; the bridge closed the pluginId + installer over
  *  the op, which resolves the recipient set DOMAIN-side (host = installer; all_members = the present human roster)
  *  and emits the `automation-notice`. A plugin can never notify a non-participant (the roster is resolved
  *  domain-side from the ADMITTED chat, never guest-supplied). Requires an admitted chat scope; NOT host-authority
  *  gated (a member-visible notice to participants is the read floor, matching the automation `post_notification`
  *  arm's own `host|all_members` recipients — the arm gates the roster, not host authority). The message is
- *  host-capped by the domain op (200 chars, 03 §1.5). */
+ *  host-capped by the domain op (200 chars). */
 function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using notifications = ctx.newObject();
   attachAsync(ctx, notifications, {
@@ -451,7 +451,7 @@ function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: 
   ctx.setProp(surface, "notifications", notifications);
 }
 
-/** tools.register — SYNC, activation-time (03 §5). Captures the guest handler HANDLE for the resident-handler
+/** tools.register — SYNC, activation-time. Captures the guest handler HANDLE for the resident-handler
  *  runtime (the Sandbox keeps it alive + mints the ref); collects `{name, description, parameters}`. A snippet
  *  (no tools.register grant) hits the capability throw here — the "no registration from a transient snippet"
  *  rule enforced through the SAME gate, no snippet-special path. */
@@ -484,7 +484,7 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
   ctx.setProp(surface, "tools", tools);
 }
 
-/** transforms.register — SYNC, activation-time (03 §6), the D50 PromptTransform mirror of tools.register.
+/** transforms.register — SYNC, activation-time, the D50 PromptTransform mirror of tools.register.
  *  Captures the guest `apply` HANDLE for the resident-handler runtime (the Sandbox keeps it alive + mints the
  *  ref) and records `{name, point}`. Capability-gated (chat.transform) through the SAME uniform gate — a
  *  snippet without the grant hits the throw here (no snippet-special path). NOTE the plugin ORDER BAND (1000+)
@@ -515,7 +515,7 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
   ctx.setProp(surface, "transforms", transforms);
 }
 
-/** events.on — SYNC, activation-time (03 §2), the event-subscription mirror of tools.register. `on(type, handler)`:
+/** events.on — SYNC, activation-time, the event-subscription mirror of tools.register. `on(type, handler)`:
  *  gate events.subscribe, validate `type` against the closed Tier-1 taxonomy (plugins get no private event
  *  vocabulary), and capture the guest `handler` HANDLE for the resident-subscriber runtime. The handler is a
  *  POSITIONAL arg (auto-disposed after this callback), so it is `dup()`'d before being handed to the Sandbox
@@ -546,7 +546,7 @@ function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
 }
 
 /** net.fetch — capability net.fetch. The host performs the fetch through the AUDITED SSRF guard (`safeFetch`,
- *  D61 B5a) pinned to the manifest-declared `netHosts` allowlist (the wall — NEVER `ANY_HOST`, NEVER a
+ *  D61) pinned to the manifest-declared `netHosts` allowlist (the wall — NEVER `ANY_HOST`, NEVER a
  *  guest-supplied host). The guest supplies ONLY the URL + a GET/POST init; the host list is fixed data. Every
  *  hop re-validates https + the allowlist + private-range denial, so an off-allowlist redirect / private IP /
  *  scheme downgrade is refused. The response crosses back as JSON-safe primitives — `{status, body}` (body =
@@ -609,7 +609,7 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 
 /** Build + attach ONE async host function: guest args via `ctx.dump`, the impl races a real-time deadline, the
  *  JSON-safe result crosses back via `jsToHandle` (size-capped), and settled guest jobs are pumped (bounded by
- *  the invocation deadline). ≤ 32 concurrent host calls per invocation — call 33 rejects (03 §3 back-pressure).
+ *  the invocation deadline). ≤ 32 concurrent host calls per invocation — call 33 rejects (back-pressure).
  *  A thrown/rejected impl (a capability/handle/host-authority refusal, or a bridge error) rejects the guest
  *  promise — errors-as-data, never a host crash. */
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
@@ -617,7 +617,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
   using fn = ctx.newFunction(name, (...argHandles) => {
     const args = argHandles.map((handle) => ctx.dump(handle) as unknown);
     // `deferred` is deliberately NOT `using`: its lifetime ESCAPES this scope (its `.handle` is the guest's
-    // promise and the Sandbox's `pending` drain owns teardown — 03 §3). Same for the positional `argHandles`,
+    // promise and the Sandbox's `pending` drain owns teardown). Same for the positional `argHandles`,
     // which quickjs-emscripten disposes itself.
     const deferred = ctx.newPromise();
 
@@ -644,7 +644,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
           // A fire-and-forget guest call can outlive its invocation: the context is disposed (snippet end /
           // deactivate) BEFORE this real-async host call settles. Touching a dead context (deferred/jsToHandle)
           // is a use-after-free that escapes as an unhandled rejection — drop the late result (the guest promise
-          // it would resolve no longer exists; leak-proof, the 03 §3 PluginInvocationEnded posture).
+          // it would resolve no longer exists; leak-proof, the PluginInvocationEnded posture).
           if (!ctx.alive) {
             return;
           }
@@ -663,7 +663,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
           }
           // Preserve the Error's NAME across the boundary (not just the message) — a typed membrane rejection
           // (`PluginCapabilityError`) must reach the guest with `e.name === "PluginCapabilityError"` so a plugin
-          // feature-detects by type (01 §1.3), not by a message substring. Nameless/non-Error reasons fall back
+          // feature-detects by type, not by a message substring. Nameless/non-Error reasons fall back
           // to a plain `"Error"`.
           using err = reason instanceof Error ? ctx.newError({ name: reason.name, message: reason.message }) : ctx.newError(String(reason));
           deferred.reject(err);

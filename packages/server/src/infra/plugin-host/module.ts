@@ -1,9 +1,9 @@
-// The ONE QuickJSWASMModule per process (01 §0). QuickJS-ng via `quickjs-emscripten-core` +
+// The ONE QuickJSWASMModule per process. QuickJS-ng via `quickjs-emscripten-core` +
 // `@jitl/quickjs-ng-wasmfile-release-sync` — the -ng variant loaded explicitly (the `quickjs-emscripten`
 // umbrella bundles only the ORIGINAL Bellard quickjs; honoring D46's "-ng" REQUIRES core + the -ng
 // variant, pnpm-workspace.yaml records the full pin rationale). SYNC variant (not asyncify): the
 // membrane's async posture is manual `executePendingJobs()` job-pumping under the invocation deadline
-// (03 §3) — proven in the P1 spike — so an `await` chain cannot outlive its budget; asyncify's whole-
+// — proven in the original spike — so an `await` chain cannot outlive its budget; asyncify's whole-
 // stack suspend is both a size/perf tax and a budget-escape vector.
 //
 // One `QuickJSWASMModule` loads the WASM once; each plugin/snippet gets its OWN `QuickJSContext` (own

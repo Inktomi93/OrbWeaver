@@ -1,4 +1,4 @@
-// domain/plugin/activation/deactivate — tear a resident plugin down (02 §4/§5, 03 §5). Unregister EVERY
+// domain/plugin/activation/deactivate — tear a resident plugin down. Unregister EVERY
 // collected registration (no ghost tools/transforms/subscriptions — a disabled/uninstalled plugin's tool must
 // never stay callable), dispose the guest instance through the port, and drop it from the resident registry.
 // Idempotent: deactivating a plugin with no resident instance is a no-op (a disabled plugin, a double-disable).

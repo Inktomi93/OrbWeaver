@@ -37,7 +37,7 @@ export interface RegisteredTool {
 export type ToolRegistry = Map<string, RegisteredTool>;
 
 /** The deregistration handle the runtime plugin registrar returns (PL-A). Plugin deactivation/uninstall calls
- *  `unregister` so a disabled plugin's tool never stays resolvable (03 §5 — "no ghost tools"). */
+ *  `unregister` so a disabled plugin's tool never stays resolvable — no ghost tools. */
 export interface PluginToolHandle {
   readonly unregister: () => void;
 }

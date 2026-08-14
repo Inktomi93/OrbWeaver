@@ -1,4 +1,4 @@
-// verb: createRule — host-authored rule creation (04 §2). Gates chat-host authority, validates the whole
+// verb: createRule — host-authored rule creation. Gates chat-host authority, validates the whole
 // payload (trigger liveness · CEL parse · action shapes/caps/reserved-arm refusal · book attachment ·
 // cooldown floor), assigns `position = max+1`, and inserts the rule BORN DISABLED (enabling is the consent
 // act). Returns the stored view.

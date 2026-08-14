@@ -5,7 +5,7 @@
 // anything persists (validate-at-the-boundary — the bundle is untrusted input).
 //
 // Unzip hardening is NON-optional: (a) STRICT ENTRY ALLOW-LIST
-// — a bundle is EXACTLY `manifest.json` + `main.js` (02 §1); any extra/unknown/traversal entry name is a
+// — a bundle is EXACTLY `manifest.json` + `main.js`; any extra/unknown/traversal entry name is a
 // refusal, so path traversal is impossible by construction (only two exact names are ever admitted); (b)
 // DECOMPRESSION-BOMB GUARD — a compressed-input cap + per-entry decompressed caps checked from the zip header
 // BEFORE fflate allocates (the filter refuses an over-cap entry pre-alloc), belt-checked against the actual
@@ -18,21 +18,21 @@ import { unzipSync } from "fflate";
 import { z } from "zod";
 import { ManifestInvalidError } from "../contract/errors.ts";
 
-/** The stored bundle is the whole zip (re-parsed + re-validated on activation load — 02 §3); the CAS row's
+/** The stored bundle is the whole zip (re-parsed + re-validated on activation load); the CAS row's
  *  mime records that. install/upgrade store under this; the ONE home so the two verbs don't drift. */
 export const PLUGIN_BUNDLE_MIME = "application/zip";
 
 const MANIFEST_ENTRY = "manifest.json";
 const MAIN_ENTRY = "main.js";
-/** The two — and only two — legal bundle entries (02 §1). */
+/** The two — and only two — legal bundle entries. */
 const ALLOWED_ENTRIES: readonly string[] = [MANIFEST_ENTRY, MAIN_ENTRY];
 
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
 const MANIFEST_JSON_KIB = 64;
-/** The COMPRESSED bundle cap (02 §1 "ship one file, ≤ 1 MiB") — the first bomb bound (bounds the input). */
+/** The COMPRESSED bundle cap ("ship one file, ≤ 1 MiB") — the first bomb bound (bounds the input). */
 const MAX_BUNDLE_BYTES = BYTES_PER_MIB;
-/** The DECOMPRESSED `main.js` cap (02 §1 — a single pre-bundled ES script ≤ 1 MiB). */
+/** The DECOMPRESSED `main.js` cap (a single pre-bundled ES script ≤ 1 MiB). */
 const MAX_MAIN_JS_BYTES = BYTES_PER_MIB;
 /** The DECOMPRESSED `manifest.json` cap — a tiny metadata doc; 64 KiB is generous for the manifest shape. */
 const MAX_MANIFEST_JSON_BYTES = MANIFEST_JSON_KIB * BYTES_PER_KIB;

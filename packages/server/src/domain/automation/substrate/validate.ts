@@ -1,6 +1,6 @@
-// domain/automation/substrate/validate — the create/update write-edge validation (04 §2). One async pass:
-// trigger liveness (01 §1), CEL parse (02 §1), action-arm shapes + caps + reserved-arm refusal (03), the
-// post_notification cooldown floor (03 §3), and world-info book attachment (03 §1.3). Throws a TYPED refusal
+// domain/automation/substrate/validate — the create/update write-edge validation. One async pass:
+// trigger liveness, CEL parse, action-arm shapes + caps + reserved-arm refusal, the
+// post_notification cooldown floor, and world-info book attachment. Throws a TYPED refusal
 // (AutomationReservedTriggerError / RuleValidationError) — a rule with any violation is never stored. The db
 // CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal first.
 
@@ -14,9 +14,9 @@ import { AutomationReservedTriggerError, RuleValidationError } from "../contract
 import { isBookAttachedToChat } from "../persistence/canon-reads.ts";
 
 /** The per-rule cooldown floor (seconds) enforced when a `post_notification` arm is present — inbox spam
- *  trains dismissal (03 §3 / the chat-crew §5 lesson). */
+ *  trains dismissal. */
 const POST_NOTIFICATION_COOLDOWN_FLOOR = 60;
-/** The per-rule fires/hour ceiling (03 §3 — default 30, cap 240). */
+/** The per-rule fires/hour ceiling (default 30, cap 240). */
 const RULE_MAX_FIRES_CAP = 240;
 export const RULE_MAX_FIRES_DEFAULT = 30;
 
@@ -48,8 +48,8 @@ function validateActions(input: ValidateInput): readonly AutomationAction[] {
   return actions;
 }
 
-/** A `transform_draft` arm rides the D50 prompt-transform pipeline (A7), NOT the watcher — it registers a
- *  synchronous transform over the turn's draft (03 §1.2). So a rule carrying one must (a) carry ONLY
+/** A `transform_draft` arm rides the D50 prompt-transform pipeline, NOT the watcher — it registers a
+ *  synchronous transform over the turn's draft. So a rule carrying one must (a) carry ONLY
  *  transform_draft arms (a mix would half-run through the watcher and half through the pipeline — incoherent)
  *  and (b) trigger on `chat/turnStarted` (the only turn-scoped moment a draft exists to rewrite). A rule with
  *  no transform_draft arm is unconstrained here. */
@@ -69,7 +69,7 @@ function assertTransformDraftShape(trigger: AutomationTrigger, actions: readonly
   }
 }
 
-/** Every `insert_world_info_entry` arm's book must be attached to the chat (03 §1.3). One batched probe. */
+/** Every `insert_world_info_entry` arm's book must be attached to the chat. One batched probe. */
 async function assertBooksAttached(db: Db, chatId: ChatId, actions: readonly AutomationAction[]): Promise<void> {
   const bookIds = actions.filter((a) => a.type === "insert_world_info_entry").map((a) => a.bookId);
   const results = await Promise.all(bookIds.map((bookId) => isBookAttachedToChat(db, chatId, bookId)));

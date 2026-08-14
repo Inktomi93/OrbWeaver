@@ -1,5 +1,5 @@
-// domain/automation/engine/prompt-transforms — the automation side of the D50 `PromptTransform` seam (03 §1.2,
-// 04 §6; A7). A `transform_draft` arm is the ONE arm that does NOT run through the watcher/dispatch engine
+// domain/automation/engine/prompt-transforms — the automation side of the D50 `PromptTransform` seam.
+// A `transform_draft` arm is the ONE arm that does NOT run through the watcher/dispatch engine
 // (`arm-executors` records a typed refusal for it, `dispatch` skips a transform-only rule): prompt mutation
 // cannot be a fire-and-forget bus effect — by the time a subscriber runs, the prompt has shipped. Instead a
 // `transform_draft` rule REGISTERS a `PromptTransform` into chat's compose-wired registry, which the turn
@@ -26,16 +26,16 @@ import { renderArmTemplate } from "../substrate/macro-render.ts";
  *  the arm index disambiguates a rule with more than one `transform_draft` arm; every id is unique in the
  *  shared registry, and the `automation:` prefix scopes this index's reconciliation to its OWN rows). */
 const AUTOMATION_TRANSFORM_ID_PREFIX = "automation:";
-/** The top of automation's `order` band (04 §6 — automation 0–999, plugins 1000+; host policy wraps guest).
+/** The top of automation's `order` band (automation 0–999, plugins 1000+; host policy wraps guest).
  *  A rule's `position` is its order; clamped so a pathologically deep list can never cross into the plugin band. */
 const AUTOMATION_ORDER_MAX = 999;
 /** The `{{draft}}` macro name a `transform_draft` template addresses — seeded into the render's name→value env
- *  as the CURRENT target text; its render REPLACES the target (03 §1.2). */
+ *  as the CURRENT target text; its render REPLACES the target. */
 const DRAFT_MACRO_KEY = "draft";
 
 /** Build the CEL activation a transform's predicate + template render evaluates against — the same planes the
  *  live dispatch env carries, MINUS `event` (a transform applies inside the pipeline; there is no trigger fact
- *  synchronously — the `{{expr::…}}` posture, 02 §2/§3). `vars` is the pipeline-supplied runtime fold-cache
+ *  synchronously — the `{{expr::…}}` posture). `vars` is the pipeline-supplied runtime fold-cache
  *  snapshot (read-only); choice/global/messageCount are read fresh so a predicate over them sees turn-time truth. */
 async function buildTransformEnv(
   deps: PromptTransformIndexDeps,
@@ -65,7 +65,7 @@ interface TransformArmSpec {
  *  is a shared, chat-blind Map, so a transform must ignore other chats' turns; (2) evaluates the rule's
  *  predicate over the event-less env — false OR error ⇒ the draft passes through UNCHANGED; (3) renders the
  *  template with `{{draft}}` = the current target text; a strict-arg render error passes the draft through
- *  UNCHANGED (a broken rule must never eat the user's message — 03 §1.2). */
+ *  UNCHANGED (a broken rule must never eat the user's message). */
 function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec: TransformArmSpec): PromptTransform {
   return {
     id: `${AUTOMATION_TRANSFORM_ID_PREFIX}${rule.id}:${spec.armIndex}`,
@@ -103,7 +103,7 @@ function ruleTransforms(deps: PromptTransformIndexDeps, rule: RuleRow): PromptTr
   );
 }
 
-/** Build the A7 prompt-transform index over the injected registry. `reload` reconciles the registered set
+/** Build the prompt-transform index over the injected registry. `reload` reconciles the registered set
  *  with canon: register/replace every enabled transform rule's transforms, and unregister any id this index
  *  previously registered that is no longer desired (a disabled/deleted/edited-away rule). Idempotent — a
  *  re-register replaces by id (a rule edit). Call `reload()` once at boot after chat's registry exists. */

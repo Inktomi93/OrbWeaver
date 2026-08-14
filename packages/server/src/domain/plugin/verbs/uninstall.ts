@@ -1,8 +1,8 @@
-// verb: uninstall — remove an installed plugin (02 §4). Authority = install authority (owner ∪ admin). Order:
-// deactivate (dispose the resident instance + deregister its tools/transforms/subs — no ghost registrations,
-// 03 §5) → delete the row (`plugin_kv` CASCADEs off the FK) → reap the now-unreferenced bundle asset. The
+// verb: uninstall — remove an installed plugin. Authority = install authority (owner ∪ admin). Order:
+// deactivate (dispose the resident instance + deregister its tools/transforms/subs — no ghost registrations)
+// → delete the row (`plugin_kv` CASCADEs off the FK) → reap the now-unreferenced bundle asset. The
 // bundle FK is ON DELETE RESTRICT, so the row MUST go before the asset can be reaped (`reapIfOrphan` re-checks
-// references — a within-user dedup that shares the asset with another plugin is never reaped, 02 §3).
+// references — a within-user dedup that shares the asset with another plugin is never reaped).
 
 import { PluginNotFoundError } from "../contract/errors.ts";
 import type { UninstallPluginParams } from "../contract/params.ts";

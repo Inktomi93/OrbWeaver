@@ -1,7 +1,7 @@
 // domain/automation/substrate/macro-render — the ONE arm-template render home, shared by the dry-run preview
-// (04 §2) and the LIVE dispatch arms (03 §0). Every arm `template` field renders through `kit/macro` against
-// the dispatch CEL activation (which feeds `{{expr::…}}` — 02 §3), with the injected clock/PRNG and
-// `strictArgs` (02 §5). A strict-arg error becomes the arm's typed refusal instead of a silently-wrong render.
+// and the LIVE dispatch arms. Every arm `template` field renders through `kit/macro` against
+// the dispatch CEL activation (which feeds `{{expr::…}}`), with the injected clock/PRNG and
+// `strictArgs`. A strict-arg error becomes the arm's typed refusal instead of a silently-wrong render.
 
 import type { AutomationCelEnv } from "@orb/contracts/automation";
 import type { CelBindings } from "@orb/kit/cel";
@@ -9,8 +9,8 @@ import type { MacroDiagnostic, ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
 import type { ArmTemplateRender } from "../contract/ops.ts";
 
-/** The CEL activation an arm template's `{{expr::…}}` reads — SANS `event` (assembly/render has no trigger,
- *  02 §3; the predicate path binds `event` separately). */
+/** The CEL activation an arm template's `{{expr::…}}` reads — SANS `event` (assembly/render has no trigger;
+ *  the predicate path binds `event` separately). */
 function celBindingsForRender(env: AutomationCelEnv): CelBindings {
   return { vars: env.vars, choice: env.choice, global: env.global, chat: env.chat, now: env.now };
 }

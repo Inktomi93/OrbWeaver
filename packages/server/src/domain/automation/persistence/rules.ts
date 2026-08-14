@@ -136,15 +136,15 @@ export async function deleteRuleRow(db: Db, ruleId: AutomationRuleId): Promise<v
   await db.delete(automationRules).where(eq(automationRules.id, ruleId));
 }
 
-// ── the A5 watcher/dispatch reads + writes ──────────────────────────────────────────────────────────
-/** Distinct chat ids with ≥1 enabled rule — the watcher's chat-Set (01 §3 pre-check), rebuilt at boot +
+// ── the watcher/dispatch reads + writes ─────────────────────────────────────────────────────────────
+/** Distinct chat ids with ≥1 enabled rule — the watcher's chat-Set (pre-check), rebuilt at boot +
  *  after each lifecycle mutation. Only chat-scoped rows (v1 refuses the owner-global chat-less shape). */
 export async function loadEnabledChatIds(db: Db): Promise<ChatId[]> {
   const rows = await db.selectDistinct({ chatId: automationRules.chatId }).from(automationRules).where(eq(automationRules.enabled, true));
   return rows.flatMap((r): ChatId[] => (r.chatId === null ? [] : [r.chatId]));
 }
 
-/** Whether ANY enabled rule triggers on the domain bus — the watcher's domain-bus fast path (01 §3). */
+/** Whether ANY enabled rule triggers on the domain bus — the watcher's domain-bus fast path. */
 export async function hasEnabledDomainRules(db: Db): Promise<boolean> {
   const rows = await db
     .select({ one: sql<number>`1` })
@@ -155,7 +155,7 @@ export async function hasEnabledDomainRules(db: Db): Promise<boolean> {
 }
 
 /** A chat's ENABLED chat-bus rules for one trigger, in dispatch order (the `automation_rules_chat_enabled`
- *  index — 04 §1/§3). */
+ *  index). */
 export function loadEnabledChatRules(db: Db, chatId: ChatId, triggerType: AutomationTrigger["type"]): Promise<RuleRow[]> {
   return db
     .select()
@@ -181,7 +181,7 @@ export function loadEnabledDomainRules(db: Db, triggerType: AutomationTrigger["t
     .orderBy(asc(automationRules.chatId), asc(automationRules.position), asc(automationRules.createdAt));
 }
 
-/** Every ENABLED chat-bus `turnStarted` rule, across all chats, in dispatch order — the A7 prompt-transform
+/** Every ENABLED chat-bus `turnStarted` rule, across all chats, in dispatch order — the prompt-transform
  *  index's source (a `transform_draft` rule registers into the turn pipeline, it does NOT watcher-dispatch;
  *  the index filters these to the transform-only rows and syncs the registry). Ordered by chat then position
  *  so a chat's transforms register in the host-authored order that IS their `PromptTransform.order`. */
@@ -193,8 +193,8 @@ export function loadEnabledTurnStartedRules(db: Db): Promise<RuleRow[]> {
     .orderBy(asc(automationRules.chatId), asc(automationRules.position), asc(automationRules.createdAt));
 }
 
-/** A clean fire (04 §3 step 6): stamp `last_fired_at` (the cooldown source) + clear the error ledger. */
-// @owner-scope-write-ok: the A5 DISPATCH plane (D20 un-principal) — the ruleId is one the engine itself
+/** A clean fire (dispatch step 6): stamp `last_fired_at` (the cooldown source) + clear the error ledger. */
+// @owner-scope-write-ok: the DISPATCH plane (D20 un-principal) — the ruleId is one the engine itself
 // loaded off `loadEnabledChatRules`/`loadEnabledDomainRules`, never caller input, and the write is the
 // engine's own bookkeeping (the clean-fire stamp). There is no principal in scope to scope it to. Ends if a
 // user-facing door ever calls this.
@@ -203,8 +203,8 @@ export async function stampRuleFired(db: Db, ruleId: AutomationRuleId, now: numb
 }
 
 /** Record a rule error (predicate_error/action_error/authority_refused): increment `consecutive_errors` +
- *  store the skip reason. Returns the NEW count so the dispatch can auto-disable at the threshold (02 §1). */
-// @owner-scope-write-ok: the A5 DISPATCH plane (D20 un-principal) — the ruleId is one the engine itself
+ *  store the skip reason. Returns the NEW count so the dispatch can auto-disable at the threshold. */
+// @owner-scope-write-ok: the DISPATCH plane (D20 un-principal) — the ruleId is one the engine itself
 // loaded off `loadEnabledChatRules`/`loadEnabledDomainRules`, never caller input, and the write is the
 // engine's own bookkeeping (the error ledger). There is no principal in scope to scope it to. Ends if a
 // user-facing door ever calls this.

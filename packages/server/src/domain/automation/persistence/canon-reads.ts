@@ -1,8 +1,8 @@
 // domain/automation/persistence/canon-reads — the NARROW, sanctioned schema-level reads of OTHER domains'
 // rows the rule verbs need (the agents canon-reads / buddy observer db-reads precedent). NOT cross-feature
 // service calls: a bare membership select (the authority gate feeds the role to `can()`), a chat_books
-// attachment probe (the `insert_world_info_entry` arm's consent check — 03 §1.3), and a message count for
-// the CEL `chat` projection (02 §1). Reads only; automation never mutates another domain's canon here.
+// attachment probe (the `insert_world_info_entry` arm's consent check), and a message count for
+// the CEL `chat` projection. Reads only; automation never mutates another domain's canon here.
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -28,7 +28,7 @@ export async function loadCallerRole(db: Db, chatId: ChatId, userId: UserId): Pr
 
 /** Whether a world book is attached DIRECTLY to a chat (the `chat_books` junction). The
  *  `insert_world_info_entry` arm may only write a book the room has consented to — the attachment IS that
- *  consent (03 §1.3). */
+ *  consent. */
 export async function isBookAttachedToChat(db: Db, chatId: ChatId, bookId: WorldBookId): Promise<boolean> {
   const rows = await db
     .select({ bookId: chatBooks.worldBookId })
@@ -38,7 +38,7 @@ export async function isBookAttachedToChat(db: Db, chatId: ChatId, bookId: World
   return rows.length > 0;
 }
 
-/** The chat's message count — the CEL `chat.messageCount` projection (02 §1). A narrow COUNT, not a row read.
+/** The chat's message count — the CEL `chat.messageCount` projection. A narrow COUNT, not a row read.
  *  VISIBLE rows only: the selected-variant `innerJoin` is the visibility predicate, the SAME join the chat
  *  list's stats read uses. (D124 retired the second half: rpg's content-less "state anchor" slots — which
  *  made `chat.messageCount > 10` fire early after a host resync — no longer exist to be filtered.) */
@@ -52,7 +52,7 @@ export async function countChatMessages(db: Db, chatId: ChatId): Promise<number>
 }
 
 /** The PRESENT HUMAN members of a chat (`leftSeq IS NULL`, `kind='human'`) — the `post_notification` arm's
- *  `all_members` recipient set (03 §1.5; recipients must be chat participants). Agent seats have no inbox. */
+ *  `all_members` recipient set (recipients must be chat participants). Agent seats have no inbox. */
 export async function loadPresentHumanMemberIds(db: Db, chatId: ChatId): Promise<UserId[]> {
   const rows = await db
     .select({ userId: chatParticipants.userId })
@@ -90,7 +90,7 @@ export async function isDomainRowOwnedBy(db: Db, kind: "character" | "asset", id
 }
 
 /** The titles of the entries a rule OWNS in a book (its `insert_world_info_entry` arm namespaces every entry
- *  title by the ruleId — see `engine/arm-executors`), for the per-rule ≤64-entries-per-book cap (03 §1.3).
+ *  title by the ruleId — see `engine/arm-executors`), for the per-rule ≤64-entries-per-book cap.
  *  A JS-side `startsWith` filter — NOT SQL `LIKE` (the ruleId's TypeID underscores are `LIKE` wildcards that
  *  would over-match a sibling rule's entries); a book's entry set is small, so the title read is cheap. */
 export async function listRuleEntryTitles(db: Db, bookId: WorldBookId, titlePrefix: string): Promise<string[]> {

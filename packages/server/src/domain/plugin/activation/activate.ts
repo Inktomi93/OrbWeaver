@@ -1,9 +1,9 @@
-// domain/plugin/activation/activate — bring a plugin RESIDENT (02 §5, 03 §2). Read the bundle bytes from the
+// domain/plugin/activation/activate — bring a plugin RESIDENT. Read the bundle bytes from the
 // owner's CAS → re-parse (re-validated on load) → `createInstance` (realm setup + run `main.js` under the
 // invocation budget) → collect registrations → hand each to its registrar op. ATOMIC: any failure (a corrupt
 // stored bundle, a contained activation error, a registrar refusal such as a tool-name collision) discards the
 // whole activation — the partial registrations are unregistered, the instance disposed, and the row lands
-// `errored` + `last_error`. NEVER a partial activation (03 §2). The host process is never fatal on guest
+// `errored` + `last_error`. NEVER a partial activation. The host process is never fatal on guest
 // behavior — a `main.js` throw is contained data (`ok:false`), not an exception.
 
 import type { PluginInstance } from "@orb/contracts/plugin";
@@ -16,7 +16,7 @@ import { parseBundle } from "../substrate/manifest.ts";
 
 /** Hand every collected registration to its registrar op, collecting the deregistration handles. Each carries
  *  the per-activation {@link PluginActivationScope} (the manifest slug for namespacing + the installer for the
- *  PL-C ceiling). On the FIRST registrar refusal (a collision is activation-fatal — 03 §5) it unregisters its
+ *  PL-C ceiling). On the FIRST registrar refusal (a collision is activation-fatal) it unregisters its
  *  OWN partial set before rethrowing, so the throw leaves NO orphan registration (the caller then disposes). */
 function register(ctx: PluginContext, instance: PluginInstance, invoke: PluginInvokeHandler, scope: PluginActivationScope): PluginRegistrationHandle[] {
   const handles: PluginRegistrationHandle[] = [];
@@ -53,12 +53,12 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
       const bundle = parseBundle(bytes);
       mainJs = bundle.mainJs;
       // The slug is DERIVED from the re-validated manifest (never guest-runtime-supplied) — the registrar
-      // namespaces plugin tools `plugin_<slug'>_<name>` with it (PL-A / 03 §5).
+      // namespaces plugin tools `plugin_<slug'>_<name>` with it (PL-A).
       slug = bundle.manifest.id;
       // The `net.fetch` SSRF allowlist — forwarded from the RE-VALIDATED manifest (never guest-runtime-supplied)
       // so the infra host-fn pins `safeFetch` to it; absent ⇒ fail-closed `[]` (no host reachable) infra-side.
       netHosts = bundle.manifest.netHosts;
-      // The cascade opt-in (03 §2) — DERIVED from the re-validated manifest, fail-closed `false` when absent.
+      // The cascade opt-in — DERIVED from the re-validated manifest, fail-closed `false` when absent.
       matchAutomationEvents = bundle.manifest.matchAutomationEvents ?? false;
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
@@ -79,7 +79,7 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
     }
 
     const { instance } = outcome;
-    // The resident-tool invoke loop (03 §5) under the crash policy (03 §4): a handler throw/deadline surfaces as
+    // The resident-tool invoke loop under the crash policy: a handler throw/deadline surfaces as
     // `ctx.host.invoke` REJECTING → bump the consecutive-crash counter (auto-disable + owner-notify at the
     // threshold) and RE-THROW so the tool-use registrar catches it as `threw` (errors-as-data to the model); a
     // clean run resets the counter. `chat` is the registrar-resolved invocation scope (read admits, host writes).

@@ -1,5 +1,5 @@
 // domain/automation/engine/budget-gate — the pre-op fire-RATE gates (loop safety), checked BEFORE any arm runs.
-// Three layers, all sourced from automation's OWN tables (04 §1: the fire log IS the per-hour count source, on
+// Three layers, all sourced from automation's OWN tables (the fire log IS the per-hour count source, on
 // the `(rule_id, fired_at)` index — not the rate_limit_buckets primitive, which can't express the per-rule
 // dynamic caps and would split the source of truth from the fire log the host debugs against): the per-rule
 // cooldown (off `last_fired_at`), the per-rule/hour ceiling, and the per-chat/hour ceiling (the host-editable

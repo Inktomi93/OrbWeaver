@@ -138,7 +138,7 @@ export interface UpdateConfigParams {
         readonly relationshipHints?: Readonly<Record<string, string>> | undefined;
         // R4c — the custom-journal-type gloss map (the relationshipHints sibling); whole-record replace.
         readonly journalTypeHints?: Readonly<Record<string, string>> | undefined;
-        // P3 hidden-channel knobs (§3.3/§3.6) + the recent-beats cap (P3 fold). Omit keeps the current value
+        // Hidden-channel knobs + the recent-beats cap. Omit keeps the current value
         // (MA-4 patch semantics) — the verb reads the game's existing value on omit, so a toggle survives an
         // unrelated config edit (never reset to default). `deception`/`omniscience` = the teach + reasoning-strip
         // gates; `hiddenContentReveal` = M4 host-eye offer; `recentBeatsKeepLast` = the reminder slice.
@@ -441,10 +441,10 @@ export interface LiteReminderInput {
   readonly statProfile: RpgStatProfile;
   /** The game's WHOLE feature-knob slice (`config.features`) — ONE home for every knob the reminder reads:
    *  `relationshipHints` (M1 — a custom relationship renders `label (gloss)`), `immersiveHtml` +
-   *  `immersiveHtmlInteractive` (the §3.3/§7.5 card teaching + its M3 ask variant), and the future P3/P5
+   *  `immersiveHtmlInteractive` (the card teaching + its M3 ask variant), and the other
    *  teaching gates. Passing the slice whole keeps the knob vocabulary one-homed (never re-picked per field). */
   readonly features: RpgGameFeatures;
-  /** The delta's roster-name map (P0 fold-in #5 — actorRefKey → display name) so volatile-plane delta lines name
+  /** The delta's roster-name map (actorRefKey → display name) so volatile-plane delta lines name
    *  roster actors ("Kael HP 12→16", not "character HP 12→16"). Resolved by the gather from `ctx.resolveRoster`;
    *  the pure delta reads it as DATA (no I/O in the registry — delta.ts stays pure). */
   readonly rosterNames: Readonly<Record<string, string>>;

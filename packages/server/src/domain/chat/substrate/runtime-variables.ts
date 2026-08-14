@@ -37,7 +37,7 @@ export function runtimeVariablesUpdateStatement(db: Db, chatId: ChatId, cache: R
   return batchStmt(db.update(chats).set({ runtimeVariables: value }).where(eq(chats.id, chatId)));
 }
 
-/** Build the `chats.standalone_variable_deltas` UPDATE (03 §1.1) — the durable log an out-of-turn
+/** Build the `chats.standalone_variable_deltas` UPDATE — the durable log an out-of-turn
  *  `applyVariableOps` appends to. An empty list writes `null` (mirrors the runtime-cache null contract). */
 export function standaloneVariableDeltasUpdateStatement(db: Db, chatId: ChatId, deltas: readonly StandaloneVariableDelta[]): BatchStmt {
   const value = deltas.length > 0 ? deltas : null;

@@ -1,6 +1,6 @@
-// domain/automation/contract/results — the rule-lifecycle read models (A4). RuleView/FireView/TestRunResult
-// stay in the DOMAIN contract (not `@orb/contracts/automation`) until the Phase-6 client type-imports them —
-// the AdminUserView precedent (04 §2). They project the persistence rows onto the closed contract vocabulary
+// domain/automation/contract/results — the rule-lifecycle read models. RuleView/FireView/TestRunResult
+// stay in the DOMAIN contract (not `@orb/contracts/automation`) until the client type-imports them —
+// the AdminUserView precedent. They project the persistence rows onto the closed contract vocabulary
 // (`AutomationTrigger`/`AutomationAction`/`AutomationFireOutcome`), never re-spelling those shapes.
 
 import type { AutomationAction, AutomationActionType, AutomationFireOutcome, AutomationTrigger } from "@orb/contracts/automation";
@@ -42,21 +42,21 @@ export interface FireView {
 }
 
 /** One arm's dry-run preview (`testRule`): the macro-rendered template, or the render error. Executes
- *  NOTHING — no op is called, no budget debited (04 §2). */
+ *  NOTHING — no op is called, no budget debited. */
 export interface ArmPreview {
   readonly type: AutomationActionType;
   readonly renderedPreview?: string;
   readonly error?: string;
 }
 
-/** The `testRule` dry-run contract (04 §2): the predicate verdict (or its error) + every arm's rendered
+/** The `testRule` dry-run contract: the predicate verdict (or its error) + every arm's rendered
  *  preview. A template bug — the dominant authoring failure — surfaces here without a spend. */
 export interface TestRunResult {
   readonly predicate: boolean | { readonly error: string };
   readonly arms: readonly ArmPreview[];
 }
 
-/** The `automation.stream` subscriber's authority tier over a chat (04 §5). The stream is the ONE procedure
+/** The `automation.stream` subscriber's authority tier over a chat. The stream is the ONE procedure
  *  projecting by caller authority (the agents host/member filter): a `host` subscriber receives every bus event;
  *  a `member` receives only the room-visible `quickReplySurfaced` (rule fire/error/disable are the host's hidden
  *  hand). A non-present member never resolves an authority (the verb throws a leak-free `AutomationChatNotFound`

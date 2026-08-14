@@ -1,5 +1,5 @@
 // infra/plugin-host/port — the sandbox-runtime seam impl (`PluginHostPort`). `createPluginHost` returns the
-// runtime the composition root injects UP into `domain/plugin` (01 §4): boot a guest + install the membrane,
+// runtime the composition root injects UP into `domain/plugin`: boot a guest + install the membrane,
 // run `main.js` under the invocation budget, collect its tool registrations, keep the instance RESIDENT, invoke
 // a collected handler under the per-invocation budget, snapshot the log, tear it down. Infra imports ZERO domain
 // (plugin-no-ambient): the returned object is STRUCTURALLY the domain's `PluginHostPort` (compose does the typed
@@ -12,8 +12,8 @@
 // notifications.post / tools.register / transforms.register / events.on / net.fetch) + the resident-handler
 // runtime are LIVE. `transforms.register` + `events.on` COLLECT a `PluginTransformRegistration` /
 // `PluginEventSubscription` (the domain wires the band/apply/delivery/unregister); `net.fetch` performs the host
-// fetch through the SSRF-guarded `safeFetch` pinned to `netHosts`. The former P4b-TAIL (quick_reply, notifications,
-// storage.kv) is now COMPOSED — the bridge closes the pluginId/installer over those ops domain-side.
+// fetch through the SSRF-guarded `safeFetch` pinned to `netHosts`. quick_reply, notifications, and
+// storage.kv are COMPOSED — the bridge closes the pluginId/installer over those ops domain-side.
 
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginLogLevel } from "@orb/contracts/plugin";
 import { EVENT_QUEUE_DEPTH, PLUGIN_MEMORY_LIMIT_BYTES, SNIPPET_WALL_MS } from "./budgets.ts";
@@ -103,7 +103,7 @@ interface Resident {
   queueDepth: number;
 }
 
-/** The inline-snippet run's outcome (03 §1) — a transient one-shot, no residency: the drained `[level] msg` log
+/** The inline-snippet run's outcome — a transient one-shot, no residency: the drained `[level] msg` log
  *  lines + an `error` iff the snippet threw / hit its 5 s wall. Structurally the domain's `SnippetResult`. */
 interface SnippetRunOut {
   readonly logLines: readonly string[];
@@ -145,7 +145,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
         sandbox.dispose();
         return { ok: false, error: outcome.error?.message ?? "activation failed", log: toLog(outcome.logs, at) };
       }
-      // The collected tool + transform + event registrations (03 §5/§6/§2) — the domain hands each to its runtime
+      // The collected tool + transform + event registrations — the domain hands each to its runtime
       // registrar (tools → tool-use registry; transforms → the shared prompt-transform registry, band-assigned
       // domain-side; events → the automation plugin-subscriber fan-out).
       const instance: PluginInstance = {
@@ -177,7 +177,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
         resident.sandbox.setInvocationChat(chat ?? null);
         const outcome = await resident.sandbox.invokeHandler(handler, argsJson);
         if (!outcome.ok) {
-          // A handler throw/deadline is contained data; the domain's crash policy classifies it (03 §4). Re-throw
+          // A handler throw/deadline is contained data; the domain's crash policy classifies it. Re-throw
           // so the registrar's run() catches it as `threw` (errors-as-data to the model).
           throw new Error(outcome.error?.message ?? "plugin handler failed");
         }
@@ -198,7 +198,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
     },
 
     runSnippet: async (input): Promise<SnippetRunOut> => {
-      // A transient one-shot (03 §1): fresh instance, the 5 s snippet wall, run once as the caller, dispose —
+      // A transient one-shot: fresh instance, the 5 s snippet wall, run once as the caller, dispose —
       // NEVER resident (no registry entry, no `invoke` reachable after). `events`/`tools`/`transforms`
       // registration is refused by the SAME capability gate (the snippet profile omits those grants).
       await getPluginQuickJS();
