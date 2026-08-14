@@ -17,7 +17,22 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Current pain-point audit; retained as review evidence, not implementation law."
+      "summary": "Current pain-point audit; retained as review evidence, not implementation law.",
+      "claims": [
+        {
+          "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#4"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/Context-Panel-Program.md",
@@ -33,7 +48,22 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Active owner-initiated context-panel program; retained as a current design specification."
+      "summary": "Active owner-initiated context-panel program; retained as a current design specification.",
+      "claims": [
+        {
+          "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#4"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/INDEX.md",
@@ -49,7 +79,22 @@
         "docs/architecture/proposed/INDEX.md:1 (verified disposition map for parked programs)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Current routing index for proposed-program lifecycle; it is non-authoritative for present implementation."
+      "summary": "Current routing index for proposed-program lifecycle; it is non-authoritative for present implementation.",
+      "claims": [
+        {
+          "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#4"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/README.md",
@@ -65,7 +110,22 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Current routing index for proposed-program lifecycle; it is non-authoritative for present implementation."
+      "summary": "Current routing index for proposed-program lifecycle; it is non-authoritative for present implementation.",
+      "claims": [
+        {
+          "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#4"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/agent-principal-design/01-identity-and-mint.md",
@@ -81,7 +141,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17."
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "claims": [
+        {
+          "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the current users schema has the dormant D60 human/agent kind and owner-link DDL; the behavioral mint and seating path are not asserted by this receipt.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/users.ts:32"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/agent-principal-design/02-participants-and-attribution.md",
@@ -97,7 +189,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17."
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "claims": [
+        {
+          "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the current users schema has the dormant D60 human/agent kind and owner-link DDL; the behavioral mint and seating path are not asserted by this receipt.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/users.ts:32"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/agent-principal-design/03-capability-ceiling.md",
@@ -113,7 +237,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17."
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "claims": [
+        {
+          "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the current users schema has the dormant D60 human/agent kind and owner-link DDL; the behavioral mint and seating path are not asserted by this receipt.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/users.ts:32"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/agent-principal-design/04-buddy-transition.md",
@@ -129,7 +285,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17."
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "claims": [
+        {
+          "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the current users schema has the dormant D60 human/agent kind and owner-link DDL; the behavioral mint and seating path are not asserted by this receipt.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/users.ts:32"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/agent-principal-design/05-seats.md",
@@ -145,7 +333,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17."
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "claims": [
+        {
+          "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the current users schema has the dormant D60 human/agent kind and owner-link DDL; the behavioral mint and seating path are not asserted by this receipt.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/users.ts:32"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/agent-principal-design/06-ripples.md",
@@ -161,7 +381,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17."
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "claims": [
+        {
+          "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the current users schema has the dormant D60 human/agent kind and owner-link DDL; the behavioral mint and seating path are not asserted by this receipt.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/users.ts:32"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/agent-principal-design/07-build-plan.md",
@@ -177,7 +429,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17."
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "claims": [
+        {
+          "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the current users schema has the dormant D60 human/agent kind and owner-link DDL; the behavioral mint and seating path are not asserted by this receipt.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/users.ts:32"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/agent-principal-design/README.md",
@@ -193,7 +477,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17."
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "claims": [
+        {
+          "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the current users schema has the dormant D60 human/agent kind and owner-link DDL; the behavioral mint and seating path are not asserted by this receipt.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#13"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/users.ts:32"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/agent-tool-propose-spec.md",
@@ -209,7 +525,35 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Committed UNMAPPED proposed program (agent-tool-propose-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition."
+      "summary": "Committed UNMAPPED proposed program (agent-tool-propose-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition.",
+      "claims": [
+        {
+          "claim": "Committed agent-tool proposal future-program inventory is tracked by #14; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#14"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #14 owns activation, shape revalidation, and the remaining agent-tool proposal scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#14"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/automation-design/01-triggers.md",
@@ -225,7 +569,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23."
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "claims": [
+        {
+          "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live automation front door exports service, dispatch, rule-index, and watcher composition; #15 retains revalidation of the program shape and any remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/automation/index.ts:52"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/transport/trpc/routers/automation.test.ts:44"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/automation-design/02-expressions.md",
@@ -241,7 +621,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23."
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "claims": [
+        {
+          "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live automation front door exports service, dispatch, rule-index, and watcher composition; #15 retains revalidation of the program shape and any remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/automation/index.ts:52"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/transport/trpc/routers/automation.test.ts:44"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/automation-design/03-actions.md",
@@ -257,7 +673,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23."
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "claims": [
+        {
+          "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live automation front door exports service, dispatch, rule-index, and watcher composition; #15 retains revalidation of the program shape and any remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/automation/index.ts:52"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/transport/trpc/routers/automation.test.ts:44"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/automation-design/04-domain-shape.md",
@@ -273,7 +725,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23."
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "claims": [
+        {
+          "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live automation front door exports service, dispatch, rule-index, and watcher composition; #15 retains revalidation of the program shape and any remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/automation/index.ts:52"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/transport/trpc/routers/automation.test.ts:44"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/automation-design/05-build-plan.md",
@@ -289,7 +777,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23."
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "claims": [
+        {
+          "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live automation front door exports service, dispatch, rule-index, and watcher composition; #15 retains revalidation of the program shape and any remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/automation/index.ts:52"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/transport/trpc/routers/automation.test.ts:44"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/automation-design/README.md",
@@ -305,7 +829,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23."
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "claims": [
+        {
+          "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live automation front door exports service, dispatch, rule-index, and watcher composition; #15 retains revalidation of the program shape and any remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/automation/index.ts:52"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/transport/trpc/routers/automation.test.ts:44"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/automation-design/automation.md",
@@ -321,7 +881,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23."
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "claims": [
+        {
+          "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live automation front door exports service, dispatch, rule-index, and watcher composition; #15 retains revalidation of the program shape and any remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#15"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/automation/index.ts:52"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/transport/trpc/routers/automation.test.ts:44"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/autosave-form-doctrine.md",
@@ -337,7 +933,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:27 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (autosave-form); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:27."
+      "summary": "Committed FUTURE proposed program (autosave-form); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:27.",
+      "claims": [
+        {
+          "claim": "Committed autosave-form future-program inventory is tracked by #16; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#16"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #16 owns activation, shape revalidation, and the remaining autosave-form scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#16"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/bg-video-background-mini-spec.md",
@@ -353,7 +977,43 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Committed UNMAPPED proposed program (bg-video-background-mini-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition."
+      "summary": "Committed UNMAPPED proposed program (bg-video-background-mini-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition.",
+      "claims": [
+        {
+          "claim": "Committed background-video future-program inventory is tracked by #17; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#17"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the UI exports a background-video primitive with rendered component tests; #17 owns any remaining product-target revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#17"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/background-video/background-video.tsx:44"
+            },
+            {
+              "kind": "test",
+              "target": "tests/ui/primitives/background-video/background-video.ct.tsx:12"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/chat-crew-design/01-verdicts-and-vision.md",
@@ -369,7 +1029,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25."
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "claims": [
+        {
+          "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #18 owns activation, shape revalidation, and the remaining chat-crew scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/chat-crew-design/02-domain-shape-and-state.md",
@@ -385,7 +1073,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25."
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "claims": [
+        {
+          "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #18 owns activation, shape revalidation, and the remaining chat-crew scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/chat-crew-design/03-members.md",
@@ -401,7 +1117,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25."
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "claims": [
+        {
+          "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #18 owns activation, shape revalidation, and the remaining chat-crew scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/chat-crew-design/04-integration-scheduler-and-rings.md",
@@ -417,7 +1161,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25."
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "claims": [
+        {
+          "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #18 owns activation, shape revalidation, and the remaining chat-crew scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/chat-crew-design/05-interconnection-map.md",
@@ -433,7 +1205,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25."
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "claims": [
+        {
+          "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #18 owns activation, shape revalidation, and the remaining chat-crew scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/chat-crew-design/06-persistent-guides.md",
@@ -449,7 +1249,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25."
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "claims": [
+        {
+          "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #18 owns activation, shape revalidation, and the remaining chat-crew scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/chat-crew-design/07-client-ui.md",
@@ -465,7 +1293,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25."
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "claims": [
+        {
+          "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #18 owns activation, shape revalidation, and the remaining chat-crew scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/chat-crew-design/08-build-plan.md",
@@ -481,7 +1337,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25."
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "claims": [
+        {
+          "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #18 owns activation, shape revalidation, and the remaining chat-crew scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/chat-crew-design/README.md",
@@ -497,7 +1381,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25."
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "claims": [
+        {
+          "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #18 owns activation, shape revalidation, and the remaining chat-crew scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#18"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/connections/01-capability-model.md",
@@ -641,7 +1553,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22."
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "claims": [
+        {
+          "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live databank front door exports ingest, persistence, active-document resolution, and service composition; #19 retains revalidation of the program shape and remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/databank/index.ts:18"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/databank.int.test.ts:40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/databank-design/02-schema-and-contracts.md",
@@ -657,7 +1605,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22."
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "claims": [
+        {
+          "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live databank front door exports ingest, persistence, active-document resolution, and service composition; #19 retains revalidation of the program shape and remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/databank/index.ts:18"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/databank.int.test.ts:40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/databank-design/03-chunker-kit.md",
@@ -673,7 +1657,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22."
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "claims": [
+        {
+          "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live databank front door exports ingest, persistence, active-document resolution, and service composition; #19 retains revalidation of the program shape and remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/databank/index.ts:18"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/databank.int.test.ts:40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/databank-design/04-extraction-infra.md",
@@ -689,7 +1709,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22."
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "claims": [
+        {
+          "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live databank front door exports ingest, persistence, active-document resolution, and service composition; #19 retains revalidation of the program shape and remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/databank/index.ts:18"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/databank.int.test.ts:40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/databank-design/05-embeddings-and-search-arms.md",
@@ -705,7 +1761,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22."
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "claims": [
+        {
+          "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live databank front door exports ingest, persistence, active-document resolution, and service composition; #19 retains revalidation of the program shape and remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/databank/index.ts:18"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/databank.int.test.ts:40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/databank-design/06-service-and-ingest.md",
@@ -721,7 +1813,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22."
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "claims": [
+        {
+          "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live databank front door exports ingest, persistence, active-document resolution, and service composition; #19 retains revalidation of the program shape and remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/databank/index.ts:18"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/databank.int.test.ts:40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/databank-design/07-chat-graft.md",
@@ -737,7 +1865,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22."
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "claims": [
+        {
+          "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live databank front door exports ingest, persistence, active-document resolution, and service composition; #19 retains revalidation of the program shape and remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/databank/index.ts:18"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/databank.int.test.ts:40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/databank-design/08-build-plan.md",
@@ -753,7 +1917,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22."
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "claims": [
+        {
+          "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live databank front door exports ingest, persistence, active-document resolution, and service composition; #19 retains revalidation of the program shape and remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/databank/index.ts:18"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/databank.int.test.ts:40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/databank-design/README.md",
@@ -769,7 +1969,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22."
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "claims": [
+        {
+          "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live databank front door exports ingest, persistence, active-document resolution, and service composition; #19 retains revalidation of the program shape and remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/databank/index.ts:18"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/databank.int.test.ts:40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/databank-design/databank.md",
@@ -785,7 +2021,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22."
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "claims": [
+        {
+          "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live databank front door exports ingest, persistence, active-document resolution, and service composition; #19 retains revalidation of the program shape and remaining work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#19"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/databank/index.ts:18"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/databank.int.test.ts:40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/expressions-design/01-domain-shape-and-schema.md",
@@ -801,7 +2073,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21."
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "claims": [
+        {
+          "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #20 owns activation, shape revalidation, and the remaining expressions scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/expressions-design/02-classify-and-the-turn-hook.md",
@@ -817,7 +2117,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21."
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "claims": [
+        {
+          "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #20 owns activation, shape revalidation, and the remaining expressions scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/expressions-design/03-sprite-sheet-generation.md",
@@ -833,7 +2161,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21."
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "claims": [
+        {
+          "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #20 owns activation, shape revalidation, and the remaining expressions scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/expressions-design/04-client-stage.md",
@@ -849,7 +2205,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21."
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "claims": [
+        {
+          "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #20 owns activation, shape revalidation, and the remaining expressions scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/expressions-design/05-build-plan.md",
@@ -865,7 +2249,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21."
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "claims": [
+        {
+          "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #20 owns activation, shape revalidation, and the remaining expressions scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/expressions-design/README.md",
@@ -881,7 +2293,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21."
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "claims": [
+        {
+          "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #20 owns activation, shape revalidation, and the remaining expressions scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/expressions-design/expressions.md",
@@ -897,7 +2337,35 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21."
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "claims": [
+        {
+          "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #20 owns activation, shape revalidation, and the remaining expressions scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#20"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/hub-browse-design/01-network-guard.md",
@@ -913,7 +2381,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19."
+      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
+      "claims": [
+        {
+          "claim": "Committed hub-browse future-program inventory is tracked by #21; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#21"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the live network adapter exports safeFetch; #21 retains revalidation of hub adapters and remaining browse flow.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#21"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/network/egress.ts:289"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/hub-browse-design/02-domain-and-adapters.md",
@@ -929,7 +2429,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19."
+      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
+      "claims": [
+        {
+          "claim": "Committed hub-browse future-program inventory is tracked by #21; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#21"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the live network adapter exports safeFetch; #21 retains revalidation of hub adapters and remaining browse flow.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#21"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/network/egress.ts:289"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/hub-browse-design/03-flow-rings-and-client.md",
@@ -945,7 +2477,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19."
+      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
+      "claims": [
+        {
+          "claim": "Committed hub-browse future-program inventory is tracked by #21; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#21"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the live network adapter exports safeFetch; #21 retains revalidation of hub adapters and remaining browse flow.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#21"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/network/egress.ts:289"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/hub-browse-design/README.md",
@@ -961,7 +2525,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19."
+      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
+      "claims": [
+        {
+          "claim": "Committed hub-browse future-program inventory is tracked by #21; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#21"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the live network adapter exports safeFetch; #21 retains revalidation of hub adapters and remaining browse flow.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#21"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/network/egress.ts:289"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/imagery-design/01-domain-shape-and-contracts.md",
@@ -977,7 +2573,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20."
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "claims": [
+        {
+          "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live imagery domain exports its service and tool definitions; #22 retains revalidation of remaining provider/capability and client work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/imagery/index.ts:23"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/imagery-design/02-two-step-templates-and-processreply.md",
@@ -993,7 +2621,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20."
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "claims": [
+        {
+          "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live imagery domain exports its service and tool definitions; #22 retains revalidation of remaining provider/capability and client work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/imagery/index.ts:23"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/imagery-design/03-edit-seam-references-and-reuse.md",
@@ -1009,7 +2669,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20."
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "claims": [
+        {
+          "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live imagery domain exports its service and tool definitions; #22 retains revalidation of remaining provider/capability and client work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/imagery/index.ts:23"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/imagery-design/04-integration-seams.md",
@@ -1025,7 +2717,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20."
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "claims": [
+        {
+          "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live imagery domain exports its service and tool definitions; #22 retains revalidation of remaining provider/capability and client work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/imagery/index.ts:23"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/imagery-design/05-build-plan.md",
@@ -1041,7 +2765,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20."
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "claims": [
+        {
+          "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live imagery domain exports its service and tool definitions; #22 retains revalidation of remaining provider/capability and client work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/imagery/index.ts:23"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/imagery-design/README.md",
@@ -1057,7 +2813,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20."
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "claims": [
+        {
+          "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live imagery domain exports its service and tool definitions; #22 retains revalidation of remaining provider/capability and client work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#22"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/imagery/index.ts:23"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/message-reactions-mini-spec.md",
@@ -1073,7 +2861,35 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Committed UNMAPPED proposed program (message-reactions-mini-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition."
+      "summary": "Committed UNMAPPED proposed program (message-reactions-mini-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition.",
+      "claims": [
+        {
+          "claim": "Committed message-reactions future-program inventory is tracked by #23; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#23"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #23 owns activation, shape revalidation, and the remaining message-reactions scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#23"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md",
@@ -1089,7 +2905,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26."
+      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
+      "claims": [
+        {
+          "claim": "Committed plugin future-program inventory is tracked by #24; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#24"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live plugin domain exports service and registrar/storage substrate; #24 remains the activation record for reconciling the parked program against this tree.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#24"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/plugin/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/plugin-host/port.test.ts:231"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md",
@@ -1105,7 +2957,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26."
+      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
+      "claims": [
+        {
+          "claim": "Committed plugin future-program inventory is tracked by #24; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#24"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live plugin domain exports service and registrar/storage substrate; #24 remains the activation record for reconciling the parked program against this tree.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#24"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/plugin/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/plugin-host/port.test.ts:231"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/plugin-design/03-execution-model.md",
@@ -1121,7 +3009,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26."
+      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
+      "claims": [
+        {
+          "claim": "Committed plugin future-program inventory is tracked by #24; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#24"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live plugin domain exports service and registrar/storage substrate; #24 remains the activation record for reconciling the parked program against this tree.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#24"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/plugin/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/plugin-host/port.test.ts:231"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/plugin-design/04-build-plan.md",
@@ -1137,7 +3061,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26."
+      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
+      "claims": [
+        {
+          "claim": "Committed plugin future-program inventory is tracked by #24; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#24"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live plugin domain exports service and registrar/storage substrate; #24 remains the activation record for reconciling the parked program against this tree.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#24"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/plugin/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/plugin-host/port.test.ts:231"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/plugin-design/README.md",
@@ -1153,7 +3113,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26."
+      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
+      "claims": [
+        {
+          "claim": "Committed plugin future-program inventory is tracked by #24; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#24"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live plugin domain exports service and registrar/storage substrate; #24 remains the activation record for reconciling the parked program against this tree.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#24"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/plugin/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/plugin-host/port.test.ts:231"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/01-vision-and-experience-loop.md",
@@ -1169,7 +3165,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/02-domain-shape.md",
@@ -1185,7 +3217,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/03-state-and-schema.md",
@@ -1201,7 +3269,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/04-mechanics.md",
@@ -1217,7 +3321,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/05-turn-integration-and-tools.md",
@@ -1233,7 +3373,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/06-gm-and-crew.md",
@@ -1249,7 +3425,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/07-encounters-scenes-party.md",
@@ -1265,7 +3477,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/08-generative-and-client-contract.md",
@@ -1281,7 +3529,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/09-integration-seams.md",
@@ -1297,7 +3581,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/10-build-plan.md",
@@ -1313,7 +3633,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/11-client-ui.md",
@@ -1329,7 +3685,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/12-human-gm-and-seats.md",
@@ -1345,7 +3737,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/13-lite-mode.md",
@@ -1361,7 +3789,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/rpg-design/README.md",
@@ -1377,7 +3841,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24."
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "claims": [
+        {
+          "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live RPG domain exports chat ops, service, staging, and tool definitions; composed integration tests exercise game creation and tool-turn state flush. #25 retains program-level revalidation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#25"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/index.ts:58"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/compose/rpg.int.test.ts:126"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/saved-rosters-design.md",
@@ -1393,7 +3893,39 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:18 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (saved-rosters); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:18."
+      "summary": "Committed PARTIAL proposed program (saved-rosters); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:18.",
+      "claims": [
+        {
+          "claim": "Committed saved-rosters future-program inventory is tracked by #26; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#26"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the current chat roster contract defines roster-member specifications; #26 retains revalidation of the saved-roster program and remaining verbs/client work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#26"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/roster.ts:99"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/spatial-maps-design-capture.md",
@@ -1409,7 +3941,35 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Committed UNMAPPED proposed program (spatial-maps-design-capture); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition."
+      "summary": "Committed UNMAPPED proposed program (spatial-maps-design-capture); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition.",
+      "claims": [
+        {
+          "claim": "Committed spatial-maps future-program inventory is tracked by #27; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#27"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "No realized implementation slice is asserted by this receipt; #27 owns activation, shape revalidation, and the remaining spatial-maps scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#27"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/tool-use-design/01-registry-and-execution.md",
@@ -1425,7 +3985,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16."
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "claims": [
+        {
+          "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/tool-use/index.ts:24"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/tool-use-design/02-wire-and-projections.md",
@@ -1441,7 +4037,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16."
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "claims": [
+        {
+          "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/tool-use/index.ts:24"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/tool-use-design/03-loop-persistence-and-client.md",
@@ -1457,7 +4089,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16."
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "claims": [
+        {
+          "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/tool-use/index.ts:24"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/tool-use-design/04-structured-output.md",
@@ -1473,7 +4141,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16."
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "claims": [
+        {
+          "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/tool-use/index.ts:24"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/tool-use-design/05-build-plan-and-resolutions.md",
@@ -1489,7 +4193,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16."
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "claims": [
+        {
+          "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/tool-use/index.ts:24"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/tool-use-design/README.md",
@@ -1505,7 +4245,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16."
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "claims": [
+        {
+          "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/tool-use/index.ts:24"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/tool-use-design/tool-use.md",
@@ -1521,7 +4297,43 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16."
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "claims": [
+        {
+          "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified realized slice: the live tool-use domain exports its service, and tests cover the project-MCP wrapper through the shared executor; #28 retains revalidation of remaining program scope.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#28"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/tool-use/index.ts:24"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/proposed/ui-cohesion-north-star.md",
@@ -1553,7 +4365,39 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Committed UNMAPPED proposed program (world-state-clips-trackers-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition."
+      "summary": "Committed UNMAPPED proposed program (world-state-clips-trackers-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition.",
+      "claims": [
+        {
+          "claim": "Committed world-state-clips-trackers future-program inventory is tracked by #29; it is not current implementation authority and must be revalidated at activation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#29"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "Verified substrate: the current memory contract includes the world-state clip kind; #29 retains activation and dependency revalidation for the proposed program.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#29"
+            },
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            },
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/memory/index.ts:13"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
