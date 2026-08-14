@@ -68,7 +68,7 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
 
     // The membrane bridge is built PER INSTALLER (global-vars closes over the installer); an installed plugin's
     // `main.js` runs registration-only, so no chat is admitted for the activation run (chat: null). (The
-    // per-plugin spend gate was stripped 2026-07-24 — enterprise spend enforcement; a runaway plugin's turns are
+    // per-plugin spend gate was stripped for enterprise spend enforcement; a runaway plugin's turns are
     // bounded by the engine's per-member turn RATE budget + the cascade-depth guard, and cost VISIBILITY rides
     // the stats domain.)
     const bridge = buildPluginBridge(ctx.ops, input.caller.userId, input.pluginId);

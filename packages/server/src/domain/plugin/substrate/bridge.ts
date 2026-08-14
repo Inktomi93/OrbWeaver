@@ -13,7 +13,7 @@
 // `resolveViewerVisibility` op (membership AND floor as one value; `null` ⇒ the guest sees nothing) and pushed
 // into the read as a REQUIRED param. Reading canon without it is not expressible in `PluginHostOps`.
 //
-// LOOP SAFETY (the per-plugin $/action spend ceiling was stripped 2026-07-24 — enterprise spend enforcement):
+// LOOP SAFETY (the per-plugin $/action spend ceiling was stripped for enterprise spend enforcement):
 // a runaway plugin's autonomous turns stay bounded by the engine's per-member turn RATE budget + the
 // cascade-depth guard (resolved inside chat's `requestTurn`); its images are clamped n≤4 + the membrane's ≤32
 // concurrent-host-call cap. Cost VISIBILITY rides the stats domain off the imagery/chat writes themselves.

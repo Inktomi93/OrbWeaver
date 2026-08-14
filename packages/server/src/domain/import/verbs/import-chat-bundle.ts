@@ -2,7 +2,7 @@
 // FIDELITY arm of the chat descriptor; `import-chat-file.ts` keeps the ST jsonl interchange and dispatches to
 // this one on the file's own bytes. NEVER throws for a malformed file.
 //
-// A CHARACTER MUST BE SELECTED — OWNER RULING 2026-08-07 (question-tool): *"you shouldn't be able to import a
+// A CHARACTER MUST BE SELECTED — OWNER RULING: *"you shouldn't be able to import a
 // transcript without having a character selected."* The characterless-chat arm the review recommended (O-6c)
 // is DEAD. This verb therefore REFUSES LOUDLY, with the operator-facing reason naming the handles it looked
 // for, when the bundle names no character this account holds. It does not mint a placeholder card (that
@@ -280,7 +280,7 @@ export function createImportChatBundle(ctx: ImportContext): ImportService["impor
     const handles = candidateHandles(bundle, filename);
     const cast = await resolveCast(ctx, handles);
     if (cast === null) {
-      // THE OWNER-RULED REFUSAL (2026-08-07). Named handles, so the operator can create/import the card and
+      // THE OWNER-RULED REFUSAL. Named handles, so the operator can create/import the card and
       // re-run rather than guessing which one this room wanted.
       const looked = handles.length === 0 ? "the file names none" : handles.map((h) => `"${h}"`).join(", ");
       return { ok: false, error: `no character on this account matches this chat (${looked}) — import the character first, then the chat` };

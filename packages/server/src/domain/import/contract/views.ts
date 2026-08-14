@@ -196,7 +196,7 @@ export interface CollectResult {
   readonly worlds: CollectedWorld[];
   /** ST CHAT-COMPLETION presets from `OpenAI Settings/` plus the live `settings.json.oai_settings` blob,
    *  already mapped to the orb-native portable file (unparseable ones in `unreadablePresets`). The three
-   *  text-completion families are deliberately NOT here (owner ruling 2026-08-08). */
+   *  text-completion families are deliberately NOT here (owner ruling). */
   readonly presets: CollectedPreset[];
   /** ST saved UI themes from `<profileDir>/themes/*.json`, mapped to the orb palette each safely converts to
    *  (unparseable / colour-less ones in `unreadableThemes`). */

@@ -1,10 +1,10 @@
-// domain/plugin/substrate/manifest — the SOURCE-AGNOSTIC bundle funnel (owner-ruled 2026-07-18): bytes in →
+// domain/plugin/substrate/manifest — the SOURCE-AGNOSTIC bundle funnel (owner-ruled): bytes in →
 // unzip → validate → a typed `PluginBundle` out. A future first-party catalog fetcher is just another byte
 // source (the safeFetch precedent) feeding THIS funnel — never a second install path. Pure + Principal-free;
 // the verbs own persistence + the CAS write. Every failure is a typed `ManifestInvalidError` thrown BEFORE
 // anything persists (validate-at-the-boundary — the bundle is untrusted input).
 //
-// Unzip hardening (Marinara-audit rider, owner-ruled 2026-07-18) is NON-optional: (a) STRICT ENTRY ALLOW-LIST
+// Unzip hardening is NON-optional: (a) STRICT ENTRY ALLOW-LIST
 // — a bundle is EXACTLY `manifest.json` + `main.js` (02 §1); any extra/unknown/traversal entry name is a
 // refusal, so path traversal is impossible by construction (only two exact names are ever admitted); (b)
 // DECOMPRESSION-BOMB GUARD — a compressed-input cap + per-entry decompressed caps checked from the zip header
@@ -145,7 +145,7 @@ function compareSemver(a: string, b: string): number {
   return 0;
 }
 
-/** True when installing `candidate` over `installed` would ROLL BACK (owner-ruled 2026-07-18 rider) — the
+/** True when installing `candidate` over `installed` would ROLL BACK (owner-ruled) — the
  *  install/upgrade verb refuses it with `PluginDowngradeRefusedError`. Equal versions are a legal re-install. */
 export function isVersionDowngrade(candidate: string, installed: string): boolean {
   return compareSemver(candidate, installed) < 0;

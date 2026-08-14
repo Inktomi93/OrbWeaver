@@ -10,7 +10,7 @@ import type { PluginId } from "@orb/kit/ids";
 /** One installed plugin as its owner sees it — the `plugins` row projected (02 §3), minus the bundle bytes
  *  and the full manifest json. `builtAgainst` is lifted from the persisted manifest (display/warn provenance
  *  — 02 §3 rider); `null` when the manifest declared none. `grantedCapabilities` is the confirmed subset the
- *  guest feature-detects via `host.grants`. (The per-plugin spend envelope was stripped 2026-07-24 —
+ *  guest feature-detects via `host.grants`. (The per-plugin spend envelope was stripped for
  *  enterprise spend enforcement.) */
 export interface PluginView {
   readonly id: PluginId;

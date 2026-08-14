@@ -2,7 +2,7 @@
 // media, what mime each claims, and the display name the imported library entry carries. Pure: a filename in,
 // data out. The BYTES are the collector's business; this file owns only the naming/mime rules.
 //
-// WHERE THEY LAND (owner ruling 2026-08-08 — "backgrounds is our gallery, a media store for characters and
+// WHERE THEY LAND (owner ruling — "backgrounds is our gallery, a media store for characters and
 // etc"). ST's `backgrounds/` dir is a per-user list of images the app-background picker chooses from; orb's
 // exact counterpart is `appearance.backgroundLibrary` (BG-D — a per-user list of `{assetId, assetHash, mime,
 // name}`, GC-rooted by the settings live-source scan and rendered by the background picker). So each file is

@@ -95,7 +95,7 @@ export interface ImportProfileDeps {
    *  header `create_date`) were written against — ST builds them off the local `Date` of the box it ran on.
    *  INJECTED, never read ambiently down in the parser: the composition root resolves it (`hostTimeZone()`,
    *  correct whenever a corpus is imported on the box that produced it) and a test pins it. Absent ⇒ the
-   *  serde's `"UTC"` default, i.e. exactly the pre-2026-08-08 behavior. */
+   *  serde's `"UTC"` default. */
   readonly stWallClockZone?: string;
   readonly personaByUserName: Map<string, PersonaId>;
   readonly bulkImportChats: BulkImportChatsOp;
@@ -155,7 +155,7 @@ export interface ImportService {
   readonly importChatFile: (input: ImportChatFileInput) => Promise<ImportChatFileOutcome>;
   /** R6 — imports ONE orb-native `<handle>/<id>.orb.json`: the room WHOLE (canon + injections + the tag
    *  overlay + the room blob + the variable/macro picks + the rpg campaign). REFUSES when the file names no
-   *  character this account holds (owner ruling 2026-08-07 — a transcript may not be imported without a
+   *  character this account holds (owner ruling — a transcript may not be imported without a
    *  character). Requires ctx.profile. Never throws for a malformed file. */
   readonly importChatBundle: (input: ImportChatFileInput) => Promise<ImportChatFileOutcome>;
   /** Imports a profile's personas; must run before the chat importers (populates personaByUserName). */

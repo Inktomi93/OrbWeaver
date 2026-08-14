@@ -3,8 +3,8 @@
 // `PluginHostPort` runtime from `infra/plugin-host` + the `PluginHostOps` op bundle — P4) and the CAS ops. The
 // runtime + the host-fn bodies are wired UPWARD at compose; this domain sideways-imports nothing.
 //
-// ── DORMANT BY BUILD-ORDER, NOT BY DESIGN (PD-93-style citation; owner-ruled 2026-08-03) ────────────────
-// This domain is REAL and it is UNREACHABLE FROM THE PRODUCT, and the two facts are not in tension:
+// DORMANT BY BUILD-ORDER, NOT BY DESIGN (PD-93-style citation). This domain is REAL and it is UNREACHABLE
+// FROM THE PRODUCT, and the two facts are not in tension:
 //   • REAL — the service, the install/upgrade/enable/uninstall/list/log/runSnippet verbs, the manifest +
 //     capability-grant boundary and the crash-disable policy are all built and tested, and the QuickJS
 //     membrane they run on is exercised hard under AUTOMATION, which is a LIVE consumer of the same host
