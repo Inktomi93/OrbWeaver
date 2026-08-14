@@ -327,6 +327,18 @@ overrides:
   # RE-TEST CONDITION: on any playwright bump, check whether ct-core's vite range has moved to ^8 — if it
   # has, re-run the WHOLE CT suite on it, and only then consider collapsing to one vite.
   "@playwright/experimental-ct-core>vite": "6.4.3"
+  # DEPLOCK 2026-08-14: streamdown@2.5.0 pins `mermaid: ^11.12.2`, resolved-stale at 11.16.0 —
+  # 5 advisories fixed in 11.16.1 (prototype pollution x2, CSS injection, XY-chart + radar DoS).
+  # Mermaid renders untrusted MODEL OUTPUT (streamdown fences in chat), so this is the reachable
+  # arm of today's audit. mermaid's own `dompurify: ^3.3.3` range already covers the fixed 3.4.13
+  # (was resolved-stale at 3.4.11) — bumping mermaid alone drags dompurify along; no separate
+  # dompurify override needed. Both ranges are satisfied by streamdown's own deps, so this is a
+  # pure resolution-bump, not an API-incompatible major. Even after the mermaid bump, pnpm kept
+  # resolving dompurify to the pre-fix 3.4.11 (satisfies mermaid's `^3.3.3` range but is not the
+  # newest satisfying version) — force it to the fixed 3.4.13 explicitly (2 advisories, incl. an
+  # XSS via IN_PLACE hook removal).
+  mermaid: ">=11.16.1"
+  dompurify: ">=3.4.13"
 
 # Supply-chain delay: refuse versions published < 1440 min (24h) ago — a just-published malicious
 # version is usually yanked within that window. (The Exclude was orphaned without this — the guard was
