@@ -31,7 +31,9 @@ function spyFan(db: Db): { readonly captured: LiveOnlyChatBusEvent[]; readonly f
 /** The rooms an entity kind reached, as a SET — the engine promises no emit ORDER, and a Set comparison
  *  also fails loudly on a duplicate collapsing (each case that cares asserts the raw length too). */
 function roomsFor(captured: readonly LiveOnlyChatBusEvent[], entity: string): Set<ChatId> {
-  return new Set(captured.filter((e) => e.entity === entity).map((e) => e.chatId));
+  // The live-only lane carries `chatDeleted` too (R1-4a) — narrow to the bridge's member before reading
+  // `entity`, so this helper reds honestly if the engine ever fans something that is not an entity change.
+  return new Set(captured.filter((e) => e.type === "roomEntityChanged" && e.entity === entity).map((e) => e.chatId));
 }
 
 /** Insert a `world_books` row (+ one entry, so the book is a realistic assembly source). */

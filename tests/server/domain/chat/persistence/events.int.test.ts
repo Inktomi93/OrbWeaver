@@ -32,13 +32,13 @@ describe("appendChatEvent — the durable chat_events append", () => {
     const s2 = await appendChatEvent(db, {
       id: ctx.newEventId(),
       chatId,
-      event: { type: "chatDeleted", chatId },
+      event: { type: "chatCreated", chatId },
       createdAt: ctx.now(),
     });
 
     expect([s1, s2]).toEqual([1, 2]);
     const rows = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId)).orderBy(asc(chatEvents.seq));
-    expect(rows.map((r) => r.type)).toEqual(["chatUpdated", "chatDeleted"]);
+    expect(rows.map((r) => r.type)).toEqual(["chatUpdated", "chatCreated"]);
     expect(rows[0]?.payload).toEqual({ type: "chatUpdated", chatId });
   });
 
@@ -76,11 +76,11 @@ describe("appendChatEvent — the durable chat_events append", () => {
     await appendChatEvent(db, {
       id: ctx.newEventId(),
       chatId,
-      event: { type: "chatDeleted", chatId },
+      event: { type: "chatCreated", chatId },
       createdAt: ctx.now(),
     });
 
     const replay = await loadChatEventReplay(db, chatId, 1);
-    expect(replay).toEqual([{ seq: 2, payload: { type: "chatDeleted", chatId } }]);
+    expect(replay).toEqual([{ seq: 2, payload: { type: "chatCreated", chatId } }]);
   });
 });

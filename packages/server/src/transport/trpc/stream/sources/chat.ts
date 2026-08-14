@@ -151,7 +151,18 @@ function isAttachSynthetic(event: ChatBusEvent): boolean {
  *  (host: verbatim; member: at-commit `view` strip + the `delta`'s producer-stamped `memberText`) — the durable
  *  replay's identical verdict, applied live. The transport OWNS no policy and, since the mid-stream scrub state
  *  is the PRODUCER's (`domain/chat/bus`), it owns no per-pump state either: a pump that starts, resumes after a
- *  shed, or reconnects mid-slot reads the same stamped bytes as one that watched the whole slot. */
+ *  shed, or reconnects mid-slot reads the same stamped bytes as one that watched the whole slot.
+ *
+ *  THE ONE GATE-FREE MEMBER: `chatDeleted` (owner fork F-A, design §4). It is fanned AFTER the row is gone —
+ *  that ordering is what CLOSES the R1-4a false-emit, because only `DELETE … RETURNING` can prove a room
+ *  actually died — and by then `memberBounds` can answer nothing but "no such chat / not a member", which
+ *  would withhold the room's own death notice from EVERY subscriber and strand every open device on a chat
+ *  that no longer exists. So it is delivered to every ATTACHED subscriber, and the attach was itself
+ *  membership-gated. The widened audience is exactly one party — a member kicked while still attached — and
+ *  what they learn is ONE BIT, "the room died", with no bytes: an id-only signal for a chat whose id they
+ *  already hold, symmetric with the NOT_FOUND their very next `getChat` returns anyway. This is NOT a clamp
+ *  edit: `substrate/auth`/`member-visibility` are untouched, and `chatDeleted` carries no `view`/`slotSeq`
+ *  for either of them to decide on (`member-visibility.ts` already lists it among the view-less members). */
 async function resolveLiveYield(args: {
   readonly service: ChatService;
   readonly principal: Principal;
@@ -159,6 +170,9 @@ async function resolveLiveYield(args: {
   readonly event: ChatBusEvent;
 }): Promise<ChatBusEvent | null> {
   const { service, principal, chatId, event } = args;
+  if (event.type === "chatDeleted") {
+    return event;
+  }
   const gate = await memberBounds(service, principal, chatId);
   if (gate === null || isBelowHistoryFloor(event, gate.historyFloorSeq)) {
     return null;

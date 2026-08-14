@@ -16,7 +16,7 @@
 // before chat composes; the real const into automation after).
 
 import { randomUUID } from "node:crypto";
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent, LiveOnlyChatEventType } from "@orb/contracts/chat";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
@@ -73,7 +73,7 @@ import {
 import { createCas, createVariantCache } from "#infra/storage";
 import { createChatBus, requireParticipant } from "../../domain/chat/index.ts";
 import type { Services } from "../../transport/trpc/context.ts";
-import { publishChatEvent, publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishChatEvent, publishUserEvent, silenceRoomEntityFan } from "../../transport/trpc/index.ts";
 import type { PresenceRegistry } from "../../transport/trpc/presence-registry.ts";
 import { createPresenceRegistry } from "../../transport/trpc/presence-registry.ts";
 import type { SocketRegistry } from "../../transport/trpc/stream/socket-registry.ts";
@@ -105,6 +105,18 @@ import { buildSearchDiscovery } from "./search-discovery.ts";
 import { buildSideGenParams } from "./side-gen-params.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
+
+/** Which LIVE-ONLY chat-bus members bulk quiet mode may coalesce (design §5 / fork F-B). Read on every
+ *  live-only fan, and TOTAL over the lane by `satisfies` — a third live-only member fails `tsc` here until
+ *  someone decides which it is, instead of silently inheriting "not coalescable".
+ *    • `roomEntityChanged` = CHURN. A bulk import touching N seated entities fans N×rooms of it, and each
+ *      tick cancels+restarts every open member's in-flight refetch — the exact storm W8 was built for.
+ *    • `chatDeleted` = a TERMINAL, one per room ever. There is no storm to contain, and silencing even its
+ *      first tick would leave an open device pointed at a room that is gone until the bulk scope exits. */
+const QUIET_COALESCABLE = {
+  roomEntityChanged: true,
+  chatDeleted: false,
+} as const satisfies Record<LiveOnlyChatEventType, boolean>;
 
 /** Reconstruct the effective engine POSTURE from the two boot facts compose receives (lossless: lifecycle
  *  passes `vllmManages = postureManages(posture)`, i.e. adopt-or-start ⟺ true; `vllmDisabled` ⟺ off). Fed to
@@ -430,8 +442,18 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // live-only member cannot take the durable one (both `chatBus.emit` and `emitChatEvent` narrow the other way).
   // Not async and never rejecting: a no-listener publish is a free `EventEmitter.emit`, so there is no failure
   // mode to classify (contrast the durable path's FLAG[emit-is-total] append classification).
+  //
+  // BULK QUIET MODE applies to exactly ONE of the lane's two members (`transport/trpc/quiet-fanout.ts`,
+  // design §5 / fork F-B), and {@link QUIET_COALESCABLE} above is the belt that keeps that a DECISION rather
+  // than an accident.
   const emitChatEventLive = (event: LiveOnlyChatBusEvent): void => {
-    publishChatEvent({ seq: null, event });
+    const publish = (): void => {
+      publishChatEvent({ seq: null, event });
+    };
+    if (QUIET_COALESCABLE[event.type] && event.type === "roomEntityChanged" && silenceRoomEntityFan(event.chatId, event.entity, publish)) {
+      return;
+    }
+    publish();
   };
 
   // The side-gen sampling ladder's MIDDLE rung (WHICH preset's params a side-gen call reads) — ONE home so
@@ -616,6 +638,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     emitChatEvent,
+    emitChatEventLive,
     holder: deps.holder ?? "replica-default",
     sessionSecret: deps.sessionSecret,
     resolveHostPrincipal,

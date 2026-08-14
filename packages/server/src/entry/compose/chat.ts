@@ -6,7 +6,7 @@
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
 import { setTimeout as sleep } from "node:timers/promises";
-import type { DurableChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
@@ -254,6 +254,9 @@ export interface ChatComposeInput {
   /** The one chat bus's durable-first emit, built at the composition root and injected so chat doesn't
    *  construct a second bus. The same wrapper backs persona's active-persona write. */
   readonly emitChatEvent: (event: DurableChatBusEvent) => Promise<void>;
+  /** The same bus's LIVE-ONLY fan (no `chat_events` append). Chat's one consumer is `chatDeleted`, whose
+   *  durable row cascades away with the chat it announces — see the lifecycle verbs' DELETE-FIRST header. */
+  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
   /** The lock-holder tag for this replica (also used by the boot lock reclaim). */
   readonly holder: string;
   readonly sessionSecret: string | null;
@@ -1129,6 +1132,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   const chatDeps: ChatServiceDeps = {
     emit: emitChatEvent,
+    emitLive: input.emitChatEventLive,
     activeTurns: createActiveTurns(),
     prng: () => Math.random(),
     delay: sleep,

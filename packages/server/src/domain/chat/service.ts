@@ -155,7 +155,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
     resolveCreatorGroupDefaults: deps.resolveCreatorGroupDefaults,
     claimChat,
   });
-  const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, activeTurns: deps.activeTurns, claimChat });
+  const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat });
   const roster = createRoster(ctx, { emit: deps.emit, claimChat });
 
   return {

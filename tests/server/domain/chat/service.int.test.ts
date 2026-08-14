@@ -96,6 +96,11 @@ function makeService(
       events.push(event);
       return Promise.resolve();
     },
+    // The live-only lane joins the same buffer: this suite asserts WHAT was announced, not which door it
+    // took (the lane split itself is pinned in chat-lifecycle.int / husk-lifecycle.suite).
+    emitLive: (event): void => {
+      events.push(event);
+    },
     activeTurns: createActiveTurns(),
     prng: seededPrng(),
     delay: () => Promise.resolve(),
