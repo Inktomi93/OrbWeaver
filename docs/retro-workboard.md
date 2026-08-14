@@ -19,8 +19,9 @@ clean). Every other battery stage was green.**
 
 > **THIS IS THE WORKING DOC** (owner-stated). Not law, not a deliverable — the durable state an
 > orchestrator resumes from cold. Authority for LAW = `docs/architecture/core/**`; the D-ledger
-> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D136**; **D137 is
-> reserved** for the persona build if C1 rules) wins on ANY conflict. `docs/architecture/proposed/**`
+> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D138** — D137 landed
+> 08-08 with the persona cast substrate, D138 landed 08-14 with the W10 freshness contract) wins on
+> ANY conflict. `docs/architecture/proposed/**`
 > is pre-rollback REBUILD REFERENCE — never cite its status as current.
 >
 > **REWRITTEN IN FULL 2026-08-08** (owner-ordered: one doc, current-state only, "so we stop fucking
@@ -1241,11 +1242,15 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **#37 trust-gated card images + token-concepts unification** — one security lane; "BUILDS GO" 08-09.
 - [ ] **#38 ruled smalls, all four** — Untitled-chat rosters · X-16 edited-ago · REGPAR F3/F4/F5 ·
   unsent-draft reload persistence. "SMALLS GO" 08-09.
-- [ ] **C1 PERSONA PROGRAM — approved IN FULL 08-08** on the doc's recommended arms (Phase D → Phase C,
-  all five §10 forks on their recs, build lane mints **D137** with the §10.5 draft clause; phase gate =
-  persona-resolution suite BYTE-UNTOUCHED). Recorded as "**Forge lane dispatched**" and never closed.
-  **⚠ `forge` has since been BANNED** — if that lane did not land, this program is stranded and needs
-  re-dispatch to a permitted role. **Status genuinely unknown; establish it before anything else here.**
+- [x] **C1 PERSONA PROGRAM — STATUS ESTABLISHED 08-14: the forge lane LANDED before the ban (sixth
+  stale row of the day).** D137 is MINTED in the ledger (Core-Path-Registry.md:502, dated 08-08,
+  "owner-approved in full with the design's recommendations") and its cited homes are all on the
+  tree: `@orb/contracts/card-face` (leg commit `6f948f922` "D137 leg C1"), `domain/chat/persistence/
+  cast.ts`, `tests/contracts/card-face/index.contract.test.ts`, and the phase gate names the
+  persona-resolution suite byte-untouched. The "status genuinely unknown" premise is dead. Residual
+  worth ONE scoped check at leisure: whether every PHASE of the program (D then C then the agent
+  wave) completed, or only the C1 substrate legs — the ledger entry covers the substrate; the agent
+  wave was always a later phase.
 - [ ] **#33 templating rows 53-73 (ARM B, server composes)** — wire carries toggle KINDS only, server
   joins the 21 fragments via prose slots. Spec exists: `docs/design/templating-fork-rows-53-73.md`.
   Parked under the 08-08 dispatch freeze.
