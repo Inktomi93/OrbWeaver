@@ -1,6 +1,9 @@
-// Web-weave shared maths — the dependency-free floor under the family (geometry builds with it,
-// the render + spider painters interpolate with it). Split out under the component-size-ui cap;
-// structural `{x,y}` points so this module imports NOTHING (no type cycles).
+// Web-weave shared maths — the floor under the family (geometry builds with it, the render + spider
+// painters interpolate with it). Split out under the component-size-ui cap; structural `{x,y}` points
+// so this module carries no type cycles (its one value import, `#lib`'s `sinHash`, is the shared
+// seeded-hash engine — waystone-geometry.ts's `jitter` is the sibling consumer).
+
+import { sinHash } from "#lib";
 
 /** A 2D point, structurally compatible with the geometry module's WeavePoint. */
 export interface WeaveXY {
@@ -13,16 +16,9 @@ const CUBIC = 3;
 export const easeOutCubic = (p: number): number => 1 - (1 - p) ** CUBIC;
 export const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
-// The classic waystone sin-hash: two large unrelated multipliers into sin(), scaled past any float
-// grid. The constants carry no meaning beyond "big and unrelated" — that is the whole point.
-const HASH_A = 127.1;
-const HASH_B = 311.7;
-const HASH_SCALE = 43_758.545;
-
 /** Stable pseudo-random in [0,1) from two ints + the web's seed — identical web per seed. */
 export function weaveJitter(a: number, b: number, seed: number): number {
-  const n = Math.sin(a * HASH_A + b * HASH_B + seed) * HASH_SCALE;
-  return n - Math.floor(n);
+  return sinHash(a, b, seed);
 }
 
 /** A sagging strand: quadratic curve toward +y, sampled. */

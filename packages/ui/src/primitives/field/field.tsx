@@ -3,9 +3,7 @@ import { Field as BaseField } from "@base-ui/react/field";
 import type { ReactElement, ReactNode } from "react";
 import { createContext, use } from "react";
 import { cn } from "#lib";
-import { Button } from "#primitives/button";
-import { Icon, Info } from "#primitives/icons";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
+import { HintTrigger } from "#primitives/hint-trigger";
 import { fieldVariants } from "./variants.ts";
 
 export type FieldOrientation = "vertical" | "horizontal";
@@ -68,12 +66,6 @@ export function Field({
   // horizontal row (see `multiline` in ./variants.ts).
   const slots = fieldVariants({ orientation: resolved, multiline: hasDescription || hasError });
   const hasHint = hint !== undefined && hint !== null;
-  // Derive the hint trigger's accessible name from the label so multiple hinted fields don't share one name.
-  let hintAriaLabel = "More info";
-  if (typeof label === "string" && label.trim().length > 0) {
-    const labelString: string = label;
-    hintAriaLabel = `More info about ${labelString}`;
-  }
 
   const labelText = (
     <BaseField.Label
@@ -96,24 +88,15 @@ export function Field({
   const labelNode = hasHint ? (
     <span className={slots.labelRow()}>
       {labelText}
-      <Tooltip>
-        {/* THE HINT COSTS NO VERTICAL SPACE — this prop's own contract, and `size="icon"` broke it: a full
-            `--spacing-control-md` box (34px fine / 44px coarse) made a hinted label row stand 16px taller
-            than a plain one, so every side-by-side pair of a hinted and an unhinted field sheared — its
-            labels off one baseline, its controls off another (the preset drill-ins' DELIVERY row, crunch
-            item 10, owner-reported live). `size="inline"` is the arm for exactly this: no control box,
-            text-height, and the touch floor kept by its own layout-neutral hit-area pseudo. A className
-            height CANNOT express it — a custom-token height is opaque to tailwind-merge, so both heights
-            would survive and stylesheet order would pick the winner. */}
-        <TooltipTrigger
-          render={
-            <Button aria-label={hintAriaLabel} className={slots.hintTrigger()} intent="ghost" size="inline" type="button">
-              <Icon icon={Info} size="xs" />
-            </Button>
-          }
-        />
-        <TooltipPopup side="top">{hint}</TooltipPopup>
-      </Tooltip>
+      {/* THE HINT COSTS NO VERTICAL SPACE — this prop's own contract, and `size="icon"` broke it: a full
+          `--spacing-control-md` box (34px fine / 44px coarse) made a hinted label row stand 16px taller
+          than a plain one, so every side-by-side pair of a hinted and an unhinted field sheared — its
+          labels off one baseline, its controls off another (the preset drill-ins' DELIVERY row, crunch
+          item 10, owner-reported live). `size="inline"` is the arm for exactly this: no control box,
+          text-height, and the touch floor kept by its own layout-neutral hit-area pseudo. A className
+          height CANNOT express it — a custom-token height is opaque to tailwind-merge, so both heights
+          would survive and stylesheet order would pick the winner. */}
+      <HintTrigger className={slots.hintTrigger()} hint={hint} size="inline" subject={label} />
     </span>
   ) : (
     labelText
