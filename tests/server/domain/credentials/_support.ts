@@ -2,7 +2,7 @@
 // ignores it). Builds a real-db `CredentialContext` with: injected determinism (frozen clock + seeded
 // ids), the REAL AES-256-GCM `SecretBox` over a known key (so the AAD round-trip + wrong-AAD failure are
 // exercised for real, not mocked), the REAL `requireOwner` guard (so the owner-gate is the production
-// one), and FAKE recording provider/network ops (probe/inspect/fetchModels) — the sanctioned "fake at the
+// one), and FAKE recording provider/network ops (probe/probeEndpoint/inspect/fetchModels) — the sanctioned "fake at the
 // edges, inject at the root" doctrine (testing §3). The fakes RECORD their calls so tests assert behavior.
 
 import type { CredentialHealth, ResolvedCredential } from "../../../../packages/contracts/src/credentials/index.ts";
@@ -50,9 +50,12 @@ export interface CredentialHarness {
   readonly ctx: CredentialContext;
   /** The recorded `audit` op calls (PD-142 — assert each mutation writes a durable audit row). */
   readonly audits: AuditCall[];
-  /** Credentials handed to the faked `probe` op (testHealth). */
+  /** Credentials handed to the faked `probe` op (testHealth's openrouter arm). */
   readonly probed: ResolvedCredential[];
   readonly setProbeResult: (result: CredentialHealth) => void;
+  /** Endpoint coordinates handed to the faked `probeEndpoint` op (testHealth's custom_openai arm). */
+  readonly endpointProbes: FetchModelsArgs[];
+  readonly setEndpointProbeResult: (result: CredentialHealth) => void;
   /** Args handed to the faked `inspect` op. */
   readonly inspected: InspectCall[];
   /** Args handed to the faked `fetchModels` op. */
@@ -94,9 +97,11 @@ export function makeHarness(db: Db): CredentialHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const audits: AuditCall[] = [];
   const probed: ResolvedCredential[] = [];
+  const endpointProbes: FetchModelsArgs[] = [];
   const inspected: InspectCall[] = [];
   const fetched: FetchModelsArgs[] = [];
   let probeResult: CredentialHealth = { status: "ok", checkedAt: FROZEN_AT };
+  let endpointProbeResult: CredentialHealth = { status: "ok", checkedAt: FROZEN_AT };
   let models: string[] = [];
   let inspectResult: EndpointInspection = {
     ok: true,
@@ -118,6 +123,10 @@ export function makeHarness(db: Db): CredentialHarness {
       probed.push(credential);
       return Promise.resolve(probeResult);
     },
+    probeEndpoint: (args: FetchModelsArgs): Promise<CredentialHealth> => {
+      endpointProbes.push(args);
+      return Promise.resolve(endpointProbeResult);
+    },
     inspect: (req: InspectCall): Promise<EndpointInspection> => {
       inspected.push(req);
       return Promise.resolve(inspectResult);
@@ -136,6 +145,10 @@ export function makeHarness(db: Db): CredentialHarness {
     probed,
     setProbeResult: (result: CredentialHealth): void => {
       probeResult = result;
+    },
+    endpointProbes,
+    setEndpointProbeResult: (result: CredentialHealth): void => {
+      endpointProbeResult = result;
     },
     inspected,
     fetched,
