@@ -91,6 +91,9 @@ async function callerFor(app: ServicesResult, auth: Principal | null): Promise<A
   return transport.createCaller(
     transport.createContext({
       auth,
+      // No cookie session on a hand-built context: the session identity's ONE consumer is the socket
+      // cell's stamp (W7a), and a suite that needs it passes an explicit id through the registry.
+      sessionId: null,
       services: app.services,
       rateLimit: ALLOW_ALL_RATE_LIMIT,
       presence: app.presence,

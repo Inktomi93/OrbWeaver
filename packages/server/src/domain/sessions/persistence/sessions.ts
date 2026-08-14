@@ -74,11 +74,15 @@ export async function revokeByTokenHash(db: Db, tokenHash: string, revokedAt: nu
   return revoked.at(0);
 }
 
-export async function revokeById(db: Db, sessionId: SessionId, revokedAt: number): Promise<void> {
-  await db
+/** Flips revokedAt only on a still-live row, returning its OWNER (`undefined` = nothing to revoke) — the
+ *  entry tier evicts that user's live sockets with it (W7a). */
+export async function revokeById(db: Db, sessionId: SessionId, revokedAt: number): Promise<UserId | undefined> {
+  const revoked = await db
     .update(sessions)
     .set({ revokedAt })
-    .where(and(eq(sessions.id, sessionId), isNull(sessions.revokedAt)));
+    .where(and(eq(sessions.id, sessionId), isNull(sessions.revokedAt)))
+    .returning({ userId: sessions.userId });
+  return revoked.at(0)?.userId;
 }
 
 export async function revokeAllForUser(db: Db, userId: UserId, revokedAt: number): Promise<SessionId[]> {
@@ -93,14 +97,16 @@ export async function revokeAllForUser(db: Db, userId: UserId, revokedAt: number
 /** A5 — revoke every live session belonging to the user(s) bound to a stable external subject (`sub`). One
  *  atomic UPDATE over a `userId IN (SELECT id FROM users WHERE external_id = sub)` subquery + the
  *  `revokedAt IS NULL` guard, so a re-delivered back-channel logout token just re-revokes nothing (idempotent
- *  — no Redis replay cache needed). Returns the revoked ids so only real revocations are logged/audited. */
-export async function revokeAllForExternalId(db: Db, externalId: ExternalId, revokedAt: number): Promise<SessionId[]> {
-  const revoked = await db
+ *  — no Redis replay cache needed). Returns the revoked rows so only real revocations are logged/audited —
+ *  `userId` included because one subject can be bound to more than one row, and the entry tier evicts those
+ *  users' live sockets (W7a): a revoked cookie the SSE generator already froze its Principal from would
+ *  otherwise keep streaming until the socket died of natural causes. */
+export async function revokeAllForExternalId(db: Db, externalId: ExternalId, revokedAt: number): Promise<{ id: SessionId; userId: UserId }[]> {
+  return await db
     .update(sessions)
     .set({ revokedAt })
     .where(and(inArray(sessions.userId, db.select({ id: users.id }).from(users).where(eq(users.externalId, externalId))), isNull(sessions.revokedAt)))
-    .returning({ id: sessions.id });
-  return revoked.map((r) => r.id);
+    .returning({ id: sessions.id, userId: sessions.userId });
 }
 
 export async function listForUser(db: Db, userId: UserId): Promise<SessionView[]> {

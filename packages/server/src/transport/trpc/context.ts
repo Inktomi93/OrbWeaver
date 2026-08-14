@@ -5,6 +5,7 @@
 // `null` for an anonymous caller.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { SessionId } from "@orb/kit/ids";
 import type { AdminService } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
@@ -82,6 +83,15 @@ export interface RateLimitGate {
 
 export interface Context {
   readonly auth: Principal | null;
+  /**
+   * WHICH cookie session authenticated this request — `null` for every other admission arm (the owner
+   * fallback, forward-header/JWT SSO) and for an anonymous caller. Carried BESIDE the Principal, never on it:
+   * D135 keeps the Principal to the verdict `users` owns, and a session is a per-connection fact, not a role.
+   *
+   * ONE consumer, deliberately: `stream.connect` stamps it on the socket cell so a LOGOUT can evict exactly
+   * that device's sockets (W7a/F4). No procedure authorizes on it — authorization is the Principal's.
+   */
+  readonly sessionId: SessionId | null;
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
   /** SSE subscriptions call presence.connect(userId, signal) to ref-count device liveness. */
@@ -100,6 +110,7 @@ export interface Context {
  *  Principal. No db, no header parsing, no identity resolution. */
 export function createContext(parts: {
   readonly auth: Principal | null;
+  readonly sessionId: SessionId | null;
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
   readonly presence: PresenceRegistry;
@@ -110,6 +121,7 @@ export function createContext(parts: {
 }): Context {
   return {
     auth: parts.auth,
+    sessionId: parts.sessionId,
     services: parts.services,
     rateLimit: parts.rateLimit,
     presence: parts.presence,

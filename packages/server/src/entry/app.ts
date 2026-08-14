@@ -29,7 +29,16 @@ import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "
 import { appRouter, createContext } from "../transport/trpc/index.ts";
 import type { AuthSeam } from "./auth/index.ts";
 import { readSessionCookie } from "./auth/index.ts";
-import type { AuthSessionsPort, BlobAssetsPort, BlobCasPort, FirstRunRouteDeps, LocalAuthenticator, OidcRoutesDeps, UploadAssetsPort } from "./http/index.ts";
+import type {
+  AuthSessionsPort,
+  BlobAssetsPort,
+  BlobCasPort,
+  FirstRunRouteDeps,
+  LocalAuthenticator,
+  OidcRoutesDeps,
+  PrincipalEnv,
+  UploadAssetsPort,
+} from "./http/index.ts";
 import {
   registerAuthMeta,
   registerAuthRoutes,
@@ -89,11 +98,10 @@ export function rateLimitResponseMeta(errors: readonly TRPCError[]): ResponseMet
   return {};
 }
 
-/** The request-context surface the routes read. */
-interface AppEnv {
-  // biome-ignore lint/style/useNamingConvention: `Variables` is Hono's reserved Env key (framework-fixed name).
-  Variables: { principal: Principal | null };
-}
+/** The request-context surface the routes read — the SAME shape every principal-reading registrar types its
+ *  `app` against (`PrincipalEnv`, whose docblock owns the vars), because Hono's env generic is invariant and
+ *  a second spelling would make this app instance unassignable to half its own registrars. */
+type AppEnv = PrincipalEnv;
 
 /**
  * Everything `createApp` needs, all built upstream by `lifecycle.ts`.
@@ -179,7 +187,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     const token = readSessionCookie(c.req.raw.headers);
     // Peer address feeds the forward-header trusted-proxy anti-spoof gate; omitted (fails closed) when absent.
     const peer = peerIp(c);
-    const { principal } = await deps.seam.resolvePrincipal(c.req.raw.headers, {
+    const { principal, sessionId } = await deps.seam.resolvePrincipal(c.req.raw.headers, {
       ...(peer !== undefined ? { peerIp: peer } : {}),
       onSessionSlide: (expiresAt: number): void => {
         if (token !== null) {
@@ -188,6 +196,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
       },
     });
     c.set("principal", principal);
+    c.set("sessionId", sessionId);
     if (principal !== null) {
       deps.seedUserCharacters(principal);
     }
@@ -211,6 +220,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
       createContext: () =>
         createContext({
           auth: c.get("principal"),
+          sessionId: c.get("sessionId"),
           services: deps.services,
           rateLimit: deps.rateLimit,
           presence: deps.presence,
@@ -265,6 +275,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   });
   registerAuthRoutes(plain, {
     sessions: deps.sessions,
+    // W7a — ending a session ends the streams it opened. The registry is transport's; the EDGE composes here,
+    // because `domain/sessions` may not import transport (one-directional flow) and entry holds both halves.
+    sockets: { evictSession: (sessionId) => deps.sockets.evictSession(sessionId), evictUser: (userId) => deps.sockets.evictUser(userId) },
     now: deps.now,
     db: deps.db,
     resolveLoginLimit: () => deps.services.settings.getEffectiveConfig().rateLimits.login,

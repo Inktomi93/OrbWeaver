@@ -18,6 +18,7 @@ import { createToolUseService } from "#domain/tool-use";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import type { EngineDeploymentFacts, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
+import type { SessionSocketEviction } from "../http/index.ts";
 
 /** What the admin seam needs from the composition root: boot primitives + the sibling services admin's
  *  session/vllm/embed sub-bundles route through. `vllmEngine` is the registry's live engine handle (null when
@@ -29,6 +30,9 @@ export interface AdminComposeDeps {
   readonly hashPassword: (password: string) => Promise<string>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly sessions: Pick<SessionsService, "listForUser" | "revoke" | "revokeAllForUser" | "linkExternalId">;
+  /** W7a — the live-socket eviction edge for every admin revoke (see the wrapper below for the granularity
+   *  ruling). Transport state, injected as a port: `domain/admin` may not import transport. */
+  readonly sockets: SessionSocketEviction;
   readonly vllmEngine: VllmEngineHandle | null;
   readonly character: Pick<CharacterService, "getCard" | "loadCardText">;
   readonly embeddings: Pick<EmbeddingsService, "store">;
@@ -68,8 +72,25 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
         const views = await sessions.listForUser(userId);
         return views.map((view): SessionView & { userId: UserId } => ({ ...view, userId }));
       },
-      revoke: (sessionId: SessionId): Promise<void> => sessions.revoke(sessionId),
-      revokeAllForUser: (userId: UserId): Promise<number> => sessions.revokeAllForUser(userId),
+      // W7a — every admin revoke ends the STREAMS its sessions opened, not just the cookies. Composed here
+      // rather than inside `domain/admin`/`domain/sessions`: the socket registry is transport state and a
+      // domain may not import transport (one-directional flow), so this wrapper is the seam that already
+      // exists between them. PER-USER, owner-ruled (F4: "admin REVOKE stays per-user") — including the
+      // single-device arm, which reads as narrower but is not: an admin kick is a statement about the
+      // account, the human's other devices hold valid cookies and resume in one reconnect through the
+      // existing barrier, and per-user is the ONLY arm that also reaches sockets admitted with no session
+      // row at all (the owner fallback / forward-header SSO), which a session id cannot name.
+      revoke: async (sessionId: SessionId): Promise<void> => {
+        const owner = await sessions.revoke(sessionId);
+        if (owner !== null) {
+          deps.sockets.evictUser(owner);
+        }
+      },
+      revokeAllForUser: async (userId: UserId): Promise<number> => {
+        const revoked = await sessions.revokeAllForUser(userId);
+        deps.sockets.evictUser(userId);
+        return revoked;
+      },
       // B5 — the bind-once linking capability (domain/sessions); admin gates + audits around it.
       linkExternalId: (userId, externalId) => sessions.linkExternalId(userId, externalId),
     },

@@ -13,11 +13,11 @@ import type { Principal } from "@orb/contracts/identity";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
-
 import type { DatabankService } from "#domain/databank";
 import { hasCsrfHeader } from "#infra/auth";
 import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort, ProfileImportResult } from "../import/index.ts";
 import { runProfileImport } from "../import/index.ts";
+import type { PrincipalEnv } from "./blob.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
@@ -62,11 +62,6 @@ export interface UploadDeps {
   /** The admin-tunable effective `maxDatabankBytes` — the databank route rejects (413) a document over this
    *  (already ≤ the static route belt; an override may only TIGHTEN). Read per request so a retune applies live. */
   readonly maxDatabankBytes: () => number;
-}
-
-interface PrincipalEnv {
-  // biome-ignore lint/style/useNamingConvention: `Variables` is Hono's reserved Env key (framework-fixed name).
-  Variables: { principal: Principal | null };
 }
 
 async function fileBytes(file: File): Promise<Uint8Array> {

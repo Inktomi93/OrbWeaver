@@ -515,6 +515,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     hashPassword: passwordHasher.hash,
     audit,
     sessions,
+    // W7a — an admin revoke ends the streams those sessions opened, not just the cookies. The registry is
+    // built above in this same function (transport state, entry-owned clock), so the port wires here.
+    sockets: { evictSession: (sessionId) => sockets.evictSession(sessionId), evictUser: (userId) => sockets.evictUser(userId) },
     vllmEngine: registry.vllmEngine,
     character,
     embeddings,

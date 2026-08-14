@@ -29,7 +29,7 @@
 // enforces it.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
+import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { requireAdmin } from "#domain/admin";
 import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
@@ -58,6 +58,16 @@ export interface PerRequestSeamDeps {
  *  CSRF-header signal the transport ladder keys on. */
 export interface SeamResult {
   readonly principal: Principal | null;
+  /**
+   * WHICH cookie session admitted this request — the COOKIE arm only; `null` for the owner fallback, the SSO
+   * header arms, and any anonymous caller (none of them has a session to name).
+   *
+   * BESIDE the Principal, never ON it (W7a / F4, and D135's line): the role verdict has one home and a
+   * session is not a role — but per-SESSION logout needs to know which connection to kill, and the socket is
+   * the one thing that outlives the request its Principal was minted from. So the session identity rides the
+   * request context to exactly one consumer, `stream.connect`'s cell stamp. Nothing authorizes on it.
+   */
+  readonly sessionId: SessionId | null;
   readonly csrfHeaderPresent: boolean;
 }
 
@@ -103,12 +113,18 @@ export function readSessionCookie(headers: Headers): SessionToken | null {
   return null;
 }
 
+/** The cookie arm's product: the Principal PLUS the session row that admitted it (see `SeamResult`). */
+interface CookieAdmission {
+  readonly principal: Principal;
+  readonly sessionId: SessionId;
+}
+
 /** Cookie path: `null` when there's no cookie or the session is gone (→ fall through). */
 async function resolveCookiePrincipal(
   sessions: SessionsService,
   headers: Headers,
   onSlide: ((expiresAt: number) => void) | undefined,
-): Promise<Principal | null> {
+): Promise<CookieAdmission | null> {
   const token = readSessionCookie(headers);
   if (token === null) {
     return null;
@@ -118,11 +134,14 @@ async function resolveCookiePrincipal(
     return null;
   }
   return {
-    userId: validated.userId,
-    role: validated.role,
-    handle: validated.handle,
-    externalId: validated.externalId,
-    via: "cookie",
+    principal: {
+      userId: validated.userId,
+      role: validated.role,
+      handle: validated.handle,
+      externalId: validated.externalId,
+      via: "cookie",
+    },
+    sessionId: validated.sessionId,
   };
 }
 
@@ -283,9 +302,9 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
     const csrfHeaderPresent = hasCsrfHeader(headers);
 
     if (isCookieMode) {
-      const cookiePrincipal = await resolveCookiePrincipal(deps.sessions, headers, req?.onSessionSlide);
-      if (cookiePrincipal !== null) {
-        return { principal: cookiePrincipal, csrfHeaderPresent };
+      const admitted = await resolveCookiePrincipal(deps.sessions, headers, req?.onSessionSlide);
+      if (admitted !== null) {
+        return { principal: admitted.principal, sessionId: admitted.sessionId, csrfHeaderPresent };
       }
     }
 
@@ -296,7 +315,10 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       ...(req?.peerIp !== undefined && { peerIp: req.peerIp }),
     });
     const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolveFallbackPrincipal);
-    return { principal, csrfHeaderPresent };
+    // No session id on these arms BY CONSTRUCTION: neither the origin-gated owner fallback nor an SSO header
+    // mints a `sessions` row, so there is nothing for a per-session logout to end (their sockets are reached
+    // by `evictUser` — the admin/disable arm — instead).
+    return { principal, sessionId: null, csrfHeaderPresent };
   }
 
   /**

@@ -11,7 +11,13 @@ import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the character-list-view precedent).
-import { resultCountLabel, tagIdsInState, tagVocabulary } from "../../../../../packages/client/src/features/character/lib/character-library-lens.ts";
+import {
+  effectiveTagFilter,
+  knownTagIds,
+  resultCountLabel,
+  tagIdsInState,
+  tagVocabulary,
+} from "../../../../../packages/client/src/features/character/lib/character-library-lens.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const usage = (characters: number): TagUsage => ({ characters, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: characters });
@@ -58,6 +64,43 @@ test("tagIdsInState: splits the three-state entries by arm and SORTS (the query 
 test("tagVocabulary: ranks by whole-library usage, alphabetical on ties, hidden-on-card dropped", () => {
   const library = [libraryTag("tag_b", "beta", 3), libraryTag("tag_a", "alpha", 9), libraryTag("tag_c", "cast", 3), libraryTag("tag_h", "hidden", 99, true)];
   expect(tagVocabulary(library, []).map((tag) => tag.name)).toEqual(["alpha", "beta", "cast"]);
+});
+
+test("tagVocabulary: an ACTIVE hidden-on-card tag is pinned back in — known ⟺ named (W5)", () => {
+  // A hidden tag still EXISTS, so `knownTagIds` keeps it filtering; a chip reading "Deleted tag" over an id
+  // that is narrowing the list would be the invisible-filter defect wearing a label.
+  const library = [libraryTag("tag_used", "used", 4), libraryTag("tag_h", "hidden", 99, true)];
+  const active = [{ id: castId<TagId>("tag_h"), state: "exclude" as const }];
+  expect(tagVocabulary(library, active).map((tag) => tag.name)).toEqual(["hidden", "used"]);
+});
+
+// ── W5: referential integrity for the persisted filter (staleness-and-session-freshness.md §4.2.2) ──
+// The owner's import repro in a pure function: a persisted include-id whose tag is gone matches zero rows
+// under the server's AND-semantics, so it empties the whole library — invisibly, and across every reload.
+
+test("effectiveTagFilter: an id the library does not know is DROPPED from the wire, on both arms", () => {
+  const known = knownTagIds([libraryTag("tag_live", "live", 2)]);
+  const entries = [
+    { id: castId<TagId>("tag_live"), state: "include" as const },
+    { id: castId<TagId>("tag_dead_era"), state: "include" as const },
+    { id: castId<TagId>("tag_also_dead"), state: "exclude" as const },
+  ];
+  expect(effectiveTagFilter(entries, known)).toEqual([{ id: "tag_live", state: "include" }]);
+  // …and the whole filter going dead leaves the request UNFILTERED rather than matching nothing.
+  expect(tagIdsInState(effectiveTagFilter([entries[1] as (typeof entries)[number]], known), "include")).toEqual([]);
+});
+
+test("effectiveTagFilter: a HIDDEN-on-card tag is known, so it keeps filtering", () => {
+  const known = knownTagIds([libraryTag("tag_h", "hidden", 9, true)]);
+  const entries = [{ id: castId<TagId>("tag_h"), state: "include" as const }];
+  expect(effectiveTagFilter(entries, known)).toEqual(entries);
+});
+
+test("effectiveTagFilter: an UNRESOLVED authority passes the blob through (not-loaded ≠ not-known)", () => {
+  // Treating the in-flight read as "nothing is known" would drop every LIVE filter on first paint, flash the
+  // unfiltered library, and re-key the collection query on every boot.
+  const entries = [{ id: castId<TagId>("tag_live"), state: "include" as const }];
+  expect(effectiveTagFilter(entries, null)).toEqual(entries);
 });
 
 test("tagVocabulary: an unused tag is dropped — UNLESS it is an active filter (it must stay clearable)", () => {

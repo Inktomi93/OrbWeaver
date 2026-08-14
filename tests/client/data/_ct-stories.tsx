@@ -778,13 +778,17 @@ export function CarriedAppearanceListFirstStory({ draftCharacterIds }: { readonl
  *  un-bound namespace keeps writing the legacy key and the next identity inherits it. */
 function SessionRecoveryProbe(): ReactElement {
   useSessionRecovery();
-  // The bind happens in the hook's EFFECT, so a render-time read of the namespace is always one commit
-  // behind. This dep-less effect re-reads after every commit and settles when the value stops changing
-  // (React bails out on an identical setState) — the rendered value is therefore the SETTLED namespace.
+  // The bind happens in the hook's EFFECT, so a render-time read of the namespace is one commit behind.
+  // A short interval polls the module-level value until it settles — the CT waits on the rendered text,
+  // so the poll's cadence is invisible to the assertion. (The previous dep-less setState-per-commit
+  // spelling was an eslint-banned cascading-render pattern that only redded on the MERGED tree.)
   const [bound, setBound] = useState<string | null>(null);
-  useEffect(() => {
-    setBound(activeDurableLocalUserId());
-  });
+  useEffect((): (() => void) => {
+    const read = (): void => setBound(activeDurableLocalUserId());
+    read();
+    const timer = setInterval(read, 50);
+    return (): void => clearInterval(timer);
+  }, []);
   return <output data-testid="durable-local-user">{bound ?? "unbound"}</output>;
 }
 

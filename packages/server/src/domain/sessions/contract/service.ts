@@ -6,7 +6,7 @@ import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
-import type { CreateSessionResult, LinkExternalIdResult, ProvisionResult, UserPrincipalFields, ValidatedSession } from "./results.ts";
+import type { CreateSessionResult, LinkExternalIdResult, ProvisionResult, RevokedSessionsSummary, UserPrincipalFields, ValidatedSession } from "./results.ts";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SessionsContext {
@@ -37,15 +37,19 @@ export interface SessionsService {
    *  revoke/role-change/disable propagates on the next request. Slides expiry on a throttle; `onSlide`
    *  fires with the new expiry so the route can refresh the cookie Max-Age. */
   validate: (token: SessionToken, onSlide?: (expiresAt: number) => void) => Promise<ValidatedSession | null>;
-  /** Revoke the session a token belongs to (logout); audits `AUTH_LOGOUT`. No-op if already gone. */
-  revokeByToken: (token: SessionToken) => Promise<void>;
-  /** Revoke one session by id (admin: kick a specific device). @internal */
-  revoke: (sessionId: SessionId) => Promise<void>;
+  /** Revoke the session a token belongs to (logout); audits `AUTH_LOGOUT`. Returns WHICH session ended, or
+   *  `null` if it was already gone — the entry-tier logout route evicts that session's live sockets with it
+   *  (W7a; per-SESSION so signing out on the phone leaves the desktop connected). */
+  revokeByToken: (token: SessionToken) => Promise<SessionId | null>;
+  /** Revoke one session by id (admin: kick a specific device) → WHOSE it was, or `null` if it was already
+   *  revoked. The owner is what the entry tier evicts live sockets by (W7a). @internal */
+  revoke: (sessionId: SessionId) => Promise<UserId | null>;
   /** Revoke all of a user's live sessions → count revoked. @internal */
   revokeAllForUser: (userId: UserId) => Promise<number>;
   /** A5 — revoke every live session for the user(s) bound to a stable external subject (`sub`), for OIDC
-   *  back-channel logout → count revoked. Idempotent (re-delivered logout tokens re-revoke nothing). @internal */
-  revokeByExternalId: (externalId: ExternalId) => Promise<number>;
+   *  back-channel logout → the count revoked + WHOSE (the entry tier evicts those users' live sockets, W7a).
+   *  Idempotent (re-delivered logout tokens re-revoke nothing, and name no users). @internal */
+  revokeByExternalId: (externalId: ExternalId) => Promise<RevokedSessionsSummary>;
   /** A user's sessions for the admin device list. @internal */
   listForUser: (userId: UserId) => Promise<SessionView[]>;
   /** Resolve a handle → `UserId`, JIT-creating the row on first sight. @internal */

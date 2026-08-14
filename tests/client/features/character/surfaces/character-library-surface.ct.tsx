@@ -743,13 +743,29 @@ test("the chip vocabulary is the TAG LIBRARY — a tag no loaded row carries sti
 
 const DEAD_TAG_CHIP = "Filter by Deleted tag: included — activate to exclude";
 
-test("a persisted filter for a DELETED tag still renders a clearable chip (it cannot be an invisible filter)", async ({ mount, page }) => {
-  // Seeded BEFORE the page's JS runs: the library store rehydrates at module init, so writing localStorage
-  // after mount would prove nothing (the shell-store CT's recipe).
-  await page.addInitScript(() => {
-    globalThis.localStorage.setItem("orb:character-library", JSON.stringify({ state: { tagFilter: [{ id: "tag_dead_era", state: "include" }] }, version: 2 }));
-  });
+/** The pane's PAGED read, told apart from its two siblings on the same procedure (the favorites strip's
+ *  `starred: true` page and the band's `limit: 1` census) — only this one carries the chips. */
+function lastCollectionInput(trpc: TrpcRecorder): { readonly includeTagIds?: readonly string[]; readonly excludeTagIds?: readonly string[] } | undefined {
+  return trpc
+    .inputs("character.list")
+    .map((input) => (input ?? {}) as { starred?: boolean; limit?: number; includeTagIds?: readonly string[]; excludeTagIds?: readonly string[] })
+    .filter((input) => input.starred === undefined && input.limit !== 1)
+    .at(-1);
+}
+
+/** Seed a persisted library blob holding one filter entry for a tag id the server knows nothing about.
+ *  BEFORE the page's JS runs: the store rehydrates at module init, so writing localStorage after mount would
+ *  prove nothing (the shell-store CT's recipe). The key is the un-namespaced legacy one — a CT never binds a
+ *  viewer, so `durableLocalKey` mints on the pre-adoption namespace (state/durable-local.ts). */
+async function seedDeadTagFilter(page: Page, state: "include" | "exclude"): Promise<void> {
+  await page.addInitScript((entryState: string) => {
+    globalThis.localStorage.setItem("orb:character-library", JSON.stringify({ state: { tagFilter: [{ id: "tag_dead_era", state: entryState }] }, version: 2 }));
+  }, state);
   await page.reload();
+}
+
+test("a persisted filter for a DELETED tag still renders a clearable chip (it cannot be an invisible filter)", async ({ mount, page }) => {
+  await seedDeadTagFilter(page, "include");
   await routeTrpc(page, {
     "character.list": characterListResponder([BOLT2]),
     "chat.listChats": chatListResponder([]),
@@ -758,13 +774,60 @@ test("a persisted filter for a DELETED tag still renders a clearable chip (it ca
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
 
-  // The filter is REAL (no row carries a tag that no longer exists, so the list is empty) — and it now says
-  // so out loud instead of leaving an unexplained empty library.
+  // The entry is INERT now (W5, below) but it is still ON, and an active entry always says so out loud
+  // instead of leaving an unexplained library state.
   await expect(component.getByRole("button", { name: DEAD_TAG_CHIP })).toBeVisible();
-  // …and clearing it is the same cycle as any other chip: included → excluded → off, list restored.
+  // …and clearing it is the same cycle as any other chip: included → excluded → off.
   await component.getByRole("button", { name: DEAD_TAG_CHIP }).click();
   await component.getByRole("button", { name: "Filter by Deleted tag: excluded — activate to clear" }).click();
+  await expect(component.getByRole("button", { name: "Filter by Deleted tag: off — activate to include" })).toHaveCount(0);
   await expect(component.getByText("Bolt")).toBeVisible();
+});
+
+// W5 — REFERENTIAL INTEGRITY AT READ (staleness-and-session-freshness.md §4.2.2). The chip above made the
+// dead filter VISIBLE; this makes it INERT. A persisted include-id whose tag no longer exists can never match
+// a row, so under the server's AND-semantics it vetoes the ENTIRE library — the owner's import repro, whose
+// only cure was wiping localStorage. A reference that can never match must never veto: the authority is the
+// tag library read, and an id it does not know is dropped from the wire.
+
+test("W5 a persisted include-filter for a DELETED tag does NOT empty the library", async ({ mount, page }) => {
+  await seedDeadTagFilter(page, "include");
+  const trpc = await routeTrpc(page, {
+    "character.list": characterListResponder([BOLT2]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
+  });
+
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+
+  // The row is on screen — the dead entry filtered nothing…
+  await expect(component.getByText("Bolt")).toBeVisible();
+  // …and it is still visible + clearable, so the state is inert rather than hidden (no write-on-render).
+  await expect(component.getByRole("button", { name: DEAD_TAG_CHIP })).toBeVisible();
+  // …and the settled COLLECTION request carries no tag arm at all. (The FIRST one may still carry the dead
+  // id: the tag library is the authority and it had not answered yet — deliberately, so a live filter never
+  // flashes off on boot. The re-key that follows is the whole visible correction. The strip's `starred` page
+  // and the band's `limit: 1` census are OTHER reads on the same procedure and never carry the chips.)
+  await expect.poll(() => lastCollectionInput(trpc)?.includeTagIds, { intervals: [50, 100, 200] }).toBeUndefined();
+});
+
+test("W5 a LIVE tag filter still filters — the drop is referential, not a disabling of the feature", async ({ mount, page }) => {
+  // The same persisted shape, but the id IS in the owner's library: it must reach the wire and narrow.
+  await page.addInitScript(() => {
+    globalThis.localStorage.setItem("orb:character-library", JSON.stringify({ state: { tagFilter: [{ id: "tag_rpg", state: "include" }] }, version: 2 }));
+  });
+  await page.reload();
+  const trpc = await routeTrpc(page, {
+    "character.list": characterListResponder([BOLT2, TAGGED]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => RPG_TAG_LIBRARY,
+  });
+
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+
+  await expect(component.getByText("Cassius")).toBeVisible();
+  await expect(component.getByText("Bolt")).toHaveCount(0);
+  await expect.poll(() => lastCollectionInput(trpc)?.includeTagIds, { intervals: [50, 100, 200] }).toEqual(["tag_rpg"]);
 });
 
 // THE BAND'S COUNT (owner-facing honesty): it was deleted when the list went keyset-paged, because the only

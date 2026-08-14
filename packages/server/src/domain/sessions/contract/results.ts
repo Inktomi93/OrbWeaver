@@ -18,11 +18,24 @@ export interface CreateSessionResult {
  *  the `users` row each request. `enabled` is always `true` on a non-null result, because `validate` gates
  *  disabled rows to `null`. */
 export interface ValidatedSession {
+  /** WHICH session row this cookie is — the identity a per-SESSION action keys on (F4/W7a: logout on the
+   *  phone evicts the phone's live sockets and leaves the desktop's alone). It is deliberately NOT part of the
+   *  `Principal` the seam mints: D135 keeps the Principal's verdict fields to the ones `users` owns, and a
+   *  session is not a role. The seam surfaces it BESIDE the Principal (`SeamResult.sessionId`). */
+  sessionId: SessionId;
   userId: UserId;
   role: UserRole;
   handle: Handle;
   externalId: ExternalId | null;
   enabled: boolean;
+}
+
+/** What a subject-scoped revoke swept: how many rows flipped, and WHOSE. The userIds are what the entry tier
+ *  needs to evict live sockets (W7a) — a stable IdP subject can be bound to more than one row, and the count
+ *  alone cannot name them. */
+export interface RevokedSessionsSummary {
+  readonly revoked: number;
+  readonly userIds: readonly UserId[];
 }
 
 /** The SSO login access + role decision. `deny` = the allowed-groups login gate refused the identity;

@@ -411,16 +411,15 @@ the client fix contains every storm class, including future ones.
   `GATE-AUTHORING.md`, with mustFlag/mustPass conformance rows).
   Tests: unit with a fake BroadcastChannel + fake locks (single-flight: two contenders, one ladder
   run, both settle on the broadcast verdict).
-- **W5 — referential integrity for the tag filter (the repro fix).**
-  Files: `packages/client/src/features/character/lib/character-list-view.ts` (effective-filter
-  derivation takes the known-tag id set; pure), `character-library-surface.tsx` (compute known set from
-  the cached tag-library read — a `useQuery(trpc.tag…)` cache-first read is §12 row 2 legal),
-  `character-filter-chips.tsx` (render-always arm: active entries absent from `availableTags` render
-  as clearable chips, named from the tag read or "deleted tag").
-  Tests: unit — dead include-id filters NOTHING and dead exclude-id excludes nothing; CT — seed a
-  poisoned `orb:character-library` blob (the §6 probe as a fixture), mount, assert rows render AND a
-  clearable chip appears. **This CT is the red-first proof of today's defect — write it against
-  current source first and watch the empty list with zero chips.**
+- **W5 — referential integrity for the tag filter (the repro fix). BUILT 2026-08-14 (lane 2).**
+  Files (as built — see §5b.1 for why they differ from this row's original targets):
+  `packages/client/src/features/character/lib/character-library-lens.ts` (`knownTagIds` +
+  `effectiveTagFilter`, pure; `tagVocabulary` pins an ACTIVE hidden-on-card tag),
+  `character-library-surface.tsx` (the authority read hoisted above the collection, its result narrowing
+  the query INPUT and `filtersActive`). `character-filter-chips.tsx` needed nothing: the render-always
+  "Deleted tag" arm already shipped with the character-lens merge.
+  Tests: `tests/client/features/character/lib/character-library-lens.test.ts` (4 new units) +
+  `character-library-surface.ct.tsx` (the poisoned-blob CT, red-first — see §5b.2).
 - **W6 — per-user namespacing of durable-local state. BUILT 2026-08-14 (lane 1).**
   Files: `packages/client/src/state/create-persisted-store.ts` + `create-entity-draft-store.ts` (the
   key scheme, the store registry, `bindDurableLocalToUser(userId)`, the legacy-blob adoption);
@@ -432,14 +431,16 @@ the client fix contains every storm class, including future ones.
   (grep obligation: `tests/**` for `orb:` literals — a coupled-fixture sweep per
   \[\[shared-value-change-owes-a-battery-not-static]]).
 - **W7 — server: socket eviction on revoke + the identity event.**
-  - **W7a eviction:** `transport/trpc/stream/socket-registry.ts` gains `evictUser(userId)` (end each
-    live generator via its `onEvicted`, mark cells dark; cells reap normally). Composed at ENTRY (the
-    cake holds — domain/sessions never imports transport): `entry/http/auth-routes.ts` logout calls it
-    beside `revokeByToken`; the back-channel consumer and `admin.setEnabled`/`admin.revokeSession`
-    paths get it through their compose seams (`entry/app.ts` already threads `deps.sockets`).
-    Tests: int — logout ends the caller's live subscription; a sibling device's socket ends and its
-    reconnect (valid cookie) resumes rooms via the existing barrier; a revoked cookie's reconnect
-    yields UNAUTHORIZED.
+  - **W7a eviction: BUILT 2026-08-14 (lane 2), per-SESSION for logout + per-USER for admin revoke (F4).**
+    `transport/trpc/stream/socket-registry.ts` gains a `sessionId` on the cell (stamped by `stream.connect`
+    from a new `Context.sessionId`, itself from a new `SeamResult.sessionId` — BESIDE the Principal, never
+    on it) plus `evictSession(sessionId)` / `evictUser(userId)`, both firing the existing `onEvicted`.
+    Composed at ENTRY: `entry/http/auth-routes.ts` (logout → `evictSession`; back-channel logout →
+    `evictUser` per revoked owner) and `entry/compose/admin.ts` (every admin revoke → `evictUser`).
+    Tests: `socket-registry.test.ts` (8 units — the two granularities, the sessionless arm, the re-stamp,
+    rooms preserved), `socket.test.ts` (the COMPOSED pin: the evicted device's generator completes while
+    the sibling device keeps streaming), `auth-routes.test.ts` (5 route pins),
+    `entry/compose/services.test.ts` (the admin-revoke wire), `sessions/verbs/revoke.int.test.ts`.
   - **W7b `identityChanged`:** contracts `user-bus` union + types-const member; emit in
     `admin.setRole`/`setEnabled` (target-user fan); map row in `invalidation.ts` → `sessions.me` +
     viewer keys. The FULL E4 ritual (union → map → emit → `user-bus-coverage` green) — the belt makes
@@ -503,6 +504,62 @@ Where the implementation deviated from §5's letter, and why. Each was forced by
 9. **`invalidateIdentity()` gave `sessions.me` its first freshness driver**, so its
    `query-freshness-coverage` STATIC exemption ("no in-session writer exists to hang a row on") is deleted
    — the gate's own two-sided ratchet demanded it in the same change.
+
+## 5b. AS-BUILT deltas — W5 · W7a (lane 2, 2026-08-14)
+
+1. **W5's file targets in §5 were STALE, and so was §2.1's mechanism.** The row named
+   `character-list-view.ts`'s `filterByChips` as the place the AND-veto happens. That function is GONE
+   (owner ruling 2026-08-13, recorded in the file's own header): every library lens is a `character.list`
+   query PARAM now, so the veto happens in SQL and the fix belongs in the QUERY INPUT, not in a client
+   predicate. Same defect, same severity, different seam — the effective filter is computed in
+   `character-library-lens.ts` and narrows what the surface ASKS FOR.
+2. **The red-first proof, receipted.** The poisoned-blob CT ("a persisted include-filter for a DELETED tag
+   does NOT empty the library") FAILED against the pre-fix source — `element(s) not found` for the only row
+   in the library — while its sibling control ("a LIVE tag filter still filters") passed in the same run.
+   The chip half of the class was already fixed by the character-lens merge; what was still broken, and is
+   what the owner's repro actually suffered, was the SILENT VETO.
+3. **The authority is the SETTLED read, and an unresolved read passes the blob through.** Treating
+   "the tag library has not answered yet" as "no id is known" would drop every LIVE filter on first paint,
+   flash the unfiltered library, and re-key the collection query on every boot. So the drop applies only on
+   `isSuccess`. The cost is one extra fetch in the poisoned case (the first request still carries the dead
+   id, then re-keys) — paid by the broken state, not the healthy one.
+4. **A hidden-on-card tag counts as EXISTING.** `knownTagIds` includes it (hiding is a display decision
+   about the card, not a claim the tag is gone), so `tagVocabulary` had to be amended to pin an ACTIVE
+   hidden tag into the chip row. Otherwise an id that is still narrowing the list would render as
+   "Deleted tag" — the invisible-filter defect wearing a label. Known ⟺ named, one authority.
+5. **Sweep of the other persisted mints (the §2.1 class obligation), all clear.** Seven
+   `createPersistedStore` mints; only `character-library.tagFilter` carries server row ids that VETO.
+   `recent-models.bySource` carries model ids but already drops unknown ones at CONSUMPTION
+   (`credentials/lib/model-picker-model.ts` `resolveRecentEntries` — the house pattern this generalizes);
+   `composer-draft.drafts` is KEYED by chat/draft ids but only ever read BY key, so an orphan is never
+   consulted (and the MRU cap bounds it); `shell` (registry section + panel modes), `tag-library`
+   (sort mode), `config-group-open` (host-opaque kinds), `home-tile-box` (tile ids) carry no server row ids.
+6. **W7a threads the session id BESIDE the Principal, in three hops, and touches no role.** `ValidatedSession`
+   gains the `sessionId` the verb already had in hand → `SeamResult.sessionId` (cookie arm only; `null` on
+   the owner-fallback and SSO-header arms, which mint no session row) → `Context.sessionId` → the socket
+   cell's stamp. D135 is untouched: nothing about `users.role` moved, and no procedure authorizes on the
+   session id — its ONE consumer is `evictSession`.
+7. **`attach` may NOT re-stamp the cell.** `attach` can mint the cell (order-independent creation) and
+   carries no session, so it goes through a create-or-return that leaves the stamp alone; only `connect`
+   stamps. Overwriting it there would silently unhook logout from every announcing tab — pinned.
+8. **Eviction is a STOP signal, not a state edit.** It fires `onEvicted` and lets the generator's own
+   `finally` run the ownership-checked `goDark`; darking the cell from outside would race a takeover and
+   corrupt `liveSocketCount`. Rooms are left in place so a still-valid sibling device resumes through the
+   existing barrier.
+9. **Three verbs now report WHO/WHICH, because the caller cannot know it:** `revokeByToken → SessionId | null`
+   (the logout route holds a token, and a token is not an identity), `revoke → UserId | null`, and
+   `revokeByExternalId → { revoked, userIds }` (one IdP subject can be bound to more than one row). Each
+   `null`/empty case is the already-revoked one, so an idempotent re-revoke evicts nothing.
+10. **The single-device admin kick (`admin.revokeSession`) evicts PER USER, as ruled** — even though the
+    exact session id is in hand. F4's "admin REVOKE stays per-user" is followed literally: the other devices
+    hold valid cookies and resume in one reconnect, and per-user is the only arm that also reaches sockets
+    admitted with NO session row (owner fallback / forward-header SSO), which no session id can name.
+11. **`PrincipalEnv` had FIVE local re-spellings** (`import.ts`, `auth-meta.ts`, `upload.ts`, `export.ts`,
+    `import-tree.ts`) despite `blob.ts`'s docblock claiming it was declared once. Hono's env generic is
+    INVARIANT, so adding the `sessionId` var made the app instance unassignable to those registrars: they
+    now import the one home. Six `suppressions.baseline.json` rows were hand-ratcheted down (each copy
+    carried one `biome-ignore`), rather than regenerated — a full regen on a shared tree would spend other
+    lanes' debt.
 
 ## 6. Instrumentation directives (confirm the live apportionment before W5/W6 land)
 
