@@ -540,6 +540,51 @@ is the orchestrator's to board. The two candidate arms, unranked: move the outco
 `finally` (or add a fault-side twin) so a thrown turn still leaves a row; and feed provider faults into
 the `/api/_debug/errors` ring.
 
+#### §7.5a FIXED 2026-08-14 (lane silent-500) — and the cap finding was a UNIT ERROR, not a cost bug
+
+Both observability holes are closed, and the third finding did not survive contact.
+
+**1. The outcome row (arm one of the two above, the fault-side TWIN — not the `finally`).** `engine.ts`
+gained `captureTurnFault`, called first thing in `executeTurn`'s post-start catch. A `finally` was rejected:
+the resolve arm and the fault arm can honestly report DIFFERENT field sets (a faulted turn produced no
+`final` chunk, so its generation numbers are ABSENT, never zeroed), and one merged site would have had to
+fabricate or branch anyway. `WireOutcome` grew `disposition` (`completed`\|`error`\|`user`\|`stale` —
+mirroring `TurnAbortReason`, enforced by assignability since foundation cannot import the domain union) and
+`terminalReason`, threaded from `ProviderError.terminalReason` (falling back to `.kind`) via a `.cause`-chain
+walk, never re-derived.
+
+**2. `/api/_debug/errors` — the ring WRITE was never broken; the READ FILTER was.** `logger.ts` formats the
+level as its string LABEL (`"level":"error"`), and both readers in `routes.ts` did
+`Number(record["level"] ?? 0)`. `Number("error")` is **NaN**, and every NaN comparison is false — so
+`collectErrors` (`NaN >= 50`) returned `[]` for EVERY input, and `collectLogs` (`NaN < minLevel`) excluded
+NOTHING. One filter could never fire, the other never filtered, and both read as working. §7.5's "whatever
+feeds that ring does not see a provider fault" was the wrong half of the seam. Fixed by `recordLevel()`
+(label OR number).
+
+Its sibling hole, found while proving it: an unmapped throw got a bare 500 with **no log line of its own**.
+`classifyDomainError` returns null for anything that is not a `DomainError`, and `domainErrorMiddleware`
+just returned the result. Every `INTERNAL_SERVER_ERROR` now logs one `trpc.unhandled` error line naming the
+procedure (gate refusals stay unlogged — 401 noise would bury the faults).
+
+**3. `tokensOut:8192` vs `maxOutputTokens:2048` — NOT a cap violation; the row was missing its
+denominator.** The cap is passed (`translate.ts:255` → `env.ts:119` `CLAUDE_CODE_MAX_OUTPUT_TOKENS`), and
+the env NAME is parity-pinned against the bundled runtime (`env.test.ts`, "bundled-runtime name parity").
+The two numbers are **in different units**: `runner.ts` `accumulateUsage` SUMS `outputTokens` over every
+entry of `message.modelUsage`, so `tokensOut` is a per-TURN aggregate across the agentic loop's model calls,
+while `maxOutputTokens` is the PER-CALL ceiling. The probe's room was rpg-lite with terminal tools armed, so
+`chatMaxTurns` allowed several calls; 8192 is exactly 4 × 2048, and run E's 4053 sits between 1× and 2×.
+
+That is consistent with a cap that HELD, and it is not proof of one — a single call at a vendor default
+could also land on 8192. **The lane therefore recorded the missing unit rather than guessing:**
+`num_turns` now rides the `provider.turn` log line (the exact `ok:false` line this trace was read off) and
+`modelCalls` rides the outcome row, threaded `numTurns` → `TurnEconomics.modelCalls` at the compose bridge.
+Re-running the §7.2 repro settles it in one read: `modelCalls:4` ⇒ the cap held and there is no bug;
+`modelCalls:1` ⇒ a real violation, and the next question is whether the bundled runtime applies
+`CLAUDE_CODE_MAX_OUTPUT_TOKENS` as a per-request `max_tokens` at all.
+
+**Not touched:** `DEFAULT_MAX_OUTPUT_TOKENS = 2048` itself. Raising it is the open `"LONGER OUTPUTS" LEVER`
+row on `docs/retro-workboard.md` — an owner decision with a battery attached, not a lane's call.
+
 ### §7.6 Scratch state — every change and its restore
 
 | what | before | after the probe |

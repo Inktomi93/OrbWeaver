@@ -228,9 +228,10 @@ function buildEnvOverrides(params: UserIntent, resolved: ResolvedChatKnobs): Cla
   //     frame format, extraction lands HERE (this backend module), behind a real captured-session fixture test,
   //     falling back to this degrade on a scan miss.
   // POLICY IS UNIFORM PER-BACKEND; only the SDK-native compaction BEHAVIOR may differ per backend. The env NAMES
-  // are pinned against the bundled runtime by
-  // tests/server/infra/providers/backends/agent-sdk/env-runtime-parity.test.ts (verified present, bundle 2.1.216
-  // — neo's non-CLAUDE_CODE_-prefixed names are REAL runtime keys, not silent no-ops).
+  // are pinned against the bundled runtime by the "bundled-runtime name parity (SDK-upgrade tripwire)" block in
+  // tests/server/infra/providers/backends/agent-sdk/env.test.ts (verified present, bundle 2.1.216 — neo's
+  // non-CLAUDE_CODE_-prefixed names are REAL runtime keys, not silent no-ops). The enforcer is real; the path
+  // this line used to cite (`env-runtime-parity.test.ts`) does not exist on the tree — corrected 2026-08-14.
   //
   // HOSTED TRIGGER FINDING (probe 2026-07-24, max-pro-sub): on the agent-sdk STATEFUL path the SDK RESUMES its
   // session, so provider `tokensIn` reports the per-turn DELTA (~2 tokens), NOT cumulative context. The managed
