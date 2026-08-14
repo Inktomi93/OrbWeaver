@@ -348,15 +348,21 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   LANE 2). Build cut: LANE 1 = contracts member + live lane + baseline SQUASH + reach engine +
   old-fan deletion + client rows (doc §10 1-7); LANE 2 (post-F-A) = R1-4a reorder + quiet
   generalization + G-A roomReach lane w/ SEATED-red arm.**
-- [ ] **GATE CANDIDATE G-G — testid liveness:** CT `getByTestId("X")`/`testId("X")` literals whose
-  producer (`data-testid`) exists NOWHERE in packages/ = dead assertions that fail late or pass
-  falsely. Historical control: the draft-cast ghosts (two tests asserted a testid R1 deleted;
-  slipped every scoped floor, caught by an unrelated lane's slice sweep). Two-receipt law; literal
-  cross-corpus check, cheap.
-- [ ] **GATE ARM CANDIDATE — ui exports-map completeness:** every `packages/ui/src/primitives/<n>/`
-  (and content/charts families per the exports map's own convention) must have its `"./<n>"`
-  package.json exports entry. Historical control: hint-trigger was UNIMPORTABLE for a day (missing
-  entry, caught only when its CT tried to import it). Rides the existing ui-primitive-structure gate.
+- [x] **G-G `testid-liveness` BUILT + MERGED (gates lane, 207→209 with its sibling):** historical
+  control REPLAYED (`efc4cc2b2` pre-fix file planted → RED at the exact two draft-cast ghosts;
+  restored → green, scanned 4644/4853). Mechanism correction banked: CT stories are FIRST-CLASS
+  producers (the ghosts' producer was `_ct-stories.tsx:309`, not packages/) and producer evidence
+  is 3 rules (literal · static-template · registry-KEY in packages src — the `testKey` prop
+  indirection); 313 consumed values, 0 false positives, no allowlist. 3 dead registry ids DELETED
+  at landing (`appShell`/`messageList`/`corpusSearchInput`).
+- [x] **ui `exports-map-complete` BUILT + MERGED (own gate, not an arm — receipted decision):**
+  ui-primitive-structure is §13.7 primitive-structure law; this spans charts/content/art + top-level
+  modules, module/family split DERIVED from the tree (no stale family list possible), A3 two-sided
+  stale-entry arm. RED on planted `gg-probe` dir, GREEN 85/85 module dirs. **BONUS: gate-count
+  ONE-HOME arm on enforcement-registry-parity** — the rotted "133" was a frozen copy in the
+  lockdown doc (:639, 07-16), not Active-Gates; any core doc restating the count now REDS; the
+  lockdown doc cites the line instead. Codex's "active-gates says 133" was mis-aimed at the right
+  rot.
 - [ ] **R1-4a residual false-emit** (accepted-documented): closing needs a durable-append-free live
   fan on the chat bus — pairs with the bridge item above, one bus-surface design.
 - [ ] **F6 addMember-greets-before-freeze arm** (roster verb, out of R1/R3 scope).
@@ -737,10 +743,10 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   token removed) and `DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS` = **1024** (also the prompt reserve via
   token-guard). Raising either = value-changing change, owes the BATTERY. rpg extraction sends NO cap
   (engine-window bounded) — already maximal. Morning decision: new values + the battery run.
-- [ ] **density-tier ratchet over-budget by 2, stale arm half-blind (T3 find, gate-semantics change so
-  fenced out):** baseline sums 226 vs live-admitted 224; its A5 arm only reds files at ZERO live findings,
-  never fewer-than-budgeted — finding-overload-provenance has the correct `actual < budget` arm (52/52
-  exact). Small lane: port that arm + regen baseline (GATE-AUTHORING §4.4a mode A).
+- [x] **density-tier ratchet: RETIRED-STALE (fifth stale row of 08-14, gates lane receipt):**
+  `64110bcc5` (04:15 same day) already ported the `actual < budget` arm — live at
+  density-tier.ts:339 + :428-438, baseline regenerated 226→224, pass prints admitted-by-ratchet:
+  224\. The T3 find row outlived its own fix by eight hours.
 - [ ] **Low-scan gates, human eye when convenient (denominators visible for the first time):**
   bus-payload-allowlist 5 files · modal-body-not-placeholder 7 · selection-store-via-factory 9 ·
   turn-identity 10 — presumably intended-narrow; no invented threshold added, just now readable.
