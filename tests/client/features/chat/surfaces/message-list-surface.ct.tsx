@@ -27,7 +27,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { MessageListReplaySeedStory, MessageListStoppingStory, MessageListSurfaceStory } from "../_ct-stories.tsx";
+import { MessageListStoppingStory, MessageListSurfaceStory } from "../_ct-stories.tsx";
 import { MessageListEdgeFadeStory } from "../_edge-fade-stories.tsx";
 import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
@@ -207,19 +207,6 @@ test("pending phase (turnStarted, no deltas yet): the typing dots render with RE
   expect(box?.width).toBeGreaterThan(100);
 });
 
-test("a draft handle shows the empty state and never reads the server", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
-  });
-
-  const component = await mount(<MessageListSurfaceStory committed={false} />);
-
-  await expect(component.getByText("No messages yet.")).toBeVisible();
-  // skipToken: a draft never builds the key, so the server is never hit.
-  await expect.poll(() => trpc.count("chat.listMessages")).toBe(0);
-});
-
 // SWIPE reroll (append-variant), streamed head only (start + two deltas, NO completion) so the in-place
 // ghost is held live for a deterministic assertion. `turnStarted` carries intent `swipe` + a NON-NULL
 // `targetMessageId` (AI_VIEW.id) — the whole point of this regression: `useMessageItems` must place the
@@ -316,28 +303,13 @@ test("the ghost row stays mounted with its streamed text after Stop (stopping ph
   await expect(component.getByText("Ping?")).toBeVisible();
 });
 
-// Bug 1 regression — first-turn streaming race (use-chat-bus.ts replay-cursor seed). A DRAFT surface whose
-// handle flips draft→committed within ONE mount (the real first-send shape; the stable session key means
-// no remount). The just-created chat's room must attach with `sinceSeq: 0` so the server replays this
-// chat's durable head deltas that raced past the fresh attach.
-test("a just-created chat (draft→committed) attaches its room with sinceSeq 0 and streams the head deltas", async ({ mount, page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await routeTrpc(page, { ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage([]), ...ROSTER_STUB });
-  const socket = await routeOrbSocket(page, { frames: chatFrames(HEAD_DELTAS), awaitAttaches: 1 });
-
-  const component = await mount(<MessageListReplaySeedStory />);
-
-  // Draft: the discriminant gates OUT the read/room (no committed id — `useBusRoom(null)`).
-  await expect(component.getByText("No messages yet.")).toBeVisible();
-
-  // First send promotes the draft → the surface joins the chat room for the new chat.
-  await component.getByTestId("commit-draft").click();
-
-  // The scripted head deltas animate the ghost (recovered because the attach requested the replay)...
-  await expect(component.getByText("Hello world")).toBeVisible();
-  // ...and that attach carried the replay request, bounded to THIS chat's baseline.
-  await expect.poll(() => socket.attachRequests(), { intervals: [20, 50, 100] }).toContainEqual({ ref: CHAT_ROOM, sinceSeq: 0 });
-});
+// THE BUG-1 REGRESSION PIN IS RETIRED (chat-creation-draft-mode-replacement.md §4.1, R1). It mounted a
+// DRAFT surface and flipped it draft→committed within ONE mount — the real first-send shape — and asserted
+// the just-created chat's room attached with `sinceSeq: 0` so the server replayed the head deltas that had
+// raced past the fresh attach. That transition is now unrepresentable (a chat row exists from the creation
+// click; `useChatBus` takes a required `ChatId`), and the `sinceSeq: 0` seed it pinned is deleted with it.
+// What covers the same gap is the test BELOW plus the canon read: a fresh room attaches with NO cursor, and
+// the greeting rows `startChat` seeded before the client could attach arrive through `listMessages`.
 
 // The complement: an EXISTING chat opened directly attaches with NO replay request (never re-replays a
 // finished turn as a ghost — the re-animate glitch the capture-once transition-detection guard closes) —

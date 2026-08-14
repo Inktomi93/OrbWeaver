@@ -1,7 +1,11 @@
-// The Chats CONTENT body — landing (nothing selected) vs a live room, keyed so the draft→committed
-// promotion doesn't remount mid-first-turn (ChatRoomSurface's `sessionKey`, active-chat-store.ts). Reads
-// its OWN #state (handle/draftSeed/sessionKey) + #data (busDeps) so the chats-section definition composing
-// it stays a pure data object — the whole Chats CONTENT now flows from the registry, no route wrapper.
+// The Chats CONTENT body — landing (nothing selected) vs a live room, keyed by the room's own ChatId so a
+// switch between rooms remounts a clean slot. Reads its OWN #state (the handle) + #data (busDeps) so the
+// chats-section definition composing it stays a pure data object — the whole Chats CONTENT flows from the
+// registry, no route wrapper.
+//
+// It used to carry a separate `sessionKey` because a draft→committed promotion had to NOT remount mid-first-
+// turn. A chat row exists from the creation click now (chat-creation-draft-mode-replacement.md §4.1), so
+// there is no promotion left to survive and the key is simply the id.
 
 import type { ChatWarningCode, TurnAbortReason } from "@orb/contracts/chat";
 import type { ReactElement } from "react";
@@ -9,7 +13,7 @@ import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, ToolRenderer } from "#lib";
 import { notify } from "#lib";
-import { commitDraft, isLanding, openModal, openSettingsTo, selectChat, useActiveChatHandle, useActiveDraftSeed, useActiveSessionKey } from "#state";
+import { isLanding, openModal, openSettingsTo, selectChat, useActiveChatHandle } from "#state";
 import { turnAbortNotice } from "../lib/turn-abort-notice.ts";
 import { warningNotice } from "../lib/warning-notice.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
@@ -54,8 +58,6 @@ function surfaceWarning(code: ChatWarningCode): void {
 
 export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentProps): ReactElement {
   const handle = useActiveChatHandle();
-  const draftSeed = useActiveDraftSeed();
-  const sessionKey = useActiveSessionKey();
   const baseBusDeps = useChatBusDeps();
   const busDeps: ChatBusDeps = { ...baseBusDeps, onTurnAbort: surfaceTurnAbort, onWarning: surfaceWarning };
 
@@ -66,11 +68,9 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
   return (
     <ChatRoomSurface
       busDeps={busDeps}
-      draftSeed={draftSeed}
-      initialHandle={handle}
-      key={sessionKey}
+      handle={handle}
+      key={handle.id}
       onChatForked={selectChat}
-      onChatStarted={commitDraft}
       surfaceContributors={surfaceContributors}
       toolRenderers={toolRenderers}
     />

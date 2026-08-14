@@ -4,23 +4,20 @@
 // (hook-shaped singletons), `createEntityDraftStore` (persist-shaped, per-entity vanilla factories),
 // and `createPersistedStore` (hook-shaped singletons that persist to storage).
 
-export type { DraftSeed } from "./active-chat-store.ts";
+export type { NewChatIntent } from "./active-chat-store.ts";
 export {
   chatDeletedFromList,
   chatSectionSelection,
-  clearNewChatPreset,
-  commitDraft,
+  clearNewChatIntent,
+  enterCreatedChat,
   goToLanding,
   openNewChatPicker,
   selectChat,
   selectChatFromList,
-  startNewChat,
+  subscribeHuskAbandoned,
   useActiveChatHandle,
   useActiveChatId,
-  useActiveDraftFoundingCast,
-  useActiveDraftSeed,
-  useActiveSessionKey,
-  useNewChatPreset,
+  useNewChatIntent,
 } from "./active-chat-store.ts";
 export {
   analyticsSectionSelection,
@@ -62,7 +59,7 @@ export {
   useSelectedCharacterId,
 } from "./character-selection-store.ts";
 export type { ActiveChatHandle, ChatHandle } from "./chat-handle.ts";
-export { committedChat, draftChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
+export { committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
 export type { ChatListCharacterFilter } from "./chat-list-filter-store.ts";
 export {
   clearChatListCharacterFilter,
@@ -90,7 +87,7 @@ export {
   __readComposerDraftsForTest,
   __resetComposerDrafts,
   COMPOSER_DRAFT_CAP,
-  migrateComposerDraft,
+  readComposerDraft,
   setComposerDraft,
   useComposerDraft,
 } from "./composer-draft-store.ts";
@@ -124,21 +121,10 @@ export { createPersistedStore } from "./create-persisted-store.ts";
 // (owner ruling 2026-08-13), so its home is `@orb/contracts/databank` and every consumer reads it from there.
 export { clearDatabankPhaseFilter, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
-export type { DraftConfig, DraftRosterOverride } from "./draft-config-store.ts";
-export {
-  addDraftCharacter,
-  clearDraftConfig,
-  EMPTY_DRAFT_CONFIG,
-  readDraftConfig,
-  resolveDraftCharacterIds,
-  setDraftGreeting,
-  setDraftGroupConfig,
-  setDraftInjections,
-  setDraftRoomOverrides,
-  setDraftRosterOverride,
-  setDraftStartAsGame,
-  useDraftConfig,
-} from "./draft-config-store.ts";
+// `draft-config-store.ts` was DELETED 2026-08-14 (chat-creation-draft-mode-replacement.md §4.9): it held a
+// whole second config model — greetings, roster overrides, group config, room overrides, injections,
+// startAsGame — for a room that had no server row. The room has a row from the creation click, so every one
+// of those is now the COMMITTED verb it always shadowed.
 export type { DurableLocalPersistApi, DurableLocalStorage } from "./durable-local.ts";
 export { __resetDurableLocal, activeDurableLocalUserId, bindDurableLocalToUser, durableLocalKey, registerDurableLocalStore } from "./durable-local.ts";
 export { __readHomeTileBoxForTest, __resetHomeTileBoxes, rememberHomeTileBox, useHomeTileBox } from "./home-tile-box-store.ts";

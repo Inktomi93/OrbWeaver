@@ -1,114 +1,82 @@
-// active-chat-store CT — drives the hook-backed active-chat store through its module actions and
-// asserts the read hooks reflect each transition, with THE KEY DISCIPLINE (state/active-chat-store.ts)
-// as the load-bearing assertion: `sessionKey` is STABLE across a draft→committed promotion
-// (`commitDraft`), so the route never remounts <ChatRoomSurface> mid-first-turn; it changes only on
-// new-chat / select. Same probe posture as shell-store.ct.tsx (the store's read API is hook-only, so a
-// browser render is the way to exercise it). Each test gets a fresh page → the module session counter
-// restarts, so the `draft-N` keys are deterministic.
+// active-chat-store CT — drives the hook-backed active-chat store through its module actions and asserts
+// the read hooks reflect each transition. Same probe posture as shell-store.ct.tsx (the store's read API is
+// hook-only, so a browser render is the way to exercise it).
+//
+// THE LOAD-BEARING SEAM is the HUSK publication (chat-creation-draft-mode-replacement.md §4.6, fork F3): a
+// room this device CREATED and then left, without unsent composer text, is published to
+// `subscribeHuskAbandoned` — which is all the store does. It never calls the verb, never decides husk-ness
+// (the server re-checks `started_at IS NULL`), and never blocks the navigation it publishes during.
+//
+// The old sessionKey/`commitDraft` discipline these tests were built around is gone: there is no
+// draft→committed promotion to survive, because a chat row exists from the creation click.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ActiveChatStoreProbe } from "./_ct-stories.tsx";
 
-test("new-chat mints a fresh sessionKey each time and carries the roster seed", async ({ mount }) => {
+test("selectChat makes an existing chat active; goToLanding returns to the landing handle", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");
 
-  // At rest: the LANDING handle (nothing selected — J1), no seed, the first session key.
-  await expect(state).toHaveText("handle=landing session=draft-1 seed=none openOverlayPanel=none");
-
-  // A blank new chat → a fresh draft + a NEW session key (so the composer remounts clean).
-  await probe.getByRole("button", { name: "new blank" }).click();
-  await expect(state).toHaveText("handle=draft:draft-2 session=draft-2 seed=none openOverlayPanel=none");
-
-  // A seeded new chat (the character-library "start chat with X") → the roster rides on the draft.
-  await probe.getByRole("button", { name: "new with aria" }).click();
-  await expect(state).toHaveText("handle=draft:draft-3 session=draft-3 seed=char_probe_aria openOverlayPanel=none");
-});
-
-test("commitDraft promotes the handle WITHOUT changing sessionKey (no mid-turn remount)", async ({ mount }) => {
-  const probe = await mount(<ActiveChatStoreProbe />);
-  const state = probe.locator("output");
-
-  // Seed a draft (session=draft-2 after one new-chat click).
-  await probe.getByRole("button", { name: "new with aria" }).click();
-  await expect(state).toHaveText("handle=draft:draft-2 session=draft-2 seed=char_probe_aria openOverlayPanel=none");
-
-  // First send commits the draft → the handle flips to committed, but the session key is UNCHANGED
-  // (the whole point — the surface must not remount while the first generation is streaming).
-  await probe.getByRole("button", { name: "commit draft" }).click();
-  await expect(state).toHaveText("handle=committed:chat_probe_commit session=draft-2 seed=char_probe_aria openOverlayPanel=none");
-});
-
-test("selectChat makes an existing chat active and keys the slot by its chat id", async ({ mount }) => {
-  const probe = await mount(<ActiveChatStoreProbe />);
-  const state = probe.locator("output");
+  // At rest: the LANDING handle (nothing selected — J1).
+  await expect(state).toHaveText("handle=landing openOverlayPanel=none reaped=none");
 
   await probe.getByRole("button", { name: "select chat" }).click();
-  // A committed handle, the seed cleared, and the session key IS the chat id (so re-selecting the same
-  // chat is idempotent and switching chats naturally remounts the slot).
-  await expect(state).toHaveText("handle=committed:chat_probe_select session=chat_probe_select seed=none openOverlayPanel=none");
-});
+  await expect(state).toHaveText("handle=committed:chat_probe_select openOverlayPanel=none reaped=none");
 
-test("commitDraft is a no-op once the active chat is already committed", async ({ mount }) => {
-  const probe = await mount(<ActiveChatStoreProbe />);
-  const state = probe.locator("output");
-
-  await probe.getByRole("button", { name: "select chat" }).click();
-  await expect(state).toContainText("handle=committed:chat_probe_select");
-
-  // The active chat is no longer a draft → commitDraft must not clobber it (the guard).
-  await probe.getByRole("button", { name: "commit draft" }).click();
-  await expect(state).toHaveText("handle=committed:chat_probe_select session=chat_probe_select seed=none openOverlayPanel=none");
-});
-
-test("commitDraft for a stale draft does NOT hijack a NEWER active draft", async ({ mount }) => {
-  const probe = await mount(<ActiveChatStoreProbe />);
-  const state = probe.locator("output");
-
-  // Draft A (session=draft-2) is in flight…
-  await probe.getByRole("button", { name: "new with aria" }).click();
-  await expect(state).toHaveText("handle=draft:draft-2 session=draft-2 seed=char_probe_aria openOverlayPanel=none");
-
-  // …the user starts a NEW chat (draft B, session=draft-3) before A's first send resolves.
-  await probe.getByRole("button", { name: "new blank" }).click();
-  await expect(state).toHaveText("handle=draft:draft-3 session=draft-3 seed=none openOverlayPanel=none");
-
-  // A's late-resolving commit fires for draftKey draft-2 — the guard MUST reject it (draft-3 is active
-  // now), or the handle would flip to chat A while sessionKey stays draft B's (the split-brain hijack).
-  await probe.getByRole("button", { name: "commit stale draft-2", exact: true }).click();
-  await expect(state).toHaveText("handle=draft:draft-3 session=draft-3 seed=none openOverlayPanel=none");
-});
-
-test("commitDraft for a stale draft does NOT hijack the landing state", async ({ mount }) => {
-  const probe = await mount(<ActiveChatStoreProbe />);
-  const state = probe.locator("output");
-
-  // Draft A (session=draft-2) is in flight…
-  await probe.getByRole("button", { name: "new with aria" }).click();
-  await expect(state).toHaveText("handle=draft:draft-2 session=draft-2 seed=char_probe_aria openOverlayPanel=none");
-
-  // …the user closes it back to landing (session=draft-3) before A's first send resolves.
   await probe.getByRole("button", { name: "go landing" }).click();
-  await expect(state).toHaveText("handle=landing session=draft-3 seed=none openOverlayPanel=none");
-
-  // A's late-resolving commit fires for draftKey draft-2 — the guard MUST reject it (landing is not a
-  // draft), or the user would be teleported out of landing into chat A they navigated away from.
-  await probe.getByRole("button", { name: "commit stale draft-2", exact: true }).click();
-  await expect(state).toHaveText("handle=landing session=draft-3 seed=none openOverlayPanel=none");
+  await expect(state).toHaveText("handle=landing openOverlayPanel=none reaped=none");
 });
 
-test("goToLanding returns to the landing handle with a fresh session key (J1)", async ({ mount }) => {
+test("a room CREATED here and then left is published as a husk-reap candidate — exactly once", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");
 
-  // Open a chat (session keyed by its id)…
-  await probe.getByRole("button", { name: "select chat" }).click();
-  await expect(state).toContainText("handle=committed:chat_probe_select");
+  await probe.getByRole("button", { name: "enter created chat" }).click();
+  // Entering it publishes NOTHING — the user is in the room they just made.
+  await expect(state).toHaveText("handle=committed:chat_probe_created openOverlayPanel=none reaped=none");
 
-  // …then close it: the handle returns to landing + a fresh session key (so a later new-chat/select
-  // remounts a clean slot). The delete-of-the-active-chat + brand/home affordance both land here.
+  // Leaving it is the signal.
   await probe.getByRole("button", { name: "go landing" }).click();
-  await expect(state).toHaveText("handle=landing session=draft-2 seed=none openOverlayPanel=none");
+  await expect(state).toHaveText("handle=landing openOverlayPanel=none reaped=chat_probe_created");
+
+  // The candidate is FORGOTTEN once published: navigating again must not re-publish it (a reap is
+  // idempotent server-side, but a store that re-fires forever is a leak of its own).
+  await probe.getByRole("button", { name: "select chat" }).click();
+  await expect(state).toHaveText("handle=committed:chat_probe_select openOverlayPanel=none reaped=chat_probe_created");
+});
+
+test("a room merely OPENED (never created here) is never published", async ({ mount }) => {
+  const probe = await mount(<ActiveChatStoreProbe />);
+  const state = probe.locator("output");
+
+  await probe.getByRole("button", { name: "select chat" }).click();
+  await probe.getByRole("button", { name: "go landing" }).click();
+  await expect(state).toHaveText("handle=landing openOverlayPanel=none reaped=none");
+});
+
+test("UNSENT COMPOSER TEXT suppresses the reap — the user may come back, and the TTL belt covers them", async ({ mount }) => {
+  const probe = await mount(<ActiveChatStoreProbe />);
+  const state = probe.locator("output");
+
+  await probe.getByRole("button", { name: "enter created chat" }).click();
+  await probe.getByRole("button", { name: "type in created room" }).click();
+
+  await probe.getByRole("button", { name: "go landing" }).click();
+  await expect(state).toHaveText("handle=landing openOverlayPanel=none reaped=none");
+});
+
+test("a DELETED created room is dropped as a candidate — nothing is left to reap", async ({ mount }) => {
+  const probe = await mount(<ActiveChatStoreProbe />);
+  const state = probe.locator("output");
+
+  await probe.getByRole("button", { name: "enter created chat" }).click();
+  // The reap landed (or a host deleted it elsewhere): `chatDeleted` returns the room to landing AND clears
+  // the candidate, so the next navigation cannot fire a reap for a row that no longer exists.
+  await probe.getByRole("button", { name: "delete created chat" }).click();
+  await expect(state).toHaveText("handle=landing openOverlayPanel=none reaped=none");
+
+  await probe.getByRole("button", { name: "select chat" }).click();
+  await expect(state).toHaveText("handle=committed:chat_probe_select openOverlayPanel=none reaped=none");
 });
 
 test("selectChatFromList selects the chat AND closes the LIST slide-over (dual-write)", async ({ mount }) => {
@@ -119,7 +87,7 @@ test("selectChatFromList selects the chat AND closes the LIST slide-over (dual-w
   await expect(state).toContainText("openOverlayPanel=list");
 
   await probe.getByRole("button", { name: "select from list" }).click();
-  await expect(state).toHaveText("handle=committed:chat_probe_list session=chat_probe_list seed=none openOverlayPanel=none");
+  await expect(state).toHaveText("handle=committed:chat_probe_list openOverlayPanel=none reaped=none");
 });
 
 test("chatDeletedFromList is a no-op unless the deleted chat IS the active one", async ({ mount }) => {
@@ -138,20 +106,20 @@ test("chatDeletedFromList is a no-op unless the deleted chat IS the active one",
   await expect(state).toContainText("handle=landing");
 });
 
-test("openNewChatPicker PRESETS the shared picker instead of minting a draft — and the preset is cleared, never left armed", async ({ mount, page }) => {
+test("openNewChatPicker PRE-ARMS the shared picker instead of creating anything — and it is cleared, never left armed", async ({ mount, page }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");
-  const intent = page.getByTestId("new-chat-preset");
+  const intent = page.getByTestId("new-chat-intent");
 
-  await expect(intent).toHaveText("modal=none preset=none");
+  await expect(intent).toHaveText("modal=none temporary=none");
 
-  // ONE creation ceremony: a creation-only intent (the home temp tile's `temporary`) opens the SHARED
-  // new-chat modal carrying its preset — it does NOT start a chat behind the picker's back.
+  // ONE creation ceremony: a creation-only parameter (the home temp tile's `temporary`) opens the SHARED
+  // new-chat modal carrying it — it does NOT start a chat behind the picker's back.
   await probe.getByRole("button", { name: "open picker temp" }).click();
-  await expect(intent).toHaveText("modal=newChat preset=true");
+  await expect(intent).toHaveText("modal=newChat temporary=true");
   await expect(state).toContainText("handle=landing");
 
-  // The picker clears the preset when it unmounts, so a later plain "New chat" cannot inherit the intent.
-  await probe.getByRole("button", { name: "clear preset" }).click();
-  await expect(intent).toHaveText("modal=newChat preset=none");
+  // The picker clears it when it unmounts, so a later plain "New chat" cannot inherit the intent.
+  await probe.getByRole("button", { name: "clear intent" }).click();
+  await expect(intent).toHaveText("modal=newChat temporary=none");
 });

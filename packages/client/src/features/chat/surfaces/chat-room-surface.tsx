@@ -1,57 +1,42 @@
 // The chat room surface: composes the message-thread anchor + message-list surface with the composer
-// into one pane: [ thread (grows) | composer (pinned) ]. ChatHandle is local to this pane; the composer
-// DRAFT lives in the #state commons (composer-draft-store), keyed by this room's stable scope — so it
-// survives a surface remount (draft-loss on remount is a real papercut). The tail-role read for
-// continue-on-empty uses a separate query on the same listMessages key MessageListSurface already
-// suspends on internally — one shared cache entry, not a second round-trip.
+// into one pane: [ thread (grows) | composer (pinned) ]. The handle is local to this pane; the composer
+// DRAFT lives in the #state commons (composer-draft-store), keyed by this room's ChatId — so it survives a
+// surface remount (draft-loss on remount is a real papercut). The tail-role read for continue-on-empty uses
+// a separate query on the same listMessages key MessageListSurface already suspends on internally — one
+// shared cache entry, not a second round-trip.
+//
+// COMMITTED-ONLY (chat-creation-draft-mode-replacement.md §4.1, R1). This pane used to hold a `ChatHandle`
+// in local state so it could flip draft→committed mid-first-turn without remounting, and every child took a
+// phase branch. A chat row exists from the creation click, so the handle is a prop, the id is stable for the
+// pane's life, and the twin surfaces (`DraftCastBar`, `DraftChatHeader`, `DraftGreetingThread`, the draft
+// context tabs) are gone — the committed arms they shadowed now serve the room from frame one.
 
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useRef } from "react";
 import type { ChatBusDeps } from "#data";
-import { useCarriedAppearanceCast, useGatedQuery, useTRPC } from "#data";
+import { useCarriedAppearanceCast, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { deriveChatTitle, useFocusOnMount } from "#lib";
-import type { ActiveChatHandle, ChatHandle } from "#state";
-import { committedChat, isCommitted, migrateComposerDraft, resolveDraftCharacterIds, useDraftConfig } from "#state";
+import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
-import { ChatCastBar, DraftCastBar } from "../components/chat-cast-bar.tsx";
+import { ChatCastBar } from "../components/chat-cast-bar.tsx";
 import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
 import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
-import type { DraftSeed } from "../hooks/use-send-message.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
 import { MessageListSurface } from "./message-list-surface.tsx";
 
 export interface ChatRoomSurfaceProps {
-  readonly initialHandle: ActiveChatHandle;
+  readonly handle: ActiveChatHandle;
   readonly busDeps: ChatBusDeps;
-  readonly draftSeed?: DraftSeed | undefined;
-  /** The second arg is the originating draft's key, so a late resolve after the user moved on can't
-   *  hijack the ancestor's active slot. */
-  readonly onChatStarted?: ((chatId: ChatId, draftKey: string) => void) | undefined;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
-}
-
-/** The frozen "not a draft" cast ref — a stable identity so a committed room's appearance read never
- *  re-keys on an array literal. */
-const NO_DRAFT_CAST: readonly CharacterId[] = Object.freeze([]);
-
-/** This room's stable composer-draft scope key — a committed chat's id, else the draft key (landing never
- *  mounts a room, so its "" branch is unreachable). */
-function roomScopeKey(handle: ChatHandle): string {
-  if (handle.kind === "committed") {
-    return handle.id;
-  }
-  if (handle.kind === "draft") {
-    return handle.draftKey;
-  }
-  return "";
 }
 
 /** Resolves the `when`-filtered, in-declared-order body nodes for one room anchor — zero contributions
@@ -68,48 +53,21 @@ function resolveRoomAnchor(
     .map((c) => ({ id: c.id, node: c.body(state) }));
 }
 
-export function ChatRoomSurface({
-  initialHandle,
-  busDeps,
-  draftSeed,
-  onChatStarted,
-  onChatForked,
-  surfaceContributors,
-  toolRenderers,
-}: ChatRoomSurfaceProps): ReactElement {
-  const [handle, setHandle] = useState<ChatHandle>(initialHandle);
-  // This room's stable composer-draft scope (a committed chat's id, else the draft key). Only the stable
-  // string is handed down — the reactive draft SUBSCRIPTION lives inside <Composer>, so a keystroke never
-  // re-renders this surface (and the message thread it builds); the draft is read imperatively where a
-  // one-shot value is needed (via the store's getState).
-  const scopeKey = roomScopeKey(handle);
+export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContributors, toolRenderers }: ChatRoomSurfaceProps): ReactElement {
+  const chatId = handle.id;
   const trpc = useTRPC();
 
-  const onCommitted = (chatId: ChatId): void => {
-    if (initialHandle.kind === "draft") {
-      // Carry the in-flight draft across the draftKey → chatId scope flip (the send is optimistic; the
-      // user's row may not have cleared yet) so the composer text stays visible through the promotion.
-      migrateComposerDraft(initialHandle.draftKey, chatId);
-      onChatStarted?.(chatId, initialHandle.draftKey);
-    }
-    setHandle(committedChat(chatId));
-  };
-
-  // Sole-character chrome takeover: in a true-solo room, that character's theme override wins at the
-  // chat root; multi-human/group keeps the viewer's own theme (undefined here). Resolved from the
-  // phase-independent CAST, so a DRAFT wears its founding card's theme from the moment it is picked —
-  // it used to be gated on the committed roster, and the room re-skinned itself at the first send
-  // (owner dogfood 2026-08-06). The draft cast is the SAME union the commit will write and the greeting
-  // thread already previews.
-  const roomChatId = isCommitted(handle) ? handle.id : null;
-  const { data: roomChat } = useGatedQuery(roomChatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
-  const draftConfig = useDraftConfig(handle.kind === "draft" ? handle.draftKey : "");
-  const draftCharacterIds = handle.kind === "draft" ? resolveDraftCharacterIds(draftSeed?.characterIds, draftConfig.addedCharacterIds) : NO_DRAFT_CAST;
-  const carriedCast = useCarriedAppearanceCast(roomChatId, draftCharacterIds);
+  // Sole-character chrome takeover: in a true-solo room, that character's theme override wins at the chat
+  // root; multi-human/group keeps the viewer's own theme (undefined here). The room's roster is warm on the
+  // FIRST frame — `useStartChat` seeds this exact `getChat` key from `startChat`'s own response — so a
+  // brand-new room wears its card's theme immediately instead of re-skinning itself later (the 2026-08-06
+  // owner dogfood, now fixed by the row existing rather than by a second card-reading resolver).
+  const { data: roomChat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const carriedCast = useCarriedAppearanceCast(chatId);
   const roomTheme = resolveRoomTheme(carriedCast);
-  // Names the room's focus target (finding #2): the chat title, else "Chat room" (a draft or a not-yet-
-  // resolved room). Without this explicit label the tabindex=-1 focus DIV's name falls to name-from-
-  // content — concatenating the whole toolbar (Cast · Jump to latest · Attach · Send…) into one string.
+  // Names the room's focus target (finding #2): the chat title, else "Chat room" (a not-yet-resolved room).
+  // Without this explicit label the tabindex=-1 focus DIV's name falls to name-from-content — concatenating
+  // the whole toolbar (Cast · Jump to latest · Attach · Send…) into one string.
   const roomLabel =
     roomChat === undefined
       ? "Chat room"
@@ -121,7 +79,7 @@ export function ChatRoomSurface({
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
-  const roomState: ChatRoomSurfaceState = { chatId: roomChatId };
+  const roomState: ChatRoomSurfaceState = { chatId };
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
   const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
 
@@ -130,11 +88,10 @@ export function ChatRoomSurface({
       <MessageThreadAnchor>
         {/* P5 CYOA (§5.3): the thread's choice buttons send through the room's own send capability —
             a separate useSendMessage instance from the composer's, so a pick never clears the draft. */}
-        <ChoiceSendProvider handle={handle}>
+        <ChoiceSendProvider chatId={chatId}>
           <MessageListSurface
             busDeps={busDeps}
-            handle={handle}
-            draftSeed={draftSeed}
+            chatId={chatId}
             onChatForked={onChatForked}
             surfaceContributors={surfaceContributors}
             toolRenderers={toolRenderers}
@@ -152,11 +109,8 @@ export function ChatRoomSurface({
           `<Surface>` is display:contents, so nothing in this pane's height chain moves. */}
       <Surface tier="instrument">
         <Stack aria-label={roomLabel} className="h-full px-block pb-block outline-none" gap="block" ref={surfaceRef} role="group" tabIndex={-1}>
-          {/* The cast strip serves BOTH phases (side-eye P2): a group draft already knows its whole
-              founding cast, and hiding it until the first send left the second character discoverable
-              only by scrolling to their greeting. Same strip, same floor — the phase only decides where
-              the seats come from. */}
-          {isCommitted(handle) ? <ChatCastBar chatId={handle.id} /> : <DraftCastBar draftKey={scopeKey} characterIds={draftCharacterIds} />}
+          {/* The cast strip is presence-at-a-glance for the room's roster — size-gated inside. */}
+          <ChatCastBar chatId={chatId} />
           {/* Zero flank contributions ⇒ the thread renders alone (today's exact layout, no visual
            *  change); ≥1 ⇒ a flank column appears beside it (§17 M8). The `Container` + `@max-lg`
            *  (a CONTAINER query on the chat-content region's own inline size, never the viewport —
@@ -179,42 +133,33 @@ export function ChatRoomSurface({
               </Row>
             </Container>
           )}
-          {isCommitted(handle) ? <MessageSelectionBar chatId={handle.id} /> : null}
+          <MessageSelectionBar chatId={chatId} />
           {aboveComposerContributions.map((c) => (
             <Fragment key={c.id}>{c.node}</Fragment>
           ))}
-          <ComposerSlot handle={handle} scopeKey={scopeKey} draftSeed={draftSeed} onCommitted={onCommitted} />
+          <ComposerSlot chatId={chatId} />
         </Stack>
       </Surface>
     </ThemeScope>
   );
 }
 
-interface ComposerSlotProps {
-  readonly handle: ChatHandle;
-  readonly scopeKey: string;
-  readonly draftSeed: DraftSeed | undefined;
-  readonly onCommitted: (chatId: ChatId) => void;
-}
-
-// ONE stable <Composer> element across every room-lifecycle transition (draft→committed promotion,
-// listMessages settling, an SSE event landing). The tail is read via a NON-suspending gated query, not
-// a <Suspense> child + fallback pair: a Suspense boundary here would swap the fallback <Composer> for the
-// resolved-child <Composer> at settle — two different tree positions → React remounts the <textarea>,
-// dropping focus and every keystroke typed before the query resolved (the #13 "eats keystrokes on fast
-// room entry" bug). MessageListSurface already suspends on this exact listMessages key, so this read hits
-// the same warm cache entry (no second round-trip); it reports `undefined` until warm, mapping to
-// tailRole=null — identical to the old fallback state, but WITHOUT a remount when it fills in. A DIFFERENT
-// chat still fully resets the composer: chat-content.tsx keys ChatRoomSurface by sessionKey, so an entity
-// switch remounts this whole subtree deliberately.
-function ComposerSlot(props: ComposerSlotProps): ReactElement {
-  const chatId = isCommitted(props.handle) ? props.handle.id : null;
+// ONE stable <Composer> element across every room-lifecycle transition (listMessages settling, an SSE event
+// landing). The tail is read via a NON-suspending query, not a <Suspense> child + fallback pair: a Suspense
+// boundary here would swap the fallback <Composer> for the resolved-child <Composer> at settle — two
+// different tree positions → React remounts the <textarea>, dropping focus and every keystroke typed before
+// the query resolved (the #13 "eats keystrokes on fast room entry" bug). MessageListSurface already suspends
+// on this exact listMessages key, so this read hits the same warm cache entry (no second round-trip); it
+// reports `undefined` until warm, mapping to tailRole=null — identical to the old fallback state, but
+// WITHOUT a remount when it fills in. A DIFFERENT chat still fully resets the composer: chat-content.tsx
+// keys ChatRoomSurface by the chat id, so an entity switch remounts this whole subtree deliberately.
+function ComposerSlot({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
-  const { data: messagesPage } = useGatedQuery(chatId, (id) => trpc.chat.listMessages.queryOptions({ chatId: id }));
+  const { data: messagesPage } = useQuery(trpc.chat.listMessages.queryOptions({ chatId }));
   // The raw tail IS the tail a reader means (D124: every canon row is a real message now).
   const tail = messagesPage?.messages.at(-1);
   const tailRole: MessageRole | null = tail?.role ?? null;
   // continue-on-empty's target: only meaningful when the tail is an assistant turn.
   const tailAssistantMessageId = tail !== undefined && tail.role === "assistant" ? tail.id : null;
-  return <Composer {...props} tailRole={tailRole} tailAssistantMessageId={tailAssistantMessageId} />;
+  return <Composer chatId={chatId} tailRole={tailRole} tailAssistantMessageId={tailAssistantMessageId} />;
 }

@@ -6,9 +6,7 @@
 // viewport: the curated four tabs, land-on-CONTENT, and the "You" bottom sheet + its overflow/handoff.
 // Each test gets a fresh page (isolated localStorage) so the store starts default.
 
-import { blobUrl } from "@orb/contracts/assets";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -20,7 +18,6 @@ import { makeCharacterSummary } from "../../character/fixtures.ts";
 import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
-  AppShellDraftBackgroundStory,
   AppShellDropGuardStory,
   AppShellMobileRuleStory,
   AppShellOnSectionStory,
@@ -1853,92 +1850,4 @@ test("a11y: on the DESKTOP the rail still reads first — it is the leftmost col
     return [...grid.children].map(regionOf);
   });
   expect(order.indexOf("rail")).toBeLessThan(order.indexOf("main"));
-});
-
-// ── BG-C DRAFT PARITY (owner dogfood 2026-08-06) ──────────────────────────────────────────────────
-// "character backgrounds and avatars also dont show up until the first message." The app-root background
-// layer resolved its carried source from `chat.getChat`'s roster, which a DRAFT does not have — so a chat
-// started with a character wore the viewer's default chrome and re-skinned itself the instant the first
-// send created the row. These mount the REAL shell over a REAL pre-send draft (`startNewChat`, no chat id
-// anywhere) and read the painted layer back off the DOM. The group/blank arms are the discriminators: a
-// fix that simply paints "the first card it can find" passes the solo arm and fails both of them.
-
-const DRAFT_CARD_HASH = "hash_draft_card_bg";
-
-/** A founding card carrying a BG-C background — the `character.get` payload the draft cast reads. */
-function draftCardWithBackground(): unknown {
-  return {
-    id: mintTypeId(ID_PREFIX.character),
-    name: "Aria",
-    greetings: ["Greetings, traveller."],
-    themeOverride: null,
-    backgroundOverride: {
-      kind: "asset",
-      seededId: "",
-      externalUrl: "",
-      provenanceUrl: "",
-      assetId: "asset_draft_card",
-      assetHash: DRAFT_CARD_HASH,
-      mime: "image/png",
-    },
-  };
-}
-
-const BACKGROUND_LAYER = '[data-slot="theme-background-layer"]';
-
-// ── LEG-4 P1: A DRAFT'S MOBILE TOPBAR NAMES THE CHARACTER, NOT THE SECTION ─────────────────────────
-// Measured: `Back to Chats[12,7,34,34] · Chats[54,13,55,22]` — the pushed frame of a pre-send room said
-// "Chats" while the DESKTOP header beside it said "Hana Mizushima". Leg 2 wired only the committed arm, so
-// every draft fell through to the section label. Same story as the BG-C tests: a real draft, no chat row.
-test.describe("a pre-send draft at 320px", () => {
-  test.use({ viewport: { width: 320, height: 800 }, hasTouch: true });
-
-  test("P1: the topbar names the founding character, exactly as the desktop header does", async ({ mount, page }) => {
-    await routeTrpc(page, { "character.get": draftCardWithBackground });
-    await mount(<AppShellDraftBackgroundStory characterIds={[mintTypeId(ID_PREFIX.character)]} />);
-
-    const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
-    // "Aria" is the card `character.get` returns — the SAME read `DraftChatHeader` makes for its cluster.
-    await expect(title).toHaveText("Aria");
-  });
-
-  test("P1: a cast-less draft says what the desktop says — 'New chat', never the section label", async ({ mount, page }) => {
-    await routeTrpc(page, { "character.get": draftCardWithBackground });
-    await mount(<AppShellDraftBackgroundStory characterIds={[]} />);
-
-    const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
-    await expect(title).toHaveText("New chat");
-  });
-});
-
-test("BG-C draft: a SOLO founding card's background paints on the shell before any message exists", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.get": draftCardWithBackground });
-
-  await mount(<AppShellDraftBackgroundStory characterIds={[mintTypeId(ID_PREFIX.character)]} />);
-
-  // The layer is the app-root paint (not a class string): it exists, and it carries THIS card's blob url.
-  const layer = page.locator(BACKGROUND_LAYER);
-  await expect(layer).toHaveCount(1);
-  await expect(layer).toHaveAttribute("style", new RegExp(blobUrl(DRAFT_CARD_HASH), "u"));
-  // The shell's own opaque background stands down for the photo — the same gate the committed room uses.
-  await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
-});
-
-test("BG-C draft: a GROUP founding cast paints NOTHING — no arbitrary pick among two cards", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.get": draftCardWithBackground });
-
-  await mount(<AppShellDraftBackgroundStory characterIds={[mintTypeId(ID_PREFIX.character), mintTypeId(ID_PREFIX.character)]} />);
-
-  await expect(page.getByText("chats content pane")).toBeVisible();
-  await expect(page.locator(BACKGROUND_LAYER)).toHaveCount(0);
-  await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-has-bg-image", "true");
-});
-
-test("BG-C draft: a BLANK draft (no founding cast) paints nothing", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.get": draftCardWithBackground });
-
-  await mount(<AppShellDraftBackgroundStory characterIds={[]} />);
-
-  await expect(page.getByText("chats content pane")).toBeVisible();
-  await expect(page.locator(BACKGROUND_LAYER)).toHaveCount(0);
 });

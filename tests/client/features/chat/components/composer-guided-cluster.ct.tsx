@@ -13,16 +13,8 @@
 // The trigger buttons are inline (component-scoped); menu POPUPs render through a Base UI Portal, so
 // menu-item assertions use the PAGE locator (`page.getByRole`), never `component` (the menu.ct.tsx split).
 
-import {
-  GENERATION_FAILED_DETAIL,
-  IMPERSONATE_AFTER_COMMIT_FAILED_LEAD,
-  IMPERSONATE_FAILED_LEAD,
-  IMPERSONATE_IN_FLIGHT,
-  IMPERSONATE_STOP_LABEL,
-  OPENING_AFTER_COMMIT_FAILED_HINT,
-  OPENING_AFTER_COMMIT_FAILED_LEAD,
-} from "@orb/client/lib";
-import type { ChatId, MessageId } from "@orb/kit/ids";
+import { GENERATION_FAILED_DETAIL, IMPERSONATE_FAILED_LEAD, IMPERSONATE_IN_FLIGHT, IMPERSONATE_STOP_LABEL } from "@orb/client/lib";
+import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -39,13 +31,9 @@ import { COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures
 const RESPONSE = "Generate reply";
 // P3-dualmode: the guided icons' accessible name reflects the active mode — "Guided …" when the composer has text.
 const RESPONSE_GUIDED = "Guided generate reply";
-const RESPONSE_DRAFT = "Generate opening";
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
 const NEEDS_REPLY = /needs a reply to reroll/iu;
 const PLAIN_REROLL = /plain reroll/iu;
-const SWIPE_DISABLED_TITLE = /^Swipe — needs a reply to reroll/u;
-const CONTINUE_DISABLED_TITLE = /^Continue — needs a reply to continue/u;
-const ANY_ATTR = /.*/u;
 const GROUP_LABELS = ["Input", "Reply", "Continuation", "Images"] as const;
 /** A curated DOMAIN message on the typed terminal frame (what the participant gate / an honest refusal reads
  *  like) — it must reach the user verbatim, unlike a raw transport fault. */
@@ -89,39 +77,6 @@ test("Response fires chat.generate with the typed steer + afterAssistant on an a
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("");
 });
 
-test("Response on a DRAFT fires chat.startChat opening:generate (Generate opening)", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: null }) });
-  const component = await mount(<ComposerStory committed={false} />);
-
-  const btn = component.getByRole("button", { name: RESPONSE_DRAFT });
-  await expect(btn).toBeVisible();
-  await btn.click();
-  await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll above settled the recorder at exactly 1 call, so lastInput is stable at read.
-  expect(trpc.lastInput("chat.startChat")).toMatchObject({ opening: "generate" });
-});
-
-// START-1 — the room COMMITS before the opening generates, so the server reports a dead engine as
-// `openingFailure` DATA on a SUCCESSFUL startChat. The client must enter the room it really created and say
-// so: the old behavior (the whole mutation rejecting) left the user on the draft UI reading "Couldn't guide
-// the opening" over a real orphaned chat, and the obvious retry minted a SECOND one.
-test("Response on a DRAFT whose opening generation FAILED: one room, and an honest toast (not 'couldn't start')", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, {
-    "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: { reason: "The model is overloaded." } }),
-  });
-  const component = await mount(<ComposerStory committed={false} />);
-
-  await component.getByRole("button", { name: RESPONSE_DRAFT }).click();
-
-  // The notify sink (the story binds `notify` to it) — lead + the server's CURATED reason + the recovery.
-  await expect(component.getByTestId("composer-notified")).toHaveText(
-    `${OPENING_AFTER_COMMIT_FAILED_LEAD} The model is overloaded. ${OPENING_AFTER_COMMIT_FAILED_HINT}`,
-  );
-  // ONESHOT-OK: the toast above only renders after the mutation RESOLVED, so the recorder is settled.
-  // Exactly ONE room — the flow completed instead of rejecting the user back onto the draft.
-  expect(trpc.count("chat.startChat")).toBe(1);
-});
-
 test("Swipe KEEPS the steer (reroll again with the same guidance — no composer clear)", async ({ mount, page }) => {
   // The tail is resolved by useGuidedActions' own chat.listMessages read — stub it with an assistant tail so
   // fireSwipe has a target (the prop only feeds the composer's own tailRole).
@@ -137,30 +92,6 @@ test("Swipe KEEPS the steer (reroll again with the same guidance — no composer
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   // The steer STAYS — the reroll ergonomic (reroll again without re-typing).
   await expect(box).toHaveValue("darker tone");
-});
-
-test("phase matrix: a DRAFT disables Swipe/Continue with a legible reason; Response + Impersonate stay live", async ({ mount }) => {
-  const component = await mount(<ComposerStory committed={false} />);
-  // aria-disabled (focusableWhenDisabled) — visible + hoverable, never hidden.
-  await expect(component.getByRole("button", { name: "Swipe" })).toBeDisabled();
-  await expect(component.getByRole("button", { name: "Continue" })).toBeDisabled();
-  // Response is always live (Generate opening on a draft); Impersonate now writes the USER's opening line, so
-  // it's live on a draft too (firing commits the chat + fires impersonate — proven below).
-  await expect(component.getByRole("button", { name: RESPONSE_DRAFT })).toBeEnabled();
-  await expect(component.getByRole("button", { name: "Impersonate" })).toBeEnabled();
-});
-
-// The disabled guided icons render aria-disabled (focusableWhenDisabled) — NOT native-disabled — so their
-// hover `title` surfaces, and the title names WHAT the button is AND why it's off ("<Label> — <reason>").
-test("a DRAFT's disabled Swipe/Continue are aria-disabled (not native) with a label + reason title", async ({ mount }) => {
-  const component = await mount(<ComposerStory committed={false} />);
-  const swipe = component.getByRole("button", { name: "Swipe" });
-  // aria-disabled pattern: the accessibility-disabled attr is set, the NATIVE disabled attr is absent (so the
-  // browser doesn't swallow the hover tooltip). Mirrors [[base-ui-disabled-menuitem-title]].
-  await expect(swipe).toHaveAttribute("aria-disabled", "true");
-  await expect(swipe).not.toHaveAttribute("disabled", ANY_ATTR);
-  await expect(swipe).toHaveAttribute("title", SWIPE_DISABLED_TITLE);
-  await expect(component.getByRole("button", { name: "Continue" })).toHaveAttribute("title", CONTINUE_DISABLED_TITLE);
 });
 
 test("Impersonate on a COMMITTED chat STREAMS into the composer PROGRESSIVELY and persists nothing", async ({ mount, page }) => {
@@ -184,60 +115,6 @@ test("Impersonate on a COMMITTED chat STREAMS into the composer PROGRESSIVELY an
   // ONESHOT-OK: the full-fill assertion above proves the stream COMPLETED; on a committed chat `fireImpersonate`
   // never calls `commitDraft`, so `chat.startChat` is provably never invoked (stable at 0).
   expect(trpc.count("chat.startChat")).toBe(0);
-});
-
-test("Impersonate on a DRAFT commits WITH the greeting preserved (no opening:none) then STREAMS into the promoted composer", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: null }) });
-  const sse = await routeImpersonateStream(page, ["Good evening — ", "is there a room to spare?"]);
-  const component = await mount(<ComposerStory committed={false} />);
-  const box = component.getByRole("textbox", { name: "Message" });
-
-  // The perspective picker opens on the Impersonate trigger; pick 1st person.
-  await component.getByRole("button", { name: "Impersonate" }).click();
-  await page.getByRole("menuitem", { name: "1st person" }).click();
-
-  await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll above settled the startChat recorder at exactly 1, so its input is stable at read.
-  // GREETING PRESERVED — the commit uses the server's DEFAULT opening policy (NO `opening` field). The
-  // opening:"none" first attempt seeded an EMPTY chat and lost the card greeting (the owner's bug #1).
-  expect(trpc.lastInput("chat.startChat")).not.toHaveProperty("opening");
-  // The FILL LANDS PROGRESSIVELY (bug #2): each delta is written to the NEW chatId's composer-draft store,
-  // which the PROMOTED composer (draft→committed, scopeKey now the new id) reads — proving the fill survives
-  // the navigation AND grows delta-by-delta (the SSE reconnect stages one delta per connect).
-  await expect(box).toHaveValue("Good evening — ");
-  await expect(box).toHaveValue("Good evening — is there a room to spare?");
-  // The stream subscribed against the freshly-committed chat id (empty composer ⇒ no steer object).
-  const streamInput = sse.firstInput() as { chatId?: ChatId; guided?: unknown };
-  expect(streamInput.chatId).toBe(COMPOSER_CHAT_ID);
-  expect(streamInput.guided).toBeUndefined();
-});
-
-test("Impersonate on a DRAFT with a typed steer threads the steer + person, preserves the greeting, and streams into the promoted composer", async ({
-  mount,
-  page,
-}) => {
-  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: null }) });
-  const sse = await routeImpersonateStream(page, ["I greet the innkeeper ", "with a warm smile."]);
-  const component = await mount(<ComposerStory committed={false} />);
-  const box = component.getByRole("textbox", { name: "Message" });
-
-  await box.fill("greet the innkeeper warmly");
-  // With text present the icon is in guided mode ("Guided impersonate").
-  await component.getByRole("button", { name: "Guided impersonate" }).click();
-  await page.getByRole("menuitem", { name: "3rd person" }).click();
-
-  // The typed steer is CONSUMED and REPLACED by the STREAMED line in the PROMOTED composer (grows delta-by-delta).
-  await expect(box).toHaveValue("I greet the innkeeper ");
-  await expect(box).toHaveValue("I greet the innkeeper with a warm smile.");
-  // ONESHOT-OK: the full-fill assertion above proves the stream COMPLETED, which the impersonate flow only
-  // reaches AFTER the commit + subscribe — so startChat's input and the stream's first input are both stable.
-  // The stream fired after the commit (draft→committed), so startChat already ran — greeting preserved (NO
-  // `opening` field, server default), and the steer + person ride the stream subscribe input.
-  expect(trpc.lastInput("chat.startChat")).not.toHaveProperty("opening");
-  expect(sse.firstInput()).toMatchObject({
-    chatId: COMPOSER_CHAT_ID,
-    guided: { action: "impersonate", input: "greet the innkeeper warmly", person: "third" },
-  });
 });
 
 // ── The impersonate stream is a ONE-SHOT drive, not a live feed ──────────────────────────────────────────
@@ -298,23 +175,6 @@ test("a RETRYABLE server fault is terminal (the dead-engine zombie): one connect
   // A link-level fault carries framework/operator text, never user copy — the generic detail is shown instead.
   await expect(component.getByTestId("composer-notified")).toHaveText(`${IMPERSONATE_FAILED_LEAD} ${GENERATION_FAILED_DETAIL}`);
   await expectNoReconnect(page, sse);
-});
-
-test("a DRAFT whose commit SUCCEEDED then failed to draft says the chat survived", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: null }) });
-  const sse = await routeImpersonateStreamOnce(page, { end: "server-error" });
-  const component = await mount(<ComposerStory committed={false} />);
-
-  await component.getByRole("button", { name: "Impersonate" }).click();
-  await page.getByRole("menuitem", { name: "1st person" }).click();
-
-  // The composite: the room EXISTS (startChat committed) and only the drafting generation died — a bare
-  // "couldn't draft your line" would read as "nothing happened" and the user would re-fire, minting a 2nd room.
-  await expect(component.getByTestId("composer-notified")).toHaveText(`${IMPERSONATE_AFTER_COMMIT_FAILED_LEAD} ${GENERATION_FAILED_DETAIL}`);
-  await expectNoReconnect(page, sse);
-  // ONESHOT-OK: the commit is awaited BEFORE the stream, the failure toast proves the flow settled, and
-  // expectNoReconnect proves nothing further is in flight — the recorder cannot move after this point.
-  expect(trpc.count("chat.startChat")).toBe(1); // one room, not one per reconnect
 });
 
 // ── IMP-2: the impersonate stream is STOPPABLE, and says so ──────────────────────────────────────────────

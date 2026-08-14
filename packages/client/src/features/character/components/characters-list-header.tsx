@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
 import { useTRPC } from "#data";
 import { clearCharacterSelection, useSelectedCharacterId } from "#state";
-import { startChatWithCharacter } from "../lib/character-chat-intents.ts";
+import { useStartChatWithCharacter } from "../lib/character-chat-intents.ts";
 import { CharacterCreateActions } from "./character-create-actions.tsx";
 
 /** The band wants the CENSUS, not the rows — the smallest page the server will serve still carries it. */
@@ -50,11 +50,12 @@ function ProjectionBand({ characterId }: { readonly characterId: CharacterId }):
   const trpc = useTRPC();
   const { data } = useQuery(trpc.character.get.queryOptions({ characterId }));
   const name = data?.name;
+  const startChatWith = useStartChatWithCharacter();
 
   return (
     <ListPaneHeader
       action={
-        <Button intent="primary" onClick={(): void => startChatWithCharacter(characterId)} size="sm">
+        <Button intent="primary" onClick={(): void => startChatWith(characterId)} size="sm">
           <Icon icon={Plus} size="sm" />
           New chat
         </Button>

@@ -1,54 +1,38 @@
-// `ChatHandle` (the true `this_chid` successor — state/chat-handle.ts header): the discriminated
-// union that makes "did I forget the draft/committed branch" a `tsc` error instead of a runtime
-// surprise. Pins the three exported builders/guards behaviorally: `committedChat`/`draftChat`
-// produce the right variant shape (never leaking the other variant's field), and `isCommitted`
-// narrows correctly both ways (the type-guard's actual runtime behavior, not just its declared
-// type — a `h is Extract<...>` signature lies for free if the runtime check itself is wrong).
+// chat-handle unit test — `ChatHandle` is the compile-time discipline: a two-arm discriminated union that
+// makes "did I forget the landing branch" a `tsc` error instead of a runtime surprise. Pins the builders +
+// guards behaviorally.
+//
+// THE `draft` ARM IS GONE (chat-creation-draft-mode-replacement.md §4.1, R1): a chat row exists from the
+// creation click, so a rowless "chat that exists only in the composer" is unrepresentable. What replaced it
+// is a SERVER fact (an unclaimed husk), not a client phase — do not re-add an arm here to model it.
 
-import { committedChat, draftChat, isCommitted, isLanding, landingChat } from "@orb/client/state";
+import { committedChat, isCommitted, isLanding, landingChat } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
-const CHAT_ID = castId<ChatId>("chat_handletest0001");
+const CHAT_ID = castId<ChatId>("chat_handle_unit");
 
-describe("ChatHandle builders + discriminant", () => {
-  test("committedChat carries the id under kind:'committed', no draftKey field", () => {
+describe("chat-handle", () => {
+  test("committedChat carries the id under kind:'committed'", () => {
     const handle = committedChat(CHAT_ID);
     expect(handle).toEqual({ kind: "committed", id: CHAT_ID });
-    expect("draftKey" in handle).toBe(false);
   });
 
-  test("draftChat carries the draftKey under kind:'draft', no id field", () => {
-    const handle = draftChat("draft_abc123");
-    expect(handle).toEqual({ kind: "draft", draftKey: "draft_abc123" });
-    expect("id" in handle).toBe(false);
-  });
-
-  test("landingChat carries only kind:'landing' (no id, no draftKey) — the at-rest state (J1)", () => {
+  test("landingChat carries only kind:'landing' (no id) — the at-rest state (J1)", () => {
     const handle = landingChat();
     expect(handle).toEqual({ kind: "landing" });
     expect("id" in handle).toBe(false);
-    expect("draftKey" in handle).toBe(false);
   });
 
-  test("isCommitted narrows true for a committed handle, false for a draft or landing", () => {
+  test("isCommitted narrows true for an open room, false for landing", () => {
     expect(isCommitted(committedChat(CHAT_ID))).toBe(true);
-    expect(isCommitted(draftChat("draft_xyz"))).toBe(false);
     expect(isCommitted(landingChat())).toBe(false);
   });
 
-  test("isLanding narrows true only for a landing handle", () => {
+  test("isLanding narrows true for landing, false for an open room", () => {
     expect(isLanding(landingChat())).toBe(true);
     expect(isLanding(committedChat(CHAT_ID))).toBe(false);
-    expect(isLanding(draftChat("draft_xyz"))).toBe(false);
-  });
-
-  test("two draft handles with different keys are never confused with each other or a committed handle", () => {
-    const draftA = draftChat("draft_a");
-    const draftB = draftChat("draft_b");
-    expect(draftA).not.toEqual(draftB);
-    expect(draftA).not.toEqual(committedChat(CHAT_ID));
   });
 });

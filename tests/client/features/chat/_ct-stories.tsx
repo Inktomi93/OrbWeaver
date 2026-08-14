@@ -41,27 +41,21 @@ import type {
   ToolRenderer,
 } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
-import type { ActiveChatHandle, ChatHandle, HomeTileContribution } from "@orb/client/state";
+import type { HomeTileContribution } from "@orb/client/state";
 import {
-  addDraftCharacter,
   cancelEditingMessage,
   chatStream,
   committedChat,
-  draftChat,
   enterSelectionMode,
   isLiveTurnPhase,
   MessageToolsRendererRegistryProvider,
-  migrateComposerDraft,
   SlashCommandRegistryProvider,
   selectChat,
-  setDraftGreeting,
   startEditingMessage,
-  startNewChat,
   toggleMessageSelected,
   useActiveSection,
   useContextTab,
-  useDraftConfig,
-  useNewChatPreset,
+  useNewChatIntent,
   useOpenModal,
   useOpenOverlayPanel,
   useSectionRegistry,
@@ -108,7 +102,6 @@ import { CompactSummaryPeek } from "../../../../packages/client/src/features/cha
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/composer-chat-options.tsx";
 import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section.tsx";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row.tsx";
-import { GreetingSwipeStrip } from "../../../../packages/client/src/features/chat/components/greeting-swipe-strip.tsx";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form.tsx";
 import { ImageryTemplatesSection } from "../../../../packages/client/src/features/chat/components/imagery-templates-section.tsx";
 import { InjectionsManager } from "../../../../packages/client/src/features/chat/components/injections-manager.tsx";
@@ -131,7 +124,7 @@ import { ProseSettingsSection } from "../../../../packages/client/src/features/c
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block.tsx";
 import { RewriteDialog } from "../../../../packages/client/src/features/chat/components/rewrite-dialog.tsx";
 import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form.tsx";
-import { CommittedSettingsTab, DraftSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
+import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select.tsx";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip.tsx";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
@@ -607,13 +600,12 @@ export function MessageContentChoicesStory({ mode = "live" }: MessageContentChoi
 // and fires NO send. The game knob rides `rpg.getGame.publicConfig.cyoaChoiceBehavior` (the CT stubs it).
 
 function ChoiceProviderStoryInner(): ReactElement {
-  const handle: ChatHandle = committedChat(COMPOSER_CHAT_ID);
   return (
     <div>
-      <ChoiceSendProvider handle={handle}>
+      <ChoiceSendProvider chatId={COMPOSER_CHAT_ID}>
         <MessageContent content={CHOICES_BODY} render={storyRenderPolicy("untrusted", false, false)} />
       </ChoiceSendProvider>
-      <Composer handle={handle} scopeKey={COMPOSER_CHAT_ID} />
+      <Composer chatId={COMPOSER_CHAT_ID} />
     </div>
   );
 }
@@ -786,73 +778,28 @@ function SocketHost({ children }: { readonly children: ReactNode }): ReactElemen
   return <>{children}</>;
 }
 
-interface SurfaceHarnessProps {
-  readonly committed: boolean;
-}
-
-function SurfaceHarness({ committed }: SurfaceHarnessProps): ReactElement {
+function SurfaceHarness(): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const busDeps: ChatBusDeps = {
     stream: chatStream,
     invalidate: createInvalidation({ queryClient, trpc }).invalidate,
   };
-  const handle = committed ? committedChat(CHAT_ID) : draftChat("draft_ct");
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface handle={handle} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
+        <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
       </MessageThreadAnchor>
     </div>
   );
-}
-
-export interface MessageListSurfaceStoryProps {
-  readonly committed?: boolean;
 }
 
 /** The keystone surface in a bounded box (so the message-list seal has a real scroll window). */
-export function MessageListSurfaceStory({ committed = true }: MessageListSurfaceStoryProps): ReactElement {
+export function MessageListSurfaceStory(): ReactElement {
   return (
     <CtDataProviders>
       <SocketHost>
-        <SurfaceHarness committed={committed} />
-      </SocketHost>
-    </CtDataProviders>
-  );
-}
-
-/** Bug-1 (first-turn streaming race) harness: mounts a DRAFT surface (no subscription), and a
- *  `commit-draft` button flips the handle draft→committed WITHIN this one mount — exactly the
- *  transition `useChatBus` seeds a replay cursor for. The CT asserts the subscription then carries
- *  `lastEventId:"0"` and the scripted head deltas animate the ghost. */
-function ReplaySeedHarness(): ReactElement {
-  const trpc = useTRPC();
-  const queryClient = useQueryClient();
-  const busDeps: ChatBusDeps = {
-    stream: chatStream,
-    invalidate: createInvalidation({ queryClient, trpc }).invalidate,
-  };
-  const [committed, setCommitted] = useState(false);
-  const handle: ChatHandle = committed ? committedChat(CHAT_ID) : draftChat("draft_ct_replay");
-  return (
-    <div style={{ height: 480 }}>
-      <MessageThreadAnchor>
-        <MessageListSurface handle={handle} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
-      </MessageThreadAnchor>
-      <button type="button" data-testid="commit-draft" onClick={(): void => setCommitted(true)}>
-        commit
-      </button>
-    </div>
-  );
-}
-
-/** The Bug-1 replay-seed harness (draft→committed within one mount). */
-export function MessageListReplaySeedStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <SocketHost>
-        <ReplaySeedHarness />
+        <SurfaceHarness />
       </SocketHost>
     </CtDataProviders>
   );
@@ -871,7 +818,7 @@ function StoppingHarness(): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface handle={committedChat(CHAT_ID)} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
+        <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
       </MessageThreadAnchor>
       <button type="button" data-testid="mark-stopping" onClick={(): void => chatStream.markStopping(CHAT_ID)}>
         stop
@@ -894,22 +841,15 @@ export function MessageListStoppingStory(): ReactElement {
 // ── Composer story (data layer + turn-lifecycle drivers) ───────────────────────────────────────────
 
 export interface ComposerStoryProps {
-  /** @defaultValue true — a committed chat (`COMPOSER_CHAT_ID`); `false` mounts a draft handle. */
-  readonly committed?: boolean;
   /** The tail turn role — `"assistant"` (+ `tailAssistantMessageId`) makes continue-on-empty eligible. */
   readonly tailRole?: MessageRole | null;
   /** The tail assistant message id continue-on-empty targets (PD-146). */
   readonly tailAssistantMessageId?: MessageId | null;
 }
 
-function ComposerStoryInner({ committed = true, tailRole = null, tailAssistantMessageId = null }: ComposerStoryProps): ReactElement {
-  const [startedChatId, setStartedChatId] = useState<ChatId | null>(committed ? COMPOSER_CHAT_ID : null);
-  const handle: ChatHandle = startedChatId !== null ? committedChat(startedChatId) : draftChat("draft_ct_composer");
-  // Wire the composer value to the REAL composer-draft store keyed by the room scope (a draft's draftKey, a
-  // committed chat's id) — exactly like chat-room-surface. This makes the guided-impersonate DRAFT fill
-  // observable: after commit, `fireImpersonate` writes the drafted text to the NEW chatId's scope directly
-  // (the promoted composer no longer reads the stale draftKey scope), and the story reads that same store.
-  const scopeKey = startedChatId ?? "draft_ct_composer";
+function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: ComposerStoryProps): ReactElement {
+  // The composer's value IS the real composer-draft store keyed by this room's ChatId — exactly like
+  // chat-room-surface. (There is no draft phase to mount: a chat row exists from the creation click.)
   // `notify` no-ops into the console in the CT harness (bindNotify is main.tsx-only), so bind it to a DOM sink
   // — the guided-impersonate failure toasts (a SUBSCRIPTION has no `meta.errorToast` seam) are observed via
   // this marker. Same shape as PersonaThisChatStory.
@@ -922,18 +862,7 @@ function ComposerStoryInner({ committed = true, tailRole = null, tailAssistantMe
 
   return (
     <div>
-      <Composer
-        handle={handle}
-        scopeKey={scopeKey}
-        onCommitted={(id): void => {
-          // Mirror chat-room-surface's promotion: carry the in-flight draft across the draftKey → chatId
-          // scope flip, then flip the handle draft→committed IN PLACE (no unmount).
-          migrateComposerDraft("draft_ct_composer", id);
-          setStartedChatId(id);
-        }}
-        tailRole={tailRole}
-        tailAssistantMessageId={tailAssistantMessageId}
-      />
+      <Composer chatId={COMPOSER_CHAT_ID} tailRole={tailRole} tailAssistantMessageId={tailAssistantMessageId} />
       {/* Turn-lifecycle drivers (mirrors GhostRowStory above) — the CT clicks these to move
           `chatStream`'s slot through pending/streaming/stopping/aborted without a real SSE round-trip
           (Stop's immediate-feedback half is client-only; only the eventual close needs the bus). */}
@@ -1138,13 +1067,13 @@ function ActiveSectionProbe(): ReactElement {
   return <output>section={useActiveSection()}</output>;
 }
 
-/** Publishes the NEW-CHAT INTENT the launcher wrote: which modal the shell opened, and whether the
- *  picker was preset with the creation-only temporary flag. The behavioral end of the ceremony (picker →
- *  seeded room → Temporary on the draft) is the app-root route CT, over the whole composed shell. */
+/** Publishes the NEW-CHAT INTENT the launcher wrote: which modal the shell opened, and whether the picker
+ *  was pre-armed with the creation-only temporary parameter. The behavioral end of the ceremony (picker →
+ *  a REAL room born Temporary) is the app-root route CT, over the whole composed shell. */
 function NewChatIntentProbe(): ReactElement {
   return (
     <output data-testid="new-chat-intent">
-      modal={useOpenModal() ?? "none"} temporary={String(useNewChatPreset()?.temporary === true)}
+      modal={useOpenModal() ?? "none"} temporary={String(useNewChatIntent()?.temporary === true)}
     </output>
   );
 }
@@ -1185,6 +1114,23 @@ export function NewChatPickerStory(): ReactElement {
       <div style={{ height: 560, width: 480 }}>
         <NewChatPicker />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** CREATE-ON-START-CLICK (chat-creation-draft-mode-replacement.md §4.1): the picker AND the chats
+ *  section's real CONTENT in one mount, so a Start click can be followed all the way into the room it
+ *  lands in. The room arrives through the REAL registry path (`registry.get("chats").content()`), so what
+ *  the CT drives is the production composition, not a hand-wired surface. */
+export function CreateOnStartClickStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ width: 480 }}>
+          <NewChatPicker />
+        </div>
+        <ChatContentHarness />
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -1252,59 +1198,32 @@ export function CommandPaletteSurfaceStory({ commands = "door" }: CommandPalette
 
 // ── Chat-room story (the composed transcript + composer pane) ────────────────────────────────────
 
-function ChatRoomHarness({ committed }: { readonly committed: boolean }): ReactElement {
+function ChatRoomHarness(): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const busDeps: ChatBusDeps = {
     stream: chatStream,
     invalidate: createInvalidation({ queryClient, trpc }).invalidate,
   };
-  const handle: ActiveChatHandle = committed ? committedChat(CHAT_ID) : draftChat("draft_ct_room");
-  // A draft carries a founding roster seed (the new-chat-with-character path); a committed room ignores it.
-  const draftSeed = committed ? undefined : { characterIds: [castId<CharacterId>("char_ct_room")] };
   return (
     <div style={{ height: 480 }}>
-      <ChatRoomSurface
-        busDeps={busDeps}
-        draftSeed={draftSeed}
-        initialHandle={handle}
-        surfaceContributors={NO_SURFACE_CONTRIBUTORS}
-        toolRenderers={NO_TOOL_RENDERERS}
-      />
-      {/* The clear-on-commit signal (mirrors ComposerStory's `drive-message-committed`): simulates the bus
-          observing the caller's OWN user-row `messageCommitted` on the (post-promotion) committed chat.
-          Driven directly rather than through the SSE stub because the draft→committed subscription churns
-          (null→committed re-attach), so a scripted stream event races the sticky subscribe; the signal
-          itself is what the send hook subscribes to, and this fires it deterministically for CHAT_ID. */}
+      <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
+      {/* The clear-on-send signal: simulates the bus observing the caller's OWN user-row
+          `messageCommitted`. Driven directly rather than through the SSE stub because the signal itself is
+          what the send hook subscribes to, and this fires it deterministically for CHAT_ID. */}
       <button type="button" data-testid="drive-message-committed" onClick={(): void => chatStream.notifyUserMessageCommitted(CHAT_ID)}>
         commit
-      </button>
-      {/* Simulates the roster panel adding a founding member mid-draft (`addDraftCharacter`) — the pre-commit
-          greeting preview must show the new character's row immediately, matching the union `resolveDraftCommit`
-          will write at send-time (the panel-added-character regression this CT extends to cover). */}
-      <button
-        type="button"
-        data-testid="add-panel-character"
-        onClick={(): void => addDraftCharacter("draft_ct_room", castId<CharacterId>("char_ct_panel_added"))}
-      >
-        add character
       </button>
     </div>
   );
 }
 
-export interface ChatRoomSurfaceStoryProps {
-  /** @defaultValue false — a seeded draft (empty transcript, no server read); `true` = a committed chat. */
-  readonly committed?: boolean;
-}
-
-/** The composed chat-room pane (transcript + composer) — a seeded draft by default (proves the empty
- *  transcript + live composer with NO server read), or a committed chat (reads `listMessages`). */
-export function ChatRoomSurfaceStory({ committed = false }: ChatRoomSurfaceStoryProps): ReactElement {
+/** The composed chat-room pane (transcript + composer) over a real room (reads `listMessages`). */
+export function ChatRoomSurfaceStory(): ReactElement {
   return (
     <CtDataProviders>
       <SocketHost>
-        <ChatRoomHarness committed={committed} />
+        <ChatRoomHarness />
       </SocketHost>
     </CtDataProviders>
   );
@@ -1347,12 +1266,11 @@ function ChatContextHeaderHarness(): ReactElement {
   return <SectionContextHeader key="chats" definition={registry.get("chats")} />;
 }
 
-/** The chats def supplies the CONTEXT-band identity (N4): a DRAFT (empty cast, no network) names the new
- *  chat, proving the definition-owned header channel carries the chat identity end-to-end through the real
- *  section → mint → `SectionContextHeader` path. */
-export function ChatContextHeaderDraftStory(): ReactElement {
+/** The chats def supplies the CONTEXT-band identity (N4), proving the definition-owned header channel
+ *  carries the chat identity end-to-end through the real section → mint → `SectionContextHeader` path. */
+export function ChatContextHeaderStory(): ReactElement {
   useEffect(() => {
-    startNewChat({ characterIds: [] });
+    selectChat(CHAT_ID);
   }, []);
   return (
     <CtDataProviders>
@@ -1402,9 +1320,6 @@ export interface ChatSurfaceContributorStoryProps {
   readonly anchor: ChatSurfaceAnchor;
   /** Drives the fake contribution's `when` — `false` proves the anchor HIDES it. */
   readonly visible: boolean;
-  /** @defaultValue true — a committed room (canon read); message-footer needs a committed message to
-   *  attach to. */
-  readonly committed?: boolean;
 }
 
 const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
@@ -1413,14 +1328,10 @@ const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
  *  given anchor, registered at a `CtChatContributorSectionRegistry` door in place of the empty registry,
  *  mounted through the REAL `chats` section's `content()` → `ChatContent` → `ChatRoomSurface`/`MessageRow`
  *  anchor-consumer path (chat-room-surface.tsx / message-row.tsx). */
-export function ChatSurfaceContributorStory({ anchor, visible, committed = true }: ChatSurfaceContributorStoryProps): ReactElement {
+export function ChatSurfaceContributorStory({ anchor, visible }: ChatSurfaceContributorStoryProps): ReactElement {
   useEffect(() => {
-    if (committed) {
-      selectChat(CHAT_ID);
-    } else {
-      startNewChat({ characterIds: [] });
-    }
-  }, [committed]);
+    selectChat(CHAT_ID);
+  }, []);
   const fakeContribution: ChatSurfaceContribution =
     anchor === "message-footer"
       ? {
@@ -1456,30 +1367,6 @@ function ChatContentHarness(): ReactElement {
   return <div style={{ height: 480 }}>{content()}</div>;
 }
 
-export interface DraftContextPanelStoryProps {
-  /** The founding cast seed. Empty (default) ⇒ the solo case (Overrides + Injections only; no
-   *  Members/Group — both gate at cast≥2). A ≥2-length seed exercises the Members/Group `when` predicates
-   *  live (M3.3). */
-  readonly characterIds?: readonly CharacterId[];
-}
-
-/** The DRAFT CONTEXT panel via the real host (J2/J3) — the draft-config-backed twin. No server reads for
- *  the solo case: the Overrides tab renders from `draftConfig` and writes to the draft-config store on
- *  edit. A ≥2-cast seed additionally reads `character.get` per cast id (the Members roster) — the
- *  `.ct.tsx` routeTrpc-stubs those for that case. */
-export function DraftContextPanelStory({ characterIds = [] }: DraftContextPanelStoryProps): ReactElement {
-  useEffect(() => {
-    startNewChat({ characterIds });
-  }, [characterIds]);
-  return (
-    <CtDataProviders>
-      <CtRealSectionRegistry>
-        <ChatContextHostHarness />
-      </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
 export interface CommittedSettingsTabStoryProps {
   /** Gates the host-only "Group behavior" section (with `showGroup`) + the overrides read-only copy. */
   readonly isHost?: boolean;
@@ -1498,24 +1385,6 @@ export function CommittedSettingsTabStory({ isHost = true, showGroup = false, ro
     <CtDataProviders>
       <div style={{ width: 380 }}>
         <CommittedSettingsTab chatId={CHAT_ID} roomOverrides={roomOverrides} isHost={isHost} background={null} showGroup={showGroup} />
-      </div>
-    </CtDataProviders>
-  );
-}
-
-export interface DraftSettingsTabStoryProps {
-  /** The draft group-level gate (≥2 cast) the section carries. @defaultValue false */
-  readonly showGroup?: boolean;
-}
-
-/** The draft twin of the "This chat" tab (settings-context-tab.tsx, panel-redesign) mounted directly —
- *  store-backed, no network. Field overrides + Injections always render (a draft is host-editable); Group
- *  behavior gates on `showGroup`. */
-export function DraftSettingsTabStory({ showGroup = false }: DraftSettingsTabStoryProps): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ width: 380 }}>
-        <DraftSettingsTab draftKey="settings-tab-ct" showGroup={showGroup} />
       </div>
     </CtDataProviders>
   );
@@ -1855,11 +1724,7 @@ export function InviteDialogStory(): ReactElement {
 }
 
 export interface ChatOptionsMenuStoryProps {
-  /** @defaultValue true — a committed chat (`CHAT_ID`); `false` mounts the DRAFT arm (no chatId, the #8
-   *  grey-out: the SAME menu with the canon-requiring actions disabled). */
-  readonly committed?: boolean;
-  /** @defaultValue false — seed one cast member (enables "New chat with same cast" + the solo gallery), so
-   *  the draft/committed FULL-item-set parity CT can assert the character-gated rows too. */
+  /** @defaultValue false — seed one cast member (enables "New chat with same cast" + the solo gallery). */
   readonly withCast?: boolean;
 }
 
@@ -1867,19 +1732,14 @@ const CT_OPTIONS_CAST = [{ characterId: castId<CharacterId>("char_ct_options"), 
 
 /** The ⋯ chat-options menu (chat-options-menu.tsx). Its turn actions (Continue/Regenerate/Impersonate)
  *  reuse `useGuidedActions` with an EMPTY steer — the `.ct.tsx` stubs `chat.listMessages` (a tail assistant
- *  enables Continue/Regenerate) and asserts each verb fires with NO `guided` object (the F2 plain-turn fix).
- *  `committed=false` mounts the DRAFT arm (no `chatId`) — the SAME menu, canon-requiring items disabled (#8). */
-export function ChatOptionsMenuStory({ committed = true, withCast = false }: ChatOptionsMenuStoryProps = {}): ReactElement {
+ *  enables Continue/Regenerate) and asserts each verb fires with NO `guided` object (the F2 plain-turn fix). */
+export function ChatOptionsMenuStory({ withCast = false }: ChatOptionsMenuStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
       {/* A wrapping div so `component` is the WRAPPER (the popup renders through a Portal — item
           assertions use the PAGE locator, the composer-guided-cluster precedent). */}
       <div>
-        <ChatOptionsMenu
-          {...(committed ? { chatId: CHAT_ID } : { committed: false, draftKey: "ct-options-draft" })}
-          title="Test chat"
-          characters={withCast ? CT_OPTIONS_CAST : []}
-        />
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={withCast ? CT_OPTIONS_CAST : []} />
       </div>
     </CtDataProviders>
   );
@@ -1981,16 +1841,15 @@ export function MembersReseedStory(): ReactElement {
   );
 }
 
-/** The composer-adjacent speak-as dropdown (speak-as-select.tsx). A committed handle by default (reads
- *  the `chat.getChat` roster + fires `chat.generate`); `committed=false` mounts a draft (renders `null`). */
-export function SpeakAsSelectStory({ committed = true }: { readonly committed?: boolean }): ReactElement {
-  const handle: ChatHandle = committed ? committedChat(CHAT_ID) : draftChat("draft_ct_speak_as");
+/** The composer-adjacent speak-as dropdown (speak-as-select.tsx) — reads the `chat.getChat` roster and
+ *  fires `chat.generate`; renders `null` below the roster-of-2 floor. */
+export function SpeakAsSelectStory(): ReactElement {
   return (
     <CtDataProviders>
       {/* A wrapping div so the mount `component` locator is the WRAPPER (see ChatCastBarStory) — the
           `.ct.tsx` uses `component.getByRole("button", …)` to find the trigger as a descendant. */}
       <div>
-        <SpeakAsSelect handle={handle} />
+        <SpeakAsSelect chatId={CHAT_ID} />
       </div>
     </CtDataProviders>
   );
@@ -2156,34 +2015,6 @@ export function CompactSummaryPeekStory({ summary }: { readonly summary: string 
 }
 
 // ── Draft greeting swipe strip ────────────────────────────────────────────────────────────────────
-
-const GREETING_DRAFT_KEY = "draft_ct_greeting";
-const GREETING_CHARACTER_ID = castId<CharacterId>("character_ct_greeting");
-
-/** `GreetingSwipeStrip` wired to the real draft-config store the way `message-row.tsx` drives it: the
- *  shown `current` text is DERIVED from `useDraftConfig` (falling back to `variants[0]`), so a prev/next
- *  pick writes `setDraftGreeting` → the store updates → this harness re-derives `current` → the counter
- *  moves. That round-trip (not just "a button exists") is what the `.ct.tsx` asserts, plus the
- *  hand-edited "— / m" custom case and the disabled-edge gating. A `custom` seed models a hand-typed
- *  greeting that matches no alternate. */
-export function GreetingSwipeStripStory({ variants, custom = false }: { readonly variants: readonly string[]; readonly custom?: boolean }): ReactElement {
-  const draft = useDraftConfig(GREETING_DRAFT_KEY);
-  const stored = draft.greetings?.[GREETING_CHARACTER_ID];
-  // Seed a hand-edited greeting (matches no alternate → idx -1) once, so the "— / m" custom path renders
-  // without the store already holding an alternate.
-  useEffect(() => {
-    if (custom) {
-      setDraftGreeting(GREETING_DRAFT_KEY, GREETING_CHARACTER_ID, "a hand-typed opening that matches no alternate");
-    }
-  }, [custom]);
-  const current = stored ?? variants[0] ?? "";
-  return (
-    <div>
-      <div data-testid="greeting-current">{current}</div>
-      <GreetingSwipeStrip draftKey={GREETING_DRAFT_KEY} characterId={GREETING_CHARACTER_ID} variants={variants} current={current} />
-    </div>
-  );
-}
 
 // ── Assembly preview panel (#28 Preview tab) — host-only, host/getShapeTrace + previewAssembly reads ──
 
@@ -2389,31 +2220,14 @@ export function ChatStreamingSectionStory(): ReactElement {
   );
 }
 
-/** The Chats TOPBAR identity over an ACTIVE PRE-SEND DRAFT — the real `ChatsTopbarHeader` reading the real
- *  `#state` handle (`startNewChat`, the exact action the new-chat picker fires), so the CT exercises the
- *  production draft arm rather than `DraftChatHeader` in isolation. `characterIds` threads the founding
- *  cast so one story covers the solo and group arms; the `.ct.tsx` stubs `character.get` per id. */
-export function ChatsTopbarDraftStory({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
+/** The MOBILE topbar's SCREEN TITLE for the open room — `useChatsSelectionTitle`, which the shell calls
+ *  through `SectionDefinition.useSelectionTitle`, printed as bare text beside the desktop cluster's own
+ *  answer. The two surfaces are one statement at two widths; this is what lets a CT put them side by side.
+ *  (Its pre-send DRAFT twin went with draft mode — a room has a title source from the creation click.) */
+export function ChatsSelectionTitleStory(): ReactElement {
   useEffect(() => {
-    startNewChat({ characterIds });
-  }, [characterIds]);
-  return (
-    <CtDataProviders>
-      <div>
-        <ChatsTopbarHeader />
-      </div>
-    </CtDataProviders>
-  );
-}
-
-/** The MOBILE topbar's SCREEN TITLE over the SAME active pre-send draft — `useChatsSelectionTitle`, which
- *  the shell calls through `SectionDefinition.useSelectionTitle`, printed as bare text. Paired with
- *  `ChatsTopbarDraftStory` on purpose: the two surfaces are one statement at two widths, and this is what
- *  lets a CT put their answers side by side. */
-export function ChatsSelectionTitleDraftStory({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
-  useEffect(() => {
-    startNewChat({ characterIds });
-  }, [characterIds]);
+    selectChat(CHAT_ID);
+  }, []);
   return (
     <CtDataProviders>
       <ChatsSelectionTitleProbe />

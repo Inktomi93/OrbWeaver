@@ -1,10 +1,23 @@
-// The new-chat character picker: the modal body every "new chat" affordance opens first, so a
-// characterless draft survives only as an explicit "Blank chat" pick. The searchable character list is the
-// shared `CharacterPicker` composite (cmdk-based — not createCollectionSurface, it's not virtualized and
-// cmdk owns search/filtering/keyboard nav for free). Multi-select keeps the palette open on select and
-// toggles a trailing check per row, with a "Start chat with N" confirm item and a "Blank chat" escape hatch
-// in the picker's leading group. Writes intent through #state module actions (startNewChat/setActiveSection/
-// closeModal).
+// The new-chat character picker: the modal body every "new chat" affordance opens first, so a characterless
+// chat survives only as an explicit "Blank chat" pick. The searchable character list is the shared
+// `CharacterPicker` composite (cmdk-based — not createCollectionSurface, it's not virtualized and cmdk owns
+// search/filtering/keyboard nav for free). Multi-select keeps the palette open on select and toggles a
+// trailing check per row, with a "Start chat with N" confirm item and a "Blank chat" escape hatch in the
+// picker's leading group.
+//
+// THE START CLICK MINTS THE ROOM (chat-creation-draft-mode-replacement.md §4.1, fork F1(a)). It used to write
+// client state and hand a "draft" — a rowless room backed by a whole parallel client runtime — to the chat
+// surface. It now awaits the REAL `chat.startChat` (`useStartChat`, `#data`) and lands in the REAL room,
+// committed from frame one. Two properties of that are deliberate and load-bearing:
+//   · BACK STILL MINTS NOTHING. D123's interception principle is preserved exactly — dismissing this modal
+//     costs zero rows. The row is minted by the explicit Start click, which IS the first real edit: a
+//     deliberate creation act naming a cast.
+//   · A ROOM STARTED AND ABANDONED IS A HUSK, not litter. It is hidden from the chats list by a server lens,
+//     claimed by its first real activity, and reaped on nav-away + a TTL belt. The picker knows none of that.
+//
+// The modal stays OPEN for the one round-trip, with the confirm item reading its pending state, and closes
+// only on success — a failed create leaves the user's cast picked and the mutation's own toast explaining
+// why, instead of dismissing them into a landing screen with nothing to retry.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -15,8 +28,9 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { CharacterPicker } from "#components";
+import { useStartChat } from "#data";
 import { useFocusOnMount } from "#lib";
-import { clearNewChatPreset, closeModal, setActiveSection, startNewChat, useNewChatPreset } from "#state";
+import { clearNewChatIntent, closeModal, useNewChatIntent } from "#state";
 
 const SKELETON_ROW_COUNT = 6;
 
@@ -25,10 +39,12 @@ export function NewChatPicker(): ReactElement {
   useFocusOnMount(surfaceRef);
 
   const [selected, setSelected] = useState<ReadonlySet<CharacterId>>(() => new Set<CharacterId>());
-  // The seed this open was PRESET with (the home temp-chat tile's `temporary: true`). Cleared when the
-  // modal unmounts — dismissing the picker must not leave the intent armed for the next plain New chat.
-  const preset = useNewChatPreset();
-  useEffect(() => clearNewChatPreset, []);
+  // The creation parameters this open was PRE-ARMED with (the home temp-chat tile's `temporary: true`).
+  // Cleared when the modal unmounts — dismissing the picker must not leave them armed for the next plain
+  // New chat.
+  const intent = useNewChatIntent();
+  useEffect(() => clearNewChatIntent, []);
+  const { startChat, isPending } = useStartChat();
 
   const toggle = (id: CharacterId): void => {
     setSelected((prev) => {
@@ -43,19 +59,27 @@ export function NewChatPicker(): ReactElement {
   };
 
   const found = (characterIds: readonly CharacterId[]): void => {
-    const seed = { ...preset, ...(characterIds.length > 0 ? { characterIds } : {}) };
-    startNewChat(Object.keys(seed).length > 0 ? seed : undefined);
-    setActiveSection("chats");
-    closeModal();
+    if (isPending) {
+      return; // one creation at a time — a double-fire would mint two rooms for one intent.
+    }
+    // `startChat` navigates into the new room itself (it owns the cache seed + the enter action). A failure
+    // is already toasted by the mutation; we simply do not close, so the picked cast survives for a retry.
+    startChat({ ...intent, ...(characterIds.length > 0 ? { characterIds } : {}) })
+      .then(closeModal)
+      .catch(() => undefined);
   };
 
   const selectedCount = selected.size;
+  const pickLabel = selectedCount === 0 ? "Pick a character to start" : `Start chat with ${selectedCount} character${selectedCount === 1 ? "" : "s"}`;
+  // Hoisted out of JSX: a ternary between two STRING variables in a JSX child is `noLeakedRender`-shaped.
+  const startLabel = isPending ? "Starting…" : pickLabel;
 
   return (
     <Stack ref={surfaceRef} className="outline-none" tabIndex={-1}>
-      {/* The preset is a CREATION-ONLY flag the user can't change later, so the picker states it up front
-          rather than surprising them in the room (temp tile → this modal → a room born Temporary). */}
-      {preset?.temporary === true ? (
+      {/* The temporary flag is a CREATION-ONLY parameter the user can't change later, so the picker states
+          it up front rather than surprising them in the room (temp tile → this modal → a room born
+          Temporary). */}
+      {intent?.temporary === true ? (
         <Row align="center" gap="field" padding="block">
           <Badge intent="neutral" tone="soft">
             Temporary
@@ -71,11 +95,16 @@ export function NewChatPicker(): ReactElement {
         label="Choose characters"
         leadingGroup={
           <CommandGroup heading="Start">
-            <CommandItem disabled={selectedCount === 0} keywords={["start", "chat", "group"]} onSelect={(): void => found([...selected])} value="__start__">
+            <CommandItem
+              disabled={selectedCount === 0 || isPending}
+              keywords={["start", "chat", "group"]}
+              onSelect={(): void => found([...selected])}
+              value="__start__"
+            >
               <Icon icon={MessagesSquare} size="sm" />
-              {selectedCount === 0 ? "Pick a character to start" : `Start chat with ${selectedCount} character${selectedCount === 1 ? "" : "s"}`}
+              {startLabel}
             </CommandItem>
-            <CommandItem keywords={["blank", "assistant", "solo"]} onSelect={(): void => found([])} value="__blank__">
+            <CommandItem disabled={isPending} keywords={["blank", "assistant", "solo"]} onSelect={(): void => found([])} value="__blank__">
               <Icon icon={Plus} size="sm" />
               Blank chat
             </CommandItem>

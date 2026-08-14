@@ -21,13 +21,13 @@
 //
 // D-4 (databank-surface-spec): "Documents" — the per-chat databank rack + the D85 host visibility toggle —
 // lands directly AFTER Injections. Same family ("extra content entering this room's prompt"), and it is
-// member-READABLE, so it belongs above the host-only band rather than inside it. It is COMMITTED-ONLY: a
-// draft has no room, so no membership union and no `chatId` to attach against (legacy's own `when` said the
-// same thing), which is why the draft arm below carries no Documents section.
+// member-READABLE, so it belongs above the host-only band rather than inside it.
 //
-// Both arms compose the SAME leaf bodies (RoomOverridesTab / InjectionsManager / ChatBackgroundSection and
-// the draft twins DraftOverridesTabBody / DraftInjectionsTab), so every moved read keeps its own query +
-// invalidation coverage unchanged and each override/injection/background control stays reachable + editable.
+// THE DRAFT TWIN IS GONE (chat-creation-draft-mode-replacement.md §4.9, R1). `DraftSettingsTab` rendered
+// draft-config-store-backed copies of Field overrides / Injections / Group behavior for a room with no
+// server row — and could not offer Background, Documents, Macro picks, Appearance or Tool use at all,
+// because each needs a `chatId`. The room has one from the creation click, so this tab is the whole tab in
+// every phase, and the four sections a pre-send room could not show are simply present.
 
 import type { RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
@@ -38,7 +38,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
-import { DraftGroupConfigTabBody, DraftInjectionsTab, DraftOverridesTabBody } from "./draft-context-tabs.tsx";
 import { CommittedGroupConfigTab } from "./group-config-form.tsx";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 import { InjectionsManager } from "./injections-manager.tsx";
@@ -206,35 +205,5 @@ function HostControls({
         </Section>
       </Stack>
     </Section>
-  );
-}
-
-export interface DraftSettingsTabProps {
-  readonly draftKey: string;
-  /** The draft group-level gate — a ≥2-cast draft (was the draft Group tab's `when`). */
-  readonly showGroup: boolean;
-}
-
-/** The draft-chat "This chat" tab: the draft-config-backed twins of the committed sections. A draft is
- *  always authored (and only visible) by its host, so overrides + injections are editable; Group behavior
- *  appears once the draft crosses the group floor. Background has no draft store (no server row yet), so
- *  it is committed-only. */
-export function DraftSettingsTab({ draftKey, showGroup }: DraftSettingsTabProps): ReactElement {
-  return (
-    <Stack gap="section">
-      <Section kicker="Field overrides">
-        <DraftOverridesTabBody draftKey={draftKey} />
-      </Section>
-      <Section kicker="Injections">
-        <DraftInjectionsTab draftKey={draftKey} />
-      </Section>
-      {/* The draft's one host-op (no background row exists yet, no tool cap on an uncommitted chat), so it
-          carries its own name rather than a group of one. */}
-      {showGroup ? (
-        <Section kicker="Group behavior">
-          <DraftGroupConfigTabBody draftKey={draftKey} />
-        </Section>
-      ) : null}
-    </Stack>
   );
 }
