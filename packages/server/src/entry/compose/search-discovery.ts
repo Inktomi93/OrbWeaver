@@ -49,7 +49,7 @@ import { requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } f
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { DomainEventBus } from "./event-bus.ts";
 import { minter } from "./minter.ts";
-import { createRoomEntityFan } from "./room-reach.ts";
+import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 
 /** The embed-model-change reindex enqueue's own trace root. One name so the debug surface and any future
  *  filter agree; the two enqueues share it and are told apart by the `workloadKind` attribute. */
@@ -181,6 +181,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const fanEntityUpdateToRooms = createRoomEntityFan(db, deps.emitChatEventLive);
   eventBus.subscribe(fanEntityUpdateToRooms);
 
+  // The DELETE half of the bridge (design §3.6 residual): a persona/book delete NULLs/cascades its seating
+  // junctions, so the fan-on-event subscriber above resolves ∅ post-write. The delete verbs snapshot their
+  // reach BEFORE the delete through this capture and fan the returned thunk after — same live-only emit surface.
+  const deleteReachCapture = createDeleteReachCapture(db, deps.emitChatEventLive);
+
   // Named (not inlined into the service call) because TWO things are built from it: the Principal-scoped
   // `PersonaService` and the PRINCIPAL-LESS roster op (`domain/persona/contract/ops.ts`) the chat
   // FOREIGN-inputs resolver reads a room's personas through. One ctx, one home for the persona wiring.
@@ -193,6 +198,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     // The room plane (§3.6): persona content writes raise `persona.updated`, which this seam's own reach
     // subscriber turns into a `roomEntityChanged` per room the persona is live in.
     emit: eventBus.emit,
+    // The DELETE residual (§3.6): `remove` snapshots the persona's rooms through this BEFORE the delete NULLs
+    // its seat/anchor pointers, then fans the captured set — the post-write `emit` path above would see ∅.
+    captureRoomReachForDelete: deleteReachCapture.persona,
     requireChatAuthorOrHost: async (principal, chatId, targetUserId) => {
       await requireAuthorOrHost({ db, can }, principal, chatId, targetUserId);
     },

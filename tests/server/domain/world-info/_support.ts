@@ -50,6 +50,9 @@ export interface WorldInfoHarness {
 interface HarnessOverrides {
   readonly requireChatHost?: WorldInfoContext["requireChatHost"];
   readonly requireChatMember?: WorldInfoContext["requireChatMember"];
+  /** The DELETE-residual reach capture (§3.6). A room-plane `removeBook` test injects the REAL
+   *  `createDeleteReachCapture(db, spy)["world-info"]` here to assert the seated-room fan. */
+  readonly captureRoomReachForDelete?: WorldInfoContext["captureRoomReachForDelete"];
 }
 
 export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfoHarness {
@@ -85,6 +88,9 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfo
     emit: (event: DomainEvent): void => {
       domainEvents.push(event);
     },
+    // The DELETE-residual reach capture (§3.6). Default = a no-op thunk; a `removeBook` room-plane test injects
+    // the real capture via `overrides` to assert the fan to the rooms whose pool read the book.
+    captureRoomReachForDelete: overrides.captureRoomReachForDelete ?? ((): Promise<() => void> => Promise.resolve(() => undefined)),
   };
   return { ctx, audits, wiEvents, userEvents, domainEvents, advance: (ms: number): void => clock.advance(ms) };
 }
