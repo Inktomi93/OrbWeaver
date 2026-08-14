@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-14
 ---
 
 # Documentation & Comments Law
@@ -125,7 +125,7 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 
 ## Prose / knowledge docs (`docs/`)
 
-- **Taxonomy is physical (D66, amended 2026-07-13).** `core/` = current law · `history/` = resolved archeology (dated audits, cleared ledgers, landed program records) · `proposed/` = **one ACTIVE program doc** + the verified PARKED design sets, mapped by `proposed/INDEX.md` (per-program disposition: REALIZED/PARTIAL/FUTURE + remaining chunks). A parked set is NOT quotable as build authority — the INDEX is its truth, and a set re-verifies before activation (parked docs rot; the imagery triage line is the precedent). Nothing lives at repo root. A doc lives in exactly one tier.
+- **Taxonomy is physical (D66, amended 2026-07-13).** `core/` = current law · `history/` = resolved archeology (dated audits, cleared ledgers, landed program records) · `proposed/` = verified PARKED design sets, mapped by `proposed/INDEX.md` (per-program disposition: REALIZED/PARTIAL/FUTURE + remaining chunks). The ONE active program is `docs/retro-workboard.md`. A parked set is NOT quotable as build authority — the INDEX is its truth, and a set re-verifies before activation (parked docs rot; the imagery triage line is the precedent). `docs/Mission.md` is the foundational prose/knowledge document at the `docs/` root. A doc lives in exactly one tier.
 - **Built code has no prose doc.** For a built module/domain, the code + its file-headers + tests ARE the doc. The cross-cutting law it carries promotes UP to `core/`; the per-module prose is deleted.
 - **Ledger-entry style (D66).** A D-entry records the STANDING RULING only: the rule, the non-obvious constraint that protects it, and the homes. No provenance trails, no audit stamps, no attribution quotes, no alternatives-considered, no supersession archaeology — a superseded ruling's text is ABSORBED into its winner and the loser dies (git history keeps the journey). An enumeration that grows with code (a tuple's members) is cited as "currently X, Y — the tuple is the truth, not this list," never as a bare closed list that rots. Future-committed designs write "COMMITTED (not yet built): …", never present tense — a cold agent must be able to tell landed from planned.
 

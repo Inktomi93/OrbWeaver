@@ -44,9 +44,9 @@ The structural gates for Base UI alignment are fully defined. We ran an AST prob
 
 **Status — LANDED 2026-08-07 (lane BUGATES).** Six gates built, two premises died in verification. The
 `(N registered gates)` count and the Layer-3 rows live in
-[`Core-Enforcement-Active-Gates.md`](../architecture/core/Core-Enforcement-Active-Gates.md); the anatomy
+[`Core-Enforcement-Active-Gates.md`](../../architecture/core/Core-Enforcement-Active-Gates.md); the anatomy
 ledger's two halves are `scripts/check/gates/baseui-surface.manifest.json` (machine) and
-[`ui-package-design.md` §14](../architecture/core/ui-package-design.md) (human), joined on the verbatim
+[`ui-package-design.md` §14](../../architecture/core/ui-package-design.md) (human), joined on the verbatim
 `<Namespace>.<Part>` key.
 
 | Drafted gate | Outcome |

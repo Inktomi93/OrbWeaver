@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-07-25
+updated: 2026-08-14
 ---
 
 # Context-Panel Program — consolidation → width → trackers → the rpg takeover
@@ -57,7 +57,7 @@ CP-4's scene banner is a NEW `header`-slot component, not a resurrection).
   it is the shipped default. CP-4 inherits this mechanism verbatim and merely adds tabs + a second
   strip row.
 
-## 3. CP-3 — The tracker block kit + the Trackers tab (BUILD-GATED; design fixed here)
+## 3. CP-3 — The normal-chat tracker block kit + Trackers tab (tracker data BUILD-GATED)
 
 ### 3.1 One block kit, three mounts — the anti-duplication ruling
 
@@ -116,15 +116,16 @@ Game tab is merely the BULK editor, not the only door:
 - **Gating**: the tab renders when ≥1 tracker-class injection exists on the chat — APPLICABILITY
   omit. The doorway is the **Injections tab** (the authoring home; trackers ride the same
   ChatInjection channel — Injections = author, Trackers = glance; two lenses, one seam, and the
-  doorway rule is satisfied without a permanently-empty tab). No tracker DATA exists in the tree
-  today (rpg purged), so the whole tab is build-gated on the steering wave (D59 persistent guides).
+  doorway rule is satisfied without a permanently-empty tab). Normal-chat tracker data remains
+  build-gated on the steering wave (D59 persistent guides); this does not describe the shipped
+  rpg HUD path below.
 - **No ghost tab**: an entirely unbuilt PROGRAM contributes nothing to the strip. PHASE
   disable-with-reason applies to a gap INSIDE a shipped surface (§4.3's Map tab); it does not mean
   every planned feature haunts the strip as a disabled stub.
 - **States**: loading = 3 skeleton meter rows; error = the standard `QueryErrorState`; the empty
   state cannot occur (data-gated mount).
 
-## 4. CP-4 — The OSRS takeover (rpg rebuild scope; the blueprint)
+## 4. CP-4 — The OSRS takeover (HUD mechanics shipped; remaining rpg data scope)
 
 The committed visual references (all `git add -f`'d past the reports gitignore — cited records rule):
 

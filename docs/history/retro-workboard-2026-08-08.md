@@ -11,7 +11,7 @@
 > \~3,500-line accreted board was classified DONE-PROVEN / OPEN / STALE / UNKNOWABLE against the tree
 > and git; only proven-done work was removed from the live board). **The audited archeology — every
 > struck block, snapshot, lane seal and receipt from 2026-08-01 through 2026-08-03 — moved intact to
-> [`docs/history/retro-workboard-2026-08-03.md`](history/retro-workboard-2026-08-03.md).** Nothing was
+> [`docs/history/retro-workboard-2026-08-03.md`](retro-workboard-2026-08-03.md).** Nothing was
 > deleted; things moved. Prior baselines: `git log docs/retro-workboard.md`.
 
 ## ═══ WHY RETRO EXISTS — the north star ═══
@@ -119,7 +119,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     transcript's LAST message` is the durable audit method (banked).
 
 > The 08-08-dawn and 08-07-late STATE blocks, with every lane seal, merge sha and verifier verdict from
-> this session, moved INTACT to [`docs/history/retro-workboard-2026-08-07.md`](history/retro-workboard-2026-08-07.md).
+> this session, moved INTACT to [`docs/history/retro-workboard-2026-08-07.md`](retro-workboard-2026-08-07.md).
 > Nothing was deleted; it moved. This block is current state only.
 
 - **✅ THE CANON-IDENTITY BUILD IS COMPLETE AND FRESH-LENS VERIFIED.** Design:
@@ -1685,7 +1685,7 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
 > **And every lane's first job is to re-verify its row** — a correct refusal is a successful lane, and
 > tonight it was the majority outcome.
 
-### ⚑ LIVE DOGFOOD BUGS — see [`docs/history/dogfood-tracking-2026-08-08.md`](history/dogfood-tracking-2026-08-08.md)
+### ⚑ LIVE DOGFOOD BUGS — see [`docs/history/dogfood-tracking-2026-08-08.md`](dogfood-tracking-2026-08-08.md)
 
 > **CAMPAIGN LIVE (2026-08-07, owner-ordered priority):** that doc is being worked and verified IN
 > FULL — every open row fixed or adjudicated, every fixed row's owed test written, verifier + side-eye
@@ -2294,7 +2294,7 @@ Items this audit could not prove either way from the tree. **None were dropped.*
 
 Everything this board used to carry inline — the 2026-08-01→08-03 snapshots, every lane seal with its
 merge sha, every superseded ruling, the whole burn-down archeology — lives at
-[`docs/history/retro-workboard-2026-08-03.md`](history/retro-workboard-2026-08-03.md), audited and
+[`docs/history/retro-workboard-2026-08-03.md`](retro-workboard-2026-08-03.md), audited and
 intact. `git log --follow docs/retro-workboard.md` is the other half.
 
 ---

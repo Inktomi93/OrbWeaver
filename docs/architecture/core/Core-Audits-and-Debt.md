@@ -1,24 +1,14 @@
 ---
 kind: reference
 status: active
-updated: 2026-08-07
+updated: 2026-08-14
 ---
 
 # Audits-and-Debt (live: Promotion / Relocation Debt Registry)
 
 > **⚠ BUILD-STATE RIDER (truth audit 2026-08-03):** rows below predate the 2026-07-22/25 retro purge. Any row's build-state claims about PURGED surfaces — the agent-principal machinery (PD-17's AP0–AP3-2 "BUILT" record: `provisionAgentPrincipal`/`canAgent`/`agent_principals`/`chat.seatAgent` are all GONE from the tree; only dormant DDL survives, see the D60 rider), `domain/buddy`, `domain/hub`, expressions seams (PD-56), `anth-direct` — are HISTORICAL, not current. PD-57 (databank) is BUILT since 2026-07-26 (D107), superseding its deferred status. Audit lists are snapshots: re-sweep against the tree before acting on any row.
 >
-> **How to read this file.** This is now the LIVE debt registry only: the active `PD-XX` flags to burn down (plus the block recovered from a broken "Cleared" table on 2026-07-01). The resolved archaeology that used to wrap it was split out 2026-07-02 into siblings — [`Core-Doc-Review-Punchlist-2026-06-28.md`](../history/Core-Doc-Review-Punchlist-2026-06-28.md) (the boundary/build-order scan + the 06-28 doc-review punch-list), [`Core-Doc-Inconsistency-Audit-2026-06-26.md`](../history/Core-Doc-Inconsistency-Audit-2026-06-26.md), and [`Core-Debt-Cleared-Ledger.md`](../history/Core-Debt-Cleared-Ledger.md) (the `## Cleared` ledger of done flags). Do not manufacture findings here.
-
----
-
-## Confirmed CLEAN (do not manufacture findings here)
-
-The spine docs (identity/settings/serde/testing), `infra.md`, `transport.md`, `entry.md`, `domain/buddy`,
-`domain/discovery`, `domain/assets`, `domain/sessions`, `domain/notifications`, `domains/memory.md`,
-`Core-Laws-and-Precedents.md`, `Core-Audits-and-Debt.md`, `Core-Planning-and-Checklists.md`, `Core-Audits-and-Debt.md`, and `UI-Architecture-and-Layout.md` (internally).
-The ownership model (D18→D20/D23), D28 de-pin/flat-card, D16 notifications, D17 roles, D31 CredentialSource,
-D33 guided-actions, D24 per-type-FK are all correct and consistent across docs.
+> **How to read this file.** This is now the LIVE debt registry only: the active `PD-XX` flags to burn down (plus the block recovered from a broken "Cleared" table on 2026-07-01). The resolved archaeology that used to wrap it was split out 2026-07-02 into siblings — [`Core-Doc-Review-Punchlist-2026-06-28.md`](../history/Core-Doc-Review-Punchlist-2026-06-28.md) (the boundary/build-order scan + the 06-28 doc-review punch-list), [`Core-Doc-Inconsistency-Audit-2026-06-26.md`](../history/Core-Doc-Inconsistency-Audit-2026-06-26.md), and [`Core-Debt-Cleared-Ledger.md`](../history/Core-Debt-Cleared-Ledger.md) (the `## Cleared` ledger of done flags).
 
 ## Promotion / Relocation Debt Registry
 

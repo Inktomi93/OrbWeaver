@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-14
 ---
 
 <!-- Promoted proposed/ → core/ under D66 (2026-07-13): this is the @orb/ui law. §-numbers are
@@ -181,8 +181,8 @@ enforces the seal column: a lib may only be imported from its sealed dir.
 - **Themes are value-sets over these names** (D44 §12.1): Hearth is `:root`. NO structural mode exists.
   FLAG\[registry]: the shipped theme SET is **Hearth · Mocha · Light** (`Core-Path-Registry.md` §Placement
   is the authority; never the seed mockup's Catppuccin/Loom names) — built as `owner_id IS NULL` seed
-  rows (`server/domain/settings/seed-themes.ts`), NOT as extra `theme.css` value-sets. Custom themes ride
-  the `<ThemeScope>` override API.
+  rows (`server/domain/settings/seed-themes.ts`) AND generated `[data-theme]` value-sets in `theme.css`.
+  Custom themes ride the `<ThemeScope>` override API.
 
 ## 5. Variants — the tailwind-variants conventions
 

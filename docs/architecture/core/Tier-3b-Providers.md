@@ -1,12 +1,12 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-14
 ---
 
 # Orbweaver — `infra/providers`: the sealed execution tier (roles · backends · the local engine)
 
-> **⚠ BUILD-STATE RIDER (truth audit 2026-08-03):** the `anth-direct` backend this doc describes as built was **PURGED in the 2026-07-22 retro sync** — `infra/providers/backends/anth-direct/` does not exist and `BACKEND_KEYS` is FIVE members (`agent-sdk · openrouter · vllm · local-light · custom-openai`); D67/D68 remain the design record if it returns. Also since 2026-07-27 (D109-4) the role set gained **`structured`** — `PROVIDER_ROLES` is EIGHT members and `roles/structured.ts` is live. The anth-direct/role-list mentions below are kept as the design record; the tuples are the truth.
+> **⚠ BUILD-STATE RIDER:** `BACKEND_KEYS` is FIVE members (`agent-sdk · openrouter · vllm · local-light · custom-openai`); `PROVIDER_ROLES` is EIGHT members, including `structured`. D67/D68 are the design record for a future `anth-direct` backend.
 
 The infra **execution layer** — the sealed inference backends behind the role contracts. It **executes**; it never **selects**. `domain/connection` selects (backend/model/credential/capability) and hands in a resolved request; providers runs it. `runner`/`family`/`protocol` are derived INSIDE providers and never leak upward.
 
@@ -20,12 +20,11 @@ The infra **execution layer** — the sealed inference backends behind the role 
 ## What this tier owns
 
 - **The role dispatchers** (`roles/`) — one thin dispatcher per role + `dispatch.ts` (`deriveRunner(api, source)` → `BackendKey`; `requireBackend`/`requireRoleImpl`) + `firewall.ts` (`assertCredentialAllowed` — role×source×consent policy). Chat/agent derive the backend from `{api, source}`; the non-chat roles dispatch on `credential.source`. Every switch is `assertNever`-exhaustive; invalid pairings fail-closed with a typed `ProviderError`.
-- **The sealed backends** (`backends/`) — `openrouter` (stateless chat-completions/responses + embed/rerank/image runners + catalog/account/probe), `agent-sdk` (STATEFUL — the Max sub + the OR-Anthropic skin + agent mode; owns its session-as-canon-derived-cache internally in `session/`), `anth-direct` (D67 — the direct Anthropic-Messages backend, reached only through the `openrouter` source in v1), `custom-byo` (raw-fetch to a user-wired endpoint, FULLY user-declared — see Esoteric §10), `local-light` (D39 — keyless in-process transformers.js/ONNX, CPU+CUDA; serves ONLY embed/rerank/imageEmbed), and the shared pure `backends/kit/` (openai-compat reducer/mapper, cache-control, reasoning-budget, wire-schemas, error-classify, retry, idle-timeout, sanitize, history).
+- **The sealed backends** (`backends/`) — `openrouter` (stateless chat-completions/responses + embed/rerank/image runners + catalog/account/probe), `agent-sdk` (STATEFUL — the Max sub + the OR-Anthropic skin + agent mode; owns its session-as-canon-derived-cache internally in `session/`), `custom-byo` (raw-fetch to a user-wired endpoint, FULLY user-declared — see Esoteric §10), `local-light` (D39 — keyless in-process transformers.js/ONNX, CPU+CUDA; serves ONLY embed/rerank/imageEmbed), and the shared pure `backends/kit/` (openai-compat reducer/mapper, cache-control, reasoning-budget, wire-schemas, error-classify, retry, idle-timeout, sanitize, history).
 - **The agent-sdk credential firewall** (`backends/agent-sdk/env.ts`) — the per-turn env builders, the `RESERVED_CLAUDE_ENV_KEYS` denylist, the ephemeral `CLAUDE_CONFIG_DIR` symlink-isolation, the isolation/cost pins. Security-load-bearing, rebuilt every turn (Esoteric §1).
 - **The vLLM local engine** (`vllm/`) — its own multi-role subsystem: `engine/` (supervisor lifecycle: adopt/spawn/death-couple/breaker/health/orphan-reap; status + control registries; the loopback client; gpu detect) + `surfaces/` (independent chat/embed/rerank/image-embed/summarize registrations). The remote backends serve chat; vLLM serves five roles — that asymmetry is why it is its own engine, not a chat-backend peer.
 - **`resolve-chat.ts`** — the `(UserIntent × ModelCapability) → wire knobs` funnel. Needs the wire-quirk knowledge (the XORs, the adaptive/budget guard) so it stays infra; it READS the injected `ModelCapability` (connection produced it) and never authors it.
 - **The diagnostic surfaces** (`diagnostics.ts` + per-family `account`/`probe`/`catalog` fetch) — family-agnostic, credential-shaped; `credentials`/`connection` call them through injection. The catalog SNAPSHOT + TTL cache are connection's; providers keeps only the live HTTP fetch verb (`fetchOrCatalog`).
-- ~~`scripted-override.ts`~~ — the `RUNNER_OVERRIDE` dev/test seam (credit-free `runChat` replay); env-gated, injected at the root only when set. *(PHANTOM-REF — no such file/const exists on the tree; truth-audit 2026-08-03. Left as the design record if the replay seam is rebuilt.)*
 - **`contract/`** — the ONE typed front door for infra-internal request shapes (`ChatRequest` variants, `AgentTurnRequest`, `ChatEvent`/`ChatError`/wire vocab, `BackendKey`, `BackendRegistry`). Cross-boundary shapes are re-exports from `@orb/contracts` (see Contract homes).
 
 NOT owned: **selection/routing/policy** (which backend a role uses, per-agent connection, model pick, role defaults → `connection.resolveRole`); the **capability descriptor** (`resolveModelCapability` + the curated Claude catalog + family detection → `domain/connection/catalog/`); **credential resolve/CRUD/health-state** (→ `credentials`; providers receives a brand-protected `ResolvedCredential` and returns raw `ProbeResult`s); **vector math** (→ `@orb/kit/vector-math`); **the embedding store / vector-space setting** (→ `embeddings` / `connection`).
@@ -44,8 +43,6 @@ infra/providers/
 │   ├── openrouter/     runners/{chat,embed,rerank,image} · client · catalog · account · probe · credential-guard
 │   ├── agent-sdk/      env.ts (THE credential firewall) · runner · agent-runner · translate · types ·
 │   │                   verify · verify-auth · session/ (SessionStore + seed/reseed frames — backend-internal)
-│   ├── anth-direct/    the direct Anthropic-Messages backend (D67; reached only via the `openrouter`
-│   │                   source in v1)
 │   ├── custom-byo/     runners/chat · inspect (the "Test endpoint" inspector)
 │   ├── local-light/    embed · rerank · image-embed · model-cache (D39; no chat surface)
 │   └── kit/            shared infra-pure wire helpers (the strategy-isolation seam)
@@ -53,7 +50,6 @@ infra/providers/
 │                       chat-completion · embedding · image · gpu) + surfaces/ (5 role registrations)
 ├── resolve-chat.ts     the UserIntent × ModelCapability → wire-knobs funnel
 ├── diagnostics.ts      account / probe dispatch on credential.source
-└── scripted-override.ts
 ```
 
 ## Contract homes (one home, one direction)

@@ -398,7 +398,7 @@ CAS — it rides this same guard). The guard's actual design (allowlist config s
 doc only names it as the prerequisite and refuses to ship §5 without it.
 
 > **D61 delta (2026-07-01): the work item is DESIGNED** —
-> **[`hub-browse-design/01-network-guard.md`](hub-browse-design/01-network-guard.md)** is its
+> **[`hub-browse-design/01-network-guard.md`](../proposed/hub-browse-design/01-network-guard.md)** is its
 > authoritative spec (self-enforcing SSRF posture, required host allowlist, dimension caps, the
 > `@orb/kit/image-sniff` home — which also resolves §10 review flag 2). G6 below ≡ that set's H1
 > (one work item, one build).

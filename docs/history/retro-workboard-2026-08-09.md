@@ -14,9 +14,9 @@
 > it up"). This rewrite **ABSORBED `docs/retro-remaining-work-ledger.md`** (the 2026-08-08
 > tree-reverified reconciliation) — that file is DELETED; its content IS the QUEUE below. The prior
 > layered board moved INTACT to
-> [`docs/history/retro-workboard-2026-08-08.md`](history/retro-workboard-2026-08-08.md); earlier
-> archeology: [`retro-workboard-2026-08-07.md`](history/retro-workboard-2026-08-07.md) ·
-> [`retro-workboard-2026-08-03.md`](history/retro-workboard-2026-08-03.md). Nothing was deleted;
+> [`docs/history/retro-workboard-2026-08-08.md`](retro-workboard-2026-08-08.md); earlier
+> archeology: [`retro-workboard-2026-08-07.md`](retro-workboard-2026-08-07.md) ·
+> [`retro-workboard-2026-08-03.md`](retro-workboard-2026-08-03.md). Nothing was deleted;
 > things moved.
 >
 > **BOARD RULES (how this doc stays trustworthy):** CURRENT-STATE ONLY — when a block goes stale,
@@ -1090,9 +1090,9 @@ controls both ways, security-executor only).
 
 Every lane seal, merge sha, verifier verdict, superseded ruling and session narrative this board
 used to carry inline lives INTACT in:
-[`docs/history/retro-workboard-2026-08-08.md`](history/retro-workboard-2026-08-08.md) (the
+[`docs/history/retro-workboard-2026-08-08.md`](retro-workboard-2026-08-08.md) (the
 2026-08-07→08 era: identity build, PROSE-1, the graduation-law era, the absorbed remaining-work
-ledger's full text) · [`retro-workboard-2026-08-07.md`](history/retro-workboard-2026-08-07.md) ·
-[`retro-workboard-2026-08-03.md`](history/retro-workboard-2026-08-03.md) (the burn-down archeology)
+ledger's full text) · [`retro-workboard-2026-08-07.md`](retro-workboard-2026-08-07.md) ·
+[`retro-workboard-2026-08-03.md`](retro-workboard-2026-08-03.md) (the burn-down archeology)
 · `git log docs/retro-workboard.md` for everything else. The dogfood campaign record:
-[`docs/history/dogfood-tracking-2026-08-08.md`](history/dogfood-tracking-2026-08-08.md) (CLOSED).
+[`docs/history/dogfood-tracking-2026-08-08.md`](dogfood-tracking-2026-08-08.md) (CLOSED).
