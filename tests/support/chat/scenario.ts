@@ -130,6 +130,15 @@ export interface ChatScenarioOptions {
   /** Extra `ChatContext` overrides merged over the defaults (an escape hatch for a seam the driver doesn't
    *  surface — `readPresence`, `resolveSeatDeco`, …). Applied AFTER the driver's own wiring. */
   readonly ctx?: Partial<ChatContext>;
+  /** The engine's SECURITY-BELT deps (the two the composition root injects, not `ChatContext` ops — see
+   *  `engine/budget.ts` FLAG[budget-op-not-on-ctx]). Defaults: an unlimited budget that always debits and no
+   *  owner consent. Override to drive a PRE-START refusal through the real verbs (`debitBudget` rejecting with
+   *  `DomainRateLimitError` ⇒ `budget_exceeded`; a `max-pro-sub` connection + a member triggerer ⇒
+   *  `consent_required`). */
+  readonly engineBelts?: {
+    readonly debitBudget?: Parameters<typeof createTurnEngine>[1]["debitBudget"];
+    readonly resolveTurnPolicy?: Parameters<typeof createTurnEngine>[1]["resolveTurnPolicy"];
+  };
   /** Override the FOREIGN resolver (preset/persona/settings). The default returns `personas`/`promptConfig`
    *  verbatim; supply this to SPY on the chat-supplied keys (`trigger`/`anchorPersonaId`) or to resolve
    *  `active` per-triggerer, the way the real composition root does. (There is no `personaIds` key to spy on
@@ -245,8 +254,8 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
   };
   const engine = createTurnEngine(ctx, {
     emit,
-    debitBudget: () => Promise.resolve(),
-    resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+    debitBudget: options.engineBelts?.debitBudget ?? ((): Promise<void> => Promise.resolve()),
+    resolveTurnPolicy: options.engineBelts?.resolveTurnPolicy ?? (() => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false })),
     holder: "replica-1",
     lockTtlMs: 60_000,
     generateSegments: () => Promise.resolve({ written: 0, skipped: 0 }),
