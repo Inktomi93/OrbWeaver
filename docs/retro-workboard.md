@@ -151,6 +151,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-14 | **CODEX DOC-MISS SITTING (question tool, evening):** D129 = **TRUTH-REPAIR + BUILD BOTH** (ledger annotated owner-authorized same hour; one chat-area lane builds the narrator wire-mapping capability probe + the swipe re-resolution verb wiring — QUEUED next free slot) · **Charlotte live-validation = KILLED** (handoff doc superseded-whole, link repaired). Sweep-method lesson adopted: git additions, not dir walks. |
 | 08-14 | **DOCUMENTATION CONTROL PLANE = GITHUB PROJECT 1 + REPO TRUTH, NO WIKI (owner, Codex sitting).** Issue #1 is the migration parent; #2–#11 are native sub-issues for the fact-check/tooling lanes. `docs/retro-workboard.md` stays intact as recovery + standing operations. During migration, an item has exactly one mutable home: unmigrated legacy rows stay here; migrated rows move once to Project and leave a pointer rather than mirrored status. D139 owns the boundary. |
 | 08-14 | **REASONING AUTO-COLLAPSE (question tool):** ST-parity toggle `reasoningAutoCollapse` (bool, default true) HOME = **Streaming** chat-behavior subcategory (not Appearance) · churn fix = **#1 snap-collapse** (auto-collapse drops to the "Thought for Ns" header in the same commit the prose mounts → churn≈0; manual clicks keep the smooth fold; reduced-motion instant). Both axes ONE commit, warm-leg building. #2 overlay-exit was the elegant-glide alt, not taken; #3 scroll-comp rejected (keystone risk). **DENSITY GLUT: owner flung a mech at it** ("might as well fling a mech executor at that glut of 250 things") — density-burn lane on the 224 ratchet, A1/A2 + obvious A3 per density-pass-spec §5.1, side-eye owed. |
+| 08-14 | **CONTROL-PLANE POSTURE (question tool, evening):** Codex stood up the GitHub work control plane (Project 1 + `scripts/github/work-item.ts` CLI + issue templates + docs/catalog; D139). Owner: **orchestrator STAYS ON retro-workboard.md as its tracking surface and stays OUT of Project 1 / the work-item CLI / gh until the owner gives the word** ("you will eventually be using it"). No split-brain: board is live-mutable for the orchestrator during the migration; Project 1 fills in behind. **OR STRUCTURED = Arm A OMIT** (require\_parameters hardcode dropped; owner's knob-skepticism was right; live-confirmed sonnet-5 + gemini-3.1-pro). |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -496,16 +497,30 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   selection, A→B→A byte-stable, no more literal `{{roll}}` to the model) + narrator wire-mapping
   (historySystemRows capability, FAIL-CLOSED — false until a human lands a measured true cell,
   `pnpm probe:history-system-rows` the instrument). Host-plane untouched, D16 byte-clean.
-- [ ] **OR STRUCTURED-OUTPUT 500 — LIKELY CONFIG, NOT A BUG (owner reframe 08-14):** the probe
-  ran on the DEFAULT `as-projected` shape (`DEFAULT_STRUCTURED_OUTPUT_SHAPE`, settings/index.ts:318),
-  which OpenAI-strict/OR rejects for "all fields must be required" — the \~100ms 500 is exactly the
-  wall the D126 **`strict-compatible`** shape knob (Settings › Admin › Structured output) exists to
-  clear ("the documented route past BOTH hosted walls", settings/index.ts:308). ACTION (no code lane
-  yet): flip the shape to `strict-compatible` + re-run the arm-8 call; if it clears, it's a
-  config/default question (does the hosted path need strict-compatible as its floor?), not a defect.
-  Only if it STILL 500s on strict-compatible does it become a code lane w/ response-body capture.
-  Owner may also have used an over-complex probe schema — a simpler one on strict-compatible is the
-  first test. Folds into the OR-window follow-up, not a fresh dispatch.
+- [x] **OR STRUCTURED-OUTPUT 500 — FIXED + LIVE-CONFIRMED (`d7b07994`, Arm A).** NOT the shape knob
+  (proven inert on this path) — the owner's skepticism was RIGHT: `require_parameters` is a real
+  per-connection routing knob (`connection/index.ts:48`, chat honors it optionally at
+  shared.ts:321), and the structured path was HARDCODING `provider:{requireParameters:true}`
+  (`openrouter/index.ts:275`, since e916b25a2), bypassing it. That hardcode 404s hosted structured
+  ("no endpoints advertise the param"). Fix = OMIT it (best-practice per the owner: matches the chat
+  default; threading-the-knob could only re-enable the footgun). LIVE-CONFIRMED: 200 + VALID
+  structured JSON on **claude-sonnet-5 AND gemini-3.1-pro-preview**, simple + complex schema.
+  D-ARM8-2: OR's raw 4xx body now surfaces (was opaque "Response validation failed"). 3 stale
+  "changed no cell" comments truth-repaired. **HONEST WRINKLE:** the fix lane's control cells
+  (flag re-added) did NOT reproduce the 404 today — 200'd — so it's a TIME-VARYING/routing-dependent
+  footgun, not constant; strengthens omit (fragile failure mode, zero upside). **BOARDED FOLLOW-UP
+  (owner-timed):** the structured wire honors NO connection routing knobs at all
+  (order/only/ignore/sort/fallbacks) — a best-practice enhancement threads full `providerRouting`
+  into `StructuredRequest` so structured respects the same prefs chat does.
+- [x] **CT RUNNER es2025 BREAK — FIXED (`1043466d7`).** CT went tree-wide dead ("Unrecognized target
+  es2025", \~1300 files) after a clean install re-resolved vite\@6's esbuild to 0.25.12 (max es2024);
+  `67d7805d0` had removed the esbuild→0.28.1 override as a FALSE GREEN (never re-ran CT on a clean
+  install — rode stale-node\_modules 0.28.1). Fix = `esbuild.tsconfigRaw.compilerOptions.target:es2024`
+  in playwright-ct.config.ts (vite hands tsconfig target to esbuild PER-FILE, distinct from
+  esbuild.target — that's the one that bites). CT green on main (10 pass, es2025=0), client prod
+  build untouched (OXC path). **Reasoning-collapse snap-collapse now BEHAVIORALLY VERIFIED** (the
+  pair's 41 CT green after the locator fix — component was always correct, only the test locator
+  timed out). Lesson → \[\[ct-test-gotchas-hub]]: a dep-override REMOVAL owes a clean-install re-run.
 - [ ] **HARNESS BUG (m4-or-probe hit it): a subagent's SendMessage back-channel to the orchestrator
   was BLOCKED by the auto-mode classifier** ("Permission denied by the Claude Code auto mode
   classifier") — the lane could not surface its mid-run fork and proceeded on default (safe here,
