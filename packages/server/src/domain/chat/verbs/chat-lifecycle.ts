@@ -256,8 +256,18 @@ function hasNoOtherHuman(ctx: ChatContext, userId: UserId): SQL {
  *  A reaped husk EMITS `chatDeleted`, deliberately diverging from the temporary sweep's original silence
  *  (§1/§4.5): a temporary room is list-invisible everywhere, but a HUSK can be the OPEN room on the creating
  *  device — without the event that device sits pointed at a chat that no longer exists instead of taking the
- *  `chatDeletedFromList` → landing seam. Emitted BEFORE the row delete for the `createDelete` reason: a
- *  `chat_events` append after the delete FK-fails and reaches nobody. */
+ *  `chatDeleted` → landing seam (`apply-chat-bus-event.ts`, wired R3). Emitted BEFORE the row delete for the
+ *  `createDelete` reason: a `chat_events` append after the delete FK-fails and reaches nobody.
+ *
+ *  ⚠️ THE PREDICATE IS THE DELETE'S, NOT THE SELECT'S (R3 — the verifier's R1-4a). The `started_at IS NULL`
+ *  test rides the DELETE's own WHERE, so a claim that lands between the read and the write CANNOT lose the
+ *  room: the DELETE simply removes nothing, and `RETURNING` says so. What the ordering law leaves standing is
+ *  a narrow FALSE-EMIT window — `chatDeleted` was already fanned by the time the DELETE declines — and it
+ *  cannot be closed by reordering: `bus.ts` FLAG[emit-is-total] returns `null` for an append whose chat row is
+ *  gone and the root then refuses to fan it, so a post-delete emit reaches nobody at all. Closing it properly
+ *  needs a durable-append-free live fan for `chatDeleted` (whose log row provably cascades away anyway) —
+ *  a bus surface change, reported rather than smuggled in here. The residual is self-correcting: the room
+ *  survives, `emitChatChanged` repaints the list, and a device that bounced to landing finds it there. */
 function createReapHusk(ctx: ChatContext, emit: EmitChatEvent): ChatService["reapHusk"] {
   return async ({ principal, chatId }: ReapHuskParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
@@ -269,7 +279,17 @@ function createReapHusk(ctx: ChatContext, emit: EmitChatEvent): ChatService["rea
       return;
     }
     await emit({ type: "chatDeleted", chatId });
-    await ctx.db.delete(chats).where(and(eq(chats.id, chatId), isNull(chats.startedAt)));
+    // The predicate rides the DELETE, so a claim racing in after the SELECT costs the reap, never the room.
+    const removed = await ctx.db
+      .delete(chats)
+      .where(and(eq(chats.id, chatId), isNull(chats.startedAt)))
+      .returning({ id: chats.id });
+    if (removed.length === 0) {
+      // The race happened: the room was claimed under us and survives. The list repaint below is what makes
+      // that recoverable for a device the (already-fanned) `chatDeleted` bounced to landing.
+      await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: [principal.userId] });
+      return;
+    }
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: [principal.userId] });
   };
 }
@@ -290,7 +310,15 @@ function createReapHusk(ctx: ChatContext, emit: EmitChatEvent): ChatService["rea
  *
  *  SELECT → EMIT → DELETE, in that order, for `createDelete`'s reason: `chat_events.chat_id` FKs to `chats`,
  *  so an append after the row is gone can never land (it FK-fails, the total bus drops it) and no live
- *  subscriber would learn the room went away. This is why the sweep is not a single `DELETE … RETURNING`. */
+ *  subscriber would learn the room went away. This is why the sweep is not a single `DELETE … RETURNING`.
+ *
+ *  ⚠️ THE DELETE RE-STATES THE WHOLE PREDICATE (R3 — the verifier's R1-4b, REAL DATA LOSS). It used to delete
+ *  by the id list alone, so a room CLAIMED between the SELECT and the DELETE — a user returning to a
+ *  day-old husk and typing, exactly the case the composer-text skip exists to protect — was deleted anyway,
+ *  with its canon. Re-stating the ttl/class/host conjunction in the DELETE's own WHERE makes the decision
+ *  atomic with the write: a room that stopped qualifying survives, and `RETURNING` reports the honest count
+ *  (so `reaped` counts what was removed, never what was doomed). The id list stays as the emit set + a
+ *  narrowing key; the WHERE is the authority. Same false-emit residual as `reapHusk` above, same reason. */
 function createReapTemporaryChats(ctx: ChatContext, emit: EmitChatEvent): ChatService["reapTemporaryChats"] {
   return async ({ principal }: ReapTemporaryChatsParams): Promise<ReapResult> => {
     const ttlHours = await ctx.resolveTempChatTtlHours(principal.userId);
@@ -315,9 +343,15 @@ function createReapTemporaryChats(ctx: ChatContext, emit: EmitChatEvent): ChatSe
     const removed = await ctx.db
       .delete(chats)
       .where(
-        inArray(
-          chats.id,
-          doomed.map((d) => d.id),
+        and(
+          inArray(
+            chats.id,
+            doomed.map((d) => d.id),
+          ),
+          // The SAME conjunction the SELECT used — re-evaluated at write time, per row.
+          lt(chats.createdAt, cutoff),
+          or(eq(chats.temporary, true), and(isNull(chats.startedAt), hasNoOtherHuman(ctx, principal.userId))),
+          callerHostsChat(ctx, principal.userId),
         ),
       )
       .returning({ id: chats.id });

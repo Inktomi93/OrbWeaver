@@ -155,7 +155,15 @@ describe("the chat room — durable-first resume", () => {
 // bus-published / logged. A synthetic carries the CURRENT resume cursor as its frame `seq`, so it never
 // advances the room's cursor — a reconnect replays from the same point.
 describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", () => {
-  test("PD-134: attach with membership yields `chatOpened` FIRST (fresh attach, seq = the null-cursor floor 0), no replay", async () => {
+  // ⚠️ THIS CASE'S SEQ CHANGED (R3 — the fresh-context verifier's R1-2). It used to assert `seq === 0` on a
+  // cursor-less attach, and that 0 WAS the message-loss window: the client adopted nothing, so having never
+  // applied a durable frame it reconnected with a null cursor too — which requests no replay at all — and a
+  // turn committed while its SSE was dark stayed invisible until a reload. A cursor-less attach now carries
+  // the room's CURRENT durable high-water, which gives the client something replayable to come back to. The
+  // non-advancement rule it was protecting is intact, and the RESUMING case below states it positively:
+  // nothing here can advance a cursor past an UNDELIVERED row, because a cursor-less attach delivers no
+  // durable rows — the client's canon read already covers everything at or below `maxSeq`.
+  test("PD-134: a CURSOR-LESS attach yields `chatOpened` FIRST stamped with the room's high-water, and replays nothing", async () => {
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => BOUNDS);
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
     const ctx = makeContext({
@@ -168,9 +176,75 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
     await iterator.return?.(undefined);
 
     expect(dataOf(opened).type).toBe("chatOpened");
-    expect(seqOf(opened)).toBe(0);
-    // A cursor-less attach drains live only — the durable replay never runs.
+    expect(seqOf(opened)).toBe(BOUNDS.maxSeq);
+    // Still live-only: the durable replay never runs on a cursor-less attach.
     expect(replayChatEvents).not.toHaveBeenCalled();
+  });
+
+  test("an EMPTY room's cursor-less attach still stamps 0 — there is no high-water to adopt", async () => {
+    // The floor degrades to the old value exactly when the room has no durable log, which is also the one
+    // case where a null cursor loses nothing.
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({
+      minSeq: null,
+      maxSeq: null,
+      historyFloorSeq: 0,
+      viewerIsHost: false,
+      reasoningHostOnly: false,
+    }));
+    const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { replayChatEvents, chatEventBounds } },
+    });
+
+    const iterator = await openChatRoom(ctx);
+    const opened = await iterator.next();
+    await iterator.return?.(undefined);
+
+    expect(seqOf(opened)).toBe(0);
+  });
+
+  test("the high-water STAMP is not the live-dedup floor — a row buffered before the bounds read still lands", async () => {
+    // The trap the R3 stamp walked into. The live listener attaches BEFORE the bounds probe, so a row
+    // published in that gap is both buffered for this subscriber and already counted in `maxSeq`. Had the
+    // synthetic's stamp raised the dedup floor, that row would be dropped whole — delivered to nobody, with
+    // no replay behind it (a cursor-less attach replays nothing). Only durable REPLAY rows may raise it.
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => BOUNDS);
+    const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { replayChatEvents, chatEventBounds } },
+    });
+
+    const iterator = await openChatRoom(ctx);
+    expect(seqOf(await iterator.next())).toBe(BOUNDS.maxSeq);
+
+    const pending = iterator.next();
+    // Seq 2 is BELOW the stamped high-water of 3, and this subscriber has not received it.
+    publishChatEvent({ seq: 2, event: event("chatDeleted") });
+    const first = await pending;
+    await iterator.return?.(undefined);
+
+    expect(seqOf(first)).toBe(2);
+    expect(dataOf(first).type).toBe("chatDeleted");
+  });
+
+  test("a RESUMING attach keeps its OWN cursor — the high-water never overrides a client that has one", async () => {
+    // The non-advancement rule, stated positively: a resuming client's synthetic must carry ITS cursor, not
+    // the room's head, or the synthetic would push the socket cell past rows this client never received.
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => BOUNDS);
+    const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { replayChatEvents, chatEventBounds } },
+    });
+
+    const iterator = await openChatRoom(ctx, { sinceSeq: 1 });
+    const opened = await iterator.next();
+    await iterator.return?.(undefined);
+
+    expect(dataOf(opened).type).toBe("chatOpened");
+    expect(seqOf(opened)).toBe(1);
   });
 
   test("PD-135: a cursor PREDATING the retained window yields `historyTruncated` after chatOpened, BEFORE the retained rows", async () => {

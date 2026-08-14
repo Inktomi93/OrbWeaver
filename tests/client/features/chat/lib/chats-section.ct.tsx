@@ -17,8 +17,9 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ChatContextPanelStory, ChatContextTabContributorStory } from "../_ct-stories.tsx";
+import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory } from "../_ct-stories.tsx";
 
 const NATE_HOST_RE = /Alex — host/u;
 const BUDDY_MEMBER_RE = /Buddy — member/u;
@@ -522,4 +523,43 @@ test("a fake context-tab contributor's `when:false` hides it from the real tab s
 
   await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Fake Tab" })).toHaveCount(0);
+});
+
+// ── THE ROOM DIED UNDER YOU (R3 — the fresh-context verifier's R1-3) ───────────────────────────────
+//
+// `chat-lifecycle.ts` and design §4.5 BOTH justify the husk-reap's `chatDeleted` emit with "a husk CAN be the
+// open room on the creating device — without the event that device sits pointed at a chat that no longer
+// exists instead of taking the landing seam". The event was emitted; nothing consumed it. `chatDeleted`
+// routed to `invalidate` alone, so the tab kept rendering its cached transcript for a row that was gone —
+// reachable in the wild through the TTL sweep firing against a tab left open on an unclaimed room, and
+// (pre-existing) through a host delete arriving from another device.
+//
+// The pin is the TRANSITION, driven through the real reducer + the real feature wiring, not the store action
+// in isolation: `chatDeletedFromList` already had its own unit-level coverage and still nothing connected it
+// to the bus.
+test("a chatDeleted for the OPEN room takes the reader to landing, not a room whose row is gone", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": { title: "The Ashfall Road", participants: [], cast: [], group: DEFAULT_GROUP_CONFIG },
+    "chat.listMessages": { messages: [], cast: [] },
+    "chat.previewContextFit": {
+      boundaryMessageId: null,
+      usedTokens: 0,
+      ceilingTokens: 32_768,
+      ceilingEstimated: false,
+      reserveOutputTokens: 2048,
+      droppedCount: 0,
+      compactSummary: null,
+    },
+  });
+
+  const component = await mount(<ChatDeletedWhileOpenStory />);
+
+  // The room is open — its composer is mounted.
+  await expect(component.getByTestId(testId("composer"))).toBeVisible();
+
+  await component.getByTestId("drive-chat-deleted").click();
+
+  // …and the reader is on the landing surface, with no composer for a chat that no longer exists.
+  await expect(component.getByTestId(testId("composer"))).toHaveCount(0);
+  await expect(component.getByText("No chat selected")).toBeVisible();
 });

@@ -98,6 +98,13 @@ export const CHAT_VERB_AUTHORITY = {
   // ── canon edits (edit/delete a slot → author-or-host; reorder/reattribute → host) ──
   selectVariant: "author-or-host",
   editMessage: "author-or-host",
+  // R3 §4.8/F6 — stepping a SEEDED GREETING onto another card alternate. HOST, not author-or-host: a seeded
+  // greeting is written with `authorUserId: null` (no human authored it), so author-or-host would collapse to
+  // host-only anyway for a well-formed row — and stating `host` makes that the RULE rather than a consequence
+  // of a write-side convention the schema does not enforce. The verb additionally windows itself on the
+  // pre-first-user-turn freeze and resolves its bytes from the card, never from the caller. PROBED in the
+  // cross-tenant sweep.
+  setSeededGreeting: "host",
   setMessageHidden: "author-or-host",
   deleteMessages: "author-or-host",
   editReasoning: "author-or-host",

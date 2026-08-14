@@ -635,6 +635,15 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.editMessage({ chatId: i.chatId, messageId: i.messageId, content: "hacked" }),
   },
   {
+    // R3 §4.8/F6 — the seeded-greeting step. HOST-only and a CONTENT WRITE on A's canon, so a dropped
+    // ownership belt would let a stranger rewrite the opening line of a room they cannot see. A's fixture
+    // chat has a user row (it is a started conversation), so even a belt-passing call must refuse on the
+    // freeze predicate — which is exactly why the probe matters: it proves the membership belt fires FIRST,
+    // as a leak-free NOT_FOUND, rather than the caller learning anything from a coded `greeting_frozen`.
+    path: "chat.setSeededGreeting",
+    call: (c, i) => c.chat.setSeededGreeting({ chatId: i.chatId, messageId: i.messageId, greetingIndex: 0 }),
+  },
+  {
     path: "chat.setMessageHidden",
     call: (c, i) => c.chat.setMessageHidden({ chatId: i.chatId, messageId: i.messageId, hidden: true }),
   },

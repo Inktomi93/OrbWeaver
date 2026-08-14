@@ -18,6 +18,12 @@ export interface ChatBusDeps {
    *  takeover is always observable; the reason→copy decision is wired at the composition root (the feature
    *  layer — `data/` may not import `features/`). */
   readonly onTurnAbort?: (reason: TurnAbortReason, chatId: ChatId) => void;
+  /** The room DIED on the bus — a host delete, a husk reap, or the TTL sweep against a tab still sitting on
+   *  the room. Invalidating alone leaves that tab pointed at a chat that no longer exists, reading its cached
+   *  canon; the seam `chat-lifecycle.ts` and design §4.5 both justify the reap emit with is exactly this
+   *  transition, and until R3 nothing was on the other end of it. Wired at the composition root like the two
+   *  callbacks above (`data/` may not import `features/`, and the landing action is `#state`'s). */
+  readonly onChatDeleted?: (chatId: ChatId) => void;
 }
 
 function assertNever(value: never): never {
@@ -90,8 +96,14 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
     case "wiEntryDetached":
     // biome-ignore lint/suspicious/noUnnecessaryConditions: see the WiBusEvent note above.
     case "wiEntryScopeChanged":
-    case "chatCreated":
+    // The room is GONE. Both halves fire: the list/detail reads go stale, AND a device with this room OPEN
+    // has to leave it — a cached transcript for a deleted chat is the one state the reader can neither act
+    // on nor get out of.
     case "chatDeleted":
+      deps.onChatDeleted?.(event.chatId);
+      deps.invalidate(event);
+      return;
+    case "chatCreated":
     case "chatOpened":
     case "historyTruncated":
     case "chatUpdated":

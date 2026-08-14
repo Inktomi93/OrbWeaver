@@ -100,6 +100,19 @@ export const CHAT_OP_CODES = {
    *  slot's PREVIOUS variant selected instead of hiding real prose behind an invisible one. Not a membership
    *  leak — the caller already ran the turn. Distinct from `compaction_empty` (the marker generation's twin). */
   emptyGeneration: "empty_generation",
+  /** `setSeededGreeting` targeted a slot that is not a character-voiced ASSISTANT row — only a seeded
+   *  greeting has card alternates to step among. Host-only surface (the caller already sees the canon), so a
+   *  coded refusal leaks nothing. */
+  notGreetingRow: "not_greeting_row",
+  /** `setSeededGreeting` was called after the room's FIRST USER TURN. That turn is the freeze
+   *  (`freezeGreetingVolatiles`, verbs/turn.ts): volatile macros are baked into the variant and the greeting
+   *  stops being malleable, so stepping it would silently discard drawn values and rewrite settled canon. The
+   *  window is one-way — a coded refusal, not a NOT_FOUND (the host can see the room and the turn). */
+  greetingFrozen: "greeting_frozen",
+  /** `setSeededGreeting` was handed a `greetingIndex` the character's card does not have (an out-of-range
+   *  step, or a card whose greetings shrank under a stale client). The verb resolves the TEXT from the card
+   *  itself — it never accepts caller prose — so an unresolvable index is the only way this write can miss. */
+  greetingAlternateNotFound: "greeting_alternate_not_found",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */

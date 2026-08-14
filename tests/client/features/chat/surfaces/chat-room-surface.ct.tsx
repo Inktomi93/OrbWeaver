@@ -13,15 +13,16 @@
 
 import type { CastEntry, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import type { MessageId, PersonaId } from "@orb/kit/ids";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
-import { makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
+import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
@@ -478,3 +479,226 @@ test("COMMITTED: the SAME card resolves the SAME room accent through the roster 
 // unconditionally passes the group case and wrongly paints a one-character room.
 
 /** The add-member door's accessible name, in both phases ("Add a character"). */
+
+// ── THE GREETING WINDOW (chat-creation-draft-mode-replacement.md §4.8 / fork F6, R3) ────────────────
+//
+// A seeded greeting is REAL CANON from the creation click (R1), and it stays malleable until the first user
+// turn freezes it (`freezeGreetingVolatiles`, verbs/turn.ts). Stepping it among the card's alternates was a
+// pre-send affordance backed by a client store; R1 deleted that store and the affordance went dark. It is
+// back here, over the committed row, driven by the host-gated `chat.setSeededGreeting` verb.
+//
+// The pin asserts the AFFORDANCE and the WIRE, not the store: the strip's `n / m` counter and its chevrons
+// on a greeting row, the verb firing with the stepped INDEX (never free text — the server resolves the
+// alternate from the card, so this door can't be a second content-write), and the row re-rendering the new
+// alternate once canon reflects it.
+
+const GREETING_CHARACTER = castId<CharacterId>("char_room_greeter");
+const ALT_0 = "The night market hums.";
+const ALT_1 = "She looks up from the ledger.";
+const ALT_2 = "Rain, again.";
+/** The card's openings, in card order — the strip's `n / m` domain and the verb's index space. */
+const ALTERNATES = [ALT_0, ALT_1, ALT_2];
+const GREETING_ID = castId<MessageId>("msg_room_seeded_greeting");
+
+/** A room whose canon is ONE seeded greeting and NO user row — the malleable window, and the state a
+ *  just-created room is in. `alternateIdx` moves the served canon, standing in for the write the verb makes. */
+function greetingWindowRoutes(alternateIdx: number): Record<string, unknown> {
+  return {
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": (): unknown =>
+      makeMessagesPage([
+        makeMessageView({
+          id: GREETING_ID,
+          role: "assistant",
+          characterId: GREETING_CHARACTER,
+          content: ALTERNATES[alternateIdx] ?? ALT_0,
+          seq: 1,
+        }),
+      ]),
+    "chat.getChat": (): unknown => ({
+      participants: [
+        { id: "cp_greeter", kind: "character", characterId: GREETING_CHARACTER, displayName: "Aria", avatarHash: null, leftSeq: null, role: "member" },
+      ],
+      anchorPersonaId: null,
+      cast: [],
+      group: DEFAULT_GROUP_CONFIG,
+    }),
+    // The card is where the ALTERNATES live — the strip reads them to know how many there are and which one
+    // is showing; the server re-reads the same card to resolve the index it is handed.
+    "character.get": (): unknown => ({
+      id: GREETING_CHARACTER,
+      name: "Aria",
+      avatarHash: null,
+      greetings: ALTERNATES.map((text) => ({ text })),
+    }),
+    "chat.setSeededGreeting": (): unknown => ({ ok: true }),
+  };
+}
+
+test("a seeded greeting in the pre-first-turn window offers its card's alternates", async ({ mount, page }) => {
+  await routeTrpc(page, greetingWindowRoutes(0));
+
+  const component = await mount(<ChatRoomGreetingWindowStory />);
+
+  await expect(component.locator(BUBBLE).first()).toContainText(ALT_0);
+  // The pager says which alternate of how many — the same `n / m` grammar the variant strip uses, so a
+  // greeting behaves like every other steppable row.
+  await expect(component.getByText("1 / 3")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Next greeting" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Previous greeting" })).toBeVisible();
+});
+
+test("stepping fires setSeededGreeting with the stepped INDEX, and never any text", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, greetingWindowRoutes(0));
+
+  const component = await mount(<ChatRoomGreetingWindowStory />);
+  await expect(component.getByText("1 / 3")).toBeVisible();
+
+  await component.getByRole("button", { name: "Next greeting" }).click();
+
+  await expect
+    .poll(() => trpc.lastInput("chat.setSeededGreeting"), { intervals: [20, 50, 100] })
+    .toEqual({ chatId: CHAT_ID, messageId: GREETING_ID, greetingIndex: 1 });
+  // THE WIRE CARRIES NO TEXT — the whole point of the index shape. The server resolves the alternate from
+  // the card, so this host-gated door can never become a second free-text content write. A client that
+  // "helpfully" started sending the resolved string would pass every visual assertion and fail this one.
+  const sent = trpc.lastInput("chat.setSeededGreeting") as Record<string, unknown>;
+  expect(Object.keys(sent).toSorted()).toEqual(["chatId", "greetingIndex", "messageId"]);
+});
+
+test("the row re-renders the SERVER's bytes when the edit lands on the bus (never an optimistic local swap)", async ({ mount, page }) => {
+  // The verb is `busDriven`: it emits `messageEdited`, the room's socket delivers it, and the invalidation
+  // seam refetches canon. So the row's new text must arrive from `listMessages`, not from the click — which
+  // is what this drives. Serving alternate 1 from the start of the refetch is the stand-in for the write.
+  let served = 0;
+  await routeTrpc(page, {
+    ...greetingWindowRoutes(0),
+    "chat.listMessages": (): unknown =>
+      makeMessagesPage([
+        makeMessageView({
+          id: GREETING_ID,
+          role: "assistant",
+          characterId: GREETING_CHARACTER,
+          content: ALTERNATES[served] ?? ALT_0,
+          seq: 1,
+        }),
+      ]),
+    "chat.setSeededGreeting": (input: unknown): unknown => {
+      served = (input as { readonly greetingIndex: number }).greetingIndex;
+      return { ok: true };
+    },
+  });
+
+  const component = await mount(<ChatRoomGreetingWindowStory />);
+  await expect(component.getByText("1 / 3")).toBeVisible();
+
+  await component.getByRole("button", { name: "Next greeting" }).click();
+  // The row does NOT move on the click alone — the mutation is `busDriven`, so until the edit lands there is
+  // nothing to re-read. (This is the control for the assertion below: a client that swapped the text locally
+  // would already be showing alternate 2 here.)
+  await expect(component.locator(BUBBLE).first()).toContainText(ALT_0);
+
+  // Now the room's own bus event, through the REAL reducer → the invalidation seam → a canon refetch.
+  await component.getByTestId("drive-message-edited").click();
+
+  await expect(component.locator(BUBBLE).first()).toContainText(ALT_1);
+  // …and the counter follows the CONTENT, because the strip derives its position from the row's text.
+  await expect(component.getByText("2 / 3")).toBeVisible();
+});
+
+test("a room PAST its first user turn offers no greeting step — the window is closed", async ({ mount, page }) => {
+  // The discriminator, and the reason the window is a render-time fact and not just a server refusal: the
+  // affordance must not be on screen at all once `freezeGreetingVolatiles` has baked the row, or every click
+  // is a doomed round-trip that reads to the user as a broken control.
+  await routeTrpc(page, {
+    ...greetingWindowRoutes(0),
+    "chat.listMessages": (): unknown =>
+      makeMessagesPage([
+        makeMessageView({
+          id: GREETING_ID,
+          role: "assistant",
+          characterId: GREETING_CHARACTER,
+          content: ALT_0,
+          seq: 1,
+        }),
+        makeMessageView({ id: castId<MessageId>("msg_room_first_user"), role: "user", content: "Hello.", seq: 2 }),
+      ]),
+  });
+
+  const component = await mount(<ChatRoomGreetingWindowStory />);
+
+  await expect(component.locator(BUBBLE).first()).toContainText(ALT_0);
+  await expect(component.getByRole("button", { name: "Next greeting" })).toHaveCount(0);
+});
+
+// ── THE APPEARANCE KNOBS, RE-HOMED ON A COMMITTED ROW ──────────────────────────────────────────────
+//
+// `autoFixMarkdown` and `colorQuotedSpeech` had pins, and both ran over the DRAFT greeting row — the surface
+// R1 deleted. Their SUBJECT was never the draft: it is that a settings-read knob reaches the ONE renderer
+// every message body goes through. Losing them with the phase they happened to be written over was a real
+// coverage hole (reported at R1, closed here), so they are back over the row that always existed.
+//
+// The OFF arm of each is the discriminator. An always-on transform (one mounted unconditionally in the seal)
+// passes both ON tests and fails both OFF ones — which is exactly the defect shape a knob test exists for.
+
+/** The settings read with ONE appearance knob overridden — everything else stays at its shipped default. */
+function routeWithAppearance(page: Page, appearance: Record<string, unknown>, content: string): Promise<unknown> {
+  return routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    ...ROSTER_STUB,
+    "settings.getUserSettings": (): unknown => ({
+      userId: castId<UserId>("user_ct"),
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, ...appearance } },
+      updatedAt: 0,
+    }),
+    "chat.listMessages": (): unknown => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_knob"), role: "assistant", content })]),
+  });
+}
+
+// Hand-authored cards habitually leave a narration asterisk open, so this is the highest-unbalanced-markdown
+// body there is. OFF (the shipped default) renders it as authored — a lone `*` is literal per CommonMark;
+// ON closes the run at end-of-line (`@orb/kit/fix-markdown`).
+const UNBALANCED_BODY = "*She looks up and smiles";
+
+test("autoFixMarkdown ON closes an unbalanced asterisk on a committed row", async ({ mount, page }) => {
+  await routeWithAppearance(page, { autoFixMarkdown: true }, UNBALANCED_BODY);
+
+  const component = await mount(<ChatRoomSurfaceStory />);
+
+  await expect(component.locator(BUBBLE).first().locator("em")).toHaveText("She looks up and smiles");
+});
+
+test("autoFixMarkdown OFF leaves the same body as authored (the literal asterisk, no emphasis)", async ({ mount, page }) => {
+  await routeWithAppearance(page, { autoFixMarkdown: false }, UNBALANCED_BODY);
+
+  const component = await mount(<ChatRoomSurfaceStory />);
+
+  const bubble = component.locator(BUBBLE).first();
+  await expect(bubble.locator("em")).toHaveCount(0);
+  await expect(bubble).toContainText(UNBALANCED_BODY);
+});
+
+// The ST-card shape (quoted dialogue + plain narration, zero asterisks) — `colorQuotedSpeech` has to reach
+// both body arms from the same settings read.
+const QUOTED_BODY = "He doesn’t look up from the ledger. “You’re late,” he says.";
+
+test("colorQuotedSpeech ON (the default) tints the quoted run", async ({ mount, page }) => {
+  await routeWithAppearance(page, { colorQuotedSpeech: true }, QUOTED_BODY);
+
+  const component = await mount(<ChatRoomSurfaceStory />);
+
+  const tinted = component.locator(BUBBLE).first().locator(DIALOGUE_SPAN);
+  await expect(tinted).toHaveCount(1);
+  await expect(tinted).toHaveText("“You’re late,”");
+});
+
+test("colorQuotedSpeech OFF renders the same body plain — the knob really reaches the row", async ({ mount, page }) => {
+  await routeWithAppearance(page, { colorQuotedSpeech: false }, QUOTED_BODY);
+
+  const component = await mount(<ChatRoomSurfaceStory />);
+
+  const bubble = component.locator(BUBBLE).first();
+  await expect(bubble).toContainText("You’re late,");
+  await expect(bubble.locator(DIALOGUE_SPAN)).toHaveCount(0);
+});
