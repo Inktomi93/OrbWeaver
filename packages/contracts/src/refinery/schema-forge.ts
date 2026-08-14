@@ -21,9 +21,12 @@
 //     key in properties", and under the all-required shape "11 levels of nesting exceeds limit of 10".
 //   • google/gemini-3.6-flash — 400 INVALID_ARGUMENT.
 //   • the forced-tool vehicle collapses the same map on OpenAI and Gemini (`"properties":{}` again).
-//   • `provider.require_parameters` changed NO cell — the variable is the SHAPE, not the routing knob.
+//   • `provider.require_parameters` changed NO cell of the 2026-08-09 matrix — TRUE THEN, FALSE NOW: OR's
+//     routing changed and by 2026-08-14 `require_parameters:true` 404s every hosted `response_format` call,
+//     so it is OMITTED on the structured wire (`backends/openrouter/index.ts`). Still orthogonal to the SHAPE
+//     variable this note is about — the leaf-list grammar below is what makes the schema servable.
 // The leaf list is arrays of CLOSED objects and nothing else: 200 on all three families under
-// `scrubWireSchema(…, "strict-compatible")` + `strict:true` + `require_parameters:true`, with real output
+// `scrubWireSchema(…, "strict-compatible")` + `strict:true` (require_parameters is NO LONGER sent — see above),
 // (`issues[].severity` + per-member tones on all of them). It is also 1.4 KB of grammar instead of 34 KB.
 //
 // THE MIRROR OBLIGATION (owner: "mirror the existing belt exactly so enforcement and validation agree"):

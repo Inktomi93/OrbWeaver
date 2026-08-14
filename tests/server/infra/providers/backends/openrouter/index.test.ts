@@ -231,11 +231,13 @@ describe("createOpenRouterBackend — summarize shaper", () => {
     expect(sent.chatRequest?.responseFormat).toBeUndefined();
   });
 
-  // The `response-format` vehicle (task #36). The pairing asserted here is the ONE the live probe found
-  // servable on all three families: `response_format: json_schema` + the ALL-REQUIRED shape + `strict:true`
-  // + provider `require_parameters`. Each half is pinned, because dropping any of them silently reverts the
-  // request to a shape one of the three families 400s on.
-  test("STRUCTURED with vehicle:response-format rides response_format + strict + require_parameters, and drops the tool", async () => {
+  // The `response-format` vehicle (task #36). The servable pairing is `response_format: json_schema` + the
+  // ALL-REQUIRED shape + `strict:true`. `provider.require_parameters` is NO LONGER sent: it was hardcoded
+  // `true` here, but OR's routing changed and by 2026-08-14 `require_parameters:true` 404s EVERY hosted
+  // `response_format` call ("No endpoints found that can handle the requested parameters") — it was the sole
+  // breaker of all hosted structured output. This test pins that the `provider` block is ABSENT so the
+  // breaker can never be re-hardcoded (`docs/reviews/misc/2026-08-14-refinery-custom-schema-drive.md`).
+  test("STRUCTURED with vehicle:response-format rides response_format + strict, drops the tool, and sends NO require_parameters", async () => {
     const { backend, tracker } = backendWith(() => summarizeReply('{"genre":"noir"}'));
     const schema = wireSchema({
       type: "object",
@@ -263,7 +265,9 @@ describe("createOpenRouterBackend — summarize shaper", () => {
     const wire = sent.chatRequest?.responseFormat?.jsonSchema?.schema ?? {};
     expect(wire["required"]).toEqual(["genre", "era"]);
     expect((wire["properties"] as Record<string, unknown>)["era"]).toEqual({ anyOf: [{ type: "string" }, { type: "null" }] });
-    expect(sent.chatRequest?.provider).toEqual({ requireParameters: true });
+    // The `provider` block (the `require_parameters:true` breaker) is GONE — OR's default soft-preference for
+    // `response_format` already routes to structured-capable providers, and the hard flag now 404s.
+    expect(sent.chatRequest?.provider).toBeUndefined();
     // …and the forced tool is GONE: sending both vehicles at once is what 400s on anthropic.
     expect(sent.chatRequest?.tools).toBeUndefined();
   });
@@ -547,5 +551,40 @@ describe("createOpenRouterBackend — summarize observability (wire capture + pr
     const fields = line?.[0] as Record<string, unknown>;
     expect(fields["ok"]).toBe(false);
     expect(fields["errorKind"]).toBe("rate_limit");
+  });
+
+  // D-ARM8-2: a non-2xx OpenRouter reply reaches the SDK as a Speakeasy `ResponseValidationError` — its
+  // response-zod chokes on OR's `{error}` envelope and its `.message` is the generic "Response validation
+  // failed", SWALLOWING OR's own text. But `.statusCode` + `.body` (the `OpenRouterError` base) carry it. The
+  // batch failure path must classify the status (a 404 is `model_unavailable` + non-retryable, NOT the
+  // retryable `server` a bare re-throw guessed) AND surface OR's raw body — so an upstream 404 (the
+  // `require_parameters` breaker's own symptom) is diagnosable instead of masquerading as an internal error.
+  test("a non-2xx OpenRouter failure surfaces OR's real status + body, not the opaque 'Response validation failed'", async () => {
+    const orBody = JSON.stringify({ error: { message: "No endpoints found that can handle the requested parameters", code: 404 } });
+    // The shape the SDK actually throws: `.message` is generic, `.statusCode` + `.body` hold OR's own reason.
+    class ResponseValidationError extends Error {
+      readonly statusCode = 404;
+      readonly body = orBody;
+      constructor() {
+        super("Response validation failed");
+        this.name = "ResponseValidationError";
+      }
+    }
+    const { backend } = backendWith(() => {
+      throw new ResponseValidationError();
+    });
+    await expect(
+      callStructured(backend, {
+        credential: CRED,
+        model: haikuModel,
+        inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+        responseFormat: { name: "result", schema: wireSchema({ type: "object" }), vehicle: "response-format" },
+      }),
+    ).rejects.toMatchObject({
+      kind: "model_unavailable",
+      retryable: false,
+      apiErrorStatus: 404,
+      message: expect.stringContaining("No endpoints found that can handle the requested parameters"),
+    });
   });
 });
