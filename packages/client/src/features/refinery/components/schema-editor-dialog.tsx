@@ -41,6 +41,7 @@ import { buildRenderPlan } from "../lib/render-plan.ts";
 import { CharacterDoor } from "./character-door.tsx";
 import { PayloadView } from "./payload-view.tsx";
 import { RefineryChip } from "./refinery-chip.tsx";
+import { RefusalNote } from "./refusal-note.tsx";
 
 export interface SchemaEditorDialogProps {
   readonly open: boolean;
@@ -113,18 +114,6 @@ function PreflightNote({ schema }: { schema: Record<string, unknown> }): ReactEl
         </Text>
       ))}
     </Stack>
-  );
-}
-
-/** A save refusal, verbatim (the lift belt's construct + path text IS the teaching surface). */
-function RefusalNote({ error }: { error: unknown }): ReactElement | null {
-  if (error === null || error === undefined) {
-    return null;
-  }
-  return (
-    <Text data-testid={testId("refinerySchemaRefusal")} voice="gloss">
-      {String((error as { message?: string }).message ?? "That schema was refused.")}
-    </Text>
   );
 }
 

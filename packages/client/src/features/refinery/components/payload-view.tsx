@@ -265,19 +265,23 @@ function FieldBlock({ field, value }: { field: PlanField; value: unknown }): Rea
   }
 }
 
+/** A non-hero bounded number. The `showValue` Meter renders its OWN label + `value/max` readout row (the
+ *  Meter's label IS its accessible name), so the field label paints exactly ONCE here — an outer `<Text>`
+ *  label beside it double-printed the name (live-drive D2 2026-08-14). The absent arm has no Meter, so it
+ *  keeps a plain label + "—" pair. */
 function GaugeRow({ field, widget, value }: { field: PlanField; widget: GaugeWidget; value: unknown }): ReactElement {
   const n = typeof value === "number" ? value : null;
   return (
-    <Row align="center" data-field={field.key} data-testid={testId("refineryField")} gap="row">
-      <Text voice="label">{field.label}</Text>
-      <Row align="center" gap="field">
-        {n === null ? (
+    <Stack data-field={field.key} data-testid={testId("refineryField")} gap="tight">
+      {n === null ? (
+        <Row align="center" gap="row">
+          <Text voice="label">{field.label}</Text>
           <Text voice="gloss">{ABSENT_TEXT}</Text>
-        ) : (
-          <Meter kind="linear" label={field.label} max={widget.max} min={widget.min} showValue={true} value={n} />
-        )}
-      </Row>
-    </Row>
+        </Row>
+      ) : (
+        <Meter kind="linear" label={field.label} max={widget.max} min={widget.min} showValue={true} value={n} />
+      )}
+    </Stack>
   );
 }
 
