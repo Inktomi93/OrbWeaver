@@ -24,6 +24,7 @@ export function createValidate(ctx: SessionsContext): Pick<SessionsService, "val
       onSlide?.(slidExpiresAt);
     }
     return {
+      sessionId: session.sessionId,
       userId: session.userId,
       role: session.role,
       handle: session.handle,

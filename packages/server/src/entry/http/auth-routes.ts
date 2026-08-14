@@ -17,12 +17,13 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
 import { authorizationCodeGrant, buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
+import type { RevokedSessionsSummary } from "#domain/sessions";
 import { securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcTransaction } from "#infra/auth";
 import { hasCsrfHeader, MIN_PASSWORD_LENGTH, SESSION_COOKIE_NAME } from "#infra/auth";
@@ -171,7 +172,8 @@ export interface AuthSessionsPort {
     readonly userId: UserId;
     readonly userAgent?: string | null;
   }) => Promise<{ readonly token: SessionToken; readonly expiresAt: number }>;
-  readonly revokeByToken: (token: SessionToken) => Promise<void>;
+  /** Returns WHICH session ended (`null` = already gone) so the route can evict that session's sockets. */
+  readonly revokeByToken: (token: SessionToken) => Promise<SessionId | null>;
   /** `options` carries the caller-resolved admission decisions (A1 JIT gate / A2 approval). The OIDC callback
    *  passes them from env; the verb stays mode-agnostic. */
   readonly provisionIdentity: (
@@ -179,8 +181,29 @@ export interface AuthSessionsPort {
     options?: { readonly allowJitProvision?: boolean; readonly requireApproval?: boolean },
   ) => Promise<ProvisionOutcome>;
   /** A5 — revoke every live session for the user(s) bound to an IdP subject (`sub`), for back-channel
-   *  logout. Returns the count revoked. */
-  readonly revokeByExternalId: (externalId: ExternalId) => Promise<number>;
+   *  logout. Returns the count revoked + WHOSE (the route evicts those users' sockets). */
+  readonly revokeByExternalId: (externalId: ExternalId) => Promise<RevokedSessionsSummary>;
+}
+
+/**
+ * W7a — THE SESSION-DEATH → SOCKET-DEATH EDGE, as a port (staleness-and-session-freshness.md §4.4.3).
+ *
+ * A socket freezes its Principal at connect and lives for the connection's lifetime, so revoking the cookie
+ * behind it changed nothing until the socket happened to die: a signed-out tab kept streaming. Composed HERE,
+ * at entry, rather than inside `domain/sessions` — the cake is one-directional and a domain may not import
+ * transport; entry already holds both halves.
+ *
+ * TWO GRANULARITIES, both owner-ruled (F4, 2026-08-14):
+ *   • `evictSession` for LOGOUT — signing out on the phone must not close the desktop's stream. The cost of
+ *     the granularity (threading a session identity from the seam to the socket cell) was put on the table
+ *     explicitly and accepted; it is paid BESIDE the Principal, so D135's one-home role verdict is untouched.
+ *   • `evictUser` for ADMIN REVOKE / disable / password reset / the OIDC back-channel logout — a statement
+ *     about the HUMAN, and the only arm that also reaches sockets which authenticated with no session at all.
+ *     Surviving devices whose own cookies are still valid reconnect and resume through the existing barrier.
+ */
+export interface SessionSocketEviction {
+  readonly evictSession: (sessionId: SessionId) => number;
+  readonly evictUser: (userId: UserId) => number;
 }
 
 /** The `provisionIdentity` result the OIDC callback dispatches on: `provisioned` (mint the session,
@@ -258,6 +281,8 @@ export interface OidcRoutesDeps {
 
 export interface AuthRoutesDeps {
   readonly sessions: AuthSessionsPort;
+  /** W7a — the live-socket eviction edge, applied wherever this file ends a session. */
+  readonly sockets: SessionSocketEviction;
   readonly now: () => number;
   /** Backs the per-IP login throttle (shared `rate_limit_buckets` table — replica-correct). */
   readonly db: Db;
@@ -395,7 +420,14 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
     // different token than the one that authenticated the request, leaving the live session un-killable.
     const token = readSessionCookie(c.req.raw.headers);
     if (token !== null) {
-      await deps.sessions.revokeByToken(token);
+      const endedSessionId = await deps.sessions.revokeByToken(token);
+      // W7a — the revoke kills the COOKIE; this kills the STREAM the cookie already opened. Per SESSION (F4):
+      // this device's sockets close and its reconnect 401s into the client recovery ladder, while the same
+      // human's other devices keep theirs. `null` = the row was already revoked, so there is nothing here to
+      // have opened a socket that this call ends.
+      if (endedSessionId !== null) {
+        deps.sockets.evictSession(endedSessionId);
+      }
     }
     c.header("Set-Cookie", serializeClearedSessionCookie());
     // A6 — surface the IdP end-session URL so the client can end the UPSTREAM SSO session after the local
@@ -565,7 +597,13 @@ function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRo
       return c.json({ error: "invalid_request" }, BAD_REQUEST);
     }
     if (subject.sub !== null) {
-      const revoked = await deps.sessions.revokeByExternalId(castId<ExternalId>(subject.sub));
+      const { revoked, userIds } = await deps.sessions.revokeByExternalId(castId<ExternalId>(subject.sub));
+      // W7a — per USER here, not per session: the IdP has ended the HUMAN's login, and one subject can be
+      // bound to more than one row. Idempotent with the revoke itself — a re-delivered logout token names no
+      // users and evicts nothing.
+      for (const userId of userIds) {
+        deps.sockets.evictUser(userId);
+      }
       securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject");
     }
     // sid-only (no sub): the token validated, but we key sessions on external_id==sub and store no per-session

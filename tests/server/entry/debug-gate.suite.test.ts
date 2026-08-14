@@ -27,7 +27,7 @@
 
 import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { ownerHandles } from "@orb/server/domain/sessions";
@@ -122,6 +122,7 @@ function cookieSessions(role: UserRole): SessionsService {
   return stubSessions({
     validate: () =>
       Promise.resolve({
+        sessionId: castId<SessionId>("sess_cookie"),
         userId: castId<UserId>("u_cookie"),
         role,
         handle: castId<Handle>("carol"),

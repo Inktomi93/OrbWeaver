@@ -12,7 +12,7 @@
 import { createChatEventSeqGuard } from "@orb/client/data/bus";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
-import type { ChatId, SocketId, UserId } from "@orb/kit/ids";
+import type { ChatId, SessionId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import type { SocketRegistry } from "@orb/server/transport/trpc";
@@ -57,7 +57,7 @@ describe("the room cursor counts DELIVERED frames, never enqueued ones", () => {
     });
     const call = caller(ctx);
     await call.stream.attach({ socketId, ref: { channel: "chat", chatId } });
-    const cell = sockets.adopt(MEMBER, socketId);
+    const cell = sockets.adopt(MEMBER, socketId, null);
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
@@ -112,7 +112,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
     const call = caller(ctx);
     // `sinceSeq: 0` — the client asking for the whole log (the draft-promotion seed / a reconnect at a mark).
     await call.stream.attach({ socketId, ref: { channel: "chat", chatId }, sinceSeq: 0 });
-    const cell = sockets.adopt(MEMBER, socketId);
+    const cell = sockets.adopt(MEMBER, socketId, null);
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
@@ -265,7 +265,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
 
     // ── socket #1: the server delivers 1..5; the client only ever receives 1..3 ──
     await caller(ctx).stream.attach({ socketId, ref: room, sinceSeq: 0 });
-    const cell = sockets.adopt(MEMBER, socketId);
+    const cell = sockets.adopt(MEMBER, socketId, null);
     const first = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
     const it1 = first[Symbol.asyncIterator]();
     for (let i = 0; i < 7; i++) {
@@ -353,7 +353,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
 
     // ── socket #1: rows 1..5 yielded, only 1..3 received. It is then NEVER torn down. ──
     await caller(ctx).stream.attach({ socketId, ref: room, sinceSeq: 0 });
-    const cell = sockets.adopt(MEMBER, socketId);
+    const cell = sockets.adopt(MEMBER, socketId, null);
     const first = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
     const it1 = first[Symbol.asyncIterator]();
     for (let i = 0; i < 7; i++) {
@@ -426,5 +426,59 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     await it2.return?.(undefined);
 
     expect(frame).toEqual({ channel: "control", type: "attached", ref: { channel: "rpg", chatId } });
+  });
+});
+
+// W7a — LOGOUT ENDS THE STREAM, COMPOSED. The registry suite proves the signal fires; this proves the thing
+// the user actually experiences: the SSE generator for the signed-out device COMPLETES (so the client sees
+// the close, reconnects, and its 401 reaches the recovery ladder), while the same human's other device keeps
+// streaming. Before this, a revoked cookie left the socket running for the life of the connection.
+describe("session eviction ends the live socket (W7a)", () => {
+  test("evicting ONE session completes that socket's generator and leaves the sibling device's live", async () => {
+    const chatId = castId<ChatId>("chat_evict_session");
+    const sockets: SocketRegistry = createSocketRegistry(() => 0);
+    const phoneSession = castId<SessionId>("sess_phone");
+    const deskSession = castId<SessionId>("sess_desktop");
+
+    const openDevice = async (sessionId: SessionId): Promise<AsyncIterator<unknown>> => {
+      const socketId = nextSocket();
+      const ctx = makeContext({
+        auth: principal("user", { userId: MEMBER }),
+        services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
+        sockets,
+        sessionId,
+      });
+      const call = caller(ctx);
+      await call.stream.attach({ socketId, ref: { channel: "rpg", chatId } });
+      const stream = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
+      const iterator = stream[Symbol.asyncIterator]();
+      await iterator.next(); // the attached ack — the socket is live and pumping
+      return iterator;
+    };
+
+    const phone = await openDevice(phoneSession);
+    const desktop = await openDevice(deskSession);
+    expect(sockets.liveSocketCount(MEMBER)).toBe(2);
+
+    // The logout route's edge, exactly as `entry/http/auth-routes.ts` fires it.
+    const pending = phone.next();
+    expect(sockets.evictSession(phoneSession)).toBe(1);
+
+    // The signed-out device's stream ENDS (no frame, no error — a clean close the client reconnects from)…
+    expect((await pending).done).toBe(true);
+    // …and its cell darked through the generator's own ownership-checked teardown, so the counter is honest.
+    expect(sockets.liveSocketCount(MEMBER)).toBe(1);
+
+    // …while the desktop is still serving: a new room attaches and gets its ack on the SAME connection.
+    await caller(
+      makeContext({
+        auth: principal("user", { userId: MEMBER }),
+        services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
+        sockets,
+        sessionId: deskSession,
+      }),
+    ).stream.attach({ socketId: castId<SocketId>(`socket_composed_${socketSeq}`), ref: { channel: "user" } });
+    expect(frameOf((await desktop.next()).value)).toEqual({ channel: "control", type: "attached", ref: { channel: "user" } });
+    await desktop.return?.(undefined);
   });
 });

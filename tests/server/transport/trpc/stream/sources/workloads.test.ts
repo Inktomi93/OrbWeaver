@@ -111,7 +111,7 @@ describe("the room refuses at attach — a run you do not own does not exist for
 
     // The refusal is REAL, not an error thrown beside a recorded room: the cell holds nothing, so a later
     // connect (or a reconnect inside the reap window) can never re-hydrate a pump for it.
-    expect(sockets.adopt(STRANGER, socketId).rooms.size).toBe(0);
+    expect(sockets.adopt(STRANGER, socketId, null).rooms.size).toBe(0);
   });
 
   test("the caller Principal is threaded to the verb VERBATIM — the gate is the verb's, not the transport's", async () => {

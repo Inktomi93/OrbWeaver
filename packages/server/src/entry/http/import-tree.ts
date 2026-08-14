@@ -17,7 +17,6 @@ import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
-import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
@@ -27,6 +26,7 @@ import type { WorkloadService } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { sniffTreeLayout } from "../import/index.ts";
+import type { PrincipalEnv } from "./blob.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
@@ -68,11 +68,6 @@ export interface ImportTreeDeps {
   /** The portability registry — its entity-dir names (minus the ST-shared ones) are the positive orb signal. */
   readonly registry: PortabilityRegistry;
   readonly stagingDir?: string;
-}
-
-interface PrincipalEnv {
-  // biome-ignore lint/style/useNamingConvention: `Variables` is Hono's reserved Env key (framework-fixed name).
-  Variables: { principal: Principal | null };
 }
 
 /** One accepted multipart part: its browser-supplied relative path + the bytes. */

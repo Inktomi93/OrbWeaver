@@ -48,6 +48,12 @@
 //     zombie dying on time.
 //   • EVICTION — `goLive` tells the outgoing generator to stop (`onEvicted`) before installing the new one,
 //     so a zombie cannot keep pumping into a dead socket (and advancing shared cursors with it).
+//   • EVICTION IS ALSO THE CREDENTIAL EDGE (W7a, staleness-and-session-freshness.md §4.4.3). A socket freezes
+//     its Principal at connect and lives for the connection's lifetime, so before this NOTHING server-side
+//     killed a live stream when its session was revoked: a logged-out or disabled tab kept receiving events
+//     until the socket died of natural causes. `evictSession` (logout — per-SESSION, F4) and `evictUser`
+//     (admin revoke-all / disable / back-channel logout) reuse the SAME `onEvicted` signal the takeover path
+//     uses, composed at ENTRY (the cake holds: `domain/sessions` never imports transport).
 //   • OWNERSHIP-CHECKED TEARDOWN — `goDark` takes the listener that is finishing and no-ops unless it is
 //     still the owner. Without it a zombie's late teardown nulls the LIVE generator's listener (silent rooms
 //     on a live socket), marks a live cell dark (reap-eligible, cursors discarded), and undercounts
@@ -56,7 +62,7 @@
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import { DomainNotFoundError, DomainRateLimitError } from "@orb/kit/errors";
-import type { SocketId, UserId } from "@orb/kit/ids";
+import type { SessionId, SocketId, UserId } from "@orb/kit/ids";
 
 /** Ratified hygiene bounds (§14.6). None is load-bearing; they exist so a client bug cannot grow the maps. */
 export const SOCKET_REAP_MS = 60_000;
@@ -101,6 +107,20 @@ export interface SocketListener {
 export interface SocketCell {
   readonly socketId: SocketId;
   readonly userId: UserId;
+  /**
+   * WHICH SESSION the current connection authenticated with — `null` for a caller with no cookie session at
+   * all (the owner fallback, forward-header SSO: there is no session to sign out of, so there is nothing to
+   * evict per-session). Re-stamped on every `adopt`, because a reconnect is a fresh request with a fresh
+   * cookie: the cell survives a re-login, and it must not keep pointing at the session that just ended.
+   *
+   * WHY IT LIVES HERE AND NOT ON THE PRINCIPAL (F4, owner-ruled 2026-08-14): logout is per-SESSION — signing
+   * out on the phone must not kill the desktop — and the socket is the only long-lived thing that outlives the
+   * request its Principal was minted from. D135 says the ROLE verdict has one home; a session id is not a
+   * role, and threading it through the Principal would put a per-connection fact into the immutable identity
+   * every domain reads. So the seam surfaces it BESIDE the Principal and it lands here, on the connection
+   * record, where the only consumer is {@link SocketRegistry.evictSession}.
+   */
+  sessionId: SessionId | null;
   readonly rooms: Map<string, SocketRoom>;
   listener: SocketListener | null;
   live: boolean;
@@ -113,9 +133,10 @@ export interface SocketCell {
 }
 
 export interface SocketRegistry {
-  /** Create-or-adopt the cell for `(userId, socketId)`. Throws a leak-free `DomainNotFoundError` when the
-   *  socket belongs to another principal, and `DomainRateLimitError` past the per-user socket cap. */
-  readonly adopt: (userId: UserId, socketId: SocketId) => SocketCell;
+  /** Create-or-adopt the cell for `(userId, socketId)`, stamping the connecting request's `sessionId`
+   *  (`null` = no cookie session; see {@link SocketCell.sessionId}). Throws a leak-free `DomainNotFoundError`
+   *  when the socket belongs to another principal, and `DomainRateLimitError` past the per-user socket cap. */
+  readonly adopt: (userId: UserId, socketId: SocketId, sessionId: SessionId | null) => SocketCell;
   /** Record the room as wanted (idempotent). A LOWER `sinceSeq` on an already-attached room is honored — it
    *  is a REPLAY REQUEST; a higher one never rewinds the cursor forward. */
   readonly attach: (userId: UserId, socketId: SocketId, ref: StreamRoomRef, sinceSeq: number | null) => void;
@@ -127,6 +148,24 @@ export interface SocketRegistry {
    *  `listener` is still the owner, so a zombie generator's late teardown cannot touch a live cell. */
   readonly goLive: (cell: SocketCell, listener: SocketListener) => void;
   readonly goDark: (cell: SocketCell, listener: SocketListener) => void;
+  /**
+   * SESSION DEATH → SOCKET DEATH, for ONE session (W7a; logout). Ends every live generator whose cell
+   * authenticated with `sessionId` and returns how many it ended. The other devices of the same human are
+   * untouched — that is the whole point of the per-SESSION arm (F4).
+   *
+   * Eviction is a STOP signal, not a state edit: it calls the generator's `onEvicted`, and the generator's own
+   * `finally` runs `goDark`, which is the ownership-checked transition (a cell darked from the outside would
+   * race a takeover and undercount `liveSocketCount`). The ROOMS are deliberately left in place: a reconnect
+   * on a still-valid cookie resumes them through the existing barrier, and a reconnect on the revoked one
+   * fails `authedProcedure` with UNAUTHORIZED, which is what reaches the client's recovery ladder (W1).
+   * A `null` `sessionId` matches nothing — a sessionless connection cannot be signed out of.
+   */
+  readonly evictSession: (sessionId: SessionId) => number;
+  /** SESSION DEATH → SOCKET DEATH, for a whole USER (W7a; admin revoke-all / disable / password reset / the
+   *  OIDC back-channel logout). Same mechanism as {@link SocketRegistry.evictSession}, wider net — and the
+   *  net has to be wider here: a disable is a statement about the human, and it must also reach the sockets
+   *  that authenticated with NO session (the owner fallback, forward-header SSO) which no session id names. */
+  readonly evictUser: (userId: UserId) => number;
   /** Observability (`/api/_debug/stream/sockets`): live sockets, all users or one. */
   readonly liveSocketCount: (userId?: UserId) => number;
   /** Sweep cells dark past the window. Called on every entry point; exposed for the reap test. */
@@ -160,7 +199,14 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
     return cell;
   }
 
-  function adopt(userId: UserId, socketId: SocketId): SocketCell {
+  /**
+   * Create-or-return the cell, WITHOUT touching its session stamp — the shape `attach` needs. An attach may
+   * mint the cell (order-independent creation), and it must never OVERWRITE the stamp `connect` put there:
+   * a re-announce carrying no session would blank the live connection's identity and make its logout evict
+   * nothing. A cell minted here starts sessionless, which is exactly right — it has no generator to evict
+   * until a `connect` adopts it and stamps the session that connection authenticated with.
+   */
+  function ensureCell(userId: UserId, socketId: SocketId): SocketCell {
     reap();
     const existing = owned(userId, socketId);
     if (existing !== undefined) {
@@ -177,13 +223,36 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
     if (mine >= SOCKETS_PER_USER) {
       throw new DomainRateLimitError(`Too many open streams (${SOCKETS_PER_USER}). Close a tab and retry.`);
     }
-    const cell: SocketCell = { socketId, userId, rooms: new Map(), listener: null, live: false, lastSeenAt: now(), connectionSeq: 0 };
+    const cell: SocketCell = { socketId, userId, sessionId: null, rooms: new Map(), listener: null, live: false, lastSeenAt: now(), connectionSeq: 0 };
     cells.set(socketId, cell);
     return cell;
   }
 
+  /** The CONNECT arm: the cell, with this connection's session stamped onto it. A reconnect is a new request
+   *  with its own cookie, so the stamp is refreshed every time — a cell that outlived a re-login must not
+   *  still name the session that ended. */
+  function adopt(userId: UserId, socketId: SocketId, sessionId: SessionId | null): SocketCell {
+    const cell = ensureCell(userId, socketId);
+    cell.sessionId = sessionId;
+    return cell;
+  }
+
+  /** Stop every live generator the predicate picks, and report how many. The listener's `onEvicted` is the
+   *  ONLY thing fired: the generator's own `finally` runs `goDark` (ownership-checked), and the cell keeps its
+   *  rooms so a reconnect on a still-valid credential resumes them through the existing barrier. */
+  function evictWhere(match: (cell: SocketCell) => boolean): number {
+    let evicted = 0;
+    for (const cell of cells.values()) {
+      if (cell.live && cell.listener !== null && match(cell)) {
+        cell.listener.onEvicted();
+        evicted += 1;
+      }
+    }
+    return evicted;
+  }
+
   function attach(userId: UserId, socketId: SocketId, ref: StreamRoomRef, sinceSeq: number | null): void {
-    const cell = adopt(userId, socketId);
+    const cell = ensureCell(userId, socketId);
     const key = roomKey(ref);
     const room = cell.rooms.get(key);
     if (room === undefined) {
@@ -248,6 +317,8 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
       cell.listener = null;
       cell.lastSeenAt = now();
     },
+    evictSession: (sessionId: SessionId): number => evictWhere((cell) => cell.sessionId === sessionId),
+    evictUser: (userId: UserId): number => evictWhere((cell) => cell.userId === userId),
     liveSocketCount: (userId?: UserId): number => {
       reap();
       let count = 0;

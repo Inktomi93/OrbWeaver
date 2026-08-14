@@ -5,7 +5,9 @@ export type { Principal, ResolvedIdentity } from "@orb/contracts/identity";
 export type { SessionView } from "@orb/contracts/session";
 // The `loadUserById` row-fields shape — the auth seam's row→`Principal` mapper takes it directly, so the
 // mapper and the two resolvers built on it (host bridge · request fallback) never re-spell the read.
-export type { UserPrincipalFields } from "./contract/results.ts";
+// `RevokedSessionsSummary` rides out for the same reason: entry's back-channel-logout route consumes the
+// WHOSE half to evict those users' live sockets (W7a).
+export type { RevokedSessionsSummary, UserPrincipalFields } from "./contract/results.ts";
 export type { SessionsService } from "./contract/service.ts";
 export type { ViewerView } from "./contract/views.ts";
 export { createOidcStore } from "./persistence/oidc-store.ts";
