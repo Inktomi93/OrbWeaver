@@ -191,6 +191,55 @@ const ROWS: Row[] = [
   ["ask", "rm-rf-unsafe", 'SP=/tmp/x/scratchpad; rm -rf "$SPARE"'], // longest name wins — no prefix confusion
   // a nested body builds its OWN map from its OWN text, so the sanctioned wrapper shape still runs
   ["pass", null, `bash -c 'SP=/tmp/s/scratchpad; rm -f "$SP/x.log"'`],
+  // ---- QUOTED FLAGS (leg 5, 2026-08-14) — the sibling of the quoted-TARGET hole above, same mechanism one
+  // token to the left. The head required an UNQUOTED `-r`/`-f` immediately after `rm`, and a quoted token is
+  // spaces in the blanked text, so `rm "-rf" packages/server/src` matched NOTHING and the rule never
+  // engaged: every bite row here was pass/none. Quoting is the SHELL's business — `rm`'s own getopt receives
+  // `-rf` either way. ----
+  ["ask", "rm-rf-unsafe", 'rm "-rf" packages/server/src'],
+  ["ask", "rm-rf-unsafe", "rm '-rf' packages/server/src"],
+  ["ask", "rm-rf-unsafe", 'rm "-r" "-f" packages/server/src'],
+  ["ask", "rm-rf-unsafe", 'rm -r "-f" packages/server/src'], // the mixed spelling
+  ["ask", "rm-rf-unsafe", "rm packages/server/src -rf"], // …and a flag AFTER the target is still a flag
+  ["ask", "inline:rm-rf-unsafe", `sh -c 'rm "-rf" packages/server/src'`],
+  // MUST-PASS: a quoted flag must never be read as a PATH. Counting `"-rf"` as a target would ask about the
+  // sanctioned scratch sweeps spelled this way — and a guard that blocks the right way of doing a job
+  // teaches lanes to route around it.
+  ["pass", null, 'rm "-rf" /tmp/scratch'],
+  ["pass", null, 'rm "-rf" "node_modules/.cache"'],
+  ["pass", null, "rm '-rf' playwright/.cache"],
+  ["pass", null, `echo 'rm "-rf" packages/server/src'`], // the head anchor holds: a quoted arg is not a command
+  ["pass", null, "rm one-file.txt"], // no -r/-f at all is not this rule, and never was
+  // THE ONE DIRECTION THIS LEG MOVES A COMMAND LOOSER, pinned so it stays a decision rather than a drift:
+  // base ASKED here, because `"-f"` was counted as an unsafe TARGET. It is a flag — the deletion is
+  // /tmp/scratch, which is sanctioned — so the ask was a false positive, and 0 of 123,462 corpus commands
+  // are this shape. Only r/f flag tokens are reclassified: a quoted NON-r/f flag stays a target, i.e. the
+  // rows below still ask exactly as they did before.
+  ["pass", null, 'rm -r "-f" /tmp/scratch'],
+  ["ask", "rm-rf-unsafe", 'rm -rf "-i" /tmp/scratch'],
+  ["ask", "rm-rf-unsafe", 'rm -rf "--one-file-system" /tmp/scratch'],
+  // ---- THE FLAG VOCABULARY (leg-5 follow-up, A/B item K). Recognition was lowercase-SHORT-only, so two
+  // spellings of the IDENTICAL deletion carried nothing the rule could see and it never engaged: `-R` is
+  // GNU rm's documented recursive flag, and `--recursive --force` is the long form of `-rf`. 0 movers on
+  // the 123,462-command corpus — the gap cost nothing to close. ----
+  ["ask", "rm-rf-unsafe", "rm -R packages/server/src"],
+  ["ask", "rm-rf-unsafe", "rm --recursive --force packages/server/src"],
+  ["ask", "rm-rf-unsafe", "rm -Rf packages/server/src"],
+  ["pass", null, "rm -R /tmp/scratch"], // the safe-target answer is unchanged by the vocabulary
+  // `-i` and `-I` still carry no r/f, so an interactive-only rm is still not this rule
+  ["pass", null, "rm -I one-file.txt"],
+  // ---- A PATH-PREFIXED `rm` (leg 5). Every other head regex in the guard carries `(?:\S*\/)?` (READER,
+  // NET_FETCH_HEAD, SHELL_SINK_HEAD, SCRIPT_SHELL_EXEC); this one did not, so `/bin/rm -rf …` was not `rm`. ----
+  ["ask", "rm-rf-unsafe", "/bin/rm -rf packages/server/src"],
+  ["ask", "rm-rf-unsafe", "/usr/bin/rm -rf packages/server/src"],
+  ["pass", null, "/usr/bin/rm -rf /tmp/scratch"],
+  // MUST-PASS: the prefix can only match a token whose LAST path segment is exactly `rm`, so nothing merely
+  // ENDING in `rm` and no `rm` SUBCOMMAND can be confused for it. (`grm` is GNU rm on a coreutils-on-macOS
+  // box; it does not exist here, and inventing an alias list this guard cannot verify is not the trade.)
+  ["pass", null, "/usr/bin/grm -rf packages/server/src"],
+  ["pass", null, "rmdir -p packages/a/b"],
+  ["pass", null, "pnpm rm -r @orb/foo"],
+  ["pass", null, "npm rm left-pad"],
   // MUST-PASS: the floor must not eat the sanctioned forms it sits next to
   ["pass", null, "rm -rf /tmp/scratch"],
   ["pass", null, "rm -rf node_modules/.cache"],
@@ -376,6 +425,20 @@ const ROWS: Row[] = [
   // the reason the cap is a runaway fence at 6, not a budget)
   ["pass", null, "ls -la $(dirname $(readlink -f $(which claude)))/ 2>/dev/null | head -20"],
   ["pass", null, 'echo "$(basename $(dirname $(dirname packages/ui/src/x.ts)))"'],
+  // ---- ESCAPED QUOTES INSIDE A SUBSTITUTION (leg 5, 2026-08-14). The paren walk ran over a `blankQuoted`
+  // copy, which treats `\"` as OPENING a quote (it checks the backslash only when CLOSING one) — and a
+  // `$( … )` nested in double quotes must escape its own inner quotes. The phantom span swallowed the
+  // closing paren, the walk returned -1, and the substitution was dropped from extraction ENTIRELY: the
+  // inner command was classified as nothing at all, which is the one outcome this whole pass exists to
+  // prevent. Both bite rows were pass/none. ----
+  ["ask", "subst:rm-rf-unsafe", 'echo "$(rm -rf \\"packages/server/src\\")"'],
+  ["deny", "subst:git-destructive", 'echo "$(git stash -- \\"packages/ui\\")"'],
+  // the POSITIVE CONTROL for the two must-pass rows below: a benign escaped-quote substitution that is
+  // genuinely READ earns its ordinary advisory, so their green cannot come from the substitution being
+  // skipped again (this row is pass/none — silent — on the broken walk).
+  ["advisory", "advisory", 'echo "$(npx vitest run tests/client/x.test.ts \\"--reporter=json\\")"'],
+  ["pass", null, 'echo "$(printf \\"%s\\" hi)"'],
+  ["pass", null, 'X="$(jq -r \\".name\\" package.json)" && echo "$X"'],
   // …and a substitution inside SINGLE quotes is literal TEXT, never executed: biting it would be a false
   // tighten (the asymmetry this pass is built around)
   ["pass", null, "echo '$(git stash)'"],
@@ -732,7 +795,16 @@ test("contract: a command hidden in a quoted string reaches the wire as a deny, 
 // The payload strings are CLASSIFIED, never executed — no path here is ever deleted.
 test("contract: a QUOTED rm target reaches the wire, and a quoted scratch target still runs", () => {
   const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
-  for (const command of ['rm -rf "packages/server/src"', "rm -rf 'packages/kit'", 'rm -rf packages/a "packages/b"', 'rm -rf "packages/a" /tmp/b']) {
+  for (const command of [
+    'rm -rf "packages/server/src"',
+    "rm -rf 'packages/kit'",
+    'rm -rf packages/a "packages/b"',
+    'rm -rf "packages/a" /tmp/b',
+    // leg 5: the same rule, blind in two more places — a QUOTED FLAG (the head needed an unquoted one) and
+    // a PATH-PREFIXED `rm`. Both emitted a bare `allow` at this wire before 2026-08-14.
+    'rm "-rf" packages/server/src',
+    "/bin/rm -rf packages/server/src",
+  ]) {
     const r = runHook(bashInput(command), [["CLAUDE_PROJECT_DIR", tmp]]);
     expect([command, r.out.hookSpecificOutput?.permissionDecision]).toEqual([command, "ask"]);
     expect(r.out.hookSpecificOutput?.permissionDecisionReason).toContain("Re-read the path");

@@ -86,8 +86,12 @@
 //   · QUOTED COMMANDS ARE CLASSIFIED — the same defect one layer further down (2026-08-14). A `bash -c
 //     '<string>'` operand and a `$( … )` substitution are COMMANDS, and quote-blanking erased both before
 //     any rule could see them: `bash -c "git stash"` and `echo "$(git stash)"` were clean passes. Both are
-//     now extracted and classified through this same `classify`, strictest-of merges, bounded at two
-//     levels of quoting. ASYMMETRY, on purpose: inside SINGLE quotes a `$( … )` is literal text and is NOT
+//     now extracted and classified through this same `classify`, strictest-of merges, bounded at
+//     NESTED_DEPTH_CAP levels of quoting (6 — the fence moved from 2 when the corpus showed benign
+//     three-deep idioms hitting it; the "two levels" this line claimed until leg 5 was stale). The `$( … )`
+//     walk honours BACKSLASH ESCAPES rather than reusing `blankQuoted`: an escaped inner quote used to
+//     swallow the closing paren and drop the whole substitution from extraction (see substitutionEnd).
+//     ASYMMETRY, on purpose: inside SINGLE quotes a `$( … )` is literal text and is NOT
 //     extracted — biting it would be a false tighten on a string nobody executes. Heredoc bodies and
 //     comments stay text guard-wide, so a substitution inside one is not extracted either.
 //   · SELF-EXEMPTION IS A REALPATH IDENTITY, not a path suffix — a look-alike (`/tmp/.claude/hooks/
@@ -385,16 +389,36 @@ const PROC_GIT_PUSH = /(^|\0)git\0([^\0]*\0)*push(\0|$)/;
 const GIT_ADD_ALL = /\bgit\s+add\s+(?:-A\b|--all\b|\.(?:\s|$))/;
 const GIT_PUSH = /\bgit\s+(?:[^\s;|&]+\s+)*?push\b/;
 const GIT_PUSH_FORCE = /\bgit\s+push\b[^\n;|]*(?:\s--force(?:-with-lease)?\b|\s-f\b)/;
-// Ends at the LAST FLAG, and that is the whole rule. The trailing `\s+` this carried until 2026-08-14 was
-// greedy, and a QUOTED target is all spaces in the blanked text — so the head matched the flag PLUS the
-// blanked target, the tail slice came out EMPTY, the target list came out `[]`, and `rm -rf
-// "packages/server/src"` passed clean (29 of 32,171 rows in one decision log carry a quoted rm target;
-// mechanism named in docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md item D). The
-// tail is sliced from the RAW command, so a target is judged with its quote characters ATTACHED —
-// RM_SAFE_TARGET matches by SUBSTRING, so `"/tmp/scratch"` stays sanctioned in quotes while
-// `"packages/server/src"` does not. Anchoring only ever GROWS the tail, and the verdict is
-// `targets.some(unsafe)`, so no command can move looser than it classified before (the tighten-only law).
-const RM_RF_HEAD = /^\s*rm(?:\s+-[a-z]*[rf][a-z]*)+/;
+// The `rm` COMMAND WORD, and nothing else. Everything after it — flags AND targets — is read off the RAW
+// stage (`collectStageWarns`), because in the BLANKED text a quoted token is spaces and the head cannot
+// tell a flag from a path. Two holes closed here, both the same defect class as the quoted-TARGET one this
+// rule already carries (visibility, not rule weakness), leg 5 / 2026-08-14:
+//   · QUOTED FLAGS — the previous head required an UNQUOTED `-r`/`-f` right after `rm`
+//     (`/^\s*rm(?:\s+-[a-z]*[rf][a-z]*)+/`), so `rm "-rf" packages/server/src` matched NOTHING and the rule
+//     never engaged. Quoting is the SHELL's business: `rm` itself receives `-rf` either way.
+//   · A PATH PREFIX — `/bin/rm -rf packages/server/src` was not `rm`. Every other head regex in this file
+//     already carries `(?:\S*\/)?` (READER, NET_FETCH_HEAD, SHELL_SINK_HEAD, SCRIPT_SHELL_EXEC); this one
+//     did not. It can only match a token whose LAST path segment is exactly `rm`, so `npm`, `pnpm rm`,
+//     `/usr/bin/rmdir` and `/usr/bin/grm` have no `/rm`+boundary to match and cannot be confused for it.
+// The 2026-08-14 quoted-TARGET reasoning still holds and is why the tail is sliced from the RAW command: a
+// target is judged with its quote characters ATTACHED, and RM_SAFE_TARGET matches by SUBSTRING, so
+// `"/tmp/scratch"` stays sanctioned in quotes while `"packages/server/src"` does not. The head shrinking to
+// the command word only ever GROWS the tail, and the verdict is `targets.some(unsafe)`.
+const RM_HEAD = /^\s*(?:\S*\/)?rm(?=\s|$)/;
+// A recursive/force flag as `rm`'s own getopt sees it — quoted or not, short or long, EITHER CASE.
+// Recognised on the RAW token so the quoted spelling both ENGAGES the rule and stays OUT of the target
+// list: counting `"-rf"` as a path would make `rm "-rf" /tmp/scratch` ask, a false positive on the
+// sanctioned sweep, and a guard that blocks the right way of doing a job gets routed around. That
+// exclusion is the one direction in which this rule can move a command looser (a token that was never a
+// target reaching rm as a flag) — corpus movers: 0.
+// The vocabulary was lowercase-SHORT-only until the leg-5 follow-up (2026-08-14, A/B item K): `-R` is GNU
+// rm's documented recursive spelling and `--recursive --force` is the long form of `-rf`, so both deleted
+// the identical tree while carrying nothing this token recognised — the rule simply did not engage. 0
+// movers across 123,462 corpus commands, i.e. the vocabulary gap cost nothing to close and bought two
+// identical-deletion spellings. Note the remaining asymmetry, deliberate because it is what was MEASURED:
+// long `--dir` engages, short `-d` does not (it has no r/f) — `-d` only unlinks an EMPTY directory, so it
+// is the least urgent of the family.
+const RM_FLAG_TOKEN = /^(['"]?)(?:-[a-zA-Z]*[rRfF][a-zA-Z]*|--(?:recursive|force|dir))\1$/;
 // `.claude/worktrees/` added 2026-08-13: lane worktrees are disposable by construction and the standing
 // law now requires sweeping them by hand (teardown does not fire on agent completion — probed live). Asking
 // about every sweep spent lane turns for nothing. Scoped to `worktrees/` ONLY — the rest of `.claude/`
@@ -864,21 +888,27 @@ function collectStageWarns(command, blank, clauses, contexts) {
       if (SQLITE_HEAD.test(text) && !SQLITE_SAFE_HINT.test(command.slice(stage.start, stage.end))) {
         sqlite = true;
       }
-      const rm = text.match(RM_RF_HEAD);
+      const rm = text.match(RM_HEAD);
       if (rm) {
         // The head is found in the BLANKED text (so a quoted `rm -rf` in an echo argument is never one) and
-        // ends at the last FLAG; the targets are then read off the RAW command, which is the only place a
-        // quoted target still exists. Split on whitespace with the quote characters left ON, deliberately:
-        // joining a quoted span into one word would make `rm -rf /tmp/a "/tmp/b c"` — which asks today on
-        // its `c"` token — start passing, and this rule may only ever tighten.
-        const targets = command
+        // covers the COMMAND WORD only; flags and targets are then read off the RAW command, which is the
+        // only place a quoted one still exists. Split on whitespace with the quote characters left ON,
+        // deliberately: joining a quoted span into one word would make `rm -rf /tmp/a "/tmp/b c"` — which
+        // asks today on its `c"` token — start passing, and this rule may only ever tighten.
+        const tokens = command
           .slice(stage.start + rm[0].length, stage.end)
           .split(/\s+/)
-          .filter((t) => t.length > 0 && !t.startsWith("-"));
-        // The map is built lazily — an `rm` head is rare, and this is the only rule that needs it.
-        const vars = targets.length > 0 ? assignedVars(command, blank, clauses, stage.start) : null;
-        if (targets.some((t) => !RM_SAFE_TARGET.test(vars === null ? t : expandAssigned(t, vars)))) {
-          rmrf = true;
+          .filter((t) => t.length > 0);
+        // An `rm` carrying no `-r`/`-f` at all is not this rule (`rm one-file.txt` never asked and must not
+        // start): the flags are searched across ALL tokens rather than required adjacent to the head, since
+        // `rm packages/x -rf` is the same deletion.
+        if (tokens.some((t) => RM_FLAG_TOKEN.test(t))) {
+          const targets = tokens.filter((t) => !t.startsWith("-") && !RM_FLAG_TOKEN.test(t));
+          // The map is built lazily — an `rm` head is rare, and this is the only rule that needs it.
+          const vars = targets.length > 0 ? assignedVars(command, blank, clauses, stage.start) : null;
+          if (targets.some((t) => !RM_SAFE_TARGET.test(vars === null ? t : expandAssigned(t, vars)))) {
+            rmrf = true;
+          }
         }
       }
     }
@@ -1119,17 +1149,34 @@ export function inlineShellCommands(command, blank, clauses) {
   return found;
 }
 
-/** The end index of a `$( … )` body that starts at `from`, by paren depth over a LOCALLY quote-blanked
- *  copy (a `)` inside quotes must not close it), or -1 when unbalanced. */
+/** The end index of a `$( … )` body that starts at `from`, by paren depth with quote tracking (a `)` inside
+ *  quotes must not close it), or -1 when unbalanced.
+ *
+ *  ESCAPES ARE HONOURED HERE, unlike `blankQuoted` — which this walk used until leg 5 (2026-08-14) and
+ *  which treats a `\"` as OPENING a quote (it only checks the backslash when CLOSING one). A substitution
+ *  nested in double quotes must escape its own inner quotes, so `echo "$(rm -rf \"packages/server/src\")"`
+ *  opened a phantom quoted span at the `\"`, swallowed the closing paren, returned -1, and the substitution
+ *  was dropped from the extraction ENTIRELY — the inner `rm -rf` was classified as nothing at all. A
+ *  self-contained walk is also the honest one: `blankQuoted`'s job is to blank spans for the RULE regexes,
+ *  not to parse shell escapes, and changing it would touch every rule in the file. Direction of the fix is
+ *  one-way: a substitution that used to be invisible is now handed to `classify`, which can only make the
+ *  outer verdict stricter. */
 function substitutionEnd(command, from) {
-  const inner = blankQuoted(command.slice(from));
   let depth = 0;
-  for (let j = 0; j < inner.length; j += 1) {
-    if (inner[j] === "(") {
+  let quote = null;
+  for (let j = from; j < command.length; j += 1) {
+    const ch = command[j];
+    if (ch === "\\") {
+      j += 1; // the next character is literal — including \" \) \` and \\
+    } else if (quote !== null) {
+      quote = ch === quote ? null : quote;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (ch === "(") {
       depth += 1;
-    } else if (inner[j] === ")") {
+    } else if (ch === ")") {
       if (depth === 0) {
-        return from + j;
+        return j;
       }
       depth -= 1;
     }
