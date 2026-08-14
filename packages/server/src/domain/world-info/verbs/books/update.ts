@@ -49,6 +49,10 @@ export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateBoo
     );
 
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
+    // The ROOM plane (entity→room bridge §3.6): the reach engine fans every chat whose per-turn pool reads
+    // this book. `removeBook` deliberately does NOT emit — `chat_books.worldBookId` CASCADEs, so a
+    // post-delete reach query resolves ∅ (see `WorldInfoUpdatedEvent`'s header).
+    ctx.emit({ type: "world-info.updated", bookId });
     return toBookView(updated);
   };
 }

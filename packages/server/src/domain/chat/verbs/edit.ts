@@ -26,7 +26,7 @@
 // (`stripChatEventForMember` at the live transport + the durable replay), so pre-stripping here would withhold
 // the host's own payload. Strip the return; emit the truth.
 
-import type { ChatBusEvent, MessageView, ReattributeScope } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, MessageView, ReattributeScope } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
@@ -90,7 +90,7 @@ import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime
 import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 
 /** The emit op the edit verbs close over. */
-type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
+type EmitChatEvent = (event: DurableChatBusEvent) => Promise<void>;
 
 /** The collaborators not on `ChatContext`. `resolveForeignInputs` backs the runOnEdit re-apply only:
  *  editMessage needs the host-global + chat-preset regex sources. */

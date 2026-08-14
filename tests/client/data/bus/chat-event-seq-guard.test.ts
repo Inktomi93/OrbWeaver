@@ -30,6 +30,12 @@ function opened(chatId: ChatId): Pick<ChatBusEvent, "type" | "chatId"> {
 function truncated(chatId: ChatId): Pick<ChatBusEvent, "type" | "chatId"> {
   return { type: "historyTruncated", chatId };
 }
+/** A LIVE-ONLY bus event (the entity→room bridge) — non-durable for a different reason than the two above:
+ *  it IS published on the room, it just has no `chat_events` row, so the pump stamps it with the current
+ *  cursor. Same exemption, same set. */
+function entityChanged(chatId: ChatId): Pick<ChatBusEvent, "type" | "chatId"> {
+  return { type: "roomEntityChanged", chatId };
+}
 
 describe("createChatEventSeqGuard", () => {
   test("admits a strictly increasing durable-seq stream once each (a normal turn: started → deltas → completed)", () => {
@@ -69,6 +75,22 @@ describe("createChatEventSeqGuard", () => {
     expect(guard.admit(durable(CHAT_A), "7")).toBe(false);
     // …while a genuinely new durable event still advances and passes.
     expect(guard.admit(durable(CHAT_A), "8")).toBe(true);
+  });
+
+  test("ALWAYS admits roomEntityChanged at the room's CURRENT (non-advancing) cursor — the live-only lane", () => {
+    const guard = createChatEventSeqGuard();
+    for (const seq of ["1", "2", "3"]) {
+      guard.admit(durable(CHAT_A), seq);
+    }
+    // The pump stamps a live-only frame with the CURRENT cursor (3 here) — non-advancing BY CONSTRUCTION,
+    // because the event has no durable row of its own. Without the exemption the mark would swallow EVERY
+    // entity fan and the bridge would be silently dead on the client side (the whole feature, invisible).
+    expect(guard.admit(entityChanged(CHAT_A), "3")).toBe(true);
+    // Repeatable — a burst of entity fans between two durable rows all land, none is a "stale re-delivery".
+    expect(guard.admit(entityChanged(CHAT_A), "3")).toBe(true);
+    // …and it disturbs the durable mark no more than the attach synthetics do.
+    expect(guard.admit(durable(CHAT_A), "3")).toBe(false);
+    expect(guard.admit(durable(CHAT_A), "4")).toBe(true);
   });
 
   test("still admits a GENUINELY NEW turn after a re-replay (a real regenerate's higher seq re-opens)", () => {

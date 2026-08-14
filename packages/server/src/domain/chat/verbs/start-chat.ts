@@ -27,7 +27,7 @@
 // `chatEventStream`, PD-134): a local per-viewer yield, never published on the bus, never logged to
 // `chat_events`. This verb deliberately stays silent on it (the marker guarding against a stray emit here).
 
-import type { ChatBusEvent, GroupConfig, GroupConfigInput, OpeningPolicy, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, GroupConfig, GroupConfigInput, OpeningPolicy, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema, roomOverridesSchema } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
@@ -56,7 +56,7 @@ import { toChatDetail } from "../substrate/chat-detail.ts";
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
  *  returned `ChatDetail` roster; the engine + the two assemble resolvers back the `generate` opening only. */
 interface StartChatDeps {
-  readonly emit: (event: ChatBusEvent) => Promise<void>;
+  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
   /** The `generate` opening runs a single persisted `kind:"opening"` turn — start-chat never DRAFTS (the
    *  non-persisting `generateText` is a verb-level composer-fill path), so it needs the `runTurn` slice only. */

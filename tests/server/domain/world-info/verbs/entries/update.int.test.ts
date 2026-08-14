@@ -31,6 +31,41 @@ describe("updateEntry", () => {
     expect(updated.keys).toEqual(["y", "z"]);
   });
 
+  // THE ROOM PLANE (entity→room member-freshness bridge §3.6). Unlike the `wiEntryScopeChanged` chat-bus fan
+  // — which fires only for a SCOPE-affecting field, and only into chat-scope attachments — the domain event
+  // is UNCONDITIONAL on a real write: a content-only edit moves what every room reading this book (through
+  // ANY of the four scopes) assembles next turn, and that was the exact case with no room driver at all.
+  test("a CONTENT-only edit raises `world-info.updated` even though the scope fan deliberately stays silent", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createWorldInfoService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const entry = await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "E", content: "old" } });
+    h.domainEvents.length = 0;
+    h.wiEvents.length = 0;
+
+    await svc.updateEntry({ principal: principal(owner), entryId: entry.id, input: { content: "new" } });
+
+    expect(h.domainEvents).toEqual([{ type: "world-info.updated", bookId: book.id }]);
+    // The scope fan is silent — content is not a scope-affecting field. That asymmetry is the point.
+    expect(h.wiEvents).toEqual([]);
+  });
+
+  test("a NO-OP edit raises no room event — the verb re-reads without writing", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createWorldInfoService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const entry = await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "E", content: "c" } });
+    h.domainEvents.length = 0;
+
+    await svc.updateEntry({ principal: principal(owner), entryId: entry.id, input: {} });
+
+    expect(h.domainEvents).toEqual([]);
+  });
+
   test("clears metadata when passed null", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);

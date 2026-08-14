@@ -5,6 +5,7 @@
 // The chat scope is membership-scoped (D18 — no chats.ownerId); its guards (requireChatHost/Member) and
 // emit (emitWiEvent) arrive as injected ops from chat's own guards/bus, wired at the composition root.
 
+import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { LoreConstantCanonRow, LoreEntryIndexRow, UpsertEntriesResult, WiBusEvent } from "@orb/contracts/world-info";
@@ -60,6 +61,13 @@ export interface WorldInfoContext {
   readonly emitWiEvent: (event: WiBusEvent) => Promise<void>;
   /** Live-freshness emit; distinct from emitWiEvent (the per-open-chat bus for attachment changes). */
   readonly emitUserEvent: EmitUserEvent;
+  /** The in-process DOMAIN-event emit (the character precedent — a domain never touches a bus, it receives
+   *  the injected op). CONTENT writes raise `world-info.updated`, which the composition root's reach engine
+   *  turns into a room fan for every chat whose per-turn pool reads this book. THREE distinct planes, do not
+   *  collapse them: `emitUserEvent` = the owner's own devices (the library list), `emitWiEvent` = the
+   *  ATTACHMENT view of one chat (a book/entry attached or its scope moved), this = the ASSEMBLY went stale
+   *  in every room that reads the book. Fire-and-forget + error-isolated by the bus. */
+  readonly emit: EmitDomainEvent;
 }
 
 export interface WorldInfoService {

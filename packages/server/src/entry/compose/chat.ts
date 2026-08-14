@@ -6,7 +6,7 @@
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
 import { setTimeout as sleep } from "node:timers/promises";
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
@@ -253,7 +253,7 @@ export interface ChatComposeInput {
   readonly now: () => number;
   /** The one chat bus's durable-first emit, built at the composition root and injected so chat doesn't
    *  construct a second bus. The same wrapper backs persona's active-persona write. */
-  readonly emitChatEvent: (event: ChatBusEvent) => Promise<void>;
+  readonly emitChatEvent: (event: DurableChatBusEvent) => Promise<void>;
   /** The lock-holder tag for this replica (also used by the boot lock reclaim). */
   readonly holder: string;
   readonly sessionSecret: string | null;
@@ -306,7 +306,7 @@ export interface ChatComposeInput {
  *  publish onto the chat bus (e.g. world-info). */
 export interface ChatComposeResult {
   readonly service: ChatService;
-  readonly emitBusEvent: (event: ChatBusEvent) => Promise<void>;
+  readonly emitBusEvent: (event: DurableChatBusEvent) => Promise<void>;
   /** The generic, principal-free chat ops domain/rpg receives by injection (02 §1.1) — built over chat's own
    *  ctx here (chat never learns rpg). Wired onto `RpgContext.chat` at the rpg compose block. */
   readonly rpgChatOps: {

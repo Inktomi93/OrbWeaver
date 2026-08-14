@@ -2,6 +2,7 @@
 // CRUD + the character⇄persona junction + the non-lossy createFromCharacter mint. Every verb gates on
 // `principal.userId`; persona sideways-imports nothing.
 
+import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -34,6 +35,12 @@ export interface PersonaContext {
   /** Fires `personasChanged` with the acting owner's `userId` after every persona-CRUD write commits, so a
    *  second device's list refetches. Fire-and-forget. */
   readonly emitUserEvent: EmitUserEvent;
+  /** The in-process DOMAIN-event emit (the character precedent — a domain never touches a bus, it receives
+   *  the injected op). Content-affecting writes raise `persona.updated`, which the composition root's reach
+   *  engine turns into a room fan for every chat this persona is live in — the OTHER audience plane from
+   *  `emitUserEvent`, which only ever reaches the editor's own devices. Fire-and-forget + error-isolated by
+   *  the bus; the two emits are a PAIR at every content write, never one or the other. */
+  readonly emit: EmitDomainEvent;
 
   readonly requireChatAuthorOrHost: (principal: Principal, chatId: ChatId, targetUserId: UserId) => Promise<void>;
   readonly setChatActivePersona: (chatId: ChatId, targetUserId: UserId, personaId: PersonaId | null) => Promise<void>;

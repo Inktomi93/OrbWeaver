@@ -118,6 +118,9 @@ export function createUpsertEntries(ctx: WorldInfoContext): WorldInfoService["up
 
     if (counts.inserted > 0 || counts.updated > 0) {
       ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
+      // The ROOM plane (entity→room bridge §3.6) — inside the same "something actually landed" guard: a run
+      // that skipped every hand-edited entry wrote nothing, so there is no assembly change to announce.
+      ctx.emit({ type: "world-info.updated", bookId });
     }
     return counts;
   };

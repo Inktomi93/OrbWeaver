@@ -217,6 +217,27 @@ function findSeam(project: Project): SourceFile | undefined {
   return project.getSourceFiles().find((sf) => CLIENT_SRC.test(sf.getFilePath()) && declaresSeamFactory(sf));
 }
 
+/** A sibling module the seam is allowed to keep its filter rows in: `data/invalidation-*.ts` beside the seam
+ *  itself. THE SEAM IS TWO FILES SINCE 2026-08-14 — `component-size` forced the read SETS out of
+ *  `invalidation.ts` into `invalidation-reads.ts`, and a coverage walk that stops at the import boundary
+ *  would report every one of those rows as MISSING (measured: 5 false findings, the exact "the gate lies"
+ *  failure). The pattern is deliberately NARROW — the same directory, the same `invalidation` prefix — so
+ *  this admits the seam's own split parts and NOT any client module that happens to hold a filter. */
+const SEAM_SIBLING = /\/packages\/client\/src\/data\/invalidation[^/]*\.ts$/u;
+
+/** The seam's module SET: the declaring file plus every `SEAM_SIBLING` it imports (one hop — a sibling's own
+ *  imports are not followed, so the surface stays the seam's, not the client tree's). */
+function seamModules(seam: SourceFile): SourceFile[] {
+  const out = [seam];
+  for (const imp of seam.getImportDeclarations()) {
+    const target = imp.getModuleSpecifierSourceFile();
+    if (target !== undefined && SEAM_SIBLING.test(target.getFilePath()) && !out.includes(target)) {
+      out.push(target);
+    }
+  }
+  return out;
+}
+
 function declaresSeamFactory(sf: SourceFile): boolean {
   if (sf.getFunction(SEAM_FACTORY) !== undefined) {
     return true;
@@ -224,25 +245,29 @@ function declaresSeamFactory(sf: SourceFile): boolean {
   return sf.getVariableDeclaration(SEAM_FACTORY) !== undefined;
 }
 
-/** name → declaration node, for every top-level function/variable binding in the seam module. */
-function seamBindings(sf: SourceFile): Map<string, Node> {
+/** name → declaration node, for every top-level function/variable binding across the seam's module SET.
+ *  Merged by NAME, which is exactly right for the reachability walk: a helper the seam imports is reached
+ *  through the identifier the seam calls it by. */
+function seamBindings(modules: readonly SourceFile[]): Map<string, Node> {
   const out = new Map<string, Node>();
-  for (const fn of sf.getFunctions()) {
-    const name = fn.getName();
-    if (name !== undefined) {
-      out.set(name, fn);
+  for (const sf of modules) {
+    for (const fn of sf.getFunctions()) {
+      const name = fn.getName();
+      if (name !== undefined) {
+        out.set(name, fn);
+      }
     }
-  }
-  for (const vd of sf.getVariableDeclarations()) {
-    out.set(vd.getName(), vd);
+    for (const vd of sf.getVariableDeclarations()) {
+      out.set(vd.getName(), vd);
+    }
   }
   return out;
 }
 
 /** The filter rows reachable from `createInvalidation` — the closure over the seam's own helpers/maps, so a
  *  filter in a helper nothing calls contributes NO coverage. */
-function seamCoverage(sf: SourceFile): Coverage {
-  const bindings = seamBindings(sf);
+function seamCoverage(seam: SourceFile): Coverage {
+  const bindings = seamBindings(seamModules(seam));
   const roots = new Set<string>();
   const keys = new Set<string>();
   const seen = new Set<string>();
@@ -415,6 +440,19 @@ export const gate: GateDescriptor = {
       why: "the ratchet's other direction: a cited key that gains a seam row must RED its now-lying registry entry",
     },
     {
+      // The SIBLING PATTERN IS NARROW — the two-sided half of the split-seam mustPass below. Widening the
+      // seam to two files must NOT widen it to `data/**`: a filter parked in an unrelated client-data module
+      // the seam happens to import is still not seam coverage.
+      files: {
+        "packages/client/src/data/invalidation.ts":
+          'import { somethingElse } from "./use-upload-asset.ts";\nexport interface Invalidation { readonly invalidate: () => void }\nexport function createInvalidation(trpc: Trpc) {\n  return somethingElse(trpc);\n}\n',
+        "packages/client/src/data/use-upload-asset.ts": "export function somethingElse(trpc: Trpc) {\n  return [trpc.ghost.notTheSeam.pathFilter()];\n}\n",
+        "packages/client/src/features/x/components/x.tsx": "export const q = trpc.ghost.notTheSeam.queryOptions({});\n",
+      },
+      expect: { count: 1, token: "ghost.notTheSeam" },
+      why: "the sibling pattern admits `data/invalidation*.ts` ONLY — a filter in any other client-data module is not seam coverage, so the key still REDs",
+    },
+    {
       // TRIPWIRE: the seam anchor survives but the factory symbol was renamed away.
       files: {
         "packages/client/src/data/invalidation.ts":
@@ -434,6 +472,16 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/x/components/x.tsx": "export const q = trpc.ghost.livingRead.queryOptions({});\n",
       },
       why: "the key's row lives in a helper the map composes — helper composition is followed, so it passes",
+    },
+    {
+      // THE SEAM IS TWO FILES: the row lives in the sibling `invalidation-reads.ts` the seam imports.
+      files: {
+        "packages/client/src/data/invalidation.ts":
+          'import { canonReads } from "./invalidation-reads.ts";\nexport interface Invalidation { readonly invalidate: () => void }\nexport function createInvalidation(trpc: Trpc) {\n  return canonReads(trpc);\n}\n',
+        "packages/client/src/data/invalidation-reads.ts": "export function canonReads(trpc: Trpc) {\n  return [trpc.ghost.splitRead.pathFilter()];\n}\n",
+        "packages/client/src/features/x/components/x.tsx": "export const q = trpc.ghost.splitRead.queryOptions({});\n",
+      },
+      why: "the seam's read SETS live in `data/invalidation-reads.ts` since component-size split them out (2026-08-14) — a one-hop walk into that sibling is what keeps the coverage side honest; without it every split-out row reads as MISSING",
     },
     {
       // Covered by the ROUTER-ROOT pathFilter (it invalidates every proc under the router).

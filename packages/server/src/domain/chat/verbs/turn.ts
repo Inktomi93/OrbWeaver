@@ -10,8 +10,8 @@
 
 import type {
   AssembleContext,
-  ChatBusEvent,
   ChatInjection,
+  DurableChatBusEvent,
   GroupConfig,
   MacroFreezeRecord,
   MessageView,
@@ -114,7 +114,7 @@ type RoundBase = Parameters<typeof driveRoundVia>[0]["base"];
 interface TurnDeps {
   readonly engine: TurnEngine;
   readonly activeTurns: ActiveTurns;
-  readonly emit: (event: ChatBusEvent) => Promise<void>;
+  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   readonly prng: () => number;
   readonly delay: (ms: number) => Promise<void>;
   readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;

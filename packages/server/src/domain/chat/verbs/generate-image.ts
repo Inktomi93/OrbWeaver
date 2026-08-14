@@ -6,7 +6,7 @@
 // returns blocks + warnings; chat holds the message-write authority. Reuses the persist/emit pattern of
 // `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
 
-import type { ChatBusEvent, ChatWarningCode, MessageView } from "@orb/contracts/chat";
+import type { ChatWarningCode, DurableChatBusEvent, MessageView } from "@orb/contracts/chat";
 import { batchMany } from "@orb/db/kit";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
@@ -32,7 +32,7 @@ function toChatWarningCode(imageryCode: string): ChatWarningCode | null {
 
 /** The collaborators not on `ChatContext` (the chat bus emit — chat's own collaborator, wired at the root). */
 interface GenerateImageDeps {
-  readonly emit: (event: ChatBusEvent) => Promise<void>;
+  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   /** The husk→real transition (R0) -- an image generation commits a caller-authored row, so it claims. */
   readonly claimChat: ClaimChatOp;
 }

@@ -66,6 +66,11 @@ export function createImport(ctx: PersonaContext): PersonaService["import"] {
       at,
     );
     ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId });
+    // The MERGE arm is a content write to a persona that may be seated in live rooms (a restore over an
+    // existing name rewrites title/description/metadata), so it takes the room plane too (entity→room bridge
+    // §3.6). Emitted on the fresh-mint arm as well: the reach lookup resolves ∅ for an unseated persona, so
+    // the branch would buy one query's difference at the cost of a second code path.
+    ctx.emit({ type: "persona.updated", personaId });
 
     const row = await loadOwnedPersonaWithAvatar(ctx.db, ownerId, personaId);
     if (row === undefined) {

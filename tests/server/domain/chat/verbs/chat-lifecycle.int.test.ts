@@ -3,7 +3,7 @@
 // CRUD, and the emitted bus events. Reached through the BUNDLE `createChatLifecycle(ctx, { emit })`.
 
 import process from "node:process";
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, UserMacroSpec } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -30,14 +30,14 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
-let emitted: ChatBusEvent[];
+let emitted: DurableChatBusEvent[];
 
 beforeEach(async () => {
   db = await freshDb();
   emitted = [];
 });
 
-const emit = (event: ChatBusEvent): Promise<void> => {
+const emit = (event: DurableChatBusEvent): Promise<void> => {
   emitted.push(event);
   return Promise.resolve();
 };
@@ -142,7 +142,7 @@ describe("chat-row flags (host-only)", () => {
     // chat it is deleting, so its ordering against the row drop is part of what this test pins.
     const life = createChatLifecycle(makeChatContext(db), {
       claimChat: (): Promise<void> => Promise.resolve(),
-      emit: async (event: ChatBusEvent): Promise<void> => {
+      emit: async (event: DurableChatBusEvent): Promise<void> => {
         await bus.emit(event);
       },
       activeTurns: sc.activeTurns,

@@ -12,7 +12,7 @@
 // non-nominee accept is refused with not_turn_owner.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, GroupConfig, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, GroupConfig, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import {
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
@@ -77,7 +77,7 @@ import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 
 /** The emit op the mutating roster verbs close over. */
-type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
+type EmitChatEvent = (event: DurableChatBusEvent) => Promise<void>;
 
 /** The extra collaborators the roster bundle needs beyond `ChatContext`. */
 interface RosterDeps {

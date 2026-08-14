@@ -48,6 +48,12 @@
 //     CHAT_CHANGED "on open, run setup" hook; the client reducer invalidates). PD-134.
 //   • `historyTruncated` — yielded on resume when the cursor predates the retained window (events after it
 //     were dropped, a gap replay can't fill), BEFORE the replay so the client refetches first. PD-135.
+// A THIRD CLASS OF NON-DURABLE FRAME ARRIVES ON THE BUS ITSELF: the LIVE-ONLY lane (`ChatLiveEvent`'s
+// `seq: null` arm — the entity→room member-freshness bridge, design §3.4). Unlike the two syntheses it IS
+// published (every subscriber of the room sees it) and it is member-gated + clamped like everything else;
+// what it lacks is a `chat_events` row. It therefore skips the live-loop dedup (no cursor to compare) and
+// yields under the SAME non-advancement rule as the syntheses. Loss semantics are stated, not accidental: a
+// device dark through a live-only fan never replays it — the heal is the per-attach `chatOpened`.
 // THE SYNTHETIC-ENVELOPE RULE, carried onto the frame: a synthetic's `seq` is the CURRENT resume cursor
 // (`cursor ?? 0`), never a fresh/durable one, so it cannot advance the room's cursor past a row that was
 // never delivered — a reconnect replays from the exact same durable point. (`cursor ?? 0` on a cursor-less
@@ -104,8 +110,10 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
     }
 
     for await (const entry of live) {
-      // Dedup the replay/live overlap (and any out-of-order delivery) by the monotonic `seq`.
-      if (entry.seq <= maxSeq) {
+      // A LIVE-ONLY entry (`seq: null`, the entity→room bridge's lane — design §3.4) has no durable row and
+      // therefore no cursor: there is nothing to dedup against, and it yields at the CURRENT cursor below.
+      // Dedup everything else — the replay/live overlap and any out-of-order delivery — by the monotonic `seq`.
+      if (entry.seq !== null && entry.seq <= maxSeq) {
         continue;
       }
       // The per-yield membership gate → D16 clamp → §3.6 member projection, resolved as ONE verdict. `null` =
@@ -114,6 +122,15 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
       // the identical verdict to the gap, so the room never stalls and never re-offers a withheld row.
       const projected = await resolveLiveYield({ service, principal, chatId, event: entry.event });
       if (projected === null) {
+        continue;
+      }
+      if (entry.seq === null) {
+        // THE NON-ADVANCEMENT RULE, reused verbatim from the attach synthetics (`attachSynthesesAndReplay`):
+        // a live-only frame carries the CURRENT cursor, so the socket cell's resume cursor (advanced at
+        // delivery from the frame's `seq`, `stream/socket.ts`) cannot move past a durable row this
+        // subscriber never received. The client's seq guard admits it by TYPE (`NON_DURABLE_EXEMPT`) —
+        // a non-advancing frame would otherwise be dropped as a stale re-delivery.
+        yield { channel: "chat", chatId, seq: maxSeq, event: projected };
         continue;
       }
       yield { channel: "chat", chatId, seq: entry.seq, event: projected };

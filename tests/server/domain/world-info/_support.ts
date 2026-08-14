@@ -6,6 +6,7 @@
 // personas) directly — a test fixture may read `users`; the `no-direct-users-read` gate scopes only
 // `packages/server/src/domain`.
 
+import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -37,6 +38,9 @@ export interface WorldInfoHarness {
   readonly wiEvents: Parameters<WorldInfoContext["emitWiEvent"]>[0][];
   /** The recorded user-bus `emitUserEvent` calls — assert `worldInfoChanged` fires after a durable write. */
   readonly userEvents: UserEventCall[];
+  /** The recorded DOMAIN-event emits — the ROOM plane (entity→room bridge). A CONTENT write owes all three
+   *  planes; a test asserting only the user-bus one would pass with the room announcement missing. */
+  readonly domainEvents: DomainEvent[];
   /** Advance the injected frozen clock (ms) — to break createdAt ties for newest-first ordering tests. */
   readonly advance: (ms: number) => void;
 }
@@ -54,6 +58,7 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfo
   const audits: AuditCall[] = [];
   const wiEvents: Parameters<WorldInfoContext["emitWiEvent"]>[0][] = [];
   const userEvents: UserEventCall[] = [];
+  const domainEvents: DomainEvent[] = [];
   const notStubbed = (): never => {
     throw new Error("WorldInfoContext chat-guard op not stubbed in this test");
   };
@@ -76,8 +81,12 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfo
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
     },
+    // The entity→room bridge's producer side — the THIRD plane (see `WorldInfoContext.emit`).
+    emit: (event: DomainEvent): void => {
+      domainEvents.push(event);
+    },
   };
-  return { ctx, audits, wiEvents, userEvents, advance: (ms: number): void => clock.advance(ms) };
+  return { ctx, audits, wiEvents, userEvents, domainEvents, advance: (ms: number): void => clock.advance(ms) };
 }
 
 interface SeedUserOverrides {

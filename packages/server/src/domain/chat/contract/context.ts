@@ -4,8 +4,8 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
-  ChatBusEvent,
   ChatInjection,
+  DurableChatBusEvent,
   GroupConfig,
   HistoryFloorSeq,
   PromptTransform,
@@ -358,7 +358,7 @@ export type PostNarratorMessage = (
 /** The chat-bus emit the narrator-post op needs (durable-first) — chat's own collaborator, wired at the root
  *  (the `GenerateImageDeps` shape; not on `ChatContext`). */
 export interface PostNarratorMessageDeps {
-  readonly emit: (event: ChatBusEvent) => Promise<void>;
+  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   /** The husk→real transition (R0) -- a narrator post is canon, so it claims. */
   readonly claimChat: ClaimChatOp;
 }
@@ -1107,7 +1107,7 @@ export type ResolveCreatorGroupDefaultsOp = (userId: UserId) => Promise<GroupCon
 
 export interface ChatServiceDeps {
   /** The chat bus emit (durable-first). */
-  readonly emit: (event: ChatBusEvent) => Promise<void>;
+  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   /** The in-flight lock-free turn registry (abort + concurrency). */
   readonly activeTurns: ActiveTurns;
   /** The seeded PRNG for arbitration sampling. */

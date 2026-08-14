@@ -1,5 +1,5 @@
 import type { CastEntry, ChatBusEvent, ChatDeltaEvent } from "@orb/contracts/chat";
-import { buildCastNameContext, CHAT_BUS_EVENT_TYPES, isChatBusEventType } from "@orb/contracts/chat";
+import { buildCastNameContext, CHAT_BUS_EVENT_TYPES, isChatBusEventType, LIVE_ONLY_CHAT_EVENT_TYPES } from "@orb/contracts/chat";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolveRowMacros } from "@orb/kit/macro";
@@ -53,8 +53,25 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
   expect(isChatBusEventType("warning")).toBe(true);
   expect(isChatBusEventType("messageHidden")).toBe(true);
   expect(isChatBusEventType("turnAccepted")).toBe(true);
-  // 21 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`, the pre-arbitration `turnAccepted`) + 6 WI variants.
-  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(27);
+  expect(isChatBusEventType("roomEntityChanged")).toBe(true);
+  // 22 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`, the pre-arbitration `turnAccepted`,
+  // the entity→room bridge's `roomEntityChanged`) + 6 WI variants.
+  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(28);
+});
+
+// THE LIVE-ONLY LANE (entity→room bridge §3.4). The two subsets must PARTITION the union: a member that is
+// in neither can never be fanned, and one in both is a contradiction the emit surfaces would resolve
+// arbitrarily. `DurableChatBusEvent` is what the db CHECK derives from, so a drift here is a row shape the
+// schema would reject at runtime.
+test("LIVE_ONLY_CHAT_EVENT_TYPES partitions the union — durable ∪ live-only = every member, ∩ = ∅", () => {
+  expect([...LIVE_ONLY_CHAT_EVENT_TYPES]).toEqual(["roomEntityChanged"]);
+  const all = Object.keys(CHAT_BUS_EVENT_TYPES);
+  const liveOnly = new Set<string>(LIVE_ONLY_CHAT_EVENT_TYPES);
+  // Every live-only member is a REAL union member (a typo'd tuple entry would silently narrow nothing).
+  for (const type of liveOnly) {
+    expect(all).toContain(type);
+  }
+  expect(all.filter((t) => !liveOnly.has(t))).toHaveLength(all.length - liveOnly.size);
 });
 
 test("a representative ChatBusEvent round-trips its public, secret-free shape", () => {
