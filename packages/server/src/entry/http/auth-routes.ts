@@ -57,6 +57,22 @@ const BYTES_PER_KIB = 1024;
 // (env floor RATE_LIMIT_LOGIN=10 ⊕ admin override), resolved fresh per attempt via `deps.resolveLoginLimit`.
 const LOGIN_WINDOW_MS = 60_000;
 const LOGIN_RATE_SCOPE = "login-ip";
+// B1 — THE SECOND LOGIN THROTTLE AXIS: the same DB-backed fixed window, keyed on the HANDLE. The per-IP cap
+// is structurally blind to the distributed shape (N botnet IPs × the cap, all against ONE account), which is
+// the brute force that actually finds a password. Both axes must pass INDEPENDENTLY for an attempt to reach
+// `authenticate`.
+//   NEVER A LOCKOUT: same 60s rolling window, no persisted per-account state, nothing an attacker can latch.
+//   Hammering someone's handle SLOWS them for at most one window; the next window is clean.
+//   THE CAP SITS ABOVE THE PER-IP ONE (×3, derived from the same admin-flippable `rateLimits.login` so there
+//   is still ONE knob): a single-source attacker therefore always trips the IP axis first, and this belt only
+//   bites what that axis cannot see. It is also why a legitimate human never reaches it — nobody types their
+//   own password wrong 30 times in a minute, and the axis is per-ACCOUNT, so a shared NAT cannot pool onto it.
+const LOGIN_HANDLE_RATE_SCOPE = "login-handle";
+const LOGIN_HANDLE_LIMIT_MULTIPLIER = 3;
+// The handle is attacker-controlled text (up to the 4 KiB body cap) that becomes part of a row KEY in the
+// shared bucket table — bound it. Two absurd handles sharing the first 128 chars share a bucket; neither
+// authenticates against anything, so the only effect is a stricter throttle on garbage.
+const HANDLE_KEY_MAX_CHARS = 128;
 // The anonymous caller when no peer IP resolves — one shared throttle bucket beats an un-throttled hole.
 const UNKNOWN_IP_KEY = "unknown";
 // Credentials are tiny; cap the login body so a huge POST can't DoS this unauthenticated endpoint.
@@ -301,6 +317,16 @@ export interface AuthRoutesDeps {
   readonly oidc?: OidcRoutesDeps;
 }
 
+/** The over-budget response, IDENTICAL on both throttle axes (B1). Which belt fired is an OPERATOR signal
+ *  (the distinct `securityEvent` names) and never a wire one: a body that named the axis would tell a
+ *  brute-forcer whether to rotate IPs or rotate handles. Carries Retry-After when the limiter reports one. */
+function throttledResponse(c: Context, err: DomainRateLimitError): Response {
+  if (err.msBeforeNext !== undefined) {
+    c.header("Retry-After", String(Math.max(1, Math.ceil(err.msBeforeNext / MS_PER_SECOND))));
+  }
+  return c.json({ error: "too many attempts; try again shortly" }, TOO_MANY_REQUESTS);
+}
+
 /** Consume one login-throttle point for the caller IP; returns a 429 Response when over budget, else null
  *  (proceed). Keyed on the peer-first `clientIp` the ingress gate + tRPC seam share (no drift). */
 async function throttleLogin(limiter: RateLimiter, c: Context): Promise<Response | null> {
@@ -309,11 +335,35 @@ async function throttleLogin(limiter: RateLimiter, c: Context): Promise<Response
     return null;
   } catch (err) {
     if (err instanceof DomainRateLimitError) {
-      if (err.msBeforeNext !== undefined) {
-        c.header("Retry-After", String(Math.max(1, Math.ceil(err.msBeforeNext / MS_PER_SECOND))));
-      }
       securityEvent("login_throttled", { clientIp: clientIp(c) }, "security: login attempts over the per-IP throttle — 429");
-      return c.json({ error: "too many attempts; try again shortly" }, TOO_MANY_REQUESTS);
+      return throttledResponse(c, err);
+    }
+    throw err;
+  }
+}
+
+/** B1 — the HANDLE-axis bucket key. The SAME normalization `sessions.authenticate` resolves the row with
+ *  (`.trim()`, then a byte-exact `eq(users.handle, …)` against a BINARY-collated column), or a brute-forcer
+ *  dodges the whole axis by padding a space onto every attempt. Length-bounded (see `HANDLE_KEY_MAX_CHARS`). */
+function handleThrottleKey(rawHandle: string): string {
+  return rawHandle.trim().slice(0, HANDLE_KEY_MAX_CHARS);
+}
+
+/** B1 — consume one point on the HANDLE axis; 429 when that account is over budget, else null. Runs BESIDE
+ *  the per-IP consume (both must pass) and, like it, BEFORE `authenticate` — a throttle that let the KDF run
+ *  first would have already tested the attacker's guess. */
+async function throttleLoginHandle(limiter: RateLimiter, c: Context, handleKey: string): Promise<Response | null> {
+  try {
+    await limiter.consume(handleKey);
+    return null;
+  } catch (err) {
+    if (err instanceof DomainRateLimitError) {
+      securityEvent(
+        "login_handle_throttled",
+        { handle: handleKey, clientIp: clientIp(c) },
+        "security: login attempts against ONE handle over the per-handle throttle (a distributed brute force, or a targeted flood of the account) — 429",
+      );
+      return throttledResponse(c, err);
     }
     throw err;
   }
@@ -332,12 +382,30 @@ function loginThrottler(deps: AuthRoutesDeps): RateLimiter {
   });
 }
 
-/** Register `POST /api/auth/login` (local mode only): body cap → per-IP throttle → verify → mint cookie. */
+/** B1 — the per-HANDLE login throttle (the SAME shared `rate_limit_buckets` table, its own `login-handle`
+ *  scope so the two axes never share a bucket). The cap is the resolved `AppSettings.rateLimits.login` times
+ *  {@link LOGIN_HANDLE_LIMIT_MULTIPLIER}, read FRESH per attempt like the per-IP one — one admin knob moves
+ *  both belts together. Only the login route mints one: `first-run` carries no handle (it is the owner
+ *  password-set) and stays IP-only. */
+function loginHandleThrottler(deps: AuthRoutesDeps): RateLimiter {
+  return createRateLimiter(deps.db, {
+    scope: LOGIN_HANDLE_RATE_SCOPE,
+    points: () => deps.resolveLoginLimit() * LOGIN_HANDLE_LIMIT_MULTIPLIER,
+    windowMs: LOGIN_WINDOW_MS,
+    now: deps.now,
+  });
+}
+
+/** Register `POST /api/auth/login` (local mode only): body cap → per-IP throttle → per-HANDLE throttle →
+ *  verify → mint cookie. The two throttle axes are independent and BOTH must pass (B1). */
 function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: LocalAuthenticator): void {
-  // Body-limit belt runs first so a huge POST is rejected before the body buffers; the throttle then caps
+  // Body-limit belt runs first so a huge POST is rejected before the body buffers; the throttles then cap
   // brute-force + scrypt-CPU-flood.
   const loginLimiter = loginThrottler(deps);
+  const handleLimiter = loginHandleThrottler(deps);
   app.post(LOGIN_ROUTE, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+    // The IP axis stays FIRST — it is the cheaper decision (no body parse) and it is the one that caps the
+    // scrypt-CPU flood from a single source.
     const throttled = await throttleLogin(loginLimiter, c);
     if (throttled !== null) {
       return throttled;
@@ -347,6 +415,12 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
     const password = typeof body[PASSWORD_FIELD] === "string" ? body[PASSWORD_FIELD] : "";
     if (handle.length === 0 || password.length === 0) {
       return c.json({ error: "missing credentials" }, BAD_REQUEST);
+    }
+    // B1 — the handle axis, AFTER the presence check (a credential-less probe mints no bucket) and BEFORE
+    // `authenticate` (a throttle that ran after the KDF would have already tested the guess).
+    const handleThrottled = await throttleLoginHandle(handleLimiter, c, handleThrottleKey(handle));
+    if (handleThrottled !== null) {
+      return handleThrottled;
     }
     const userId = await authenticate(castId<Handle>(handle), password);
     if (userId === null) {
