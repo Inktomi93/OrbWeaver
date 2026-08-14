@@ -249,7 +249,11 @@ const GIT_ADD_ALL = /\bgit\s+add\s+(?:-A\b|--all\b|\.(?:\s|$))/;
 const GIT_PUSH = /\bgit\s+(?:[^\s;|&]+\s+)*?push\b/;
 const GIT_PUSH_FORCE = /\bgit\s+push\b[^\n;|]*(?:\s--force(?:-with-lease)?\b|\s-f\b)/;
 const RM_RF_HEAD = /^\s*rm\s+(?:-[a-z]*[rf][a-z]*\s+)+/;
-const RM_SAFE_TARGET = /\/tmp\/|scratchpad|playwright\/\.cache|node_modules|reports\/|\bdist\b|\bcoverage\b|\.cache\b|\.bak\b/;
+// `.claude/worktrees/` added 2026-08-13: lane worktrees are disposable by construction and the standing
+// law now requires sweeping them by hand (teardown does not fire on agent completion — probed live). Asking
+// about every sweep spent lane turns for nothing. Scoped to `worktrees/` ONLY — the rest of `.claude/`
+// (settings, hooks, agents) is load-bearing and stays ask-tier.
+const RM_SAFE_TARGET = /\/tmp\/|scratchpad|playwright\/\.cache|node_modules|reports\/|\.claude\/worktrees\/|\bdist\b|\bcoverage\b|\.cache\b|\.bak\b/;
 // `$VAR` is safe (the rewrite copies text verbatim, the shell expands identically); `$(`/backticks/
 // parens/bare-& are not (subshells, grouping, backgrounding). fd-merges (2>&1) are stripped first.
 const UNSAFE_STAGE0 = /[<>()`&]/;
@@ -285,7 +289,7 @@ const REASONS = {
   netPipeShell:
     "Piping a network fetch straight into a shell executes whatever that URL serves right now, unreviewed — there is no legitimate instance of this shape in the 133k-command corpus this guard was tuned against. Download it, READ it, then run it.",
   rmRfUnsafe:
-    "`rm -rf` on a target that is not scratch (/tmp, scratchpad, node_modules, reports/, dist, coverage, .cache, *.bak, playwright/.cache). This used to reach the permission layer on its way past; it no longer does, so it stops here. Re-read the path — if it is right, confirm.",
+    "`rm -rf` on a target that is not scratch (/tmp, scratchpad, node_modules, reports/, .claude/worktrees/, dist, coverage, .cache, *.bak, playwright/.cache). This used to reach the permission layer on its way past; it no longer does, so it stops here. Re-read the path — if it is right, confirm.",
   sqliteLive:
     "Never run bare `sqlite3` against the LIVE db — a stray write or a held lock corrupts the running stack's state, and WAL makes the damage non-obvious. Probe a COPY, or use `/api/_debug/*`. If this really is a scratch/:memory: db, confirm.",
 };
@@ -940,18 +944,26 @@ async function runHookMode() {
     if (result.rewrite?.log) {
       mkdirSync(path.dirname(result.rewrite.log), { recursive: true });
     }
+    // Compute the output BEFORE logging so the record can carry what was actually EMITTED, not just what
+    // the classifier decided. These diverge on exactly one path and it is the one that matters: a subagent
+    // `ask` is emitted as `deny` (see toHookOutput). Logging only `decision` made 64 subagent rows read as
+    // hung `ask`s in triage when every one of them had been a clean deny — the header's own triage
+    // one-liner walked straight into that false alarm on 2026-08-13.
+    const output = toHookOutput(result, ctx);
+    const emitted = output?.hookSpecificOutput?.permissionDecision ?? null;
     logDecision(projectDir, {
       t: new Date().toISOString(),
       sid: input.session_id ?? null,
       agent: input.agent_type ?? "main",
       cwd: input.cwd ?? null,
       decision: result.decision,
+      ...(emitted !== null && emitted !== result.decision ? { emitted } : {}),
       rule: result.rule,
       ms: Date.now() - started,
       cmd: command.slice(0, CMD_LOG_MAX),
       ...(result.rewrite ? { rewrittenTo: result.rewrite.command.slice(0, CMD_LOG_MAX) } : {}),
     });
-    emit(toHookOutput(result, ctx));
+    emit(output);
   } catch (err) {
     // FAIL OPEN — a broken guard must never block work.
     logDecision(projectDir, { t: new Date().toISOString(), decision: "defer", rule: "guard-error", error: String(err) });
