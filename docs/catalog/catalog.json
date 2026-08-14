@@ -149,8 +149,8 @@
       "lane": "architecture-proposed",
       "issue": 4,
       "lines": 396,
-      "bytes": 30628,
-      "sha256": "59af53f96294020580bcb15ab8c82fd163226afa5b44ba15e8da4cd5037fdb64",
+      "bytes": 30625,
+      "sha256": "378f1c22302aba0ab1940c8ae8890c158c8368004ed34bf54c59a618e846bdd7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -167,15 +167,15 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "59af53f96294020580bcb15ab8c82fd163226afa5b44ba15e8da4cd5037fdb64",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "378f1c22302aba0ab1940c8ae8890c158c8368004ed34bf54c59a618e846bdd7",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/architecture/Context-Panel-Program.md:1 (full read; lifecycle/frontmatter evaluated)",
-          "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "docs/architecture/Context-Panel-Program.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
         ],
-        "summary": "Active owner-initiated context-panel program; retained as a current design specification.",
+        "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
         "claims": [
           {
             "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
@@ -198,9 +198,9 @@
       "path": "docs/architecture/core/AGENTS.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 350,
-      "bytes": 31255,
-      "sha256": "d49d9d2dc80f3cfc614fd427f1646588ccdefc95df53cdcae3459973dac9cfaf",
+      "lines": 351,
+      "bytes": 31172,
+      "sha256": "8ee2e6f827d9193dbf3e621a559d2eb5d56d56fb2a6f2d0dffea43829cf19af9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -217,13 +217,13 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "d49d9d2dc80f3cfc614fd427f1646588ccdefc95df53cdcae3459973dac9cfaf",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "8ee2e6f827d9193dbf3e621a559d2eb5d56d56fb2a6f2d0dffea43829cf19af9",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/architecture/core/AGENTS.md:1 (full read; header/status evaluated)",
-          "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "docs/architecture/core/AGENTS.md:1-351 full read; Project, recovery, proposed-program, and lane authority routing reconciled",
+          "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact constitution blob"
         ],
         "claims": [
           {
@@ -234,9 +234,22 @@
                 "target": "scripts/check/gates/package-layout.ts:35"
               }
             ]
+          },
+          {
+            "claim": "Project 1 owns mutable work, the slim workboard owns cold-start recovery, and proposed/INDEX maps committed programs to sprint issues.",
+            "evidence": [
+              {
+                "kind": "ruling",
+                "target": "docs/architecture/core/Core-Path-Registry.md:527"
+              },
+              {
+                "kind": "issue",
+                "target": "#4"
+              }
+            ]
           }
         ],
-        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+        "summary": "Normative constitution re-read against the split control plane, proposed-program sprint map, and existing package-layout enforcement."
       },
       "receiptCurrent": true
     },
@@ -499,8 +512,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 68,
-      "bytes": 6211,
-      "sha256": "a30d6ca8b846c5b048f794c5e70ff422d40f11dd8d7dc0d9d842880bee9cda68",
+      "bytes": 6251,
+      "sha256": "edd166459dd90c49e665b08afec95d5e4a8b0e5103a56495294e0e15c08fef6a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -517,13 +530,13 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "a30d6ca8b846c5b048f794c5e70ff422d40f11dd8d7dc0d9d842880bee9cda68",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "edd166459dd90c49e665b08afec95d5e4a8b0e5103a56495294e0e15c08fef6a",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/architecture/core/Core-Laws-and-Precedents.md:1 (full read; header/status evaluated)",
-          "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "docs/architecture/core/Core-Laws-and-Precedents.md:1-66 full read; registry range and Project/recovery redirects reconcile through D141",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 contains D139-D141",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact redirect blob"
         ],
         "claims": [
           {
@@ -536,7 +549,7 @@
             ]
           }
         ],
-        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+        "summary": "Normative ledger redirect re-read after D140-D141; the registry remains conflict authority."
       },
       "receiptCurrent": true
     },
@@ -579,9 +592,9 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 525,
-      "bytes": 234997,
-      "sha256": "6c360d7cfd645328e3d901f262e11f759732c8ff89142279afe45f57d27e3ac0",
+      "lines": 533,
+      "bytes": 236750,
+      "sha256": "b174e93694fbff522bd25e9cdb6fc5fbb25b6522122132588afce5d0fd9a8634",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -598,14 +611,13 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "6c360d7cfd645328e3d901f262e11f759732c8ff89142279afe45f57d27e3ac0",
-        "verifiedCommit": "dbabc6151539485c657ce6ad957c27662612e8b9",
+        "verifiedSha256": "b174e93694fbff522bd25e9cdb6fc5fbb25b6522122132588afce5d0fd9a8634",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/architecture/core/Core-Path-Registry.md:389 (D129(B) current implementation status)",
-          "docs/architecture/core/Core-Path-Registry.md:397 (D129(F) freeze-at-selection truth repair)",
-          "packages/contracts/src/connection/index.ts:204; packages/server/src/domain/chat/verbs/edit.ts:327; tests/server/domain/chat/assembly/shape.test.ts:1052 (current code/test corroboration)",
-          "git log --oneline -5 -- docs/architecture/core/Core-Path-Registry.md (cc3a9e886 latest current-doc change)"
+          "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
+          "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact registry blob"
         ],
         "claims": [
           {
@@ -618,7 +630,7 @@
             ]
           }
         ],
-        "summary": "Re-read after main rebase: D129(B) narrator wire-shape and D129(F) freeze-at-selection status claims match current contracts, verbs, and targeted tests; frozen assigned hash retained."
+        "summary": "Canonical D-ledger re-read through D141; frozen assigned hash retained and current verified blob updated."
       },
       "receiptCurrent": true
     },
@@ -697,8 +709,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 36,
-      "bytes": 2613,
-      "sha256": "f69763702bfde1d4a3b0882f94a85180ea08e6459563c711788b6372458a0d6f",
+      "bytes": 2567,
+      "sha256": "2a0729734af1c90761beee23cb7fb4d9c999050decd9195b0e033d9ab1743271",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -715,15 +727,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "f69763702bfde1d4a3b0882f94a85180ea08e6459563c711788b6372458a0d6f",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "2a0729734af1c90761beee23cb7fb4d9c999050decd9195b0e033d9ab1743271",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/architecture/core/Core-STATUS.md:1 (full read; header/status evaluated)",
-          "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "docs/architecture/core/Core-STATUS.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
         ],
-        "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+        "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
       "receiptCurrent": true
     },
@@ -767,8 +779,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 114,
-      "bytes": 11107,
-      "sha256": "48f47f52c2a07c935a6cdf9a89cf74ed5c3e074256b90a2274db675f4033a2ca",
+      "bytes": 11089,
+      "sha256": "108fef8b893959de3e9b4d779be1b21b9b73f38670c11be0a7cbd1ddd66d081c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -785,15 +797,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "48f47f52c2a07c935a6cdf9a89cf74ed5c3e074256b90a2274db675f4033a2ca",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "108fef8b893959de3e9b4d779be1b21b9b73f38670c11be0a7cbd1ddd66d081c",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/architecture/core/Core-SillyTavern-Feature-Map.md:1 (full read; header/status evaluated)",
-          "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "docs/architecture/core/Core-SillyTavern-Feature-Map.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
         ],
-        "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+        "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
       "receiptCurrent": true
     },
@@ -802,8 +814,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 217,
-      "bytes": 26642,
-      "sha256": "275f94d972e0b5458b67695efb35abf51b18323ff7ec14e468243b786103ac56",
+      "bytes": 26664,
+      "sha256": "17d2a5a320c1f376d68ce2598effb12c0ef66994d569499dd6db349377c32d01",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -820,26 +832,39 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "275f94d972e0b5458b67695efb35abf51b18323ff7ec14e468243b786103ac56",
-        "verifiedCommit": "dbabc6151539485c657ce6ad957c27662612e8b9",
+        "verifiedSha256": "17d2a5a320c1f376d68ce2598effb12c0ef66994d569499dd6db349377c32d01",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/architecture/core/Documentation-Law.md:1 (full read; header/status evaluated)",
-          "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "docs/architecture/core/Documentation-Law.md:1-217 full read; D139-D141 catalog, authority, code-as-truth, and source-comment rules reconciled",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 carries the standing D139-D141 rulings",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact law blob"
         ],
         "claims": [
           {
-            "claim": "D139 receipt law.",
+            "claim": "D139 makes every document hash-bound to a full-read fact-check receipt.",
             "evidence": [
               {
                 "kind": "ruling",
                 "target": "docs/architecture/core/Core-Path-Registry.md:523"
               }
             ]
+          },
+          {
+            "claim": "D141 forbids volatile coordinates, inventory counts, and comparator archaeology in production comments while preserving stable current WHY.",
+            "evidence": [
+              {
+                "kind": "ruling",
+                "target": "docs/architecture/core/Core-Path-Registry.md:531"
+              },
+              {
+                "kind": "issue",
+                "target": "#63"
+              }
+            ]
           }
         ],
-        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+        "summary": "Active documentation and comment law, re-read after the Project/workboard split and D141 source-comment ruling."
       },
       "receiptCurrent": true
     },
@@ -1343,8 +1368,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 434,
-      "bytes": 55389,
-      "sha256": "cb230125cace256d37d1268abeb3334bdda6c4bd257f126ae11cba12f82ecf59",
+      "bytes": 55355,
+      "sha256": "c1944519e72205cef3f3ca43c9232acae26925bcd7f4326a9c70d2097e3a7a9f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1361,13 +1386,13 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "cb230125cace256d37d1268abeb3334bdda6c4bd257f126ae11cba12f82ecf59",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "c1944519e72205cef3f3ca43c9232acae26925bcd7f4326a9c70d2097e3a7a9f",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/architecture/core/UI-Architecture-and-Layout.md:1 (full read; header/status evaluated)",
-          "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
         ],
         "claims": [
           {
@@ -1380,7 +1405,7 @@
             ]
           }
         ],
-        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+        "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
       },
       "receiptCurrent": true
     },
@@ -1481,8 +1506,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 121,
-      "bytes": 22144,
-      "sha256": "435720dc31d9053b83319fdcf6245137dc1fe5cf3f0eaa7888b95df9a41e3750",
+      "bytes": 22129,
+      "sha256": "4af2d5956457cf69244d7369eca66524d4204f37f1deb2a15bac0df677e11220",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1499,13 +1524,13 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "435720dc31d9053b83319fdcf6245137dc1fe5cf3f0eaa7888b95df9a41e3750",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "4af2d5956457cf69244d7369eca66524d4204f37f1deb2a15bac0df677e11220",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/architecture/core/UI-Theming-and-Content.md:1 (full read; header/status evaluated)",
-          "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "docs/architecture/core/UI-Theming-and-Content.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
         ],
         "claims": [
           {
@@ -1518,7 +1543,7 @@
             ]
           }
         ],
-        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+        "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
       },
       "receiptCurrent": true
     },
@@ -4014,9 +4039,9 @@
       "path": "docs/architecture/proposed/INDEX.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 44,
-      "bytes": 7486,
-      "sha256": "1bc9377962b5fb33e8a91dae64905dc0b8c1065a3ee1e4465a9af424be203f0a",
+      "lines": 37,
+      "bytes": 2542,
+      "sha256": "0440eae40d7eebe72392fd19d2f5119e00cf71fd35f04547bceb1ddc1f1c4717",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -4033,18 +4058,18 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "1bc9377962b5fb33e8a91dae64905dc0b8c1065a3ee1e4465a9af424be203f0a",
-        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
+        "verifiedSha256": "0440eae40d7eebe72392fd19d2f5119e00cf71fd35f04547bceb1ddc1f1c4717",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/architecture/proposed/INDEX.md:1 (full read; lifecycle/frontmatter evaluated)",
-          "docs/architecture/proposed/INDEX.md:1 (verified disposition map for parked programs)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
+          "GitHub issue #4 sub-issues re-derived: #13-#29 match the unfinished program rows",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact program-index blob"
         ],
-        "summary": "Current routing index for proposed-program lifecycle; it is non-authoritative for present implementation.",
+        "summary": "Current three-column routing index for committed programs; code/tests own built state and Project owns mutable lifecycle.",
         "claims": [
           {
-            "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
+            "claim": "Each unfinished committed proposed program has one owning sprint under GitHub issue #4; Project relations own mutable lifecycle and dependencies.",
             "evidence": [
               {
                 "kind": "issue",
@@ -10150,8 +10175,8 @@
       "lane": "root-operational",
       "issue": 8,
       "lines": 213,
-      "bytes": 14295,
-      "sha256": "3e7b3e9f57158a11f45f53e4d93d7b3051435fe196f14f23c9fd29d3bf66c918",
+      "bytes": 14314,
+      "sha256": "8c8ca0e2f959f3f028242383d84e3ad6cf263e7ca79696c8a7858ddd396c0768",
       "frontmatter": {
         "present": false,
         "malformed": false,
@@ -10164,15 +10189,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "3e7b3e9f57158a11f45f53e4d93d7b3051435fe196f14f23c9fd29d3bf66c918",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "8c8ca0e2f959f3f028242383d84e3ad6cf263e7ca79696c8a7858ddd396c0768",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/barrel-star-reexport-residue.md:1",
-          "git log --oneline -5 -- docs",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/barrel-star-reexport-residue.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
         ],
-        "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
+        "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
       "receiptCurrent": true
     },
@@ -10806,8 +10831,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 454,
-      "bytes": 39465,
-      "sha256": "6109a5c3db81c418bec3dfd319600d34582b6da7928d08edfddcf62ffccf8499",
+      "bytes": 39509,
+      "sha256": "f6a418c41d7bbd890d3316f9af4c344ea830ba257f0c35ac2c0b50563a2a2278",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10824,15 +10849,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "6109a5c3db81c418bec3dfd319600d34582b6da7928d08edfddcf62ffccf8499",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "f6a418c41d7bbd890d3316f9af4c344ea830ba257f0c35ac2c0b50563a2a2278",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/design/entity-room-member-freshness-bridge.md:1 (spec; draft)",
-          "git log --oneline -1 -- docs/design/entity-room-member-freshness-bridge.md: c3301aede docs(bridge): §5 truth-repaired to as-built — F-G ruled+done, terminal is a caller thunk",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/design/entity-room-member-freshness-bridge.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
         ],
-        "summary": "Entity→room member-freshness bridge — design + build plan: full content read against frozen tree; landed-state record retained as historical evidence."
+        "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
       "receiptCurrent": true
     },
@@ -10876,8 +10901,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 133,
-      "bytes": 9909,
-      "sha256": "a75cea93fb72048ea58be6a1729d26928b9d068ec054dc01959a14892fddda3b",
+      "bytes": 9964,
+      "sha256": "5ead7f7dbcc747964f06f323d6b4e63dd9d7dda5b8a28fe69452facc444a163c",
       "frontmatter": {
         "present": false,
         "malformed": false,
@@ -10890,15 +10915,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "a75cea93fb72048ea58be6a1729d26928b9d068ec054dc01959a14892fddda3b",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "5ead7f7dbcc747964f06f323d6b4e63dd9d7dda5b8a28fe69452facc444a163c",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/design/gate-ignore-mention-fence.md:1 (design; unheaded)",
-          "git log --oneline -1 -- docs/design/gate-ignore-mention-fence.md: fed99940f fix(gates): markers under scripts/ were uninventoried; prose could suppress",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/design/gate-ignore-mention-fence.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
         ],
-        "summary": "The `@orb-gate-ignore` mention fence — closing the scripts/ inventory gap: full content read against frozen tree; landed-state record retained as historical evidence."
+        "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
       "receiptCurrent": true
     },
@@ -11104,8 +11129,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 951,
-      "bytes": 78692,
-      "sha256": "6f6a593ac2b3b1f9ba2832a2687404ad396700915b87ce622e7cccc2ac0241b5",
+      "bytes": 78711,
+      "sha256": "a52c0a41fd03861e26b03fa3ff0874e565f055d38a8ee33e135ed2caf7d780da",
       "frontmatter": {
         "present": false,
         "malformed": false,
@@ -11118,15 +11143,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "6f6a593ac2b3b1f9ba2832a2687404ad396700915b87ce622e7cccc2ac0241b5",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "a52c0a41fd03861e26b03fa3ff0874e565f055d38a8ee33e135ed2caf7d780da",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/design/mocks/crunchy-cluster-redesign/DESIGN.md:1 (design; unheaded)",
-          "git log --oneline -1 -- docs/design/mocks/crunchy-cluster-redesign/DESIGN.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/design/mocks/crunchy-cluster-redesign/DESIGN.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
         ],
-        "summary": "THE CRUNCHY-CLUSTER REDESIGN — extraction depth · the wand · fork-clones-the-game · the sweep: full content read against frozen tree; landed-state record retained as historical evidence."
+        "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
       "receiptCurrent": true
     },
@@ -11417,8 +11442,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 2315,
-      "bytes": 192824,
-      "sha256": "a78752057c12b11032dcc01f624c3d33db56813111a21268a061a0f173fab451",
+      "bytes": 192850,
+      "sha256": "0677b217ebf069e3de55c9e87d66455c4ae5d56c271f181592af76af47e2a789",
       "frontmatter": {
         "present": false,
         "malformed": false,
@@ -11431,15 +11456,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "a78752057c12b11032dcc01f624c3d33db56813111a21268a061a0f173fab451",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "0677b217ebf069e3de55c9e87d66455c4ae5d56c271f181592af76af47e2a789",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/design/parity-plus-program-spec.md:1 (design; unheaded)",
-          "git log --oneline -1 -- docs/design/parity-plus-program-spec.md: b596fe7c1 fix(chat): mount a streamed card at FENCE CLOSE, not at message commit (§4.5)",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/design/parity-plus-program-spec.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
         ],
-        "summary": "PARITY-PLUS — the seven-feature \"make it first-class and better\" program spec: full content read against frozen tree; landed-state record retained as historical evidence."
+        "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
       "receiptCurrent": true
     },
@@ -11498,8 +11523,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 271,
-      "bytes": 18412,
-      "sha256": "fbab257e3d52182e102c4cec1c658220681372659f85e71606f7954daa58cbe2",
+      "bytes": 18641,
+      "sha256": "dc2e79665dd98a69e0333c2f574d1856ee1cf5a3a84a8026dcecd28896298038",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11516,15 +11541,15 @@
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "fbab257e3d52182e102c4cec1c658220681372659f85e71606f7954daa58cbe2",
-        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
+        "verifiedSha256": "dc2e79665dd98a69e0333c2f574d1856ee1cf5a3a84a8026dcecd28896298038",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/design/parked-options-ops-posture.md:1 (design; unheaded)",
-          "git log --oneline -1 -- docs/design/parked-options-ops-posture.md: 67ed651a3 docs(investigate): ops/posture parked-options — containerize has no prod Dockerfile referent (6 forks), .env is oidc, AGENT-1 over-blocked, entry-exports after amputation",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/design/parked-options-ops-posture.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
         ],
-        "summary": "Parked options — ops + posture cluster (investigate-only): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+        "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
         "claims": [
           {
             "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #53.",
@@ -11548,8 +11573,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 313,
-      "bytes": 21945,
-      "sha256": "90d8b987e627a836f9f2dfd5c548a7d887488d9770895e95348ea626e9a68f1a",
+      "bytes": 21964,
+      "sha256": "3a48d5d3d9ea44ad95863471ae1722165f8c6f8510448a0c1e219ff94b67bbe8",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11566,15 +11591,15 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "90d8b987e627a836f9f2dfd5c548a7d887488d9770895e95348ea626e9a68f1a",
-        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
+        "verifiedSha256": "3a48d5d3d9ea44ad95863471ae1722165f8c6f8510448a0c1e219ff94b67bbe8",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/design/parked-options-persona-prose.md:1 (design; unheaded)",
-          "git log --oneline -1 -- docs/design/parked-options-persona-prose.md: b9930fbea docs(investigate): persona/prose parked-options — kind-polymorphic cast (not flag), ship nudge texts verbatim, {{note}} is a silent-loss carrier (block-vs-warn fork)",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/design/parked-options-persona-prose.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
         ],
-        "summary": "Parked options — persona / prose cluster (I-8): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+        "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
         "claims": [
           {
             "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #56.",
@@ -11639,8 +11664,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 353,
-      "bytes": 47675,
-      "sha256": "67b178c778674fa64e48a86240a936233929f9d37540773e8203c5e4f05577df",
+      "bytes": 47713,
+      "sha256": "078899d6bcef8c6fb2e2a84174e91204fc6647919e6832d01d7c088b5a33baeb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11657,15 +11682,15 @@
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "67b178c778674fa64e48a86240a936233929f9d37540773e8203c5e4f05577df",
-        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
+        "verifiedSha256": "078899d6bcef8c6fb2e2a84174e91204fc6647919e6832d01d7c088b5a33baeb",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/design/persona-character-kind-substrate.md:1 (design; unheaded)",
-          "git log --oneline -1 -- docs/design/persona-character-kind-substrate.md: 425ca37e1 docs(design): D137 execution rider on the persona-character design doc",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/design/persona-character-kind-substrate.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
         ],
-        "summary": "Persona ↔ character unification — the kind-polymorphic cast + the card-face substrate: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+        "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
         "claims": [
           {
             "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #56.",
@@ -11836,8 +11861,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 505,
-      "bytes": 50205,
-      "sha256": "d3b5f64d3f0070877456103452b73e798dafb4d87e21348bb40e86a236eaef55",
+      "bytes": 50320,
+      "sha256": "98b253d6e4dd998b4978123ad8ceabdc6b7b73aceab5b334845469c292062158",
       "frontmatter": {
         "present": false,
         "malformed": false,
@@ -11850,15 +11875,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "d3b5f64d3f0070877456103452b73e798dafb4d87e21348bb40e86a236eaef55",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "98b253d6e4dd998b4978123ad8ceabdc6b7b73aceab5b334845469c292062158",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/design/prose-1-spec.md:1 (design; unheaded)",
-          "git log --oneline -1 -- docs/design/prose-1-spec.md: 90ae6aa30 feat(prose): templating fork ARM B — the 21 steer fragments become server-composed preset slots",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/design/prose-1-spec.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
         ],
-        "summary": "PROSE-1 — model-facing prose becomes host-editable data: full content read against frozen tree; landed-state record retained as historical evidence."
+        "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
       "receiptCurrent": true
     },
@@ -12284,8 +12309,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 821,
-      "bytes": 53871,
-      "sha256": "e04d9a63b3fa6a1bcaed881ced653978beeccd64b1c02236e69ba3a4f0843a02",
+      "bytes": 53890,
+      "sha256": "79b0d9001b838284af895ae369c280957d0eaf4d00e19cea746ea11042cf2c02",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12302,15 +12327,15 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "e04d9a63b3fa6a1bcaed881ced653978beeccd64b1c02236e69ba3a4f0843a02",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+        "verifiedSha256": "79b0d9001b838284af895ae369c280957d0eaf4d00e19cea746ea11042cf2c02",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/design/streaming-shape-churn.md:343-555 (M4 §7 verdict amended by current §8 evidence)",
-          "packages/ui/src/markdown/markdown.tsx:119-127 and tests/ui/markdown/markdown.ct.tsx:462-558 (M1/M5 shipped and rendered proofs)",
-          "tests/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts:1 and 016dae9ec fix(observability): silent-500 outcome surface closed"
+          "docs/design/streaming-shape-churn.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
         ],
-        "summary": "Streaming message SHAPE CHURN — measured mechanism + the ranked fix plan: current active design authority; M1/M5 are built and tested, §8 restores M4 as the largest measured churn on an OpenRouter chat-completions connection, and the §7.5 silent-500 defect is fixed by 016dae9ec.",
+        "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
         "claims": [
           {
             "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #35.",
@@ -12333,9 +12358,9 @@
       "path": "docs/design/templating-fork-rows-53-73.md",
       "lane": "design",
       "issue": 5,
-      "lines": 126,
-      "bytes": 11105,
-      "sha256": "c0118c9c74b2b79a38dee86d838f4daf01b6a8ba4088794f4bf6f0cd8af16684",
+      "lines": 127,
+      "bytes": 11210,
+      "sha256": "4c5c5d2b90a6993ac6cbd7be95b5d5cd0be5457b3efee62b31f9cedcea76b4f7",
       "frontmatter": {
         "present": false,
         "malformed": false,
@@ -12348,15 +12373,15 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "c0118c9c74b2b79a38dee86d838f4daf01b6a8ba4088794f4bf6f0cd8af16684",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "4c5c5d2b90a6993ac6cbd7be95b5d5cd0be5457b3efee62b31f9cedcea76b4f7",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/design/templating-fork-rows-53-73.md:1 (design; unheaded)",
-          "git log --oneline -1 -- docs/design/templating-fork-rows-53-73.md: 90ae6aa30 feat(prose): templating fork ARM B — the 21 steer fragments become server-composed preset slots",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/design/templating-fork-rows-53-73.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
         ],
-        "summary": "The templating fork — PROSE-1 census rows 53-73 (REWRITE\\_TOGGLES / GREETING\\_TRANSFORMS): full content read against frozen tree; landed-state record retained as historical evidence."
+        "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
       "receiptCurrent": true
     },
@@ -12633,33 +12658,45 @@
       "path": "docs/history/README.md",
       "lane": "history",
       "issue": 9,
-      "lines": 30,
-      "bytes": 1718,
-      "sha256": "8282f6544f3e6386bf8da5506fd4595a53b0924f26faf3788edc62560720aa0a",
+      "lines": 29,
+      "bytes": 1570,
+      "sha256": "6d4e690a0b32ac4060b8ed29e0a2344f8c96c273c1195aaaddafc4e7181b59e5",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "index",
           "status": "active",
-          "updated": "2026-08-02"
+          "updated": "2026-08-14"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/history/README.md",
         "assignedSha256": "8282f6544f3e6386bf8da5506fd4595a53b0924f26faf3788edc62560720aa0a",
-        "disposition": "archive",
-        "authority": "historical",
+        "disposition": "current",
+        "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "8282f6544f3e6386bf8da5506fd4595a53b0924f26faf3788edc62560720aa0a",
-        "verifiedCommit": "e1b891d46194b20b6cae9f25868872763bd9f4c8",
+        "verifiedSha256": "6d4e690a0b32ac4060b8ed29e0a2344f8c96c273c1195aaaddafc4e7181b59e5",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/history/README.md:1-30 full read; SHA-256 matches frozen manifest",
-          "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+          "docs/history/README.md:1-29 full read; current index routes mutable work to Project 1 and dated snapshots to provenance only",
+          "docs/architecture/core/Core-Path-Registry.md:527-533 (D140-D141 authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current index blob"
         ],
-        "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
+        "summary": "Current routing index for immutable history; it makes no present implementation or work-status claim.",
+        "claims": [
+          {
+            "claim": "The history corpus is provenance only; Project 1 owns mutable lifecycle and the slim workboard owns cold-start recovery.",
+            "evidence": [
+              {
+                "kind": "ruling",
+                "target": "docs/architecture/core/Core-Path-Registry.md:527"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },
@@ -13036,6 +13073,41 @@
           "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
         ],
         "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/retro-workboard-2026-08-14.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 1816,
+      "bytes": 199086,
+      "sha256": "8645bdaff204a8b94f0b9f98c95a632f47c34841b0ef48593dc8ffa460d0c384",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "history",
+          "status": "archived",
+          "updated": "2026-08-14"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/retro-workboard-2026-08-14.md",
+        "assignedSha256": "8645bdaff204a8b94f0b9f98c95a632f47c34841b0ef48593dc8ffa460d0c384",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "8645bdaff204a8b94f0b9f98c95a632f47c34841b0ef48593dc8ffa460d0c384",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
+        "verifiedAt": "2026-08-14",
+        "evidence": [
+          "docs/history/retro-workboard-2026-08-14.md:1-1816 full read; lifecycle banner and repaired relative links preserve the pre-split 1816-line address space",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 provenance and authority boundary)",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived snapshot blob"
+        ],
+        "summary": "Frozen pre-Project workboard retained as immutable provenance; its checkboxes and status prose are not executable current work."
       },
       "receiptCurrent": true
     },
@@ -14294,9 +14366,9 @@
       "path": "docs/retro-workboard.md",
       "lane": "root-operational",
       "issue": 8,
-      "lines": 1816,
-      "bytes": 199107,
-      "sha256": "daa726219fd575a0e94b6fb869a550b0693367d85d2ad43ec719891cc34b1825",
+      "lines": 45,
+      "bytes": 2469,
+      "sha256": "8e9d831f026b287c56ab96dbbce0a53e6a1240e3c1d4fc7cee6539999390ad05",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14313,23 +14385,35 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "daa726219fd575a0e94b6fb869a550b0693367d85d2ad43ec719891cc34b1825",
-        "verifiedCommit": "b9d3371d422b62d55c4991fc5e5931ac2162c2d0",
+        "verifiedSha256": "8e9d831f026b287c56ab96dbbce0a53e6a1240e3c1d4fc7cee6539999390ad05",
+        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/retro-workboard.md:1-24: lawful runbook frontmatter and GitHub Project control-plane boundary",
-          "docs/retro-workboard.md:442-478: OpenRouter Arm A, CT es2025 correction, and reasoning-collapse CT verification",
-          "docs/retro-workboard.md:171-172: owner control-plane posture",
-          "git show b9d3371d4: exact workboard bytes after the frontmatter-only metadata repair",
-          "git show c2a190d69: final workboard delta and Project #33/#40 graduation pointer",
-          "git show 611d17c88: current verification commit contains the same final workboard blob",
-          "git show 1e8b687bd: merged OpenRouter implementation/test equivalent of cited d7b07994",
-          "git show cb0e29b27: merged CT configuration/reasoning-block locator equivalent of cited 1043466d7"
+          "docs/retro-workboard.md:1-45 full read; recovery steps, authority map, and hard stops checked against D139-D140 and Project 1",
+          "docs/architecture/proposed/INDEX.md:17-37 maps each unfinished committed program to its Project sprint",
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact recovery-index blob"
         ],
         "claims": [
           {
-            "claim": "GitHub owns mutable work while the workboard retains recovery and standing operations.",
+            "claim": "GitHub Project 1 owns mutable work; this file is only the cold-start recovery index.",
             "evidence": [
+              {
+                "kind": "ruling",
+                "target": "docs/architecture/core/Core-Path-Registry.md:527"
+              },
+              {
+                "kind": "issue",
+                "target": "#1"
+              }
+            ]
+          },
+          {
+            "claim": "Committed future programs route through the proposed index and their owning sprint issues.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#4"
+              },
               {
                 "kind": "ruling",
                 "target": "docs/architecture/core/Core-Path-Registry.md:523"
@@ -14337,41 +14421,16 @@
             ]
           },
           {
-            "claim": "The OpenRouter structured-output path omits hardcoded require_parameters and surfaces upstream 4xx diagnostics.",
+            "claim": "Verification tiers are defined by the executable registry rather than prose folklore.",
             "evidence": [
               {
                 "kind": "code",
-                "target": "packages/server/src/infra/providers/backends/openrouter/index.ts:272"
-              },
-              {
-                "kind": "test",
-                "target": "tests/server/infra/providers/backends/openrouter/index.test.ts:231"
-              },
-              {
-                "kind": "provenance",
-                "target": "git:1e8b687bd7817de04152d6fc208197f0d01436fa"
-              }
-            ]
-          },
-          {
-            "claim": "The CT Vite transform targets es2024 and the reasoning-collapse pair's locator targets the mounted root.",
-            "evidence": [
-              {
-                "kind": "code",
-                "target": "playwright-ct.config.ts:63"
-              },
-              {
-                "kind": "test",
-                "target": "tests/client/features/chat/components/reasoning-block.ct.tsx:128"
-              },
-              {
-                "kind": "provenance",
-                "target": "git:cb0e29b279e519d6f380c25da587118648b0eb1c"
+                "target": "scripts/verify/registry.ts:293"
               }
             ]
           }
         ],
-        "summary": "Full-read operational spine reverified at b9d3371d4 after a frontmatter-only metadata repair: the Project control-plane boundary, OpenRouter Arm A, CT es2025 correction, reasoning-collapse verification, and #33/#40 graduation pointer match current merged code and tests."
+        "summary": "Short operational recovery index: Project lifecycle, durable authority homes, agent-process routing, and hard stops only; no backlog or mirrored status."
       },
       "receiptCurrent": true
     },

@@ -40,15 +40,15 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "59af53f96294020580bcb15ab8c82fd163226afa5b44ba15e8da4cd5037fdb64",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+      "verifiedSha256": "378f1c22302aba0ab1940c8ae8890c158c8368004ed34bf54c59a618e846bdd7",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/Context-Panel-Program.md:1 (full read; lifecycle/frontmatter evaluated)",
-        "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/Context-Panel-Program.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
       ],
-      "summary": "Active owner-initiated context-panel program; retained as a current design specification.",
+      "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
       "claims": [
         {
           "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
@@ -71,18 +71,18 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "1bc9377962b5fb33e8a91dae64905dc0b8c1065a3ee1e4465a9af424be203f0a",
-      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
+      "verifiedSha256": "0440eae40d7eebe72392fd19d2f5119e00cf71fd35f04547bceb1ddc1f1c4717",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/proposed/INDEX.md:1 (full read; lifecycle/frontmatter evaluated)",
-        "docs/architecture/proposed/INDEX.md:1 (verified disposition map for parked programs)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
+        "GitHub issue #4 sub-issues re-derived: #13-#29 match the unfinished program rows",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact program-index blob"
       ],
-      "summary": "Current routing index for proposed-program lifecycle; it is non-authoritative for present implementation.",
+      "summary": "Current three-column routing index for committed programs; code/tests own built state and Project owns mutable lifecycle.",
       "claims": [
         {
-          "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
+          "claim": "Each unfinished committed proposed program has one owning sprint under GitHub issue #4; Project relations own mutable lifecycle and dependencies.",
           "evidence": [
             {
               "kind": "issue",

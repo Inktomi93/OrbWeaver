@@ -4,21 +4,6 @@
   "issue": 9,
   "entries": [
     {
-      "path": "docs/history/README.md",
-      "assignedSha256": "8282f6544f3e6386bf8da5506fd4595a53b0924f26faf3788edc62560720aa0a",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "8282f6544f3e6386bf8da5506fd4595a53b0924f26faf3788edc62560720aa0a",
-      "verifiedCommit": "e1b891d46194b20b6cae9f25868872763bd9f4c8",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/history/README.md:1-30 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
-      ],
-      "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
-    },
-    {
       "path": "docs/history/design/baseui-crunch.md",
       "assignedSha256": "02b261170e3300cb547ae44aad6ee2ca523df9a52b2d02bfe86bb127da39818a",
       "disposition": "archive",
@@ -139,6 +124,33 @@
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
     {
+      "path": "docs/history/README.md",
+      "assignedSha256": "8282f6544f3e6386bf8da5506fd4595a53b0924f26faf3788edc62560720aa0a",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "6d4e690a0b32ac4060b8ed29e0a2344f8c96c273c1195aaaddafc4e7181b59e5",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/history/README.md:1-29 full read; current index routes mutable work to Project 1 and dated snapshots to provenance only",
+        "docs/architecture/core/Core-Path-Registry.md:527-533 (D140-D141 authority boundary)",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current index blob"
+      ],
+      "summary": "Current routing index for immutable history; it makes no present implementation or work-status claim.",
+      "claims": [
+        {
+          "claim": "The history corpus is provenance only; Project 1 owns mutable lifecycle and the slim workboard owns cold-start recovery.",
+          "evidence": [
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:527"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/history/retro-workboard-2026-08-03.md",
       "assignedSha256": "7a84a1abc927273c3e1973cd732266fbce86f41a09df1018ed321ec86351b620",
       "disposition": "archive",
@@ -197,6 +209,22 @@
         "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
+    },
+    {
+      "path": "docs/history/retro-workboard-2026-08-14.md",
+      "assignedSha256": "8645bdaff204a8b94f0b9f98c95a632f47c34841b0ef48593dc8ffa460d0c384",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "8645bdaff204a8b94f0b9f98c95a632f47c34841b0ef48593dc8ffa460d0c384",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/history/retro-workboard-2026-08-14.md:1-1816 full read; lifecycle banner and repaired relative links preserve the pre-split 1816-line address space",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 provenance and authority boundary)",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived snapshot blob"
+      ],
+      "summary": "Frozen pre-Project workboard retained as immutable provenance; its checkboxes and status prose are not executable current work."
     },
     {
       "path": "docs/history/reviews/misc/2026-07-25-compose-services-seam-map.md",

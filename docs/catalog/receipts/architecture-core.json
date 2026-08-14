@@ -9,16 +9,39 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "d49d9d2dc80f3cfc614fd427f1646588ccdefc95df53cdcae3459973dac9cfaf",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "8ee2e6f827d9193dbf3e621a559d2eb5d56d56fb2a6f2d0dffea43829cf19af9",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/core/AGENTS.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/core/AGENTS.md:1-351 full read; Project, recovery, proposed-program, and lane authority routing reconciled",
+        "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact constitution blob"
       ],
-      "claims": [{ "claim": "Package layout gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/package-layout.ts:35" }] }],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "claims": [
+        {
+          "claim": "Package layout gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/package-layout.ts:35"
+            }
+          ]
+        },
+        {
+          "claim": "Project 1 owns mutable work, the slim workboard owns cold-start recovery, and proposed/INDEX maps committed programs to sprint issues.",
+          "evidence": [
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:527"
+            },
+            {
+              "kind": "issue",
+              "target": "#4"
+            }
+          ]
+        }
+      ],
+      "summary": "Normative constitution re-read against the split control plane, proposed-program sprint map, and existing package-layout enforcement."
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
@@ -34,7 +57,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Closed cast axis.", "evidence": [{ "kind": "code", "target": "packages/contracts/src/chat/producers.ts:22" }] }],
+      "claims": [
+        {
+          "claim": "Closed cast axis.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/producers.ts:22"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -51,7 +84,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Package layout gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/package-layout.ts:35" }] }],
+      "claims": [
+        {
+          "claim": "Package layout gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/package-layout.ts:35"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -84,7 +127,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Docs formatting writer.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/verify-registry-parity.ts:31" }] }],
+      "claims": [
+        {
+          "claim": "Docs formatting writer.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/verify-registry-parity.ts:31"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -101,7 +154,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Package layout gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/package-layout.ts:35" }] }],
+      "claims": [
+        {
+          "claim": "Package layout gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/package-layout.ts:35"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -126,16 +189,26 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "a30d6ca8b846c5b048f794c5e70ff422d40f11dd8d7dc0d9d842880bee9cda68",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "edd166459dd90c49e665b08afec95d5e4a8b0e5103a56495294e0e15c08fef6a",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/core/Core-Laws-and-Precedents.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/core/Core-Laws-and-Precedents.md:1-66 full read; registry range and Project/recovery redirects reconcile through D141",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 contains D139-D141",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact redirect blob"
       ],
-      "claims": [{ "claim": "Registry wins conflicts.", "evidence": [{ "kind": "ruling", "target": "docs/architecture/core/Core-Path-Registry.md:9" }] }],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "claims": [
+        {
+          "claim": "Registry wins conflicts.",
+          "evidence": [
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:9"
+            }
+          ]
+        }
+      ],
+      "summary": "Normative ledger redirect re-read after D140-D141; the registry remains conflict authority."
     },
     {
       "path": "docs/architecture/core/Core-Legacy-Migration-and-Gaps.md",
@@ -159,17 +232,26 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "6c360d7cfd645328e3d901f262e11f759732c8ff89142279afe45f57d27e3ac0",
-      "verifiedCommit": "dbabc6151539485c657ce6ad957c27662612e8b9",
+      "verifiedSha256": "b174e93694fbff522bd25e9cdb6fc5fbb25b6522122132588afce5d0fd9a8634",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/core/Core-Path-Registry.md:389 (D129(B) current implementation status)",
-        "docs/architecture/core/Core-Path-Registry.md:397 (D129(F) freeze-at-selection truth repair)",
-        "packages/contracts/src/connection/index.ts:204; packages/server/src/domain/chat/verbs/edit.ts:327; tests/server/domain/chat/assembly/shape.test.ts:1052 (current code/test corroboration)",
-        "git log --oneline -5 -- docs/architecture/core/Core-Path-Registry.md (cc3a9e886 latest current-doc change)"
+        "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
+        "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact registry blob"
       ],
-      "claims": [{ "claim": "D129 is live.", "evidence": [{ "kind": "code", "target": "packages/contracts/src/connection/index.ts:204" }] }],
-      "summary": "Re-read after main rebase: D129(B) narrator wire-shape and D129(F) freeze-at-selection status claims match current contracts, verbs, and targeted tests; frozen assigned hash retained."
+      "claims": [
+        {
+          "claim": "D129 is live.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/connection/index.ts:204"
+            }
+          ]
+        }
+      ],
+      "summary": "Canonical D-ledger re-read through D141; frozen assigned hash retained and current verified blob updated."
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -209,15 +291,15 @@
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "f69763702bfde1d4a3b0882f94a85180ea08e6459563c711788b6372458a0d6f",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "2a0729734af1c90761beee23cb7fb4d9c999050decd9195b0e033d9ab1743271",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/core/Core-STATUS.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/core/Core-STATUS.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
       ],
-      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+      "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
     },
     {
       "path": "docs/architecture/core/Core-Shared-Dissolution.md",
@@ -241,15 +323,15 @@
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "48f47f52c2a07c935a6cdf9a89cf74ed5c3e074256b90a2274db675f4033a2ca",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "108fef8b893959de3e9b4d779be1b21b9b73f38670c11be0a7cbd1ddd66d081c",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/core/Core-SillyTavern-Feature-Map.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/core/Core-SillyTavern-Feature-Map.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
       ],
-      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+      "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
@@ -257,16 +339,39 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "275f94d972e0b5458b67695efb35abf51b18323ff7ec14e468243b786103ac56",
-      "verifiedCommit": "dbabc6151539485c657ce6ad957c27662612e8b9",
+      "verifiedSha256": "17d2a5a320c1f376d68ce2598effb12c0ef66994d569499dd6db349377c32d01",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/core/Documentation-Law.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/core/Documentation-Law.md:1-217 full read; D139-D141 catalog, authority, code-as-truth, and source-comment rules reconciled",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 carries the standing D139-D141 rulings",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact law blob"
       ],
-      "claims": [{ "claim": "D139 receipt law.", "evidence": [{ "kind": "ruling", "target": "docs/architecture/core/Core-Path-Registry.md:523" }] }],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "claims": [
+        {
+          "claim": "D139 makes every document hash-bound to a full-read fact-check receipt.",
+          "evidence": [
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+            }
+          ]
+        },
+        {
+          "claim": "D141 forbids volatile coordinates, inventory counts, and comparator archaeology in production comments while preserving stable current WHY.",
+          "evidence": [
+            {
+              "kind": "ruling",
+              "target": "docs/architecture/core/Core-Path-Registry.md:531"
+            },
+            {
+              "kind": "issue",
+              "target": "#63"
+            }
+          ]
+        }
+      ],
+      "summary": "Active documentation and comment law, re-read after the Project/workboard split and D141 source-comment ruling."
     },
     {
       "path": "docs/architecture/core/Knowledge-Cluster.md",
@@ -298,7 +403,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Versioned app settings.", "evidence": [{ "kind": "code", "target": "packages/contracts/src/settings/index.ts:425" }] }],
+      "claims": [
+        {
+          "claim": "Versioned app settings.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/settings/index.ts:425"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -315,7 +430,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Auth seam mint.", "evidence": [{ "kind": "code", "target": "packages/server/src/entry/auth/seam.ts:304" }] }],
+      "claims": [
+        {
+          "claim": "Auth seam mint.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/auth/seam.ts:304"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -332,7 +457,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Central test layout.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/test-layout.ts:118" }] }],
+      "claims": [
+        {
+          "claim": "Central test layout.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/test-layout.ts:118"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -349,7 +484,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Closed participant union.", "evidence": [{ "kind": "code", "target": "packages/contracts/src/chat/participants.ts:21" }] }],
+      "claims": [
+        {
+          "claim": "Closed participant union.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/participants.ts:21"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -366,7 +511,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Baseline schema parity.", "evidence": [{ "kind": "test", "target": "tests/tooling/schema-baseline-parity.int.test.ts:18" }] }],
+      "claims": [
+        {
+          "claim": "Baseline schema parity.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/schema-baseline-parity.int.test.ts:18"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -383,7 +538,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Foundation env parse.", "evidence": [{ "kind": "code", "target": "packages/server/src/foundation/env/index.ts:588" }] }],
+      "claims": [
+        {
+          "claim": "Foundation env parse.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/foundation/env/index.ts:588"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -400,7 +565,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "SecretBox adapter.", "evidence": [{ "kind": "code", "target": "packages/server/src/infra/crypto/secrets.ts:43" }] }],
+      "claims": [
+        {
+          "claim": "SecretBox adapter.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/crypto/secrets.ts:43"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -417,7 +592,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Provider executor.", "evidence": [{ "kind": "code", "target": "packages/server/src/infra/providers/index.ts:30" }] }],
+      "claims": [
+        {
+          "claim": "Provider executor.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/providers/index.ts:30"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -434,7 +619,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "tRPC transport router.", "evidence": [{ "kind": "code", "target": "packages/server/src/transport/trpc/routers/persona.ts:17" }] }],
+      "claims": [
+        {
+          "claim": "tRPC transport router.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/transport/trpc/routers/persona.ts:17"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -451,7 +646,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Entry starts lifecycle.", "evidence": [{ "kind": "code", "target": "packages/server/src/entry/index.ts:11" }] }],
+      "claims": [
+        {
+          "claim": "Entry starts lifecycle.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/index.ts:11"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -460,16 +665,26 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "cb230125cace256d37d1268abeb3334bdda6c4bd257f126ae11cba12f82ecf59",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "c1944519e72205cef3f3ca43c9232acae26925bcd7f4326a9c70d2097e3a7a9f",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/core/UI-Architecture-and-Layout.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
       ],
-      "claims": [{ "claim": "UI dialog primitive.", "evidence": [{ "kind": "code", "target": "packages/ui/src/primitives/dialog/dialog.tsx:18" }] }],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "claims": [
+        {
+          "claim": "UI dialog primitive.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/dialog/dialog.tsx:18"
+            }
+          ]
+        }
+      ],
+      "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
     },
     {
       "path": "docs/architecture/core/UI-Gates-and-Lessons.md",
@@ -485,7 +700,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "UI primitive gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/ui-primitive-structure.ts:410" }] }],
+      "claims": [
+        {
+          "claim": "UI primitive gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/ui-primitive-structure.ts:410"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -502,7 +727,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Primitive structure gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/ui-primitive-structure.ts:410" }] }],
+      "claims": [
+        {
+          "claim": "Primitive structure gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/ui-primitive-structure.ts:410"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -511,16 +746,26 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "435720dc31d9053b83319fdcf6245137dc1fe5cf3f0eaa7888b95df9a41e3750",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "4af2d5956457cf69244d7369eca66524d4204f37f1deb2a15bac0df677e11220",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/core/UI-Theming-and-Content.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/core/UI-Theming-and-Content.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
       ],
-      "claims": [{ "claim": "Untrusted markdown policy.", "evidence": [{ "kind": "code", "target": "packages/ui/src/markdown/policy.ts:77" }] }],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "claims": [
+        {
+          "claim": "Untrusted markdown policy.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/markdown/policy.ts:77"
+            }
+          ]
+        }
+      ],
+      "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
     },
     {
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
@@ -536,7 +781,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Verification registry gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/verify-registry-parity.ts:31" }] }],
+      "claims": [
+        {
+          "claim": "Verification registry gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/verify-registry-parity.ts:31"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -553,7 +808,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Session channel home.", "evidence": [{ "kind": "code", "target": "packages/client/src/lib/session-channel.ts:110" }] }],
+      "claims": [
+        {
+          "claim": "Session channel home.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/lib/session-channel.ts:110"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -570,7 +835,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Shared overlay motion.", "evidence": [{ "kind": "code", "target": "packages/ui/src/lib/overlay-motion.ts:25" }] }],
+      "claims": [
+        {
+          "claim": "Shared overlay motion.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/lib/overlay-motion.ts:25"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -587,7 +862,17 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "claims": [{ "claim": "Dialog package API.", "evidence": [{ "kind": "code", "target": "packages/ui/src/primitives/dialog/dialog.tsx:18" }] }],
+      "claims": [
+        {
+          "claim": "Dialog package API.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/dialog/dialog.tsx:18"
+            }
+          ]
+        }
+      ],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     }
   ]
