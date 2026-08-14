@@ -43,6 +43,11 @@ const PERSONAS = [{ id: "persona_home", name: "Alex", description: "", avatarHas
 // The seeded draft's greeting row resolves `{{user}}` against the anchor the commit WILL write, so it
 // reads the same two identity sources the server's seed chain does: the viewer's persona connections for
 // this character (none here) and the `seeds.*` pointers off the settings blob.
+/** Home's databank tile reads the bank CENSUS beside its rows (`databank.bankHealth`, 2026-08-14) — an
+ *  EMPTY bank here, matching the empty `databank.list` above it, so the front door renders that tile's
+ *  teaching state. Both routes or neither: an unstubbed suspending read blanks the tile into its boundary. */
+const EMPTY_BANK_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 };
+
 const DRAFT_IDENTITY_STUB = {
   "persona.listConnectedToCharacter": (): readonly never[] => [],
   "settings.getUserSettings": (): { userId: UserId; schemaVersion: number; config: unknown; updatedAt: number } => ({
@@ -56,7 +61,8 @@ const DRAFT_IDENTITY_STUB = {
 test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 via owner decision H1 = D-1)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": chatListResponder([]),
-    "databank.list": { items: [], nextCursor: null },
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
     "character.list": NO_CHARACTERS,
     "persona.list": PERSONAS,
   });
@@ -83,7 +89,8 @@ test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 vi
 test("the chats section's own no-selection state is the SLIM one — the launcher lives in exactly one place", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": chatListResponder([]),
-    "databank.list": { items: [], nextCursor: null },
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
     "character.list": NO_CHARACTERS,
     "persona.list": PERSONAS,
   });
@@ -100,7 +107,8 @@ test("the chats section's own no-selection state is the SLIM one — the launche
 test("picking a character in the library starts a chat with it (the library→chat seam)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": chatListResponder([]),
-    "databank.list": { items: [], nextCursor: null },
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
     "character.list": ONE_CHARACTER,
     // The seeded draft reads Aria's card to preview her greeting as the opening row (J2/J3).
     "character.get": {
@@ -142,7 +150,8 @@ test("picking a character in the library starts a chat with it (the library→ch
 test("the temp tile starts its room through the SHARED picker, and the draft survives a rail round-trip", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": chatListResponder([]),
-    "databank.list": { items: [], nextCursor: null },
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
     "character.list": NO_CHARACTERS,
     "persona.list": PERSONAS,
     "chat.reapTemporaryChats": { reaped: 0 },
@@ -187,7 +196,8 @@ test("the temp tile starts its room through the SHARED picker, and the draft sur
 test("zero personas: the first-run persona ask is FORCED open — no dismiss, one way out", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": chatListResponder([]),
-    "databank.list": { items: [], nextCursor: null },
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
     "character.list": NO_CHARACTERS,
     "persona.list": [],
   });
@@ -212,7 +222,8 @@ test("zero personas: the first-run persona ask is FORCED open — no dismiss, on
 test("a user who owns a persona never sees the gate (the automation-seeded + returning-user arm)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": chatListResponder([]),
-    "databank.list": { items: [], nextCursor: null },
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
     "character.list": NO_CHARACTERS,
     "persona.list": PERSONAS,
   });

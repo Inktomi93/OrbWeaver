@@ -32,20 +32,13 @@ export function DatabankLibraryStory(): ReactElement {
   );
 }
 
-/** The LIST pane in a TALL host — the pagination story. The 320px×700px production mount scrolls, and a
- *  "Load more" control at the tail of a 30-row page is below the fold, so a test would have to scroll a
- *  virtual-less container to reach it before it could even ask whether paging works. Same pane, same width
- *  (the §6.1 width math is unchanged); only the viewport is generous, because the question here is REACH,
- *  not fit. */
-export function DatabankLibraryTallStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ height: 4000, overflow: "hidden", width: 320 }}>
-        <DatabankLibrarySurface />
-      </div>
-    </CtDataProviders>
-  );
-}
+// THE TALL (4000px) PAGINATION STORY IS GONE (2026-08-14). It existed so a test could reach a "Load more"
+// button below the fold of a non-virtualized 700px pane. The pane virtualizes now, and `<VirtualList>`'s own
+// tripwire THROWS on a scroll container more than a few viewports tall — correctly: at 4000px every row is
+// "visible" and virtualization is a no-op, so the story was measuring a list the product never renders. The
+// deep-bank pins run at the REAL 320×700 mount and walk it by scrolling, which is also the honest rendered
+// proof (a lens/paging bug that only appears at the production height is exactly what this pane has shipped
+// before).
 
 /** The LIST chrome band (title · count · Add · the D-6 maintenance kebab) PLUS the shell's real ModalHost:
  *  the band's Add opens a MODAL SLOT now (P1-2), so the dialog it opens is the shell's, not the band's, and

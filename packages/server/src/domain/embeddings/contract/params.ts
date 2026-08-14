@@ -185,6 +185,15 @@ export interface CountDocumentChunksParams {
   readonly model: string;
 }
 
+/** The databank BANK-WIDE chunk read (`countDocumentChunksByOwner`) — the twin above, scoped by OWNER instead
+ *  of by id list. Owner-scoped precisely because its callers do not know their id set yet: the library's
+ *  phase lens is resolving a predicate over the whole bank BEFORE it pages, and the health census is summing
+ *  the whole bank by definition. */
+export interface OwnerChunkCountsParams {
+  readonly ownerId: UserId;
+  readonly model: string;
+}
+
 /** `embedCorpus` / `embedAssets` input — the resumable, `content_hash`-gated bulk sweep. `force` re-embeds
  *  matched rows; `signal` is the cooperative abort, checked between items. */
 export interface EmbedPassParams {

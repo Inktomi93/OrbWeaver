@@ -13,11 +13,11 @@
 // The ingest phase is DERIVED, never stamped: there is no `status` column (databank-design/02 §1.2) — the
 // chunk/embed counts ARE the truth, so the surface can never show a phase the data does not support.
 
-import type { DocOrigin, DocumentView } from "@orb/contracts/databank";
+import type { BankHealthView, DocOrigin, DocumentView, IngestPhase } from "@orb/contracts/databank";
+import { INGEST_PHASES, STALE_INGEST_MS } from "@orb/contracts/databank";
 // `formatBytes` moved to `@orb/kit/strings` when the per-chat rack became its THIRD consumer (it was
 // spelled here and, byte-identically, inside `@orb/ui/file-dropzone`). Same function, one home.
 import { formatBytes } from "@orb/kit/strings";
-import type { IngestPhase } from "#state";
 
 const ORIGIN_LABELS: Record<DocOrigin, string> = {
   upload: "Upload",
@@ -38,19 +38,16 @@ export function originLabel(origin: DocOrigin): string {
 // 0 — the `empty-extraction` warning's persistent state); `stalled` = an in-flight phase whose `updatedAt`
 // froze (see {@link STALE_INGEST_MS}).
 //
-// THE VOCABULARY MOVED TO `#state` (databank-filter-store) when a phase became a LIST SCOPE the shell can
-// hold — a feature `lib/` cannot export the type (`no-inline-types`), and the store must name it. The RULES
-// below are still this file's; only the tuple lives there, so there is exactly one spelling of the axis.
+// THE VOCABULARY AND THE STALL THRESHOLD LIVE IN `@orb/contracts/databank`. They moved there (from `#state`
+// and from this file respectively, 2026-08-14) when the phase became a `databank.list` INPUT: the SERVER now
+// filters the bank by phase, so both tiers must speak one tuple and measure the stall against one number, or
+// the lens that selected a row and the chip that labels it can disagree about the same document. The RULES
+// below are still this file's — the server spells the same arithmetic as SQL predicates and cites them.
 
 // The COUNT-derived half — the four phases that read off chunk/embed arithmetic alone, with no clock. The
 // stall overlay is applied on top by `ingestPhase`; the hint needs THIS answer (it names the phase the job
 // wedged in), which is why the two live apart.
 type CountedPhase = Exclude<IngestPhase, "stalled">;
-
-// A doc still in an IN-FLIGHT phase this long after its last write reads as a STUCK job (derived from
-// `updatedAt` — no status column; a live ingest bumps `updatedAt` as chunks land, so a frozen timestamp is
-// the stall signal). 5 minutes clears a slow-but-live large-doc embed while flagging a genuinely wedged one.
-const STALE_INGEST_MS = 300_000; // 5 minutes
 
 // The "still {word}" for each COUNT-derived phase — the in-flight phases echo their badge label lowercased;
 // terminal phases are null (a full Record so a new phase must decide, mirroring INGEST_BADGES's
@@ -163,8 +160,13 @@ export function documentSubtitle(doc: DocumentView): string {
 // The tile answers one question the LIST pane cannot answer from across the app: is the bank you already
 // built still doing its job? That is two data points — how much of the bank is actually RETRIEVABLE
 // (embedded passages, not documents: an un-embedded document feeds nothing), and which documents are in a
-// phase that will never resolve on its own. Both derive from the SAME counts the row phase does, so the
-// tile can never claim a health the rows contradict.
+// phase that will never resolve on its own.
+//
+// THE NUMBERS ARE THE SERVER'S CENSUS NOW (`databank.bankHealth`, 2026-08-14). They used to be summed from
+// the ONE page the tile renders four rows of, so "12 stalled" meant "12 stalled among your newest 100
+// documents" and the size read "100+" — health CLAIMS about a bank, derived from a window (the same
+// blind-lens class the library's client-side filters were, wearing a tile; owner ruling 2026-08-14). What is
+// still derived here is the PRESENTATION: which counts earn a chip, and in what order.
 
 /** Worst-first order for the health line's aggregate chips. A full Record so a new phase must decide where
  *  it sits; `ready` carries the last rank and is filtered out by {@link showsPhaseChip} — the steady state
@@ -178,9 +180,6 @@ const ATTENTION_ORDER: Record<IngestPhase, number> = { stalled: 0, empty: 1, ind
  *  liveness lens correctly reds. */
 export interface BankHealth {
   readonly total: number;
-  /** True when `total` is the server page's own limit — the bank is at LEAST this big, and the tile must
-   *  say so rather than reporting a page as a census (P2-d). */
-  readonly capped: boolean;
   readonly passages: number;
   /** Every chunk the bank holds — the denominator that makes `passages` legible ("286 of 1,170"). */
   readonly chunks: number;
@@ -192,35 +191,25 @@ export interface BankHealth {
 }
 
 /**
- * The bank's ingest health over the documents the caller was handed — ONE page of `databank.list`, so this
- * summarizes that page, not a bank-wide census and not a second server truth.
- * `now` is INJECTED (the stall overlay's clock; the render edge passes it, never an ambient read).
+ * The bank's ingest health as the HOME tile renders it: the server's census, plus the chip decision.
  *
- * `visibleCount` is how many of these documents the caller RENDERS as rows (the list is newest-first, so
- * they are the first N). A phase whose every document is already inside that window earns NO chip: the
- * rows below say "Stalled" on the one stalled document by name, and an aggregate reading "1 stalled" above
- * them is the same fact twice, competing for the same glance (side-eye 2026-08-08 P2-a). The aggregate
- * exists for what you CANNOT see — the twelve wedged documents further down the bank.
+ * A phase earns a chip only when the census counts MORE of it than the tile is already showing by name: the
+ * rows below say "Stalled" on the one stalled document they render, and an aggregate reading "1 stalled"
+ * above them is the same fact twice, competing for the same glance (side-eye 2026-08-08 P2-a). The aggregate
+ * exists for what you CANNOT see — the twelve wedged documents further down the bank. That subtraction is the
+ * one place the tile still derives a phase per row, so `now` is still INJECTED (the stall overlay's clock;
+ * the render edge passes it, never an ambient read).
  */
-export function bankHealth(documents: readonly DocumentView[], now: number, visibleCount: number, pageLimit: number): BankHealth {
-  const counts = new Map<IngestPhase, number>();
-  const hidden = new Map<IngestPhase, number>();
-  let passages = 0;
-  let chunks = 0;
-  for (const [index, doc] of documents.entries()) {
-    passages += doc.embeddedCount;
-    chunks += doc.chunkCount;
+export function bankHealth(census: BankHealthView, visible: readonly DocumentView[], now: number): BankHealth {
+  const shown = new Map<IngestPhase, number>();
+  for (const doc of visible) {
     const phase = ingestPhase(doc, now);
-    counts.set(phase, (counts.get(phase) ?? 0) + 1);
-    if (index >= visibleCount) {
-      hidden.set(phase, (hidden.get(phase) ?? 0) + 1);
-    }
+    shown.set(phase, (shown.get(phase) ?? 0) + 1);
   }
-  const attention = [...counts.entries()]
-    .filter(([phase]) => showsPhaseChip(phase) && (hidden.get(phase) ?? 0) > 0)
-    .toSorted(([a], [b]) => ATTENTION_ORDER[a] - ATTENTION_ORDER[b])
-    .map(([phase, count]) => ({ intent: ingestBadge(phase).intent, label: `${count} ${ingestBadge(phase).label.toLowerCase()}`, phase }));
-  return { attention, capped: documents.length >= pageLimit, chunks, passages, total: documents.length };
+  const attention = INGEST_PHASES.filter((phase) => showsPhaseChip(phase) && census.byPhase[phase] > (shown.get(phase) ?? 0))
+    .toSorted((a, b) => ATTENTION_ORDER[a] - ATTENTION_ORDER[b])
+    .map((phase) => ({ intent: ingestBadge(phase).intent, label: `${census.byPhase[phase]} ${ingestBadge(phase).label.toLowerCase()}`, phase }));
+  return { attention, chunks: census.chunks, passages: census.passages, total: census.total };
 }
 
 const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/gu;
@@ -240,18 +229,10 @@ function groupThousands(value: number): string {
  *  side the two numbers teach what a passage IS and what "indexed" costs. And a capped page says `100+`,
  *  because `databank.list` returns a PAGE: reporting its length as the bank's size is a census the client
  *  never took (P2-d). */
-/** A page-bounded count rendered `"100+"` once it hits the page's own limit, plain otherwise (P2-d). ONE home
- *  for the "`total >= limit` ⇒ capped" reading so every surface reading the same capped `databank.list` page
- *  — the tile's health line, the library header's live count — says the same thing about it; two spellings
- *  would drift the moment one of them rounds differently. */
-export function cappedCount(total: number, limit: number): string {
-  return total >= limit ? `${total}+` : `${total}`;
-}
-
+// The "100+" reading is GONE from both surfaces that carried it (2026-08-14): the library band prints
+// `databank.list`'s `totalCount` and this line prints `databank.bankHealth`'s. Neither is summarizing a page
+// any more, so neither has a cap to admit to.
 function documentCount(health: BankHealth): string {
-  if (health.capped) {
-    return `${health.total}+ documents`;
-  }
   return health.total === 1 ? "1 document" : `${health.total} documents`;
 }
 

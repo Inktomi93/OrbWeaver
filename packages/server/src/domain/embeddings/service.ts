@@ -10,6 +10,7 @@ import type { EmbeddingsService } from "./contract/service.ts";
 import { generateAvatarCaption } from "./indexer/caption.ts";
 import { createClearTable } from "./verbs/clear-table.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
+import { createCountDocumentChunksByOwner } from "./verbs/count-document-chunks-by-owner.ts";
 import { createEmbedAssets } from "./verbs/embed-assets.ts";
 import { createEmbedCorpus } from "./verbs/embed-corpus.ts";
 import { createPruneDocumentChunks } from "./verbs/prune-document-chunks.ts";
@@ -35,5 +36,6 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     pruneMemoryBlocks: createPruneMemoryBlocks(ctx),
     purgeDocumentVectors: createPurgeDocumentVectors(ctx),
     countDocumentChunks: createCountDocumentChunks(ctx),
+    countDocumentChunksByOwner: createCountDocumentChunksByOwner(ctx),
   };
 }

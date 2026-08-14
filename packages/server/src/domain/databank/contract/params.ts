@@ -3,7 +3,7 @@
 // read. The chat-attach authority is the injected `ensureChatHost` op (D18 — databank never reads the chat
 // roster itself). The `reindex` scope/mode axis derives from `@orb/contracts/databank` (one home).
 
-import type { DocOrigin, DocumentListCursor, ReindexMode, ReindexScope } from "@orb/contracts/databank";
+import type { DocOrigin, DocumentListCursor, IngestPhase, ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
 
@@ -69,6 +69,11 @@ export interface GetDocumentParams extends DatabankActorParams {
   readonly includeText?: boolean;
 }
 
+/** The library list's read, with EVERY lens the pane offers resolved SERVER-SIDE (owner ruling 2026-08-13,
+ *  the `character.list` precedent): a keyset page can only ever search/filter what it has fetched, so a
+ *  client-side predicate over the loaded window is a claim the surface has no standing to make. The pane used
+ *  to filter a ≤150-row sliding window by name and by ingest phase, so a term (or a health chip) that matched
+ *  nothing on the loaded pages read as "no matches" over a bank of hundreds. */
 export interface ListDocumentsParams extends DatabankActorParams {
   readonly origin?: DocOrigin;
   readonly limit?: number;
@@ -76,7 +81,40 @@ export interface ListDocumentsParams extends DatabankActorParams {
    *  KEYSET, never an offset: the list's head moves whenever an ingest bumps a row's `updatedAt`, and an
    *  offset would re-serve or skip rows underneath that (the `character.list` cursor precedent). */
   readonly cursor?: DocumentListCursor;
+  /** SERVER-SIDE search over the WHOLE bank: the document NAME — the one string the row itself renders that
+   *  a user can type (the subtitle is derived labels: provenance · size · passages). Blank/whitespace is the
+   *  unsearched bank. NOT a second retrieval axis beside `search.documents`, which searches CHUNK CONTENT
+   *  semantically for a chat turn; this is the library's own name filter. */
+  readonly search?: string;
+  /** The ingest-phase scope home's health chips (P2-a) — omitted = every phase. Resolving it costs one extra
+   *  cross-domain read (see `DatabankContext.listChunkedDocumentIds`), so it is paid only when a chip is on. */
+  readonly phase?: IngestPhase;
 }
+
+/** The list's LENS axes as SQL predicates over the same scope the page windows and the census counts (the
+ *  `CharacterListFilter` precedent). Homed HERE per no-inline-types §7.4, built by the verb — which normalizes
+ *  the request into this shape ONCE and hands the SAME object to both the page read and the count, so the two
+ *  can never disagree about what they are a window into / a count of. */
+export interface DocumentListFilter {
+  /** Already trimmed + lowercased by the verb; `undefined` = the unsearched bank. */
+  readonly search?: string | undefined;
+  readonly origin?: DocOrigin | undefined;
+  readonly phase?: DocumentPhaseScope | undefined;
+}
+
+/** The phase lens, RESOLVED — the phase asked for plus the two facts the `documents` table cannot answer
+ *  alone: which documents embeddings reports as CHUNKED (databank never reads the vector table — D20 /
+ *  Knowledge-Cluster inv 1-2, so the fact arrives through an injected op), and the clock the stall threshold
+ *  is measured against (injected, never an ambient read). */
+export interface DocumentPhaseScope {
+  readonly phase: IngestPhase;
+  /** The owner's documents carrying ≥1 chunk in the ACTIVE embed space. */
+  readonly chunkedIds: readonly DocumentId[];
+  readonly nowMs: number;
+}
+
+/** The bank-health CENSUS read (D-7's home tile) — principal-only: the whole bank is the scope. */
+export interface BankHealthParams extends DatabankActorParams {}
 
 export interface RenameDocumentParams extends DatabankActorParams {
   readonly id: DocumentId;

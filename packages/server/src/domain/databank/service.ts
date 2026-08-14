@@ -15,6 +15,7 @@ import { createDetachFromCharacter } from "./verbs/attach/detach-from-character.
 import { createDetachFromChat } from "./verbs/attach/detach-from-chat.ts";
 import { createDetachGlobal } from "./verbs/attach/detach-global.ts";
 import { createListGlobal } from "./verbs/attach/list-global.ts";
+import { createBankHealth } from "./verbs/bank-health.ts";
 import { createCreateFromText } from "./verbs/create-from-text.ts";
 import { createGatherRetrieval } from "./verbs/gather-retrieval.ts";
 import { createGet } from "./verbs/get.ts";
@@ -38,6 +39,7 @@ export function createDatabankService(ctx: DatabankContext): DatabankService {
     scrapeWiki: createScrapeWiki(ctx),
     get: createGet(ctx),
     list: createList(ctx),
+    bankHealth: createBankHealth(ctx),
     rename: createRename(ctx),
     remove: createRemove(ctx),
     reindex: createReindex(ctx),

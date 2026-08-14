@@ -1308,6 +1308,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "self-scoped: listOwnedMeta filters WHERE owner_id = principal.userId; origin/limit/cursor only. The keyset `cursor` DOES carry a documentId, but it is never LOOKED UP — it is a `(updatedAt, id)` comparison ANDed with the owner predicate, so a foreign (or invented) id can only move the window inside the caller's own rows, never widen it. Nothing about the named document is returned or revealed",
   "databank.listGlobal":
     "self-scoped: listGlobalDocumentIds filters WHERE global_documents.owner_id = principal.userId (the junction's own scope column, D23); takes NO input at all, so there is no foreign id to probe",
+  "databank.bankHealth":
+    "self-scoped: takes NO input at all, so there is no foreign id to probe. Every number it returns is a COUNT over the same `owner_id = principal.userId` predicate `databank.list` pages (countOwnedDocuments), and its one cross-domain read — the injected chunk-count op — derives its scope through the FK join `document_chunks → documents.owner_id` (D20), proven in tests/server/domain/embeddings/verbs/count-document-chunks-by-owner.int.test.ts (another owner's chunked documents are absent from the map)",
   "settings.getAppSettings": "admin-gated: deployment settings",
   "settings.getAppSettingsWithOverrides": "admin-gated: deployment settings (resolved + raw overrides)",
   "settings.updateAppSettings": "admin-gated: deployment settings",

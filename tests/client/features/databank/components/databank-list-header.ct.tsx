@@ -5,7 +5,7 @@
 import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DatabankListHeaderStory } from "../_ct-stories.tsx";
-import { pagedBank, READY_DOC, stubDatabank } from "../fixtures.ts";
+import { READY_DOC, stubDatabank } from "../fixtures.ts";
 
 test("the maintenance kebab fires the owner-wide sweep, and re-extract waits for a confirm (D-6)", async ({ mount, page }) => {
   const trpc = await stubDatabank(page);
@@ -25,15 +25,24 @@ test("the maintenance kebab fires the owner-wide sweep, and re-extract waits for
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "owner" }, mode: "re-extract" });
 });
 
-test("a page filled to the server's own limit reads 100+, never a count it did not take (P2-d)", async ({ mount, page }) => {
-  const page100 = Array.from({ length: DATABANK_LIST_DEFAULT_LIMIT }, (_, i) => ({
+// THE BAND PRINTS THE CENSUS (2026-08-14). It used to print the length of `databank.list`'s first page,
+// which is why a bank past that page read "100+" — the honest thing to say about a number that was really a
+// page length (side-eye P2-d). `databank.bankHealth` counts the bank, so the band states it: no cap, no `+`,
+// and no hundred-document read taken to measure a list.
+test("the band prints the SERVER's census — a bank deeper than one page states its real size", async ({ mount, page }) => {
+  const deeperThanAPage = Array.from({ length: DATABANK_LIST_DEFAULT_LIMIT + 46 }, (_, i) => ({
     ...READY_DOC,
     id: `document_${String(i + 1).padStart(20, "0")}`,
+    updatedAt: READY_DOC.updatedAt - i * 1000,
   }));
-  await stubDatabank(page, { "databank.list": pagedBank(page100) });
+  const trpc = await stubDatabank(page, {}, deeperThanAPage);
   const band = await mount(<DatabankListHeaderStory />);
 
-  await expect(band.getByText(`${DATABANK_LIST_DEFAULT_LIMIT}+`, { exact: true })).toBeVisible();
+  await expect(band.getByText(`${DATABANK_LIST_DEFAULT_LIMIT + 46}`, { exact: true })).toBeVisible();
+  await expect(band.getByText(`${DATABANK_LIST_DEFAULT_LIMIT}+`, { exact: true })).toHaveCount(0);
+  // A COUNT read for a count: the band fetches no document rows at all.
+  await expect.poll(() => trpc.count("databank.bankHealth"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.count("databank.list"), { intervals: [20, 50, 100] }).toBe(0);
 });
 
 // EVERY ARM OWES A WAY OUT (side-eye sweep 2026-08-03). Each ingest arm draws its own footer because each

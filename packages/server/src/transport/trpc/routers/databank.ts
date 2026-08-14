@@ -8,7 +8,7 @@
 // leak-free BAD_REQUEST (`ScrapeFailedError`). The chat GATHER op + the search.documents lens are later waves
 // (DB5/DB6). The character-scope attach/detach verbs are DB8 (owner-gated on BOTH sides).
 
-import { docOriginSchema, documentListCursorSchema, reindexModeSchema, reindexScopeSchema } from "@orb/contracts/databank";
+import { docOriginSchema, documentListCursorSchema, ingestPhaseSchema, reindexModeSchema, reindexScopeSchema } from "@orb/contracts/databank";
 import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -42,15 +42,20 @@ export const databankRouter = t.router({
       ctx.services.databank.get({ principal: ctx.auth, id: input.id, ...(input.includeText !== undefined ? { includeText: input.includeText } : {}) }),
     ),
 
-  // Keyset-paged. `cursor` rides as ONE field because tRPC's `infiniteQueryOptions` threads exactly one
-  // `cursor` input through as the page param, overwriting it wholesale per next-page fetch (the
-  // `character.list` shape); `origin`/`limit` are separate top-level inputs, so changing either resets the
-  // infinite query's pages rather than mixing keysets. `.nullish()` on the cursor because the client seeds
-  // the first page with `initialCursor: null`.
+  // Keyset-paged, and EVERY lens is an input here (owner ruling 2026-08-13 — a paged list's filters are the
+  // server's, or they are a claim about rows the client never fetched). `cursor` rides as ONE field because
+  // tRPC's `infiniteQueryOptions` threads exactly one `cursor` input through as the page param, overwriting
+  // it wholesale per next-page fetch (the `character.list` shape); `search`/`phase`/`origin`/`limit` are
+  // separate top-level inputs, so changing a lens RESETS the infinite query's pages rather than mixing
+  // keysets. `.nullish()` on the cursor because the client seeds the first page with `initialCursor: null`.
   list: authedProcedure
     .input(
       z.object({
         origin: docOriginSchema.optional(),
+        // Bounded like every other free-text lens: a needle longer than the longest storable name can only
+        // match nothing, and an unbounded `like` argument is a request-size hole.
+        search: z.string().max(NAME_MAX).optional(),
+        phase: ingestPhaseSchema.optional(),
         limit: z.number().int().min(LIMIT_MIN).max(LIMIT_MAX).optional(),
         cursor: documentListCursorSchema.nullish(),
       }),
@@ -59,10 +64,16 @@ export const databankRouter = t.router({
       ctx.services.databank.list({
         principal: ctx.auth,
         ...(input.origin !== undefined ? { origin: input.origin } : {}),
+        ...(input.search !== undefined ? { search: input.search } : {}),
+        ...(input.phase !== undefined ? { phase: input.phase } : {}),
         ...(input.limit !== undefined ? { limit: input.limit } : {}),
         ...(input.cursor !== undefined && input.cursor !== null ? { cursor: input.cursor } : {}),
       }),
     ),
+
+  // The home tile's D-7 census (owner-wide counts + passage sums). Its own read, never a field on `list`:
+  // resolving it costs a bank-wide chunk read that the paging library must not pay per page (verbs/bank-health.ts).
+  bankHealth: authedProcedure.query(({ ctx }) => ctx.services.databank.bankHealth({ principal: ctx.auth })),
 
   rename: authedProcedure
     .input(z.object({ id: brandedId<DocumentId>(), name: z.string().min(1).max(NAME_MAX) }))
