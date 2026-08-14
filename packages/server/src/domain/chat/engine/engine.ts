@@ -6,7 +6,11 @@
 // emit turnStarted → load canon + next-seq → runTurnPipeline (assemble→shape→run→reduce→fit) → persist the
 // canon + stats delta in one atomic batch → emit messageCommitted + turnCompleted → release lock. On any
 // error after turnStarted: emit turnAborted then rethrow, never swallow. Pre-start refusals throw a coded
-// ChatOperationError and emit nothing.
+// ChatOperationError and emit nothing — UNLESS the caller already opened the client's turn slot
+// (`TurnPrep.slotAccepted`, set by every verb that emits `turnAccepted`), in which case the refusal ALSO emits
+// `turnAborted` to close it (`closePreStartRefusal`): the engine is the only party that knows `turnStarted`
+// never fired, and an accepted-but-unresolved slot is a stuck Stop button. A turn nobody accepted (the
+// `opening` turn, `forceCharacterTurn`) keeps the historical bus-silent refusal, byte-identically.
 //
 // The chat bus emit, the per-member budget debit, and the per-turn host policy are not ChatContext ops —
 // they're injected as engine deps wired at the entry composition root.
@@ -1170,24 +1174,28 @@ async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: Tu
   return { ...prep.assembleContext, memory };
 }
 
-/** The turn body, parametrized by persist mode + lock-freedom: security belts → resolve persist target →
- *  turnStarted → assemble/generate → persist → turnCompleted. On a post-start error: emit turnAborted then
- *  rethrow. Pre-start refusals throw a coded error and emit nothing. */
-async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
-  // Absent persist mode = a new assistant slot. append-variant/continue load the write target before
-  // turnStarted — a missing target is a pre-start refusal (leak-free NOT_FOUND, emits nothing). Resolved
-  // FIRST (before the consent/budget belts) so the agent-speaker id + its connection are known while the
-  // belts still gate — a refused turn never debits budget, and the belt sees the ACTUAL connection.
-  const persist: TurnPersist = prep.persist ?? { mode: "new-slot", role: "assistant" };
+/** What the PRE-START half resolved: the loaded write target (null for a new slot) and the enforced consent
+ *  verdict the built `TurnRequest` carries. */
+interface PreStartResolution {
+  readonly target: NonNullable<Awaited<ReturnType<typeof loadSlotTarget>>> | null;
+  readonly ownerConsented: boolean;
+}
+
+/** The PRE-START half of the lifecycle: resolve the persist target, then run the security belts. Every throw
+ *  here happens BEFORE `turnStarted` — a refusal, not an aborted turn. Extracted so {@link executeTurn} can
+ *  wrap exactly this region in the accepted-slot close (and to keep its complexity budget). */
+async function runPreStart(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep, persist: TurnPersist): Promise<PreStartResolution> {
+  // append-variant/continue load the write target before turnStarted — a missing target is a pre-start
+  // refusal (leak-free NOT_FOUND). Resolved FIRST (before the consent/budget belts) so the agent-speaker id +
+  // its connection are known while the belts still gate — a refused turn never debits budget, and the belt
+  // sees the ACTUAL connection.
   const target = persist.mode === "new-slot" ? null : ((await loadSlotTarget(ctx.db, prep.chatId, persist.targetMessageId)) ?? null);
   if (persist.mode !== "new-slot" && target === null) {
     throw new ChatNotFoundError(prep.chatId);
   }
-
   // Agent-speaker connection swap (D60) is DESIGN-of-record, not built (agent principals are dormant;
   // Spine-Identity §4) — a character/human always keeps the round connection byte-identically.
   const connection = prep.connection;
-
   // Security belts before any turnStarted: consent + budget debit attributed to triggeredBy, on the
   // EFFECTIVE connection (the agent's own, or the round connection).
   const policy = await deps.resolveTurnPolicy(prep.runAsUserId);
@@ -1204,6 +1212,46 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     ownerConsent: policy.allowNonOwnerMaxProSub,
   });
   await debitTurnBudget(deps.debitBudget, prep.triggeredBy, policy.budget);
+  return { target, ownerConsented };
+}
+
+/** Closes the client turn slot a PRE-START refusal would otherwise strand OPEN (a stuck Stop button). Fires
+ *  ONLY for a turn whose caller announced its acceptance (`prep.slotAccepted` — the verb emitted
+ *  `turnAccepted`); a turn nobody accepted keeps the historical bus-silent refusal.
+ *
+ *  `reason:"error"` — a refusal is a fault, not a cancel: it is never the caller's Stop (that arrives through
+ *  `prep.signal`, post-start), and it is not the heartbeat's lock-loss "stale". The client's bus notice is
+ *  deliberately silent for "error" because the coded throw ALSO rides the caller's tRPC error boundary
+ *  (`turn-abort-notice.ts` — notifying on both paths double-toasts); the slot still closes.
+ *  Depth rides `TurnPrep.automationDepth` so an automation-initiated refusal is a depth ≥ 1 `turnAborted`
+ *  fact and the cascade guard suppresses non-opted retry rules exactly as it does for a real abort. */
+async function closePreStartRefusal(deps: EngineDeps, prep: TurnPrep): Promise<void> {
+  if (prep.slotAccepted !== true) {
+    return;
+  }
+  await deps.emit({
+    type: "turnAborted",
+    chatId: prep.chatId,
+    intent: KIND_TO_INTENT[prep.kind],
+    reason: "error",
+    automationDepth: turnCascadeDepth(prep),
+  });
+}
+
+/** The turn body, parametrized by persist mode + lock-freedom: security belts → resolve persist target →
+ *  turnStarted → assemble/generate → persist → turnCompleted. On a post-start error: emit turnAborted then
+ *  rethrow. Pre-start refusals throw a coded error and emit nothing — except the accepted-slot close
+ *  ({@link closePreStartRefusal}). */
+async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
+  // Absent persist mode = a new assistant slot.
+  const persist: TurnPersist = prep.persist ?? { mode: "new-slot", role: "assistant" };
+  const { target, ownerConsented } = await runPreStart(ctx, deps, prep, persist).catch(async (err: unknown) => {
+    // PRE-START refusal: nothing started, so the engine's post-start catch below never runs — close the
+    // caller's accepted slot here or it strands open.
+    await closePreStartRefusal(deps, prep);
+    throw err;
+  });
+  const connection = prep.connection;
 
   const intent = KIND_TO_INTENT[prep.kind];
   // This turn's OWN cascade depth (automation-design/03 §4), resolved once — a human turn is 0, an
@@ -1614,6 +1662,10 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
       expiresAt: now + deps.lockTtlMs,
     });
     if (!acquired) {
+      // The loudest pre-start refusal there is: a swipe/continue/send refused here NEVER reaches `executeTurn`,
+      // so the caller's accepted slot has no other closer (the measured amplifier in the ghost-slot diagnosis —
+      // the old variant held for the whole of the OTHER turn).
+      await closePreStartRefusal(deps, prep);
       throw new ChatOperationError(CHAT_OP_CODES.locked, "a turn is already in flight for this chat");
     }
     return await runInLockWithHeartbeat(ctx, deps, prep);

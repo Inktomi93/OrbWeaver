@@ -247,11 +247,18 @@ export type ChatBusEvent =
   // so the client can open its turn slot (→ render Stop) during a hung smart arbitration, which runs BEFORE
   // `turnStarted` and used to leave the user with no Stop affordance at all. Carries no speaker: the group
   // arbitration that picks the speaker has not run yet, so `speakerCharacterId` is null on accept and the
-  // later `turnStarted` re-opens the slot with the resolved speaker. `targetMessageId` is the ghost-slot for a
-  // swipe/continue (null for a fresh reply). Every acceptance is TOTAL-RESOLVED: the arbitration path emits
+  // later `turnStarted` re-opens the slot with the resolved speaker. The AUXILIARY turns (swipe / continue /
+  // generate) accept for the same reason at a different wall: their `turnStarted` lands only after the
+  // room/connection resolve, the context assembly and MEMORY RECALL (measured 151 ms - 1.9 s, unbounded), and
+  // until it did, the reader saw the OLD variant with no feedback. `targetMessageId` is the ghost-slot a
+  // swipe/continue rerolls/extends (null for a fresh reply) — the client renders its ghost over that message.
+  //
+  // Every acceptance is TOTAL-RESOLVED — a `turnAccepted` slot never strands open. The arbitration path emits
   // `turnStarted`→`turnCompleted`/`turnAborted` on the speaking path, `turnAborted` on a cancelled
-  // arbitration, and `turnCompleted`(messageId:null) when arbitration yields no eligible speaker — so a
-  // `turnAccepted` slot never strands open.
+  // arbitration, and `turnCompleted`(messageId:null) when arbitration yields no eligible speaker; an auxiliary
+  // turn emits `turnAborted` when its resolve/validation throws; and for EVERY accepted turn the engine's
+  // PRE-START refusals (lock contention · consent · budget · a missing persist target) emit `turnAborted` too
+  // (`TurnPrep.slotAccepted` — the engine is the only party that knows `turnStarted` never fired).
   | {
       type: "turnAccepted";
       chatId: ChatId;
