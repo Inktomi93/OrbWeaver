@@ -182,11 +182,13 @@ export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: Roo
   const factorySave = isHost && save !== undefined ? (values: RoomOverridesFormValues): Promise<unknown> => save(fromRoomOverridesForm(values)) : undefined;
 
   return (
-    // `save` spread, not passed as `undefined` — exactOptionalPropertyTypes; absent ⇒ the boundary is read-only.
+    // The seam is DECLARED, never omitted (client-forms-01): a host persists, a member mount says
+    // `readOnly` — so the boundary itself refuses to autosave rather than relying on every field below
+    // remembering `disabled={!isHost}`.
     <RoomOverridesFormBoundary
       entityId={entityId}
       serverValues={toRoomOverridesForm(roomOverrides)}
-      {...(factorySave === undefined ? {} : { save: factorySave })}
+      {...(factorySave === undefined ? ({ readOnly: true } as const) : { save: factorySave })}
     >
       {({ form }): ReactElement => (
         <Stack gap="field">

@@ -15,13 +15,21 @@ export { useFieldContext, useFormContext } from "./contexts.ts";
 // a module-scope `createAutosaveEntityForm<TValues>(config)` returns the boundary COMPONENT that owns
 // identity, reseed, the teardown flush, and the store-subscription save driver (the internal hook is
 // unexported by construction).
+// The persistence seam is declared at EXACTLY ONE place, as a COMPILE fact (client-forms-01): a config
+// without `save` mints a boundary whose props are `{ save } | { readOnly: true }` — a display-only mount
+// says so, and a seamless one no longer exists.
+export { createAutosaveEntityForm } from "./create-autosave-entity-form.tsx";
 export type {
   AutosaveBoundaryProps,
+  AutosaveBoundaryPropsPersisting,
+  AutosaveBoundaryPropsReadOnly,
+  AutosaveBoundaryPropsSeamRequired,
   AutosaveEntityBoundaryConfig,
+  AutosaveEntityBoundaryConfigWithoutSave,
+  AutosaveEntityBoundaryConfigWithSave,
   AutosaveSaveState,
   AutosaveSession,
-} from "./create-autosave-entity-form.tsx";
-export { createAutosaveEntityForm } from "./create-autosave-entity-form.tsx";
+} from "./create-autosave-entity-form-model.ts";
 export type { FormHandleBridge } from "./create-form-handle-bridge.ts";
 export { createFormHandleBridge } from "./create-form-handle-bridge.ts";
 export type { SavedEntityFormArgs, SavedEntityFormConfig } from "./create-saved-entity-form.ts";
