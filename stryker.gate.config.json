@@ -7,20 +7,11 @@
     "configFile": "vitest.stryker.config.ts"
   },
   "_plugins_comment": "Explicit plugin paths \u2014 pnpm's strict layout breaks Stryker auto-discovery.",
-  "plugins": [
-    "@stryker-mutator/vitest-runner",
-    "@stryker-mutator/typescript-checker"
-  ],
-  "checkers": [
-    "typescript"
-  ],
+  "plugins": ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker"],
+  "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
   "_reporters_comment": "`progress` is NOT optional here, unlike in the exploratory config where it was already present. The mutant phase over 1,115 mutants emits NOTHING without it: a 2026-08-14 calibration run sat 56+ minutes past a successful dry run with zero output, indistinguishable from a wedge, and there was no way to tell a slow run from a hung one. A gate whose expensive phase is a black box cannot be operated.",
-  "reporters": [
-    "html",
-    "clear-text",
-    "progress"
-  ],
+  "reporters": ["html", "clear-text", "progress"],
   "htmlReporter": {
     "fileName": "reports/mutation/gate.html"
   },

@@ -6,6 +6,7 @@
 // "More info" leaks into the labeled element's accessible name (W3C accname subtree concatenation).
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { LabeledFixture } from "./hint-trigger.fixtures.tsx";
 
 test("inline size (Field's anatomy): renders the locator, derives its name from subject, opens the tooltip", async ({ mount, page }) => {
   // The mount ROOT is the trigger itself (Tooltip.Root renders no DOM wrapper) — `page.locator`, not
@@ -40,13 +41,7 @@ test("falls back to the bare name when subject is absent", async ({ mount, page 
 test("accname sibling-not-descendant: mounted as a SIBLING of a labeled control, the label's own accname stays clean", async ({ mount, page }) => {
   // Mirrors the shape both call sites enforce (field.tsx's labelRow / section.tsx's headingRow): the
   // trigger sits BESIDE the labeled element in the DOM, never nested inside it.
-  await mount(
-    <span>
-      <label htmlFor="notes-input">Notes</label>
-      <HintTrigger className="test-trigger" hint="Visible only to you" subject="Notes" />
-      <input id="notes-input" type="text" />
-    </span>,
-  );
+  await mount(<LabeledFixture />);
   // The control's accname is EXACTLY the label text — no "More info" suffix leaked from the sibling
   // trigger (the defect this atom's whole doc-comment exists to prevent).
   await expect(page.getByRole("textbox", { name: "Notes", exact: true })).toBeVisible();

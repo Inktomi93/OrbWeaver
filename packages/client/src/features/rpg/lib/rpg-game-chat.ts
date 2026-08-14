@@ -35,10 +35,8 @@ export function peekChatDetail(deps: RpgContextTabsDeps, s: CommittedChatContext
  *  the query settles). A DISENGAGED game (pointer `engaged:false`) reads exactly like a non-game chat: the
  *  claim drops, the game tabs go, and the host-only Game tab stays as the re-enable door. */
 export function makeIsGameChat(deps: RpgContextTabsDeps): (s: ChatContextState) => s is CommittedChatContext {
+  // Single-arm union today (see rpg-context-section's twin note) — phase narrowing returns with arm 2.
   return (s: ChatContextState): s is CommittedChatContext => {
-    if (s.phase !== "committed") {
-      return false;
-    }
     const detail = peekChatDetail(deps, s);
     return detail !== undefined && isRpgEngaged(detail.rpg ?? null);
   };

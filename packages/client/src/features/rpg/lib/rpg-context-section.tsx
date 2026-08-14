@@ -47,12 +47,9 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
 
   /** The Game meta tab's #40 gate: EVERY committed chat the viewer hosts (game or not) — the tab is the
    *  FRONT DOOR (start a game / resume a paused one / the GM console). PERMISSION-omit for members. */
-  const isHostCommitted = (s: ChatContextState): s is CommittedChatContext => {
-    if (s.phase !== "committed") {
-      return false;
-    }
-    return peekChatDetail(deps, s)?.viewerIsHost === true;
-  };
+  // ChatContextState is single-arm today (R1 deleted the draft arm; the union stays as the re-entry
+  // seam) — no phase check needed until a second arm exists, at which point tsc re-demands one here.
+  const isHostCommitted = (s: ChatContextState): s is CommittedChatContext => peekChatDetail(deps, s)?.viewerIsHost === true;
 
   const gameTab =
     (label: string, render: (state: RpgPanelState) => ReactNode) =>

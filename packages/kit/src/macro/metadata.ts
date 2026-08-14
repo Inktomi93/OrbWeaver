@@ -13,7 +13,7 @@ import type { MacroArgDef, MacroArgViolation, MacroCategory, MacroDiagnostic, Ma
 const FALSY_LITERALS = new Set(["false", "off", "0"]);
 const TRUTHY_LITERALS = new Set(["true", "on", "1"]);
 
-/** Does `value` read as "on" under the {{if}} truthiness vocabulary? Trimmed+lowercased; empty or a
+/** Does `value` read as "on" under the `{{if}}` truthiness vocabulary? Trimmed+lowercased; empty or a
  *  falsy literal ⇒ false, everything else (including non-vocabulary text) ⇒ true. */
 export function isIfTruthy(value: string): boolean {
   const v = value.trim().toLowerCase();
