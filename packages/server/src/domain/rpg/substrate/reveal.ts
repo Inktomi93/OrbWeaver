@@ -1,20 +1,23 @@
 // domain/rpg/substrate/reveal — the PURE host-reveal derivation (parity-plus §3.6). Tokenizes the stored
-// `<lie>`/`<ofilter>` hidden spans out of the assistant transcript bodies (the SAME `@orb/kit/content`
-// tokenizer + `HIDDEN_TAGS` registry the member-strip reads — one grammar, so the reveal shows EXACTLY what the
-// strip removed) and projects them into the per-message reveal + the standing-lie inventory. ZERO I/O — the
+// `<lie>`/`<ofilter>` hidden spans out of the assistant transcript bodies (`@orb/kit/content::scanHiddenSpans`
+// + the `HIDDEN_TAGS` registry — LITERALLY the strip's twin, one fence-blind pass feeding both, so the reveal
+// shows EXACTLY what the strip removed and the two cannot drift) and projects them into the per-message reveal
+// + the standing-lie inventory. That shared pass is why an in-card lie now reaches the host's eye: before
+// 2026-08-14 both sides tokenized fence-strict, so a `<lie …/>` inside a `:::card` body was missing from the
+// host's own standing inventory while riding into every member's payload. ZERO I/O — the
 // verb reads the bodies and hands them in (the reminder/delta purity contract). A third hidden channel is a
 // `HIDDEN_TAGS` row: this file re-derives its field set from the registry, never a hardcoded lie/ofilter shape.
 
 import type { RpgRevealedMessage, RpgRevealedSpan, RpgRevealView, RpgStandingLie } from "@orb/contracts/rpg";
-import type { ContentSpan } from "@orb/kit/content";
-import { HIDDEN_TAGS, tokenizeContent } from "@orb/kit/content";
+import type { HiddenContentSpan } from "@orb/kit/content";
+import { HIDDEN_TAGS, scanHiddenSpans } from "@orb/kit/content";
 import type { RevealBodyRow } from "../contract/service.ts";
 
 /** Project ONE hidden span into its labelled fields (registry order — `character/type/truth/reason` for a lie).
  *  A missing attr projects `""` (the model omitted it; the panel still shows the labelled slot). `null` when the
  *  span's tag is not a registered hidden tag (skip it). Reads the `HIDDEN_TAGS` registry directly (a linear
  *  `find` over the ~2-entry constant — no derived index needed) so a new channel needs no edit here. */
-function revealSpan(span: Extract<ContentSpan, { kind: "hidden" }>): RpgRevealedSpan | null {
+function revealSpan(span: HiddenContentSpan): RpgRevealedSpan | null {
   const def = HIDDEN_TAGS.find((d) => d.tag === span.tag);
   if (def === undefined) {
     return null;
@@ -26,16 +29,16 @@ function revealSpan(span: Extract<ContentSpan, { kind: "hidden" }>): RpgRevealed
   };
 }
 
-/** The hidden spans of ONE body, projected. Reads the SAME tokenizer the member-strip reads (the reveal shows
- *  exactly what was stripped). A body with no hidden spans yields `[]`. */
+/** The hidden spans of ONE body, projected. Reads the SAME kit pass the member-strip reads (`scanHiddenSpans`
+ *  — its literal twin), so the reveal shows exactly what was stripped, FENCE BODIES INCLUDED: before
+ *  2026-08-14 both sides were fence-strict, so an in-card `<lie …/>` was invisible to the host's own eye AND
+ *  leaked to the member. A body with no hidden spans yields `[]`. */
 function revealBodySpans(content: string): RpgRevealedSpan[] {
   const out: RpgRevealedSpan[] = [];
-  for (const span of tokenizeContent(content)) {
-    if (span.kind === "hidden") {
-      const revealed = revealSpan(span);
-      if (revealed !== null) {
-        out.push(revealed);
-      }
+  for (const span of scanHiddenSpans(content)) {
+    const revealed = revealSpan(span);
+    if (revealed !== null) {
+      out.push(revealed);
     }
   }
   return out;

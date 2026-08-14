@@ -72,6 +72,27 @@ test("only messages WITH hidden spans appear in `messages`; the inventory reads 
   expect(view.standingLies).toHaveLength(1);
 });
 
+test("a lie inside a CARD fence is revealed to the host — the reveal sees exactly what the strip removes (2026-08-14)", () => {
+  // THE DUAL of the member-strip fence hole. Both sides read ONE fence-blind kit pass (`scanHiddenSpans`),
+  // so they cannot drift: before the fix BOTH were fence-strict, which meant an in-card lie was invisible to
+  // the reveal eye AND leaked to the member. Making the strip total without this would have inverted the
+  // file's own invariant — the host losing an in-card lie from their own standing inventory.
+  const view = buildRevealView([
+    body(castId<MessageId>("m1"), 1, `:::card title="Ledger"\n<p>All accounted for.</p>\n${LIE("Mari", "she took the gold")}\n:::`),
+    body(castId<MessageId>("m2"), 2, `:::choices\n1. Trust her\n${LIE("Zandik", "he is the informant")}\n:::`),
+  ]);
+  expect(view.messages.map((m) => m.messageId)).toEqual(["m1", "m2"]);
+  expect(view.standingLies.map((g) => g.character)).toEqual(["Mari", "Zandik"]);
+  expect(view.standingLies[0]?.lies[0]?.truth).toBe("she took the gold");
+});
+
+test("a lie shown inside a ``` code fence is NOT revealed — the strip's one named exclusion, mirrored (§3.2.1 #3)", () => {
+  // The member READS that tag on screen, so nothing was hidden from them and nothing is owed to the reveal.
+  // Mirroring the exclusion is what keeps "the reveal shows exactly what the strip removed" literally true.
+  const view = buildRevealView([body(castId<MessageId>("m1"), 1, `\`\`\`\n${LIE("Mari", "she took the gold")}\n\`\`\``)]);
+  expect(view).toEqual({ messages: [], standingLies: [] });
+});
+
 test("a lie with an omitted attr projects an empty-string field (the model left it out)", () => {
   const view = buildRevealView([body(castId<MessageId>("m1"), 1, '<lie character="Mari" truth="she lies" />')]);
   const fields = view.messages[0]?.spans[0]?.fields ?? [];
