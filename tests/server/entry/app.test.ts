@@ -156,6 +156,24 @@ describe("createApp", () => {
     expect(res.status).toBe(UNAUTHORIZED);
   });
 
+  // PROD-LEAK (live incident 2026-08-09): the public box was served by a DEV process, so tRPC's `isDev`
+  // (= NODE_ENV !== "production", resolved once at initTRPC.create) was true and `getErrorShape` attached
+  // `data.stack` — absolute host paths, the OS username, exact dep versions — to EVERY error, for ANY
+  // anonymous caller. The `trpc.ts` errorFormatter now strips it unconditionally. THIS is the wire proof:
+  // the mounted app, an anonymous request, the bytes that actually leave the process. The vitest run is
+  // itself the leaking regime (NODE_ENV=test ⇒ isDev true — asserted as a CONTROL in
+  // tests/server/transport/trpc/trpc.test.ts), so a green here is the belt, not the env.
+  test("anonymous GET /api/trpc/* → 401 whose error body carries NO `stack` (PROD-LEAK belt)", async () => {
+    const app = createApp(deps({ seam: fakeSeam(null) }));
+    const res = await hit(app, new Request("http://localhost/api/trpc/persona.list"));
+    expect(res.status).toBe(UNAUTHORIZED);
+    const body = (await res.json()) as { readonly error: { readonly data: Record<string, unknown> } };
+    expect(body.error.data["code"]).toBe("UNAUTHORIZED");
+    expect(Object.keys(body.error.data)).not.toContain("stack");
+    // The whole serialized envelope, not just the data bag: no host path may appear anywhere in it.
+    expect(JSON.stringify(body)).not.toContain("/packages/server/src/");
+  });
+
   test("the seam resolves the principal EXACTLY ONCE per request", async () => {
     let calls = 0;
     const seam = fakeSeam(OWNER, () => {
