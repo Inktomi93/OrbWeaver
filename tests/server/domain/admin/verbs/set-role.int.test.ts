@@ -29,6 +29,11 @@ describe("setRole", () => {
     });
     expect(updated.role).toBe("admin");
     expect(h.audits.map((a) => a.entry.action)).toContain("admin.setRole");
+    // W7b — the grant is announced on the GRANTEE's channel, never the granting owner's. That direction is
+    // the whole point: `sessions.me` projects `globalRole` and the QueryClient runs `staleTime: Infinity`, so
+    // before this the promoted user's live tab rendered the pre-grant role until a full reload, while the
+    // owner (who needs nothing) is served by `admin.listUsers`' own writer-local `invalidates`.
+    expect(h.userEvents).toEqual([{ userId: target, event: { type: "identityChanged" } }]);
   });
 
   test("a delegated admin is REFUSED (requireOwner is owner-only)", async () => {
@@ -64,6 +69,9 @@ describe("setRole", () => {
     expect(result.role).toBe("owner");
     // No write, no audit — the owner row is unchanged.
     expect(h.audits).toHaveLength(0);
+    // …and no fan either: the emit sits AFTER the write on the success path, so the early-return no-op arm
+    // cannot announce a change that did not happen (the emit-after-commit rule, read from the other side).
+    expect(h.userEvents).toHaveLength(0);
     const row = (await db.select().from(users).where(eq(users.id, owner)))[0];
     expect(row?.role).toBe("owner");
   });

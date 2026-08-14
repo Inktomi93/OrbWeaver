@@ -29,6 +29,12 @@ describe("setEnabled", () => {
     expect(updated.enabled).toBe(false);
     expect(h.revokedAll).toContain(target);
     expect(h.audits.map((a) => a.entry.action)).toContain("admin.setEnabled");
+    // W7b — NO `identityChanged` fan here, and this pin is the receipt for the omission the verb's header
+    // argues (the staleness design §4.4.3 names this verb as a producer, so the next reader will want to
+    // "fix" it). Two reasons: a disabled row is gated to null on every request, so the target holds no live
+    // channel — the KICK TAIL above plus the entry wrapper's socket eviction is the real propagation edge —
+    // and `enabled` is projected by no identity read (`sessions.me` is userId/handle/globalRole).
+    expect(h.userEvents).toHaveLength(0);
   });
 
   test("an actor cannot disable their own account (cannot_disable_self) — no write, no revoke", async () => {

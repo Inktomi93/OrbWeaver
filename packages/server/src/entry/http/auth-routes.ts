@@ -30,6 +30,7 @@ import { hasCsrfHeader, MIN_PASSWORD_LENGTH, SESSION_COOKIE_NAME } from "#infra/
 import { clientIp } from "#infra/network";
 import type { RateLimiter } from "../../transport/rate-limit.ts";
 import { createRateLimiter } from "../../transport/rate-limit.ts";
+import { publishUserEvent } from "../../transport/trpc/index.ts";
 import { readSessionCookie } from "../auth/index.ts";
 
 const UNAUTHORIZED = 401;
@@ -215,6 +216,10 @@ type ProvisionOutcome =
       readonly userId: UserId;
       readonly enabled: boolean;
       readonly role: UserRole;
+      /** W7b — the upsert moved a field `sessions.me` projects (handle / role). See
+       *  `ProvisionResult.identityChanged`; the callback fans `identityChanged` on this user's channel so
+       *  their OTHER live devices re-read the viewer instead of rendering the pre-rename identity. */
+      readonly identityChanged: boolean;
     }
   | { readonly outcome: "denied"; readonly reason?: "account-exists" };
 
@@ -507,6 +512,17 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     return c.redirect(url.href, FOUND);
   });
 
+  // W7b — an IdP RENAME or a login-time role RE-DERIVE reaches this human's OTHER live devices here, or
+  // nowhere: at `staleTime: Infinity` a warm tab elsewhere never re-reads `sessions.me` on its own. Called
+  // BEFORE the cookie mint — the new device has no socket yet, so this is entirely about the sessions already
+  // live, and nothing after it can fail in a way that should swallow the announcement. Extracted rather than
+  // inlined so the callback stays under the cognitive-complexity gate (it was at 15 of 15).
+  const fanIdentityChange = (provisioned: Extract<ProvisionOutcome, { outcome: "provisioned" }>): void => {
+    if (provisioned.identityChanged) {
+      publishUserEvent(provisioned.userId, { type: "identityChanged" });
+    }
+  };
+
   // A7 — the callback is a TOP-LEVEL browser navigation, so every failure lands back on /login with a
   // sanitized ?authError= code (never raw JSON in the address bar). The codes are already sanitized (fixed
   // literals or `sanitizeOidcErrorCode` output), so this widens no leak surface over the prior 401/403 JSON.
@@ -556,6 +572,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     if (!provisioned.enabled) {
       return loginErrorRedirect(c, AUTH_ERROR_ACCOUNT_DISABLED);
     }
+    fanIdentityChange(provisioned);
     const session = await deps.sessions.create({
       userId: provisioned.userId,
       userAgent: c.req.header("user-agent") ?? null,

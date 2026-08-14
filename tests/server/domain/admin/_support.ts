@@ -5,6 +5,7 @@
 // their calls so tests assert the verb's behaviour (e.g. existence-before-audit: zero recorded audits).
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
@@ -28,6 +29,10 @@ export interface AdminHarness {
   readonly audits: AuditCall[];
   readonly revokedAll: UserId[];
   readonly revokedSessions: string[];
+  /** W7b — the recorded `identityChanged` fans. Recorded with the CHANNEL, because the load-bearing property
+   *  is WHOSE channel: admin is the one producer whose write lands on somebody else's row, so an emit to the
+   *  acting admin instead of the target would announce a grant to everyone except its recipient. */
+  readonly userEvents: { userId: UserId; event: UserBusEvent }[];
   /** B5 — the recorded `linkExternalId` port calls; the fake returns `{outcome:"linked"}` unless
    *  `setLinkOutcome` forces a refusal outcome (to exercise the admin verb's outcome→code mapping). */
   readonly linked: { userId: UserId; externalId: ExternalId }[];
@@ -87,6 +92,7 @@ export function makeHarness(db: Db): AdminHarness {
   const audits: AuditCall[] = [];
   const revokedAll: UserId[] = [];
   const revokedSessions: string[] = [];
+  const userEvents: { userId: UserId; event: UserBusEvent }[] = [];
   const linked: { userId: UserId; externalId: ExternalId }[] = [];
   let linkOutcome: LinkExternalIdOutcome | null = null;
   const restarted: string[] = [];
@@ -106,6 +112,9 @@ export function makeHarness(db: Db): AdminHarness {
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
       audits.push({ entry, at });
       return Promise.resolve();
+    },
+    emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
+      userEvents.push({ userId, event });
     },
     sessions: {
       listForUser: (_userId: UserId): Promise<readonly SessionAdminView[]> => Promise.resolve(sessionList),
@@ -148,6 +157,7 @@ export function makeHarness(db: Db): AdminHarness {
     audits,
     revokedAll,
     revokedSessions,
+    userEvents,
     linked,
     setLinkOutcome: (outcome: LinkExternalIdOutcome | null): void => {
       linkOutcome = outcome;

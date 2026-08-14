@@ -441,15 +441,10 @@ the client fix contains every storm class, including future ones.
     rooms preserved), `socket.test.ts` (the COMPOSED pin: the evicted device's generator completes while
     the sibling device keeps streaming), `auth-routes.test.ts` (5 route pins),
     `entry/compose/services.test.ts` (the admin-revoke wire), `sessions/verbs/revoke.int.test.ts`.
-  - **W7b `identityChanged`:** contracts `user-bus` union + types-const member; emit in
-    `admin.setRole`/`setEnabled` (target-user fan); map row in `invalidation.ts` → `sessions.me` +
-    viewer keys. The FULL E4 ritual (union → map → emit → `user-bus-coverage` green) — the belt makes
-    a half-registration RED.
-- **W8 — coalescing in the seam.**
-  Files: `packages/client/src/data/invalidation.ts` (`invalidateFilters` trailing window per
-  filter-key; flush on timer + on `flushSync`-adjacent edges none — keep it simple).
-  Tests: unit with fake timers — N same-key calls in-window = one `invalidateQueries`; distinct keys
-  independent; the dev log still logs per event.
+  - **W7b `identityChanged`: BUILT 2026-08-14 (lane 3)** — see §5c.1-3 for the emitter set as built
+    (`setRole` yes, `setEnabled` refused with a receipt, `provisionIdentity` added).
+- **W8 — QUIET-MODE bulk emits (F5). BUILT 2026-08-14 (lane 3), as a general primitive rather than the
+  client window this row originally described** (the owner ruled F5 server-side; see §5c.4-6).
 - **W9 — FENCED (character-ceiling lane, backfill #3) — the interface this design assumes:**
   `character.list` gains server-side `q` (name search) + `starred` params; search-mode runs as its own
   query key WITHOUT `maxPages`; the picker searches server-side or paginates; a batch reverse-read
@@ -560,6 +555,63 @@ Where the implementation deviated from §5's letter, and why. Each was forced by
     now import the one home. Six `suppressions.baseline.json` rows were hand-ratcheted down (each copy
     carried one `biome-ignore`), rather than regenerated — a full regen on a shared tree would spend other
     lanes' debt.
+
+## 5c. AS-BUILT deltas — W7b · W8 (lane 3, 2026-08-14)
+
+1. **`identityChanged` carries NO id, and it is the one member whose subject is the SUBSCRIBER.** The
+   channel key IS the affected user, so a `userId` hint would restate the address. It also keeps the member
+   clear of the `bus-payload-allowlist` sanctioned-field ledger entirely.
+2. **§4.4.3's named emitter pair did not survive contact: `setEnabled` gets NO emit, deliberately.** Two
+   independent receipts, both re-derived this session. (a) A disabled row cannot hold a live channel —
+   `validate` gates it to null every request (`sessions/verbs/validate.ts:18`, whose own comment says
+   "gating `enabled` to null here IS how disable takes effect next request"), the SSO-header arm refuses on
+   `!provisioned.enabled` and the owner-fallback arm applies the same gate (`entry/auth/seam.ts`). On the
+   DISABLE arm the verb's kick tail plus W7a's entry-composed socket eviction IS the propagation edge; on
+   the ENABLE arm there was never a live client to reach. (b) `sessions.me` projects userId/handle/globalRole
+   (`transport/trpc/routers/sessions.ts`) — `enabled` is in none of them. Shipping the emit anyway would have
+   been documented dead wire on the very bus whose `user-bus-coverage` ratchet exists to forbid it. The
+   refusal is pinned from both sides: the verb header argues it and `set-enabled.int.test.ts` asserts zero
+   fans, so the next reader finds the receipt instead of a hole.
+3. **The handle/role arm added `sessions.provisionIdentity`, WITHOUT touching `SessionsContext`.** An IdP
+   rename or a login-time role RE-DERIVE (`RE_DERIVE_ROLE_ON_LOGIN` / group governance) moves a field
+   `sessions.me` projects, and it strands the human's OTHER live devices. Rather than inject an emit op into
+   a DI bundle deliberately kept to db+crypto (11 `createSessionsService` call sites), the verb REPORTS the
+   fact — `ProvisionResult.identityChanged` — and the two ENTRY callers fan it (`entry/auth/seam.ts`,
+   `entry/http/auth-routes.ts`). Same shape as §5b.9's "verbs report WHO/WHICH because the caller cannot know
+   it", and the flag (not an unconditional fan) is load-bearing: the seam arm re-provisions on EVERY
+   forward-header request, so an unconditional emit would be a per-request storm on the plane W8 quiets.
+   `false` on a first-login INSERT and on the owner-flip subject BIND (externalId/email are projected by no
+   identity read).
+4. **W8's sweep found the brief's candidate list already clean — the import path is the only real storm.**
+   Every named bulk verb emits ONCE per gesture, outside its loop: `character/verbs/bulk-add-card-tag.ts:42`,
+   `bulk-archive.ts:25`, `bulk-remove.ts:41`, `bulk-remove-card-tag.ts:44`,
+   `regex/verbs/scripts/bulk-set-placement.ts:55` · `bulk-remove.ts:23` · `bulk-set-enabled.ts:31`,
+   `regex/verbs/attachments/bulk-set-global.ts:38`, `tag/verbs/attach.ts:120` (bulkAttachTag),
+   `tag/verbs/merge.ts:33`, `tag/verbs/prune.ts:22`, `world-info/verbs/entries/upsert-entries.ts:119`. The F7
+   `corpusRecomputed` candidate is not a storm either: `discovery/workload-contributions.ts:55` and
+   `embeddings/workload-contributions.ts:27` fan once per OWNER at a pass terminal, as do
+   `refinery/verbs/score-sweep.ts:171` and `databank/ingest/index.ts:155`. What does storm is the import:
+   `character/verbs/create.ts:116` fires per CARD through `entry/import/build-import-context.ts:94`, and the
+   per-item persona/preset/tag/theme/regex/world-info import verbs each fire their own. #23's terminal fan
+   was additive — it never silenced them.
+5. **Quiet mode is a GENERAL primitive at the one publish funnel, not an edit to the import call sites.**
+   `withQuietUserEvents(run)` in `transport/trpc/user-events-bus.ts`, AsyncLocalStorage-scoped (the
+   `foundation/observability/logger.ts:166` request-scope precedent). Per `(userId, type)`: first emit passes
+   through (the start marker), later ones are silenced, one COARSE event per silenced pair is fanned from a
+   `finally`. Total by construction — the terminal is derived from what was actually silenced, so a future
+   import wave cannot outgrow a hand-written fan list. Async-context scoping rather than a userId-keyed
+   suppressor is the point: the same human's unrelated edit from another tab during a ten-minute import must
+   stay visible (pinned in `tests/server/transport/trpc/user-events-bus.test.ts`). Opened at ENTRY around all
+   three runner bodies in `entry/compose/portability-runner.ts`; #23's `emitLibraryChanged` stays OUTSIDE
+   (it fires from the workload contribution's settle step, after the runner returns).
+6. **The coarse-form table lives in CONTRACTS, and the gate is why.** `COARSE_USER_BUS_EVENT` first sat in
+   `transport/trpc/user-events-bus.ts` — and `user-bus-coverage` promptly went RED with "DEFERRED member now
+   HAS an emit site: connectionsChanged". That ratchet reconciles against a LITERAL CORPUS of every string in
+   `server/src/{domain,transport}` (`scripts/check/bus-coverage-lib.ts:15,62`), so a totality table parked in
+   transport makes every member — including a deliberately unemitted one — read as emitted, turning the
+   dead-wire belt permanently green. Moving the const beside the union it derives from fixes the gate AND is
+   the better home (one home: "the id-less form of member X" is a fact about the union). Worth generalizing:
+   **any exhaustive table over a bus union belongs below the emit scope, or it blinds that bus's ratchet.**
 
 ## 6. Instrumentation directives (confirm the live apportionment before W5/W6 land)
 

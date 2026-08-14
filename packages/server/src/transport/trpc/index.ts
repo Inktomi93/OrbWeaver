@@ -21,4 +21,4 @@ export type { SocketCell, SocketListener, SocketRegistry, SocketRoom } from "./s
 export { createSocketRegistry, ROOMS_PER_SOCKET, SOCKET_REAP_MS, SOCKETS_PER_USER } from "./stream/socket-registry.ts";
 export type { SubscriptionErrorFrame } from "./subscriptions.ts";
 export { withSubscriptionErrors } from "./subscriptions.ts";
-export { publishChatChanged, publishUserEvent, subscribeUserEvents } from "./user-events-bus.ts";
+export { publishChatChanged, publishUserEvent, subscribeUserEvents, withQuietUserEvents } from "./user-events-bus.ts";
