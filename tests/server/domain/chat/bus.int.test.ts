@@ -3,7 +3,7 @@
 // truth) AND pushes to the in-process ring, the per-chat `seq` is monotonic, and the ring read honors the
 // `afterSeq` cursor.
 
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatEvents, chats } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
@@ -70,7 +70,7 @@ describe("createChatBus.emit — durable-first + the replay ring", () => {
 });
 
 /** A `delta` for `chatId` — the exact event shape the streaming engine fire-and-forgets per token. */
-function deltaEvent(chatId: ChatId): ChatBusEvent {
+function deltaEvent(chatId: ChatId): DurableChatBusEvent {
   return { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: ' "' } };
 }
 

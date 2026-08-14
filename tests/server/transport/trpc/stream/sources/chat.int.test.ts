@@ -12,12 +12,14 @@
 // `chat_events`). It closes the gap the mock-based test structurally cannot: that the resume path returns
 // real persisted DELTAS (the token-carrying member), not just that the wiring is shaped right.
 
-import type { ChatBusEvent, JoinHistoryVisibility } from "@orb/contracts/chat";
+import type { ChatBusEvent, DurableChatBusEvent, JoinHistoryVisibility } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { Db } from "@orb/db";
-import type { ChatId, Handle, MessageId, SocketId, UserId } from "@orb/kit/ids";
+import { chatParticipants } from "@orb/db";
+import type { ChatId, ChatParticipantId, Handle, MessageId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { publishChatEvent } from "@orb/server/transport/trpc";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { createChatBus } from "../../../../../../packages/server/src/domain/chat/bus.ts";
 import { loadMessageView } from "../../../../../../packages/server/src/domain/chat/persistence/queries.ts";
@@ -95,7 +97,7 @@ async function openChatRoom(read: ReturnType<typeof createRead>, userId: UserId,
  *  caller's. A fixture that fans its own object instead reproduces nothing real: an unstamped `delta` is
  *  withheld from members by design (fail-closed), so it would look like a passing strip while proving
  *  nothing. `entry/compose/services.ts::emitChatEvent` fans exactly this pair; so does every site here. */
-async function emitLogged(bus: ReturnType<typeof createChatBus>, event: ChatBusEvent): Promise<{ readonly seq: number; readonly event: ChatBusEvent }> {
+async function emitLogged(bus: ReturnType<typeof createChatBus>, event: DurableChatBusEvent): Promise<{ readonly seq: number; readonly event: ChatBusEvent }> {
   const logged = await bus.emit(event);
   if (logged === null) {
     throw new Error("fixture: bus.emit dropped the event — the chat row is missing");
@@ -362,7 +364,7 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
 // attach→connect ladder over a REAL durable bus.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("the chat room — a hidden span open across a MEMBER's reconnect never leaks its tail", () => {
-  const textDelta = (chatId: ChatId, text: string): ChatBusEvent => ({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text } });
+  const textDelta = (chatId: ChatId, text: string): DurableChatBusEvent => ({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text } });
 
   test("the opener lands DURING the disconnect gap; the closer arrives LIVE on the resumed room", async () => {
     const host = await seedUser(db, castId<Handle>("reopen_host"));
@@ -422,5 +424,96 @@ describe("the chat room — a hidden span open across a MEMBER's reconnect never
     expect(wire).not.toContain('"/>');
     // …while the visible prose that followed the closed span still streams.
     expect(wire).toContain("The vault is empty.");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE LIVE-ONLY LANE (`ChatLiveEvent`'s `seq: null` arm — the entity→room member-freshness bridge §3.4).
+// A `roomEntityChanged` is published on the room WITHOUT a `chat_events` append, so it has no cursor of its
+// own. Three properties, each of which silently breaks the room if it is wrong:
+//   • it must be DELIVERED (the dedup compares against `maxSeq`; a naive `entry.seq <= maxSeq` on a null
+//     would drop every one of them, and the bridge would look built while announcing nothing);
+//   • it must NOT ADVANCE the room's resume cursor — it is stamped with the CURRENT one, so a durable row
+//     that was never delivered can never be skipped past on reconnect;
+//   • it must still pass the PER-YIELD MEMBERSHIP GATE — a kicked-but-attached member hears no entity churn
+//     from a room they were removed from.
+// The clamp is untouched by construction: the member is id-only, so `isBelowHistoryFloor` finds no anchor
+// and `stripChatEventForMember` passes it through — asserted here by SHAPE (the subscriber receives it
+// verbatim), never by a new clamp code path.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+describe("the chat room — the LIVE-ONLY lane (durable-append-free fan)", () => {
+  test("a live-only fan is DELIVERED at the current cursor, does not advance it, and does not trip the dedup", async () => {
+    const host = await seedUser(db, castId<Handle>("liveonly_host"));
+    const chatId: ChatId = await seedChat(db, "liveonly");
+    await seedParticipant(db, { chatId, key: "liveonly_h", userId: host, role: "host" });
+
+    const ctx = makeChatContext(db);
+    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    // One durable row FIRST, so the room's cursor is a real non-zero number the assertions can tell apart
+    // from both 0 and the next durable seq.
+    const seeded = await emitLogged(bus, { type: "chatUpdated", chatId });
+
+    const read = createRead(ctx, readDeps());
+    const iterator = await openChatRoom(read, host, chatId, 0);
+    expect(dataOf(await iterator.next()).type).toBe("chatOpened");
+    expect(seqOf(await iterator.next())).toBe(seeded.seq); // the durable replay — cursor now at `seeded.seq`
+
+    const pending = iterator.next();
+    publishChatEvent({ seq: null, event: { type: "roomEntityChanged", chatId, entity: "character" } });
+    const got = await pending;
+
+    // DELIVERED, verbatim (an id-free payload — no clamp anchor, nothing to strip)…
+    expect(dataOf(got)).toEqual({ type: "roomEntityChanged", chatId, entity: "character" });
+    // …stamped with the CURRENT cursor, not a fresh one: the socket cell advances its resume cursor from a
+    // delivered frame's seq, so a live-only frame must never move it past an undelivered durable row.
+    expect(seqOf(got)).toBe(seeded.seq);
+
+    // And the cursor really did not move: the NEXT durable row is delivered at its own seq (had the live-only
+    // frame raised `maxSeq`, or had the null tripped the dedup arithmetic, this would hang).
+    const nextPending = iterator.next();
+    const next = await emitLogged(bus, { type: "chatUpdated", chatId });
+    publishChatEvent(next);
+    expect(seqOf(await nextPending)).toBe(next.seq);
+    expect(next.seq).toBe(seeded.seq + 1);
+    await iterator.return?.(undefined);
+  });
+
+  test("a KICKED-but-attached member is withheld the live-only fan; the host on the same publish receives it", async () => {
+    const host = await seedUser(db, castId<Handle>("liveonly_kick_host"));
+    const kicked = await seedUser(db, castId<Handle>("liveonly_kick_member"));
+    const chatId: ChatId = await seedChat(db, "liveonly_kick");
+    await seedParticipant(db, { chatId, key: "lk_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "lk_m", userId: kicked, role: "member" });
+
+    const ctx = makeChatContext(db);
+    const read = createRead(ctx, readDeps());
+    const hostIt = await openChatRoom(read, host, chatId);
+    expect(dataOf(await hostIt.next()).type).toBe("chatOpened");
+    const memberIt = await openChatRoom(read, kicked, chatId);
+    expect(dataOf(await memberIt.next()).type).toBe("chatOpened");
+
+    // The kick: `leftSeq` stamped on the member's row — the same column the per-yield membership probe reads.
+    // Their socket is STILL attached (a kick does not tear the pump down; the gate is what stops the room).
+    await db
+      .update(chatParticipants)
+      .set({ leftSeq: 1 })
+      .where(eq(chatParticipants.id, castId<ChatParticipantId>("chat_participant_lk_m")));
+
+    const hostPending = hostIt.next();
+    const memberPending = memberIt.next();
+    publishChatEvent({ seq: null, event: { type: "roomEntityChanged", chatId, entity: "persona" } });
+
+    // The HOST's delivery is the barrier: both pumps took the identical in-process publish, so once the host
+    // has resolved, the member's pump has already run its own gate on the same entry.
+    expect(dataOf(await hostPending)).toEqual({ type: "roomEntityChanged", chatId, entity: "persona" });
+    const Withheld = Symbol("withheld");
+    const settled = await Promise.race([memberPending, new Promise((resolve) => setTimeout(() => resolve(Withheld), 100))]);
+    expect(settled).toBe(Withheld);
+
+    await hostIt.return?.(undefined);
+    // NOT awaited for the kicked member, and that is the assertion's own consequence: an async generator
+    // queues `return()` BEHIND an outstanding `next()`, and this one is outstanding forever precisely
+    // because the gate withheld the frame. Awaiting it deadlocks the test (measured: a 5s timeout).
+    void memberIt.return?.(undefined);
   });
 });

@@ -6,7 +6,6 @@ export type { DemoChatGameDoorArgs, DemoChatGameDoorDeps } from "./demo-chat-gam
 export { createDemoChatGameDoor } from "./demo-chat-game.ts";
 export type { EffectiveConfigWiring } from "./effective-config.ts";
 export { createEffectiveConfigWiring } from "./effective-config.ts";
-export { createCharacterUpdatedChatFan } from "./emit-character-updated.ts";
 export { createChatChangedEmitter } from "./emit-chat-changed.ts";
 export type { DomainEventBus } from "./event-bus.ts";
 export { createDomainEventBus } from "./event-bus.ts";
@@ -16,5 +15,6 @@ export type { ImageRefAssets } from "./resolve-image-ref.ts";
 export { resolveImageRefToUrl } from "./resolve-image-ref.ts";
 export type { RoleClientsBinderDeps } from "./role-clients.ts";
 export { bindRoleClientsForUser } from "./role-clients.ts";
+export { createRoomEntityFan } from "./room-reach.ts";
 export type { ServicesDeps, ServicesResult } from "./services.ts";
 export { createServices } from "./services.ts";

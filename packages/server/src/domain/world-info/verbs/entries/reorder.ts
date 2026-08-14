@@ -51,6 +51,9 @@ export function createReorder(ctx: WorldInfoContext): WorldInfoService["applyEnt
       at,
     );
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
+    // The ROOM plane (entity→room bridge §3.6): priority IS the injection order, so a reorder changes what
+    // survives the per-turn WI budget — an assembly change with no entry-level event of its own.
+    ctx.emit({ type: "world-info.updated", bookId });
     return { reordered: ids.length };
   };
 }

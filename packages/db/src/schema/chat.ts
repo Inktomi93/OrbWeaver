@@ -25,7 +25,8 @@
 // kind-shape CHECK arms below are dormant rebuild doorways, not live tuple members; PD-17 tracks the graft),
 // `.role` ← `PARTICIPANT_ROLES`, `joinHistoryVisibility` ←
 // `JOIN_HISTORY_VISIBILITIES`; `chat_invites.status` ← `INVITE_STATUSES` (all @orb/contracts/chat).
-// `chat_events.type` derives the `ChatBusEvent` discriminant set (`CHAT_BUS_EVENT_TYPES` keys); the
+// `chat_events.type` derives the DURABLE `ChatBusEvent` discriminant set (`CHAT_BUS_EVENT_TYPES` keys minus
+// `LIVE_ONLY_CHAT_EVENT_TYPES` — the live-only lane is never appended, contracts/chat/bus.ts §3.4); the
 // `chat_injections.position` + `chat_stream_events.kind` tuples are tied to the contract wire types
 // (`satisfies`) — compile-time validity + a test-mirror over each column's `.enumValues`. Every CHECK is
 // built from the SAME tuple as a static raw fragment (a CHECK is DDL — no bound parameters).
@@ -42,13 +43,22 @@ import type {
   ChatDeltaEvent,
   ChatInjection as ChatInjectionWire,
   ChatMetadata,
+  DurableChatBusEvent,
   HandoffOffer,
   MacroFreezeRecord,
   StandaloneVariableDelta,
   ToolCallRecord,
   UserMacroDraws,
 } from "@orb/contracts/chat";
-import { CHAT_BUS_EVENT_TYPES, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, MESSAGE_KINDS, PARTICIPANT_KINDS, TURN_INITIATORS } from "@orb/contracts/chat";
+import {
+  CHAT_BUS_EVENT_TYPES,
+  INVITE_STATUSES,
+  JOIN_HISTORY_VISIBILITIES,
+  LIVE_ONLY_CHAT_EVENT_TYPES,
+  MESSAGE_KINDS,
+  PARTICIPANT_KINDS,
+  TURN_INITIATORS,
+} from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
@@ -626,13 +636,21 @@ export const pendingTurns = sqliteTable(
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // chat_events — the DURABLE chat-bus log (the replay ring's source of truth; late-subscriber ramp-up). The
-// `type` column is typed to the `ChatBusEvent` discriminant and CHECK-constrained to the SAME closed set
-// (`CHAT_BUS_EVENT_TYPES` keys); `payload` is the full event. `seq` is the per-chat replay cursor.
+// `type` column is typed to the `DurableChatBusEvent` discriminant and CHECK-constrained to the SAME closed
+// set (`CHAT_BUS_EVENT_TYPES` keys MINUS `LIVE_ONLY_CHAT_EVENT_TYPES`); `payload` is the full event. `seq` is
+// the per-chat replay cursor.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-// The bus discriminant set, derived from the contract's exhaustive `CHAT_BUS_EVENT_TYPES` map (its keys
-// ARE the union members — `satisfies Record<ChatBusEvent["type"], true>` upstream guarantees completeness).
-const CHAT_EVENT_TYPES = Object.keys(CHAT_BUS_EVENT_TYPES) as ChatBusEvent["type"][];
+// The DURABLE bus discriminant set, derived from the contract's exhaustive `CHAT_BUS_EVENT_TYPES` map (its
+// keys ARE the union members — `satisfies Record<ChatBusEvent["type"], true>` upstream guarantees
+// completeness) MINUS the live-only lane (`LIVE_ONLY_CHAT_EVENT_TYPES`, contracts/chat/bus.ts §3.4). A
+// live-only member is fanned on the room's channel and NEVER appended here, so admitting it to the CHECK
+// would declare a row shape no writer can produce. The CHECK is the SECOND belt: the first is the
+// `DurableChatBusEvent` narrowing on both emit surfaces (`domain/chat/bus::emit`,
+// `entry/compose/services::emitChatEvent`), which makes appending one a compile error.
+const CHAT_EVENT_TYPES = (Object.keys(CHAT_BUS_EVENT_TYPES) as ChatBusEvent["type"][]).filter(
+  (type): type is DurableChatBusEvent["type"] => !(LIVE_ONLY_CHAT_EVENT_TYPES as readonly string[]).includes(type),
+);
 
 export const chatEvents = sqliteTable(
   "chat_events",
@@ -644,7 +662,12 @@ export const chatEvents = sqliteTable(
       .references(() => chats.id, { onDelete: "cascade" }),
     // Per-chat monotonic replay cursor (`lastEventId`). UNIQUE per chat.
     seq: integer("seq").notNull(),
-    // The bus discriminant (denormalized `payload.type`) — typed to the union, CHECK-constrained to it.
+    // The bus discriminant (denormalized `payload.type`) — typed to the union, CHECK-constrained to the
+    // DURABLE subset. The column keeps the WIDE type deliberately: the write-side narrowing lives at the two
+    // emit surfaces (`domain/chat/bus::emit` + `entry/compose/services::emitChatEvent`, both
+    // `DurableChatBusEvent`), which is upstream of every writer, and narrowing here as well would force the
+    // §3.6 member stamper — a D16-frozen file whose signature is the whole union — to be re-typed for no
+    // additional coverage.
     type: text("type").$type<ChatBusEvent["type"]>().notNull(),
     // The full closed bus event (room-public; the contract's allowlist makes secrets unrepresentable).
     payload: text("payload", { mode: "json" }).$type<ChatBusEvent>().notNull(),

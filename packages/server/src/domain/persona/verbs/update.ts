@@ -51,6 +51,11 @@ export function createUpdate(ctx: PersonaContext): PersonaService["update"] {
         at,
       );
       ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId });
+      // The OTHER audience plane (entity→room bridge §3.6): a persona edit moves every co-member's view of
+      // this human's seat — displayName + avatar are the active persona's — and the description feeds the
+      // next turn's assembly. `emitUserEvent` reaches the editor's own devices only; this reaches the rooms.
+      // Inside the `edits.length > 0` branch on purpose: a no-op patch changes nothing to announce.
+      ctx.emit({ type: "persona.updated", personaId });
     }
 
     const updated = await loadOwnedPersonaWithAvatar(ctx.db, ownerId, personaId);

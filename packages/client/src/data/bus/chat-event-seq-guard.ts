@@ -11,7 +11,11 @@
 // whose `seq` does not advance the high-water mark makes durable-log delivery exactly-once and kills the
 // stranding at the source (also the "getChat invalidated 3× in 6ms" double-delivery smell).
 //
-// EXEMPTION BY TYPE (not by id-shape): `chatOpened`/`historyTruncated` are attach-SYNTHESIZED signals, NOT
+// EXEMPTION BY TYPE (not by id-shape) — `NON_DURABLE_EXEMPT`. The LIVE-ONLY bus lane joins the two attach
+// syntheses in that set for the same structural reason (the entity→room member-freshness bridge §3.4): a
+// `roomEntityChanged` has no `chat_events` row, so the pump stamps it with the CURRENT cursor, which by
+// definition does not advance the mark. Running it through the guard would drop every one of them.
+// `chatOpened`/`historyTruncated` are attach-SYNTHESIZED signals, NOT
 // durable-log entries — the transport yields them per attach (`transport/trpc/stream/sources/chat.ts`
 // `attachSynthesesAndReplay`), stamped with the NON-advancing resume cursor as their frame `seq` (a numeric
 // `cursor ?? 0`, so an id-shape test can never tell them apart). Re-firing them on every (re)attach is BY DESIGN — that per-attach
@@ -28,10 +32,16 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 
-/** The attach-synthesized (non-durable-log) event types — re-fired per attach as the reopen catch-up, so
- *  they bypass the seq dedup entirely (see the EXEMPTION note above). Keyed by `ChatBusEvent["type"]` so a
- *  rename fails tsc here rather than silently un-exempting a synthetic. */
-const SYNTHESIZED_EXEMPT: ReadonlySet<ChatBusEvent["type"]> = new Set<ChatBusEvent["type"]>(["chatOpened", "historyTruncated"]);
+/** The NON-DURABLE event types — every frame that carries a non-advancing `seq` by construction, so it must
+ *  bypass the seq dedup entirely or be dropped forever. Two sources, one rule:
+ *    • the attach SYNTHESES (`chatOpened`/`historyTruncated`) — re-fired per attach as the reopen catch-up
+ *      (see the EXEMPTION note above);
+ *    • the LIVE-ONLY bus lane (`roomEntityChanged` — the entity→room member-freshness bridge): published on
+ *      the room but never appended to `chat_events`, so the pump yields it at the CURRENT cursor.
+ *  Keyed by `ChatBusEvent["type"]` so a rename fails tsc here rather than silently un-exempting a member.
+ *  (Named `SYNTHESIZED_EXEMPT` until the live-only lane landed — the old name claimed a source that is now
+ *  only half the set.) */
+const NON_DURABLE_EXEMPT: ReadonlySet<ChatBusEvent["type"]> = new Set<ChatBusEvent["type"]>(["chatOpened", "historyTruncated", "roomEntityChanged"]);
 
 /** Cap the per-session mark map so a long-lived session that opens many chats cannot grow it unboundedly;
  *  eviction only ever drops a chat's OLD mark (a later re-open re-baselines from its live tail, still
@@ -59,8 +69,9 @@ export function createChatEventSeqGuard(): ChatEventSeqGuard {
   return {
     highWater: (chatId): number | null => highWaterSeqByChat.get(chatId) ?? null,
     admit: (event, rawSeqId): boolean => {
-      // Synthesized attach signals bypass the mark — their per-attach re-fire is the reopen catch-up.
-      if (SYNTHESIZED_EXEMPT.has(event.type)) {
+      // Non-durable frames bypass the mark: an attach synthetic's per-attach re-fire is the reopen catch-up,
+      // and a live-only fan has no durable row to have a cursor at all.
+      if (NON_DURABLE_EXEMPT.has(event.type)) {
         return true;
       }
       const seq = Number(rawSeqId);

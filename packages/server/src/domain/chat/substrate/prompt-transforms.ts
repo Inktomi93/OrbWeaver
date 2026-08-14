@@ -9,7 +9,7 @@
 // The registry is created ONCE at the composition root; its `apply` is injected as `ChatContext.promptTransforms`
 // (a chat with zero registered transforms is byte-identical to the seam being absent — the null-op precedent).
 
-import type { ChatBusEvent, PromptTransform, PromptTransformEnv, PromptTransformPoint } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, PromptTransform, PromptTransformEnv, PromptTransformPoint } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { PromptTransformRegistry } from "../contract/context.ts";
@@ -47,7 +47,7 @@ async function applyBounded(
  *  is a LIVE getter (read per apply so an admin retune of AppSettings.promptTransformDeadlineMs applies without
  *  a restart) — injectable so a deadline test runs fast + deterministic (defaults to the floor const). */
 export function createPromptTransformRegistry(
-  emit: (event: ChatBusEvent) => Promise<void>,
+  emit: (event: DurableChatBusEvent) => Promise<void>,
   deadlineMs: () => number = () => PROMPT_TRANSFORM_DEADLINE_MS,
 ): PromptTransformRegistry {
   const byId = new Map<string, PromptTransform>();

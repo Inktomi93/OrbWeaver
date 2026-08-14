@@ -191,6 +191,15 @@ export interface PromptTransform {
   readonly apply: (draft: string, env: PromptTransformEnv) => Promise<string>;
 }
 
+/** The entity kinds whose OWNER-PLANE edits reach a room's member-visible projections (the entity→room
+ *  member-freshness bridge, `docs/design/entity-room-member-freshness-bridge.md` §3.3). ONE axis, keyed on
+ *  by three places that must never disagree: the `roomEntityChanged` member below, the composition root's
+ *  `ROOM_REACH` resolver table (`entry/compose/room-reach.ts` — a `satisfies Record<RoomEntityKind, …>`, so
+ *  a new kind cannot ship unresolved), and the client's `BUS_FILTERS.roomEntityChanged` Record. Presets are
+ *  deliberately ABSENT (owner word): members never fetch a preset — the server assembles per turn. */
+export const ROOM_ENTITY_KINDS = ["character", "persona", "world-info"] as const;
+export type RoomEntityKind = (typeof ROOM_ENTITY_KINDS)[number];
+
 /** The chat bus union — the room-public event stream (the `chat` ROOM fans these out; the durable log
  *  replays them). It EMBEDS `WiBusEvent` (`#world-info`) so the WI domain emits without importing chat.
  *
@@ -307,7 +316,17 @@ export type ChatBusEvent =
   // ── Resume control (subscription-synthesized; never emitted by domain code, never logged) ──
   | { type: "historyTruncated"; chatId: ChatId }
   // ── Catch-all for low-payload chat-row changes (starred/archive/title/variables/injections/compact) ──
-  | { type: "chatUpdated"; chatId: ChatId };
+  | { type: "chatUpdated"; chatId: ChatId }
+  // ── The entity→room member-freshness bridge (design §3.3). An OWNER-PLANE entity edit (a card, a persona,
+  //    a lorebook) moved something this room's MEMBER-VISIBLE projections read, so every member re-READS
+  //    through the already-clamped verbs. LIVE-ONLY (see LIVE_ONLY_CHAT_EVENT_TYPES): never appended to
+  //    `chat_events`, so it is never replayed — the heal for a device that was dark is the attach synthesis
+  //    (`chatOpened`, whose invalidate row covers the bridge's member-card read).
+  //    ID-FREE BY DESIGN: the entity's own id is deliberately absent. The client's filters are PATH-level
+  //    either way (`chat.getMemberCard.pathFilter()`), so an id would buy no narrower targeting and would add
+  //    a leak surface — a room member would learn the id of an owner-plane row they may not read. `entity`
+  //    is the dispatch axis: ONE member with an enum, never three members (design F-C).
+  | { type: "roomEntityChanged"; chatId: ChatId; entity: RoomEntityKind };
 
 /** Valid bus discriminators, derived from the union. The `satisfies Record<ChatBusEvent["type"], true>`
  *  makes `tsc` error if a member is added without a matching entry — keeping the replay guard exhaustive
@@ -340,9 +359,36 @@ export const CHAT_BUS_EVENT_TYPES = {
   chatOpened: true,
   historyTruncated: true,
   chatUpdated: true,
+  roomEntityChanged: true,
 } satisfies Record<ChatBusEvent["type"], true>;
 
 /** True when `t` is a known `ChatBusEvent` discriminator (see {@link CHAT_BUS_EVENT_TYPES}). */
 export function isChatBusEventType(t: string): t is ChatBusEvent["type"] {
   return Object.hasOwn(CHAT_BUS_EVENT_TYPES, t);
 }
+
+/** THE LIVE-ONLY LANE (design §3.4). These members are fanned on the room's live channel WITHOUT a
+ *  `chat_events` append — they carry no canon and have nothing to replay, so paying a durable row per fan
+ *  would pollute the log and cost an INSERT per seated room per edit.
+ *
+ *  The tuple is the lane's PHYSICS, not a note: `DurableChatBusEvent` subtracts these members, and both
+ *  durable emit surfaces (`domain/chat/bus::emit`, `entry/compose/services::emitChatEvent`) narrow to it —
+ *  so appending a live-only member is a COMPILE ERROR, not a review catch. The db CHECK derives from the
+ *  same durable subset (`packages/db/src/schema/chat.ts`), so the column can never hold one either.
+ *
+ *  Consequences a member of this tuple accepts: no replay (a device dark through the fan never receives it —
+ *  the heal is the attach synthesis), and a mandatory seat in the client's `NON_DURABLE_EXEMPT` set (a
+ *  non-advancing seq is dropped by the seq guard otherwise).
+ *
+ *  `chatDeleted` is the NEXT member (design §4 / R1-4a — it is unreplayable by construction, the row delete
+ *  cascades its own `chat_events` away), and it lands with the delete-first reorder that needs it, not here. */
+export const LIVE_ONLY_CHAT_EVENT_TYPES = ["roomEntityChanged"] as const;
+export type LiveOnlyChatEventType = (typeof LIVE_ONLY_CHAT_EVENT_TYPES)[number];
+
+/** A `ChatBusEvent` that MAY be appended to the durable `chat_events` log — the union minus the live-only
+ *  lane. The type both durable emit surfaces accept (see {@link LIVE_ONLY_CHAT_EVENT_TYPES}). */
+export type DurableChatBusEvent = Exclude<ChatBusEvent, { type: LiveOnlyChatEventType }>;
+
+/** The complement: a `ChatBusEvent` fanned WITHOUT a durable append — the only thing the transport's
+ *  `seq: null` arm and `entry/compose/services::emitChatEventLive` accept. */
+export type LiveOnlyChatBusEvent = Extract<ChatBusEvent, { type: LiveOnlyChatEventType }>;
