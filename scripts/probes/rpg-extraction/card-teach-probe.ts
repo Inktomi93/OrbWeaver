@@ -410,7 +410,7 @@ function summarize(armId: string, turns: readonly TurnResult[]) {
 // ── Main ──────────────────────────────────────────────────────────────────────────────────────────────
 
 const selected = (process.env["CARD_ARMS"] ?? "A,B,C,D,E").split(",").map((s) => s.trim()).filter((s) => s !== "");
-const outFile = process.env["CARD_OUT"] ?? `${REPO}/scripts/probes/rpg-extraction/card-teach-out.json`;
+const outFile = process.env["CARD_OUT"] ?? `${REPO_ROOT}/scripts/probes/rpg-extraction/card-teach-out.json`;
 
 console.log("\n=== F2: which card TEACH copy makes hosted Sonnet emit `:::card`? ===");
 console.log(`model ${MODEL} · ${OPPORTUNITIES.length} opportunities/arm · arms ${selected.join(",")}\n`);
