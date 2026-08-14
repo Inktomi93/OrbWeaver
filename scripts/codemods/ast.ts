@@ -1376,27 +1376,37 @@ function candidateHit(candidate: OrphanCandidate, kind: string): Hit {
   return h;
 }
 
-/** Name every star-suppressed candidate (file:line + symbol), never a bare per-file count: the 14 hidden
- *  contracts/rpg candidates are the ones a reader must actually go look at, and "8 files" told them
- *  nothing. Capped by `--max` with an explicit elision line (the count is always exact). */
-function printSuppressed(suppressed: readonly Hit[], hitCount: number, flags: Flags): void {
-  if (suppressed.length === 0) {
+/** THE ONE BUCKET PRINTER — a set of candidates a lens deliberately does NOT count as hits, NAMED (file:line
+ *  + symbol) rather than reduced to a number. Used by every "recognized, not a finding" arm in this file
+ *  (orphans star-suppression, the typeonly union-source idiom, testonly's declared test seams) so the three
+ *  cannot drift apart. `headline` is a function of the deduped count + file count, because both are decided
+ *  here. Capped by `--max` with an explicit elision line — the count is always exact. */
+function printNamedBucket(rows: readonly Hit[], flags: Flags, headline: (count: number, files: number) => string): void {
+  if (rows.length === 0) {
     return;
   }
-  const unique = dedupe([...suppressed], flags).sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  const unique = dedupe([...rows], flags).sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
   if (unique.length === 0) {
     return;
   }
-  const files = new Set(unique.map((h) => h.file)).size;
-  console.log(
-    `orphans: ${unique.length} of ${hitCount + unique.length} candidate(s) SUPPRESSED by star re-exports in ${files} file(s) — named below, NOT counted as hits (a namespace consumer of the re-exporting barrel may reach them):`,
-  );
+  console.log(headline(unique.length, new Set(unique.map((h) => h.file)).size));
   for (const h of unique.slice(0, flags.max)) {
     console.log(`  ~ ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
   if (unique.length > flags.max) {
     console.log(`  … and ${unique.length - flags.max} more (raise --max)`);
   }
+}
+
+/** Name every star-suppressed candidate: the 14 hidden contracts/rpg candidates are the ones a reader must
+ *  actually go look at, and "8 files" told them nothing. */
+function printSuppressed(suppressed: readonly Hit[], hitCount: number, flags: Flags): void {
+  printNamedBucket(
+    suppressed,
+    flags,
+    (count, files) =>
+      `orphans: ${count} of ${hitCount + count} candidate(s) SUPPRESSED by star re-exports in ${files} file(s) — named below, NOT counted as hits (a namespace consumer of the re-exporting barrel may reach them):`,
+  );
 }
 
 /** Exports of a scope never imported anywhere (prod OR test) and never used in their own file — the rot
@@ -1413,34 +1423,64 @@ function cmdOrphans(project: Project, arg: string, flags: Flags): void {
   emit(hits, flags, `orphans ${scope.label}`);
 }
 
-function scanTestOnly(sf: SourceFile, live: Liveness): Hit[] {
+/** THE DECLARED-INTENT PREFIX (lens calibration, owner ruling 2026-08-13). `__resetTagFilter` /
+ *  `__readComposerDraftsForTest` is the repo's TEST-SEAM CONVENTION (the executor doctrine's "a test-only
+ *  export is self-identifying" rule): the author already declared, in the NAME, that a test is the only
+ *  legitimate consumer. Reporting one as "alive only because a test imports it" restates its own name back at
+ *  the reader — 21 of the 31 client rows in the calibration corpus were exactly that. The prefix IS the
+ *  marker, so this class needs no comment tag; a seam is bucketed and named, never counted as a hit. */
+const TEST_SEAM_PREFIX = "__";
+
+/** One export's testonly verdict: not a hit at all, a hit, or a bucketed declared test seam. */
+export type TestOnlyClass = "alive" | "hit" | "seam";
+
+export function testOnlyClassOf(sf: SourceFile, name: string, decl: Node, live: Liveness): TestOnlyClass {
+  const key = declKey(decl);
+  // Prod-reached (named import, namespace, dynamic import, or same-file production use) → alive.
+  if (live.usedProd.has(key) || isReferencedInOwnFile(sf, name, decl) || !live.usedTest.has(key)) {
+    return "alive";
+  }
+  return name.startsWith(TEST_SEAM_PREFIX) ? "seam" : "hit";
+}
+
+function scanTestOnly(sf: SourceFile, live: Liveness, want: TestOnlyClass): Hit[] {
   const out: Hit[] = [];
   for (const { name, decl } of ownExports(sf)) {
-    const key = declKey(decl);
-    // Prod-reached (named import, namespace, dynamic import, or same-file production use) → alive, skip.
-    if (live.usedProd.has(key) || isReferencedInOwnFile(sf, name, decl)) {
+    if (testOnlyClassOf(sf, name, decl, live) !== want) {
       continue;
     }
-    if (!live.usedTest.has(key)) {
-      continue;
-    }
-    const h = hitOf(decl, "test-only-export");
+    const h = hitOf(decl, want === "seam" ? "declared-test-seam" : "test-only-export");
     h.text = `${name}  —  ${h.text}`;
     out.push(h);
   }
   return out;
 }
 
-/** Exports of `<scope>` reached ONLY from test paths — code alive solely because a test imports it. */
+/** Exports of `<scope>` reached ONLY from test paths — code alive solely because a test imports it. Exports
+ *  whose NAME declares the intent (`__`-prefixed test seams) are bucketed and named, never counted. */
 function cmdTestOnly(project: Project, arg: string, flags: Flags): void {
   const scope = resolveScope(project, arg, "testonly");
   const files = scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] });
   const live = buildLiveness(project);
   const hits: Hit[] = [];
+  const seams: Hit[] = [];
   for (const sf of files) {
-    hits.push(...scanTestOnly(sf, live));
+    hits.push(...scanTestOnly(sf, live, "hit"));
+    seams.push(...scanTestOnly(sf, live, "seam"));
   }
+  printTestSeamBucket(seams, flags);
   emit(hits, flags, `testonly ${scope.label}`);
+}
+
+/** Name every DECLARED TEST SEAM — same posture as the `orphans` star-suppression block: the reader still
+ *  gets the list, it just is not a finding. */
+function printTestSeamBucket(seams: readonly Hit[], flags: Flags): void {
+  printNamedBucket(
+    seams,
+    flags,
+    (count) =>
+      `testonly: ${count} export(s) BUCKETED as DECLARED test seams (a \`${TEST_SEAM_PREFIX}\`-prefixed name — the repo's self-identifying test-seam convention, so "only a test reaches it" is the stated intent, not a finding). Named below, NOT counted as hits:`,
+  );
 }
 
 // ── prodonly: entry-closure FILE reachability (the knip Unused-files lens) ─────────────────────
@@ -1451,31 +1491,76 @@ function cmdTestOnly(project: Project, arg: string, flags: Flags): void {
 // A file reachable ONLY from a test is prod-unreachable BY DESIGN of this lens (that's its whole point —
 // it complements testonly). So tests/ + scripts/ are NOT entries and NOT graph nodes here.
 
-/** The production entry FILES, derived honestly from the two authorities (never a parallel definition):
+/** The production entry FILES, derived honestly from the authorities (never a parallel definition):
  *   1. knip.ts's per-workspace `entry` globs (kit/contracts/db = every nested barrel index, client = html);
  *   2. each package.json `exports` map (the auto-detected surface for ui/server/client) — Node resolves
- *      `./*` across slashes, so every nested `index.ts` addressable as a subpath is an entry.
+ *      `./*` across slashes, so every nested `index.ts` addressable as a subpath is an entry;
+ *   3. each package.json `scripts` command's `.ts` targets ({@link scriptEntryPaths}) and the package-root
+ *      TOOL CONFIG convention ({@link TOOLING_CONFIG_GLOB}) — see the tooling-entrypoint note below.
  *  The `!` production markers are stripped (they already mean "production entry"). index.html isn't a
- *  source file, so its `<script type=module>` target `src/main.tsx` stands in (knip's own auto-detection). */
+ *  source file, so its `<script type=module>` target `src/main.tsx` stands in (knip's own auto-detection).
+ *
+ *  TOOLING ENTRY POINTS ARE ENTRIES (lens calibration, owner ruling 2026-08-13). `drizzle.config.ts`,
+ *  `vite.config.ts` and `tokens.build.ts` are loaded BY A TOOL — by filename convention or by a package
+ *  script — so no import edge points at them BY DESIGN, and the old derivation reported all three as
+ *  prod-unreachable rot. They are derived, not allowlisted: a hand-written list of three paths is the same
+ *  rot the ledger forbids, and this file already ate the proof — the ONE hardcoded tooling anchor here named
+ *  `src/tokens/tokens.build.ts`, a path that has not existed since the file moved to the package root, and
+ *  it failed SILENTLY (a hardcoded `add()` on a missing file is a no-op). Hence {@link addAnchor}: a
+ *  declared anchor that resolves to nothing is now a TOOL ERROR, because a blind lens must never read clean. */
 function deriveEntryFiles(project: Project): Set<string> {
   const entries = new Set<string>();
-  const add = (fp: string): void => {
-    if (project.getSourceFile(fp) !== undefined) {
-      entries.add(fp);
-    }
-  };
   for (const pkg of WORKSPACE_PACKAGES) {
     const dir = `${REPO_ROOT}/packages/${pkg}`;
-    for (const glob of knipEntryGlobs(pkg)) {
+    for (const glob of [...knipEntryGlobs(pkg), ...exportsEntryPaths(dir), ...scriptEntryPaths(dir), ...toolingConfigNames(project, dir)]) {
       addGlobMatches(project, `${dir}/${glob}`, entries);
     }
-    for (const rel of exportsEntryPaths(dir)) {
-      addGlobMatches(project, `${dir}/${rel}`, entries);
+  }
+  addAnchor(project, entries, `${REPO_ROOT}/packages/client/src/main.tsx`, "index.html's <script type=module> target");
+  return entries;
+}
+
+/** A build tool loads its config by FILENAME, from the package ROOT — `vite.config.ts`, `drizzle.config.ts`.
+ *  Nothing imports them and nothing can: they are the tool's own entry. Matched by directory identity rather
+ *  than a glob, because {@link globToRegExp} deliberately lets `*` cross slashes (Node exports semantics) and
+ *  a `*.config.ts` glob would therefore also swallow a real module at `src/**\/x.config.ts`. */
+const TOOLING_CONFIG_SUFFIX = ".config.ts";
+
+export function toolingConfigNames(project: Project, pkgDir: string): string[] {
+  const names: string[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    const slash = fp.lastIndexOf("/");
+    if (fp.slice(0, slash) === pkgDir && fp.endsWith(TOOLING_CONFIG_SUFFIX)) {
+      names.push(fp.slice(slash + 1));
     }
   }
-  add(`${REPO_ROOT}/packages/client/src/main.tsx`); // index.html <script> target
-  add(`${REPO_ROOT}/packages/ui/src/tokens/tokens.build.ts`); // the tokens:build package script
-  return entries;
+  return names;
+}
+
+const SCRIPT_TS_TOKEN_RE = /[\w./-]+\.tsx?\b/gu;
+
+/** The `.ts`/`.tsx` targets named by a package's own `scripts` commands (`node tokens.build.ts` →
+ *  `tokens.build.ts`) — the same auto-detection knip performs, read off the same package.json. A token that
+ *  resolves to no source file is simply not an entry; the glob matcher already ignores it. */
+export function scriptEntryPaths(pkgDir: string): string[] {
+  const raw = readFileSync(`${pkgDir}/package.json`, "utf8");
+  const scripts = (JSON.parse(raw) as { scripts?: Record<string, string> }).scripts ?? {};
+  return Object.values(scripts)
+    .flatMap((cmd) => cmd.match(SCRIPT_TS_TOKEN_RE) ?? [])
+    .map((token) => token.replace(DOT_SLASH_RE, ""));
+}
+
+/** A NAMED anchor entry (a path this file asserts is an entry, derived from something outside the TS graph).
+ *  A missing anchor is a TOOL ERROR, never a silent skip: the whole package it anchors would report as
+ *  prod-unreachable rot, and that reads exactly like a real finding. */
+function addAnchor(project: Project, entries: Set<string>, fp: string, why: string): void {
+  if (project.getSourceFile(fp) === undefined) {
+    exitToolError(
+      `ast prodonly: the declared entry anchor ${relPath(fp)} (${why}) does not exist — the entry closure is WRONG, so every file it reaches would report as prod-unreachable. Fix the anchor in deriveEntryFiles, do not act on this run.`,
+    );
+  }
+  entries.add(fp);
 }
 
 // knip.ts's explicit entry globs for a workspace, bang-stripped and index.html-dropped (not a source
@@ -1722,6 +1807,16 @@ function cmdAliases(project: Project, scope: string, flags: Flags): void {
 //   • client: every `trpc.<ns>.<proc>` property-access chain AND `Trpc["<ns>"]["<proc>"]` indexed
 //     type, scanned across client prod (non-test) files.
 // `serverProcedures − clientConsumed` is emitted at each unwired procedure's SERVER definition site.
+//
+// THE VALUE-SIDE READ HAS FOUR SPELLINGS, NOT ONE (lens calibration, 2026-08-13). The proxy is an ordinary
+// object at the value level, so every JS member-read form reaches a procedure and each is a separate AST
+// kind: `trpc.ns.proc` (PropertyAccess), `trpc.ns["proc"]` and `trpc["ns"].proc` (ElementAccess), and the
+// optional-chained `trpc?.ns?.proc`. A dot-only matcher is the "property read has THREE shapes" false clean
+// applied to a whole lens: ONE consumer written with brackets reads as an unwired verb, and the natural fix
+// (delete it) would break the client. {@link memberReadOf} normalizes all four to `(object, name)` so the
+// pair matcher below sees one shape. (Optional chaining needs no special case — ts-morph models `a?.b` as a
+// PropertyAccessExpression with a question-dot token — but it IS covered by a planted control in the
+// self-test, because "needs no special case" is a claim that must be provable, not assumed.)
 
 /** The full name a server procedure and its client consumer agree on: `<ns>.<proc>`, or bare `<proc>`
  *  for a loose root procedure (namespace ""). */
@@ -1840,8 +1935,10 @@ function collectClientConsumed(project: Project, valid: Set<string>): Set<string
     if (!fp.includes(CLIENT_SRC_PREFIX) || isTestPath(fp)) {
       continue;
     }
-    for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
-      markConsumedFromAccess(pa, valid, looseProcs, consumed);
+    for (const kind of [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression] as const) {
+      for (const access of sf.getDescendantsOfKind(kind)) {
+        markConsumedFromAccess(access, valid, looseProcs, consumed);
+      }
     }
     for (const ia of sf.getDescendantsOfKind(SyntaxKind.IndexedAccessType)) {
       markConsumedFromIndexedType(ia, valid, consumed);
@@ -1850,16 +1947,32 @@ function collectClientConsumed(project: Project, valid: Set<string>): Set<string
   return consumed;
 }
 
-/** A `X.<ns>.<proc>` access marks `<ns>.<proc>` consumed; a `X.<proc>` access whose tail is a known loose
- *  root procedure marks that bare name consumed. */
-function markConsumedFromAccess(pa: Node, valid: Set<string>, looseProcs: Set<string>, consumed: Set<string>): void {
-  if (!Node.isPropertyAccessExpression(pa)) {
+/** ONE value-level member read as `(object, name)`, whatever spelling it wears: `x.name`, `x?.name`,
+ *  `x["name"]`. Undefined for a computed element access (`x[key]`) — that names no procedure statically, and
+ *  guessing one would be a fabricated consumer. */
+function memberReadOf(node: Node): { object: Node; name: string } | undefined {
+  if (Node.isPropertyAccessExpression(node)) {
+    return { object: node.getExpression(), name: node.getName() };
+  }
+  if (!Node.isElementAccessExpression(node)) {
     return;
   }
-  const proc = pa.getName();
-  const inner = pa.getExpression();
-  if (Node.isPropertyAccessExpression(inner)) {
-    const full = `${inner.getName()}.${proc}`;
+  const arg = node.getArgumentExpression();
+  return arg !== undefined && Node.isStringLiteral(arg) ? { object: node.getExpression(), name: arg.getLiteralText() } : undefined;
+}
+
+/** A `X.<ns>.<proc>` access marks `<ns>.<proc>` consumed; a `X.<proc>` access whose tail is a known loose
+ *  root procedure marks that bare name consumed. Both hops go through {@link memberReadOf}, so a bracket or
+ *  optional-chained spelling of either hop counts exactly like the dot form. */
+function markConsumedFromAccess(node: Node, valid: Set<string>, looseProcs: Set<string>, consumed: Set<string>): void {
+  const outer = memberReadOf(node);
+  if (outer === undefined) {
+    return;
+  }
+  const proc = outer.name;
+  const inner = memberReadOf(outer.object);
+  if (inner !== undefined) {
+    const full = `${inner.name}.${proc}`;
     if (valid.has(full)) {
       consumed.add(full);
     }
@@ -2423,6 +2536,19 @@ function cmdRespell(project: Project, arg: string, flags: Flags): void {
 // A deliberate keep is tagged `// @typeonly-ok: <reason>` on the declaration, and that tag is TWO-SIDED: a
 // tag on an export the lens no longer calls type-only (something references it at runtime now, or nothing
 // references it at all and it is an `orphans` hit) is reported STALE and exits 1.
+//
+// THE UNION-SOURCE IDIOM IS BUCKETED, NOT FLAGGED (lens calibration, owner ruling 2026-08-13). Measured on
+// this tree: 46 of 47 hits were `export const X = [...] as const` whose ONLY reference is `(typeof X)[number]`
+// — THIS REPO'S STANDARD way to give a string union a runtime source of truth (§5.5 string-union dispatch:
+// one importable union + the tuple it derives from). Reporting that as rot is the lens crying wolf, and a
+// lens that cries wolf gets ignored. So a type-only-alive candidate whose declaration is `<literal> as const`
+// (through the `satisfies` wrapper — see {@link isConstAsserted}) is UNION-SOURCE: the author declared a
+// frozen runtime value and derived the type FROM it, which is the opposite of "a value kept alive by a shape
+// it satisfies". That single tell is what keeps the lens biting instead of blanket-exempting: a zod schema
+// whose only reference is `z.infer<typeof s>` carries no `as const` and stays a REAL finding (measured — it
+// is the one row of 47 left standing on the calibration corpus). Bucketed rows are NAMED, never silently
+// swallowed (the `orphans` star-suppression precedent) — a reader still gets the list, it just is not a
+// finding, and it is still a CANDIDATE, so the two-sided `@typeonly-ok` stale arm is unaffected.
 
 const TYPEONLY_OK_RE = /@typeonly-ok:\s*\S/u;
 
@@ -2509,11 +2635,13 @@ function isTypeOnlyHeritage(node: Node): boolean {
 }
 
 /** ONE type-only-alive candidate: the export, and the type-position reference SITES that are its entire
- *  liveness (the files a human must read to render the verdict — "is this shape-conformance deliberate?"). */
+ *  liveness (the files a human must read to render the verdict — "is this shape-conformance deliberate?").
+ *  `unionSource` marks the repo's `as const` + `typeof X[number]` idiom — a bucketed row, never a hit. */
 export type TypeOnlyCandidate = {
   readonly name: string;
   readonly decl: Node;
   readonly sites: readonly string[];
+  readonly unionSource: boolean;
 };
 
 /** Value exports of `inScope` whose every reference is a type position. Pure enumeration — no exemption
@@ -2558,16 +2686,42 @@ function typeOnlyCandidateOf(name: string, decl: Node): TypeOnlyCandidate | unde
       sites.add(`${relPath(ref.getSourceFile().getFilePath())}:${ref.getStartLineNumber()}`);
     }
   }
-  return sites.size === 0 ? undefined : { name, decl, sites: [...sites].sort(byProdFirst) };
+  if (sites.size === 0) {
+    return;
+  }
+  return { name, decl, sites: [...sites].sort(byProdFirst), unionSource: isConstAsserted(decl) };
+}
+
+/** The union-source idiom's TELL: the declaration is `<literal> as const` (through the `satisfies` /
+ *  parenthesis wrappers this repo writes it with — `as const satisfies readonly string[]` is the live
+ *  spelling in `packages/contracts/src/preset/index.ts:123`, and missing it cost two false hits in the first
+ *  cut of this calibration). The `as const` is the author declaring "this frozen value is the source of
+ *  truth"; a plain object/array literal makes no such claim, which is what keeps a zod schema whose only
+ *  reference is `z.infer<typeof s>` a REAL finding.
+ *
+ *  WHY THE `typeof` HALF IS NOT A SEPARATE TEST, stated because its absence looks like a gap: the candidate
+ *  is already type-only-alive, and TypeScript has NO way to name a `const` in a type position except through
+ *  a `typeof` query (a value is not a type). So "every reference is a type query" is entailed here, not
+ *  checked — and a check that cannot fail is not evidence, it is decoration. The first cut of this lens
+ *  carried one; no control could make it bite, and that is why it is gone. */
+function isConstAsserted(decl: Node): boolean {
+  if (!Node.isVariableDeclaration(decl)) {
+    return false;
+  }
+  let cur = decl.getInitializer();
+  while (cur !== undefined && (Node.isSatisfiesExpression(cur) || Node.isParenthesizedExpression(cur))) {
+    cur = cur.getExpression();
+  }
+  return cur !== undefined && Node.isAsExpression(cur) && cur.getTypeNode()?.getText() === "const";
 }
 
 /** How many type-position sites a hit names before it collapses to a count. */
 const TYPEONLY_SITES_SHOWN = 2;
 
-function typeOnlyHit(candidate: TypeOnlyCandidate): Hit {
+function typeOnlyHit(candidate: TypeOnlyCandidate, kind = "typeonly-alive"): Hit {
   const shown = candidate.sites.slice(0, TYPEONLY_SITES_SHOWN).join(", ");
   const more = candidate.sites.length > TYPEONLY_SITES_SHOWN ? ` +${candidate.sites.length - TYPEONLY_SITES_SHOWN} more` : "";
-  const h = hitOf(candidate.decl, "typeonly-alive");
+  const h = hitOf(candidate.decl, kind);
   h.text = `${candidate.name}  ←  ${candidate.sites.length} type-position ref(s): ${shown}${more}  —  ${h.text}`;
   return h;
 }
@@ -2611,12 +2765,26 @@ function cmdTypeOnly(project: Project, arg: string, flags: Flags): void {
   const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const candidates = collectTypeOnlyCandidates(project, inScope);
   printStaleTypeOnlyTags(project, inScope, new Set(candidates.map((c) => declKey(c.decl))));
-  const hits = candidates.filter((c) => !isTypeOnlyExempt(c.decl)).map(typeOnlyHit);
-  const exempt = candidates.length - hits.length;
+  const reportable = candidates.filter((c) => !isTypeOnlyExempt(c.decl));
+  const hits = reportable.filter((c) => !c.unionSource).map((c) => typeOnlyHit(c));
+  const bucketed = reportable.filter((c) => c.unionSource).map((c) => typeOnlyHit(c, "union-source"));
+  const exempt = candidates.length - reportable.length;
+  printUnionSourceBucket(bucketed, flags);
   console.log(
     `typeonly-alive is a CANDIDATE lens — a hit may be a DELIBERATE conformance seam (a \`satisfies\` anchor, a runtime value whose type IS the contract). It finds value exports whose every reference is a type position; the verdict is a human's. Keep one deliberately with \`// @typeonly-ok: <reason>\` on the declaration.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
   );
   emit(hits, flags, `typeonly-alive ${scope.label}`);
+}
+
+/** Name every UNION-SOURCE row — bucketed rows are NOT counted as hits, so the epilogue's `matches` stays
+ *  the number of things the lens is actually claiming. */
+function printUnionSourceBucket(bucketed: readonly Hit[], flags: Flags): void {
+  printNamedBucket(
+    bucketed,
+    flags,
+    (count) =>
+      `typeonly-alive: ${count} candidate(s) BUCKETED as the union-source idiom (\`export const X = […] as const\`, the type derived from it as \`(typeof X)[number]\` — this repo's runtime source of truth for a derived union, §5.5). Named below, NOT counted as hits:`,
+  );
 }
 
 // ── columns: drizzle columns classified by CONSUMPTION (READ+WRITE / WRITE-only / READ-only / NEITHER) ─
@@ -2682,6 +2850,18 @@ function cmdTypeOnly(project: Project, arg: string, flags: Flags): void {
 // the same reason plus cost (one reference resolution per column). A deliberate keep is
 // `// @column-ok: <reason>` on the column property, and that marker is TWO-SIDED: a marker on a column the
 // lens no longer flags (it is READ+WRITE now) is reported STALE and exits 1.
+//
+// CONVENTION TIMESTAMPS ARE A CLASS OF THEIR OWN (lens calibration, owner ruling 2026-08-13). Every one of
+// the 16 WRITE-ONLY rows this lens produced on the calibration corpus was a junction table's
+// `created_at`/`updated_at` carrying a schema DEFAULT — and the corpus wrote them up as "safe to kill", which
+// is DANGEROUS: they are PROVENANCE, stamped by the schema's own `.default(…)`, kept so a row can be dated
+// after the fact. "Nothing reads it back" is their normal state, not the RV-11 defect ("the model writes a
+// column no surface renders"), so they are their own class — counted, named, and OUT of the actionable hit
+// list. Two things this deliberately does NOT do: it does not touch the READ arms (an ORDER BY on the table
+// object is ALREADY resolved — `characters.createdAt` is `orderBy(desc(characters.createdAt))` at
+// observability/debug/inspect/list.ts:53 and classifies READ+WRITE, which is the positive control that the
+// blind spot is not there), and it does not exempt a bare timestamp column with no default (that one really
+// is a value some writer chose to store).
 
 const COLUMN_OK_RE = /@column-ok:\s*\S/u;
 const SCHEMA_DIR = "/packages/db/src/schema/";
@@ -2700,9 +2880,11 @@ const COLUMN_CLASS_PAD = 11;
 const COLUMN_COUNT_PAD = 4;
 
 /** How a column is consumed across the workspace. `read-write` is the healthy state and never a hit; the
- *  other three are the findings — `write-only` is the RV-11 class (the model fills it, nothing renders it),
- *  `read-only` is a column nothing populates (a permanent default/NULL being read), `neither` is pure rot. */
-type ColumnClass = "read-write" | "write-only" | "read-only" | "neither";
+ *  next three are the findings — `write-only` is the RV-11 class (the model fills it, nothing renders it),
+ *  `read-only` is a column nothing populates (a permanent default/NULL being read), `neither` is pure rot.
+ *  `provenance` is the fifth and is NOT a finding: a `created_at`/`updated_at` with a schema DEFAULT that
+ *  nothing reads back — an audit stamp doing exactly its job. */
+type ColumnClass = "read-write" | "write-only" | "read-only" | "neither" | "provenance";
 
 /** ONE drizzle column: its table (both spellings), its own two spellings, and the declaration node the
  *  `@column-ok` marker hangs on. */
@@ -2992,6 +3174,32 @@ function classifyColumn(reads: number, writes: number, opaque: boolean): ColumnC
   return written ? "write-only" : "neither";
 }
 
+/** The audit-stamp column names this repo writes by convention on nearly every table. */
+const PROVENANCE_COLUMNS = new Set(["created_at", "updated_at"]);
+/** The drizzle builders that make a column's value the SCHEMA'S, not a writer's decision. */
+const COLUMN_DEFAULT_METHODS = new Set(["default", "$defaultFn", "$default", "$onUpdate", "$onUpdateFn"]);
+
+/** A `created_at`/`updated_at` whose builder chain declares a DEFAULT — provenance, stamped by the schema.
+ *  Both halves are required: the NAME alone would exempt a hand-written timestamp some writer deliberately
+ *  stores (a real value), and a default alone says nothing about what the column means. */
+function isConventionTimestamp(column: ColumnDef): boolean {
+  if (!PROVENANCE_COLUMNS.has(column.sqlColumn)) {
+    return false;
+  }
+  let cur: Node | undefined = Node.isPropertyAssignment(column.decl) ? column.decl.getInitializer() : undefined;
+  while (cur !== undefined && Node.isCallExpression(cur)) {
+    const expr = cur.getExpression();
+    if (!Node.isPropertyAccessExpression(expr)) {
+      return false;
+    }
+    if (COLUMN_DEFAULT_METHODS.has(expr.getName())) {
+      return true;
+    }
+    cur = expr.getExpression();
+  }
+  return false;
+}
+
 /** The whole audit for one scope: every column classified, plus the opaque-writer map the summary prints
  *  (returned WITH the candidates so the one expensive structural scan runs exactly once per invocation). */
 export type ColumnAudit = { readonly candidates: readonly ColumnCandidate[]; readonly opaqueTables: ReadonlyMap<string, readonly string[]> };
@@ -3008,9 +3216,13 @@ export function collectColumnCandidates(project: Project, tables: readonly Table
     for (const column of table.columns) {
       const reads = [...new Set([...columnQueryReadSites(column), ...(rowReads.get(columnKey(column.tableVar, column.jsProp)) ?? [])])].sort(byProdFirst);
       const writes = perColumn.get(columnKey(column.tableVar, column.jsProp)) ?? [];
+      const klass = classifyColumn(reads.length, writes.length, opaque);
       candidates.push({
         column,
-        klass: classifyColumn(reads.length, writes.length, opaque),
+        // The provenance override applies to the WRITE-ONLY verdict only: a `created_at` nothing writes AND
+        // nothing reads (`neither`) is still pure rot, and a read one is healthy — neither is an audit stamp
+        // doing its job.
+        klass: klass === "write-only" && isConventionTimestamp(column) ? "provenance" : klass,
         reads,
         writes,
         opaque,
@@ -3067,19 +3279,6 @@ function rowTablesOf(type: Type, tables: readonly TableDef[], cache: Map<unknown
   return matches;
 }
 
-/** The column NAME one node reads off a row-shaped object, plus the object expression itself: a
- *  `<x>.<col>` access, a `<x>["<col>"]` element access. Undefined for anything else. */
-function rowAccessOf(node: Node): { object: Node; name: string } | undefined {
-  if (Node.isPropertyAccessExpression(node)) {
-    return { object: node.getExpression(), name: node.getName() };
-  }
-  if (!Node.isElementAccessExpression(node)) {
-    return;
-  }
-  const arg = node.getArgumentExpression();
-  return arg !== undefined && Node.isStringLiteral(arg) ? { object: node.getExpression(), name: arg.getLiteralText() } : undefined;
-}
-
 /** ONE structural pass for every row-shaped READ in the workspace. The cheap gate runs FIRST — a property name
  *  that is no table's column never costs a type resolution, which is what keeps this arm affordable. */
 export function scanRowReads(project: Project, tables: readonly TableDef[]): RowReadScan {
@@ -3122,9 +3321,11 @@ function scanFileRowReads(sf: SourceFile, scan: RowReadCtx): void {
   }
 }
 
-/** ONE member access as a row read, if its name is a column and its object's shape is a row of some table. */
+/** ONE member access as a row read, if its name is a column and its object's shape is a row of some table.
+ *  Reads through {@link memberReadOf} — the ONE spelling of "what member does this node read" (`.col`,
+ *  `?.col`, `["col"]`); two copies is how one arm learns a shape and the other silently does not. */
 function recordAccessRead(node: Node, scan: RowReadCtx): void {
-  const access = rowAccessOf(node);
+  const access = memberReadOf(node);
   if (access === undefined || !scan.columnNames.has(access.name)) {
     return;
   }
@@ -3151,13 +3352,17 @@ function recordDestructuredReads(pattern: Node, scan: RowReadCtx): void {
 }
 
 /** The four classes in report order — worst rot first, the healthy state last (and never printed as a hit). */
-const COLUMN_CLASS_ORDER: readonly ColumnClass[] = ["neither", "write-only", "read-only", "read-write"];
+const COLUMN_CLASS_ORDER: readonly ColumnClass[] = ["neither", "write-only", "read-only", "provenance", "read-write"];
+
+/** The classes that are NOT findings — printed in the summary, never in the actionable hit list. */
+const COLUMN_CLASSES_NOT_FLAGGED: ReadonlySet<ColumnClass> = new Set<ColumnClass>(["read-write", "provenance"]);
 
 /** The one-line explanation each class carries in the summary — what a reader should DO about it. */
 const COLUMN_CLASS_NOTE: Record<ColumnClass, string> = {
   neither: "pure rot — no reader, no writer, no raw-SQL mention: the column exists and nothing in the workspace touches it",
   "write-only": "the RV-11 class — something FILLS it and nothing ever reads it back (the model writes what no surface renders)",
   "read-only": "read but never written — a permanent DEFAULT/NULL being rendered as if it were data",
+  provenance: "a `created_at`/`updated_at` with a schema DEFAULT that nothing reads back — an audit stamp doing its job (NEVER a hit; do not 'reclaim' these)",
   "read-write": "healthy (never a hit)",
 };
 
@@ -3227,11 +3432,12 @@ function cmdColumns(project: Project, arg: string, flags: Flags): void {
   const audit = collectColumnCandidates(project, tables);
   printColumnSummary(audit, tables);
   printStaleColumnTags(audit.candidates);
-  const flagged = audit.candidates.filter((c) => c.klass !== "read-write" && !isColumnExempt(c.column.decl));
-  const exempt = audit.candidates.filter((c) => c.klass !== "read-write" && isColumnExempt(c.column.decl)).length;
+  const flaggable = audit.candidates.filter((c) => !COLUMN_CLASSES_NOT_FLAGGED.has(c.klass));
+  const flagged = flaggable.filter((c) => !isColumnExempt(c.column.decl));
+  const exempt = flaggable.length - flagged.length;
   const ordered = COLUMN_CLASS_ORDER.flatMap((klass) => flagged.filter((c) => c.klass === klass)).map(columnHit);
   console.log(
-    `columns is a CANDIDATE lens. READS are the union of two arms — language-service \`<table>.<col>\` query references PLUS a row-shape scan for \`<row>.<col>\` reads (needed because \`$inferSelect\` is a mapped type: a read through a declared row alias is INVISIBLE to reference resolution). The row-shape arm is deliberately OVER-inclusive, so a read count can be generous — which is the safe direction. WRITES are STRUCTURAL for the same mapped-type reason, so a table with a whole-row/spread writer marks every column \`write?\`, never "unwritten". A \`raw?\` annotation means the column's SQL name appears in some raw \`sql\` template — NOT attributable to a table in v1, so read those before calling it rot. Keep one deliberately with \`// @column-ok: <reason>\` on the column property.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
+    `columns is a CANDIDATE lens. READS are the union of two arms — language-service \`<table>.<col>\` query references PLUS a row-shape scan for \`<row>.<col>\` reads (needed because \`$inferSelect\` is a mapped type: a read through a declared row alias is INVISIBLE to reference resolution). The row-shape arm is deliberately OVER-inclusive, so a read count can be generous — which is the safe direction. WRITES are STRUCTURAL for the same mapped-type reason, so a table with a whole-row/spread writer marks every column \`write?\`, never "unwritten". A \`raw?\` annotation means the column's SQL name appears in some raw \`sql\` template — NOT attributable to a table in v1, so read those before calling it rot. A \`created_at\`/\`updated_at\` with a schema DEFAULT that nothing reads back is classed \`provenance\`, counted in the table above and NEVER listed as a hit — an audit stamp is not the RV-11 class. Keep one deliberately with \`// @column-ok: <reason>\` on the column property.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
   );
   emit(ordered, flags, `columns ${arg === "" ? "(all tables)" : arg}`);
 }
@@ -3251,10 +3457,23 @@ function cmdColumns(project: Project, arg: string, flags: Flags): void {
 // live rows; that is why it is `manual`-tier with a HEURISTIC banner and why it never joins `pnpm check`.
 //
 // WHAT COUNTS AS A REGISTRY (structural, never a hardcoded census — a doc list rots the day a table moves).
-// An exported const bound to an object literal with at least {@link REGISTRY_ROW_FLOOR} rows AND either a
-// `satisfies`/annotation naming `Record<` (the house Record-not-switch dispatch shape) or a SCREAMING_SNAKE
-// name (the repo's table-constant convention). Both classes are exactly what the registry census enumerates
-// by hand (docs/reviews/misc/2026-08-03-registry-map.md), derived instead of copied.
+// An exported const with at least {@link REGISTRY_ROW_FLOOR} rows AND either a `satisfies`/annotation naming
+// `Record<` (the house Record-not-switch dispatch shape) or a SCREAMING_SNAKE name (the repo's table-constant
+// convention), in EITHER of the two shapes this repo writes a table in:
+//   • KEYED — an object literal; the row key is the property name.
+//   • ROW-ARRAY — an array literal of object rows, each carrying a string-literal identity property
+//     ({@link REGISTRY_ROW_ID_KEYS}); the row key is that property's value.
+// The row-array arm is the DERIVATION-DRIFT fix (lens calibration, owner ruling 2026-08-13): this verb's own
+// USAGE example is `pnpm ast regkeys TEMPLATE_DEFS`, and `TEMPLATE_DEFS` — the preset template catalogue,
+// `packages/contracts/src/preset/index.ts`, class (a) in the registry census — is an array of `{ id, … }`
+// rows, so the example derived ZERO registries and exited 2 while 172 others matched. A lens whose own
+// documented example cannot run is a lens nobody trusts.
+//
+// KEY EXTRACTION READS THROUGH A COMPUTED NAME. `{ ["main_prompt"]: … }` is a legal (and used —
+// `MARKER_COPY`, client preset prompt-assembly) spelling of a string key, and taking the name node's TEXT
+// yielded the key `["main_prompt"]`, which nothing on earth spells: 100% of that table's rows reported
+// undispatched. A computed name wrapping a STRING LITERAL is unwrapped; a computed name wrapping anything
+// else (an identifier constant) is NOT a literal key and the row is skipped rather than guessed at.
 //
 // WHAT COUNTS AS A DISPATCH SITE. Any spelling of the key ANYWHERE else in the workspace: a string literal, a
 // property-access name (`x.<key>`), a bare identifier, or a JSX attribute name — collected in ONE syntactic
@@ -3286,13 +3505,52 @@ function declaredTypeText(v: Node): string {
   return `${v.getTypeNode()?.getText() ?? ""} ${satisfiesText}`;
 }
 
-/** Unwrap the `satisfies`/`as const` wrappers a house registry is written with, down to the object literal. */
-function objectLiteralOf(node: Node | undefined): Node | undefined {
+/** Unwrap the `satisfies`/`as const` wrappers a house registry is written with, down to the literal — an
+ *  object literal (the KEYED shape) or an array literal (the ROW-ARRAY shape). */
+function registryLiteralOf(node: Node | undefined): Node | undefined {
   let cur = node;
   while (cur !== undefined && (Node.isSatisfiesExpression(cur) || Node.isAsExpression(cur) || Node.isParenthesizedExpression(cur))) {
     cur = cur.getExpression();
   }
-  return cur !== undefined && Node.isObjectLiteralExpression(cur) ? cur : undefined;
+  return cur !== undefined && (Node.isObjectLiteralExpression(cur) || Node.isArrayLiteralExpression(cur)) ? cur : undefined;
+}
+
+/** The property names a ROW-ARRAY registry's row identity can live under, in precedence order. `id` is the
+ *  house spelling (`TEMPLATE_DEFS`); a row carrying none of these has no literal key and is skipped. */
+const REGISTRY_ROW_ID_KEYS = ["id", "key"] as const;
+
+/** The literal KEY of one row of a KEYED registry — the property name, read through a computed
+ *  `["literal"]` wrapper. Undefined when the name is computed from a non-literal (an identifier constant):
+ *  there is no key to check, and inventing one from the expression's text is how `["main_prompt"]` happened. */
+function keyedRowKey(prop: Node): string | undefined {
+  if (!(Node.isPropertyAssignment(prop) || Node.isShorthandPropertyAssignment(prop))) {
+    return;
+  }
+  const nameNode = prop.getNameNode();
+  if (Node.isStringLiteral(nameNode)) {
+    return nameNode.getLiteralText();
+  }
+  if (Node.isComputedPropertyName(nameNode)) {
+    const inner = nameNode.getExpression();
+    return Node.isStringLiteral(inner) ? inner.getLiteralText() : undefined;
+  }
+  return nameNode.getText();
+}
+
+/** The literal KEY of one row of a ROW-ARRAY registry: the row object's `id`/`key` string-literal property. */
+function rowArrayRowKey(element: Node): string | undefined {
+  if (!Node.isObjectLiteralExpression(element)) {
+    return;
+  }
+  let key: string | undefined;
+  for (const idKey of REGISTRY_ROW_ID_KEYS) {
+    const prop = element.getProperty(idKey);
+    const value = prop !== undefined && Node.isPropertyAssignment(prop) ? prop.getInitializer() : undefined;
+    if (key === undefined && value !== undefined && Node.isStringLiteral(value)) {
+      key = value.getLiteralText();
+    }
+  }
+  return key;
 }
 
 /** Every registry-shaped exported const in the workspace (excluding test paths — a table declared in a test
@@ -3322,23 +3580,34 @@ function registryDefOf(v: Node, filePath: string): RegistryDef | undefined {
   if (!v.isExported()) {
     return;
   }
-  const literal = objectLiteralOf(v.getInitializer());
-  if (literal === undefined || !Node.isObjectLiteralExpression(literal)) {
+  const literal = registryLiteralOf(v.getInitializer());
+  if (literal === undefined) {
     return;
   }
   const name = v.getName();
   if (!(SCREAMING_SNAKE_RE.test(name) || RECORD_ANNOTATION_RE.test(declaredTypeText(v)))) {
     return;
   }
-  const rows: { key: string; node: Node }[] = [];
-  for (const prop of literal.getProperties()) {
-    if (!(Node.isPropertyAssignment(prop) || Node.isShorthandPropertyAssignment(prop))) {
-      continue;
-    }
-    const nameNode = prop.getNameNode();
-    rows.push({ key: Node.isStringLiteral(nameNode) ? nameNode.getLiteralText() : nameNode.getText(), node: prop });
-  }
+  const rows = registryRowsOf(literal);
   return rows.length < REGISTRY_ROW_FLOOR ? undefined : { name, filePath, rows };
+}
+
+/** The `(key, node)` rows of a registry literal, in whichever of the two shapes it is written. A member with
+ *  no LITERAL key (a spread, a computed non-literal name, a row object with no `id`/`key` string) yields no
+ *  row — it is a key this lens cannot check, never a key it invents. */
+function registryRowsOf(literal: Node): { key: string; node: Node }[] {
+  const rows: { key: string; node: Node }[] = [];
+  const members: readonly Node[] = Node.isArrayLiteralExpression(literal)
+    ? literal.getElements()
+    : (literal.asKindOrThrow(SyntaxKind.ObjectLiteralExpression).getProperties() as readonly Node[]);
+  const keyOf = Node.isArrayLiteralExpression(literal) ? rowArrayRowKey : keyedRowKey;
+  for (const node of members) {
+    const key = keyOf(node);
+    if (key !== undefined) {
+      rows.push({ key, node });
+    }
+  }
+  return rows;
 }
 
 /** Every SPELLING a file uses — string-literal texts, property-access names, bare identifiers, and JSX
@@ -3415,7 +3684,7 @@ function cmdRegKeys(project: Project, arg: string, flags: Flags): void {
     }
   }
   console.log(
-    `regkeys is a HEURISTIC, INFORMATIONAL lens — it NEVER gates and has no exemption marker (owner ruling). Registry dispatch is legitimately dynamic: a key that arrives from the DB, a URL segment, a template literal, or an \`Object.keys(REGISTRY)\` iteration is a LIVE row that looks dead here. Read the call sites before acting on any line below. (${registries.length} registry/registries, ${registries.reduce((n, r) => n + r.rows.length, 0)} row(s) examined; a registry = an exported const object literal with ${REGISTRY_ROW_FLOOR}+ rows carrying a \`Record<…>\` annotation or a SCREAMING_SNAKE name.)`,
+    `regkeys is a HEURISTIC, INFORMATIONAL lens — it NEVER gates and has no exemption marker (owner ruling). Registry dispatch is legitimately dynamic: a key that arrives from the DB, a URL segment, a template literal, or an \`Object.keys(REGISTRY)\` iteration is a LIVE row that looks dead here. Read the call sites before acting on any line below. (${registries.length} registry/registries, ${registries.reduce((n, r) => n + r.rows.length, 0)} row(s) examined; a registry = an exported const with ${REGISTRY_ROW_FLOOR}+ rows carrying a \`Record<…>\` annotation or a SCREAMING_SNAKE name, in either shape: an OBJECT literal keyed by property name, or an ARRAY literal of \`{ ${REGISTRY_ROW_ID_KEYS.join("|")}: "<key>" }\` rows.)`,
   );
   emit(hits, flags, `regkeys ${arg === "" ? "(all registries)" : arg}`);
 }
@@ -4382,8 +4651,9 @@ const USAGE = [
   "",
   "regkeys (HEURISTIC + INFORMATIONAL — never gates, no exemption marker, owner-ruled) = the ROW-level blind",
   "  spot every symbol lens shares: a string-keyed dispatch table is ONE live symbol however many of its rows",
-  "  are dead. A registry is derived structurally (an exported const object literal with 3+ rows carrying a",
-  "  `Record<…>` annotation or a SCREAMING_SNAKE name), and a row is reported when its KEY is spelled — as a",
+  "  are dead. A registry is derived structurally (an exported const with 3+ rows carrying a `Record<…>`",
+  "  annotation or a SCREAMING_SNAKE name — an OBJECT literal keyed by property name, or an ARRAY literal of",
+  '  `{ id: "<key>" }` rows, the TEMPLATE_DEFS shape), and a row is reported when its KEY is spelled — as a',
   "  string, a property name, an identifier, or a JSX attribute — in NO non-test file outside its own table.",
   "  EXPECT FALSE POSITIVES: a key from the DB, a URL segment, a template literal, or an `Object.keys(REG)`",
   "  iteration is a LIVE row that looks dead here. That is exactly why it never gates. Syntactic only, so fast.",
