@@ -729,6 +729,12 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 > grep-sourced or relayed. **Untriaged: no lane assigned, no root cause confirmed.** Two THEMES cut across
 > most of it (staleness, and event-bus absence) — triage those as programs, not as individual bugs.
 
+- [ ] **DRAFT-MODE REPLACEMENT RESEARCH (owner dogfood, 08-14, verbatim intent): chat-creation draft
+  mode "is driving me insane — we have to design around it so hard… so clunky and bad UX and we have so
+  much work going into just making it semi-usable." RISK EXPLICITLY ACCEPTED: "if it's just empty chats
+  we never started or did something with, we're fine — we can clean up."** Stickler research lane
+  (dispatched): modern top-tier patterns (instant-create + empty-husk GC is the hypothesis to beat) vs
+  our draft complexity inventory; deliverable = design + migration plan + cleanup semantics.
 - [ ] **AUTOSAVE INCONSISTENCY (owner dogfood, 08-14 overnight): "we went with autosave most everywhere
   yet there's still some spots with a manual save — it feels weird."** Untriaged; owes an INVENTORY
   first (scout, next free slot): every surface with an explicit Save affordance vs the autosave/draft
