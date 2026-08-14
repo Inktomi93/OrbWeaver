@@ -262,6 +262,9 @@ function writeFixtures(): void {
   // package-layout: a loose file at the root of kit/src.
   fx("packages/kit/src/__g_rogue.ts", "export const x = 1;\n");
   // ui-primitive-structure: a primitive dir missing its trio (no <name>.tsx/variants.ts) + no test.
+  // ALSO drives ui-exports-map-complete arm A1 — the dir has an index.ts and packages/ui/package.json
+  // names no `"./__g_uiprim"` entry, which is exactly the unimportable-module shape. If this fixture ever
+  // moves, that gate reports UNFIRED here rather than going quietly dead.
   fx("packages/ui/src/primitives/__g_uiprim/index.ts", "export const x = 1;\n");
   // client-structure: a BUILT feature (has code) with a stray root file + no index.ts front door.
   fx("packages/client/src/features/__g_cfeat/stray.ts", "export const x = 1;\n");
@@ -831,6 +834,10 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_qseals/hooks/__g_h.ts", 'import { useMutation } from "@tanstack/react-query";\nexport const m = useMutation;\n');
   // testid-typed-only: a freeform string data-testid (must come from the typed test-id home).
   fx("packages/client/src/features/__g_testid/components/__g_c.tsx", 'export const C = () => <div data-testid="freeform-string" />;\n');
+  // testid-liveness: a CT selecting a `data-testid` no producer anywhere on the tree mints (arm A1 — the
+  // draft-cast ghost shape). The value is deliberately unlike any live id so the fixture cannot be
+  // absolved by a real producer.
+  fx("tests/client/features/__g_testidlive.ct.tsx", 'export const t = () => page.getByTestId("__g-ghost-testid");\n');
   // theme-override-only-via-scope: an inline style overriding a color token custom property.
   fx("packages/client/src/features/__g_themeover/components/__g_c.tsx", "export const C = () => <div style={{ '--color-primary': 'red' }} />;\n");
   // zustand-selector-stability: a store-hook selector returning a fresh object literal.

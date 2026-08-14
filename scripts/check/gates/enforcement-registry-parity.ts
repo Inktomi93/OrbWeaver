@@ -1,17 +1,22 @@
 // Gate: enforcement-registry-parity — Core-Enforcement-Active-Gates.md must agree with the DISCOVERED
 // gate-descriptor set (the loader IS the registry): its Layer-3 ACTIVE table names exactly the
 // `status:"active"` descriptors, its DORMANT table exactly the `status:"dormant"` ones, and its "(N
-// registered gates)" count matches. Both directions RED. Self-hosts via its own ts-morph Project (fsBacked) — never imports report.ts, so no import cycle.
+// registered gates)" count matches — and that count has ONE home, so a SECOND core doc stating a figure for
+// it is RED too (`client-architecture-lockdown.md` froze at 133 while the registry held 207). Both directions RED. Self-hosts via its own ts-morph Project (fsBacked) — never imports report.ts, so no import cycle.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
-const DOC_REL = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
+const CORE_DOCS_REL = "docs/architecture/core";
+const DOC_REL = `${CORE_DOCS_REL}/Core-Enforcement-Active-Gates.md`;
 const GATES_DIR_REL = "scripts/check/gates";
 const TS_EXT_RE = /\.ts$/u;
 const COUNT_RE = /\((?<count>\d+) registered gates\)/u;
+/** WIDER than COUNT_RE on purpose: a second home does not have to copy the parenthesised spelling, and the
+ *  one that rotted did not (`**133 registered gates**`). Any FIGURE beside the phrase is the violation. */
+const ANY_COUNT_RE = /\d+\s+registered gates/u;
 const ACTIVE_TABLE_START_RE = /## Layer 3 — Structural gates/u;
 const DORMANT_TABLE_START_RE = /### Layer 3 — DORMANT structural gates/u;
 const TABLE_ROW_RE = /^\|\s*`(?<name>[a-zA-Z0-9-]+)`\s*\|/gmu;
@@ -46,6 +51,11 @@ const DOC_DORMANT_MISSING = (name: string): string =>
 const DOC_DORMANT_ORPHAN = (name: string): string =>
   `${DOC_REL} Layer-3 DORMANT table names "${name}" but no dormant descriptor of that name exists ` +
   '(scripts/check/gates/) — remove the row, or set the gate\'s status to "dormant".';
+const SECOND_COUNT_HOME = (rel: string): string =>
+  `${rel} states its own "(N registered gates)" figure — the count has ONE home (${DOC_REL}), where this ` +
+  "gate checks it against the discovered descriptor set. A second copy is ungated by construction and " +
+  'rots silently (this one sat at "133 registered gates" for a month past the real 207). Cite ' +
+  `${DOC_REL} instead of restating the number.`;
 const COUNT_CONTRACT_MISMATCH = (docCount: number, actual: number): string =>
   `${DOC_REL} declares "${docCount} registered gates" but there are ${actual} active gate descriptors ` +
   "(scripts/check/gates/) — update the count line (docs/architecture/core/Core-Enforcement-Active-Gates.md).";
@@ -135,6 +145,30 @@ function contractCountViolations(doc: string, activeCount: number): Violation[] 
   return declared === activeCount ? [] : [{ file: DOC_REL, line: 0, message: COUNT_CONTRACT_MISMATCH(declared, activeCount) }];
 }
 
+/** The count has ONE home. A SECOND copy of it in another core law doc is ungated by construction (this
+ *  gate reads exactly one file), and `client-architecture-lockdown.md` carried "133 registered gates" for a
+ *  month past the real 207 — a law doc lying about the enforcement inventory. Any other `docs/architecture/
+ *  core/*.md` stating a NUMBER of registered gates is RED: cite the doc, never restate the figure. */
+function secondCountHomeViolations(root: string): Violation[] {
+  const dir = join(root, CORE_DOCS_REL);
+  if (!existsSync(dir)) {
+    return [];
+  }
+  const out: Violation[] = [];
+  for (const entry of readdirSync(dir).sort()) {
+    const rel = `${CORE_DOCS_REL}/${entry}`;
+    if (!entry.endsWith(".md") || rel === DOC_REL) {
+      continue;
+    }
+    const text = readFileSync(join(dir, entry), "utf-8");
+    const line = text.split("\n").findIndex((l) => ANY_COUNT_RE.test(l));
+    if (line !== -1) {
+      out.push({ file: rel, line: line + 1, message: SECOND_COUNT_HOME(rel) });
+    }
+  }
+  return out;
+}
+
 /** The contract-conformance reconciliation shared by the descriptor's `run` and its self-test. */
 function reconcileContract(root: string): Violation[] {
   const docPath = join(root, DOC_REL);
@@ -153,6 +187,7 @@ function reconcileContract(root: string): Violation[] {
   const dormant = new Set(descriptors.filter((d) => d.status === STATUS_DORMANT).map((d) => d.name));
   return [
     ...contractCountViolations(doc, active.size),
+    ...secondCountHomeViolations(root),
     ...reconcileTable(active, activeTableGateNames(doc), DOC_ACTIVE_MISSING, DOC_ACTIVE_ORPHAN),
     ...reconcileTable(dormant, dormantTableGateNames(doc), DOC_DORMANT_MISSING, DOC_DORMANT_ORPHAN),
   ];
@@ -165,8 +200,8 @@ export const gate: GateDescriptor = {
   scopeSafety: "whole-project",
   fsBacked: true,
   message:
-    'Core-Enforcement-Active-Gates.md disagrees with the discovered gate-descriptor set — its ACTIVE table must list exactly the status:"active" gates, its DORMANT table exactly the status:"dormant" gates, and its "(N registered gates)" count must equal the active-descriptor count (Core-Enforcement-Active-Gates.md).',
-  fix: 'add/remove the doc row for the gate (ACTIVE vs DORMANT tables match the descriptor\'s status), and update the "(N registered gates)" count to the active-descriptor total in docs/architecture/core/Core-Enforcement-Active-Gates.md.',
+    'Core-Enforcement-Active-Gates.md disagrees with the discovered gate-descriptor set — its ACTIVE table must list exactly the status:"active" gates, its DORMANT table exactly the status:"dormant" gates, and its "(N registered gates)" count must equal the active-descriptor count; and that count has ONE home, so no other docs/architecture/core doc may state a figure for it (Core-Enforcement-Active-Gates.md).',
+  fix: 'add/remove the doc row for the gate (ACTIVE vs DORMANT tables match the descriptor\'s status), update the "(N registered gates)" count to the active-descriptor total in docs/architecture/core/Core-Enforcement-Active-Gates.md, and in any other core doc CITE that line instead of restating the number.',
   run: (ctx) => {
     for (const v of reconcileContract(ctx.root)) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
@@ -222,6 +257,18 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "registered gates" },
       why: "the ACTIVE table matches but the count says 0 for one active descriptor — the COUNT_CONTRACT_MISMATCH arm",
     },
+    {
+      files: {
+        // A SECOND core doc restating the figure. Everything else agrees, so this arm is the only red —
+        // and it is spelled the way the live rot was (`**133 registered gates**`, no parentheses).
+        "scripts/check/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+          "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `x` | enforces x |\n\n### Layer 3 — DORMANT structural gates\n",
+        "docs/architecture/core/client-architecture-lockdown.md": "the authoritative live count is **133 registered gates** (2026-07-16).\n",
+      },
+      expect: { count: 1, messageIncludes: "ONE home" },
+      why: "the live rot, replayed: a second core doc froze the count at 133 while the registry held 207 — one home for the figure, cited everywhere else",
+    },
   ],
   mustPass: [
     {
@@ -231,6 +278,17 @@ export const gate: GateDescriptor = {
           "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `x` | enforces x |\n\n### Layer 3 — DORMANT structural gates\n",
       },
       why: "the ACTIVE table lists exactly the one active descriptor and the count matches — the doc agrees with the registry, passes",
+    },
+    {
+      files: {
+        // The correct way for another core doc to talk about the inventory: CITE the one home, no figure.
+        "scripts/check/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+          "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `x` | enforces x |\n\n### Layer 3 — DORMANT structural gates\n",
+        "docs/architecture/core/client-architecture-lockdown.md":
+          "the live count is `docs/architecture/core/Core-Enforcement-Active-Gates.md`'s own registered-gates line.\n",
+      },
+      why: "a citation carries no figure to rot — this row is the written difference between referencing the count and copying it",
     },
   ],
 };
