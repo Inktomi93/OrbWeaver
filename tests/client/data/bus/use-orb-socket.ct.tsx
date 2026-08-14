@@ -16,6 +16,8 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
+import type { SubscriptionErrorPayload } from "../../../support/ct/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../support/ct/route-trpc.ts";
 import { RpgBusStory, TwoRoomStory, UserBusStory } from "./_ct-stories.tsx";
@@ -116,6 +118,58 @@ test("TWO rooms cost ONE connect, and each room's frames reach only its own cons
   // THE claim: adding the second room added zero connections.
   expect(socket.connects()).toBe(1);
   expect(socket.attachedChannels().toSorted()).toEqual([`rpg:${GAME_CHAT}`, "user"]);
+});
+
+// ── W1: the SUBSCRIPTION path is a session sensor ────────────────────────────────────────────────────
+// The defect this pins (staleness-and-session-freshness.md §2.3 hole 2): the socket's UNAUTHORIZED was the
+// ONLY signal a warm tab ever got that its cookie had died — with `staleTime: Infinity` and
+// `refetchOnWindowFocus: false` (D54) it issues no reads, so the QueryCache belt has nothing to fire on —
+// and it ended at `notify.error`. A toast, then business as usual on a dead session. RED-FIRST RECEIPT:
+// against HEAD both assertions below fail (`/api/auth/me` is never requested), which is the defect stated
+// as a network fact rather than a source reading.
+
+/** Stub the public session probe + count its hits — the observable that recovery ENTERED. */
+async function routeAuthMe(page: Page, authenticated: boolean): Promise<() => number> {
+  let hits = 0;
+  await page.route("**/api/auth/me", async (route) => {
+    hits += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ authenticated, handle: authenticated ? "owner" : null, role: authenticated ? "owner" : null }),
+    });
+  });
+  return (): number => hits;
+}
+
+/** The typed terminal frame the socket yields on a fault, authored at the code under test. */
+const errorFrame = (code: string): SubscriptionErrorPayload => ({ __subscriptionError: true, code, message: `socket over: ${code}` });
+
+test("an UNAUTHORIZED socket fault ENTERS the recovery ladder (it used to stop at a toast)", async ({ mount, page }) => {
+  const authMe = await routeAuthMe(page, true);
+  await routeTrpc(page, { "chat.getChat": getChat });
+  // The user frame rides AFTER the error frame, so seeing it rendered proves the error frame was already
+  // routed — the strict barrier an "and then this happened" assertion needs.
+  await routeOrbSocket(page, { frames: [errorFrame("UNAUTHORIZED"), USER_FRAME], awaitAttaches: 1 });
+
+  await mount(<UserBusStory />);
+
+  await expect(page.getByTestId("user-events")).toHaveText("tagsChanged");
+  await expect.poll(() => authMe()).toBeGreaterThan(0);
+});
+
+test("a NON-auth socket fault still only degrades the room — no session probe", async ({ mount, page }) => {
+  const authMe = await routeAuthMe(page, true);
+  await routeTrpc(page, { "chat.getChat": getChat });
+  await routeOrbSocket(page, { frames: [errorFrame("INTERNAL_SERVER_ERROR"), USER_FRAME], awaitAttaches: 1 });
+
+  await mount(<UserBusStory />);
+
+  // Same barrier: the user frame is strictly after the fault, so its arrival settles "the fault has been
+  // handled". Only UNAUTHORIZED is a session verdict; everything else keeps its room-degradation handling.
+  await expect(page.getByTestId("user-events")).toHaveText("tagsChanged");
+  // ONESHOT-OK: settled by the barrier above — the fault is already routed, and this count only climbs.
+  expect(authMe()).toBe(0);
 });
 
 test("a frame for a room nobody joined is dropped, not fanned out", async ({ mount, page }) => {

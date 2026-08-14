@@ -11,7 +11,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { logout, useAuthConfig } from "#data";
-import { notify, testId, useFocusOnMount } from "#lib";
+import { notify, postSessionMessage, testId, useFocusOnMount } from "#lib";
 import { useAuthMe } from "../hooks/use-auth-meta.ts";
 
 /** Sign out, then hard-redirect (see the file header for why a full document load is the reset). A6 — when
@@ -21,6 +21,9 @@ import { useAuthMe } from "../hooks/use-auth-meta.ts";
 async function signOut(): Promise<void> {
   try {
     const { endSessionUrl } = await logout();
+    // Sibling TABS hold the same (now-revoked) cookie and would keep rendering warm cache until something
+    // happened to fail — the cross-tab channel (staleness §4.3) makes one sign-out land everywhere at once.
+    postSessionMessage({ kind: "signed-out" });
     globalThis.location.assign(endSessionUrl ?? "/login");
   } catch {
     notify.error("Couldn't sign out — try again.");
