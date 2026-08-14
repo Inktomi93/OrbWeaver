@@ -31,7 +31,8 @@ routes) must not be a deep-probe foothold. This enumerates and minimizes that su
 - **One deploy-posture invariant must be stated (C13):** the origin-gated owner-fallback trusts the
   client-controlled `Host` header, so if the server port is directly reachable by an untrusted
   network, the unauthed world can mint itself as owner on the data routes. By design; must be fenced
-  at the deployment boundary.
+  at the deployment boundary. **Its sibling — the public server runs `pnpm stack up prod`, never a
+  dev/worktree/snap process — is stated AND belt-enforced in code as of the 08-09 incident: see F5.**
 
 ---
 
@@ -152,6 +153,39 @@ Confirmed: `via:"fallback"` is not a debug credential and unsetting `DEBUG_TOKEN
 open gate (the AUTHFIX-2 regression is closed and pinned by
 `tests/server/entry/debug-gate.suite.test.ts`). No action.
 
+### F5 — [DEPLOY INVARIANT, now belt-enforced in code] The public server runs `pnpm stack up prod` — never a dev/worktree/snap process
+
+**The invariant (C13 sibling, states the deploy mode rather than the port):** the process serving the
+public FQDN is started by **`pnpm stack up prod`** — `NODE_ENV=production`, the prod `dist`, no vite.
+A dev / `node --watch` / worktree / snap process must never be the thing behind the reverse proxy.
+
+**Why it is a security invariant and not a preference.** On 2026-08-09 the public site was in fact being
+served by a dev process started out of a worktree cache, so `NODE_ENV` defaulted to `development`. tRPC's
+`isDev` was therefore true and **every** error — including the pre-auth `401` any anonymous prober can
+elicit — returned `data.stack`: absolute host paths, the OS username and exact dependency versions.
+Authorization itself was intact; this was pure pre-auth info-disclosure. A dev build is a different
+security posture, not merely a slower one, and "the right process got started" is not a control.
+
+**Now enforced, two belts (the cutover was environmental; these are structural):**
+
+1. **The error shape can no longer carry a stack in any env** — `transport/trpc/trpc.ts`'s
+   `errorFormatter` strips `stack` unconditionally (rest-destructure, so the leaking state is
+   unrepresentable). Pinned at the wire in `tests/server/entry/app.test.ts` (anonymous
+   `GET /api/trpc/*` → `401` body) and at the formatter in `tests/server/transport/trpc/trpc.test.ts`
+   (with an `isDev` control, so the pins cannot be a false green under a production `NODE_ENV`).
+2. **A non-production build cannot be reached off-box** — `foundation/env/bind.ts` resolves the listen
+   host: non-production with `BIND_HOST` unset listens on **loopback only**, and an explicit non-loopback
+   `BIND_HOST` on a non-production build is **boot-fatal at env parse** unless the operator sets
+   `ALLOW_DEV_PUBLIC_BIND=true` (deliberate LAN dev use, which then carries a standing boot warning).
+   Production is untouched — it binds every interface, which is what the proxy target needs. Consequence
+   for the 08-09 shape: a dev process behind the proxy now yields a loud `502` at the edge instead of
+   quietly serving dev bytes to the internet.
+
+**Still deploy-owned (unchanged by the above):** F3's port-reachability invariant. A *production* process
+binds publicly by design, so the `Host`-header owner-fallback still assumes a proxy-fronted port plus
+`IP_ALLOWLIST`. Never set `ALLOW_DEV_PUBLIC_BIND` on the box that serves the FQDN — on a correct
+production box the knob is inert by construction, which is the point.
+
 ---
 
 ## 3. Prioritized strip/deny list (feeds fix lanes + C13)
@@ -160,7 +194,10 @@ open gate (the AUTHFIX-2 regression is closed and pinned by
    (`sourcemap: false` for the shipped build, or delete/move maps out of `dist/`), PLUS a `.map`/`.ts`
    404 belt in `spa.ts`. Achieves the D21 intent the config comment already claims.
 2. **[MEDIUM] C13 invariant:** server port not directly reachable by untrusted networks; the
-   Host-based owner-fallback assumes a proxy-fronted port + `IP_ALLOWLIST`. Document it.
+   Host-based owner-fallback assumes a proxy-fronted port + `IP_ALLOWLIST`. Document it. **Sibling
+   invariant, now belt-enforced in code — see F5:** the public server runs `pnpm stack up prod`, never a
+   dev/worktree/snap process (a non-production build binds loopback only, and an explicit public dev bind
+   is boot-fatal).
 3. **[INFO] Code-split (#43):** today the client largely downloads as one bundle, so an unauthed
    visitor pulls the whole app's JS (all authed routes' code, readable) regardless of F1. Landing #43
    route-level code-splitting shrinks the pre-auth JS the anonymous world receives — a security win

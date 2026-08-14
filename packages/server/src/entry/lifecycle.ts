@@ -20,12 +20,15 @@ import { startAutomationWatcher } from "#domain/automation";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
 import {
+  bindPostureInput,
+  bindPostureWarnings,
   diagnosticsPostureInput,
   diagnosticsPostureWarnings,
   effectiveVllmDisabled,
   enginesPostureInput,
   env,
   postureManages,
+  resolveBindPosture,
   resolveDiagnosticsPosture,
   resolveEnginesPosture,
 } from "#foundation/env";
@@ -487,15 +490,29 @@ export function createLifecycle(): Lifecycle {
       ...(oidc !== undefined ? { oidc } : {}),
     });
 
+    // The DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09 — foundation/env/bind.ts holds the model): a
+    // NON-PRODUCTION build listens on LOOPBACK ONLY unless ALLOW_DEV_PUBLIC_BIND opens it, and an explicit
+    // dev public bind was already refused at env parse. Production is unchanged (unset ⇒ every interface).
+    // `hostname` is OMITTED rather than defaulted to "0.0.0.0" so the production path stays byte-identical
+    // to node's own default — passing "0.0.0.0" would silently drop the IPv6 listener.
+    const bind = resolveBindPosture(bindPostureInput());
+    // The notice is the posture's OWN sentence (bind.ts holds it) because the restriction has to be
+    // discoverable at the moment of confusion: an operator whose FQDN suddenly answers 502 greps this log,
+    // and the 502 belongs to the proxy — it cannot carry the hint.
+    log.info({ nodeEnv: env.NODE_ENV, bindHost: bind.host ?? "*", publicBind: bind.publicBind }, `boot: ${bind.notice}`);
+    for (const warning of bindPostureWarnings(bindPostureInput(), bind)) {
+      log.warn({ security: true }, `boot: ${warning}`);
+    }
+
     // Await the bind, don't assume it: serve() binds asynchronously, and a bind failure (EADDRINUSE)
     // surfaces as a server "error" event, not a throw. Boot must fail loudly on a dead listener.
     await new Promise<void>((resolve, reject) => {
       const onBindError = (err: Error): void => {
         reject(err);
       };
-      const handle = serve({ fetch: app.fetch, port: env.PORT }, (info) => {
+      const handle = serve({ fetch: app.fetch, port: env.PORT, ...(bind.host === undefined ? {} : { hostname: bind.host }) }, (info) => {
         handle.removeListener("error", onBindError);
-        log.info({ port: info.port }, "boot: listening — healthz live");
+        log.info({ port: info.port, address: info.address }, "boot: listening — healthz live");
         resolve();
       });
       server = handle;

@@ -217,6 +217,38 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
     expect(env.AUTH_FALLBACK).toBe("deny");
   });
 
+  // THE DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09). The rule + its arms are unit-tested in bind.test.ts;
+  // what is pinned HERE is that the refusal is wired into the PARSE — i.e. an `env` that says
+  // "non-production + a public interface" cannot come into existence, so no bind-site code path has to
+  // remember to check. The live incident's env is the first case: a dev process reachable behind the proxy.
+  test("NODE_ENV=development + an explicit public BIND_HOST → boot FAILS at parse (the 08-09 leak shape)", async () => {
+    await expect(reimportEnvWith({ NODE_ENV: "development", BIND_HOST: "0.0.0.0" })).rejects.toThrow(
+      "a NON-PRODUCTION process must not listen where an untrusted",
+    );
+  });
+
+  test("the same pair with ALLOW_DEV_PUBLIC_BIND=true boots (deliberate LAN dev use is opt-in, not banned)", async () => {
+    const { env } = await reimportEnvWith({ NODE_ENV: "development", BIND_HOST: "0.0.0.0", ALLOW_DEV_PUBLIC_BIND: "true" });
+    expect(env.BIND_HOST).toBe("0.0.0.0");
+    expect(env.ALLOW_DEV_PUBLIC_BIND).toBe(true);
+  });
+
+  // Scope control: production is the deployment posture the reverse proxy targets — a public bind there is
+  // the POINT, and a fence that refused it would take the box down.
+  test("NODE_ENV=production + BIND_HOST=0.0.0.0 boots (the proxy target, never refused)", async () => {
+    const { env } = await reimportEnvWith({ NODE_ENV: "production", BIND_HOST: "0.0.0.0" });
+    expect(env.BIND_HOST).toBe("0.0.0.0");
+  });
+
+  // Scope control: the default dev boot (no BIND_HOST) must stay green — the restriction to loopback is
+  // resolved at the bind site, NOT a refusal. A fence that killed every `pnpm dev` would be reverted by
+  // morning and the invariant would be gone with it.
+  test("NODE_ENV=development with BIND_HOST unset boots clean (restriction, not refusal)", async () => {
+    const { env } = await reimportEnvWith({ NODE_ENV: "development" });
+    expect(env.BIND_HOST).toBeUndefined();
+    expect(env.ALLOW_DEV_PUBLIC_BIND).toBe(false);
+  });
+
   test("a multi-handle OWNER_HANDLES is boot-fatal (D17: exactly one owner)", async () => {
     await expect(reimportEnvWith({ OWNER_HANDLES: "alice,bob" })).rejects.toThrow("OWNER_HANDLES must name EXACTLY ONE owner");
   });
