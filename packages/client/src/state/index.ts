@@ -120,8 +120,9 @@ export type { KindedDrillStore, KindedSelection } from "./create-kinded-selectio
 export { createKindedSelectionStore } from "./create-kinded-selection-store.ts";
 export type { PersistedStoreOptions } from "./create-persisted-store.ts";
 export { createPersistedStore } from "./create-persisted-store.ts";
-export type { IngestPhase } from "./databank-filter-store.ts";
-export { clearDatabankPhaseFilter, INGEST_PHASES, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
+// `IngestPhase`/`INGEST_PHASES` are NOT re-exported here any more: the axis became a `databank.list` INPUT
+// (owner ruling 2026-08-13), so its home is `@orb/contracts/databank` and every consumer reads it from there.
+export { clearDatabankPhaseFilter, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
 export type { DraftConfig, DraftRosterOverride } from "./draft-config-store.ts";
 export {

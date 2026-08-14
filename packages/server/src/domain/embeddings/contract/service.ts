@@ -21,6 +21,7 @@ import type {
   ClearTableParams,
   CountDocumentChunksParams,
   EmbedPassParams,
+  OwnerChunkCountsParams,
   PruneDocumentChunksParams,
   PruneMemoryBlocksParams,
   StoreParams,
@@ -101,6 +102,10 @@ export interface EmbeddingsService {
   /** The DocumentView chunk-count read (per document, active model) — embeddings owns `document_chunks`, so
    *  databank derives its counts through this injected op rather than importing the vector table. */
   readonly countDocumentChunks: (params: CountDocumentChunksParams) => Promise<ReadonlyMap<DocumentId, number>>;
+  /** Every chunk count in an OWNER's bank — the databank library's PHASE-lens fact (its key set) and the
+   *  bank-health census's passage sums. Owner-scoped, where {@link countDocumentChunks} is id-scoped (a page
+   *  whose rows are already chosen). Same reason both exist at all: databank never imports the vector table. */
+  readonly countDocumentChunksByOwner: (params: OwnerChunkCountsParams) => Promise<ReadonlyMap<DocumentId, number>>;
   /** PD-139(c): reclaim the OLD document embed space — deletes `document_chunks` rows whose `model` differs
    *  from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's guard (the
    *  databank-reindex runner), mirroring `purgeMemoryVectors`. */

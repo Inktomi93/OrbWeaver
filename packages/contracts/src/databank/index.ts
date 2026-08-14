@@ -45,6 +45,60 @@ export const documentIdSchema = typeIdSchema(ID_PREFIX.document);
  *  rest — so it is not bounded by this number. */
 export const DATABANK_LIST_DEFAULT_LIMIT = 100;
 
+// ── the ingest PHASE axis (a WIRE lens as of 2026-08-14) ──────────────────────────────────────────────────
+// The phase a document's ingest is in. It is DERIVED, never stamped — there is no status column
+// (databank-design/02 §1.2): `empty` = extracted to nothing · `indexing` = canon but no chunks yet ·
+// `embedding` = chunks exist that are not all embedded · `ready` = every chunk embedded · `stalled` = an
+// in-flight phase whose `updatedAt` stopped moving ({@link STALE_INGEST_MS}).
+//
+// THE VOCABULARY LIVES HERE, not in the client, because the phase became a LIST LENS the SERVER resolves
+// (owner ruling 2026-08-13, `paged-list-lenses-go-server-side`): `databank.list` takes it as an input and
+// narrows the whole bank by it, so it is cross-boundary shape. It previously homed in the client's
+// `databank-filter-store`, whose header reasoned "ingest phase is a CLIENT DERIVATION over counts the list
+// already returns … No server read changes" — true of a client-side scope over a loaded window, and exactly
+// what the ruling retired. The client still derives the phase it RENDERS per row; both tiers now speak this
+// one tuple and measure the stall against this one threshold.
+export const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalled"] as const;
+
+/** Derived from the TUPLE, not `z.infer` of the schema below (the `CharacterListSort` spelling). Both give
+ *  tsc the same type, but biome's type service cannot see through the inference and marks every `case` of a
+ *  switch over the inferred alias UNREACHABLE — which is how a phase dispatch reds a gate that is right about
+ *  everything else. */
+export type IngestPhase = (typeof INGEST_PHASES)[number];
+
+export const ingestPhaseSchema = z.enum(INGEST_PHASES);
+
+/** A document still in an IN-FLIGHT phase this long after its last write reads as a STUCK job. Derived from
+ *  `updatedAt` because there is no status column: a live ingest bumps `updatedAt` as chunks land, so a frozen
+ *  timestamp is the only stall signal the schema can offer. 5 minutes clears a slow-but-live large-doc embed
+ *  while flagging a genuinely wedged one. ONE home: the server's `phase: 'stalled'` SQL predicate and the
+ *  client's rendered chip must agree about which documents are wedged, or the lens and the badge disagree on
+ *  the same row. */
+export const STALE_INGEST_MS = 300_000;
+
+/** The bank's ingest health, COUNTED (the home tile's D-7 line + its attention chips). Every number is a
+ *  census over the caller's whole bank, which is what makes the chips honest: they used to be derived from
+ *  the tile's ONE loaded page, so "12 stalled" meant "12 stalled among your newest 100 documents" — the same
+ *  blind-lens class as a client-side list filter, wearing a tile (owner ruling 2026-08-14).
+ *
+ *  It is a SEPARATE read from `databank.list`, deliberately: resolving it costs a bank-wide chunk read, and
+ *  folding that into the paged list would pay it on every page fetch of a library the user is scrolling.
+ *
+ *  `passages` (embedded) and `chunks` (existing) are two numbers because the line prints both — a bare
+ *  "286 passages indexed" reads as a complete count (side-eye 2026-08-08 P2-e). In the current substrate a
+ *  chunk row exists only AFTER a successful embed, so the two are equal; they are not one field because the
+ *  day a partial embed becomes representable is the day the line has something to say. */
+export interface BankHealthView {
+  /** Documents in the bank. */
+  readonly total: number;
+  /** Chunks a chat can actually retrieve (embedded). */
+  readonly passages: number;
+  /** Chunks that exist — the denominator that makes `passages` legible. */
+  readonly chunks: number;
+  /** How many documents are in each phase. A total Record (§5.5): a new phase must be counted, not forgotten. */
+  readonly byPhase: Record<IngestPhase, number>;
+}
+
 /** The keyset `databank.list` pages by — the boundary row's own `(updatedAt, id)`, because the list is
  *  ordered `updatedAt DESC, id DESC` and `updatedAt` is not unique (two documents written in the same
  *  millisecond, which a bulk import produces by the dozen). `id` breaks the tie, so no row is served twice
