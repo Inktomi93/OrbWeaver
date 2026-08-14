@@ -48,6 +48,10 @@ export function fakeContributions(): WorkloadContributions {
     // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
     ...createEmbeddingsWorkloadContributions({
       embeddings: { embedCorpus: stub({ embedded: 3, skipped: 1 }), embedAssets: stub({ embedded: 2, skipped: 0 }) } as never,
+      // The terminal `corpusRecomputed` fan — discarded here; its behavior is pinned at the owning domain's
+      // own contribution mirror, this frame only needs the params schemas.
+      emitUserEvent: () => undefined,
+      listCorpusOwners: () => Promise.resolve([]),
     }),
     // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
     ...createDiscoveryWorkloadContributions({
@@ -60,6 +64,8 @@ export function fakeContributions(): WorkloadContributions {
         computeCharacterHubScores: stub({ rowsScored: 7 }),
       } as never,
       loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
+      emitUserEvent: () => undefined,
+      listCorpusOwners: () => Promise.resolve([]),
     }),
     // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
     ...createStatsWorkloadContributions({ db: {} as Db, now: () => T0 }),

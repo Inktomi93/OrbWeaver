@@ -7,12 +7,20 @@
 // The OWNER-authority half (make a document feed every chat) is not here — it lives on the document, in
 // `features/databank` (the write lives where the authority lives).
 //
-// FRESHNESS SPLITS ON WHETHER THE SERVER EMITS (the mutation-vs-bus rule, data/invalidation.ts):
-//   • attach/detach emit NOTHING (`verbs/attach/attach-to-chat.ts` — an audit row and no bus event), so
-//     they name their reads explicitly.
-//   • setChatDocumentVisibility EMITS `chatUpdated`, and this lane added `databank.listActiveForChat` to
-//     that arm of `BUS_FILTERS` — so it is `busDriven`, and adding `invalidates` here would be the
-//     double-invalidate storm the factory's XOR exists to make impossible.
+// FRESHNESS SPLITS ON WHETHER THE SERVER EMITS (the mutation-vs-bus rule, data/invalidation.ts). All three
+// verbs emit now, so all three are `busDriven` — adding `invalidates` beside one would be the
+// double-invalidate storm the factory's XOR exists to make impossible:
+//   • attach/detach emit `databankChanged` (event-bus coverage survey H3, 2026-08-14 — until then they were
+//     genuinely silent, which is why this header used to say so and why they named their reads by hand).
+//     The map row path-invalidates the `databank` root, covering BOTH reads the old lists named: the rack's
+//     `listActiveForChat` and the document's reverse-index `listAttachments`.
+//     ONE HONEST LIMIT, unchanged by this lane: a user-bus event reaches the ACTING HOST's channel only, so
+//     a second participant's rack does not repaint on the host's attach. That half is member-visible state
+//     and belongs to a roster fan on the CHAT bus, never a user-bus widening (`membership-fan-guard`); it
+//     was not covered before either — the old `invalidates` reconciled exactly one tab, the writer's.
+//   • setChatDocumentVisibility EMITS `chatUpdated`, whose `BUS_FILTERS` arm carries
+//     `databank.listActiveForChat` — the roster-visible plane, and the reason that verb was already the
+//     busDriven one here.
 
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { ChatId, DocumentId } from "@orb/kit/ids";
@@ -31,15 +39,13 @@ interface ChatDocumentAttachVars {
 
 export const useAttachDocumentToChat = createEntityMutation<ChatDocumentAttachVars, unknown>({
   options: (trpc) => trpc.databank.attachToChat.mutationOptions(),
-  // The rack's list, plus the document's own reverse index (its "Active in" chips in the library CONTEXT
-  // panel gain a chat). No bus event covers either.
-  invalidates: (trpc, vars) => [trpc.databank.listActiveForChat.queryFilter({ chatId: vars.chatId }), trpc.databank.listAttachments.pathFilter()],
+  busDriven: true,
   errorToast: "Couldn't add the document to this chat.",
 });
 
 export const useDetachDocumentFromChat = createEntityMutation<ChatDocumentAttachVars, unknown>({
   options: (trpc) => trpc.databank.detachFromChat.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.databank.listActiveForChat.queryFilter({ chatId: vars.chatId }), trpc.databank.listAttachments.pathFilter()],
+  busDriven: true,
   errorToast: "Couldn't remove the document from this chat.",
 });
 

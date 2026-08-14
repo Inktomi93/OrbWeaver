@@ -7,6 +7,7 @@ import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserSettings } from "@orb/contracts/settings";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type {
   CharacterId,
@@ -340,4 +341,19 @@ export interface DiscoveryWorkloadDeps {
     "computeThemes" | "distillCharacters" | "computeCooccurrence" | "computeDuplicatePairs" | "computeChatDuplicatePairs" | "computeCharacterHubScores"
   >;
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+  /**
+   * The per-user freshness plane (`corpusRecomputed`) — injected, never a sideways reach at the bus (D38).
+   * Every analytics pass fans it at its TERMINAL, once per owner in scope. This is the freshness half no
+   * mutation could ever supply: the writer is a WORKLOAD, so not even the tab that started the pass has an
+   * `invalidates` to hang on, and the 27 `discovery.*` reads sat frozen at `staleTime: Infinity` until gcTime
+   * evicted them (survey §2.5 — the STATIC citations' own prose asked for this event).
+   *
+   * FLAG[emit-is-total] — by construction: synchronous, `void`-returning, non-throwing (transport's
+   * `publishUserEvent`, live-only, no durable row, no FK). Nothing here can reject.
+   */
+  readonly emitUserEvent: EmitUserEvent;
+  /** The bulk arm's announce audience — every owner with corpus rows (`persistence/embed-store-reads`
+   *  `distinctCorpusOwners`, whose header states the deliberate over-inclusiveness). Only consulted when the
+   *  run context's `ownerId` is `null`; a scoped run announces to exactly that owner. */
+  readonly listCorpusOwners: () => Promise<UserId[]>;
 }

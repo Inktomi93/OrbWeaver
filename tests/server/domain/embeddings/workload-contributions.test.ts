@@ -2,6 +2,7 @@
 // embedCorpus, `image` → embedAssets, `all` → BOTH (counts folded). Threads `force` + the enumeration
 // `ownerId`, and projects the service's pass counts into the wire `EmbedPassResult`.
 
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -15,17 +16,32 @@ const T0 = 1_700_000_000_000;
 const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () => T0 };
 const sig = (): AbortSignal => new AbortController().signal;
 
+/** One recorded terminal-fan emit (the `corpusRecomputed` freshness plane). */
+interface UserEventCall {
+  readonly userId: UserId;
+  readonly event: UserBusEvent;
+}
+
+/** The BULK arm's announce audience — two owners, so the per-owner fan is provable. */
+const BULK_OWNERS: readonly UserId[] = [castId<UserId>("user_alpha"), castId<UserId>("user_beta")];
+
 function build(): {
   readonly embeddings: EmbeddingsWorkloadDeps["embeddings"];
   readonly index: ReturnType<typeof createEmbeddingsWorkloadContributions>[0];
+  readonly userEvents: UserEventCall[];
 } {
   // FABRICATION-OK: the contribution reads ONLY `.embedded`/`.skipped` off each pass result.
   const embeddings = {
     embedCorpus: vi.fn(async () => ({ embedded: 3, skipped: 1 })),
     embedAssets: vi.fn(async () => ({ embedded: 2, skipped: 0 })),
   } as unknown as EmbeddingsWorkloadDeps["embeddings"];
-  const [index] = createEmbeddingsWorkloadContributions({ embeddings });
-  return { embeddings, index };
+  const userEvents: UserEventCall[] = [];
+  const [index] = createEmbeddingsWorkloadContributions({
+    embeddings,
+    emitUserEvent: (userId, event): void => void userEvents.push({ userId, event }),
+    listCorpusOwners: () => Promise.resolve([...BULK_OWNERS]),
+  });
+  return { embeddings, index, userEvents };
 }
 
 describe("index contribution", () => {
@@ -58,6 +74,30 @@ describe("index contribution", () => {
     const { embeddings, index } = build();
     await index.run({ ...ctx, ownerId: null }, { source: "text" }, vi.fn(), sig());
     expect(embeddings.embedCorpus).toHaveBeenCalledWith(expect.objectContaining({ ownerId: null }));
+  });
+
+  // THE TERMINAL FAN (survey §2.5/F6). The sweep rewrites the vectors every `discovery.*` read and
+  // `search.similarArt` derive from, and it is a workload — there was no mutation anywhere for a client to
+  // hang an `invalidates` on, so those surfaces had NO freshness driver at all.
+  test("announces `corpusRecomputed` ONCE at the terminal, to the scoped owner — never per embedded row", async () => {
+    const { index, userEvents } = build();
+    // `source: "all"` runs BOTH passes over 5 embedded rows; the announce is still exactly one.
+    await index.run(ctx, { source: "all" }, vi.fn(), sig());
+    expect(userEvents).toEqual([{ userId: OWNER_ID, event: { type: "corpusRecomputed" } }]);
+  });
+
+  test("a BULK sweep fans PER OWNER — a user-bus event reaches exactly one channel", async () => {
+    const { index, userEvents } = build();
+    await index.run({ ...ctx, ownerId: null }, { source: "text" }, vi.fn(), sig());
+    expect(userEvents).toEqual(BULK_OWNERS.map((userId) => ({ userId, event: { type: "corpusRecomputed" } })));
+  });
+
+  test("an aborted/failed sweep still announces the rows it already embedded (the fan is in a finally)", async () => {
+    const { embeddings, index, userEvents } = build();
+    vi.mocked(embeddings.embedCorpus).mockRejectedValueOnce(new Error("provider down mid-sweep"));
+    await expect(index.run(ctx, { source: "text" }, vi.fn(), sig())).rejects.toThrow("provider down mid-sweep");
+    // The pass is resumable-by-skip and writes as it goes, so a mid-sweep failure leaves real new vectors.
+    expect(userEvents).toEqual([{ userId: OWNER_ID, event: { type: "corpusRecomputed" } }]);
   });
 
   test("declares the sweep lane + idempotent-restart resume policy", () => {

@@ -26,6 +26,17 @@ test("removing a document cascades its chunks and junction rows away", async () 
   expect(await db.select().from(documentChunks).where(eq(documentChunks.documentId, document.id))).toHaveLength(0);
   expect(await db.select().from(globalDocuments).where(eq(globalDocuments.documentId, document.id))).toHaveLength(0);
   expect(await db.select().from(chatDocuments).where(eq(chatDocuments.documentId, document.id))).toHaveLength(0);
+  // Five announces, one per real write, in order: createFromText · the ingest TERMINAL (no documentId — a
+  // pass touches many) · attachGlobal · attachToChat · remove. The delete's event fires AFTER the row and
+  // its cascade are gone, which is safe precisely because there is no durable event row to orphan and the
+  // subscriber's discipline is id-only re-read (it re-reads the list and finds the document absent).
+  expect(h.userEvents).toEqual([
+    { userId: owner, event: { type: "databankChanged", documentId: document.id } },
+    { userId: owner, event: { type: "databankChanged" } },
+    { userId: owner, event: { type: "databankChanged", documentId: document.id } },
+    { userId: owner, event: { type: "databankChanged", documentId: document.id } },
+    { userId: owner, event: { type: "databankChanged", documentId: document.id } },
+  ]);
 });
 
 test("a non-owner's remove throws DocumentNotFoundError (nothing deleted)", async () => {
@@ -37,4 +48,6 @@ test("a non-owner's remove throws DocumentNotFoundError (nothing deleted)", asyn
 
   await expect(h.service.remove({ principal: principalFor(other), id: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);
   expect(await db.select().from(documents).where(eq(documents.id, document.id))).toHaveLength(1);
+  // Nothing was deleted, so nothing is announced — only the create's event stands.
+  expect(h.userEvents).toEqual([{ userId: owner, event: { type: "databankChanged", documentId: document.id } }]);
 });

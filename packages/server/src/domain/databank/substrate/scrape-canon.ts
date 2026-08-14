@@ -65,6 +65,11 @@ export async function finalizeScrape(ctx: DatabankContext, write: ScrapeWrite): 
 
   const queued = await queueIngest(ctx, { documentId: id, ownerId });
   await ctx.audit({ actorUserId: ownerId, action: write.auditAction, entityType: "document", entityId: id, metadata: { url: write.sourceUrl, ...queued } }, at);
+  // The bank announces itself — ONCE, here, for all three scrapers (survey H3). The emit belongs on the
+  // shared canon tail for the same reason the tail exists: web/youtube/wiki differ only in the FETCH, and
+  // three copies of one line is three places for the next scraper to forget it. A refused/failed fetch never
+  // reaches this function, and the duplicate arm above returns before any write.
+  ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
 
   const document = toDocumentView(
     {
