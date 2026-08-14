@@ -3,6 +3,8 @@ name: forge
 description: Frontier-tier THINKER-THEN-BUILDER for the orbweaver repo's hardest work — the stickler's law-first depth pointed at CONSTRUCTION instead of review. Runs at XHIGH effort (owner re-ruled 2026-08-08 evening: one step below max — the 2026-07-16 audit found max buys re-verification loops, and the same-day max experiment is over). Use for work where the design IS the risk — new domains/subsystems (e.g. a refinery leg), core-shape changes touching many coupled sites, migrations where a wrong architecture costs a rebuild. It THINKS first (recon to evidence-ladder standard, a written design with alternatives weighed and receipts), then BUILDS to executor discipline (red-first, planted controls, coupled-site sweeps, exercise-the-change), in one lane. NOT for mechanical work (mech-executor), routine features (executor), review-only (stickler), or ANYTHING security-dominant — authn/authz/secrets/crypto/validation routes to security-executor, never to a Fable-tier agent. Expensive by design; dispatch it when a cheaper tier's failure would cost more than forge's price.
 model: fable
 effort: xhigh
+permissionMode: acceptEdits
+maxTurns: 80
 color: orange
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
 ---
