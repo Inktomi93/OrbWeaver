@@ -1,15 +1,15 @@
 // The System-tuning admin SECTION (Phase B ⑩) — the born-in-DB + per-request scalar admin knobs that had no
 // editor: the agent-sdk summarize concurrency (Q6), the prompt-transform deadline, the non-owner compute-budget
 // WINDOW (the cap's sibling), the model-catalog refresh cadence, the image-variant quality, the databank-upload
-// cap (TIGHTEN-only), and the vLLM per-request presence-penalty default (engineLaunch.genPresencePenalty).
-// Each shows its deployment floor + whether it's an active override; a section-level Reset clears every ⑩
-// override at once. Reads getAppSettingsWithOverrides for the honest floor-vs-override story; saves the
-// only-moved-fields delta through the admin-gated updateAppSettings path.
+// cap (TIGHTEN-only), and the vLLM per-request gen defaults (engineLaunch.genPresencePenalty +
+// engineLaunch.genRepetitionPenalty). Each shows its deployment floor + whether it's an active override; a
+// section-level Reset clears every ⑩ override at once. Reads getAppSettingsWithOverrides for the honest
+// floor-vs-override story; saves the only-moved-fields delta through the admin-gated updateAppSettings path.
 //
 // A settings-SECTION CONTRIBUTION (§6c) at the `admin` anchor, owned by user-admin (admin-tier config). These
 // all apply LIVE (per request / per batch / per check) — no engine restart, unlike the engineLaunch editor's
-// argv flags (genPresencePenalty rides engineLaunch's schema section but is consumed per-request, so it lives
-// here with the live knobs, not in the restart-gated launch editor).
+// argv flags (genPresencePenalty + genRepetitionPenalty both ride engineLaunch's schema section but are
+// consumed per-request, so they live here with the live knobs, not in the restart-gated launch editor).
 
 import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
 import { IMAGE_VARIANT_QUALITY_MAX, IMAGE_VARIANT_QUALITY_MIN, PROMPT_CACHE_MIN_DEPTH_CEIL, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
@@ -125,6 +125,16 @@ const KNOBS: readonly KnobDescriptor[] = [
     overridden: (o) => isOverridden(o.engineLaunch?.genPresencePenalty),
     patch: (v) => ({ engineLaunch: { genPresencePenalty: v } }),
   },
+  {
+    id: "genRepetitionPenalty",
+    label: "Gen repetition penalty",
+    hint: "Sent as repetition_penalty on every gen request whose preset doesn't set one — applies immediately, no restart. 1 = off. Its hot twin, presence-penalty, sits above.",
+    step: 0.01,
+    min: 0.01,
+    read: (r) => r.engineLaunch.genRepetitionPenalty,
+    overridden: (o) => isOverridden(o.engineLaunch?.genRepetitionPenalty),
+    patch: (v) => ({ engineLaunch: { genRepetitionPenalty: v } }),
+  },
 ];
 
 type Draft = Record<string, string>;
@@ -195,7 +205,7 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
           imageVariantQuality: null,
           maxDatabankBytes: null,
           promptCacheMinDepth: null,
-          engineLaunch: { genPresencePenalty: null },
+          engineLaunch: { genPresencePenalty: null, genRepetitionPenalty: null },
         },
       })
       // Re-sync the local draft to the RESOLVED floor the reset returned so each input VALUE flips to its

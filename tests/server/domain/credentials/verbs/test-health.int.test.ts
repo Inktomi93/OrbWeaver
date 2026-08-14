@@ -159,6 +159,54 @@ describe("testHealth", () => {
     expect(rows[0]?.revokedAt).not.toBeNull();
   });
 
+  // ── loopback/LAN endpoints never auto-revoke (owner ruling) ───────────────────────────────────────
+
+  test("three consecutive unreachable probes on a LOOPBACK custom_openai endpoint never revoke", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const cred = await svc.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: "k",
+      metadata: { kind: "custom_openai", baseUrl: "http://127.0.0.1:8000/v1" },
+    });
+
+    h.setEndpointProbeResult({ status: "unreachable", checkedAt: 0, reason: "ECONNREFUSED" });
+    for (let i = 0; i < 3; i++) {
+      const result = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+      expect(result.status).toBe("unreachable");
+      h.advance(MINUTE_MS);
+    }
+    const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
+    // A box being offline is not a credential fact — the strike counter never fires for it.
+    expect(rows[0]?.revokedAt).toBeNull();
+  });
+
+  test("three consecutive unreachable probes on a PUBLIC custom_openai endpoint still trip the breaker", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const cred = await svc.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: "k",
+      metadata: { kind: "custom_openai", baseUrl: "https://remote.example.com/v1" },
+    });
+
+    h.setEndpointProbeResult({ status: "unreachable", checkedAt: 0, reason: "ECONNREFUSED" });
+    await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+    h.advance(MINUTE_MS);
+    await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+    h.advance(MINUTE_MS);
+    const third = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+    expect(third.status).toBe("revoked");
+    const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
+    expect(rows[0]?.revokedAt).not.toBeNull();
+  });
+
   test("a custom_openai row with no usable endpoint metadata is unchecked and dials NOTHING", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

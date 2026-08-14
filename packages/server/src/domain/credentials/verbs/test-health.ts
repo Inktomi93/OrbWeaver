@@ -19,6 +19,7 @@
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
+import { isPrivateOrLoopback } from "#infra/network";
 import type { CredentialContext } from "../context.ts";
 import type { TestHealthParams } from "../contract/params.ts";
 import type { CredentialsService } from "../contract/service.ts";
@@ -32,6 +33,18 @@ import { parseCustomOpenAiEndpoint } from "../substrate/parse-metadata.ts";
 
 const DECRYPT_FAILED_REASON = "credential could not be decrypted (CREDENTIALS_KEY rotated?)";
 
+/** `localhost` never parses as an IP literal, so `isPrivateOrLoopback` (which matches CIDRs) misses it —
+ *  the one alias worth special-casing; every other loopback/LAN spelling an endpoint would realistically
+ *  carry (`127.0.0.1`, `192.168.x.x`, …) IS an IP literal and reaches the shared CIDR set. */
+const LOCALHOST_ALIAS = "localhost";
+
+/** True when `hostname` is loopback or a private/LAN range — an offline box there is a REACHABILITY fact,
+ *  never a credential problem, so it must not feed the auto-revoke strike counter (owner ruling). */
+function isLocalOrLanHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === LOCALHOST_ALIAS || isPrivateOrLoopback(host);
+}
+
 /** What both probe arms need to apply their side-effects: the owner-scoped row identity + its clock/state. */
 interface ProbeContext {
   readonly ownerId: UserId;
@@ -39,6 +52,10 @@ interface ProbeContext {
   readonly sealed: { ciphertext: string; iv: string; tag: string };
   readonly revoked: boolean;
   readonly now: number;
+  /** True when the probed endpoint is loopback/LAN (custom_openai only — openrouter is always remote). An
+   *  unreachable local box strikes NOTHING: it's a "the box is off" fact, not evidence the credential is
+   *  bad, and 3-strike auto-revoking it would lock a user out of their own key over their own downtime. */
+  readonly localEndpoint: boolean;
 }
 
 /** Apply a probe outcome's row + breaker side-effects, re-stamping `checkedAt` from the verb's clock.
@@ -58,6 +75,11 @@ async function applyProbeOutcome(ctx: CredentialContext, args: ProbeContext, res
     return { status: "revoked", checkedAt: now, reason: result.reason };
   }
   if (result.status === "unreachable") {
+    if (args.localEndpoint) {
+      // A loopback/LAN endpoint being unreachable is "the box is off", not a credential fact — never
+      // strikes toward auto-revoke (owner ruling).
+      return { status: "unreachable", checkedAt: now, reason: result.reason };
+    }
     const { strikes, limitHit } = recordStrike(credentialId);
     if (limitHit) {
       await setRevokedById(ctx.db, credentialId, now);
@@ -96,6 +118,15 @@ async function probeCustomEndpointHealth(ctx: CredentialContext, args: ProbeCont
   if (apiKey === null) {
     return { status: "unreachable", checkedAt: args.now, reason: DECRYPT_FAILED_REASON };
   }
+  // A malformed baseUrl can't reach `ctx.probeEndpoint` (its own URL parse would fail identically), so
+  // treating it as non-local here just falls through to the normal strike path — never silently swallowed.
+  const localEndpoint = ((): boolean => {
+    try {
+      return isLocalOrLanHost(new URL(endpoint.baseUrl).hostname);
+    } catch {
+      return false;
+    }
+  })();
   // An empty stored key means "no-auth local server" (the same rule `inspectEndpoint`/`resolve` apply): send
   // no Authorization header rather than `Bearer `.
   const result = await ctx.probeEndpoint({
@@ -103,7 +134,7 @@ async function probeCustomEndpointHealth(ctx: CredentialContext, args: ProbeCont
     apiKey: apiKey.length > 0 ? apiKey : null,
     headers: endpoint.headers,
   });
-  return applyProbeOutcome(ctx, args, result);
+  return applyProbeOutcome(ctx, { ...args, localEndpoint }, result);
 }
 
 export function createTestHealth(ctx: CredentialContext): CredentialsService["testHealth"] {
@@ -132,6 +163,9 @@ export function createTestHealth(ctx: CredentialContext): CredentialsService["te
       sealed: { ciphertext: row.ciphertext, iv: row.iv, tag: row.tag },
       revoked: row.revokedAt !== null,
       now,
+      // openrouter is always a remote host; the custom_openai arm resolves the real answer off its own
+      // endpoint before calling `applyProbeOutcome` (it spreads over this default).
+      localEndpoint: false,
     };
     return row.provider === "custom_openai" ? probeCustomEndpointHealth(ctx, probeArgs, row.metadata) : probeOpenRouterHealth(ctx, probeArgs);
   };
