@@ -13,7 +13,7 @@ import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, ToolRenderer } from "#lib";
 import { notify } from "#lib";
-import { isLanding, openModal, openSettingsTo, selectChat, useActiveChatHandle } from "#state";
+import { chatDeletedFromList, isLanding, openModal, openSettingsTo, selectChat, useActiveChatHandle } from "#state";
 import { turnAbortNotice } from "../lib/turn-abort-notice.ts";
 import { warningNotice } from "../lib/warning-notice.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
@@ -59,7 +59,10 @@ function surfaceWarning(code: ChatWarningCode): void {
 export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentProps): ReactElement {
   const handle = useActiveChatHandle();
   const baseBusDeps = useChatBusDeps();
-  const busDeps: ChatBusDeps = { ...baseBusDeps, onTurnAbort: surfaceTurnAbort, onWarning: surfaceWarning };
+  // `chatDeletedFromList` is a no-op unless the deleted chat IS the active one, so wiring it here is the
+  // whole transition: a host delete elsewhere, a husk reap, or the TTL sweep firing against this very tab all
+  // land the reader on the landing surface instead of a room whose row is gone (R3 — the verifier's R1-3).
+  const busDeps: ChatBusDeps = { ...baseBusDeps, onTurnAbort: surfaceTurnAbort, onWarning: surfaceWarning, onChatDeleted: chatDeletedFromList };
 
   if (isLanding(handle)) {
     return <ChatLandingSurface onNewChat={(): void => openModal("newChat")} />;

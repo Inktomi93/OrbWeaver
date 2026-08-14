@@ -92,9 +92,14 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
     if (bounds !== null) {
       for await (const frame of attachSynthesesAndReplay({ service, principal, chatId, resumeSeq: cursor, bounds })) {
         yield frame;
-        // Track the highest durable seq for the live-loop dedup; synthetics carry the cursor, so they never
-        // raise it (only real replay rows do).
-        maxSeq = Math.max(maxSeq, frame.seq);
+        // Track the highest DURABLE seq for the live-loop dedup — REPLAY ROWS ONLY. A synthetic's stamped
+        // seq is a resume hint, not a delivery: on a cursor-less attach it is the room's high-water (see
+        // `attachSynthesesAndReplay`), and letting that raise this floor would silently swallow the live
+        // events buffered between `subscribeChatEvents` and the bounds read — rows this subscriber has NOT
+        // received. This used to hold by accident ("synthetics carry the cursor"); it is now stated.
+        if (!isAttachSynthetic(frame.event)) {
+          maxSeq = Math.max(maxSeq, frame.seq);
+        }
       }
     }
 
@@ -116,6 +121,13 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
     }
   },
 };
+
+/** The two SUBSCRIPTION-SIDE syntheses (file header, PD-134/PD-135): synthesized per attach, never published
+ *  on the bus and never logged to `chat_events`, so their frame `seq` is a cursor hint rather than a durable
+ *  row. Named here because the live-loop dedup floor must ignore exactly these. */
+function isAttachSynthetic(event: ChatBusEvent): boolean {
+  return event.type === "chatOpened" || event.type === "historyTruncated";
+}
 
 /** One live event → the bytes THIS subscriber may see, or `null` to withhold. Runs the per-yield membership
  *  gate (a kicked member stops within the kick tx), the D16 join-history clamp, and the §3.6 member projection
@@ -150,7 +162,20 @@ async function resolveLiveYield(args: {
 /** The attach-time syntheses + reconnect replay (member already admitted). `chatOpened` fires once at
  *  attach; `historyTruncated` fires (before the replay) only when the resume cursor predates the retained
  *  window; the durable replay drains the rows after the cursor. Synthetics carry the CURRENT cursor as their
- *  frame `seq` so they never advance it past an undelivered row (the file-header synthetic rule). */
+ *  frame `seq` so they never advance it past an undelivered row (the file-header synthetic rule).
+ *
+ *  THE CURSOR-LESS ATTACH IS THE ONE EXCEPTION, AND IT CLOSES A MESSAGE-LOSS WINDOW (R3 — the fresh-context
+ *  verifier's R1-2). `cursor ?? 0` was right for a RESUMING attach and wrong for a first one: a client that
+ *  attached with no cursor got a synthetic stamped 0, adopted nothing, and — having never applied a durable
+ *  frame — reconnected with a null cursor too, which requests NO replay at all (below). So a room opened and
+ *  then left dark (an SSE eviction, a proxy idle-timeout, a backgrounded tab) while its user kept SENDING
+ *  over live HTTP came back with the whole committed turn missing until a reload.
+ *
+ *  On a cursor-less attach the synthetic now carries `bounds.maxSeq` — the room's current durable
+ *  high-water. THE NON-ADVANCEMENT RULE STILL HOLDS, for the reason it exists: it forbids advancing past a
+ *  row that was never DELIVERED, and on a cursor-less attach nothing durable is replayed *because the client
+ *  already holds it* — its canon read covers everything at or below `maxSeq`. A resuming attach is untouched
+ *  (`cursor` wins), so the only behavior that changes is the one that used to resume from nothing. */
 async function* attachSynthesesAndReplay(args: {
   readonly service: ChatService;
   readonly principal: Principal;
@@ -159,7 +184,9 @@ async function* attachSynthesesAndReplay(args: {
   readonly bounds: ChatEventAttach;
 }): AsyncGenerator<Extract<StreamDataFrame, { readonly channel: "chat" }>> {
   const { service, principal, chatId, resumeSeq, bounds } = args;
-  const cursorSeq = resumeSeq ?? 0;
+  // See the doc comment: a RESUMING attach keeps its own cursor; a cursor-less one adopts the room's current
+  // high-water so the client (and the socket cell) have something replayable to come back to.
+  const cursorSeq = resumeSeq ?? bounds.maxSeq ?? 0;
   // `chatOpened` (PD-134) — the per-subscription attach synthesis (the client reducer invalidates). The
   // per-viewer automation tap (D81) fires off the SAME synthesis — it never rides the durable bus.
   yield { channel: "chat", chatId, seq: cursorSeq, event: { type: "chatOpened", chatId } };

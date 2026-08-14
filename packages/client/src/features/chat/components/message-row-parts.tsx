@@ -17,9 +17,10 @@ import type { MessageRenderContext, RowRenderPolicy } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
 
 import type { RowAttribution } from "../lib/attribution.ts";
+import type { GreetingBinding } from "../lib/greeting-window.ts";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
-
 import { CompactSummaryPeek } from "./compact-summary-peek.tsx";
+import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
 import { MessageActionsRow } from "./message-actions-row.tsx";
 import { MessageContent } from "./message-content.tsx";
 import { MessageEditTextarea } from "./message-edit-textarea.tsx";
@@ -280,20 +281,27 @@ export function renderRowActions(args: {
   return <MessageActionsRow message={args.message} onChatForked={args.onChatForked} messageActions={args.messageActions} viewerIsHost={args.viewerIsHost} />;
 }
 
-// ⚠️ THE GREETING ALTERNATE-STEP STRIP IS DARK UNTIL R3 (chat-creation-draft-mode-replacement.md §4.8/F6).
-// A pre-send room stepped a founding character's card alternates through `GreetingSwipeStrip`, writing the
-// pick to a client store. A seeded greeting is REAL canon now, so stepping it needs a host-gated verb that
-// refuses after `freezeGreetingVolatiles` — R3's `chat.setSeededGreeting`. Until it lands, a seeded greeting
-// is EDITABLE (the committed message-edit verb) but not steppable. This is a known, bounded regression, not
-// an oversight; the strip's chrome is in git history and R3 repoints it at the verb.
+// TWO STRIPS, ONE SLOT (chat-creation-draft-mode-replacement.md §4.8/F6, R3). A row in the GREETING WINDOW
+// pages its character card's alternates (`GreetingSwipeStrip` → `chat.setSeededGreeting`); every other row
+// pages its own generated variants (`SwipeStrip` → selectVariant/swipe). They are different sources, different
+// verbs and different windows, so they are different components — but the same `n / m` + chevrons chrome,
+// because to a reader they are one gesture.
+//
+// The `greeting` binding arrives ONLY inside the window: `ChatThread` computes it from the canon it already
+// holds (no user row yet) and the roster's cards. Absent ⇒ the variant strip's own `showSwipes` rule decides,
+// exactly as before.
 export function renderRowSwipe(args: {
   readonly editing: boolean;
   readonly showSwipes: boolean;
   readonly role: MessageView["role"];
+  readonly greeting: GreetingBinding | undefined;
   readonly message: MessageView;
 }): ReactNode {
   if (args.editing) {
     return null;
+  }
+  if (args.greeting !== undefined) {
+    return <GreetingSwipeStrip chatId={args.message.chatId} messageId={args.message.id} variants={args.greeting.variants} current={args.message.content} />;
   }
   return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} /> : null;
 }

@@ -206,6 +206,16 @@ const editMessageSchema = z.object({
   content: z.string(),
 });
 
+// R3 §4.8/F6 — step a seeded greeting onto another of its card's alternates. The input carries an INDEX
+// and NO TEXT on purpose (see `SetSeededGreetingParams`): the verb resolves the bytes from the card, so this
+// host-gated door can never be a free-text content write standing beside `editMessage`'s author-or-host one.
+// `int().min(0)` at the trust boundary — a negative/fractional index is a malformed ask, not a miss.
+const setSeededGreetingSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  messageId: brandedId<MessageId>(),
+  greetingIndex: z.number().int().min(0),
+});
+
 const setMessageHiddenSchema = z.object({
   chatId: brandedId<ChatId>(),
   messageId: brandedId<MessageId>(),
@@ -537,6 +547,9 @@ export const chatRouter = t.router({
   abort: authedProcedure.input(abortSchema).mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),
   // The per-message ACTION cluster's four verbs (see the schemas' header note above).
   editMessage: authedProcedure.input(editMessageSchema).mutation(({ ctx, input }) => ctx.services.chat.editMessage({ principal: ctx.auth, ...input })),
+  setSeededGreeting: authedProcedure
+    .input(setSeededGreetingSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.setSeededGreeting({ principal: ctx.auth, ...input })),
   setMessageHidden: authedProcedure
     .input(setMessageHiddenSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setMessageHidden({ principal: ctx.auth, ...input })),

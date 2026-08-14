@@ -90,6 +90,7 @@ import type {
   SetMessageHiddenParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
+  SetSeededGreetingParams,
   SetToolRecurseLimitParams,
   SetUserMacroValuesParams,
   SetVariablesParams,
@@ -252,6 +253,10 @@ export interface ChatService {
   /** Edit the selected variant's content (author-or-host; self-label purify, then the `runOnEdit`
    *  host-tier regex re-applies before persist — assistant slot ⇒ AI_OUTPUT, user slot ⇒ USER_INPUT). */
   readonly editMessage: (params: EditMessageParams) => Promise<MessageView>;
+  /** Step a seeded greeting onto another of its card's alternates (HOST-only, and only inside the
+   *  pre-first-user-turn malleability window — after the freeze it refuses `greeting_frozen`). The bytes come
+   *  from the CARD, resolved by index; the caller never supplies content. */
+  readonly setSeededGreeting: (params: SetSeededGreetingParams) => Promise<MessageView>;
   /** Toggle `excludedFromPrompt` (held out of assembly; the row survives). */
   readonly setMessageHidden: (params: SetMessageHiddenParams) => Promise<MessageView>;
   /** Delete a set of slots (author-or-host; cascades variants). */

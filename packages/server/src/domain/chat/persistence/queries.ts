@@ -976,6 +976,19 @@ export async function loadAuthoredUserMessageIds(db: Db, chatId: ChatId, authorU
   return rows.map((r) => r.id);
 }
 
+/** Does this chat have ANY user-role canon row? THE greeting-malleability predicate: the first user turn is
+ *  where `freezeGreetingVolatiles` (verbs/turn.ts) bakes every prior greeting's volatile macros, so a room
+ *  with no user row is still in the window where a greeting may be stepped among its card's alternates.
+ *  `limit(1)` — this is an EXISTENCE question, never a count. */
+export async function loadHasUserMessage(db: Db, chatId: ChatId): Promise<boolean> {
+  const rows = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user")))
+    .limit(1);
+  return rows.length > 0;
+}
+
 /** The canon history strictly after `afterSeq` (the compaction window). Slot ⋈ selected-variant, oldest-first. */
 export async function loadCanonHistoryAfter(db: Db, chatId: ChatId, afterSeq: number): Promise<MessageView[]> {
   const rows = await db

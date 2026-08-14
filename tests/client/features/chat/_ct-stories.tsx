@@ -6,7 +6,7 @@
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
 
 import type { ChatBusDeps } from "@orb/client/data";
-import { createInvalidation, QueryBoundary, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
+import { applyChatBusEvent, createInvalidation, QueryBoundary, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
 import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
@@ -44,6 +44,7 @@ import { bindNotify, createContributorRegistry, resolveRowRenderPolicy, toNotice
 import type { HomeTileContribution } from "@orb/client/state";
 import {
   cancelEditingMessage,
+  chatDeletedFromList,
   chatStream,
   committedChat,
   enterSelectionMode,
@@ -102,6 +103,7 @@ import { CompactSummaryPeek } from "../../../../packages/client/src/features/cha
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/composer-chat-options.tsx";
 import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section.tsx";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row.tsx";
+import { GreetingSwipeStrip } from "../../../../packages/client/src/features/chat/components/greeting-swipe-strip.tsx";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form.tsx";
 import { ImageryTemplatesSection } from "../../../../packages/client/src/features/chat/components/imagery-templates-section.tsx";
 import { InjectionsManager } from "../../../../packages/client/src/features/chat/components/injections-manager.tsx";
@@ -1214,7 +1216,69 @@ function ChatRoomHarness(): ReactElement {
       <button type="button" data-testid="drive-message-committed" onClick={(): void => chatStream.notifyUserMessageCommitted(CHAT_ID)}>
         commit
       </button>
+      {/* The `messageEdited` arm of the room's bus, driven through the REAL reducer (`applyChatBusEvent` →
+          the invalidation seam), so a CT can land a server-side canon rewrite the way production does
+          without scripting the socket's attach-time frame script. Used by the seeded-greeting step's pin:
+          the strip's verb is `busDriven`, so the row's new bytes must arrive from a REFETCH, never from an
+          optimistic local swap. */}
+      <button
+        type="button"
+        data-testid="drive-message-edited"
+        onClick={(): void => applyChatBusEvent({ type: "messageEdited", chatId: CHAT_ID, messageId: castId<MessageId>("msg_room_seeded_greeting") }, busDeps)}
+      >
+        edited
+      </button>
     </div>
+  );
+}
+
+/** The chats CONTENT (landing ⇄ room) over the real registry, plus a driver that lands a `chatDeleted` for
+ *  the OPEN room through the REAL reducer (`applyChatBusEvent` → the `onChatDeleted` seam → the landing
+ *  transition). R3, the verifier's R1-3: the reap emit's whole justification is that a device sitting on the
+ *  room has to leave it, and until this seam existed nothing was on the other end of the event. */
+export function ChatDeletedWhileOpenStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <ChatDeletedDriver />
+        <ChatContentHarness />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function ChatDeletedDriver(): ReactElement {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  // The SAME deps the room mounts with — including the feature-side `onChatDeleted` wiring, which is what is
+  // under test. Built here rather than reaching into ChatContent so the driver fires the identical seam.
+  const busDeps: ChatBusDeps = {
+    stream: chatStream,
+    invalidate: createInvalidation({ queryClient, trpc }).invalidate,
+    onChatDeleted: chatDeletedFromList,
+  };
+  return (
+    <button type="button" data-testid="drive-chat-deleted" onClick={(): void => applyChatBusEvent({ type: "chatDeleted", chatId: CHAT_ID }, busDeps)}>
+      deleted
+    </button>
+  );
+}
+
+/** The chat room in its GREETING WINDOW (chat-creation-draft-mode-replacement.md §4.8 / F6, R3): a room
+ *  whose canon is seeded greetings and whose first user turn has not happened yet. That window is what makes
+ *  a greeting steppable among its card's alternates — after the first user turn `freezeGreetingVolatiles`
+ *  bakes it and the server refuses. Same harness as the plain room story; the `.ct.tsx` supplies the canon
+ *  (assistant rows, no user row) and the card. */
+export function ChatRoomGreetingWindowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <ChatRoomHarness />
+      </SocketHost>
+    </CtDataProviders>
   );
 }
 
@@ -2015,6 +2079,18 @@ export function CompactSummaryPeekStory({ summary }: { readonly summary: string 
 }
 
 // ── Draft greeting swipe strip ────────────────────────────────────────────────────────────────────
+
+/** The seeded-greeting swipe strip in isolation (R3, §4.8/F6) — the component's own contract: the counter
+ *  derives its position from the row's CURRENT TEXT (never from local state), the ends clamp, and a
+ *  hand-EDITED greeting that matches no alternate reads "— / m" and steps to the last/first rather than
+ *  going dead. The `.ct.tsx` stubs `chat.setSeededGreeting` and reads the fired INDEX. */
+export function GreetingSwipeStripStory({ variants, current }: { readonly variants: readonly string[]; readonly current: string }): ReactElement {
+  return (
+    <CtDataProviders>
+      <GreetingSwipeStrip chatId={CHAT_ID} messageId={castId<MessageId>("msg_ct_greeting")} variants={variants} current={current} />
+    </CtDataProviders>
+  );
+}
 
 // ── Assembly preview panel (#28 Preview tab) — host-only, host/getShapeTrace + previewAssembly reads ──
 

@@ -327,6 +327,21 @@ export interface EditMessageParams extends MessageScopedParams {
   readonly content: string;
 }
 
+/**
+ * `setSeededGreeting` — steps a seeded greeting row onto another of its character card's alternates.
+ *
+ * IT CARRIES AN INDEX, NOT TEXT (a deliberate divergence from the design doc's parenthetical
+ * `{chatId, messageId, text}` sketch — chat-creation-draft-mode-replacement.md §4.8, whose RULING is
+ * "replaces a seeded greeting row's content with another card alternate"). With text, this host-gated verb
+ * would be a second arbitrary content-write door standing beside `editMessage`'s author-or-host one, and
+ * "another card alternate" would be a client-side promise. With an INDEX, the server resolves the bytes from
+ * the card, so the ruling is a runtime fact: nothing a caller sends can become message content.
+ */
+export interface SetSeededGreetingParams extends MessageScopedParams {
+  /** Which of the character card's `greetings[]` to show. Out of range ⇒ `greeting_alternate_not_found`. */
+  readonly greetingIndex: number;
+}
+
 /** `setMessageHidden` — toggles excludedFromPrompt (held out of assembly; the row survives). */
 export interface SetMessageHiddenParams extends MessageScopedParams {
   readonly hidden: boolean;

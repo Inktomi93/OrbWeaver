@@ -33,11 +33,13 @@ import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useChatStyle } from "../hooks/use-chat-style.ts";
+import { useGreetingAlternates } from "../hooks/use-greeting-alternates.ts";
 import { useJumpToLatest } from "../hooks/use-jump-to-latest.ts";
 import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
+import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 
@@ -131,6 +133,13 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
     characterAvatarsById,
     kind: ghostKind,
   });
+  // THE GREETING WINDOW (§4.8/F6, R3) — resolved HERE, once, from canon this surface already holds plus the
+  // roster it already read: a room with no user row is still steppable, and the seated characters' cards say
+  // what the alternates are. Per-row it is a map lookup (`resolveGreetingBinding`), so the N card reads are N
+  // per ROOM, not per row — and they are gated to the window, so a settled chat makes none at all.
+  const greetingWindowOpen = isGreetingWindowOpen(messages);
+  const seatedCharacterIds = [...participants.keys()];
+  const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen);
   const items = useMessageItems(messages, chatId);
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
   // every scrollback, so "mounted" != "new".
@@ -210,6 +219,11 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
       <MessageRow
         message={item.view}
         chatStyle={chatStyle}
+        {...((): { readonly greeting?: ReturnType<typeof resolveGreetingBinding> } => {
+          // exactOptionalPropertyTypes: a non-greeting row must OMIT the prop, never pass explicit-undefined.
+          const greeting = resolveGreetingBinding({ windowOpen: greetingWindowOpen, message: item.view, alternatesByCharacter: greetingAlternates });
+          return greeting === undefined ? {} : { greeting };
+        })()}
         avatarSize={messageAppearance.avatarSize}
         avatarShape={messageAppearance.avatarShape}
         avatarAspect={messageAppearance.avatarAspect}
