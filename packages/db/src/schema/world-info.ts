@@ -33,7 +33,7 @@ import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId 
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { check, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { checkList } from "#kit";
+import { checkList } from "../kit/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 import { personas } from "./persona.ts";

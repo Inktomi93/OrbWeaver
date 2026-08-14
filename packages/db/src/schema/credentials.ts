@@ -21,7 +21,7 @@ import { CRED_PROVIDERS } from "@orb/contracts/credentials";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "#kit";
+import { checkList } from "../kit/check-list.ts";
 import { users } from "./users.ts";
 
 // A freshly-added credential is active (the domain's `add`/`upsert` deactivates any prior active row
