@@ -225,8 +225,12 @@ per-theme `color-scheme`).
 - **Registry-pairing keystone.** RAIL\_SLOTS ↔ MODAL\_SLOTS id-pairing was unguarded in neo (a missing body
   shipped as "the panel won't open"). *Gate `modal-registry-completeness` (`registry-pairing` RETIRED at
   M4 — the rail DERIVES modal affordances from the registry; the bijection is structural).*
-- **Typed test-id registry.** A `testId(...)` typed map makes a `data-testid` typo a type error. *Gate
-  `testid-typed-only`.*
+- **Typed test-id registry.** A `testId(...)` typed map makes a `data-testid` typo a type error. What it
+  does NOT make a type error is a LIVE key whose producer was deleted: the id stays spellable, the
+  selector matches nothing, and the assertion fails late or passes falsely (the 2026-08-14 draft-cast
+  ghosts survived every scoped floor). A row lives only as long as a component stamps it — add the row
+  and its `data-testid` in the same commit, delete both together. *Gates `testid-typed-only` (spelling) +
+  `testid-liveness` (a consumer or a registry row with no producer).*
 
 ### 11.6 Streamdown + untrusted content — the two-policy spec (BUILT)
 
