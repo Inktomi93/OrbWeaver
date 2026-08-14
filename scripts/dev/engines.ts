@@ -25,7 +25,7 @@
  */
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
-import { closeSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -42,6 +42,7 @@ import {
   resolveEngineLaunchConfig,
   VLLM_ENGINES,
 } from "@orb/server/infra/providers/vllm/engine";
+import { acquireSpawnLock, releaseSpawnLock } from "./_kit/spawn-lock.ts";
 
 const REPO_ROOT = process.cwd();
 const HEALTH_POLL_MAX = 180;
@@ -182,45 +183,34 @@ function writePidfile(rows: readonly (readonly [string, number])[]): void {
 /** The adopt-window boot lock (2026-08-03 duplicate-fleet audit): two adopters racing the same boot
  *  window each passed the VRAM headroom gate (mid-boot VRAM is ambiguous — the first adopter's engines
  *  hadn't claimed their budgets yet) and spawned a SECOND fleet — two vllm processes per port, the losers
- *  holding ~17GiB of loaded models for hours while serving nothing. `wx` create is the atomic take; a
- *  holder whose pid is dead is a stale lock from a crashed adopter and is broken loudly. */
+ *  holding ~17GiB of loaded models for hours while serving nothing. `wx` create is the atomic take.
+ *
+ *  Delegates to `./_kit/spawn-lock.ts` (`acquireSpawnLock`/`releaseSpawnLock`) rather than re-deriving the
+ *  lock grammar here — this launcher's own hand-rolled version fed a raw `Number(readFileSync(...))`
+ *  straight to `process.kill(holder, 0)`, and **`process.kill(0, 0)` signals the caller's own process
+ *  GROUP, so it always succeeds** ([[kill-signal-zero-pid-zero-always-succeeds]]): an EMPTY or
+ *  non-numeric lock file parsed to pid `0`/`NaN→0`, read as "a live adopter holds it", and wedged every
+ *  future boot until a human deleted the file by hand. `spawn-lock.ts`'s `parseLockHolder` treats a
+ *  non-positive/non-integer holder as `unparseable` (never probed) and breaks it as stale — the same fix
+ *  `stack-prod.ts`'s prod spawn lock already carries; this launcher gets it by reuse, not a second copy. */
 function acquireBootLock(): boolean {
-  mkdirSync(fleetRunDir(REPO_ROOT), { recursive: true });
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      writeFileSync(BOOT_LOCK, `${process.pid}\n`, { flag: "wx" });
-      return true;
-    } catch {
-      let holder = Number.NaN;
+  return acquireSpawnLock({
+    lockPath: BOOT_LOCK,
+    selfPid: process.pid,
+    isAlive: (pid) => {
       try {
-        holder = Number(readFileSync(BOOT_LOCK, "utf8").trim());
+        process.kill(pid, 0);
+        return true;
       } catch {
-        continue; // vanished between wx-fail and read — retry the take
-      }
-      try {
-        process.kill(holder, 0);
-        log(`another adopter (pid ${holder}) is mid-boot — this adopt is a no-op; tail its logs or re-run when it finishes.`);
         return false;
-      } catch {
-        log(`breaking stale boot lock (holder pid ${holder} is dead).`);
-        try {
-          unlinkSync(BOOT_LOCK);
-        } catch {
-          // lost the break race to another adopter — the retry's wx decides
-        }
       }
-    }
-  }
-  log("could not take the boot lock after breaking a stale one — another adopter won the race; no-op.");
-  return false;
+    },
+    log,
+  });
 }
 
 function releaseBootLock(): void {
-  try {
-    unlinkSync(BOOT_LOCK);
-  } catch {
-    // already gone
-  }
+  releaseSpawnLock(BOOT_LOCK);
 }
 
 async function main(): Promise<void> {
