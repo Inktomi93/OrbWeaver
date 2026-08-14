@@ -1,10 +1,7 @@
 ---
-kind: security-review
-status: findings
-date: 2026-08-09
-scope: macro / template-expansion engines + resolvers (kit / contracts / server / client)
-threat: DoS (ReDoS · expansion-bomb · unbounded recursion · no-timeout · resource exhaustion)
-frame: "acceptable single-user, a real hole once multiuser" (OIDC + approval queue + shared-instance auth just shipped)
+kind: review
+status: active
+updated: 2026-08-14
 ---
 
 # Macro-engine DoS audit (2026-08-09)
@@ -21,31 +18,31 @@ has no cap of any kind. Measured against the real engine (`packages/kit/src/macr
 this session):
 
 | dense `{{a}}` macros | bytes | `parseMacros` time |
-|---|---|---|
+| - | - | - |
 | 4 000 | 20 000 | 168 ms |
 | 8 000 | 40 000 | 623 ms |
 | 16 000 | 80 000 | 2 939 ms |
 | 20 000 | 100 000 | **4 386 ms** |
 
-Doubling the bytes ~4× the time — textbook quadratic. Root cause: `spanAt(text, offset, length)`
+Doubling the bytes \~4× the time — textbook quadratic. Root cause: `spanAt(text, offset, length)`
 (`parser.ts:28-40`) recomputes line/column from index 0 on EVERY recognized macro tag
 (`parser.ts:193`), unconditionally (even when no diagnostics sink is attached). K tags in an L-byte string
-= O(K·L); dense minimal macros give O(L²).
+\= O(K·L); dense minimal macros give O(L²).
 
 This matters because the exploitability is decided ENTIRELY by the input-size cap on each entry point:
 
-- **10 KB-capped inputs → ~42 ms → acceptable.** Injection templates / nudges / `wiFormat` /
+- **10 KB-capped inputs → \~42 ms → acceptable.** Injection templates / nudges / `wiFormat` /
   `guidedActions.*.prompt` (`MAX_INJECTION_TEMPLATE_LENGTH = 10_000`), automation arm templates
   (`TRANSFORM_TEMPLATE_MAX = 8192`), imagery templates (≤ 4000). The existing 10 KB cap the brief flagged is
   in fact SUFFICIENT for these — not because 10 KB can't expand-bomb (the depth/output budget stops that),
   but because 10 KB can't quadratic-parse-bomb.
-- **100 KB-capped inputs → ~4.4 s EACH → DoS.** Character card fields (`TEXT_MAX = 100_000`:
+- **100 KB-capped inputs → \~4.4 s EACH → DoS.** Character card fields (`TEXT_MAX = 100_000`:
   description, personality, scenario, exampleMessages, systemPrompt, postHistoryInstructions, creatorNotes),
   each of up to 100 greetings (`GREETINGS_MAX = 100`), and world-info entry `content`
   (`CONTENT_MAX = 100_000`). These are the fields that reach `renderMacros` on every assembly (resolve-on-read),
   and these are exactly the fields an imported ST card / a shared lorebook / a member-authored persona carry.
 
-A single maxed card description of dense macros blocks the event loop ~4.4 s; a card that maxes several fields
+A single maxed card description of dense macros blocks the event loop \~4.4 s; a card that maxes several fields
 plus a greeting stacks into tens of seconds; the block is repeated on every swipe/regen/new-assembly. On a
 shared instance this is a full-instance DoS triggered by any user who can get a crafted card, lorebook, or
 persona into a chat the host (or any member) then takes a turn in.
@@ -138,18 +135,18 @@ schema length cap at the write boundary · **—** = absent.
 ## Severity ranking (multiuser)
 
 | # | Surface | DoS class | Single-user | Multiuser | Attacker-influenceable input |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | **1** | **Macro parser O(L²) over 100 KB card fields** (`parser.ts` via `renderMacros`) | resource exhaustion (parse-time, blocks the shared event loop) | low/accepted (your own card) | **HIGH** | **imported ST card, shared character, member-authored persona/description** |
 | **2** | **Macro parser O(L²) over 100 KB world-info `content`** (`parser.ts` via assembly) | same | low/accepted | **HIGH** | **shared/imported lorebook entry** |
 | **3** | **Client DISPLAY-tier regex, no timeout** (`message-render.ts`; `(a+)+` passes `tooComplex`) | ReDoS (freezes the VIEWER's tab) | low/accepted (your own tab) | **MEDIUM** | **card-embedded / shared-character DISPLAY regex script rendered in another member's browser** |
-| 4 | Injection templates / nudges / guided prompts / automation arms / imagery templates (≤10 KB) | parse-time (bounded ~≤42 ms) | negligible | LOW (bounded; watch the multiply — many templates per turn) | preset/automation/imagery author |
+| 4 | Injection templates / nudges / guided prompts / automation arms / imagery templates (≤10 KB) | parse-time (bounded \~≤42 ms) | negligible | LOW (bounded; watch the multiply — many templates per turn) | preset/automation/imagery author |
 | — | Server regex path | ReDoS | — | **mitigated** (node:vm 50 ms, injected everywhere) | — |
 | — | World-info key matching | ReDoS | — | **safe** (escaped-literal patterns) | — |
 | — | Recursion / expansion-bomb across ALL macro paths | billion-laughs / infinite recursion | — | **mitigated** (DEPTH 64 + OUTPUT 1 MB, budget threaded through every seam incl. lazy/block/user-macro) | — |
 
 ## Recommended guards (prioritized → fix lanes)
 
-1. **[P1 · kill the quadratic parse] Make `spanAt` O(1) amortized.** Carry a running `line`/`col` (and a
+1. **\[P1 · kill the quadratic parse] Make `spanAt` O(1) amortized.** Carry a running `line`/`col` (and a
    `lastNewlineIndex`) in the `parseMacros` scan loop and pass it into `readTag`, OR make the span LAZY —
    store `{offset, length}` on the node and compute line/col only inside the diagnostic emitters
    (`evaluator.ts` `unknown-macro` / `macroArgDiagnostics`), which run far less often than once-per-tag. Byte
@@ -157,12 +154,12 @@ schema length cap at the write boundary · **—** = absent.
    `dos-bounds.suite.test.ts`: parse of a 100 KB dense-macro string completes under a small budget
    (e.g. < 100 ms). This ONE fix retires findings #1 and #2 and hardens every current and future
    `processMacros` caller at once — it is strictly better than tightening any input cap.
-2. **[P1 · defense-in-depth belt] Add an INPUT-CAP + optional wall-clock ceiling to the engine.** After #1
+2. **\[P1 · defense-in-depth belt] Add an INPUT-CAP + optional wall-clock ceiling to the engine.** After #1
    the engine is linear, but a defensive `MAX_INPUT_BYTES` in `processMacros` (reject/degrade past, say, a few
    MB) closes the class permanently regardless of any caller forgetting a schema cap. This is the trust-boundary
-   belt: the engine should not trust that every one of its ~10 call sites capped its input. Keep it generous
+   belt: the engine should not trust that every one of its \~10 call sites capped its input. Keep it generous
    (real prompts are tiny) so legitimate 100 KB cards pass.
-3. **[P2 · client ReDoS] Give the DISPLAY tier a real timeout OR a stronger pre-filter.** Options, cheapest
+3. **\[P2 · client ReDoS] Give the DISPLAY tier a real timeout OR a stronger pre-filter.** Options, cheapest
    first: (a) run DISPLAY regex in a Web Worker with a `terminate()` deadline (mirrors the server's node:vm
    posture); (b) strengthen `tooComplex` to also reject a SINGLE nested-quantifier-with-inner-quantifier shape
    (`(…+…)+`, `(…*…)*`) so `(a+)+`-class patterns are refused pre-compile in the browser. Note `tooComplex` is
@@ -185,7 +182,7 @@ schema length cap at the write boundary · **—** = absent.
 - I did not exhaustively enumerate every `processMacros`/`executeRegexScripts` caller's per-field cap beyond
   the ones tabled; refinery `REWRITE_TEXT_MAX = 100_000` exists but I did not confirm whether refinery text is
   macro-processed (if it is, it is a fourth 100 KB quadratic surface — the P1 parser fix covers it regardless).
-- The token-guard/recognizer `lastIndex` class ([[token-guard-borrows-the-renderers-recognizer]]) is a
-  correctness/refusal concern, not a DoS vector, and was out of scope here.
-</content>
+- The token-guard/recognizer `lastIndex` class (\[\[token-guard-borrows-the-renderers-recognizer]]) is a
+  correctness/refusal concern, not a DoS vector, and was out of scope here. </content>
+
 </invoke>

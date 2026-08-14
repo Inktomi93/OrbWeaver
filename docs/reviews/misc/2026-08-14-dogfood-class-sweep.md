@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Dogfood class sweep — 2026-08-14
 
 Read-only verification lane. Five defect CLASSES minted by the 2026-08-13/14 dogfood fixes, swept
@@ -24,7 +30,7 @@ key-wise merge-clear fold) + `:105-112` (`mergeSheet` now folds `attributes` ins
 writes ONE key per blurred cell (`patch: { attributes: { [key]: next } }`).
 
 | Site | What it does | Breaking precondition present? | Severity |
-|---|---|---|---|
+| - | - | - | - |
 | `packages/server/src/domain/refinery/verbs/update-session.ts:53` | `set.stageConfig = refineryStageConfigSchema.parse(patch.stageConfig)` — whole-record replace of the per-stage config record | **PARTIAL.** The only client writer spreads its CACHED view first: `packages/client/src/features/refinery/components/refinery-context-tabs.tsx:137` — `stageConfig: { ...view.stageConfig, score: {…} }`. Not a single-key write, so no omission-clobber; it IS a stale-image write (any stage config changed between the read and the save is reverted). No second writer of `stageConfig` found (`start-session.ts:31` is creation only). | LOW |
 | `packages/server/src/domain/refinery/verbs/update-session.ts:50` | `set.selection = refinerySelectionSchema.parse(patch.selection)` — whole-record replace | **YES (second writer exists).** The SERVER also writes `selection`: `packages/server/src/domain/refinery/verbs/apply-fields.ts:67` remaps it (`remapSelection(session.selection, removedGreetingIndexes)`) when greetings are removed. A scope dialog open across an `applyFields` (`refinery-content-surface.tsx:241`, `refinery-context-tabs.tsx:127` both send a whole `selection` built from the loaded view) saves the PRE-remap image and undoes the remap. | LOW-MED |
 | `packages/server/src/domain/chat/verbs/chat-lifecycle.ts:241` | `setVariables` — `.set({ variableValues: values })`, whole `Record<string,string>` replace | **NO.** Sole writer of the column (checked `variable-ops.ts`, `runtime-variables.ts`, `engine/*`, `turn.ts`: `{{setvar}}` writes land on `runtimeVariables`, not `variableValues`). Client sends a full image. Latent only across two tabs (LWW — the D2 class prior art already names). | LATENT |
@@ -36,7 +42,7 @@ writes ONE key per blurred cell (`patch: { attributes: { [key]: next } }`).
   per section INSIDE `ctx.serializeUserWrite(ownerId, …)`. This is the correct shape for the class and
   the one the others should be measured against.
 - `packages/server/src/domain/rpg/snapshot-edit.ts` + `substrate/merge.ts:214-249` — every snapshot
-  plane is [merge-clear] key-wise (`trackerValues` explicitly a RECORD merged per key, `merge.ts:91-94`);
+  plane is \[merge-clear] key-wise (`trackerValues` explicitly a RECORD merged per key, `merge.ts:91-94`);
   the single-key client writes (`rpg-scene-tab.tsx:172`, `rpg-inventory-tab.tsx:201`) ride op-shaped
   or merge-clear doors.
 - `packages/server/src/domain/rpg/verbs/game/update-config.ts:86,90,103` — `statProfile`/`trackers`/
@@ -63,7 +69,7 @@ update verbs, not by pattern.
 (`actor.sheet.attributes[def.key] ?? null`, was `?? profile.range.min`).
 
 | Site | What it does | Breaking precondition present? | Severity |
-|---|---|---|---|
+| - | - | - | - |
 | `packages/client/src/features/rpg/components/rpg-takeover-header.tsx:95` and `:105` | `clock.minute ?? 0` — prints `21:00` and hands the Waystone `minute: 0` when the minute is NULL | **LATENT.** `hour` and `minute` are INDEPENDENTLY nullable (`packages/contracts/src/rpg/ambient.ts:37-38`) and the sibling arm right above it refuses to synthesize (`:104` returns `null` for a null HOUR rather than substituting midnight — the same reasoning, one field over). No producer reaches `hour≠null ∧ minute=null` today: `tools/apply.ts:359` writes `minute: 0` whenever it writes an hour, and `rpg-scene-tab.tsx:63` nulls both. It IS representable through `editSnapshot`'s arbitrary patch door. Cosmetic when it fires (a fabricated `:00`). | LOW / latent |
 | `packages/client/src/features/chat/components/invite-dialog.tsx:224` | `${invite.remainingUses ?? 0} of ${invite.maxUses} uses left` | **NO — dead branch.** The producer correlates the two: `packages/server/src/domain/chat/verbs/invites.ts:319` `remainingUses: row.maxUses === null ? null : Math.max(0, …)`, so inside the `maxUses !== null` branch `remainingUses` is never null. Noise, not a defect. | NONE |
 
@@ -98,7 +104,7 @@ SELECTED lineage via an inner join on `messages.selectedVariantId`) + `latestSna
 `onLiveLineage` guard (`:~300`).
 
 | Site | What it does | Breaking precondition present? | Severity |
-|---|---|---|---|
+| - | - | - | - |
 | `packages/server/src/domain/rpg/persistence/turn-tool-calls.ts:45-52` | `listTurnToolCalls` — `where(gameId)` → `orderBy(desc(createdAt), desc(id))` → `limit(50)`. **No selected-lineage filter**, while its direct sibling `packages/server/src/domain/rpg/persistence/journal.ts:36-50` applies exactly one (`or(isNull(variantId), exists(selectedForVariant))`) | **PARTIAL, and the framing matters.** Rows are one-per-VARIANT (`packages/db/src/schema/rpg.ts:319-332`, unique on `variant_id`), so a rerolled slot leaves its abandoned siblings' rows in the table. Including them is DELIBERATE and tested — `tests/server/domain/rpg/persistence/turn-tool-calls.int.test.ts:63` rules "both live in the game's window — the client indexes by variant and the ROW picks its own", and the client does exactly that (`packages/client/src/features/rpg/hooks/use-turn-tool-calls.ts:50`). So this is NOT a wrong-row defect. It IS a **window-budget** defect: the window is a flat 50 (`use-turn-tool-calls.ts:28` `TURN_TOOL_CALLS_WINDOW = 50`, matching the verb's own default), shared with rows nobody can ever look at, so on a reroll-heavy game the disclosure silently goes dark for older SELECTED turns that are still on screen. The journal sibling does not have this problem for exactly the reason it filters. | LOW |
 
 **Verified CLEAN, with the reason:**
@@ -130,7 +136,7 @@ below. Positive control for the rule shape: the same rule with `createPersistedS
 matching the 7 known mints.
 
 | Site | What it does | Breaking precondition present? | Severity |
-|---|---|---|---|
+| - | - | - | - |
 | `packages/client/src/features/databank/surfaces/databank-library-surface.tsx:65,78-90` | `MAX_PAGES = 5` + `maxPages: MAX_PAGES` (`:84`) + `getPreviousPageParam: () => undefined` (`:83`) over `databank.list`; rows explicitly **not virtualized** (`:63-64`) | **YES — the D4 shape, unfenced.** The lens is client-side on BOTH axes: name search at `:142` (`documents.filter(doc => doc.name.toLowerCase().includes(needle))`) and the phase chip at `:143`. The server contract has no search: `packages/server/src/transport/trpc/routers/databank.ts:55-64` accepts `origin`/`limit`/`cursor` only. So (a) searching only searches the loaded window, and (b) past 5 pages the head page is EVICTED and unrecoverable for the session (`getPreviousPageParam` returns undefined) — documents vanish off the top as you scroll. Page size is `UserSettings.library.pageSize` (`:114`), i.e. the same 150–500-row ceiling the character tab has. | **MED** |
 | `packages/client/src/features/chat/hooks/use-chat-list-collection.ts:30,50-51` | `MAX_PAGES = 5` + `getPreviousPageParam: () => undefined` over `chat.listChats` | **HALF.** The lens half is CLEAN and deliberately so — `search` and `characterId` are both query INPUT and resolve server-side (documented `:10-18`; the client `filter-chats.ts` was deleted). What remains is the eviction half: at 50/page × 5 the head page drops and cannot be re-fetched, so a deep scroll in the virtualized list loses the top rows for the session. | LOW |
 
@@ -165,7 +171,7 @@ matching the literal grep) and every one read in full. Result: **the tagFilter i
 carrier of a dying server id in durable-local state.**
 
 | Store (`orb:` key) | Ids it carries | Validated on read? | Severity |
-|---|---|---|---|
+| - | - | - | - |
 | `state/recent-models-store.ts:47` (`recent-models`) | provider MODEL ids, per source | **YES — and this is the exemplar W5 should copy.** `packages/client/src/features/credentials/lib/model-picker-model.ts:262`: `recentIds.map(id => poolById.get(id)).filter(entry => entry !== undefined)` — an id absent from the live pool is dropped from the Recent group. That is §4.2.2's "effective-filter rule", already built. | CLEAN |
 | `state/composer-draft-store.ts:53` (`composer-draft`) | map keyed by `ChatId` / draftKey | No existence check, but harmless by construction: an entry for a dead chat is unreachable (`useComposerDraft(scopeKey)` is asked by the live room only), empty drafts never persist, and the map is MRU-capped at 50 (`:26,:41-44`). Residual is storage residue, not a wrong render. | NEGLIGIBLE |
 | `state/shell-store.ts:231` (`shell`) | `SectionId` / `ModalSlotId` / `SettingsCategoryId` — declared vocabulary, not server rows | Yes: `isSectionId` + `RETIRED_SECTION_HEAL` (`:54,:156-163`). | CLEAN |
@@ -200,5 +206,5 @@ carrier of a dying server id in durable-local state.**
   node here. The working instrument is `ast-grep scan --inline-rules` with
   `rule: {kind: pair, has: {field: key, regex: "^maxPages$"}}`. Every property-name sweep in this
   report used the rule form and was run against a known-positive control first
-  ([[instruments-lie-verify-the-verifier]], [[ast-grep-property-read-has-three-shapes]]).
+  (\[\[instruments-lie-verify-the-verifier]], \[\[ast-grep-property-read-has-three-shapes]]).
 - `--inline-rules` is a `scan` flag, not a `run` flag (`ast-grep run` rejects it outright).

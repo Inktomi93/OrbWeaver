@@ -1,7 +1,13 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Task #7 + #12 — gap-list RE-DERIVATION (the originals died in lane transcripts)
 
 > **Why this file exists.** Two board rows (`docs/retro-workboard.md:289-292`) cite gap lists that were
-> never written to disk: task #7 ("3 sibling harnesses on the weak hatch + OWNER_GROUP/WIRE_CAPTURE latent
+> never written to disk: task #7 ("3 sibling harnesses on the weak hatch + OWNER\_GROUP/WIRE\_CAPTURE latent
 > leak notes") and task #12 (the group-engine + OR-F5 post-verifier non-refuting gaps). Both were
 > re-derived HERE from a cold adversarial read of the merged code on `main` — this is a fresh derivation,
 > not a transcript recovery, so a row the original lane had is not guaranteed to be a row below, and vice
@@ -137,9 +143,9 @@ row's "3 sibling harnesses on the weak hatch", confirmed.
    into a child) requiring `ORB_ENV_NO_FILE`, with a named allowlist row for the deliberate
    `E2E_ALLOW_DEV_TARGET` path. `scripts/check/GATE-AUTHORING.md` + `pnpm gate:new`. *Effort:* **M**.
 
-### 1.3 The OWNER_GROUP / WIRE_CAPTURE "latent leak note" — HONEST NEGATIVE for the node lane
+### 1.3 The OWNER\_GROUP / WIRE\_CAPTURE "latent leak note" — HONEST NEGATIVE for the node lane
 
-The board row pairs the harness list with "OWNER_GROUP/WIRE_CAPTURE latent leak notes". The MECHANISM is
+The board row pairs the harness list with "OWNER\_GROUP/WIRE\_CAPTURE latent leak notes". The MECHANISM is
 real (§1.0: `ORB_ENV_NO_FILE` blocks the FILE, not an exported shell var; role-policy reads both keys at
 call time off `process.env`). **The BITE is empty today in the node lane** — measured, not argued:
 
@@ -161,8 +167,9 @@ shell export reaches those stacks through Playwright's `...process.env` merge (�
 `OWNER_GROUP` (`modes.ts:212-231`), so an exported `OWNER_GROUP` matching a spec's JWT `roles` claim would
 elevate that actor to owner (`role-policy.ts:69-72`; the claim shape is the one
 `tests/server/entry/http/auth-routes.test.ts:250` describes). *Fix for the class:* pin the full identity
-+ debug key set on every mode's `webServerEnv` (they are fixture contract, per `modes.ts:90-93`), rather
-than relying on the file hatch. *Effort:* **S**.
+
+- debug key set on every mode's `webServerEnv` (they are fixture contract, per `modes.ts:90-93`), rather
+  than relying on the file hatch. *Effort:* **S**.
 
 ---
 
@@ -265,7 +272,7 @@ their verifiers; the rows below are non-refuting residue found by a fresh advers
    placements → no `cache_control` at all. The knob's doc
    (`packages/contracts/src/settings/index.ts:313-331`) argues correctly that the floor can only push the
    breakpoint DEEPER, but never states that "deeper than the history" means OFF.
-   *Consequence:* an admin who sets 8 to "cache harder" turns caching off for every room under ~9 role
+   *Consequence:* an admin who sets 8 to "cache harder" turns caching off for every room under \~9 role
    groups and gets no signal anywhere. *Fix:* one `providerLog(… "provider.cache_depth_unreachable")` when
    a KNOB-RAISED depth resolves no index (the `anthropicCacheDirective` precedent at
    `cache-control.ts:38`), plus a line in the knob's help copy. *Effort:* **S**.

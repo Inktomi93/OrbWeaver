@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Refinery — EXHAUSTIVE live e2e against the real vLLM fleet (2026-08-09, lane #39 phase 4)
 
 **VERDICT: the pipeline works end to end with real model output — after three fixes, two of which made the
@@ -58,12 +64,12 @@ returns `finish_reason:"stop"`. So the estimator was wrong too — it predicted 
 
 **FIX** — one home for both numbers, `packages/server/src/domain/refinery/substrate/output-budget.ts`:
 
-* the §8 arithmetic moves out of `preflight` into the substrate, and both callers evaluate **one**
+- the §8 arithmetic moves out of `preflight` into the substrate, and both callers evaluate **one**
   expression (`resolveStageSampling`);
-* the stage's posture FLOOR becomes payload-aware: `max(shipped floor, estimate × headroom)`, clamped so
+- the stage's posture FLOOR becomes payload-aware: `max(shipped floor, estimate × headroom)`, clamped so
   prompt + output still fit the resolved window (reserve for the retry's longer prompt);
-* the ladder is untouched — a user's preset `maxOutputTokens` still wins outright;
-* `preflight.maxOutputTokens` now reports **the number the next run will actually request**.
+- the ladder is untouched — a user's preset `maxOutputTokens` still wins outright;
+- `preflight.maxOutputTokens` now reports **the number the next run will actually request**.
 
 Estimator constants truth-repaired against the live runs (each carries its receipt in the file):
 `SCORE_TOKENS_PER_TARGET` 140 → 220 + a new `SCORE_ENVELOPE_TOKENS` 200 (summary + priorities are not
@@ -117,23 +123,23 @@ Turning it on immediately exposed a second, latent bug: the first live ramp prin
 `0 → **-5** → 2 → 4 → 5 → …` — a **negative character score**. A rAF callback receives the *frame's*
 timestamp, which can predate the `performance.now()` the effect captured, so `t` went negative and the
 cubic ease kept going below zero. **FIX:** clamp `t` at both ends. Post-fix sequence, three consecutive
-runs: `0→1→2→3→4→5→6→7→8→9` in ~225ms, monotonic, no negative frame.
+runs: `0→1→2→3→4→5→6→7→8→9` in \~225ms, monotonic, no negative frame.
 
 ---
 
 ## Per-checklist results
 
 | # | Item | Result | Receipt |
-|---|---|---|---|
+| - | - | - | - |
 | 1 | pick character → SCORE → live assay renders | **PASS** (after D1+D3) | `lane39-05-score-settled.png` — hero 9/10 + meter, docked summary, 7 assay rows with per-field meters, priority improvements. 23.6s. |
 | 1 | hero gauge count-up (the money shot) | **PASS** (after D3) | count-up sequence `0…9` / 225ms; `lane39-04-countup-t*.png` |
 | 1 | verdict banner + axes | **PASS** (on analyze) | `lane39-20-analyze-verdict.png`, `data-tone="good"`, soul 9/10 pill |
 | 1 | REWRITE → arm-B accept review with REAL CompareBlocks | **PASS** | 7 blocks: 5 before/after pairs + 2 `greetings [new]` ADDED blocks; per-block Keep/Discard with accessible names ("Keep description"). `lane39-08-accept-review.png` |
 | 1 | tri-state consent, collapse, undecided fail-closed | **PASS** | `0 kept / 0 discarded / 7 undecided` at open; after 2 keeps + 1 discard → 3 collapsed rows, note *"4 blocks have no verb pressed — undecided blocks are NOT applied…"*, CTA `Apply 2 kept` |
-| 1 | APPLY → outcome panel + snapshot line | **PASS** | *"2 fields written. A snapshot was taken first — 'auto: before refinery apply · refinery_session_…' — reversible from the character's History tab."* + REPLACED rows. `lane39-10-apply-outcome.png` |
+| 1 | APPLY → outcome panel + snapshot line | **PASS** | *"2 fields written. A snapshot was taken first — 'auto: before refinery apply · refinery\_session\_…' — reversible from the character's History tab."* + REPLACED rows. `lane39-10-apply-outcome.png` |
 | 1 | read-back the card (belt-9) | **PASS** | header flips to `COMPLETED` / `APPLIED · SNAPSHOT TAKEN`; `lane39-11-card-readback.png` |
 | 2 | ANALYZE verdict + tri-axis | **PASS** | ACCEPT / soul 9 / preserved·lost·gained populated, issues + recommendations "none listed" (the designed empty state) |
-| 2 | ITERATE (refine-rewrite → analyze) | **PASS** | `refinery.iterate 200` (~29s); ledger gains a second rewrite+analyze pair; stepper shows both cells `running…` mid-round |
+| 2 | ITERATE (refine-rewrite → analyze) | **PASS** | `refinery.iterate 200` (\~29s); ledger gains a second rewrite+analyze pair; stepper shows both cells `running…` mid-round |
 | 2 | runs ledger + economics | **PASS** | 5 rows, newest first, each `model · N in / M out · Xs` — e.g. `ANALYZE · round 0 · ACCEPT · Qwen/Qwen3-VL-8B-Instruct · 4899 in / 581 out · 8.2s`. `lane39-30-ledger-settled.png` |
 | 2 | step-back (view-back) | **PASS** | chip `VIEWING ROUND 0 · SUPERSEDED`; `lane39-31-step-back.png` |
 | 2 | operate-back (arm a rewrite for apply) | **PASS** | ledger chip `IN FORCE FOR APPLY`, and the armed (older) rewrite's block set loads into the pane. `lane39-32-operate-back.png` |
@@ -152,11 +158,11 @@ runs: `0→1→2→3→4→5→6→7→8→9` in ~225ms, monotonic, no negative 
 
 ## Instrument errors I made, and the lesson
 
-* **I reported "the client never surfaces the run error" — WRONG, retracted before it was acted on.** My
+- **I reported "the client never surfaces the run error" — WRONG, retracted before it was acted on.** My
   poll only ever looked for the *success* selector (`refinery-payload-view`); when it timed out I inferred
   the surface was stuck. It was not: the toast had fired and the pane had reverted. **A poll for the
   success selector is not an observation of the failure state** — re-read the DOM in the failure arm.
-* **I nearly filed "the CONTEXT ledger's row actions are unclickable" as a P1.** They are not. The
+- **I nearly filed "the CONTEXT ledger's row actions are unclickable" as a P1.** They are not. The
   `__orb.nav.contextTab()` bridge selects a tab but does **not open the detail panel**; with the panel
   closed its content lays out at x≈1470 in a 1440px viewport, `elementFromPoint` → `null`. Clicking
   "Show detail panel" first makes View / Use-for-apply work. A geometry probe that had checked **x** as
@@ -176,8 +182,8 @@ runs: `0→1→2→3→4→5→6→7→8→9` in ~225ms, monotonic, no negative 
 
 ## Rendered observations, not fixed (no lane authority)
 
-* Assay rows for greetings read `greetings 0 9` / `greetings 1 9` — the greeting INDEX and the SCORE are
+- Assay rows for greetings read `greetings 0 9` / `greetings 1 9` — the greeting INDEX and the SCORE are
   two bare numerals side by side with nothing distinguishing them (`RowsBlock` renders header keys
   generically). Legible once you know; ambiguous cold.
-* The teaching state at 1440×1000 is ~70% empty below the three step cards — the side-eye's P3 "62% CONTENT
+- The teaching state at 1440×1000 is \~70% empty below the three step cards — the side-eye's P3 "62% CONTENT
   void", still true.

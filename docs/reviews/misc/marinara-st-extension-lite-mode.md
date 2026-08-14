@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Marinara's SillyTavern Extension — Custom-Stat Flexibility Model & "Lite Mode" Mapping
 
 **Research question:** How does Marinara's *SillyTavern extension* (not her RPG engine/backend) let users
@@ -37,7 +43,7 @@ and updates) *without* the GM-seat / dice / encounter / clock apparatus?
 
 The whole flexibility story lives in **one config object**, `extensionSettings.trackerConfig`
 (`src/core/state.js`). It is a *declarative schema the user edits*, and every downstream behavior
-(prompt, parse, render) is derived from it. There is no per-stat code anywhere — the six D&D attributes are
+(prompt, parse, render) is derived from it. There is no per-stat code anywhere — the six D\&D attributes are
 just seed data in an array, not a hardcoded type.
 
 `trackerConfig` has four sibling groups:
@@ -75,7 +81,7 @@ Key properties of the model:
     `classicStats[id]`. **There is no hardcoded attribute set at the code level.**
 - **Text fields are cheap CSV:** status fields and skills are just a comma-separated text box
   ("`Conditions, Appearance`") — no schema ceremony to add a tracked free-text field.
-- **`id` is auto-derived, never typed:** new stat gets `id = 'custom_' + Date.now()` (or a snake_case of the
+- **`id` is auto-derived, never typed:** new stat gets `id = 'custom_' + Date.now()` (or a snake\_case of the
   name via `set_ids_names`, which also *migrates the stored value* from old id → new id on rename). Users
   only ever touch human names.
 - **Parenthetical descriptions are hints, not keys:** a field named `"Conditions (up to 5 traits)"` snake-cases
@@ -94,7 +100,7 @@ four sections — you cannot invent a new *section*, only new *fields within* th
 
 ## 2. Configuration UX (how a non-technical user sets it up)
 
-- A dedicated **modal editor** (`src/systems/ui/trackerEditor.js`, ~1.7k LOC), opened by a gear button,
+- A dedicated **modal editor** (`src/systems/ui/trackerEditor.js`, \~1.7k LOC), opened by a gear button,
   tabbed: **User Stats / Info Box / Present Characters / History Persistence**. Save / Cancel / Reset /
   Export / Import buttons.
 - Each custom stat is a plain row: `[✓ enabled] [text: name] [number: max (only in number mode)] [🗑 delete]`.
@@ -118,6 +124,7 @@ This is the cleverest part and the most copyable. **The schema the user built is
 skeleton that is injected as fake chat turns, and the model is told to emit the same shape back.**
 
 ### 3a. Build the format contract dynamically
+
 `jsonPromptHelpers.js` walks `trackerConfig` and *emits a JSON template string with `X` / placeholder
 holes and inline `//` comments*:
 
@@ -141,8 +148,10 @@ buildCharactersJSONInstruction() → per-NPC {name, emoji, details:{<your fields
 > and logical consequences."* — then `FORMAT:` + the compiled `{ "userStats":…, "infoBox":…, "characters":… }`.
 
 ### 3b. Inject via ST's extension-prompt API (no author's note hijack)
+
 `injector.js onGenerationStarted()` uses `setExtensionPrompt(id, text, IN_CHAT, depth, …, role)`:
-- **`rpg-companion-example`** — the *previous committed tracker state* as a fenced ```` ```json{…}``` ````
+
+- **`rpg-companion-example`** — the *previous committed tracker state* as a fenced ` ```json{…}``` `
   block, injected as a fake **ASSISTANT** message at the depth of the last real assistant turn. (So the
   model literally sees "last turn I output this state".)
 - **`rpg-companion-inject`** — the instruction+FORMAT block, injected as a **USER** message at **depth 0**
@@ -150,6 +159,7 @@ buildCharactersJSONInstruction() → per-NPC {name, emoji, details:{<your fields
 - Optional feature prompts (HTML, CYOA, deception, etc.) each get their own depth-0 injection id.
 
 ### 3c. Two generation modes — the "light" lever
+
 - **`together` (default):** *no extra API call.* The instructions ride the normal roleplay generation; the
   model emits **narrative + one JSON tracker block in the same reply.** Then `parser.js` strips the JSON out.
   This is the minimal loop — one model call per turn does both story and state.
@@ -159,14 +169,16 @@ buildCharactersJSONInstruction() → per-NPC {name, emoji, details:{<your fields
   the visible reply. Good honest-degrade option for weaker models.
 
 ### 3d. Parse the reply back into state (very tolerant)
+
 `parser.parseResponse()` is deliberately forgiving, cascading:
+
 1. Strip `<think>`/`<thinking>` and stray `FORMAT:` markers.
 2. **Brace-matching scan** for raw `{…}` anywhere (string/escape-aware) — no fence required.
 3. Try each as the unified `{userStats, infoBox, characters}` shape; `unwrapTrackerEnvelope()` also peels
    wrapper keys `trackers`/`tracker`/`context`/`state`.
 4. Classify loose objects by heuristic keys (`stats|status|skills|inventory|quests`→userStats,
    `date|location|weather|…`→infoBox, `characters`/array→characters).
-5. Fenced ```` ```json ```` blocks → same classification.
+5. Fenced ` ```json ` blocks → same classification.
 6. XML `<trackers>…</trackers>` wrapper → JSON-inside-then-legacy-text.
 7. Generic code fences + legacy `Section\n---` plaintext regex.
 8. Final catch-all via `extractJSONFromText()` + `repairJSON()` (a hand-rolled JSON repair util).
@@ -239,6 +251,7 @@ that ships every turn (`promptBuilder.generateTrackerInstructions`, the continua
 
 Because the current values are injected as prior state **and** the model is told to let them "color
 responses," the loop is bidirectional:
+
 - **State → story:** a high `corruption` / low `health` / high `arousal` value sits in context every turn
   and the instruction explicitly tells the model to act on it. Slap a "Horny" meter at 90 on an NPC and the
   injected line *"a character's emotional state coloring their responses"* is what makes them act horny.
@@ -264,6 +277,7 @@ steers) are compiled by `buildCharactersJSONInstruction()` and injected the same
 ## 6. Notable strengths (steal) and jank (avoid)
 
 **Strengths worth copying**
+
 1. **Schema-as-data, single source of truth.** One `trackerConfig` drives prompt, parse, and render.
    Renders are derivations, never parallel definitions.
 2. **Compile the user's schema into a JSON skeleton with holes + inline `//` comments and `X` placeholders.**
@@ -282,8 +296,9 @@ steers) are compiled by `buildCharactersJSONInstruction()` and injected the same
    vs hidden).
 
 **Jank worth avoiding**
+
 - **Stringly-typed everywhere.** JSON round-trips through `JSON.stringify` strings held in state; inventory
-  is converted array↔string repeatedly; `getValue()` has ~8 shape-guessing branches. We have real types — use
+  is converted array↔string repeatedly; `getValue()` has \~8 shape-guessing branches. We have real types — use
   them; keep a typed sheet and only stringify at the prompt boundary.
 - **Cascading parser is a maintenance sink** (9 fallback layers, XML + text legacy formats). We can commit to
   **one** wire format (fenced `json`) + one repair pass and delete the rest.
@@ -292,7 +307,7 @@ steers) are compiled by `buildCharactersJSONInstruction()` and injected the same
   beat this; keep per-widget config.
 - **Migration-ladder sprawl** (5 settings versions, several ad-hoc `migrateToX`). Versioned config is good; the
   ad-hoc accumulation is not — we have a schema-versioning discipline already, use it.
-- **~1.7k-LOC hand-rolled jQuery editor** building HTML strings. Our editor stack is far better; the *shape*
+- **\~1.7k-LOC hand-rolled jQuery editor** building HTML strings. Our editor stack is far better; the *shape*
   of the config is the lesson, not the UI code.
 - **No validation of user field names → key collisions.** Two fields snake-casing to the same key silently
   clobber. Validate on add.
@@ -305,12 +320,12 @@ Framing for the actual question ("*how do we make something where users add cust
 Marinara's schema-as-data + JSON-skeleton round-trip, and map each of her four config groups onto a piece we
 already have.** We are in a *better* position than she is because our flexible primitives (skills, pools,
 custom HUD widgets, injection macros) already exist — lite mode is mostly *wiring an editable schema to the
-existing round-trip*, plus decoupling the sheet from the hardcoded D&D six.
+existing round-trip*, plus decoupling the sheet from the hardcoded D\&D six.
 
 ### 7.1 Map her model onto our existing primitives
 
 | Marinara concept | Our existing piece | Action |
-|---|---|---|
+| - | - | - |
 | `customStats` (bounded meters, `{id,name,maxValue}`, bar) | **custom pools** (MP/Sanity/etc.) + **custom HUD meter widgets** | Make the lite sheet a list of pools; render each as an existing meter widget. Nothing new to build for display. |
 | `rpgAttributes` (unbounded integer stats, stepper) | **free-form `skills` (name→number record)** | Our `skills` record *is* her generic attribute list. Reuse it verbatim — a lite "attribute" is just a skill entry surfaced with a stepper. Kills the need for the hardcoded `{str,dex,con,int,wis,cha}`. |
 | `statusSection.customFields` / `skillsSection` (CSV free-text) | free-form text fields on the sheet | A `Record<string,string>` of named text trackers ("Conditions", "Bloodline"). |
@@ -337,7 +352,7 @@ existing round-trip*, plus decoupling the sheet from the hardcoded D&D six.
    ```
    Users **add a row, type a name** (optionally a `(hint)`), pick pool vs attribute vs steering-meter vs text,
    and **attach it to an entity** (player or a named NPC). `id` auto-derived from name; validate for
-   collisions. This is the answer to "add custom stats": array-append on a typed schema. The six D&D
+   collisions. This is the answer to "add custom stats": array-append on a typed schema. The six D\&D
    attributes become just *default seed rows* on the player entity, not a fixed type — drop the hardcoded
    `{str,dex,con,int,wis,cha}` and the mandatory d20 engine from lite mode. **Slapping a "Corruption" meter on
    an NPC is: append one `meters` row to that NPC's entity.**
@@ -361,6 +376,7 @@ existing round-trip*, plus decoupling the sheet from the hardcoded D&D six.
    text/existing inventory UI. All are existing HUD widgets pointed at the sheet — no bespoke rendering.
 
 ### 7.3 What to explicitly leave out of lite mode (the "light" boundary)
+
 - No dice/d20 resolution requirement (keep an *optional* `Math.random` roll-into-prompt if wanted; the model
   adjudicates — never a resolver).
 - No combat/encounter state machine, no clock, no GM seat.
@@ -368,6 +384,7 @@ existing round-trip*, plus decoupling the sheet from the hardcoded D&D six.
   the model reads and rewrites.** That's the entire feature.
 
 ### 7.4 Two things to do *better* than she does
+
 - **Keep the sheet typed end-to-end**; stringify only at the injection boundary. Avoids her
   stringly-typed `getValue()` swamp.
 - **Per-stat config** (per-meter min/max, per-field persist-in-history, reorder) via our existing widget
@@ -376,6 +393,7 @@ existing round-trip*, plus decoupling the sheet from the hardcoded D&D six.
 ---
 
 ### Source files read (in `SpicyMarinara/rpg-companion-sillytavern`)
+
 `manifest.json`; `src/core/{state,config,persistence}.js`; `src/systems/generation/{promptBuilder,
 jsonPromptHelpers,injector,parser}.js`; `src/systems/features/{classicStats,dice,encounterState}.js`;
 `src/systems/ui/trackerEditor.js` (config-UX sections); with `promptsEditor.js` + `rendering/userStats.js`

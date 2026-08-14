@@ -1,9 +1,7 @@
 ---
-kind: security-review
-status: findings
-scope: pre-auth (no-session) HTTP attack surface — routes + servable files
-date: 2026-08-09
-verified-against: working tree @ main; live probe of the running stack on http://127.0.0.1:8788
+kind: review
+status: active
+updated: 2026-08-14
 ---
 
 # Pre-auth attack surface — the unauthed-reachable route + file inventory
@@ -76,7 +74,7 @@ blob returns nothing to a session-less caller.
 
 ## 2. Findings
 
-### F1 — [HIGH] Production sourcemaps are served to unauthenticated clients — full first-party source recovery
+### F1 — \[HIGH] Production sourcemaps are served to unauthenticated clients — full first-party source recovery
 
 **What.** The prod client build emits `.map` files INTO the served `dist/assets/` dir.
 `sourcemap: "hidden"` (`packages/client/vite.config.ts:255`) suppresses only the
@@ -85,6 +83,7 @@ not the file. `spa.ts:59` serves the whole `distDir` via `serveStatic`, and its 
 tags `/assets/*.map` `immutable` (`spa.ts:64`).
 
 **Evidence (build + live).**
+
 - `packages/client/dist/assets/`: 18 `.map` files beside 19 `.js`.
 - `index-BwanMldm.js.map`: `sourcesContent` present; `"sources"` lists 811 unique `../../src/**`
   first-party files plus every `node_modules/.pnpm/**` dep path (directory layout + exact dep
@@ -99,9 +98,10 @@ tags `/assets/*.map` `immutable` (`spa.ts:64`).
 `GET /assets/<bundle>.js.map` → recover the entire client codebase (auth flow, every authed route's
 logic, internal tRPC/wire shapes, comments, any client-embedded constants). This is precisely the
 "deep-probe foothold" the owner is worried about, and it is origin-independent (static files need no
-principal), so it leaks in every AUTH_MODE.
+principal), so it leaks in every AUTH\_MODE.
 
 **Minimal fix (pick one; belt-and-suspenders recommended):**
+
 1. **Do not ship maps in the served dir.** Set `sourcemap: false` for the build that produces the
    container's `dist/`, OR keep `hidden` and move/delete `*.map` out of `dist/` in the build/container
    step (retain them out-of-band for symbolication if wanted). This is the root fix and the one to
@@ -110,7 +110,7 @@ principal), so it leaks in every AUTH_MODE.
 2. **Belt in `spa.ts`:** before `serveStatic`, 404 any non-`/api` path ending in `.map` (and, cheaply,
    `.ts`/`.tsx`). Defense-in-depth so a future build config regression can't re-leak.
 
-### F2 — [INFO] Dev/debug routes confirmed dev-only / gated in prod
+### F2 — \[INFO] Dev/debug routes confirmed dev-only / gated in prod
 
 - `/@fs`, `/@vite` are vite-dev-server routes only; the prod Hono app has no such handler (only
   `serveStatic`). Live on the dev origin `:5173`, `GET /@fs/etc/passwd` → `403` (vite `server.fs.deny`
@@ -123,7 +123,7 @@ principal), so it leaks in every AUTH_MODE.
 *Deploy note:* the vite dev server (`:5173`) must never be network-exposed in a production deploy;
 it is the dev front door and has no place in prod (there is no vite in the prod image).
 
-### F3 — [MEDIUM, deploy-posture / C13] Host-header owner-fallback = the unauthed world is owner on data routes if the port is directly reachable
+### F3 — \[MEDIUM, deploy-posture / C13] Host-header owner-fallback = the unauthed world is owner on data routes if the port is directly reachable
 
 **What.** `ownerFallbackAllowed` (`infra/auth/dispatch.ts:47`) grants the un-credentialed
 `via:"fallback"` owner identity when `AUTH_FALLBACK=owner` AND the origin is trusted. `isLocalOrigin`
@@ -147,13 +147,13 @@ reachable from untrusted networks — front it with the reverse proxy and/or set
 (`entry/app.ts:169`). State this as a deployment invariant. No code defect; documenting the
 assumption is the deliverable.
 
-### F4 — [INFO] Debug gate holds against the fallback owner
+### F4 — \[INFO] Debug gate holds against the fallback owner
 
 Confirmed: `via:"fallback"` is not a debug credential and unsetting `DEBUG_TOKEN` yields `404`, not an
 open gate (the AUTHFIX-2 regression is closed and pinned by
 `tests/server/entry/debug-gate.suite.test.ts`). No action.
 
-### F5 — [DEPLOY INVARIANT, now belt-enforced in code] The public server runs `pnpm stack up prod` — never a dev/worktree/snap process
+### F5 — \[DEPLOY INVARIANT, now belt-enforced in code] The public server runs `pnpm stack up prod` — never a dev/worktree/snap process
 
 **The invariant (C13 sibling, states the deploy mode rather than the port):** the process serving the
 public FQDN is started by **`pnpm stack up prod`** — `NODE_ENV=production`, the prod `dist`, no vite.
@@ -190,19 +190,19 @@ production box the knob is inert by construction, which is the point.
 
 ## 3. Prioritized strip/deny list (feeds fix lanes + C13)
 
-1. **[HIGH] Strip prod `*.map` from the served `dist/`** — root fix in the build/container step
+1. **\[HIGH] Strip prod `*.map` from the served `dist/`** — root fix in the build/container step
    (`sourcemap: false` for the shipped build, or delete/move maps out of `dist/`), PLUS a `.map`/`.ts`
    404 belt in `spa.ts`. Achieves the D21 intent the config comment already claims.
-2. **[MEDIUM] C13 invariant:** server port not directly reachable by untrusted networks; the
+2. **\[MEDIUM] C13 invariant:** server port not directly reachable by untrusted networks; the
    Host-based owner-fallback assumes a proxy-fronted port + `IP_ALLOWLIST`. Document it. **Sibling
    invariant, now belt-enforced in code — see F5:** the public server runs `pnpm stack up prod`, never a
    dev/worktree/snap process (a non-production build binds loopback only, and an explicit public dev bind
    is boot-fatal).
-3. **[INFO] Code-split (#43):** today the client largely downloads as one bundle, so an unauthed
+3. **\[INFO] Code-split (#43):** today the client largely downloads as one bundle, so an unauthed
    visitor pulls the whole app's JS (all authed routes' code, readable) regardless of F1. Landing #43
    route-level code-splitting shrinks the pre-auth JS the anonymous world receives — a security win
    (smaller readable pre-auth surface), not just perf. Independent of F1, which must be fixed anyway.
-4. **[INFO] Optional:** drop the tRPC `echo` reflection procedure (`router.ts:46`) if it has no
+4. **\[INFO] Optional:** drop the tRPC `echo` reflection procedure (`router.ts:46`) if it has no
    consumer — a pure input-reflection endpoint on the anonymous surface earns its keep only if used.
 
 ---
@@ -269,7 +269,7 @@ NOT yet been applied (Caddy still targets `host.docker.internal`).
   block (`:155-159`) sets HSTS/nosniff/`-Server`, no CSP. The ONLY `Content-Security-Policy` lines in
   the file are scoped inside `handle @searxng` (`:327`, `:331`) — a different host. Caddy's `header`
   directive only affects headers it names, so the app's `Content-Security-Policy` **and the
-  card-frame's tighter per-document CSP** (`/api/card-frame/:id`) flow through the reverse_proxy
+  card-frame's tighter per-document CSP** (`/api/card-frame/:id`) flow through the reverse\_proxy
   unmodified. The app's script-src `'self'` policy is not weakened or overwritten at the edge.
   **Do not** add a `header Content-Security-Policy …` to the snippet or the orbweaver block — keep CSP
   app-owned. (SAMEORIGIN X-Frame-Options is compatible with the card-frame, which the app embeds
@@ -278,7 +278,7 @@ NOT yet been applied (Caddy still targets `host.docker.internal`).
   HTTPS edge; the app deliberately sets `strictTransportSecurity:false` (`security-headers.ts:96`)
   because it is also served plain-http on LAN. Caddy is the correct owner of HSTS here.
 - **`/api/*` excluded from `encode`** (`@orbweaver_compressible not path /api/*`) + `flush_interval -1`
-  + `1800s` timeouts — the D118 multiplexed-SSE requirement (caddy#6293). Correct.
+  - `1800s` timeouts — the D118 multiplexed-SSE requirement (caddy#6293). Correct.
 - **Perimeter defenses front orbweaver:** CrowdSec bouncer + per-IP `rate_limit` (skips private
   ranges) + the scanner honeypot fallback + `request_body max_size 1GB`.
 - **h3/QUIC in place** (launch checklist): global `protocols h1 h2 h3` (`Caddyfile:13`) + stack compose
@@ -286,7 +286,7 @@ NOT yet been applied (Caddy still targets `host.docker.internal`).
 
 ### Adjust (X)
 
-1. **[MEDIUM] Close the direct-port bypass — this is the live F3 hole.** Caddy targets
+1. **\[MEDIUM] Close the direct-port bypass — this is the live F3 hole.** Caddy targets
    `host.docker.internal:8788`; the app is bound bare on the host. The Caddyfile's OWN comment
    (`:365-366`) states it plainly: *"owner on the raw LAN IP (which bypasses caddy)."* Anyone on the
    LAN hitting `http://<host-lan-ip>:8788` sends a private-range `Host` → `isLocalOrigin` true
@@ -296,10 +296,10 @@ NOT yet been applied (Caddy still targets `host.docker.internal`).
    **Fix (the orbweaver spec's own D4 recommendation):** containerize orbweaver onto `inktomi-net`
    with `expose: 8788` (NEVER `ports:`) and repoint
    `reverse_proxy host.docker.internal:8788` → `reverse_proxy orbweaver:8788` (keep `flush_interval -1`
-   + `1800s` timeouts). **Interim belts if the bare-host layout stays:** bind the app to
-   `127.0.0.1:8788` only (not `0.0.0.0`), OR set the app's `IP_ALLOWLIST` to loopback/proxy only, OR
-   run an SSO mode with `AUTH_FALLBACK=deny`.
-2. **[LOW] Header drift from the shared `security_headers` snippet (SET semantics = it replaces the
+   - `1800s` timeouts). **Interim belts if the bare-host layout stays:** bind the app to
+     `127.0.0.1:8788` only (not `0.0.0.0`), OR set the app's `IP_ALLOWLIST` to loopback/proxy only, OR
+     run an SSO mode with `AUTH_FALLBACK=deny`.
+2. **\[LOW] Header drift from the shared `security_headers` snippet (SET semantics = it replaces the
    app's).** `X-Frame-Options: SAMEORIGIN` OVERRIDES the app's intended `DENY`
    (`security-headers.ts:98`) — a legacy-header downgrade only; the app's `frame-ancestors 'none'`
    CSP (which Caddy doesn't touch) still enforces DENY in modern browsers, so practical impact ≈ nil.

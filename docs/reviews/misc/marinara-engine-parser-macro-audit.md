@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Marinara Engine — Parser & Macro Subsystem Audit
 
 **Scope:** READ-ONLY audit of `/home/inktomi/inktomi-stack/development/neo-tavern/references/marinara-engine`,
@@ -21,8 +27,9 @@ Marinara is a full ST-derived monorepo (`packages/{client,server,shared}`) with 
 shells that are irrelevant here. The interpolation/parser surface, enumerated to the leaf:
 
 ### The macro grammar (one engine)
+
 | File | Lines | Role |
-|---|---|---|
+| - | - | - |
 | `packages/shared/src/utils/macro-engine.ts` | 1853 | **The** `{{macro}}` engine — read IN FULL |
 | `packages/server/src/services/prompt/macro-context.ts` | 486 | Builds `MacroContext`; idle-duration + var-snapshot helpers |
 | `packages/client/src/lib/chat-macros.ts` | 254 | Client `MacroContext` builder + memoizing resolver factory |
@@ -30,8 +37,9 @@ shells that are irrelevant here. The interpolation/parser surface, enumerated to
 | `docs/prompts/macros.md`, `conditional-prompts.md`, `preset-variables.md` | — | Authored grammar spec |
 
 ### Adjacent interpolation / parser systems (the delta sources)
+
 | File | Lines | Role |
-|---|---|---|
+| - | - | - |
 | `packages/client/src/lib/game-tag-parser.ts` | 1144 | **`[tag: …]` GM-output bracket-DSL** — the big one |
 | `packages/client/src/lib/party-dialogue-parser.ts` | — | `[dialogue: speaker="X"]` sub-parser |
 | `packages/server/src/services/prompt-overrides/template.ts` | 51 | `${name}` engine w/ declared allowlist + validation |
@@ -40,6 +48,7 @@ shells that are irrelevant here. The interpolation/parser surface, enumerated to
 | `packages/shared/src/utils/image-prompt-compiler.ts` | 40158 B | Image-prompt builder (out of scope — media, not RP text) |
 
 ### Non-parser (confirmed NOT a scripting layer)
+
 - `packages/client/src/lib/slash-commands.ts` + `docs/chats/slash-commands.md` — a **fixed command menu**
   (`/help /continue /goto /hide /macros /remind /illustrate …`), NOT SillyTavern's Turing-complete STscript.
   No pipes, no closures, no user scripting. **No delta here** — it's a UX menu, not a parser.
@@ -94,17 +103,19 @@ only the small hardening tricks in §4.
 ## 3. THE DELTAS — capabilities neither our engine nor §12A covers
 
 ### D1 — `[tag: attr="value"]` GM-output bracket-DSL  ·  STEAL (concept) / ADAPT (mechanics)
+
 **What:** A parser for **model OUTPUT** (not authored templates). The GM model emits inline command tags in its
 prose; marinara extracts them into structured data and strips them from the displayed narration.
 **Where:** `packages/client/src/lib/game-tag-parser.ts` (1144 lines), `parseGmTags()` :733, `stripGmTags()` :1042.
 
-**The registry (~23 named tags, file:line):** `combat_result` (582), `music` (583), `sfx` (584), `bg` (585),
+**The registry (\~23 named tags, file:line):** `combat_result` (582), `music` (583), `sfx` (584), `bg` (585),
 `ambient` (586), `qte` (587), `state` (588), `reputation` (589), `combat` (590), `direction` (591), `widget`
 (592), `dialogue` (593), `session_end` (594), `skill_check` (595), `status` (596), `element_attack` (597),
 `party_change` (598), `party_add` (599), `dice` (602), `inventory` (645), `map_update` (292), plus readables
 `Note`/`Book` (1018/1023). Attributes parsed by `parseTagAttributes` (:130) — `key = "quoted" | 'quoted' | bare`.
 
 **Why it's robust (the stealable engineering):**
+
 - **Quote-and-escape-aware balanced-bracket walker** `stripUnknownBracketTags` (:205-256): walks char-by-char
   tracking `inString`/`escaped`/bracket-`depth`, so a tag carrying **JSON in its attributes**
   (`[combat: {"enemies":[…]}]`) is removed *whole* — the naive `/\[\w+:[^\]]*\]/` stops at the first `]` and
@@ -136,6 +147,7 @@ a design note against the parity-plus output-grammar section.
 ---
 
 ### D2 — `${name}` prompt-override engine: declared allowlist + write-boundary validation  ·  ADAPT (validate our args direction)
+
 **What:** A *third* interpolation dialect (separate from `{{…}}` and `[…]`), `${charName}`-style, for
 image/video prompt-override templates. **Where:** `prompt-overrides/template.ts` (51 lines), pattern
 `/\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g` (:10).
@@ -152,6 +164,7 @@ runtime no-throw). Do NOT adopt the third syntax — one grammar.
 ---
 
 ### D3 — Structured **Preset Variables** as typed choice-blocks  ·  ADAPT (feeds §12A user-macros + FOREIGN-inputs)
+
 **What:** `{{NAME}}` isn't only a flat variable — a preset author defines it as a **typed, user-facing input
 control**: single-select (radios), **boolean-toggle** (a 1-option variable becomes on/off), **multi-select** with
 a **configurable join separator**, and **random-pick** (draws one from the user's *selected pool* each
@@ -170,6 +183,7 @@ engine.
 ---
 
 ### D4 — `resolveMacrosWithVariableSnapshot`: transactional var commit/rollback  ·  ASSESS vs our op-log → likely SKIP
+
 **What:** Wraps a resolution in a `{...macroCtx.variables}` snapshot and returns `{content, commit(), rollback()}`
 (`macro-context.ts:70-90`). Caller commits on success, rolls back var mutations on failure/discard.
 **Relevance:** Our **D46 variant-scoped var op-log** is strictly more powerful — it's a replayable, scoped,
@@ -180,6 +194,7 @@ line in the report only as *confirmation our op-log design is ahead*, not behind
 ---
 
 ### D5 — Var-op-aware **memoizing resolver** with permanent invalidation latch  ·  ADAPT (perf)
+
 **What:** `createMessageMacroResolver` (`chat-macros.ts:208-234`) returns a resolver that **caches by template
 string** for one display computation (regex-script replacements/trims frequently repeat the same template). The
 cache is **disabled from the first variable-write onward** — a `variablesTouched` latch (:222) — because
@@ -195,6 +210,7 @@ write). Note the correctness argument in the commit if adopted.
 ---
 
 ### D6 — `{{idle_duration}}` context field  ·  STEAL (already on our P6 list)
+
 **What:** Time since the last chat activity as human text (`8 minutes`, `1 hour 5 minutes`, `2 days 3 hours`).
 `formatPromptIdleDuration` (:106) + `resolvePromptIdleDuration` (:130, scans message timestamps, excludes the
 in-flight message). **STEAL** — cheap, useful for "the character notices you've been gone" beats. Already flagged
@@ -203,6 +219,7 @@ on our P6 list per coordinator; this confirms the exact formatting + the exclude
 ---
 
 ### D7 — `WrapFormat` section-wrapping policy (xml / markdown / none)  ·  ASSESS → SKIP for engine, note for assembler
+
 **What:** A **preset-level** toggle that auto-wraps every assembled prompt section in either XML tags
 (`<description>…</description>`, indented), Markdown headings (`## Description`, depth→heading-level), or raw
 (`format-engine.ts:35` `wrapContent`, :60 `wrapGroup`). Section names → tags via `nameToXmlTag`; chat history gets
@@ -231,14 +248,14 @@ a possible "prompt structuring format" toggle if we don't already expose one.
 
 ## 5. §12A design validations / contradictions
 
-| §12A design choice | Marinara evidence | Verdict |
-|---|---|---|
-| Runtime-ENFORCED typed args, strict/lenient | `${name}` declared-allowlist: strict at write, lenient (leave-intact) at render (template.ts:21/38) | **VALIDATES** — adopt the write-strict/render-lenient split |
-| User-defined macros (preset/config-homed) | Preset Variables = typed user-authored inputs w/ random-pick pool (preset-variables.md) | **VALIDATES + enriches** — steal the typed-input vocabulary |
-| Generalized lazy contract w/ determinism threading | `{{random::…}}` side-effects-in-unchosen-branch footgun (macros.md:222) is exactly what determinism threading prevents | **VALIDATES** — our threading is the fix marinara lacks |
-| Reserved flags grammar (`! ? ~ > / #`), scoped-block dedent | Marinara has none of this — flat regex passes, only `{{#if}}` + Jinja-ish standalone trim | **AHEAD** — no contradiction; we're strictly more capable |
-| Variant-scoped vars + D46 op-log | Marinara: flat `{...vars}` snapshot, single reply lifetime, no scoping (macro-context.ts:70) | **AHEAD** — our op-log dominates |
-| CEL `{{expr}}` over structured env | Marinara: hand-rolled `==/contains/&&/||` string comparator only (macro-engine.ts:1035) | **AHEAD** — CEL is a superset |
+| §12A design choice | Marinara evidence | Verdict | | |
+| - | - | - | - | - |
+| Runtime-ENFORCED typed args, strict/lenient | `${name}` declared-allowlist: strict at write, lenient (leave-intact) at render (template.ts:21/38) | **VALIDATES** — adopt the write-strict/render-lenient split | | |
+| User-defined macros (preset/config-homed) | Preset Variables = typed user-authored inputs w/ random-pick pool (preset-variables.md) | **VALIDATES + enriches** — steal the typed-input vocabulary | | |
+| Generalized lazy contract w/ determinism threading | `{{random::…}}` side-effects-in-unchosen-branch footgun (macros.md:222) is exactly what determinism threading prevents | **VALIDATES** — our threading is the fix marinara lacks | | |
+| Reserved flags grammar (`! ? ~ > / #`), scoped-block dedent | Marinara has none of this — flat regex passes, only `{{#if}}` + Jinja-ish standalone trim | **AHEAD** — no contradiction; we're strictly more capable | | |
+| Variant-scoped vars + D46 op-log | Marinara: flat `{...vars}` snapshot, single reply lifetime, no scoping (macro-context.ts:70) | **AHEAD** — our op-log dominates | | |
+| CEL `{{expr}}` over structured env | Marinara: hand-rolled \`==/contains/&&/ | | \` string comparator only (macro-engine.ts:1035) | **AHEAD** — CEL is a superset |
 
 No §12A choice is contradicted. Marinara's macro engine is a **less-capable predecessor**; its value is entirely
 in the **adjacent output-parser (D1)** and the **product/perf/hardening patterns (D2/D3/D5/D6)**.
@@ -248,7 +265,7 @@ in the **adjacent output-parser (D1)** and the **product/perf/hardening patterns
 ## 6. Recommendation summary
 
 | # | Delta | Rec | One-line reason |
-|---|---|---|---|
+| - | - | - | - |
 | D1 | `[tag: attr]` GM-output bracket-DSL (robust walker + allowlist-strip + strip-variants + `{effect}` sub-grammar) | **STEAL concept / ADAPT mechanics** | Port robustness contract into our fence/output grammar; keep our syntax |
 | D2 | `${name}` declared-allowlist + write-boundary validation | **ADAPT** | Formalize §12A's strict-author/lenient-render arg contract |
 | D3 | Preset Variables typed choice-blocks (bool/multi+sep/random-pick) | **ADAPT** | Give §12A user-macros a typed-input vocab on the FOREIGN-inputs seam |

@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Package report cards — follow-up worklist (db · kit · ui)
 
 > **Provenance:** 2026-08-09 owner-requested report cards. Method: every source file of each package
