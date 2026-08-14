@@ -117,10 +117,7 @@ const STATIC: Record<string, string> = {
 // `chatsChanged` row; `assets.listOwned` gained its upload-seam driver and moved to STATIC above). The lane
 // stays: this is where a key with a REAL freshness debt gets tracked with its remediation, rather than being
 // laundered into STATIC (which asserts the key is fine as-is).
-const DEFERRED: Record<string, string> = {
-  "databank.bankHealth":
-    "the bank CENSUS (the library band's count + the home tile's health line and its attention chips), landed 2026-08-14 with the server-side library lenses. Two of its three drivers are already real: the UPLOAD front door invalidates it by hand beside `databank.list` (a raw multipart POST carries no `invalidates`), and the tile's read carries the same bounded `refetchInterval` the list does while any row is mid-ingest — which is what moves the counts as a workload runs. THE DEBT is the tRPC write path: the CRUD/producer mutations in `use-databank-mutations.ts` do not name this key, because that whole file is being rewritten from `invalidates` to `busDriven` by the databank bus wave landing alongside this change, and adding a row to it here would collide with that rewrite. REMEDIATION: the bus wave's `databankChanged` → `trpc.databank.pathFilter()` row covers this key at the ROOT, at which point this entry is stale and the ratchet's own self-cleaning arm reds it — delete it then. Until it lands, a paste/scrape/rename in one tab leaves the census one interaction stale (the rows beside it are not: they carry the poll).",
-};
+const DEFERRED: Record<string, string> = {};
 
 // ── the seam, found BY SYMBOL (never by path) ────────────────────────────────────────────────────────────
 const SEAM_FACTORY = "createInvalidation";
