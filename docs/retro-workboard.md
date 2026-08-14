@@ -1374,13 +1374,13 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   knob correction banked: the three forge ARMS (tested) ≠ the auto/response-format/forced-tool
   deployment knob (vLLM IGNORES it — folds into arm 8). Wire-ring-blind-to-structured claim (08-09)
   is DEAD — it carries full response\_format bodies now (truth-repair if cited). **3 DEFECTS → FIX
-  LANE `meter-scale` RUNNING:** D1 Meter renders a 1-10 score as a PERCENT on BOTH the custom gauge
-  AND the shipped built-in payload's `aria-valuetext` (§3.4 scale-honesty violated live; fix at the
-  PRIMITIVE) · D2 GaugeRow double-labels · D3 save-refusal paints the raw ZodError array not the
-  author sentence. **BOARDED observations (no lane yet):** every forge arm emits TWO `role:"hero"`
-  nodes · the Setup tab hardcodes stage=score/editing=null so custom-analyze schemas + edit-saved-
-  schema are UI-unreachable though both verbs work · `__orb.nav.contextTab()` returns ok without
-  switching (bridge gap, second sighting).
+  LANE `meter-scale` RUNNING:** ~~D1 Meter percent · D2 gauge double-label · D3 raw-ZodError refusal~~ ALL FIXED + MERGED
+  (`f6cbe5bdc`): D1 at the PRIMITIVE (Meter `readout:"scale"` default, percent opt-in — one-consumer
+  sweep, so the shipped built-in payload's hero+assay meters are scale-honest now too) · D2 outer
+  Text dropped · D3 RefusalNote parses the ZodError array into per-issue sentences (pure client
+  seam, new refusal-note.tsx). 26/26 CT. **BOARDED observations → LANE `refinery-ui-fixes` RUNNING:** double-`role:hero` dedupe/re-role ·
+  Setup-tab-hardcoded stage=score/editing=null makes custom-analyze + edit-saved-schema
+  UI-unreachable (verbs work) · `__orb.nav.contextTab()` returns ok without switching (2nd sighting).
 - [ ] **CONFIG DISAGGREGATION SMELL — FOLLOW-UP ONLY, owner-owned (08-14 evening).** Owner's actual
   point (corrected before it solidified — DO NOT re-inflate): connection / preset / role config is
   too SEPARATED and scattered rather than UNIFIED; it's stupid that changing where a role points is
