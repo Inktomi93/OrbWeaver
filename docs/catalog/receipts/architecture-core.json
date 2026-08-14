@@ -10,7 +10,7 @@
       "authority": "normative",
       "fullRead": true,
       "verifiedSha256": "8ee2e6f827d9193dbf3e621a559d2eb5d56d56fb2a6f2d0dffea43829cf19af9",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
+      "verifiedCommit": "ae218dac78a72878540d9c2dd140819540cdb462",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/AGENTS.md:1-351 full read; Project, recovery, proposed-program, and lane authority routing reconciled",
@@ -50,7 +50,7 @@
       "authority": "current-reference",
       "fullRead": true,
       "verifiedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/Chat-Macro-Resolution.md:1 (full read; header/status evaluated)",
@@ -77,7 +77,7 @@
       "authority": "current-reference",
       "fullRead": true,
       "verifiedSha256": "598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/Core-0-Architecture-and-Structure.md:1 (full read; header/status evaluated)",
@@ -190,7 +190,7 @@
       "authority": "normative",
       "fullRead": true,
       "verifiedSha256": "edd166459dd90c49e665b08afec95d5e4a8b0e5103a56495294e0e15c08fef6a",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/Core-Laws-and-Precedents.md:1-66 full read; registry range and Project/recovery redirects reconcile through D141",
@@ -232,8 +232,8 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "b174e93694fbff522bd25e9cdb6fc5fbb25b6522122132588afce5d0fd9a8634",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
+      "verifiedSha256": "2aaf987271d1223f5396ac1fe33d422dc9146d56161db1f281d5614d9384daf9",
+      "verifiedCommit": "ae218dac78a72878540d9c2dd140819540cdb462",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
@@ -260,7 +260,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "ca76c1f2bb8d44ca3a95c3ad267e6ae1dfd6e6e31736874f91420d8a86ec67cc",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/Core-Planning-and-Checklists.md:1 (full read; header/status evaluated)",
@@ -275,8 +275,8 @@
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "7fc6b5d4aad8b49fb28a3686614e8d334c201d10bdfed90e74ab3ae002a0b836",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "c88f6a5e89df7aca2cb5c6871691707625a88f42b91f82e9003cbc9a2b6e7fde",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/Core-ST-Feature-Gap-Register.md:1 (full read; header/status evaluated)",
@@ -292,7 +292,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "2a0729734af1c90761beee23cb7fb4d9c999050decd9195b0e033d9ab1743271",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/Core-STATUS.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -323,8 +323,8 @@
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "108fef8b893959de3e9b4d779be1b21b9b73f38670c11be0a7cbd1ddd66d081c",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
+      "verifiedSha256": "e213f2b6718f77ee83c509537710470a0ff964e039be1d179672a92d13a361e6",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/Core-SillyTavern-Feature-Map.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",

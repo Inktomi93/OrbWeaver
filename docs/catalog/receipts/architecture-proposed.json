@@ -102,8 +102,8 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "5972033043bbd2aa48e941e88d8168c2adc0d3f45f2c2793953e1b7fae68ea6d",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+      "verifiedSha256": "1990e6da1f1ee0b681bb355ffdf552446a135321b3735808c455e51a43473a4a",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/README.md:1 (full read; lifecycle/frontmatter evaluated)",
