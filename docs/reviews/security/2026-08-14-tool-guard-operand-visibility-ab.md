@@ -221,8 +221,10 @@ their tighten (probe rows) before their mover count was believed.
 | I — path-prefixed `rm` | 1 | 1 | 0 |
 | J — escaped quotes in a `$( )` | 0 (2 change EXTRACTION) | 0 | 0 |
 | combined head vs base | **1** | **1** | **0** |
+| K — flag vocabulary (second commit, vs `351a5af2d`) | 0 | 0 | 0 |
 
-Rows in `tests/tooling/tool-guard.int.test.ts` (26 new; **11 of them RED on base**, all green on head).
+Rows in `tests/tooling/tool-guard.int.test.ts` (26 new for H–J, **11 of them RED on base**; 5 more for K,
+**3 RED** on the leg-5 commit — all green on head).
 
 - **H. Quoted `rm` FLAGS were invisible — CLOSED.** `rm "-rf" packages/server/src` classified `pass/none`:
   the head required an UNQUOTED `-r`/`-f` immediately after `rm` (`/^\s*rm(?:\s+-[a-z]*[rf][a-z]*)+/`), and
@@ -259,14 +261,20 @@ Rows in `tests/tooling/tool-guard.int.test.ts` (26 new; **11 of them RED on base
   the outer body and the recursion reaches the inner ones from it. 41 corpus commands carry an escaped
   quote inside a `$(`; none of the other 39 classified differently. A verdict A/B alone cannot see this
   fix, which is why the extraction delta was measured separately.
-- **K (found by leg 5, NOT taken — owner call).** `RM_FLAG_TOKEN` knows only lowercase SHORT flags, so
-  `rm -R packages/server/src` and `rm --recursive --force packages/server/src` — both GNU spellings that
-  delete the identical tree — carry no recognised flag and the rule does not engage. Pre-existing (base
-  behaves the same) and a different defect from A–J: vocabulary, not visibility. Measured so it is
-  decision-ready rather than a hunch — extending the token to
-  `/^(['"]?)(?:-[a-zA-Z]*[rRfF][a-zA-Z]*|--(?:recursive|force|dir))\1$/` costs **0 movers on the 123,462-command
-  corpus** and turns those two shapes into `ask/rm-rf-unsafe` (`rm -R /tmp/scratch` stays a clean pass). One
-  token, no measurable cry-wolf cost — but it is a new tighten outside this leg's three, so it waits for a word.
+- **K. The flag VOCABULARY was lowercase-short-only — CLOSED** (found by leg 5, ruled in by the
+  orchestrator the same day: a 0-mover TIGHTEN closing an identical-deletion blindspot needs no owner word
+  under the tighten-only law — only loosenings escalate). `rm -R packages/server/src` and
+  `rm --recursive --force packages/server/src` classified `pass/none`: `-R` is GNU rm's documented
+  recursive spelling and `--recursive --force` is the long form of `-rf`, so both deleted the identical
+  tree while carrying nothing `RM_FLAG_TOKEN` recognised, and the rule never engaged. A different defect
+  from A–J — vocabulary, not visibility — and pre-existing (the leg-5 base behaves the same). Fix, exactly
+  as measured before it was ruled in: `/^(['"]?)(?:-[a-zA-Z]*[rRfF][a-zA-Z]*|--(?:recursive|force|dir))\1$/`.
+  **A/B against the leg-5 commit `351a5af2d`: 123,462 commands, 0 moved, 0 looser** — the gap cost nothing
+  to close. It composes with the other three closures: `rm "-R" …`, `/bin/rm --recursive --force …` and
+  `echo "$(rm -R …)"` all ask now too. `rm -R /tmp/scratch` stays a clean pass (the safe list decides, as
+  ever), and `-i`/`-I` still carry no r/f so an interactive-only rm is still not this rule.
+  Declared limit, deliberate because it is what was measured: long `--dir` engages, short `-d` does not
+  (no r/f in the token) — `-d` only unlinks an EMPTY directory, the least urgent of the family.
 
 ## Assumptions this leg makes (stated so they can be challenged)
 

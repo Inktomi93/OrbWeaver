@@ -405,12 +405,20 @@ const GIT_PUSH_FORCE = /\bgit\s+push\b[^\n;|]*(?:\s--force(?:-with-lease)?\b|\s-
 // `"/tmp/scratch"` stays sanctioned in quotes while `"packages/server/src"` does not. The head shrinking to
 // the command word only ever GROWS the tail, and the verdict is `targets.some(unsafe)`.
 const RM_HEAD = /^\s*(?:\S*\/)?rm(?=\s|$)/;
-// An `-r`/`-f` flag as `rm`'s own getopt sees it — quoted or not. Recognised on the RAW token so the quoted
-// spelling both ENGAGES the rule and stays OUT of the target list: counting `"-rf"` as a path would make
-// `rm "-rf" /tmp/scratch` ask, a false positive on the sanctioned sweep, and a guard that blocks the right
-// way of doing a job gets routed around. This is the one direction in which this leg can move a command
-// looser (a token that was never a target reaching rm as a flag) — corpus movers: 0.
-const RM_FLAG_TOKEN = /^(['"]?)-[a-z]*[rf][a-z]*\1$/;
+// A recursive/force flag as `rm`'s own getopt sees it — quoted or not, short or long, EITHER CASE.
+// Recognised on the RAW token so the quoted spelling both ENGAGES the rule and stays OUT of the target
+// list: counting `"-rf"` as a path would make `rm "-rf" /tmp/scratch` ask, a false positive on the
+// sanctioned sweep, and a guard that blocks the right way of doing a job gets routed around. That
+// exclusion is the one direction in which this rule can move a command looser (a token that was never a
+// target reaching rm as a flag) — corpus movers: 0.
+// The vocabulary was lowercase-SHORT-only until the leg-5 follow-up (2026-08-14, A/B item K): `-R` is GNU
+// rm's documented recursive spelling and `--recursive --force` is the long form of `-rf`, so both deleted
+// the identical tree while carrying nothing this token recognised — the rule simply did not engage. 0
+// movers across 123,462 corpus commands, i.e. the vocabulary gap cost nothing to close and bought two
+// identical-deletion spellings. Note the remaining asymmetry, deliberate because it is what was MEASURED:
+// long `--dir` engages, short `-d` does not (it has no r/f) — `-d` only unlinks an EMPTY directory, so it
+// is the least urgent of the family.
+const RM_FLAG_TOKEN = /^(['"]?)(?:-[a-zA-Z]*[rRfF][a-zA-Z]*|--(?:recursive|force|dir))\1$/;
 // `.claude/worktrees/` added 2026-08-13: lane worktrees are disposable by construction and the standing
 // law now requires sweeping them by hand (teardown does not fire on agent completion — probed live). Asking
 // about every sweep spent lane turns for nothing. Scoped to `worktrees/` ONLY — the rest of `.claude/`

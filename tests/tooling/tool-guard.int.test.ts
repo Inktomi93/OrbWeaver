@@ -218,6 +218,16 @@ const ROWS: Row[] = [
   ["pass", null, 'rm -r "-f" /tmp/scratch'],
   ["ask", "rm-rf-unsafe", 'rm -rf "-i" /tmp/scratch'],
   ["ask", "rm-rf-unsafe", 'rm -rf "--one-file-system" /tmp/scratch'],
+  // ---- THE FLAG VOCABULARY (leg-5 follow-up, A/B item K). Recognition was lowercase-SHORT-only, so two
+  // spellings of the IDENTICAL deletion carried nothing the rule could see and it never engaged: `-R` is
+  // GNU rm's documented recursive flag, and `--recursive --force` is the long form of `-rf`. 0 movers on
+  // the 123,462-command corpus — the gap cost nothing to close. ----
+  ["ask", "rm-rf-unsafe", "rm -R packages/server/src"],
+  ["ask", "rm-rf-unsafe", "rm --recursive --force packages/server/src"],
+  ["ask", "rm-rf-unsafe", "rm -Rf packages/server/src"],
+  ["pass", null, "rm -R /tmp/scratch"], // the safe-target answer is unchanged by the vocabulary
+  // `-i` and `-I` still carry no r/f, so an interactive-only rm is still not this rule
+  ["pass", null, "rm -I one-file.txt"],
   // ---- A PATH-PREFIXED `rm` (leg 5). Every other head regex in the guard carries `(?:\S*\/)?` (READER,
   // NET_FETCH_HEAD, SHELL_SINK_HEAD, SCRIPT_SHELL_EXEC); this one did not, so `/bin/rm -rf …` was not `rm`. ----
   ["ask", "rm-rf-unsafe", "/bin/rm -rf packages/server/src"],
