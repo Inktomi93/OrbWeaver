@@ -32,8 +32,8 @@ const channelFor = (chatId: ChatId): string => `chat:${chatId}`;
  *      nothing to replay. The pump skips the dedup and yields it at the CURRENT cursor (the attach-synthetic
  *      non-advancement rule), so an undelivered durable row can never be skipped past.
  *  The null-seq arm is narrowed to the live-only members, so "fan a durable event without logging it" is a
- *  compile error here. The converse — appending a live-only member — is closed UPSTREAM of every writer, at
- *  the two `DurableChatBusEvent`-narrowed emit surfaces (`domain/chat/bus::emit`,
+ *  compile error here. The converse — appending a live-only member — is closed UPSTREAM of every writer,
+ *  at the two `DurableChatBusEvent`-narrowed emit surfaces (`domain/chat/bus::emit`,
  *  `entry/compose/services::emitChatEvent`), which is why the numbered arm keeps the wide type. */
 export interface ChatLiveEvent {
   readonly seq: number | null;
@@ -41,8 +41,8 @@ export interface ChatLiveEvent {
 }
 
 /** The WRITE door's shape — the arm pairing as a discriminated union, so a publisher cannot fan a durable
- *  event without its cursor nor append-by-accident a live-only one. Deliberately NOT exported: `no-inline-
- *  types` homes an exported type alias in `contract/`, and transport has none — and a READER genuinely wants
+ *  event without its cursor nor append-by-accident a live-only one. Deliberately NOT exported:
+ *  `no-inline-types` homes an exported type alias in `contract/`, and transport has none — and a READER genuinely wants
  *  the wide `ChatLiveEvent` above (the pump switches on `seq === null` and re-resolves the event either way).
  *  The narrowing that matters is on the doors, and it is here. */
 type ChatLivePublish = { readonly seq: number; readonly event: ChatBusEvent } | { readonly seq: null; readonly event: LiveOnlyChatBusEvent };
