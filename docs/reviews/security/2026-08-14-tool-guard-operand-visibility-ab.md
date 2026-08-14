@@ -1,9 +1,9 @@
 ---
 kind: security-review
 status: landed (code merged with this doc)
-owner-review: REQUIRED (the A–F decision agenda below)
+owner-review: REQUIRED (the A–K decision agenda below)
 updated: 2026-08-14
-scope: tool-guard operand visibility — bash -c operands, $( ) substitutions, realpath self-identity, pipe-rewrite comment tail; corpus A/B receipt
+scope: tool-guard operand visibility — bash -c operands, $( ) substitutions, realpath self-identity, pipe-rewrite comment tail, quoted rm targets/flags, path-prefixed rm, escaped quotes in a substitution; corpus A/B receipts
 ---
 
 # tool-guard: quoted-command visibility — corpus A/B
@@ -163,10 +163,10 @@ node …/.claude/worktrees/agent-a830baf4f26c209ec/.claude/hooks/tool-guard.mjs 
 A worktree's COPY of the hook is not the hook this process is running, so it no longer self-exempts. All
 four still pass — they simply get judged by the normal rules now, which is the whole point.
 
-## Owner decision agenda (A–F)
+## Owner decision agenda (A–G; leg 5's H–K are in the section after this one)
 
-Verbatim from the lane report. **Nothing here was actioned** — every item would LOOSEN a control, or is
-out of the leg's scope by instruction.
+Verbatim from the lane report. **Nothing in A–C, E–G was actioned** — every one of those would LOOSEN a
+control, or is out of its leg's scope by instruction. D was closed by a follow-up leg (see its entry).
 
 - **A.** 6 corpus commands like `c=$(sqlite3 "file:$f?mode=ro" "select count(*) …")` over
   `data/orbweaver.db.backup-*` now `ask/subst:sqlite-live`. That is the *existing* top-level rule applied
@@ -208,6 +208,66 @@ out of the leg's scope by instruction.
   same false positive to the quoted spelling (`rm -rf "/tmp/foo" # cleanup`). The fix, when it is worded:
   intersect the target slice with the stage's non-comment span (`commentSpans` already returns it).
 
+## Leg 5 — three more visibility closures (2026-08-14)
+
+Same instrument, same law, one corpus later: **123,462** Bash commands across **2,281** transcripts (both
+`~/.claude*` roots), base = `629dc7e89` (the D follow-up as merged), each tighten replayed BOTH on its own
+and combined, so a 0-mover arm can be told apart from a broken one. Arms were verified to actually apply
+their tighten (probe rows) before their mover count was believed.
+
+| arm | moved | stricter | looser |
+| - | - | - | - |
+| H — quoted flags | 0 | 0 | 0 |
+| I — path-prefixed `rm` | 1 | 1 | 0 |
+| J — escaped quotes in a `$( )` | 0 (2 change EXTRACTION) | 0 | 0 |
+| combined head vs base | **1** | **1** | **0** |
+
+Rows in `tests/tooling/tool-guard.int.test.ts` (26 new; **11 of them RED on base**, all green on head).
+
+- **H. Quoted `rm` FLAGS were invisible — CLOSED.** `rm "-rf" packages/server/src` classified `pass/none`:
+  the head required an UNQUOTED `-r`/`-f` immediately after `rm` (`/^\s*rm(?:\s+-[a-z]*[rf][a-z]*)+/`), and
+  a quoted token is spaces in the blanked text, so the regex matched NOTHING and the rule never engaged.
+  Exactly the D hole one token to the left — quoting is the SHELL's business, `rm`'s getopt receives `-rf`
+  either way. Fix: the head is now the COMMAND WORD only (`RM_HEAD`) and both flags and targets are read as
+  RAW tokens, with an `-r`/`-f` flag recognised quoted or not (`RM_FLAG_TOKEN`). **Corpus: 0 commands carry
+  the shape at all** — an evasion path closed before it was walked, not a measured behaviour change. Also
+  tightened by construction: a flag AFTER the target (`rm packages/server/src -rf`, a real deletion) used
+  to pass because the old head demanded adjacency.
+  **The one direction this leg can move a command LOOSER**, stated because "0 looser" is the claim this
+  document exists to support: a quoted `-r`/`-f` token stops counting as a TARGET, so
+  `rm -r "-f" /tmp/scratch` goes ask → pass. It was a false positive (the deletion is `/tmp/scratch`,
+  sanctioned; `"-f"` is not a path), 0 corpus commands are that shape, and it is pinned as an int row
+  together with `rm -rf "-i" /tmp/scratch` / `rm -rf "--one-file-system" /tmp/scratch`, which still ask —
+  only r/f flag tokens are reclassified, nothing else.
+- **I. A path-prefixed `rm` was not `rm` — CLOSED.** `/bin/rm -rf packages/server/src` classified
+  `pass/none`; every other head regex in the guard already carried `(?:\S*\/)?` (`READER`,
+  `NET_FETCH_HEAD`, `SHELL_SINK_HEAD`, `SCRIPT_SHELL_EXEC`) and this one did not. **The single mover in the
+  whole leg is this one, and it is real:** a recorded lane command
+  `/usr/bin/rm -f <repo>/tests/client/features/refinery/components/zzverify-contrast.ct.tsx && git -C … status --short`
+  deleted a file inside the checkout and passed clean; the identical `rm -f …` spelling already asked. Now
+  `ask/rm-rf-unsafe`. The prefix can only match a token whose LAST path segment is exactly `rm`, so `npm`,
+  `pnpm rm`, `/usr/bin/rmdir` and `/usr/bin/grm` cannot be confused for it (all pinned must-pass).
+- **J. An escaped quote inside `$( … )` skipped the substitution ENTIRELY — CLOSED.** `substitutionEnd`
+  walked a `blankQuoted` copy, and that helper treats `\"` as OPENING a quote (it only honours the
+  backslash when CLOSING one). A `$( … )` nested in double quotes must escape its own inner quotes, so the
+  phantom span swallowed the closing paren, the walk returned -1, and the substitution was dropped from
+  extraction — `echo "$(rm -rf \"packages/server/src\")"` was classified as NOTHING, which is the one
+  outcome the whole quoted-command pass exists to prevent. Fix: a self-contained paren walk that honours
+  escapes (`blankQuoted`'s job is blanking spans for the rule regexes, not parsing shell escapes, and
+  changing it would touch every rule in the file). **Corpus: 0 verdict movers, but 2 commands change what
+  is EXTRACTED** — in both, base missed the OUTER substitution and picked up inner ones instead; head reads
+  the outer body and the recursion reaches the inner ones from it. 41 corpus commands carry an escaped
+  quote inside a `$(`; none of the other 39 classified differently. A verdict A/B alone cannot see this
+  fix, which is why the extraction delta was measured separately.
+- **K (found by leg 5, NOT taken — owner call).** `RM_FLAG_TOKEN` knows only lowercase SHORT flags, so
+  `rm -R packages/server/src` and `rm --recursive --force packages/server/src` — both GNU spellings that
+  delete the identical tree — carry no recognised flag and the rule does not engage. Pre-existing (base
+  behaves the same) and a different defect from A–J: vocabulary, not visibility. Measured so it is
+  decision-ready rather than a hunch — extending the token to
+  `/^(['"]?)(?:-[a-zA-Z]*[rRfF][a-zA-Z]*|--(?:recursive|force|dir))\1$/` costs **0 movers on the 123,462-command
+  corpus** and turns those two shapes into `ask/rm-rf-unsafe` (`rm -R /tmp/scratch` stays a clean pass). One
+  token, no measurable cry-wolf cost — but it is a new tighten outside this leg's three, so it waits for a word.
+
 ## Assumptions this leg makes (stated so they can be challenged)
 
 - **Single-quote asymmetry is deliberate.** `'$(x)'` is literal text and is NOT extracted; biting it
@@ -228,5 +288,13 @@ The A/B harness is ephemeral by design (it imports both classifier versions by p
 future base: extract the base guard with `git show <sha>:.claude/hooks/tool-guard.mjs`, import both
 `classify` functions, and replay the transcript roots the way `scripts/probes/guard-replay.ts` does — that
 probe is the maintained instrument for single-version replays, and its extraction loop is what this A/B
-copied. The int suite (`tests/tooling/tool-guard.int.test.ts`, 19 tests) pins every must-bite and must-pass
+copied. The int suite (`tests/tooling/tool-guard.int.test.ts`, 20 tests) pins every must-bite and must-pass
 row named here, at the classifier AND at the PreToolUse wire protocol.
+
+Leg 5 added two method notes worth reusing. **Extract the corpus ONCE to a JSONL cache** (command, scope,
+cwd) and replay N variants against it — the 4.5GB read is the whole cost, classification of 123k commands
+is ~15s per variant, so per-tighten arms become free. **Place every variant at
+`<dir>/.claude/hooks/tool-guard.mjs`**, including the base: the guard's self-exemption is a realpath
+identity computed from `import.meta.url`, so an asymmetric layout invents `self-exempt` movers. And a
+0-mover arm is only evidence once the arm has been shown to APPLY its tighten (probe rows first, then
+believe the count) — one of leg 5's three arms moves nothing in 123k commands and is still a real closure.
