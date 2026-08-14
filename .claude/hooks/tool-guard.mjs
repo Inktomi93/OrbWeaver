@@ -83,6 +83,15 @@
 //     continuations and put `rm -rf playwright/.cache` on its own line, so per-line judgement would deny
 //     the sanctioned CT recipe. Bounded by construction — one level deep (a script invoked from a script
 //     body is `ask`, never a recursive walk) and a 64KB read cap.
+//   · QUOTED COMMANDS ARE CLASSIFIED — the same defect one layer further down (2026-08-14). A `bash -c
+//     '<string>'` operand and a `$( … )` substitution are COMMANDS, and quote-blanking erased both before
+//     any rule could see them: `bash -c "git stash"` and `echo "$(git stash)"` were clean passes. Both are
+//     now extracted and classified through this same `classify`, strictest-of merges, bounded at two
+//     levels of quoting. ASYMMETRY, on purpose: inside SINGLE quotes a `$( … )` is literal text and is NOT
+//     extracted — biting it would be a false tighten on a string nobody executes. Heredoc bodies and
+//     comments stay text guard-wide, so a substitution inside one is not extracted either.
+//   · SELF-EXEMPTION IS A REALPATH IDENTITY, not a path suffix — a look-alike (`/tmp/.claude/hooks/
+//     tool-guard.mjs`) used to satisfy the suffix test and skip every rule below.
 //
 // OBSERVABILITY: every decision appends one JSONL line to reports/tool-guard/decisions.jsonl (gitignored
 // via /reports/) with rule, decision, latency and a command prefix — tune from evidence, not vibes.
@@ -102,9 +111,10 @@
 // timestamp), ORB_TOOL_GUARD_CRASH_FOR_TEST (forces an internal throw — proves fail-open).
 
 import { spawnSync } from "node:child_process";
-import { appendFileSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 // ── quote blanking (same length in, same length out — indexes into the blank map into the original) ──
 
@@ -135,16 +145,53 @@ export function blankQuoted(cmd) {
 
 export function blankComments(raw, blank) {
   let out = blank;
-  for (let i = 0; i < out.length; i += 1) {
-    if (out[i] !== "#" || (i > 0 && !/\s/.test(raw[i - 1]))) {
-      continue;
-    }
-    const lineEnd = out.indexOf("\n", i);
-    const stop = lineEnd === -1 ? out.length : lineEnd;
-    out = out.slice(0, i) + " ".repeat(stop - i) + out.slice(stop);
-    i = stop;
+  for (const [start, stop] of commentSpans(raw, blank)) {
+    out = out.slice(0, start) + " ".repeat(stop - start) + out.slice(stop);
   }
   return out;
+}
+
+/** The `[start, stop)` spans blankComments blanks. Split out because a caller that REWRITES text needs the
+ *  spans themselves: a comment is INVISIBLE in the blanked text (its spaces read as spaces), so a rewrite
+ *  that slices the ORIGINAL by clause indexes carries the comment along, and everything appended after it
+ *  is swallowed to end-of-line — which is exactly how the pipe rewrite lost the harness exit code it exists
+ *  to preserve (pipeRewrite, 2026-08-14). */
+export function commentSpans(raw, blank) {
+  const spans = [];
+  for (let i = 0; i < blank.length; i += 1) {
+    if (blank[i] !== "#" || (i > 0 && !/\s/.test(raw[i - 1]))) {
+      continue;
+    }
+    const lineEnd = blank.indexOf("\n", i);
+    const stop = lineEnd === -1 ? blank.length : lineEnd;
+    spans.push([i, stop]);
+    i = stop;
+  }
+  return spans;
+}
+
+/** Quoted spans of the RAW text as `{start, end, quote}` — the indexes of the opening and closing quote
+ *  CHARACTERS (end = the string length when unterminated). Same state machine as blankQuoted, kept beside
+ *  it so the two can never disagree about what is quoted; the only addition is WHICH quote opened the span,
+ *  which is the whole question for a `$( … )`: live inside `"`, literal text inside `'`. */
+export function quoteSpans(cmd) {
+  const spans = [];
+  let quote = null;
+  let start = 0;
+  for (let i = 0; i < cmd.length; i += 1) {
+    const ch = cmd[i];
+    if (quote === null && (ch === '"' || ch === "'")) {
+      quote = ch;
+      start = i;
+    } else if (quote !== null && ch === quote && cmd[i - 1] !== "\\") {
+      spans.push({ start, end: i, quote });
+      quote = null;
+    }
+  }
+  if (quote !== null) {
+    spans.push({ start, end: cmd.length, quote });
+  }
+  return spans;
 }
 
 // ── heredoc blanking: a `<<DELIM` body is TEXT, not commands — without this, a python heredoc whose
@@ -160,9 +207,22 @@ const HEREDOC_OPERATOR = /<<-?\s*(['"]?)(\w+)\1/g;
 
 export function blankHeredocs(raw, blank) {
   let out = blank;
+  const blankSpan = (text, from, to) => text.slice(0, from) + text.slice(from, to).replace(/[^\n]/g, " ") + text.slice(to);
+  for (const [start, stop] of heredocSpans(raw, blank)) {
+    out = blankSpan(out, start, stop);
+  }
+  return out;
+}
+
+/** The `[start, stop)` spans blankHeredocs blanks — the operator + delimiter, and the body + terminator
+ *  line. Split out for the same reason as commentSpans: a caller that needs to know whether a position is
+ *  TEXT rather than command cannot tell from the blanked string (a blanked heredoc body and a blanked
+ *  quoted span both read as spaces). */
+export function heredocSpans(raw, blank) {
+  const spans = [];
   HEREDOC_OPERATOR.lastIndex = 0;
   for (let m = HEREDOC_OPERATOR.exec(raw); m !== null; m = HEREDOC_OPERATOR.exec(raw)) {
-    if (out[m.index] !== "<") {
+    if (blank[m.index] !== "<") {
       continue; // the operator is inside a quoted span — string content, not a heredoc
     }
     const delim = m[2];
@@ -184,12 +244,11 @@ export function blankHeredocs(raw, blank) {
       }
       lineStart = lineEnd + 1;
     }
-    const blankSpan = (text, from, to) => text.slice(0, from) + text.slice(from, to).replace(/[^\n]/g, " ") + text.slice(to);
-    out = blankSpan(out, m.index, m.index + m[0].length); // the operator + delimiter
-    out = blankSpan(out, bodyStart, end); // the body + terminator line
+    spans.push([m.index, m.index + m[0].length]); // the operator + delimiter
+    spans.push([bodyStart, end]); // the body + terminator line
     HEREDOC_OPERATOR.lastIndex = end;
   }
-  return out;
+  return spans;
 }
 
 // ── structure scan: clauses (split on && / || / ; / newline) and pipe stages within each clause.
@@ -251,12 +310,36 @@ const READER = /^\s*(?:\S*\/)?(?:tail|head|grep|egrep|fgrep|rg|wc|cat|tee|sort|u
 const LONG_LIVED = /^\s*git\s+(?:push|pull|fetch|clone)\b/;
 const STDERR_MERGE_TAIL = /\s*2>&1\s*$/;
 const REDIRECT_FD_MERGE = /\d?>>?&\d/g;
-// The guard's own validation tooling — matched by RESOLVED PATH SUFFIX (so `.claude/…`, `./.claude/…`,
-// `$CLAUDE_PROJECT_DIR/.claude/…` and an absolute worktree path all resolve alike), never by mention.
-// A bare basename is deliberately NOT enough: it says nothing about which file would run. The probes are
-// `.ts` since the tsx shed (node runs TypeScript directly) — the old `.mjs` spellings in this list named
-// files that no longer exist.
-const SELF_TOOLS = ["/.claude/hooks/tool-guard.mjs", "/scripts/probes/guard-replay.ts", "/scripts/probes/transcript-census.ts"];
+// The guard's own validation tooling, identified by CANONICAL REALPATH — never by mention, and (since
+// 2026-08-14) never by path SUFFIX either. Suffix matching made the exemption forgeable: `node
+// /tmp/.claude/hooks/tool-guard.mjs $(git stash)` ends with the sanctioned suffix while running an
+// attacker-placed file, i.e. a laundering hole through the very control the AGENT-TOOLING-01 leg built.
+// The identity is now "the same FILE this process is executing" (plus the two probes that live beside it
+// in the same checkout), resolved through realpath on both sides — so a symlink to the real hook exempts
+// (it runs the same bytes, deliberately) and a look-alike never does. The probes are `.ts` since the tsx
+// shed (node runs TypeScript directly).
+const SELF_TOOL_RELPATHS = ["scripts/probes/guard-replay.ts", "scripts/probes/transcript-census.ts"];
+
+/** Resolve a path to its canonical form; falls back to the normalized absolute path when the file does not
+ *  exist (a non-existent path can never BE the running hook, so the fallback only ever fails to exempt). */
+function canonicalPath(file) {
+  try {
+    return realpathSync(file);
+  } catch {
+    return path.resolve(file);
+  }
+}
+
+/** The canonical paths that exempt, computed ONCE from this module's own location. */
+const SELF_TOOL_PATHS = (() => {
+  try {
+    const self = canonicalPath(fileURLToPath(import.meta.url));
+    const checkout = path.resolve(path.dirname(self), "..", ".."); // <checkout>/.claude/hooks/ → <checkout>
+    return new Set([self, ...SELF_TOOL_RELPATHS.map((rel) => canonicalPath(path.join(checkout, rel)))]);
+  } catch {
+    return new Set(); // identity unknowable ⇒ nothing exempts (the strict direction)
+  }
+})();
 const SELF_ENV_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=\S*$/;
 const SELF_NODE_EXEC = /^(?:\S*\/)?node$/;
 const SELF_OPERAND = /^[\w./@:+$-]+$/;
@@ -320,9 +403,9 @@ const ENV_KILL = /^(?:off|0|false)$/i;
 const SCRIPT_STAGE_HINT = /(?:^|[\s/])(?:sh|bash|zsh|ksh|dash)\s|\.sh(?:\s|$)/;
 const SCRIPT_SHELL_EXEC = /^(?:\S*\/)?(?:sh|bash|zsh|ksh|dash)$/;
 // `-c` / `-s` (alone or combined, e.g. `-xc`) mean the operand is an inline command STRING, not a file —
-// there is no body to read, so the stage is not a script invocation. `--norc`-style long flags are not
-// this (single dash only). NOTE: the inline string itself stays invisible (it is quoted, so blanking
-// erases it) — that is a SEPARATE visibility gap from this one, deliberately not addressed here.
+// there is no body to READ, so the stage is not a script invocation. `--norc`-style long flags are not
+// this (single dash only). The string itself is classified by the nested-command pass below, which is the
+// same defect class one layer down: visibility, not rule weakness.
 const SCRIPT_INLINE_FLAG = /^-[a-zA-Z]*[cs][a-zA-Z]*$/;
 // The operand must resolve LITERALLY: no glob, no expansion. `bash $SP/run.sh` reaches here but cannot be
 // resolved, so it is skipped (fail-open).
@@ -338,6 +421,30 @@ const SCRIPT_MAX_BYTES = 64 * 1024;
 // script invocation is `ask` instead of another read. So: exactly one level of body is ever read.
 const SCRIPT_DEPTH_CAP = 2;
 const SCRIPT_LINE_MAX = 160;
+
+// ── nested commands: a command inside a QUOTED string is still a command ──
+// The same visibility class as the wrapper-script hole, one layer down. Two shapes:
+//   · `sh -c '<string>'` — the operand IS a command, and quote-blanking erases it before any rule can see
+//     it (73 sightings in one day's decision log; `bash -c "git stash"` classified clean).
+//   · `$( … )` / backticks — a substitution EXECUTES, including inside double quotes, where blanking again
+//     erases it. Head-anchored rules (`rm -rf …`, the harness heads) are blind to an UNQUOTED one too,
+//     since the substitution is not at the head of the stage.
+// ASYMMETRY, deliberate: inside SINGLE quotes `'$(x)'` is literal TEXT, never executed, and is NOT
+// extracted — classifying it would be a false tighten on a string nobody runs. That is the whole reason
+// this pass reads quoteSpans instead of just scanning for `$(`.
+// The extracted text runs through this same `classify` and merges strictest-wins, so a nested command can
+// only ever make the outer one STRICTER.
+const SHELL_INLINE_C_FLAG = /^-[a-zA-Z]*c[a-zA-Z]*$/; // `-s` alone reads the command from STDIN — nothing to extract
+// The operand right after `-c`: single-quoted (literal), double-quoted (escapes resolved), or a bare word.
+const INLINE_OPERAND = /^\s*(?:'([^']*)'|"((?:[^"\\]|\\.)*)"|([^\s'"|;&<>()]+))/;
+const INLINE_DQ_ESCAPE = /\\(["\\$`])/g;
+// Depth of the OUTER command is 0; a string extracted from it classifies at 1. At the cap the guard stops
+// and SAYS so (`ask`) rather than waving an unread command through. Unlike the script-body cap this is a
+// RUNAWAY FENCE, not a budget — extraction is pure string work and each level is strictly shorter, so
+// reading one more level costs nothing. It is set well past real shapes: `$(dirname $(readlink -f $(which
+// claude)))` is depth 3 and idiomatic, and a cap of 2 asked about it — measured on 121,984 corpus commands,
+// where 4 benign commands hit the cap at 2 and ZERO reach 6. A hook that cries wolf gets disabled.
+const NESTED_DEPTH_CAP = 6;
 const SCRIPT_LINE_SCAN_MAX = 400;
 const GIT_LS_TIMEOUT_MS = 2_000;
 // the line locator re-classifies single lines; point the /proc scan at nothing so it stays O(1) there
@@ -385,6 +492,16 @@ const REASONS = {
     `${script} is ${bytes} bytes, past the ${SCRIPT_MAX_BYTES}-byte body-inspection cap, so tool-guard cannot see what it runs and will not wave it through blind. Split the wrapper, or run the commands directly.`,
   scriptDepthCap: (script) =>
     `A wrapper script that invokes another wrapper script (${script}) — tool-guard reads ONE level of script body, so what this ultimately runs is unseen. Flatten it: invoke the inner script directly from your Bash call, or inline its commands.`,
+  nestedCommand: (kind, snippet, inner) =>
+    `${NESTED_LABEL[kind]} — quoting is not a shield, tool-guard classifies what actually executes.\nThe command it decided on:\n    ${snippet}\n\n${inner}`,
+  nestedDepthCap: (kind, snippet) =>
+    `${NESTED_LABEL[kind]}, nested past the ${NESTED_DEPTH_CAP} levels of quoting tool-guard reads — so what this ultimately runs is unseen:\n    ${snippet}\nFlatten it: run the inner command directly, or put it in a scratchpad script (whose body IS read).`,
+};
+
+// what a nested command is, per extraction kind — one sentence, reused by the reason and the two contexts
+const NESTED_LABEL = {
+  inline: "This runs an inline command string (`sh -c '…'`), which tool-guard read",
+  subst: "This runs a command substitution (`$( … )` / backticks — it executes even inside double quotes), which tool-guard read",
 };
 
 const CONTEXTS = {
@@ -421,7 +538,14 @@ const CONTEXTS = {
   scriptAdvisory: (script, note) => `From inside the untracked script ${script} (tool-guard classifies wrapper bodies, not just the command line): ${note}`,
   scriptRewriteHint: (script, note) =>
     `The untracked script ${script} contains a shape tool-guard would have REWRITTEN had you typed it directly — it cannot rewrite a file, so fix the script itself: ${note}`,
+  nestedScanError: (err) =>
+    `tool-guard could not read inside this command's quoted parts (${err}) — the command LINE was judged normally, but a \`sh -c '…'\` operand or a \`$( … )\` in it went unclassified. Worth reporting: this scan does not fail in normal use.`,
+  nestedAdvisory: (kind, snippet, note) => `From inside ${NESTED_KIND_NOUN[kind]} \`${snippet}\` (tool-guard classifies quoted commands too): ${note}`,
+  nestedRewriteHint: (kind, snippet, note) =>
+    `${NESTED_KIND_NOUN[kind]} \`${snippet}\` contains a shape tool-guard would have REWRITTEN had you typed it directly — it cannot rewrite inside a quoted string, so spell it that way yourself: ${note}`,
 };
+
+const NESTED_KIND_NOUN = { inline: "the inline command string", subst: "the command substitution" };
 
 // ── helpers ──
 
@@ -434,14 +558,17 @@ function laneName(text) {
   return m ? m[1] : null;
 }
 
-/** Is this command a SOLE invocation of one of the guard's own validation tools (SELF_TOOLS)? Exempting
- *  one is safe for exactly one reason: such a command cannot execute anything but that tool, so a
- *  destructive-looking string in its argv is data, never a command. Every condition below defends that
+/** Is this command a SOLE invocation of one of the guard's own validation tools (SELF_TOOL_PATHS)?
+ *  Exempting one is safe for exactly one reason: such a command cannot execute anything but that tool, so
+ *  a destructive-looking string in its argv is data, never a command. Every condition below defends that
  *  reason — one clause, one pipeline stage, no subshell / backgrounding / command substitution, an
- *  UNQUOTED `node` (or the tool itself, via its shebang) at the head, and a script operand that resolves
- *  to a SELF_TOOLS path. A mention anywhere else — a trailing comment, a quoted argument, an earlier
- *  `&&` stage — is not an invocation and is judged by every rule (AGENT-TOOLING-01, 2026-08-14). */
-export function isSelfToolInvocation(command, blank, clauses) {
+ *  UNQUOTED `node` (or the tool itself, via its shebang) at the head, and a script operand whose CANONICAL
+ *  REALPATH is one of this checkout's own tools. A mention anywhere else — a trailing comment, a quoted
+ *  argument, an earlier `&&` stage — is not an invocation and is judged by every rule (AGENT-TOOLING-01,
+ *  2026-08-14). Neither is a LOOK-ALIKE: `node /tmp/.claude/hooks/tool-guard.mjs $(git stash)` satisfied
+ *  the old path-SUFFIX test while running an attacker-placed file, which laundered a command straight
+ *  through the control this exemption's own fix had just built (Codex reconciliation, 2026-08-14). */
+export function isSelfToolInvocation(command, blank, clauses, ctx) {
   if (clauses.length !== 1) {
     return false;
   }
@@ -473,9 +600,11 @@ export function isSelfToolInvocation(command, blank, clauses) {
   if (/['"]/.test(command.slice(clause.start, clause.start + operand.index + operand[0].length))) {
     return false;
   }
-  const resolved = path.posix.normalize(operand[0]);
-  const absolute = resolved.startsWith("/") ? resolved : `/${resolved}`;
-  return SELF_TOOLS.some((tool) => absolute.endsWith(tool));
+  // A relative operand is resolved against the SHELL's cwd (the same base the script-body pass uses), then
+  // canonicalized. `$VAR`-bearing paths cannot be resolved here and therefore never exempt — strict by
+  // construction, and harmless: losing the exemption only means the command is judged by the normal rules.
+  const base = ctx?.cwd ?? ctx?.projectDir ?? process.cwd();
+  return SELF_TOOL_PATHS.has(canonicalPath(path.resolve(base, operand[0])));
 }
 
 /** Best-effort: is a `git push` process live on this box? (Linux /proc scan — a push window is not
@@ -536,9 +665,15 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
   const prefix = command.slice(0, clause.start);
   const rawSuffix = command.slice(clause.end);
   const suffix = /^[\s;]*$/.test(rawSuffix) ? "" : rawSuffix; // a bare trailing `;` would yield `; ;` — a bash syntax error
+  // The exit-code restore goes on its OWN LINE, never after a `;`. The reader chain and the suffix are
+  // sliced from the ORIGINAL text, so either can end in a COMMENT (`pnpm check | tail -30 # note`) — and a
+  // comment runs to end-of-line, which swallowed `; ( exit $__tg_ec )` whole. Measured 2026-08-14: the
+  // rewritten command returned 0 for a harness that exited 3, i.e. the rewrite reintroduced the exact
+  // red-reported-as-green failure this rule exists to prevent. A newline ends the comment; nothing else
+  // about the template changes.
   return {
     log,
-    command: `${prefix}${harness} > ${log} 2>&1; __tg_ec=$?; < ${log} ${readerChain}${suffix}; ( exit $__tg_ec )`,
+    command: `${prefix}${harness} > ${log} 2>&1; __tg_ec=$?; < ${log} ${readerChain}${suffix}\n( exit $__tg_ec )`,
   };
 }
 
@@ -678,6 +813,19 @@ function collectStageWarns(command, blank, clauses, contexts) {
 // regex hint → token scan → path resolve → stat (size cap) → `git ls-files` (tracked = reviewed code,
 // stop) → read → classify. Nothing spawns unless a stage really names a resolvable script file.
 
+/** The executable token of a stage, read off the BLANKED text (so a shell name in a comment, a heredoc
+ *  body or a quoted argument is never mistaken for one) with leading env assignments and
+ *  timeout/nice/setsid/nohup/env/exec wrappers skipped. Returns the token list too, so a caller can look
+ *  at the flags that follow. */
+function execHead(text) {
+  const tokens = [...text.matchAll(/\S+/g)];
+  let i = 0;
+  while (tokens[i] !== undefined && (SELF_ENV_ASSIGN.test(tokens[i][0]) || SCRIPT_WRAPPER_TOKEN.test(tokens[i][0]) || SCRIPT_WRAPPER_ARG.test(tokens[i][0]))) {
+    i += 1;
+  }
+  return { tokens, index: i, exec: tokens[i] };
+}
+
 /** An unquoted operand token, verified to read identically in the ORIGINAL text. */
 function literalOperand(command, stage, token) {
   if (!SCRIPT_OPERAND.test(token[0])) {
@@ -699,12 +847,7 @@ export function scriptTargets(command, blank, clauses) {
       if (!SCRIPT_STAGE_HINT.test(text)) {
         continue;
       }
-      const tokens = [...text.matchAll(/\S+/g)];
-      let i = 0;
-      while (tokens[i] !== undefined && (SELF_ENV_ASSIGN.test(tokens[i][0]) || SCRIPT_WRAPPER_TOKEN.test(tokens[i][0]) || SCRIPT_WRAPPER_ARG.test(tokens[i][0]))) {
-        i += 1;
-      }
-      const exec = tokens[i];
+      const { tokens, index: i, exec } = execHead(text);
       if (exec === undefined) {
         continue;
       }
@@ -849,7 +992,154 @@ function scriptBodyVerdict(command, blank, clauses, ctx) {
   }
 }
 
-/** Strictest-wins merge of the command-line verdict and the script-body verdict, contexts unioned. */
+// ── nested commands: quoting is not a shield ──
+// Same shape as the script-body pre-pass: EXTRACT what really executes, classify it through this same
+// classifier, merge strictest-wins. The difference is only where the command hides — in a `-c` operand or
+// a `$( … )`, both of which quote-blanking erased before any rule could see them.
+
+/** The inline command strings a command would execute: the operand of a `sh -c` / `bash -c` stage. The
+ *  exec head and the flag are read off the BLANKED text (a shell name in a comment or a heredoc body is
+ *  never one), the operand off the RAW — it is quoted by construction, which is the entire gap. */
+export function inlineShellCommands(command, blank, clauses) {
+  const found = [];
+  for (const clause of clauses) {
+    for (const stage of clause.stages) {
+      const text = blank.slice(stage.start, stage.end);
+      if (!SCRIPT_STAGE_HINT.test(text)) {
+        continue;
+      }
+      const { tokens, index, exec } = execHead(text);
+      if (exec === undefined || !SCRIPT_SHELL_EXEC.test(exec[0])) {
+        continue;
+      }
+      const flag = tokens.slice(index + 1).find((t) => SHELL_INLINE_C_FLAG.test(t[0]));
+      if (flag === undefined) {
+        continue;
+      }
+      // bash takes the command string as the FIRST word after `-c`, whatever it looks like (`bash -c -x`
+      // runs "-x"), so this reads the next word rather than skipping flags.
+      const operand = command.slice(stage.start + flag.index + flag[0].length, stage.end).match(INLINE_OPERAND);
+      const inner = operand === null ? null : (operand[1] ?? operand[2]?.replace(INLINE_DQ_ESCAPE, "$1") ?? operand[3]);
+      if (inner !== null && inner !== undefined && inner.trim().length > 0) {
+        found.push(inner);
+      }
+    }
+  }
+  return found;
+}
+
+/** The end index of a `$( … )` body that starts at `from`, by paren depth over a LOCALLY quote-blanked
+ *  copy (a `)` inside quotes must not close it), or -1 when unbalanced. */
+function substitutionEnd(command, from) {
+  const inner = blankQuoted(command.slice(from));
+  let depth = 0;
+  for (let j = 0; j < inner.length; j += 1) {
+    if (inner[j] === "(") {
+      depth += 1;
+    } else if (inner[j] === ")") {
+      if (depth === 0) {
+        return from + j;
+      }
+      depth -= 1;
+    }
+  }
+  return -1;
+}
+
+/** Every command substitution that would actually RUN: `$( … )` and backticks, unquoted or inside DOUBLE
+ *  quotes. Inside SINGLE quotes it is literal text and is skipped — extracting it would be a false tighten
+ *  on a string nobody executes. Comments and heredoc bodies are skipped for the same reason, and they need
+ *  their own SPANS to detect: `ls # echo "$(git stash)"` puts the substitution inside a double-quoted span
+ *  that is itself inside a comment, which the quote map alone reads as live (caught by this pass's own
+ *  must-pass rows, 2026-08-14). Nested substitutions are not returned separately — the recursion through
+ *  `classify` reaches them from the body it is handed. */
+export function commandSubstitutions(command) {
+  const quoted = blankQuoted(command);
+  const text = [...commentSpans(command, quoted), ...heredocSpans(command, blankComments(command, quoted))];
+  const spans = quoteSpans(command);
+  const spanAt = (at) => spans.find((s) => at > s.start && at < s.end);
+  const isText = (at) => text.some(([start, stop]) => at >= start && at < stop);
+  const found = [];
+  let i = 0;
+  while (i < command.length) {
+    const isDollar = command[i] === "$" && command[i + 1] === "(";
+    if (!isDollar && command[i] !== "`") {
+      i += 1;
+      continue;
+    }
+    if (isText(i) || spanAt(i)?.quote === "'") {
+      i += 1;
+      continue;
+    }
+    const bodyStart = i + (isDollar ? 2 : 1);
+    const end = isDollar ? substitutionEnd(command, bodyStart) : command.indexOf("`", bodyStart);
+    if (end === -1) {
+      i += 1;
+      continue;
+    }
+    const body = command.slice(bodyStart, end);
+    if (body.trim().length > 0) {
+      found.push(body);
+    }
+    i = end + 1;
+  }
+  return found;
+}
+
+/** Turn a nested command's own classification into a verdict about the OUTER command — the same lift the
+ *  script bodies get (deny/ask carry through with an `inline:`/`subst:`-prefixed rule so triage can tell
+ *  where the verdict came from; a rewrite becomes a teaching context, because the guard can rewrite a
+ *  command and not the inside of a quoted string). */
+function liftNestedVerdict(kind, snippet, inner) {
+  const quoted = snippet.length > SCRIPT_LINE_MAX ? `${snippet.slice(0, SCRIPT_LINE_MAX)}…` : snippet;
+  if (inner.decision === "deny" || inner.decision === "ask") {
+    return { decision: inner.decision, rule: `${kind}:${inner.rule}`, reason: REASONS.nestedCommand(kind, quoted, inner.reason ?? ""), contexts: [] };
+  }
+  if (inner.decision === "defer") {
+    return { decision: "defer", rule: `${kind}:${inner.rule}`, contexts: [] };
+  }
+  const notes = inner.contexts.map((c) => CONTEXTS.nestedAdvisory(kind, quoted, c));
+  if (inner.decision === "allow" && inner.rewrite) {
+    notes.unshift(CONTEXTS.nestedRewriteHint(kind, quoted, inner.contexts[0] ?? inner.rule));
+  }
+  return { decision: "pass", rule: null, contexts: notes };
+}
+
+/** The pre-pass. Fail-open on any unexpected throw (`defer` ranks below every real judgement, so it can
+ *  only surface on a command nothing else objected to). */
+function nestedCommandVerdict(command, blank, clauses, ctx) {
+  try {
+    const depth = ctx.nestedDepth ?? 0;
+    const targets = [
+      ...new Set(inlineShellCommands(command, blank, clauses)).values().map((inner) => ({ kind: "inline", inner })),
+      ...new Set(commandSubstitutions(command)).values().map((inner) => ({ kind: "subst", inner })),
+    ];
+    if (targets.length === 0) {
+      return null;
+    }
+    const first = targets[0];
+    if (depth >= NESTED_DEPTH_CAP) {
+      return { decision: "ask", rule: "nested-depth-cap", reason: REASONS.nestedDepthCap(first.kind, first.inner.slice(0, SCRIPT_LINE_MAX)), contexts: [] };
+    }
+    let worst = null;
+    for (const { kind, inner } of targets) {
+      const verdict = liftNestedVerdict(kind, inner, classify(inner, { ...ctx, nestedDepth: depth + 1 }));
+      worst = worst === null || DECISION_RANK[verdict.decision] > DECISION_RANK[worst.decision] ? { ...verdict, contexts: [...(worst?.contexts ?? []), ...verdict.contexts] } : { ...worst, contexts: [...worst.contexts, ...verdict.contexts] };
+    }
+    return worst;
+  } catch (err) {
+    // FAIL-OPEN, and deliberately NOT `defer`: the command LINE was judged in full, only this extra scan
+    // broke, and a defer at the hook boundary stalls a subagent mid-turn with no report (the nine-lane
+    // failure in the header box). A visible advisory keeps the breakage findable without a stall.
+    // NOTE, not changed here because it predates this pass and flipping it is an owner call: the script
+    // -body pre-pass answers the same situation with `defer` (`script-scan-error`, above), which CAN
+    // stall a lane on a command nothing objected to.
+    return { decision: "pass", rule: null, contexts: [CONTEXTS.nestedScanError(String(err))] };
+  }
+}
+
+/** Strictest-wins merge of the command-line verdict and a nested one (script body / quoted command),
+ *  contexts unioned. */
 function mergeVerdicts(outer, script) {
   if (script === null) {
     return outer;
@@ -868,7 +1158,7 @@ function mergeVerdicts(outer, script) {
 /**
  * @param {string} command  the raw Bash command
  * @param {{cwd?: string, agentId?: string|null, projectDir: string, timeout?: number, now: number,
- *          procRoot?: string, scriptDepth?: number}} ctx
+ *          procRoot?: string, scriptDepth?: number, nestedDepth?: number}} ctx
  * @returns {{decision: "deny"|"ask"|"allow"|"defer", rule: string|null, reason?: string,
  *           rewrite?: {command: string, timeout?: number, log?: string}, contexts: string[]}}
  */
@@ -887,16 +1177,18 @@ export function classify(command, ctx) {
   //     have nothing real to judge. It runs AFTER blanking and AFTER the floor, and it is not a mention
   //     test: the unanchored raw-string version of this check turned any command containing one of the
   //     filenames into an explicit `allow` (AGENT-TOOLING-01).
-  if (isSelfToolInvocation(command, blank, clauses)) {
+  if (isSelfToolInvocation(command, blank, clauses, ctx)) {
     return { decision: "pass", rule: "self-exempt", contexts: [] };
   }
 
-  // 0c. SCRIPT BODIES — same class as 0b: visibility, not rule weakness. A `bash <untracked>.sh` stage is
-  //     otherwise one opaque line, so the rules below would judge the wrapper instead of what it runs.
-  //     Its verdict merges strictest-wins with the command line's own (rules 1-11), which keeps every
-  //     existing precedence intact: a deny down there still outranks an ask from a body, and a body can
-  //     only ever make a command STRICTER, never wave one through.
-  return mergeVerdicts(classifyCommandLine(command, blank, clauses, ctx), scriptBodyVerdict(command, blank, clauses, ctx));
+  // 0c. SCRIPT BODIES and 0d. NESTED COMMANDS — same class as 0b: visibility, not rule weakness. A
+  //     `bash <untracked>.sh` stage, a `bash -c '<string>'` operand and a `"$( … )"` are each ONE opaque
+  //     span to the rules below, which would judge the wrapper instead of what actually runs. Both
+  //     verdicts merge strictest-wins with the command line's own (rules 1-11), which keeps every existing
+  //     precedence intact: a deny down there still outranks an ask from a body, and a nested command can
+  //     only ever make the outer one STRICTER, never wave one through.
+  const line = mergeVerdicts(classifyCommandLine(command, blank, clauses, ctx), scriptBodyVerdict(command, blank, clauses, ctx));
+  return mergeVerdicts(line, nestedCommandVerdict(command, blank, clauses, ctx));
 }
 
 /** Rules 1-11: the judgement of the command TEXT itself. Split out of `classify` only so the script-body
@@ -1120,6 +1412,10 @@ const BRIEFING = [
   "· READS THE BODY of an untracked wrapper script you run (`bash /tmp/…/lane-run.sh`) and judges its",
   "  contents by these same rules — wrapping work in a scratchpad .sh for logging or the 120s timeout is",
   "  encouraged, but it is not a way around them. Repo-tracked scripts (scripts/dev/*.sh) are not read.",
+  "· READS INSIDE QUOTED COMMANDS the same way: the operand of `bash -c '…'` and any `$( … )` that would",
+  "  actually run (unquoted or in double quotes) is classified on its own merits. So the sanctioned",
+  "  `setsid nohup bash -c 'pnpm check > log 2>&1'` still runs — but a bad command no longer hides in a",
+  "  quoted string. Single-quoted `'$(…)'` is literal text and is left alone.",
   "· WARNS on bare `npx vitest` (drops the json reporter), `grep -r` without --exclude-dir=node_modules,",
   "  and `sg` (use `ast-grep` — `sg` is deprecated upstream and is `newgrp` on most boxes). A warn RUNS.",
   "· EVERYTHING ELSE RUNS. This guard is about HOW you run a command, never about what you are allowed",

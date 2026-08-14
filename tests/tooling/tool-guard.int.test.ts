@@ -7,7 +7,7 @@
 // owner's own false-positive case (a commit MESSAGE mentioning `pnpm check | tail` must never fire) and
 // the heredoc-body leak that once turned a commit message into a `lane-git-push` ask.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -21,6 +21,9 @@ const PINNED_NOW = "1700000000000";
 // suite executes can never leak a push-in-flight context into an unrelated row
 const EMPTY_PROC = mkdtempSync(join(tmpdir(), "tg-proc-none-"));
 const PW_SANCTIONED_PREFIX = /^rm -rf \/repo\/playwright\/\.cache && npx playwright test -c playwright-ct\.config\.ts/;
+// the exit-code restore survives a trailing comment in the clause AFTER the piped one (it is on its own line)
+const SUFFIX_COMMENT_THEN_EXIT = /echo done # all set\n\( exit \$__tg_ec \)$/;
+const NESTED_DEPTH_CAP_RULE = /nested-depth-cap$/; // the rule id carries one `subst:`/`inline:` per level
 
 interface BatchCase {
   command: string;
@@ -94,6 +97,8 @@ function bashInput(command: string, extraPairs: [string, unknown][] = []): Recor
 // [expected decision, expected rule (null = clean pass), command, ctx overrides]
 // "advisory" = pass + at least one additionalContext line (warn tier) — it RUNS, with a note.
 const LANE = { agentId: "agent-1", cwd: "/x/.claude/worktrees/agent-abc" };
+// the self-exemption is a REALPATH identity, so a row about it must run from the real checkout
+const AT_REPO = { projectDir: REPO, cwd: REPO };
 type Row = [BatchResult["decision"] | "advisory", string | null, string, Omit<BatchCase, "command">?];
 
 const ROWS: Row[] = [
@@ -244,20 +249,73 @@ const ROWS: Row[] = [
   ["pass", null, "node 'scripts/evil.ts' .claude/hooks/tool-guard.mjs"],
   // a bare basename says nothing about which file would run, so it does not exempt (it just has no rule)
   ["pass", null, "node tool-guard.mjs --classify-batch"],
+  // …and neither does a LOOK-ALIKE. The path-SUFFIX test this replaced said yes to anything ENDING in the
+  // sanctioned path, so an agent- or attacker-placed `/tmp/.claude/hooks/tool-guard.mjs` counted as "the
+  // guard's own tooling" and every rule below was skipped — a laundering hole through the very control the
+  // P1 fix had just built (Codex reconciliation, 2026-08-14). Identity is now the CANONICAL REALPATH of
+  // the hook this process is running. Both rows returned pass/self-exempt before the fix.
+  ["deny", "git-destructive", "node /tmp/.claude/hooks/tool-guard.mjs git stash"],
+  ["pass", null, "node /tmp/x/.claude/hooks/tool-guard.mjs --classify-batch"],
   // MUST-PASS: the guard's own validation tooling, invoked SOLE, still exempts — that is the whole point
-  // of the rule (such a command cannot execute its own argv, so a corpus string in it is data)
-  ["pass", "self-exempt", "node .claude/hooks/tool-guard.mjs --classify-batch < cases.json"],
-  ["pass", "self-exempt", ".claude/hooks/tool-guard.mjs --classify-batch"],
-  ["pass", "self-exempt", "ORB_TOOL_GUARD_NOW_FOR_TEST=1700000000000 node /repo/.claude/hooks/tool-guard.mjs --classify-batch"],
-  ["pass", "self-exempt", "node ../../.claude/hooks/tool-guard.mjs --classify-batch"],
+  // of the rule (such a command cannot execute its own argv, so a corpus string in it is data). Paths are
+  // resolved against the shell cwd, so these rows carry the REAL checkout as their ctx.
+  ["pass", "self-exempt", "node .claude/hooks/tool-guard.mjs --classify-batch < cases.json", AT_REPO],
+  ["pass", "self-exempt", ".claude/hooks/tool-guard.mjs --classify-batch", AT_REPO],
+  ["pass", "self-exempt", `ORB_TOOL_GUARD_NOW_FOR_TEST=1700000000000 node ${REPO}/.claude/hooks/tool-guard.mjs --classify-batch`, AT_REPO],
+  // a relative spelling from a DIFFERENT cwd resolves to the same file and exempts alike…
+  ["pass", "self-exempt", "node ../.claude/hooks/tool-guard.mjs --classify-batch", { projectDir: REPO, cwd: `${REPO}/packages` }],
+  // …while one that resolves to nothing does not: it names no file that would run
+  ["pass", null, "node ../../.claude/hooks/tool-guard.mjs --classify-batch", AT_REPO],
   // the probes are `.ts` since the tsx shed — the pre-2026-08-14 list named `.mjs` files that do not exist
-  ["pass", "self-exempt", "node scripts/probes/guard-replay.ts --samples 4 --out reports/guard-replay.json"],
-  ["pass", "self-exempt", "node scripts/probes/guard-replay.ts --out reports/guard-replay.json 2>&1"],
-  ["pass", "self-exempt", "node scripts/probes/transcript-census.ts --examples 6 --out reports/census.json"],
+  ["pass", "self-exempt", "node scripts/probes/guard-replay.ts --samples 4 --out reports/guard-replay.json", AT_REPO],
+  ["pass", "self-exempt", "node scripts/probes/guard-replay.ts --out reports/guard-replay.json 2>&1", AT_REPO],
+  ["pass", "self-exempt", "node scripts/probes/transcript-census.ts --examples 6 --out reports/census.json", AT_REPO],
   // ---- comments are text, not commands (bash ends the line at an unquoted word-initial `#`) ----
   ["pass", null, "ls packages # remember: never git stash"],
   // …but `"x"#` is a WORD, not a comment start, so the clause after it is still judged
   ["deny", "git-destructive", 'echo "x"# ; git stash'],
+  // ---- QUOTED COMMANDS: `bash -c '<string>'` (73/day in one decision log) and `$( … )`. Every bite row
+  // below was pass/null before 2026-08-14 — the operand and the substitution are quoted, so blanking
+  // erased them before any rule could look. Rule ids are prefixed so triage can see where a verdict came
+  // from: `inline:` = a -c operand, `subst:` = a command substitution. ----
+  ["deny", "inline:git-destructive", "bash -c 'git stash'"],
+  ["deny", "inline:git-destructive", 'bash -c "git stash"'],
+  ["deny", "inline:git-destructive", "setsid nohup bash -c 'git stash' > /tmp/x.log 2>&1 &"],
+  ["deny", "inline:harness-swallowed", "bash -lc 'pnpm check || true'"],
+  ["ask", "inline:rm-rf-unsafe", "sh -c 'rm -rf packages/server/src'"],
+  ["deny", "inline:biome-write", "env bash -c 'pnpm lint:fix'"],
+  ["deny", "subst:git-destructive", 'echo "$(git stash)"'],
+  ["ask", "subst:rm-rf-unsafe", 'echo "$(rm -rf /home/inktomi/inktomi-stack)"'],
+  ["ask", "subst:sudo", 'X="$(sudo rm -rf /etc)" echo hi'],
+  ["deny", "subst:git-destructive", 'echo "`git stash`"'],
+  // an UNQUOTED substitution executes too, and the head-anchored rules never saw into one either
+  ["ask", "subst:rm-rf-unsafe", "echo $(rm -rf packages/server/src)"],
+  // MUST-PASS — the live sanctioned shapes. `setsid nohup bash -c '<harness>'` is how every long run on
+  // this box is launched (the 120s Bash ceiling); the inner command is judged ON ITS MERITS, so a
+  // sanctioned one stays allowed. Breaking these would teach lanes to route around the guard.
+  ["pass", null, "setsid nohup bash -c 'pnpm check > /tmp/c.log 2>&1; echo $? > /tmp/c.exit' > /dev/null 2>&1 &"],
+  ["pass", null, "S=/tmp/sp; setsid nohup bash -c 'pnpm verify --push > $S/push.log 2>&1' < /dev/null &"],
+  [
+    "pass",
+    null,
+    "(setsid nohup bash -c 'rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx > /tmp/ct.log 2>&1' &)",
+  ],
+  ["pass", null, 'setsid bash -c "cd /repo && bash scripts/dev/stack.sh restart dev > /tmp/stack.log 2>&1"'],
+  // benign substitutions stay silent — the overwhelming majority of real `$( … )` use
+  ["pass", null, 'echo "$(date)"'],
+  ["pass", null, 'cd "$(git rev-parse --show-toplevel)" && pnpm check'],
+  ["pass", null, 'rm -rf "$(mktemp -d)"'],
+  // …including the three-deep path idiom, which a depth cap of 2 asked about (4 real corpus commands —
+  // the reason the cap is a runaway fence at 6, not a budget)
+  ["pass", null, "ls -la $(dirname $(readlink -f $(which claude)))/ 2>/dev/null | head -20"],
+  ["pass", null, 'echo "$(basename $(dirname $(dirname packages/ui/src/x.ts)))"'],
+  // …and a substitution inside SINGLE quotes is literal TEXT, never executed: biting it would be a false
+  // tighten (the asymmetry this pass is built around)
+  ["pass", null, "echo '$(git stash)'"],
+  ["pass", null, "git commit -m 'the $(git stash) footgun' -- docs"],
+  // …as is one inside a comment or a heredoc body, which are text guard-wide
+  ["pass", null, 'ls packages # never echo "$(git stash)"'],
+  ["pass", null, "python3 - <<'PY'\nprint(\"$(git stash)\")\nPY"],
 ];
 
 test("corpus: every rule bites its measured shapes and passes the false-positive traps", () => {
@@ -280,7 +338,8 @@ test("rewrite: the piped-harness rewrite preserves the reader chain, the log tar
   const r = at(runBatch([{ command: "pnpm check 2>&1 | tail -40" }]), 0);
   expect(r.decision).toBe("allow");
   const log = `/repo/reports/tool-guard/run-${PINNED_NOW}.log`;
-  const expected = `pnpm check > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40; ( exit $__tg_ec )`;
+  // the exit-code restore is on its OWN LINE — see the comment-tail test below for why a `;` was wrong
+  const expected = `pnpm check > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`;
   expect(r.rewrite?.command).toBe(expected);
   expect(r.rewrite?.timeout).toBe(600_000); // verify/check legitimately outrun the 120s default
   // an agent-chosen timeout is never overridden
@@ -297,11 +356,33 @@ test("rewrite: the emitted template really preserves the harness exit code throu
   // would be a load bomb): red run → reader still sees output, final exit code is the harness's 3.
   const tmp = mkdtempSync(join(tmpdir(), "tg-template-"));
   const log = join(tmp, "run.log");
-  const cmd = `fake_harness() { echo ok; echo bad >&2; return 3; }; fake_harness > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40; ( exit $__tg_ec )`;
+  const cmd = `fake_harness() { echo ok; echo bad >&2; return 3; }; fake_harness > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`;
   const r = spawnSync("bash", ["-c", cmd], { encoding: "utf8" });
   expect(r.stdout).toContain("ok");
   expect(r.stdout).toContain("bad"); // stderr was merged into the log, so the reader surfaces it
   expect(r.status).toBe(3);
+});
+
+// THE COMMENT TAIL (recorded 2026-08-14, fixed here). The reader chain and the trailing suffix are sliced
+// from the ORIGINAL text, so either can end in a comment — and a comment runs to end-of-line, which
+// swallowed a `; ( exit $__tg_ec )` whole. The guard's own rewrite then returned 0 for a red harness: the
+// exact "a red run was reported green" failure the pipe rule exists to prevent, reintroduced by the fix
+// for it. Both halves are proven here: the emitted TEXT, and what bash does with it.
+test("rewrite: a trailing comment cannot swallow the exit-code restore", () => {
+  const r = at(runBatch([{ command: "pnpm check 2>&1 | tail -30 # note about the run" }]), 0);
+  const log = `/repo/reports/tool-guard/run-${PINNED_NOW}.log`;
+  expect(r.rewrite?.command).toBe(`pnpm check > ${log} 2>&1; __tg_ec=$?; < ${log} tail -30 # note about the run\n( exit $__tg_ec )`);
+  // …and the same for a comment in the clause AFTER the piped one
+  const suffixed = at(runBatch([{ command: "pnpm check | tail -5; echo done # all set" }]), 0);
+  expect(suffixed.rewrite?.command).toMatch(SUFFIX_COMMENT_THEN_EXIT);
+
+  const tmp = mkdtempSync(join(tmpdir(), "tg-template-"));
+  const runTemplate = (template: string): number | null => spawnSync("bash", ["-c", template], { encoding: "utf8" }).status;
+  const body = (file: string): string => `fake_harness() { echo ok; return 3; }; fake_harness > ${file} 2>&1; __tg_ec=$?; < ${file} tail -30 # note`;
+  // the OLD template, planted as a positive control: the comment eats the restore and the red run reads 0
+  expect(runTemplate(`${body(join(tmp, "a.log"))}; ( exit $__tg_ec )`)).toBe(0);
+  // the emitted one: the newline ends the comment, so the harness's 3 survives
+  expect(runTemplate(`${body(join(tmp, "b.log"))}\n( exit $__tg_ec )`)).toBe(3);
 });
 
 test("rewrite: the playwright CT rewrite injects the sanctioned prefix with absolute paths", () => {
@@ -401,10 +482,14 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     [`bash ${dir}`, "pass", null], // a directory is not a script
     [`bash ${tracked}`, "pass", null], // TRACKED: reviewed code, body not read — same bytes as `evil`
     [`bash ${REPO}/scripts/dev/stack.sh restart`, "pass", null], // the real-world tracked case
-    // `bash -c '<string>'` is a DIFFERENT visibility gap (the inline command is quoted, so blanking
-    // erases it before any rule sees it) — 73 sightings in one day's log. Pinned here as KNOWN and
-    // unclosed so it is not mistaken for coverage this fix provides.
-    ['bash -c "git stash"', "pass", null],
+    // `bash -c '<string>'` is the SIBLING visibility gap, closed 2026-08-14 by the nested-command pass:
+    // the operand is a command, not a file, so there is no body to read — it is extracted and classified
+    // instead. Kept here beside the script rows because the two are one family.
+    ['bash -c "git stash"', "deny", "inline:git-destructive"],
+    // a wrapper whose BODY hides its work in a `-c` string is judged through both passes at once
+    [`bash ${writeScript(dir, "lane-inline.sh", "#!/usr/bin/env bash\nbash -c 'git stash'\n")}`, "deny", "script:inline:git-destructive"],
+    // …and the inverse nests the other way: a `-c` string that runs an untracked wrapper still reads it
+    [`bash -c "bash ${evil}"`, "deny", "inline:script:git-destructive"],
   ];
   const results = runBatch(rows.map(([command, , , ctx]) => ({ command, ...ctx })));
   const failures: string[] = [];
@@ -421,6 +506,52 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   // the tracked pass-through is a real decision, not an accident of a clean body: the same bytes,
   // classified directly, are a deny
   expect(at(runBatch([{ command: EVIL_BODY }]), 0).rule).toBe("git-destructive");
+});
+
+test("nested commands: the depth fence says so rather than waving an unread command through", () => {
+  // Absurd by construction — 8 levels of quoting. Past the fence the guard has NOT looked, and the whole
+  // point of this pass is that "I did not look" must never read as "I have no objection".
+  const nest = (depth: number, inner: string): string => (depth === 0 ? inner : `echo "$(${nest(depth - 1, inner)})"`);
+  const deep = at(runBatch([{ command: nest(8, "date") }]), 0);
+  expect(deep.decision).toBe("ask");
+  expect(deep.rule).toMatch(NESTED_DEPTH_CAP_RULE);
+  expect(deep.reason).toContain("Flatten it");
+  // …and everything shallower is READ. `rm -rf` is head-anchored, so the outer stages (all `echo`) can
+  // never match it — an `rm-rf-unsafe` from five levels down could only come from this pass.
+  const found = at(runBatch([{ command: nest(5, "rm -rf packages/server/src") }]), 0);
+  expect([found.decision, found.rule]).toEqual(["ask", "subst:subst:subst:subst:subst:rm-rf-unsafe"]);
+  // the fence is well past the real shapes: six levels still classify
+  expect(at(runBatch([{ command: nest(6, "date") }]), 0).decision).toBe("pass");
+});
+
+// ── self-exemption identity: the same FILE, not the same-looking path ─────────────────────────────────
+// The P1 leg (27aad9d18) made the exemption an INVOCATION rather than a mention, but compared identity by
+// path SUFFIX — so any file whose path ended in `/.claude/hooks/tool-guard.mjs` was "the guard's own
+// tooling" and skipped every rule below it, including the hard floor. A scratchpad copy is trivial to
+// place, which makes that a laundering route through the control the P1 leg had just built. The rows here
+// use REAL files so realpath actually resolves: a copy, and a symlink to the genuine hook.
+
+test("self-exemption: identity is the canonical realpath of THIS hook, never a look-alike path", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tg-identity-"));
+  mkdirSync(join(dir, ".claude", "hooks"), { recursive: true });
+  const lookalike = join(dir, ".claude", "hooks", "tool-guard.mjs");
+  copyFileSync(HOOK, lookalike); // byte-identical, different file
+  const link = join(dir, "linked-guard.mjs");
+  symlinkSync(HOOK, link);
+
+  const rows: [string, BatchResult["decision"], string | null][] = [
+    // MUST BITE — a look-alike is not this hook, so the rules judge the command normally
+    [`node ${lookalike} git stash`, "deny", "git-destructive"],
+    [`node ${lookalike} --classify-batch`, "pass", null],
+    // MUST PASS — the genuine file, and a symlink to it (same realpath, same bytes, deliberately exempt)
+    [`node ${HOOK} --classify-batch < cases.json`, "pass", "self-exempt"],
+    [`node ${link} --classify-batch`, "pass", "self-exempt"],
+    // the exemption is still an INVOCATION test, not a mention (AGENT-TOOLING-01 stays closed)
+    [`echo ${HOOK} && git stash`, "deny", "git-destructive"],
+  ];
+  const results = runBatch(rows.map(([command]) => ({ command, cwd: REPO, projectDir: REPO })));
+  const failures = rows.filter(([, decision, rule], i) => at(results, i).decision !== decision || at(results, i).rule !== rule);
+  expect(failures.map(([command]) => command)).toEqual([]);
 });
 
 // ── the hook contract (real stdin/stdout wire shape) ──────────────────────────────────────────────────
@@ -441,7 +572,7 @@ test("contract: a rewrite emits updatedInput, creates the log dir, and logs the 
   const h = out.hookSpecificOutput;
   expect(h?.permissionDecision).toBe("allow");
   const log = `${tmp}/reports/tool-guard/run-${PINNED_NOW}.log`;
-  expect(h?.updatedInput?.command).toBe(`pnpm check > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40; ( exit $__tg_ec )`);
+  expect(h?.updatedInput?.command).toBe(`pnpm check > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`);
   expect(h?.updatedInput?.timeout).toBe(600_000);
   expect(h?.additionalContext).toContain("tool-guard rewrote this command");
   expect(existsSync(`${tmp}/reports/tool-guard`)).toBe(true); // the redirect target's dir exists before the shell needs it
@@ -473,8 +604,9 @@ test("contract: a filename mention never exempts — deny/ask still reach the wi
     const r = runHook(bashInput(command), [["CLAUDE_PROJECT_DIR", tmp]]);
     expect([command, r.out.hookSpecificOutput?.permissionDecision]).toEqual([command, decision]);
   }
-  // and the genuine sole invocation of the guard's own tooling still runs, logged as self-exempt
-  const self = runHook(bashInput("node .claude/hooks/tool-guard.mjs --classify-batch < cases.json"), [["CLAUDE_PROJECT_DIR", tmp]]);
+  // and the genuine sole invocation of the guard's own tooling still runs, logged as self-exempt (the
+  // path is resolved against the shell cwd, so the payload names the REAL checkout)
+  const self = runHook(bashInput("node .claude/hooks/tool-guard.mjs --classify-batch < cases.json", [["cwd", REPO]]), [["CLAUDE_PROJECT_DIR", tmp]]);
   expect(self.out.hookSpecificOutput?.permissionDecision).toBe("allow");
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
   expect(logged.rule).toBe("self-exempt");
@@ -507,6 +639,23 @@ test("contract: an untracked wrapper script's body reaches the wire as a deny, a
   );
   expect(lane.out.hookSpecificOutput?.permissionDecision).toBe("deny");
   expect(lane.out.hookSpecificOutput?.permissionDecisionReason).toContain("SendMessage");
+});
+
+// The quoted-command pass through the SAME wire protocol: what the host acts on is the EMITTED decision.
+// The hostile payloads here are CLASSIFIED, never executed — nothing runs `git stash`.
+test("contract: a command hidden in a quoted string reaches the wire as a deny, and the sanctioned launcher still runs", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
+  for (const command of ["bash -c 'git stash'", 'echo "$(git stash)"']) {
+    const r = runHook(bashInput(command), [["CLAUDE_PROJECT_DIR", tmp]]);
+    expect([command, r.out.hookSpecificOutput?.permissionDecision]).toEqual([command, "deny"]);
+    expect(r.out.hookSpecificOutput?.permissionDecisionReason).toContain("git show HEAD:"); // the teaching text survives the lift
+  }
+  const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
+  expect(logged.rule).toBe("subst:git-destructive"); // triage can see WHERE the verdict came from
+  // MUST PASS on the wire: the sanctioned long-run launcher (the 120s Bash ceiling forces this shape)
+  const sanctioned = runHook(bashInput("setsid nohup bash -c 'pnpm check > /tmp/c.log 2>&1' < /dev/null &"), [["CLAUDE_PROJECT_DIR", tmp]]);
+  expect(sanctioned.out.hookSpecificOutput?.permissionDecision).toBe("allow");
+  expect(sanctioned.out.hookSpecificOutput?.additionalContext).toBeUndefined();
 });
 
 // The load-bearing pair. A command this guard does not object to must RUN — `defer` sends it to a
