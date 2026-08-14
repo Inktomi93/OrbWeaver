@@ -13,16 +13,15 @@
 
 import type { CastEntry, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MessageId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator, Page } from "@playwright/test";
+import type { Locator } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
-import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
@@ -79,184 +78,27 @@ const ROSTER_STUB = {
   }),
 };
 
-// The draft transcript's MACRO producers (its half of what a committed room reads off `chat.getChat`):
-// the viewer's owned personas + the two seed pointers + this character's persona connections feed
-// `resolveDraftAnchorPersona`, so a draft greeting's `{{user}}` names the persona the commit will anchor.
+// ── ONE renderer for the room's body — the pins that used to run over the DRAFT greeting and its
+// COMMITTED twin together (the owner report was "markdown doesn't apply before the chat is committed").
+// The draft arm is gone with draft mode; the convergence claim it proved is now simply what the one
+// renderer does, and these keep asserting it: emphasis is a native <em>, Streamdown renders strong as
+// `<span data-streamdown="strong">` (the ghost-message-row.ct.tsx precedent), an inline code span is
+// <code>, and the `{{user}}` macro resolves against the chat's ANCHOR persona.
 const NOVA = "persona_nova";
-const DRAFT_IDENTITY_STUB = {
-  "persona.list": (): readonly { id: string; name: string; description: string; avatarHash: null }[] => [
-    { id: NOVA, name: "Nova", description: "a wandering cartographer", avatarHash: null },
-  ],
-  "persona.listConnectedToCharacter": (): readonly never[] => [],
-  "settings.getUserSettings": (): { userId: UserId; schemaVersion: number; config: unknown; updatedAt: number } => ({
-    userId: castId<UserId>("user_ct"),
-    schemaVersion: 1,
-    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: NOVA } },
-    updatedAt: 0,
-  }),
-};
-
-test("a seeded draft renders the founding greeting as an editable row + the live composer, no CANON read", async ({ mount, page }) => {
-  let listMessagesCalls = 0;
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    ...DRAFT_IDENTITY_STUB,
-    "chat.listMessages": () => {
-      listMessagesCalls += 1;
-      return makeMessagesPage([]);
-    },
-    // A draft reads the FOUNDING card (character.get) to preview each greeting — but never CANON.
-    "character.get": () => ({
-      id: castId<CharacterId>("char_ct_room"),
-      name: "Aria",
-      greetings: ["Greetings, traveller."],
-    }),
-  });
-
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-
-  // The greeting renders as a normal message row (character-first, not an empty void), beside the composer.
-  await expect(component.getByText("Greetings, traveller.")).toBeVisible();
-  await expect(component.getByTestId(testId("composer"))).toBeVisible();
-  await expect(component.getByRole("textbox", { name: "Message" })).toBeVisible();
-  // The discriminant gate held — a draft NEVER read CANON (listMessages).
-  expect(listMessagesCalls).toBe(0);
-});
-
-// A character added via the roster PANEL mid-draft (`addDraftCharacter`, the story's `add-panel-character`
-// probe) must show its greeting row IMMEDIATELY — before commit — not just once the chat is created. The
-// bug: `DraftGreetingThread` built its cast from `draftSeed.characterIds` ONLY, while the commit unions in
-// `addedCharacterIds` (`resolveDraftCommit`) — so a panel-added character was invisible pre-commit and only
-// appeared at commit. The fix threads `resolveDraftCharacterIds` (the commit's own union) through the render.
-test("a panel-added character renders a greeting row pre-commit (same cast the commit will write)", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    ...DRAFT_IDENTITY_STUB,
-    "chat.listMessages": () => makeMessagesPage([]),
-    "character.get": (input: unknown): unknown =>
-      (input as { readonly characterId: CharacterId }).characterId === "char_ct_panel_added"
-        ? { id: castId<CharacterId>("char_ct_panel_added"), name: "Bryn", greetings: ["Well met, wanderer."] }
-        : { id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: ["Greetings, traveller."] },
-  });
-
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-
-  await expect(component.getByText("Greetings, traveller.")).toBeVisible();
-  // Not yet added — no Bryn row.
-  await expect(component.getByText("Well met, wanderer.")).toHaveCount(0);
-
-  await component.getByTestId("add-panel-character").click();
-
-  // The panel-added character's greeting row renders WITHOUT any commit — the founding character's row
-  // is unaffected.
-  await expect(component.getByText("Well met, wanderer.")).toBeVisible();
-  await expect(component.getByText("Greetings, traveller.")).toBeVisible();
-});
-
-// ── one renderer, both surfaces: a draft greeting is NOT a second rendering home ───────────────────
-// The owner report was "markdown doesn't apply before the chat is committed". The draft greeting already
-// rides the same MessageRow → MessageContent → @orb/ui/markdown path a committed row does (synth-greeting-
-// row.ts decision #1), and these two tests pin that convergence with ONE body rendered through BOTH arms:
-// a second, plain-text greeting renderer (or a draft that skipped `renderMessageForDisplay`) fails them.
-// Emphasis is a native <em>; Streamdown renders strong as `<span data-streamdown="strong">` (the
-// ghost-message-row.ct.tsx precedent), and an inline code span as <code>.
 const FORMATTED_BODY = "*She looks up.* **Well met**, {{user}} — try `:help` sometime.";
+
+// The ST-card shape (Azarael: quoted dialogue + plain narration, zero asterisks) — the `colorQuotedSpeech`
+// appearance knob has to reach the body from the settings read. The knob-OFF case is the discriminator: an
+// always-on tint (a transform mounted unconditionally in the seal) passes the ON tests and fails that one.
+const QUOTED_GREETING = "He doesn’t look up from the ledger. “You’re late,” he says.";
+const DIALOGUE_SPAN = '[data-slot="dialogue"]';
 
 async function expectFormattedBody(bubble: Locator): Promise<void> {
   await expect(bubble.locator("em")).toHaveText("She looks up.");
   await expect(bubble.locator('[data-streamdown="strong"]')).toHaveText("Well met");
   await expect(bubble.locator("code")).toHaveText(":help");
-  // The macro resolved to the persona the commit will anchor — never the raw `{{user}}`, never the "User" floor.
   await expect(bubble).toContainText("Well met, Nova —");
 }
-
-test("a DRAFT greeting renders formatted through the shared pipeline (emphasis/strong/code + a resolved {{user}})", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    ...DRAFT_IDENTITY_STUB,
-    "chat.listMessages": () => makeMessagesPage([]),
-    "character.get": () => ({ id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: [FORMATTED_BODY] }),
-  });
-
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-
-  await expectFormattedBody(component.locator(BUBBLE).first());
-  // The raw markup never reaches the reader (the tell of a plain-Text draft renderer).
-  await expect(component.locator(BUBBLE).first()).not.toContainText("**Well met**");
-});
-
-// A greeting is the highest-unbalanced-markdown surface there is (hand-authored ST cards habitually
-// leave a narration asterisk open), so the `autoFixMarkdown` appearance knob has to reach the DRAFT
-// greeting row, not just committed canon. OFF (the shipped default) renders the line as authored — a
-// lone `*` is literal per CommonMark; ON closes the run at end-of-line (`@orb/kit/fix-markdown`).
-const UNBALANCED_GREETING = "*She looks up and smiles";
-
-async function routeUnbalancedGreeting(page: Page, autoFixMarkdown: boolean): Promise<void> {
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    ...DRAFT_IDENTITY_STUB,
-    "settings.getUserSettings": () => ({
-      userId: castId<UserId>("user_ct"),
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, autoFixMarkdown } },
-      updatedAt: 0,
-    }),
-    "chat.listMessages": () => makeMessagesPage([]),
-    "character.get": () => ({ id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: [UNBALANCED_GREETING] }),
-  });
-}
-
-test("autoFixMarkdown ON closes an unbalanced greeting asterisk on the DRAFT row", async ({ mount, page }) => {
-  await routeUnbalancedGreeting(page, true);
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-  await expect(component.locator(BUBBLE).first().locator("em")).toHaveText("She looks up and smiles");
-});
-
-test("autoFixMarkdown OFF leaves the same greeting as authored (the literal asterisk, no emphasis)", async ({ mount, page }) => {
-  await routeUnbalancedGreeting(page, false);
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-  const bubble = component.locator(BUBBLE).first();
-  await expect(bubble.locator("em")).toHaveCount(0);
-  await expect(bubble).toContainText(UNBALANCED_GREETING);
-});
-
-// The ST-card shape (Azarael: quoted dialogue + plain narration, zero asterisks) — the `colorQuotedSpeech`
-// appearance knob has to reach BOTH body arms from the settings read, exactly like autoFixMarkdown above.
-// The knob-OFF case is the discriminator: an always-on tint (a transform mounted unconditionally in the
-// seal) passes the ON tests and fails this one.
-const QUOTED_GREETING = "He doesn’t look up from the ledger. “You’re late,” he says.";
-const DIALOGUE_SPAN = '[data-slot="dialogue"]';
-
-async function routeQuotedGreeting(page: Page, colorQuotedSpeech: boolean): Promise<void> {
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    ...DRAFT_IDENTITY_STUB,
-    "settings.getUserSettings": () => ({
-      userId: castId<UserId>("user_ct"),
-      schemaVersion: 1,
-      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech } },
-      updatedAt: 0,
-    }),
-    "chat.listMessages": () => makeMessagesPage([]),
-    "character.get": () => ({ id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: [QUOTED_GREETING] }),
-  });
-}
-
-test("colorQuotedSpeech ON (the default) tints the quoted run on the DRAFT greeting row", async ({ mount, page }) => {
-  await routeQuotedGreeting(page, true);
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-  const tinted = component.locator(BUBBLE).first().locator(DIALOGUE_SPAN);
-  await expect(tinted).toHaveCount(1);
-  await expect(tinted).toHaveText("“You’re late,”");
-});
-
-test("colorQuotedSpeech OFF renders the same greeting plain — the knob really reaches the row", async ({ mount, page }) => {
-  await routeQuotedGreeting(page, false);
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-  const bubble = component.locator(BUBBLE).first();
-  await expect(bubble).toContainText("You’re late,");
-  await expect(bubble.locator(DIALOGUE_SPAN)).toHaveCount(0);
-});
 
 test("the COMMITTED arm tints that same quoted body identically (one renderer, both arms)", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -264,7 +106,7 @@ test("the COMMITTED arm tints that same quoted body identically (one renderer, b
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_quoted"), role: "assistant", content: QUOTED_GREETING })]),
     ...ROSTER_STUB,
   });
-  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+  const component = await mount(<ChatRoomSurfaceStory />);
   const tinted = component.locator(BUBBLE).first().locator(DIALOGUE_SPAN);
   await expect(tinted).toHaveCount(1);
   await expect(tinted).toHaveText("“You’re late,”");
@@ -289,7 +131,7 @@ test("the COMMITTED arm renders that same body identically — the draft is not 
     }),
   });
 
-  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+  const component = await mount(<ChatRoomSurfaceStory />);
 
   const bubble = component.locator(BUBBLE).first();
   await expect(bubble).toBeVisible();
@@ -303,7 +145,7 @@ test("a committed chat reads canon and renders the rows beside the composer", as
     ...ROSTER_STUB,
   });
 
-  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+  const component = await mount(<ChatRoomSurfaceStory />);
 
   await expect(component.getByText("Hi Aria")).toBeVisible();
   await expect(component.getByText("Well met, traveller.")).toBeVisible();
@@ -350,7 +192,7 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
     await route.fallback();
   });
 
-  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+  const component = await mount(<ChatRoomSurfaceStory />);
 
   // The transcript read once; baseline established.
   await expect(component.getByText("Ping?")).toBeVisible();
@@ -370,63 +212,6 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
   // THE PIN: the send fired for real, and it refetched the list ZERO extra times. Bus-only freshness.
   await expect.poll(() => trpc.count("chat.send")).toBe(1);
   await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
-});
-
-// ── the FIRST send (draft→commit) clears the composer for the new chat ─────────────────────────────
-// The bug: on a draft's first send, ChatRoomSurface.onCommitted migrates the in-flight text from the
-// draftKey scope onto the new committed-chatId scope (visual continuity across the promotion). The
-// clear-on-commit signal then fired onChange("") through the send hook's closure — captured at SEND time,
-// still bound to the OLD draftKey scope — so it emptied the stale draftKey while the migrated text stayed
-// on the new chatId key and RE-POPULATED the fresh chat's composer. Net: the first send left the sent text
-// lingering; only the SECOND (already-committed) send cleared. The fix reads the LATEST onChange via a ref
-// so the clear targets the current (committed) scope. This pins the whole draft→commit-via-send path
-// end-to-end (real ChatRoomSurface + Composer + useSendMessage), driving the commit through a scripted
-// user-role messageCommitted on the new chat's stream — the production clear-on-commit trigger.
-test("the FIRST send on a draft clears the composer for the newly-committed chat (draft→commit doesn't carry the sent text forward)", async ({
-  mount,
-  page,
-}) => {
-  // startChat mints the committed id (CHAT_ID, the harness's committed constant); listMessages/getChat feed
-  // the settled room. `chat.send` is HELD in flight (registered AFTER routeTrpc ⇒ runs FIRST, LIFO) — the
-  // send promise stays open for the whole turn in production, so the clear-on-commit listener (torn down
-  // when the send settles) stays alive to receive the commit signal driven below.
-  const trpc = await routeTrpc(page, {
-    ...ROSTER_STUB,
-    ...DRAFT_IDENTITY_STUB,
-    "chat.startChat": () => ({ chat: { id: CHAT_ID }, openingFailure: null }),
-    "chat.listMessages": () => makeMessagesPage([]),
-    // The founding-card greeting preview the draft reads before commit.
-    "character.get": () => ({ id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: ["Greetings, traveller."] }),
-  });
-  await page.route("**/api/trpc/**", async (route) => {
-    const req = route.request();
-    if (req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send")) {
-      await new Promise<void>(() => undefined);
-      return;
-    }
-    await route.fallback();
-  });
-
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-  const textarea = component.getByRole("textbox", { name: "Message" });
-
-  await textarea.fill("First message");
-  await component.getByRole("button", { name: "Send message" }).click();
-
-  // The draft promoted to CHAT_ID (startChat fired) and the composer is disabled while the send holds in
-  // flight — but the text is still there (clear rides the commit signal, never optimistic submit).
-  await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
-  await expect(textarea).toBeDisabled();
-  await expect(textarea).toHaveValue("First message");
-
-  // Drive the caller's own user-row messageCommitted on the NEW chat (the production clear-on-commit
-  // trigger, stood in for the SSE bus — ComposerStory's `drive-message-committed` precedent).
-  await component.getByTestId("drive-message-committed").click();
-
-  // The composer clears for the newly-committed chat. Before the fix, the send hook's stale onChange closure
-  // cleared the OLD draftKey scope while the migrated sent text stayed on the CHAT_ID scope and
-  // re-populated this composer — so it stayed "First message" (the "first send doesn't clear" bug).
-  await expect(textarea).toHaveValue("");
 });
 
 // ── #13: the composer survives room-settle (no remount eats keystrokes) ───────────────────────────
@@ -454,7 +239,7 @@ test("#13: typing while listMessages is in flight survives the room settle — n
     await route.fallback();
   });
 
-  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+  const component = await mount(<ChatRoomSurfaceStory />);
 
   // The composer is live IMMEDIATELY (single stable element, tailRole=null until the read warms) — the
   // old suspended composer would not exist yet (the boundary shows its fallback composer, a different
@@ -599,7 +384,7 @@ test("the chat room declares the INSTRUMENT tier — the transcript's island res
   page,
 }) => {
   await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CHOICES_CANON) });
-  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+  const component = await mount(<ChatRoomSurfaceStory />);
 
   const island = component.locator(CHOICES_ISLAND).first();
   await expect(island).toBeVisible();
@@ -620,7 +405,7 @@ test("the chat room declares the INSTRUMENT tier — the transcript's island res
 
 test("LIVE: stripping data-surface-tier off the room moves the transcript island back to the tier-less step", async ({ mount, page }) => {
   await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CHOICES_CANON) });
-  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+  const component = await mount(<ChatRoomSurfaceStory />);
 
   const island = component.locator(CHOICES_ISLAND).first();
   await expect(island).toBeVisible();
@@ -655,47 +440,6 @@ function renderedAccent(root: Locator): Promise<string> {
   return root.evaluate((node) => getComputedStyle(node).getPropertyValue("--color-primary").trim());
 }
 
-test("DRAFT: the founding card's theme takes over the room chrome with no chat row at all", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    ...DRAFT_IDENTITY_STUB,
-    "chat.listMessages": () => makeMessagesPage([]),
-    "character.get": () => ({
-      id: castId<CharacterId>("char_ct_room"),
-      name: "Aria",
-      greetings: ["Greetings, traveller."],
-      themeOverride: CARD_THEME,
-      backgroundOverride: null,
-    }),
-  });
-
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-
-  const bubble = component.locator(BUBBLE).first();
-  await expect(bubble).toBeVisible();
-  expect(await renderedAccent(bubble)).toBe(CARD_ACCENT);
-});
-
-test("DRAFT: a GROUP founding cast keeps the viewer's own chrome (no arbitrary pick among cards)", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    ...DRAFT_IDENTITY_STUB,
-    "chat.listMessages": () => makeMessagesPage([]),
-    "character.get": (input: unknown): unknown =>
-      (input as { readonly characterId: CharacterId }).characterId === "char_ct_panel_added"
-        ? { id: castId<CharacterId>("char_ct_panel_added"), name: "Bryn", greetings: ["Well met, wanderer."], themeOverride: null, backgroundOverride: null }
-        : { id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: ["Greetings, traveller."], themeOverride: CARD_THEME, backgroundOverride: null },
-  });
-
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-  await expect(component.locator(BUBBLE).first()).toBeVisible();
-
-  // A second founding character lands mid-draft (the roster panel's own act) — the takeover must drop.
-  await component.getByTestId("add-panel-character").click();
-  await expect(component.getByText("Well met, wanderer.")).toBeVisible();
-  expect(await renderedAccent(component.locator(BUBBLE).first())).not.toBe(CARD_ACCENT);
-});
-
 test("COMMITTED: the SAME card resolves the SAME room accent through the roster (one rule, both phases)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...PREVIEW_FIT_STUB,
@@ -720,7 +464,7 @@ test("COMMITTED: the SAME card resolves the SAME room accent through the roster 
     }),
   });
 
-  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+  const component = await mount(<ChatRoomSurfaceStory />);
 
   const bubble = component.locator(BUBBLE).first();
   await expect(bubble).toBeVisible();
@@ -733,36 +477,4 @@ test("COMMITTED: the SAME card resolves the SAME room accent through the roster 
 // decides where the seats come from. The SOLO arm is the discriminator: a fix that mounts the strip
 // unconditionally passes the group case and wrongly paints a one-character room.
 
-const CAST_CHIP = '[data-slot="cast-chip"]';
 /** The add-member door's accessible name, in both phases ("Add a character"). */
-const ADD_MEMBER_RE = /^Add a character$/u;
-
-test("a GROUP DRAFT shows the cast strip — both founding characters, before any message exists", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...PREVIEW_FIT_STUB,
-    ...DRAFT_IDENTITY_STUB,
-    "chat.listMessages": () => makeMessagesPage([]),
-    "character.get": (input: unknown): unknown =>
-      (input as { readonly characterId: CharacterId }).characterId === "char_ct_panel_added"
-        ? { id: castId<CharacterId>("char_ct_panel_added"), name: "Bryn", avatarHash: null, greetings: ["Well met, wanderer."] }
-        : { id: castId<CharacterId>("char_ct_room"), name: "Aria", avatarHash: null, greetings: ["Greetings, traveller."] },
-  });
-
-  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
-  await expect(component.getByText("Greetings, traveller.")).toBeVisible();
-
-  // SOLO draft — one character is below the strip's own >1 floor, exactly as in a committed solo room.
-  await expect(component.getByLabel("Cast")).toHaveCount(0);
-
-  // A second founding character lands mid-draft (the roster panel's own act) — the strip appears with BOTH.
-  await component.getByTestId("add-panel-character").click();
-  await expect(component.getByText("Well met, wanderer.")).toBeVisible();
-
-  const strip = component.getByLabel("Cast");
-  await expect(strip).toBeVisible();
-  await expect(strip.locator(CAST_CHIP)).toHaveCount(2);
-  await expect(strip).toContainText("Aria");
-  await expect(strip).toContainText("Bryn");
-  // The viewer is always host of their own draft, so the add-member door rides the strip in both phases.
-  await expect(strip.getByRole("button", { name: ADD_MEMBER_RE })).toBeVisible();
-});

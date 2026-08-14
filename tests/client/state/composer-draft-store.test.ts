@@ -7,7 +7,7 @@
 // Exercised through the non-hook `__readComposerDraftsForTest` snapshot (the `recent-models-store.test.ts`
 // posture — the reactive `useComposerDraft` needs a React render).
 
-import { __readComposerDraftsForTest, __resetComposerDrafts, COMPOSER_DRAFT_CAP, migrateComposerDraft, setComposerDraft } from "@orb/client/state";
+import { __readComposerDraftsForTest, __resetComposerDrafts, COMPOSER_DRAFT_CAP, readComposerDraft, setComposerDraft } from "@orb/client/state";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -37,16 +37,16 @@ describe("composer-draft store", () => {
     expect(Object.keys(__readComposerDraftsForTest())).toEqual(["room-b", "room-c", "room-a"]);
   });
 
-  test("migrate carries the text to the new scope key and empties the old one", () => {
-    setComposerDraft("draft-key", "in flight");
-    migrateComposerDraft("draft-key", "chat-id");
-    const drafts = __readComposerDraftsForTest();
-    expect(drafts["chat-id"]).toBe("in flight");
-    expect(drafts["draft-key"]).toBeUndefined();
+  test('readComposerDraft answers the live text for a scope, and "" for one nobody typed in', () => {
+    // The non-hook read the husk-reap SKIP uses (active-chat-store.ts): an abandoned room with unsent text
+    // must NOT be published as a reap candidate, and that decision runs outside any render.
+    setComposerDraft("chat-id", "half a thought");
+    expect(readComposerDraft("chat-id")).toBe("half a thought");
+    expect(readComposerDraft("never-typed-in")).toBe("");
   });
 
-  test("migrating a scope with no draft is a no-op (never writes an empty entry at the target)", () => {
-    migrateComposerDraft("nothing-here", "chat-id");
+  test("reading an unknown scope never CREATES an entry for it", () => {
+    readComposerDraft("nothing-here");
     expect(__readComposerDraftsForTest()["chat-id"]).toBeUndefined();
   });
 

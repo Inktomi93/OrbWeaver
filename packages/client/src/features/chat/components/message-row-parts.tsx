@@ -15,13 +15,11 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import type { MessageRenderContext, RowRenderPolicy } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
-import { setDraftGreeting } from "#state";
+
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
-import type { GreetingBinding } from "../lib/synth-greeting-row.ts";
+
 import { CompactSummaryPeek } from "./compact-summary-peek.tsx";
-import { GreetingActionsRow } from "./greeting-actions-row.tsx";
-import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
 import { MessageActionsRow } from "./message-actions-row.tsx";
 import { MessageContent } from "./message-content.tsx";
 import { MessageEditTextarea } from "./message-edit-textarea.tsx";
@@ -75,7 +73,6 @@ function avatarPortraitSrcProp(avatarHash: string | null): { src?: string } {
 export function resolveRowContent(args: {
   readonly editing: boolean;
   readonly message: MessageView;
-  readonly greeting: GreetingBinding | undefined;
   readonly trainParagraphs: readonly string[] | null;
   readonly render: RowRenderPolicy;
   readonly renderContext: MessageRenderContext;
@@ -83,13 +80,10 @@ export function resolveRowContent(args: {
   readonly narratorVoiced: boolean;
 }): ReactNode {
   if (args.editing) {
-    const { greeting } = args;
-    return (
-      <MessageEditTextarea
-        message={args.message}
-        onSave={greeting === undefined ? undefined : (text): void => setDraftGreeting(greeting.draftKey, greeting.characterId, text)}
-      />
-    );
+    // No `onSave` override: the edit lands through the committed message-edit verb. The draft-greeting
+    // override (`setDraftGreeting`, a client store) died with draft mode — a seeded greeting is real canon
+    // now, so editing one IS a message edit (chat-creation-draft-mode-replacement.md §4.8, R1).
+    return <MessageEditTextarea message={args.message} />;
   }
   if (args.trainParagraphs !== null) {
     return null;
@@ -274,48 +268,32 @@ export function renderRowIdentity(args: { readonly attribution: RowAttribution; 
 export function renderRowActions(args: {
   readonly editing: boolean;
   readonly selecting: boolean;
-  readonly greeting: GreetingBinding | undefined;
   readonly message: MessageView;
   readonly onChatForked: ((chatId: ChatId) => void) | undefined;
   readonly messageActions: "expanded" | "hover" | undefined;
-  /** WIREBTN — gates the kebab's host-only "View wire trace…" item (see `MessageActionsRow`). A draft
-   *  greeting has no server row, so `GreetingActionsRow` has nothing to trace and never takes it. */
+  /** WIREBTN — gates the kebab's host-only "View wire trace…" item (see `MessageActionsRow`). */
   readonly viewerIsHost: boolean | undefined;
 }): ReactNode {
   if (args.editing || args.selecting) {
     return null;
   }
-  if (args.greeting !== undefined) {
-    return (
-      <GreetingActionsRow
-        message={args.message}
-        greeting={{ draftKey: args.greeting.draftKey, characterId: args.greeting.characterId, variants: args.greeting.variants }}
-        messageActions={args.messageActions}
-      />
-    );
-  }
   return <MessageActionsRow message={args.message} onChatForked={args.onChatForked} messageActions={args.messageActions} viewerIsHost={args.viewerIsHost} />;
 }
 
+// ⚠️ THE GREETING ALTERNATE-STEP STRIP IS DARK UNTIL R3 (chat-creation-draft-mode-replacement.md §4.8/F6).
+// A pre-send room stepped a founding character's card alternates through `GreetingSwipeStrip`, writing the
+// pick to a client store. A seeded greeting is REAL canon now, so stepping it needs a host-gated verb that
+// refuses after `freezeGreetingVolatiles` — R3's `chat.setSeededGreeting`. Until it lands, a seeded greeting
+// is EDITABLE (the committed message-edit verb) but not steppable. This is a known, bounded regression, not
+// an oversight; the strip's chrome is in git history and R3 repoints it at the verb.
 export function renderRowSwipe(args: {
   readonly editing: boolean;
   readonly showSwipes: boolean;
   readonly role: MessageView["role"];
-  readonly greeting: GreetingBinding | undefined;
   readonly message: MessageView;
 }): ReactNode {
   if (args.editing) {
     return null;
-  }
-  if (args.greeting !== undefined) {
-    return args.greeting.variants.length > 1 ? (
-      <GreetingSwipeStrip
-        draftKey={args.greeting.draftKey}
-        characterId={args.greeting.characterId}
-        variants={args.greeting.variants}
-        current={args.message.content}
-      />
-    ) : null;
   }
   return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} /> : null;
 }

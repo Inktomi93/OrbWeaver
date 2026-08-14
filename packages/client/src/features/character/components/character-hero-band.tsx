@@ -50,7 +50,7 @@ export interface CharacterHeroBandProps {
   readonly detail: CharacterHeroDetail;
   readonly form: AppFormInstance<CharacterCardFormValues>;
   readonly trpc: Trpc;
-  /** Starts a fresh chat with this character (the surface fires startNewChat + jumps to Chats). */
+  /** Starts a fresh chat with this character (the surface fires the shared creation seam + jumps to Chats). */
   readonly onNewChat: () => void;
   /** "N chats ›" — jumps to this character's threads in the Chats section. */
   readonly onViewChats: () => void;

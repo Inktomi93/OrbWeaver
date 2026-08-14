@@ -10,19 +10,18 @@
 // takes a user `personaId`). This dropdown is the buildable v1: it SUMMONS a character to generate.
 //
 // SIZE-GATED (D16 roster-of-1): renders `null` for a chat of ≤1 character (a solo/1:1 chat has no
-// "which character" choice) and for a DRAFT handle (no committed roster yet). The roster read is
-// `chat.getChat` — the same warm cache the cast bar + message list share (non-suspense; degrades to
-// `null` until populated).
+// "which character" choice). The roster read is `chat.getChat` — the same warm cache the cast bar +
+// message list share (non-suspense; degrades to `null` until populated).
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Drama, Icon } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
-import type { ChatHandle } from "#state";
-import { isCommitted, useTurnPhase } from "#state";
+import { useTurnPhase } from "#state";
 import { filterCharacters } from "../lib/roster.ts";
 
 /** `chat.generate` vars — an on-demand turn, optionally forced to a specific speaker (null ⇒ arbitrate). */
@@ -42,24 +41,22 @@ const useSpeakAsGenerate = createEntityMutation<SpeakAsGenerateVars, unknown>({
 });
 
 export interface SpeakAsSelectProps {
-  readonly handle: ChatHandle;
+  readonly chatId: ChatId;
 }
 
-/** The composer's speak-as dropdown — "Auto" + one item per character; `null` for solo/draft. */
-export function SpeakAsSelect({ handle }: SpeakAsSelectProps): ReactElement | null {
+/** The composer's speak-as dropdown — "Auto" + one item per character; `null` for a solo room. */
+export function SpeakAsSelect({ chatId }: SpeakAsSelectProps): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const chatId = isCommitted(handle) ? handle.id : null;
   const phase = useTurnPhase(chatId);
   const generate = useSpeakAsGenerate({ trpc, invalidation });
 
-  // Non-suspense roster read (shared cache), `skipToken`-gated on a committed chatId (no fetch for a
-  // draft) — degrades to `null` until populated (the useGatedQuery seam, kills the `castId("")` sentinel).
-  const rosterQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  // Non-suspense roster read (shared cache) — degrades to `null` until populated.
+  const rosterQuery = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const cast = filterCharacters(rosterQuery.data?.participants ?? []);
 
-  // Size-gate (D16 roster-of-1) + draft: no "which character" choice to make.
-  if (chatId === null || cast.length <= 1) {
+  // Size-gate (D16 roster-of-1): no "which character" choice to make.
+  if (cast.length <= 1) {
     return null;
   }
 

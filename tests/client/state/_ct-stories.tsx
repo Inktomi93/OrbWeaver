@@ -28,21 +28,20 @@ import {
   clearCollectionSelection,
   clearCorpusSelection,
   clearDatabankPhaseFilter,
-  clearNewChatPreset,
+  clearNewChatIntent,
   clearSectionSaveStatus,
   clearWorldEntrySelection,
   closeModal,
-  commitDraft,
   cycleTagFilter,
+  enterCreatedChat,
   goToCollection,
   goToLanding,
   isCommitted,
-  isLanding,
-  migrateComposerDraft,
   openCollectionGroup,
   openModal,
   openNewChatPicker,
   openSettingsTo,
+  readComposerDraft,
   reportSectionSaveStatus,
   requestComposerFocus,
   revealContextPanel,
@@ -76,15 +75,13 @@ import {
   setPanelMode,
   setPresetEditorView,
   setTagSortMode,
-  startNewChat,
+  subscribeHuskAbandoned,
   toggleCollectionGroup,
   toggleFavoritesOnly,
   toggleShowArchived,
   toggleSpoilerBlur,
   useActiveChatHandle,
-  useActiveDraftSeed,
   useActiveSection,
-  useActiveSessionKey,
   useAggregateSaveStatus,
   useBlockedSaveSections,
   useCharacterBulkMode,
@@ -104,7 +101,7 @@ import {
   useListDocked,
   useModalRegistry,
   useNarrowViewport,
-  useNewChatPreset,
+  useNewChatIntent,
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
@@ -130,7 +127,7 @@ import {
 import type { CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/ct/ct-data-providers.tsx";
 
 // ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────
@@ -303,43 +300,41 @@ function ShellStoreProbeBody(): ReactElement {
 
 const PROBE_CHARACTER = castId<CharacterId>("char_probe_aria");
 const PROBE_SELECT_CHAT = castId<ChatId>("chat_probe_select");
-const PROBE_COMMIT_CHAT = castId<ChatId>("chat_probe_commit");
+const PROBE_CREATED_CHAT = castId<ChatId>("chat_probe_created");
 const PROBE_LIST_CHAT = castId<ChatId>("chat_probe_list");
 const PROBE_OTHER_CHAT = castId<ChatId>("chat_probe_other");
 
 /** ActiveChatStoreProbe — renders the active-chat store's read hooks as text + buttons that fire its
- *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser)
- *  and assert THE KEY DISCIPLINE: sessionKey is stable across a draft→committed promotion, changes on
- *  new-chat / select. Each mount is a fresh page → the module session counter restarts at 1. Also drives
- *  the LIST-callback intent actions (`selectChatFromList`'s openOverlayPanel dual-write,
- *  `chatDeletedFromList`'s active-chat-only goToLanding). */
+ *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser).
+ *
+ *  THE LOAD-BEARING SEAM is now the HUSK one (chat-creation-draft-mode-replacement.md §4.6): a room
+ *  ENTERED via `enterCreatedChat` is remembered as the reap candidate, and leaving it publishes that id to
+ *  `subscribeHuskAbandoned` — unless its composer holds unsent text. The probe subscribes to the seam and
+ *  prints what it heard, so a CT asserts the PUBLICATION rather than a network call the store never makes.
+ *  (The old sessionKey/commitDraft discipline is gone with draft mode — there is no promotion to survive.) */
 export function ActiveChatStoreProbe(): ReactElement {
   const handle = useActiveChatHandle();
-  const seed = useActiveDraftSeed();
-  const sessionKey = useActiveSessionKey();
   const openOverlayPanel = useOpenOverlayPanel();
-  const preset = useNewChatPreset();
+  const intent = useNewChatIntent();
   const modal = useOpenModal();
-  let handleStr = "landing";
-  if (isCommitted(handle)) {
-    handleStr = `committed:${handle.id}`;
-  } else if (!isLanding(handle)) {
-    handleStr = `draft:${handle.draftKey}`;
-  }
-  const seedStr = seed?.characterIds?.join(",") ?? "none";
+  const [reaped, setReaped] = useState<string[]>([]);
+  useEffect(() => subscribeHuskAbandoned((chatId) => setReaped((prev) => [...prev, chatId])), []);
+  const handleStr = isCommitted(handle) ? `committed:${handle.id}` : "landing";
   return (
     <div>
-      <output>{`handle=${handleStr} session=${sessionKey} seed=${seedStr} openOverlayPanel=${openOverlayPanel ?? "none"}`}</output>
+      <output>{`handle=${handleStr} openOverlayPanel=${openOverlayPanel ?? "none"} reaped=${reaped.join(",") || "none"}`}</output>
       {/* A `p`, not a second `<output>` — the store CTs read the state line as `locator("output")`. */}
-      <p data-testid="new-chat-preset">{`modal=${modal ?? "none"} preset=${preset === undefined ? "none" : String(preset.temporary === true)}`}</p>
-      <button type="button" onClick={(): void => startNewChat()}>
-        new blank
-      </button>
-      <button type="button" onClick={(): void => startNewChat({ characterIds: [PROBE_CHARACTER] })}>
-        new with aria
+      <p data-testid="new-chat-intent">{`modal=${modal ?? "none"} temporary=${intent === undefined ? "none" : String(intent.temporary === true)}`}</p>
+      <button type="button" onClick={(): void => enterCreatedChat(PROBE_CREATED_CHAT)}>
+        enter created chat
       </button>
       <button type="button" onClick={(): void => selectChat(PROBE_SELECT_CHAT)}>
         select chat
+      </button>
+      {/* Types into the CREATED room's composer scope — the reap SKIP condition (unsent text means the
+          user may come back; the TTL belt covers them if they do not). */}
+      <button type="button" onClick={(): void => setComposerDraft(PROBE_CREATED_CHAT, "half a thought")}>
+        type in created room
       </button>
       {/* Open the LIST slide-over first so `selectChatFromList`'s dual-write close is observable. */}
       <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
@@ -354,29 +349,20 @@ export function ActiveChatStoreProbe(): ReactElement {
       <button type="button" onClick={(): void => chatDeletedFromList(PROBE_LIST_CHAT)}>
         delete active chat
       </button>
-      {/* Commit the CURRENTLY-active draft — reads its draftKey off the live handle (the real send
-          seam threads `initialHandle.draftKey`). A committed/landing handle passes "" ⇒ the guard
-          no-ops, exactly as commitDraft rejects a non-draft slot. */}
-      <button type="button" onClick={(): void => commitDraft(PROBE_COMMIT_CHAT, handle.kind === "draft" ? handle.draftKey : "")}>
-        commit draft
-      </button>
-      {/* Commit a STALE draftKey (`draft-2`, the FIRST draft minted per fresh page) — reproduces a
-          late-resolving `commitDraft(chatA)` for a draft the user already navigated away from. The
-          guard must reject it whenever the active slot is a newer draft / landing / committed chat. */}
-      <button type="button" onClick={(): void => commitDraft(PROBE_COMMIT_CHAT, "draft-2")}>
-        commit stale draft-2
+      <button type="button" onClick={(): void => chatDeletedFromList(PROBE_CREATED_CHAT)}>
+        delete created chat
       </button>
       <button type="button" onClick={(): void => goToLanding()}>
         go landing
       </button>
-      {/* The ONE creation ceremony (side-eye F9): an opener with a creation-only intent PRESETS the seed
-          and opens the shared picker, instead of minting a draft of its own. The picker clears the preset
-          on unmount, which `clear preset` stands in for here. */}
+      {/* The ONE creation ceremony (side-eye F9): an opener with a creation-only parameter PRE-ARMS the
+          shared picker instead of creating anything of its own. The picker clears it on unmount, which
+          `clear intent` stands in for here. */}
       <button type="button" onClick={(): void => openNewChatPicker({ temporary: true })}>
         open picker temp
       </button>
-      <button type="button" onClick={(): void => clearNewChatPreset()}>
-        clear preset
+      <button type="button" onClick={(): void => clearNewChatIntent()}>
+        clear intent
       </button>
     </div>
   );
@@ -787,9 +773,14 @@ function SettingsPaneRegistryReader(): ReactElement {
 
 /** ComposerDraftProbe — drives the composer-draft store (D70 commons) through its module actions and
  *  reads the reactive `useComposerDraft` hook, so a CT can prove the item-12 restoration: the typed draft
- *  is MODULE-scoped state, so it survives a component REMOUNT (the papercut this store exists to kill), and
- *  a draft→committed promotion MIGRATES the text across the scope-key flip. A CT (not a unit test) because
- *  the store's only read surface is the reactive hook (useSyncExternalStore needs a browser render). */
+ *  is MODULE-scoped state, so it survives a component REMOUNT (the papercut this store exists to kill).
+ *  A CT (not a unit test) because the store's only read surface is the reactive hook (useSyncExternalStore
+ *  needs a browser render).
+ *
+ *  The `migrate to committed` arm is GONE with `migrateComposerDraft` (chat-creation-draft-mode-replacement
+ *  .md §4.1, R1): a room is keyed by its real ChatId from the creation click, so there is no draftKey→ChatId
+ *  scope flip left to carry text across. `read snapshot` stands in — the non-hook read the husk-reap skip
+ *  uses to decide whether an abandoned room still holds unsent text. */
 export function ComposerDraftProbe(): ReactElement {
   // A local mount toggle so the test can unmount+remount the reader and prove the store outlives it.
   const [mounted, setMounted] = useState(true);
@@ -801,8 +792,8 @@ export function ComposerDraftProbe(): ReactElement {
       <button type="button" onClick={(): void => setComposerDraft("cd_scope", "typed but not sent")}>
         type draft
       </button>
-      <button type="button" onClick={(): void => migrateComposerDraft("cd_scope", "cd_committed")}>
-        migrate to committed
+      <button type="button" onClick={(): void => setComposerDraft("cd_committed", readComposerDraft("cd_scope"))}>
+        read snapshot
       </button>
       {/* The SEND-CLEAR (an empty `onChange("")`) — the arm that must leave NOTHING behind in the persisted
           blob, so a reload after sending does not resurrect the message the user already sent. */}

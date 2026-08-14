@@ -12,8 +12,12 @@
 //
 // SHOW-EVERYTHING ([[no-separate-reduced-modes]]): all four icons ALWAYS render — a phase-unavailable icon
 // is aria-disabled (Base UI `focusableWhenDisabled` keeps it hoverable) with its reason on `title`. Response
-// is never disabled — Generate opening on a draft, generate reply on any committed tail — which is why it
-// hosts empty-send-generate.
+// is never disabled (it generates a reply against any tail), which is why it hosts empty-send-generate.
+//
+// EVERY ICON FIRES AGAINST A REAL ROOM (chat-creation-draft-mode-replacement.md §4.4, R1). Response used to
+// carry a second label ("Generate opening") and a second fire path that CREATED the chat with
+// `opening:"generate"`; impersonate carried a force-commit. The room exists from the creation click, so both
+// are ordinary turns and the cluster takes a `chatId`, not a phase.
 //
 // THE ONE CONDITIONAL CONTROL (IMP-2): a Stop appears at the cluster's right edge while the impersonate
 // STREAM fills the composer, and only then — there is nothing to stop otherwise, and the row-2 turn Stop
@@ -28,6 +32,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { Drama, FastForward, Icon, Play, RotateCcw, Square } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import {
@@ -42,8 +47,6 @@ import {
   SWIPE_NEEDS_REPLY,
   testId,
 } from "#lib";
-import type { ChatHandle, DraftSeed } from "#state";
-import { isCommitted } from "#state";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import { filterCharacters } from "../lib/roster.ts";
@@ -53,15 +56,13 @@ import { RewriteDialog } from "./rewrite-dialog.tsx";
 import { useRewriteModal } from "./use-rewrite-modal.ts";
 
 export interface ComposerGuidedClusterProps {
-  readonly handle: ChatHandle;
+  readonly chatId: ChatId;
   readonly value: string;
   readonly onChange: (text: string) => void;
-  readonly draftSeed?: DraftSeed | undefined;
-  readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
   /** True while the composer's own Send is in flight — the whole cluster idles (one action at a time). */
   readonly busy?: boolean | undefined;
   /** The tail canon row's role is assistant — gates Swipe/Continue and drives the Response `afterAssistant`
-   *  nudge flag. False on a draft / empty chat / a user-tail chat. */
+   *  nudge flag. False on an empty chat / a user-tail chat. */
   readonly tailIsAssistant: boolean;
   /** The image controls, re-homed into the ✨ utility menu (owner). */
   readonly imageControls: ComposerImageControls;
@@ -75,10 +76,8 @@ export interface ComposerGuidedClusterProps {
 /** The four dual-mode guided icons + the ✨ utility menu (grouped Input · Reply · Continuation · Images · Plot —
  *  everything busy is inside the menu; the top row is just the four icons + ✨). */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
-  const { handle, value, onChange, draftSeed, onCommitted, busy = false, tailIsAssistant, imageControls, sendUnavailable, sendUnavailableReason } = props;
-  const committed = isCommitted(handle);
-  const chatId = committed ? handle.id : null;
-  const guided = useGuidedActions({ handle, draftSeed, onCommitted, onFireError: (firedText): void => onChange(firedText) });
+  const { chatId, value, onChange, busy = false, tailIsAssistant, imageControls, sendUnavailable, sendUnavailableReason } = props;
+  const guided = useGuidedActions({ chatId, onFireError: (firedText): void => onChange(firedText) });
   const utilities = useComposerUtilities(chatId);
   const trimmed = value.trim();
   const hasText = trimmed.length > 0;
@@ -87,7 +86,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const cast = useCast(chatId);
   const game = useGameSteer(chatId);
 
-  const canTargetTail = committed && guided.tailAssistantMessageId !== null;
+  const canTargetTail = guided.tailAssistantMessageId !== null;
   // The honest-refusal gate (#54) folds into `idle`: an unserveable connection idles EVERY fire action (they
   // all fire a doomed turn). `reasonFor` then lets the send cause WIN over the phase reason (both persistent):
   // a disabled icon on an off engine reads "Local engine is off…", not "needs a reply first".
@@ -113,21 +112,16 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const fireImpersonate = (person: GuidedImpersonatePerson): void => {
     guided.fireImpersonate(trimmed, person, (text) => onChange(text));
   };
-  // Response: draft → Generate opening (fireOpening); committed → generate reply (empty=plain, repeatable;
-  // text=guided). Passes `afterAssistant` so the server appends the responseNudge on an assistant tail.
+  // Response: generate a reply (empty = plain and repeatable; text = guided). Passes `afterAssistant` so
+  // the server appends the responseNudge on an assistant tail.
   const fireResponse = (speakerCharacterId: CharacterId | null): void => {
-    if (committed) {
-      guided.fireResponse(trimmed, { speakerCharacterId, afterAssistant: tailIsAssistant });
-    } else {
-      guided.fireOpening(trimmed);
-    }
+    guided.fireResponse(trimmed, { speakerCharacterId, afterAssistant: tailIsAssistant });
     onChange("");
   };
 
   return (
     <Row gap="field" align="center" className="shrink-0" data-slot="composer-guided-cluster">
       <ClusterUtilityMenu
-        committed={committed}
         hasText={hasText}
         trimmed={trimmed}
         idle={idle}
@@ -151,7 +145,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         // Swipe KEEPS the steer (reroll again with the same guidance) — no onChange clear.
         onFire={(): void => guided.fireSwipe(trimmed)}
       />
-      <ResponseGuidedButton hasText={hasText} idle={idle} committed={committed} cast={cast} onFire={fireResponse} disabledReason={persistentOffReason} />
+      <ResponseGuidedButton hasText={hasText} idle={idle} cast={cast} onFire={fireResponse} disabledReason={persistentOffReason} />
       <GuidedIconButton
         icon={FastForward}
         label={hasText ? "Continue with this steering" : "Continue"}
@@ -180,7 +174,6 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
  *  send/regenerate/game) out of the parent's cognitive budget. All the "which tail" / "has text" branching
  *  lives here; the parent just hands over the resolved actions bundle. */
 function ClusterUtilityMenu({
-  committed,
   hasText,
   trimmed,
   idle,
@@ -192,7 +185,6 @@ function ClusterUtilityMenu({
   game,
   image,
 }: {
-  readonly committed: boolean;
   readonly hasText: boolean;
   readonly trimmed: string;
   readonly idle: boolean;
@@ -215,7 +207,7 @@ function ClusterUtilityMenu({
       onUndo={tailId !== null ? (): void => utilities.undoContinue(tailId) : undefined}
       onRevert={tailId !== null ? (): void => utilities.revertContinue(tailId) : undefined}
       onClear={hasText ? (): void => onChange("") : undefined}
-      onSimpleSend={hasText && committed ? (): void => utilities.commitMessage(trimmed, () => onChange("")) : undefined}
+      onSimpleSend={hasText ? (): void => utilities.commitMessage(trimmed, () => onChange("")) : undefined}
       // Regenerate (owner: "regenerate goes inside magic wand menu") — a PLAIN reroll of the tail assistant, no
       // steer. The menu row wears a DISTINCT RefreshCw glyph + helper (side-eye P1-A) so it reads apart from the
       // dual-mode steer-aware ⟳ Swipe icon on the top row (§2.3e dual-home). Disabled-with-reason unless a tail
@@ -228,19 +220,19 @@ function ClusterUtilityMenu({
   );
 }
 
-/** The room cast for the Response speaker submenu (multi-character rooms). Empty on a draft/solo — the
- *  Response icon then fires Auto directly (no submenu). Gated on a committed chatId. */
-function useCast(chatId: ChatId | null): ReturnType<typeof filterCharacters> {
+/** The room cast for the Response speaker submenu (multi-character rooms). Empty/solo — the Response icon
+ *  then fires Auto directly (no submenu). */
+function useCast(chatId: ChatId): ReturnType<typeof filterCharacters> {
   const trpc = useTRPC();
-  const rosterQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const rosterQuery = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   return filterCharacters(rosterQuery.data?.participants ?? []);
 }
 
 /** The P5 game-steer state (D110-4): is this chat a LIVE game, and is plot-progression on? Reads off the
  *  same warm `getChat`/`getGame` caches the panel + old wand used (lockdown §12 direct cross-feature read). */
-function useGameSteer(chatId: ChatId | null): { readonly isGame: boolean; readonly plotAvailable: boolean } {
+function useGameSteer(chatId: ChatId): { readonly isGame: boolean; readonly plotAvailable: boolean } {
   const trpc = useTRPC();
-  const chatQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const chatQuery = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const isGame = isRpgEngaged(chatQuery.data?.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   return { isGame, plotAvailable: isGame && gameQuery.data?.publicConfig.plotProgression === true };
@@ -382,14 +374,12 @@ function ImpersonateGuidedButton({
 function ResponseGuidedButton({
   hasText,
   idle,
-  committed,
   cast,
   onFire,
   disabledReason,
 }: {
   readonly hasText: boolean;
   readonly idle: boolean;
-  readonly committed: boolean;
   readonly cast: ReturnType<typeof filterCharacters>;
   readonly onFire: (speakerCharacterId: CharacterId | null) => void;
   /** The PERSISTENT off-cause when there is one: the honest-refusal reason (#54) or the live impersonate
@@ -397,11 +387,11 @@ function ResponseGuidedButton({
    *  `title` + focusableWhenDisabled. */
   readonly disabledReason: string | undefined;
 }): ReactElement {
-  const label = committed ? "Generate reply" : "Generate opening";
+  const label = "Generate reply";
   const title = responseTitle(label, hasText, disabledReason);
   // The dual-mode accessible name (P3-dualmode): guided when the composer has text, plain when empty.
   const name = resolveGuidedName(label, hasText);
-  // Solo/draft: a direct fire (Auto). Multi-room: a submenu picks the speaker (Auto + each member).
+  // Solo: a direct fire (Auto). Multi-room: a submenu picks the speaker (Auto + each member).
   if (cast.length <= 1) {
     return (
       <Button

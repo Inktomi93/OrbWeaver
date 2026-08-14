@@ -1,8 +1,9 @@
 // The Chats rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — rail
 // identity, panel defaults, placeholder copy, list, content, header, and CONTEXT model in one place.
-// CONTEXT is minted via `defineContextTabs<ChatContextState>` (§6b) over the phase-discriminated
-// projection, unifying the committed panel and its draft twin into one tab set; `useChatContextState`
-// pairs with the tabs so `S` never crosses the shell seam. `makeChatsSection` takes its four contributor
+// CONTEXT is minted via `defineContextTabs<ChatContextState>` (§6b) over the room projection;
+// `useChatContextState` pairs with the tabs so `S` never crosses the shell seam. The tabs used to carry a
+// DRAFT twin per body (a rowless room wrote a client draft-config store instead of the verbs) — gone with
+// draft mode (chat-creation-draft-mode-replacement.md §4.1, R1): one body per tab, one set of verbs. `makeChatsSection` takes its four contributor
 // seams as ONE named-field bundle (§12 row 5, gate `section-factory-contribution-bundle`) — context tabs
 // (§6c) + REGION claims (HUD-1 §3.2) + surface anchors + tool renderers — so rpg/agents graft at the door
 // without importing chat, and a fifth seam is a FIELD rather than an arity churn at every caller.
@@ -22,21 +23,17 @@ import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { chatDeletedFromList, chatSectionSelection, openModal, selectChatFromList } from "#state";
 import { ChatListAnchor } from "../anchors/chat-list-anchor.tsx";
-import { DraftAddMemberPopover } from "../components/add-member-popover.tsx";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel.tsx";
 import { ChatContent } from "../components/chat-content.tsx";
 import { ChatListHeader } from "../components/chat-list-header.tsx";
 import { ChatsTopbarHeader } from "../components/chats-topbar-header.tsx";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab.tsx";
 import { CommittedMembersTab } from "../components/committed-members-tab.tsx";
-import { DraftMembersTabBody } from "../components/draft-context-tabs.tsx";
-import { CommittedSettingsTab, DraftSettingsTab } from "../components/settings-context-tab.tsx";
+import { CommittedSettingsTab } from "../components/settings-context-tab.tsx";
 import { useChatContextState } from "../hooks/use-chat-context-state.ts";
 import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
 import { useChatsSelectionTitle } from "./chats-selection-title.ts";
-import { castSectionVisible, draftMembersTabJustified, membersTabJustified, resolveIsGroupChat } from "./roster.ts";
-
-const GROUP_FLOOR = 2;
+import { castSectionVisible, membersTabJustified, resolveIsGroupChat } from "./roster.ts";
 
 function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
   return {
@@ -53,14 +50,14 @@ function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
 }
 
 // Flat declared order encodes the Members-default (§6b): members first ⇒ the generic resolve picks it as
-// the active tab whenever visible, else the first visible tab. Each body narrows on `s.phase`.
+// the active tab whenever visible, else the first visible tab.
 const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly id: ChatContextTabId })[] = [
   {
     id: "members",
     label: "Members",
     icon: Users,
-    when: (s) => (s.phase === "committed" ? membersTabJustified(s.participants, s.multiHumanCapable, s.isHost) : draftMembersTabJustified(s.cast)),
-    body: (s) => (s.phase === "committed" ? <CommittedMembersTab {...toMembersTabProps(s)} /> : <DraftMembersTabBody draftKey={s.draftKey} cast={s.cast} />),
+    when: (s) => membersTabJustified(s.participants, s.multiHumanCapable, s.isHost),
+    body: (s) => <CommittedMembersTab {...toMembersTabProps(s)} />,
   },
   // Overrides + Injections + Group + Background + Tool-use consolidated into ONE "This chat" tab
   // (panel-redesign; the former "Appearance overrides" tab and the separate "Injections" meta-tab merged).
@@ -71,18 +68,15 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
     id: "settings",
     label: "This chat",
     icon: SlidersHorizontal,
-    body: (s) =>
-      s.phase === "committed" ? (
-        <CommittedSettingsTab
-          chatId={s.chatId}
-          roomOverrides={s.roomOverrides}
-          isHost={s.isHost}
-          background={s.background}
-          showGroup={s.isHost && resolveIsGroupChat(s.participants)}
-        />
-      ) : (
-        <DraftSettingsTab draftKey={s.draftKey} showGroup={s.cast.length >= GROUP_FLOOR} />
-      ),
+    body: (s) => (
+      <CommittedSettingsTab
+        chatId={s.chatId}
+        roomOverrides={s.roomOverrides}
+        isHost={s.isHost}
+        background={s.background}
+        showGroup={s.isHost && resolveIsGroupChat(s.participants)}
+      />
+    ),
   },
   {
     id: "preview",
@@ -91,8 +85,8 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
     // HOST-ONLY (HUD-1 §4): `when` already omits it for a member; `crown` is how a CLAIMANT paints that
     // fact — the crown-gold glyph that reads "host-only" without spending a word on it.
     crown: true,
-    when: (s) => s.phase === "committed" && s.isHost,
-    body: (s) => (s.phase === "committed" ? <AssemblyPreviewPanel chatId={s.chatId} /> : null),
+    when: (s) => s.isHost,
+    body: (s) => <AssemblyPreviewPanel chatId={s.chatId} />,
   },
 ];
 
@@ -133,7 +127,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     // …and what it calls the open room in the pushed frame's topbar.
     useSelectionTitle: useChatsSelectionTitle,
     content: () => <ChatContent surfaceContributors={surfaces} toolRenderers={toolRenderers} />,
-    // Topbar identity: committed roster header vs draft seed, resolved from #state/#data inside the body.
+    // Topbar identity: the open room's roster header, resolved from #state/#data inside the body.
     header: () => <ChatsTopbarHeader />,
     context: defineContextTabs<ChatContextState>({
       useContextState: useChatContextState,
@@ -142,7 +136,9 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
       // chat's avatar + title, so the CONTEXT band no longer re-renders the same cluster 300px away — the
       // band reduces to neutral chrome above the tab strip. (`ChatContextHeader` was DELETED for knip;
       // CP-4's scene banner will be a NEW component grafted into this `header` slot, not a resurrection.)
-      actions: (s) => (s.phase === "draft" ? <DraftAddMemberPopover draftKey={s.draftKey} existingCharacterIds={s.cast} /> : null),
+      // No strip-trail actions today: the add-member door lives in the cast bar + the solo roster popover,
+      // both of which the room already renders. (It used to hold the DRAFT add-member popover — a rowless
+      // room's only way to grow its cast; the roster verb serves that now.)
       contributors: contextTabs,
       // The whole-pane REGION-CLAIM arm (HUD-1 §3.2): chat consumes it BLIND — a claiming contributor
       // (the rpg HUD on an engaged game chat) renders the entire CONTEXT pane from the tabs + selection

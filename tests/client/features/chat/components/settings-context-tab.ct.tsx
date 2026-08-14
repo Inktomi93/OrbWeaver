@@ -13,7 +13,7 @@ import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { setNumber } from "../../../../support/ct/set-number.ts";
-import { CommittedSettingsTabStory, DraftSettingsTabStory } from "../_ct-stories.tsx";
+import { CommittedSettingsTabStory } from "../_ct-stories.tsx";
 
 // The getChat stub the host-only Tool-use section suspends on (⑦). `toolRecurseLimit` is the current cap the
 // control displays; `viewerIsHost` mirrors the story's isHost. Minimal — the section only reads the cap.
@@ -135,19 +135,6 @@ test("committed host + SOLO (non-group): Group behavior is ABSENT, Field overrid
   // Host copy — the overrides field is editable for the host (expand the collapse row to reach the editor).
   await component.getByRole("button", { name: "Main prompt" }).click();
   await expect(component.getByLabel("Main prompt", { exact: true })).toBeEnabled();
-});
-
-test("draft: Field overrides always renders; Group behavior gates on showGroup", async ({ mount }) => {
-  const solo = await mount(<DraftSettingsTabStory showGroup={false} />);
-  await expect(solo.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
-  await expect(solo.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
-  await expect(solo.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
-});
-
-test("draft ≥2 cast: BOTH sections render as h3 headings", async ({ mount }) => {
-  const group = await mount(<DraftSettingsTabStory showGroup={true} />);
-  await expect(group.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
-  await expect(group.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
 });
 
 // ⑦ — the per-chat tool-call recursion cap control (Phase A L3 client half). Host-only (the §8.1
@@ -439,11 +426,4 @@ test("D-4: a MEMBER gets the Documents section too (member-readable), with no ad
   await expect(component.getByRole("heading", { name: "Documents 1", level: 3 })).toBeVisible();
   await expect(component.getByText("The Crimson Court")).toBeVisible();
   await expect(component.getByRole("button", { name: "Add from your bank" })).toHaveCount(0);
-});
-
-// A DRAFT has no room — no membership union, no chatId to attach against — so the rack is committed-only
-// (legacy's own `when` said the same). Without this the draft arm would suspend on a read it cannot make.
-test("D-4: the DRAFT arm carries no Documents section", async ({ mount }) => {
-  const draft = await mount(<DraftSettingsTabStory showGroup={false} />);
-  await expect(draft.getByRole("heading", { name: "Documents", level: 3 })).toHaveCount(0);
 });

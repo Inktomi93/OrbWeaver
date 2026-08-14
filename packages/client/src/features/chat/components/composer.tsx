@@ -9,6 +9,11 @@
 // (`generateOnEmptySend`) — the pure `resolveEmptySendAction` picks the arm; the ▷ Response icon is the
 // always-visible equivalent.
 //
+// The composer serves a REAL ROOM, always (chat-creation-draft-mode-replacement.md §4.1): a chat row exists
+// from the creation click, so there is no phase branch here, no lazy-create on first send, and no scope-key
+// flip mid-send — which is what the `onChangeRef` stale-closure dance existed to survive (the "first send
+// doesn't clear the composer" bug). All three are gone.
+//
 // SLASH COMMANDS (client-architecture-lockdown.md §6c): a send whose draft names a REGISTERED `/command`
 // dispatches to that command's runner instead of posting. Non-command text takes the byte-identical old
 // path; an UNKNOWN command is refused with a reason (never silently posted), and `//…` is the escape that
@@ -23,12 +28,11 @@ import { Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useUploadCaps } from "#data";
 import type { SlashCommandContribution } from "#lib";
-import { IMAGE_GEN_NEEDS_CHAT, IMAGE_GEN_NEEDS_TEXT, testId } from "#lib";
-import type { ChatHandle } from "#state";
-import { isCommitted, setComposerDraft, useComposerDraft } from "#state";
+import { IMAGE_GEN_NEEDS_TEXT, testId } from "#lib";
+import { setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import type { PendingAttachment } from "../hooks/use-composer-attachments.ts";
 import { useComposerAttachments } from "../hooks/use-composer-attachments.ts";
@@ -36,14 +40,13 @@ import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
 import { useContinueTurn } from "../hooks/use-continue-turn.ts";
 import { useGenerateImage } from "../hooks/use-generate-image.ts";
 import { useSendAvailability } from "../hooks/use-send-availability.ts";
-import type { DraftSeed } from "../hooks/use-send-message.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { useStopTurn } from "../hooks/use-stop-turn.ts";
 import { shouldSendOnEnter } from "../lib/composer-send-keys.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
 import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashComboboxAria } from "../lib/slash-command.ts";
-import { ComposerChatOptions } from "./composer-chat-options.tsx";
+import { ActiveChatOptionsMenu } from "./composer-chat-options.tsx";
 import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
@@ -122,12 +125,9 @@ function handleComposerKeyDown(
 }
 
 // The placeholder teaches the empty-Enter affordance in play. On an assistant tail with continue-on-empty
-// live, an empty Enter continues; on a committed non-assistant tail with generate-on-empty live, an empty
-// Enter prompts a reply (name the ▷ icon so the affordance is discoverable from the empty state).
-function resolvePlaceholder(committed: boolean, emptyAction: "continue" | "generate" | null): string {
-  if (!committed) {
-    return "Write the scene, or type a message…";
-  }
+// live, an empty Enter continues; on a non-assistant tail with generate-on-empty live, an empty Enter
+// prompts a reply (name the ▷ icon so the affordance is discoverable from the empty state).
+function resolvePlaceholder(emptyAction: "continue" | "generate" | null): string {
   if (emptyAction === "continue") {
     return "Continue, or type a message…";
   }
@@ -140,12 +140,10 @@ function resolvePlaceholder(committed: boolean, emptyAction: "continue" | "gener
 }
 
 // The disabled generate-image button's hover reason (undefined when it's actionable, or when disabled only
-// transiently mid-send/mid-generate). A DRAFT (no committed chat) needs the first send; a committed-but-empty
-// composer needs prompt text. Ordered so the draft's "send first" wins over "type first" for a fresh draft.
-function resolveImageGenReason(hasChat: boolean, hasText: boolean): string | undefined {
-  if (!hasChat) {
-    return IMAGE_GEN_NEEDS_CHAT;
-  }
+// transiently mid-send/mid-generate): the typed text IS the image prompt, so an empty composer needs one.
+// The old "send the first message first" arm is gone with draft mode — the room always has a chat row to
+// post into (chat-creation-draft-mode-replacement.md §4.1).
+function resolveImageGenReason(hasText: boolean): string | undefined {
   return hasText ? undefined : IMAGE_GEN_NEEDS_TEXT;
 }
 
@@ -161,24 +159,20 @@ function AttachmentPreview({ attachment, onRemove }: { readonly attachment: Pend
 }
 
 export interface ComposerProps {
-  readonly handle: ChatHandle;
-  /** This room's stable composer-draft scope key. The draft subscription lives HERE (not in the ancestor
-   *  ChatRoomSurface) so a keystroke re-renders only the composer subtree, never the message thread. */
-  readonly scopeKey: string;
-  readonly draftSeed?: DraftSeed | undefined;
-  readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
-  /** Null for a draft or an empty chat. */
+  /** The room this composer belongs to — also its composer-draft SCOPE KEY (a room's id is stable for the
+   *  pane's whole life now, so there is no separate key and no scope-flip to migrate across). */
+  readonly chatId: ChatId;
+  /** Null for an empty chat. */
   readonly tailRole?: MessageRole | null | undefined;
   /** The tail assistant message's id (continue-on-empty's target) — null unless the tail is an assistant turn. */
   readonly tailAssistantMessageId?: MessageId | null | undefined;
 }
 
-export function Composer({ handle, scopeKey, draftSeed, onCommitted, tailRole = null, tailAssistantMessageId = null }: ComposerProps): ReactElement {
-  const chatId = isCommitted(handle) ? handle.id : null;
+export function Composer({ chatId, tailRole = null, tailAssistantMessageId = null }: ComposerProps): ReactElement {
   // The draft read/write is scoped to THIS composer — the subscription is intentionally NOT lifted into the
   // shared ancestor, so a keystroke re-renders only this subtree and never cascades to the message thread.
-  const value = useComposerDraft(scopeKey);
-  const onChange = (text: string): void => setComposerDraft(scopeKey, text);
+  const value = useComposerDraft(chatId);
+  const onChange = (text: string): void => setComposerDraft(chatId, text);
   // A composer attachment is an image, so the pre-check ceiling is the SERVED image cap (the tighter of the
   // route cap and the admin `maxImageBytes`); the server re-caps + magic-byte checks regardless.
   const maxAttachmentBytes = useUploadCaps().image;
@@ -195,20 +189,10 @@ export function Composer({ handle, scopeKey, draftSeed, onCommitted, tailRole = 
   const continueOnEmpty = useContinueTurn();
   // The honest-refusal pre-send gate (#54): when the chat's resolved connection can't deterministically serve
   // a turn, SEND + the guided fire actions disable with the cause-specific reason (never a doomed late-failing
-  // turn). A draft (null chatId) is never refused — its first send is what commits the chat.
+  // turn). It reaches EVERY room now: the gate used to be structurally blind on the one surface where it
+  // mattered most (a fresh chat had no row to check against, §2.6 #1) — the room has a row from frame one.
   const sendAvailability = useSendAvailability(chatId);
   const { attachments, addFiles, removeAttachment, clearAttachments } = useComposerAttachments();
-
-  // The commit signal fires AFTER the draft→committed promotion has flipped the composer's scope key
-  // (setHandle → re-render), but the send hook holds the onDraftCommitted closure captured at SEND time
-  // (draft scope). Clearing through that stale closure would empty the OLD draftKey while the migrate
-  // already carried the sent text onto the NEW committed-chat key — so the just-sent text re-populates the
-  // fresh chat's composer (the "first send doesn't clear" bug). A ref to the LATEST onChange lets the clear
-  // target the current (committed) scope key, so the new chat starts empty.
-  const onChangeRef = useRef(onChange);
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  });
 
   // P5 CYOA compose-mode focus (§5.4): a choice click in `compose` mode seeds the draft (through `value`)
   // and bumps this room's focus nonce; the hook focuses the textarea on every bump so the reader lands in
@@ -218,11 +202,9 @@ export function Composer({ handle, scopeKey, draftSeed, onCommitted, tailRole = 
   // Not cleared optimistically in submit — onDraftCommitted fires only once the bus confirms the
   // user's own row committed, so a failed send leaves the draft intact for retry.
   const sendMessage = useSendMessage({
-    handle,
-    draftSeed,
-    onCommitted,
+    chatId,
     onDraftCommitted: () => {
-      onChangeRef.current("");
+      onChange("");
       clearAttachments();
     },
   });
@@ -236,11 +218,11 @@ export function Composer({ handle, scopeKey, draftSeed, onCommitted, tailRole = 
   const canSubmitText = trimmed.length > 0;
   const canSubmit = canSubmitText || hasAttachments;
   // Needs a committed chat to post into + prompt text; one action at a time (never mid-send/mid-generate).
-  const canGenerateImage = chatId !== null && canSubmitText && !sendMessage.isPending && !generateImage.isPending;
+  const canGenerateImage = canSubmitText && !sendMessage.isPending && !generateImage.isPending;
   // The disabled image button explains itself on hover (owner: "when it's disabled on hover tell why").
   // A DRAFT needs a committed chat to post into (send first); a committed-but-empty composer needs text
   // (the typed text IS the prompt). A mid-send/mid-generate disablement is transient — no reason then.
-  const imageGenReason = resolveImageGenReason(chatId !== null, canSubmitText);
+  const imageGenReason = resolveImageGenReason(canSubmitText);
 
   const generateFromText = (): void => {
     if (!canGenerateImage) {
@@ -265,7 +247,7 @@ export function Composer({ handle, scopeKey, draftSeed, onCommitted, tailRole = 
   // Stop stays visible (disabled + spinner) until the bus's turnAborted/turnCompleted closes the slot.
   const showStop = stopTurn.canStop || stopping;
 
-  const placeholder = resolvePlaceholder(isCommitted(handle), emptySend === null ? null : emptySend.kind);
+  const placeholder = resolvePlaceholder(emptySend === null ? null : emptySend.kind);
 
   // The completion offer: the commands whose id extends the token the user is mid-way through typing
   // (a bare "/" matches them all). Empty when the draft isn't a command-in-progress.
@@ -392,13 +374,11 @@ export function Composer({ handle, scopeKey, draftSeed, onCommitted, tailRole = 
               (side-eye UGLY-1, the detached-toolbar impression) and fills the gutter that left empty with the
               ⋯'s ONE home — the topbar trail widget was removed in the same change, never two. */}
           <Row gap="field" align="center" justify="between" data-slot="composer-actions">
-            <ComposerChatOptions handle={handle} />
+            <ActiveChatOptionsMenu chatId={chatId} />
             <ComposerGuidedCluster
-              handle={handle}
+              chatId={chatId}
               value={value}
               onChange={onChange}
-              draftSeed={draftSeed}
-              onCommitted={onCommitted}
               busy={sendMessage.isPending}
               tailIsAssistant={tailRole === "assistant"}
               imageControls={imageControls}
@@ -408,7 +388,7 @@ export function Composer({ handle, scopeKey, draftSeed, onCommitted, tailRole = 
           </Row>
           {/* ROW 2 — the textarea + speaker picker + Send/Stop. */}
           <Row gap="field" align="center" data-slot="composer-input">
-            <SpeakAsSelect handle={handle} />
+            <SpeakAsSelect chatId={chatId} />
             <Textarea
               ref={textareaRef}
               aria-label="Message"

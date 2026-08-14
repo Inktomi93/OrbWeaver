@@ -9,11 +9,11 @@
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { useAuthConfig, useInvalidation, useOrbSocket, useRpgBus, useSessionRecovery, useUserBus } from "#data";
+import { useAuthConfig, useHuskReaper, useInvalidation, useOrbSocket, useRpgBus, useSessionRecovery, useUserBus } from "#data";
 import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
 import { FirstRunPersonaDialog } from "#features/persona";
-import { isCommitted, useActiveChatHandle, useActiveDraftFoundingCast, useActiveSection, useSelectedCharacterId } from "#state";
+import { useActiveChatId, useActiveSection, useSelectedCharacterId } from "#state";
 
 export function AppRoot(): ReactElement {
   // Single-user renders none of the three multi-human surfaces (bell, the cast bar's humans row —
@@ -47,17 +47,18 @@ export function AppRoot(): ReactElement {
   // resume's forced re-announce has a bound transport to announce on.
   useSessionRecovery();
 
-  const handle = useActiveChatHandle();
   const activeSection = useActiveSection();
   const selectedCharacterId = useSelectedCharacterId();
-  const activeChatId = isCommitted(handle) ? handle.id : null;
-  // The ONE founding-cast union — seed ∪ the panel's pre-send additions. A cast-less draft that gains its
-  // first character from the roster panel IS a "New chat draft" to announce, which a seed-only read missed.
-  const draftCharacterIds = useActiveDraftFoundingCast();
+  const activeChatId = useActiveChatId();
+
+  // The best-effort husk reap (chat-creation-draft-mode-replacement.md §4.6): a room created here and left
+  // without ever being used tells the server on the way out. Mounted at the root for the same reason the bus
+  // hooks are — a feature unmount must not take it with it — and it never blocks or surfaces anything.
+  useHuskReaper();
 
   // The per-game live event room (Context-Panel-Program §4.9), mounted here (never in a feature, which
-  // could unmount and drop the freshness driver) and keyed to the active committed chat. `null` (a draft,
-  // no chat, or a non-game chat) attaches nothing at all.
+  // could unmount and drop the freshness driver) and keyed to the active chat. `null` (no chat, or a
+  // non-game chat) attaches nothing at all.
   useRpgBus(activeChatId, {
     invalidateRpg: invalidation.invalidateRpg,
     gapHealRpg: invalidation.gapHealRpg,
@@ -67,9 +68,6 @@ export function AppRoot(): ReactElement {
     if (activeSection === "chats") {
       if (activeChatId !== null) {
         return "Loaded chat.";
-      }
-      if (draftCharacterIds.length > 0) {
-        return "New chat draft.";
       }
       return "Chats list.";
     }

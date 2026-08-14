@@ -1,31 +1,29 @@
-// `ChatHandle` makes the wrong path not compile: draft and committed chats are different variants,
-// threaded explicitly from the composition point, so forgetting the branch is a tsc error, not a
-// runtime surprise. Never reintroduce an ambient "active chat" global.
+// `ChatHandle` makes the wrong path not compile: a room is either OPEN on a real chat row or it is the
+// landing state, threaded explicitly from the composition point, so forgetting the branch is a tsc error,
+// not a runtime surprise. Never reintroduce an ambient "active chat" global.
+//
+// THE `draft` ARM IS GONE (chat-creation-draft-mode-replacement.md §4.1, R1). A chat row now exists from the
+// creation CLICK — `chat.startChat` runs in the picker, and the room mounts committed from frame one — so a
+// rowless "chat that exists only in the composer" is unrepresentable. What used to be a draft is a HUSK: a
+// real row with `started_at IS NULL`, hidden from the chats list by a server lens and reaped if it is never
+// claimed. Do not re-add a client-side phase here to model it: husk-ness is a SERVER fact, and the client's
+// only interest in it is the best-effort nav-away reap (`active-chat-store.ts`).
 
 import type { ChatId } from "@orb/kit/ids";
 
 export type ChatHandle =
   | { readonly kind: "committed"; readonly id: ChatId }
-  | {
-      readonly kind: "draft";
-      /** Client-minted (seeded-id) key for a chat that exists only in the composer — no server row. */
-      readonly draftKey: string;
-    }
   // The at-rest landing state: nothing selected, so Chats content renders the landing surface, never an
-  // empty room. Carries no id/key, so it mounts no ChatRoomSurface.
+  // empty room. Carries no id, so it mounts no ChatRoomSurface.
   | { readonly kind: "landing" };
 
-/** The two handles a chat ROOM can be opened with — `landing` excluded. */
+/** The handle a chat ROOM can be opened with — `landing` excluded. */
 export type ActiveChatHandle = Exclude<ChatHandle, { readonly kind: "landing" }>;
 
-// Constructors return their specific member (not the wide ChatHandle) so a committed|draft composition
+// Constructors return their specific member (not the wide ChatHandle) so a caller composing an open room
 // infers as ActiveChatHandle — a narrower return still assigns to ChatHandle at every call site.
 export function committedChat(id: ChatId): Extract<ChatHandle, { kind: "committed" }> {
   return { kind: "committed", id };
-}
-
-export function draftChat(draftKey: string): Extract<ChatHandle, { kind: "draft" }> {
-  return { kind: "draft", draftKey };
 }
 
 /** The at-rest landing handle — the app's initial state + the "close chat" / brand-home landing. */

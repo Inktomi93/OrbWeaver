@@ -37,7 +37,7 @@ import {
   permanentTokenCount,
   totalTokenCount,
 } from "../lib/character-card-form-model.ts";
-import { revealChatsProjection, startChatWithCharacter } from "../lib/character-chat-intents.ts";
+import { revealChatsProjection, useStartChatWithCharacter } from "../lib/character-chat-intents.ts";
 import { clearCharacterForm, publishCharacterForm } from "../lib/character-editor-bridge.ts";
 
 // The character-card session boundary (D78 L2). Module-scope so both the boundary and its keyed Session
@@ -158,7 +158,8 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
 
   // Always a fresh chat with this character — the SAME writer the LIST band's New chat fires (one home,
   // `character-chat-intents.ts`), so the two primaries can't drift.
-  const onNewChat = (): void => startChatWithCharacter(data.id);
+  const startChatWith = useStartChatWithCharacter();
+  const onNewChat = (): void => startChatWith(data.id);
   // "N chats ›" no longer LEAVES for the Chats section (D8): with her selected, the LIST pane already IS
   // her history, so the hero points AT it — opening the sheet on narrow, un-collapsing + focusing on wide.
   const onViewChats = (): void => revealChatsProjection(narrow);

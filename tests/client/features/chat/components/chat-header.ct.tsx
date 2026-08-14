@@ -8,15 +8,10 @@
 // roster popover — the present seats + a host-only "Add a character" that converts the solo chat to a group.
 
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { CharacterId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ChatContextHeaderDraftStory, ChatHeaderNarrowStory, ChatHeaderStory, ChatsTopbarDraftStory } from "../_ct-stories.tsx";
+import { ChatContextHeaderStory, ChatHeaderNarrowStory, ChatHeaderStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
-
-const MEMBERS_CHIP_RE = /Members/;
 
 /** A human seat — `role` seats a host/member (the roster shape); `displayName` for the roster popover row. */
 function human(role: ParticipantRole): Record<string, unknown> {
@@ -160,19 +155,6 @@ test("a SOLO chat's roster popover hides Add a character for a non-host viewer (
   await expect(roster.getByRole("button", { name: "Add a character" })).toHaveCount(0);
 });
 
-// The CONTEXT band reduces to neutral chrome (Context-Panel-Program §1 Q3 / §0 IA de-dup): the chats def
-// no longer supplies a `defineContextTabs` `header` slot, so the band host falls back to its neutral
-// "Details" label instead of re-rendering the topbar's title/avatar cluster 300px away. `ChatContextHeader`
-// stays in chat-header.tsx as the band-identity component CP-4's scene header will graft back here.
-test("the context band reduces to neutral chrome — no duplicated chat identity (CP-1 Q3)", async ({ mount }) => {
-  const component = await mount(<ChatContextHeaderDraftStory />);
-  // The band shows the neutral fallback, NOT the draft's "New chat" identity (that now lives only on the topbar).
-  await expect(component.getByText("Details")).toBeVisible();
-  await expect(component.getByText("New chat")).toHaveCount(0);
-  // The members chip is the topbar's (one home) — it must NOT appear in the context band.
-  await expect(component.getByRole("button", { name: MEMBERS_CHIP_RE })).toHaveCount(0);
-});
-
 // ── THE DRAFT TOPBAR SAYS WHAT THE COMMITTED ONE SAYS (side-eye P2, 2026-08-06) ────────────────────
 // A group draft was titled after `cast[0]` alone and carried no seat count: "Hana Mizushima" for a
 // Hana + Kohaku room, with the second character discoverable only by scrolling to their greeting. §13
@@ -181,82 +163,14 @@ test("the context band reduces to neutral chrome — no duplicated chat identity
 // wherever a draft HAS a Members tab to open (`draftMembersTabJustified`, the predicate that tab's own
 // `when` reads — so the chip can never be a door to a hidden tab).
 
-const HANA = mintTypeId(ID_PREFIX.character);
-const KOHAKU = mintTypeId(ID_PREFIX.character);
-
-/** `character.get`, keyed by id — the founding-CARD read the draft identity resolves from. */
-function routeDraftCards(page: Page): Promise<unknown> {
-  return routeTrpc(page, {
-    "character.get": (input: unknown): unknown => {
-      const { characterId } = input as { readonly characterId: CharacterId };
-      return characterId === KOHAKU
-        ? { id: KOHAKU, name: "Kohaku", avatarHash: null, greetings: [] }
-        : { id: HANA, name: "Hana Mizushima", avatarHash: null, greetings: [] };
-    },
-  });
-}
-
-test("a GROUP DRAFT names its WHOLE cast and carries the seat count (not just cast[0])", async ({ mount, page }) => {
-  await routeDraftCards(page);
-
-  const component = await mount(<ChatsTopbarDraftStory characterIds={[HANA, KOHAKU]} />);
-
-  // The title names both — the committed room's own `deriveChatTitle` join, not the first name alone.
-  await expect(component.getByText("Hana Mizushima, Kohaku")).toBeVisible();
-  // The seat count is the viewer + the founding cast — the SAME arithmetic the committed room's
-  // present-seat count produces for the room this draft becomes.
-  await expect(component.getByRole("button", { name: MEMBERS_CHIP_RE })).toHaveAccessibleName("Members — 3");
-  // And the avatars are a STACK, not one portrait (the committed group's cluster).
-  //
-  // "2 characters" is the CALLER's label winning, as it should: the `accname-survives-spread` gate landing
-  // (`f954bbcf0`) moved `AvatarStack`'s generic "N people" default BEFORE its `{...rest}` spread, so a
-  // caller-passed `aria-label` now beats the fallback. This assertion previously pinned the pre-fix
-  // silently-overridden "2 people" and flipped the day the primitive was fixed — it now pins the CURE.
-  await expect(component.locator('[data-slot="avatar-stack-root"]')).toHaveAccessibleName("2 characters");
-  await expect(component.locator('[data-slot="avatar-stack-item"]')).toHaveCount(2);
-});
-
-test("a SOLO DRAFT keeps its single name and one portrait — the chip stays off its hidden Members tab", async ({ mount, page }) => {
-  await routeDraftCards(page);
-
-  const component = await mount(<ChatsTopbarDraftStory characterIds={[HANA]} />);
-
-  await expect(component.getByText("Hana Mizushima")).toBeVisible();
-  // Below the cast floor a draft has NO Members tab, so a chip here would open a tab the panel hides.
-  await expect(component.getByRole("button", { name: MEMBERS_CHIP_RE })).toHaveCount(0);
-  // One portrait, not a cluster — the solo shape, unchanged.
-  await expect(component.locator('[data-slot="avatar-stack-root"]')).toHaveCount(0);
-  await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(1);
-});
-
-// ── AN UNRESOLVED DRAFT SEAT IS LOADING, NOT AN ERROR (side-eye 2026-08-07 §④ P2) ──────────────────
-// Measured on a fresh group draft: t+0 the topbar read `? | ? | ? | | New chat | | 4`, no theme, no
-// background; ~2s later the real names. The "?" is `initialsFor("")`'s fallback rendered into a real
-// Avatar — cold-read it is a BROKEN seat, not a spinner, and it made three separately-landed fixes
-// (title, theme, background) look broken simultaneously on the very first frame of a room the user had
-// just composed by hand. The window itself is closed by the list-first resolver
-// (tests/client/data/use-carried-appearance.ct.tsx); this pins what the residual window LOOKS like.
-
-test("a DRAFT whose cards have not landed shows SKELETON seats — never a '?' avatar", async ({ mount, page }) => {
-  // Hold every card read open: the cold window, made infinite, with no warm `character.list` page.
-  await page.route("**/api/trpc/**", async (route) => {
-    if (route.request().url().includes("character.get")) {
-      await new Promise(() => undefined);
-      return;
-    }
-    await route.fallback();
+// CP-1's header de-dup: the CONTEXT BAND no longer carries the chat's identity (the topbar owns it), so the
+// band renders NEUTRAL chrome above the tab strip — never a second avatar+title cluster 300px away.
+test("the CONTEXT band renders neutral chrome, never a second identity cluster", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": { title: "Test chat", participants: [], cast: [] },
   });
 
-  const component = await mount(<ChatsTopbarDraftStory characterIds={[HANA, KOHAKU]} />);
+  const component = await mount(<ChatContextHeaderStory />);
 
-  const loading = component.locator('[data-slot="draft-cast-loading"]');
-  await expect(loading).toBeVisible();
-  // One placeholder per seat, so the cluster does not reflow when the names land.
-  await expect(loading.locator('[data-slot="skeleton"]')).toHaveCount(2);
-  // …and the region announces itself as busy rather than as content.
-  await expect(loading).toHaveAttribute("aria-busy", "true");
-  // THE SYMPTOM, dead: no "?" anywhere, and no avatar claiming to be a person.
-  await expect(component.getByText("?", { exact: true })).toHaveCount(0);
-  await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(0);
-  await expect(component.locator('[data-slot="avatar-stack-root"]')).toHaveCount(0);
+  await expect(component.getByText("Test chat")).toHaveCount(0);
 });

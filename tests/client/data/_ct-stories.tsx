@@ -11,26 +11,27 @@ import {
   useCarriedAppearanceCast,
   useColorQuotedSpeech,
   useDisplayScripts,
-  useDraftCastCards,
   useGatedQuery,
+  useHuskReaper,
   useInvalidation,
   useOnlineStatus,
   usePromptMacroSuggestions,
   useSessionRecovery,
   useSettingsViewerView,
+  useStartChat,
   useTRPC,
   useUploadAsset,
   useViewer,
 } from "@orb/client/data";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, renderMessageForDisplay, toNotice } from "@orb/client/lib";
-import { activeDurableLocalUserId } from "@orb/client/state";
+import { activeDurableLocalUserId, enterCreatedChat, goToLanding, useActiveChatId, useActiveSection } from "@orb/client/state";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
@@ -681,94 +682,18 @@ function PromptMacroSuggestionsProbe(): ReactElement {
  *  The readout is the resolved COMPOSITION — the two counts every takeover rule gates on — plus the
  *  carried names, so a partially-loaded draft cast (which must read as `pending`, never as a SMALLER cast
  *  that would momentarily look true-solo) is distinguishable from a settled one. */
-export function CarriedAppearanceCastStory({
-  chatId,
-  draftCharacterIds,
-}: {
-  readonly chatId: ChatId | null;
-  readonly draftCharacterIds: readonly CharacterId[];
-}): ReactElement {
+export function CarriedAppearanceCastStory({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
   return (
     <CtDataProviders>
-      <CarriedAppearanceCastReader chatId={chatId} draftCharacterIds={draftCharacterIds} />
+      <CarriedAppearanceCastReader chatId={chatId} />
     </CtDataProviders>
   );
 }
 
-function CarriedAppearanceCastReader({
-  chatId,
-  draftCharacterIds,
-}: {
-  readonly chatId: ChatId | null;
-  readonly draftCharacterIds: readonly CharacterId[];
-}): ReactElement {
-  const cast = useCarriedAppearanceCast(chatId, draftCharacterIds);
+function CarriedAppearanceCastReader({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
+  const cast = useCarriedAppearanceCast(chatId);
   const readout = cast === undefined ? "pending" : `humans=${cast.humanCount} cards=${cast.characters.map((member) => member.displayName).join("+")}`;
   return <output data-testid="carried-cast">{readout}</output>;
-}
-
-/** The new-chat PICKER's own read, stood up on its own — `useSuspenseQuery(character.list)` at the picker's
- *  page limit. This is the whole premise of the list-first resolver: by the time a draft exists, the user has
- *  just walked a `character.list` page, and that page already carries every founding card's name, avatar,
- *  theme and background. The limit mirrors `CharacterPicker`'s, but the resolver PREFIX-matches the key, so
- *  the number here is a faithful simulation rather than a handshake the fix depends on. */
-const PICKER_LIST_LIMIT = 100;
-
-function CharacterListWarmer(): ReactElement {
-  const trpc = useTRPC();
-  const { data } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: PICKER_LIST_LIMIT }));
-  return <output data-testid="list-warm">{`rows=${data.items.length}`}</output>;
-}
-
-/** DraftCastCardsStory — the resolver itself, one line per founding seat: `name|theme|background`, or the
- *  word `unresolved`. Mounted WITHOUT a warm list page, so the CT drives the `character.get` authority arm
- *  and the unresolved arm directly (its list-first arm is driven by `DraftCastCardsListFirstStory`). */
-export function DraftCastCardsStory({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
-  return (
-    <CtDataProviders>
-      <DraftCastCardsReader characterIds={characterIds} />
-    </CtDataProviders>
-  );
-}
-
-/** The same resolver, mounted only AFTER the picker's `character.list` page has landed — the production
- *  order, and the state the list-first rule exists for. */
-export function DraftCastCardsListFirstStory({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
-  return (
-    <CtDataProviders>
-      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
-        <CharacterListWarmer />
-        <DraftCastCardsReader characterIds={characterIds} />
-      </QueryBoundary>
-    </CtDataProviders>
-  );
-}
-
-function DraftCastCardsReader({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
-  const cards = useDraftCastCards(characterIds);
-  const readout = cards.map((card) =>
-    card === undefined ? "unresolved" : `${card.name}|${card.themeOverride === null ? "-" : "theme"}|${card.backgroundOverride === null ? "-" : "bg"}`,
-  );
-  return <output data-testid="draft-cast-cards">{readout.join(" ")}</output>;
-}
-
-/** CarriedAppearanceListFirstStory — the SAME reader, mounted after the picker's `character.list` page has
- *  landed (side-eye 2026-08-07 §④ P2). With `character.get` held in flight, the carried cast must already be
- *  resolved: that is the ~2s placebo-identity window closing. `CarriedAppearanceCastStory` with the same
- *  held `character.get` and NO warm list is the planted control — it reads `pending`. */
-export function CarriedAppearanceListFirstStory({ draftCharacterIds }: { readonly draftCharacterIds: readonly CharacterId[] }): ReactElement {
-  return (
-    <CtDataProviders>
-      {/* The reader is INSIDE the warmer's boundary on purpose — it must not mount until the list page has
-          landed, exactly as the real draft mounts only after the picker's list read. It also keeps the two
-          reads out of ONE tRPC HTTP batch: batched together, a CT that holds `character.get` would hold the
-          list request with it and the story could never reach the state it is written to prove. */}
-      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
-        <CharacterListWarmer />
-        <CarriedAppearanceCastReader chatId={null} draftCharacterIds={draftCharacterIds} />
-      </QueryBoundary>
-    </CtDataProviders>
-  );
 }
 
 /** `useSessionRecovery` — the ONE mount that arms the session machinery (staleness-and-session-freshness.md
@@ -796,6 +721,80 @@ export function SessionRecoveryStory(): ReactElement {
   return (
     <CtDataProviders>
       <SessionRecoveryProbe />
+    </CtDataProviders>
+  );
+}
+
+// ── CREATE-A-CHAT + THE HUSK REAPER (chat-creation-draft-mode-replacement.md §4.1/§4.6, R1) ────────
+
+const HUSK_CHAT_ID = castId<ChatId>("chat_ct_husk_probe");
+
+/** `useStartChat` — the ONE client creation seam. The probe fires it and publishes what a caller can
+ *  observe: the active-chat pointer it navigated to, and the section it switched to. The CACHE SEED is the
+ *  claim that needs a witness of its own, so a sibling reader renders `chat.getChat`'s cached title WITHOUT
+ *  its own fetch — if the seed did not land, that read is cold on the first frame. */
+function StartChatProbe({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
+  const { startChat, isPending } = useStartChat();
+  const activeChatId = useActiveChatId();
+  const activeSection = useActiveSection();
+  return (
+    <div>
+      <output data-testid="start-chat-state">{`chat=${activeChatId ?? "none"} section=${activeSection} pending=${String(isPending)}`}</output>
+      {activeChatId === null ? null : <SeededRoomReader chatId={activeChatId} />}
+      <button type="button" onClick={(): void => void startChat({ characterIds })}>
+        start chat
+      </button>
+    </div>
+  );
+}
+
+/** Reads `chat.getChat` CACHE-FIRST. `useStartChat` seeds this exact key from `startChat`'s own response,
+ *  so a room's first frame is warm with zero extra round-trips (the `echo` idiom, §4.10). */
+function SeededRoomReader({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  return <output data-testid="seeded-room">{data?.title ?? "cold"}</output>;
+}
+
+export function StartChatStory({ characterIds = [] }: { readonly characterIds?: readonly CharacterId[] } = {}): ReactElement {
+  return (
+    <CtDataProviders>
+      <StartChatProbe characterIds={characterIds} />
+    </CtDataProviders>
+  );
+}
+
+/** `useHuskReaper` — the nav-away arm of husk GC. It is a wiring hook with no pixels: mounted, it turns the
+ *  store's `subscribeHuskAbandoned` publication into a best-effort `chat.reapHusk`. The probe drives the
+ *  REAL store transition (enter a created room, then leave it) and renders the pointer + any toast, so the
+ *  CT asserts the WIRE call — and, on the FAILING arm, that navigation still completed and nothing
+ *  surfaced. */
+function HuskReaperProbe(): ReactElement {
+  useHuskReaper();
+  const activeChatId = useActiveChatId();
+  const [notified, setNotified] = useState<string>("none");
+  useState(() => {
+    const sink = (notice: NotifyInput): void => setNotified(toNotice(notice).title);
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
+    return null;
+  });
+  return (
+    <div>
+      <output data-testid="husk-state">{`chat=${activeChatId ?? "none"} notified=${notified}`}</output>
+      <button type="button" onClick={(): void => enterCreatedChat(HUSK_CHAT_ID)}>
+        enter created
+      </button>
+      <button type="button" onClick={(): void => goToLanding()}>
+        leave
+      </button>
+    </div>
+  );
+}
+
+export function HuskReaperStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <HuskReaperProbe />
     </CtDataProviders>
   );
 }
