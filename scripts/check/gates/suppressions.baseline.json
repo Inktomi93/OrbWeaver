@@ -11,7 +11,6 @@
   "packages/client/src/features/character/components/character-greeting-preview.tsx": 1,
   "packages/client/src/features/character/hooks/use-restore-row-focus.ts": 1,
   "packages/client/src/features/chat/components/assembly-preview-diagnostics.tsx": 1,
-  "packages/client/src/features/chat/components/ghost-message-row.tsx": 2,
   "packages/client/src/features/chat/components/members-panel.tsx": 1,
   "packages/client/src/features/chat/components/message-content.tsx": 4,
   "packages/client/src/features/chat/components/message-row-parts.tsx": 1,

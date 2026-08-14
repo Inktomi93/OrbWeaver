@@ -63,6 +63,7 @@ import {
   useTurnPhase,
 } from "@orb/client/state";
 import type {
+  CardTrust,
   CastEntry,
   HandoffOffer,
   JoinHistoryVisibility,
@@ -705,24 +706,33 @@ export interface GhostRowScriptedStoryProps {
    *  strip (`stripLeadingSpeakerName`) has a name to match. Absent ⇒ no attribution (the pre-existing
    *  byte-identical mount every other scripted CT uses). */
   readonly speakerName?: string;
+  /** The card tier the surface would resolve for this turn (`resolveRowRenderPolicy().cardTier`). Absent ⇒
+   *  the ghost's own fail-closed default (`tierA`), which is what a policy-less mount must render. */
+  readonly cardTier?: CardTrust;
 }
 
 /** The ghost row driven by an explicit, test-controlled SCRIPT of raw text chunks (rather than the
- *  fixed "Hi " token `GhostRowStory` uses). */
-export function GhostRowScriptedStory({ chunks, speakerName }: GhostRowScriptedStoryProps): ReactElement {
+ *  fixed "Hi " token `GhostRowStory` uses). Live-gated exactly like the production surface, so an ABORT
+ *  unmounts the row (and anything it had mounted) rather than leaving it idling. */
+export function GhostRowScriptedStory({ chunks, speakerName, cardTier }: GhostRowScriptedStoryProps): ReactElement {
   const [next, setNext] = useState(0);
+  const phase = useTurnPhase(SCRIPTED_CHAT_ID);
   const attribution =
     speakerName === undefined
       ? undefined
       : { name: speakerName, kind: "character" as const, avatarAssetId: null, avatarHash: null, hueSeed: speakerName, tokens: null };
   return (
     <div style={{ width: 360 }}>
-      <GhostMessageRow
-        chatId={SCRIPTED_CHAT_ID}
-        chatStyle="bubble"
-        streaming={useTurnPhase(SCRIPTED_CHAT_ID) === "streaming"}
-        {...(attribution === undefined ? {} : { attribution })}
-      />
+      <div data-testid="phase">{phase}</div>
+      {isLiveTurnPhase(phase) ? (
+        <GhostMessageRow
+          chatId={SCRIPTED_CHAT_ID}
+          chatStyle="bubble"
+          streaming={phase === "streaming"}
+          {...(attribution === undefined ? {} : { attribution })}
+          {...(cardTier === undefined ? {} : { cardTier })}
+        />
+      ) : null}
       <button
         type="button"
         data-testid="begin"
@@ -748,6 +758,9 @@ export function GhostRowScriptedStory({ chunks, speakerName }: GhostRowScriptedS
         }}
       >
         next chunk
+      </button>
+      <button type="button" data-testid="abort" onClick={(): void => chatStream.abortTurn(SCRIPTED_CHAT_ID, "user")}>
+        abort
       </button>
     </div>
   );

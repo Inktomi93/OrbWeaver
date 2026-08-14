@@ -1184,13 +1184,30 @@ building" — P4 item, ghost-arm only):** the moment the OPENING fence line comp
 suppresses the accumulating raw HTML and shows a PRETTY building-state placeholder: a card-shaped
 skeleton frame (existing @orb/ui skeleton/shimmer primitives + the motion tokens — no bespoke CSS, the
 motion-token-purity gate applies) carrying "✦ {title}" and a subtle forming animation; body bytes keep
-accumulating invisibly behind it. At COMMIT the real card mounts in its place (chip → card, one cut).
+accumulating invisibly behind it. NO iframe, NO partial HTML render ever — the chip is recognition of the
+completed OPEN marker only, which is why it doesn't violate the rejected-speculation rule.
 ABORTED stream (fence never closes): the committed body renders the honest literal text per the degrade
-rule — the chip simply disappears with the ghost row; no false card. NO iframe, NO partial HTML render
-ever — the chip is recognition of the completed OPEN marker only, which is why it doesn't violate the
-rejected-speculation rule. *Doorway:* the same chip can front the §4.8 lenient arm once its detector
-exists (the detector is pure and can run on ghost text; chip fires when the wrap threshold is met
-mid-stream) — additive, not required for P4. This is a `side-eye` surface (the prettiness IS the spec).
+rule — the chip simply disappears with the ghost row; no false card. *Doorway:* the same chip can front
+the §4.8 lenient arm once its detector exists (the detector is pure and can run on ghost text; chip fires
+when the wrap threshold is met mid-stream) — additive, not required for P4. This is a `side-eye` surface
+(the prettiness IS the spec).
+
+**AMENDED 2026-08-14 (owner dogfood + security review) — the upgrade is at FENCE CLOSE, not at commit.**
+The clause above originally ended "At COMMIT the real card mounts in its place (chip → card, one cut)",
+which paired the chip's exit with the wrong event. Owner, verbatim: *"interactive html cards pop up in rpg
+lite but they wont render fully until the message is done which looks rather weird even when the html is
+done being written."* The chip is the placeholder for a body that is STILL ARRIVING; once the closing
+`:::` line lands the bytes are final, and holding the chip for the rest of the message is the defect. So
+the real card now mounts at the CLOSE of its own fence, per block, while prose keeps streaming below it.
+This does not reopen the rejected speculation: a still-forming card carries **no body bytes on its
+segment at all** (`GhostContentSegment` has two card arms — `forming-card` with no body, `card` with a
+final one), so a renderer cannot paint partial HTML even by mistake. The close must be **terminated** (its
+own newline arrived) — an unterminated trailing `:::` matches the close grammar but the next token can
+still turn it into `:::x`, so mounting on it would render a non-final body and then flicker back. With
+termination required, a closed card's byte range is provably immutable under append. The ghost mounts
+through the SAME `CardBlock` the settled row uses (one sandbox posture, not two), takes its TIER from the
+one trust authority, and pins the two axes commit owns — `allowExternalMedia={false}` and no routed mint
+(the srcdoc floor) — so mounting earlier never also means mounting wider.
 
 ### 4.6 Swipe behavior (falls out of variant machinery — owner's expectation confirmed)
 

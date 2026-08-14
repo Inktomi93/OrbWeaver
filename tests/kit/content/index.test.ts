@@ -551,19 +551,60 @@ describe("scanGhostContent — the §4.5 forming-card ghost scan (P4)", () => {
     const segments = scanGhostContent('The letter reads:\n:::card title="Zandik\'s letter"\n<div>half-streamed HT');
     expect(segments).toEqual([
       { kind: "text", text: "The letter reads:\n" },
-      { kind: "forming-card", title: "Zandik's letter", closed: false },
+      { kind: "forming-card", title: "Zandik's letter" },
     ]);
   });
 
-  test("a title-less open forms with title null", () => {
-    expect(scanGhostContent(":::card\n<div>")).toEqual([{ kind: "forming-card", title: null, closed: false }]);
+  test("a FORMING card exposes NO body bytes — a renderer structurally cannot paint partial HTML", () => {
+    const [segment] = scanGhostContent(':::card title="Terminal"\n<div>half-streamed <img src="https://evil.test/p.png">');
+    expect(segment).toEqual({ kind: "forming-card", title: "Terminal" });
+    expect(JSON.stringify(segment)).not.toContain("evil.test");
   });
 
-  test("a CLOSED card mid-stream stays a chip (no iframe ever in the ghost) and trailing prose resumes", () => {
+  test("a title-less open forms with title null", () => {
+    expect(scanGhostContent(":::card\n<div>")).toEqual([{ kind: "forming-card", title: null }]);
+  });
+
+  test("a CLOSED fence mid-stream becomes a real card segment carrying its FINAL body; prose resumes after", () => {
     const segments = scanGhostContent(':::card title="Poster"\n<div>done</div>\n:::\nAnd the crowd gasps');
     expect(segments).toEqual([
-      { kind: "forming-card", title: "Poster", closed: true },
+      { kind: "card", title: "Poster", body: "<div>done</div>" },
       { kind: "text", text: "And the crowd gasps" },
+    ]);
+  });
+
+  test("SECURITY: an UNTERMINATED close line is NOT a close — the next token can still revoke it", () => {
+    // A trailing `:::` with no newline matches FENCE_CLOSE_RE, so without the termination requirement the
+    // ghost would mount a card whose body is not final — and `:::x` on the next token would revoke it,
+    // flipping the card back to a chip. A model that types a close-looking line cannot spoof a close.
+    expect(scanGhostContent(':::card title="Poster"\n<div>done</div>\n:::')).toEqual([{ kind: "forming-card", title: "Poster" }]);
+    // The very next token proves the revocation was real: it was never a close line at all.
+    expect(scanGhostContent(':::card title="Poster"\n<div>done</div>\n:::x\n')).toEqual([{ kind: "forming-card", title: "Poster" }]);
+    // The newline is what makes it final.
+    expect(scanGhostContent(':::card title="Poster"\n<div>done</div>\n:::\n')).toEqual([{ kind: "card", title: "Poster", body: "<div>done</div>" }]);
+  });
+
+  test("a closed card's segment is IMMUTABLE under every later token (the one-mount invariant)", () => {
+    const closed = ':::card title="Poster"\n<div>done</div>\n:::\n';
+    const [first] = scanGhostContent(closed);
+    for (const tail of ["A", "And the crowd ", "And the crowd gasps.\n\nThen silence.", '\n:::card title="Second"\n<p>x</p>\n:::\n']) {
+      expect(scanGhostContent(closed + tail)[0]).toEqual(first);
+    }
+  });
+
+  test("the ghost card body is the SAME projection the committed grammar produces (one card, not two)", () => {
+    const body = ':::card title="Poster"\n<div>a</div>\n<p>b</p>\n:::\n';
+    const ghost = scanGhostContent(body)[0];
+    const committed = tokenizeContent(body).find((s) => s.kind === "card");
+    expect(ghost).toMatchObject({ kind: "card", title: "Poster" });
+    expect(ghost?.kind === "card" ? ghost.body : null).toBe(committed?.kind === "card" ? committed.body : undefined);
+  });
+
+  test("a nested `:::` inside the body does not close the card early (balance-aware, same as committed)", () => {
+    const segments = scanGhostContent(':::card title="Outer"\n:::choices\n1. a\n:::\n<p>still mine</p>\n:::\ntail');
+    expect(segments).toEqual([
+      { kind: "card", title: "Outer", body: ":::choices\n1. a\n:::\n<p>still mine</p>" },
+      { kind: "text", text: "tail" },
     ]);
   });
 
@@ -575,7 +616,7 @@ describe("scanGhostContent — the §4.5 forming-card ghost scan (P4)", () => {
   test("§4h: a tolerated open forms the chip too — the ghost never disagrees with the committed parse", () => {
     // Otherwise a malformed opener would stream as raw HTML and then SNAP into a card at commit.
     expect(scanGhostContent(':::card title="Maintenance Terminal — Login">\n<div>LOG')).toEqual([
-      { kind: "forming-card", title: "Maintenance Terminal — Login", closed: false },
+      { kind: "forming-card", title: "Maintenance Terminal — Login" },
     ]);
     // …and a genuinely unparseable open still streams as text in both planes.
     const broken = ":::card title='Login'\n<div>LOG";
