@@ -25,6 +25,11 @@ export interface CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TErr
   readonly itemsOf: (page: TPage) => readonly TItem[];
   /** Stable id per row (selection + the virtualizer key — id-based, NEVER the index). */
   readonly idOf: (item: TItem) => string;
+  /** The server CENSUS off a page, when the read serves one (`page.totalCount`). Omitted for reads that do
+   *  not: a keyset surface's `items.length` is "loaded so far", and a readout that prints that number while
+   *  meaning "how many there are" is the lie this seam exists to prevent — so the absence is `null`, never
+   *  a plausible-looking count. */
+  readonly totalOf?: (page: TPage) => number;
   /** Rows-from-the-tail threshold that triggers the next-page fetch. @defaultValue 12 */
   readonly endApproachRows?: number;
 }
@@ -39,6 +44,9 @@ export interface CollectionSelection {
 
 export interface CollectionSurface<TItem> {
   readonly items: readonly TItem[];
+  /** How many rows match the query's scope on the SERVER — `null` when the read serves no census (or before
+   *  the first page lands). Read off the FIRST page: every page of one keyset run counts the same scope. */
+  readonly totalCount: number | null;
   /** WHEN these rows were true — the query's own `dataUpdatedAt`, forwarded because a surface whose rows
    *  carry a TIME-derived state (databank's stall verdict: an in-flight row whose `updatedAt` froze) needs a
    *  clock that ADVANCES with each refetch. A mount-time `useState(() => now())` snapshot would freeze and
@@ -80,6 +88,8 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
     const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set<string>());
 
     const items = query.data === undefined ? [] : query.data.pages.flatMap((p) => config.itemsOf(p));
+    const firstPage = query.data?.pages[0];
+    const totalCount = config.totalOf === undefined || firstPage === undefined ? null : config.totalOf(firstPage);
 
     // Destructured so the callback closes over exact slices, not the fresh-proxy-per-render `query` object.
     const { hasNextPage, isFetching, fetchNextPage, refetch } = query;
@@ -94,6 +104,7 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
 
     return {
       items,
+      totalCount,
       dataUpdatedAt: query.dataUpdatedAt,
       isPending: query.isPending,
       isPlaceholderData: query.isPlaceholderData,

@@ -2,14 +2,18 @@
 // (routeTrpc, keyset-paged) → `createCollectionSurface`'s `useInfiniteQuery` → the virtualized card
 // list. Asserts: the first page renders AND the tail-fetch guard auto-pulls the second page (the story's
 // 480px/2-row viewport puts every row within the default 12-row `endApproachRows` window, so the guard
-// fires without a real scroll gesture); the search box (useDeferredValue) filters by name/tag
-// CLIENT-SIDE over whatever pages are loaded (`character.list` has no server-side search param — see
-// the surface's header note); an empty library and a no-match search each get their own honest empty
-// state; a scripted read failure shows the error state (NO Retry — `createCollectionSurface` exposes no
-// refetch handle, so the QueryBoundary reset handshake the old unpaged read used no longer applies).
+// fires without a real scroll gesture); an empty library, a no-match search and a no-match FILTER each get
+// their own honest empty state; a scripted read failure shows the error state with a working Retry.
+//
+// EVERY LENS IS THE SERVER'S (owner ruling 2026-08-13). The stub is INPUT-AWARE (`characterListResponder`)
+// so these drive the real semantics: a fixed-array responder would let every search/filter assertion pass
+// while the client filtered a ≤150-row window, which is precisely the defect that shipped. The pins that
+// state the fix: a match beyond the loaded page is FOUND; a chip narrows the request, not the array; the
+// chip vocabulary comes from the TAG LIBRARY (so an active filter always has a chip); the head page is
+// never evicted; the counts are the server's census.
 //
 // NOTE (mirrors message-list-surface.ct.tsx's own note): `trpc.character.list` is stubbed at the NETWORK
-// (routeTrpc) — the responder inspects the decoded `input.cursor` to serve page 1 vs page 2.
+// (routeTrpc) — the responder inspects the decoded input (cursor · search · chips) to serve its page.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -19,7 +23,7 @@ import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterLibrarySurfaceStory } from "../_ct-stories.tsx";
-import { makeCharacterSummary, makeTagFixture } from "../fixtures.ts";
+import { characterListResponder, makeCharacterSummary, makeTagFixture } from "../fixtures.ts";
 
 const ARIA = makeCharacterSummary({
   id: "char_aria",
@@ -36,11 +40,15 @@ const CASSIUS = makeCharacterSummary({
 });
 
 const PAGE_1_CURSOR = { createdAt: BOLT.createdAt, id: BOLT.id };
+const THREE_ROW_TOTAL = 3;
 
-/** A two-page keyset series: page 1 = [ARIA, BOLT] + a cursor; page 2 = [CASSIUS], exhausted. */
+/** A two-page keyset series: page 1 = [ARIA, BOLT] + a cursor; page 2 = [CASSIUS], exhausted. Both pages
+ *  carry the SAME census — every page of one keyset run counts the same scope. */
 function twoPageResponder(input: unknown): unknown {
   const cursor = (input as { cursor?: unknown } | undefined)?.cursor;
-  return cursor === undefined ? { items: [ARIA, BOLT], nextCursor: PAGE_1_CURSOR } : { items: [CASSIUS], nextCursor: null };
+  return cursor === undefined
+    ? { items: [ARIA, BOLT], nextCursor: PAGE_1_CURSOR, totalCount: THREE_ROW_TOTAL }
+    : { items: [CASSIUS], nextCursor: null, totalCount: THREE_ROW_TOTAL };
 }
 
 test("renders the first page, then auto-fetches the next page (tail-fetch guard)", async ({ mount, page }) => {
@@ -55,20 +63,29 @@ test("renders the first page, then auto-fetches the next page (tail-fetch guard)
   await expect(component.getByText("Cassius")).toBeVisible();
 });
 
-test("the search box filters loaded pages by name, client-side", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": twoPageResponder });
+// THE OWNER'S P1 (2026-08-13): searching found only what the client had already paged in. The pin is a
+// match that is NOT on the loaded page — under the old client-side filter the box could only ever have
+// answered "No matches" for her, over a library that plainly contains her.
+test("the search box asks the SERVER — a match beyond the loaded page is found", async ({ mount, page }) => {
+  const library = [
+    ...Array.from({ length: 40 }, (_unused, at) => makeCharacterSummary({ id: `char_fill_${String(at)}`, name: `Filler ${String(at)}`, createdAt: 9000 - at })),
+    makeCharacterSummary({ id: "char_deep", name: "Zephyrine", createdAt: 10 }),
+  ];
+  const trpc = await routeTrpc(page, { "character.list": characterListResponder(library), "chat.listChats": chatListResponder([]) });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
-  await expect(component.getByText("Cassius")).toBeVisible(); // both pages loaded first
-  await component.getByPlaceholder("Search characters…").fill("bolt");
+  await expect(component.getByText("Filler 0")).toBeVisible();
+  await component.getByPlaceholder("Search characters…").fill("zephyr");
 
-  await expect(component.getByText("Bolt")).toBeVisible();
-  await expect(component.getByText("Aria Nightshade")).toHaveCount(0);
-  await expect(component.getByText("Cassius")).toHaveCount(0);
+  // The term went over the wire…
+  await expect.poll(() => (trpc.lastInput("character.list") as { search?: string } | undefined)?.search, { intervals: [50, 100, 200] }).toBe("zephyr");
+  // …and the row it matched is on screen even though it was never in the loaded window.
+  await expect(component.getByText("Zephyrine")).toBeVisible();
+  await expect(component.getByText("Filler 0")).toHaveCount(0);
 });
 
 test("an empty library shows the 'no characters yet' empty state", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": () => ({ items: [], nextCursor: null }) });
+  await routeTrpc(page, { "character.list": characterListResponder([]) });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
 
@@ -76,26 +93,37 @@ test("an empty library shows the 'no characters yet' empty state", async ({ moun
 });
 
 test("a search with no matches shows the 'no matches' empty state", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": twoPageResponder });
+  await routeTrpc(page, { "character.list": characterListResponder([ARIA, BOLT, CASSIUS]), "chat.listChats": chatListResponder([]) });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
-  await expect(component.getByText("Cassius")).toBeVisible(); // both pages loaded first
+  await expect(component.getByText("Cassius")).toBeVisible();
   await component.getByPlaceholder("Search characters…").fill("nonexistent-name");
 
+  // An HONEST claim now that the predicate is the server's: the whole library was searched.
   await expect(component.getByText("No matches")).toBeVisible();
+  await expect(component.getByText('No character matches "nonexistent-name".')).toBeVisible();
 });
 
 test("a read failure shows the error state with a working Retry (rule 1 — no dead ends)", async ({ mount, page }) => {
   // First read fails; after Retry the responder recovers — the list renders without a remount.
+  //
+  // The pane issues THREE `character.list` reads now (the paged collection, the favorites strip's own
+  // `starred: true` page, and the band's `limit: 1` census), so the failure has to be aimed at the
+  // COLLECTION: a bare first-call latch would spend itself on whichever read happened to go first and the
+  // list would render fine, which is a test that proves nothing about its own subject.
   let failed = false;
   await routeTrpc(page, {
-    "character.list": () => {
-      if (!failed) {
+    "character.list": (input: unknown) => {
+      const args = (input ?? {}) as { starred?: boolean; limit?: number };
+      const isCollection = args.starred === undefined && args.limit !== 1;
+      if (isCollection && !failed) {
         failed = true;
         return trpcError();
       }
-      return { items: [BOLT], nextCursor: null };
+      return { items: isCollection ? [BOLT] : [], nextCursor: null, totalCount: 1 };
     },
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => [],
   });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -121,11 +149,24 @@ const TAGGED = makeCharacterSummary({
   tags: [makeTagFixture({ id: "tag_rpg", name: "rpg" })],
 });
 
-/** Route a single exhausted page of the three fixtures + an empty `listChats` (empty resume map). */
-async function routeThree(page: Page): Promise<void> {
-  await routeTrpc(page, {
-    "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
+/** The tag LIBRARY the chips are drawn from (`tag.listTagsWithUsage`) — the vocabulary is the owner's tags
+ *  now, not the loaded rows', so it has to be routed wherever a chip is asserted. */
+function tagLibraryOf(...names: readonly { readonly id: string; readonly name: string; readonly characters: number }[]): unknown {
+  return names.map((tag) => ({
+    ...makeTagFixture({ id: tag.id, name: tag.name }),
+    usage: { characters: tag.characters, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: tag.characters },
+  }));
+}
+
+const RPG_TAG_LIBRARY = tagLibraryOf({ id: "tag_rpg", name: "rpg", characters: 1 });
+
+/** Route the three fixtures through the INPUT-AWARE responder (the chips/search narrow the REQUEST) + an
+ *  empty `listChats` (empty resume map) + the tag library the chips come from. */
+function routeThree(page: Page): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "character.list": characterListResponder([STARLA, BOLT2, TAGGED]),
     "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => RPG_TAG_LIBRARY,
   });
 }
 
@@ -138,13 +179,16 @@ test("§4.2 the favorites strip surfaces starred characters as select-only avata
   await expect(strip.getByRole("button", { name: "Open Bolt" })).toHaveCount(0);
 });
 
-test("§4.5 the Favorites filter chip narrows to starred rows", async ({ mount, page }) => {
-  await routeThree(page);
+test("§4.5 the Favorites filter chip narrows the SERVER read to starred rows", async ({ mount, page }) => {
+  const trpc = await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await expect(component.getByText("Bolt")).toBeVisible();
   await component.getByRole("button", { name: "Show only favorites" }).click();
   await expect(component.getByText("Bolt")).toHaveCount(0);
   await expect(component.getByText("Cassius")).toHaveCount(0);
+  await expect(component.getByText("Starla")).toBeVisible();
+  // The narrowing is a REQUEST, not an array pass — which is what makes it reach past the loaded window.
+  await expect.poll(() => (trpc.lastInput("character.list") as { starred?: boolean } | undefined)?.starred, { intervals: [50, 100] }).toBe(true);
 });
 
 test("§4.3 the Group toggle switches to categorized view (an Uncategorized bucket)", async ({ mount, page }) => {
@@ -177,7 +221,11 @@ test("C9-1d an OPEN tag's group starts EXPANDED; a plain tag's group starts coll
     createdAt: 2000,
     tags: [makeTagFixture({ id: "tag_rpg", name: "rpg", folderType: "NONE" })],
   });
-  await routeTrpc(page, { "character.list": () => ({ items: [inOpenFolder, inPlainGroup], nextCursor: null }), "chat.listChats": () => [] });
+  await routeTrpc(page, {
+    "character.list": characterListResponder([inOpenFolder, inPlainGroup]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 1 }, { id: "tag_rpg", name: "rpg", characters: 1 }),
+  });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Group by tag" }).click();
 
@@ -256,9 +304,11 @@ test("§4.6 bulk mode reveals row checkboxes + the selection bar", async ({ moun
   await expect(component.getByRole("button", { name: "Delete", exact: true })).toBeVisible();
 });
 
-// D1 — a chip-induced empty over the loaded window must NOT show search copy nor dead-end: a favorite that
-// lives only on a LATER page is reachable via a Load more affordance. Page 1 is large enough that the
-// virtual list does not auto-tail-fetch, so filtering to favorites (none on page 1) yields the chip-empty.
+// D1, RE-AIMED (2026-08-13). The old shape of this pin was "a favorite that lives only on a LATER page is
+// reachable via Load more" — an affordance that existed because the chip filtered the LOADED WINDOW and the
+// only cure for a miss was fetching more of the library into the browser. With the chip on the server there
+// is no window to be outside of: the favorite comes back on the FIRST page of the filtered read, and the
+// "load more to keep looking" copy would now be a dead end pretending to be a next step.
 const PAGE1_FILLERS = Array.from({ length: 40 }, (_, i) => makeCharacterSummary({ id: `char_fill_${i}`, name: `Filler ${i}`, createdAt: 9000 - i }));
 const LATE_FAVORITE = makeCharacterSummary({
   id: "char_late_fav",
@@ -266,28 +316,62 @@ const LATE_FAVORITE = makeCharacterSummary({
   starred: true,
   createdAt: 100,
 });
-const PAGE1_CURSOR_LATE = { createdAt: 8961, id: "char_fill_39" };
 
-test("D1 a favorites-chip empty over the loaded window offers Load more, reaching a later-page favorite", async ({ mount, page }) => {
+test("D1 a favorite that lives deep in the library arrives on the FIRST page of the filtered read", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "character.list": (input: unknown) =>
-      (input as { cursor?: unknown } | undefined)?.cursor === undefined
-        ? { items: PAGE1_FILLERS, nextCursor: PAGE1_CURSOR_LATE }
-        : { items: [LATE_FAVORITE], nextCursor: null },
+    "character.list": characterListResponder([...PAGE1_FILLERS, LATE_FAVORITE]),
     "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => [],
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await expect(component.getByText("Filler 0")).toBeVisible();
 
   await component.getByRole("button", { name: "Show only favorites" }).click();
-  // NOT the search copy (no search was typed), and NOT a dead end — the chip-empty offers Load more.
-  await expect(component.getByText("No matches in view")).toBeVisible();
-  const loadMore = component.getByRole("button", { name: "Load more" });
-  await expect(loadMore).toBeVisible();
-
-  await loadMore.click();
-  // Page 2 holds the only favorite — it is now reachable.
+  // No "No matches in view", no Load more — the row itself, straight away.
   await expect(component.getByText("Zephyr")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Load more" })).toHaveCount(0);
+});
+
+// THE EVICTION TRAP (the owner's "characters vanish as I scroll"). `maxPages: 5` with
+// `getPreviousPageParam: () => undefined` made the HEAD page unrecoverable: past five pages TanStack dropped
+// page 1 and nothing could ever fetch it back. At the settings floor (pageSize 10) six pages is 60 rows.
+//
+// The proof is the LIVE REGION, not the DOM rows: at the bottom of a 60-row virtualized list the head rows
+// are legitimately unmounted either way, so "is row 1 in the DOM" cannot tell eviction from virtualization.
+// The readout can: it prints `loaded` against the server census, so a dropped page reads "50 of 60".
+const EVICTION_PAGE_SIZE = 10;
+const EVICTION_ROWS = 60;
+const SCROLL_STEP_PX = 600;
+/** The poll IS the scroll loop: each attempt wheels one step and reports whether the tail has arrived, so
+ *  the walk needs no `waitForTimeout` and no awaits inside a `for` (both banned in CTs, and both would be
+ *  a fixed sleep standing in for the settle this actually waits on). */
+const SCROLL_POLL = { intervals: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], timeout: 20_000 };
+
+test("the head page is NEVER evicted — all six pages stay loaded through a deep scroll", async ({ mount, page }) => {
+  const library = Array.from({ length: EVICTION_ROWS }, (_unused, at) =>
+    makeCharacterSummary({ id: `char_deep_${String(at)}`, name: `Deep ${String(at).padStart(2, "0")}`, createdAt: 100_000 - at }),
+  );
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => settingsView(EVICTION_PAGE_SIZE),
+    "character.list": characterListResponder(library),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => [],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await expect(component.getByText("Deep 00")).toBeVisible();
+
+  // Walk to the tail the way a user does — each step lets the tail-fetch guard pull the next page.
+  const list = component.getByRole("list", { name: "Character library" });
+  await list.hover();
+  const tail = component.getByText("Deep 59");
+  await expect
+    .poll(async () => {
+      await page.mouse.wheel(0, SCROLL_STEP_PX);
+      return tail.count();
+    }, SCROLL_POLL)
+    .toBeGreaterThan(0);
+  // Sixty loaded of sixty — never "50 of 60", which is what a silently dropped head page reads as.
+  await expect(component.getByRole("status")).toHaveText(`${String(EVICTION_ROWS)} characters`);
 });
 
 // F1 (stickler 2026-08-01) — the toolbar's second row is a flex race: the sort `Select`'s trigger carries
@@ -554,17 +638,23 @@ const LONG_TAG = "a-tag-name-long-enough-to-prove-the-chip-clips-instead-of-over
 /** A chip past the cap, addressed by its name prefix (its state word changes as it cycles). */
 const BEYOND_CAP_CHIP = /^Filter by bulk-11:/u;
 
-/** One character carrying `count` distinct tags — the chip vocabulary IS the loaded rows' tags. */
-function manyTagsPage(count: number, extra: readonly { readonly id: string; readonly name: string }[] = []): unknown {
+/** `count` tags in the owner's LIBRARY (the chip vocabulary's source since 2026-08-13 — it used to be the
+ *  loaded rows' tags, which is how an active filter could render no chip at all), all carried by one
+ *  character so the chips are live. */
+function routeManyTags(page: Page, count: number, extra: readonly { readonly id: string; readonly name: string }[] = []): Promise<TrpcRecorder> {
   const tags = [
     ...Array.from({ length: count }, (_unused, at) => makeTagFixture({ id: `tag_bulk_${String(at)}`, name: `bulk-${String(at).padStart(2, "0")}` })),
     ...extra.map((one) => makeTagFixture(one)),
   ];
-  return { items: [makeCharacterSummary({ id: "char_tagged", name: "Tagged One", createdAt: 3000, tags })], nextCursor: null };
+  return routeTrpc(page, {
+    "character.list": characterListResponder([makeCharacterSummary({ id: "char_tagged", name: "Tagged One", createdAt: 3000, tags })]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => tags.map((tag) => ({ ...tag, usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 } })),
+  });
 }
 
 test("the chip row is CAPPED, and the rest are one disclosure away", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": () => manyTagsPage(12) });
+  await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
 
@@ -576,7 +666,7 @@ test("the chip row is CAPPED, and the rest are one disclosure away", async ({ mo
 });
 
 test("an ACTIVE chip is never hidden by the cap (a filter you cannot see is one you cannot turn off)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": () => manyTagsPage(12) });
+  await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
 
@@ -588,7 +678,7 @@ test("an ACTIVE chip is never hidden by the cap (a filter you cannot see is one 
 });
 
 test("a 72-character tag name TRUNCATES inside the pane instead of overflowing it", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": () => manyTagsPage(0, [{ id: "tag_long", name: LONG_TAG }]) });
+  await routeManyTags(page, 0, [{ id: "tag_long", name: LONG_TAG }]);
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
 
@@ -607,7 +697,7 @@ test("a 72-character tag name TRUNCATES inside the pane instead of overflowing i
 });
 
 test("a chip's accessible name states the ACTION, not just the state, around the whole cycle", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": () => manyTagsPage(1) });
+  await routeManyTags(page, 1);
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
 
@@ -620,7 +710,7 @@ test("a chip's accessible name states the ACTION, not just the state, around the
 });
 
 test("cycling a chip SPEAKS the new result count (it changed the list silently before)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": () => manyTagsPage(1) });
+  await routeManyTags(page, 1);
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
 
@@ -631,4 +721,72 @@ test("cycling a chip SPEAKS the new result count (it changed the list silently b
   await chip.click();
   await chip.click();
   await expect(status).toHaveText("0 characters");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE INVISIBLE FILTER (the owner's live P1, 2026-08-13 — design doc D1). The chip vocabulary used to be
+// derived from the LOADED ROWS, so a persisted tag filter whose tag was on no loaded row rendered NO chip:
+// the library came back empty, nothing on screen said why, and the only cure was wiping localStorage.
+
+test("the chip vocabulary is the TAG LIBRARY — a tag no loaded row carries still has a chip", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    // BOLT2 carries no tags at all, so a row-derived vocabulary would render zero chips here.
+    "character.list": characterListResponder([BOLT2]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await expect(component.getByText("Bolt")).toBeVisible();
+
+  await expect(component.getByRole("button", { name: "Filter by noir: off — activate to include" })).toBeVisible();
+});
+
+const DEAD_TAG_CHIP = "Filter by Deleted tag: included — activate to exclude";
+
+test("a persisted filter for a DELETED tag still renders a clearable chip (it cannot be an invisible filter)", async ({ mount, page }) => {
+  // Seeded BEFORE the page's JS runs: the library store rehydrates at module init, so writing localStorage
+  // after mount would prove nothing (the shell-store CT's recipe).
+  await page.addInitScript(() => {
+    globalThis.localStorage.setItem("orb:character-library", JSON.stringify({ state: { tagFilter: [{ id: "tag_dead_era", state: "include" }] }, version: 2 }));
+  });
+  await page.reload();
+  await routeTrpc(page, {
+    "character.list": characterListResponder([BOLT2]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
+  });
+
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+
+  // The filter is REAL (no row carries a tag that no longer exists, so the list is empty) — and it now says
+  // so out loud instead of leaving an unexplained empty library.
+  await expect(component.getByRole("button", { name: DEAD_TAG_CHIP })).toBeVisible();
+  // …and clearing it is the same cycle as any other chip: included → excluded → off, list restored.
+  await component.getByRole("button", { name: DEAD_TAG_CHIP }).click();
+  await component.getByRole("button", { name: "Filter by Deleted tag: excluded — activate to clear" }).click();
+  await expect(component.getByText("Bolt")).toBeVisible();
+});
+
+// THE BAND'S COUNT (owner-facing honesty): it was deleted when the list went keyset-paged, because the only
+// number available then was "loaded so far". The server serves a census now, so it prints again — and it is
+// the LIBRARY's count, never the loaded page's.
+const LIBRARY_CENSUS = 412;
+const COUNT_ONLY_PAGE = 1;
+
+test("the list band prints the server census, not the loaded row count", async ({ mount, page }) => {
+  const rows = characterListResponder([STARLA, BOLT2, TAGGED]);
+  await routeTrpc(page, {
+    "character.list": (input: unknown) => {
+      const args = (input ?? {}) as { limit?: number };
+      // The band asks for the cheapest possible page and reads `totalCount` off it.
+      return args.limit === COUNT_ONLY_PAGE ? { items: [STARLA], nextCursor: null, totalCount: LIBRARY_CENSUS } : rows(input);
+    },
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => RPG_TAG_LIBRARY,
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+
+  await expect(component.getByTestId("list-band")).toContainText(String(LIBRARY_CENSUS));
+  // The pane's own live region stays the FILTER's answer — three rows loaded, three matched.
+  await expect(component.getByRole("status")).toHaveText("3 characters");
 });

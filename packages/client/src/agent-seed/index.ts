@@ -319,9 +319,10 @@ function statProfileFor(profile: SeedProfile): RpgStatProfile {
 export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
   async function ensurePlayer(): Promise<CharacterId> {
     // Reuse the card by handle across re-seeds so the dev library never dupes; else create it.
-    // The server's page CEILING — a re-seed must see the whole dev library or it dupes the player card.
-    // (Asked for 500, was silently served 100 until 2026-08-09.)
-    const page = await client.character.list.query({ limit: CHARACTER_LIST_MAX_LIMIT });
+    // The lookup is a SERVER SEARCH on the handle now (2026-08-13), not a `.find()` over a bounded page: a
+    // page ceiling is exactly how a re-seed past the ceiling silently duped the player card. The page is
+    // still capped because `search` matches names/pitches/tags too — the exact-handle test stays here.
+    const page = await client.character.list.query({ limit: CHARACTER_LIST_MAX_LIMIT, search: PLAYER_HANDLE });
     const existing = page.items.find((c) => c.handle === PLAYER_HANDLE);
     if (existing !== undefined) {
       return castId<CharacterId>(existing.id);

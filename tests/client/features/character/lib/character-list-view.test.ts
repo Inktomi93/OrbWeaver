@@ -1,7 +1,10 @@
-// lib/character-list-view — the pure LIST view helpers (§4.3/§4.4/§4.5). DOM-free logic extracted for a
-// browser-free test (Spine-Testing.md §7): the chip filter's conjunctive semantics + the archived opt-in,
-// the categorized group-by-tag fold (multi-tag duplication + the Uncategorized tail + empty-group drop),
-// and the resume-or-new most-recent-chat reduction.
+// lib/character-list-view — the pure LIST view helpers (§4.3/§4.4). DOM-free logic extracted for a
+// browser-free test (Spine-Testing.md §7): the categorized group-by-tag fold (multi-tag duplication + the
+// Uncategorized tail + empty-group drop) and the resume-or-new most-recent-chat reduction.
+//
+// The chip-filter pins moved OUT with `filterByChips` (owner ruling 2026-08-13 — favorites/archived/tag
+// narrowing is `character.list` query input now). Their semantics are pinned where they execute:
+// `tests/server/domain/character/verbs/list.int.test.ts` ("server-side chip filters").
 
 import type { TagFolderType } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, TagId } from "@orb/kit/ids";
@@ -9,7 +12,7 @@ import { castId } from "@orb/kit/ids";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the theme clamp.ts relative-import precedent).
 import type { FilterableRow, ResumableChat } from "../../../../../packages/client/src/features/character/lib/character-list-view.ts";
-import { filterByChips, groupByTag, groupStartsOpen, resumeTargets } from "../../../../../packages/client/src/features/character/lib/character-list-view.ts";
+import { groupByTag, groupStartsOpen, resumeTargets } from "../../../../../packages/client/src/features/character/lib/character-list-view.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const tag = (id: string, name: string, isHiddenOnCard = false, folderType: TagFolderType = "NONE"): FilterableRow["tags"][number] => ({
@@ -21,57 +24,7 @@ const tag = (id: string, name: string, isHiddenOnCard = false, folderType: TagFo
 
 const row = (over: Partial<FilterableRow> & { readonly id?: string }): FilterableRow & { id: string } => ({
   id: over.id ?? "char_x",
-  starred: over.starred ?? false,
-  archived: over.archived ?? false,
   tags: over.tags ?? [],
-});
-
-test("filterByChips: archived rows hidden unless showArchived is opted in", () => {
-  const rows = [row({ id: "a" }), row({ id: "b", archived: true })];
-  expect(filterByChips(rows, { favoritesOnly: false, showArchived: false, tagFilter: [] })).toHaveLength(1);
-  expect(filterByChips(rows, { favoritesOnly: false, showArchived: true, tagFilter: [] })).toHaveLength(2);
-});
-
-test("filterByChips: favoritesOnly keeps only starred; tagFilter is conjunctive (AND)", () => {
-  const rpg = tag("t_rpg", "rpg");
-  const noir = tag("t_noir", "noir");
-  const rows = [
-    row({ id: "a", starred: true, tags: [rpg, noir] }),
-    row({ id: "b", starred: true, tags: [rpg] }),
-    row({ id: "c", starred: false, tags: [rpg, noir] }),
-  ];
-  const favs = filterByChips(rows, { favoritesOnly: true, showArchived: false, tagFilter: [] });
-  expect(favs.map((r) => r.id)).toEqual(["a", "b"]);
-  const both = filterByChips(rows, {
-    favoritesOnly: false,
-    showArchived: false,
-    tagFilter: [
-      { id: rpg.id, state: "include" },
-      { id: noir.id, state: "include" },
-    ],
-  });
-  expect(both.map((r) => r.id)).toEqual(["a", "c"]);
-});
-
-// EXCLUSION (the axis neither our lineage nor neo ever built): "everything tagged rpg that ISN'T noir" is
-// the query a pure-AND multi-select cannot express at all.
-test("filterByChips: an excluded tag removes the rows carrying it, and composes with include", () => {
-  const rpg = tag("t_rpg", "rpg");
-  const noir = tag("t_noir", "noir");
-  const rows = [row({ id: "a", tags: [rpg, noir] }), row({ id: "b", tags: [rpg] }), row({ id: "c", tags: [noir] }), row({ id: "d", tags: [] })];
-
-  const notNoir = filterByChips(rows, { favoritesOnly: false, showArchived: false, tagFilter: [{ id: noir.id, state: "exclude" }] });
-  expect(notNoir.map((r) => r.id)).toEqual(["b", "d"]);
-
-  const rpgNotNoir = filterByChips(rows, {
-    favoritesOnly: false,
-    showArchived: false,
-    tagFilter: [
-      { id: rpg.id, state: "include" },
-      { id: noir.id, state: "exclude" },
-    ],
-  });
-  expect(rpgNotNoir.map((r) => r.id)).toEqual(["b"]);
 });
 
 test("groupByTag: multi-tag rows appear under EACH group; untagged fall to the Uncategorized tail", () => {

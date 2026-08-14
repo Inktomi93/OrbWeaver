@@ -1697,6 +1697,9 @@
     },
     "tests/client/features/chat/lib/filter-chats.test.ts": {
       "why": "its subject (packages/client/src/features/chat/lib/filter-chats.ts) was deleted 2026-08-09 when chat search moved SERVER-side (chat.listChats search, owner ruling). A client filter over a keyset page can only search what it fetched; the title/character-name/newest-body semantics are pinned by tests/server/domain/chat/verbs/read.int.test.ts. Un-deletes if a client-side chat search filter ever returns."
+    },
+    "tests/client/features/character/lib/filter-characters.test.ts": {
+      "why": "its subject (packages/client/src/features/character/lib/filter-characters.ts) was deleted 2026-08-13 when the character library's search moved SERVER-side (character.list search, owner ruling: 'if i search then it should not just search on virtual stuff yeah? same for sort etc'). The client predicate could only ever match the <=150-row window the surface had paged in; the name/handle/pitch/tag-name semantics are pinned by tests/server/domain/character/verbs/list.int.test.ts ('server-side search'). Un-deletes if a client-side character search filter ever returns."
     }
   }
 }

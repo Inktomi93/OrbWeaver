@@ -6,7 +6,7 @@ import type { CharacterListCursor, CharacterListSort, CreateCharacterInput, Upda
 
 import type { Principal } from "@orb/contracts/identity";
 import type { GreetingTransformId } from "@orb/contracts/preset";
-import type { CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
 
 export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 
@@ -30,11 +30,29 @@ export interface GetCharacterParams extends CharacterActorParams {
   readonly characterId: CharacterId;
 }
 
+/** The library list's read, with EVERY lens the toolbar offers resolved server-side (owner ruling
+ *  2026-08-13, the `listChats` precedent): a keyset page can only ever search/filter what it has fetched, so
+ *  a client-side predicate over the loaded window is a claim the surface has no standing to make.
+ *
+ *  The two boolean axes are TRI-STATE — `undefined` is UNFILTERED, not `false`. That is what keeps the
+ *  lookup-map callers (portrait maps, pickers, the agent nav) whole while the library's own chips narrow:
+ *  omitting `archived` still serves archived rows, and only the toggle's OFF state sends `archived: false`. */
 export interface ListCharactersParams extends CharacterActorParams {
   readonly sort?: CharacterListSort;
   /** Cursor's sort discriminant MUST match `sort`; a mismatch is rejected rather than applying the wrong keyset. */
   readonly cursor?: CharacterListCursor;
   readonly limit?: number;
+  /** SERVER-SIDE search over the WHOLE library: the name, the handle, the distilled elevator pitch, or an
+   *  ACCEPTED tag's name — every string the row itself renders. Blank/whitespace is the unsearched list. */
+  readonly search?: string;
+  /** `true` = favorites only · `false` = unstarred only · omitted = both. */
+  readonly starred?: boolean;
+  /** `false` = the library's Archived-toggle-OFF state · `true` = archived only · omitted = both. */
+  readonly archived?: boolean;
+  /** AND-semantics: a row must carry EVERY one of these accepted tags (the include chips). */
+  readonly includeTagIds?: readonly TagId[];
+  /** AND-semantics: a row must carry NONE of these accepted tags (the exclude chips). */
+  readonly excludeTagIds?: readonly TagId[];
 }
 
 export interface UpdateCharacterParams extends CharacterActorParams {
