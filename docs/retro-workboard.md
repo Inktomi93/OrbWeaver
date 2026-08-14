@@ -774,15 +774,12 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
     create dissolves it. Forks F1-F7 (creation moment · visibility · reap · claim predicate · TTL ·
     greeting window · husk reload) each carry recs; D123 + PD-65 + stats-poisoning prior law resolved in
     §4-§5. Build = staged R0-R3, dev-db squash rides R0 (db expendable per owner). MORNING SITTING ITEM.
-- [ ] **AUTOSAVE INCONSISTENCY (owner dogfood, 08-14 overnight): "we went with autosave most everywhere
-  yet there's still some spots with a manual save — it feels weird."** Untriaged; owes an INVENTORY
-  first (scout, next free slot): every surface with an explicit Save affordance vs the autosave/draft
-  pattern, classified three ways — (a) leftover manual save that should convert · (b) DELIBERATE
-  commit-semantics save (draft-edit-then-commit surfaces like preset/entity editors may be correct —
-  check \[\[entity-draft-store-dual-consumers]] + gen-settings-are-preset-owned before calling one a
-  leftover) · (c) autosave missing entirely. Then a convert lane for class (a) with the owner ruling
-  on any (b) that feels wrong to him anyway — consistency is the product requirement, the mechanism
-  per-surface is the design question.
+- [x] **AUTOSAVE INVENTORY DONE (scout): class (a) leftovers = EMPTY, class (c) missing = EMPTY.** The
+  shared forms/ autosave lib covers every entity editor; all Save buttons are one-shot dialog chrome or
+  DOCUMENTED deliberate exceptions (admin-override batched deltas · refinery terminal-apply, owner-ruled ·
+  schema-editor commit · theme-editor). MORNING FORK: `theme-editor.tsx` is Button-gated while its sibling
+  preset editor AUTOSAVES on the same mint mechanism — header documents the deviation, not the WHY;
+  intentional or drift? TASTE OPTION: the four deliberate surfaces listed for keep/convert per-surface.
 - [ ] **THEME A — APP-WIDE STALENESS (owner: "most of our app has a staleness problem").** After importing
   the full ST library he had to **delete localStorage + cache + cookies and reload** before characters
   rendered correctly. That is a cache-invalidation architecture gap, not one screen's bug. Needs a
@@ -810,13 +807,24 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   this against main's pre-fix code). FOLLOW-UP SMALL: three boot-frozen PROVENANCE reads survive
   (chat.ts:955 summarizerContextTokens · compose/refinery.ts:50-65 · search-discovery.ts:243) — domain
   contract fields need the thunk shape; \~3 files each, identical to the admin/databank conversion.
-- [ ] **Settings screen scrolls past the end of its results** — blank space below the last row for no
+- [ ] **Settings phantom-scroll is a CLASS (client-bundle find):** any position:static overflow scroller
+  holding Base UI form primitives under a positioned ancestor phantom-scrolls (35 escaped absolutes in
+  ONE pane). Only the reported surface fixed; sweep lane = `readEscapedAbsolutes` (landed in
+  tests/support/ct/settings-geometry.ts) over every overflow-y-auto container.
+- [ ] **pin-prompt mode: unmeasured yield gap** — scrollToFn's yield is installed only when
+  tailFollowActive; the tail-adjustment veto covers pin mode but the input-yield does not. Measure
+  before touching (client-bundle flag, not speculation).
+- [ ] **Shape churn: measured plan doc landed** (docs/design/streaming-shape-churn.md): tail paints <p>,
+  replaced by <table> 103-161ms later — markdown block grammar undecidable from a prefix; code fences
+  DON'T churn because remend already recognizes unterminated fences (= the natural fix home). Reasoning
+  mount + tool chips UNMEASURED (probe in doc). Four ranked fixes with costs; renderer untouched.
+- [x] **Settings scroll-past-end FIXED + MERGED** (position:relative on the pane region; live A/B 2900→1014 scrollHeight; red-first mechanism+symptom pins). Original row: **Settings screen scrolls past the end of its results** — blank space below the last row for no
   reason. Small client fix; route with the next side-eye.
 - [ ] **Streaming message SHAPE CHURN** — during generation the message "changes shapes and kind of goes
   wonky," then settles into its final shape when streaming completes. Disorienting. Cross-ref #42
   streaming reveal (`docs/design/streaming-reveal-42.md`) and the smoothStream default→true ruling; this
   may be unaddressed rather than regressed.
-- [ ] **Follow-mode is jumpy when you manually scroll up** to read the top mid-generation. **PROMOTED FROM
+- [x] **Follow-mode FIXED + MERGED** (tail-growth compensation veto + user-input-keyed yield renewed per gesture event; intent detection byte-unchanged; virtual-core instance-field trap documented). Original row: **Follow-mode is jumpy when you manually scroll up** to read the top mid-generation. **PROMOTED FROM
   A LEAD:** the board already carried "12px scroll-step march in follow-mode streaming (forge §4 —
   touching it risks the follow-intent detector)" as a lead. Owner drive CONFIRMS it. It is now a row.
 - [ ] **Regex scripts do not import** with the ST user-data import. Folds into the deferred import lane
