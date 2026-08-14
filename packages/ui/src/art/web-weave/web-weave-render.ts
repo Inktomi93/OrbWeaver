@@ -6,12 +6,16 @@
 // time) and draws — no module state, no DOM reads, no color literals (the palette is resolved from
 // theme tokens upstream).
 
+import type { CharacterPreset } from "./web-weave-character.ts";
+import { REST_GAIT_AMP, SPRINT_GAIT } from "./web-weave-character.ts";
 import type { WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
 import { clamp01, easeOutCubic } from "./web-weave-math.ts";
 import type { WeavePluck } from "./web-weave-physics.ts";
 import { pluckDisplacement, swayGain } from "./web-weave-physics.ts";
+import type { PreyState } from "./web-weave-prey.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
-import { drawSpiderBody, STRAND_OUT_MS, spiderPose, spiralUpTo } from "./web-weave-spider.ts";
+import { idleTwitchPhase, STRAND_OUT_MS, spiderPose, spiralUpTo } from "./web-weave-spider.ts";
+import { drawSpiderBody } from "./web-weave-spider-body.ts";
 import { WEAVE_TIMELINE } from "./web-weave-timeline.ts";
 
 /** The token-derived paint set (§1.3) — resolved by the component via computed style, never literals. */
@@ -40,6 +44,12 @@ export interface WeaveFrameInput {
   readonly strandOut: { readonly pts: readonly WeavePoint[]; readonly t0: number } | null;
   /** The weather dials (weave-lab §1). `{ wind: 0, shiver: 0 }` is the shipped ambient sway exactly. */
   readonly weather: WeaveWeather;
+  /** Frame delta (ms) — the prey machine moves her in px/ms, not px/frame. */
+  readonly dt: number;
+  /** Who she is (weave-lab §3) — `calm` is the shipped motion. */
+  readonly character: CharacterPreset;
+  /** Her prey-response machine, or null when the host is not interactive. */
+  readonly prey: PreyState | null;
   /** Live plucks, by strand — null for every non-interactive host (the overwhelming majority), and
    *  the per-strand lookup is what keeps physics off the strands nobody touched. */
   readonly plucks: WeavePluckMap;
@@ -140,7 +150,11 @@ export function swayPt(p: WeavePoint, sway: WeaveSway): WeavePoint {
  *  A strand with no plucks pays nothing beyond the sway (weave-lab perf note). */
 function strandPoint(strand: WeaveStrand, index: number, sway: WeaveSway, plucks: WeavePluckMap): WeavePoint {
   const swayed = swayPt(strand.pts[index] as WeavePoint, sway);
-  const live = sway === null ? undefined : plucks?.get(strand);
+  // Rigid (reduced motion / the baked buffer) means rigid: no rings either.
+  if (sway === null) {
+    return swayed;
+  }
+  const live = plucks?.get(strand);
   if (live === undefined || live.length === 0) {
     return swayed;
   }
@@ -391,8 +405,20 @@ function paintSpider(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, trac
   if (pose === null) {
     return;
   }
+  // Sprinting blurs her legs regardless of character; twitches only play when she is genuinely idle.
+  const idle = !pose.moving && pose.tap === 0 && input.character.twitch && !input.still;
   ctx.globalAlpha = input.dim;
-  drawSpiderBody(ctx, input.palette, { ...pose, ...swayPt(pose, sway) }, input.now);
+  drawSpiderBody(ctx, {
+    palette: input.palette,
+    pose: { ...pose, ...swayPt(pose, sway) },
+    now: input.now,
+    mood: {
+      gaitHz: pose.sprinting ? SPRINT_GAIT.gaitHz : input.character.gaitHz,
+      gaitAmp: pose.sprinting ? SPRINT_GAIT.gaitAmp : input.character.gaitAmp,
+      restAmp: REST_GAIT_AMP,
+      twitchPhase: idle ? idleTwitchPhase(input.now, input.web.seed) : 0,
+    },
+  });
 }
 
 /** Paint one whole frame LIVE (the weaving build + the reduced-motion single static frame). The
