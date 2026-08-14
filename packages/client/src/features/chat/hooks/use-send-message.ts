@@ -13,7 +13,7 @@ import type { AssetId, ChatId } from "@orb/kit/ids";
 import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC, useUploadAsset } from "#data";
 import { subscribeUserMessageCommitted } from "#state";
-import { isSilencedTurnAbort } from "../lib/turn-abort-notice.ts";
+import { turnMutationToast } from "../lib/turn-abort-notice.ts";
 
 interface SendVars {
   readonly chatId: ChatId;
@@ -28,7 +28,7 @@ const useSendMutation = createEntityMutation<SendVars, unknown>({
   // busDriven: the turn's messageCommitted/turnCompleted bus events already run the full chatReads
   // invalidation; a mutation-side invalidate here would double-refetch (the observed 4-5x/send storm).
   busDriven: true,
-  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't send your message."),
+  errorToast: (error) => turnMutationToast(error, "Couldn't send your message."),
 });
 
 export interface UseSendMessageOptions {

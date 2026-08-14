@@ -521,6 +521,142 @@ test("the context-boundary divider's label speaks the kicker voice (a region nam
   expect(type.weight).toBe("600");
 });
 
+// ── THE TAIL FLASH: the ghost must hand over to a canon row that is ALREADY CORRECT ─────────────────
+// The defect (measured live 2026-08-14, 100-400 ms on EVERY turn — `domain/chat/verbs/turn.ts`
+// FLAG[aux-turns-have-no-accept]): `turnCompleted` closes the client turn slot SYNCHRONOUSLY, so the ghost —
+// which is holding the finished text — unmounted while the `listMessages` refetch was still in flight, and
+// the canon row underneath repainted its PRE-TURN content for the whole round trip. On a swipe that is the
+// OLD VARIANT coming back after the new one had been read; on a fresh reply it is the row vanishing.
+//
+// The fix is two halves, and each test below fails without EITHER: the seam applies the commit's `view`
+// carrier into the message-list cache (`data/invalidation.ts` applyCanonView), and the ghost yields at that
+// commit instead of at `turnCompleted` (`use-message-items.ts`, via the slot's `committedMessageId`).
+//
+// WHY THE REFETCH IS HELD OPEN rather than delayed: a flash is a timing window, and asserting "the old text
+// never appeared" inside one is exactly the CT that passes in isolation and flakes under contention. Holding
+// the post-turn refetch open FOREVER turns the window into a SETTLED state — the rendered arm under test is
+// then stable and the assertion is a barrier, not a race. It is also the honest model of the defect: what
+// the reader saw for those 400 ms is what these tests read with the refetch permanently outstanding.
+
+/** Hold every `chat.listMessages` request after the first one OPEN (never fulfilled) — see the note above.
+ *  Registered AFTER routeTrpc so it runs FIRST per request (Playwright routes are LIFO); everything else
+ *  falls through unchanged. */
+async function holdListMessagesRefetch(page: Page): Promise<void> {
+  let served = 0;
+  await page.route("**/api/trpc/**", async (route) => {
+    if (route.request().url().includes("chat.listMessages")) {
+      served += 1;
+      if (served > 1) {
+        return; // deliberately never settled — the refetch is "still in flight" for the rest of the test
+      }
+    }
+    await route.fallback();
+  });
+}
+
+/** The swiped slot's NEW variant, as the server's `messageCommitted` carrier hands it over: same row id,
+ *  new selected variant. This is the row a refetch would return — the carrier is the same `loadMessageView`
+ *  projection `listMessages` runs (`engine.ts` readCommittedView). */
+const AI_REROLLED = makeMessageView({
+  id: AI_VIEW.id,
+  role: "assistant",
+  content: "Fresh take",
+  seq: AI_VIEW.seq,
+  selectedVariantIdx: 1,
+  variantCount: 2,
+});
+
+const SWIPE_TURN: ChatBusEvent[] = [
+  {
+    type: "turnStarted",
+    chatId: CHAT_ID,
+    intent: "swipe",
+    api: "chat-completions",
+    source: "openrouter",
+    model: "test-model",
+    speakerCharacterId: null,
+    targetMessageId: AI_VIEW.id,
+  },
+  { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "Fresh " } },
+  { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "take" } },
+  { type: "messageCommitted", chatId: CHAT_ID, messageId: AI_VIEW.id, view: AI_REROLLED },
+  { type: "turnCompleted", chatId: CHAT_ID, intent: "swipe", messageId: AI_VIEW.id },
+];
+
+test("a completed SWIPE keeps the new variant on screen with the refetch still in flight (no old-variant repaint)", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    // The FIRST read is the pre-swipe canon; every later one is held open (see holdListMessagesRefetch), so
+    // the only way the new variant can be on screen is the carrier the seam applied.
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
+    ...ROSTER_STUB,
+  });
+  await routeOrbSocket(page, { frames: chatFrames(SWIPE_TURN), awaitAttaches: 1 });
+  await holdListMessagesRefetch(page);
+
+  const component = await mount(<MessageListSurfaceStory />);
+
+  // Settled state: the turn is over (slot closed, ghost gone) and the refetch will never land.
+  await expect(component.locator('[data-slot="ghost-message-row"]')).toHaveCount(0);
+  // The rerolled variant is CANON now — one row, carrying the new bytes.
+  await expect(component.locator('[data-message-id="msg_ai"]')).toHaveCount(1);
+  await expect(component.getByText("Fresh take")).toBeVisible();
+  // The defect's signature: the pre-swipe variant coming back the moment the ghost unmounted.
+  await expect(component.getByText("Hello world")).toHaveCount(0);
+});
+
+// The same defect on a FRESH REPLY, where it reads as the row disappearing rather than reverting: the ghost
+// unmounts at `turnCompleted` and canon has no row for the reply until the refetch lands.
+const SEND_TURN: ChatBusEvent[] = [
+  ...TURN.slice(0, 3), // turnStarted(send) + the two deltas
+  { type: "messageCommitted", chatId: CHAT_ID, messageId: AI_VIEW.id, view: AI_VIEW },
+  { type: "turnCompleted", chatId: CHAT_ID, intent: "send", messageId: AI_VIEW.id },
+];
+
+test("a completed SEND leaves the reply on screen as CANON with the refetch still in flight (no vanishing row)", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
+    ...ROSTER_STUB,
+  });
+  await routeOrbSocket(page, { frames: chatFrames(SEND_TURN), awaitAttaches: 1 });
+  await holdListMessagesRefetch(page);
+
+  const component = await mount(<MessageListSurfaceStory />);
+
+  await expect(component.locator('[data-slot="ghost-message-row"]')).toHaveCount(0);
+  // Appended by the carrier — the row the refetch would have brought, without waiting for it.
+  await expect(component.locator('[data-message-id="msg_ai"]')).toHaveCount(1);
+  await expect(component.getByText("Hello world")).toBeVisible();
+  await expect(component.getByText("Ping?")).toBeVisible();
+});
+
+// THE HANDOVER ITSELF, pinned at the commit — the frames stop at `messageCommitted`, so the slot is still
+// LIVE. The ghost must already be gone (canon carries its bytes) and the reply must appear EXACTLY ONCE:
+// applying the carrier while the ghost still held would paint the committed row BESIDE it for the whole
+// commit→complete window, which is the defect this half of the fix exists not to introduce.
+const SEND_TO_COMMIT: ChatBusEvent[] = SEND_TURN.slice(0, 4);
+
+test("the ghost yields AT THE COMMIT — one row, never the canon row beside a still-mounted ghost", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
+    ...ROSTER_STUB,
+  });
+  await routeOrbSocket(page, { frames: chatFrames(SEND_TO_COMMIT), awaitAttaches: 1 });
+  await holdListMessagesRefetch(page);
+
+  const component = await mount(<MessageListSurfaceStory />);
+
+  await expect(component.locator('[data-message-id="msg_ai"]')).toHaveCount(1);
+  await expect(component.locator('[data-slot="ghost-message-row"]')).toHaveCount(0);
+  // One copy of the reply — not the ghost's and canon's.
+  await expect(component.getByText("Hello world")).toHaveCount(1);
+});
+
 // ── THE EDGE FADE MUST NOT FADE PROSE ONTO THE ART (side-eye 2026-08-07 finding 5) ───────────────────
 // `[data-slot="message-list-scroll"]`'s `mask-image` fades EVERY pixel of the subtree at the same rate —
 // the row's opaque card AND the body prose painted on it. Over the flat page background that is a dissolve

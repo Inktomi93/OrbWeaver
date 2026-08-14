@@ -73,6 +73,15 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       if (event.view?.role === "user") {
         deps.stream.notifyUserMessageCommitted(event.chatId);
       }
+      // The GHOST HANDOVER (see `state/chat-stream.ts` TurnSlot): an ASSISTANT commit is the live turn's
+      // own output landing in canon, and `invalidate` below applies the very same `view` into the message
+      // list — so from here the ghost is rendering bytes the canon row already carries and it yields
+      // (`use-message-items.ts`), instead of holding until `turnCompleted` and unmounting onto a row the
+      // refetch has not replaced yet (the measured 100-400 ms tail flash). Assistant-only: the caller's
+      // own USER row commits inside this same live slot on a send.
+      if (event.view?.role === "assistant") {
+        deps.stream.markCommitted(event.chatId, event.messageId);
+      }
       deps.invalidate(event);
       return;
     case "messageEdited":

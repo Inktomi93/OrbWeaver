@@ -1,6 +1,9 @@
 // Central invalidation seam: bus handlers call invalidate(event)/invalidateUser(event), mutations
 // route `invalidates` filters through invalidateFilters — nothing else calls invalidateQueries
 // directly (gate `no-inline-invalidate-outside-seam`).
+//
+// The chat half ALSO APPLIES the event's `view` carrier into the room's message-list cache before it
+// invalidates (`applyCanonView`) — the refetch stays, but the row it will confirm is already correct.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
@@ -10,6 +13,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import { busDupCheck, busInvalidate, IS_DEV } from "#lib";
 import { collapseFilters } from "./collapse-filters.ts";
+import { applyCanonView } from "./invalidation-carrier.ts";
 import type { InvalidateFilter } from "./invalidation-reads.ts";
 import { chatCanonReads, chatReads, hiddenRevealRead, promptPreviewReads, ROOM_ENTITY_FILTERS } from "./invalidation-reads.ts";
 import type { Trpc } from "./trpc.ts";
@@ -364,6 +368,9 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
   };
   return {
     invalidate: (event): void => {
+      // Apply BEFORE the invalidate: the refetch this same event fires is what will confirm the row, and
+      // between the two the cache must already carry the committed bytes (see `applyCanonView`).
+      applyCanonView(deps.queryClient, deps.trpc, event);
       const handler = BUS_FILTERS[event.type] as (e: ChatBusEvent, t: Trpc) => readonly InvalidateFilter[];
       const filters = handler(event, deps.trpc);
       if (IS_DEV) {
