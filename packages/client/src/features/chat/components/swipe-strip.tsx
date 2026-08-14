@@ -14,6 +14,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
+import { turnMutationToast } from "#lib";
 
 interface SwipeVars {
   readonly chatId: ChatId;
@@ -26,10 +27,13 @@ interface SelectVariantVars {
   readonly variantId: MessageVariantId;
 }
 
+// The ONE turn-error mapper (`lib/turn-abort-notice.ts`), not a bare string: a swipe refused for CONTENTION
+// (`locked` — another turn holds this room) is the one turn failure the reader can act on, and the bare
+// fallback hid it behind "Couldn't generate that swipe" while the old variant sat there with no ghost.
 const useSwipeMutation = createEntityMutation<SwipeVars, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't generate that swipe.",
+  errorToast: (error) => turnMutationToast(error, "Couldn't generate that swipe."),
 });
 
 const useSelectVariantMutation = createEntityMutation<SelectVariantVars, unknown>({

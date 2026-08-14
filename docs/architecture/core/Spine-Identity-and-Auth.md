@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-07
+updated: 2026-08-14
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -29,6 +29,7 @@ The numbered invariants (code comments cite these as "invariant #n"):
 7. **`Principal.via === "fallback"` is the SAFE "this IS the owner" discriminator** — origin-gated, NOT `externalId === null`. **It ADMITS the owner; it does not GRANT owner (D135, amending this clause's former "mints `role:"owner"`" wording).** The seam resolves WHICH row through `ownerHandles()` (resolution-tier policy — never verification's `DEFAULT_USER_HANDLE` placeholder) and reads `users.role` off it through the same `createHostPrincipalResolver` the frozen-host bridge uses. The security boundary is unchanged and is entirely `ownerFallbackAllowed`; what changed is that the role is READ, so the request Principal and the frozen-host Principal for one caller can no longer disagree.
 8. **Sessions: the raw cookie token is never stored** (peppered HMAC-SHA-256 `token_hash` is the validate lookup key); `sessions.validate` re-checks revoked/expired/`users.enabled` per request, so a disable/revoke kills a live cookie on its next request. **All THREE request arms gate on `enabled`, not just the cookie one** (D135 clause G): the SSO arm on `provisioned.enabled`, the owner fallback in its own resolver — because its row read (`loadUserById`) deliberately gates nothing so the frozen-host bridge can still resolve a disabled-or-offline host's authority. That bridge keeping NO gate is the intended divergence, not an oversight.
 9. **CSRF gates on `hasCsrfHeader`, keyed to the cookie path** (header/fallback auth is CSRF-immune by construction).
+10. **ONE CHOKEPOINT for external identity: every SSO mode reaches `users` through the `provisionIdentity` verb (`domain/sessions`), and a new mode adds a CALLER, never a second upsert.** The whole production census is two: the `oidc` callback (`entry/http/auth-routes.ts` — verified claims → `identityFromClaims` → the verb) and the `forward-header` request arm (`entry/auth/seam.ts` — `resolve` in `infra/auth` → the verb); `local`/`single-user` carry no external identity (password verify / origin-gated `ensureUser`). The verb is where bind-once lives — the handle fallback may BIND an unbound row and may NEVER REBIND a bound one (`isSubjectMismatch`, `domain/sessions/substrate/role-policy.ts`, SHARED with the admin link capability rather than re-spelled) — together with the access gate, the collision hard-deny, the JIT gate and the owner singleton, in one ruled precedence. A mode with its own upsert would carry its own, weaker, takeover posture. ENFORCERS: `infra/auth` is db-free and may not import a domain, so a mode resolver structurally cannot write (tier physics); `no-direct-users-read` REDs any domain outside sessions/admin touching `users`. ENTRY is the tier where a second upsert could still be hand-written — the two callers above are the census, and a third is a review defect. The rules themselves are the verb + its header, never restated here.
 
 ## 2. Permission = global-role × resource-role × capability
 

@@ -444,9 +444,16 @@ lesson, not code: the room's first frame reads `getChat`, which `startChat`'s re
 - **R3 as-built (2026-08-14), plus the three seams a fresh-context verifier found in R0+R1:** the
   alternate-step verb landed as `chat.setSeededGreeting` carrying a greeting INDEX, not the text §4.8
   sketched (the deviation and its reason are recorded at §4.8); the strip is restored over the COMMITTED
-  greeting row and driven by that verb; the two orphaned appearance-knob pins are back. F6's
-  addMember-greets-before-freeze arm is NOT built — it is a roster-verb change, still open. The verifier's
-  three:
+  greeting row and driven by that verb; the two orphaned appearance-knob pins are back. **F6's
+  addMember-greets-before-freeze arm BUILT 2026-08-14** (this line previously read "NOT built"):
+  `addCharacterToChat` (`verbs/roster.ts`) seeds the added character's card greeting when
+  `loadHasUserMessage` says the window is still open — the SAME predicate `setSeededGreeting` refuses on —
+  and fans `messageCommitted`. The row builder was lifted out of `start-chat.ts` to
+  `domain/chat/substrate/greeting-seed.ts` (one home, both verbs; the founding path passes `startSeq: 0` and
+  is byte-identical). Unlike the founding greetings, this row pushes its OWN `canonMessageDelta`: the verb
+  claims BEFORE it writes, so the claim replay has already run and a delta-less row would drift the stats
+  rebuild. Fences: a frozen window and a card with no greeting both seed nothing, and the idempotent
+  present-seat return means a re-add greets once. The verifier's three:
   - **R1-2 — a real message-loss window, closed.** A room whose SSE died before this client applied any
     durable frame re-announced with `sinceSeq: null`, and a null cursor requests NO replay
     (`stream/sources/chat.ts`). Open a room → the socket dies while HTTP lives → send → the server commits

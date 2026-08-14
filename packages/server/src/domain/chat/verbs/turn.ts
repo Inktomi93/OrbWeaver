@@ -1515,7 +1515,16 @@ function createCommitMessage(ctx: ChatContext, deps: TurnDeps): ChatService["com
 /** `forceCharacterTurn` — host-only. Force a present roster character to speak next (per-speaker; no user
  *  row). Eligibility is presence-only (`leftSeq === null`) — a muted member is still force-summonable, since
  *  mute only excludes from natural/smart auto-selection, not an explicit host override. A non-member / left /
- *  unknown target is a leak-free NOT_FOUND. */
+ *  unknown target is a leak-free NOT_FOUND.
+ *
+ *  ACCEPTS its slot like the auxiliary turns ({@link withAcceptedSlot}) — it is a turn-STARTING verb with the
+ *  same late-open wall: `turnStarted` lands only after the connection resolve + `buildTurnContext` (memory
+ *  recall), so the host clicked "summon" and the room showed nothing for the whole of that window. The slot is
+ *  a FRESH reply (`targetMessageId: null` — nothing to ghost over), but its speaker IS known at the accept
+ *  instant (the host named them), so unlike `generate` it accepts carrying the character id. Totality: the
+ *  pre-engine resolve is closed by `withAcceptedSlot`, and the round's engine turn carries `slotAccepted` so
+ *  the engine's pre-start refusals close the slot too — including the `locked` one `driveRound` SWALLOWS, which
+ *  on this path is the only closer there is (the verb returns a normal empty round). */
 function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService["forceCharacterTurn"] {
   return async ({ principal, chatId, characterId, intent, guided }: ForceCharacterTurnParams): Promise<TurnOutcome> => {
     const membership = await requireHost(ctx, principal, chatId);
@@ -1530,24 +1539,33 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     if (target === undefined || !present) {
       throw new ChatNotFoundError(chatId);
     }
-    const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
-    const group = asPerSpeaker(membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG);
-    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, terminalTools, cardKeepLastX } = await buildTurnContext(ctx, deps, {
-      chatId,
-      runAsUserId: identity.runAsUserId,
-      model: connection.model,
-      kind: "force",
-      castCharacterIds: room.castCharacterIds,
+    // ACCEPTED: the caller is the host and the named character holds a present seat, so this turn IS happening
+    // — open the client's slot NOW, before the connection resolve + the multi-second context build. Ordered
+    // AFTER the NOT_FOUND throw above so a bad character id never opens a slot at all.
+    const { connection, built } = await withAcceptedSlot(deps, { chatId, kind: "force", speakerCharacterId: characterId, targetMessageId: null }, async () => {
+      const resolved = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
+      return {
+        connection: resolved,
+        built: await buildTurnContext(ctx, deps, {
+          chatId,
+          runAsUserId: identity.runAsUserId,
+          model: resolved.model,
+          kind: "force",
+          castCharacterIds: room.castCharacterIds,
 
-      mutedSpeakerKeys: room.mutedSpeakerKeys,
-      personaIds: room.personaIds,
-      presentHumanUserIds: room.presentHumanUserIds,
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      trigger: humanTrigger(principal.userId, membership.activePersonaId),
-      guided,
-      // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
-      castCharForHostRow: joinedCastName(room.castNames),
+          mutedSpeakerKeys: room.mutedSpeakerKeys,
+          personaIds: room.personaIds,
+          presentHumanUserIds: room.presentHumanUserIds,
+          anchorPersonaId: membership.chat.anchorPersonaId,
+          trigger: humanTrigger(principal.userId, membership.activePersonaId),
+          guided,
+          // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
+          castCharForHostRow: joinedCastName(room.castNames),
+        }),
+      };
     });
+    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, terminalTools, cardKeepLastX } = built;
+    const group = asPerSpeaker(membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG);
     using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
@@ -1565,6 +1583,9 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       signal: handle.signal,
+      // The accept above opened the client's slot, so the engine's PRE-START refusals owe it a `turnAborted`
+      // (`closePreStartRefusal`) instead of the historical bus-silent throw.
+      slotAccepted: true,
     };
     const round = await driveRoundVia({
       engine: deps.engine,
@@ -1790,15 +1811,20 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
 //     around `runTurn` would DOUBLE-emit on every post-start fault (the engine already emits there).
 // The NOT_FOUND target throw needs no closer: the target load is ordered BEFORE the accept, so a bad slot id
 // never opens one.
+//
+// `forceCharacterTurn` joined this shape (2026-08-14) with the same wall and one structural difference: it
+// drives a ROUND rather than calling `runRegistered`, so its engine-side half is a `slotAccepted` stamp on the
+// `RoundBase` (see the verb). That difference matters — `driveRound` SWALLOWS a `locked` refusal, so on that
+// path the engine's close is the ONLY thing that resolves the slot.
 
 /** Opens the client's turn slot at the verb's ACCEPTANCE instant and guarantees the PRE-ENGINE half of its
  *  total resolution: `resolve` runs inside, and any throw closes the slot with `turnAborted` before it
  *  propagates. Everything from `engine.runTurn` onward is closed by the ENGINE (see the block above).
  *
  *  `reason:"error"` — a failed resolve is a fault, never the user's Stop (which reaches the turn through the
- *  registered signal, not here). `automationDepth: 0` — the three accepting aux verbs are human-plane by
- *  construction (they take a `principal`; the automation seam is `requestTurn`, which accepts through
- *  `runAiRound`). */
+ *  registered signal, not here). `automationDepth: 0` — every verb that accepts through here is human-plane by
+ *  construction (swipe / continueTurn / generate / forceCharacterTurn all take a `principal`; the automation
+ *  seam is `requestTurn`, which accepts through `runAiRound`). */
 async function withAcceptedSlot<T>(
   deps: TurnDeps,
   slot: {

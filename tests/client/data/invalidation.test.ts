@@ -10,7 +10,7 @@
 // no network: `createTrpcClient()` never fires a request until something actually queries.
 
 import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data";
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
@@ -19,6 +19,7 @@ import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
+import { makeMessageView } from "../features/chat/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_invalidationtest");
 const MESSAGE_ID = castId<MessageId>("msg_invalidationtest0");
@@ -652,6 +653,38 @@ describe("invalidation — the wave collapse (what a wave SPENDS)", () => {
 
     expect(isInvalidated(queryClient, personaKey)).toBe(true);
     expect(isInvalidated(queryClient, listTagsKey)).toBe(true);
+  });
+});
+
+// ── The carrier is APPLIED on the way through, not only invalidated ─────────────────────────────────
+// The patch itself (replace/append/no-op arms) is `invalidation-carrier.test.ts`'s subject. THIS is the
+// wiring pin: the chat half of the seam runs it, and runs it BEFORE the invalidate — so between the two the
+// cache already carries the committed bytes instead of the pre-event row (the measured tail flash).
+
+describe("invalidation — the bus half applies the `view` carrier", () => {
+  test("a canon event patches the room's message list AND stales it (both halves of one call)", () => {
+    const { invalidate, queryClient, trpc } = setup();
+    const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
+    // The seeded page is the read's real `MessagesPage` shape, built from the shared fixture (the `as never`
+    // is only the DataTag's server-side output type, which this client-side fixture cannot name).
+    const seeded: { readonly messages: readonly MessageView[]; readonly cast: readonly never[] } = {
+      messages: [makeMessageView({ id: MESSAGE_ID, chatId: CHAT_ID, content: "old variant" })],
+      cast: [],
+    };
+    queryClient.setQueryData([...key], seeded as never);
+
+    invalidate({
+      type: "messageCommitted",
+      chatId: CHAT_ID,
+      messageId: MESSAGE_ID,
+      view: makeMessageView({ id: MESSAGE_ID, chatId: CHAT_ID, content: "new variant" }),
+    });
+
+    const patched = queryClient.getQueryData<{ readonly messages: readonly MessageView[] }>([...key]);
+    expect(patched?.messages.map((m) => m.content)).toEqual(["new variant"]);
+    // The refetch still fires — the patch is ONE row, the page also carries `cast` and the rest of the
+    // window, so the wire read stays authoritative.
+    expect(isInvalidated(queryClient, key)).toBe(true);
   });
 });
 

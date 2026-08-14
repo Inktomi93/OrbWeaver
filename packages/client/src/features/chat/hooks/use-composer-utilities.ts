@@ -6,7 +6,7 @@
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { isSilencedTurnAbort } from "../lib/turn-abort-notice.ts";
+import { turnMutationToast } from "#lib";
 
 interface CommitMessageVars {
   readonly chatId: ChatId;
@@ -20,7 +20,7 @@ interface ContinueRestoreVars {
 const useCommitMessageMutation = createEntityMutation<CommitMessageVars, unknown>({
   options: (trpc) => trpc.chat.commitMessage.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't post your message."),
+  errorToast: (error) => turnMutationToast(error, "Couldn't post your message."),
 });
 
 const useUndoContinueMutation = createEntityMutation<ContinueRestoreVars, unknown>({

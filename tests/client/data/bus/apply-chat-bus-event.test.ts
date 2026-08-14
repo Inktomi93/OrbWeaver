@@ -33,6 +33,7 @@ interface Harness {
   readonly completeTurn: ReturnType<typeof vi.fn<typeof chatStream.completeTurn>>;
   readonly abortTurn: ReturnType<typeof vi.fn<typeof chatStream.abortTurn>>;
   readonly notifyUserMessageCommitted: ReturnType<typeof vi.fn<typeof chatStream.notifyUserMessageCommitted>>;
+  readonly markCommitted: ReturnType<typeof vi.fn<typeof chatStream.markCommitted>>;
   /** Latest slot snapshot for `chatId`, updated via a real `subscribeTurnSlot`. */
   readonly slotOf: (chatId: ChatId) => TurnSlot | undefined;
   readonly unsub: () => void;
@@ -50,6 +51,7 @@ function harness(chatIds: readonly ChatId[]): Harness {
   const completeTurn = vi.fn(chatStream.completeTurn);
   const abortTurn = vi.fn(chatStream.abortTurn);
   const notifyUserMessageCommitted = vi.fn(chatStream.notifyUserMessageCommitted);
+  const markCommitted = vi.fn(chatStream.markCommitted);
   const invalidate = vi.fn((_event: ChatBusEvent): void => undefined);
   const onWarning = vi.fn((_code: ChatWarningCode, _chatId: ChatId): void => undefined);
   const deps: ChatBusDeps = {
@@ -59,6 +61,7 @@ function harness(chatIds: readonly ChatId[]): Harness {
       completeTurn,
       abortTurn,
       notifyUserMessageCommitted,
+      markCommitted,
       // The reducer never calls this (markStopping is the ONE component-callable exception — see
       // state/chat-stream.ts's header) but `ChatBusDeps.stream` is typed as the full `ChatStreamApi`,
       // so the harness literal needs the field to satisfy the type. Real impl, unused by this suite.
@@ -76,6 +79,7 @@ function harness(chatIds: readonly ChatId[]): Harness {
     completeTurn,
     abortTurn,
     notifyUserMessageCommitted,
+    markCommitted,
     slotOf: (chatId): TurnSlot | undefined => slots.get(chatId),
     unsub: (): void => {
       for (const u of unsubs) {
@@ -301,6 +305,54 @@ describe("applyChatBusEvent — messageCommitted clear-on-commit signal", () => 
     expect(h.notifyUserMessageCommitted).not.toHaveBeenCalled();
     expect(h.invalidate).toHaveBeenCalledExactlyOnceWith(event);
     h.unsub();
+  });
+
+  // ── The GHOST HANDOVER stamp (the tail-flash fix's slot half) ────────────────────────────────────
+  // An ASSISTANT commit inside a LIVE turn is that turn's own output landing in canon, and the same event's
+  // `view` carrier is applied to the message list by the seam — so the slot records the row id and the ghost
+  // yields to it (`use-message-items.ts`), instead of holding to `turnCompleted` and unmounting onto a row
+  // the refetch has not replaced yet. The USER arm is the one that must NOT stamp: the caller's own prompt
+  // commits inside this same live slot on a send, and standing it down as the turn's output would blank the
+  // ghost for the whole turn.
+
+  test("an ASSISTANT commit inside a LIVE turn stamps committedMessageId on the slot (the ghost's handover)", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+    applyChatBusEvent(turnStartedEvent({ chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }), h.deps);
+
+    applyChatBusEvent(
+      { type: "messageCommitted", chatId, messageId: MESSAGE_ID, view: makeMessageView({ id: MESSAGE_ID, chatId, role: "assistant" }) },
+      h.deps,
+    );
+
+    expect(h.markCommitted).toHaveBeenCalledExactlyOnceWith(chatId, MESSAGE_ID);
+    expect(h.slotOf(chatId)).toMatchObject({ phase: "pending", committedMessageId: MESSAGE_ID });
+  });
+
+  test("a USER commit inside a LIVE turn does NOT stamp (the send's own prompt is not the turn's output)", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+    applyChatBusEvent(turnStartedEvent({ chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }), h.deps);
+
+    applyChatBusEvent({ type: "messageCommitted", chatId, messageId: MESSAGE_ID, view: makeMessageView({ id: MESSAGE_ID, chatId, role: "user" }) }, h.deps);
+
+    expect(h.markCommitted).not.toHaveBeenCalled();
+    expect(h.slotOf(chatId)).toMatchObject({ phase: "pending", committedMessageId: null });
+  });
+
+  test("an ASSISTANT commit with NO live turn leaves the store untouched (somebody else's write)", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+
+    applyChatBusEvent(
+      { type: "messageCommitted", chatId, messageId: MESSAGE_ID, view: makeMessageView({ id: MESSAGE_ID, chatId, role: "assistant" }) },
+      h.deps,
+    );
+
+    expect(h.markCommitted).toHaveBeenCalledExactlyOnceWith(chatId, MESSAGE_ID);
+    // No slot was ever created — the action is an idempotent no-op off-turn (a narrator post, another
+    // device's edit): there is no ghost to hand over to, and the canon refetch owns the row.
+    expect(h.slotOf(chatId)).toBeUndefined();
   });
 
   test("a view-less messageCommitted invalidates but does NOT fire the signal (inconclusive ⇒ don't clear)", () => {

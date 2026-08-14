@@ -127,6 +127,9 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-14 | **R0 in-lane rulings (orchestrator, receipted):** squash rides R0 per tree law (Tier-1-DB regime 1 + baseline-single-migration gate — the brief's "additive only" line was WRONG, lane correctly refused) · stats rebuild-from-canon gets the SAME husk exclusion as the live delta (drift-gate contract; fence extended, no stats lane live) · host writes CLAIM incl. pre-first-turn greeting edits (F4(a) letter; losing hand-edits > premature visibility) · R0-early delta accepted: refused send → hidden husk reaped at 24h, recorded as-built. |
 | 08-14 | **Client cross-feature calls (owner, verbatim): "chat and character can call whatever they want on the client if they use proper channels/methods like trpc or etc."** Features still never import each other's INTERNALS, but any feature may fire any tRPC verb through the proper tiers (#data hooks / createEntityMutation) — no capability ceremony, no registry indirection required for a plain cross-feature mutation. Applied live to R1's use-start-chat.ts home. |
 | 08-14 | **BRIDGE FORKS F-A..F-G = ALL SEVEN ON RECS (question tool, midday):** gate-free `chatDeleted` to still-attached pumps (F-A, unblocks LANE 2) · bulk quiet window silences the room fan w/ coarse terminal per (room, kind) · ONE `roomEntityChanged` member with an `entity` enum · migrate the built character fan in the SAME wave (no double-fan) · databank/regex twins deferred as candidate rows under the SEATED-red gate arm · preset "host changed model" notice = registry-row end condition only, no build · rename `withQuietUserEvents` when it learns room pairs. LANE 1 dispatched (doc §10 1-7 = the spec). **SHAPE-CHURN = PROBE FIRST** (doc §4 live probe settles M1 table-promotion vs M4 reasoning-mount before any arm builds; probe lane dispatched). |
+| 08-14 | **EVENING SITTING (question tool):** guard **D GO** (quoted rm-rf target fix, own A/B leg — lane `guard-quoted-rm` dispatched); A/B narrowings NOT taken (stay strict — absence of a pick is not consent to loosen); E stays defer · **M4 probe config AUTHORIZED** (reasoning-emitting connection on a scratch room, restore after; lane queued next slot) · **client second belt SKIP** (server boundary suffices, twin-pinned) · **max-output KEEP 2048** (longer-outputs row CLOSES as ruled-keep). Also: **lanes-full posture re-affirmed** (owner: "stop worrying so much about draining, keep them lanes full"). |
+| 08-14 | **QUOTED-RM = STRICT + SAME-COMMAND VAR EXPANSION, in-lane (question tool):** the tighten ships (122,880-cmd A/B, 130 stricter/0 looser) AND variables assigned earlier in the same command resolve before the safe-test (evidence-gated, never a blanket $-hint; own A/B owed); comment-span false positive NOT taken (stays the standing owner item). |
+| 08-14 | **CODEX DOC-MISS SITTING (question tool, evening):** D129 = **TRUTH-REPAIR + BUILD BOTH** (ledger annotated owner-authorized same hour; one chat-area lane builds the narrator wire-mapping capability probe + the swipe re-resolution verb wiring — QUEUED next free slot) · **Charlotte live-validation = KILLED** (handoff doc superseded-whole, link repaired). Sweep-method lesson adopted: git additions, not dir walks. |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -383,7 +386,13 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   rot.
 - [ ] **R1-4a residual false-emit** (accepted-documented): closing needs a durable-append-free live
   fan on the chat bus — pairs with the bridge item above, one bus-surface design.
-- [ ] **F6 addMember-greets-before-freeze arm** (roster verb, out of R1/R3 scope).
+- [x] **F6 addMember-greets arm: BUILT (chat-smalls, red-first 3/5 arms).** Greeting-seed builder
+  lifted to `domain/chat/substrate/greeting-seed.ts` (one home; byte-identity receipt vs start-chat
+  — one statement differs, `startSeq` param), roster verb seeds at maxSeq+1 behind the same
+  `loadHasUserMessage` freeze predicate, claim-then-delta stats discipline. Coupled-site catch: two
+  test DOUBLES omitted `greetings` (first reader on this path) — doubles fixed, dispatch untouched;
+  lesson = a NEW READER of an entity field is a test-double sweep obligation. forceCharacterTurn
+  accept landed same commit (`e526602ba`; 4/5 red-first; opening turn stays bus-silent).
 - [x] **Guard follow-up family — LEG LANDED (security-executor, merging):** four holes closed
   red-first — `bash -c` operand extracted+classified (the HEADLINE: the push-word control was
   bypassable by `bash -c 'git push …'`, 3 real corpus commands did it) · `$()`/backtick
@@ -393,7 +402,15 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   find). Corpus A/B 122,062 cmds: 61 moved, 17 stricter, 0 LOOSER; depth-cap 6 after a cap-2 run
   cried wolf on benign `$(dirname $(readlink …))`; 16.9µs/cmd. 19 int tests. A/B report landing at
   `docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md`.
-- [ ] **GUARD OWNER-CALL PILE (all surfaced by the leg, each would LOOSEN a control — rule when
+- [x] **GUARD D + EXPANSION: MERGED (`80207c864`)** — quoted rm targets bite (head anchored to
+  FLAGS, monotone-by-proof: the token set only grows), same-command var expansion (17 ask→pass,
+  every resolved target mechanically audit-verified substring-safe; `node_modules=/real/path`
+  laundering now ASKS — a tighten the arm added), 20 int tests, two planted controls. Owner
+  over-matches confirmed untouched (14 of 26 new asks are the `rm -f "$probe"` class = the ruling
+  working). **GUARD LEG-5 QUEUE (each its own tighten + A/B):** `rm "-rf"` quoted-flags blindness ·
+  `/bin/rm` path-prefix head miss · the escaped-quote substitution skip (`"$(rm -rf \"…\")"`
+  never parses) · item G comment-span (owner-worded, agenda'd in the A/B doc).
+- [ ] **GUARD OWNER-CALL PILE (surfaced by the first leg, each would LOOSEN a control — rule when
   convenient):** (A) 6 corpus cmds `$(sqlite3 "file:…backup-*?mode=ro" …)` now ask — a ro/backup
   safe-hint is a loosening · (B) 4 cmds `"$(curl localhost | node -e …)"` now deny via the
   net-pipe-shell floor arm — `node -e` doesn't exec fetched bytes, narrowing is a loosening ·
@@ -814,10 +831,11 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **Low-scan gates, human eye when convenient (denominators visible for the first time):**
   bus-payload-allowlist 5 files · modal-body-not-placeholder 7 · selection-store-via-factory 9 ·
   turn-identity 10 — presumably intended-narrow; no invented threshold added, just now readable.
-- [ ] **Residue-lane smalls:** ~~genRepetitionPenalty relocation~~ ALREADY-DONE (smalls-client
-  receipt: system-tuning-section.tsx:32 owns it, negative marker at engine-launch-fields.ts:35-37,
-  CT :94) · REMAINING: tighten `no-test-fabrication.baseline.json` for chat.test.ts 2→1
-  (gate-ledger edit, do at a quiet moment).
+- [x] **Residue-lane smalls: FULLY CLOSED (both halves already-done):** genRepetitionPenalty
+  relocation (smalls-client receipt) · the baseline 2→1 ratchet ALREADY LANDED in `64110bcc5`
+  (chat-smalls lane receipt: `git log -p -- …baseline.json`; the row's path was a guess — the real
+  row `vllm/surfaces/chat.test.ts` is already 1, no domain-chat row exists). Eighth stale
+  row/half-row of 08-14.
 - [ ] **AST TWO-CORPORA ASYMMETRY (ruling needed; surfaced by the scan ledger, deliberately NOT fixed
   in-lane — it changes match semantics):** syntactic verbs (callers/importers/exports/jsx/ident/aliases/
   regkeys) load harness-globs and are structurally BLIND to `scripts/**`, `packages/*/*.ts`, `*.mts`,
@@ -1084,11 +1102,19 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 
 - [ ] **#43 boot code-split:** 4.9MB chunk / \~610ms parse → route-level split + lazy sections. GO-ruled.
 
-- [ ] **Chat-search hidden-class exposure (security pass, LOW):** server search matches the newest message's RAW body, so a hidden-class span's text becomes findable by a floored member (search also floors to D16 in SQL). Member-only, low-grade, single-owner mostly self; a security-executor pass before/after re-import. NOT a re-import blocker.
+- [x] **Chat-search hidden-class exposure: WAS LIVE, FIXED (sec-smalls `a3d9db8aa`, red receipt =
+  a floored member FOUND a lie's truth-text via the search oracle at queries.ts:317 raw-body LIKE).**
+  `memberHiddenBodyGuard()`: non-host body-match arm withheld on any tail carrying a hidden tag
+  (derived from HIDDEN\_TAGS, fail-closed); host verbatim. RECEIPTED NARROWING (pinned as a test,
+  not incidental): members can't body-match even the visible half of a hidden-tag tail — SQL can't
+  express the real strip; upgrade path = a registered scalar fn if parity is ever wanted. B1
+  per-handle throttle BUILT same commit (second axis on rate\_limit\_buckets, cap = login×3, never
+  lockout, identical 429 both axes, planted trim control) + U1 = Spine invariant #10 w/ honest
+  enforcer residual (entry-tier is census-held, not gate-held).
 
 - [ ] **Retire the two bounded chat ceilings (roster-contract):** character-library resume map (RESUME\_WINDOW=100) + use-chat-portrait-map (raised to 500) are BOUNDED, not solved — the real fix is ChatSummary carrying its seats' avatarHash + a batch characterIds→resume-chatId server read, which retires use-chat-portrait-map entirely. Roster/participants contract territory.
 
-- [ ] **B1 per-handle signin throttle + U1 chokepoint doc** (from auth study II) — rolling-window (never lockout) per-handle axis beside per-IP, reusing rate\_limit\_buckets; + fold the single-chokepoint rule into Spine-Identity-and-Auth.md. Small; could ride the #53 OIDC lane if still open, else its own.
+- [x] **B1 + U1: BUILT (sec-smalls — receipts on the chat-search row above).**
 
 - [ ] **#46 pagination gate** (list procedures declare limit+max+default) — AFTER #45 lands (fixed tree);
   two receipts (historical control + reach probe).
@@ -1272,7 +1298,21 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   table · turnAccepted gap / fence-close spoof / turnLimit rename = TEST-PINNED by design (emit
   sites too varied, kit-internal, contract pin) · stale-row class = RITUAL-owned (6-for-6 today,
   ungateable) · documented-field-no-producer = LEAD only (the G-E semantic-discriminator trap; if
-  it recurs, a typed obligations table is the cheap form).
+  it recurs, a typed obligations table is the cheap form). **RATCHET-ADMITTED 275 (owner-asked):**
+  density-tier 224 (the 07-31 taste audit's per-file budgets — radius-by-class, box-in-box,
+  text-voice; shrink-only, stale-arm bidirectional since `64110bcc5`) + finding-overload-provenance
+  51 (gate-harness ignore-machinery bypass — BURN LANE RUNNING `overload-burn`). Standing brief
+  policy adopted: a lane touching a density-baselined file burns that file's rows in-lane.
+- [ ] **CODEX DOC-SWEEP MISSES (their git-additions method beat the board's dir-walk — 2 real, both
+  verified on tree 08-14 evening):** (1) **D129's two UNBUILT commitments never rowed:** the
+  narrator→wire-`system` mapping gated on a live per-model capability probe (`historySystemRows` —
+  ZERO code matches, 2-method receipt) at Registry (B), and the swipe re-resolution off
+  `rawContent`/`macroFreezes` at (F) ("kit replay engine exists and is pinned, no verb calls it").
+  Plus (G)'s "still owed: names/client-chrome/serde" is STALE — those sites exist now. D129 truth-repair DONE (owner-authorized, ledger annotated) + BUILD ruled — lane queued. (2) **`docs/orbweaver-card-debug-handoff.md`
+  is a stale "resume here"** — INJECT/EMPTYGEN/weather since fixed, lifecycle test 2/2, broken
+  `./dogfood-tracking.md` target at :440; being truth-repaired; Charlotte live-validation step =
+  owner keep/kill (posed). Lesson: future doc sweeps use GIT ADDITIONS as the corpus, not a
+  directory walk.
 - [x] **MEMBER-STRIP CARD-FENCE HOLE — FIXED + MERGED (`79fdc30fb`; red-first on BOTH planes incl.
   the member's literal listMessages payload carrying the truth).** ONE fence-blind hidden-scan pass
   in kit; `stripHiddenSpans` + the host reveal (`scanHiddenSpans`) are twins off it — reveal-equals-
@@ -1317,7 +1357,7 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   repro. Likely the writable-field commit seam (\[\[rpg-writable-field-coupled-sites]] — a writable field
   is \~7 coupled sites).
 - [ ] **LENS CALIBRATION — fix `pnpm ast` using its own 281-row output as the corpus (owner ruling,
-  08-13).** The audit is `docs/Qwen_Offline_Investigation.md` (currently UNTRACKED — track it; it is now a
+  08-13).** The audit is `docs/Qwen_Offline_Investigation.md` (tracked since `348d3fa7a`; it is now a
   calibration corpus, not a scratch file). An 08-13 draft of this row dismissed \~248 of its rows as
   "noise"; **the owner overruled that and he is right**: the rows came out of OUR OWN lenses, so a
   false-positive class is a finding ABOUT THE LENS, and a lens that cries wolf gets ignored (the same
@@ -1372,9 +1412,10 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   worth ONE scoped check at leisure: whether every PHASE of the program (D then C then the agent
   wave) completed, or only the C1 substrate legs — the ledger entry covers the substrate; the agent
   wave was always a later phase.
-- [ ] **#33 templating rows 53-73 (ARM B, server composes)** — wire carries toggle KINDS only, server
-  joins the 21 fragments via prose slots. Spec exists: `docs/design/templating-fork-rows-53-73.md`.
-  Parked under the 08-08 dispatch freeze.
+- [x] **#33 templating: CLOSED — BUILT (seventh stale row of 08-14).** The spec's own header:
+  "RULED ARM B and BUILT in the same pass" — `af46eeda7` merge + `90ae6aa30` ("the 21 steer
+  fragments become server-composed preset slots"). The row outlived its build by days; caught at
+  dispatch re-derive.
 - [ ] **#30 R4** · **#31 agents naming** · **#32 CLS + tab-strip** — all three "stay PARKED until the owner
   lifts it" (08-08 freeze).
 - [ ] **#52 demo-pack v4 + record-demo harness** — regenerate six transcripts through the current

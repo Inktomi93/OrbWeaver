@@ -17,10 +17,9 @@ import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC, useTRPCClient } from "#data";
-import { GENERATION_FAILED_DETAIL } from "#lib";
+import { GENERATION_FAILED_DETAIL, isSilencedTurnAbort, turnMutationToast } from "#lib";
 import { pushFiredSteer } from "#state";
 import { notifyImpersonateFailure } from "../lib/guided-failure-notices.ts";
-import { isSilencedTurnAbort } from "../lib/turn-abort-notice.ts";
 
 interface GuidedSteerInput {
   readonly action: GuidedActionKind;
@@ -55,19 +54,19 @@ interface GuidedSlotVars {
 const useGuidedGenerateMutation = createEntityMutation<GuidedTurnVars, unknown>({
   options: (trpc) => trpc.chat.generate.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't generate a guided response."),
+  errorToast: (error) => turnMutationToast(error, "Couldn't generate a guided response."),
 });
 
 const useGuidedSwipeMutation = createEntityMutation<GuidedSlotVars, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't generate that guided swipe."),
+  errorToast: (error) => turnMutationToast(error, "Couldn't generate that guided swipe."),
 });
 
 const useGuidedContinueMutation = createEntityMutation<GuidedSlotVars, unknown>({
   options: (trpc) => trpc.chat.continueTurn.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't continue with that guidance."),
+  errorToast: (error) => turnMutationToast(error, "Couldn't continue with that guidance."),
 });
 
 // F1 — Rewrite/Corrections: "fix the last reply per my instruction" lands as a NEW VARIANT of the tail
@@ -78,7 +77,7 @@ const useGuidedContinueMutation = createEntityMutation<GuidedSlotVars, unknown>(
 const useGuidedRewriteMutation = createEntityMutation<GuidedSlotVars, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't rewrite that reply."),
+  errorToast: (error) => turnMutationToast(error, "Couldn't rewrite that reply."),
 });
 
 // Guided impersonate is NON-PERSISTING + STREAMING (owner ruling): it rides the `chat.impersonateStream`

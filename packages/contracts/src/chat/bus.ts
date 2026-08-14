@@ -131,6 +131,16 @@ export const TURN_ABORTED_OP_CODE = "aborted" as const;
 /** @public twin: TURN_ABORTED_OP_CODE — type twin of the live constant (cross-package PUBLIC). */
 export type TurnAbortedOpCode = typeof TURN_ABORTED_OP_CODE;
 
+/** The `DomainOperationError.code` a turn requested while the per-chat lock is HELD surfaces to the caller —
+ *  the same wire-vocabulary home, for the same reason as the twin above: the client keys on `data.reason`,
+ *  never on message text, and the server's `CHAT_OP_CODES.locked` derives this literal. The refusal is total
+ *  (no turn ran, nothing was written), and it is the ONE turn error whose cause the user can act on — so the
+ *  client maps it to honest copy naming the other turn instead of its generic "couldn't swipe" toast
+ *  (`features/chat/lib/turn-abort-notice.ts`). */
+export const TURN_LOCKED_OP_CODE = "locked" as const;
+/** @public twin: TURN_LOCKED_OP_CODE — type twin of the live constant (cross-package PUBLIC). */
+export type TurnLockedOpCode = typeof TURN_LOCKED_OP_CODE;
+
 // ── Turn origin — who/what started a turn + its cascade depth (automation-design/03 §4) ──
 // TURN-PATH STATE, never a bus-event field: the D19/D50 allowlist forbids attribution on the public bus, so
 // this rides the committed reply SLOT (`messages.initiator`/`.automationDepth`) and is read back by the ONE

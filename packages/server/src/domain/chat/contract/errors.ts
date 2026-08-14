@@ -10,7 +10,7 @@
 // the host) → ChatOperationError("not_host") — the existence is already known to a member, so this is an
 // authority refusal, not a leak. (Authoritative auth surface: core/Spine-Identity-and-Auth.md.)
 
-import { TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
+import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE } from "@orb/contracts/chat";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 
@@ -48,8 +48,10 @@ export const CHAT_OP_CODES = {
    *  left). Host-only surfaces (the caller already sees the roster), so a coded refusal leaks nothing —
    *  unlike `requireParticipant` failures, which stay a leak-free `ChatNotFoundError`. */
   participantNotFound: "participant_not_found",
-  /** A turn was requested while the per-chat turn lock is held (a turn is already in flight). */
-  locked: "locked",
+  /** A turn was requested while the per-chat turn lock is held (a turn is already in flight). Derived from
+   *  the contract wire home (the `aborted` precedent below) — the client keys on the same literal
+   *  (`data.reason`) to say WHICH refusal this is instead of a generic "couldn't swipe". */
+  locked: TURN_LOCKED_OP_CODE,
   /** `undoContinue`/`revertContinue` on a variant that was never continued (the `preContinue*`/
    *  `lastContinuation*` snapshot columns are empty — D26; nothing to restore). */
   noContinuation: "no_continuation",

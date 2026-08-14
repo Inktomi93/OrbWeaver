@@ -177,13 +177,21 @@ out of the leg's scope by instruction.
   execute the fetched bytes, so this arm arguably over-matches — but narrowing it is a loosening → owner.
 - **C.** 1 command `pnpm snap / --open-chat "$(pnpm snap / --eval … | grep … | head -1)" … | tail -1` now
   denies (piped harness inside a substitution, no safe rewrite). Correct by the rule; costs one idiom.
-- **D. Quoted `rm -rf` target blindness is NOT covered by this leg** (checked deliberately):
-  `rm -rf "packages/server/src"` still passes. Exact mechanism, which the board row did not have:
-  `RM_RF_HEAD`'s greedy `(?:-[a-z]*[rf][a-z]*\s+)+` matches the flag **plus all the blanked quoted
-  target**, so the tail slice is empty and the target list comes out `[]` → the ask never fires. 29 of
-  32,171 rows in one decision log carry a quoted rm target. Minimal fix: read targets off a
-  quote-*stripped* stage rather than the raw tail, or anchor the head match to the flags only. Left alone
-  — separate behavior change, owes its own A/B.
+- **D. Quoted `rm -rf` target blindness — CLOSED 2026-08-14 by the follow-up leg, not by this one.**
+  Recorded here as found: `rm -rf "packages/server/src"` still passed at this leg's head. Exact
+  mechanism, which the board row did not have: `RM_RF_HEAD`'s greedy `(?:-[a-z]*[rf][a-z]*\s+)+` matches
+  the flag **plus all the blanked quoted target**, so the tail slice is empty and the target list comes
+  out `[]` → the ask never fires. 29 of 32,171 rows in one decision log carry a quoted rm target. **The
+  fix taken** was the second option — anchor the head to the flags only (`/^\s*rm(?:\s+-[a-z]*[rf][a-z]*)+/`),
+  which grows the raw tail rather than re-reading a stripped one, so `targets.some(unsafe)` can only move
+  a command STRICTER. Its own A/B: 122,880 commands, 131 moved, 130 stricter, **0 looser**. Shipped
+  together with the owner-ruled other half — an rm target is now resolved against the variables the
+  command ITSELF assigned earlier (`SP=/tmp/…/scratchpad; rm -f "$SP/x.log"` passes; `R=/home/…/orbweaver;
+  rm -rf "$R"` still asks; an unresolvable `$VAR` still asks) — because 52 of the 53 quoted-rm rows in a
+  live decision log are that idiom and the identical unquoted spelling was already asking. Combined A/B:
+  122,959 commands, 69 moved, 44 stricter, 17 ask→pass (every one audited: 28 resolved targets, all
+  substring-safe under `RM_SAFE_TARGET`), 8 same-rank rule-id changes. Rows in
+  `tests/tooling/tool-guard.int.test.ts`.
 - **E. `script-scan-error` still emits `defer`** (`.claude/hooks/tool-guard.mjs`, script-body pre-pass),
   which at the wire stalls a subagent on a command nothing objected to. Pre-existing, one line, but
   flipping it is a decision, not a fix. (This leg's own `nested-scan-error` path deliberately returns
@@ -191,6 +199,14 @@ out of the leg's scope by instruction.
 - **F.** Untouched as instructed: `RM_RF_HEAD` matching plain `rm -f` (it refused this lane's own
   `rm -f gf-ab-report.txt` mid-run — a live receipt that the over-match bites) and `packages/**/__probe`
   not in `RM_SAFE_TARGET`.
+- **G (added by the D follow-up leg, 2026-08-14; owner declined to take it — standing).** The rm-target
+  scan counts a trailing COMMENT's words as targets, so `rm -rf /tmp/foo # cleanup` asks today on its `#`
+  and `cleanup` tokens. Mechanism: the target slice runs to the end of the STAGE, and a comment is
+  invisible in the blanked text (its span reads as spaces, exactly like a blanked quoted span — the same
+  class that cost the pipe rewrite its exit code, above). Pre-existing and an OVER-match, so fixing it
+  would LOOSEN — hence not taken inside a tighten-only leg. Closing the quoted-target hole extends the
+  same false positive to the quoted spelling (`rm -rf "/tmp/foo" # cleanup`). The fix, when it is worded:
+  intersect the target slice with the stage's non-comment span (`commentSpans` already returns it).
 
 ## Assumptions this leg makes (stated so they can be challenged)
 

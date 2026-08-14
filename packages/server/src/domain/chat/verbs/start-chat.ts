@@ -27,7 +27,7 @@
 // `chatEventStream`, PD-134): a local per-viewer yield, never published on the bus, never logged to
 // `chat_events`. This verb deliberately stays silent on it (the marker guarding against a stray emit here).
 
-import type { DurableChatBusEvent, GroupConfig, GroupConfigInput, OpeningPolicy, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, GroupConfig, GroupConfigInput, MessageView, OpeningPolicy, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema, roomOverridesSchema } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
@@ -44,7 +44,6 @@ import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
 import type { GuidedSteer, StartChatParams } from "../contract/params.ts";
 import type { OpeningFailure, StartChatResult, TurnEngine, TurnOutcome } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
-import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { buildInitialRosterRows } from "../persistence/roster.ts";
@@ -52,6 +51,7 @@ import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { resolveGuidedActionText } from "../substrate/assembly-access.ts";
 import { NO_HISTORY_FLOOR } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
+import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
  *  returned `ChatDetail` roster; the engine + the two assemble resolvers back the `generate` opening only. */
@@ -74,9 +74,6 @@ interface StartChatDeps {
 }
 
 type StartChatVerbs = Pick<ChatService, "startChat">;
-
-/** The committed `MessageView` for a seeded greeting. */
-type MessageViewSeed = ReturnType<typeof buildCommittedMessageView>;
 
 /** Resolve the effective opening policy: the explicit param, else by roster size. */
 function resolveOpeningPolicy(opening: OpeningPolicy | undefined, charCount: number): OpeningPolicy {
@@ -162,41 +159,6 @@ async function loadGreetings(
     // The draft's swiped/edited opening wins; else the card's primary greeting.
     text: seedGreetings?.[characterId] ?? cards[i]?.greetings[0]?.text ?? "",
   }));
-}
-
-/** Build the verbatim greeting canon statements (+ their committed views), oldest-first at seq 1..N. A
- *  character with an empty greeting is skipped. */
-function buildGreetingSeed(
-  ctx: ChatContext,
-  args: {
-    readonly chatId: ChatId;
-    readonly now: number;
-    readonly greetings: readonly { readonly characterId: CharacterId; readonly text: string }[];
-  },
-): { stmts: BatchStmt[]; views: MessageViewSeed[] } {
-  const stmts: BatchStmt[] = [];
-  const views: MessageViewSeed[] = [];
-  let seq = 0;
-  for (const g of args.greetings) {
-    // A cleared draft greeting seeds NO row.
-    if (g.text.trim().length === 0) {
-      continue;
-    }
-    seq += 1;
-    const params = {
-      messageId: ctx.newMessageId(),
-      variantId: ctx.newMessageVariantId(),
-      chatId: args.chatId,
-      seq,
-      role: "assistant" as const,
-      characterId: g.characterId,
-      now: args.now,
-      variant: { content: g.text },
-    };
-    stmts.push(...insertCanonMessageStatements(ctx.db, params));
-    views.push(buildCommittedMessageView(params));
-  }
-  return { stmts, views };
 }
 
 /** The `generate` opening — delegate a single `kind:"opening"` turn to the engine. Builds the assemble
@@ -347,7 +309,9 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
 
     const targets = greetTargets(policy, characterIds);
     const greetings = targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets, seedGreetings) : [];
-    const seed = buildGreetingSeed(ctx, { chatId, now, greetings });
+    // A founding room has no canon, so its greetings land at seq 1..N (`substrate/greeting-seed` — shared with
+    // the roster verb's F6 in-window join greeting, which appends at the live canon head instead).
+    const seed = buildGreetingSeed(ctx, { chatId, now, startSeq: 0, greetings });
 
     // Seed metadata.group from the creator's settings when they supplied no draft (explicit draft wins; a
     // creator on default settings writes nothing → metadata stays null exactly as today).
@@ -442,7 +406,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
 }
 
 /** Wrap the verbatim seed → a `TurnOutcome` (or null when nothing was seeded). */
-function seedOutcome(views: readonly MessageViewSeed[]): TurnOutcome | null {
+function seedOutcome(views: readonly MessageView[]): TurnOutcome | null {
   return views.length > 0 ? { messages: views, aborted: false } : null;
 }
 

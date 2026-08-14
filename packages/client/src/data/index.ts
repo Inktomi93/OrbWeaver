@@ -37,6 +37,7 @@ export type { TreeImportStarted } from "./import-tree.ts";
 export { importTree, relativePathOf } from "./import-tree.ts";
 export type { InvalidateFilter, Invalidation } from "./invalidation.ts";
 export { createInvalidation } from "./invalidation.ts";
+export { applyCanonView } from "./invalidation-carrier.ts";
 export { peekQueryData } from "./peek-query.ts";
 export type { QueryBoundaryProps } from "./query-boundary.tsx";
 export { QueryBoundary } from "./query-boundary.tsx";
