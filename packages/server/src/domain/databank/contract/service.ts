@@ -13,7 +13,7 @@
 // `search()` are both BUILT (databank graduated D91).
 
 import type { StoredAsset } from "@orb/contracts/assets";
-import type { DatabankSettings, IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
+import type { BankHealthView, DatabankSettings, IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -23,6 +23,7 @@ import type { EmbeddingsService } from "#domain/embeddings";
 import type { SearchService } from "#domain/search";
 import type { AuditEntry } from "#foundation/observability";
 import type {
+  BankHealthParams,
   CharacterAttachParams,
   ChatAttachParams,
   CreateFromTextParams,
@@ -123,6 +124,11 @@ export interface DatabankContext {
   /** The DocumentView chunk-count read — embeddings owns `document_chunks`, so databank never imports the
    *  vector table; it derives `chunkCount`/`embeddedCount` through this injected op (vector-scope-derived). */
   readonly countChunks: EmbeddingsService["countDocumentChunks"];
+  /** The BANK-WIDE chunk read: the library PHASE lens's chunk half (its key set) and the health census's
+   *  passage sums. Same boundary as `countChunks` and the same reason — the phase predicate needs a fact
+   *  that lives in the vector table, and databank derives the phase from it rather than reading the table
+   *  (verbs/list.ts states the declared limit and its escalation path). */
+  readonly chunkCountsByOwner: EmbeddingsService["countDocumentChunksByOwner"];
   readonly extractText: ExtractTextOp;
   /** The current `infra/extraction` EXTRACTOR_VERSION — the re-extract-on-upgrade selection predicate. */
   readonly extractorVersion: string;
@@ -159,8 +165,11 @@ export interface DatabankService {
   readonly scrapeWiki: (params: ScrapeWikiParams) => Promise<UploadResult>;
 
   readonly get: (params: GetDocumentParams) => Promise<DocumentDetailView>;
-  /** Keyset-paged (`{ items, nextCursor }`) — the bank is browsable past its first page. */
+  /** Keyset-paged (`{ items, nextCursor, totalCount }`), with every library lens applied server-side. */
   readonly list: (params: ListDocumentsParams) => Promise<ListDocumentsResult>;
+  /** The bank's ingest health as a CENSUS (the D-7 home tile). Separate from `list` on purpose — see the
+   *  verb header: its bank-wide chunk read must not be paid on every page fetch of the paging library. */
+  readonly bankHealth: (params: BankHealthParams) => Promise<BankHealthView>;
   /** Mutable display metadata only; bumps `updatedAt`, touches nothing derived. */
   readonly rename: (params: RenameDocumentParams) => Promise<DocumentView>;
   /** DB cascade clears the chunks + all scope-junction rows; the CAS blob self-heals on the next GC sweep. */

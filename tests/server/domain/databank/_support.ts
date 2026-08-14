@@ -153,6 +153,7 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
     embeddingsStore: embeddings.store,
     pruneDocumentChunks: embeddings.pruneDocumentChunks,
     countChunks: embeddings.countDocumentChunks,
+    chunkCountsByOwner: embeddings.countDocumentChunksByOwner,
     extractText,
     extractorVersion,
     fetchUrl,

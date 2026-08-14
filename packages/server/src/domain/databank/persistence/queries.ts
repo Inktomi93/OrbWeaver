@@ -6,14 +6,22 @@
 // databank never writes it (the single-write-path invariant — writes ride `embeddings.store`).
 
 import type { DocumentListCursor, DocumentView } from "@orb/contracts/databank";
+import { STALE_INGEST_MS } from "@orb/contracts/databank";
 import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, documents, globalDocuments } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
-import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray, lt, lte, notInArray, or, sql } from "drizzle-orm";
 import { DatabankCharacterNotFoundError } from "../contract/errors.ts";
+import type { DocumentListFilter, DocumentPhaseScope } from "../contract/params.ts";
 import type { DocumentAttachmentsView } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
+
+/** The canon length, in SQL — the `charCount` projection AND the `empty`/in-flight phase predicates read this
+ *  one expression, so a list can never disagree with the lens that filtered it. `length()` never hauls the
+ *  multi-MB text. */
+const CHAR_COUNT = sql<number>`length(${documents.extractedText})`;
 
 /** The list-safe projection: everything on `DocumentView` EXCEPT the derived chunk counts, with `charCount`
  *  computed in SQL so the canon text never crosses the wire on a list. Persistence-internal (not exported —
@@ -42,7 +50,7 @@ const META_COLUMNS = {
   origin: documents.origin,
   sourceUrl: documents.sourceUrl,
   byteSize: documents.byteSize,
-  charCount: sql<number>`length(${documents.extractedText})`,
+  charCount: CHAR_COUNT,
   createdAt: documents.createdAt,
   updatedAt: documents.updatedAt,
 } as const;
@@ -117,19 +125,83 @@ export async function findByImportHash(db: Db, ownerId: UserId, importHash: stri
 }
 
 interface ListDocumentsQuery {
-  readonly origin?: DocumentView["origin"];
+  readonly filter: DocumentListFilter;
   readonly limit: number;
   /** The boundary row of the previous page — omit for the first page. */
   readonly cursor?: DocumentListCursor;
 }
 
-/** One page of the owner's documents, `updatedAt DESC, id DESC`. The ORDER carries `id` because
- *  `updatedAt` is not unique, and the KEYSET predicate is the lexicographic "strictly after the boundary
- *  row" test on that same pair — so the page a cursor names is stable even while an ingest is bumping
- *  `updatedAt` on rows above it, which is exactly what an OFFSET cannot promise (it would re-serve or skip
- *  rows as the head shifts under it). */
+/** The SEARCH predicate — the one string the row itself renders that a user can type. The rest of a databank
+ *  row is derived labels (provenance · size · passages), and its canon is deliberately never scanned here:
+ *  content search is `search.documents`, a semantic retrieval over embedded chunks, not a library filter. */
+function searchPredicate(needle: string): SQL {
+  return sql`lower(${documents.name}) like ${`%${needle}%`}`;
+}
+
+/** No row can satisfy this. Used for the `embedding` phase, which is UNSATISFIABLE in the current substrate:
+ *  a `document_chunks` row exists only AFTER a successful embed, so `embeddedCount === chunkCount` for every
+ *  document (`toDocumentView` states the same identity), and "chunks exist that are not all embedded" names a
+ *  state the data cannot be in. Spelled as an explicit empty predicate rather than omitted, because omitting
+ *  it would silently serve the WHOLE bank for that chip — the loudest possible wrong answer. It stops being
+ *  empty the day embeddings can report the two counts apart. */
+const NO_DOCUMENT: SQL = sql`1 = 0`;
+
+/** The ingest PHASE as a predicate over the same scope the page windows (owner ruling 2026-08-13). The
+ *  arithmetic is `features/databank/lib/databank-model.ts`'s `countedPhase` + its stall overlay, expressed in
+ *  SQL over the two facts that live on the row (canon length, `updatedAt`) and the one that does not (chunk
+ *  presence, which arrives as an id set from embeddings — databank never reads the vector table).
+ *
+ *  `empty` is tested FIRST in the client's derivation, so it is charCount alone here too: a document that
+ *  extracted to nothing is never "queued", however long it sits. */
+function phasePredicate(scope: DocumentPhaseScope): SQL {
+  const { phase, chunkedIds, nowMs } = scope;
+  const hasCanon = gt(CHAR_COUNT, 0);
+  // An empty id set means NOTHING is chunked — `inArray(col, [])` is not a portable way to say that, so the
+  // two arms are spelled explicitly.
+  const chunked = chunkedIds.length === 0 ? NO_DOCUMENT : inArray(documents.id, [...chunkedIds]);
+  const unchunked = chunkedIds.length === 0 ? sql`1 = 1` : notInArray(documents.id, [...chunkedIds]);
+  const frozenAt = nowMs - STALE_INGEST_MS;
+  switch (phase) {
+    case "empty":
+      return eq(CHAR_COUNT, 0);
+    case "indexing":
+      // In flight and still moving: canon, no chunks yet, written inside the stall window.
+      return and(hasCanon, unchunked, gt(documents.updatedAt, frozenAt)) ?? NO_DOCUMENT;
+    case "embedding":
+      return NO_DOCUMENT;
+    case "ready":
+      return and(hasCanon, chunked) ?? NO_DOCUMENT;
+    case "stalled":
+      // The same in-flight shape whose `updatedAt` stopped moving — the only "this is never coming back"
+      // signal a schema with no status column can give.
+      return and(hasCanon, unchunked, lte(documents.updatedAt, frozenAt)) ?? NO_DOCUMENT;
+    default:
+      return assertNeverPhase(phase);
+  }
+}
+
+const assertNeverPhase = (value: never): never => {
+  throw new Error(`unhandled document ingest phase: ${String(value)}`);
+};
+
+/** The ONE place the list's owner scope + lens predicates are spelled, so a page and its census can never
+ *  disagree about what they are a window into / a count of (the `ownedCharacterScope` precedent). */
+function ownedDocumentScope(ownerId: UserId, filter: DocumentListFilter): SQL | undefined {
+  return and(
+    eq(documents.ownerId, ownerId),
+    filter.origin === undefined ? undefined : eq(documents.origin, filter.origin),
+    filter.search === undefined ? undefined : searchPredicate(filter.search),
+    filter.phase === undefined ? undefined : phasePredicate(filter.phase),
+  );
+}
+
+/** One page of the owner's documents, LENS-filtered, `updatedAt DESC, id DESC`. The ORDER carries `id`
+ *  because `updatedAt` is not unique, and the KEYSET predicate is the lexicographic "strictly after the
+ *  boundary row" test on that same pair — so the page a cursor names is stable even while an ingest is
+ *  bumping `updatedAt` on rows above it, which is exactly what an OFFSET cannot promise (it would re-serve or
+ *  skip rows as the head shifts under it). */
 export async function listOwnedMeta(db: Db, ownerId: UserId, query: ListDocumentsQuery): Promise<DocumentMetaRow[]> {
-  const owned = query.origin === undefined ? eq(documents.ownerId, ownerId) : and(eq(documents.ownerId, ownerId), eq(documents.origin, query.origin));
+  const scope = ownedDocumentScope(ownerId, query.filter);
   const after =
     query.cursor === undefined
       ? undefined
@@ -137,10 +209,19 @@ export async function listOwnedMeta(db: Db, ownerId: UserId, query: ListDocument
   const rows = await db
     .select(META_COLUMNS)
     .from(documents)
-    .where(after === undefined ? owned : and(owned, after))
+    .where(after === undefined ? scope : and(scope, after))
     .orderBy(desc(documents.updatedAt), desc(documents.id))
     .limit(query.limit);
   return rows;
+}
+
+/** The list's CENSUS — how many documents match the SAME lens the page above is a window into. A real
+ *  `COUNT`, never `items.length`: a keyset page's row count is a number that means something else, and the
+ *  band header + home tile print this one ("46 documents", where they used to print "100+" because a full
+ *  first page was all they had). */
+export async function countOwnedDocuments(db: Db, ownerId: UserId, filter: DocumentListFilter): Promise<number> {
+  const rows = await db.select({ total: count() }).from(documents).where(ownedDocumentScope(ownerId, filter));
+  return rows.at(0)?.total ?? 0;
 }
 
 /** Every owned document id (the `{ownerId}` reindex + personal-search scope) — id-only, no canon read. */

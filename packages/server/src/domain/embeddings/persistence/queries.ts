@@ -5,7 +5,11 @@
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
-import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
+// `documents` is databank's table, read here (and only here) to derive the OWNER scope of a chunk row — the
+// vector tables carry no ownerId (D20: scope derives through the FK to the producer). A cross-domain READ
+// from `persistence/`, which is the sanctioned home for exactly that (own-tables-only scopes `persistence/`
+// out; `search/persistence/nearest.ts` joins the same table for the same reason).
+import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, documents, imageEmbeddings } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type {
   AssetId,
@@ -17,6 +21,7 @@ import type {
   DocumentChunkId,
   DocumentId,
   ImageEmbeddingId,
+  UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -308,6 +313,25 @@ export async function countDocumentChunks(db: Db, documentIds: readonly Document
     .select({ documentId: documentChunks.documentId, count: sql<number>`count(*)` })
     .from(documentChunks)
     .where(and(inArray(documentChunks.documentId, [...documentIds]), eq(documentChunks.model, model)))
+    .groupBy(documentChunks.documentId);
+  return rows;
+}
+
+/** Live chunk count per document for an OWNER's whole bank — {@link countDocumentChunks} scoped by owner
+ *  instead of by id list. Scoped through a join to `documents` because `document_chunks` carries no ownerId:
+ *  scope derives through the FK to the producer (D20). That join is a cross-domain READ from `persistence/`,
+ *  which is its sanctioned home (`search/persistence/nearest.ts` joins the same table for the same reason).
+ *
+ *  Its two consumers are databank's library PHASE lens (which needs only "is this document chunked at all",
+ *  the map's key set) and the bank-health census (which needs the counts). databank reaches both through the
+ *  injected `chunkCountsByOwner` op — it never imports the vector table (the vector-scope-derived chokepoint;
+ *  databank is deliberately not in the sanctioned set). Documents with zero chunks are simply absent. */
+export async function countDocumentChunksByOwner(db: Db, ownerId: UserId, model: string): Promise<{ documentId: DocumentId; count: number }[]> {
+  const rows = await db
+    .select({ documentId: documentChunks.documentId, count: sql<number>`count(*)` })
+    .from(documentChunks)
+    .innerJoin(documents, eq(documentChunks.documentId, documents.id))
+    .where(and(eq(documents.ownerId, ownerId), eq(documentChunks.model, model)))
     .groupBy(documentChunks.documentId);
   return rows;
 }

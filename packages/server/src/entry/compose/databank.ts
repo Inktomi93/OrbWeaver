@@ -30,7 +30,7 @@ export interface DatabankComposeDeps {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly assetsStore: DatabankContext["assetsStore"];
   readonly loadAssetBytes: (assetId: Parameters<DatabankContext["loadAssetBytes"]>[0]) => Promise<Uint8Array | null>;
-  readonly embeddings: Pick<EmbeddingsService, "store" | "pruneDocumentChunks" | "countDocumentChunks">;
+  readonly embeddings: Pick<EmbeddingsService, "store" | "pruneDocumentChunks" | "countDocumentChunks" | "countDocumentChunksByOwner">;
   readonly extractText: DatabankContext["extractText"];
   /** The active embed-space model tag — `roleClients.embedModel` (the same source `getActiveEmbedSpace` read).
    *  A THUNK: that field is a live getter that follows a role re-point, so capturing the string at compose
@@ -80,6 +80,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     embeddingsStore: embeddings.store,
     pruneDocumentChunks: embeddings.pruneDocumentChunks,
     countChunks: embeddings.countDocumentChunks,
+    chunkCountsByOwner: embeddings.countDocumentChunksByOwner,
     extractText,
     extractorVersion: EXTRACTOR_VERSION,
     // The DB7 scrapeWeb port: infra/network's `fetchWebDocument` (the ANY_HOST arbitrary-URL class — no host
