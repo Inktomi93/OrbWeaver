@@ -1244,13 +1244,24 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   · abort-after-close drops the card · sandbox attrs byte-identical) + stable-key no-iframe-reload
   pins + a commit-swap remount verdict. Refusal-with-receipt allowed if §4.5's one-hard-cut was
   ruled for a reason that still binds.
-- [ ] **SWIPE GHOST-VISIBILITY (owner dogfood 08-14 afternoon, verbatim: "when we swipe it
-  disappears the old message shows until the new one finishes sometimes") — INVESTIGATION LANE
-  RUNNING (four-hop instrumentation):** the streaming new variant sometimes never paints; the old
-  variant holds until terminal. H1 checked FIRST because it would be a same-day regression: the R3
-  seq-floor change (`caa06972c` — bounds.maxSeq adopted as live-dedup floor) silently dropping a
-  swipe stream's frames on a reconnect/attach race. H2: ghost mount keyed to SELECTED variant,
-  selection flips only at terminal. Evidence picks; reproduced-and-diagnosed is a valid outcome.
+- [ ] **SWIPE GHOST-VISIBILITY — ROOT-CAUSED (diagnosis FLAG merged at createSwipe, `e62b8c16f`);
+  TWO FIX LANES RUNNING.** Cause: `swipe`/`continueTurn`/`generate` NEVER emit `turnAccepted` —
+  the slot opens only at the engine's `turnStarted`, which lands AFTER resolveTurnBase (assembly +
+  memory recall + lock); measured click→ghost 151/341/1075/1719/1887 ms, unbounded (the
+  "sometimes"). `send` emits early on purpose (turn.ts:921-929); the contract field
+  `turnAccepted.targetMessageId` (bus.ts:262) documents exactly this use and NEVER had a producer.
+  **H1 EXONERATED with pins** — the R3 attach floor feeds only the sinceSeq thunk
+  (use-chat-bus.ts:123); the live dedup's mark advances only on durable frames
+  (chat-event-seq-guard.ts:84), chatOpened type-exempt (:63); `caa06972c` innocent. LANE
+  `aux-accepted` (server): emit at acceptance + close EVERY strand path with turnAborted
+  (total-resolution invariant honored — 3 verbs × \~6 paths + the shared engine pre-start refusals,
+  int test per strand). LANE `ghost-tail` (client): the 100-400ms EVERY-turn tail flash (slot
+  closes before refetch; the `view` no-refetch carrier is never applied — the designed fix) + the
+  silent contention-400 (symptom verbatim, zero feedback — measured old text 74/75 samples).
+  Durable lesson (lane's words): a bus event that opens client state is a per-INTENT obligation,
+  not a per-turn one — the gap was invisible to every test because the slot does eventually open.
+  DATA NOTE for the owner: investigation drives appended \~7 swipe variants to "Example — The Ashen
+  Spire" (append-only; selection moved).
 - [ ] **RPG-LITE is broken around rewind** — swipes especially; **state ends up stuck**. Owner-reported as
   a class, not a single repro. Needs a real investigation lane with instrumentation directives (per
   \[\[rpg-lite-state-loop-gotchas]]), not endpoint poking. *(08-14 note: the rpg stat+rewind lane
