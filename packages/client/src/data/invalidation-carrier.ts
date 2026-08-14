@@ -36,7 +36,7 @@ import type { Trpc } from "./trpc.ts";
  *  never seen (a fresh reply / the caller's own just-sent user row). No-op for an event with no carrier and
  *  for a chat with no cached page (a background room never gains a phantom list). */
 export function applyCanonView(queryClient: QueryClient, trpc: Trpc, event: ChatBusEvent): void {
-  if (event.view === undefined) {
+  if (!("view" in event) || event.view === undefined) {
     return;
   }
   const view = event.view;
