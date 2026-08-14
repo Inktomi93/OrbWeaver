@@ -327,17 +327,23 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
 
 **OPEN ITEMS (the real list, everything else below is archive):**
 
-- [ ] **ENTITY→ROOM MEMBER-FRESHNESS BRIDGE (owner-asked 08-14, design-then-build):** host/member
-  entity edits don't reach OTHER users' live-room projections — charactersChanged/worldInfoChanged/
-  personasChanged fan the EDITOR'S user bus only; members' getMemberCard / roster identity (persona
-  name+avatar = member-visible bytes) stay stale until reload. Persona SWITCHING already fans
-  (chat-bus personaSwitched); content edits don't. FIX SHAPE: one server-side bridge at the emit
-  funnel — entity event → look up live rooms seating that entity → fan chatUpdated (or a narrower
-  member-projection event) into those rooms; members re-read through the D16-clamped views, so
-  byte-gating holds by construction. Presets deliberately OUT (members never fetch them; server
-  assembles per turn — a visible "host changed the model" notice is a product choice, one emit).
-  Intersects the boarded R1-4a bus-surface item. Room-scoped changes already covered
-  (setRoomOverrides → chatUpdated; roster; turn lifecycle).
+- [ ] **ENTITY→ROOM MEMBER-FRESHNESS BRIDGE — DESIGN DELIVERED + MERGED (08-14 midday):**
+  `docs/design/entity-room-member-freshness-bridge.md` (stickler lane, 427 lines, check:docs green).
+  TWO PREMISE CORRECTIONS from the tree (doc §0/§3.2): the character→room fan ALREADY EXISTS
+  (`entry/compose/emit-character-updated.ts`, always-on at search-discovery.ts:162-170) — the owner's
+  live symptom is a MISSING CLIENT FILTER ROW (`chatUpdated` never covered `chat.getMemberCard`,
+  invalidation.ts:174-199 vs :216); and `chatUpdated` can NOT be reused live-only (client seq-guard
+  drops non-advancing frames; wholesale exemption un-dedups real replays). Design: entity domains
+  emit domain events (persona/world-info join character, ids mandatory) → ONE reach engine at the
+  composition root (`Record<RoomEntityKind, resolver>`, three single-indexed-SELECT resolvers) → NEW
+  id-free chat-bus member `roomEntityChanged {chatId, entity}` on a durable-append-free NULL-SEQ live
+  lane (attach-synthetic non-advancement rule reused) — which ALSO closes R1-4a (`chatDeleted` goes
+  live-only, both delete paths reorder DELETE-first, window CLOSED not narrowed). Clamp suite
+  byte-untouched (both clamps are structural pass-throughs for id-only members). Quiet mode extends
+  to (chatId, entity) pairs. **7 forks F-A..F-G await the owner (doc §11, recs marked; F-A blocks
+  LANE 2). Build cut: LANE 1 = contracts member + live lane + baseline SQUASH + reach engine +
+  old-fan deletion + client rows (doc §10 1-7); LANE 2 (post-F-A) = R1-4a reorder + quiet
+  generalization + G-A roomReach lane w/ SEATED-red arm.**
 - [ ] **GATE CANDIDATE G-G — testid liveness:** CT `getByTestId("X")`/`testId("X")` literals whose
   producer (`data-testid`) exists NOWHERE in packages/ = dead assertions that fail late or pass
   falsely. Historical control: the draft-cast ghosts (two tests asserted a testid R1 deleted;
@@ -374,8 +380,14 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   count → gates lane · mermaid/dompurify → MERGED `c05a2e45d` + serving (installed, vite cache
   cleared, stack bounced).
 
-**UNSETTLED-DESIGNS SWEEP (owner-asked 08-14 midday: "any designs we haven't settled or planned or
-brought into the board" — full docs/design cross-check, receipts = each doc's own status header):**
+**UNSETTLED-DESIGNS SWEEP (owner-asked 08-14 midday) — SCOUT-CORRECTED same hour: the owner
+suspected rows 1-4 were already done and was RIGHT ON ALL FOUR.** Lesson minted: a design doc's own
+status header ROTS exactly like a board row — minting a row from a header owes the same tree
+re-derive as dispatching one (\[\[audit-lists-are-snapshots]] extends to docs/design). Second lesson
+(owner-spotted): design-bearing docs land in BOTH `docs/design/` AND `docs/reviews/` (stickler
+lanes write reviews/ by role even when the output is a spec — collection-contribution IS the
+config-rail contract law) — every future design sweep covers both dirs; briefs name docs/design as
+the deliverable path for design-shaped outputs.
 
 - [ ] **SHAPE-CHURN ARM PICK (owner fork, info updated 08-14):** the caret risk premise in the plan
   doc is CORRECTED — the caret and reveal fade are OURS (#42; `markdown.tsx:155-159` drops
@@ -384,23 +396,30 @@ brought into the board" — full docs/design cross-check, receipts = each doc's 
   in OUR markdown seal (neutralize the ambiguous trailing pipe-row before Streamdown sees it) — no
   upstream fork, blast radius = our seal + our caret/reveal CTs. Cheaper than the doc priced it.
   Owner has the arm menu (tail-hold · +height-reserve · probe-first · park); lane on his word.
-- [ ] **LIST-PANE PROJECTION — ratified direction, DRAFT spec, never planned:**
-  `docs/design/list-pane-projection-proposal.md` (status: draft, 08-01) — "chats with this
-  character" as the character screen's pane (face → history → play), owner-ratified direction,
-  nothing built beyond the §2 seams. Needs an owner go/park before it rots further.
-- [ ] **DEFAULT-CHARACTER ROSTER — authored pack v2 sits UNWIRED, zero board presence:**
-  `docs/design/default-character-roster.md` — the ★ program was owner-approved 08-02, the roster
-  deliverable is complete ("this doc IS the roster"), and the seed-wiring lane (transplant into
-  `domain/character/seeder/cards.ts`) never ran. Straightforward mech lane when wanted.
-- [ ] **PARITY-PLUS PROGRAM — status unknown (C1-class investigation candidate):**
-  `docs/design/parity-plus-program-spec.md` v2.1 owner-RATIFIED 07-27, seven features, "W4
-  COMMITTED"; the board carries no row and no completion receipt for the residual features.
-  Establish status on the tree before anything else (the #36 lesson: rulings-ledger rows rot,
-  the tree is the authority).
-- [ ] **CONTEXT-PANEL FIDELITY FINDINGS — none fixed, gated:**
-  `docs/design/context-panel-fidelity-findings.md` (07-30) is the verification target for the W-H
-  side-eye, which unblocks AFTER re-import (LIVE-WINDOW list). Pointer row so the doc stops being
-  board-invisible.
+- [x] **LIST-PANE PROJECTION — CLOSED, BUILT-AS-SPECCED (scout, live-path rung):** the pane is
+  live-wired — `ChatsWithCharacterPane` (chats-with-character-pane.tsx:57, chat front door) mounted
+  at `main.tsx:243` via `makeCharactersSection(…, chatsProjection)`; picker⇄projection swap in
+  characters-list-pane.tsx:29-39 + character-chats-projection-shell.tsx:45-68; O5 shape published
+  (registry-contracts.ts:282). The doc's "draft, nothing built" header was ROT. Unverified residue
+  (no row unless owner wants the layers): L2 portraits AvatarStack · L3 Arm-B faces strip · L4 band
+  sweep · CT coverage.
+- [x] **DEFAULT-CHARACTER ROSTER — CLOSED, TRANSPLANTED (scout):** all 10 handles 1:1 in
+  `seeder/cards.ts` (lines 79-549, same order as the doc), landed by the dedicated migration commit
+  `5b4541c07` ("v2-pack reseed — re-dress unedited seeded cards, never touch the user's"). Doc's
+  "nothing wired yet" header was ROT. Field-level verbatim diff not performed (handle-level only).
+- [x] **PARITY-PLUS PROGRAM — CLOSED, ALL SEVEN BUILT (scout, per-feature receipts):** relationship
+  (RPG\_RELATIONSHIP\_KINDS → cast-card-slots) · level (sheet.ts:35, cites "parity-plus §2.6") ·
+  lie/ofilter/CYOA (reveal.ts / member-visibility.ts / CONTENT\_CLASS\_POLICY + rpg-choice-echo) ·
+  plot steers BUILT-DIFFERENTLY-HOMED (`@orb/kit/guided` via composer-utility-menu.tsx:153-211, not
+  the spec's named file) · immersive card (RPG\_CARD\_TEACH + sandbox-frame srcdoc, §4.2 comment
+  verbatim) · §2.7 delta block BUILT+TESTED (substrate/delta.ts, reminder.ts:531-539, delta.test.ts).
+  Residue: the §12/§12A macro×rpg workstream unread by the scout — memory records it third-built
+  (\[\[macro-rpg-feed-seam-third-built]]); no new row.
+- [x] **CONTEXT-PANEL FIDELITY — CLOSED AS A GAP ROW (scout):** D-1..D-4 were ANSWERED 07-31 in the
+  doc's own §4; D-4 Preview rebuild SHIPPED (`001846479` + 3 sibling commits); D-2 compact-switch
+  was REJECTED BY DESIGN (injections-manager.tsx:121-124 comment: no toggle, "off" = delete the
+  row). What remains is exactly what was already gated: the RV-1..15 owner-dogfood items re-verify
+  under the W-H side-eye AFTER re-import (LIVE-WINDOW list) — no new row.
 - [ ] **Config-rail R3-presets line is DEAD — doc amendment small:** `config-rail-spec.md` still
   carries "R3 (presets, owner-timed) is unbuilt and remains one door line", but the 08-08 C5 ruling
   closed it (presets STAY STANDALONE). Truth-repair the doc status; no build.
