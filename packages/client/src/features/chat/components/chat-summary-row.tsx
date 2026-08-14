@@ -106,11 +106,11 @@ function rowMarkers({
   chat,
   interactive,
 }: {
-  readonly chat: Pick<ChatSummaryItem, "isGame" | "star" | "archived">;
+  readonly chat: Pick<ChatSummaryItem, "isGame" | "starred" | "archived">;
   /** The caller owns the star mutation ⇒ a revealed toggle exists to swap against. */
   readonly interactive: boolean;
 }): ReactNode {
-  const marked = chat.isGame || chat.star || chat.archived;
+  const marked = chat.isGame || chat.starred || chat.archived;
   if (!marked) {
     return;
   }
@@ -123,7 +123,7 @@ function rowMarkers({
           at a coarse pointer, so the plain `ROW_REVEAL_SWAP` would have hidden the marker while the control
           carrying the same datum was also gone — a starred chat with no star anywhere on the row. The swap
           is hover-only there; see `ROW_REVEAL_SWAP_COARSE_KEEP`. */}
-      {chat.star ? <Icon className={cn("text-warning", interactive && ROW_REVEAL_SWAP_COARSE_KEEP) ?? ""} icon={Star} label="Starred" size="sm" /> : null}
+      {chat.starred ? <Icon className={cn("text-warning", interactive && ROW_REVEAL_SWAP_COARSE_KEEP) ?? ""} icon={Star} label="Starred" size="sm" /> : null}
       {chat.archived ? (
         <Badge intent="neutral" size="sm" tone="soft">
           Archived
@@ -182,8 +182,8 @@ export function ChatSummaryRow({
                       icon={Star}
                       labelOff={`Star ${rowName}`}
                       labelOn={`Unstar ${rowName}`}
-                      onToggle={(): void => onToggleStar(!chat.star)}
-                      pressed={chat.star}
+                      onToggle={(): void => onToggleStar(!chat.starred)}
+                      pressed={chat.starred}
                       pressedClassName="text-warning"
                       rest="never"
                     />

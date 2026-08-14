@@ -54,7 +54,7 @@ export type {
 export interface ChatSummary {
   readonly id: ChatId;
   readonly title: string | null;
-  readonly star: boolean;
+  readonly starred: boolean;
   readonly archived: boolean;
   /** The fork-lineage pointer (D27) — null for a root chat. */
   readonly parentChatId: ChatId | null;
@@ -119,7 +119,7 @@ export interface ChatListPage {
 export interface ChatDetail {
   readonly id: ChatId;
   readonly title: string | null;
-  readonly star: boolean;
+  readonly starred: boolean;
   readonly archived: boolean;
   /** ST "Temporary Chat" (PD-65) — this room is ephemeral: hidden from `listChats` and swept once past
    *  the host's TTL. Exposed because the flag is CREATION-ONLY: a user who only learns their room was

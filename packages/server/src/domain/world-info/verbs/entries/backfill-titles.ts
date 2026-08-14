@@ -33,7 +33,7 @@ export function createBackfillTitles(ctx: WorldInfoContext): WorldInfoService["b
     }
 
     const at = ctx.now();
-    const stmts = updates.map((u) => ctx.db.update(worldEntries).set({ title: u.title }).where(eq(worldEntries.id, u.id)));
+    const stmts = updates.map((u) => ctx.db.update(worldEntries).set({ title: u.title, updatedAt: at }).where(eq(worldEntries.id, u.id)));
     await ctx.db.batch(batchMany(stmts));
 
     await ctx.audit(

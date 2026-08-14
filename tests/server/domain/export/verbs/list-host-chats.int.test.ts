@@ -23,7 +23,7 @@ async function seedChat(db: Db, chatId: ChatId): Promise<ChatId> {
   await db.insert(chats).values({
     id,
     title: chatId,
-    star: false,
+    starred: false,
     archived: false,
     temporary: false,
     pendingHostUserId: null,

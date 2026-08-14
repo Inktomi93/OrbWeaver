@@ -53,6 +53,7 @@ function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book:
         ignoreBudget: e.ignoreBudget,
         metadata: e.metadata === null ? null : entryMetadataSchema.parse(e.metadata),
         createdAt: at,
+        updatedAt: at,
       }),
     ),
   );
@@ -73,7 +74,7 @@ export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImpor
 
     if (existingBookId !== null) {
       const stmts: BatchStmt[] = [
-        batchStmt(db.update(worldBooks).set({ name: book.name, description: book.description }).where(eq(worldBooks.id, existingBookId))),
+        batchStmt(db.update(worldBooks).set({ name: book.name, description: book.description, updatedAt: at }).where(eq(worldBooks.id, existingBookId))),
         batchStmt(db.delete(worldEntries).where(eq(worldEntries.worldBookId, existingBookId))),
         ...entryStmts(ctx, existingBookId, book, at),
       ];
@@ -90,6 +91,7 @@ export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImpor
           name: book.name,
           description: book.description,
           createdAt: at,
+          updatedAt: at,
         }),
       ),
       ...entryStmts(ctx, bookId, book, at),
@@ -131,7 +133,7 @@ export function createImportStandaloneLorebook(ctx: WorldInfoImportContext): Imp
 
     if (existingBookId !== null) {
       const stmts: BatchStmt[] = [
-        batchStmt(db.update(worldBooks).set({ name: book.name, description: book.description }).where(eq(worldBooks.id, existingBookId))),
+        batchStmt(db.update(worldBooks).set({ name: book.name, description: book.description, updatedAt: at }).where(eq(worldBooks.id, existingBookId))),
         batchStmt(db.delete(worldEntries).where(eq(worldEntries.worldBookId, existingBookId))),
         ...entryStmts(ctx, existingBookId, book, at),
       ];
@@ -148,6 +150,7 @@ export function createImportStandaloneLorebook(ctx: WorldInfoImportContext): Imp
           name: book.name,
           description: book.description,
           createdAt: at,
+          updatedAt: at,
         }),
       ),
       ...entryStmts(ctx, bookId, book, at),

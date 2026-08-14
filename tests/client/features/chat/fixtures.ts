@@ -133,7 +133,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
 export interface ChatSummaryFixture {
   readonly id: string;
   readonly title: string | null;
-  readonly star: boolean;
+  readonly starred: boolean;
   readonly archived: boolean;
   readonly parentChatId: string | null;
   readonly lastMessageAt: number | null;
@@ -154,7 +154,7 @@ export function makeChatSummary(overrides: Partial<ChatSummaryFixture> = {}): Ch
   return {
     id: "chat_ct_list_1",
     title: "A grand adventure",
-    star: false,
+    starred: false,
     archived: false,
     parentChatId: null,
     lastMessageAt: FROZEN_AT,

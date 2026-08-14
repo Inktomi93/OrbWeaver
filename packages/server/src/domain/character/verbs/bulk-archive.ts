@@ -11,7 +11,7 @@ import { setArchivedBulk } from "../persistence/card.ts";
 export function createBulkArchive(ctx: CharacterContext): CharacterService["bulkArchive"] {
   return async ({ principal, characterIds, archived }: BulkArchiveParams) => {
     const ownerId = principal.userId;
-    const flipped = await setArchivedBulk(ctx.db, ownerId, characterIds, archived);
+    const flipped = await setArchivedBulk(ctx.db, ownerId, characterIds, { archived, updatedAt: ctx.now() });
     if (flipped.length > 0) {
       await ctx.audit(
         {

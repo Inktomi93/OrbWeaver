@@ -117,8 +117,8 @@ export interface BulkImportChatInput {
   readonly metadata?: ChatMetadata | Record<string, unknown>;
   // ── R6, the orb-native fidelity arm. Every field below is ABSENT on the ST jsonl path, and absent means
   // "exactly what an ST import writes today" — so declaring them changed no byte of the interchange arm.
-  /** `chats.star`. Absent ⇒ false (the column default). */
-  readonly star?: boolean;
+  /** `chats.starred`. Absent ⇒ false (the column default). */
+  readonly starred?: boolean;
   /** `chats.archived`. Absent ⇒ false (the column default). */
   readonly archived?: boolean;
   /** The portable compaction checkpoint (D25) — the summary text + the seq it covers through. Absent ⇒ null. */
