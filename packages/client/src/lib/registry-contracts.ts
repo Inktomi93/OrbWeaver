@@ -301,17 +301,15 @@ export interface CommittedChatContext {
   readonly background: ThemeBackground | null;
 }
 
-/** A DRAFT chat's CONTEXT-panel projection — no server row yet, so the tabs write the draft-config store;
- *  the effective cast is the deduped seed ∪ pre-send add-member picks. */
-export interface DraftChatContext {
-  readonly phase: "draft";
-  readonly draftKey: string;
-  readonly cast: readonly CharacterId[];
-}
-
-/** The Chats CONTEXT-panel state projection (O5 strict) — a phase-discriminated union so one
- *  `defineContextTabs<ChatContextState>` unifies both the committed panel and its draft twin (§6b/§15). */
-export type ChatContextState = CommittedChatContext | DraftChatContext;
+/** The Chats CONTEXT-panel state projection (O5 strict) — what `defineContextTabs<ChatContextState>` and
+ *  every chat-context CONTRIBUTOR (`ContextTabDef<ChatContextState>`) are typed against.
+ *
+ *  IT IS A SINGLE-ARM UNION ON PURPOSE. `DraftChatContext` (a rowless room, carrying a founding-cast array
+ *  instead of a roster) was deleted with draft mode (chat-creation-draft-mode-replacement.md §4.1, R1), but
+ *  the `phase` discriminant STAYS: it is the seam a second projection would re-enter through, every tab body
+ *  and contributor already narrows on it, and collapsing it would be a churn across the whole contributor
+ *  surface to save one literal. */
+export type ChatContextState = CommittedChatContext;
 
 /** The chat context-tab id VOCABULARY — one home beside `ChatContextState` (feature lib is not a type
  *  home, and importing it from chats-section created a component↔section cycle). The shell's

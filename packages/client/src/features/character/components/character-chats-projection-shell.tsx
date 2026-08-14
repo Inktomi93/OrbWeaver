@@ -31,7 +31,7 @@ import { useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
 import { timeLib } from "#lib";
 import { listProjectionOwnsFocus } from "#state";
-import { CHARACTER_CHATS_PROJECTION_SLOT, startChatWithCharacter } from "../lib/character-chat-intents.ts";
+import { CHARACTER_CHATS_PROJECTION_SLOT, useStartChatWithCharacter } from "../lib/character-chat-intents.ts";
 
 /** The recency gloss reads her newest thread; the pane below is the census. */
 const NEWEST_THREAD_ONLY = 1;
@@ -53,6 +53,7 @@ export function CharacterChatsProjectionShell({ characterId, chatsProjection }: 
   const trpc = useTRPC();
   const { data } = useQuery(trpc.character.get.queryOptions({ characterId }));
   const name = data?.name ?? "";
+  const startChatWith = useStartChatWithCharacter();
 
   return (
     <Stack
@@ -64,9 +65,7 @@ export function CharacterChatsProjectionShell({ characterId, chatsProjection }: 
       tabIndex={-1}
     >
       <IdentityRow avatarHash={data?.avatarHash ?? null} characterId={characterId} name={name} />
-      <Stack className="min-h-0 flex-1">
-        {chatsProjection({ characterId, characterName: name, onNewChat: (): void => startChatWithCharacter(characterId) })}
-      </Stack>
+      <Stack className="min-h-0 flex-1">{chatsProjection({ characterId, characterName: name, onNewChat: (): void => startChatWith(characterId) })}</Stack>
     </Stack>
   );
 }

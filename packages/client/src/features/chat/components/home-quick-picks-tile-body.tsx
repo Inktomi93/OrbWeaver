@@ -17,19 +17,19 @@ import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
-import { setActiveSection, startNewChat } from "#state";
+import { useStartChat, useTRPC } from "#data";
+import { setActiveSection } from "#state";
 
 const QUICK_PICKS_LIMIT = 6;
 
-/** Seeding a draft is chat intent; moving the rail to chats is what makes the draft VISIBLE. */
-function startChatWith(characterId: CharacterId): void {
-  startNewChat({ characterIds: [characterId] });
-  setActiveSection("chats");
-}
-
 export function HomeQuickPicksTileBody(): ReactElement {
   const trpc = useTRPC();
+  // Creating the room is chat intent; moving the rail to chats is what makes it VISIBLE.
+  const { startChat } = useStartChat();
+  const startChatWith = (characterId: CharacterId): void => {
+    setActiveSection("chats");
+    void startChat({ characterIds: [characterId] });
+  };
   const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT }));
   const quickPicks = page.items.slice(0, QUICK_PICKS_LIMIT);
 

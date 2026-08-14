@@ -182,7 +182,7 @@ exists** — the twins are pure duplication rent. Branch-site sweep (ast-grep, t
 | pre-hardening | first send didn't clear the composer (text re-populated the fresh chat) | commit flips scope key under a stale closure | `composer.tsx:202-207` |
 | pre-START-1 | opening failure orphaned a REAL chat behind the draft UI; retry minted a second room | creation fused with generation | `start-chat.ts:330-334` |
 | unfixed, censused | group-draft per-speaker tints differ from the committed room | draft rows have no participants plane | `message-list-surface.tsx:339-341` |
-| unfixed (found this review) | **cross-session composer-text collision**: `draftKey` is a module-counter (`draft-N`, `active-chat-store.ts:49-55`) that RESETS on reload, while `composer-draft-store` PERSISTS non-empty text under that key (#38, owner pick 08-09). Type in a draft → don't send → reload → start a new draft (any cast): the first fresh draft re-mints `draft-2` and the PREVIOUS session's unsent text repopulates a different room's composer. Code-confirmed by construction (counter at `:49-55` + persistence at `composer-draft-store.ts:53-57`); not live-driven. | a non-durable key namespace feeding a durable store | as cited |
+| unfixed (found this review) → **REPRODUCED + FIXED in R1** | **cross-session composer-text collision**: `draftKey` is a module-counter (`draft-N`, `active-chat-store.ts:49-55`) that RESETS on reload, while `composer-draft-store` PERSISTS non-empty text under that key (#38, owner pick 08-09). Type in a draft → don't send → reload → start a new draft (any cast): the first fresh draft re-mints `draft-2` and the PREVIOUS session's unsent text repopulates a different room's composer. **This review filed it as code-confirmed-not-live-driven; R1 DROVE it (2026-08-14): a `draft-2` blob seeded before page JS + one Blank-chat pick, and the fresh room's composer rendered `a stranger's unsent line`.** Dissolved by construction — the scope key is the real ChatId, and there is no counter left to collide. Pinned at `tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx`. | a non-durable key namespace feeding a durable store | as cited |
 
 ### 2.8 The budget line
 
@@ -418,10 +418,21 @@ lesson, not code: the room's first frame reads `getChat`, which `startChat`'s re
   commit paths; `startAsGame` toggle → direct `rpg.startGame`; greeting Edit routes to the message
   verb. CT sweep obligation: every draft story in the four CT suites + `tests/**` grep for `draftKey`/
   `DraftSeed` literals (the shared-value-change battery law).
-- **R2 — the deletion pass (one lane):** everything in §4.9 "deletes" + `StartChatParams`/wire-schema
-  shrink (same pass — one client, no compat window) + knip/depcruise/api-surface floors (file removals).
+- **R2 — the deletion pass:** **its CLIENT half landed WITH R1 (2026-08-14) and R2 is now the SERVER half
+  only** — `StartChatParams`'s carry fields + the wire schema + START-1's `openingFailure` apparatus + the
+  `opening:"generate"` arm. The split could not hold as written: `startNewChat` was the ONLY minter of a
+  draft handle, so the moment R1 repointed its five callers, every artifact in §4.9's "deletes" list became
+  UNREFERENCED, not merely unreachable — `npx knip` RED, and the constitution's no-half-migration rule
+  (§4, banned escape hatches) forbids parking it. So R1 deleted the client draft plane outright, and the
+  server kept accepting the (now unsent) carry.
 - **R3 — greeting-window polish (small lane):** the alternate-stepping verb + strip repoint + F6's
-  add-member-greets arm + `freezeGreetingVolatiles` refusal test.
+  add-member-greets arm + `freezeGreetingVolatiles` refusal test. **⚠️ THE ALTERNATE-STEP AFFORDANCE IS DARK
+  AS OF R1** — `greeting-swipe-strip.tsx` wrote a client store that no longer exists, so it was deleted with
+  the draft plane and a seeded greeting is currently EDITABLE (the committed message-edit verb) but not
+  steppable. R3 is therefore a bounded regression-closer, not polish. The chrome is in git history
+  (`greeting-swipe-strip.tsx` @ `a383c669d`) and the CT it had is ledgered in
+  `docs/test-baseline/manifest.json`'s `deletions` with that reason; the ⚠️ marker sits on
+  `renderRowSwipe` in `message-row-parts.tsx`.
 - **Law landing (rides R0):** a D-ledger entry minting the model (draft clause: *"A chat row exists
   from the creation click; an unclaimed room is list-hidden by a server lens, claimed by its first
   activity, and reaped best-effort on nav-away with a TTL belt; creation-time stats fire at claim"*),

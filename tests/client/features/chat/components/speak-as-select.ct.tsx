@@ -34,14 +34,6 @@ test("a solo roster (1 character) renders NO speak-as control (the D16 size-gate
   await expect(component.getByRole("button", { name: "Speak as a character" })).toHaveCount(0);
 });
 
-test("a draft handle renders NO speak-as control (no committed roster yet)", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn")),
-  });
-  const component = await mount(<SpeakAsSelectStory committed={false} />);
-  await expect(component.getByRole("button", { name: "Speak as a character" })).toHaveCount(0);
-});
-
 test("a 2+ roster opens to Auto + one item per character", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn")),

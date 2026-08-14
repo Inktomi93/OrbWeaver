@@ -2,21 +2,29 @@
 // live inline in the editor hero; the LIST band now fires the same "New chat" and the hero's "N chats ›"
 // points at the pane instead of jumping sections, so they are shared writers rather than two hero closures.
 //
-// Pure store writes + one focus move — no data reads, no hooks — so both the band (a `listHeader` render
-// prop) and the editor hero (a CONTENT surface) can call them without a shared React ancestor.
+// `useStartChatWithCharacter` IS A HOOK NOW (chat-creation-draft-mode-replacement.md §4.1, R1). It used to be
+// a plain store write: `startNewChat({characterIds})` handed the chat surface a rowless DRAFT and the row
+// appeared at the first send. Creation is a real `chat.startChat` call, so the intent rides the ONE shared
+// creation seam in `#data` (`useStartChat` — a feature may never import another feature, and `#state` cannot
+// fire a mutation). `revealChatsProjection` stays a plain function: it is pure navigation.
 
 import type { CharacterId } from "@orb/kit/ids";
-import { clearChatListCharacterFilter, setActiveSection, setOpenOverlayPanel, setPanelMode, startNewChat } from "#state";
+import { useStartChat } from "#data";
+import { clearChatListCharacterFilter, setActiveSection, setOpenOverlayPanel, setPanelMode } from "#state";
 
 /** The projection pane's container slot — the one string the shell stamps and the hero focuses. */
 export const CHARACTER_CHATS_PROJECTION_SLOT = "character-chats-projection";
 
 /** Always a FRESH chat with this character, landed in the room. Clears any per-character chats-pane filter
- *  so the new draft isn't shown behind a stale scope chip. */
-export function startChatWithCharacter(characterId: CharacterId): void {
-  clearChatListCharacterFilter();
-  startNewChat({ characterIds: [characterId] });
-  setActiveSection("chats");
+ *  so the new room isn't shown behind a stale scope chip. `useStartChat` owns the navigation (it seeds the
+ *  room's read and enters it); the section switch is this intent's own half. */
+export function useStartChatWithCharacter(): (characterId: CharacterId) => void {
+  const { startChat } = useStartChat();
+  return (characterId): void => {
+    clearChatListCharacterFilter();
+    setActiveSection("chats");
+    void startChat({ characterIds: [characterId] });
+  };
 }
 
 /**

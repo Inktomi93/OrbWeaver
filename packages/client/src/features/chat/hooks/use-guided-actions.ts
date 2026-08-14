@@ -1,20 +1,25 @@
-// The composer wand's dispatch: branches on the ChatHandle discriminant. A draft has no committed turn
-// to steer, so its one action is the degenerate "Guide the opening" (chat.startChat with
-// opening:"generate" forced). A committed chat dispatches per-kind to chat.generate/swipe/continueTurn/
-// impersonate. swipe/continue's tail-assistant target is resolved via a separate gated query on the
-// same listMessages key the surface already reads — one shared cache entry, not a second round-trip.
+// The composer wand's dispatch: per-kind to chat.generate/swipe/continueTurn/impersonate. swipe/continue's
+// tail-assistant target is resolved via a separate query on the same listMessages key the surface already
+// reads — one shared cache entry, not a second round-trip.
+//
+// THE DRAFT ARMS ARE GONE (chat-creation-draft-mode-replacement.md §4.4, R1). Every wand action used to
+// carry a second shape for a rowless room: "Guide the opening" was `chat.startChat` with `opening:"generate"`
+// forced (a CREATION call wearing a turn's clothes), and impersonate-on-a-draft force-committed the room
+// first because the server cannot assemble impersonation context without a chat row. A chat row exists from
+// the creation click, so both collapse to "the room already exists" and a generated opening is an ordinary
+// `chat.generate` — which also makes the START-1 failure class (a `generate` opening failing AFTER the room
+// committed, leaving a real chat orphaned behind the draft UI while the user's retry minted a second one)
+// unreachable by construction rather than degraded-not-broken.
 
 import type { GuidedActionKind, GuidedImpersonatePerson, RewriteToggleId } from "@orb/contracts/preset";
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
-import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC, useTRPCClient } from "#data";
+import { createEntityMutation, useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { GENERATION_FAILED_DETAIL } from "#lib";
-import type { ChatHandle, DraftSeed } from "#state";
-import { clearDraftConfig, isCommitted, pushFiredSteer, setComposerDraft } from "#state";
-import type { DraftCarry } from "../lib/draft-commit.ts";
-import { resolveDraftCommit } from "../lib/draft-commit.ts";
-import { notifyImpersonateFailure, notifyOpeningFailure } from "../lib/guided-failure-notices.ts";
+import { pushFiredSteer } from "#state";
+import { notifyImpersonateFailure } from "../lib/guided-failure-notices.ts";
 import { isSilencedTurnAbort } from "../lib/turn-abort-notice.ts";
 
 interface GuidedSteerInput {
@@ -90,35 +95,8 @@ function steerFor(action: GuidedActionKind, input: string, person?: GuidedImpers
   return person === undefined ? { action, input } : { action, input, person };
 }
 
-interface GuidedStartChatVars extends DraftCarry {
-  characterIds: CharacterId[];
-  anchorPersonaId?: PersonaId | null | undefined;
-  title?: string | null | undefined;
-  // `generate` = a server-written opening (the Response/Generate-opening draft path). OMITTED = the server's
-  // DEFAULT opening policy (greet-all/first-message by roster size) — the same as a plain draft-send, so the
-  // card GREETING is preserved. The guided-impersonate draft path OMITS this (it must NOT discard the
-  // greeting — it drafts the user's RESPONSE to it), never `none` (which would seed an empty chat).
-  opening?: "generate";
-  guided?: GuidedSteerInput;
-}
-
-interface GuidedStartChatResult {
-  readonly chat: { readonly id: ChatId };
-  /** START-1 — the room COMMITTED but its `generate` opening failed (the server's degraded-not-broken arm).
-   *  `reason` is the server's curated message when the failure carried one, else null. */
-  readonly openingFailure: { readonly reason: string | null } | null;
-}
-
-const useGuidedStartChatMutation = createEntityMutation<GuidedStartChatVars, GuidedStartChatResult>({
-  options: (trpc) => trpc.chat.startChat.mutationOptions(),
-  busDriven: true,
-  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't guide the opening."),
-});
-
 export interface UseGuidedActionsOptions {
-  readonly handle: ChatHandle;
-  readonly draftSeed?: DraftSeed | undefined;
-  readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
+  readonly chatId: ChatId;
   /** F3 — restore the just-fired steer text into the composer when a guided mutation FAILS (the source's
    *  sacred input-restore, client-only per D57). The wand's `onChange` clears the draft at fire time; on
    *  error the ephemeral steer would otherwise be lost. Called with the fired text on any non-abort error. */
@@ -127,7 +105,7 @@ export interface UseGuidedActionsOptions {
 
 export interface UseGuidedActionsResult {
   readonly isPending: boolean;
-  /** Null while unknown (a draft, an empty transcript, still loading, or the tail isn't assistant). */
+  /** Null while unknown (an empty transcript, still loading, or the tail isn't assistant). */
   readonly tailAssistantMessageId: MessageId | null;
   /** The tail assistant slot has a continue snapshot (D26) — the utility menu's Undo/Revert phase-gate. */
   readonly tailHasContinuation: boolean;
@@ -145,27 +123,24 @@ export interface UseGuidedActionsResult {
    *  empty is a no-op (that would be an unguided reroll, which Regenerate already covers). */
   readonly fireRewrite: (input: string, toggles?: readonly RewriteToggleId[]) => void;
   /** Guided impersonate (NON-PERSISTING — owner ruling): drafts the user's next line and hands it back via
-   *  `onDrafted` for the composer to FILL (the ST review flow); nothing is committed. On a DRAFT chat it first
-   *  commits the room with no auto-opening (fallback: an empty chat exists even if discarded) then drafts the
-   *  opening user line. `input` is the optional steer; `person` picks the 1st/2nd/3rd-person perspective. */
+   *  `onDrafted` for the composer to FILL (the ST review flow); nothing is committed. `input` is the optional
+   *  steer; `person` picks the 1st/2nd/3rd-person perspective. */
   readonly fireImpersonate: (input: string, person: GuidedImpersonatePerson, onDrafted: (text: string) => void) => void;
   /** IMP-2 — cancel the LIVE impersonate stream; null when no stream is running (the cluster renders its Stop
    *  off this). Stopping unsubscribes and settles cleanly: no toast, no steer restore, partial fill KEPT. */
   readonly stopImpersonation: (() => void) | null;
-  readonly fireOpening: (input: string) => void;
 }
 
 export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedActionsResult {
   const trpc = useTRPC();
   const trpcClient = useTRPCClient();
   const invalidation = useInvalidation();
-  const chatId = isCommitted(opts.handle) ? opts.handle.id : null;
+  const chatId = opts.chatId;
 
   const generate = useGuidedGenerateMutation({ trpc, invalidation });
   const swipe = useGuidedSwipeMutation({ trpc, invalidation });
   const continueTurn = useGuidedContinueMutation({ trpc, invalidation });
   const rewrite = useGuidedRewriteMutation({ trpc, invalidation });
-  const startChat = useGuidedStartChatMutation({ trpc, invalidation });
   // The impersonation stream is in flight — idles the cluster (one action at a time) exactly like a pending
   // mutation. Set when the subscription starts, cleared on complete/error.
   const [impersonatePending, setImpersonatePending] = useState(false);
@@ -199,7 +174,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     };
   };
 
-  const tailQuery = useGatedQuery(chatId, (id) => trpc.chat.listMessages.queryOptions({ chatId: id }));
+  const tailQuery = useQuery(trpc.chat.listMessages.queryOptions({ chatId }));
   // The raw tail IS the tail a reader means (D124: every canon row is a real message now — the rpg
   // state-anchor slot this used to skip no longer exists).
   const tailMessage = tailQuery.data?.messages.at(-1);
@@ -208,59 +183,6 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   // The tail assistant slot's continue snapshot (D26 `hasContinuation`) — the utility menu's Undo/Revert
   // phase-gate (nothing to undo until a continue has run on this reply's shown swipe).
   const tailHasContinuation: boolean = tailAssistant?.hasContinuation ?? false;
-
-  // A draft has no committed chatId to fire a turn against, so a guided generation that must BE the first
-  // message (Generate-opening; guided impersonate) first COMMITS the draft via `startChat` (carrying the
-  // founding cast + the draft-config edits, exactly like the composer Send), then fires on the new chatId.
-  // Tracked as one pending flag so the cluster idles across the commit + the follow-on turn.
-  const [draftCommitPending, setDraftCommitPending] = useState(false);
-
-  /** Commit the active draft and hand back the new chatId. `opening` is OMITTED by default (the server's
-   *  default policy — greet-all/first-message by roster size — so the card GREETING is preserved, exactly
-   *  like a plain draft-send); pass `"generate"` for the server-written-opening path. Clears the consumed
-   *  draft config on success (mirrors the composer Send).
-   *
-   *  START-1: a `generate` opening that FAILS does NOT fail this call — the room is already committed, so the
-   *  server hands the failure back as `openingFailure` and we enter the room anyway and toast the truth. The
-   *  old rejecting behavior left a REAL chat orphaned behind the draft UI under a "couldn't guide the opening"
-   *  toast, and the user's retry minted a SECOND room. */
-  const commitDraft = async (over: { opening?: "generate"; guided?: GuidedSteerInput } = {}): Promise<ChatId> => {
-    const { draftKey, characterIds, carry } = resolveDraftCommit(opts.handle, opts.draftSeed);
-    const result = await startChat.mutateAsync({
-      characterIds,
-      anchorPersonaId: opts.draftSeed?.anchorPersonaId ?? null,
-      title: opts.draftSeed?.title ?? null,
-      ...(over.opening !== undefined ? { opening: over.opening } : {}),
-      ...(over.guided !== undefined ? { guided: over.guided } : {}),
-      ...carry,
-    });
-    opts.onCommitted?.(result.chat.id);
-    if (draftKey !== null) {
-      clearDraftConfig(draftKey);
-    }
-    if (result.openingFailure !== null) {
-      notifyOpeningFailure(result.openingFailure.reason);
-    }
-    return result.chat.id;
-  };
-
-  /** Run a draft-commit-then-fire flow under the shared pending flag, threading the D57 restore-on-failure
-   *  side effect (the just-fired steer text is handed back to the composer on a non-abort error). */
-  const runDraftFlow = (input: string, flow: () => Promise<void>): void => {
-    setDraftCommitPending(true);
-    const restore = perFire(input);
-    flow()
-      .catch((error: unknown) => restore?.onError(error))
-      .finally(() => setDraftCommitPending(false));
-  };
-
-  const fireOpening = (input: string): void => {
-    runDraftFlow(input, async () => {
-      // §6.4 empty-steer shape: an EMPTY opening steer OMITS the guided object entirely (a plain generated
-      // opening) — the owner's "a guided generation can BE the first message" draft path.
-      await commitDraft({ opening: "generate", ...(input.trim().length === 0 ? {} : { guided: { action: "opening", input } }) });
-    });
-  };
 
   /** Drive the `chat.impersonateStream` SUBSCRIPTION imperatively: accumulate each text delta and hand the
    *  GROWING text to `fill` as it arrives (progressive composer fill). Resolves when the stream completes; on a
@@ -332,13 +254,10 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     });
 
   return {
-    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonatePending || draftCommitPending,
+    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonatePending,
     tailAssistantMessageId,
     tailHasContinuation,
     fireResponse: (input, respOpts): void => {
-      if (chatId === null) {
-        return;
-      }
       const guided = steerFor("response", input);
       // F5 — a chosen speaker rides the steer in one `chat.generate` (null/omitted ⇒ arbitration picks).
       const speaker = respOpts?.speakerCharacterId ?? null;
@@ -355,14 +274,11 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       generate.mutate(vars, perFire(input));
     },
     fireGameSteer: (kind): void => {
-      if (chatId === null) {
-        return;
-      }
       // No perFire: the steer is a picked KIND, not recoverable composer text — nothing to restore/recall.
       generate.mutate({ chatId, guided: { action: "response", gameSteer: kind } });
     },
     fireSwipe: (input): void => {
-      if (chatId === null || tailAssistantMessageId === null) {
+      if (tailAssistantMessageId === null) {
         return;
       }
       const guided = steerFor("swipe", input);
@@ -372,7 +288,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       );
     },
     fireContinue: (input): void => {
-      if (chatId === null || tailAssistantMessageId === null) {
+      if (tailAssistantMessageId === null) {
         return;
       }
       const guided = steerFor("continue", input);
@@ -386,7 +302,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       // reroll, which the guided-swipe item already covers. A steer is now EITHER half: picked toggle kinds
       // alone are a complete instruction once the server resolves them (ARM B), so `steerFor`'s text-only
       // emptiness rule cannot decide this one.
-      if (chatId === null || tailAssistantMessageId === null) {
+      if (tailAssistantMessageId === null) {
         return;
       }
       const trimmed = input.trim();
@@ -410,37 +326,18 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       // line (that IS the review). Idles the cluster while streaming; restores the steer on a non-abort error.
       setImpersonatePending(true);
       const restore = perFire(input);
-      // Which lead the failure toast gets — flipped once the draft commit is BEHIND us, so a post-commit
-      // failure says the room survived (see IMPERSONATE_AFTER_COMMIT_FAILED_LEAD). A commit failure itself is
-      // NOT toasted here: `startChat`'s own `meta.errorToast` already owns that surface (double-toast).
-      let committedHere = false;
-      const flow = async (): Promise<void> => {
-        if (chatId !== null) {
-          // Committed chat — no navigation, the composer stays mounted; fill via the caller's own onChange,
-          // called with the GROWING accumulation on each delta (progressive fill).
-          await streamImpersonation(chatId, guided, onDrafted);
-          return;
-        }
-        // DRAFT — the server can't assemble impersonation context without a chat row (a bare card+persona
-        // gather is a large parallel surface), so commit the room FIRST (the DEFAULT opening policy — omit
-        // `opening` — preserves the card GREETING; impersonate then drafts the user's RESPONSE to it). The
-        // commit flips the room draft→committed, so stream into the NEW chatId's composer-draft store directly
-        // (the promoted composer reads that scope; the old draft-scope `onChange` is stale post-promotion).
-        const targetId = await commitDraft();
-        committedHere = true;
-        await streamImpersonation(targetId, guided, (accumulated) => setComposerDraft(targetId, accumulated));
-      };
-      flow()
+      // No navigation and no commit: the composer stays mounted, so the fill goes through the caller's own
+      // onChange, called with the GROWING accumulation on each delta (progressive fill).
+      streamImpersonation(chatId, guided, onDrafted)
         .catch((error: unknown) => {
           // The D57 input-restore is NOT an error surface (it silently re-types the steer, and does nothing at
           // all when the composer was empty) — impersonate rides a subscription, so it has no `meta.errorToast`
           // and every failure here used to die silent. Toast first, then restore.
-          notifyImpersonateFailure(error, { committedHere, draft: chatId === null });
+          notifyImpersonateFailure(error);
           restore?.onError(error);
         })
         .finally(() => setImpersonatePending(false));
     },
     stopImpersonation,
-    fireOpening,
   };
 }

@@ -1,8 +1,10 @@
 // The cast-bar add-member affordance: a trailing "+" (host-only) opening an anchored Popover picker of
 // characters not already in the roster. Picking a row adds it and keeps the popover open for more. A
-// popover, not a modal-slot entry — this is a small anchored picker, not a rail/topbar interrupt. Source-
-// agnostic over an onAdd(id) callback: committed wires chat.addCharacterToChat, draft wires the
-// addDraftCharacter store write. The Command picker body is the shared `CharacterPicker` composite.
+// popover, not a modal-slot entry — this is a small anchored picker, not a rail/topbar interrupt. The
+// Command picker body is the shared `CharacterPicker` composite.
+//
+// The DRAFT twin (which wrote an `addDraftCharacter` store entry instead of the roster verb) is gone with
+// draft mode (chat-creation-draft-mode-replacement.md §4.1, R1): every room has a roster to add into.
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -12,7 +14,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { CharacterPicker } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { addDraftCharacter } from "#state";
 import { useAddCharacterToChat } from "../hooks/use-roster-mutations.ts";
 
 function AddMemberShell({
@@ -62,13 +63,4 @@ export function AddMemberPopover({ chatId, existingCharacterIds }: AddMemberPopo
   const invalidation = useInvalidation();
   const add = useAddCharacterToChat({ trpc, invalidation });
   return <AddMemberShell existingCharacterIds={existingCharacterIds} onAdd={(id): void => add.mutate({ chatId, characterId: id })} />;
-}
-
-export interface DraftAddMemberPopoverProps {
-  readonly draftKey: string;
-  readonly existingCharacterIds: readonly CharacterId[];
-}
-
-export function DraftAddMemberPopover({ draftKey, existingCharacterIds }: DraftAddMemberPopoverProps): ReactElement {
-  return <AddMemberShell existingCharacterIds={existingCharacterIds} onAdd={(id): void => addDraftCharacter(draftKey, id)} />;
 }

@@ -1,11 +1,12 @@
-// The Chats topbar identity header — a committed chat's roster header, or a draft's seeded-character
-// header, resolved from the section's OWN #state (handle/draftSeed). A section-owned body so
-// `chatsSection.header` rides the registry, not route composition.
+// The Chats topbar identity header — the open room's roster header, resolved from the section's OWN #state
+// (the active handle). A section-owned body so `chatsSection.header` rides the registry, not route
+// composition.
 //
-// It also carries the TEMPORARY badge (home-section-spec §5): the `chats.temporary` flag is CREATION-ONLY
-// by design, so a user who only learns their room is ephemeral AFTER the first send cannot fix it. The
-// badge therefore has to be visible BEFORE that send — it reads the draft SEED pre-commit and the chat
-// row (`getChat.temporary`) after, so the room keeps saying so for its whole life.
+// It also carries the TEMPORARY badge (home-section-spec §5): the `chats.temporary` flag is CREATION-ONLY by
+// design, so a user who only learns their room is ephemeral after the fact cannot fix it. The picker states
+// it up front (the pre-create half) and this badge states it for the room's whole life, off the chat row.
+// The pre-send DRAFT arm is gone with draft mode (chat-creation-draft-mode-replacement.md §4.1, R1): there
+// is no window between the pick and the row any more.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -13,27 +14,27 @@ import { Row } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { isCommitted, useActiveChatHandle, useActiveDraftFoundingCast, useActiveDraftSeed } from "#state";
-import { ChatHeaderSurface, DraftChatHeader } from "./chat-header.tsx";
+import { useActiveChatId } from "#state";
+import { ChatHeaderSurface } from "./chat-header.tsx";
 
-/** Is the COMMITTED room ephemeral? A plain `useQuery` off the same `getChat` the room already reads —
- *  this header must never suspend on its own account, so an unresolved read reads as "not temporary"
- *  (the badge appears the moment the cache lands; the draft arm covers the pre-send window). */
+/** Is the room ephemeral? A plain `useQuery` off the same `getChat` the room already reads — this header
+ *  must never suspend on its own account, so an unresolved read reads as "not temporary" (the badge appears
+ *  the moment the cache lands, which for a just-created room is its first frame: `useStartChat` seeds it). */
 function useIsTemporaryChat(chatId: ChatId): boolean {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   return chat?.temporary === true;
 }
 
-function TemporaryBadge(): ReactElement {
-  return (
-    <Badge intent="neutral" tone="soft">
-      Temporary
-    </Badge>
-  );
+export function ChatsTopbarHeader(): ReactElement | null {
+  const activeChatId = useActiveChatId();
+  if (activeChatId === null) {
+    return null;
+  }
+  return <TopbarHeader chatId={activeChatId} />;
 }
 
-function CommittedTopbarHeader({ chatId }: { readonly chatId: ChatId }): ReactElement {
+function TopbarHeader({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const temporary = useIsTemporaryChat(chatId);
   if (!temporary) {
     return <ChatHeaderSurface chatId={chatId} />;
@@ -41,32 +42,9 @@ function CommittedTopbarHeader({ chatId }: { readonly chatId: ChatId }): ReactEl
   return (
     <Row align="center" className="min-w-0" gap="row">
       <ChatHeaderSurface chatId={chatId} />
-      <TemporaryBadge />
-    </Row>
-  );
-}
-
-export function ChatsTopbarHeader(): ReactElement | null {
-  const handle = useActiveChatHandle();
-  const draftSeed = useActiveDraftSeed();
-  const activeChatId = isCommitted(handle) ? handle.id : null;
-  // The FULL founding cast (seed ∪ the panel's pre-send additions), not the seed alone: a character added
-  // mid-draft belongs in the room's identity immediately, exactly as it belongs in the greeting preview
-  // (the same class of gap that CT pins for `DraftGreetingThread`). Seed-only left a panel-added member
-  // out of the topbar until the first send.
-  const draftCharacterIds = useActiveDraftFoundingCast();
-  if (activeChatId !== null) {
-    return <CommittedTopbarHeader chatId={activeChatId} />;
-  }
-  // A temp draft must say so even with NO seeded cast — that is the whole pre-send window.
-  const draftTemporary = handle.kind === "draft" && draftSeed?.temporary === true;
-  if (draftCharacterIds.length === 0) {
-    return draftTemporary ? <TemporaryBadge /> : null;
-  }
-  return (
-    <Row align="center" className="min-w-0" gap="row">
-      <DraftChatHeader characterIds={draftCharacterIds} />
-      {draftTemporary ? <TemporaryBadge /> : null}
+      <Badge intent="neutral" tone="soft">
+        Temporary
+      </Badge>
     </Row>
   );
 }

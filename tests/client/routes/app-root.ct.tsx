@@ -12,6 +12,7 @@
 // previews each founding character's greeting as an editable row, J2/J3 — it reads the founding CARD, but
 // never CANON `chat.listMessages`, since every chat reached here is a DRAFT with no server row).
 
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -48,7 +49,7 @@ const PERSONAS = [{ id: "persona_home", name: "Nate", description: "", avatarHas
  *  teaching state. Both routes or neither: an unstubbed suspending read blanks the tile into its boundary. */
 const EMPTY_BANK_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 };
 
-const DRAFT_IDENTITY_STUB = {
+const IDENTITY_STUB = {
   "persona.listConnectedToCharacter": (): readonly never[] => [],
   "settings.getUserSettings": (): { userId: UserId; schemaVersion: number; config: unknown; updatedAt: number } => ({
     userId: castId<UserId>("user_ct"),
@@ -57,6 +58,49 @@ const DRAFT_IDENTITY_STUB = {
     updatedAt: 0,
   }),
 };
+
+// ── THE CREATED ROOM (chat-creation-draft-mode-replacement.md §4.1, R1) ────────────────────────────
+// Every launcher below now fires the REAL `chat.startChat` and lands in the REAL room, so each of these
+// journeys needs the room's own reads stubbed: the response row (which `useStartChat` also SEEDS into
+// `getChat`), that same row on the read, the seeded greeting as REAL CANON, and the divider's fit preview
+// (an unlisted-proc `null` is out-of-contract there and crashes the transcript).
+const CREATED_CHAT_ID = "chat_home_created";
+
+function createdChat(temporary: boolean): Record<string, unknown> {
+  return {
+    id: CREATED_CHAT_ID,
+    title: null,
+    participants: [],
+    anchorPersonaId: null,
+    cast: [],
+    group: DEFAULT_GROUP_CONFIG,
+    temporary,
+    viewerIsHost: true,
+    roomOverrides: {},
+    background: null,
+    rpg: null,
+  };
+}
+
+const PREVIEW_FIT_STUB = {
+  boundaryMessageId: null,
+  usedTokens: 0,
+  ceilingTokens: 32_768,
+  ceilingEstimated: false,
+  reserveOutputTokens: 2048,
+  droppedCount: 0,
+  compactSummary: null,
+};
+
+function createdRoomRoutes(temporary: boolean, canon: readonly unknown[] = []): Record<string, unknown> {
+  const chat = createdChat(temporary);
+  return {
+    "chat.startChat": { chat, opening: null, openingFailure: null },
+    "chat.getChat": chat,
+    "chat.listMessages": { messages: canon, cast: [] },
+    "chat.previewContextFit": PREVIEW_FIT_STUB,
+  };
+}
 
 test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 via owner decision H1 = D-1)", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -104,20 +148,59 @@ test("the chats section's own no-selection state is the SLIM one — the launche
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
 });
 
-test("picking a character in the library starts a chat with it (the library→chat seam)", async ({ mount, page }) => {
-  await routeTrpc(page, {
+test("picking a character in the library CREATES the chat and lands in it (the library→chat seam)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
     "chat.listChats": chatListResponder([]),
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
     "databank.bankHealth": EMPTY_BANK_HEALTH,
     "character.list": ONE_CHARACTER,
-    // The seeded draft reads Aria's card to preview her greeting as the opening row (J2/J3).
     "character.get": {
       id: "char_home_aria",
       name: "Aria Nightshade",
       greetings: ["The night market hums."],
     },
     "persona.list": PERSONAS,
-    ...DRAFT_IDENTITY_STUB,
+    ...IDENTITY_STUB,
+    // Her greeting arrives as REAL CANON — `startChat` seeded it server-side, so the room reads it back
+    // instead of the client fabricating a preview row.
+    ...createdRoomRoutes(false, [
+      {
+        id: "msg_home_greeting",
+        chatId: CREATED_CHAT_ID,
+        seq: 1,
+        role: "assistant",
+        kind: "standard",
+        content: "The night market hums.",
+        toolCalls: [],
+        authorUserId: null,
+        characterId: "char_home_aria",
+        personaId: null,
+        excludedFromPrompt: false,
+        createdAt: 0,
+        editedAt: null,
+        selectedVariantId: "mv_home_greeting",
+        selectedVariantIdx: 0,
+        variantCount: 1,
+        hasContinuation: false,
+        reasoning: null,
+        model: null,
+        provider: null,
+        finishReason: null,
+        stopReason: null,
+        terminalReason: null,
+        tokensIn: null,
+        tokensOut: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        contextWindow: null,
+        costUsd: null,
+        ttftMs: null,
+        genStartedAt: null,
+        genFinishedAt: null,
+        generationId: null,
+        contextBoundaryMessageId: null,
+      },
+    ]),
   });
 
   const component = await mount(<HomePageStory />);
@@ -135,11 +218,12 @@ test("picking a character in the library starts a chat with it (the library→ch
   // chat with X" in the Wave 1 rework) → the store seam flips CONTENT back to a fresh, seeded room.
   await page.getByRole("button", { name: "Chat with Aria Nightshade", exact: true }).click();
 
-  // The route (the sole store reader) navigated to the Chats section: the composer is back, on a fresh
-  // draft seeded with Aria — character-first, her greeting rendered as the opening row (not an empty void),
-  // ready for the first send to `startChat` with her.
+  // The route (the sole store reader) navigated to the Chats section, into a REAL room: the composer is
+  // back, and Aria's greeting is canon read off the row `startChat` just created — character-first from the
+  // first frame, with nothing left to commit.
   await expect(page.getByTestId(testId("composer"))).toBeVisible();
   await expect(page.getByText("The night market hums.")).toBeVisible();
+  await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
 // ── The TEMP-CHAT creation ceremony + the rail round-trip (side-eye F9 + the data-loss it flagged) ──
@@ -147,7 +231,7 @@ test("picking a character in the library starts a chat with it (the library→ch
 // creation-only flag preset. And the draft it starts SURVIVES a rail round-trip — the active-chat pointer
 // is module state and CONTENT is <Activity>-kept, so leaving the section must never drop an unsent room.
 
-test("the temp tile starts its room through the SHARED picker, and the draft survives a rail round-trip", async ({ mount, page }) => {
+test("the temp tile starts its room through the SHARED picker, and the unsent line survives a rail round-trip", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": chatListResponder([]),
     "databank.list": { items: [], nextCursor: null, totalCount: 0 },
@@ -155,7 +239,8 @@ test("the temp tile starts its room through the SHARED picker, and the draft sur
     "character.list": NO_CHARACTERS,
     "persona.list": PERSONAS,
     "chat.reapTemporaryChats": { reaped: 0 },
-    ...DRAFT_IDENTITY_STUB,
+    ...IDENTITY_STUB,
+    ...createdRoomRoutes(true),
   });
   const component = await mount(<HomePageStory />);
 
@@ -166,16 +251,18 @@ test("the temp tile starts its room through the SHARED picker, and the draft sur
 
   await picker.getByText("Blank chat").click();
 
-  // The picker minted preset ⊕ picks: a draft room on the chats section, marked Temporary BEFORE any send.
+  // The picker carried its pre-armed parameter into the real `startChat`: a REAL room on the chats section,
+  // born Temporary — and it says so from its first frame, off the row rather than off a client seed.
   await expect(page.getByTestId(testId("composer"))).toBeVisible();
   await expect(page.locator(".shell-topbar").getByText("Temporary")).toBeVisible();
 
-  // Type into the unsent draft — the thing an accidental discard would actually cost the user.
+  // Type an unsent line — the thing an accidental discard would actually cost the user.
   const composerInput = page.getByTestId(testId("composer")).getByRole("textbox");
   await composerInput.fill("a line I have not sent yet");
 
-  // Rail round-trip: home and back. The unsent draft must still be the active room — losing it here
-  // discards what the user typed and lands them on "No chat selected".
+  // Rail round-trip: home and back. The room must still be active — losing it here discards what the user
+  // typed and lands them on "No chat selected". (Nav to HOME is not nav away from the ROOM: the active-chat
+  // pointer is untouched, so no husk reap fires either.)
   await page.locator(".shell-rail").getByRole("button", { name: "Home", exact: true }).click();
   await expect(page.locator('[data-home-tile="chat.tempChat"]')).toBeVisible();
   await page.locator(".shell-rail").getByRole("button", { name: "Chats", exact: true }).click();
@@ -183,8 +270,7 @@ test("the temp tile starts its room through the SHARED picker, and the draft sur
   await expect(page.getByText("No chat selected")).toHaveCount(0);
   await expect(page.getByTestId(testId("composer"))).toBeVisible();
   await expect(page.locator(".shell-topbar").getByText("Temporary")).toBeVisible();
-  // …and the composer draft came back with it (the EntityDraftStore scope is the draft key, which the
-  // round-trip does not re-mint).
+  // …and the composer draft came back with it — keyed by the room's real ChatId, which nothing re-mints.
   await expect(composerInput).toHaveValue("a line I have not sent yet");
 });
 // ── THE FORCED FIRST-RUN PERSONA ASK (owner ruling 2026-08-03; D107's zero-personas trigger) ──

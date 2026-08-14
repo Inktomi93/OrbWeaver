@@ -41,7 +41,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { FaceStrip } from "#components";
 import type { Trpc } from "#data";
-import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useStartChat, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnMount } from "#lib";
 import {
   clearCharacterFilters,
@@ -51,7 +51,6 @@ import {
   selectCharacterFromPicker,
   selectChat,
   setActiveSection,
-  startNewChat,
   toggleFavoritesOnly,
   toggleShowArchived,
   useCharacterBulkMode,
@@ -149,6 +148,7 @@ export interface CharacterLibrarySurfaceProps {
 /** The character library: header + favorites + filters + the flat/categorized paged list + bulk mode. */
 export function CharacterLibrarySurface({ ariaLabel = "Character library", focusCharacterId = null }: CharacterLibrarySurfaceProps): ReactElement {
   const trpc = useTRPC();
+  const { startChat } = useStartChat();
   const invalidation = useInvalidation();
   const [query, setQuery] = useState("");
   // DEBOUNCED, not deferred: deferring picks a render, and every distinct string here is a round trip now
@@ -237,10 +237,13 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
     const characterId = castId<CharacterId>(id);
     const target = resumeMap.get(characterId);
     if (target === undefined) {
-      startNewChat({ characterIds: [characterId] });
-    } else {
-      selectChat(target);
+      // A real `chat.startChat` through the ONE shared creation seam (`#data`), which enters the room
+      // itself; the section switch is this surface's own half.
+      setActiveSection("chats");
+      void startChat({ characterIds: [characterId] });
+      return;
     }
+    selectChat(target);
     setActiveSection("chats");
   };
 
