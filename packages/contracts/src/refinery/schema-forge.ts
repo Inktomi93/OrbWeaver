@@ -298,7 +298,14 @@ function leafNodeOf(row: ForgeFieldRow): Record<string, unknown> {
  *  enum is meaningless to the renderer). */
 function hintOf(row: ForgeFieldRow | ForgeHintRow, members?: readonly string[]): Record<string, unknown> | null {
   const hint: Record<string, unknown> = {};
-  if (row.role !== undefined) {
+  // The well-known CORE is the sole hero (it is the card's score stamp and every library sort rides its
+  // one scale, so the transpiler splices it as `role:"hero"` unconditionally, below). An author row that
+  // also claims `role:"hero"` is RE-ROLED here — the hero elevation is dropped, the field itself survives
+  // as a plain bounded gauge — so a design never carries two headline numbers and the renderer's
+  // order-dependent "first hero wins" can never demote the canonical `overallScore`. (Live custom-schema
+  // drive, 2026-08-14: the model designed its own 1-10 rating AND got the spliced core, both hinted hero,
+  // and the demoted one was the canonical score.) Every other role (verdict/axis/prose/…) passes through.
+  if (row.role !== undefined && row.role !== "hero") {
     hint["role"] = row.role;
   }
   if (row.group !== undefined) {
