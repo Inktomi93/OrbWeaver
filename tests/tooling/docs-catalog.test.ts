@@ -4,6 +4,8 @@ import { expect, test } from "../support/fixtures.ts";
 
 const HASH = "a".repeat(64);
 const COMMIT = "b".repeat(40);
+const ANCESTOR = "c".repeat(40);
+const CLAIMS = [{ claim: "Current behavior", evidence: [{ kind: "code", target: "packages/example.ts:1" }] }];
 
 function reviewed(overrides: Partial<ReceiptEntry> = {}): ReceiptEntry {
   return {
@@ -16,9 +18,15 @@ function reviewed(overrides: Partial<ReceiptEntry> = {}): ReceiptEntry {
     verifiedCommit: COMMIT,
     verifiedAt: "2026-08-14",
     evidence: ["packages/example.ts:1"],
+    claims: CLAIMS,
     summary: "Current behavior matches the document.",
     ...overrides,
   };
+}
+
+function reviewedWithoutClaims(overrides: Partial<ReceiptEntry> = {}): ReceiptEntry {
+  const { claims: _claims, ...entry } = reviewed(overrides);
+  return entry;
 }
 
 test("frontmatter parser keeps the deliberately flat schema machine-readable", () => {
@@ -42,6 +50,82 @@ test("a reviewed receipt requires full-read, content hash, commit, date, evidenc
       reviewed({ authority: "unclassified", fullRead: false, verifiedSha256: null, verifiedCommit: null, verifiedAt: null, evidence: [], summary: "" }),
     ),
   ).toHaveLength(7);
+});
+
+test("a current receipt rejects self-attestation and an unbound verification commit", () => {
+  expect(
+    validateReceiptEntry(reviewed({ claims: [{ claim: "Self", evidence: [{ kind: "ruling", target: "docs/example.md:1" }] }] }), {
+      currentSha256: HASH,
+      verifiedBlobSha256: HASH,
+      verifiedCommitExists: true,
+      verifiedCommitIsAncestor: false,
+      localEvidence: new Map([["docs/example.md", 1]]),
+      provenanceCommits: new Set(),
+    }),
+  ).toEqual([
+    "docs/example.md: ruling evidence target has the wrong root: docs/example.md:1",
+    "docs/example.md: verifiedCommit is not an ancestor of HEAD",
+  ]);
+});
+
+test("a reviewed receipt binds verified hash, commit blob, and current document bytes", () => {
+  expect(
+    validateReceiptEntry(reviewed({ assignedSha256: "c".repeat(64) }), {
+      currentSha256: HASH,
+      verifiedBlobSha256: "d".repeat(64),
+      verifiedCommitExists: false,
+      verifiedCommitIsAncestor: false,
+      localEvidence: new Map([["packages/example.ts", 1]]),
+      provenanceCommits: new Set(),
+    }),
+  ).toEqual([
+    "docs/example.md: verifiedSha256 does not match the verified commit blob",
+    "docs/example.md: verifiedCommit does not resolve to a commit",
+  ]);
+});
+
+test("typed claim evidence resolves its role-specific local targets", () => {
+  expect(
+    validateReceiptEntry(
+      reviewed({
+        claims: [
+          {
+            claim: "The behavior is implemented and covered.",
+            evidence: [
+              { kind: "code", target: "packages/example.ts:1" },
+              { kind: "code", target: "scripts/docs/catalog.ts:1" },
+              { kind: "test", target: "tests/example.test.ts:1" },
+              { kind: "gate", target: "scripts/check/example.ts:1" },
+              { kind: "ruling", target: "docs/architecture/core/Core-Path-Registry.md:1" },
+              { kind: "issue", target: "#52" },
+              { kind: "upstream", target: "https://example.com/source" },
+              { kind: "provenance", target: `git:${ANCESTOR}` },
+            ],
+          },
+        ],
+      }),
+      {
+        currentSha256: HASH,
+        verifiedBlobSha256: HASH,
+        verifiedCommitExists: true,
+        verifiedCommitIsAncestor: true,
+        localEvidence: new Map([
+          ["packages/example.ts", 1],
+          ["scripts/docs/catalog.ts", 1],
+          ["tests/example.test.ts", 1],
+          ["scripts/check/example.ts", 1],
+          ["docs/architecture/core/Core-Path-Registry.md", 1],
+        ]),
+        provenanceCommits: new Set([ANCESTOR]),
+      },
+    ),
+  ).toEqual([]);
+});
+
+test("archive and vendor lifecycle attestations do not impersonate current claim review", () => {
+  expect(validateReceiptEntry(reviewedWithoutClaims({ disposition: "archive", authority: "historical" }))).toEqual([]);
+  expect(validateReceiptEntry(reviewedWithoutClaims({ disposition: "vendor-snapshot", authority: "vendor" }))).toEqual([]);
+  expect(validateReceiptEntry(reviewedWithoutClaims({ disposition: "generated-artifact", authority: "generated" }))).toEqual([]);
 });
 
 test("a pending receipt cannot impersonate completed review evidence", () => {

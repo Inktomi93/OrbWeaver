@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, globSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { extname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
@@ -48,6 +48,13 @@ const VALID_DISPOSITIONS = new Set([
   "vendor-snapshot",
 ]);
 const VALID_AUTHORITIES = new Set(["current-reference", "design", "generated", "historical", "normative", "operational", "review", "unclassified", "vendor"]);
+const VALID_EVIDENCE_KINDS = new Set(["code", "test", "gate", "issue", "ruling", "upstream", "provenance"]);
+const LOCAL_EVIDENCE_KINDS = new Set(["code", "test", "gate", "ruling"]);
+const LOCAL_EVIDENCE_RE = /^([^:\n]+):(\d+)$/u;
+const ISSUE_EVIDENCE_RE = /^#\d+$/u;
+const URL_EVIDENCE_RE = /^https:\/\/\S+$/u;
+const PROVENANCE_EVIDENCE_RE = /^git:([a-f0-9]{40})$/u;
+const TEXT_EVIDENCE_EXTENSIONS = new Set([".cjs", ".css", ".cts", ".html", ".json", ".js", ".md", ".mjs", ".mts", ".svg", ".ts", ".tsx", ".yaml", ".yml"]);
 const REQUIRED_FRONTMATTER_KEYS = ["kind", "status", "updated"];
 const ALLOWED_FRONTMATTER_KEYS = new Set([...REQUIRED_FRONTMATTER_KEYS, "supersedes"]);
 
@@ -70,8 +77,19 @@ export type ReceiptEntry = {
   readonly verifiedCommit: string | null;
   readonly verifiedAt: string | null;
   readonly evidence: readonly string[];
+  readonly claims?: readonly ReceiptClaim[];
   readonly summary: string;
 };
+
+export interface ReceiptEvidence {
+  readonly kind: string;
+  readonly target: string;
+}
+
+export interface ReceiptClaim {
+  readonly claim: string;
+  readonly evidence: readonly ReceiptEvidence[];
+}
 
 type Receipt = {
   readonly schemaVersion: number;
@@ -106,6 +124,15 @@ type Doc = {
   readonly frontmatter: Frontmatter;
 };
 
+export interface ReceiptFacts {
+  readonly currentSha256: string;
+  readonly verifiedBlobSha256: string | null;
+  readonly verifiedCommitExists: boolean;
+  readonly verifiedCommitIsAncestor: boolean;
+  readonly localEvidence: ReadonlyMap<string, number>;
+  readonly provenanceCommits: ReadonlySet<string>;
+}
+
 const root = process.cwd();
 
 function json<T>(path: string): T {
@@ -123,6 +150,49 @@ function stableJson(value: unknown): string {
 
 function sha256(content: Buffer | string): string {
   return createHash("sha256").update(content).digest("hex");
+}
+
+function gitResult(args: readonly string[]): string | null {
+  try {
+    return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function gitBlob(args: readonly string[]): Buffer | null {
+  try {
+    return execFileSync("git", args, { cwd: root });
+  } catch {
+    return null;
+  }
+}
+
+function localEvidenceLines(): ReadonlyMap<string, number> {
+  const paths = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" })
+    .split("\0")
+    .filter((path) => path !== "" && TEXT_EVIDENCE_EXTENSIONS.has(extname(path)));
+  return new Map(paths.map((path) => [path, countLines(readFileSync(join(root, path)))] as const));
+}
+
+function headAncestors(): ReadonlySet<string> {
+  return new Set(gitResult(["rev-list", "HEAD"])?.split("\n").filter((commit) => commit !== "") ?? []);
+}
+
+function receiptFacts(entry: ReceiptEntry, doc: Doc, localEvidence: ReadonlyMap<string, number>, ancestors: ReadonlySet<string>): ReceiptFacts {
+  const commit = entry.verifiedCommit;
+  const verifiedCommitExists = commit !== null && COMMIT_RE.test(commit) && gitResult(["cat-file", "-e", `${commit}^{commit}`]) !== null;
+  const verifiedCommitIsAncestor = verifiedCommitExists && gitResult(["merge-base", "--is-ancestor", commit as string, "HEAD"]) !== null;
+  const blob = verifiedCommitExists ? gitBlob(["show", `${commit}:${entry.path}`]) : null;
+  const verifiedBlobSha256 = blob === null ? null : sha256(blob);
+  return {
+    currentSha256: doc.sha256,
+    verifiedBlobSha256,
+    verifiedCommitExists,
+    verifiedCommitIsAncestor,
+    localEvidence,
+    provenanceCommits: ancestors,
+  };
 }
 
 function trackedDocs(): readonly string[] {
@@ -337,13 +407,34 @@ type ValidationInput = {
   readonly state: State;
 };
 
+interface ReceiptValidationContext {
+  readonly assignments: ReadonlyMap<string, Lane>;
+  readonly docsByPath: ReadonlyMap<string, Doc>;
+  readonly localEvidence: ReadonlyMap<string, number>;
+  readonly ancestors: ReadonlySet<string>;
+}
+
+function receiptEntryErrors(entry: ReceiptEntry, receipt: Receipt, context: ReceiptValidationContext): readonly string[] {
+  const errors: string[] = [];
+  if (context.assignments.get(entry.path)?.id !== receipt.lane) {
+    errors.push(`${entry.path}: receipt is in ${receipt.lane}, expected ${context.assignments.get(entry.path)?.id ?? "no lane"}`);
+  }
+  const doc = context.docsByPath.get(entry.path);
+  errors.push(...validateReceiptEntry(entry, doc === undefined ? undefined : receiptFacts(entry, doc, context.localEvidence, context.ancestors)));
+  return errors;
+}
+
 function indexReceipts(
   config: LaneConfig,
   assignments: ReadonlyMap<string, Lane>,
+  docs: readonly Doc[],
   receipts: readonly Receipt[],
 ): { readonly byPath: ReadonlyMap<string, ReceiptEntry>; readonly errors: readonly string[] } {
   const errors: string[] = [];
   const byPath = new Map<string, ReceiptEntry>();
+  const docsByPath = new Map(docs.map((doc) => [doc.path, doc] as const));
+  const localEvidence = localEvidenceLines();
+  const ancestors = headAncestors();
   for (const receipt of receipts) {
     const lane = config.lanes.find((candidate) => candidate.id === receipt.lane);
     if (receipt.schemaVersion !== SCHEMA_VERSION || lane === undefined || receipt.issue !== lane.issue) {
@@ -354,10 +445,7 @@ function indexReceipts(
         errors.push(`${entry.path}: duplicate receipt entry`);
       }
       byPath.set(entry.path, entry);
-      if (assignments.get(entry.path)?.id !== receipt.lane) {
-        errors.push(`${entry.path}: receipt is in ${receipt.lane}, expected ${assignments.get(entry.path)?.id ?? "no lane"}`);
-      }
-      errors.push(...validateReceiptEntry(entry));
+      errors.push(...receiptEntryErrors(entry, receipt, { assignments, docsByPath, localEvidence, ancestors }));
     }
   }
   return { byPath, errors };
@@ -395,25 +483,13 @@ export function debtPathErrors(current: DebtPaths, allowed: DebtPaths | undefine
   return errors;
 }
 
-function staleReceiptErrors(docs: readonly Doc[], byPath: ReadonlyMap<string, ReceiptEntry>): readonly string[] {
-  const errors: string[] = [];
-  for (const doc of docs) {
-    const entry = byPath.get(doc.path);
-    if (entry !== undefined && entry.disposition !== "pending" && entry.verifiedSha256 !== doc.sha256) {
-      errors.push(`${doc.path}: fact-check receipt is stale; content hash changed`);
-    }
-  }
-  return errors;
-}
-
 function validate(input: ValidationInput): readonly string[] {
-  const indexed = indexReceipts(input.config, input.assignments, input.receipts);
+  const indexed = indexReceipts(input.config, input.assignments, input.docs, input.receipts);
   const debt = migrationDebt(input.docs, input.receipts);
   return [
     ...indexed.errors,
     ...coverageErrors(input.docs, indexed.byPath),
     ...debtPathErrors(debt, input.state.allowed),
-    ...staleReceiptErrors(input.docs, indexed.byPath),
   ];
 }
 
@@ -429,9 +505,112 @@ function pendingClaimsEvidence(entry: ReceiptEntry): boolean {
   );
 }
 
+function isLifecycleReceipt(entry: ReceiptEntry): boolean {
+  return entry.disposition === "archive" || entry.disposition === "generated-artifact" || entry.disposition === "superseded" || entry.disposition === "vendor-snapshot" || entry.authority === "generated" || entry.authority === "historical" || entry.authority === "vendor";
+}
+
+function hasExpectedEvidenceRoot(kind: string, path: string): boolean {
+  if (kind === "code") {
+    return !(path.startsWith("docs/") || path.startsWith("tests/"));
+  }
+  if (kind === "test") {
+    return path.startsWith("tests/");
+  }
+  if (kind === "gate") {
+    return path.startsWith("scripts/check/");
+  }
+  return path.startsWith("docs/architecture/core/");
+}
+
+function localEvidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, facts: ReceiptFacts): readonly string[] {
+  const match = LOCAL_EVIDENCE_RE.exec(evidence.target);
+  if (match === null) {
+    return [`${entry.path}: ${evidence.kind} evidence target must be path:line`];
+  }
+  const [, path, lineText] = match;
+  const line = Number(lineText);
+  const lines = facts.localEvidence.get(path ?? "");
+  if (lines === undefined) {
+    return [`${entry.path}: ${evidence.kind} evidence target does not resolve: ${evidence.target}`];
+  }
+  if (line < 1 || line > lines) {
+    return [`${entry.path}: ${evidence.kind} evidence line is out of bounds: ${evidence.target}`];
+  }
+  return path !== undefined && hasExpectedEvidenceRoot(evidence.kind, path) ? [] : [`${entry.path}: ${evidence.kind} evidence target has the wrong root: ${evidence.target}`];
+}
+
+function evidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, facts: ReceiptFacts | undefined): readonly string[] {
+  if (!VALID_EVIDENCE_KINDS.has(evidence.kind)) {
+    return [`${entry.path}: invalid evidence kind ${evidence.kind}`];
+  }
+  if (LOCAL_EVIDENCE_KINDS.has(evidence.kind)) {
+    return facts === undefined ? [] : localEvidenceErrors(entry, evidence, facts);
+  }
+  if (evidence.kind === "issue") {
+    return ISSUE_EVIDENCE_RE.test(evidence.target) ? [] : [`${entry.path}: issue evidence target must be #<number>`];
+  }
+  if (evidence.kind === "upstream") {
+    return URL_EVIDENCE_RE.test(evidence.target) ? [] : [`${entry.path}: upstream evidence target must be an https URL`];
+  }
+  if (evidence.kind !== "provenance") {
+    return [];
+  }
+  const match = PROVENANCE_EVIDENCE_RE.exec(evidence.target);
+  return match !== null && facts?.provenanceCommits.has(match[1] ?? "") ? [] : [`${entry.path}: provenance evidence target must resolve to an ancestor commit`];
+}
+
+function typedClaimErrors(entry: ReceiptEntry, claim: ReceiptClaim, facts: ReceiptFacts | undefined): readonly string[] {
+  const errors: string[] = [];
+  if (claim.claim.trim() === "") {
+    errors.push(`${entry.path}: typed claim must not be blank`);
+  }
+  if (claim.evidence.length === 0) {
+    errors.push(`${entry.path}: typed claim requires evidence`);
+  }
+  return [...errors, ...claim.evidence.flatMap((evidence) => evidenceErrors(entry, evidence, facts))];
+}
+
+function isReceiptEvidence(value: unknown): value is ReceiptEvidence {
+  return typeof value === "object" && value !== null && "kind" in value && typeof value.kind === "string" && "target" in value && typeof value.target === "string";
+}
+
+function isReceiptClaim(value: unknown): value is ReceiptClaim {
+  return typeof value === "object" && value !== null && "claim" in value && typeof value.claim === "string" && "evidence" in value && Array.isArray(value.evidence) && value.evidence.every(isReceiptEvidence);
+}
+
+function claimEvidenceErrors(entry: ReceiptEntry, facts: ReceiptFacts | undefined): readonly string[] {
+  if (isLifecycleReceipt(entry)) {
+    return [];
+  }
+  if (entry.claims === undefined || !Array.isArray(entry.claims) || entry.claims.length === 0 || !entry.claims.every(isReceiptClaim)) {
+    return [`${entry.path}: current/program/evidence receipt requires typed claims`];
+  }
+  return entry.claims.flatMap((claim) => typedClaimErrors(entry, claim, facts));
+}
+
+function receiptTruthErrors(entry: ReceiptEntry, facts: ReceiptFacts | undefined): readonly string[] {
+  if (facts === undefined || entry.disposition === "pending") {
+    return [];
+  }
+  const errors: string[] = [];
+  if (entry.verifiedSha256 !== facts.currentSha256) {
+    errors.push(`${entry.path}: verifiedSha256 does not match the current document`);
+  }
+  if (entry.verifiedSha256 !== facts.verifiedBlobSha256) {
+    errors.push(`${entry.path}: verifiedSha256 does not match the verified commit blob`);
+  }
+  if (!facts.verifiedCommitExists) {
+    errors.push(`${entry.path}: verifiedCommit does not resolve to a commit`);
+  } else if (!facts.verifiedCommitIsAncestor) {
+    errors.push(`${entry.path}: verifiedCommit is not an ancestor of HEAD`);
+  }
+  return errors;
+}
+
 function reviewedReceiptErrors(entry: ReceiptEntry): readonly string[] {
   const requirements: readonly [boolean, string][] = [
     [entry.fullRead, "reviewed disposition requires fullRead=true"],
+    [SHA256_RE.test(entry.assignedSha256), "reviewed disposition requires an assigned SHA-256"],
     [SHA256_RE.test(entry.verifiedSha256 ?? ""), "reviewed disposition requires a SHA-256"],
     [COMMIT_RE.test(entry.verifiedCommit ?? ""), "reviewed disposition requires a full git commit"],
     [DATE_RE.test(entry.verifiedAt ?? ""), "reviewed disposition requires verifiedAt YYYY-MM-DD"],
@@ -442,7 +621,7 @@ function reviewedReceiptErrors(entry: ReceiptEntry): readonly string[] {
   return requirements.filter(([satisfied]) => !satisfied).map(([, message]) => `${entry.path}: ${message}`);
 }
 
-export function validateReceiptEntry(entry: ReceiptEntry): readonly string[] {
+export function validateReceiptEntry(entry: ReceiptEntry, facts?: ReceiptFacts): readonly string[] {
   const errors = [
     ...(VALID_DISPOSITIONS.has(entry.disposition) ? [] : [`${entry.path}: invalid disposition ${entry.disposition}`]),
     ...(VALID_AUTHORITIES.has(entry.authority) ? [] : [`${entry.path}: invalid authority ${entry.authority}`]),
@@ -450,7 +629,7 @@ export function validateReceiptEntry(entry: ReceiptEntry): readonly string[] {
   if (entry.disposition === "pending") {
     return pendingClaimsEvidence(entry) ? [...errors, `${entry.path}: pending receipt must not claim review evidence`] : errors;
   }
-  return [...errors, ...reviewedReceiptErrors(entry)];
+  return [...errors, ...reviewedReceiptErrors(entry), ...claimEvidenceErrors(entry, facts), ...receiptTruthErrors(entry, facts)];
 }
 
 export function catalogReceipt(
