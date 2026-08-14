@@ -134,6 +134,14 @@ The human principal's presentation identity (map: `AGENTS.md` §6):
 
 There is NO `chats.personaId` second home.
 
+## Client session freshness
+
+**→ [`client-architecture-lockdown.md`](client-architecture-lockdown.md) §10a/§12 row 12/§13 rule 7** —
+the three-class data contract, the durable-local per-user-namespacing + referential-integrity contract,
+the session channel (`lib/session-channel.ts`, `session-channel-boundary` gate), and the recovery ladder
+(`data/stale-session.ts`). D138. This spine states identity RESOLUTION; the lockdown doc owns what the
+CLIENT does when a resolved session goes stale.
+
 ## Esoterica (load-bearing)
 
 - `externalId` keys SSO (stable authentik sub/uid, UNIQUE-when-set); `handle` keys everything else (rename stability).
