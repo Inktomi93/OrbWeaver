@@ -385,12 +385,34 @@ const PROC_GIT_PUSH = /(^|\0)git\0([^\0]*\0)*push(\0|$)/;
 const GIT_ADD_ALL = /\bgit\s+add\s+(?:-A\b|--all\b|\.(?:\s|$))/;
 const GIT_PUSH = /\bgit\s+(?:[^\s;|&]+\s+)*?push\b/;
 const GIT_PUSH_FORCE = /\bgit\s+push\b[^\n;|]*(?:\s--force(?:-with-lease)?\b|\s-f\b)/;
-const RM_RF_HEAD = /^\s*rm\s+(?:-[a-z]*[rf][a-z]*\s+)+/;
+// Ends at the LAST FLAG, and that is the whole rule. The trailing `\s+` this carried until 2026-08-14 was
+// greedy, and a QUOTED target is all spaces in the blanked text — so the head matched the flag PLUS the
+// blanked target, the tail slice came out EMPTY, the target list came out `[]`, and `rm -rf
+// "packages/server/src"` passed clean (29 of 32,171 rows in one decision log carry a quoted rm target;
+// mechanism named in docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md item D). The
+// tail is sliced from the RAW command, so a target is judged with its quote characters ATTACHED —
+// RM_SAFE_TARGET matches by SUBSTRING, so `"/tmp/scratch"` stays sanctioned in quotes while
+// `"packages/server/src"` does not. Anchoring only ever GROWS the tail, and the verdict is
+// `targets.some(unsafe)`, so no command can move looser than it classified before (the tighten-only law).
+const RM_RF_HEAD = /^\s*rm(?:\s+-[a-z]*[rf][a-z]*)+/;
 // `.claude/worktrees/` added 2026-08-13: lane worktrees are disposable by construction and the standing
 // law now requires sweeping them by hand (teardown does not fire on agent completion — probed live). Asking
 // about every sweep spent lane turns for nothing. Scoped to `worktrees/` ONLY — the rest of `.claude/`
 // (settings, hooks, agents) is load-bearing and stays ask-tier.
 const RM_SAFE_TARGET = /\/tmp\/|scratchpad|playwright\/\.cache|node_modules|reports\/|\.claude\/worktrees\/|\bdist\b|\bcoverage\b|\.cache\b|\.bak\b/;
+// An rm target is tested AFTER resolving variables the command ITSELF assigned earlier (assignedVars +
+// expandAssigned). Owner ruling 2026-08-14, taken WITH the quoted-target tighten above, because the two
+// are the same question asked twice: `SP=/tmp/…/scratchpad; rm -f "$SP/x.log"` is a scratch delete and the
+// guard could not see it — 52 of the 53 quoted-rm rows in a live decision log are exactly that shape, and
+// the identical UNQUOTED spelling was already asking. This is EVIDENCE, never a hint: the value comes from
+// the command's own text, so `R=/home/…/orbweaver; rm -rf "$R"` still asks, and a variable the command does
+// not assign stays unresolved and therefore unsafe. A blanket "$ means scratch" rule was rejected outright
+// — it would wave `rm -rf "$REPO"` through.
+const ASSIGN_HEAD = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=/;
+const VAR_REF = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g;
+// A value that still carries an expansion after substitution is NOT recorded: `SP=$(mktemp -d)` tells the
+// guard nothing about where SP points, and a half-resolved string must never be able to match a safe hint.
+const UNRESOLVED_VALUE = /[$`]/;
 // `$VAR` is safe (the rewrite copies text verbatim, the shell expands identically); `$(`/backticks/
 // parens/bare-& are not (subshells, grouping, backgrounding). fd-merges (2>&1) are stripped first.
 const UNSAFE_STAGE0 = /[<>()`&]/;
@@ -769,6 +791,68 @@ function detectHardFloor(blank, clauses) {
   return null;
 }
 
+/** One shell WORD read from the RAW text at `from`: stops at the first UNQUOTED whitespace, and the quote
+ *  characters themselves are dropped (`SP="/tmp/a b"` is one value, `/tmp/a b`). Returns the text and where
+ *  it ended, so a caller can keep reading further assignments on the same stage. */
+function readWord(command, from, end) {
+  let value = "";
+  let quote = null;
+  let i = from;
+  for (; i < end; i += 1) {
+    const ch = command[i];
+    if (quote === null && /\s/.test(ch)) {
+      break;
+    }
+    if (quote === null && (ch === '"' || ch === "'")) {
+      quote = ch;
+    } else if (quote !== null && ch === quote && command[i - 1] !== "\\") {
+      quote = null;
+    } else {
+      value += ch;
+    }
+  }
+  return { value, end: i };
+}
+
+/** The variables this command assigns BEFORE offset `before`, as name → literal value. Assignments are
+ *  located in the BLANKED text (so `echo "SP=/etc"` and a commented-out assignment are never read as one)
+ *  and their VALUES in the raw, because a value is routinely quoted. Only the leading assignments of a
+ *  clause count — that is where bash puts them, and anything else in the clause is a command, not a
+ *  declaration. Later assignments overwrite earlier ones, matching the shell. A value that still contains
+ *  `$` or a backtick after resolving what is already known is DROPPED, never half-resolved. */
+export function assignedVars(command, blank, clauses, before) {
+  const vars = new Map();
+  for (const clause of clauses) {
+    if (clause.start >= before) {
+      break;
+    }
+    const [stage] = clause.stages;
+    let at = stage.start;
+    for (;;) {
+      const head = blank.slice(at, stage.end).match(ASSIGN_HEAD);
+      if (head === null || at + head[0].length > before) {
+        break;
+      }
+      const read = readWord(command, at + head[0].length, stage.end);
+      const value = expandAssigned(read.value, vars);
+      if (UNRESOLVED_VALUE.test(value)) {
+        vars.delete(head[1]); // an unknowable value must not leave a STALE one in place
+      } else {
+        vars.set(head[1], value);
+      }
+      at = read.end;
+    }
+  }
+  return vars;
+}
+
+/** `$NAME` / `${NAME}` replaced from `vars`. An unknown name is left EXACTLY as written, so it stays in the
+ *  string the safe-list is tested against and the target stays unsafe — the strict direction, and the
+ *  reason this can only ever resolve what the command itself proved. */
+export function expandAssigned(text, vars) {
+  return text.replace(VAR_REF, (whole, braced, bare) => vars.get(braced ?? bare) ?? whole);
+}
+
 function collectStageWarns(command, blank, clauses, contexts) {
   let vitest = false;
   let sqlite = false;
@@ -782,11 +866,18 @@ function collectStageWarns(command, blank, clauses, contexts) {
       }
       const rm = text.match(RM_RF_HEAD);
       if (rm) {
+        // The head is found in the BLANKED text (so a quoted `rm -rf` in an echo argument is never one) and
+        // ends at the last FLAG; the targets are then read off the RAW command, which is the only place a
+        // quoted target still exists. Split on whitespace with the quote characters left ON, deliberately:
+        // joining a quoted span into one word would make `rm -rf /tmp/a "/tmp/b c"` — which asks today on
+        // its `c"` token — start passing, and this rule may only ever tighten.
         const targets = command
           .slice(stage.start + rm[0].length, stage.end)
           .split(/\s+/)
           .filter((t) => t.length > 0 && !t.startsWith("-"));
-        if (targets.some((t) => !RM_SAFE_TARGET.test(t))) {
+        // The map is built lazily — an `rm` head is rare, and this is the only rule that needs it.
+        const vars = targets.length > 0 ? assignedVars(command, blank, clauses, stage.start) : null;
+        if (targets.some((t) => !RM_SAFE_TARGET.test(vars === null ? t : expandAssigned(t, vars)))) {
           rmrf = true;
         }
       }
