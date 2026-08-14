@@ -34,7 +34,7 @@ import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
-import { publishChatChanged, publishUserEvent } from "../../transport/trpc/index.ts";
+import { publishChatChanged, publishUserEvent, withQuietUserEvents } from "../../transport/trpc/index.ts";
 import { writeImportReport } from "../import/import-report.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import {
@@ -174,50 +174,61 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
   const importWorkloads: ImportWorkloadDeps = {
     stagingRoot,
     stProfileDir: deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR,
-    runProfileDirImport: async ({ profileRoot, ownerId, dryRun, signal }) => {
-      const principal = await deps.resolveOwnerPrincipal(ownerId);
-      const report = await runProfileDirImport({
-        fs,
-        profileRoot,
-        principal,
-        ...profileImport,
-        importStandaloneLorebook: deps.importStandaloneLorebook,
-        // The ST chat-completion preset wave writes through the preset domain's OWN import verb (idempotent on
-        // (ownerId, name), one serde, one collision rule) — the same op the zip-bundle descriptor uses.
-        importPreset: createImportPresets(deps.presetCtx),
-        // The ST THEME wave does the same through the settings domain's own theme-backup import (idempotent on
-        // (ownerId, name); a SEED palette is `ownerId IS NULL` and structurally unreachable by that write).
-        importTheme: createImportTheme(deps.settingsCtx),
-        // The ST BACKGROUND wave: one CAS write per file under the caller, kind `background`, with the
-        // extension-derived mime VERIFIED against the bytes (`enforceMagic`) before anything is persisted.
-        storeBackground: async (params) => {
-          const storedAsset = await deps.assets.store({ ...params, kind: "background", enforceMagic: true });
-          return { assetId: storedAsset.assetId, hash: storedAsset.hash };
-        },
-        applyImportedAppearance: createApplyImportedAppearance(deps.settingsCtx),
-        newBackgroundEntryId: deps.settingsCtx.newBackgroundEntryId,
-        now,
-        dryRun,
-        signal,
-      });
-      // A real run writes the "what landed / what didn't" report to disk; a dry run writes nothing.
-      const reportPath = dryRun ? undefined : await writeImportReport(report, now());
-      return { scanned: report.scanned, changed: report.changed, failed: report.skippedCards.length, ...(reportPath !== undefined ? { reportPath } : {}) };
-    },
-    runBundleImport: async ({ archive, ownerId, stagingRoot: root, signal }) => {
-      const report = await runBundleImport({
-        registry: portability,
-        ownerId,
-        archive,
-        extractOptions: { maxTotalBytes: IMPORT_MAX_TOTAL_BYTES, maxTotalDecompressedBytes: IMPORT_MAX_DECOMPRESSED_BYTES, stagingRoot: root },
-        signal,
-      });
-      return { imported: report.imported, skipped: report.skipped, failed: report.failed };
-    },
-    runStagedDirImport: async ({ stagedPath, ownerId, signal }) => {
-      const report = await importStagedArchive({ registry: portability, ownerId, staged: await stageDirectory(stagedPath), signal });
-      return { imported: report.imported, skipped: report.skipped, failed: report.failed };
-    },
+    // W8 / F5 — THE THREE BULK RUNS, EACH UNDER QUIET MODE. Every per-entity import verb announces itself
+    // (`character/verbs/create.ts` fires `charactersChanged` per CARD; the persona/preset/tag/theme/regex/
+    // world-info import verbs each fire their own), so an ST library fanned hundreds of events and the
+    // client's `invalidateQueries` cancel-and-restart churned the visible library for the whole run
+    // (staleness design §2.5). The scope is opened HERE, not in a verb: only the composition of the run knows
+    // it is one gesture. Semantics + the misuse note: `transport/trpc/user-events-bus.ts`. #23's
+    // `emitLibraryChanged` deliberately stays OUTSIDE these scopes — it fires after the runner returns, from
+    // the workload contribution's settle step, and it is the belt that covers a run which wrote canon.
+    runProfileDirImport: async ({ profileRoot, ownerId, dryRun, signal }) =>
+      await withQuietUserEvents(async () => {
+        const principal = await deps.resolveOwnerPrincipal(ownerId);
+        const report = await runProfileDirImport({
+          fs,
+          profileRoot,
+          principal,
+          ...profileImport,
+          importStandaloneLorebook: deps.importStandaloneLorebook,
+          // The ST chat-completion preset wave writes through the preset domain's OWN import verb (idempotent
+          // on (ownerId, name), one serde, one collision rule) — the same op the zip-bundle descriptor uses.
+          importPreset: createImportPresets(deps.presetCtx),
+          // The ST THEME wave does the same through the settings domain's own theme-backup import (idempotent
+          // on (ownerId, name); a SEED palette is `ownerId IS NULL` and structurally unreachable by that write).
+          importTheme: createImportTheme(deps.settingsCtx),
+          // The ST BACKGROUND wave: one CAS write per file under the caller, kind `background`, with the
+          // extension-derived mime VERIFIED against the bytes (`enforceMagic`) before anything is persisted.
+          storeBackground: async (params) => {
+            const storedAsset = await deps.assets.store({ ...params, kind: "background", enforceMagic: true });
+            return { assetId: storedAsset.assetId, hash: storedAsset.hash };
+          },
+          applyImportedAppearance: createApplyImportedAppearance(deps.settingsCtx),
+          newBackgroundEntryId: deps.settingsCtx.newBackgroundEntryId,
+          now,
+          dryRun,
+          signal,
+        });
+        // A real run writes the "what landed / what didn't" report to disk; a dry run writes nothing.
+        const reportPath = dryRun ? undefined : await writeImportReport(report, now());
+        return { scanned: report.scanned, changed: report.changed, failed: report.skippedCards.length, ...(reportPath !== undefined ? { reportPath } : {}) };
+      }),
+    runBundleImport: async ({ archive, ownerId, stagingRoot: root, signal }) =>
+      await withQuietUserEvents(async () => {
+        const report = await runBundleImport({
+          registry: portability,
+          ownerId,
+          archive,
+          extractOptions: { maxTotalBytes: IMPORT_MAX_TOTAL_BYTES, maxTotalDecompressedBytes: IMPORT_MAX_DECOMPRESSED_BYTES, stagingRoot: root },
+          signal,
+        });
+        return { imported: report.imported, skipped: report.skipped, failed: report.failed };
+      }),
+    runStagedDirImport: async ({ stagedPath, ownerId, signal }) =>
+      await withQuietUserEvents(async () => {
+        const report = await importStagedArchive({ registry: portability, ownerId, staged: await stageDirectory(stagedPath), signal });
+        return { imported: report.imported, skipped: report.skipped, failed: report.failed };
+      }),
     reconcileImportStats,
     // #23: the terminal "your library changed" fan for a background import. `chatsChanged` (chatId absent)
     // already drives BOTH the chat list AND `character.list` in the client's user-bus map; `charactersChanged`

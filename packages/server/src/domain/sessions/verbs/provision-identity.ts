@@ -116,6 +116,12 @@ async function updateExisting(
     userId: existing.id,
     enabled: existing.enabled,
     role: effectiveRole,
+    // W7b — the ONE upsert arm that can move a field `sessions.me` projects. `handle` and `role` are exactly
+    // those fields; `externalId`/`email` are not (no identity read carries them), which is why they are
+    // excluded here rather than "did anything change at all". The caller fans `identityChanged` on this
+    // user's channel, reaching the human's OTHER live devices — the IdP-rename case, and the login-time role
+    // DEMOTION that is the security-relevant half.
+    identityChanged: changes.handle !== undefined || changes.role !== undefined,
   };
 }
 
@@ -162,6 +168,8 @@ async function insertNew(
     userId: settled.id,
     enabled: settled.enabled,
     role: settled.role,
+    // A row that did not exist a moment ago has no other device holding a stale read of it (W7b).
+    identityChanged: false,
   };
 }
 
@@ -211,7 +219,9 @@ async function bindOwnerSubject(ctx: SessionsContext, owner: ExistingUser, ident
     { handle: identity.handle, externalId, ownerId: owner.id },
     "user: bound OIDC subject to the existing owner row (owner-flip reconciliation, D17)",
   );
-  return { outcome: "provisioned", userId: owner.id, enabled: owner.enabled, role: "owner" };
+  // W7b: the bind writes `externalId` (+ maybe `email`) and deliberately leaves the owner's handle and role
+  // alone — no identity read projects either column, so there is nothing for another device to re-read.
+  return { outcome: "provisioned", userId: owner.id, enabled: owner.enabled, role: "owner", identityChanged: false };
 }
 
 /** The box has exactly one owner. When the owner policy would mint a second owner, downgrade to `user`

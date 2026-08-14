@@ -275,6 +275,9 @@ test("a stale cookie is IGNORED outside cookie modes (forward-header never calls
           userId: HEADER_UID,
           enabled: true,
           role: "user",
+          // W7b — this arm re-provisions on EVERY request, so the steady state is "nothing moved" and the
+          // seam must fan nothing. The `true` case is pinned in the verb's own suite.
+          identityChanged: false,
         }),
     }),
   });
@@ -305,6 +308,7 @@ test("an SSO header upserts via provisionIdentity and carries the resolved role"
           userId: HEADER_UID,
           enabled: true,
           role: "admin",
+          identityChanged: false,
         });
       },
     }),
@@ -350,6 +354,7 @@ test("a disabled SSO row is gated to null (disable takes effect next request, no
           userId: HEADER_UID,
           enabled: false,
           role: "user",
+          identityChanged: false,
         }),
     }),
   });
