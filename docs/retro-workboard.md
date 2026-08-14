@@ -1248,6 +1248,14 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   pre-commit exfil channel. FOLLOW-UP LEAD: one iframe reload flash at ghost→settled swap
   (GHOST\_APPEND\_KEY vs message.id — keyed-handoff work, message-list-surface scope). §4.5 spec
   truth-repaired with a dated AMENDED block.
+- [ ] **08-14 AFTERNOON GATE EVALUATION (owner-asked; sweeps-get-gate-evaluated law):** pre-compact
+  candidates ALL closed (7 built, G-E refused-with-receipts, density-arm was already-built; registry
+  209 + the count one-home arm). Today's classes: G-A roomReach SEATED-red arm = COMMITTED (bridge
+  LANE 2) · member-projection strip-totality arm = CANDIDATE pending strip-card-hole's consumer
+  table · turnAccepted gap / fence-close spoof / turnLimit rename = TEST-PINNED by design (emit
+  sites too varied, kit-internal, contract pin) · stale-row class = RITUAL-owned (6-for-6 today,
+  ungateable) · documented-field-no-producer = LEAD only (the G-E semantic-discriminator trap; if
+  it recurs, a typed obligations table is the cheap form).
 - [ ] **MEMBER-STRIP CARD-FENCE HOLE (found by the card lane, SECURITY LANE RUNNING
   `strip-card-hole`):** `stripHiddenSpans` never reaches inside a closed `:::card` span — a
   `<lie truth>` in a card body re-emits VERBATIM in the member's COMMITTED view (mid-stream
