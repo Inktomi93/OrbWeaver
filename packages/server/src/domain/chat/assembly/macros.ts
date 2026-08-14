@@ -64,6 +64,11 @@ interface MacroExtras {
   /** The commit-time VOLATILE-FREEZE sink (D129-F) — the caller's array; each volatile occurrence this pass
    *  bakes is pushed in document order. Absent ⇒ no recording (every non-freeze render). */
   freezes?: MacroFreeze[] | undefined;
+  /** The REPLAY arm (D129-F) — a PRIOR freeze record, walked positionally: an occurrence whose name+args match
+   *  supplies its stored value and the handler never runs, so no clock is read and no draw is consumed. Absent
+   *  ⇒ every volatile draws fresh (the commit-time bake). The pair {`frozenMacros` in, `freezes` out} is what
+   *  makes a re-freeze idempotent: replaying a record over its own raw reproduces the bytes exactly. */
+  frozenMacros?: readonly MacroFreeze[] | undefined;
 }
 
 /** The ONE AssembleContext → `ProcessMacroOptions` mapping, shared by `renderMacros` and
@@ -117,6 +122,7 @@ function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null |
   setIf(opts, "onWarn", extras.onWarn);
   // The freeze ledger rides the same per-render context the op-log does (kit's `MacroContext.macroFreezes`).
   setIf(opts, "macroFreezes", extras.freezes);
+  setIf(opts, "frozenMacros", extras.frozenMacros);
   // Thread the same per-assembly op-log by reference so mutation handlers record this turn's ops onto it.
   setIf(opts, "opLog", ctx.opLog);
   return opts;
@@ -151,13 +157,16 @@ export function freezeVolatileMacros(
     readonly random?: (() => number) | undefined;
     readonly registry?: MacroRegistry | undefined;
     readonly freezes?: MacroFreeze[] | undefined;
+    /** A PRIOR record to REPLAY (D129-F freeze-at-selection): matched occurrences reproduce their stored value
+     *  instead of drawing, so re-freezing an already-frozen body is byte-identical and consumes no entropy. */
+    readonly frozenMacros?: readonly MacroFreeze[] | undefined;
   },
 ): string {
   // The per-turn FREEZE registry (WAVE MU — volatile-only + user macros) when supplied; absent ⇒ the
   // process `VOLATILE_ONLY_REGISTRY` (byte-identical — user-macro tokens pass through verbatim).
   return processMacros(
     text,
-    macroOptionsFor(ctx, ctx.activePersona, { random: args?.random, freezes: args?.freezes }),
+    macroOptionsFor(ctx, ctx.activePersona, { random: args?.random, freezes: args?.freezes, frozenMacros: args?.frozenMacros }),
     args?.registry ?? VOLATILE_ONLY_REGISTRY,
   );
 }

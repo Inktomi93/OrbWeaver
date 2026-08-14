@@ -27,9 +27,11 @@
 // the host's own payload. Strip the return; emit the truth.
 
 import type { DurableChatBusEvent, MessageView, ReattributeScope } from "@orb/contracts/chat";
+import { macroFreezeRecordSchema } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MacroFreeze } from "@orb/kit/macro";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
@@ -57,6 +59,7 @@ import {
   deleteMessagesStatement,
   editMessageContentStatements,
   editReasoningStatements,
+  freezeVariantContentStatement,
   insertCanonMessageStatements,
   reattributeMessagesStatement,
   reattributePersonaStatement,
@@ -80,7 +83,7 @@ import {
 } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
-import { buildTurnMacroContext } from "../substrate/assembly-access.ts";
+import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
 import { assertAuthorOrHost } from "../substrate/auth/index.ts";
 import { projectViewReturnForViewer } from "../substrate/member-visibility.ts";
 import { resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
@@ -99,6 +102,11 @@ interface EditDeps {
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The husk→real transition (R0). Applied to the WHOLE bundle by {@link claiming}, not per verb. */
   readonly claimChat: ClaimChatOp;
+  /** The service PRNG, threaded to the D129-F freeze-at-selection bake ({@link freezeSelectedVariant}).
+   *  OPTIONAL: absent ⇒ the kit macro engine's ambient `Math.random`, the same seam every other freeze caller
+   *  declares — a selection that has a stored freeze record consumes NO draw at all (it replays), so the
+   *  injection matters only for the first bake of a never-frozen alternate. */
+  readonly prng?: (() => number) | undefined;
 }
 
 /** The canon-edit slice of `ChatService` this grouped file owns. */
@@ -289,9 +297,98 @@ function swipeRowOf(slot: MessageView, variant: VariantRow): Parameters<typeof s
   };
 }
 
+/**
+ * FREEZE-AT-SELECTION (D129-F) — the swipe re-resolution the freeze provenance was stored for.
+ *
+ * THE DEFECT IT CLOSES, precisely. Volatile macros (`{{roll}}`/`{{random}}`/`{{pick}}`/the clock family) bake
+ * once, at the first user turn, into the SELECTED variant of each greeting row (`freezeGreetingVolatiles`,
+ * verbs/turn.ts — whose own comment names the hole: "A later swipe to an unfrozen alternate is not re-frozen —
+ * there is no subsequent 'first turn' to catch it"). Swipe a greeting after that instant and the alternate has
+ * never been through a freeze, so the literal `{{roll::1d20}}` ships to the model, and keeps shipping, forever.
+ * Identity macros are NOT in this class and never were — they are re-emitted verbatim by the freeze registry
+ * and re-resolve per view (`renderHistoryMacros`), which is why a persona rename already reaches every row.
+ *
+ * WHAT RUNS. The volatile freeze over the variant's PROVENANCE — `rawContent ?? content` (NULL raw means "no
+ * distinct pre-transform text", the one-directional storage rule, so `content` IS the authored bytes) — with
+ * the stored `macroFreezes` supplied as `frozenMacros`. That is the kit replay arm, and it is what makes this
+ * safe to run on EVERY selection rather than only on virgin variants: an already-frozen variant replays its
+ * own record positionally, reproduces its bytes exactly, and writes nothing. So A → B → A is byte-stable
+ * (§13's swipe-determinism invariant) while B finally gets its bake.
+ *
+ * THE WINDOW GATE. Only once the chat HAS a user row. Before that instant the greeting window is open:
+ * `freezeGreetingVolatiles` will catch the selection at the first turn anyway, and `setSeededGreeting` refuses
+ * a frozen row (`greeting_frozen`) — so freezing early would silently close a host affordance that is supposed
+ * to be open.
+ *
+ * Returns the write, or `null` when nothing changed (every non-greeting selection, every already-frozen
+ * variant, every volatile-free body). The statement rides the SELECTION's own batch, so a pointer flip and the
+ * bake it triggered can never half-land.
+ */
+async function freezeSelectedVariant(
+  ctx: ChatContext,
+  deps: EditDeps,
+  args: {
+    readonly chatId: ChatId;
+    readonly slot: MessageView;
+    readonly variant: Awaited<ReturnType<typeof loadVariantsByMessageIds>>[number];
+    readonly roster: Awaited<ReturnType<typeof loadRoster>>;
+    readonly anchorPersonaId: PersonaId | null;
+    readonly selectorUserId: UserId;
+    readonly selectorPersonaId: PersonaId | null;
+  },
+): Promise<{ readonly statement: ReturnType<typeof freezeVariantContentStatement>; readonly content: string } | null> {
+  const hostUserId = hostUserIdOf(args.roster);
+  // A user slot has exactly one variant (nothing to select between) and a hostless orphan cannot resolve the
+  // room context the bake reads — both are the no-op arm, not a refusal.
+  if (args.slot.role !== "assistant" || hostUserId === null) {
+    return null;
+  }
+  if (!(await loadHasUserMessage(ctx.db, args.chatId))) {
+    return null;
+  }
+  const source = args.variant.rawContent ?? args.variant.content;
+  const stored = macroFreezeRecordSchema.safeParse(args.variant.macroFreezes);
+  const model = args.variant.model ?? "";
+  const castCharacterIds = args.roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
+  const foreign = await deps.resolveForeignInputs({
+    chatId: args.chatId,
+    runAsUserId: hostUserId,
+    model,
+    anchorPersonaId: args.anchorPersonaId,
+    presentHumanUserIds: presentHumanUserIdsOf(args.roster),
+    // The SELECTOR is the triggering human — the same arm the runOnEdit re-apply passes for the editor. A
+    // greeting's `{{user}}` is the ANCHOR either way (a null-stamped assistant row never borrows a live
+    // seat's persona), so this binds the volatile-only pass, not the identity one.
+    trigger: { kind: "human", userId: args.selectorUserId, personaId: args.selectorPersonaId },
+  });
+  const assembleContext = await gatherAssembleContext(
+    ctx,
+    { chatId: args.chatId, runAsUserId: hostUserId, model, castCharacterIds, personaIds: args.selectorPersonaId !== null ? [args.selectorPersonaId] : [] },
+    foreign,
+  );
+  const freezes: MacroFreeze[] = [];
+  const frozen = freezeVolatileMacros(source, assembleContext, {
+    ...(deps.prng !== undefined ? { random: deps.prng } : {}),
+    freezes,
+    ...(stored.success && stored.data.length > 0 ? { frozenMacros: stored.data } : {}),
+  });
+  if (frozen === args.variant.content) {
+    return null;
+  }
+  return {
+    statement: freezeVariantContentStatement(ctx.db, { variantId: args.variant.id, content: frozen, rawContent: source, macroFreezes: freezes }),
+    content: frozen,
+  };
+}
+
 /** `selectVariant` — author-or-host. Flips messages.selectedVariantId to a sibling swipe (a pointer move,
- *  never a content copy). The variant must belong to the slot else a leak-free NOT_FOUND. Emits variantSelected. */
-function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService["selectVariant"] {
+ *  never a content copy). The variant must belong to the slot else a leak-free NOT_FOUND. Emits variantSelected.
+ *
+ *  Not purely a pointer move since D129-F: a greeting alternate selected after the freeze window closed is
+ *  BAKED in the same batch ({@link freezeSelectedVariant}) — see that function for why the write belongs here
+ *  and why it is a no-op everywhere else. */
+function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["selectVariant"] {
+  const emit = deps.emit;
   return async ({ principal, chatId, messageId, variantId }: SelectVariantParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
@@ -310,7 +407,27 @@ function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService
     const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
     const variants = await loadVariantsByMessageIds(ctx.db, [messageId]);
     const oldVariant = variants.find((v) => v.id === slot.selectedVariantId);
-    const newVariant = variants.find((v) => v.id === variantId);
+    const selected = variants.find((v) => v.id === variantId);
+    const roster = await loadRoster(ctx.db, chatId);
+    // D129-F: bake the incoming variant's volatiles BEFORE the stats swap is measured, so the word/byte
+    // delta counts the bytes the room actually gains — a bake that landed after the delta would leave the
+    // rollup describing a body that never existed.
+    const baked =
+      selected === undefined
+        ? null
+        : await freezeSelectedVariant(ctx, deps, {
+            chatId,
+            slot,
+            variant: selected,
+            roster,
+            anchorPersonaId: membership.chat.anchorPersonaId,
+            selectorUserId: principal.userId,
+            selectorPersonaId: membership.activePersonaId,
+          });
+    if (baked !== null) {
+      statements.push(baked.statement);
+    }
+    const newVariant = selected === undefined || baked === null ? selected : { ...selected, content: baked.content };
     if (oldVariant !== undefined && newVariant !== undefined) {
       const variantCount = variants.length;
       const swap: StatsDelta[] = [
@@ -843,7 +960,7 @@ export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
     verb: (params: P) => Promise<R>,
   ): ((params: P) => Promise<R>) => claiming(ctx, claimChat, verb);
   return {
-    selectVariant: claim(createSelectVariant(ctx, emit)),
+    selectVariant: claim(createSelectVariant(ctx, deps)),
     editMessage: claim(createEditMessage(ctx, deps)),
     setSeededGreeting: claim(createSetSeededGreeting(ctx, emit)),
     setMessageHidden: claim(createSetMessageHidden(ctx, emit)),

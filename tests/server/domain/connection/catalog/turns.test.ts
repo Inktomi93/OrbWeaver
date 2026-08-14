@@ -80,6 +80,19 @@ describe("cache gate — midConversationSystem (the volatile-channel gating flag
   });
 });
 
+describe("shape gate — historySystemRows (D129(B): MID-history system rows, a SIBLING of the tail channel)", () => {
+  test("UNMEASURED everywhere ⇒ false everywhere — including the one model that DOES honor the tail channel", () => {
+    // The whole point of the sibling fact: Opus 4.8 on the cli shape honors a depth-0 TAIL system row and
+    // still gets `false` here, because nothing has wire-tested mid-history placement on it. Inferring one
+    // from the other is the category error the capability axis exists to prevent (D69).
+    expect(cli("claude-opus-4-8")?.midConversationSystem).toBe(true);
+    expect(cli("claude-opus-4-8")?.historySystemRows).toBe(false);
+    expect(compat("claude-opus-4-8")?.historySystemRows).toBe(false);
+    expect(cli("claude-sonnet-5")?.historySystemRows).toBe(false);
+    expect(compat("openai/gpt-5")?.historySystemRows).toBe(false);
+  });
+});
+
 describe("cache gate — assistantPrefill per (model × transport)", () => {
   test("the cli transport NEVER emits prefill (4.6+ refuse; sub/OR-key CLI never emits it)", () => {
     expect(cli("claude-opus-4-8")?.assistantPrefill).toBe(false);
@@ -100,6 +113,7 @@ describe("behavior-neutrality — non-anthropic + static arms resolve to the non
     expect(t).toEqual({
       assistantPrefill: false,
       midConversationSystem: false,
+      historySystemRows: false,
       roleHandlingFloor: "strict",
       explicitPromptCache: false,
     });

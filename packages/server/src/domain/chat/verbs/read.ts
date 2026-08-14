@@ -922,6 +922,9 @@ async function shapeNextTurn(
     groupNudge: null,
     assistantPrefill: turns?.assistantPrefill === true,
     midConversationSystem: turns?.midConversationSystem === true,
+    // D129(B): the preview must show the SAME narrator delivery the wire carries — this read is what a host
+    // debugs the prompt with, so a divergence here would make the trace lie about the role sequence.
+    historySystemRows: turns?.historySystemRows === true,
     roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
     roleHandlingFloor: turns?.roleHandlingFloor,
     squashSystemMessages: assembleContext.promptConfig.params.advanced?.squashSystemMessages,

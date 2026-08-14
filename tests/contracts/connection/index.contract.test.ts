@@ -138,6 +138,7 @@ test("modelCapabilitySchema round-trips a full turns cell (D66)", () => {
     turns: {
       assistantPrefill: false,
       midConversationSystem: true,
+      historySystemRows: false,
       roleHandlingFloor: "strict",
       explicitPromptCache: true,
       cacheMinTokens: 1024,
@@ -160,6 +161,7 @@ test("TURNS_FLOOR is the conservative today-behavior cell (explicitPromptCache f
   expect(TURNS_FLOOR).toEqual({
     assistantPrefill: false,
     midConversationSystem: false,
+    historySystemRows: false,
     roleHandlingFloor: "strict",
     explicitPromptCache: false,
   });
