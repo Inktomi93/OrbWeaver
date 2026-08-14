@@ -33,6 +33,9 @@ test("a session is born on the owned card: anchor snapshot, populated-field sele
     rewrite: { kind: "fixed", mode: "balanced" },
     analyze: { kind: "fixed", mode: "full" },
   });
+  // The freshness plane (survey H1): the roster gained a row, so every device hears it. Without this the
+  // second tab sat on the pre-write roster forever (staleTime: Infinity).
+  expect(h.userEvents).toEqual([{ userId: owner, event: { type: "refineryChanged", sessionId: session.id } }]);
 });
 
 test("a foreign character and an absent character collapse to the same NOT_FOUND", async () => {

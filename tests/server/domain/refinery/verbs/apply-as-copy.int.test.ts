@@ -33,6 +33,9 @@ test("applyAsCopy mints a fresh character with the accepted patch; the live card
   // The terminal act completes the session.
   const view = await h.svc.getSession({ principal: p, sessionId: session.id });
   expect(view.status).toBe("completed");
+  // Three refinery ticks (start · rewrite run · this terminal act); the NEW card's arrival is announced by
+  // `duplicate`/`update` on character's own port, never re-spelled here.
+  expect(h.userEvents.map((e) => e.event.type)).toEqual(["refineryChanged", "refineryChanged", "refineryChanged"]);
 });
 
 test("the zero-write arm mints NO copy: every accept dead on the belts returns character:null", async () => {
@@ -48,6 +51,10 @@ test("the zero-write arm mints NO copy: every accept dead on the belts returns c
   const result = await h.svc.applyAsCopy({ principal: p, sessionId: session.id, accepts: [{ field: "scenario" }] });
   expect(result.character).toBeNull();
   expect(result.dropped).toEqual([{ field: "scenario", greetingIndex: undefined, reason: "not_in_rewrite" }]);
+  // …and it announces NOTHING: no copy, no session flip, no row moved. The ledger still holds only the
+  // setup's two ticks (startSession + the rewrite run) — a freshness event for a write that never happened
+  // would be a lie the whole fleet refetches on.
+  expect(h.userEvents).toHaveLength(2);
 });
 
 test("the §21 divergence belt: a field edited under the session drops without confirmDiverged, lands with it", async () => {

@@ -18,12 +18,29 @@
 //   • `themes` ride their own member though they live inside the `settings` domain (a distinct client read
 //     surface — the theme list — with its own emit sites in `settings/verbs/*-theme.ts`).
 //   • `settings` / `connection` carry NO id (a user has ONE settings blob; connection has no per-user row).
+//   • `refinery` is the member the coverage survey's H1 forced (docs/design/event-bus-coverage-survey.md
+//     §2.2/F1): refinery shipped 15 mutating verbs with ZERO emits on any plane, so at `staleTime: Infinity`
+//     a second tab/device sat on the pre-write roster forever. Sessions and schemas are single-owned
+//     per-user rows — the exact "an entity you own changed" posture — so they ride HERE rather than paying
+//     the 5-site cost of a feature bus for scoping refinery does not have.
 //
 // LAWS honored (mirrors the `ChatBusEvent` allowlist): every member is a closed object literal of a branded id
 // (optional) — no `unknown`/`Record`/index field a secret could ride in; no caller id (a subscriber only ever
 // receives its OWN userId channel, derived server-side from the principal, never from client input).
 
-import type { CharacterId, ChatId, PersonaId, PresetId, RegexScriptId, TagId, ThemeId, UserCredentialId, UserId, WorldBookId } from "@orb/kit/ids";
+import type {
+  CharacterId,
+  ChatId,
+  PersonaId,
+  PresetId,
+  RefinerySessionId,
+  RegexScriptId,
+  TagId,
+  ThemeId,
+  UserCredentialId,
+  UserId,
+  WorldBookId,
+} from "@orb/kit/ids";
 
 /** One coarse "a thing you own in domain X changed" event. The optional id is a targeting hint — the client
  *  invalidation map is free to path-invalidate the whole domain regardless (a missed/omitted id costs one
@@ -39,6 +56,11 @@ export type UserBusEvent =
   | { type: "settingsChanged" }
   | { type: "credentialsChanged"; credentialId?: UserCredentialId }
   | { type: "chatsChanged"; chatId?: ChatId }
+  // The refinery workspace: sessions · runs · accepts · the custom-schema library. ONE coarse member for the
+  // whole domain (the client path-invalidates `trpc.refinery`), so the SCHEMA-library writes carry no id at
+  // all — a second optional `schemaId` would buy nothing the root invalidate does not already do, and the
+  // grammar here is one hint per member, not one per noun.
+  | { type: "refineryChanged"; sessionId?: RefinerySessionId }
   // DEFERRED (no server emit yet — see the MEMBERSHIP note + the `user-bus-coverage` DEFERRED allowlist): a
   // user's connection config lives in settings today, so nothing emits this. Declared so the client map +
   // the ratchet track it for the day a per-user connection store lands.
@@ -58,6 +80,7 @@ export const USER_BUS_EVENT_TYPES = {
   settingsChanged: true,
   credentialsChanged: true,
   chatsChanged: true,
+  refineryChanged: true,
   connectionsChanged: true,
 } satisfies Record<UserBusEvent["type"], true>;
 

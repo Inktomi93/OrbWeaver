@@ -62,6 +62,11 @@ test("one round: refine system + analyze feedback thread the rewrite half; the c
   const updated = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
   expect(updated.iterationCount).toBe(1);
   expect(updated.guidance).toBe("keep her dry-humoured");
+  // ONE tick for the whole ROUND, not one per stage: the round ran two stages through the shared engine,
+  // and three invalidates of the same path inside one round is the storm (an invalidate CANCELS and
+  // restarts an in-flight fetch). `seedFirstPass` emitted four before it (start + three runStages).
+  const roundTicks = h.userEvents.slice(4);
+  expect(roundTicks).toEqual([{ userId: owner, event: { type: "refineryChanged", sessionId: session.id } }]);
 });
 
 test("a mid-round analyze failure leaves the rewrite run and an UNBUMPED counter (append-only honesty)", async () => {
@@ -80,4 +85,10 @@ test("a mid-round analyze failure leaves the rewrite run and an UNBUMPED counter
   expect(runs).toHaveLength(4);
   const updated = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
   expect(updated.iterationCount).toBe(0);
+  // …AND IT STILL ANNOUNCED. The emit is TOTAL over the round's outcomes (a `finally` in the verb): the
+  // rewrite run LANDED before the analyze half threw, so the ledger moved and every device — including the
+  // acting one, which is bus-driven now — must hear it. This is the parity `onSettled` used to give the
+  // client for free (it runs on error too); drop the totality and the failed round leaves a stale ledger
+  // everywhere. The failing analyze wrote nothing, so the tick is still exactly ONE.
+  expect(h.userEvents.slice(4)).toEqual([{ userId: owner, event: { type: "refineryChanged", sessionId: session.id } }]);
 });

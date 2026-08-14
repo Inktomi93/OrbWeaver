@@ -28,4 +28,11 @@ test("deletes the owned session + its runs; the character survives; a stranger g
   // Canon untouched — the character still reads.
   const detail = await h.character.get({ principal: principal(owner), characterId });
   expect(detail.name).toBe("Aria the Archivist");
+  // The delete announced itself LAST (start · run · delete) — the stranger's refusal announced nothing. The
+  // tick rides after the row is gone: the user bus is live-only, so there is no durable event to orphan.
+  expect(h.userEvents.map((e) => e.event)).toEqual([
+    { type: "refineryChanged", sessionId: session.id },
+    { type: "refineryChanged", sessionId: session.id },
+    { type: "refineryChanged", sessionId: session.id },
+  ]);
 });

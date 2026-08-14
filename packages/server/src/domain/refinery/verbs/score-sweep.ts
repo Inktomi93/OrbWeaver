@@ -23,6 +23,11 @@
 // just counts `failed`, so a library-wide under-budget reads as "the model is bad at this" instead of as a
 // misconfiguration. It now folds the SAME `substrate/output-budget` expression (`sweepOutputSamplingOf`).
 //
+// THE PASS ANNOUNCES ITSELF ONCE, AT THE TERMINAL (event-bus coverage survey §2.5/F2, the #23 import
+// precedent): one `charactersChanged` per owner whose cards it stamped — see `announceSweep`. The per-card
+// stamp stays silent (F6); what moves is the library's score SORT order, and a workload has no mutation for
+// any client to hang an `invalidates` on.
+//
 // TWO FAILURE POSTURES, one pass — the distill batch pattern verbatim (`discovery/verbs/distill.ts`):
 // per-card containment (one bad card must never abort the other 500 — the pass stamps every valid score and
 // REPORTS `failed`), and a bounded per-card retry fan-out (a schema failure is CORRELATED: a summarize model
@@ -33,6 +38,7 @@ import type { RefineryScorePayload, RefineryScoreSweepResult, RefinerySelection 
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { ReportProgress } from "@orb/contracts/workloads";
+import type { UserId } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { estimateTokens } from "@orb/kit/tokens";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
@@ -132,10 +138,38 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
   // One batched call fills the role's parallel-slot pipeline; `items[i]` pairs 1:1 with `result.items[i]`.
   const replies = await fetchBatchReplies(deps, items, sampleOpts);
 
-  const { scored, failed } = await stampParsedScores(deps, { items, replies, sampleOpts }, { report, signal });
-  // `failed` cards were READY (they reached the model), so they are not skipped — the four counts partition
-  // the candidate set exactly: scanned = scored + skipped + failed.
-  return { scanned: inScope, scored, skipped, failed };
+  // The fan's audience is accumulated as the waves land and announced in a `finally`, so a CANCELLED sweep
+  // still tells the owners whose cards it already stamped (an abort mid-pass would otherwise leave the
+  // library sorting on half-new scores until something unrelated moved).
+  const stampedOwners = new Set<UserId>();
+  try {
+    const { scored, failed } = await stampParsedScores(deps, { items, replies, sampleOpts }, { report, signal }, stampedOwners);
+    // `failed` cards were READY (they reached the model), so they are not skipped — the four counts partition
+    // the candidate set exactly: scanned = scored + skipped + failed.
+    return { scanned: inScope, scored, skipped, failed };
+  } finally {
+    announceSweep(deps, stampedOwners);
+  }
+}
+
+/**
+ * THE TERMINAL FAN (survey F2 / the #23 import-terminal shape): ONE `charactersChanged` per owner whose
+ * cards this pass stamped, at the END of the pass — never per card (that is a storm over a library-sized
+ * loop, and the per-card stamp's F6 silence is deliberate and unchanged).
+ *
+ * WHY IT IS NEEDED AT ALL: the writer here is a WORKLOAD, so there is no mutation for a client to hang an
+ * `invalidates` on — not even the tab that started the sweep. The library projects `refineryScore` as a SORT
+ * axis (`character/persistence/queries.ts`), so without this every device served the pre-sweep order until
+ * some unrelated `charactersChanged` happened along.
+ *
+ * PER OWNER, not per pass: the box-wide BULK arm (`ownerId: null`) stamps cards across owners, and a
+ * user-bus event is per-user by construction — a single fan would reach at most one of them. An owner whose
+ * cards all failed/skipped gets nothing, which is the truth.
+ */
+function announceSweep(deps: RefineryWorkloadDeps, stampedOwners: ReadonlySet<UserId>): void {
+  for (const owner of stampedOwners) {
+    deps.emitUserEvent(owner, { type: "charactersChanged" });
+  }
 }
 
 /** THE CONTENT FLOOR (the distill ruling, same shape): a card with no refinable text has nothing to
@@ -182,6 +216,8 @@ async function stampParsedScores(
   deps: RefineryWorkloadDeps,
   pass: { readonly items: readonly SweepItem[]; readonly replies: readonly { readonly text: string }[]; readonly sampleOpts: SummarizeOptions },
   progress: { readonly report: ReportProgress; readonly signal: AbortSignal | undefined },
+  /** The terminal fan's audience, filled in as each wave stamps (the caller owns it — see `announceSweep`). */
+  stampedOwners: Set<UserId>,
 ): Promise<{ scored: number; failed: number }> {
   const { items, replies, sampleOpts } = pass;
   let scored = 0;
@@ -190,7 +226,7 @@ async function stampParsedScores(
     progress.signal?.throwIfAborted();
     const wave = items.slice(i, i + SWEEP_RETRY_CONCURRENCY);
     // biome-ignore lint/performance/noAwaitInLoops: bounded-concurrency WAVES — a wave's per-card retries and its stamps run inside `runWave`; the loop advancing one wave at a time IS the concurrency bound (a fan-out over the whole library is the 429 storm the header names).
-    const outcome = await runWave(deps, wave, replies.slice(i, i + wave.length), sampleOpts);
+    const outcome = await runWave(deps, { wave, replies: replies.slice(i, i + wave.length), sampleOpts, stampedOwners });
     scored += outcome.scored;
     failed += outcome.failed;
     progress.report({ message: `scored ${scored} of ${items.length}`, current: i + wave.length, total: items.length });
@@ -203,10 +239,15 @@ async function stampParsedScores(
  *  column, so a fan-out is a lost-update race, not a speed-up. */
 async function runWave(
   deps: RefineryWorkloadDeps,
-  wave: readonly SweepItem[],
-  replies: readonly { readonly text: string }[],
-  sampleOpts: SummarizeOptions,
+  args: {
+    readonly wave: readonly SweepItem[];
+    readonly replies: readonly { readonly text: string }[];
+    readonly sampleOpts: SummarizeOptions;
+    /** The terminal fan's audience — every owner this wave actually stamped (the caller announces). */
+    readonly stampedOwners: Set<UserId>;
+  },
 ): Promise<{ scored: number; failed: number }> {
+  const { wave, replies, sampleOpts, stampedOwners } = args;
   const parsed = await Promise.all(wave.map((item, j) => parseOneScore(deps, item, replies[j]?.text ?? "", sampleOpts)));
   let scored = 0;
   for (const [j, payload] of parsed.entries()) {
@@ -216,6 +257,7 @@ async function runWave(
     }
     // biome-ignore lint/performance/noAwaitInLoops: sequenced per-card merge-stamp — see this function's header (a fan-out over one JSON column is a lost-update race).
     await deps.stampRefinerySignals({ ownerId: item.target.ownerId, characterId: item.target.characterId, patch: { score: payload.overallScore } });
+    stampedOwners.add(item.target.ownerId);
     scored += 1;
   }
   return { scored, failed: parsed.filter((payload) => payload === null).length };

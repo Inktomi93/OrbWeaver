@@ -15,5 +15,9 @@ export function createDeleteSession(ctx: RefineryContext): RefineryService["dele
       throw new DomainNotFoundError("refinery session", sessionId);
     }
     await ctx.db.delete(refinerySessions).where(eq(refinerySessions.id, sessionId));
+    // AFTER the delete, deliberately: the user bus is live-only and synchronous, so there is no durable
+    // event row a cascade could orphan (the "emit precedes delete" rule is a chat-bus/FK rule). The id is
+    // still the right hint — a subscriber re-reads by id and gets the honest NOT_FOUND.
+    ctx.emitUserEvent(principal.userId, { type: "refineryChanged", sessionId });
   };
 }

@@ -237,6 +237,15 @@ const USER_TRACKED_KEYS = [
   // they had NO driver at all (an open Analytics route froze at mount; a re-open inside gcTime served numbers
   // up to 5 min old). One representative read stands for the router root the map path-invalidates.
   "stats",
+  // The refinery workspace router root (`trpc.refinery`) — roster, session view, run ledger, schema
+  // library, preflight. Before `refineryChanged` existed these were writer-local: the tab that wrote
+  // reconciled and nobody else did (event-bus coverage survey H1).
+  "refinery",
+  // The CARD DETAIL (`character.get`), tracked SEPARATELY from `character` because the interesting row is
+  // the narrow one: a refinery score/analyze run rewrites `characters.refinery.*` through the F6 stamp op,
+  // which emits NOTHING of its own, so `refineryChanged` carries the card's provenance readout — while
+  // leaving the library list alone (nothing about the roster moved).
+  "characterGet",
   // The regex SCRIPT LIBRARY router root (D121-E). Every regex verb emits `regexChanged`, and the library
   // + every scope's attached list live under the one `regex` path — so one coarse member covers the
   // settings pane, the preset/character pickers, and the viewer's display-tier read in one invalidation.
@@ -247,7 +256,9 @@ type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 // EXHAUSTIVE over `UserBusEvent["type"]`: a new member fails `tsc` HERE until it declares what it
 // invalidates — mirroring the `USER_BUS_FILTERS` mapped type it verifies.
 const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
-  charactersChanged: ["character", "memberCard"],
+  // The character ROOT filter covers `character.get` too — which is why the sweep's terminal
+  // `charactersChanged` fan repaints a stamped card's provenance as well as the library's score sort.
+  charactersChanged: ["character", "characterGet", "memberCard"],
   personasChanged: ["persona"],
   presetsChanged: ["preset", "presetEffective", "previewContextFit", "previewAssembly"],
   worldInfoChanged: ["worldInfo"],
@@ -264,6 +275,10 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // `character.list` — the CROSS-DEVICE half of the FIX #2 denorm freshness (device B's only chat-derived
   // signal for a character's `lastChattedAt` / chat membership change).
   chatsChanged: ["character", "chatGet", "chatList", "stats"],
+  // The refinery root + the card detail, and deliberately NOT the character root: a refinery write moves
+  // one card's derived signals, never the library (that is `charactersChanged`'s job). Every persisting
+  // refinery verb emits this, which is what turned the whole feature's mutations busDriven.
+  refineryChanged: ["refinery", "characterGet"],
   // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection
   // router, so the capability read under it goes stale too.
   connectionsChanged: ["connection", "chatCapability"],
@@ -300,6 +315,8 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
         memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
         stats: trpc.stats.overview.queryKey(),
+        refinery: trpc.refinery.listSessions.queryKey(),
+        characterGet: trpc.character.get.queryKey({ characterId: CHARACTER_ID }),
       };
       for (const key of Object.values(keys)) {
         queryClient.setQueryData([...key], [] as never);
@@ -352,6 +369,9 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       trpc.connection.getCatalog.queryKey(),
       trpc.connection.resolveChatCapability.queryKey(),
       trpc.stats.overview.queryKey(),
+      // The refinery root joined the heal set the moment `refineryChanged` joined the map — the set is
+      // DERIVED from `USER_BUS_EVENT_TYPES`, so this row is a pin on that derivation, not a second list.
+      trpc.refinery.listSessions.queryKey(),
     ];
     for (const key of roots) {
       queryClient.setQueryData([...key], [] as never);

@@ -220,6 +220,11 @@ test("a sweep is OWNER-SCOPED: another owner's cards are neither read nor stampe
   const scoreOf = new Map(rows.map((row) => [row.id, row.refinery?.score ?? null]));
   expect(scoreOf.get(myCard)).toBe(4);
   expect(scoreOf.get(theirCard)).toBeNull();
+  // THE TERMINAL FAN (survey F2): exactly ONE `charactersChanged`, to the owner whose card was stamped —
+  // the library sorts on `refineryScore`, and a workload has no mutation for any client to hang an
+  // `invalidates` on, so without this every device kept serving the pre-sweep order. Not one per card
+  // (that is a storm over a library-sized loop), and not `refineryChanged` (no refinery row moved).
+  expect(h.userEvents).toEqual([{ userId: mine, event: { type: "charactersChanged" } }]);
 });
 
 test("the BULK arm (ownerId null) sweeps every owner, stamping each card under ITS OWN owner", async () => {
@@ -242,6 +247,13 @@ test("the BULK arm (ownerId null) sweeps every owner, stamping each card under I
   const scoreOf = new Map(rows.map((row) => [row.id, row.refinery?.score ?? null]));
   expect(scoreOf.get(alphaCard)).toBe(6);
   expect(scoreOf.get(betaCard)).toBe(6);
+  // The terminal fan is PER OWNER for the same reason the stamp is: a user-bus event reaches exactly one
+  // user's channel, so a single fan on a mixed-owner pass would leave every other owner frozen. One each,
+  // once — never one per card.
+  expect(h.userEvents).toEqual([
+    { userId: alpha, event: { type: "charactersChanged" } },
+    { userId: beta, event: { type: "charactersChanged" } },
+  ]);
 });
 
 test("an aborted sweep stops before spending a model call", async () => {
@@ -255,4 +267,8 @@ test("an aborted sweep stops before spending a model call", async () => {
 
   await expect(sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: controller.signal })).rejects.toThrow();
   expect(h.summarizeCalls).toHaveLength(0);
+  // Nothing was stamped, so nothing is announced — the terminal fan's audience is the owners whose cards
+  // actually took a score, never "whoever the pass was pointed at". (An abort AFTER some stamps does fan:
+  // the set is accumulated as the waves land and announced from a `finally`.)
+  expect(h.userEvents).toHaveLength(0);
 });

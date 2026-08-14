@@ -4,6 +4,10 @@
 // persistence factories (card read + signal stamp; `characters.*` keeps one writer, F6) and the two
 // service verbs (snapshot + update + the zero-write get) the apply path rides.
 //
+// Both halves close over the ONE per-user freshness plane (`publishUserEvent`, the house injected-emit
+// pattern — the domain never reaches at transport): the service verbs emit `refineryChanged`, and the sweep
+// fans `charactersChanged` once per stamped owner at its terminal (survey F1/F2).
+//
 // It also raises the domain's WORKLOAD deps (R4): the `refine-score-sweep` library pass closes over a
 // DIFFERENT, smaller bundle than the service (no session minters, no clock, none of the apply-path ops) —
 // so the two are assembled side by side here rather than the queue reaching into the service.
@@ -19,6 +23,7 @@ import type { CharacterService } from "#domain/character";
 import { createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "#domain/character";
 import type { RefineryService, RefineryWorkloadDeps } from "#domain/refinery";
 import { createRefineryService } from "#domain/refinery";
+import { publishUserEvent } from "../../transport/trpc/index.ts";
 import { minter } from "./minter.ts";
 
 export interface RefineryComposeDeps {
@@ -51,6 +56,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     summarizerContextTokens: deps.roleClients.summarizerContextTokens,
     resolveUserPresetParams: deps.resolveUserPresetParams,
     resolveUserProse,
+    emitUserEvent: publishUserEvent,
     loadOwnedCard: createLoadOwnedCard({ db: deps.db }),
     stampRefinerySignals,
     snapshotCharacter: deps.character.snapshot,
@@ -67,6 +73,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
       resolveUserProse,
       listRefineryScoreTargets: createListRefineryScoreTargets({ db: deps.db }),
       stampRefinerySignals,
+      emitUserEvent: publishUserEvent,
     },
   };
 }
