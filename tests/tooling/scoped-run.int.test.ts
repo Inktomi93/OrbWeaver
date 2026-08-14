@@ -33,7 +33,7 @@ function project(files: Readonly<Record<string, string>>): Project {
 }
 
 /** A `projectCtx`-shaped base over an in-memory project (the CLI builds the real disk one). */
-function baseFor(files: Readonly<Record<string, string>>): Omit<GateRunCtx, "report"> {
+function baseFor(files: Readonly<Record<string, string>>): Omit<GateRunCtx, "report" | "scan"> {
   const p = project(files);
   return {
     root: ROOT,
@@ -54,7 +54,7 @@ function folderScope(folder: string): { scope: Scope; inScope: (rel: string) => 
 }
 
 /** The full-run oracle for one gate: `runPass` over the whole project at scope=project — the site set. */
-function fullSites(base: Omit<GateRunCtx, "report">, gateName: string): string[] {
+function fullSites(base: Omit<GateRunCtx, "report" | "scan">, gateName: string): string[] {
   const result = runPass(
     [noCallerUserIdGate, busCoverageGate].filter((g) => g.name === gateName),
     base,
@@ -64,7 +64,7 @@ function fullSites(base: Omit<GateRunCtx, "report">, gateName: string): string[]
 }
 
 /** The scoped-run site set for one gate. */
-function scopedSites(base: Omit<GateRunCtx, "report">, selection: { scope: Scope; inScope: (rel: string) => boolean }, gateName: string): string[] {
+function scopedSites(base: Omit<GateRunCtx, "report" | "scan">, selection: { scope: Scope; inScope: (rel: string) => boolean }, gateName: string): string[] {
   const { pass } = runScopedPass([noCallerUserIdGate, busCoverageGate], base, selection);
   const findings = pass.gates.find((g) => g.name === gateName)?.findings ?? [];
   return findings.map((f) => `${f.file}:${f.line}`).sort();

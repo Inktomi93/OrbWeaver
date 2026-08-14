@@ -213,14 +213,21 @@ function walkMd(root: string, relDir: string, out: string[]): void {
   }
 }
 
-function scanDocLinks(root: string): Violation[] {
-  const out: Violation[] = [];
+/** The markdown corpus arms 2–4 read. Returned to the caller so the gate can DECLARE its scan denominator:
+ *  this gate's units are docs on disk, and the harness — which only sees the ts-morph workspace — would
+ *  otherwise report a file count it never read (pass.ts `GateScan`). */
+function docCorpus(root: string): readonly string[] {
   const files: string[] = [];
   for (const dir of SCAN_DIRS) {
     if (existsSync(join(root, dir))) {
       walkMd(root, dir, files);
     }
   }
+  return files;
+}
+
+function scanDocLinks(root: string, files: readonly string[]): Violation[] {
+  const out: Violation[] = [];
   for (const rel of files) {
     const src = readFileSync(join(root, rel), "utf8");
     const seen = new Set<string>();
@@ -670,7 +677,12 @@ export const gate: GateDescriptor = {
     "structurally (deliberate history). See Core-Enforcement-Active-Gates.md.",
   fix: "repoint the cite to the doc's real home (bare names resolve against core/ then history/ then proposed/ then repo root; a markdown link resolves relative to its own file first; a backtick path/symbol repoints to the live name or rewords as history), or delete a dead link; never delete surrounding prose.",
   run: (ctx) => {
-    for (const v of [...scanGateDescriptors(ctx.root), ...scanDocLinks(ctx.root)]) {
+    const docs = docCorpus(ctx.root);
+    // This gate reads DOCS off disk, not the shared ts-morph fileset — so it declares its own denominator.
+    // Left undeclared, its scan-health row would carry the workspace file count (a number it never read)
+    // and the zero-scan alarm could not tell a real blindness from a gate that scans no `.ts` at all.
+    ctx.scan({ unit: "doc", scanned: docs.length });
+    for (const v of [...scanGateDescriptors(ctx.root), ...scanDocLinks(ctx.root, docs)]) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
     const arm3 = scanPathTokens(ctx.root, ARM3_ALLOW);

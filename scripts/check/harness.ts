@@ -3,6 +3,7 @@
 // `GateResult` types + `getProject`, still consumed by the injectable-baseline factories, the retained
 // `monotonicTests` Check, gen-fabrication-baseline.ts, and report.ts's JSON writer.
 import { Project } from "ts-morph";
+import type { GateScan } from "./pass.ts";
 
 export type Violation = {
   readonly file: string;
@@ -42,4 +43,8 @@ export type GateResult = {
   readonly name: string;
   readonly ok: boolean;
   readonly violations: readonly Violation[];
+  /** The DENOMINATOR behind this verdict (pass.ts `GateScan`) — how many files the gate was actually fed,
+   *  and what a ratchet baseline admitted. Carried into check-structure.json so the canonical artifact
+   *  stops reporting a green gate without saying whether it read anything (Codex GA-H-01/02, 2026-08-13). */
+  readonly scan: GateScan;
 };

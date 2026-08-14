@@ -294,7 +294,11 @@ function judgeMarkers(ctx: GateRunCtx, consumed: ReadonlyMap<string, number>): v
 function judgeBaseline(ctx: GateRunCtx, byFile: ReadonlyMap<string, Site[]>): void {
   const baseline = readBaseline(ctx.root);
   for (const [file, sites] of byFile) {
-    for (const site of sites.slice(baseline[file] ?? 0)) {
+    const budget = baseline[file] ?? 0;
+    // Declared debt, surfaced as `admitted-by-ratchet: N` beside the ✓ — a green ratchet gate still names
+    // the population it is carrying (Codex GA-H-02).
+    ctx.scan({ admitted: Math.min(budget, sites.length) });
+    for (const site of sites.slice(budget)) {
       ctx.report(site.node, { token: site.arm, offset: 0 });
     }
   }

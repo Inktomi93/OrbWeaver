@@ -74,6 +74,32 @@ export type GateExample = {
   readonly why?: string; // one-liner: what this example proves (rendered in conformance failures)
 };
 
+/** What a gate DECLARES about its own scan, for the counts the harness structurally cannot observe.
+ *  Every field is optional and every numeric field ACCUMULATES across calls (`unit` is last-wins), so a
+ *  gate may declare once in `finalize` or per batch. Nothing here can shrink the harness's own observed
+ *  file counts — a gate can add to the picture, never overwrite it green.
+ *
+ *  Two live uses (GATE-AUTHORING.md §"Harness mechanics"):
+ *  - `admitted` — findings a committed RATCHET BUDGET absolved this run. Declared debt is not "clean";
+ *    the reporter prints it as `admitted-by-ratchet: N` beside the ✓ so a green gate still shows the
+ *    population it is carrying.
+ *  - `unit`/`candidates`/`scanned`/`skipped` — a gate reading units the shared ts-morph walk cannot see
+ *    (markdown, CSS, JSON rows). Without this its harness row reports the workspace file count, which is
+ *    a denominator it never actually read, and (for a gate whose `scanRoot` admits nothing) its ZERO-SCAN
+ *    alarm would be a false positive. */
+export interface GateScanDeclaration {
+  /** What one declared scan counts, singular ("doc", "stylesheet", "row"). Default `"unit"`. */
+  readonly unit?: string;
+  /** Units the gate could have read. Defaults to `scanned` when omitted. */
+  readonly candidates?: number;
+  /** Units the gate actually read. */
+  readonly scanned?: number;
+  /** Units deliberately not read, by REASON — the gate's own skip vocabulary. */
+  readonly skipped?: Readonly<Record<string, number>>;
+  /** Findings a committed ratchet baseline absolved this run (declared debt, NOT violations). */
+  readonly admitted?: number;
+}
+
 /** Per-run context handed to every hook. */
 export interface GateRunCtx {
   readonly root: string;
@@ -89,6 +115,9 @@ export interface GateRunCtx {
     (node: Node, atToken?: { readonly token: string; readonly offset: number }): void;
     (finding: Finding): void;
   };
+  /** The SCAN-HEALTH sink (optional to call — the harness records file counts for every gate either way).
+   *  Declare only what the harness cannot see: `admitted` ratchet debt, and non-file scan units. */
+  readonly scan: (counts: GateScanDeclaration) => void;
 }
 
 export interface GateDescriptor {

@@ -38,8 +38,18 @@ const ROOT = join(import.meta.dirname, "..", "..");
 // ever fire → a one-shot "unfired: [Lockfile]" red that passed on immediate re-run. Anchoring makes the
 // scrape total w.r.t. any ambient child chatter; if renderPass's format ever drifts the registry goes
 // empty and the `registry.size > 8` test below fails LOUD rather than silently.
-const OK_RE = /^ {2}✓ (?<gate>[a-zA-Z0-9-]+)$/gmu;
-const FIRED_RE = /^ {2}✗ (?<gate>[a-zA-Z0-9-]+) \(\d+\)$/gmu;
+//
+// The `  ·  scanned N/M files…` SCAN-HEALTH suffix (2026-08-13) rides every gate line, so both patterns
+// end in an optional suffix group rather than a bare `$` — still anchored (the whole line is described),
+// still total against ambient `pnpm` chatter. A third shape joined at the same time: `  ⚠ <name>` for a
+// gate that scanned ZERO files, which is neither a pass nor a violation but a BLIND checker. It is
+// scraped into the registry (the gate did run) AND asserted absent by its own test below — without the
+// scrape, a blind gate would silently drop out of `registry` and surface as a baffling
+// "unregistered gate file" red instead of the thing it is.
+const SCAN_SUFFIX = String.raw` {2}·  scanned \d+/\d+ files.*`;
+const OK_RE = new RegExp(`^ {2}✓ (?<gate>[a-zA-Z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
+const FIRED_RE = new RegExp(String.raw`^ {2}✗ (?<gate>[a-zA-Z0-9-]+) \(\d+\)(?:${SCAN_SUFFIX})?$`, "gmu");
+const BLIND_RE = new RegExp(`^ {2}⚠ (?<gate>[a-zA-Z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
 const TS_EXT_RE = /\.ts$/u;
 const GATE_DIR = join(ROOT, "scripts", "check", "gates");
 // every gate file on disk (basename) — the source of truth for "what gates exist". `__g_*` are THIS suite's
@@ -972,6 +982,8 @@ const UNFIXTURABLE_GATES = new Set([
 
 let registry = new Set<string>();
 let fired = new Set<string>();
+let cleanRun = "";
+let blind = new Set<string>();
 
 beforeAll(() => {
   cleanFixtures();
@@ -979,7 +991,9 @@ beforeAll(() => {
   // (e.g. test-presence flagging a not-yet-tested infra/foundation file) and must still count as
   // "registered" — otherwise the dir-cross-check below would mistake an honest red for an unregistered gate.
   const cleanReport = runStructure();
-  registry = new Set([...names(OK_RE, cleanReport), ...names(FIRED_RE, cleanReport)]);
+  cleanRun = cleanReport;
+  blind = names(BLIND_RE, cleanReport);
+  registry = new Set([...names(OK_RE, cleanReport), ...names(FIRED_RE, cleanReport), ...blind]);
   writeFixtures();
   fired = names(FIRED_RE, runStructure()); // with fixtures: the gates that caught a violation
 }, 300_000);
@@ -990,6 +1004,32 @@ afterAll(() => {
 
 test("derives a non-trivial gate registry from report.ts (not silently empty)", () => {
   expect(registry.size).toBeGreaterThan(8);
+});
+
+// Any glyph, then the scan suffix — a status line that carries no count fails this.
+const SCANNED_RE = /^ {2}[✓✗⚠] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}scanned \d+\/\d+ files/gmu;
+const DENSITY_ADMITTED_RE = /^ {2}[✓✗⚠] density-tier.*admitted-by-ratchet: \d+/mu;
+const PROVENANCE_ADMITTED_RE = /^ {2}[✓✗⚠] finding-overload-provenance.*admitted-by-ratchet: \d+/mu;
+
+test("every gate reports the SCAN DENOMINATOR behind its verdict (Codex GA-H-01)", () => {
+  // A verdict without a denominator cannot be audited: ✓ reads identically whether the gate examined
+  // 4,796 files or none of them. This is the permanent form of that guarantee over the REAL corpus.
+  const counted = names(SCANNED_RE, cleanRun);
+  expect([...registry].filter((g) => !counted.has(g))).toEqual([]);
+});
+
+test("no active gate scanned ZERO files on the real tree (the zero-scan placebo)", () => {
+  // A gate whose scanRoot admits nothing runs, finds nothing, and renders green. report.ts calls that a
+  // TOOL error (exit 2) — this pins the population at zero so the day one appears it is attributed here
+  // and not mistaken for an unregistered-gate drift red.
+  expect([...blind]).toEqual([]);
+});
+
+test("a ratchet gate names the debt it admits in normal output (Codex GA-H-02)", () => {
+  // green ≠ clean population: both live ratchets carry a committed per-file budget, and until 2026-08-13
+  // the only way to learn the number was to run the generator.
+  expect(cleanRun).toMatch(DENSITY_ADMITTED_RE);
+  expect(cleanRun).toMatch(PROVENANCE_ADMITTED_RE);
 });
 
 test("every registered structural gate fires on its fixture (anti-drift)", () => {
