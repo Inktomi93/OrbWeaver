@@ -417,9 +417,12 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   every resolved target mechanically audit-verified substring-safe; `node_modules=/real/path`
   laundering now ASKS — a tighten the arm added), 20 int tests, two planted controls. Owner
   over-matches confirmed untouched (14 of 26 new asks are the `rm -f "$probe"` class = the ruling
-  working). **GUARD LEG-5 QUEUE (each its own tighten + A/B):** `rm "-rf"` quoted-flags blindness ·
-  `/bin/rm` path-prefix head miss · the escaped-quote substitution skip (`"$(rm -rf \"…\")"`
-  never parses) · item G comment-span (owner-worded, agenda'd in the A/B doc).
+  working). **GUARD LEG-5 LANDED (`351a5af2d`, merging w/ its K follow-on):** quoted-flags + `/bin/rm`
+  prefix + escaped-quote paren-walk all closed (123,462-cmd A/B, 1 mover, stricter; 26 new rows,
+  11 red on base; one PINNED directional reclassification — a quoted r/f FLAG stops counting as a
+  TARGET, receipted, 0 corpus). **Item K ruled-in by orchestrator (0-mover tighten):**
+  uppercase/long rm flags join the vocabulary (warm leg, second commit). REMAINING owner-worded:
+  item G comment-span only.
 - [ ] **GUARD OWNER-CALL PILE (surfaced by the first leg, each would LOOSEN a control — rule when
   convenient):** (A) 6 corpus cmds `$(sqlite3 "file:…backup-*?mode=ro" …)` now ask — a ro/backup
   safe-hint is a loosening · (B) 4 cmds `"$(curl localhost | node -e …)"` now deny via the
@@ -459,6 +462,12 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   `chat_template_kwargs.enable_thinking`; the `<|think_on|>` template marker does NOT flip the
   parser — trap written up in §7). M5 CSS re-receipt partial (rule live + computes visible; no
   probe turn produced a fence — honest gap, closes on any future live drive with a code block).
+- [ ] **d129-pair MERGE BLOCKED by the Codex WIP (commit safe on branch `recover-d129` =
+  `b8f76ed66`):** its diff touches `package.json` (the probe script) + `Core-Path-Registry.md`
+  (D129 annotation flips) — both dirty in Codex's revamp footprint (now grown to the LEDGER files +
+  CODEOWNERS). Merge fires the moment Codex commits/lands. ALSO RECORDED: the orchestrator broke
+  the never-chain-teardown-behind-a-merge law and deleted the lane branch on a failed merge —
+  recovered by sha; the law exists for exactly this.
 - [ ] **CODEX DOCS-SYSTEM REVAMP LIVE ON MAIN (owner-tasked, 08-14 \~13:30 — "revamping our entire
   documentation system"):** uncommitted footprint = AGENTS.md · CLAUDE.md · core/AGENTS.md ·
   package.json · scripts/verify/registry.ts · tests/tooling/verify-run.int.test.ts + untracked
