@@ -7,12 +7,16 @@
  * one geometry, every scale).
  */
 
+export type { WeaveCharacter } from "./web-weave-character.ts";
+export { WEAVE_CHARACTERS } from "./web-weave-character.ts";
 export type { WeaveVeilProps } from "./weave-veil.tsx";
 export { WeaveVeil } from "./weave-veil.tsx";
 export type { WebGlyphGeometry, WebGlyphInput, WebGlyphSpoke } from "./web-glyph.ts";
 export { WEB_GLYPH_COMPACT, WEB_GLYPH_DISPLAY, webGlyph } from "./web-glyph.ts";
 export type { WebWeaveProps } from "./web-weave.tsx";
 export { WebWeave } from "./web-weave.tsx";
-export type { BuildWebInput, SpiderLeg, WeaveDewDrop, WeavePhase, WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
-export { AUX_TURNS, buildStrandOut, buildWeb, CAPTURE_TURNS, RADIUS_COUNT, WEAVE_STATES, WEAVE_TIMELINE, weavePhaseAt } from "./web-weave-geometry.ts";
+export type { BuildWebInput, SpiderLeg, WeaveDewDrop, WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+export { AUX_TURNS, buildStrandOut, buildWeb, CAPTURE_TURNS, RADIUS_COUNT, WEAVE_STATES } from "./web-weave-geometry.ts";
 export { sagLine, weaveJitter } from "./web-weave-math.ts";
+export type { WeavePhase } from "./web-weave-timeline.ts";
+export { WEAVE_TIMELINE, weavePhaseAt } from "./web-weave-timeline.ts";

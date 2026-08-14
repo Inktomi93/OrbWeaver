@@ -85,6 +85,34 @@ system; sizes stay the shipped 16/20/24/32/48 table unless the owner rules other
 - Strand-out as navigation: trigger `state="strand-out"`, crossfade content at \~1300ms while she
   rides the strand; restore with `state="settled"`.
 
+## As built (2026-08-14)
+
+Landed across `packages/ui/src/art/web-weave/` (+ the spinner's CSS), red-first where the spec gave an
+acceptance shape; 58 unit tests in `tests/ui/art/web-weave/` and 16 CTs. Where the tree differs:
+
+1. **The scaffold seam DISSOLVED rather than moving.** §3's own thesis (no unattended silk) applies to
+   the aux spiral too: the last radius left her at the hub while the scaffold began a free-zone radius
+   out, so she jumped ~100px and its first ring was spun by nobody. She now WALKS OUT over the first 8%
+   of the scaffold beat, and the scaffold's birth times start when she arrives. The build's itinerary
+   is now gap-free end to end (previously one pinned 104px seam).
+2. **`character` defaults to `calm`, and `calm.turnRate` is the SHIPPED 0.22, not the lab's 0.18.** The
+   lab defaults to `full`; adopting that would have re-livened the motion the owner's "turbo" ruling
+   calmed, for every existing host, without anyone asking. Hosts opt IN.
+3. **`interactive` flips pointer-events but NOT `aria-hidden`** (the spec says "pointer-events + aria").
+   The canvas has no accessible name, no state to announce and no keyboard path to the pluck; un-hiding
+   it would advertise an affordance that does not exist and put a dead end in the tab order's
+   neighbourhood. Ornament that answers a cursor is still ornament. Flagged for a `side-eye` lens.
+4. **Wind and a live pluck drop the frame off the offscreen cache** (and back on when the last ring
+   dies). The perf note says keep the bake/composite split; a cached blit can only sway as one rigid
+   sheet, so per-point weather and a ringing strand cannot be expressed through it. The DEFAULT path
+   (no wind, nothing touched) is unchanged and still cached.
+5. **The spinner's pay-out runs the dash offset to +L, not −L.** With `dasharray: L`, `0 → +L` hides the
+   spiral from the hub end outward — the drawn silk travels away and off the rim, which is what
+   "pay-out" describes. `0 → −L` retracts it back toward the hub (a rewind). §4's parenthetical says
+   −L; the browser-verified reference uses +L. The reference wins, and the CSS carries the reasoning.
+6. Sizes stayed the shipped 16/20/24/32/48 table, per the spec's own repo-mapping note; the loop rides
+   `data-animate` + the icon-seal glyph, no web component.
+
 ## Perf notes
 
 - Physics adds per-point work only on strands with live plucks; glint remains per-segment. The lab

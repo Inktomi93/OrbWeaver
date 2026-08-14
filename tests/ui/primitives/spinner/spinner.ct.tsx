@@ -33,7 +33,7 @@ test("sm/md/lg render the legacy Spinner's 16/20/24 px (the drop-in swap contrac
   await expect(page.locator("svg")).toHaveCSS("width", `${HERO_PX}px`);
 });
 
-test("animates by default: the orb spin on the svg, the silk pulse (with its dash) on the spiral", async ({ mount, page }) => {
+test("animates by default: the orb spin on the svg, the WEAVE loop (with its dash) on the spiral", async ({ mount, page }) => {
   await mount(<WebSpinner label="Loading" size="lg" />);
   const root = page.locator('[data-slot="web-spinner"]');
   await expect(root).toHaveAttribute("data-animate", "");
@@ -43,11 +43,24 @@ test("animates by default: the orb spin on the svg, the silk pulse (with its das
   const spiral = page.locator("svg .orb-web-pulse");
   const spiralStyle = await spiral.evaluate((el) => {
     const s = getComputedStyle(el);
-    return { animation: s.animationName, dash: s.strokeDasharray };
+    return { animation: s.animationName, dash: s.strokeDasharray, offset: s.strokeDashoffset };
   });
   // ONESHOT-OK: same — declared-rule reads, no transition in flight.
-  expect(spiralStyle.animation).toBe("orb-web-pulse");
+  expect(spiralStyle.animation).toBe("orb-web-weave");
+  // ONE dash as long as the whole spiral — that is what makes the loop DRAW THE SILK OUT rather than
+  // running a lit segment along it (the shipped pulse was `12px <gap>`, two values).
   expect(spiralStyle.dash).not.toBe("none");
+  expect(spiralStyle.dash.split(",")).toHaveLength(1);
+  const spiralLength = Number.parseFloat(spiralStyle.dash);
+  // The offset is mid-flight (the loop is running), so assert what a running weave looks like: it is
+  // somewhere inside [0, length] now, and it has MOVED a few frames later.
+  const offsetNow = Number.parseFloat(spiralStyle.offset);
+  expect(offsetNow).toBeGreaterThanOrEqual(0);
+  expect(offsetNow).toBeLessThanOrEqual(spiralLength);
+  await expect.poll(async () => spiral.evaluate((el) => getComputedStyle(el).strokeDashoffset)).not.toBe(spiralStyle.offset);
+  // The spokes breathe under it instead of sitting at a fixed dim.
+  const spokes = await page.locator("svg .orb-web-spokes").evaluate((el) => getComputedStyle(el).animationName);
+  expect(spokes).toBe("orb-web-breathe");
 });
 
 test("reduced motion renders the STATIC glyph — no animation, and the spiral is SOLID (no dash)", async ({ mount, page }) => {
@@ -60,9 +73,13 @@ test("reduced motion renders the STATIC glyph — no animation, and the spiral i
   expect(svgAnimation).toBe("none");
   const spiralStyle = await page.locator("svg .orb-web-pulse").evaluate((el) => {
     const s = getComputedStyle(el);
-    return { animation: s.animationName, dash: s.strokeDasharray };
+    return { animation: s.animationName, dash: s.strokeDasharray, offset: s.strokeDashoffset };
   });
-  // ONESHOT-OK: static style-rule resolution — the REMOVE arm leaves no dash and no animation.
+  // ONESHOT-OK: static style-rule resolution — the REMOVE arm leaves no dash and no animation, so the
+  // resting glyph is the FULLY WOVEN web (not a half-drawn spiral frozen mid-loop).
   expect(spiralStyle.animation).toBe("none");
   expect(spiralStyle.dash).toBe("none");
+  expect(Number.parseFloat(spiralStyle.offset)).toBe(0);
+  const spokes = await page.locator("svg .orb-web-spokes").evaluate((el) => getComputedStyle(el).animationName);
+  expect(spokes).toBe("none");
 });
