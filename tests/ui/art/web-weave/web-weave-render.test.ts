@@ -8,10 +8,10 @@
 // The instrument is a recording 2D context: no jsdom, no canvas binding — the painters only ever call
 // context methods, so recording them is a complete observation of the frame.
 
-import type { WeavePoint } from "@orb/ui/web-weave";
+import type { WeavePoint, WovenWeb } from "@orb/ui/web-weave";
 import { buildWeb, WEAVE_TIMELINE } from "@orb/ui/web-weave";
 import { describe } from "vitest";
-import type { WeavePalette } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
+import type { WeavePalette, WeavePluckMap } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
 import { glintSegmentLit, glintSweepAngle, renderWeaveFrame, swayPt, weaveSwayOffset } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -103,16 +103,30 @@ const PALETTE: WeavePalette = {
   spiderBand: "rgb(6, 6, 6)",
 };
 
+const CALM = { wind: 0, shiver: 0 } as const;
+
 /** Record one settled, animated frame (sway live, glint sweeping, dew condensed). */
-function recordSettledFrame(): RecordingContext {
+function recordSettledFrame(over?: { plucks?: WeavePluckMap; wind?: number; web?: WovenWeb }): RecordingContext {
   const recorder = new RecordingContext();
-  const web = buildWeb(BOX);
+  const web = over?.web ?? buildWeb(BOX);
   renderWeaveFrame(
     // The recorder IS the instrument: a canvas context has no typed factory, the painters only ever CALL
     // methods on it, and every method they use is implemented above (a new one throws, loudly).
     // FABRICATION-OK: recording 2D context — no factory exists for CanvasRenderingContext2D.
     recorder as unknown as Parameters<typeof renderWeaveFrame>[0],
-    { web, state: "settled", t: WEAVE_TIMELINE.rest, now: NOW_MS, palette: PALETTE, dim: 1, still: false, spider: true, strandOut: null },
+    {
+      web,
+      state: "settled",
+      t: WEAVE_TIMELINE.rest,
+      now: NOW_MS,
+      palette: PALETTE,
+      dim: 1,
+      still: false,
+      spider: true,
+      strandOut: null,
+      weather: { ...CALM, wind: over?.wind ?? 0 },
+      plucks: over?.plucks ?? null,
+    },
     { prev: null },
   );
   return recorder;
@@ -126,20 +140,24 @@ describe("swayPt — the one sway field", () => {
   });
 
   test("the field displaces by a bounded, position-dependent amount", () => {
-    const swayed = swayPt(p, { kind: "field", now: NOW_MS });
+    const swayed = swayPt(p, { kind: "field", now: NOW_MS, ...CALM });
     expect(Math.hypot(swayed.x - p.x, swayed.y - p.y)).toBeGreaterThan(0);
     // The field's amplitude is the ambient breath, not a lurch: a couple of px on each axis.
     expect(Math.abs(swayed.x - p.x)).toBeLessThanOrEqual(2.1);
     expect(Math.abs(swayed.y - p.y)).toBeLessThanOrEqual(1.5);
     // Position-dependent: a neighbour on a different row/column moves differently.
-    expect(swayPt({ x: p.x + 90, y: p.y + 90 }, { kind: "field", now: NOW_MS })).not.toEqual({ x: swayed.x + 90, y: swayed.y + 90 });
+    expect(swayPt({ x: p.x + 90, y: p.y + 90 }, { kind: "field", now: NOW_MS, ...CALM })).not.toEqual({ x: swayed.x + 90, y: swayed.y + 90 });
   });
 
   test("offset mode IS the translate the cached blit is drawn with", () => {
     // The resting path blits a rigid buffer at weaveSwayOffset and paints the live layers over it — if
     // these two disagreed by even a pixel, every highlight and dew drop would slide across the silk.
-    const { dx, dy } = weaveSwayOffset(NOW_MS);
-    expect(swayPt(p, { kind: "offset", now: NOW_MS })).toEqual({ x: p.x + dx, y: p.y + dy });
+    const { dx, dy } = weaveSwayOffset({ kind: "offset", now: NOW_MS, ...CALM });
+    expect(swayPt(p, { kind: "offset", now: NOW_MS, ...CALM })).toEqual({ x: p.x + dx, y: p.y + dy });
+    // …and it stays true with the weather up, or a windy resting web would slide under its own dew.
+    const windy = { kind: "offset", now: NOW_MS, wind: 0.7, shiver: 0.4 } as const;
+    const blown = weaveSwayOffset(windy);
+    expect(swayPt(p, windy)).toEqual({ x: p.x + blown.dx, y: p.y + blown.dy });
   });
 });
 
@@ -201,5 +219,50 @@ describe("renderWeaveFrame — the settled frame", () => {
     expect(drops.length).toBeGreaterThan(3);
     const drift = drops.map((drop) => Math.min(...capture.points.map((p) => Math.hypot(p.x - drop.x, p.y - drop.y))));
     expect(Math.max(...drift)).toBeLessThan(COINCIDENT_PX);
+  });
+});
+
+describe("renderWeaveFrame — the silk under a pluck", () => {
+  test("a plucked strand is drawn DISPLACED, and its dew rides with it", () => {
+    const web = buildWeb(BOX);
+    // Strike the capture spiral mid-run, a beat before the recorded instant, so the ring is live.
+    const plucks: WeavePluckMap = new Map([[web.capture, [{ s0: 0.5, t0: NOW_MS - 60, amp: 8 }]]]);
+    const quiet = recordSettledFrame({ web });
+    const rung = recordSettledFrame({ web, plucks });
+    const longest = (frame: RecordingContext): RecordedStroke => {
+      let best = frame.strokes[0] as RecordedStroke;
+      for (const stroke of frame.strokes) {
+        if (stroke.points.length > best.points.length) {
+          best = stroke;
+        }
+      }
+      return best;
+    };
+    const before = longest(quiet).points;
+    const after = longest(rung).points;
+    expect(after).toHaveLength(before.length);
+    const moved = before.map((p, i) => Math.hypot(p.x - (after[i] as WeavePoint).x, p.y - (after[i] as WeavePoint).y));
+    // The ring is local: the struck neighbourhood moves, the far end of the spiral does not.
+    expect(Math.max(...moved)).toBeGreaterThan(1);
+    expect(Math.min(...moved)).toBeLessThan(0.01);
+    // …and the dew still sits exactly on the silk it hangs from — the whole point of the drop's index.
+    const drops = rung.arcs.filter((a) => a.depth === 0);
+    const drift = drops.map((drop) => Math.min(...after.map((p) => Math.hypot(p.x - drop.x, p.y - drop.y))));
+    expect(Math.max(...drift)).toBeLessThan(COINCIDENT_PX);
+  });
+
+  test("an untouched web is drawn IDENTICALLY with the physics module wired in (inert by default)", () => {
+    // The regression guard for every host that never opts in: no wind, no plucks → the same numbers.
+    const a = recordSettledFrame();
+    const b = recordSettledFrame({ plucks: new Map() });
+    expect(JSON.stringify(b.strokes)).toBe(JSON.stringify(a.strokes));
+    expect(JSON.stringify(b.arcs)).toBe(JSON.stringify(a.arcs));
+  });
+
+  test("wind widens the sway — the same strand is drawn further from its rest position", () => {
+    const rest = recordSettledFrame().strokes[0] as RecordedStroke;
+    const blown = recordSettledFrame({ wind: 1 }).strokes[0] as RecordedStroke;
+    const spread = rest.points.map((p, i) => Math.hypot(p.x - (blown.points[i] as WeavePoint).x, p.y - (blown.points[i] as WeavePoint).y));
+    expect(Math.max(...spread)).toBeGreaterThan(1);
   });
 });
