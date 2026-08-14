@@ -5,7 +5,7 @@
 // ladder + router wiring without a db or HTTP. (No determinism seam needed: transport reads no clock.)
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "@orb/server/transport/trpc";
 import { createCaller, createSocketRegistry } from "@orb/server/transport/trpc";
@@ -55,6 +55,9 @@ export function makeContext(parts: {
   presence?: PresenceRegistry;
   /** The multiplexed-socket cells; a fresh isolated registry per context unless the test supplies one. */
   sockets?: SocketRegistry;
+  /** W7a — WHICH cookie session this request came in on. Defaults to `null` (the sessionless admission arms);
+   *  the per-SESSION socket-eviction tests set it, because it is what `stream.connect` stamps on the cell. */
+  sessionId?: SessionId | null;
   /** Defaults TRUE (multi-human capable) so the multi-human surfaces stay reachable; the PD-106 belt
    *  tests set it FALSE to exercise the 404 refusal. */
   multiHumanCapable?: boolean;
@@ -63,6 +66,7 @@ export function makeContext(parts: {
 }): Context {
   return {
     auth: parts.auth ?? null,
+    sessionId: parts.sessionId ?? null,
     // biome-ignore lint/suspicious/noExplicitAny: a thin router reaches exactly one verb; the rest of the partial Services is never read.
     services: (parts.services ?? {}) as any as Services,
     rateLimit: parts.rateLimit ?? allowAll,

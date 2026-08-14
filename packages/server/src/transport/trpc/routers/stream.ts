@@ -36,7 +36,10 @@ export const streamRouter = t.router({
     // Adopt EAGERLY, in the RESOLVER: a generator's body does not run until the first pull, which is far too
     // late to refuse a connection. A foreign socketId therefore rejects the subscription with the leak-free
     // NOT_FOUND (and the 9th socket with TOO_MANY_REQUESTS) instead of becoming a frame to interpret.
-    const cell = ctx.sockets.adopt(ctx.auth.userId, input.socketId);
+    // The cell is stamped with the session THIS connection authenticated with (W7a) — `null` under the
+    // sessionless admission arms. That stamp is what a logout evicts by, per SESSION (F4): the frozen
+    // Principal below cannot say which device this is, and it deliberately never will (D135).
+    const cell = ctx.sockets.adopt(ctx.auth.userId, input.socketId, ctx.sessionId);
     const sig = signal ?? new AbortController().signal;
     // Presence + the host-return drain, in the RESOLVER for the same reason as the adopt: they must happen
     // when the connection is ACCEPTED, not on the consumer's first pull. That is also exactly where the

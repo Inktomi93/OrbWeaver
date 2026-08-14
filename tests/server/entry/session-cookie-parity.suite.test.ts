@@ -106,6 +106,9 @@ async function viaSeam(cookieLines: readonly string[]): Promise<string | null> {
 // FABRICATION-OK: never-dereferenced registration-only stand-in.
 const NO_DB = {} as unknown as Db;
 
+/** W7a — the logout route evicts the ended session's live sockets; this probe drives no socket at all. */
+const INERT_EVICTION = { evictSession: (): number => 0, evictUser: (): number => 0 };
+
 /** The token string `sessions.revokeByToken` receives, or null when the route extracted nothing. */
 async function viaLogout(cookieLines: readonly string[]): Promise<string | null> {
   const seen: string[] = [];
@@ -115,11 +118,13 @@ async function viaLogout(cookieLines: readonly string[]): Promise<string | null>
     revokeByExternalId: () => Promise.reject(new Error("unexpected sessions.revokeByExternalId")),
     revokeByToken: (token) => {
       seen.push(token);
-      return Promise.resolve();
+      // W7a — the verb reports WHICH session ended so the route can evict its sockets. This probe is about
+      // WHICH TOKEN was extracted, so it reports "already revoked": nothing to evict, nothing to assert.
+      return Promise.resolve(null);
     },
   };
   const app = new Hono();
-  registerAuthRoutes(app, { sessions, now: (): number => FROZEN_NOW, db: NO_DB, resolveLoginLimit: (): number => 10 });
+  registerAuthRoutes(app, { sessions, sockets: INERT_EVICTION, now: (): number => FROZEN_NOW, db: NO_DB, resolveLoginLimit: (): number => 10 });
 
   const headers = craft(cookieLines);
   headers.set(CSRF_HEADER, "1"); // logout is CSRF-gated; without it the route 403s before parsing
@@ -169,7 +174,7 @@ function appDeps(): AppDeps {
       // itself parsed off the Cookie header, so the header value is this probe's observable.
       resolvePrincipal: (_headers, req): Promise<SeamResult> => {
         req?.onSessionSlide?.(FROZEN_NOW + SLIDE_MS);
-        return Promise.resolve({ principal: null, csrfHeaderPresent: false });
+        return Promise.resolve({ principal: null, sessionId: null, csrfHeaderPresent: false });
       },
       isAdmin: (): Promise<boolean> => Promise.resolve(false),
     },

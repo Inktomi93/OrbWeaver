@@ -3,14 +3,10 @@
 // These stay raw Hono, pre-tRPC, and must never move behind auth. `/me` reads the principal app.ts's auth
 // middleware already resolved — deliberately not a second resolution call (drift-free by construction).
 
-import type { AuthMode, Principal } from "@orb/contracts/identity";
+import type { AuthMode } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Hono } from "hono";
-
-interface PrincipalEnv {
-  // biome-ignore lint/style/useNamingConvention: `Variables` is Hono's reserved Env key (framework-fixed name).
-  Variables: { principal: Principal | null };
-}
+import type { PrincipalEnv } from "./blob.ts";
 
 export interface AuthMetaDeps {
   readonly mode: AuthMode;

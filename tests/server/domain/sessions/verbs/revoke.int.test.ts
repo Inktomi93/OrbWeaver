@@ -51,10 +51,17 @@ describe("sessions.revokeByToken (logout)", () => {
 });
 
 describe("sessions.revoke (admin kick one device)", () => {
-  test("revokes a specific session by id", async () => {
+  test("revokes a specific session by id, and reports WHOSE it was", async () => {
     const { token, sessionId } = await svc.create({ userId: USER_ID });
-    await svc.revoke(sessionId);
+    // The owner is what the entry tier evicts live sockets by (W7a) — the caller holds only a session id.
+    expect(await svc.revoke(sessionId)).toBe(USER_ID);
     expect(await svc.validate(token)).toBeNull();
+  });
+
+  test("re-kicking an already-revoked session names nobody (so it evicts nobody)", async () => {
+    const { sessionId } = await svc.create({ userId: USER_ID });
+    await svc.revoke(sessionId);
+    expect(await svc.revoke(sessionId)).toBeNull();
   });
 });
 
@@ -87,20 +94,22 @@ describe("sessions.revokeByExternalId (OIDC back-channel logout)", () => {
   test("revokes every live session for the user bound to the subject → count, validate null", async () => {
     const a = await svc.create({ userId: USER_ID });
     const b = await svc.create({ userId: USER_ID });
-    expect(await svc.revokeByExternalId(External)).toBe(2);
+    // W7a — the summary also names WHOSE sockets the entry tier must evict (one subject, one row here).
+    expect(await svc.revokeByExternalId(External)).toEqual({ revoked: 2, userIds: [USER_ID] });
     expect(await svc.validate(a.token)).toBeNull();
     expect(await svc.validate(b.token)).toBeNull();
   });
 
   test("is idempotent — a re-delivered token re-revokes nothing (atomic WHERE revokedAt IS NULL)", async () => {
     await svc.create({ userId: USER_ID });
-    expect(await svc.revokeByExternalId(External)).toBe(1);
-    expect(await svc.revokeByExternalId(External)).toBe(0);
+    expect(await svc.revokeByExternalId(External)).toEqual({ revoked: 1, userIds: [USER_ID] });
+    // A re-delivered token names no users either — so the idempotent re-revoke evicts nothing.
+    expect(await svc.revokeByExternalId(External)).toEqual({ revoked: 0, userIds: [] });
   });
 
   test("an UNKNOWN subject revokes nothing (0) — never another user's sessions", async () => {
     await svc.create({ userId: USER_ID });
-    expect(await svc.revokeByExternalId(castId<ExternalId>("authentik|nobody"))).toBe(0);
+    expect(await svc.revokeByExternalId(castId<ExternalId>("authentik|nobody"))).toEqual({ revoked: 0, userIds: [] });
   });
 
   test("only the SUBJECT's sessions are revoked, not a co-tenant's", async () => {
@@ -108,7 +117,7 @@ describe("sessions.revokeByExternalId (OIDC back-channel logout)", () => {
     await db.insert(users).values({ id: other, handle: castId<Handle>("bob"), externalId: castId<ExternalId>("authentik|bob") });
     const aliceSession = await svc.create({ userId: USER_ID });
     const bobSession = await svc.create({ userId: other });
-    expect(await svc.revokeByExternalId(External)).toBe(1); // alice only
+    expect(await svc.revokeByExternalId(External)).toEqual({ revoked: 1, userIds: [USER_ID] }); // alice only
     expect(await svc.validate(aliceSession.token)).toBeNull();
     expect(await svc.validate(bobSession.token)).not.toBeNull(); // bob untouched
   });

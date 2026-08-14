@@ -94,7 +94,7 @@ describe("the automation room refuses at attach — the asymmetry against chat/r
 
     // The refusal is REAL, not merely a thrown error beside a recorded room: the cell holds nothing, so a
     // later connect (or a reconnect) can never re-hydrate a pump for it.
-    expect(sockets.adopt(MEMBER, socketId).rooms.size).toBe(0);
+    expect(sockets.adopt(MEMBER, socketId, null).rooms.size).toBe(0);
   });
 });
 

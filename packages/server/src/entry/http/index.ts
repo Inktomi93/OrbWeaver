@@ -10,6 +10,7 @@ export type {
   OidcClaimMap,
   OidcMintStore,
   OidcRoutesDeps,
+  SessionSocketEviction,
 } from "./auth-routes.ts";
 export {
   deriveRedirectUri,

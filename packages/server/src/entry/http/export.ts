@@ -26,6 +26,7 @@ import type { Hono } from "hono";
 import type { ExportCardFormat, ExportChatFormat, ExportService } from "#domain/export";
 import type { ZipEntry } from "#infra/storage";
 import { packZip } from "#infra/storage";
+import type { PrincipalEnv } from "./blob.ts";
 
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
@@ -91,11 +92,6 @@ async function* libraryEntries(registry: PortabilityRegistry, kinds: ReadonlySet
       yield { path: `${entity.dir}${file.filename}`, bytes: file.bytes };
     }
   }
-}
-
-interface PrincipalEnv {
-  // biome-ignore lint/style/useNamingConvention: `Variables` is Hono's reserved Env key (framework-fixed name).
-  Variables: { principal: Principal | null };
 }
 
 function serveDownload(body: Uint8Array | string, mime: string, filename: string): Response {

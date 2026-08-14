@@ -10,12 +10,12 @@ import { randomUUID } from "node:crypto";
 import { mkdir, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Principal } from "@orb/contracts/identity";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { Hono } from "hono";
 import type { WorkloadService } from "#domain/workloads";
 import { hasCsrfHeader } from "#infra/auth";
 import { IMPORT_MAX_TOTAL_BYTES } from "../import/index.ts";
+import type { PrincipalEnv } from "./blob.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
@@ -28,11 +28,6 @@ const BUNDLE_ROUTE = "/api/import/bundle";
 export interface ImportBundleDeps {
   readonly workloads: Pick<WorkloadService, "start">;
   readonly stagingDir?: string;
-}
-
-interface PrincipalEnv {
-  // biome-ignore lint/style/useNamingConvention: `Variables` is Hono's reserved Env key (framework-fixed name).
-  Variables: { principal: Principal | null };
 }
 
 /** Write the upload stream to `path`, aborting (returning `false`) the instant it exceeds `maxBytes`. */

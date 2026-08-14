@@ -8,9 +8,10 @@
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { SessionToken, UserId } from "@orb/kit/ids";
+import type { SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap, OidcRoutesDeps } from "@orb/server/entry/http";
+import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
+import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap, OidcRoutesDeps, SessionSocketEviction } from "@orb/server/entry/http";
 import { deriveRedirectUri, identityFromClaims, registerAuthRoutes, serializeClearedSessionCookie, serializeSessionCookie } from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
 import type { OidcTransaction } from "@orb/server/infra/auth";
@@ -20,6 +21,10 @@ import { expect, test } from "../../../support/fixtures.ts";
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;
 const COOKIE = "__Host-orb_session";
+/** The session row a logout ends — what `revokeByToken` reports and the route evicts sockets by (W7a). */
+const REVOKED_SESSION_ID = castId<SessionId>("sess_logout");
+/** For the deps literals whose test drives no revoke at all. */
+const INERT_EVICTION: SessionSocketEviction = { evictSession: (): number => 0, evictUser: (): number => 0 };
 
 interface MockReq {
   readonly headers?: Record<string, string>;
@@ -133,24 +138,41 @@ function handlerFor(deps: AuthRoutesDeps, key: string): Handler {
 
 interface SessionRecorder {
   readonly sessions: AuthSessionsPort;
+  /** W7a — the live-socket eviction the routes fire beside every revoke. */
+  readonly sockets: SessionSocketEviction;
   createdFor: UserId | null;
   createdUa: string | null | undefined;
   revoked: string | null;
+  /** WHICH session the logout evicted (per-SESSION, F4) and WHICH users a subject-wide revoke did. */
+  evictedSessions: SessionId[];
+  evictedUsers: UserId[];
 }
 function recordingSessions(): SessionRecorder {
   const rec: SessionRecorder = {
     createdFor: null,
     createdUa: undefined,
     revoked: null,
+    evictedSessions: [],
+    evictedUsers: [],
+    sockets: {
+      evictSession: (sessionId): number => {
+        rec.evictedSessions.push(sessionId);
+        return 1;
+      },
+      evictUser: (userId): number => {
+        rec.evictedUsers.push(userId);
+        return 1;
+      },
+    },
     sessions: {
       create: (p): Promise<{ token: SessionToken; expiresAt: number }> => {
         rec.createdFor = p.userId;
         rec.createdUa = p.userAgent;
         return Promise.resolve({ token: castId<SessionToken>("tok-123"), expiresAt: NOW + THIRTY_DAYS_MS });
       },
-      revokeByToken: (token: SessionToken): Promise<void> => {
+      revokeByToken: (token: SessionToken): Promise<SessionId | null> => {
         rec.revoked = token;
-        return Promise.resolve();
+        return Promise.resolve(REVOKED_SESSION_ID);
       },
       provisionIdentity: (
         _identity: ResolvedIdentity,
@@ -161,7 +183,7 @@ function recordingSessions(): SessionRecorder {
           enabled: true,
           role: "user",
         }),
-      revokeByExternalId: (): Promise<number> => Promise.resolve(0),
+      revokeByExternalId: (): Promise<RevokedSessionsSummary> => Promise.resolve({ revoked: 0, userIds: [] }),
     },
   };
   return rec;
@@ -198,7 +220,7 @@ const ownerAuth =
 describe("local login — registration", () => {
   test("login route is NOT registered without an authenticator", () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     expect(routesOf(deps).has("POST /api/auth/login")).toBe(false);
   });
 
@@ -206,6 +228,7 @@ describe("local login — registration", () => {
     const rec = recordingSessions();
     const deps: AuthRoutesDeps = {
       sessions: rec.sessions,
+      sockets: rec.sockets,
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
@@ -223,7 +246,7 @@ describe("logout — CSRF gate", () => {
 
   test("WITHOUT the CSRF header → 403, does NOT revoke (blocks cross-site force-logout)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123` } }));
     expect(res.status).toBe(403);
     expect(rec.revoked).toBeNull();
@@ -234,7 +257,7 @@ describe("logout — CSRF gate", () => {
   // continue to the IdP end-session endpoint after the local revoke. The CSRF gate + revoke + clear are unchanged.
   test("WITH the CSRF header + a session cookie → revokes the token + clears the cookie (200, endSessionUrl null)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
     expect(res.status).toBe(200);
     expect(rec.revoked).toBe("tok-123");
@@ -242,9 +265,46 @@ describe("logout — CSRF gate", () => {
     expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBeNull(); // no oidc deps here
   });
 
+  // W7a — the revoke ends the COOKIE; this ends the STREAM the cookie already opened. Before it, a socket
+  // froze its Principal at connect and kept delivering to a signed-out tab until the connection died on its
+  // own. PER SESSION (owner fork F4): signing out on the phone must not close the desktop's stream, so the
+  // route evicts by the session id `revokeByToken` reports — never by the user.
+  test("W7a logout EVICTS the live sockets of the session it just ended — and only that session", async () => {
+    const rec = recordingSessions();
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+
+    await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
+
+    expect(rec.evictedSessions).toEqual([REVOKED_SESSION_ID]);
+    // Never the user-wide sweep: that arm belongs to admin revoke / disable, where killing every device is
+    // the point (see entry/compose/admin.ts).
+    expect(rec.evictedUsers).toEqual([]);
+  });
+
+  test("W7a an ALREADY-revoked cookie evicts nothing (the route ends no session, so it closes no socket)", async () => {
+    const rec = recordingSessions();
+    const sessions: AuthSessionsPort = { ...rec.sessions, revokeByToken: (): Promise<SessionId | null> => Promise.resolve(null) };
+    const deps: AuthRoutesDeps = { sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
+
+    expect(res.status).toBe(200); // still clears the cookie — logout is idempotent for the caller
+    expect(rec.evictedSessions).toEqual([]);
+  });
+
+  test("W7a a CSRF-refused logout evicts nothing (the 403 short-circuits before the revoke)", async () => {
+    const rec = recordingSessions();
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+
+    await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123` } }));
+
+    // A cross-site force-logout must not be able to kill a victim's live stream either.
+    expect(rec.evictedSessions).toEqual([]);
+  });
+
   test("WITH the CSRF header but no cookie → still clears, does not revoke (200)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { [CSRF]: "1" } }));
     expect(res.status).toBe(200);
     expect(rec.revoked).toBeNull();
@@ -259,7 +319,14 @@ describe("logout — CSRF gate", () => {
     const oidc = fakeOidcDeps({
       getConfig: () => Promise.resolve(fakeConfig({ issuer: "https://idp.example", end_session_endpoint: endSession })),
     });
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, oidc };
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      oidc,
+    };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
     expect(res.status).toBe(200);
     expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBe(endSession);
@@ -445,11 +512,18 @@ describe("OIDC groups-claim parsing (A4 — array | joined-string | single-strin
 describe("OIDC route registration", () => {
   test("OIDC routes present only when oidc deps are supplied", () => {
     const rec = recordingSessions();
-    const withoutOidc: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const withoutOidc: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+    };
     expect(routesOf(withoutOidc).has("GET /api/auth/oidc/login")).toBe(false);
 
     const withOidc: AuthRoutesDeps = {
       sessions: rec.sessions,
+      sockets: rec.sockets,
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
@@ -547,6 +621,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
     const rec = recordingOidc(["https://chat.example.com/api/auth/oidc/callback"]);
     const deps: AuthRoutesDeps = {
       sessions: recordingSessions().sessions,
+      sockets: INERT_EVICTION,
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
@@ -590,6 +665,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
     const session = recordingSessions();
     const deps: AuthRoutesDeps = {
       sessions: session.sessions,
+      sockets: session.sockets,
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
@@ -672,6 +748,7 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
     const session = recordingSessions();
     const deps: AuthRoutesDeps = {
       sessions: session.sessions,
+      sockets: session.sockets,
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
@@ -733,17 +810,26 @@ describe("OIDC back-channel logout route (A5)", () => {
   interface BclRecorder {
     revokedExternalId: string | null;
     verifyCalls: number;
+    /** W7a — the users whose live sockets the back-channel logout evicted (per USER: the IdP ended the human). */
+    evictedUsers: UserId[];
   }
 
   type Bcl = NonNullable<OidcRoutesDeps["backchannelLogout"]>;
 
-  function bclDeps(over: { verify?: Bcl; revokeReturns?: number }): { deps: AuthRoutesDeps; rec: BclRecorder } {
-    const rec: BclRecorder = { revokedExternalId: null, verifyCalls: 0 };
+  function bclDeps(over: { verify?: Bcl; revokeReturns?: number; revokedUserIds?: readonly UserId[] }): { deps: AuthRoutesDeps; rec: BclRecorder } {
+    const rec: BclRecorder = { revokedExternalId: null, verifyCalls: 0, evictedUsers: [] };
     const sessions: AuthSessionsPort = {
       ...recordingSessions().sessions,
-      revokeByExternalId: (externalId): Promise<number> => {
+      revokeByExternalId: (externalId): Promise<RevokedSessionsSummary> => {
         rec.revokedExternalId = externalId;
-        return Promise.resolve(over.revokeReturns ?? 1);
+        return Promise.resolve({ revoked: over.revokeReturns ?? 1, userIds: over.revokedUserIds ?? [] });
+      },
+    };
+    const sockets: SessionSocketEviction = {
+      evictSession: (): number => 0,
+      evictUser: (userId): number => {
+        rec.evictedUsers.push(userId);
+        return 1;
       },
     };
     const backchannelLogout: Bcl = over.verify ?? {
@@ -757,12 +843,19 @@ describe("OIDC back-channel logout route (A5)", () => {
       getConfig: () => Promise.resolve(fakeConfig({ issuer: ISSUER, jwks_uri: JWKS_URI })),
       backchannelLogout,
     });
-    return { deps: { sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, oidc }, rec };
+    return { deps: { sessions, sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, oidc }, rec };
   }
 
   test("route is NOT registered without backchannelLogout deps (default OFF)", () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, oidc: fakeOidcDeps() };
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      oidc: fakeOidcDeps(),
+    };
     expect(routesOf(deps).has("POST /api/auth/oidc/backchannel-logout")).toBe(false);
   });
 
@@ -778,6 +871,26 @@ describe("OIDC back-channel logout route (A5)", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(rec.verifyCalls).toBe(1);
     expect(rec.revokedExternalId).toBe("authentik|alice");
+  });
+
+  // W7a — the revoke kills the cookies; this kills the STREAMS those cookies already opened. PER USER here
+  // (not per session): the IdP has ended the HUMAN's login, and one subject can be bound to more than one row.
+  test("W7a a back-channel logout EVICTS the live sockets of every user it revoked", async () => {
+    const alice = castId<UserId>("usr_alice");
+    const alsoAlice = castId<UserId>("usr_alice_second_row");
+    const { deps, rec } = bclDeps({ revokeReturns: 3, revokedUserIds: [alice, alsoAlice] });
+
+    await handlerFor(deps, "POST /api/auth/oidc/backchannel-logout")(makeCtx({ parseBody: { logout_token: "signed.jwt.here" } }));
+
+    expect(rec.evictedUsers).toEqual([alice, alsoAlice]);
+  });
+
+  test("W7a a RE-DELIVERED logout token names no users, so it evicts nothing (idempotent)", async () => {
+    const { deps, rec } = bclDeps({ revokeReturns: 0, revokedUserIds: [] });
+
+    await handlerFor(deps, "POST /api/auth/oidc/backchannel-logout")(makeCtx({ parseBody: { logout_token: "signed.jwt.here" } }));
+
+    expect(rec.evictedUsers).toEqual([]);
   });
 
   test("a missing logout_token → 400, no verify, no revoke", async () => {
