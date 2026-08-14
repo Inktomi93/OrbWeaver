@@ -25,7 +25,13 @@ import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } fro
  *  Only OpenRouter has a choice to make; vLLM has one enforcing wire (`response_format` + guided decoding)
  *  and ignores this knob.
  *  • `auto` — the DEFAULT: `response-format` when the resolved model's capability says the endpoint supports
- *    structured output, else `forced-tool`; a 400 on the first falls back to the second for that call.
+ *    structured output, else `forced-tool`. Resolved ONCE, statically, off `capability.output.structured` at
+ *    `entry/compose/role-clients.ts`'s `resolveVehicle` — there is NO runtime retry: a 400 on the chosen
+ *    vehicle is returned to the caller, deliberately. (An earlier revision of this line claimed "a 400 on the
+ *    first falls back to the second for that call". No such fallback was ever built, and the compose site's
+ *    own comment states the opposite as the decision — "the backend's own 400 is the honest answer rather
+ *    than a silent downgrade to an unenforced wire". Corrected 2026-08-14; a real fallback would be a
+ *    behaviour change on every hosted structured call, i.e. a feature ask, not a repair.)
  *  • `response-format` — force `response_format: {type:"json_schema"}` + `strict` + provider
  *    `require_parameters`. Measured 2026-08-09 (23 live OpenRouter calls) as servable on anthropic-,
  *    openai- and google-family endpoints for a schema in the all-required shape. The schema-forge asks for
