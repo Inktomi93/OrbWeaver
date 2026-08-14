@@ -438,6 +438,15 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   Codex-verify line for the scan-denominators item names exactly that command. Standing consequence:
   while Codex is active, a structure red taken mid-window can be their `__g_` fixture race (phantom
   `domain/hub` reds) — re-run on a quiet tree before believing it.
+- [ ] **CODEX DOCS-SYSTEM REVAMP LIVE ON MAIN (owner-tasked, 08-14 \~13:30 — "revamping our entire
+  documentation system"):** uncommitted footprint = AGENTS.md · CLAUDE.md · core/AGENTS.md ·
+  package.json · scripts/verify/registry.ts · tests/tooling/verify-run.int.test.ts + untracked
+  scripts/docs/catalog.ts · docs/catalog/ · tests/tooling/docs-catalog.test.ts · .github/ISSUE\_TEMPLATE/.
+  ORCHESTRATOR POSTURE while live: pathspec-only staging (never `git add` a dir their footprint
+  touches) · types:graph reds in scripts/docs/catalog.ts are THEIR WIP, discount them (committed
+  tree compiles clean) · no board-file collision expected (board not in their set) · full battery
+  deferred until their revamp lands or reds attributed per-file · law-file edits are owner-sanctioned
+  for this task.
 - [ ] Codex snapshot-only doc families = revalidate-when-touched (their own instruction) · owner
   pile: longer-outputs numbers · theme/dogfood live receipts (selector wire-capture flip, W3 revoke
   probe) · re-import (owner-run). ~~the push~~ (PUSHED 08-14 midday, owner word).
