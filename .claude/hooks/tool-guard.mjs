@@ -53,7 +53,9 @@
 // DESIGN: precision over coverage. A hook that cries wolf gets disabled, and then we have nothing.
 //   · QUOTE-AWARE — quoted spans are blanked (same-length) before matching, so
 //     `git commit -m "fix the pnpm check pipe"` can never fire. Structure is found on the blanked text;
-//     rewrites slice the ORIGINAL text by index, so quoted content survives verbatim.
+//     rewrites slice the ORIGINAL text by index, so quoted content survives verbatim. COMMENTS and
+//     HEREDOC BODIES are blanked the same way: neither is a command (`ls packages # never git stash`
+//     denied as git-destructive until comment blanking landed, 2026-08-14).
 //   · PIPELINE-AWARE — only a HARNESS stage feeding a later stage bites. `git log | head` is fine.
 //   · THE GUARD NEVER BLOCKS THE SANCTIONED FORM OF A JOB — `rm -rf playwright/.cache && npx playwright
 //     test -c playwright-ct.config.ts <paths>` is the CORRECT lane CT recipe and passes untouched, and a
@@ -62,8 +64,13 @@
 //     doing something teaches agents to route around the hook, and then it protects nothing.
 //   · FAIL-OPEN — any internal error, unparseable stdin, or stdin stall emits "defer" and exits 0. The
 //     guard breaking must never block work (proven by test).
-//   · SELF-EXEMPT — commands that run this guard, its replay, or the census miner defer immediately, so
-//     the guard's own test/validation tooling can never recurse or deadlock.
+//   · SELF-EXEMPT — IDENTITY-based and deliberately narrow: a SOLE invocation of this guard, its replay,
+//     or the census miner (one clause, one stage, no subshell / substitution / backgrounding) passes
+//     without further judgement, because such a command cannot execute its own arguments — so a corpus
+//     string sitting in an argv can never be mistaken for a command. Until 2026-08-14 this was an
+//     unanchored MENTION of those filenames, tested BEFORE blanking and BEFORE the hard floor, so
+//     `git stash # tool-guard.mjs` emitted an explicit `allow` and every rule below was skipped
+//     (docs/reviews/repository-audit-2026-08-13/SECURITY-VALIDATION.md §AGENT-TOOLING-01, R5).
 //
 // OBSERVABILITY: every decision appends one JSONL line to reports/tool-guard/decisions.jsonl (gitignored
 // via /reports/) with rule, decision, latency and a command prefix — tune from evidence, not vibes.
@@ -102,6 +109,27 @@ export function blankQuoted(cmd) {
     } else {
       out += quote === null ? ch : " ";
     }
+  }
+  return out;
+}
+
+// ── comment blanking: bash ends a line at an unquoted WORD-INITIAL `#`, so everything after it is text,
+//    not commands, and must never be matched (`ls packages # remember: never git stash` was denied as
+//    git-destructive before this existed). Runs on the quote-blanked text, BEFORE heredocs — a `<<EOF`
+//    inside a comment must not start a heredoc scan. The character before the `#` is checked in the RAW
+//    text on purpose: after `echo "x"# ; git stash` the blanked predecessor is a space, but the `#` is
+//    part of a word there, and blanking to end-of-line would hide a real destructive clause. ──
+
+export function blankComments(raw, blank) {
+  let out = blank;
+  for (let i = 0; i < out.length; i += 1) {
+    if (out[i] !== "#" || (i > 0 && !/\s/.test(raw[i - 1]))) {
+      continue;
+    }
+    const lineEnd = out.indexOf("\n", i);
+    const stop = lineEnd === -1 ? out.length : lineEnd;
+    out = out.slice(0, i) + " ".repeat(stop - i) + out.slice(stop);
+    i = stop;
   }
   return out;
 }
@@ -210,7 +238,20 @@ const READER = /^\s*(?:\S*\/)?(?:tail|head|grep|egrep|fgrep|rg|wc|cat|tee|sort|u
 const LONG_LIVED = /^\s*git\s+(?:push|pull|fetch|clone)\b/;
 const STDERR_MERGE_TAIL = /\s*2>&1\s*$/;
 const REDIRECT_FD_MERGE = /\d?>>?&\d/g;
-const SELF_EXEMPT = /tool-guard\.mjs|guard-replay\.mjs|transcript-census\.mjs/;
+// The guard's own validation tooling — matched by RESOLVED PATH SUFFIX (so `.claude/…`, `./.claude/…`,
+// `$CLAUDE_PROJECT_DIR/.claude/…` and an absolute worktree path all resolve alike), never by mention.
+// A bare basename is deliberately NOT enough: it says nothing about which file would run. The probes are
+// `.ts` since the tsx shed (node runs TypeScript directly) — the old `.mjs` spellings in this list named
+// files that no longer exist.
+const SELF_TOOLS = ["/.claude/hooks/tool-guard.mjs", "/scripts/probes/guard-replay.ts", "/scripts/probes/transcript-census.ts"];
+const SELF_ENV_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=\S*$/;
+const SELF_NODE_EXEC = /^(?:\S*\/)?node$/;
+const SELF_OPERAND = /^[\w./@:+$-]+$/;
+// Anything that could run a SECOND command inside the one stage: a subshell/group `()` or backgrounding
+// `&` (checked on the blanked text with fd-merges stripped, so a plain `2>&1` still exempts), and command
+// substitution — `$(…)` and backticks execute even inside double quotes, which blanking turns to spaces,
+// so those two are checked against the RAW text.
+const SELF_UNSAFE = /[()&]/;
 const WORKTREE_PATH = /\.claude\/worktrees\/([^\s/;&|)]+)/;
 const CD_WORKTREE = /\b(?:cd|pushd)\s+[^\s;&|]*\.claude\/worktrees\/([^\s/;&|]+)/;
 // stash: read-only subcommands (list/show) destroy nothing and pass; everything else is the ban.
@@ -336,6 +377,50 @@ function stripFdMerges(text) {
 function laneName(text) {
   const m = text?.match(WORKTREE_PATH);
   return m ? m[1] : null;
+}
+
+/** Is this command a SOLE invocation of one of the guard's own validation tools (SELF_TOOLS)? Exempting
+ *  one is safe for exactly one reason: such a command cannot execute anything but that tool, so a
+ *  destructive-looking string in its argv is data, never a command. Every condition below defends that
+ *  reason — one clause, one pipeline stage, no subshell / backgrounding / command substitution, an
+ *  UNQUOTED `node` (or the tool itself, via its shebang) at the head, and a script operand that resolves
+ *  to a SELF_TOOLS path. A mention anywhere else — a trailing comment, a quoted argument, an earlier
+ *  `&&` stage — is not an invocation and is judged by every rule (AGENT-TOOLING-01, 2026-08-14). */
+export function isSelfToolInvocation(command, blank, clauses) {
+  if (clauses.length !== 1) {
+    return false;
+  }
+  const [clause] = clauses;
+  if (clause.stages.length !== 1) {
+    return false;
+  }
+  const text = blank.slice(clause.start, clause.end);
+  const raw = command.slice(clause.start, clause.end);
+  if (SELF_UNSAFE.test(stripFdMerges(text)) || raw.includes("`") || raw.includes("$(")) {
+    return false;
+  }
+  // Tokens are read off the BLANKED text, where a quoted span is spaces — so a quoted word can never be
+  // read as the executable or the script (`node 'other.js' .claude/hooks/tool-guard.mjs` runs other.js).
+  // The head is then required to be quote-free in the ORIGINAL, which is what makes that hold.
+  const tokens = [...text.matchAll(/\S+/g)];
+  let i = 0;
+  while (tokens[i] !== undefined && SELF_ENV_ASSIGN.test(tokens[i][0])) {
+    i += 1;
+  }
+  const exec = tokens[i];
+  if (exec === undefined) {
+    return false;
+  }
+  const operand = SELF_NODE_EXEC.test(exec[0]) ? tokens.slice(i + 1).find((t) => !t[0].startsWith("-")) : exec;
+  if (operand === undefined || !SELF_OPERAND.test(operand[0])) {
+    return false;
+  }
+  if (/['"]/.test(command.slice(clause.start, clause.start + operand.index + operand[0].length))) {
+    return false;
+  }
+  const resolved = path.posix.normalize(operand[0]);
+  const absolute = resolved.startsWith("/") ? resolved : `/${resolved}`;
+  return SELF_TOOLS.some((tool) => absolute.endsWith(tool));
 }
 
 /** Best-effort: is a `git push` process live on this box? (Linux /proc scan — a push window is not
@@ -542,17 +627,23 @@ function collectStageWarns(command, blank, clauses, contexts) {
  *           rewrite?: {command: string, timeout?: number, log?: string}, contexts: string[]}}
  */
 export function classify(command, ctx) {
-  if (SELF_EXEMPT.test(command)) {
-    return { decision: "pass", rule: "self-exempt", contexts: [] };
-  }
-  const blank = blankHeredocs(command, blankQuoted(command));
+  const blank = blankHeredocs(command, blankComments(command, blankQuoted(command)));
   const clauses = parseStructure(blank);
   const contexts = [];
 
-  // 0. THE HARD FLOOR — first, so no later rewrite tier can route around it.
+  // 0. THE HARD FLOOR — first, so neither a later rewrite tier NOR the self-exemption can route around it.
   const floor = detectHardFloor(blank, clauses);
   if (floor) {
     return { ...floor, contexts };
+  }
+
+  // 0b. SELF-EXEMPTION — the guard's own validation tooling, by IDENTITY (isSelfToolInvocation): a sole
+  //     `node <tool> …` cannot execute its argv, so a corpus string inside it is data and the rules below
+  //     have nothing real to judge. It runs AFTER blanking and AFTER the floor, and it is not a mention
+  //     test: the unanchored raw-string version of this check turned any command containing one of the
+  //     filenames into an explicit `allow` (AGENT-TOOLING-01).
+  if (isSelfToolInvocation(command, blank, clauses)) {
+    return { decision: "pass", rule: "self-exempt", contexts };
   }
 
   // 1. destructive git (doctrine ban; near-zero legitimate sightings) — DENY. Read-only forms pass:
