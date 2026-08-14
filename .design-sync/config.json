@@ -1,0 +1,35 @@
+{
+  "projectId": "2ec379a2-fddd-4bc2-bc58-023b8a684575",
+  "shape": "package",
+  "pkg": "@orb/ui",
+  "globalName": "OrbUI",
+  "srcDir": "src/art/web-weave",
+  "extraEntries": [
+    "./src/primitives/spinner/index.ts"
+  ],
+  "componentSrcMap": {
+    "WebWeave": "src/art/web-weave/web-weave.tsx",
+    "WeaveVeil": "src/art/web-weave/weave-veil.tsx",
+    "WebSpinner": "src/primitives/spinner/index.ts"
+  },
+  "cssEntry": ".ds-preview-tokens.css",
+  "buildCmd": "cp ../client/dist/assets/index-*.css .ds-preview-tokens.css",
+  "runtimeFontPrefixes": [
+    "Geist"
+  ],
+  "dtsPropsFor": {
+    "WebWeave": "state?: \"weaving\" | \"settled\" | \"partial\" | \"strand-out\"; seed?: number; hub?: { x: number; y: number }; dim?: number; spider?: boolean; glow?: boolean; onSettled?: () => void; onPhaseChange?: (phase: string) => void; className?: string;",
+    "WeaveVeil": "open: boolean; onExited?: () => void; label: string; children?: React.ReactNode; className?: string;",
+    "WebSpinner": "size?: \"sm\" | \"md\" | \"lg\" | \"xl\" | \"hero\"; label: string; className?: string;"
+  },
+  "overrides": {
+    "WeaveVeil": {
+      "cardMode": "single",
+      "viewport": "800x500"
+    },
+    "WebWeave": {
+      "cardMode": "column"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}
