@@ -40,6 +40,38 @@ describe("update", () => {
     expect(h.audits.map((a) => a.entry.action)).toContain("persona.update");
   });
 
+  // THE ROOM PLANE (entity→room member-freshness bridge §3.6). A content edit owes BOTH announcements: the
+  // user bus (the editor's own devices) AND the domain event the composition root's reach engine turns into
+  // a room fan for every chat this persona is live in. Asserting only the user-bus half is how the defect
+  // this bridge fixes stayed invisible — a co-member's roster showed the pre-edit name until they reloaded.
+  test("a real edit raises BOTH planes: `personasChanged` (user bus) and `persona.updated` (domain event)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createPersonaService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const created = await svc.create({ principal: principal(owner), input: { name: "Old", description: "d" } });
+    h.userEvents.length = 0;
+    h.domainEvents.length = 0;
+
+    await svc.update({ principal: principal(owner), personaId: created.id, input: { name: "New" } });
+
+    expect(h.userEvents).toEqual([{ userId: owner, event: { type: "personasChanged", personaId: created.id } }]);
+    expect(h.domainEvents).toEqual([{ type: "persona.updated", personaId: created.id }]);
+  });
+
+  test("a NO-OP edit raises neither plane — nothing changed, so no room has anything to refetch", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createPersonaService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const created = await svc.create({ principal: principal(owner), input: { name: "Same", description: "d" } });
+    h.domainEvents.length = 0;
+
+    await svc.update({ principal: principal(owner), personaId: created.id, input: {} });
+
+    expect(h.domainEvents).toEqual([]);
+  });
+
   test("a no-op edit (all undefined) re-reads without writing or auditing", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

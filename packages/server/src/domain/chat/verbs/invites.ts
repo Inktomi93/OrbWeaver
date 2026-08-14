@@ -11,7 +11,7 @@
 // refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
-import type { ChatBusEvent, GroupConfig, InvitePreview, InviteView, ParticipantView } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, GroupConfig, InvitePreview, InviteView, ParticipantView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
@@ -50,7 +50,7 @@ import { hostSeatOf } from "../substrate/roster-host.ts";
 
 /** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {
-  readonly emit: (event: ChatBusEvent) => Promise<void>;
+  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   /** The husk→real transition (R0). Only `createInvite` claims: opening a room to another human is
    *  effort put into it (F4(a)). The redeem/accept/revoke/decline arms cannot reach an unclaimed room
    *  -- an invite has to exist first, and minting it claimed. */

@@ -26,7 +26,7 @@
 // with no `chat_events` row would be un-replayable). Aborting the turn at delete (verbs/chat-lifecycle) stops
 // the emits at the SOURCE; this classification is the floor under every other cause.
 
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
@@ -43,8 +43,12 @@ interface ChatEmitted {
 }
 
 /** Returns what was logged so the composition root can fan the same cursor-stamped event onto the transport
- *  live bus — or `null` when the append was dropped (see FLAG[emit-is-total]). */
-type EmitChatEvent = (event: ChatBusEvent) => Promise<ChatEmitted | null>;
+ *  live bus — or `null` when the append was dropped (see FLAG[emit-is-total]).
+ *
+ *  `DurableChatBusEvent`, not the whole union: the live-only lane (`LIVE_ONLY_CHAT_EVENT_TYPES`, contracts
+ *  §3.4) has no `chat_events` form, so handing one to this emit is a COMPILE error rather than a row the db
+ *  CHECK would reject at runtime. Its fan surface is `entry/compose/services::emitChatEventLive`. */
+type EmitChatEvent = (event: DurableChatBusEvent) => Promise<ChatEmitted | null>;
 
 interface ChatRingEntry {
   readonly seq: number;

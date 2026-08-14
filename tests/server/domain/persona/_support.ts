@@ -6,6 +6,7 @@
 // characters / personas) directly — a test fixture may read `users`; the `no-direct-users-read` gate
 // scopes only `packages/server/src/domain`.
 
+import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -41,6 +42,10 @@ interface RepointSeedsCall {
 export interface PersonaHarness {
   readonly ctx: PersonaContext;
   readonly audits: AuditCall[];
+  /** The recorded `emit` (DOMAIN-event) calls — the ROOM plane. Distinct from `userEvents`: a content write
+   *  owes BOTH (the editor's devices via the user bus, every room the persona is live in via the bridge), so
+   *  a test asserting only one would pass while half the announcement was missing. */
+  readonly domainEvents: DomainEvent[];
   /** The recorded `emitUserEvent` calls (assert `personasChanged` fires after a durable write). */
   readonly userEvents: UserEventCall[];
   /** The recorded seed re-point calls (assert `remove` re-points the current/default pointer on delete). */
@@ -56,6 +61,7 @@ export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): Pe
   const audits: AuditCall[] = [];
   const userEvents: UserEventCall[] = [];
   const repointCalls: RepointSeedsCall[] = [];
+  const domainEvents: DomainEvent[] = [];
   const ctx: PersonaContext = {
     db,
     now: (): number => clock.now(),
@@ -66,6 +72,9 @@ export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): Pe
     },
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
+    },
+    emit: (event: DomainEvent): void => {
+      domainEvents.push(event);
     },
     requireChatAuthorOrHost: () => Promise.resolve(),
     setChatActivePersona: () => Promise.resolve(),
@@ -79,6 +88,7 @@ export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): Pe
     ctx,
     audits,
     userEvents,
+    domainEvents,
     repointCalls,
     advance: (ms: number): void => clock.advance(ms),
   };

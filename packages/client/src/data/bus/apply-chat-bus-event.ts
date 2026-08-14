@@ -107,6 +107,10 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
     case "chatOpened":
     case "historyTruncated":
     case "chatUpdated":
+    // An entity this room renders was edited elsewhere in the box (the entity→room bridge). Invalidate-only,
+    // like `chatUpdated`: the event is id-free and carries no payload by design — every affected read is
+    // re-fetched through its already-clamped verb, so there is no client state to reconcile here.
+    case "roomEntityChanged":
       deps.invalidate(event);
       return;
 

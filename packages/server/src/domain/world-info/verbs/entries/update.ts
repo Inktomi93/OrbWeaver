@@ -88,6 +88,10 @@ export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateEnt
     }
 
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId: updated.worldBookId });
+    // The ROOM plane (entity→room bridge §3.6) — UNCONDITIONAL, unlike the scope fan above: a
+    // content/priority/ignoreBudget edit moves what the next turn assembles even when nothing about the
+    // entry's SCOPE moved, and that is precisely the case the scope fan deliberately stays silent for.
+    ctx.emit({ type: "world-info.updated", bookId: updated.worldBookId });
     return toEntryView(updated);
   };
 }

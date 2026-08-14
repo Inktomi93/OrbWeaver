@@ -22,7 +22,7 @@
 // `getVariables` returns the effective config-plane view: stored ChoiceBlock picks merged over the active
 // preset's declared defaults, with `withRandomPick: false` so the read is stable.
 
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
@@ -63,7 +63,7 @@ import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 import { resolveChoiceVariables } from "../substrate/variables.ts";
 
 /** The emit op the lifecycle verbs close over. */
-type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
+type EmitChatEvent = (event: DurableChatBusEvent) => Promise<void>;
 
 /** The collaborators not on `ChatContext`. */
 interface ChatLifecycleDeps {

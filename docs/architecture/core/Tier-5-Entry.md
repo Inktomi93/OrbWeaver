@@ -41,7 +41,8 @@ packages/server/src/entry/
 │   ├── event-bus.ts          the in-process typed event bus + subscriptions (embeddings indexer, …)
 │   ├── role-clients.ts       bindRoleClientsForUser — per-role connection.resolveRole (Tier-3b §"boot binder")
 │   ├── effective-config.ts   wires settings' getEffectiveConfig sync getter + the boot reload
-│   ├── emit-character-updated.ts / emit-chat-changed.ts   cross-feature event-emit wiring
+│   ├── room-reach.ts / emit-chat-changed.ts   cross-feature event-emit wiring (room-reach = the entity→room
+│   │                         reach table: a DomainEvent → a live-only roomEntityChanged per reached room)
 │   ├── portability.ts        import/export composition wiring
 │   └── resolve-image-ref.ts  cross-feature image-ref resolution wiring
 ├── http/                     non-tRPC registrars (compose domain + infra + auth)

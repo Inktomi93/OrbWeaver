@@ -19,7 +19,7 @@
 // FLAG[compaction-transcript]: the summarized transcript labels each turn by its role (user/assistant/system),
 // not the resolved speaker name — richer per-speaker labeling is a later refinement.
 
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import { MESSAGE_KIND_POLICY } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -59,7 +59,7 @@ interface CompactionBundle extends Pick<ChatService, "compact"> {
 }
 
 interface CompactionDeps {
-  readonly emit: (event: ChatBusEvent) => Promise<void>;
+  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   /** The quiet-generation seam — a non-canon generation through the chat's own model (wired at compose). */
   readonly quietGenerate: QuietGenerate;
   /** Resolve the chat's connection for the MANUAL lever (the engine hook passes its own `prep.connection`). */

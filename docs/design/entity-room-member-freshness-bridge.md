@@ -157,12 +157,20 @@ The chat room's envelope grows a null-seq arm; nothing else about the transport 
   exempt-by-type set; rename it `NON_DURABLE_EXEMPT`. Belt: the set stays keyed
   `ChatBusEvent["type"]` so a rename fails tsc.
 - **Type belts (the lane's physics):** contracts export
-  `LIVE_ONLY_CHAT_EVENT_TYPES = ["roomEntityChanged", "chatDeleted"] as const` +
-  `DurableChatBusEvent = Exclude<ChatBusEvent, { type: LiveOnlyChatEventType }>`. `chatBus.emit` /
-  `emitChatEvent` narrow to `DurableChatBusEvent` (a live-only member cannot be durably appended —
-  compile error), and the db CHECK derives from the durable subset
-  (`db/schema/chat.ts:635,653` — `chat_events_type_check` keys change ⇒ **`0000_baseline.sql` SQUASH
-  in the same commit**, the pre-launch DB law; no gate catches this).
+  `LIVE_ONLY_CHAT_EVENT_TYPES` + `DurableChatBusEvent = Exclude<ChatBusEvent, { type: LiveOnlyChatEventType }>`
+  (+ its complement `LiveOnlyChatBusEvent`). `chatBus.emit` / `emitChatEvent` narrow to `DurableChatBusEvent`
+  (a live-only member cannot be durably appended — compile error), and the db CHECK derives from the durable
+  subset (`db/schema/chat.ts:635,653`).
+  **BUILT (LANE 1, 2026-08-14) — the tuple lands with `roomEntityChanged` ALONE; `chatDeleted` joins it in
+  LANE 2 with the delete-first reorder that needs it.** Consequence the doc had backwards: LANE 1's CHECK key
+  set is BYTE-IDENTICAL to the shipped baseline (a NEW member excluded from the durable subset removes
+  nothing), so **LANE 1 needs no `0000_baseline.sql` squash and does not drop the dev db** — proven by a
+  `drizzle-kit generate` producing zero SQL diff. The squash rides LANE 2, where `chatDeleted` actually
+  LEAVES the CHECK. The pre-launch squash law is unchanged; only which commit pays it moved.
+  One further deviation, receipted: the `chat_events.type`/`payload` COLUMN types stay `ChatBusEvent`
+  (not narrowed to `DurableChatBusEvent`). Narrowing them would force `substrate/member-visibility`'s §3.6
+  stamper — signature-typed over the whole union, and a D16-frozen file this wave may not touch — to be
+  re-typed, for zero added coverage: both emit surfaces are already narrowed UPSTREAM of every writer.
 - **Loss/heal semantics (stated, not accidental):** a live-only event missed while a device is dark is
   NEVER replayed. The heal is the attach synthesis: `chatOpened` re-fires on EVERY (re)attach — reopen,
   reconnect, shed-restart (`sources/chat.ts:189-197`; `use-chat-bus.ts:44-56`) — and its invalidate row
@@ -194,7 +202,7 @@ Resolvers ("rooms whose member-visible projection reads this entity"), all prese
 | - | - | - |
 | character | `chat_participants` where `characterId = X AND kind='character' AND leftSeq IS NULL` (the built fan's query, verbatim) | `chat.ts:525-529` |
 | persona | `chat_participants` where `activePersonaId = X AND leftSeq IS NULL` UNION `chats` where `anchorPersonaId = X` (the anchor renders `{{user}}` even when its owner is offline — `roster-humans.ts:28-31`) | `chat.ts:534` · `:189` |
-| world-info | `chat_books` where `worldBookId = X` (the scope-fan's own `listChatIdsForBook`, `world-info/persistence/queries.ts:184-187`) ∪ the character-book and persona-book junctions joined through present seats — mirror the assembly pool's gather set (`chat/assembly/world-info/pool.ts`), which is the definition of "this room reads this book" | `world-info.ts:133-145` + the junction FK indexes |
+| world-info | FOUR arms, not three (BUILT — the pool mirror the doc left to the build lane was read: `pool.ts:88-115` unions FOUR scopes): `chat_books` where `worldBookId = X` ∪ `character_books` joined through present character seats ∪ `persona_books` joined through present seats' active personas AND the chat anchor ∪ **`global_books`** → every chat whose PRESENT host is the book's owner (the pool tenant-scopes global by `world_books.ownerId`, its FLAG\[global-scope]). Dropping the global arm would have been a silent hole in the very set "this room reads this book" names | `world-info.ts:133-145` + the junction FK indexes + `chat.ts:533` (`chat_participants_user_idx`, the global arm's host lookup) |
 
 **"Live" means: has a present seat; delivery-cost is gated by subscription physics, not a presence
 query.** Publishing to a room with no attached SSE subscriber is a no-listener `EventEmitter.emit`
@@ -209,13 +217,21 @@ and a handful of query invalidates — and zero durable rows (the current charac
 `DomainEvent` grows two members (`contracts/src/events/index.ts` — ids REQUIRED, unlike the user-bus
 hints; the reach lookup depends on them):
 
-- `{ type: "persona.updated"; personaId: PersonaId }` — emitted by persona `update` / `remove` /
-  `import`-restore (every content-affecting write; `set-active` stays chat-side — switching already
-  fans `personaSwitched`).
-- `{ type: "world-info.updated"; bookId: WorldBookId }` — emitted by book `update`/`remove` and entry
+- `{ type: "persona.updated"; personaId: PersonaId }` — emitted by persona `update` and `import`-restore
+  (`set-active` stays chat-side — switching already fans `personaSwitched`).
+- `{ type: "world-info.updated"; bookId: WorldBookId }` — emitted by book `update` and entry
   `create`/`update`/`remove`/`reorder`/`upsert-entries` (beside their existing `worldInfoChanged`
   emits; the scope-affecting subset ALSO keeps its `wiEntryScopeChanged` fan — different consumers:
   scope changes move the ATTACHMENT view, content changes move the assembly).
+
+**DELETES ARE OUT, and it is a receipt rather than an omission (BUILT 2026-08-14 — this text corrected the
+doc's original "`remove`" in both lists).** `chat_participants.activePersonaId` and `chats.anchorPersonaId`
+are `onDelete: "set null"`; `chat_books.worldBookId` is `onDelete: "cascade"`. The reach engine resolves
+rooms AFTER the write commits (a fire-and-forget subscriber), so for persona `remove` and `removeBook` the
+junction is already gone and the fan resolves ∅ — ALWAYS. A member declared there would be a dead wire that
+READS as coverage. **The residual defect is real and named:** deleting a seated persona or an attached book
+reaches no member today (they see the stale roster/assembly until reload). Closing it needs a PRE-WRITE
+reach capture — a different shape from this engine, and out of this wave.
 
 `PersonaContext`/`WorldInfoContext` gain the injected `emit: EmitDomainEvent` (the character precedent —
 domains never import the bus, `events/index.ts:7-10`). Coupled sites per new member (G-B's belts make
@@ -364,8 +380,9 @@ markers apply; conformance rows retargeted when any exemption row moves).
 
 1. Contracts: `ROOM_ENTITY_KINDS`, the `roomEntityChanged` member, `LIVE_ONLY_CHAT_EVENT_TYPES`,
    `DurableChatBusEvent`; `CHAT_BUS_EVENT_TYPES` row; allowlist contract-test fixtures.
-2. DB: CHECK derives from the durable subset; **squash into `0000_baseline.sql`** (regen via
-   drizzle-kit + biome-format the meta).
+2. DB: CHECK derives from the durable subset. **NO squash in LANE 1** — with `chatDeleted` deferred to
+   LANE 2 the key set is unchanged and `drizzle-kit generate` yields zero SQL diff (§3.4); the squash rides
+   LANE 2's `chatDeleted` move.
 3. Transport: `ChatLiveEvent` null-seq arm; pump skip-dedup + non-advancing yield; `emitChatEventLive`
    in `services.ts`; `DurableChatBusEvent` narrowing on `chatBus.emit`/`emitChatEvent`.
 4. Domain events: `persona.updated` / `world-info.updated` members + belts + context `emit` injection +

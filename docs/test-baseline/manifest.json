@@ -1695,6 +1695,9 @@
     "tests/ui/touch-target-floor.suite.ct.tsx"
   ],
   "deletions": {
+    "tests/server/entry/compose/emit-character-updated.int.test.ts": {
+      "why": "retargeted, not dropped: `entry/compose/emit-character-updated.ts` became the `character` row of the entity→room reach table (`entry/compose/room-reach.ts`, the entity→room member-freshness bridge, 2026-08-14), fanning a live-only `roomEntityChanged` instead of a durable `chatUpdated`. Both of its cases survive verbatim in intent in tests/server/entry/compose/room-reach.int.test.ts (present-seat fan incl. the departed/non-seat/other-character isolation, and the seated-nowhere no-op), which additionally covers the persona and world-info kinds. Un-deletes only if a character-specific fan is ever re-homed outside the reach table."
+    },
     "tests/client/features/world-info/surfaces/world-info-library-surface.ct.tsx": {
       "why": "the World Info RAIL SECTION retired with the config rail's R2 (2026-08-02): the library is a CollectionContribution in the Configuration workspace, so there is no list SURFACE or LIST band to mount. Its coverage moved wholesale — rows/scent/Global marker/kebab+Export to tests/client/features/world-info/components/world-info-collection-rows.ct.tsx, and the band's count + create + import to the config host's roster CT (tests/client/features/config/surfaces/config-roster-surface.ct.tsx), which mounts the real door array."
     },

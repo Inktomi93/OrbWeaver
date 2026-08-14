@@ -22,7 +22,7 @@
 // a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
 // (`buildForkStandaloneDeltas`, D79 ruling #8).
 
-import type { ChatBusEvent, ChatMetadata, ParticipantView, StandaloneVariableDelta } from "@orb/contracts/chat";
+import type { ChatMetadata, DurableChatBusEvent, ParticipantView, StandaloneVariableDelta } from "@orb/contracts/chat";
 import { variableDeltaSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -59,7 +59,7 @@ import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../subst
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
  *  roster read-model for the returned `ChatDetail`. */
 interface ForkDeps {
-  readonly emit: (event: ChatBusEvent) => Promise<void>;
+  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
 }
 

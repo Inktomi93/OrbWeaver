@@ -27,6 +27,14 @@ const SPEC: BusCoverageSpec = {
   deferred: {},
   missingPrefix: MISSING_MESSAGE_PREFIX,
   stalePrefix: STALE_MESSAGE_PREFIX,
+  // `entry/compose` joins the default domain+transport scope for THIS bus only (2026-08-14, the entity→room
+  // member-freshness bridge). `roomEntityChanged` is produced by the reach engine at the composition root and
+  // can be produced nowhere else — the lookups are SQL over chat's roster and world-info's junctions, so a
+  // domain owning them would be a sideways import the architecture forbids. Without the widening the ratchet
+  // reports a MISSING for a member that provably emits, and the only ways to silence it would be a DEFERRED
+  // entry (a lie — it IS emitted) or moving the engine into a domain (an illegal import). The user bus keeps
+  // the default: its compose exclusion is a deliberate ruling (survey §1.2), not an oversight.
+  emitScope: /\/packages\/server\/src\/(?:domain|transport|entry\/compose)\//u,
 };
 
 export const gate: GateDescriptor = {
@@ -63,6 +71,13 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/x.ts": 'export const q = "emitted";\n',
       },
       why: "the member's discriminator appears as a server emit literal — covered, passes",
+    },
+    {
+      files: {
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
+        "packages/server/src/entry/compose/room-reach.ts": 'export const q = "emitted";\n',
+      },
+      why: "THE WIDENED SCOPE, live: a member whose only producer is the composition root (the entity→room reach engine — a domain may not own its cross-domain reach queries) counts as covered for the CHAT bus. Two-sided with the mustFlag above, which still REDs an un-emitted member; and scoped — the sibling user-bus spec keeps the default scope, where a compose-only emit is deliberately NOT coverage",
     },
   ],
 };

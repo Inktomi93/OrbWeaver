@@ -10,7 +10,7 @@
 // keystone's `enqueueEmbedReindex` holder, databank, and portability — the keystone assigns the returned
 // `enqueueEmbedReindex` onto its late-bound holder so the settings write's embed-model trigger fires it.
 
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { AppSettings } from "@orb/contracts/settings";
@@ -47,9 +47,9 @@ import { withRequestSpan } from "#foundation/observability";
 import type { RoleClientsWithSignal } from "#infra/providers";
 import { requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
-import { createCharacterUpdatedChatFan } from "./emit-character-updated.ts";
 import type { DomainEventBus } from "./event-bus.ts";
 import { minter } from "./minter.ts";
+import { createRoomEntityFan } from "./room-reach.ts";
 
 /** The embed-model-change reindex enqueue's own trace root. One name so the debug surface and any future
  *  filter agree; the two enqueues share it and are told apart by the `workloadKind` attribute. */
@@ -77,7 +77,11 @@ export interface SearchDiscoveryComposeDeps {
   /** LIVE effective-config getter (the memory tier-grid seam reads memoryDefaults per call). */
   readonly getEffectiveConfig: () => AppSettings;
   /** chat's bus durable-first emit — persona's active-persona write publishes onto it. */
-  readonly emitChatEvent: (event: ChatBusEvent) => Promise<void>;
+  readonly emitChatEvent: (event: DurableChatBusEvent) => Promise<void>;
+  /** chat's DURABLE-APPEND-FREE fan (design §3.4) — the entity→room bridge's only emit surface. Separate dep
+   *  from `emitChatEvent` because they are different lanes, not two spellings of one: this one writes no
+   *  `chat_events` row and carries no seq. */
+  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
   /** ON ⇒ subscribe the indexer to the bus (embed-on-write); OFF ⇒ built-but-not-subscribed. */
   readonly corpusAutoindex: boolean;
   /** preset's ONE cross-feature op: the caller's chat-role capability, for `preset.resolveEffective`'s
@@ -153,21 +157,29 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
           return indexer.onCharacterUpdated(event);
         case "asset.created":
           return indexer.onAssetCreated(event);
+        // The entity→room bridge's two members (§3.6). NOT indexer inputs — personas and lorebooks are not
+        // embedded sources — and named explicitly rather than caught by a fallthrough, which is what makes the
+        // `assertNeverEvent` below a real belt on the NEXT member.
+        case "persona.updated":
+        case "world-info.updated":
+          return Promise.resolve();
         default:
           return assertNeverEvent(event);
       }
     });
   }
 
-  // Multi-human bridge: character.updated → chatUpdated on every chat where the character is currently
-  // seated. Always-on (not gated on corpusAutoindex) — open-room freshness is orthogonal to the search knob.
-  const fanCharacterUpdateToChats = createCharacterUpdatedChatFan(db, deps.emitChatEvent);
-  eventBus.subscribe((event: DomainEvent): Promise<void> => {
-    if (event.type === "character.updated") {
-      return fanCharacterUpdateToChats(event.characterId);
-    }
-    return Promise.resolve();
-  });
+  // THE ENTITY→ROOM BRIDGE (design §3.5): every content-affecting entity event → a live-only
+  // `roomEntityChanged` on each room whose member-visible projection reads that entity. Always-on (not gated
+  // on corpusAutoindex) — open-room freshness is orthogonal to the search knob, the shipped character fan's
+  // own ruling. This subscriber REPLACES the `character.updated → durable chatUpdated` fan
+  // (`emit-character-updated.ts`, deleted in the same commit): the member-card dialog now repaints, the
+  // per-edit refetch narrows from the whole-room `chatUpdated` set to three reads, and the per-seated-room
+  // `chat_events` INSERT is gone. A SECOND subscriber beside the indexer's, deliberately: the two consumers
+  // have different filters (the indexer skips flag-only edits and is knob-gated) and the bus error-isolates
+  // per subscriber, so a failing reach query can never cost an embedding.
+  const fanEntityUpdateToRooms = createRoomEntityFan(db, deps.emitChatEventLive);
+  eventBus.subscribe(fanEntityUpdateToRooms);
 
   // Named (not inlined into the service call) because TWO things are built from it: the Principal-scoped
   // `PersonaService` and the PRINCIPAL-LESS roster op (`domain/persona/contract/ops.ts`) the chat
@@ -178,6 +190,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newPersonaId: minter(ID_PREFIX.persona),
     audit,
     emitUserEvent: publishUserEvent,
+    // The room plane (§3.6): persona content writes raise `persona.updated`, which this seam's own reach
+    // subscriber turns into a `roomEntityChanged` per room the persona is live in.
+    emit: eventBus.emit,
     requireChatAuthorOrHost: async (principal, chatId, targetUserId) => {
       await requireAuthorOrHost({ db, can }, principal, chatId, targetUserId);
     },

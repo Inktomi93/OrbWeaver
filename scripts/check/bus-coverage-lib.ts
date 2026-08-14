@@ -11,8 +11,12 @@ import type { Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { Violation } from "./harness.ts";
 
-/** The server tiers where a bus event's discriminator must appear as an emit literal. */
-const EMIT_SCOPE = /\/packages\/server\/src\/(?:domain|transport)\//u;
+/** The DEFAULT server tiers where a bus event's discriminator must appear as an emit literal: the two tiers
+ *  that own business writes. `entry/compose` is excluded on purpose — the user-bus survey's ruling (§1.2):
+ *  the ratchet quantifies VERB-side emits, and counting the composition root would let a member whose only
+ *  producer is a compose-side wrapper read as covered while every domain writer stayed silent. A bus with a
+ *  LEGITIMATE composition-root producer overrides it per spec (see `BusCoverageSpec.emitScope`). */
+const DEFAULT_EMIT_SCOPE = /\/packages\/server\/src\/(?:domain|transport)\//u;
 
 /** How a bus's `*_EVENT_TYPES` belt enumerates its members: object property keys (chat/user) or array
  *  string-literal elements (rpg). */
@@ -33,6 +37,13 @@ export interface BusCoverageSpec {
    *  reads the gate descriptor's `message:`, never these runtime-composed finding overrides). */
   readonly missingPrefix: string;
   readonly stalePrefix: string;
+  /** OPTIONAL override of the paths scanned for emit literals (default: `domain` + `transport`). Set it ONLY
+   *  when the bus has a producer the default scope structurally cannot see — the CHAT bus does: the
+   *  entity→room reach engine lives at `entry/compose/room-reach.ts` BY LAW (the reach lookups are SQL over
+   *  another domain's roster, so a domain may not own them), so its `roomEntityChanged` emit literal exists
+   *  nowhere else. Widening is per-spec, never global: the user bus's compose exclusion is a deliberate
+   *  ruling and stays. */
+  readonly emitScope?: RegExp;
 }
 
 /** Parse the discriminator keys out of the belt const, per the bus's `keyShape`. Vacuous ([]) when the
@@ -59,10 +70,10 @@ function busEventKeys(contracts: SourceFile, spec: BusCoverageSpec): string[] {
 }
 
 /** Every string-ish literal in the server emit scope, concatenated (comments excluded) — the emit corpus. */
-function literalCorpus(project: Project): string {
+function literalCorpus(project: Project, emitScope: RegExp): string {
   const parts: string[] = [];
   for (const sf of project.getSourceFiles()) {
-    if (!EMIT_SCOPE.test(sf.getFilePath())) {
+    if (!emitScope.test(sf.getFilePath())) {
       continue;
     }
     for (const kind of [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral] as const) {
@@ -86,7 +97,7 @@ export function reconcileBusCoverage(project: Project, spec: BusCoverageSpec): V
   if (keys.length === 0) {
     return []; // the union/belt hasn't landed — vacuous
   }
-  const corpus = literalCorpus(project);
+  const corpus = literalCorpus(project, spec.emitScope ?? DEFAULT_EMIT_SCOPE);
   const violations: Violation[] = [];
   for (const key of keys) {
     const emitted = corpus.includes(` ${key} `);
