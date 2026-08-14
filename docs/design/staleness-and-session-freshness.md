@@ -595,7 +595,9 @@ Where the implementation deviated from §5's letter, and why. Each was forced by
    per-item persona/preset/tag/theme/regex/world-info import verbs each fire their own. #23's terminal fan
    was additive — it never silenced them.
 5. **Quiet mode is a GENERAL primitive at the one publish funnel, not an edit to the import call sites.**
-   `withQuietUserEvents(run)` in `transport/trpc/user-events-bus.ts`, AsyncLocalStorage-scoped (the
+   `withQuietBulkFanout(run)` in `transport/trpc/quiet-fanout.ts` (born `withQuietUserEvents` inside
+   `user-events-bus.ts`; renamed + re-homed 2026-08-14 when it learned the ROOM plane's `(chatId, entity)`
+   pairs too — entity→room bridge §5, fork F-G), AsyncLocalStorage-scoped (the
    `foundation/observability/logger.ts:166` request-scope precedent). Per `(userId, type)`: first emit passes
    through (the start marker), later ones are silenced, one COARSE event per silenced pair is fanned from a
    `finally`. Total by construction — the terminal is derived from what was actually silenced, so a future

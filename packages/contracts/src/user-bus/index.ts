@@ -120,7 +120,7 @@ export const USER_BUS_EVENT_TYPES = {
 
 /**
  * The COARSE (hint-less) form of every member — what a bulk run's TERMINAL fan publishes when the per-item
- * emits have been coalesced (`withQuietUserEvents`, W8/F5). A bulk gesture touched too many entities for any
+ * emits have been coalesced (`withQuietBulkFanout`, W8/F5). A bulk gesture touched too many entities for any
  * one id to be an honest hint, which is the same reasoning the owner-wide `databank` reindex sweep already
  * follows by omitting `documentId`; the client map path-invalidates the domain root regardless.
  *

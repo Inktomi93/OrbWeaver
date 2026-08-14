@@ -8,6 +8,7 @@ import type {
   DurableChatBusEvent,
   GroupConfig,
   HistoryFloorSeq,
+  LiveOnlyChatBusEvent,
   PromptTransform,
   PromptTransformPoint,
   RenderPolicy,
@@ -1108,6 +1109,10 @@ export type ResolveCreatorGroupDefaultsOp = (userId: UserId) => Promise<GroupCon
 export interface ChatServiceDeps {
   /** The chat bus emit (durable-first). */
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
+  /** The LIVE-ONLY fan — no `chat_events` append, no seq, nothing to replay. The ONLY door `chatDeleted`
+   *  takes: its durable row would cascade away with the very chat it announces, and being append-free is
+   *  what lets the removing verbs DELETE FIRST and fan only what `RETURNING` proves gone (R1-4a). */
+  readonly emitLive: (event: LiveOnlyChatBusEvent) => void;
   /** The in-flight lock-free turn registry (abort + concurrency). */
   readonly activeTurns: ActiveTurns;
   /** The seeded PRNG for arbitration sampling. */

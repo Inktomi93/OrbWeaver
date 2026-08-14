@@ -12,8 +12,9 @@
 //   • The CREATION stats deltas fire at CLAIM, not at creation (§4.7) — husk churn must not inflate
 //     chat-created economics, and a husk must not consume a character's first-chat bump.
 //   • A husk is reaped: `reapHusk` on nav-away (host-only, server re-checks) and the TTL belt inside
-//     `reapTemporaryChats`. Every husk reap emits `chatDeleted` (the deliberate PD-65 divergence — a husk CAN
-//     be the open room on the creating device, so its removal must reach that device).
+//     `reapTemporaryChats`. Every husk reap fans `chatDeleted` (the deliberate PD-65 divergence — a husk CAN
+//     be the open room on the creating device, so its removal must reach that device) — on the LIVE-ONLY
+//     lane, AFTER `RETURNING` proves the room actually died (R1-4a; see the interleave arms below).
 //
 // RED-FIRST NOTE (what this file proved before the implementation landed): every arm below except the two
 // that name `reapHusk` asserts through an API that already existed — `listMemberChats`, `createChatLifecycle`,
@@ -21,7 +22,7 @@
 // source with only the `started_at` column added, not a build error. The `reapHusk` arms could not be
 // expressed against the old surface (the verb did not exist) and are post-implementation coverage.
 
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -53,10 +54,14 @@ const TTL_MS = TTL_HOURS * 3_600_000;
 
 let db: Db;
 let emitted: ChatBusEvent[];
+/** The LIVE-ONLY lane's recorder — where `chatDeleted` goes since the R1-4a reorder. Separate buffer from
+ *  `emitted` on purpose: WHICH LANE a room death took is half of what changed. */
+let fannedLive: LiveOnlyChatBusEvent[];
 
 beforeEach(async () => {
   db = await freshDb();
   emitted = [];
+  fannedLive = [];
 });
 
 const emit = (event: ChatBusEvent): Promise<void> => {
@@ -64,13 +69,69 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
+const emitLive = (event: LiveOnlyChatBusEvent): void => {
+  fannedLive.push(event);
+};
+
+/** Every death announced this run, on either lane — the set an R1-4a assertion quantifies over, because
+ *  "the reap announced nothing" must be true of BOTH doors, not just the one the fix happens to use. */
+function deathsAnnounced(): readonly ChatBusEvent[] {
+  return [...emitted, ...fannedLive].filter((e) => e.type === "chatDeleted");
+}
+
 function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
-/** The lifecycle bundle under the recorder emit + a live claim chokepoint (the composition root's wiring). */
+/** The lifecycle bundle under the two recorders + a live claim chokepoint (the composition root's wiring). */
 function lifecycle(ctx: ChatContext): ReturnType<typeof createChatLifecycle> {
-  return createChatLifecycle(ctx, { emit, activeTurns: createActiveTurns(), claimChat: createClaimChat(ctx) });
+  return createChatLifecycle(ctx, { emit, emitLive, activeTurns: createActiveTurns(), claimChat: createClaimChat(ctx) });
+}
+
+/** A `Db` that runs `hook` immediately BEFORE the first `delete(...)` statement executes — the read→write
+ *  window, opened deterministically instead of by timing luck.
+ *
+ *  WHY IT HANGS OFF `delete`: the reap verbs used to await an `emit` between their SELECT and their DELETE,
+ *  and these interleave arms used THAT as the seam. The R1-4a reorder deleted the seam along with the
+ *  false-emit (the fan is now after `RETURNING`), and the TTL sweep has no SELECT left at all — so the
+ *  window has to be opened at the write itself. Drizzle's write builders are LAZY thenables that mutate and
+ *  return `this` from `.where()`/`.returning()`, so one proxy over the object `delete()` returns survives the
+ *  whole chain and can run the claim before handing execution on. Fails LOUD if that ever stops holding: the
+ *  hook simply never runs, the doomed room is deleted, and the "it survived" assertion reds. */
+function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
+  let fired = false;
+  const wrapBuilder = (builder: object): object =>
+    new Proxy(builder, {
+      get(target, prop, receiver): unknown {
+        const value: unknown = Reflect.get(target, prop, receiver);
+        if (prop === "then" && typeof value === "function") {
+          const then = value as (ok: (v: unknown) => unknown, err?: (e: unknown) => unknown) => unknown;
+          return (ok: (v: unknown) => unknown, err?: (e: unknown) => unknown): unknown => {
+            const ready = fired ? Promise.resolve() : hook();
+            fired = true;
+            return ready.then(() => then.call(target, ok, err));
+          };
+        }
+        if (typeof value !== "function") {
+          return value;
+        }
+        const method = value as (...args: unknown[]) => unknown;
+        return (...args: unknown[]): unknown => {
+          const out = method.apply(target, args);
+          return out === target ? receiver : out;
+        };
+      },
+    });
+  return new Proxy(base, {
+    get(target, prop, receiver): unknown {
+      const value: unknown = Reflect.get(target, prop, receiver);
+      if (prop !== "delete" || typeof value !== "function") {
+        return value;
+      }
+      const del = value as (...args: unknown[]) => object;
+      return (...args: unknown[]): object => wrapBuilder(del.apply(target, args));
+    },
+  }) as Db;
 }
 
 /** `startChat`'s collaborators — no engine arm is exercised here (every case uses a verbatim/none opening). */
@@ -245,83 +306,84 @@ describe("firstness — a husk never consumes a character's first-chat bump (§4
 });
 
 describe("reap — the nav-away verb and the TTL belt", () => {
-  test("reapHusk drops an unclaimed room, emits chatDeleted (the PD-65 divergence), and no-ops on a CLAIMED one", async () => {
+  test("reapHusk drops an unclaimed room, fans chatDeleted live (the PD-65 divergence), and no-ops on a CLAIMED one", async () => {
     const { host, chatId } = await seedHusk("e");
     const life = lifecycle(makeChatContext(db));
 
     await life.reapHusk({ principal: principal(host), chatId });
     expect(await db.select().from(chats).where(eq(chats.id, chatId))).toStrictEqual([]);
     // A husk CAN be the open room on the creating device, so its removal MUST reach that device — the temp
-    // reaper's "deliberately no bus event" argument does not transfer.
-    expect(emitted).toContainEqual({ type: "chatDeleted", chatId });
+    // reaper's "deliberately no bus event" argument does not transfer. It rides the LIVE-ONLY lane: a durable
+    // row would be cascaded away by this very delete, which is why nothing lands in `emitted`.
+    expect(fannedLive).toContainEqual({ type: "chatDeleted", chatId });
+    expect(emitted).toStrictEqual([]);
 
     const host2 = await seedUser(db, castId<Handle>("host2"));
     const claimed = await seedChat(db, "claimed2");
     await seedParticipant(db, { chatId: claimed, key: "p2", userId: host2, role: "host" });
     emitted.length = 0;
+    fannedLive.length = 0;
     await life.reapHusk({ principal: principal(host2), chatId: claimed });
     expect(await db.select().from(chats).where(eq(chats.id, claimed))).toHaveLength(1);
-    expect(emitted).toStrictEqual([]);
+    expect(deathsAnnounced()).toStrictEqual([]);
   });
 
-  // ── THE INTERLEAVE ARMS (R3 — the fresh-context verifier's R1-4) ────────────────────────────────
+  // ── THE INTERLEAVE ARMS (R3's R1-4b data loss + R1-4a's false emit) ──────────────────────────────
   //
-  // Both reap arms read a doomed set and then delete it, and a CLAIM can land in between: a user returning
-  // to the room and typing is exactly the case the nav-away skip and the TTL window exist to protect. The
-  // decision therefore has to be the DELETE's, not the SELECT's — the predicate rides the WHERE, so a room
-  // that stopped qualifying survives the write that was already in flight for it.
-  //
-  // The interleave is expressed by claiming the room BETWEEN the verb's own read and write, through the ctx
-  // seam the verb uses to read the clock: `now()` is called once, before the SELECT, so a hook there lands
-  // the claim in the window with no timing luck involved.
+  // Both reap arms decide whether a room still qualifies and then delete it, and a CLAIM can land in
+  // between: a user returning to the room and typing is exactly the case the nav-away skip and the TTL
+  // window exist to protect. TWO separate defects lived in that window and both are pinned here:
+  //   • R1-4b (DATA LOSS) — the decision has to be the DELETE's. The predicate rides the WHERE, so a room
+  //     that stopped qualifying survives the write that was already in flight for it.
+  //   • R1-4a (FALSE EMIT) — the ANNOUNCEMENT has to follow `RETURNING`. It used to precede the DELETE
+  //     (forced: a durable append after the row is gone FK-fails), so a declined reap told every open
+  //     device the room had died while it survived. With `chatDeleted` on the live-only lane there is
+  //     nothing to append, the fan happens after the write, and a survivor is announced on NO lane —
+  //     which is what `deathsAnnounced()` quantifies over.
+  // The window is opened at the WRITE (`dbClaimingBeforeDelete`), because the awaited-emit seam these arms
+  // used to hang off is precisely what the reorder removed.
 
-  test("reapHusk: a claim landing between the read and the write LEAVES THE ROOM — the predicate is the DELETE's", async () => {
+  test("reapHusk: a claim landing before the write LEAVES THE ROOM and announces NO death (R1-4b + R1-4a)", async () => {
     const { host, chatId } = await seedHusk("interleave-husk");
-    // THE WINDOW, exactly: `emit` is awaited between the verb's SELECT and its DELETE, so claiming from the
-    // emit hook lands the write inside the race with no timing luck involved.
-    const claimOnEmit = async (event: ChatBusEvent): Promise<void> => {
-      emitted.push(event);
+    const racing = dbClaimingBeforeDelete(db, async () => {
       await db.update(chats).set({ startedAt: FROZEN_AT }).where(eq(chats.id, chatId));
-    };
-    const ctx = makeChatContext(db);
-
-    await createChatLifecycle(ctx, { emit: claimOnEmit, activeTurns: createActiveTurns(), claimChat: createClaimChat(ctx) }).reapHusk({
-      principal: principal(host),
-      chatId,
     });
 
-    // THE PROPERTY THAT MATTERS: the room is still here. (The already-fanned `chatDeleted` is the documented
-    // residual of the emit-before-delete ordering law — see the verb's header; it is self-correcting because
-    // the room is back in the list, where `emitChatChanged` puts it.)
+    await lifecycle(makeChatContext(racing)).reapHusk({ principal: principal(host), chatId });
+
+    // R1-4b: the room is still here — the DELETE re-evaluated `started_at IS NULL` and matched nothing.
     expect(await db.select().from(chats).where(eq(chats.id, chatId))).toHaveLength(1);
+    // R1-4a: and NOBODY was told it died. This is the assertion that was impossible before the reorder —
+    // the old ordering had already fanned `chatDeleted` by the time the DELETE declined, bouncing every
+    // open device to landing on a room that survives.
+    expect(deathsAnnounced()).toStrictEqual([]);
   });
 
-  test("the TTL sweep: a room claimed under the sweep SURVIVES, and the reaped count is what was REMOVED", async () => {
-    // THE DATA-LOSS ARM. The sweep used to delete by the id list alone, so a room that stopped qualifying
-    // between the SELECT and the DELETE — claimed, or its last other human arriving — went anyway, canon and
-    // all. Re-stating the predicate in the DELETE's WHERE makes the write re-decide per row.
+  test("the TTL sweep: a room claimed under the sweep SURVIVES, is never announced dead, and `reaped` counts REMOVALS", async () => {
+    // THE DATA-LOSS ARM. The sweep used to delete by an id list read from a prior SELECT, so a room that
+    // stopped qualifying between the two — claimed, or its last other human arriving — went anyway, canon
+    // and all. It is now ONE `DELETE … RETURNING` whose WHERE carries the whole conjunction, so the
+    // qualification decision and the write are the same statement — and `RETURNING` is simultaneously the
+    // honest count and the exact fan set.
     const stale = FROZEN_AT - TTL_MS - 1000;
     const doomed = await seedHusk("sweep-doomed", { createdAt: stale });
     const rescued = await seedChat(db, "sweep-rescued", { startedAt: null, createdAt: stale });
     await seedParticipant(db, { chatId: rescued, key: "p_sweep_rescued", userId: doomed.host, role: "host" });
 
-    // Same seam: the sweep awaits one emit per doomed room before its DELETE.
-    const claimOnEmit = async (event: ChatBusEvent): Promise<void> => {
-      emitted.push(event);
+    const racing = dbClaimingBeforeDelete(db, async () => {
       await db.update(chats).set({ startedAt: FROZEN_AT }).where(eq(chats.id, rescued));
-    };
-    const ctx = makeChatContext(db);
-
-    const result = await createChatLifecycle(ctx, { emit: claimOnEmit, activeTurns: createActiveTurns(), claimChat: createClaimChat(ctx) }).reapTemporaryChats({
-      principal: principal(doomed.host),
     });
+
+    const result = await lifecycle(makeChatContext(racing)).reapTemporaryChats({ principal: principal(doomed.host) });
 
     // The claimed room is intact…
     expect(await db.select().from(chats).where(eq(chats.id, rescued))).toHaveLength(1);
     // …the genuinely-doomed one is gone…
     expect(await db.select().from(chats).where(eq(chats.id, doomed.chatId))).toStrictEqual([]);
-    // …and the count is the REMOVED set, not the doomed one (a caller that trusts `reaped` is told the truth).
+    // …the count is the REMOVED set, not the doomed one (a caller that trusts `reaped` is told the truth)…
     expect(result).toStrictEqual({ reaped: 1 });
+    // …and the fan is EXACTLY the removed set: the rescued room is announced dead on no lane (R1-4a).
+    expect(deathsAnnounced()).toStrictEqual([{ type: "chatDeleted", chatId: doomed.chatId }]);
   });
 
   test("reapHusk is HOST-only — a plain member cannot reap the room out from under the host", async () => {
@@ -350,8 +412,8 @@ describe("reap — the nav-away verb and the TTL belt", () => {
     const { reaped } = await lifecycle(makeChatContext(db)).reapTemporaryChats({ principal: principal(host) });
     expect(reaped).toBe(2);
     expect((await db.select({ id: chats.id }).from(chats)).map((r) => r.id)).toStrictEqual([fresh]);
-    expect(emitted).toContainEqual({ type: "chatDeleted", chatId: expired });
-    expect(emitted).toContainEqual({ type: "chatDeleted", chatId: temp });
+    expect(fannedLive).toContainEqual({ type: "chatDeleted", chatId: expired });
+    expect(fannedLive).toContainEqual({ type: "chatDeleted", chatId: temp });
   });
 
   test("the TTL belt is host-scoped: another user's expired husk is untouched", async () => {
