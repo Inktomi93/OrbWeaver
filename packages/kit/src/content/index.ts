@@ -32,6 +32,14 @@
 //      stay literal (the §4.8 hard exclusion, applied to the whole new grammar; image refs keep their
 //      original code-fence-blind behavior for byte-compatibility with stored bodies).
 //
+// THE §3.6 MEMBER-STRIP RIDES A SECOND, FENCE-BLIND PASS (`tokenizeForHiddenScan`, 2026-08-14). The grammar
+// above is the RENDER/WIRE grammar: a closed fence is ONE span carrying its whole body as `raw`. A trust
+// boundary cannot re-emit an opaque `raw`, so the hidden-span derivation the strip + the host reveal share
+// tokenizes with directive-fence recognition OFF. Its totality claim, stated honestly: no hidden-class span
+// survives the member projection anywhere the tokenizer would have recognized one — every directive fence
+// body included; the ``` code-fence exclusion is the one named, ratified hole (§3.2.1 #3 — the reader SEES
+// that tag, so it is a visible model bug, not a silent truth-leak).
+//
 // The LENIENT-HTML arm (§4.8) is DETECTION-ONLY here (pure, opt-in via `lenientHtml` — default OFF, zero
 // behavior change): a ≥3-line element-majority naked-HTML block, or a ```html/```svg fence whose body is
 // element-majority, becomes an implicit `card` span with `origin:"lenient"` + a derived title. Its product
@@ -539,6 +547,12 @@ interface ScanEnv {
   readonly lenient: boolean;
   /** Final-body semantics: a registered fence with no close consumes to EOF (`TokenizeContentOptions`). */
   readonly committed: boolean;
+  /**
+   * Recognize `:::name` DIRECTIVE FENCES. Always true for `tokenizeContent` (the rendering/wire grammar).
+   * FALSE only for the §3.6 hidden-scan pass (`tokenizeForHiddenScan`) — see its comment for why the trust
+   * boundary must not let a fence body become one opaque `raw`.
+   */
+  readonly directiveFences: boolean;
 }
 
 /** A code-fence delimiter line: toggle the fence state (its own line stays literal); the lenient html arm may
@@ -563,7 +577,7 @@ function stepLine(env: ScanEnv, i: number, inCode: boolean): StepState {
   if (inCode) {
     return { pieces: linePiece(env.content, env.lines, i, false), next: i + 1, inCode };
   }
-  const fence = tryDirectiveFence(env.content, env.lines, i, env.committed);
+  const fence = env.directiveFences ? tryDirectiveFence(env.content, env.lines, i, env.committed) : null;
   if (fence !== null) {
     return { ...fence, inCode };
   }
@@ -579,8 +593,8 @@ function stepLine(env: ScanEnv, i: number, inCode: boolean): StepState {
 /** The line walk: recognizes directive fences (balance-aware), excludes markdown code-fence regions from
  *  the new grammar, and (opt-in) runs the §4.8 lenient detection. Text is emitted as offset pieces so bytes
  *  are preserved exactly. */
-function structuralPass(content: string, lines: readonly Line[], lenient: boolean, committed: boolean): Piece[] {
-  const env: ScanEnv = { content, lines, lenient, committed };
+function structuralPass(env: ScanEnv): Piece[] {
+  const { lines } = env;
   const pieces: Piece[] = [];
   let inCode = false;
   let i = 0;
@@ -675,8 +689,21 @@ function expandPieces(content: string, pieces: readonly Piece[]): Expanded[] {
  * DEGRADES, never throws, on all persisted content (D51).
  */
 export function tokenizeContent(content: string, options?: TokenizeContentOptions): ContentSpan[] {
-  const expanded = expandPieces(content, structuralPass(content, splitLines(content), options?.lenientHtml === true, options?.committed === true));
-  // Merge adjacent text runs (maximal text spans — the pre-grammar byte-identical shape), then image-tokenize.
+  return tokenizeWithEnv({
+    content,
+    lines: splitLines(content),
+    lenient: options?.lenientHtml === true,
+    committed: options?.committed === true,
+    directiveFences: true,
+  });
+}
+
+/** The shared tail of every tokenization: run the structural pass, expand its pieces through the inline tag
+ *  walker, merge adjacent text runs into maximal spans, then image-tokenize. The ONE body, so the fence-blind
+ *  §3.6 pass below can never become a second parser. */
+function tokenizeWithEnv(env: ScanEnv): ContentSpan[] {
+  const { content } = env;
+  const expanded = expandPieces(content, structuralPass(env));
   const spans: ContentSpan[] = [];
   let pending = "";
   const flush = (): void => {
@@ -714,23 +741,58 @@ export function contentSpanRaw(span: ContentSpan): string {
   return span.raw;
 }
 
+/** One hidden-class span — the §3.6 secret carrier. Named here so the strip, the host-reveal projection, and
+ *  any future hidden-channel consumer share ONE spelling instead of re-`Extract`ing the union member. */
+export type HiddenContentSpan = Extract<ContentSpan, { kind: "hidden" }>;
+
+/**
+ * THE §3.6 HIDDEN-SCAN PASS — the ONE derivation of "where are this body's hidden spans", feeding both the
+ * member STRIP (which removes them) and the host REVEAL (which shows them). Identical by construction: the
+ * reveal can only ever list exactly what the strip removed.
+ *
+ * IT IS DELIBERATELY FENCE-BLIND (`directiveFences: false`), and that is the whole fix (2026-08-14). The
+ * rendering grammar is strict: a CLOSED `:::card` fence swallows its entire body into one span's `raw`, which
+ * this projection then re-emits VERBATIM — so a `<lie truth="…"/>` the model wrote inside a card body rode
+ * straight into a member's committed payload while the (fence-blind, per-delta) mid-stream scrubber had
+ * already shown them a clean live view. Clean while streaming, leaking on reload; and because a card body
+ * renders as HTML, the truth was invisible on their screen and present in their DOM. Dropping fence
+ * recognition HERE — and only here — makes the strip total without touching the rendering/wire grammar: the
+ * fence's own bytes are still re-emitted exactly, only the hidden tag inside it leaves.
+ *
+ * TOTALITY, stated honestly: no hidden-class span survives this projection anywhere the tokenizer would have
+ * recognized one — every directive fence body included; the MARKDOWN code-fence (triple-backtick) exclusion
+ * is the one named, ratified hole (§3.2.1 #3 — the author is SHOWING markup, the reader SEES the raw tag, so
+ * it is a visible model bug rather than a silent truth-leak, the D51 posture that leaves a malformed tag
+ * literal). The module header states the same sentence with the delimiter spelled out.
+ *
+ * Also deliberately NOT `committed`: an EOF-closed fence would swallow an unterminated tail; strict-close
+ * keeps that tail scannable. Fail-closed beats consistent at a trust boundary.
+ */
+function tokenizeForHiddenScan(content: string): ContentSpan[] {
+  return tokenizeWithEnv({ content, lines: splitLines(content), lenient: false, committed: false, directiveFences: false });
+}
+
 /** The MEMBER-STRIP primitive (§3.6 — the trust boundary's pure half): removes ONLY `hidden`-class spans
- *  from a body, byte-preserving everything else. A body with no hidden spans returns the ORIGINAL string
- *  (identity — the common case is free). A malformed hidden tag that degraded to literal text is NOT
- *  stripped (it is visible, not secret — the D51 posture; the reader seeing raw `<lie` is a visible model
- *  bug, never a silent truth-leak). `unknown-directive` spans are NOT stripped here — they are display
- *  noise, not secrets, and the transcript payload stays honest. */
+ *  from a body, byte-preserving everything else (fence bytes included — a stripped card is still a card).
+ *  A body with no hidden spans returns the ORIGINAL string (identity — the common case is free). A malformed
+ *  hidden tag that degraded to literal text is NOT stripped (it is visible, not secret — the D51 posture; the
+ *  reader seeing raw `<lie` is a visible model bug, never a silent truth-leak). `unknown-directive` spans are
+ *  NOT stripped here — they are display noise, not secrets, and the transcript payload stays honest. */
 export function stripHiddenSpans(content: string): { readonly content: string; readonly hadHidden: boolean } {
-  // Deliberately NOT `committed` even though this runs at commit: an EOF-closed card would SWALLOW a hidden
-  // tag sitting in the unterminated tail, and this projection re-emits a card's raw bytes verbatim — the
-  // truth would ride into the member payload. Strict-close keeps that tail as scannable text. Fail-closed
-  // beats consistent here (§3.6 is the trust boundary; the card window is only a rendering nicety).
-  const spans = tokenizeContent(content);
+  const spans = tokenizeForHiddenScan(content);
   if (!spans.some((s) => s.kind === "hidden")) {
     return { content, hadHidden: false };
   }
   const kept = spans.filter((s) => s.kind !== "hidden").map(contentSpanRaw);
   return { content: kept.join(""), hadHidden: true };
+}
+
+/** The STRIP'S TWIN (§3.6): every hidden-class span in a body, in document order — what the host-reveal eye
+ *  shows and what {@link stripHiddenSpans} removes, from the ONE pass above. A reveal built on the plain
+ *  `tokenizeContent` grammar would miss exactly the spans a fence hides, which is how the host lost in-card
+ *  lies from their own standing inventory while members received them. */
+export function scanHiddenSpans(content: string): readonly HiddenContentSpan[] {
+  return tokenizeForHiddenScan(content).filter((s): s is HiddenContentSpan => s.kind === "hidden");
 }
 
 // ── The MID-STREAM member scrubber (§3.6 — the delta leak the at-commit strip can't reach) ────────────────
@@ -964,7 +1026,15 @@ export function projectBodyForSummary(content: string): string {
       if (s.kind === "hidden") {
         return "";
       }
-      return s.kind === "card" ? cardWireStub(s.title) : contentSpanRaw(s);
+      if (s.kind === "card") {
+        return cardWireStub(s.title);
+      }
+      // THE FENCE ARM (the 2026-08-14 sibling of the member-strip hole): a `choices` / `unknown-directive`
+      // span's `raw` is its WHOLE fence block, body included, and re-emitting it verbatim carried any hidden
+      // tag the model wrote inside straight into this member-peekable digest. Re-strip it. (`card` is already
+      // safe — it collapses to the stub, discarding its raw; `text`/`image` spans cannot carry an unrecognized
+      // hidden tag, save inside the ``` exclusion the strip deliberately preserves.)
+      return s.kind === "choices" || s.kind === "unknown-directive" ? stripHiddenSpans(s.raw).content : contentSpanRaw(s);
     })
     .join("");
 }

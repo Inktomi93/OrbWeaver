@@ -2332,6 +2332,33 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     expect(hostPage.messages[0]?.content).toBe(`He nods. ${lieTag} "Nothing," he says.`);
   });
 
+  test("listMessages: a lie inside a CLOSED :::card fence is stripped for a MEMBER too — fence context hides nothing (2026-08-14)", async () => {
+    // THE HOLE THIS PINS: the tokenizer is strict, so a closed fence swallowed its whole body into one card
+    // span's `raw` and the strip re-emitted it verbatim. A card body renders as HTML, so the member's SCREEN
+    // showed nothing while their PAYLOAD carried the GM's truth — and the mid-stream scrubber (fence-blind)
+    // had already shown them a clean live view, so the leak appeared only on reload. Pinned at the payload
+    // level (`JSON.stringify`), at the read a member's transcript is actually built from.
+    const host = await seedUser(db, castId<Handle>("mc_host"));
+    const member = await seedUser(db, castId<Handle>("mc_member"));
+    const chatId = await seedRoom("mc", host);
+    await seedParticipant(db, { chatId, key: "mc_m", userId: member, role: "member" });
+    const stored = `The ledger reads clean.\n:::card title="Ledger"\n<p>All accounted for.</p>\n${lieTag}\n:::\nHe closes it.`;
+    await seedMessage(db, chatId, 1, { role: "assistant", content: stored });
+
+    const { listMessages } = createRead(makeChatContext(db), makeDeps());
+
+    const memberPage = await listMessages({ principal: principal(member), chatId });
+    const memberPayload = JSON.stringify(memberPage);
+    expect(memberPayload).not.toContain("crypt");
+    expect(memberPayload).not.toContain("<lie");
+    // The card itself SURVIVES for the member — only the hidden tag's bytes leave (a projection, not a cut).
+    expect(memberPage.messages[0]?.content).toBe(stored.replace(lieTag, ""));
+
+    // THE DUAL: the host's stored body is byte-identical — hosts read their own lies, in cards included.
+    const hostPage = await listMessages({ principal: principal(host), chatId });
+    expect(hostPage.messages[0]?.content).toBe(stored);
+  });
+
   // ─────────────────────────────────────────────────────────────────────────────────────────────────────
   // THE DURABLE REASONING CHANNEL (§3.6 P3). The pre-existing pins covered the LIVE/replay halves (deltas +
   // `reasoningStreamDone`); this block pins the DURABLE one — `message_variants.reasoning`, the column every

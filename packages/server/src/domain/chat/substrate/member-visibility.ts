@@ -15,6 +15,14 @@
 // spans (`HIDDEN_TAGS` registrants); `unknown-directive` noise is display-filtered client-side but is NOT a
 // secret and stays in the payload.
 //
+// THE STRIP IS TOTAL OVER FENCE BODIES (2026-08-14). `stripHiddenSpans` used to tokenize with the render
+// grammar, where a CLOSED `:::card` fence is one span carrying its whole body as `raw` — so a `<lie …/>` the
+// model wrote inside a card body was re-emitted verbatim into the member's committed payload, invisible on
+// their screen (a card body renders as HTML) and present in their DOM. Worse, the mid-stream scrubber is
+// fence-blind by construction, so the LIVE view was already clean: it looked fine while streaming and
+// betrayed on reload. The kit strip now runs a fence-blind hidden-scan pass; the ``` code-fence exclusion is
+// the one named, ratified hole (the reader SEES that tag — a visible model bug, not a silent leak).
+//
 // THE MID-STREAM CHANNEL (§3.6 — closed by the PRODUCER-SIDE stamper): the live token DELTA stream + the
 // durable event replay carry raw model text char-by-char, so a member watching a turn stream would see
 // hidden bytes as they generate (they vanish at commit — a devtools-only leak). The `text`-channel delta is
