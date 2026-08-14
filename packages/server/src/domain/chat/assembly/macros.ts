@@ -66,8 +66,8 @@ interface MacroExtras {
   freezes?: MacroFreeze[] | undefined;
   /** The REPLAY arm (D129-F) — a PRIOR freeze record, walked positionally: an occurrence whose name+args match
    *  supplies its stored value and the handler never runs, so no clock is read and no draw is consumed. Absent
-   *  ⇒ every volatile draws fresh (the commit-time bake). The pair {`frozenMacros` in, `freezes` out} is what
-   *  makes a re-freeze idempotent: replaying a record over its own raw reproduces the bytes exactly. */
+   *  ⇒ every volatile draws fresh (the commit-time bake). The `frozenMacros` input and `freezes` output make
+   *  a re-freeze idempotent: replaying a record over its own raw reproduces the bytes exactly. */
   frozenMacros?: readonly MacroFreeze[] | undefined;
 }
 
