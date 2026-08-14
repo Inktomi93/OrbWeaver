@@ -56,7 +56,7 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
     <Stack
       gap="field"
       align="center"
-      className="rounded-card border border-border bg-card px-block py-row"
+      className="rounded-base border border-border bg-card px-block py-row"
       data-slot="stat-cell"
       {...(hint === undefined ? {} : { title: hint })}
     >

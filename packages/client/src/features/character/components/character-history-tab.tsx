@@ -43,7 +43,7 @@ export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): 
       </Button>
 
       {rows.length === 0 ? (
-        <Text tone="muted">No snapshots yet. Take one to capture this character's current state.</Text>
+        <Text voice="gloss">No snapshots yet. Take one to capture this character's current state.</Text>
       ) : (
         <Stack gap="row">
           {rows.map((row) => (

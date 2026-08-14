@@ -255,7 +255,7 @@ export function CastCard({
   relationshipGlyph,
 }: CastCardProps): ReactElement {
   return (
-    <Stack gap="block" className="rounded-card border border-border bg-card px-block py-row" data-slot="cast-card">
+    <Stack gap="block" className="rounded-base border border-border bg-card px-block py-row" data-slot="cast-card">
       <Row justify="between" align="baseline" gap="block">
         <Row gap="field" align="center" className="min-w-0">
           {emoji === undefined || emoji === "" ? null : (
