@@ -68,6 +68,14 @@ export interface WorldInfoContext {
    *  ATTACHMENT view of one chat (a book/entry attached or its scope moved), this = the ASSEMBLY went stale
    *  in every room that reads the book. Fire-and-forget + error-isolated by the bus. */
   readonly emit: EmitDomainEvent;
+  /** PRE-WRITE reach capture for `removeBook` (the entity→room bridge's DELETE residual, design §3.6). A book
+   *  delete CASCADEs all four scope junctions, so the post-write `emit` path would resolve ∅ and no room whose
+   *  per-turn pool read the book would repaint. Called BEFORE the delete, it snapshots those rooms while the
+   *  junctions still exist and returns a thunk that fans `roomEntityChanged` to that set; the verb fires it
+   *  AFTER the row is confirmed gone. Live-only + error-isolated (never rejects → cannot fault the delete).
+   *  ENTRY deletes do NOT use this — the BOOK survives an entry removal, so `removeEntry`'s own post-write
+   *  `emit({world-info.updated})` resolves the intact junctions correctly. */
+  readonly captureRoomReachForDelete: (bookId: WorldBookId) => Promise<() => void>;
 }
 
 export interface WorldInfoService {

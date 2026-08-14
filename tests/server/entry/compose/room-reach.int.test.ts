@@ -11,10 +11,11 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { characterBooks, chatBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
+import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { ChatId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createRoomEntityFan } from "@orb/server/entry/compose";
+import { createDeleteReachCapture, createRoomEntityFan } from "@orb/server/entry/compose";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -222,6 +223,80 @@ describe("room-reach: the explicit no-reach arm", () => {
 
     const { captured, fan } = spyFan(db);
     await fan({ type: "asset.created", assetId: castId("asset_rr") });
+
+    expect(captured).toEqual([]);
+  });
+});
+
+// The DELETE residual (design §3.6): a persona/book delete NULLs/cascades its seating junctions AS it commits,
+// so the fan-on-event engine (spyFan above) resolves ∅ POST-write and reaches no member. The fix is the
+// pre-write capture — snapshot the rooms WHILE the junction exists, fan the captured set AFTER the row is gone.
+// Each case pins BOTH arms in one test: the post-write reach is ∅ (the defect, and the reason the capture must
+// exist), and the pre-write thunk still reaches the seated rooms.
+describe("room-reach: pre-write delete capture (§3.6 residual)", () => {
+  test("PERSONA — captured before the delete, fans the seated + anchored rooms though a post-write reach sees ∅", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, castId<Handle>("rr_del_p_owner"));
+    const doomed = await seedPersona(db, owner, "rr_del_p");
+    const seatChat = await seedChat(db, "rr_del_p_seat");
+    const anchorChat = await seedChat(db, "rr_del_p_anchor", { anchorPersonaId: doomed });
+    await seedParticipant(db, { chatId: seatChat, key: "del_p_seat", userId: owner, activePersonaId: doomed });
+
+    const captured: LiveOnlyChatBusEvent[] = [];
+    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+
+    // Snapshot WHILE the seat + anchor pointers still resolve.
+    const fanReach = await capture.persona(doomed);
+    // The verb's own delete: `chat_participants.activePersonaId` + `chats.anchorPersonaId` go NULL.
+    await db.delete(personas).where(eq(personas.id, doomed));
+
+    // THE DEFECT: today's post-write reach engine now resolves nothing — no member would repaint.
+    const post = spyFan(db);
+    await post.fan({ type: "persona.updated", personaId: doomed });
+    expect(post.captured).toEqual([]);
+
+    // THE FIX: the captured thunk still reaches both rooms the persona was live in.
+    fanReach();
+    expect(roomsFor(captured, "persona")).toEqual(new Set([seatChat, anchorChat]));
+    expect(captured).toHaveLength(2);
+  });
+
+  test("WORLD-INFO — captured before the delete, fans the pool rooms though a post-write reach sees ∅", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, castId<Handle>("rr_del_w_owner"));
+    const doomed = await seedBook(db, owner, "rr_del_w");
+    const chatScoped = await seedChat(db, "rr_del_w_chat");
+    const charScoped = await seedChat(db, "rr_del_w_char");
+    const seatedChar = await seedCharacter(db, owner, "rr_del_w_char_id");
+    await db.insert(chatBooks).values({ chatId: chatScoped, worldBookId: doomed, createdAt: FROZEN_AT });
+    await db.insert(characterBooks).values({ characterId: seatedChar, worldBookId: doomed, role: "auxiliary", createdAt: FROZEN_AT });
+    await seedParticipant(db, { chatId: charScoped, key: "del_w_char", characterId: seatedChar });
+
+    const captured: LiveOnlyChatBusEvent[] = [];
+    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+
+    const fanReach = await capture["world-info"](doomed);
+    // The verb's own delete: `chat_books` + `character_books` CASCADE away.
+    await db.delete(worldBooks).where(eq(worldBooks.id, doomed));
+
+    const post = spyFan(db);
+    await post.fan({ type: "world-info.updated", bookId: doomed });
+    expect(post.captured).toEqual([]);
+
+    fanReach();
+    expect(roomsFor(captured, "world-info")).toEqual(new Set([chatScoped, charScoped]));
+    expect(captured).toHaveLength(2);
+  });
+
+  test("a persona seated / anchored NOWHERE captures ∅ — the thunk is a no-op", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, castId<Handle>("rr_del_none_owner"));
+    const lonely = await seedPersona(db, owner, "rr_del_none");
+
+    const captured: LiveOnlyChatBusEvent[] = [];
+    const fanReach = await createDeleteReachCapture(db, (event) => captured.push(event)).persona(lonely);
+    await db.delete(personas).where(eq(personas.id, lonely));
+    fanReach();
 
     expect(captured).toEqual([]);
   });
