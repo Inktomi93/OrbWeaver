@@ -136,6 +136,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "imports:depcruise",
     "deps:knip",
     "docs:format",
+    "docs:catalog",
   ]);
 });
 
@@ -210,6 +211,18 @@ test("resolveSelection --file: derives the per-tool views (eslint surface, tsc o
   expect(sel.docsPaths).toContain("docs/architecture/core/AGENTS.md");
   // A docs file is NOT in the eslint/tsc/depcruise surfaces.
   expect(sel.eslintPaths).not.toContain("docs/architecture/core/AGENTS.md");
+});
+
+test("docs:catalog changed scope covers all Markdown and its own control files", () => {
+  const design = resolveSelection({ kind: "file", paths: ["docs/design/staleness-and-session-freshness.md"] });
+  expect(stage("docs:format").scopedArgv?.(design)).toBe("skip-empty");
+  expect(stage("docs:catalog").scopedArgv?.(design)).toEqual(["pnpm", "check:doc-catalog"]);
+
+  const control = resolveSelection({ kind: "file", paths: ["docs/catalog/lanes.json"] });
+  expect(stage("docs:catalog").scopedArgv?.(control)).toEqual(["pnpm", "check:doc-catalog"]);
+
+  const sourceOnly = resolveSelection({ kind: "file", paths: ["packages/server/src/index.ts"] });
+  expect(stage("docs:catalog").scopedArgv?.(sourceOnly)).toBe("skip-empty");
 });
 
 test("resolveSelection: a DELETED path lints clean — dropped from the tool file-lists, KEPT in paths + its tsconfig", () => {

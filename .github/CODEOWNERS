@@ -1,0 +1,8 @@
+# Nate owns the repository; path rows make sensitive review surfaces explicit in GitHub.
+* @Inktomi93
+
+/docs/architecture/core/ @Inktomi93
+/docs/catalog/ @Inktomi93
+/.github/ @Inktomi93
+/scripts/docs/ @Inktomi93
+/scripts/verify/ @Inktomi93

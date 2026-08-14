@@ -36,4 +36,5 @@ The D-ledger (`docs/architecture/core/Core-Laws-and-Precedents.md`) wins on ANY 
   `.Codex/rules/orchestration.md` covers the orchestrator's side and must not restate §L.
 - **Agent-file authoring** (all 17 frontmatter fields, what a subagent inherits): the `agent-authoring`
   skill — invoke before writing or editing any `.Codex/agents/*.md`.
-- **Current state, queue, and standing operational law:** `docs/retro-workboard.md`.
+- **Mutable work state:** [GitHub Project 1](https://github.com/users/Inktomi93/projects/1).
+- **Session recovery and standing operational law:** `docs/retro-workboard.md` (preserved during migration).

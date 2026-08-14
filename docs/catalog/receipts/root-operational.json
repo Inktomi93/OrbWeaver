@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "lane": "root-operational",
+  "issue": 8,
+  "entries": [
+    {
+      "path": "docs/Mission.md",
+      "assignedSha256": "1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/Qwen_Offline_Investigation.md",
+      "assignedSha256": "71c2c4bb8fa3b77747b5c2ffe8b69d3f90f4ff168d011fc9ab83486aedaaad54",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/barrel-star-reexport-residue.md",
+      "assignedSha256": "3e7b3e9f57158a11f45f53e4d93d7b3051435fe196f14f23c9fd29d3bf66c918",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/client-smalls-lane.md",
+      "assignedSha256": "c3bf562b7af2010d9b6a27f7c9bbac870f23205061a03c29c15169e4b00d0671",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/orbweaver-card-debug-handoff.md",
+      "assignedSha256": "94c10da6b8f2eee71296dcca88877ee1cb87b08f2b7a6fc5827748b681705de5",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/retro-workboard.md",
+      "assignedSha256": "191f567fceaa1563a03c7e17ee451b6cd140eba74398a96e28bec630404ccbec",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    }
+  ]
+}

@@ -85,6 +85,7 @@ export const ownScheme = (s: number | null): 0 | 1 | 2 | 3 => {
 // EXACTLY run.ts's stages, in order, so `pnpm check` (= `verify --static`) stays byte-compatible.
 
 const STATIC: readonly Tier[] = ["static", "push", "full"];
+const DOC_CATALOG_PATH_RE = /^(?:docs\/.*\.md|docs\/catalog\/.*|scripts\/docs\/catalog\.ts)$/u;
 
 /** tsc scoped invocation: sole owner → `ts7 -p <config>`; none → skip; multiple owners → the whole
  *  per-package lane (the honest floor, one child not N). Uses ts7 (the scripts/ts7.cjs wrapper, TS7
@@ -297,6 +298,16 @@ export const REGISTRY: readonly StageDef[] = [
     argv: ["pnpm", "check:docs"],
     classify: ownScheme,
     scopedArgv: (sel) => (sel.docsPaths.length === 0 ? "skip-empty" : ["tsx", "scripts/docs/format-md.ts", "--check", ...sel.docsPaths]),
+  },
+  {
+    name: "docs:catalog",
+    group: "docs",
+    tiers: ["changed", ...STATIC],
+    argv: ["pnpm", "check:doc-catalog"],
+    classify: ownScheme,
+    // One edited document can invalidate its content-hash receipt or the corpus ratchet; the catalog is
+    // whole-project by nature, but a changed-scope run can skip when the selection has no docs path.
+    scopedArgv: (sel) => (sel.paths.some((path) => DOC_CATALOG_PATH_RE.test(path)) ? ["pnpm", "check:doc-catalog"] : "skip-empty"),
   },
 
   // ── tests stage-group (§3.7: the eight lanes as ONE concept with tier + scope) ──

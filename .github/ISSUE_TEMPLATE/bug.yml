@@ -1,0 +1,70 @@
+name: Bug
+description: Reproducible behavior that contradicts the current contract.
+title: "bug: "
+labels: ["bug", "triage"]
+projects: ["Inktomi93/1"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report observed behavior, not a theory. Paths and line numbers must describe the current tree.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed behavior
+      description: What happens, and why is it wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Smallest deterministic sequence, fixture, command, or live path that reproduces it.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected contract
+      description: Cite the code, type, test, law, or owner ruling that defines the expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Current path:line receipts, logs, screenshots, wire captures, commits, and coverage boundaries.
+    validations:
+      required: true
+  - type: textarea
+    id: rederived
+    attributes:
+      label: Re-derivation receipt
+      description: Record the current source/test reads and recent commits checked before filing.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: Behavioral result and regression proof required to close this issue.
+    validations:
+      required: true
+  - type: dropdown
+    id: review
+    attributes:
+      label: Required review
+      options:
+        - Technical
+        - Security
+        - UX
+        - Technical and UX
+        - Owner
+        - None
+      default: 0
+    validations:
+      required: true

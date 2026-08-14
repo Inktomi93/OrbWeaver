@@ -10,6 +10,7 @@
   "scripts": {
     "prepare": "lefthook install",
     "worktree:bootstrap": "bash scripts/worktree-bootstrap.sh",
+    "work:item": "node scripts/github/work-item.ts",
     "dev": "bash scripts/dev/dev.sh",
     "stack": "bash scripts/dev/stack.sh",
     "seed:demo": "node scripts/seed/seed-demo.ts",
@@ -61,6 +62,10 @@
     "format": "biome format --write .",
     "format:docs": "node scripts/docs/format-md.ts --write",
     "check:docs": "node scripts/docs/format-md.ts --check",
+    "doc-catalog:write": "node scripts/docs/catalog.ts --write",
+    "doc-catalog:sync": "node scripts/docs/catalog.ts --sync",
+    "doc-catalog:ratchet": "node scripts/docs/catalog.ts --ratchet",
+    "check:doc-catalog": "node scripts/docs/catalog.ts --check",
     "depcruise": "depcruise packages --config .dependency-cruiser.cjs --output-type err-long",
     "depcruise:affected": "depcruise packages --config .dependency-cruiser.cjs --output-type err-long --affected",
     "depcruise:graph": "mkdir -p reports && depcruise packages --config .dependency-cruiser.cjs --output-type mermaid --output-to reports/dependency-graph.mmd",

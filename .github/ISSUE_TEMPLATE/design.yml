@@ -1,0 +1,48 @@
+name: Design investigation
+description: Resolve a real architecture or product fork before implementation.
+title: "design: "
+labels: ["kind:design", "triage"]
+projects: ["Inktomi93/1"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Current failure or constraint that code alone cannot settle.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Current substrate
+      description: Code, tests, laws, live behavior, prior designs/reviews, and competing authority read in full.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and non-goals
+      description: Existing laws, compatibility boundaries, scale, security, UX, and explicitly excluded work.
+    validations:
+      required: true
+  - type: textarea
+    id: forks
+    attributes:
+      label: Decidable forks
+      description: Numbered, mutually exclusive choices with consequences. Do not bury owner calls in prose.
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommendation
+      description: Preferred arm and why it wins against the actual constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: deliverable
+    attributes:
+      label: Deliverable and graduation
+      description: Durable design home, owner rulings required, implementation slices, tests, and evidence needed to close.
+    validations:
+      required: true

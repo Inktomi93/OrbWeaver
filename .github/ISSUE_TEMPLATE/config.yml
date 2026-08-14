@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Orbweaver Work project
+    url: https://github.com/users/Inktomi93/projects/1
+    about: Query and update mutable work state, dependencies, dispositions, lanes, and verification progress.

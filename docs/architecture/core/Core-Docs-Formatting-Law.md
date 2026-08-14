@@ -31,11 +31,11 @@ never auto-touched).
    content, `| - |` delimiter rows, and NO pipe alignment. Never pad cells so pipes line up —
    alignment padding is pure waste for an agent reader. Don't hand-align tables when writing; the
    formatter compacts them anyway.
-2. **YAML frontmatter passes through verbatim.** Every doc carries a
-   `kind:` / `status:` / `supersedes:` / `updated:` header (schema owned by `Documentation-Law.md`). The
-   formatter parses the fence and never reformats its contents. Frontmatter *schema* validation is
-   unbuilt — when added, it is a zod pass on the parsed yaml node inside this same script, not a second
-   tool.
+2. **YAML frontmatter passes through verbatim.** Authored docs carry the minimal
+   `kind:` / `status:` / `supersedes:` / `updated:` header; vendor mirrors retain upstream metadata
+   (schema owned by `Documentation-Law.md`). The formatter parses the fence and never reformats its
+   contents. `scripts/docs/catalog.ts` owns flat-schema validation and the migration ratchet; the
+   formatter owns bytes only.
 3. **No prose reflow.** The formatter preserves existing line breaks and does not wrap long lines
    (markdownlint MD013 is off). Write new prose however you like — unwrapped paragraphs are fine and
    preferred (fewer artifacts when grepping; hard wraps add nothing for an agent). One-sentence-per-line

@@ -125,7 +125,7 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 
 ## Prose / knowledge docs (`docs/`)
 
-- **Taxonomy is physical (D66, amended 2026-07-13).** `core/` = current law · `history/` = resolved archeology (dated audits, cleared ledgers, landed program records) · `proposed/` = verified PARKED design sets, mapped by `proposed/INDEX.md` (per-program disposition: REALIZED/PARTIAL/FUTURE + remaining chunks). The ONE active program is `docs/retro-workboard.md`. A parked set is NOT quotable as build authority — the INDEX is its truth, and a set re-verifies before activation (parked docs rot; the imagery triage line is the precedent). `docs/Mission.md` is the foundational prose/knowledge document at the `docs/` root. A doc lives in exactly one tier.
+- **Taxonomy is physical (D66, amended by D139).** `core/` = current law · `history/` = resolved archeology (dated audits, cleared ledgers, landed program records) · `proposed/` = verified PARKED design sets, mapped by `proposed/INDEX.md` (per-program disposition: REALIZED/PARTIAL/FUTURE + remaining chunks). GitHub Project 1 owns migrated work; `docs/retro-workboard.md` remains the session-recovery and standing-operations spine plus the temporary home of unmigrated legacy rows. An item moves once and leaves a pointer—never two live statuses. A parked set is NOT quotable as build authority — the INDEX is its truth, and a set re-verifies before activation (parked docs rot; the imagery triage line is the precedent). `docs/Mission.md` is the foundational prose/knowledge document at the `docs/` root. A doc lives in exactly one tier.
 - **Built code has no prose doc.** For a built module/domain, the code + its file-headers + tests ARE the doc. The cross-cutting law it carries promotes UP to `core/`; the per-module prose is deleted.
 - **Ledger-entry style (D66).** A D-entry records the STANDING RULING only: the rule, the non-obvious constraint that protects it, and the homes. No provenance trails, no audit stamps, no attribution quotes, no alternatives-considered, no supersession archaeology — a superseded ruling's text is ABSORBED into its winner and the loser dies (git history keeps the journey). An enumeration that grows with code (a tuple's members) is cited as "currently X, Y — the tuple is the truth, not this list," never as a bare closed list that rots. Future-committed designs write "COMMITTED (not yet built): …", never present tense — a cold agent must be able to tell landed from planned.
 
@@ -140,16 +140,24 @@ Since the 2026-07-13 comment diet, CODE does not cite docs (the one exception: `
 5. **Never** invent a new directory tier, reintroduce doc citations into code comments, or move a file another live session has dirty.
 
 - **Structure.** One topic per file, under \~40 KB (sanctioned exception: `Core-Path-Registry.md` — the whole decision registry is ONE topic and ONE read; splitting it re-creates the range-lookup tax). Compact tables only — alignment-padding is pure token waste (mechanics + measured damage in the formatter law). No prose reflow.
-- **Frontmatter (required, deliberately minimal):**
+- **Frontmatter (required on authored docs, deliberately minimal):**
   ```yaml
   ---
-  kind: law | spec | reference | history
-  status: active | draft | superseded
+  kind: law | spec | reference | history | design | review | artifact | vendor | runbook | program | handoff | research | index
+  status: active | draft | parked | complete | superseded | archived | snapshot
   supersedes: <path>   # optional
   updated: YYYY-MM-DD
   ---
   ```
-  Do NOT grow this schema casually — every field is corpus-wide maintenance. `tags:`/`owner:`/`toc:` were considered and rejected (retrieval works off headings + grep; ownership is git blame). A new field enters only via the formatter-law zod schema, with a reason.
+  Vendor mirrors retain upstream frontmatter verbatim; their catalog receipt carries Orbweaver lifecycle/provenance. Do NOT grow the authored schema casually — every field is corpus-wide maintenance. `tags:`/`owner:`/`toc:` stay rejected: retrieval uses headings/catalog search, ownership uses CODEOWNERS + GitHub, and mutable state belongs in Project 1. A new field enters only through `scripts/docs/catalog.ts` validation with a ledgered reason.
+
+### Catalog and fact-check receipts (D139)
+
+- **Every tracked Markdown document has exactly one lane and receipt row.** `docs/catalog/lanes.json` owns the non-overlapping assignment; `docs/catalog/receipts/*.json` owns the durable review result; `docs/catalog/catalog.json` is generated and disposable.
+- **A completed receipt is a claim against exact bytes.** It requires `fullRead: true`, the document SHA-256, a full verification commit, verification date, evidence, authority class, summary, and disposition. Any content edit invalidates it by hash; re-read and re-verify before refreshing the receipt.
+- **Fact-check means current evidence, not plausible prose.** Verify live claims against current code, types, tests, gates, git history, local links, cited sources, and the D-ledger as applicable. Existence, filename, frontmatter, an old review, or a passing formatter is not truth evidence.
+- **Migration debt only decreases.** `docs/catalog/state.json` ratchets pending receipts and frontmatter defects. A new document must enter its lane and be verified in the same change; it may not raise the floor. `pnpm doc-catalog:sync` adds a missing row, `pnpm doc-catalog:ratchet` lowers proven debt, and `pnpm check:doc-catalog` validates the whole corpus.
+- **GitHub owns the lifecycle, git owns the durable result.** Issue #1 and its sub-issues carry lane status, dependencies, review, and verification progress. Receipts link the evidence; prose does not mirror issue status. No GitHub Wiki.
 
 ### Markdown construct verdicts (machine-parseability + token cost)
 
@@ -182,6 +190,7 @@ Since the 2026-07-13 comment diet, CODE does not cite docs (the one exception: `
 ## Enforcement (what makes this law)
 
 - `pnpm format:docs` / `check:docs` — compact tables + frontmatter (mechanics in `Core-Docs-Formatting-Law.md`).
+- `pnpm check:doc-catalog` — exact document↔lane↔receipt coverage, hash freshness, receipt schema, generated catalog, and monotonic migration floors.
 - `pd-citation-integrity` — every in-code `FLAG[PD-n]` ↔ a registry row.
 - Structural gates + a standing review rule: an inconsistent comment or doc is a **defect**, not a nit. The decision procedure in §Code comments is the review checklist.
 - **Doc-comment gates (wired 2026-07-03 on `server`/`kit`/`db`/`contracts` — the typed exported-API surface, both hard `error` gates):** `@typescript-eslint/no-deprecated` (type-aware) rejects any use of a `@deprecated` symbol. `tsdoc/syntax` (`eslint-plugin-tsdoc`, the official parser) rejects malformed doc comments + non-standard tags — a `{…}` prose token wants backticks, a bare `@orb/…` name wants `{@link}`. ESLint also runs on `ui`/`client`/`tests/ui` (the react-surface gates).
