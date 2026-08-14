@@ -90,6 +90,15 @@ export function nearestRayHit(origin: WeaveXY, d: WeaveXY, segments: readonly We
   return best;
 }
 
+/** Total arc length of a polyline (px). */
+export function polylineLength(pts: readonly WeaveXY[]): number {
+  let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    total += Math.hypot((pts[i + 1] as WeaveXY).x - (pts[i] as WeaveXY).x, (pts[i + 1] as WeaveXY).y - (pts[i] as WeaveXY).y);
+  }
+  return total;
+}
+
 /** Linear interpolation along a polyline at fraction `f` of its INDEX space. */
 export function pointAtFraction(pts: readonly WeaveXY[], f: number): WeaveXY {
   const x = f * (pts.length - 1);

@@ -7,13 +7,13 @@
 // hub) → frame → radii laid one at a time ALTERNATING sides of the hub (tension balance) → a wide
 // auxiliary scaffold spiral outward → the capture spiral laid rim-INWARD (consuming the scaffold),
 // stopping short of the hub (the free zone) → settle (dew, glint, sway — the render module's beat).
+// The WEAVER LAYS IT HERSELF: the itinerary below walks her over every strand as it is born, frame
+// edges included (weave-lab-upgrades.md §3 — silk that appears unattended reads as a screensaver).
 //
-// TIMING IS DATA, not CSS tokens (motion guide §4.3 forbids a 4th duration token, and a multi-phase
-// canvas build isn't a CSS transition). The mock's timeline shipped at settle≈7.6s and the owner ruled
-// the spider "turbo" — WEAVE_TIME_SCALE calms it (§9.4 tweak 2). The timeline never gates the veil's
-// exit: the boot veil dissolves the instant the app is ready, mid-weave included (§9.3).
+// The beat map lives in web-weave-timeline.ts (WHEN); this module is WHERE.
 
-import { nearestRayHit, sagLine, toSegments, weaveJitter } from "./web-weave-math.ts";
+import { nearestRayHit, polylineLength, sagLine, toSegments, weaveJitter } from "./web-weave-math.ts";
+import { BRIDGE_CATCH_LEAD, BRIDGE_WALK_START, WEAVE_TIMELINE } from "./web-weave-timeline.ts";
 
 // ─── Types ───────────────────────────────────────────────────────────────────────────────────────
 
@@ -22,10 +22,6 @@ import { nearestRayHit, sagLine, toSegments, weaveJitter } from "./web-weave-mat
  *  `strand-out` is settled + the A9 handoff beat (the spider rides a new silk line off-screen). */
 export const WEAVE_STATES = ["weaving", "settled", "partial", "strand-out"] as const;
 export type WeaveState = (typeof WEAVE_STATES)[number];
-
-/** The build phases, in laying order — the boot veil's caption axis (§5.5 one importable union). */
-const WEAVE_PHASES = ["bridge", "anchor", "frame", "radii", "scaffold", "capture", "settled"] as const;
-export type WeavePhase = (typeof WEAVE_PHASES)[number];
 
 export interface WeavePoint {
   readonly x: number;
@@ -44,15 +40,21 @@ export interface WeaveStrand {
   readonly t1: number;
   readonly width: number;
   readonly vt?: readonly number[];
+  /** Polyline arc length (px) — the physics module's pluck wave travels in REAL distance along the
+   *  silk, not in sample-index space, so a 22-sample radius and a 500-sample spiral ring the same. */
+  readonly length: number;
 }
 
-/** One dew droplet on the capture spiral: position + radius + its own twinkle phase/speed. */
+/** One dew droplet on the capture spiral: position + radius + its own twinkle phase/speed, plus the
+ *  capture SAMPLE it hangs from — a drop rides whatever that sample is doing (sway, and a pluck's
+ *  ring), or it floats off the silk the moment the web moves. */
 export interface WeaveDewDrop {
   readonly x: number;
   readonly y: number;
   readonly r: number;
   readonly phase: number;
   readonly speed: number;
+  readonly index: number;
 }
 
 /** One leg of the spider's journey: walk `pts` from fraction `from` to `to` over [t0,t1]. `tip` legs
@@ -77,63 +79,9 @@ export interface WovenWeb {
   /** Mean hub→frame distance — the spiral scale + the free-zone base. */
   readonly reach: number;
   readonly freeZoneRadius: number;
-}
-
-// ─── The timeline (ms) — mock values × the owner's calm-down scale (§9.4 tweak 2) ────────────────
-
-/** ×1.6 over the mock's 7.6s build → settle ≈ 12.2s. The build serves the wait; it never blocks the exit. */
-const WEAVE_TIME_SCALE = 1.6;
-const ms = (mockMs: number): number => Math.round(mockMs * WEAVE_TIME_SCALE);
-
-/** The mock's beat BOUNDARIES (docs/design/mocks/login-loading/login-loading-mock.html), kept
- *  verbatim as the provenance record — each phase runs boundary→boundary; everything below derives
- *  through the calm-down scale. */
-const MOCK_BEATS = {
-  start: 0,
-  bridgeCaught: 900,
-  hubDropped: 1250,
-  anchorDropped: 1650,
-  frameClosed: 2400,
-  radiiLaid: 4600,
-  scaffoldLaid: 5600,
-  captureLaid: 7600,
-  /** The spider's zip home from the spiral's inner end to the hub after the last capture loop. */
-  atRest: 8020,
-} as const;
-
-export const WEAVE_TIMELINE = {
-  bridge: [ms(MOCK_BEATS.start), ms(MOCK_BEATS.bridgeCaught)],
-  drop: [ms(MOCK_BEATS.bridgeCaught), ms(MOCK_BEATS.hubDropped)],
-  anchorDrop: [ms(MOCK_BEATS.hubDropped), ms(MOCK_BEATS.anchorDropped)],
-  frame: [ms(MOCK_BEATS.anchorDropped), ms(MOCK_BEATS.frameClosed)],
-  radii: [ms(MOCK_BEATS.frameClosed), ms(MOCK_BEATS.radiiLaid)],
-  aux: [ms(MOCK_BEATS.radiiLaid), ms(MOCK_BEATS.scaffoldLaid)],
-  capture: [ms(MOCK_BEATS.scaffoldLaid), ms(MOCK_BEATS.captureLaid)],
-  settle: ms(MOCK_BEATS.captureLaid),
-  rest: ms(MOCK_BEATS.atRest),
-} as const;
-
-/** The caption phase at a timeline instant (the boot veil's `onPhaseChange` axis). */
-export function weavePhaseAt(t: number): WeavePhase {
-  if (t >= WEAVE_TIMELINE.settle) {
-    return "settled";
-  }
-  if (t >= WEAVE_TIMELINE.capture[0]) {
-    return "capture";
-  }
-  if (t >= WEAVE_TIMELINE.aux[0]) {
-    return "scaffold";
-  }
-  if (t >= WEAVE_TIMELINE.radii[0]) {
-    return "radii";
-  }
-  if (t >= WEAVE_TIMELINE.frame[0]) {
-    return "frame";
-  }
-  if (t >= WEAVE_TIMELINE.drop[0]) {
-    return "anchor";
-  }
-  return "bridge";
+  /** The seed this web was woven from — carried so the ambient beats keyed off it (her idle twitches)
+   *  stay deterministic per web without the painters re-deriving it. */
+  readonly seed: number;
 }
 
 // ─── Web construction ────────────────────────────────────────────────────────────────────────────
@@ -203,13 +151,20 @@ const CH_DEW_PICK = 21;
 const CH_DEW_R = 22;
 const CH_DEW_PHASE = 23;
 const CH_DEW_SPEED = 24;
-/** The spider starts crossing the bridge partway through its float-and-catch beat (mock ms). She walks
- *  it until the drop beat takes over — the walk has no window of its own, or the two legs OVERLAP and
- *  the itinerary's first-match lookup switches mid-walk (a position jump; motion-fixes §3a). */
-const MOCK_BRIDGE_WALK_START = 550;
-export const BRIDGE_WALK_START = ms(MOCK_BRIDGE_WALK_START);
-/** The bridge strand reads "caught" this long (mock ms) before its phase window closes. */
-const MOCK_BRIDGE_CATCH_LEAD = 250;
+/** Her route round the frame, as fractions of the frame beat: lay the lower-left edge, the upper-left
+ *  edge, walk BACK down both (the gap), lay the lower-right, the upper-right, then ride the bridge home
+ *  and drop to the hub (the last gap). One set of numbers — the strand births and her legs share them. */
+const FRAME_LEG_LEFT_LOWER = 0.18;
+const FRAME_LEG_LEFT_UPPER = 0.36;
+const FRAME_LEG_BACK_MID = 0.42;
+const FRAME_LEG_RIGHT_START = 0.48;
+const FRAME_LEG_RIGHT_LOWER = 0.66;
+const FRAME_LEG_RIGHT_UPPER = 0.84;
+const FRAME_LEG_BRIDGE_HOME = 0.93;
+/** The scaffold starts a free-zone radius OUT from the hub, and the last radius left her AT the hub —
+ *  so the first slice of the scaffold beat is her walking out to its inner end. Without it she jumps
+ *  ~100px and the scaffold's first ring is spun by nobody (weave-lab §3: no unattended silk). */
+const AUX_WALK_OUT_FRAC = 0.08;
 /** Centering offset for a [0,1) jitter (jitter − HALF spans ±0.5). */
 const HALF = 0.5;
 /** The Y-drop sags: the short bridge→hub line barely, the hub→anchor line visibly. */
@@ -259,9 +214,15 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
   const br = at(ANCHORS.bridgeRight);
 
   const strands: WeaveStrand[] = [];
+  /** Lay a strand: stamp its arc length (the physics module travels waves in real px) and file it. */
+  const lay = (strand: Omit<WeaveStrand, "length">): WeaveStrand => {
+    const laid: WeaveStrand = { ...strand, length: polylineLength(strand.pts) };
+    strands.push(laid);
+    return laid;
+  };
   // The bridge — floats wavy, then catches (the render module paints the float; geometry is the taut line).
   const bridgePts = sagLine(bl, br, BRIDGE_SAG_FRAC * height, BRIDGE_SAMPLES);
-  strands.push({ kind: "bridge", pts: bridgePts, t0: T.bridge[0], t1: T.bridge[1] - ms(MOCK_BRIDGE_CATCH_LEAD), width: WIDTH_BRIDGE });
+  lay({ kind: "bridge", pts: bridgePts, t0: T.bridge[0], t1: T.bridge[1] - BRIDGE_CATCH_LEAD, width: WIDTH_BRIDGE });
   // The Y: drop from the bridge point nearest the hub's x down to the hub, then hub → bottom anchor.
   let bridgeMid = bridgePts[0] as WeavePoint;
   for (const p of bridgePts) {
@@ -271,24 +232,32 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
   }
   const dropTop = sagLine(bridgeMid, hub, DROP_TOP_SAG_PX, DROP_SAMPLES);
   const dropBottom = sagLine(hub, at(ANCHORS.bottom), DROP_BOTTOM_SAG_PX, DROP_SAMPLES + DROP_BOTTOM_EXTRA_SAMPLES);
-  strands.push({ kind: "frame", pts: dropTop, t0: T.drop[0], t1: T.drop[1], width: WIDTH_DROP });
-  strands.push({ kind: "frame", pts: dropBottom, t0: T.anchorDrop[0], t1: T.anchorDrop[1], width: WIDTH_DROP });
-  // Frame edges close the perimeter.
-  const edges: readonly (readonly [WeavePoint, WeavePoint])[] = [
-    [bl, at(ANCHORS.left)],
-    [at(ANCHORS.left), at(ANCHORS.bottom)],
-    [at(ANCHORS.bottom), at(ANCHORS.right)],
-    [at(ANCHORS.right), br],
+  lay({ kind: "frame", pts: dropTop, t0: T.drop[0], t1: T.drop[1], width: WIDTH_DROP });
+  lay({ kind: "frame", pts: dropBottom, t0: T.anchorDrop[0], t1: T.anchorDrop[1], width: WIDTH_DROP });
+  // The frame, in the order SHE can actually walk it (weave-lab §3): the anchor drop leaves her at the
+  // bottom anchor, so she lays bottom→left, left→bridge-left corner, WALKS BACK down, then
+  // bottom→right, right→bridge-right, and rides the bridge home. Each edge's birth window is the slice
+  // of the frame beat she spends on it — the gaps between them are her walk-backs (see the itinerary).
+  const frameAt = (from: number, to: number): readonly [number, number] => [
+    T.frame[0] + (T.frame[1] - T.frame[0]) * from,
+    T.frame[0] + (T.frame[1] - T.frame[0]) * to,
   ];
-  const frameSlice = (T.frame[1] - T.frame[0]) / edges.length;
+  const edges: readonly (readonly [WeavePoint, WeavePoint, number, number])[] = [
+    [at(ANCHORS.bottom), at(ANCHORS.left), 0, FRAME_LEG_LEFT_LOWER],
+    [at(ANCHORS.left), bl, FRAME_LEG_LEFT_LOWER, FRAME_LEG_LEFT_UPPER],
+    [at(ANCHORS.bottom), at(ANCHORS.right), FRAME_LEG_RIGHT_START, FRAME_LEG_RIGHT_LOWER],
+    [at(ANCHORS.right), br, FRAME_LEG_RIGHT_LOWER, FRAME_LEG_RIGHT_UPPER],
+  ];
   // The DRAWN boundary silk (bridge + the four sagged frame edges) — the radii and spirals terminate on
   // THESE polylines, never on the ideal anchor polygon they sag away from (motion-fixes §1: a tip cast
   // at the straight chord floats a sag's worth off the silk it should be tied to).
   const framePolys: (readonly WeavePoint[])[] = [bridgePts];
-  edges.forEach(([a, b], i) => {
+  const edgePts = edges.map(([a, b, from, to]) => {
     const pts = sagLine(a, b, FRAME_SAG_PX, FRAME_SAMPLES);
     framePolys.push(pts);
-    strands.push({ kind: "frame", pts, t0: T.frame[0] + i * frameSlice, t1: T.frame[0] + (i + 1) * frameSlice, width: WIDTH_FRAME });
+    const [t0, t1] = frameAt(from, to);
+    lay({ kind: "frame", pts, t0, t1, width: WIDTH_FRAME });
+    return pts;
   });
   // …and the containment box joins the same caster as four more segments (motion-fixes §2).
   const box: readonly WeavePoint[] = [
@@ -330,14 +299,13 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
     const len = hit.rect < hit.frame ? hit.rect + RADIUS_CROP_OVERSHOOT_PX : hit.len * RADIUS_TIP_INSET;
     const end = { x: hub.x + Math.cos(angle) * len, y: hub.y + Math.sin(angle) * len };
     const t0 = T.radii[0] + orderIndex * radiusSlice;
-    const strand: WeaveStrand = {
+    const strand = lay({
       kind: "radius",
       pts: sagLine(hub, end, Math.min(RADIUS_SAG_MAX_PX, len * RADIUS_SAG_PER_PX), RADIUS_SAMPLES),
       t0,
       t1: t0 + radiusSlice * RADIUS_LAY_FRAC,
       width: WIDTH_RADIUS,
-    };
-    strands.push(strand);
+    });
     radii.push(strand);
     radiusZips.push(t0 + radiusSlice);
   });
@@ -357,7 +325,7 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
     readonly rTo: number;
     readonly strokeWidth: number;
   }
-  const spiral = ({ kind, t0, t1, thFrom, thTo, rFrom, rTo, strokeWidth }: SpiralSpec): WeaveStrand => {
+  const spiral = ({ kind, t0, t1, thFrom, thTo, rFrom, rTo, strokeWidth }: SpiralSpec): Omit<WeaveStrand, "length"> => {
     const pts: WeavePoint[] = [];
     const vt: number[] = [];
     const steps = Math.max(SPIRAL_MIN_STEPS, Math.round(Math.abs(thTo - thFrom) / SPIRAL_STEP_RAD));
@@ -373,27 +341,31 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
     }
     return { kind, pts, vt, t0, t1, width: strokeWidth };
   };
-  const aux = spiral({
-    kind: "aux",
-    t0: T.aux[0],
-    t1: T.aux[1],
-    thFrom: SPIRAL_PHASE,
-    thTo: SPIRAL_PHASE + AUX_TURNS * TAU,
-    rFrom: freeZoneRadius * AUX_INNER_FRAC,
-    rTo: reach * RIM_FRAC,
-    strokeWidth: WIDTH_AUX,
-  });
-  const capture = spiral({
-    kind: "capture",
-    t0: T.capture[0],
-    t1: T.capture[1],
-    thFrom: SPIRAL_PHASE + AUX_TURNS * TAU,
-    thTo: SPIRAL_PHASE + AUX_TURNS * TAU - CAPTURE_TURNS * TAU,
-    rFrom: reach * RIM_FRAC,
-    rTo: freeZoneRadius * CAPTURE_STOP_FRAC,
-    strokeWidth: WIDTH_CAPTURE,
-  });
-  strands.push(aux, capture);
+  const auxWalkOutEnd = T.aux[0] + (T.aux[1] - T.aux[0]) * AUX_WALK_OUT_FRAC;
+  const aux = lay(
+    spiral({
+      kind: "aux",
+      t0: auxWalkOutEnd,
+      t1: T.aux[1],
+      thFrom: SPIRAL_PHASE,
+      thTo: SPIRAL_PHASE + AUX_TURNS * TAU,
+      rFrom: freeZoneRadius * AUX_INNER_FRAC,
+      rTo: reach * RIM_FRAC,
+      strokeWidth: WIDTH_AUX,
+    }),
+  );
+  const capture = lay(
+    spiral({
+      kind: "capture",
+      t0: T.capture[0],
+      t1: T.capture[1],
+      thFrom: SPIRAL_PHASE + AUX_TURNS * TAU,
+      thTo: SPIRAL_PHASE + AUX_TURNS * TAU - CAPTURE_TURNS * TAU,
+      rFrom: reach * RIM_FRAC,
+      rTo: freeZoneRadius * CAPTURE_STOP_FRAC,
+      strokeWidth: WIDTH_CAPTURE,
+    }),
+  );
 
   // Dew — deterministic points on the capture spiral; the render module condenses them on settle.
   const dew: WeaveDewDrop[] = [];
@@ -406,27 +378,46 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
         r: DEW_R_BASE + weaveJitter(i, CH_DEW_R, seed) * DEW_R_JITTER,
         phase: weaveJitter(i, CH_DEW_PHASE, seed) * TAU,
         speed: DEW_SPEED_BASE + weaveJitter(i, CH_DEW_SPEED, seed) * DEW_SPEED_JITTER,
+        index: i,
       });
     }
   }
 
   // The spider's itinerary — where the weaver is at any t on the build timeline.
   const itinerary: SpiderLeg[] = [];
+  const bridgeMidFrac = bridgePts.indexOf(bridgeMid) / (bridgePts.length - 1);
   // The walk hands off EXACTLY at the drop beat — legs must abut, never overlap (the lookup is
   // first-match, so an overlap silently switches legs mid-walk).
-  itinerary.push({ t0: BRIDGE_WALK_START, t1: T.drop[0], pts: bridgePts, from: 0, to: bridgePts.indexOf(bridgeMid) / (bridgePts.length - 1) });
+  itinerary.push({ t0: BRIDGE_WALK_START, t1: T.drop[0], pts: bridgePts, from: 0, to: bridgeMidFrac });
   itinerary.push({ t0: T.drop[0], t1: T.drop[1], pts: dropTop, from: 0, to: 1 });
   itinerary.push({ t0: T.anchorDrop[0], t1: T.anchorDrop[1], pts: dropBottom, from: 0, to: 1 });
-  itinerary.push({ t0: T.frame[0], t1: T.frame[1], pts: dropBottom, from: 1, to: 0 });
+  // …the frame, walked edge by edge as she spins it (the birth windows above are these same slices).
+  const frameLeg = (beat: readonly [number, number], pts: readonly WeavePoint[], walk: readonly [number, number]): void => {
+    const [t0, t1] = frameAt(beat[0], beat[1]);
+    itinerary.push({ t0, t1, pts, from: walk[0], to: walk[1] });
+  };
+  const [lowerLeft, upperLeft, lowerRight, upperRight] = edgePts as readonly (readonly WeavePoint[])[];
+  const outward = [0, 1] as const;
+  const backward = [1, 0] as const;
+  frameLeg([0, FRAME_LEG_LEFT_LOWER], lowerLeft as readonly WeavePoint[], outward);
+  frameLeg([FRAME_LEG_LEFT_LOWER, FRAME_LEG_LEFT_UPPER], upperLeft as readonly WeavePoint[], outward);
+  frameLeg([FRAME_LEG_LEFT_UPPER, FRAME_LEG_BACK_MID], upperLeft as readonly WeavePoint[], backward);
+  frameLeg([FRAME_LEG_BACK_MID, FRAME_LEG_RIGHT_START], lowerLeft as readonly WeavePoint[], backward);
+  frameLeg([FRAME_LEG_RIGHT_START, FRAME_LEG_RIGHT_LOWER], lowerRight as readonly WeavePoint[], outward);
+  frameLeg([FRAME_LEG_RIGHT_LOWER, FRAME_LEG_RIGHT_UPPER], upperRight as readonly WeavePoint[], outward);
+  frameLeg([FRAME_LEG_RIGHT_UPPER, FRAME_LEG_BRIDGE_HOME], bridgePts, [1, bridgeMidFrac]);
+  frameLeg([FRAME_LEG_BRIDGE_HOME, 1], dropTop, outward);
   radii.forEach((strand, i) => {
     itinerary.push({ t0: strand.t0, t1: strand.t1, pts: strand.pts, from: 0, to: 1 });
     itinerary.push({ t0: strand.t1, t1: radiusZips[i] as number, pts: strand.pts, from: 1, to: 0 });
   });
+  // She walks OUT to the scaffold's inner end before spinning it (nothing is laid during this leg).
+  itinerary.push({ t0: T.aux[0], t1: auxWalkOutEnd, pts: [hub, aux.pts[0] as WeavePoint], from: 0, to: 1 });
   itinerary.push({ t0: aux.t0, t1: aux.t1, pts: aux.pts, from: 0, to: 1, tip: "aux" });
   itinerary.push({ t0: capture.t0, t1: capture.t1, pts: capture.pts, from: 0, to: 1, tip: "capture" });
   itinerary.push({ t0: T.capture[1], t1: T.rest, pts: [capture.pts.at(-1) as WeavePoint, hub], from: 0, to: 1 });
 
-  return { strands, radii, aux, capture, dew, itinerary, hub, reach, freeZoneRadius };
+  return { strands, radii, aux, capture, dew, itinerary, hub, reach, freeZoneRadius, seed };
 }
 
 /** The A9 strand-out silk line: hub → off the top-right edge, sagging — steeper than the bridge so the

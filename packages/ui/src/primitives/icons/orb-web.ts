@@ -13,7 +13,8 @@
 //   ORB_WEB_COMPACT  — 16px cut: 6 spokes, 1.7 fatter turns, no dew (tab-strip sizes, spinner sm/md).
 //
 // The stamped classes below are the WebSpinner's animation hooks (`orb-web-spin` rotates the svg;
-// the spiral's `orb-web-pulse` carries the traveling silk pulse; `orb-web-spokes` dims under spin) —
+// the spiral's `orb-web-pulse` carries the WEAVE loop — it draws out and pays out, weave-lab §4;
+// `orb-web-spokes` breathes under it) —
 // the CSS lives in `src/styles/globals.css`, gated on the spinner's `data-animate` so a resting
 // glyph renders solid (no dash) and reduced motion removes the animation entirely (guide §3.9).
 // String-keyed seam: these literals pair with globals.css BY NAME — grep both when renaming.
