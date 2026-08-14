@@ -66,8 +66,10 @@ export function engineVramNeed(engine: VllmEngine, gpuCount: number, util: Engin
     return { fractionByGpu: new Map([[0, util.embedGpuUtil]]) };
   }
   if (engine === "rerank") {
-    // rerank pins to GPU0 (with embed) in BOTH single- and multi-GPU (2026-08-10) — mirrors engineCudaVisibleDevices.
-    return { fractionByGpu: new Map([[0, multiGpu ? util.rerankGpuUtilMulti : util.rerankGpuUtilSingle]]) };
+    // rerank pins to GPU1 multi-GPU (2026-08-13, 27B swap: one pooling tenant per card beside gen's halves),
+    // GPU0 single-GPU — mirrors engineCudaVisibleDevices. TWO-HOME LAW: change BOTH or the wake budget
+    // reserves VRAM on the wrong card ([[vllm-concurrency-topology-tuning]] — this exact miss shipped once).
+    return multiGpu ? { fractionByGpu: new Map([[1, util.rerankGpuUtilMulti]]) } : { fractionByGpu: new Map([[0, util.rerankGpuUtilSingle]]) };
   }
   // gen: TP spans every card multi-GPU, else GPU0 only.
   const fraction = multiGpu ? util.genGpuUtilMulti : util.genGpuUtilSingle;

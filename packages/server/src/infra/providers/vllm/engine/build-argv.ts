@@ -16,7 +16,10 @@
 //           Context window is a SERVE choice (model is 32K-doc / 262K-positional); the runner truncates
 //           query+doc to fit it, so a long doc can never exceed --max-model-len.
 //   gen   : TP=2 on 2-GPU boxes (NVLink ~1.8×), gen max_pixels; --enable-auto-tool-choice +
-//           --tool-call-parser hermes for the buddy agent's /v1/messages tool loop; --served-model-name
+//           --tool-call-parser qwen3_coder (was `hermes` under Qwen3-VL; the thinking checkpoint's chat
+//           template emits the qwen3_coder <tool_call><function=…> shape) for the buddy agent's
+//           /v1/messages tool loop; --reasoning-parser qwen3 + structured-outputs enable_in_reasoning;
+//           --served-model-name
 //           registers BOTH the full HF id AND the slash-free leaf alias (Claude Code can't resolve a "/").
 // GPU budget (2-card): GPU0 = embed + gen-half; GPU1 = gen-half + rerank (rerank OFF GPU0 so an
 // embed-then-rerank search doesn't serialize on one card). Single-GPU: everything on GPU0.
@@ -151,6 +154,16 @@ export function resolveEngineLaunchConfig(floor: EngineLaunchEnvFloor, override?
  *  caller resolves (DEPLOYMENT fact). Kept beside the arms that use them. */
 const EMBED_CHAT_TEMPLATE_REL = "scripts/dev/qwen3_vl_embedding_serve.jinja";
 const RERANK_CHAT_TEMPLATE_REL = "scripts/dev/qwen3_vl_reranker_serve.jinja";
+// The gen engine's FIXED chat template (vendored 2026-08-13 from froggeric/Qwen-Fixed-Chat-Templates,
+// sha256 398edf5b…f78dc; owner-directed). The checkpoint's SHIPPED template has four defects this repo
+// hits directly: (1) mid-dialogue system messages get dropped — our injection system / author's-note
+// INSERTS them; (2) tool-call `arguments` as JSON strings (the standard OpenAI wire — what our client
+// sends) crash it; (3) multi-turn history gets blank `<think></think>` poisoning → prefix-cache misses;
+// (4) `enable_thinking:false` support is fragile across the 3.5/3.6/3.8 family. The fixed template reads
+// the SAME kwargs we already emit below (`enable_thinking`, `preserve_thinking`) plus per-request
+// `reasoning_effort` (xhigh|medium|low, default xhigh), and preserves prior thoughts chronologically so
+// rendered history matches cached tokens (the 100%-prefix-hit property).
+const GEN_CHAT_TEMPLATE_REL = "scripts/dev/qwen3_gen_thinking_serve.jinja";
 
 const LOOPBACK_HOST = "127.0.0.1";
 const MULTI_GPU_THRESHOLD = 2;
@@ -171,6 +184,7 @@ function embedArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[]
     config.embedModel,
     "--runner",
     "pooling",
+    "--enforce-eager",
     "--hf_overrides",
     '{"is_matryoshka": true}',
     "--chat-template",
@@ -199,6 +213,7 @@ function rerankArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[
     config.rerankModel,
     "--runner",
     "pooling",
+    "--enforce-eager",
     "--host",
     LOOPBACK_HOST,
     "--port",
@@ -217,7 +232,9 @@ function rerankArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[
   ];
 }
 
-/** The slash-free leaf alias vLLM registers alongside the full id (Claude Code can't resolve a "/"). */
+/** The slash-free leaf alias vLLM registers as the PRIMARY served id (Claude Code can't resolve a "/", and
+ *  a local-checkpoint path would otherwise be echoed as the model name). Works for both shapes: the last
+ *  segment of `Qwen/Qwen3-VL-8B-Instruct` and of an absolute checkpoint path. */
 function genModelAlias(genModel: string): string {
   return genModel.split("/").pop() ?? genModel;
 }
@@ -226,14 +243,20 @@ function genModelAlias(genModel: string): string {
  *  generation_config.json at serve time, so it applies to EVERY request regardless of the wire (the fix for
  *  the sampler-less agent-sdk /v1/messages path, which can't carry a per-request penalty). Keyed per engine
  *  so embed/rerank could gain their own overrides; only `gen` needs one today. temperature/top_p/top_k are
- *  the Qwen3-VL-8B-Instruct model-card recommended VL base (0.7/0.8/20) — static card constants, not admin
- *  knobs — inlined here as the launch-time base a silent preset falls back to; an explicit per-request
- *  sampler value still overrides this base. `null` = no override flag emitted for that engine. */
+ *  the model-card recommended base — static card constants, not admin knobs — inlined here as the launch-time
+ *  base a silent preset falls back to; an explicit per-request sampler value still overrides this base.
+ *  `null` = no override flag emitted for that engine.
+ *
+ *  2026-08-10: retuned 0.7/0.8/20 → 1.0/0.95/20 with the THINKING-checkpoint swap. Those were Qwen's
+ *  INSTRUCT-mode numbers; the card gives 1.0/0.95/20 for "thinking mode, general tasks" and 0.7/0.80/20 only
+ *  for non-thinking. This matters because vLLM MERGES this payload over the checkpoint's shipped
+ *  generation_config.json — the W8A8 checkpoint already carries 1.0/0.95/20, and the old values would have
+ *  silently clobbered them back to instruct sampling on every request. */
 function generationConfigOverrides(config: EngineLaunchConfig): Record<VllmEngine, Record<string, number> | null> {
   return {
     embed: null,
     rerank: null,
-    gen: { temperature: 0.7, top_p: 0.8, top_k: 20, repetition_penalty: config.genRepetitionPenalty },
+    gen: { temperature: 1.0, top_p: 0.95, top_k: 20, repetition_penalty: config.genRepetitionPenalty },
   };
 }
 
@@ -251,9 +274,15 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
   return [
     "serve",
     config.genModel,
+    // ALIAS FIRST, full id second. --served-model-name is presentation only — vLLM registers every value and
+    // resolves a request against ANY of them, but the FIRST is the canonical id it echoes in /v1/models and
+    // in response bodies. genModel became a filesystem PATH with the local-checkpoint swap (2026-08-10), and
+    // path-first meant the catalog and every response advertised `/media/.../…-W8A8-Dynamic-Per-Token`.
+    // The leaf alias is already slash-free, so it reads as a name; the full value stays registered so any
+    // caller still sending it keeps resolving.
     "--served-model-name",
-    config.genModel,
     genModelAlias(config.genModel),
+    config.genModel,
     "--tensor-parallel-size",
     String(tp),
     "--host",
@@ -262,31 +291,50 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
     String(config.ports.gen),
     "--gpu-memory-utilization",
     String(util),
+    "--max-num-batched-tokens",
+    "2096",
+    "--max-num-seqs",
+    "150",
     "--max-model-len",
     String(config.genMaxModelLen),
-    // Qwen3-VL-8B-Instruct is bf16-native; the deployment guide recommends explicit --dtype bfloat16 to
-    // guard against vLLM's --dtype auto ever resolving to an fp16 fallback (numerical garbage on this model).
-    "--dtype",
-    "bfloat16",
-    // ── THINKING-CHECKPOINT SWAP PLAYBOOK (dormant on this Qwen3-VL-8B-INSTRUCT; the WHOLE recipe for a
-    //    route-2 swap, one home — memory [[agent-sdk-usage-cap-gotchas]] #7). Our model is Qwen3-VL and
-    //    `hermes` below is CORRECT + live-proven; the notes fire only on a swap to a Thinking/other checkpoint.
-    //    A Qwen3-VL-THINKING (likely route-2) swap requires ALL of:
-    //    (a) `--reasoning-parser qwen3` — routes reasoning into a SEPARATE field (this is the real mechanism;
-    //        it SUPERSEDES the THINK_BLOCK_RE strip, which becomes a fallback).
-    //    (b) `--structured-outputs-config.enable_in_reasoning=True` — else xgrammar SKIPS constraining whenever
-    //        reasoning is present, and the whole extraction/tool layer (json_schema + tool_choice) dies INVISIBLY
-    //        (valid-looking prose, zero enforcement). MANDATORY on any thinking checkpoint.
-    //    (c) tool-parser re-check: `hermes` holds for Qwen3-VL (current); a Qwen3-CODER variant needs
-    //        `--tool-call-parser qwen3_xml` instead — conditional future landmine, NOT current.
-    //    (d) optional `--reasoning-config` + a per-request `thinking_token_budget` — the runaway guard; may
-    //        differ per call class (generous for extraction, tight for prose).
-    //    (e) `--default-chat-template-kwargs enable_thinking:false` + per-request enable via `reasoning_effort`
-    //        — ONE engine, thinking bought selectively per call rather than always-on.
-    //    (f) `include_reasoning:false` on the wire — reasoning-field hygiene (don't ship the scratchpad).
+    // ── THINKING-CHECKPOINT SWAP PLAYBOOK — ACTIVATED 2026-08-10 (was dormant under Qwen3-VL-8B-INSTRUCT;
+    //    memory [[agent-sdk-usage-cap-gotchas]] #7). The gen slot now runs a THINKING checkpoint
+    //    (Qwen3.6-27B / `model_type: qwen3_5`, W8A8-int8), so items (a)-(c) below are LIVE flags, not notes.
+    //
+    //    (a) `--reasoning-parser qwen3` — routes reasoning into a SEPARATE response field. This is the real
+    //        mechanism; it SUPERSEDES the THINK_BLOCK_RE strip, which is now the fallback.
+    "--reasoning-parser",
+    "qwen3",
+    "--chat-template",
+    `${ctx.repoRoot}/${GEN_CHAT_TEMPLATE_REL}`,
+    "--default-chat-template-kwargs",
+    '{"enable_thinking": false, "preserve_thinking": true}',
+    //    (b) enable_in_reasoning — vLLM 0.26 defaults it FALSE (verified against StructuredOutputsConfig).
+    //        Left false, xgrammar SKIPS constraining whenever reasoning is present and the whole
+    //        extraction/tool layer (json_schema + tool_choice) dies INVISIBLY — valid-looking prose, zero
+    //        enforcement. MANDATORY on a thinking checkpoint; the rpg extraction path depends on it.
+    "--structured-outputs-config",
+    JSON.stringify({ enable_in_reasoning: true }),
+    //    (c) tool parser: `hermes` was correct for Qwen3-VL and is WRONG here. This checkpoint's
+    //        chat_template.jinja emits `<tool_call><function=NAME><parameter=NAME>` — the qwen3_coder shape
+    //        (Qwen's own card specifies it). In 0.26 `qwen3_coder` and `qwen3_xml` resolve to the SAME class
+    //        (Qwen3EngineToolParser), so the spelling is cosmetic; the change off `hermes` is not.
     "--enable-auto-tool-choice",
     "--tool-call-parser",
-    "hermes",
+    "qwen3_coder",
+    //    (d)-(f) remain OPTIONAL and unemitted: `--reasoning-config` + per-request `thinking_token_budget`
+    //    (runaway guard), `--default-chat-template-kwargs enable_thinking:false` + per-request
+    //    `reasoning_effort` (buy thinking per call), and `include_reasoning:false` on the wire (don't ship
+    //    the scratchpad downstream). Add them per call-class when the traffic shape justifies it.
+    //
+    // Throughput profile from the vLLM Qwen3.5/3.6 recipe: prefix caching ON, vision encoder data-parallel
+    // across TP ranks (full encoder per rank — +0.46GB/card here, measured), and the preprocessed-input
+    // cache in shared memory rather than mirrored per process (it defaults to 4GiB PER process).
+    "--enable-prefix-caching",
+    "--mm-encoder-tp-mode",
+    "data",
+    "--mm-processor-cache-type",
+    "shm",
     "--mm-processor-kwargs",
     `{"max_pixels": ${config.genMaxPixels}}`,
     ...overrideGenerationConfigArgv("gen", config),
@@ -331,16 +379,19 @@ export function buildEngineArgv(engine: VllmEngine, config: EngineLaunchConfig, 
   return [...ARGV_BUILDERS[engine](config, ctx), ...commonSuffixArgv(config)];
 }
 
-/** The GPU pinning per engine: embed + rerank BOTH on GPU0; gen spans both via TP. (rerank moved off GPU1 onto
- *  GPU0 with embed 2026-08-10 — owner: consolidate the two small pooling models on one card so gen's TP halves
- *  get more util headroom. The wake-budget's `engineVramNeed` pins rerank to GPU0 too — kept in sync.) Returned
- *  as the CUDA_VISIBLE_DEVICES value the caller exports; gen omits it (TP claims all visible cards). */
-export function engineCudaVisibleDevices(engine: VllmEngine, _gpuCount: number): string | null {
+/** The GPU pinning per engine: embed on GPU0, rerank on GPU1 (multi-GPU), gen spans all via TP. (rerank
+ *  moved BACK to GPU1 2026-08-13 with the 27B swap — one pooling tenant per card beside gen's halves; this
+ *  reverses the 08-10 GPU0 consolidation, which fit the 8B era's headroom math, not the 27B's.) Single-GPU
+ *  packs everything on GPU0 — the swap's first cut returned "1" UNCONDITIONALLY, which on a 1-card box pins
+ *  rerank to a nonexistent device (caught by the topology test 2026-08-13). TWO-HOME LAW: the wake-budget's
+ *  `engineVramNeed` mirrors this pinning — change BOTH ([[vllm-concurrency-topology-tuning]]). Returned as
+ *  the CUDA_VISIBLE_DEVICES value the caller exports; gen omits it (TP claims all visible cards). */
+export function engineCudaVisibleDevices(engine: VllmEngine, gpuCount: number): string | null {
   switch (engine) {
     case "embed":
       return "0";
     case "rerank":
-      return "0";
+      return gpuCount >= 2 ? "1" : "0";
     case "gen":
       return null;
   }

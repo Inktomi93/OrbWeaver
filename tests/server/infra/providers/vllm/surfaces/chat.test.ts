@@ -193,7 +193,7 @@ describe("createVllmChat", () => {
 
   // ── item 7: the per-request presence-penalty default (engineLaunch.genPresencePenalty). Verified by the
   // WIRE BODY only — never a live vLLM request (engines are up; launcher/request-firing is banned). ──
-  test("applies the card-default presence_penalty (1.5) when the preset is silent and no getter is injected", async () => {
+  test("applies the card-default presence_penalty (0.0) when the preset is silent and no getter is injected", async () => {
     let sentBody: Record<string, unknown> | undefined;
     const client: VllmEngineClient = {
       enginePost: () => Promise.reject(new Error("chat must stream")),
@@ -205,7 +205,7 @@ describe("createVllmChat", () => {
     };
     const chat = createVllmChat({ client, now: clock() });
     await chat(chatReq({ params: {} }));
-    expect(sentBody?.["presence_penalty"]).toBe(1.5);
+    expect(sentBody?.["presence_penalty"]).toBe(0.0);
   });
 
   test("applies the INJECTED genPresencePenalty default when the preset is silent (admin retune, per request)", async () => {
