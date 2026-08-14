@@ -35,7 +35,7 @@ export function splitFirstEq(raw: string): EqSplit | null {
 /** Parse `--viewport "WxH"` (e.g. "1920x1080"). Null on anything malformed or non-positive. */
 export function parseViewport(raw: string): Viewport | null {
   const [w, h] = raw.split("x").map(Number);
-  if (w && h && Number.isFinite(w) && Number.isFinite(h)) {
+  if (w !== undefined && h !== undefined && Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
     return { width: w, height: h };
   }
   return null;

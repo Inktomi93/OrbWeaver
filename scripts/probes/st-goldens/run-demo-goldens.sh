@@ -11,6 +11,20 @@ FIXTURES_DIR="$DATA_ROOT/fixtures"
 # filenames, so a re-run overwrites exactly its own outputs and nothing else.
 mkdir -p "$FIXTURES_DIR" "$DATA_ROOT/output" "$DATA_ROOT/orbweaver-output"
 
+# Fail-closed guard: a swallowed capture failure used to let capture-orbweaver.ts (and the downstream
+# comparison) read STALE output from a prior sweep as if it were fresh evidence. RUN_STAMP marks "now";
+# every capture below must produce (or re-touch) its output file NEWER than this stamp, or the run aborts.
+RUN_STAMP="$(mktemp)"
+FAILURES=0
+check_capture() {
+  local id="$1"
+  local out="$DATA_ROOT/output/${id}.json"
+  if [ ! -f "$out" ] || [ ! "$out" -nt "$RUN_STAMP" ]; then
+    echo "FATAL: capture for '${id}' is missing or stale (no fresh $out) — refusing to compare against stale evidence." >&2
+    FAILURES=$((FAILURES + 1))
+  fi
+}
+
 # Base configuration
 nb=0
 force="false"
@@ -58,10 +72,18 @@ JSON
       node "$RIG_DIR/build-fixtures.ts"
 
       echo "Running $id..."
-      node "$RIG_DIR/generate-goldens.ts" "${id}" || true
+      node "$RIG_DIR/generate-goldens.ts" "${id}" || echo "WARNING: capture failed for ${id} (continuing sweep; freshness gate below catches it)" >&2
+      check_capture "${id}"
     done
   done
 done
+
+if [ "$FAILURES" -gt 0 ]; then
+  rm -f "$RUN_STAMP"
+  echo "FATAL: $FAILURES capture(s) missing or stale — aborting before generating Orbweaver goldens / comparison." >&2
+  exit 1
+fi
+rm -f "$RUN_STAMP"
 
 echo "Running capture-orbweaver.ts to generate Orbweaver golden payloads..."
 node "$RIG_DIR/capture-orbweaver.ts"

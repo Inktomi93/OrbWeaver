@@ -1,6 +1,6 @@
 # OpenRouter provider probes
 
-Five standing wire probes against the OpenRouter chat-completions surface (`anthropic/claude-sonnet-5`,
+Seven standing wire probes against the OpenRouter chat-completions surface (`anthropic/claude-sonnet-5`,
 Anthropic pinned with `allow_fallbacks:false`). Verdicts + recommendations: [`RESULTS.md`](RESULTS.md).
 Raw evidence: `results/<probe>.jsonl` — one row per arm, append-only, JSONL so a partial run is still
 readable. Subject docs: `docs/design/openrouter-provider-findings.md` ·
@@ -12,7 +12,9 @@ readable. Subject docs: `docs/design/openrouter-provider-findings.md` ·
 | `f4a` | does changing `reasoning:{effort}` bust the OR cache? | $0.07 |
 | `f5` | is native thinking depth reachable through OR's `effort`? (needs `ANTHROPIC_API_KEY`) | $0.05 OR + $0.12 native |
 | `or5` | do array-offset cache breakpoints under-cache tool-heavy turns? | $0.01 |
+| `or5b` | is the cache breakpoint invariant across a within-turn tool exchange (the §5 fix)? | $0.09 |
 | `or7` | is replaying a reasoning block a hard 400? | $0.02 |
+| `or7b` | is dropping reasoning still safe on a multi-hop tool chain? | $0.06 |
 
 ```sh
 node scripts/probes/openrouter/run.ts                 # the batch (skips probes with a completed run)

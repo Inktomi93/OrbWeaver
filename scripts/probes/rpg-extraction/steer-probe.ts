@@ -18,6 +18,7 @@
 // READ path, so leaving them off removes a confound rather than adding one.
 
 import fs from "node:fs";
+import { REPO_ROOT } from "../_kit/artifacts.ts";
 
 interface WireMsg {
   role: string;
@@ -40,7 +41,7 @@ interface RawResp {
 }
 
 const KEY = (() => {
-  const line = fs.readFileSync("/home/inktomi/inktomi-stack/development/orbweaver/.env", "utf8")
+  const line = fs.readFileSync(`${REPO_ROOT}/.env`, "utf8")
     .split(/\r?\n/).find((l) => l.startsWith("OPENROUTER_API_KEY="));
   // biome-ignore lint/style/noNonNullAssertion: this probe assumes the key line is present (crashes if not, as before).
   let v = line!.slice("OPENROUTER_API_KEY=".length).trim();

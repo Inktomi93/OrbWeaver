@@ -3,7 +3,7 @@
 // The browser-driving orchestration (nav bridge eval, watch series, multi-page capture) is live-proven
 // against the running stack, not here — this file's home is tests/tooling/ per core/Spine-Testing.md §2
 // (a test of a scripts/ tool), same as snap-stage.test.ts.
-import { parseGotoTarget, splitPageSuffix } from "../../scripts/probes/_kit/flags.ts";
+import { parseGotoTarget, parseViewport, splitPageSuffix } from "../../scripts/probes/_kit/flags.ts";
 import { expect, test } from "../support/fixtures.ts";
 
 // ── splitPageSuffix ───────────────────────────────────────────────────────────────────────────────────
@@ -27,6 +27,25 @@ test("splitPageSuffix leaves a bare or non-numeric @ untouched — not every @ i
   expect(splitPageSuffix("--fill@")).toEqual({ flag: "--fill@", page: 0 });
   expect(splitPageSuffix("--goto@abc")).toEqual({ flag: "--goto@abc", page: 0 });
   expect(splitPageSuffix("user@host")).toEqual({ flag: "user@host", page: 0 });
+});
+
+// ── parseViewport ─────────────────────────────────────────────────────────────────────────────────────
+
+test("parseViewport parses a positive WxH", () => {
+  expect(parseViewport("1920x1080")).toEqual({ width: 1920, height: 1080 });
+  expect(parseViewport("375x667")).toEqual({ width: 375, height: 667 });
+});
+
+test("parseViewport rejects zero width or height", () => {
+  expect(parseViewport("0x1080")).toBeNull();
+  expect(parseViewport("1920x0")).toBeNull();
+  expect(parseViewport("0x0")).toBeNull();
+});
+
+test("parseViewport rejects negative width or height — truthiness alone admits negatives", () => {
+  expect(parseViewport("-1920x1080")).toBeNull();
+  expect(parseViewport("1920x-1080")).toBeNull();
+  expect(parseViewport("-1920x-1080")).toBeNull();
 });
 
 // ── parseGotoTarget ───────────────────────────────────────────────────────────────────────────────────

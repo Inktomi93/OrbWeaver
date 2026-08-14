@@ -7,6 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { REPO_ROOT } from "../_kit/artifacts.ts";
 
 // ---- internal running-state model (the harness's own tracked-state shape, not a wire type) ----
 interface Hp {
@@ -290,7 +291,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(DIR, process.env["SPIKE_OUT"] || "out2");
 const EFFORT = process.env["SPIKE_EFFORT"] || "none";
 const ARMS_RUN = (process.env["SPIKE_ARMS"] || "A,B").split(",").map((s) => s.trim()).filter(Boolean);
-const REPO_ENV = "/home/inktomi/inktomi-stack/development/orbweaver/.env";
+const REPO_ENV = `${REPO_ROOT}/.env`;
 // SPIKE_ENDPOINT/SPIKE_MODEL retarget the harness at any OpenAI-compatible server (e.g. the local vLLM
 // gen engine on 127.0.0.1:8703). SPIKE_LOCAL=1 strips the OpenRouter-only body fields (provider routing,
 // plugins, usage.include, reasoning) that vLLM rejects or ignores.
