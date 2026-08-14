@@ -6,422 +6,563 @@
     {
       "path": "docs/architecture/core/AGENTS.md",
       "assignedSha256": "d49d9d2dc80f3cfc614fd427f1646588ccdefc95df53cdcae3459973dac9cfaf",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "d49d9d2dc80f3cfc614fd427f1646588ccdefc95df53cdcae3459973dac9cfaf",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/AGENTS.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
       "assignedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Chat-Macro-Resolution.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
       "assignedSha256": "598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-0-Architecture-and-Structure.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Core-Audits-and-Debt.md",
       "assignedSha256": "4003838a76b08b2efda5975e9cdd344749a7b937e621853598023bbf59a3b862",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "4003838a76b08b2efda5975e9cdd344749a7b937e621853598023bbf59a3b862",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
       "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
       "assignedSha256": "f938899aa340a3508e954c211393f1590cda6c12ea2e97bd0f09f870f0222df6",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "f938899aa340a3508e954c211393f1590cda6c12ea2e97bd0f09f870f0222df6",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Docs-Formatting-Law.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "assignedSha256": "ca661c33dafddc5383e744a68ec571e98462ecf9be3763837d9777ec95776748",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "operational",
+      "fullRead": true,
+      "verifiedSha256": "ca661c33dafddc5383e744a68ec571e98462ecf9be3763837d9777ec95776748",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
       "assignedSha256": "ef3a13f00d7f6b925ab4c3becd90f6f8d8550090472cc75a3f8aecf0a8ab8ca2",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "ef3a13f00d7f6b925ab4c3becd90f6f8d8550090472cc75a3f8aecf0a8ab8ca2",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
       "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
       "assignedSha256": "a30d6ca8b846c5b048f794c5e70ff422d40f11dd8d7dc0d9d842880bee9cda68",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "a30d6ca8b846c5b048f794c5e70ff422d40f11dd8d7dc0d9d842880bee9cda68",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Laws-and-Precedents.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Core-Legacy-Migration-and-Gaps.md",
       "assignedSha256": "e01f593b3e552b05d725fd4e15b2082e3d1190f555e64cbf8506f27774afda15",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "e01f593b3e552b05d725fd4e15b2082e3d1190f555e64cbf8506f27774afda15",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Legacy-Migration-and-Gaps.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "assignedSha256": "1985374024b16a8a6f89ee1f0877945fc74045867ea3e4ab007fe576c79d7281",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "220365043d72b6219967723ea0a9faafe20ac53da2f816a6bd1b1c73f8d69153",
+      "verifiedCommit": "3595939ba864e111838a09c4d0ddc9e2b7108f2f",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Path-Registry.md:389 (D129(B) current implementation status)",
+        "docs/architecture/core/Core-Path-Registry.md:397 (D129(F) freeze-at-selection truth repair)",
+        "packages/contracts/src/connection/index.ts:204; packages/server/src/domain/chat/verbs/edit.ts:327; tests/server/domain/chat/assembly/shape.test.ts:1052 (current code/test corroboration)",
+        "git log --oneline -5 -- docs/architecture/core/Core-Path-Registry.md (cc3a9e886 latest current-doc change)"
+      ],
+      "summary": "Re-read after main rebase: D129(B) narrator wire-shape and D129(F) freeze-at-selection status claims match current contracts, verbs, and targeted tests; frozen assigned hash retained."
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
       "assignedSha256": "ca76c1f2bb8d44ca3a95c3ad267e6ae1dfd6e6e31736874f91420d8a86ec67cc",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "ca76c1f2bb8d44ca3a95c3ad267e6ae1dfd6e6e31736874f91420d8a86ec67cc",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Planning-and-Checklists.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
       "path": "docs/architecture/core/Core-ST-Feature-Gap-Register.md",
       "assignedSha256": "7fc6b5d4aad8b49fb28a3686614e8d334c201d10bdfed90e74ab3ae002a0b836",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "7fc6b5d4aad8b49fb28a3686614e8d334c201d10bdfed90e74ab3ae002a0b836",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-ST-Feature-Gap-Register.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
       "path": "docs/architecture/core/Core-STATUS.md",
       "assignedSha256": "f69763702bfde1d4a3b0882f94a85180ea08e6459563c711788b6372458a0d6f",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "f69763702bfde1d4a3b0882f94a85180ea08e6459563c711788b6372458a0d6f",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-STATUS.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
       "path": "docs/architecture/core/Core-Shared-Dissolution.md",
       "assignedSha256": "02cd1379fe114f3aa087a2ad831e9a7515c909c80cb18f252e12e983a1a0cdfb",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "02cd1379fe114f3aa087a2ad831e9a7515c909c80cb18f252e12e983a1a0cdfb",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Shared-Dissolution.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
       "path": "docs/architecture/core/Core-SillyTavern-Feature-Map.md",
       "assignedSha256": "48f47f52c2a07c935a6cdf9a89cf74ed5c3e074256b90a2274db675f4033a2ca",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "48f47f52c2a07c935a6cdf9a89cf74ed5c3e074256b90a2274db675f4033a2ca",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-SillyTavern-Feature-Map.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
       "assignedSha256": "e0a441e5ad0e63a3df99287cd09c2091b71a75040131171f1f291a4bd3355105",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "e0a441e5ad0e63a3df99287cd09c2091b71a75040131171f1f291a4bd3355105",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Documentation-Law.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Knowledge-Cluster.md",
       "assignedSha256": "19bde53d8b552cdd3963a2b431655604367345e2c975a38b02a8977ee6839605",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "19bde53d8b552cdd3963a2b431655604367345e2c975a38b02a8977ee6839605",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Knowledge-Cluster.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
       "path": "docs/architecture/core/Spine-Config-and-Serialization.md",
       "assignedSha256": "00fb0e6c032c1c0747c48e965d9f50c904e53eb781aa43963bd970a02de6258b",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "00fb0e6c032c1c0747c48e965d9f50c904e53eb781aa43963bd970a02de6258b",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Spine-Config-and-Serialization.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
       "assignedSha256": "bf61b8e018bce8a76cd87d9e0098c486833cc49dfeab4298f9d6688ad2e71597",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "bf61b8e018bce8a76cd87d9e0098c486833cc49dfeab4298f9d6688ad2e71597",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Spine-Testing.md",
       "assignedSha256": "c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
       "assignedSha256": "5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Spine-TypeScript-and-Patterns.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Tier-1-DB.md",
       "assignedSha256": "edb81c0055bec8ff31472b14d84decd75d00ac0b1f417b6c060343c7ad964c95",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "edb81c0055bec8ff31472b14d84decd75d00ac0b1f417b6c060343c7ad964c95",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-1-DB.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Tier-2-Foundation.md",
       "assignedSha256": "3f0c417b884bdb3acd0b8e9a20e02efc30204094e7ce5c11bcbedc98517f9b23",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "3f0c417b884bdb3acd0b8e9a20e02efc30204094e7ce5c11bcbedc98517f9b23",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-2-Foundation.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Tier-3-Infra.md",
       "assignedSha256": "9f98b97d70bd74052932239964e1c2bd94c92f82e507fc0fdd141d0243fb26b6",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "9f98b97d70bd74052932239964e1c2bd94c92f82e507fc0fdd141d0243fb26b6",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-3-Infra.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Tier-3b-Providers.md",
       "assignedSha256": "bbde1b6faa655e3882cfa9eba4c6261d4ef7fe189d3459d14f12b75ad2cf9df0",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "bbde1b6faa655e3882cfa9eba4c6261d4ef7fe189d3459d14f12b75ad2cf9df0",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-3b-Providers.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Tier-4-Transport.md",
       "assignedSha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-4-Transport.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/Tier-5-Entry.md",
       "assignedSha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-5-Entry.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
       "assignedSha256": "cb230125cace256d37d1268abeb3334bdda6c4bd257f126ae11cba12f82ecf59",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "cb230125cace256d37d1268abeb3334bdda6c4bd257f126ae11cba12f82ecf59",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/UI-Architecture-and-Layout.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/UI-Gates-and-Lessons.md",
       "assignedSha256": "b370d04f0c719cad056a441272df51176e88d4d7d3788a1d93711d12ff668748",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "b370d04f0c719cad056a441272df51176e88d4d7d3788a1d93711d12ff668748",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/UI-Gates-and-Lessons.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/UI-Primitives-and-Reuse.md",
       "assignedSha256": "0f5df04b79ffdaf313da08058a2341c487869dd5fb278b2824eaca92dc324409",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "0f5df04b79ffdaf313da08058a2341c487869dd5fb278b2824eaca92dc324409",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/UI-Primitives-and-Reuse.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/UI-Theming-and-Content.md",
       "assignedSha256": "435720dc31d9053b83319fdcf6245137dc1fe5cf3f0eaa7888b95df9a41e3750",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "435720dc31d9053b83319fdcf6245137dc1fe5cf3f0eaa7888b95df9a41e3750",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/UI-Theming-and-Content.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "assignedSha256": "e35035e131c1e95cecfcd4be81745ea9e9e8e328bf5218d1490befed3b582377",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "e35035e131c1e95cecfcd4be81745ea9e9e8e328bf5218d1490befed3b582377",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
       "assignedSha256": "ced2d111c70375f21faa9e7a5ced1c85cd8ed5db376b9e18bcb12af0d4da845b",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "ced2d111c70375f21faa9e7a5ced1c85cd8ed5db376b9e18bcb12af0d4da845b",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",
       "assignedSha256": "f43b45872c46bc0093dd20d998aac3a25a613e0d5c61ae2fed0005221716d16e",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "f43b45872c46bc0093dd20d998aac3a25a613e0d5c61ae2fed0005221716d16e",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/motion-and-animation-guide.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
       "path": "docs/architecture/core/ui-package-design.md",
       "assignedSha256": "a739f2d7f5fd00f3e776064d25e72ca518d2725127b97ecc68aceff00ac86be5",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "a739f2d7f5fd00f3e776064d25e72ca518d2725127b97ecc68aceff00ac86be5",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/ui-package-design.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     }
   ]
 }
