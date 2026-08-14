@@ -1,8 +1,8 @@
 // verb: upgrade — replace an installed plugin's bundle (02 §4). Authority = install authority (owner ∪ admin).
 // Flow: gate → load the owned row (leak-free NotFound) → `parseBundle` the new bytes → the new manifest's slug
 // MUST match the installed slug (a bundle for a different plugin is a `ManifestInvalidError`) → REFUSE a version
-// LOWER than installed (`PluginDowngradeRefusedError` — a re-uploaded old bundle must never silently roll back,
-// the Marinara-audit rider) → recompute the grant (prior grant ∩ newly-declared) → stop the old resident
+// LOWER than installed (`PluginDowngradeRefusedError` — a re-uploaded old bundle must never silently roll back)
+// → recompute the grant (prior grant ∩ newly-declared) → stop the old resident
 // instance → store the new bundle → swap the row → reap the now-orphaned old bundle asset → land `disabled`.
 //
 // Re-grant on new caps (02 §2): a manifest that declares a capability the prior grant never confirmed lands the

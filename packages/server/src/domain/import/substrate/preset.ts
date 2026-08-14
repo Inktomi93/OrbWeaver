@@ -3,7 +3,7 @@
 // the ST fields that found no orb seat. Pure: bytes/JSON in, data out, null on unparseable — never throws, so
 // one bad preset is one skipped preset and never an aborted profile import.
 //
-// CHAT COMPLETION ONLY, BY OWNER RULING (2026-08-08). ST ships four preset families; the other three
+// CHAT COMPLETION ONLY, BY OWNER RULING. ST ships four preset families; the other three
 // (`TextGen Settings/`, `KoboldAI Settings/`, `NovelAI Settings/` and their `settings.json` twins
 // `textgenerationwebui_settings`/`kai_settings`/`nai_settings`) are TEXT-COMPLETION presets, and orb has no
 // text-completion mode to spend them in — the connection vocabulary has no such protocol arm
@@ -81,7 +81,7 @@ export function parseStSettingsPreset(settingsRaw: unknown): ParsedStPreset | nu
   if (!isPlainObject(settingsRaw)) {
     return null;
   }
-  // THE LIVE preset is the carrier for the `power_user` generation knobs (owner ruling 2026-08-08 — gen
+  // THE LIVE preset is the carrier for the `power_user` generation knobs (owner ruling — gen
   // settings are preset-owned in orb, and ST's are split across `oai_settings` + the global `power_user`).
   // This preset is by definition the author's CURRENT tuning, which is exactly what `power_user` holds.
   return stPresetFromJson(settingsRaw[ST_PRESET_SETTINGS_KEY], ST_ACTIVE_PRESET_NAME, settingsRaw[ST_POWER_USER_KEY]);

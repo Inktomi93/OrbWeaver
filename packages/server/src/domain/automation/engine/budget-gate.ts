@@ -5,7 +5,7 @@
 // cooldown (off `last_fired_at`), the per-rule/hour ceiling, and the per-chat/hour ceiling (the host-editable
 // `automation_budgets` row, default 120). This is the belt that bounds a runaway rule from hammering a paid
 // API. A refusal is NOT an error — the dispatch records `budget_refused` and the rule stays healthy. (The
-// per-day $/spend-action ceilings were stripped 2026-07-24 — enterprise spend enforcement.)
+// per-day $/spend-action ceilings were stripped for enterprise spend enforcement.)
 
 import { AUTOMATION_CHAT_BUDGET_DEFAULTS } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";

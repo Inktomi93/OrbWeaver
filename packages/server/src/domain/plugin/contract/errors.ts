@@ -37,7 +37,7 @@ export class CapabilityNotGrantedError extends DomainOperationError {
 }
 
 /** An install/upgrade whose bundle version is LOWER than the currently-installed version for the same plugin
- *  id (owner-ruled 2026-07-18, Marinara-audit rider). Refused so a re-uploaded old bundle can never silently
+ *  id (owner-ruled). Refused so a re-uploaded old bundle can never silently
  *  roll a plugin back. */
 export class PluginDowngradeRefusedError extends DomainOperationError {
   constructor(candidate: string, installed: string) {

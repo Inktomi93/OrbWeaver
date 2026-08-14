@@ -1,7 +1,7 @@
 // domain/automation/persistence/budgets — the `automation_budgets` upsert/read (host-editable per-chat
 // fire-RATE ceiling — the loop-safety belt). ONE row per chat; born on the first `setBudgets`. An absent row
-// is dispatched as the defaulted cap. (The per-day $/spend-action ceilings + the day accumulator were stripped
-// 2026-07-24 — enterprise spend enforcement; cost visibility + rate caps stay.)
+// is dispatched as the defaulted cap. (The per-day $/spend-action ceilings + the day accumulator were
+// stripped for enterprise spend enforcement; cost visibility + rate caps stay.)
 
 import type { BudgetView } from "@orb/contracts/automation";
 import { AUTOMATION_CHAT_BUDGET_DEFAULTS } from "@orb/contracts/automation";

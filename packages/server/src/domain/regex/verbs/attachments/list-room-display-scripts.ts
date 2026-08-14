@@ -1,5 +1,5 @@
-// verb: listRoomDisplayScripts — the room's BROADCAST display set (D121-E host option, owner ruling
-// 2026-08-02). MEMBER-gated and deliberately NOT owner-filtered: the whole point is that a non-host viewer
+// verb: listRoomDisplayScripts — the room's BROADCAST display set (D121-E host option). MEMBER-gated
+// and deliberately NOT owner-filtered: the whole point is that a non-host viewer
 // reads the HOST's scripts, so a normal ownership gate would return exactly nothing.
 //
 // THE OPT-IN IS THE GATE. `resolveRoomDisplayPolicy` (chat's, injected) answers both halves — is this room

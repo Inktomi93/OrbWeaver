@@ -95,7 +95,7 @@ function toMessageInput(m: ParsedChatMessage, createdAt: number, chatPersonaId: 
   };
 }
 
-// ── ST author's note → orb's injection system (the CONVERSION, owner ruling 2026-08-08) ──────────────────
+// ── ST author's note → orb's injection system (the CONVERSION, owner ruling) ──────────────────
 //
 // orb has its own author's note: a `chat_injections` row. ST's note is one slot plus four recorded knobs, and
 // the importer used to ignore all four — `import-write.ts` hardcoded the HOUSE REGISTER ("near enough to

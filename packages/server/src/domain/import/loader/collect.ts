@@ -80,8 +80,8 @@ const GROUPS_DIR = "groups";
 // The top-level profile names the importer DOES consume — everything else in a user profile dir is reported
 // as unhandled so a whole-folder import never silently drops a plane (quick replies, extensions, …).
 // The CHAT-COMPLETION preset dir is handled; the three TEXT-completion families deliberately are not (owner
-// ruling 2026-08-08 — orb has no text-completion mode), so they keep reporting as unhandled with that reason.
-// `themes/` and `backgrounds/` graduated 2026-08-08 (owner rulings: backgrounds ARE orb's media library; a
+// ruling — orb has no text-completion mode), so they keep reporting as unhandled with that reason.
+// `themes/` and `backgrounds/` are handled too (owner rulings: backgrounds ARE orb's media library; a
 // theme converts to the orb palette it safely maps to) — their old "no domain home" report reasons are gone.
 const HANDLED_ENTRIES: ReadonlySet<string> = new Set([
   "characters",
