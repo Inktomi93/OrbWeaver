@@ -5,11 +5,15 @@
 // change for the virtualizer. A SWIPE reroll instead places the ghost INTO its target message's slot
 // (keyed by that message id) and suppresses the committed row for that id while streaming — one row
 // throughout, the new variant streaming in place, never a transient second row beside the old one.
+//
+// The ghost's life ends at its COMMIT, not at `turnCompleted`: the invalidation seam applies the commit's
+// `view` carrier straight into this list, so canon carries the ghost's own bytes from that instant (see the
+// handover note below and `data/invalidation.ts` applyCanonView).
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
-import { isLiveTurnPhase, useSwipeTargetMessageId, useTurnPhase } from "#state";
+import { isLiveTurnPhase, useSwipeTargetMessageId, useTurnCommittedMessageId, useTurnPhase } from "#state";
 import type { ArrivalDiff } from "../lib/new-arrivals.ts";
 import { initialArrivals, NO_ARRIVALS, nextArrivals } from "../lib/new-arrivals.ts";
 
@@ -40,12 +44,26 @@ export function useMessageItems(messages: readonly MessageView[], chatId: ChatId
   // `swipe` intent (continue/send/generate append or extend, never replace) — a lifecycle-only selector, so
   // reading it never re-renders the list on a delta.
   const swipeTargetId = useSwipeTargetMessageId(chatId);
+  // THE GHOST HANDOVER: the canon row this live turn already committed (null until its `messageCommitted`
+  // lands). Lifecycle-only, like the target selector — never re-renders the list on a delta.
+  const committedId = useTurnCommittedMessageId(chatId);
   // Every canon row is a message the reader sees — D124 killed the content-less rpg "state anchor" slot this
   // list used to filter out, so there is nothing to hide.
   const base: ChatRowItem[] = messages.map((view) => ({ kind: "message", view }));
 
   const live = isLiveTurnPhase(phase);
   if (!live) {
+    return base;
+  }
+  // The turn's own row is IN CANON — the seam applied that commit's `view` carrier into this very list
+  // (`data/invalidation.ts` applyCanonView), so the committed row now renders the exact bytes the ghost was
+  // holding and the ghost yields HERE, at the commit, rather than at `turnCompleted`. Both halves are
+  // needed and neither works alone: yielding without the carrier would show the pre-turn row for the
+  // refetch's 100-400 ms (the measured tail flash), and the carrier without yielding would paint the
+  // committed row BESIDE the still-mounted ghost for the commit→complete window. Tested against the LIST,
+  // not the flag: if the patch could not land (no cached page) the ghost holds until the refetch brings the
+  // row, which is the old behavior — never a blank.
+  if (committedId !== null && base.some((item) => item.kind === "message" && item.view.id === committedId)) {
     return base;
   }
   // Swipe: the ghost OCCUPIES the target message's slot (keyed by that message id, so ghost→canonical is a

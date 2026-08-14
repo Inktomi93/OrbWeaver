@@ -23,6 +23,7 @@ import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useTurnPhase } from "#state";
 import { filterCharacters } from "../lib/roster.ts";
+import { turnMutationToast } from "../lib/turn-abort-notice.ts";
 
 /** `chat.generate` vars — an on-demand turn, optionally forced to a specific speaker (null ⇒ arbitrate). */
 interface SpeakAsGenerateVars {
@@ -37,7 +38,8 @@ const useSpeakAsGenerate = createEntityMutation<SpeakAsGenerateVars, unknown>({
   // BUS-DRIVEN: `generate` runs a turn (messageCommitted + turnCompleted → chatReads) on the OPEN chat,
   // delivered by the active subscription. `busDriven` (mutation-vs-bus rule, invalidation.ts).
   busDriven: true,
-  errorToast: "Couldn't generate that response.",
+  // The ONE turn-error mapper — a forced-speaker generate refused for CONTENTION (`locked`) says so.
+  errorToast: (error) => turnMutationToast(error, "Couldn't generate that response."),
 });
 
 export interface SpeakAsSelectProps {
