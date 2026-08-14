@@ -59,7 +59,7 @@ import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createExtractText } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
-import { fetchOpenAiModels } from "#infra/network";
+import { fetchOpenAiModels, probeOpenAiEndpoint } from "#infra/network";
 import type { BackendRegistryDeps, EngineStatusRecord, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
 import {
   createBackendRegistry,
@@ -332,6 +332,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     box: secretBox,
     requireOwner,
     probe: (credential): Promise<CredentialHealth> => diagnostics.probe({ credential }),
+    // The custom_openai health arm: infra/network dials the row's own endpoint (host-pinned safeFetch),
+    // stamping `checkedAt` from the composition clock (no-raw-clock).
+    probeEndpoint: (args): Promise<CredentialHealth> => probeOpenAiEndpoint(args, now),
     inspect: (req): Promise<EndpointInspection> => diagnostics.inspect(req),
     fetchModels: fetchOpenAiModels,
     audit,
