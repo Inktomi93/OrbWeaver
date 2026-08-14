@@ -355,7 +355,10 @@ export type AutomationBusEventType = AutomationBusEvent["type"];
  *  `AutomationBusEvent` had no belt at all, so no gate could see the bus, and `rulesChanged` sat declared
  *  and un-emitted for the life of the domain (event-bus coverage survey §2.3 — the newest bus already had
  *  dead wire, invisibly). The const is NOT inert data: minting it alone fires both arms of
- *  `bus-definition-belts`, which is why it lands WITH the gate work and not ahead of it. */
+ *  `bus-definition-belts`, which is why it lands WITH the gate work and not ahead of it.
+ *  @public future: the automation client invalidation map — the G-B reach-lane row's own end
+ *  condition (automation is a server-internal SSE plane today; the day a client consumer lands,
+ *  its map imports this belt exactly as invalidation.ts imports USER_BUS_EVENT_TYPES). */
 export const AUTOMATION_BUS_EVENT_TYPES = {
   quickReplySurfaced: true,
   ruleFired: true,

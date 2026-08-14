@@ -41,6 +41,27 @@ a11y → `side-eye`; both if the change spans both.
 ## Rules
 
 - **Spec in one shot:** goal, constraints, done-criteria, relevant paths, and the WHY — not just the what.
+- **RE-DERIVE EVERY ROW BEFORE DISPATCHING IT (2026-08-14, two stale dispatches in one day — one
+  fixed a fixed bug's board row, one dispatched a program built five days earlier).** ~60 seconds
+  before any Agent call: `git log --oneline -5 -- <the row's primary path>` + Read the cited
+  file:line + `git log --all --grep="<key noun>" --oneline -5`. A board/audit row claiming work is
+  UNBUILT owes the same tree receipt as one claiming it's done. A refusing lane costs ~5 min; a lane
+  fixing a fixed thing costs an hour.
+- **Value-changing briefs name `types:graph` in the floor, never bare `pnpm typecheck`** (2026-08-14,
+  paid twice in one day): the per-package program is BLIND to `tests/` and `scripts/`, so a schema
+  column or rename leaves the shared factories/probes red in the one program nobody in the lane ran.
+  The orchestrator's half: run `node scripts/ts7.cjs --noEmit -p tsconfig.json` (~15s) after EVERY
+  value-changing merge — the single skipped tripwire of 2026-08-14 was exactly the merge carrying
+  the red.
+- **Reply routing: identify a lane by CONTENT ANCHOR + the dispatch map, never by role name**
+  (2026-08-14, second misroute of the era — two live executors, an approval landed on the wrong
+  one). Briefs must tell lanes to state their LANE NAME in every back-channel message; the receiving
+  side of a misroute bounces it, but the intended lane silently proceeds on defaults.
+- **Wrapper hygiene reaches briefs now:** the Bash guard classifies UNTRACKED script bodies
+  (2026-08-14) — a lane's helper scripts must carry sanctioned spellings inside (CT cache-clear
+  before playwright; redirect harness output to a log and read the log in a separate command, never
+  pipe into tail). Also: `tests/tooling/check-gates.int.test.ts` is NOT concurrency-safe with itself
+  (shared `__g_` fixture paths) — never let a lane floor and a drain battery overlap it.
 - **MODEL TIER IS THE BURN LEVER, not lane count** (owner, 2026-08-13). Five lanes cost what five lanes of
   work cost; five lanes *on Opus* cost multiples. Start at the cheapest role that can plausibly succeed and
   escalate on failure, never the reverse. Any ad-hoc agent or workflow fan-out **MUST set `model`

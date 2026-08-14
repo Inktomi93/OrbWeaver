@@ -292,36 +292,58 @@ brief's convention wiring — every lane's scoped check missed it, all branched 
 `7994de156` (schema imports the LEAF, depcruise 80→0). Drain small: knip flags
 LiveResolverRootElement unused in live-token-resolver.ts.
 
-**FOURTH ROTATION — FULLY DRAINED (zero lanes, zero worktrees). BATTERY IN FLIGHT** (launched
-09:35:36, `pnpm verify --push` detached, watch armed on reports/verify.json tier:push; verdict +
-morning delta on landing). Landed this rotation: gate batch `7ebe3a12c` (201→207; G-E refused w/
-receipts; G-C is a TAINT test; G-F fixed 15 live scrollers) · guard script-bodies `b5b1db9c7`
-(196/115,894 corpus moves, ALL stricter) · R3 leg `caa06972c` (alternate-step verb + the verifier's
-message-loss window closed red-first + reap races dead + PD-134 reconciled) · heal-wave over-fetch
-`dc72ac325`-merge (collapseFilters at the funnel) · draft-cast ghost pins `595b8a5f6` · guard
-tuple-type `f42f3ea3c` · lint drain `62e7aa6bc` (pnpm check GREEN 14/14). R0+R1 verifier: REFUTED→
-all findings closed same-day. Residual accepted-documented: R1-4a false-emit (bus-surface change
-boarded). OPEN LEAD: use-user-bus eslint-ignore note + F6 addMember-greets arm (roster verb).
+**═══ LIVE STATE (2026-08-14 late morning — POST-COMPACT RESUME POINT; supersedes every rotation block below) ═══**
 
-**THIRD ROTATION — CLOSED except R1 (running: R1 draft-mode a662d9e17adb6dc35, the R1+R2-client
-one-commit arm w/ the channels ruling; alternate-step verb = its next leg).** Landed:
+**Tree: zero lanes, zero worktrees, `pnpm check` GREEN 14/14, structure single-pass clean (207
+gates), types:graph green. BATTERY IN FLIGHT: `pnpm verify --push` detached 09:35:36, watch
+btyixyfrz armed on reports/verify.json tier:push — read EVERY stage on landing, fix reds, then
+rewrite the morning delta at board top. Push = OWNER'S. NEXT STACK BOOT WIPES THE DEV DB (R0+rename
+squashes). Design project: claude.ai/design/p/2ec379a2-fddd-4bc2-bc58-023b8a684575.**
 
-- **THE MUTATION GATE HAS ITS FIRST SCORE EVER + A LIVE BREAK.** Run 5 completed (84m03s):
-  **55.56 total / 58.02 covered** (guard 63.64 · assemble 52.25 · **round 81.97** · resolve 50.00);
-  `break: 50` calibrated + committed `2463765ed` — **RC-01 fully closed, the gate can FAIL now.**
-  Caveat in the config comment: load 40-60 + 503 excluded mutant errors → a quiet-box rerun may
-  raise the floor. Artifacts: reports/mutation/run5-2026-08-14.log + run5-gate.html. Merges:
-  runnability `be258f4e9` + threshold `2463765ed`.
-- **WEAVE LAB MERGED `242a08707`** (16 modules now, all under the cap): physics (pluck/shiver/wind,
-  swayGain≡1 at rest = byte-identical frames for existing hosts, regression-pinned) · prey AI ·
-  character presets (default calm, shipped 0.22 turnRate — the lab's `full` default would have
-  reversed the turbo ruling) · frame-laying itinerary (**the pinned 104px scaffold seam is GONE —
-  zero jumps**) · spinner weave-loop (spec's −L sign was WRONG, built +L with reasoning) ·
-  interactive/wind/character/tempo API. **Deliberate a11y ruling: interactive flips pointer-events,
-  NOT aria-hidden** (nameless canvas, no keyboard path) — side-eye candidate when a host mounts
-  interactive=true (none does yet). As-builts in the design doc.
-- **smalls-3 `2f9a9897e`** · **#36 CLOSED (was built 08-09; vehicle-knob pin is the new work)** ·
-  the drain smalls (`c18592d8a`) · checkList-cycle fix (`7994de156`) · factory fix (`bbfa31605`).
+**TODAY'S TRAIN (compressed; git log 8fd771c4c..HEAD is the authority):** Qwen cleanup 8fd771c4c ·
+audit committed 0de9e087d · smalls ce7e9dac1 · report-cards train d5dee1bd7 + cleanup 8eca945c7 +
+star/updatedAt 31ef3df43 · W7b/W8 b85e82e24 · DEPLOCK 5d0105e72 · guard P1 27aad9d18 + script-bodies
+b5b1db9c7 + tuple f42f3ea3c · design-sync 6598c489d + fonts + annotator fd9c89234 · lens defc033f2 ·
+probes dd8683627 · R0 879827373 · motion fixes 9be2fbd92 · weave lab 242a08707 · checkList-cycle
+7994de156 · factory bbfa31605 · #36 close 35a69347e-merge · reapHusk sweep d885ff311 · mutation
+runnable be258f4e9 + break=50 2463765ed (FIRST SCORE: 55.56/58.02; artifacts reports/mutation/) ·
+smalls-3 2f9a9897e · R1 efc4cc2b2 (draft runtime DELETED −4,432) · R3 leg caa06972c (message-loss
+window closed) · heal collapse dc72ac325-merge · gate batch 7ebe3a12c (201→207, G-E refused) ·
+lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
+
+**OPEN ITEMS (the real list, everything else below is archive):**
+
+- [ ] **ENTITY→ROOM MEMBER-FRESHNESS BRIDGE (owner-asked 08-14, design-then-build):** host/member
+  entity edits don't reach OTHER users' live-room projections — charactersChanged/worldInfoChanged/
+  personasChanged fan the EDITOR'S user bus only; members' getMemberCard / roster identity (persona
+  name+avatar = member-visible bytes) stay stale until reload. Persona SWITCHING already fans
+  (chat-bus personaSwitched); content edits don't. FIX SHAPE: one server-side bridge at the emit
+  funnel — entity event → look up live rooms seating that entity → fan chatUpdated (or a narrower
+  member-projection event) into those rooms; members re-read through the D16-clamped views, so
+  byte-gating holds by construction. Presets deliberately OUT (members never fetch them; server
+  assembles per turn — a visible "host changed the model" notice is a product choice, one emit).
+  Intersects the boarded R1-4a bus-surface item. Room-scoped changes already covered
+  (setRoomOverrides → chatUpdated; roster; turn lifecycle).
+- [ ] **GATE CANDIDATE G-G — testid liveness:** CT `getByTestId("X")`/`testId("X")` literals whose
+  producer (`data-testid`) exists NOWHERE in packages/ = dead assertions that fail late or pass
+  falsely. Historical control: the draft-cast ghosts (two tests asserted a testid R1 deleted;
+  slipped every scoped floor, caught by an unrelated lane's slice sweep). Two-receipt law; literal
+  cross-corpus check, cheap.
+- [ ] **GATE ARM CANDIDATE — ui exports-map completeness:** every `packages/ui/src/primitives/<n>/`
+  (and content/charts families per the exports map's own convention) must have its `"./<n>"`
+  package.json exports entry. Historical control: hint-trigger was UNIMPORTABLE for a day (missing
+  entry, caught only when its CT tried to import it). Rides the existing ui-primitive-structure gate.
+- [ ] **R1-4a residual false-emit** (accepted-documented): closing needs a durable-append-free live
+  fan on the chat bus — pairs with the bridge item above, one bus-surface design.
+- [ ] **F6 addMember-greets-before-freeze arm** (roster verb, out of R1/R3 scope).
+- [ ] **Guard follow-up family** (one security-executor leg; two items are OWNER calls — see the
+  merged-rotation row below for the four items).
+- [ ] **OPS LEAD:** after a merge that MOVES exports between modules, main's vite dev server serves
+  stale prebundle (nearestRayHit outage, :5173 down until cache clear + bounce) — teach
+  stack.sh/dev tooling to clear packages/client/node\_modules/.vite on merge, or document the bounce.
+- [ ] Codex snapshot-only doc families = revalidate-when-touched (their own instruction) · owner
+  pile: longer-outputs numbers · theme/dogfood live receipts (selector wire-capture flip, W3 revoke
+  probe) · re-import (owner-run) · the push.
 
 **QUEUED:** gates G-A/G-B/G-C/G-D/G-E (fixed tree at drain; G-C's historical control banked) ·
 **G-F scroller-positioning gate** (smalls-3's measured win: overflow-y-auto/overflow-auto/
@@ -684,7 +706,7 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
     ANGLE, not a reading. No AST shape separates "a number a human reads" from "a number a renderer does
     maths with". (2) Corpus: 65 `?? 0` in client+ui, 14 inside a JSX expression container — 13 of those 14
     are `count={… ?? 0}` on a list header, where 0 is the TRUE count of an empty list. A shape gate would
-    land ~93% false and need 13 allowlist rows at birth, which GATE-AUTHORING §4.7 bans. (3) The obvious
+    land \~93% false and need 13 allowlist rows at birth, which GATE-AUTHORING §4.7 bans. (3) The obvious
     narrowing (fence to JSX containers) MISSES the historical control outright — `clockTime` built its
     string in a plain helper two calls from any JSX, so the fence would ship a confident false clean.
     Verdict: no gate. The class stays owned by the memory lesson + `side-eye`, and the em-dash/unset

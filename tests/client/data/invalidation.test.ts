@@ -592,6 +592,8 @@ describe("invalidation — the wave collapse (what a wave SPENDS)", () => {
     const listTagsKey = trpc.tag.listTags.queryKey();
     const personaKey = trpc.persona.list.queryKey();
     for (const key of [listTagsKey, personaKey]) {
+      // FABRICATION-OK: seeding an empty cache entry so invalidation STATE is observable — the data
+      // bytes are never asserted, only isInvalidated.
       queryClient.setQueryData([...key], [] as never);
     }
 
