@@ -1,5 +1,5 @@
-// The preset EDITOR's view registry + the static generation-select vocabularies (W10 Panel A — UI-Arch
-// §4.2 Presets row). preset-surface-redesign.md §3 (owner decision D3): the two-level tree (4 groups × 10
+// The preset EDITOR's view registry + the static generation-select vocabularies (UI-Arch
+// §4.2 Presets row, an owner decision): the two-level tree (4 groups × 10
 // leaves) COLLAPSES to FIVE FLAT VIEWS — Params · Prompt · Actions · Data · Transforms — one `Tabs` level,
 // each view one scrolling column. §6.2's regroup fixed leaf-sprawl by grouping; this fixes what grouping
 // could not (the leaves themselves were too small to be tabs — a tab per radio group). Registry-as-data:

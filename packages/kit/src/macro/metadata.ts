@@ -145,7 +145,7 @@ export function validateMacroArgs(metadata: MacroMetadata, args: readonly string
   return macroArgDiagnostics(checkMacroArgs(metadata, args), span, strict);
 }
 
-/** Autocomplete / browser query (02 §5). Name-or-alias prefix match + category filter over the registry's
+/** Autocomplete / browser query. Name-or-alias prefix match + category filter over the registry's
  *  composed metadata, stable name-sorted. Pure + isomorphic — the editor calls this on every keystroke
  *  against the client registry and merges with a `macro.list` tRPC read of the server registry. */
 export function queryMacros(registry: MacroRegistry, q: { prefix?: string; category?: MacroCategory }): readonly MacroMetadata[] {

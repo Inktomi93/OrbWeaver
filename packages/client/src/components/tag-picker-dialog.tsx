@@ -1,4 +1,4 @@
-// TagPickerDialog — the client-shared tag-name prompt (W1 rollup). Four sites across TWO features hand-
+// TagPickerDialog — the client-shared tag-name prompt. Four sites across TWO features hand-
 // rolled the byte-identical "type a tag name → Apply/Create" Dialog (character bulk-bar + tags-row,
 // settings tag-create-button). Built ON FormDialog's PROMPT mode. OWNER RULING: lives client-shared (spans
 // character + settings — the RowActionsMenu/ConfirmDialog precedent; NOT @orb/ui — ui stays parts-only).

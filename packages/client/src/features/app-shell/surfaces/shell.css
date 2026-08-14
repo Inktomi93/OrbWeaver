@@ -195,7 +195,7 @@
   padding-block-end: var(--spacing-block);
 }
 /* The brand is the rail's chrome-row header — a full-width chrome-row cell with the shared bottom hairline,
- * on the one horizon (P1). align-self:stretch overrides the rail's align-items:center so the hairline spans
+ * on the one shared horizon. align-self:stretch overrides the rail's align-items:center so the hairline spans
  * the whole rail width. */
 .shell-rail-brand {
   display: flex;
@@ -432,7 +432,7 @@
  * The band's GROWTH exception (`height:auto` + `min-height` + `align-items:stretch` + block padding) is
  * DELETED at HUD-1 H1: it existed only so the rpg takeover's two-line banner could fit a slot it did not
  * own. The takeover now CLAIMS the pane and paints its own band, so this one is a one-line label again and
- * keeps the D66 A1 chrome-row horizon it shares with the LIST band and the topbar (P1). */
+ * keeps the D66 A1 chrome-row horizon it shares with the LIST band and the topbar. */
 .shell-panel[data-panel-side="context"] .shell-panel-header {
   box-shadow: inset 0 2px 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
 }

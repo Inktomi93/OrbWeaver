@@ -13,7 +13,7 @@
 // invalidation maps stay the ONLY translators) and never writes a store (gate `bus-onData-no-store-write`).
 //
 // The one thing it DOES read off a fault is the tRPC error CODE, and only to answer "is the session dead?"
-// (W1). A warm tab under D54's pins issues no reads, so the QueryCache belt has nothing to fire on — this
+// A warm tab under D54's pins issues no reads, so the QueryCache belt has nothing to fire on — this
 // socket is the only place a revoked/expired session announces itself, and it used to end at a toast.
 
 import type { StreamFrame } from "@orb/contracts/stream";

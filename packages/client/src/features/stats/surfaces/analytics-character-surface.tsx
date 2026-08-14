@@ -41,7 +41,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
   const trpc = useTRPC();
   const { data: stats } = useSuspenseQuery(trpc.stats.character.queryOptions({ characterId }));
   const { data: latency } = useSuspenseQuery(trpc.stats.latency.queryOptions({ kind: "character", characterId }));
-  // Non-suspending name read — only used to NAME the empty state (P4); the figures below already carry
+  // Non-suspending name read — only used to NAME the empty state; the figures below already carry
   // the name via `stats.name`, so this degrades quietly to a generic sentence until the cache populates.
   const { data: character } = useQuery(trpc.character.get.queryOptions({ characterId }));
   const drilledName = character?.name.trim() ?? "";

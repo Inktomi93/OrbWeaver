@@ -392,7 +392,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             <Textarea
               ref={textareaRef}
               aria-label="Message"
-              // Editable-combobox wiring for the slash strip (P2 a11y): while the strip is open the textarea
+              // Editable-combobox wiring for the slash strip (a11y): while the strip is open the textarea
               // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a
               // screen reader announces the highlighted offer without focus ever leaving the textarea.
               {...slashComboboxAria(stripOpen)}

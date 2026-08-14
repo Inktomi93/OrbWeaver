@@ -1,9 +1,9 @@
-// @orb/contracts/plugin — the manifest + capability vocabulary (plugin-design/02 §1). The Zed/WASM-component
+// @orb/contracts/plugin — the manifest + capability vocabulary. The Zed/WASM-component
 // SHAPE borrow D46 named (copy the manifest/capability shape, NOT the runtime). `PLUGIN_CAPABILITIES` is the
 // ONE closed capability axis: the manifest DECLARES a subset, the grant RECORDS the confirmed subset, and each
-// member maps to a concrete host-side enforcement (02 §2, coded as `CAPABILITY_HOST_FUNCTIONS` in host-v1.ts).
+// member maps to a concrete host-side enforcement (coded as `CAPABILITY_HOST_FUNCTIONS` in host-v1.ts).
 // The manifest is the install-time trust edge — every field is bounded here so a malformed bundle is refused
-// before any guest code runs (`hostVersion` refuses an unserved membrane major, 01 §3).
+// before any guest code runs (`hostVersion` refuses an unserved membrane major).
 
 import { z } from "zod";
 
@@ -28,11 +28,12 @@ export const PLUGIN_CAPABILITIES = [
 export type PluginCapability = (typeof PLUGIN_CAPABILITIES)[number];
 
 /** A lowercase slug, unique per installing owner — NOT reverse-DNS (nothing federates; a slug is what users
- *  type and logs show). Also the tool namespace prefix root (03 §5). */
+ *  type and logs show). Also the tool namespace prefix root. */
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
 /** The plugin's OWN semver (display + upgrade ordering) — distinct from `hostVersion` (the membrane major). */
 const PLUGIN_SEMVER_RE = /^\d+\.\d+\.\d+$/;
-/** An exact hostname `net.fetch` may reach (the SSRF posture; the per-request pin is P4).
+/** An exact hostname `net.fetch` may reach (the SSRF posture; the per-request enforcer is `validateUrl`
+ *  in the egress module, see below).
  *
  *  `z.hostname()` (a real RFC hostname grammar) replaced the charset regex `/^[a-z0-9.-]+$/` on 2026-08-02.
  *  The regex was a CHARSET test, not a grammar, and that was a live hole: `hostAllowed` in
@@ -82,20 +83,20 @@ export const pluginBuiltAgainstSchema = z
 export type PluginBuiltAgainst = z.infer<typeof pluginBuiltAgainstSchema>;
 
 /** The bundle manifest (`manifest.json` in the zip; the FULL validated copy is persisted for provenance and
- *  re-validated on load — 02 §3). `netHosts` ⟺ `net.fetch`: declaring the capability requires ≥ 1 host, and a
+ *  re-validated on load). `netHosts` ⟺ `net.fetch`: declaring the capability requires ≥ 1 host, and a
  *  host list is meaningless without the capability (the biconditional is the SSRF allowlist's integrity). */
 export const pluginManifestSchema = z
   .object({
     id: z.string().regex(SLUG_RE),
     name: z.string().min(1).max(NAME_MAX),
     version: z.string().regex(PLUGIN_SEMVER_RE),
-    hostVersion: z.literal(1), // the membrane major (01 §3) — refused pre-run if unserved
+    hostVersion: z.literal(1), // the membrane major — refused pre-run if unserved
     entry: z.literal("main.js"), // ONE fixed entry file in the bundle (the guest has no module loader)
     description: z.string().max(DESCRIPTION_MAX),
     author: z.string().max(AUTHOR_MAX).optional(),
     capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)).max(PLUGIN_CAPABILITIES.length),
     netHosts: z.array(netHostSchema).max(NET_HOSTS_MAX).optional(),
-    /** The cascade opt-in (plugin-design/03 §2) — mirrors an automation rule's `matchAutomationEvents` column.
+    /** The cascade opt-in — mirrors an automation rule's `matchAutomationEvents` column.
      *  `false`/absent (fail-closed default) ⇒ the plugin's `events.on` handlers receive ONLY human-plane
      *  (depth-0) facts; a depth ≥ 1 automation/plugin-caused fact is suppressed. `true` ⇒ cascade facts deliver
      *  up to the HARD depth cap (which applies regardless). ONE guard, two consumers (rules + plugins) — a

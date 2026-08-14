@@ -279,7 +279,7 @@ const pickHandler: MacroHandler = (args, ctx) => {
   return args[index] ?? "";
 };
 
-// {{expr::<cel>}} result coercion (02 §3): string ← string; number/bool → their text; null → "";
+// {{expr::<cel>}} result coercion: string ← string; number/bool → their text; null → "";
 // list/map → JSON (so a structured result round-trips into {{setvar}}).
 function coerceExprResult(value: CelValue): string {
   if (typeof value === "string") {
@@ -413,7 +413,7 @@ const deleteVar: MacroHandler = (args, ctx) => {
   return "";
 };
 
-// {{getglobalvar::key}} — read from the author's staged per-user global plane (02 §4). Missing key → "".
+// {{getglobalvar::key}} — read from the author's staged per-user global plane. Missing key → "".
 // SEPARATE from ctx.env: globals are cross-chat single-owned state, never variant-scoped.
 const getGlobalVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
@@ -696,7 +696,7 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("decvar", decVar, vol);
   registry.register("hasvar", hasVar);
   registry.register("deletevar", deleteVar);
-  // The per-user global plane (02 §4) — read from staged globals; setglobalvar collects a commit-time
+  // The per-user global plane — read from staged globals; setglobalvar collects a commit-time
   // write (volatile: a mutation, like setvar).
   registry.register("getglobalvar", getGlobalVar);
   registry.register("setglobalvar", setGlobalVar, vol);
@@ -705,13 +705,13 @@ export function createDefaultRegistry(): MacroRegistry {
   registerVolatileMacros(registry);
 
   // `delayArgResolution: true` lets us read RAW args so we can tell a bare identifier apart from a
-  // sub-macro-resolved value like `{{hasvar::flag}} → "true"`. `blockChildren: true` (M1, §12A.1) —
+  // sub-macro-resolved value like `{{hasvar::flag}} → "true"`. `blockChildren: true` —
   // `if` branch-picks over the raw body AST itself, so the universal content-as-last-arg delivery
   // (which would eagerly resolve BOTH branches) must not apply.
   registry.register("if", ifHandler, { delayArgResolution: true, blockChildren: true });
   registry.register("else", () => ""); // structural marker; standalone use is a no-op
 
-  // {{expr::<cel>}} — CEL surfaced inside templates (02 §3). Volatile: its value depends on the runtime
+  // {{expr::<cel>}} — CEL surfaced inside templates. Volatile: its value depends on the runtime
   // CEL env (vars/now), so a static-half occurrence must bust the cached prefix.
   registry.register("expr", exprHandler, vol);
 
@@ -720,7 +720,7 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("noop", () => "");
   registry.register("banned", () => ""); // legacy upstreams strip the contents; mirror that
 
-  // The whole-body transform family — `blockChildren: true` (M1): each transforms its VERBATIM resolved
+  // The whole-body transform family — `blockChildren: true`: each transforms its VERBATIM resolved
   // body, so the universal trim/dedent must not pre-mangle it (`{{trim}}` trimming a pre-trimmed body
   // would be vacuous; the case-folds must preserve the author's exact whitespace).
   const block = { blockChildren: true } as const;
@@ -733,7 +733,7 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("lowercase", (_args, ctx, children) => (children ? ctx.evaluateAST(children).toLowerCase() : ""), block);
 
   registry.register("input", (_args, ctx) => ctx.input ?? "", volChat);
-  // {{idle_duration}} (parity-plus §12, D6 fold) — time since the last chat activity as human text, computed at
+  // {{idle_duration}} (D6 fold) — time since the last chat activity as human text, computed at
   // assembly off the message timestamps (EXCLUDING the in-flight message) and staged on `ctx.idleDuration`. Works
   // in ANY chat (a context-macro, not rpg-specific); a fresh one-message chat = no prior activity = "". Volatile.
   registry.register("idle_duration", (_args, ctx) => ctx.idleDuration ?? "", volChat);
@@ -741,7 +741,7 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("lastUserMessage", (_args, ctx) => ctx.lastUserMessage ?? "", volChat);
   registry.register("lastCharMessage", (_args, ctx) => ctx.lastCharMessage ?? "", volChat);
 
-  // Backfill DX metadata (02 §5) for every builtin above — one loop, off the register() calls so they
+  // Backfill DX metadata for every builtin above — one loop, off the register() calls so they
   // stay churn-free. A completeness test asserts every registered name is covered here.
   for (const [name, input] of Object.entries(BUILTIN_MACRO_METADATA)) {
     registry.setMetadata(name, input);

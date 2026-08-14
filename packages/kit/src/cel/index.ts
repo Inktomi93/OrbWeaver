@@ -1,14 +1,14 @@
-// kit/cel — the CEL expression seam (automation-design/02 §1-3). A THIN wrapper over
-// `@marcbachmann/cel-js` so the dependency is pinned in ONE home (swap the lib here, nowhere else) and
-// the evaluator stays isomorphic — the client rule-editor validates predicates with the exact same code
-// the server dispatch uses. Two roles compose over one evaluator: automation rule predicates (A5) and
-// the `{{expr::…}}` macro (kit/macro). CEL is linear-time + mutation-free by construction, so the
+// kit/cel — the CEL expression seam. A THIN wrapper over `@marcbachmann/cel-js` so the dependency is
+// pinned in ONE home (swap the lib here, nowhere else) and the evaluator stays isomorphic — the client
+// rule-editor validates predicates with the exact same code the server dispatch uses. Two roles compose
+// over one evaluator: automation rule predicates and the `{{expr::…}}` macro (kit/macro). CEL is
+// linear-time + mutation-free by construction, so the
 // PARSE-TIME source cap (≤ 2 KiB) IS the whole budget — no runtime watchdog (contrast kit/regex, whose
 // node:vm timeout exists only because regex backtracking is superlinear).
 
 import { EvaluationError, ParseError, parse } from "@marcbachmann/cel-js";
 
-// The source-length cap (02 §1). Bytes, not chars — a multi-byte predicate can't sneak past a char cap.
+// The source-length cap. Bytes, not chars — a multi-byte predicate can't sneak past a char cap.
 const CEL_MAX_SOURCE_BYTES = 2048;
 
 // UTF-8 byte length WITHOUT TextEncoder — kit is isomorphic (tsconfig lib=es2025, types=[]), so
@@ -23,7 +23,7 @@ function utf8ByteLength(source: string): number {
 export type CelValue = string | number | boolean | null | readonly CelValue[] | { readonly [key: string]: CelValue };
 
 /** The activation object a program evaluates against — a data-only map of named bindings (the caller
- *  supplies the §1 env: vars/choice/global/chat/now/event). Values are `unknown` at this seam; the
+ *  supplies the env: vars/choice/global/chat/now/event). Values are `unknown` at this seam; the
  *  domain's cel-env builder is what shapes them. */
 export type CelBindings = Record<string, unknown>;
 
@@ -46,7 +46,7 @@ export interface CelProgram {
 }
 
 /** Thrown by {@link evalCel} on a RUNTIME failure (missing field without `has()`, type mismatch). The
- *  automation posture (02 §1): the caller catches this and SKIPS the rule / renders `""` — the turn is
+ *  automation posture: the caller catches this and SKIPS the rule / renders `""` — the turn is
  *  never affected. A kit-local error so `@marcbachmann/cel-js`'s EvaluationError never leaks to catch sites. */
 export class CelEvalError extends Error {
   override readonly name = "CelEvalError";

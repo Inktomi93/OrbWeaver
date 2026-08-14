@@ -71,7 +71,7 @@ export async function firstRunSetup(password: string): Promise<void> {
   }
 }
 
-/** The logout response (A6): the IdP end-session URL to continue to, or null (non-oidc modes, or an issuer
+/** The logout response: the IdP end-session URL to continue to, or null (non-oidc modes, or an issuer
  *  with no end_session_endpoint). */
 export interface LogoutResult {
   readonly endSessionUrl: string | null;

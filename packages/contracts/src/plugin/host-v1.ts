@@ -1,4 +1,4 @@
-// @orb/contracts/plugin — the `PluginHostV1` membrane surface in full (plugin-design/01 §2). The ONE typed
+// @orb/contracts/plugin — the `PluginHostV1` membrane surface in full. The ONE typed
 // thing a guest sees: the frozen, versioned, capability-gated surface it receives from `orb.host(1)` — the
 // antithesis of ST's `getContext()` god-object. Only JSON-safe primitives and OPAQUE HANDLES cross the
 // boundary; every host function is gated at the FUNCTION (not the namespace) by a `PluginCapability`, and the
@@ -19,7 +19,7 @@ import type { PluginCapability } from "./manifest.ts";
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
 export type ChatHandle = Branded<"PluginChatHandle">;
 
-/** The `host.log` severity axis (01 §2) — the ONE home for the plugin log levels: the membrane surface exposes
+/** The `host.log` severity axis — the ONE home for the plugin log levels: the membrane surface exposes
  *  `log.{info,warn,error}`, the `domain/plugin` `PluginLogView` derives its `level` from this, and the
  *  `infra/plugin-host` log ring speaks it. Declared once here (the wire vocab home) so no consumer re-spells it. */
 export const PLUGIN_LOG_LEVELS = ["info", "warn", "error"] as const;
@@ -39,10 +39,10 @@ export interface PluginMessageView {
 }
 
 /** The same `set`/`add`/`inc`/`dec`/`delete` op vocabulary the delta model defines — the ONE home is the kit
- *  `VarOp` (aliased, never re-spelled); a guest write rides the SAME delta seam actions use (03 §1.1). */
+ *  `VarOp` (aliased, never re-spelled); a guest write rides the SAME delta seam actions use. */
 export type PluginVariableOp = VarOp;
 
-/** Mirror of the `insert_world_info_entry` action's entry fields (03 §1.3) — attached-book-only, entryKey-
+/** Mirror of the `insert_world_info_entry` action's entry fields — attached-book-only, entryKey-
  *  updatable, host-side idempotent. */
 export interface PluginWorldEntryUpsert {
   readonly bookId: string;
@@ -72,7 +72,7 @@ export interface PluginHostV1 {
   readonly ids: { mint: () => string }; // injected id factory (opaque uniqueness, NOT TypeIDs)
 
   readonly log: {
-    // capability: none (always granted); rate-limited host-side (03 §3); surfaces in the plugin's log view
+    // capability: none (always granted); rate-limited host-side; surfaces in the plugin's log view
     info: (msg: string) => void;
     warn: (msg: string) => void;
     error: (msg: string) => void;
@@ -86,24 +86,24 @@ export interface PluginHostV1 {
     listMessages: (chat: ChatHandle, opts?: { limit?: number /* ≤ 50, default 20 */ }) => Promise<readonly PluginMessageView[]>;
     /** The runtime variable fold cache (read) — capability: chat.read */
     getVariables: (chat: ChatHandle) => Promise<Record<string, string>>;
-    /** Variable writes ride the SAME delta seam actions use (03 §1.1) — capability: chat.variables.write */
+    /** Variable writes ride the SAME delta seam actions use — capability: chat.variables.write */
     applyVariableOps: (chat: ChatHandle, ops: readonly PluginVariableOp[]) => Promise<void>;
-    /** Surface quick-reply chips (the automation bus event — 03 §1.4) — capability: chat.quick_reply */
+    /** Surface quick-reply chips (the automation bus event) — capability: chat.quick_reply */
     surfaceQuickReply: (chat: ChatHandle, choices: readonly { label: string; sendText: string }[]) => Promise<void>;
     /** Request an autonomous turn — capability: turn.trigger. Budget/consent-gated EXACTLY like the
-     *  trigger_turn action (03 §1.6/§3-4): debits the chat's automation_budgets, carries
+     *  trigger_turn action: debits the chat's automation_budgets, carries
      *  initiator:"plugin" + automationDepth, and hits D17 unchanged. */
     requestTurn: (chat: ChatHandle, p?: { speakerCharacterId?: string; guided?: string }) => Promise<void>;
   };
 
   readonly worldInfo: {
-    /** Same op + idempotency semantics as the insert_world_info_entry action (03 §1.3) — attached-book-only,
+    /** Same op + idempotency semantics as the insert_world_info_entry action — attached-book-only,
      *  entryKey-updatable, 64-entries-per-owner cap. capability: worldinfo.write */
     upsertEntry: (chat: ChatHandle, e: PluginWorldEntryUpsert) => Promise<void>;
   };
 
   readonly variables: {
-    /** The INSTALLING PRINCIPAL's per-user global KV (02 §4) — reads/writes are fetchOwned under that
+    /** The INSTALLING PRINCIPAL's per-user global KV — reads/writes are fetchOwned under that
      *  principal. capability: global_vars */
     get: (key: string) => Promise<string | null>;
     set: (key: string, value: string) => Promise<void>;
@@ -111,7 +111,7 @@ export interface PluginHostV1 {
   };
 
   readonly storage: {
-    /** Plugin-PRIVATE KV (per plugin × installing owner — the plugin_kv table, 02 §3). Distinct from
+    /** Plugin-PRIVATE KV (per plugin × installing owner — the plugin_kv table). Distinct from
      *  `variables` (the USER's namespace, shared with macros/CEL). capability: storage.kv */
     get: (key: string) => Promise<string | null>;
     set: (key: string, value: string) => Promise<void>; // ≤ 64 KiB value, ≤ 256 keys/plugin
@@ -120,32 +120,32 @@ export interface PluginHostV1 {
   };
 
   readonly notifications: {
-    /** capability: notify — the automation-notice path with recipient rules per 03 §1.5 (participants only,
+    /** capability: notify — the automation-notice path with recipient rules (participants only,
      *  200-char cap, cooldown floor). */
     post: (chat: ChatHandle, recipient: NotificationRecipient, message: string) => Promise<void>;
   };
 
   readonly imagery: {
     /** capability: imagery.generate — SPEND class, same ceilings as generate_image. Args = the SAME
-     *  GenerateImageActionArgs shape the action arm imports (imagery-design/01 §6) — one vocabulary across
+     *  GenerateImageActionArgs shape the action arm imports — one vocabulary across
      *  rule, tool, and plugin. */
     // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     generatePicture: (chat: ChatHandle, p: GenerateImageActionArgs) => Promise<{ assetId: string }>;
   };
 
   readonly events: {
-    /** Subscribe to the Tier-1 trigger taxonomy — the SAME closed union (automation-design/01 §1); plugins
-     *  get no private event vocabulary. Handlers receive the resolved TriggerFact (01 §2), never raw bus
-     *  payloads. INSTALLED plugins only (snippets run once — 03 §1). capability: events.subscribe */
+    /** Subscribe to the Tier-1 trigger taxonomy — the SAME closed union; plugins
+     *  get no private event vocabulary. Handlers receive the resolved TriggerFact, never raw bus
+     *  payloads. INSTALLED plugins only (snippets run once). capability: events.subscribe */
     on: (type: ChatTriggerType | DomainTriggerType, handler: (fact: TriggerFact) => void | Promise<void>) => void;
   };
 
   readonly tools: {
-    /** Register a tool into the ONE domain/tool-use registry (D48 source (b)) — 03 §5. The host-side posture
-     *  for the raw-JSON-Schema `parameters` field is the named P4 decision against D79 (README truth table).
+    /** Register a tool into the ONE domain/tool-use registry (D48 source (b)). The host-side posture
+     *  for the raw-JSON-Schema `parameters` field is the named decision against D79 (README truth table).
      *  capability: tools.register */
     register: (def: {
-      name: string; // /^[a-z][a-z0-9_]{0,40}$/; host prefixes to "plugin_<slug'>_<name>" (03 §5)
+      name: string; // /^[a-z][a-z0-9_]{0,40}$/; host prefixes to "plugin_<slug'>_<name>"
       description: string;
       parameters: Record<string, unknown>; // JSON Schema (validated host-side)
       handler: (args: unknown) => Promise<string>; // runs IN the guest under the invocation budget
@@ -153,7 +153,7 @@ export interface PluginHostV1 {
   };
 
   readonly transforms: {
-    /** Register a D50 PromptTransform (automation-design/04 §6; order auto-assigned in the plugin band 1000+
+    /** Register a D50 PromptTransform (order auto-assigned in the plugin band 1000+
      *  by registration order). capability: chat.transform */
     register: (def: {
       name: string;
@@ -168,14 +168,14 @@ export interface PluginHostV1 {
   };
 
   readonly net: {
-    /** capability: net.fetch — host-performed fetch, allowlisted per-manifest hosts ONLY (02 §2), GET/POST,
+    /** capability: net.fetch — host-performed fetch, allowlisted per-manifest hosts ONLY, GET/POST,
      *  5 s deadline, 1 MiB response cap, no redirects off-allowlist, SSRF-guarded (infra/network safeFetch,
      *  D61 B5a). */
     fetch: (url: string, init?: { method?: "GET" | "POST"; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; body: string }>;
   };
 }
 
-// ── The capability → host-function completeness pin (02 §2's enforcement table, coded) ─────────────────────
+// ── The capability → host-function completeness pin (the enforcement table, coded) ──────────────────────────
 /** Namespaces reachable with NO capability: the determinism/id floor + the version/feature-detect surface.
  *  The ONE tuple (derive, never re-spell — §7.5); a `satisfies` pins every member to a real `PluginHostV1` key,
  *  so a renamed/removed free namespace fails `tsc` here. */
@@ -190,11 +190,11 @@ export type HostFunctionRef = {
   [Ns in GatedNamespace]: `${Ns & string}.${keyof PluginHostV1[Ns] & string}`;
 }[GatedNamespace];
 
-/** The 02 §2 capability→function map as CODE, keyed by FUNCTION (the per-call lookup the host performs). Both
+/** The capability→function map as CODE, keyed by FUNCTION (the per-call lookup the host performs). Both
  *  completeness directions are `tsc`-enforced: `satisfies Record<HostFunctionRef, …>` forces EVERY gated
  *  function to name a capability — a new gated method with no entry is a missing key (RED); the `PluginCapability`
  *  value type makes a capability that does not exist fail (RED). The reverse — a capability claimed by NO
- *  function — is the `.test-d.ts` value-coverage equality pin. Together: the P2 completeness checkpoint. */
+ *  function — is the `.test-d.ts` value-coverage equality pin. Together: the completeness checkpoint. */
 export const HOST_FUNCTION_CAPABILITY = {
   "chat.current": "chat.read",
   "chat.listMessages": "chat.read",

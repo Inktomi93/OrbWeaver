@@ -12,7 +12,7 @@ import { z } from "zod";
 // A message body is a typed SEQUENCE of content blocks, NOT one HTML string (ST's fatal simplification).
 // This is the RENDER model — how a stored message is *displayed*. It is distinct from the provider-send
 // model (`ChatHistoryMessage.content` → content-parts, D45 — what the model receives as input); the two
-// share one stored asset but are different contracts in opposite directions. Chat assembles these (P5).
+// share one stored asset but are different contracts in opposite directions. Chat assembles these.
 
 export const messageMediaKindSchema = z.enum(["image", "audio", "video"]);
 

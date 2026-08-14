@@ -2,7 +2,7 @@
 // refusal notice for a send that was blocked. Renders IN FLOW directly above the composer row (the
 // pending-attachments strip precedent), so it needs no popover positioning.
 //
-// COMBOBOX SEMANTICS (P2 a11y, side-eye 2026-07-25): the offers form an @orb/ui <OptionStrip> — an inline
+// COMBOBOX SEMANTICS (a11y, side-eye 2026-07-25): the offers form an @orb/ui <OptionStrip> — an inline
 // listbox of `option`s the textarea DRIVES via aria-activedescendant. Arrow keys move a highlight while
 // focus STAYS in the textarea (the composer owns the key handling + the `activeId`); the primitive owns the
 // ARIA shape + the highlight/hover skin. This file keeps only the slash DOMAIN: which commands match, their

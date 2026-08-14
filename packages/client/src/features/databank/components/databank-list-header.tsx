@@ -2,7 +2,7 @@
 // `listHeader` slot feeds into `.shell-panel-header`: "DATABANK" · the live document count · the pane's ONE
 // primary (Add) · a maintenance kebab.
 //
-// EXACTLY ONE PRIMARY (A2): Add, which opens the three-mode ingest dialog (upload · paste · link).
+// EXACTLY ONE PRIMARY: Add, which opens the three-mode ingest dialog (upload · paste · link).
 //
 // D-6 — the owner-wide sweeps ride the BAND'S KEBAB, never a primary: `reindex({kind:'owner'})` in both
 // modes. `chunk-embed` re-chunks and re-embeds every document the caller owns (what you run after a chunk-

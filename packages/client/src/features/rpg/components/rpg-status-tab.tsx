@@ -131,7 +131,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
         const edit = editFor(actor);
         return <RpgStatusCard key={actorKey(actor)} actor={actor} onOpen={(): void => setOpenKey(actorKey(actor))} {...(edit === undefined ? {} : { edit })} />;
       })}
-      {/* The host-only Veiled ledger (P3) — LIVE off `rpg.revealHidden` (its own boundary; empty/error ⇒
+      {/* The host-only Veiled ledger — LIVE off `rpg.revealHidden` (its own boundary; empty/error ⇒
           null). PERMISSION-omit: a member never mounts it, so member DOM carries zero veiled content. */}
       {isHost ? <RpgVeiledSection chatId={chatId} /> : null}
     </Stack>

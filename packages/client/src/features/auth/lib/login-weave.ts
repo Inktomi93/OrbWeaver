@@ -1,9 +1,9 @@
 // The per-mode WEB-STATE map behind the login card (docs/design/login-loading-screen.md §3/§9.5) —
 // pure (config + search in, weave spec out) so the backdrop and the surface can never disagree on
 // which arm the user is in, and the mapping is unit-assertable without a browser. Notable arms:
-//   · local first-run (B4) → the deliberately HALF-WOVEN web (radii done, no capture spiral —
+//   · local first-run → the deliberately HALF-WOVEN web (radii done, no capture spiral —
 //     "your server isn't fully spun").
-//   · oidc auto-redirect (A9) → the strand-out beat (the spider rides a new silk line off-screen —
+//   · oidc auto-redirect → the strand-out beat (the spider rides a new silk line off-screen —
 //     "handing you off along the silk").
 //   · forward-header / unreachable → settled, dimmest (explainer surfaces; the web recedes).
 //   · normal sign-in card on a FRESH DOCUMENT LOAD (deep-link / cold open / reload) → WEAVING: the

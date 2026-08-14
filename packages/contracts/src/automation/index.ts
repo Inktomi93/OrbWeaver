@@ -1,9 +1,8 @@
-// @orb/contracts/automation — the automation vocabulary. The closed trigger taxonomy + fire-outcome tuple
-// (rider slice, so the `@orb/db` CHECKs can derive them), the global-variable plane (02 §4), AND — landed
-// with A4 — the action union (03), `LIVE_TRIGGERS` (01 §1), the `TriggerFact` + CEL-env shapes (01 §2 /
-// 02 §1), `AutomationOrigin`, and the `AutomationBusEvent` union (04 §5). The trigger id IS the source
-// event discriminator — no third event vocabulary. Reserved members are typed-but-refused at `createRule`
-// until their domains land.
+// @orb/contracts/automation — the automation vocabulary: the closed trigger taxonomy + fire-outcome tuple
+// (rider slice, so the `@orb/db` CHECKs can derive them), the global-variable plane, the action union,
+// `LIVE_TRIGGERS`, the `TriggerFact` + CEL-env shapes, `AutomationOrigin`, and the `AutomationBusEvent`
+// union. The trigger id IS the source event discriminator — no third event vocabulary. Reserved members
+// are typed-but-refused at `createRule` until their domains land.
 
 import type { AutomationRuleId, ChatId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -81,7 +80,7 @@ export const automationFireOutcomeSchema = z.enum(AUTOMATION_FIRE_OUTCOMES);
  *  over-bound ask is a BAD_REQUEST rather than an unbounded log fetch. */
 export const AUTOMATION_FIRES_LIST_MAX_LIMIT = 200;
 
-// ── the per-user global-variable plane (02 §4) ────────────────────────────────────────────────────
+// ── the per-user global-variable plane ────────────────────────────────────────────────────────────
 // The KV substrate caps live here (the ONE home) — `@orb/db`'s CHECK-generating DDL imports them so the
 // SQL bound and the app-validation bound can never drift. `key` is char-capped; `value` is a string with
 // a BYTE cap (JSON-in-a-string for structure) enforced at the verb (SQLite counts chars, the app counts
@@ -121,7 +120,7 @@ export interface BudgetView {
   readonly maxFiresPerHour: number;
 }
 
-// ── trigger liveness (01 §1) ────────────────────────────────────────────────────────────────────
+// ── trigger liveness ───────────────────────────────────────────────────────────────────────────
 /** Which tuple members are LIVE (wired to a handler). `createRule`/`updateRule` refuse a reserved
  *  trigger with `AutomationReservedTriggerError` (a typed, user-visible refusal — not a silent no-op).
  *  A mapped-type `Record` over BOTH trigger tuples: a new tuple member without a liveness entry is a
@@ -149,14 +148,14 @@ export const LIVE_TRIGGERS = {
   "asset.created": true,
 } as const satisfies Record<ChatTriggerType | DomainTriggerType, boolean>;
 
-// ── the action union (03) ───────────────────────────────────────────────────────────────────────
+// ── the action union ─────────────────────────────────────────────────────────────────────────────
 // Every arm: a snake_case `type` discriminator, an inline arg schema, capped rendered outputs. Additional
 // arms for purged domains (agents/rpg/force-activate) are not typed here today — the rebuild mints them onto
 // `AUTOMATION_ACTION_TYPES` if those domains return. The `generate_image` arm does NOT own its shape — it
 // EXTENDS `@orb/contracts/imagery`'s `generateImageActionArgsSchema` (one home per shape —
 // `no-inline-union-redecl`).
 
-/** The closed action-arm discriminators (03 §0). A new arm fails the `ARM_EXECUTORS` mapped-type in the
+/** The closed action-arm discriminators. A new arm fails the `ARM_EXECUTORS` mapped-type in the
  *  domain engine (exhaustive-dispatch). */
 export const AUTOMATION_ACTION_TYPES = [
   "set_variable",
@@ -170,7 +169,7 @@ export const AUTOMATION_ACTION_TYPES = [
 ] as const;
 export type AutomationActionType = (typeof AUTOMATION_ACTION_TYPES)[number];
 
-// Rendered/stored bounds (named — `noMagicNumbers`; 03 §1 values).
+// Rendered/stored bounds (named — `noMagicNumbers`).
 const VAR_KEY_MAX = 128;
 const VAR_VALUE_MAX = 4096;
 const TRANSFORM_TEMPLATE_MAX = 8192;
@@ -184,7 +183,7 @@ const QUICK_REPLY_MAX_CHOICES = 4;
 const NOTIFICATION_MESSAGE_MAX = 200;
 const GUIDED_TEMPLATE_MAX = 4096;
 const AUTOBG_INSTRUCTION_MAX = 512;
-/** The ordered action-arm cap (03 §0). A rule carries 1..8 arms. */
+/** The ordered action-arm cap. A rule carries 1..8 arms. */
 export const AUTOMATION_ACTION_ARMS_MIN = 1;
 export const AUTOMATION_ACTION_ARMS_MAX = 8;
 
@@ -197,7 +196,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     op: z.enum(["set", "inc", "dec", "delete"]),
     value: z.string().max(VAR_VALUE_MAX).optional(),
   }),
-  // 1.2 run a macro template over the draft (the D50 PromptTransform seam — A7).
+  // 1.2 run a macro template over the draft (the D50 PromptTransform seam).
   z.object({
     type: z.literal("transform_draft"),
     target: z.enum(PROMPT_TRANSFORM_POINTS),
@@ -220,13 +219,13 @@ export const automationActionSchema = z.discriminatedUnion("type", [
       .min(QUICK_REPLY_MIN_CHOICES)
       .max(QUICK_REPLY_MAX_CHOICES),
   }),
-  // 1.5 post an inbox notification (host-authored capped string — 03 §1.5 argued exception).
+  // 1.5 post an inbox notification (host-authored capped string — an argued exception).
   z.object({
     type: z.literal("post_notification"),
     recipient: z.enum(NOTIFICATION_RECIPIENTS),
     messageTemplate: z.string().max(NOTIFICATION_MESSAGE_MAX),
   }),
-  // 1.6 trigger an autonomous chat turn (SPEND-classed — 03 §1.6).
+  // 1.6 trigger an autonomous chat turn (SPEND-classed).
   z.object({
     type: z.literal("trigger_turn"),
     speakerCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
@@ -245,12 +244,12 @@ export const automationActionSchema = z.discriminatedUnion("type", [
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
 
-/** The stored ordered action list (1..8 arms) — the `automation_rules.actions` json column (04 §1). */
+/** The stored ordered action list (1..8 arms) — the `automation_rules.actions` json column. */
 export const automationActionsSchema = z.array(automationActionSchema).min(AUTOMATION_ACTION_ARMS_MIN).max(AUTOMATION_ACTION_ARMS_MAX);
 
-// ── TriggerFact + the CEL activation (01 §2 / 02 §1) ──────────────────────────────────────────────
+// ── TriggerFact + the CEL activation ────────────────────────────────────────────────────────────
 /** The per-event fact CEL binds as `event` AND the fact a plugin `events.on` handler receives across the
- *  QuickJS realm boundary (plugin-design/01 §2 / 04 §P4). Fields are POPULATED PER TRIGGER TYPE; unpopulated
+ *  QuickJS realm boundary. Fields are POPULATED PER TRIGGER TYPE; unpopulated
  *  fields are absent (CEL `has()` guards them; the guest reads them behind `in`/`?.`). All scalars/lists — no
  *  handles, no credentials, no branded ids (the resolver reads only the projections listed here — the D38
  *  re-read discipline applied to automation).
@@ -287,7 +286,7 @@ export const triggerFactSchema = z.object({
       model: z.string(),
       speakerCharacterId: z.string().nullable(),
       abortReason: z.string().optional(), // turnAborted only
-      automationDepth: z.number(), // 0 = human-initiated (03 §4 — the cascade guard reads this)
+      automationDepth: z.number(), // 0 = human-initiated (the cascade guard reads this)
     })
     .optional(),
   // worldInfoActivated
@@ -300,19 +299,19 @@ export const triggerFactSchema = z.object({
 });
 export type TriggerFact = z.infer<typeof triggerFactSchema>;
 
-/** The CEL activation for a rule predicate (and for `{{expr::…}}` — 02 §3). All values are JSON-safe
+/** The CEL activation for a rule predicate (and for `{{expr::…}}`). All values are JSON-safe
  *  scalars/lists/maps; no functions beyond CEL's builtins; no handles. */
 export interface AutomationCelEnv {
   /** The resolved TriggerFact — predicate-only; absent under `{{expr::…}}` (no event there). */
   readonly event?: TriggerFact;
   /** The chat's CURRENT runtime variables — the materialized delta-fold cache. Read-only to the PREDICATE/CEL
    *  side, but the dispatch's `set_variable` arm WRITES THROUGH onto this shared map after a chat-scope mutation
-   *  (03 §0 / 04 §3 — arms mutate the shared env, order IS semantics): the env is built + cached once per chat
+   *  (arms mutate the shared env, order IS semantics): the env is built + cached once per chat
    *  per batch, so a DB-only write would be invisible to later arms + later same-chat rules in the batch. */
   readonly vars: Record<string, string>;
   /** ChoiceBlock config-plane picks, MERGED view (picks ∪ preset defaults). */
   readonly choice: Record<string, string>;
-  /** The RULE AUTHOR's per-user global variables (02 §4) — never the triggering member's namespace. */
+  /** The RULE AUTHOR's per-user global variables — never the triggering member's namespace. */
   readonly global: Record<string, string>;
   /** Narrow chat projections. Deliberately tiny; a predicate needing more is a Tier-2 job. */
   readonly chat: { readonly id: string; readonly messageCount: number };
@@ -320,8 +319,8 @@ export interface AutomationCelEnv {
   readonly now: { readonly epochMs: number; readonly hour: number; readonly dayOfWeek: number };
 }
 
-// ── the cascade origin + the automation bus (04 §4 / §5) ──────────────────────────────────────────
-/** Turn-path/write origin stamped by an automation-initiated effect: the rule + its cascade depth (03 §4).
+// ── the cascade origin + the automation bus ─────────────────────────────────────────────────────────
+/** Turn-path/write origin stamped by an automation-initiated effect: the rule + its cascade depth.
  *  NEVER a bus-event field (the D19/D50 allowlist forbids attribution on the public bus). */
 export interface AutomationOrigin {
   readonly ruleId: AutomationRuleId;
@@ -329,12 +328,12 @@ export interface AutomationOrigin {
 }
 
 /** Who SURFACED a member-visible bus emission — a rule (the automation lane) OR a plugin (the membrane's
- *  `chat.quick_reply` capability rides the SAME per-chat bus, plugin-design/01 §1). A discriminated union, NOT a
+ *  `chat.quick_reply` capability rides the SAME per-chat bus). A discriminated union, NOT a
  *  synthetic rule id: a plugin-surfaced reply has no rule, so the source carries the ACTUAL origin id. Both
  *  emitters + every consumer discriminate on `kind`. */
 export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | { kind: "plugin"; pluginId: PluginId };
 
-/** The automation's OWN per-chat SSE feedback bus (04 §5 — its own bus, NOT the frozen chat bus; the
+/** The automation's OWN per-chat SSE feedback bus (its own bus, NOT the frozen chat bus; the
  *  purged rpg/agents designs set this precedent). `quickReplySurfaced` is the one MEMBER-visible event (rendered display strings, not
  *  ids — the chips are transient, there is no row to re-read); everything else is host-only + id-only. The
  *  chips can be surfaced by a rule OR a plugin, so `quickReplySurfaced` carries the `AutomationEmitSource`

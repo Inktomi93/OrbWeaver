@@ -168,7 +168,7 @@ export interface TurnOrigin {
   readonly automationDepth: number;
 }
 
-// ── The D50 PromptTransform seam (automation-design/04 §6) ──
+// ── The D50 PromptTransform seam ──
 // The ONE synchronous hook onto the turn pipeline: an ordered, bounded transform over a turn's draft text,
 // applied at exactly TWO fixed points (never anywhere else). Automation's `transform_draft` arm and the
 // plugin host are its only two REGISTRARS; chat owns the pipeline points + the deadline/skip discipline.
@@ -177,7 +177,7 @@ export interface TurnOrigin {
 export const PROMPT_TRANSFORM_POINTS = [
   // SEND, after the macro pass, before USER_INPUT regex (the author-side transform order — D51).
   "user_input",
-  // End of BUILD, over the DYNAMIC half only — the static (cache-stable) half is untransformable (03 §1.2's
+  // End of BUILD, over the DYNAMIC half only — the static (cache-stable) half is untransformable (the
   // per-turn-cache-bill argument); a rule wanting static content uses `insert_world_info_entry` instead.
   "assembled_dynamic",
 ] as const;

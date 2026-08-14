@@ -187,7 +187,7 @@ function FacetBody({
 }
 
 /** One macro-aware field; the whole container blurs at rest when the spoiler eye is on. Per-field token
- *  counts live in the CONTEXT Field tab (P5 — one surface-level readout in the editor header), never here. */
+ *  counts live in the CONTEXT Field tab (one surface-level readout in the editor header), never here. */
 function SpoilerMacroField({
   form,
   name,

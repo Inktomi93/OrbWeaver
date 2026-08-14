@@ -38,7 +38,7 @@ export const corpusSection: SectionDefinition = {
     </CorpusListAnchor>
   ),
   // The LIST chrome-band content (§4 N1/N2): "CORPUS" title + distilled count. No create action —
-  // corpus is browse-shaped (§2), so the band carries title + count only (P2 trivially met).
+  // corpus is browse-shaped (§2), so the band carries title + count only (trivially met).
   listHeader: () => <CorpusListHeader />,
   // How the SHELL reads "is a dossier open?" — the mobile ONE-SHELL rule's input + its back affordance.
   selection: corpusSectionSelection,

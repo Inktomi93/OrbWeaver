@@ -1,7 +1,7 @@
 // Re-export the engine internals so `@orb/kit/macro` is the single front door (D15 directory-module).
 // The render entry points (`processMacros`/`createMacroContext`) + the shared budget live in `engine.ts`
 // (split out of this barrel so `row-macros.ts` below can import them without an import cycle).
-// The M1 scoped-block body normalizer (trim + indent-dedent; the `#` flag bypasses it in the evaluator)
+// The scoped-block body normalizer (trim + indent-dedent; the `#` flag bypasses it in the evaluator)
 // + the ZWSP macro-re-injection defense (re-homed from kit/guided, which re-exports it — one home).
 export { type IdentityMapping, neutralizeMacros, swapIdentityMacros, type TrimContentOptions, trimContent, ZWSP } from "./content.ts";
 export {
@@ -11,7 +11,7 @@ export {
   processMacros,
 } from "./engine.ts";
 export { evaluateMacros } from "./evaluator.ts";
-// The macro-DX layer (02 §5) + the M3 runtime-enforcement core (§12A.3): typed violations
+// The macro-DX layer + the runtime-enforcement core: typed violations
 // (checkMacroArgs → MacroArgViolation) with validateMacroArgs deriving the positional diagnostics, and
 // the autocomplete query. Types + MACRO_CATEGORIES home in ./types (below) so the registry references
 // them cycle-free.

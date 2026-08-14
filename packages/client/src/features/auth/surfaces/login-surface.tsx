@@ -67,7 +67,7 @@ export function LoginSurface(): ReactElement {
 }
 
 /** The per-mode arm dispatcher — pure (config in, arm out), router-free and CT-mountable directly.
- *  `authError` (A7) is the already-resolved OIDC callback error MESSAGE (or null); rendered above Continue. */
+ *  `authError` is the already-resolved OIDC callback error MESSAGE (or null); rendered above Continue. */
 export function LoginBody({
   config,
   authError = null,
