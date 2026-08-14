@@ -34,4 +34,12 @@ test("update bumps version on CONTENT change only; foreign owner collapses to NO
 
   // Foreign owner — leak-free collapse.
   await expect(h.svc.updateSchema({ principal: principal(other), schemaId: created.id, patch: { description: "steal" } })).rejects.toThrow(DomainNotFoundError);
+
+  // THREE ticks, all to the owner: create + the two landed patches. The belt refusal and the foreign
+  // attempt announced nothing — the emit sits after the durable write.
+  expect(h.userEvents).toEqual([
+    { userId: owner, event: { type: "refineryChanged" } },
+    { userId: owner, event: { type: "refineryChanged" } },
+    { userId: owner, event: { type: "refineryChanged" } },
+  ]);
 });

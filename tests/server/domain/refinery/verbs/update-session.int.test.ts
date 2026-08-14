@@ -34,6 +34,11 @@ test("patches name/guidance/selection/stageConfig/status with per-member parses;
   expect(updated.selection).toEqual({ fields: ["greetings"], greetingIndexes: [0] });
   expect(updated.stageConfig.score).toEqual({ kind: "fixed", mode: "quick" });
   expect(updated.status).toBe("abandoned");
+  // The patch announced itself on the user bus (the ONE tick this verb owes: start + this patch).
+  expect(h.userEvents).toEqual([
+    { userId: owner, event: { type: "refineryChanged", sessionId: session.id } },
+    { userId: owner, event: { type: "refineryChanged", sessionId: session.id } },
+  ]);
 
   // The guidance belt bites at the verb (over the PROSE_MAX_CHARS twin).
   await expect(
@@ -54,4 +59,7 @@ test("a stranger's patch collapses to NOT_FOUND (no write)", async () => {
   );
   const unchanged = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
   expect(unchanged.name).toBe("mine");
+  // A refused write announces NOTHING (the emit sits after the durable write, never before the belt) —
+  // the ledger holds only the `startSession` tick from the setup above.
+  expect(h.userEvents).toHaveLength(1);
 });

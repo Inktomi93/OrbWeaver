@@ -21,4 +21,9 @@ test("the owner's delete lands; foreign and absent ids collapse to NOT_FOUND", a
 
   await h.svc.deleteSchema({ principal: principal(owner), schemaId: created.id });
   expect(await h.svc.listSchemas({ principal: principal(owner) })).toHaveLength(0);
+  // Create + delete announced; the foreign and absent refusals did not (both threw before any write).
+  expect(h.userEvents).toEqual([
+    { userId: owner, event: { type: "refineryChanged" } },
+    { userId: owner, event: { type: "refineryChanged" } },
+  ]);
 });

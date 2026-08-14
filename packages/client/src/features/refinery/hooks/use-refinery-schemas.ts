@@ -1,8 +1,9 @@
 // The custom-schema library data tier (R3/SF — the NL design §4.4's client half): reads + writes over
-// the schema CRUD, the NL forge pair, the testSchema drill, and the preflight readout. FRESHNESS is
-// writer-local exactly like the sibling hooks (NO refinery bus event exists — the header law in
-// `use-refinery-mutations.ts`); the two new query keys carry cited STATIC rows in
-// `scripts/check/gates/query-freshness-coverage.ts` naming THIS file as their driver.
+// the schema CRUD, the NL forge pair, the testSchema drill, and the preflight readout. FRESHNESS rides the
+// BUS exactly like the sibling hooks: the three CRUD verbs emit the `refineryChanged` user-bus member, whose
+// seam row path-invalidates `trpc.refinery` (both keys live under it), so a schema saved on one device
+// repaints the picker on the other. The cited STATIC rows those keys carried were deleted with the member
+// (the reversal is documented in `use-refinery-mutations.ts`'s header).
 //
 // The forge pair (`generateSchema`/`refineSchema`) and `testSchema` are DRAFT verbs: they persist
 // nothing and move no read, so they ride `createEntityMutation` with NO `invalidates` — the draft lands
@@ -13,15 +14,11 @@ import type { RefinerySessionId } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { InvalidateFilter, Trpc, TrpcReadError } from "#data";
+import type { Trpc, TrpcReadError } from "#data";
 import { createEntityMutation, useGatedQuery, useTRPC } from "#data";
 
 type SchemaLibrary = inferOutput<Trpc["refinery"]["listSchemas"]>;
 type Preflight = inferOutput<Trpc["refinery"]["preflight"]>;
-
-function libraryRead(trpc: Trpc): InvalidateFilter {
-  return trpc.refinery.listSchemas.pathFilter();
-}
 
 /** The owner's schema library (the stage-config picker + the editor's list). */
 export function useRefinerySchemas(): UseQueryResult<SchemaLibrary, TrpcReadError> {
@@ -38,13 +35,13 @@ export function useRefineryPreflight(sessionId: RefinerySessionId | null): UseQu
 
 export const useCreateRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["createSchema"]>, inferOutput<Trpc["refinery"]["createSchema"]>>({
   options: (trpc) => trpc.refinery.createSchema.mutationOptions(),
-  invalidates: (trpc) => [libraryRead(trpc)],
+  busDriven: true,
   errorToast: "Couldn't save that schema.",
 });
 
 export const useUpdateRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["updateSchema"]>, inferOutput<Trpc["refinery"]["updateSchema"]>>({
   options: (trpc) => trpc.refinery.updateSchema.mutationOptions(),
-  invalidates: (trpc) => [libraryRead(trpc)],
+  busDriven: true,
   errorToast: "Couldn't update that schema.",
 });
 
@@ -53,7 +50,7 @@ export const useUpdateRefinerySchema = createEntityMutation<inferInput<Trpc["ref
  *  round-trip. */
 export const useDeleteRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["deleteSchema"]>, unknown>({
   options: (trpc) => trpc.refinery.deleteSchema.mutationOptions(),
-  invalidates: (trpc) => [libraryRead(trpc)],
+  busDriven: true,
   errorToast: "Couldn't delete that schema.",
 });
 

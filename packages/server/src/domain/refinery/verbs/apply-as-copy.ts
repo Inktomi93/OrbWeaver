@@ -58,6 +58,9 @@ export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyA
 
     // The terminal act completes the session — anchored to the ORIGINAL character, untouched.
     await ctx.db.update(refinerySessions).set({ status: "completed", updatedAt: ctx.now() }).where(eq(refinerySessions.id, sessionId));
+    // The refinery half only — the NEW card's arrival already fanned `charactersChanged` through
+    // `duplicate`/`update`. The zero-write arm returned above (no copy, no session flip, nothing to announce).
+    ctx.emitUserEvent(ownerId, { type: "refineryChanged", sessionId });
     return { applied, dropped, character: detail };
   };
 }

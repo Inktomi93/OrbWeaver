@@ -44,6 +44,7 @@ export function createUpdateSchema(ctx: RefineryContext): RefineryService["updat
       .set({ name: updated.name, description: updated.description, stage: updated.stage, schema: updated.schema, version, updatedAt: updated.updatedAt })
       // The owner rides the WHERE (owner-scoped-writes arm 1).
       .where(and(eq(refinerySchemas.id, schemaId), eq(refinerySchemas.ownerId, ownerId)));
+    ctx.emitUserEvent(ownerId, { type: "refineryChanged" });
     return schemaSummaryOf(updated);
   };
 }

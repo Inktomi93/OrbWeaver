@@ -2,12 +2,17 @@
 // that are silently wrong when they are wrong, each driven through the REAL hook, the REAL app QueryClient
 // and the REAL toast channel, over a network stubbed at `page.route`.
 //
-//  1. FRESHNESS. Refinery has NO bus event of any kind, so the write tier's own `invalidates` is the ONLY
-//     freshness driver its three reads have — the claim the `query-freshness-coverage` STATIC entries make in
-//     the gate's own registry. With `staleTime: Infinity` a missing row is not a stale read, it is a FROZEN
-//     one: the roster would sit at its mount snapshot until the query is GC'd. The mounted roster read is
-//     ACTIVE here, so a reached invalidate is a real wire refetch `routeTrpc` counts AND a repaint — never a
-//     silent stale-mark that would pass with the row deleted.
+//  1. FRESHNESS, and it is the BUS now (event-bus coverage survey H1 — the `refineryChanged` user-bus member
+//     landed and every write here flipped to `busDriven`). This test used to press "start session" and count
+//     the roster refetch its own `invalidates` produced; that only ever proved the WRITING tab reconciled,
+//     which was the defect: with `staleTime: Infinity` a second tab/device sat FROZEN at its mount snapshot
+//     forever. What it presses now is the seam hop a SECOND device's write ends at — `invalidateUser
+//     ({type:"refineryChanged"})` — and the mounted roster read is ACTIVE, so the pass is a real wire refetch
+//     `routeTrpc` counts AND a repaint, never a silent stale-mark. (The other half of the flip — that a
+//     `busDriven` write does NOT also self-invalidate — is COMPILE-TIME, not a CT: the `FreshnessSource` XOR
+//     in `data/create-entity-mutation.ts` types `invalidates` as `never` beside `busDriven: true`. A CT for
+//     it would have to race the mutation's own settle against a click, which is exactly the "assert a state
+//     that only exists mid-flight" flake.)
 //  2. DISCRIMINATED FAILURE COPY. The three typed refinery errors have OPPOSITE fixes ("run the missing stage
 //     first" / "raise the cap or narrow the scope" / "try again"), and only the first two carry a wire reason
 //     code. The trio below is many-sided: each coded arm quotes the server's own sentence (the only text
@@ -38,23 +43,24 @@ function rosterRow(name: string): ReturnType<typeof makeRefinerySessionSummary> 
   return makeRefinerySessionSummary({ id: SESSION_ID, characterId: CHARACTER_ID, name });
 }
 
-test("a started session REFETCHES the roster — the writer-local driver these reads have instead of a bus", async ({ mount, page }) => {
+test("a refineryChanged bus tick REFETCHES the roster — the cross-device driver that replaced the writer-local invalidates", async ({ mount, page }) => {
   let rosterCalls = 0;
   const trpc = await routeTrpc(page, {
     // Grows on the second call: the assertion is a REPAINT, not just a wire count, so a refetch that never
     // reached the observer cannot pass.
     "refinery.listSessions": () => (rosterCalls++ === 0 ? [] : [rosterRow("Rev")]),
-    "refinery.startSession": () => ({ id: SESSION_ID, characterId: CHARACTER_ID, status: "active" }),
   });
 
   const component = await mount(<RefineryDataStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
 
-  // Barrier on the SETTLED roster before writing: an invalidate landing on a still-in-flight FIRST fetch is
+  // Barrier on the SETTLED roster before the tick: an invalidate landing on a still-in-flight FIRST fetch is
   // absorbed (query-core reuses the in-flight promise), which would fake a green.
   await expect(component.getByTestId("roster")).toHaveText("rows=0");
   await expect.poll(() => trpc.count("refinery.listSessions")).toBe(1);
 
-  await component.getByRole("button", { name: "start session" }).click();
+  // The event a write on ANOTHER device delivers here — no local mutation involved at all, which is the
+  // whole point: this tab never wrote, and it still repaints.
+  await component.getByRole("button", { name: "user bus tick" }).click();
 
   await expect(component.getByTestId("roster")).toHaveText("rows=1");
   await expect.poll(() => trpc.count("refinery.listSessions")).toBe(2);
@@ -148,9 +154,10 @@ test("an apply that dropped EVERY accepted entry toasts the refusal — the writ
 test("a PARTIAL apply toasts NOTHING — the write landed, and its per-entry drops are data, not a failure", async ({ mount, page }) => {
   let rosterCalls = 0;
   await routeTrpc(page, {
-    // The second response differs, so the SETTLE barrier below is a rendered state and not a request count:
-    // `onSettled`'s invalidate runs AFTER `onSuccess` (where a refusal would have toasted), so a repaint to
-    // `rows=2` proves the refusal decision has already been made and made silently.
+    // The second response differs so the roster can serve as a POST-DECISION barrier. The apply is
+    // `busDriven` now, so its own settle no longer refetches anything — the tick below is what moves the
+    // roster, and it is pressed only after `applied=` has painted, i.e. after `onSuccess` (where a refusal
+    // would have toasted) has already run and chosen silence.
     "refinery.listSessions": () => (rosterCalls++ === 0 ? [rosterRow("Rev")] : [rosterRow("Rev"), rosterRow("Second")]),
     "refinery.applyFields": () => ({
       // A consolidation round as the server itemizes it: one field took new text, one was EMPTIED.
@@ -171,6 +178,9 @@ test("a PARTIAL apply toasts NOTHING — the write landed, and its per-entry dro
   // The per-entry KIND reaches the client typed, off a real response — the emptying arm's outcome cargo
   // is not something the R3 surface will have to re-derive from a blank diff side.
   await expect(component.getByTestId("applied")).toHaveText("applied=description:replaced,personality:cleared");
+  // The bus tick the server's `refineryChanged` would deliver — its repaint is the settled state that proves
+  // the refusal decision is already behind us, so a "no toast" assertion here cannot pass by being early.
+  await component.getByRole("button", { name: "user bus tick" }).click();
   await expect(component.getByTestId("roster")).toHaveText("rows=2");
   await expect(page.locator(TOAST)).toHaveCount(0);
 });
