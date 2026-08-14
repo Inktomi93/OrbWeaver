@@ -87,12 +87,15 @@ function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: Rpg
 }
 
 /** The stored clock as a plain 24h reading (`21:40`) — the same number the stone's hand points at, or `null`
- *  when the clock carries a day but no time (the stone draws no hand either). */
+ *  when the clock carries a day but no time (the stone draws no hand either). An hour with no minute renders
+ *  the minute as the em-dash arm (`21:—`, the `StatCell` unset-reading precedent) rather than synthesizing
+ *  `:00` — a minute this sparse omitted is absent, not midnight past the hour. */
 function clockTime(clock: RpgClockTime | null): string | null {
   if (clock === null || clock.hour === null) {
     return null;
   }
-  return `${String(clock.hour).padStart(2, "0")}:${String(clock.minute ?? 0).padStart(2, "0")}`;
+  const minute = clock.minute === null ? "—" : String(clock.minute).padStart(2, "0");
+  return `${String(clock.hour).padStart(2, "0")}:${minute}`;
 }
 
 /** What the STONE is handed — the hour/minute pair, or `null` when there is no time to draw. A clock with a

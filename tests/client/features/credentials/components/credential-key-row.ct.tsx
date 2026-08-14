@@ -4,7 +4,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { CredentialKeyRowStory, RevokedCredentialKeyRowStory } from "../_ct-stories.tsx";
+import { CredentialKeyRowStory, CustomCredentialKeyRowStory, RevokedCredentialKeyRowStory } from "../_ct-stories.tsx";
 
 test("remove is confirm-gated: cancel fires nothing, confirm fires credentials.remove", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -50,6 +50,22 @@ test("mark-revoked is confirm-gated: cancel fires nothing, confirm fires credent
   await expect.poll(() => trpc.count("credentials.markRevokedByUser"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // ONESHOT-OK: settled — the matching count was polled to its target above, so lastInput is the settled last call.
   expect((trpc.lastInput("credentials.markRevokedByUser") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0001");
+});
+
+test("a custom_openai row's Test button fires the honest credentials.testHealth probe, never fetchModels", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "credentials.testHealth": () => ({ status: "ok", checkedAt: 0 }),
+  });
+
+  await mount(<CustomCredentialKeyRowStory />);
+
+  await page.getByRole("button", { name: "Test", exact: true }).click();
+  await expect
+    .poll(() => trpc.lastInput("credentials.testHealth"), { intervals: [20, 50, 100] })
+    .toEqual({ credentialId: "user_credential_ctstory0002" });
+  // The old fetchModels reachability shortcut never fires from this button any more (#SID-01/#9).
+  expect(trpc.count("credentials.fetchModels")).toBe(0);
+  await expect(page.getByText("ok", { exact: true })).toBeVisible();
 });
 
 test("a revoked row's clear-revoked fires credentials.clearRevoked directly", async ({ mount, page }) => {

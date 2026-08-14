@@ -18,7 +18,6 @@ import type { Invalidation, Trpc } from "#data";
 import { testId, timeLib } from "#lib";
 import {
   useClearRevokedCredential,
-  useFetchModels,
   useMarkRevokedByUser,
   useRemoveCredential,
   useSetActiveCredential,
@@ -34,8 +33,15 @@ export interface CredentialKeyRowProps {
   readonly invalidation: Invalidation;
 }
 
-/** The Test-result the row holds (session-ephemeral, never persisted). custom_openai rows report a reachability line from fetchModels; every other provider reports CredentialHealth verbatim. */
-type TestResult = { readonly kind: "health"; readonly health: CredentialHealth } | { readonly kind: "custom"; readonly modelCount: number | null };
+/** The Test-result the row holds (session-ephemeral, never persisted) — the honest `testHealth` probe
+ *  verbatim for EVERY provider now (custom_openai included: it used to call `fetchModels`, a reachability
+ *  proxy with no ok/unreachable/unchecked classification and no throttle/breaker side-effects — the
+ *  SID-01 honesty invariant `testHealth` itself carries). `fetchModels` stays the "Test endpoint" dialog's
+ *  own read (a model LIST, not a health verdict), never this row's Test button. */
+interface TestResult {
+  readonly kind: "health";
+  readonly health: CredentialHealth;
+}
 
 /** A provider credential's row: label + status chips, a health probe, set-active, and a confirmed remove. */
 export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialKeyRowProps): ReactElement {
@@ -43,7 +49,6 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
   const setActive = useSetActiveCredential(deps);
   const remove = useRemoveCredential(deps);
   const testHealth = useTestCredentialHealth(deps);
-  const fetchModels = useFetchModels(deps);
   const markRevoked = useMarkRevokedByUser(deps);
   const clearRevoked = useClearRevokedCredential(deps);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -54,16 +59,9 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
   const revoked = credential.revokedAt !== null;
   const label = credential.label ?? "default";
   const isCustom = credential.provider === "custom_openai";
-  const testing = testHealth.isPending || fetchModels.isPending;
+  const testing = testHealth.isPending;
 
   const runTest = (): void => {
-    if (isCustom) {
-      void fetchModels
-        .mutateAsync({ credentialId: credential.id })
-        .then((models): void => setTestResult({ kind: "custom", modelCount: models.length }))
-        .catch((): void => setTestResult({ kind: "custom", modelCount: null }));
-      return;
-    }
     void testHealth
       .mutateAsync({ credentialId: credential.id })
       .then((health): void => setTestResult({ kind: "health", health }))
@@ -166,11 +164,8 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
   );
 }
 
-/** The Test-result text — the health status or the custom reachability line. */
+/** The Test-result text — the honest health status for every provider. */
 function formatTestResult(result: TestResult, isCustom: boolean): string {
-  if (result.kind === "custom") {
-    return result.modelCount === null ? "unreachable or no /models" : `reachable — ${result.modelCount} model${result.modelCount === 1 ? "" : "s"}`;
-  }
   return formatHealth(result.health, isCustom);
 }
 
@@ -192,9 +187,6 @@ function formatHealth(health: CredentialHealth, isCustom: boolean): string {
 // The result's colour as a TOKEN CLASS, not a `tone` prop: a voice carries its own colour, so the outcome
 // tint rides className and wins over `gloss`'s muted default (density-pass-spec.md §2.3).
 function testResultToneClass(result: TestResult): string {
-  if (result.kind === "custom") {
-    return result.modelCount === null ? "text-warning" : "text-success";
-  }
   if (result.health.status === "ok") {
     return "text-success";
   }

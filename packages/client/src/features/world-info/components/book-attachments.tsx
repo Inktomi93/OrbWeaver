@@ -11,11 +11,15 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useAttachWorldBookGlobal, useDetachWorldBookGlobal } from "../hooks/use-world-info-mutations.ts";
 import { CharacterAttachRow, PersonaAttachRow } from "./attachment-rows.tsx";
+
+type CharacterListItem = inferOutput<Trpc["character"]["list"]>["items"][number];
 
 export interface BookAttachmentsProps {
   readonly bookId: WorldBookId;
@@ -94,28 +98,40 @@ function PersonasSection({ bookId }: BookAttachmentsProps): ReactElement {
 function CharactersSection({ bookId }: BookAttachmentsProps): ReactElement {
   const trpc = useTRPC();
   const [open, setOpen] = useState(false);
-  const charactersQuery = useQuery(trpc.character.list.queryOptions());
+  // The kicker's count is the ATTACHED set, not the picker's page — `listBooksWithUsage`'s per-book
+  // rollup already carries it (the census/collection-rows cache hit, `use-world-info-collection.ts`),
+  // so this never has to fan the character list out just to count. The picker read itself is deferred
+  // to `open`: nothing to attach to until the roster is asked for, and the library can run past the
+  // default 50-row page the un-searched list caps at.
+  const usageQuery = useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());
+  const attachedCount = usageQuery.data?.find((book) => book.id === bookId)?.usage.characters ?? 0;
+  const charactersQuery = useQuery({ ...trpc.character.list.queryOptions(), enabled: open });
   const characters = charactersQuery.data?.items ?? [];
 
   return (
-    <Section kicker={`Attached by characters · ${characters.length}`}>
-      {characters.length === 0 ? (
-        <Text voice="gloss">No characters yet.</Text>
-      ) : (
-        <Stack gap="row">
-          <Button intent="ghost" size="sm" aria-expanded={open} onClick={(): void => setOpen((prev) => !prev)}>
-            <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
-            {open ? "Hide characters" : `Attach to a character (${characters.length})`}
-          </Button>
-          {open ? (
-            <Stack gap="row">
-              {characters.map((character) => (
-                <CharacterAttachRow key={character.id} bookId={bookId} characterId={character.id} characterName={character.name} />
-              ))}
-            </Stack>
-          ) : null}
-        </Stack>
-      )}
+    <Section kicker={`Attached by characters · ${attachedCount}`}>
+      <Stack gap="row">
+        <Button intent="ghost" size="sm" aria-expanded={open} onClick={(): void => setOpen((prev) => !prev)}>
+          <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
+          {open ? "Hide characters" : "Attach to a character"}
+        </Button>
+        {open ? <CharacterRoster bookId={bookId} characters={characters} /> : null}
+      </Stack>
     </Section>
+  );
+}
+
+/** The revealed character picker's body — empty gloss or the roster rows. Split out so the OPEN gate above
+ *  stays a single ternary (no nested ternary). */
+function CharacterRoster({ bookId, characters }: { readonly bookId: WorldBookId; readonly characters: readonly CharacterListItem[] }): ReactElement {
+  if (characters.length === 0) {
+    return <Text voice="gloss">No characters yet.</Text>;
+  }
+  return (
+    <Stack gap="row">
+      {characters.map((character) => (
+        <CharacterAttachRow key={character.id} bookId={bookId} characterId={character.id} characterName={character.name} />
+      ))}
+    </Stack>
   );
 }

@@ -98,7 +98,9 @@ export function isWireCaptureEnabled(): boolean {
 }
 
 /** Record ONE captured wire body. This is the SINK compose injects into the backends (only when capture is
- *  enabled). Bytes live only in the process ring, never persisted. */
+ *  enabled). Kept in the process ring for the live `/api/_debug` read AND best-effort spilled to
+ *  `.cache/wire-capture/captures.jsonl` (see SPILL below) — never a DB table, but not process-memory-only
+ *  either. */
 export function recordWireCapture(capture: WireCapture): void {
   ring[head] = capture;
   head = (head + 1) % WIRE_CAPTURE_RING_CAPACITY;
