@@ -366,6 +366,32 @@
   animation: orb-word-reveal var(--motion-base) var(--ease-out-expo) both;
 }
 
+/* M5 — the code block's BIRTH GEOMETRY (docs/design/streaming-shape-churn.md §5; the owner's "changes
+ * shapes then settles"). MECHANISM, not a symptom patch: Streamdown's code-block container hardcodes
+ * `style={{ contentVisibility: "auto", containIntrinsicSize: "auto 200px" }}` on its own element
+ * (streamdown/dist/chunk-BO2N2NFS.js, component `ot` — the `div[data-streamdown="code-block"]`). A
+ * `content-visibility: auto` element is SKIPPED on its very first layout (relevance-to-user is not known
+ * until after that layout), so the browser sizes it from `contain-intrinsic-size` — 200px content + the
+ * 1px border pair = the measured 202px birth box — and re-lays it out at its real height one frame
+ * later. That is the −94px self-collapse measured 5/5 runs, with every child byte-identical across the
+ * jump: the children were never laid out at all on the first frame.
+ *
+ * The container is internal to Streamdown (`CodeBlock` forwards neither `style` nor `className` to it),
+ * so the ONLY seam is CSS, and an inline style is only beatable with `!important`.
+ *
+ * Cost, priced deliberately: `content-visibility: auto` skips offscreen LAYOUT/PAINT of code blocks.
+ * The seal already owns the pathological-input policy (`MAX_RENDER_LENGTH`, markdown.tsx), Shiki
+ * tokenizes on mount regardless of visibility, and the transcript is not virtualized — so keeping the
+ * skip buys offscreen layout only, and charges for it a 94px snap on the FIRST render of every code
+ * block, both mid-stream and on scroll-in. Correct geometry wins.
+ *
+ * No animation is introduced, so there is nothing here for reduced-motion to suppress. Pinned by the
+ * two `M5:` cases in tests/ui/markdown/markdown.ct.tsx (mount-frame overshoot + the offscreen box). */
+[data-streamdown="code-block"] {
+  /* biome-ignore lint/complexity/noImportantStyles: the only way to beat Streamdown's hardcoded INLINE content-visibility on an element it never forwards style/className to */
+  content-visibility: visible !important;
+}
+
 /* Jump-to-anchor flash ring (settings scroll-spy + any future anchor jump). An INSET box-shadow (not
  * outline) so the ring clips to the target's border-box instead of bleeding past a scroll container's
  * edge. Class-toggle, not imperative `el.style.*`, so it stays token-gated (no-off-token-inline-style).
