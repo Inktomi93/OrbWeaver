@@ -58,7 +58,7 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
     expect(chat.events.at(-1)).toMatchObject({ type: "turnCompleted", intent: "send" });
   });
 
-  test("swipe: turnStarted(targetMessageId set) → delta → messageCommitted(assistant) → turnCompleted", async () => {
+  test("swipe: turnAccepted(targetMessageId set) → turnStarted → delta → messageCommitted(assistant) → turnCompleted", async () => {
     const chat = await scenario.chat(tape().reply("first").reply("second swipe"), {
       characters: ["aria"],
     });
@@ -76,9 +76,12 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
     });
 
     const swipeEvents = chat.events.slice(before);
-    expect(types(swipeEvents)).toEqual(["turnStarted", "delta", "messageCommitted", "turnCompleted"]);
-    // The swipe targets the existing slot — the pin that distinguishes it from `send`.
-    expect(swipeEvents[0]).toMatchObject({ intent: "swipe", targetMessageId: assistantId });
+    expect(types(swipeEvents)).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
+    // The ACCEPT leads (the ghost-slot open): it is emitted the instant the target is validated, BEFORE the
+    // room/connection resolve + assembly + memory recall the `turnStarted` below waits on (151 ms - 1.9 s
+    // measured). Both carry the targeted slot — the pin that distinguishes a swipe from a `send`.
+    expect(swipeEvents[0]).toMatchObject({ type: "turnAccepted", intent: "swipe", targetMessageId: assistantId });
+    expect(swipeEvents[1]).toMatchObject({ type: "turnStarted", intent: "swipe", targetMessageId: assistantId });
   });
 
   test("auto-mode chain: each chained iteration re-opens the slot — … turnCompleted → turnAccepted → turnStarted …", async () => {
@@ -128,7 +131,7 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
     expect(accepts.at(-1)).toMatchObject({ intent: "generate" });
   });
 
-  test("continue: turnStarted(intent continue) → delta → messageCommitted → turnCompleted", async () => {
+  test("continue: turnAccepted(intent continue, target set) → turnStarted → delta → messageCommitted → turnCompleted", async () => {
     const chat = await scenario.chat(tape().reply("start").reply(" more"), {
       characters: ["aria"],
     });
@@ -146,8 +149,9 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
     });
 
     const contEvents = chat.events.slice(before);
-    expect(types(contEvents)).toEqual(["turnStarted", "delta", "messageCommitted", "turnCompleted"]);
-    expect(contEvents[0]).toMatchObject({ intent: "continue", targetMessageId: assistantId });
+    expect(types(contEvents)).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
+    expect(contEvents[0]).toMatchObject({ type: "turnAccepted", intent: "continue", targetMessageId: assistantId });
+    expect(contEvents[1]).toMatchObject({ type: "turnStarted", intent: "continue", targetMessageId: assistantId });
   });
 });
 

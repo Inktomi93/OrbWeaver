@@ -842,7 +842,8 @@ async function runChain(
       // speculative open. Re-open the slot NOW (completed→pending flicker between speakers is honest — the
       // arbiter IS working); `speakerCharacterId` is null until this arbitration resolves it, exactly like the
       // primary emit. Every exit below resolves this slot (turnStarted→terminal on the speaking path via
-      // runTurn, turnAborted on a cancelled arbitration, turnCompleted on a no-next-speaker end).
+      // runTurn, turnAborted on a cancelled arbitration, turnCompleted on a no-next-speaker end, and
+      // turnAborted from the engine on a pre-start refusal — the base carries `slotAccepted`).
       const chainIntent = KIND_TO_INTENT.auto;
       await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, intent: chainIntent, speakerCharacterId: null, targetMessageId: null });
       const facts = await canonFacts(ctx, args.base.chatId);
@@ -923,10 +924,17 @@ async function runAiRound(
   // client's turn slot stayed idle through that hang, so the user had no Stop affordance while the turn was in
   // fact live and abortable (the abort signal already threads into arbitration). `turnAccepted` opens the slot
   // now; every exit below is TOTAL — it resolves that slot (turnStarted→terminal on the speaking path,
-  // turnAborted on a cancelled arbitration, turnCompleted on a no-eligible round). `speakerCharacterId` is null
+  // turnAborted on a cancelled arbitration, turnCompleted on a no-eligible round, turnAborted from the engine
+  // on a pre-start refusal — see the `slotAccepted` base below). `speakerCharacterId` is null
   // (arbitration has not picked yet); the later `turnStarted` re-opens the slot with the resolved speaker.
   const intent = KIND_TO_INTENT[args.base.kind];
   await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, intent, speakerCharacterId: null, targetMessageId: null });
+  // …and every engine turn this round drives (here, and each auto-chain iteration below) carries that
+  // acceptance, so the engine's PRE-START refusals close the slot instead of stranding it. This closed a real
+  // send-path hole, not just a swipe one: a `locked` refusal is SWALLOWED by `driveRound` (it yields the round)
+  // and a consent/budget refusal throws straight past every emit — either way the accept above used to be the
+  // last event the room ever saw for this turn.
+  const base: RoundBase = { ...args.base, slotAccepted: true };
 
   const facts = await canonFacts(ctx, args.base.chatId);
   const arbitration = await arbitrate(ctx, deps, {
@@ -979,7 +987,7 @@ async function runAiRound(
   }
   const round = await driveRoundVia({
     engine: deps.engine,
-    base: args.base,
+    base,
     group: roundGroup,
     speakers,
     groupCharacterId,
@@ -992,7 +1000,7 @@ async function runAiRound(
   }
   if (args.group.autoMode && (args.chain ?? true)) {
     const auto = await runChain(ctx, deps, {
-      base: args.base,
+      base,
       group: args.group,
       room: args.room,
       groupCharacterId,
@@ -1727,10 +1735,14 @@ async function resolveTurnBase(
 /** Runs one engine turn under an active-turns registration, threading the abort signal into the engine and
  *  releasing the handle at scope exit (`using`). The outcome is §3.6-projected for the CALLER: a non-host member who
  *  ran the turn (swipe/continue/impersonate/generate) never receives the assistant reply's hidden spans in the
- *  return payload — the ONE tail all four verbs share, so the strip can't be forgotten per-verb. */
+ *  return payload — the ONE tail all four verbs share, so the strip can't be forgotten per-verb.
+ *
+ *  EVERY caller of this helper has already ACCEPTED its turn ({@link withAcceptedSlot}), so the prep is stamped
+ *  `slotAccepted` here — ONE home, so a fourth auxiliary verb cannot forget it and leave the engine's pre-start
+ *  refusals (lock contention / consent / budget / a missing target) stranding an open client slot. */
 async function runRegistered(ctx: ChatContext, deps: TurnDeps, viewer: { readonly role: string }, prep: Omit<TurnPrep, "signal">): Promise<TurnOutcome> {
   using handle = deps.activeTurns.register(prep.chatId, prep.triggeredBy);
-  const outcome = await deps.engine.runTurn({ ...prep, signal: handle.signal });
+  const outcome = await deps.engine.runTurn({ ...prep, slotAccepted: true, signal: handle.signal });
   // P3 (§3.6): a member who ran a DECEPTION-active game turn also loses the reasoning channel in the return
   // (resolved once via the injected rpg op; `false` for a host / non-deception chat).
   return stripMessagesForViewer(outcome, viewer, await reasoningHostOnlyFor(ctx, prep.chatId, viewer));
@@ -1755,38 +1767,66 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
   };
 }
 
-// FLAG[aux-turns-have-no-accept]: THE AUXILIARY TURNS OPEN THEIR CLIENT SLOT LATE, AND THE READER SEES THE
-// OLD VARIANT UNTIL THEY DO. Diagnosed 2026-08-14 against the live stack from the owner's dogfood report
-// ("when we swipe it disappears the old message shows until the new one finishes sometimes"). NOT FIXED —
-// the fix is a fork the orchestrator owns (below). This block is the receipt, not a plan.
+// THE AUXILIARY TURNS' ACCEPTANCE (the ghost-slot open, built 2026-08-14 from the FLAG[aux-turns-have-no-accept]
+// diagnosis this replaces — owner dogfood: "when we swipe it disappears the old message shows until the new one
+// finishes sometimes").
 //
-// `send` emits `turnAccepted` the instant the turn is accepted, BEFORE arbitration, for exactly this reason
-// (see `runAiRound` above: "the client's turn slot stayed idle through that hang"). The three verbs that go
-// straight to `runRegistered` — `swipe` here, `continueTurn`, `generate` — emit NOTHING until the engine's
-// `turnStarted` (`engine/engine.ts`), which lands only after `resolveTurnBase`: room + identity + connection
+// The three verbs that go straight to `runRegistered` — swipe / continueTurn / generate — used to emit NOTHING
+// until the engine's `turnStarted`, which lands only AFTER `resolveTurnBase`: room + identity + connection
 // resolve, context assembly, MEMORY RECALL (embed → vector search → rerank), the macro registry, then the
-// per-chat lock. Until that event the client slot is `idle`, so `isLiveTurnPhase` is false, so
-// `useMessageItems` returns the plain canon list and the ghost never mounts — the committed OLD variant just
-// sits there with no feedback that anything is happening.
+// per-chat lock. Until that event the client slot is `idle`, so the ghost never mounts and the committed OLD
+// variant sits there with no feedback. MEASURED at 151 / 341 / 1075 / 1719 / 1887 ms over 5 clean drives, and
+// unbounded by construction (it scales with load, recall latency and lock contention — the reported
+// "sometimes"). So each verb now ACCEPTS at its own acceptance instant, carrying the REAL `targetMessageId`
+// (`ChatBusEvent.turnAccepted`'s ghost-slot field, which had no producer until this change).
 //
-// MEASURED (5 clean drives, one 56-message rpg chat, warm fleet, click → ghost mount): 151 / 341 / 1075 /
-// 1719 / 1887 ms. The window is unbounded by construction and scales with server load, recall latency and
-// lock contention — which is the reported "sometimes". Two amplifiers of the same window, both measured:
-// a swipe REJECTED with "a turn is already in flight for this chat" never gets a `turnStarted` at all, so
-// the old text holds for the whole of the OTHER turn and then changes anyway when that turn's
-// `turnCompleted` invalidates `listMessages` (the verbatim symptom); and at the far end `turnCompleted`
-// closes the slot BEFORE the refetch lands, repainting the old variant for 100-400 ms on every drive.
-//
-// THE FORK (why this is a comment and not a patch). `ChatBusEvent.turnAccepted` already carries
-// `targetMessageId` and its contract doc names the swipe/continue ghost-slot as the reason — the field has
-// never had a producer (both emit sites hardcode `null`). So the shape is ratified; the cost is not. Emitting
-// it here, before `resolveTurnBase`, collides with the invariant that every acceptance is TOTAL-RESOLVED
-// (see `runAiRound`: an accepted-but-unresolved slot is a stuck Stop button, already paid for once). Each new
-// strand path must then close the slot with a `turnAborted`: the NOT_FOUND target throw below, a
-// `resolveTurnBase` throw, the lock-contention refusal, and the engine's shared pre-start consent/budget
-// refusals (which deliberately emit nothing today, and are shared with `send`). Hoisting the emit into
-// `runRegistered` does NOT close the window — that helper is entered AFTER `resolveTurnBase`, which is the
-// expensive part. Three verbs x the strand set, plus an engine-level change, red-first: its own lane.
+// TOTAL RESOLUTION is the price, and it is split at the ONE seam that can prove it — whether `turnStarted`
+// fired:
+//   • BEFORE the engine (the resolve + the verb's own post-resolve validation): {@link withAcceptedSlot}
+//     closes the slot with `turnAborted` on any throw.
+//   • INSIDE the engine (lock contention · consent · budget · a missing persist target — all shared with
+//     `send`, which had the SAME open strand): `runRegistered` marks the prep `slotAccepted`, and the engine's
+//     `closePreStartRefusal` closes it. Only the engine knows `turnStarted` never fired; a verb-level catch
+//     around `runTurn` would DOUBLE-emit on every post-start fault (the engine already emits there).
+// The NOT_FOUND target throw needs no closer: the target load is ordered BEFORE the accept, so a bad slot id
+// never opens one.
+
+/** Opens the client's turn slot at the verb's ACCEPTANCE instant and guarantees the PRE-ENGINE half of its
+ *  total resolution: `resolve` runs inside, and any throw closes the slot with `turnAborted` before it
+ *  propagates. Everything from `engine.runTurn` onward is closed by the ENGINE (see the block above).
+ *
+ *  `reason:"error"` — a failed resolve is a fault, never the user's Stop (which reaches the turn through the
+ *  registered signal, not here). `automationDepth: 0` — the three accepting aux verbs are human-plane by
+ *  construction (they take a `principal`; the automation seam is `requestTurn`, which accepts through
+ *  `runAiRound`). */
+async function withAcceptedSlot<T>(
+  deps: TurnDeps,
+  slot: {
+    readonly chatId: ChatId;
+    readonly kind: TurnKind;
+    /** The slot's speaker when the verb already knows it (swipe/continue read it off the target row); null
+     *  when it is not resolved yet — `turnStarted` re-opens the slot with the resolved speaker. */
+    readonly speakerCharacterId: CharacterId | null;
+    /** The GHOST SLOT: the message this turn rerolls/extends. Null for a fresh reply (`generate`). */
+    readonly targetMessageId: MessageId | null;
+  },
+  resolve: () => Promise<T>,
+): Promise<T> {
+  const intent = KIND_TO_INTENT[slot.kind];
+  await deps.emit({
+    type: "turnAccepted",
+    chatId: slot.chatId,
+    intent,
+    speakerCharacterId: slot.speakerCharacterId,
+    targetMessageId: slot.targetMessageId,
+  });
+  try {
+    return await resolve();
+  } catch (err) {
+    await deps.emit({ type: "turnAborted", chatId: slot.chatId, intent, reason: "error", automationDepth: 0 });
+    throw err;
+  }
+}
 
 /** `swipe` — reroll an assistant slot: regenerate from the context before the slot and append the result as
  *  a new selected variant. `regenerate` is swipe on the last assistant message. A non-assistant / missing
@@ -1803,6 +1843,9 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     // responds to the die-bearing latest user message (no swipe-fishing for a better roll; a swipe of an older
     // slot, or after a later reply landed, is ineligible).
     const respondsToLatestUserTurn = await loadIsReplyToLatestUserMessage(ctx.db, chatId, messageId);
+    // ACCEPTED: the target is real and the caller is a member, so this swipe IS happening — open the client's
+    // ghost slot on `messageId` NOW, before the multi-second `resolveTurnBase`. Ordered AFTER the NOT_FOUND
+    // throw above so a bad slot id never opens a slot at all.
     const {
       room,
       identity,
@@ -1816,20 +1859,22 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       macroRegistry,
       userMacroDraws,
       cardKeepLastX,
-    } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      kind: "swipe",
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      trigger: humanTrigger(principal.userId, membership.activePersonaId),
-      respondsToLatestUserTurn,
-      // VER-1b: this turn REGENERATES `messageId` — the slot whose currently-selected variant is the one being
-      // abandoned. The gather cuts the tracked state before it, exactly as the canon context is cut here.
-      regenSlotMessageId: messageId,
-      guided,
-      // WAVE MU: replay the slot's persisted draw record so this swipe resolves the IDENTICAL random-pick draw.
-      ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
-    });
+    } = await withAcceptedSlot(deps, { chatId, kind: "swipe", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
+      resolveTurnBase(ctx, deps, {
+        principal,
+        chatId,
+        kind: "swipe",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        trigger: humanTrigger(principal.userId, membership.activePersonaId),
+        respondsToLatestUserTurn,
+        // VER-1b: this turn REGENERATES `messageId` — the slot whose currently-selected variant is the one being
+        // abandoned. The gather cuts the tracked state before it, exactly as the canon context is cut here.
+        regenSlotMessageId: messageId,
+        guided,
+        // WAVE MU: replay the slot's persisted draw record so this swipe resolves the IDENTICAL random-pick draw.
+        ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
+      }),
+    );
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(ctx, deps, membership, {
       chatId,
@@ -1867,6 +1912,8 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
+    // ACCEPTED (same instant as swipe's): the target is real, so the client's ghost slot for `messageId` opens
+    // before `resolveTurnBase`, not after. A bad slot id threw above and never opened one.
     const {
       room,
       identity,
@@ -1880,16 +1927,18 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       macroRegistry,
       userMacroDraws,
       cardKeepLastX,
-    } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      kind: "continue",
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      trigger: humanTrigger(principal.userId, membership.activePersonaId),
-      guided,
-      // WAVE MU: a continue replays the slot's draw record so its extension prompt carries the same drawn values.
-      ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
-    });
+    } = await withAcceptedSlot(deps, { chatId, kind: "continue", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
+      resolveTurnBase(ctx, deps, {
+        principal,
+        chatId,
+        kind: "continue",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        trigger: humanTrigger(principal.userId, membership.activePersonaId),
+        guided,
+        // WAVE MU: a continue replays the slot's draw record so its extension prompt carries the same drawn values.
+        ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
+      }),
+    );
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(ctx, deps, membership, {
       chatId,
@@ -2061,11 +2110,49 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
   };
 }
 
+/** The `generate` speaker, TRUST-BOUNDARY resolved. An EXPLICIT speaker must be a PRESENT cast member of THIS
+ *  chat — never trust the branded id from the wire to name any character (a bare `speakerShapeFor` silently
+ *  returns an undefined shape for an unknown id, so an unvalidated foreign CharacterId would commit an
+ *  assistant canon row attributed to it and leak that character's name+portrait through the message-stamped
+ *  roster-avatar/name producers = attribution forgery + a cross-tenant identity read). Presence-only
+ *  (`leftSeq === null`), the forceCharacterTurn sibling (see createForceCharacterTurn) — mute (`disabled`) is
+ *  NOT respected here: mute governs arbitration SCHEDULING (`isArbiterEligible`) + `{{groupNotMuted}}`, not
+ *  manual speaker targeting, so a member explicitly generating for a muted seat is legitimate (it does not
+ *  inherit any host bypass — the host-only bypass is presence of a LEFT member, which this refuses). A
+ *  non-present / unknown / foreign id is a leak-free NOT_FOUND (never reveals whether the character exists
+ *  elsewhere), mirroring selectVariant's foreign-variantId refusal. Absent/null ⇒ the primary cast seat. */
+function resolveGenerateSpeaker(room: Room, chatId: ChatId, speakerCharacterId: CharacterId | null | undefined): CharacterId | null {
+  if (speakerCharacterId === undefined || speakerCharacterId === null) {
+    return primaryCharacterId(room);
+  }
+  const present = room.candidates.some((c) => c.ref.characterId === speakerCharacterId && c.leftSeq === null);
+  if (!present) {
+    throw new ChatNotFoundError(chatId);
+  }
+  return speakerCharacterId;
+}
+
 /** `generate` — a lock-free auxiliary assistant generation: runs concurrent with a locked `send`. Commits a
  *  new assistant slot for the named speaker (or the primary character). */
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
   return async ({ principal, chatId, speakerCharacterId, intent, guided, afterAssistant }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
+    // ACCEPTED: a member asked for a reply, so the client's slot opens before the multi-second resolve. NO
+    // `targetMessageId` (a fresh slot, nothing to ghost over) and NO speaker: the requested id is still
+    // UNVALIDATED here, and an unvalidated foreign CharacterId must never ride the bus (see the refusal below);
+    // `turnStarted` carries the validated speaker. The speaker resolve lives INSIDE the accepted region so its
+    // NOT_FOUND closes the slot it opened.
+    const { base, speaker } = await withAcceptedSlot(deps, { chatId, kind: "generate", speakerCharacterId: null, targetMessageId: null }, async () => {
+      const resolved = await resolveTurnBase(ctx, deps, {
+        principal,
+        chatId,
+        kind: "generate",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        trigger: humanTrigger(principal.userId, membership.activePersonaId),
+        guided,
+      });
+      return { base: resolved, speaker: resolveGenerateSpeaker(resolved.room, chatId, speakerCharacterId) };
+    });
     const {
       room,
       identity,
@@ -2079,35 +2166,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       macroRegistry,
       userMacroDraws,
       cardKeepLastX,
-    } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      kind: "generate",
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      trigger: humanTrigger(principal.userId, membership.activePersonaId),
-      guided,
-    });
-    // An EXPLICIT speaker must be a PRESENT cast member of THIS chat — never trust the branded id from the
-    // wire to name any character (a bare `speakerShapeFor` silently returns an undefined shape for an unknown
-    // id, so an unvalidated foreign CharacterId would commit an assistant canon row attributed to it and leak
-    // that character's name+portrait through the message-stamped roster-avatar/name producers = attribution
-    // forgery + a cross-tenant identity read). Presence-only (`leftSeq === null`), the forceCharacterTurn
-    // sibling (see createForceCharacterTurn) — mute (`disabled`) is NOT respected here: mute governs
-    // arbitration SCHEDULING (`isArbiterEligible`) + `{{groupNotMuted}}`, not manual speaker targeting, so a
-    // member explicitly generating for a muted seat is legitimate (it does not inherit any host bypass — the
-    // host-only bypass is presence of a LEFT member, which this refuses). A non-present / unknown / foreign id
-    // is a leak-free NOT_FOUND (never reveals whether the character exists elsewhere), mirroring selectVariant's
-    // foreign-variantId refusal.
-    let speaker: CharacterId | null;
-    if (speakerCharacterId === undefined || speakerCharacterId === null) {
-      speaker = primaryCharacterId(room);
-    } else {
-      const present = room.candidates.some((c) => c.ref.characterId === speakerCharacterId && c.leftSeq === null);
-      if (!present) {
-        throw new ChatNotFoundError(chatId);
-      }
-      speaker = speakerCharacterId;
-    }
+    } = base;
     const shape = speakerShapeFor(room, speaker);
     return await runRegistered(ctx, deps, membership, {
       chatId,

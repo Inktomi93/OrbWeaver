@@ -818,6 +818,65 @@ describe("createTurnEngine — pre-start belt refusals (no turnStarted)", () => 
   });
 });
 
+// The three refusals above stay BUS-SILENT because nobody opened a client slot for those turns (the `opening`
+// turn and `forceCharacterTurn` are the live callers of that shape). When the CALLER accepted first
+// (`slotAccepted` — every verb that emits `turnAccepted`), the same refusals owe a `turnAborted`: the client's
+// slot is open, `turnStarted` never fires, and nothing else on these paths emits, so the slot would strand as a
+// stuck Stop button. Depth rides `automationDepth` exactly as a real abort's does.
+describe("createTurnEngine — an ACCEPTED turn's pre-start refusals CLOSE the slot (slotAccepted)", () => {
+  test("budget exhausted → budget_exceeded + exactly turnAborted(error)", async () => {
+    const chatId = await seedChat(db, "a");
+    const h = harness(db, {
+      budget: 1,
+      debit: () => Promise.reject(new DomainRateLimitError("over", { remainingPoints: 0 })),
+    });
+    await expect(h.engine.runTurn(prepOf(chatId, { slotAccepted: true }))).rejects.toMatchObject({ code: "budget_exceeded" });
+    expect(types(h.events)).toEqual(["turnAborted"]);
+    expect(h.events[0]).toMatchObject({ type: "turnAborted", intent: "send", reason: "error", automationDepth: 0 });
+  });
+
+  test("max-pro-sub without consent → consent_required + exactly turnAborted(error)", async () => {
+    const chatId = await seedChat(db, "a");
+    const h = harness(db);
+    await expect(
+      h.engine.runTurn(prepOf(chatId, { slotAccepted: true, connection: testConnection("max-pro-sub"), triggeredBy: MEMBER, runAsUserId: HOST })),
+    ).rejects.toMatchObject({ code: "consent_required" });
+    expect(types(h.events)).toEqual(["turnAborted"]);
+  });
+
+  test("a held lock → locked + exactly turnAborted(error)", async () => {
+    const chatId = await seedChat(db, "a");
+    await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT, expiresAt: FROZEN_AT + 60_000 });
+    const h = harness(db);
+    await expect(h.engine.runTurn(prepOf(chatId, { slotAccepted: true }))).rejects.toMatchObject({ code: "locked" });
+    expect(types(h.events)).toEqual(["turnAborted"]);
+  });
+
+  test("a MISSING persist target (swipe of a vanished slot) → NOT_FOUND + exactly turnAborted(error)", async () => {
+    const chatId = await seedChat(db, "a");
+    const h = harness(db);
+    await expect(
+      h.engine.runTurn(
+        prepOf(chatId, {
+          slotAccepted: true,
+          kind: "swipe",
+          persist: { mode: "append-variant", targetMessageId: castId<MessageId>("message_gone") },
+        }),
+      ),
+    ).rejects.toThrow();
+    expect(types(h.events)).toEqual(["turnAborted"]);
+    expect(h.events[0]).toMatchObject({ intent: "swipe", reason: "error" });
+  });
+
+  test("an AUTOMATION-initiated accepted turn's refusal carries its cascade depth (the retry-loop guard)", async () => {
+    const chatId = await seedChat(db, "a");
+    await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT, expiresAt: FROZEN_AT + 60_000 });
+    const h = harness(db);
+    await expect(h.engine.runTurn(prepOf(chatId, { slotAccepted: true, automationDepth: 2 }))).rejects.toMatchObject({ code: "locked" });
+    expect(h.events[0]).toMatchObject({ type: "turnAborted", automationDepth: 2 });
+  });
+});
+
 // ── The turn MODES (D26) the engine parametrizes the ONE lifecycle by ───────────────────────────────────────
 
 describe("createTurnEngine — swipe (append-variant on an existing slot, D26)", () => {

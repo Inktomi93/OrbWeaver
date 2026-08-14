@@ -315,6 +315,12 @@ export interface TurnPrep {
   readonly persist?: TurnPersist | undefined;
   /** Lock-free execution — generate runs concurrent with a locked send. Absent/false means the locked path. */
   readonly lockFree?: boolean | undefined;
+  /** The CALLER already emitted `turnAccepted` for this turn — the client's turn slot is OPEN. Only the engine
+   *  knows whether `turnStarted` fired, so it owns closing that slot on a PRE-START refusal (lock contention /
+   *  consent / budget / a missing persist target): those paths emit `turnAborted` instead of throwing silently,
+   *  or the acceptance strands as a stuck Stop button. ABSENT ⇒ nobody opened a slot (the `opening` turn,
+   *  `forceCharacterTurn`) ⇒ pre-start refusals stay bus-SILENT exactly as before. */
+  readonly slotAccepted?: boolean | undefined;
   /** The caller's abort signal, threaded engine → pipeline → runChatTurn. The engine maps a resulting
    *  AbortError to turnAborted(reason:"user") then rethrows. */
   readonly signal?: AbortSignal | undefined;
