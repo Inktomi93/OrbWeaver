@@ -403,6 +403,13 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **Refinery `selection` two-writer** (class-sweep P2): `update-session.ts:50` whole-replaces from a
   client image while `apply-fields.ts:67` server-remaps indexes — a scope-dialog save straddling an
   applyFields undoes the remap. The mergeSheet class server-side; small, rides any refinery lane.
+- [ ] **CHATS PANE STILL CARRIES THE EVICTION TRAP (P2, premise-death receipt from the character lane):**
+  \#45 never killed it — `use-chat-list-collection.ts:30` ships `maxPages: 5` + `getPreviousPageParam:
+  () => undefined`; identical unrecoverable-head-page bug at 250 chats. Annotated in place by the
+  character lane. Fix = the character lane's landed windowless+VirtualList shape (its server lenses are
+  ALREADY correct — smaller than the character job). One lane.
+- [ ] **World-info small:** `book-attachments.tsx:97` reads `character.list` with no limit (50-row
+  default) and its kicker counts ALL characters as "Attached by" — wrong count + silent 50-cap.
 - [ ] **Smalls batch (sweep tail):** `turn-tool-calls.ts:45-52` window-budget (50 slots shared with
   unviewable sibling rows; add the lineage filter its sibling journal.ts:36-50 already has) ·
   `rpg-takeover-header.tsx:95` minute `?? 0` synthesis (latent; contract permits the reach — align with
