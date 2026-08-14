@@ -146,16 +146,25 @@ function loadItems(): readonly ProjectItem[] {
   ]).items;
 }
 
-function ensureItem(target: Issue): ProjectItem {
-  return (
-    loadItems().find((item) => item.content?.number === target.number) ??
-    ghJson<ProjectItem>(["project", "item-add", PROJECT_NUMBER, "--owner", PROJECT_OWNER, "--url", target.url, "--format", "json"])
-  );
+function ensureItem(target: Issue, project: Project, fields: readonly Field[]): ProjectItem {
+  const item =
+    loadItems().find((candidate) => candidate.content?.number === target.number) ??
+    ghJson<ProjectItem>(["project", "item-add", PROJECT_NUMBER, "--owner", PROJECT_OWNER, "--url", target.url, "--format", "json"]);
+  if (currentValue(item, "Status") !== undefined) {
+    return item;
+  }
+  setField({ target, item, project, fields }, "Status", "Triage");
+  const initialized = loadItems().find((candidate) => candidate.content?.number === target.number);
+  if (initialized === undefined) {
+    throw new Error(`Project ${PROJECT_NUMBER} did not return #${target.number} after initialization`);
+  }
+  return initialized;
 }
 
-function loadContext(issue: number): WorkItemContext {
-  const target = loadIssue(issue);
-  return { target, item: ensureItem(target), project: loadProject(), fields: loadFields() };
+function loadContext(target: Issue): WorkItemContext {
+  const project = loadProject();
+  const fields = loadFields();
+  return { target, item: ensureItem(target, project, fields), project, fields };
 }
 
 function currentValue(item: ProjectItem, name: string): string | undefined {
@@ -314,10 +323,11 @@ function show(issue: number): void {
 }
 
 function runLifecycle(command: LifecycleCommand): void {
-  const work = loadContext(command.issue);
-  if (work.target.state === "CLOSED" && command.kind !== "done") {
+  const target = loadIssue(command.issue);
+  if (target.state === "CLOSED" && command.kind !== "done") {
     throw new Error("cannot change a closed work item");
   }
+  const work = loadContext(target);
   switch (command.kind) {
     case "claim":
       claim(work, command);
