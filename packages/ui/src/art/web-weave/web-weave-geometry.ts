@@ -13,7 +13,7 @@
 // the spider "turbo" — WEAVE_TIME_SCALE calms it (§9.4 tweak 2). The timeline never gates the veil's
 // exit: the boot veil dissolves the instant the app is ready, mid-weave included (§9.3).
 
-import { sagLine, weaveJitter } from "./web-weave-math.ts";
+import { nearestRayHit, sagLine, toSegments, weaveJitter } from "./web-weave-math.ts";
 
 // ─── Types ───────────────────────────────────────────────────────────────────────────────────────
 
@@ -203,17 +203,15 @@ const CH_DEW_PICK = 21;
 const CH_DEW_R = 22;
 const CH_DEW_PHASE = 23;
 const CH_DEW_SPEED = 24;
-/** The spider starts crossing the bridge partway through its float-and-catch beat (mock ms). */
+/** The spider starts crossing the bridge partway through its float-and-catch beat (mock ms). She walks
+ *  it until the drop beat takes over — the walk has no window of its own, or the two legs OVERLAP and
+ *  the itinerary's first-match lookup switches mid-walk (a position jump; motion-fixes §3a). */
 const MOCK_BRIDGE_WALK_START = 550;
-const MOCK_BRIDGE_WALK_END = 1000;
-const BRIDGE_WALK_START = ms(MOCK_BRIDGE_WALK_START);
-const BRIDGE_WALK_END = ms(MOCK_BRIDGE_WALK_END);
+export const BRIDGE_WALK_START = ms(MOCK_BRIDGE_WALK_START);
 /** The bridge strand reads "caught" this long (mock ms) before its phase window closes. */
 const MOCK_BRIDGE_CATCH_LEAD = 250;
 /** Centering offset for a [0,1) jitter (jitter − HALF spans ±0.5). */
 const HALF = 0.5;
-/** Ray/segment parallelism epsilon. */
-const EPSILON = 1e-9;
 /** The Y-drop sags: the short bridge→hub line barely, the hub→anchor line visibly. */
 const DROP_TOP_SAG_PX = 2;
 const DROP_BOTTOM_SAG_PX = 5;
@@ -221,6 +219,18 @@ const DROP_BOTTOM_EXTRA_SAMPLES = 8;
 const WIDTH_DROP = 1.1;
 /** Radius tips stop just inside the frame strand (silk wraps, it doesn't overshoot). */
 const RADIUS_TIP_INSET = 0.995;
+/** …but a radius the BOX stopped (its anchor is off-screen) runs PAST the edge by this much instead: a
+ *  strand cut off by the canvas reads as continuing to an anchor you cannot see, whereas a tip parked a
+ *  few px inside the edge reads as broken silk. Termination is therefore per-constraint, not one clamp. */
+const RADIUS_CROP_OVERSHOOT_PX = 14;
+/** The interior silk (radii + spirals) is CONTAINED: the host rect inset by this margin joins the ray
+ *  caster, so nothing is chopped by the canvas edge at an extreme aspect ratio. The margin covers the
+ *  ambient sway (±2.1px), the widest stroke, and a dew halo. The frame + bridge ANCHORS still leave the
+ *  box by design — the web is a fragment of a bigger one. */
+const EDGE_MARGIN = 7;
+/** Belt to the caster's braces: every spiral sample is additionally clamped to this fraction of its own
+ *  bounding ray, so the rounding blend (SHAPE_ROUND/SHAPE_FRAME) can never push a ring past the edge. */
+const SPIRAL_EDGE_FRAC = 0.94;
 /** Where on its circle the spiral pass begins (radians) — arbitrary but fixed, mock value. */
 const SPIRAL_PHASE = 0.3;
 /** Dew candidates skip the spiral's innermost samples too (no dew inside the near-free-zone run). */
@@ -231,19 +241,6 @@ const STRAND_OUT_RISE_FRAC = 0.26;
 const STRAND_OUT_MIN_Y = 40;
 const STRAND_OUT_SAG_PX = 16;
 const STRAND_OUT_SAMPLES = 30;
-
-/** Ray (from `p` along `d`) vs segment `ab` → the ray parameter, or null when they miss. */
-function raySegment(p: WeavePoint, d: WeavePoint, a: WeavePoint, b: WeavePoint): number | null {
-  const den = d.x * (b.y - a.y) - d.y * (b.x - a.x);
-  if (Math.abs(den) < EPSILON) {
-    return null;
-  }
-  const qx = a.x - p.x;
-  const qy = a.y - p.y;
-  const t = (qx * (b.y - a.y) - qy * (b.x - a.x)) / den;
-  const u = (qx * d.y - qy * d.x) / den;
-  return t > 0 && u >= 0 && u <= 1 ? t : null;
-}
 
 export interface BuildWebInput {
   readonly width: number;
@@ -260,20 +257,6 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
   const at = (a: { x: number; dy: number }): WeavePoint => ({ x: a.x * width, y: hub.y + a.dy * height });
   const bl = at(ANCHORS.bridgeLeft);
   const br = at(ANCHORS.bridgeRight);
-  const poly: readonly WeavePoint[] = [bl, br, at(ANCHORS.right), at(ANCHORS.bottom), at(ANCHORS.left)];
-  const rayToFrame = (angle: number): number => {
-    const d = { x: Math.cos(angle), y: Math.sin(angle) };
-    let best = Number.POSITIVE_INFINITY;
-    for (let i = 0; i < poly.length; i++) {
-      const a = poly[i] as WeavePoint;
-      const b = poly[(i + 1) % poly.length] as WeavePoint;
-      const t = raySegment(hub, d, a, b);
-      if (t !== null && t < best) {
-        best = t;
-      }
-    }
-    return Number.isFinite(best) ? best : Math.max(width, height);
-  };
 
   const strands: WeaveStrand[] = [];
   // The bridge — floats wavy, then catches (the render module paints the float; geometry is the taut line).
@@ -298,15 +281,34 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
     [at(ANCHORS.right), br],
   ];
   const frameSlice = (T.frame[1] - T.frame[0]) / edges.length;
+  // The DRAWN boundary silk (bridge + the four sagged frame edges) — the radii and spirals terminate on
+  // THESE polylines, never on the ideal anchor polygon they sag away from (motion-fixes §1: a tip cast
+  // at the straight chord floats a sag's worth off the silk it should be tied to).
+  const framePolys: (readonly WeavePoint[])[] = [bridgePts];
   edges.forEach(([a, b], i) => {
-    strands.push({
-      kind: "frame",
-      pts: sagLine(a, b, FRAME_SAG_PX, FRAME_SAMPLES),
-      t0: T.frame[0] + i * frameSlice,
-      t1: T.frame[0] + (i + 1) * frameSlice,
-      width: WIDTH_FRAME,
-    });
+    const pts = sagLine(a, b, FRAME_SAG_PX, FRAME_SAMPLES);
+    framePolys.push(pts);
+    strands.push({ kind: "frame", pts, t0: T.frame[0] + i * frameSlice, t1: T.frame[0] + (i + 1) * frameSlice, width: WIDTH_FRAME });
   });
+  // …and the containment box joins the same caster as four more segments (motion-fixes §2).
+  const box: readonly WeavePoint[] = [
+    { x: EDGE_MARGIN, y: EDGE_MARGIN },
+    { x: width - EDGE_MARGIN, y: EDGE_MARGIN },
+    { x: width - EDGE_MARGIN, y: height - EDGE_MARGIN },
+    { x: EDGE_MARGIN, y: height - EDGE_MARGIN },
+  ];
+  const silkSegments = framePolys.flatMap((poly) => toSegments(poly));
+  const boxSegments = toSegments(box, true);
+  /** Hub→boundary distances along `angle`, kept SEPARATE: which constraint bound decides how a radius
+   *  terminates (silk → tuck just inside it; box → run past the edge), while `len` is the bound the
+   *  spirals live inside. */
+  const rayHit = (angle: number): { frame: number; rect: number; len: number } => {
+    const d = { x: Math.cos(angle), y: Math.sin(angle) };
+    const frame = nearestRayHit(hub, d, silkSegments);
+    const rect = nearestRayHit(hub, d, boxSegments);
+    const len = Math.min(frame, rect);
+    return { frame, rect, len: Number.isFinite(len) ? len : Math.max(width, height) };
+  };
 
   // Radii — one at a time, alternating sides of the hub (real spiders balance tension).
   const angles: number[] = [];
@@ -322,7 +324,10 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
   const radiusZips: number[] = [];
   layingOrder.forEach((angleIndex, orderIndex) => {
     const angle = angles[angleIndex] as number;
-    const len = rayToFrame(angle) * RADIUS_TIP_INSET;
+    const hit = rayHit(angle);
+    // Silk bound it → tuck the tip just inside the strand. The BOX bound it → the anchor is off-screen,
+    // so cross the edge and let the canvas crop it.
+    const len = hit.rect < hit.frame ? hit.rect + RADIUS_CROP_OVERSHOOT_PX : hit.len * RADIUS_TIP_INSET;
     const end = { x: hub.x + Math.cos(angle) * len, y: hub.y + Math.sin(angle) * len };
     const t0 = T.radii[0] + orderIndex * radiusSlice;
     const strand: WeaveStrand = {
@@ -338,9 +343,10 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
   });
 
   // Spirals — frame-shaped but rounded; per-point birth times so the tip IS the spider.
-  const reach = angles.reduce((sum, a) => sum + rayToFrame(a), 0) / RADIUS_COUNT;
+  const reach = angles.reduce((sum, a) => sum + rayHit(a).len, 0) / RADIUS_COUNT;
   const freeZoneRadius = reach * FREE_ZONE_FRAC;
-  const shape = (angle: number): number => SHAPE_ROUND + SHAPE_FRAME * (rayToFrame(angle) / reach);
+  /** The ring blend at an angle whose bounding ray is already known (one cast per spiral sample). */
+  const shapeFor = (ray: number): number => SHAPE_ROUND + SHAPE_FRAME * (ray / reach);
   interface SpiralSpec {
     readonly kind: "aux" | "capture";
     readonly t0: number;
@@ -359,7 +365,9 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
     for (let i = 0; i <= steps; i++) {
       const s = i / steps;
       const th = thFrom + (thTo - thFrom) * s;
-      const r = (rFrom + (rTo - rFrom) * s) * shape(th) * (1 + (weaveJitter(i, channel, seed) - HALF) * SPIRAL_WOBBLE);
+      const ray = rayHit(th).len;
+      const wobbled = (rFrom + (rTo - rFrom) * s) * shapeFor(ray) * (1 + (weaveJitter(i, channel, seed) - HALF) * SPIRAL_WOBBLE);
+      const r = Math.min(wobbled, ray * SPIRAL_EDGE_FRAC);
       pts.push({ x: hub.x + Math.cos(th) * r, y: hub.y + Math.sin(th) * r });
       vt.push(t0 + (t1 - t0) * s);
     }
@@ -404,7 +412,9 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
 
   // The spider's itinerary — where the weaver is at any t on the build timeline.
   const itinerary: SpiderLeg[] = [];
-  itinerary.push({ t0: BRIDGE_WALK_START, t1: BRIDGE_WALK_END, pts: bridgePts, from: 0, to: bridgePts.indexOf(bridgeMid) / (bridgePts.length - 1) });
+  // The walk hands off EXACTLY at the drop beat — legs must abut, never overlap (the lookup is
+  // first-match, so an overlap silently switches legs mid-walk).
+  itinerary.push({ t0: BRIDGE_WALK_START, t1: T.drop[0], pts: bridgePts, from: 0, to: bridgePts.indexOf(bridgeMid) / (bridgePts.length - 1) });
   itinerary.push({ t0: T.drop[0], t1: T.drop[1], pts: dropTop, from: 0, to: 1 });
   itinerary.push({ t0: T.anchorDrop[0], t1: T.anchorDrop[1], pts: dropBottom, from: 0, to: 1 });
   itinerary.push({ t0: T.frame[0], t1: T.frame[1], pts: dropBottom, from: 1, to: 0 });

@@ -79,6 +79,31 @@ Changes:
   `smoothstep(1 - d/GLINT_HALF_WIDTH_RAD)`, skip below GLINT\_MIN\_LIT, and stroke that segment (glow
   pass + bright pass) with its own alpha. Delete `paintGlintRuns`.
 
+## As built (2026-08-14) — where the tree differs from the text above
+
+The fixes landed in `packages/ui/src/art/web-weave/` with red-first proofs in
+`tests/ui/art/web-weave/{web-weave-geometry,web-weave-spider,web-weave-render}.test.ts` (8 assertions
+red against the pre-fix modules, green after). Four deviations, each forced by the live tree:
+
+1. **Radius termination is PER-CONSTRAINT, not one clamp** (amendment from the design side's
+   second-generation lab reference, mid-implementation). `rayHit(angle)` returns `{ frame, rect, len }`.
+   Frame binds → `len · RADIUS_TIP_INSET` (terminate on the sagged silk). Rect binds → `rect + 14`, so
+   the radius CROSSES the canvas edge and the crop reads as an off-screen anchor rather than a tip
+   parked inside the frame. Spirals are unchanged: hard-clamped to `rayHit(θ).len · 0.94`.
+2. **The ≤1px tip acceptance is unachievable with `RADIUS_TIP_INSET = 0.995`** — half a percent of a
+   586px ray is 2.9px. The kept rule is the one the inset actually states: a tip is never PAST the silk,
+   and a silk-bound tip stops within 1% of its ray short of it.
+3. **Sway has THREE modes, not two.** The reference has no offscreen cache; this tree does (design §1.2:
+   the resting web is baked once and blitted with the sway applied as ONE whole-canvas translate). A
+   live layer painted with the per-point field over that blit would slide across the silk, so `swayPt`
+   takes `{ kind: "field" | "offset", now } | null`: `field` on the re-stroked weaving path, `offset`
+   over the blit, `null` for reduced motion, the baked buffer, and the still-floating bridge.
+   `weaveSwayOffset(now)` is now the field sampled at the origin, so the two modes cannot drift apart.
+4. **Two motion seams remain, both out of the four reported defects and both pinned by tests:** the
+   scaffold entry (the last radius leaves the weaver at the hub while the aux leg starts a free-zone
+   radius out — ~104px, a gap in the itinerary DATA that only a walk-out leg plus shifted scaffold birth
+   times would close), and the rest beat (she swaps to the resting head-down posture in one frame).
+
 ## Test notes (the handoff's own acceptance shapes)
 
 - Geometry: for every radius, min distance from its tip to the nearest sagged boundary segment ≤
