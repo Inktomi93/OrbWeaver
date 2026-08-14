@@ -46,7 +46,22 @@
         "docs/reviews/misc/2026-08-03-archive-rescue-audit.md:1-388 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #3.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/state/shell-store.ts:79"
+            },
+            {
+              "kind": "issue",
+              "target": "#3"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/misc/2026-08-03-export-rot-dispositions.md",
@@ -91,7 +106,22 @@
         "docs/reviews/misc/2026-08-08-import-fidelity-audit.md:1-566 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #25.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/import/substrate/chat-input.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#25"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md",
@@ -106,7 +136,22 @@
         "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md:1-340 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #7.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/verbs/turn.ts:848"
+            },
+            {
+              "kind": "issue",
+              "target": "#7"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/misc/2026-08-09-api-surface-classification.md",
@@ -151,7 +196,22 @@
         "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md:1-197 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #8.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/kit/check-list.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#8"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/misc/2026-08-09-refinery-live-e2e.md",
@@ -166,7 +226,22 @@
         "docs/reviews/misc/2026-08-09-refinery-live-e2e.md:1-183 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #40.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/refinery/substrate/output-budget.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md",
@@ -181,7 +256,22 @@
         "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md:1-204 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/components/character-picker.tsx:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/misc/2026-08-14-global-agents-proposed.md",
@@ -196,7 +286,18 @@
         "docs/reviews/misc/2026-08-14-global-agents-proposed.md:1-196 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #52.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#52"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/misc/2026-08-14-refinery-custom-schema-drive.md",
@@ -204,14 +305,33 @@
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "0550c02292111cb1e884631bb991d80310a2c9756798ca393db0f241b11ce09d",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "124162042c1289bc8d635af9b687dec32de39bab3521dceee61b233c0384eb3d",
+      "verifiedCommit": "74fbbbd9160203f033ce168b1f91d55a874faef2",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/misc/2026-08-14-refinery-custom-schema-drive.md:1-182 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "OpenRouter structured requests remain blocked by the provider.require_parameters defect; remediation is tracked in GitHub issue #33 and custom-schema completion in GitHub issue #40.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/providers/backends/openrouter/index.ts:274"
+            },
+            {
+              "kind": "issue",
+              "target": "#33"
+            },
+            {
+              "kind": "issue",
+              "target": "#40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/misc/marinara-engine-parser-macro-audit.md",
@@ -226,7 +346,22 @@
         "docs/reviews/misc/marinara-engine-parser-macro-audit.md:1-262 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #28.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/kit/src/macro/engine.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#28"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/misc/marinara-st-extension-lite-mode.md",
@@ -241,7 +376,18 @@
         "docs/reviews/misc/marinara-st-extension-lite-mode.md:1-383 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #40.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/security/2026-08-07-fork-host-plane-strip.md",
@@ -331,7 +477,18 @@
         "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md:1-261 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #57.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#57"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md",
@@ -346,7 +503,22 @@
         "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md:1-191 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #28.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/kit/src/macro/engine.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#28"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md",
@@ -361,7 +533,22 @@
         "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md:1-360 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #57.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/vite.config.ts:255"
+            },
+            {
+              "kind": "issue",
+              "target": "#57"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md",
@@ -706,7 +893,22 @@
         "docs/reviews/stickler/2026-08-14-staleness-diagnosis.md:1-100 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
       ],
-      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work."
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/state/character-library-store.ts:68"
+            },
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

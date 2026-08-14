@@ -17,7 +17,22 @@
         "git log --oneline -1 -- docs/design/actions-tab-information-architecture.md: 98adcec67 docs(design): Actions-tab IA truth-repaired to the merged tree — 67 rows / 41 extract / round=8; measured perf before/after recorded",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "The Actions tab at 67 rows — information architecture (FORGE lane, 2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "The Actions tab at 67 rows — information architecture (FORGE lane, 2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #52.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/lib/collection-contracts.ts:43"
+            },
+            {
+              "kind": "issue",
+              "target": "#52"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/boot-loader-smoothness-options.md",
@@ -33,7 +48,22 @@
         "git log --oneline -1 -- docs/design/boot-loader-smoothness-options.md: 65a0d56a4 docs(design): reweight boot-loader Layer-A rec to animated SVG (waystone precedent)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Boot-loader smoothness — options matrix + recommendation: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "Boot-loader smoothness — options matrix + recommendation: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/art/web-weave/web-weave-render.ts:169"
+            },
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/chat-creation-draft-mode-replacement.md",
@@ -65,7 +95,18 @@
         "git log --oneline -1 -- docs/design/config-ia-the-junk-drawer-problem.md: fdcc9af0e docs(board+config-ia): #59 merged (main 6a319267c); templates-in-settings finding (imagery, not D132 leftover) + config-revamp/registry-lever intent recorded",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Config IA — the junk-drawer problem, and the tag model that falls out of it: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "Config IA — the junk-drawer problem, and the tag model that falls out of it: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #38.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#38"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/config-rail-spec.md",
@@ -97,7 +138,22 @@
         "git log --oneline -1 -- docs/design/containerize-build-plan.md: fd4ae9119 feat(deploy): production container — 2-profile Dockerfile + compose + the D2 external-engine code arms",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Containerize — build plan (the forge lane's phase-1 artifact): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "Containerize — build plan (the forge lane's phase-1 artifact): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #53.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/foundation/env/index.ts:148"
+            },
+            {
+              "kind": "issue",
+              "target": "#53"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/containerize-prod-image-spec.md",
@@ -113,7 +169,22 @@
         "git log --oneline -1 -- docs/design/containerize-prod-image-spec.md: 06a706551 fix(auth): boot-refuse single-user + AUTH_FALLBACK=deny; pin the shim↔firewall coupled site",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Production container image + deployment spec (all auth modes): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "Production container image + deployment spec (all auth modes): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #53.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/identity/index.ts:28"
+            },
+            {
+              "kind": "issue",
+              "target": "#53"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/context-panel-fidelity-findings.md",
@@ -161,7 +232,22 @@
         "git log --oneline -1 -- docs/design/default-character-roster.md: f01e98460 docs(design): roster — UI-copy rider: Charlotte's welcome-slot line now matches real menu copy ('Set as welcome greeter', character-actions-menu.tsx:67); old card's 'Set / Unset as Welcome Page Assistant / More…' was pre-existing rot (no such affordance). Receipt in wiring notes item 8.",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Default character roster — authored pack v2: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "Default character roster — authored pack v2: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #56.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/character/seeder/cards.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#56"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/demo-seeding-rebuild.md",
@@ -177,7 +263,18 @@
         "git log --oneline -1 -- docs/design/demo-seeding-rebuild.md: e810841fa docs(design): demo-seeding rebuild — audit of the seeder jank + the rpg-in-export owner fork (lane #52 stopped-before-build)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Demo seeding — the jank, and what \"the actual way\" costs: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "Demo seeding — the jank, and what \"the actual way\" costs: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #54.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#54"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/density-pass-spec.md",
@@ -193,7 +290,22 @@
         "git log --oneline -1 -- docs/design/density-pass-spec.md: fb36e52c5 feat(chat,ui): density S6 — the transcript + composer on the tier map, baseline 290 → 244",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "The density pass — tier map, mechanism, enforcement: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "The density pass — tier map, mechanism, enforcement: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/density-tier.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/docker-modern-practices-research.md",
@@ -289,7 +401,22 @@
         "git log --oneline -1 -- docs/design/home-tile-promotion.md: 24f99e257 feat(databank): the bank is walkable past its first page",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Conditional HOME-tile promotion (the databank `useOrder` follow-up): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "Conditional HOME-tile promotion (the databank `useOrder` follow-up): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #55.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/home/lib/order-home-tiles.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#55"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/list-pane-projection-proposal.md",
@@ -321,7 +448,22 @@
         "git log --oneline -1 -- docs/design/lite-plus-guided-substrate-spec.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "LITE + GUIDED SUBSTRATE — the fresh-build carve spec: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "LITE + GUIDED SUBSTRATE — the fresh-build carve spec: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #40.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/rpg/index.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/login-loading-screen.md",
@@ -433,7 +575,22 @@
         "git log --oneline -1 -- docs/design/note-token-intent-history.md: be00fe738 docs(investigate): {{note}} intent history — warn-never-block was INHERITED not decided; divergence from {{entry}} is stale classification, one real counter-precedent (:::card)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "`{{note}}` — original intent & classification archaeology: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "`{{note}}` — original intent & classification archaeology: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #39.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/prose.ts:257"
+            },
+            {
+              "kind": "issue",
+              "target": "#39"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/oidc-authentik-openwebui-study.md",
@@ -449,7 +606,22 @@
         "git log --oneline -1 -- docs/design/oidc-authentik-openwebui-study.md: 626e1985a docs(design): OIDC/Authentik study — Open WebUI mined vs our flow (owner-authorized out-of-band)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "OIDC / Authentik: the Open WebUI integration, read against ours: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "OIDC / Authentik: the Open WebUI integration, read against ours: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #57.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/users.ts:41"
+            },
+            {
+              "kind": "issue",
+              "target": "#57"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/openrouter-provider-findings.md",
@@ -481,7 +653,22 @@
         "git log --oneline -1 -- docs/design/openwebui-auth-methods-study.md: 3c944f854 docs(design): auth study III — first-run bootstrap + mode-switch (§7); MS-W1 non-owner orphan gap + B5 admin-link-SSO verb",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Open WebUI's other login methods (local / LDAP / SCIM), read against ours — the unification study: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "Open WebUI's other login methods (local / LDAP / SCIM), read against ours — the unification study: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #57.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/users.ts:66"
+            },
+            {
+              "kind": "issue",
+              "target": "#57"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/parity-plus-program-spec.md",
@@ -513,7 +700,22 @@
         "git log --oneline -1 -- docs/design/parked-options-config-port.md: c91162bfc docs(investigate): config-port parked-options — presets-into-rail is a seam migration not an array edit; JSON-card already server-built (client submenu only)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Parked options — config-rail + portability: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "Parked options — config-rail + portability: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #38.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/config/lib/config-section.tsx:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#38"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/parked-options-ops-posture.md",
@@ -529,7 +731,22 @@
         "git log --oneline -1 -- docs/design/parked-options-ops-posture.md: 67ed651a3 docs(investigate): ops/posture parked-options — containerize has no prod Dockerfile referent (6 forks), .env is oidc, AGENT-1 over-blocked, entry-exports after amputation",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Parked options — ops + posture cluster (investigate-only): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "Parked options — ops + posture cluster (investigate-only): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #53.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/index.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#53"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/parked-options-persona-prose.md",
@@ -545,7 +762,22 @@
         "git log --oneline -1 -- docs/design/parked-options-persona-prose.md: b9930fbea docs(investigate): persona/prose parked-options — kind-polymorphic cast (not flag), ship nudge texts verbatim, {{note}} is a silent-loss carrier (block-vs-warn fork)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Parked options — persona / prose cluster (I-8): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "Parked options — persona / prose cluster (I-8): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #56.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/server/domain/chat/persona-resolution.suite.int.test.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#56"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/parked-options-tag-contract.md",
@@ -577,7 +809,22 @@
         "git log --oneline -1 -- docs/design/persona-character-kind-substrate.md: 425ca37e1 docs(design): D137 execution rider on the persona-character design doc",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Persona ↔ character unification — the kind-polymorphic cast + the card-face substrate: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "Persona ↔ character unification — the kind-polymorphic cast + the card-face substrate: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #56.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/card-face/index.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#56"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/preset-surface-redesign.md",
@@ -609,7 +856,22 @@
         "git log --oneline -1 -- docs/design/prod-build-cls-investigation.md: a99e8f939 docs(investigate): populate-round prose census + prod-build CLS lead",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Prod-build CLS lead — investigation only, no fix: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "Prod-build CLS lead — investigation only, no fix: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "scripts/dev/stack-prod.ts:15"
+            },
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/prose-1-populate-census.md",
@@ -705,7 +967,22 @@
         "git log --oneline -1 -- docs/design/refinery-r3-build-plan.md: bba4bb13e feat(refinery): R4 — library score sweep, score sorts + dossier readout, greeting APPEND arm",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Refinery R3 — build plan (the ratified design mapped onto code): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "Refinery R3 — build plan (the ratified design mapped onto code): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #40.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/refinery.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#40"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/refinery-schema-renderer.md",
@@ -737,7 +1014,22 @@
         "git log --oneline -1 -- docs/design/rpg-extraction-one-call-spike.md: a933ef4cf feat(rpg)!: delete the reliable extraction mode + build the RV-11 guide readers",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "RPG state extraction — one-call-tools spike & recommendations: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "RPG state extraction — one-call-tools spike & recommendations: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #25.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/kit/src/content/index.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#25"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/rpg-rewind-stuck-state.md",
@@ -769,7 +1061,22 @@
         "git log --oneline -1 -- docs/design/st-import-plane-classification.md: acf531a6a feat(import): ST backgrounds → background library, themes → safe-converted palettes, power_user → its real homes",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "SillyTavern import — the per-plane classification: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "SillyTavern import — the per-plane classification: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/import/loader/collect.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/st-message-shaping-atlas.md",
@@ -785,7 +1092,22 @@
         "git log --oneline -1 -- docs/design/st-message-shaping-atlas.md: 23aaa625a docs(graduation,doctrine): dogfood doc graduates to history (refs repointed); the double campaign's orchestrator + lane lessons minted into onboarding and agent doctrine",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "SillyTavern message-shaping atlas — storage identity, wire identity, and our delta: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "SillyTavern message-shaping atlas — storage identity, wire identity, and our delta: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #18.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/character/seeder/cards.ts:348"
+            },
+            {
+              "kind": "issue",
+              "target": "#18"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/staleness-and-session-freshness.md",
@@ -817,7 +1139,22 @@
         "git log --oneline -1 -- docs/design/streaming-reveal-42.md: 91ebf56ce feat(#48): ruled smalls — smoothStream ON, ⋯ to the composer, tag folders OPEN, preview render policy",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "#42 — Streaming reveal: measured root causes + the fix design: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "#42 — Streaming reveal: measured root causes + the fix design: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #35.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/markdown/reveal-plugin.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#35"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/streaming-shape-churn.md",
@@ -833,7 +1170,22 @@
         "packages/ui/src/markdown/markdown.tsx:119-127 and tests/ui/markdown/markdown.ct.tsx:462-558 (M1/M5 shipped and rendered proofs)",
         "tests/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts:1 and 016dae9ec fix(observability): silent-500 outcome surface closed"
       ],
-      "summary": "Streaming message SHAPE CHURN — measured mechanism + the ranked fix plan: current active design authority; M1/M5 are built and tested, §8 restores M4 as the largest measured churn on an OpenRouter chat-completions connection, and the §7.5 silent-500 defect is fixed by 016dae9ec."
+      "summary": "Streaming message SHAPE CHURN — measured mechanism + the ranked fix plan: current active design authority; M1/M5 are built and tested, §8 restores M4 as the largest measured churn on an OpenRouter chat-completions connection, and the §7.5 silent-500 defect is fixed by 016dae9ec.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #35.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/markdown/policy.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#35"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/templating-fork-rows-53-73.md",
@@ -865,7 +1217,18 @@
         "git log --oneline -1 -- docs/design/tracked-field-unification.md: cb5e426e5 fix(client): model-text wraps everywhere + hints ride hover (owner dogfood round)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Tracked-field unification + panel IA repair — the pool/meter/cast-field untangle: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "Tracked-field unification + panel IA repair — the pool/meter/cast-field untangle: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #56.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#56"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/tsx-shedding-migration-spec.md",
@@ -897,7 +1260,22 @@
         "git log --oneline -1 -- docs/design/user-macro-delivery-spec.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "User-macro INPUT-VALUE DELIVERY — implementation blueprint: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "User-macro INPUT-VALUE DELIVERY — implementation blueprint: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #28.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/index.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#28"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/v3-demo-transcripts-heal.md",
@@ -913,7 +1291,18 @@
         "git log --oneline -1 -- docs/design/v3-demo-transcripts-heal.md: 446668f88 docs(design): DRAFT-TRUST + v3-transcripts decision briefs (lane #51 scout reconstruction, receipts in-lane)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "v3 demo-transcripts heal — decision brief: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "v3 demo-transcripts heal — decision brief: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #54.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#54"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/weave-lab-upgrades.md",
@@ -929,7 +1318,18 @@
         "git log --oneline -1 -- docs/design/weave-lab-upgrades.md: 27f2b3a56 feat(ui): WebSpinner weaves instead of pulsing — the loader IS a web being spun",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Weave Lab — the second-generation motion upgrade spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "Weave Lab — the second-generation motion upgrade spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/web-weave-motion-fixes.md",
@@ -945,7 +1345,18 @@
         "git log --oneline -1 -- docs/design/web-weave-motion-fixes.md: f688f56d4 fix(ui): WebWeave motion — connected tips, containment, spider pathing, per-segment glint",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "WebWeave motion fixes — the Claude Design handoff spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
+      "summary": "WebWeave motion fixes — the Claude Design handoff spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
