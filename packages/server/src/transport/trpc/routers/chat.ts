@@ -383,7 +383,7 @@ const updateTitleSchema = z.object({
 
 const starChatSchema = z.object({
   chatId: brandedId<ChatId>(),
-  star: z.boolean(),
+  starred: z.boolean(),
 });
 
 const archiveChatSchema = z.object({

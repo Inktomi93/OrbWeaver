@@ -33,7 +33,7 @@ function bundle(over: Partial<PortableChat> = {}): Uint8Array {
     title: "A Long Road",
     createdAt: 1_699_999_000_000,
     updatedAt: 1_700_000_001_000,
-    star: true,
+    starred: true,
     archived: true,
     compactSummary: "the first leg",
     compactedAtSeq: 2,
@@ -121,7 +121,7 @@ function onlyChatInput(h: ProfileHarness): BulkImportChatInput {
 }
 
 describe("importChatBundle (routed through the importChatFile door)", () => {
-  test("an orb-native bundle carries the planes the ST jsonl arm cannot: injections, room blob, variable + macro picks, star/archive/compaction", async () => {
+  test("an orb-native bundle carries the planes the ST jsonl arm cannot: injections, room blob, variable + macro picks, starred/archive/compaction", async () => {
     const h = harness();
 
     const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle() });
@@ -132,7 +132,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
     expect(input.metadata).toEqual({ roomOverrides: { scenario: "the frontier" } });
     expect(input.variableValues).toEqual({ mood: "grim" });
     expect(input.userMacroValues).toEqual({ tone: { register: "wry" } });
-    expect(input.star).toBe(true);
+    expect(input.starred).toBe(true);
     expect(input.archived).toBe(true);
     expect(input.compactSummary).toBe("the first leg");
     expect(input.compactedAtSeq).toBe(2);
@@ -193,6 +193,6 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
     // The interchange arm's shape: the single migrated note field exists, the orb-only list does not.
     const input = onlyChatInput(h);
     expect(input.injections).toBeUndefined();
-    expect(input.star).toBeUndefined();
+    expect(input.starred).toBeUndefined();
   });
 });

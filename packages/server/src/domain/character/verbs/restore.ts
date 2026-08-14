@@ -40,6 +40,7 @@ export function createRestore(ctx: CharacterContext): CharacterService["restore"
       ...blob,
       contentHash: cardContentHash(blob),
       tokenSize: cardTokenSize(blob),
+      updatedAt: at,
     });
     if (!written) {
       throw new CharacterNotFoundError(characterId);

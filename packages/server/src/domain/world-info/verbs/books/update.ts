@@ -2,7 +2,7 @@
 // load-bearing: an internal caller could otherwise smuggle identity columns (id/ownerId/createdAt) past the
 // structural type — `stripUndefined` over an EXPLICIT field list closes that. UPDATE … WHERE id=? AND
 // owner_id=? RETURNING folds the ownership check into the mutation; a no-op edit skips the write and re-reads.
-// (`world_books` has no `updatedAt` column — nothing to bump.)
+// `updatedAt` (the X-16 edited-stamp precedent) is stamped from the injected clock on every real edit.
 
 import { worldBooks } from "@orb/db";
 import { stripUndefined } from "@orb/kit/objects";
@@ -29,7 +29,7 @@ export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateBoo
     const at = ctx.now();
     const rows = await ctx.db
       .update(worldBooks)
-      .set(edits)
+      .set({ ...edits, updatedAt: at })
       .where(and(eq(worldBooks.id, bookId), eq(worldBooks.ownerId, ownerId)))
       .returning();
     const updated = rows[0];

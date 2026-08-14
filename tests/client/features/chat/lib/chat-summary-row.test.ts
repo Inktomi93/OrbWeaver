@@ -17,7 +17,7 @@ function makeSummary(overrides: Partial<SummaryItem>): SummaryItem {
   return {
     id: castId<ChatId>("chat_summaryrowtest0000000000"),
     title: null,
-    star: false,
+    starred: false,
     archived: false,
     parentChatId: null,
     lastMessageAt: null,

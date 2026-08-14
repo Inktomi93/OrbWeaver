@@ -299,7 +299,7 @@ export type ChatBusEvent =
   | { type: "chatOpened"; chatId: ChatId }
   // ── Resume control (subscription-synthesized; never emitted by domain code, never logged) ──
   | { type: "historyTruncated"; chatId: ChatId }
-  // ── Catch-all for low-payload chat-row changes (star/archive/title/variables/injections/compact) ──
+  // ── Catch-all for low-payload chat-row changes (starred/archive/title/variables/injections/compact) ──
   | { type: "chatUpdated"; chatId: ChatId };
 
 /** Valid bus discriminators, derived from the union. The `satisfies Record<ChatBusEvent["type"], true>`

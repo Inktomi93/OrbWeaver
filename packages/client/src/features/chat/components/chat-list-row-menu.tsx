@@ -92,7 +92,7 @@ export function ChatListRowMenu({ chatId, title, rowName, starred, archived, onD
           <Icon icon={Pencil} size="sm" />
           Rename
         </MenuItem>
-        <MenuItem onClick={(): void => starChat.mutate({ chatId, star: !starred })}>
+        <MenuItem onClick={(): void => starChat.mutate({ chatId, starred: !starred })}>
           <Icon icon={Star} size="sm" />
           {starred ? "Unstar" : "Star"}
         </MenuItem>

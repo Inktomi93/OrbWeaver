@@ -301,7 +301,7 @@ export function createExportChatBundle(ctx: ExportContext): ExportService["expor
       title: chat.title ?? "",
       createdAt: chat.createdAt,
       updatedAt: chat.updatedAt,
-      star: chat.star,
+      starred: chat.starred,
       archived: chat.archived,
       compactSummary: chat.compactSummary,
       compactedAtSeq: chat.compactedAtSeq,
