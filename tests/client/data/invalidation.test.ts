@@ -17,7 +17,7 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { CharacterId, ChatId, MessageId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_invalidationtest");
@@ -522,6 +522,83 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
     for (const key of keys) {
       expect(isInvalidated(queryClient, key)).toBe(true);
     }
+  });
+});
+
+// ── The WAVE COLLAPSE: what a wave SPENDS, not what it covers ─────────────────────────────────────
+// Every filter above pins COVERAGE (`isInvalidated`), which a redundant row can never break — it is
+// idempotent as a mark. The cost is invisible there and real on the wire: `invalidateQueries` does NOT dedupe
+// against an in-flight fetch, it CANCELS and restarts it, so a second filter covering the same query is a
+// second round trip. The gap-heal set is the UNION of every user-map row, so overlaps are structural: W7b's
+// `identityChanged` mapped `persona.list` while `personasChanged` already carried the `persona` ROOT, and
+// every reconnect fetched personas twice (caught on the wire by
+// `tests/client/data/bus/use-user-bus.ct.tsx:77` — persona.list 3, expected 2). These pin the collapse that
+// closed it, at the tier that can SEE a spend: the count of `invalidateQueries` calls one wave makes.
+
+/** A filter's tRPC key parts: the dotted path, and whether it narrows further (an input/type object). */
+function keyParts(filter: unknown): { readonly path: readonly string[]; readonly narrowed: boolean } {
+  const queryKey = (filter as { readonly queryKey?: readonly unknown[] }).queryKey ?? [];
+  const path = Array.isArray(queryKey[0]) ? (queryKey[0] as string[]) : [];
+  return { path, narrowed: queryKey.length > 1 };
+}
+
+/** Does `a` reach every query `b` does? react-query matches a key by partial PREFIX, so an un-narrowed
+ *  path that prefixes another's names a strictly wider set (`["persona"]` covers `["persona","list"]`). */
+function covers(a: unknown, b: unknown): boolean {
+  const left = keyParts(a);
+  const right = keyParts(b);
+  return !left.narrowed && left.path.every((segment, i) => right.path[i] === segment);
+}
+
+/** Record what a wave actually SPENDS on the client — one entry per `invalidateQueries` call, in order.
+ *  The client is per-test (see `setup`), so the spy needs no restore. */
+function recordSpend(queryClient: QueryClient): { readonly filters: () => readonly unknown[] } {
+  const spy = vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue(undefined);
+  return { filters: (): readonly unknown[] => spy.mock.calls.map(([filter]) => filter) };
+}
+
+describe("invalidation — the wave collapse (what a wave SPENDS)", () => {
+  test("the reconnect gap-heal spends ONE invalidateQueries per distinct root — no covered filter survives", () => {
+    const { invalidateAllUserRoots, queryClient } = setup();
+    const recorder = recordSpend(queryClient);
+
+    invalidateAllUserRoots();
+
+    const spent = recorder.filters();
+
+    const redundant = spent.flatMap((filter, i) =>
+      spent
+        .filter((other, j) => i !== j && covers(other, filter))
+        .map((other) => `${keyParts(filter).path.join(".")} is already covered by ${keyParts(other).path.join(".")}`),
+    );
+    expect(redundant).toEqual([]);
+    // The specific pair that was costing a double fetch: the persona ROOT survives, its narrower sibling does not.
+    const paths = spent.map((filter) => keyParts(filter).path.join("."));
+    expect(paths).toContain("persona");
+    expect(paths).not.toContain("persona.list");
+  });
+
+  test("the collapse is order-independent — a broad filter arriving AFTER the narrow one still wins", () => {
+    const { invalidateFilters, queryClient, trpc } = setup();
+    const recorder = recordSpend(queryClient);
+
+    invalidateFilters([trpc.persona.list.pathFilter(), trpc.persona.pathFilter()]);
+
+    expect(recorder.filters().map((filter) => keyParts(filter).path.join("."))).toEqual(["persona"]);
+  });
+
+  test("a narrower filter with no broader sibling is untouched (the collapse drops coverage from nothing)", () => {
+    const { invalidateFilters, queryClient, trpc } = setup();
+    const listTagsKey = trpc.tag.listTags.queryKey();
+    const personaKey = trpc.persona.list.queryKey();
+    for (const key of [listTagsKey, personaKey]) {
+      queryClient.setQueryData([...key], [] as never);
+    }
+
+    invalidateFilters([trpc.persona.list.pathFilter(), trpc.tag.listTags.pathFilter()]);
+
+    expect(isInvalidated(queryClient, personaKey)).toBe(true);
+    expect(isInvalidated(queryClient, listTagsKey)).toBe(true);
   });
 });
 
