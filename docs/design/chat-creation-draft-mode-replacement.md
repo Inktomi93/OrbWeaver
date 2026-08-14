@@ -357,9 +357,17 @@ malleable/swipeable until then [the first user turn]" (`start-chat.ts:22-23`;
 - **Edit**: the committed message-edit path already serves it (real row, real verb). The draft-specific
   save target (`setDraftGreeting`) deletes.
 - **Alternate-stepping (the greeting swipe)**: the ONE genuinely new capability — a small host-gated
-  verb (`chat.setSeededGreeting {chatId, messageId, text}` or an arm on the existing edit verb),
-  refusing after freeze, that replaces a seeded greeting row's content with another card alternate.
+  verb, refusing after freeze, that replaces a seeded greeting row's content with another card alternate.
   The client strip keeps its exact chrome, pointed at the verb instead of the draft store.
+  **BUILT as `chat.setSeededGreeting {chatId, messageId, greetingIndex}` — an INDEX, not the `text` this
+  section sketched (R3, 2026-08-14).** The sketch offered two shapes ("…or an arm on the existing edit
+  verb"), so the RULING here is the clause "replaces a seeded greeting row's content with another card
+  alternate". With `text` that clause is a client-side promise, and the verb is a second arbitrary
+  content-write door standing beside `editMessage`'s — at a WIDER authority, since this one is host-gated
+  rather than author-or-host. With an index the server resolves the bytes from the card, so the ruling is a
+  runtime fact: nothing a caller sends can become message content. The verb's three belts (row shape · the
+  freeze window · the index resolving on the card) each carry a paired planted control in
+  `tests/server/domain/chat/verbs/seeded-greeting.suite.int.test.ts`.
 - **Greeting Studio**: already writes the CARD via `character.update` (`greeting-actions-row.tsx:11-15`)
   — unchanged, plus the same set-shown call every other alternate pick makes.
 - **Add-member in the window**: fork F6 — recommended: `addMember` on an unfrozen chat also seeds that
@@ -433,6 +441,35 @@ lesson, not code: the room's first frame reads `getChat`, which `startChat`'s re
   (`greeting-swipe-strip.tsx` @ `a383c669d`) and the CT it had is ledgered in
   `docs/test-baseline/manifest.json`'s `deletions` with that reason; the ⚠️ marker sits on
   `renderRowSwipe` in `message-row-parts.tsx`.
+- **R3 as-built (2026-08-14), plus the three seams a fresh-context verifier found in R0+R1:** the
+  alternate-step verb landed as `chat.setSeededGreeting` carrying a greeting INDEX, not the text §4.8
+  sketched (the deviation and its reason are recorded at §4.8); the strip is restored over the COMMITTED
+  greeting row and driven by that verb; the two orphaned appearance-knob pins are back. F6's
+  addMember-greets-before-freeze arm is NOT built — it is a roster-verb change, still open. The verifier's
+  three:
+  - **R1-2 — a real message-loss window, closed.** A room whose SSE died before this client applied any
+    durable frame re-announced with `sinceSeq: null`, and a null cursor requests NO replay
+    (`stream/sources/chat.ts`). Open a room → the socket dies while HTTP lives → send → the server commits
+    the turn → the reconnect asks for nothing → the turn is invisible until a reload. Closed by a FLOOR the
+    server states: a cursor-less attach's `chatOpened` synthetic now carries `bounds.maxSeq`, and
+    `use-chat-bus.ts` adopts that seq as its resume cursor. The hole PREDATES R1 for any room opened before
+    its first durable frame; the fix closes the class. Two mechanisms were refuted before building: the
+    canon read's `messages.seq` is a DIFFERENT sequence from the `chat_events.seq` cursor, and
+    `chat.chatEventBounds` is deliberately absent from the tRPC router. A recorded ruling was contradicted
+    in the process — see the ⚠️ note on the PD-134 case in
+    `tests/server/transport/trpc/stream/sources/chat.test.ts`.
+  - **R1-3 — the `chatDeletedFromList` seam, realized.** `chat-lifecycle.ts` and §4.5 both justified the
+    reap emit with the landing transition, and nothing was on the other end: `apply-chat-bus-event.ts`
+    routed `chatDeleted` to invalidate only, leaving a tab sitting on a deleted room reading its cached
+    canon. Wired through an injected `onChatDeleted` (the `onWarning`/`onTurnAbort` precedent — `data/` may
+    not import `features/`), CT-pinned.
+  - **R1-4 — two reap races.** `reapTemporaryChats` deleted by id list with NO predicate re-check, so a
+    room claimed between the SELECT and the DELETE was DELETED (real data loss); both arms now re-state the
+    full predicate in the DELETE's `WHERE` and return the affected rows. A residual FALSE-EMIT window
+    survives by law and is documented at both verbs: `bus.ts` FLAG\[emit-is-total] plus the
+    `chat_events.chat_id` FK mean an append AFTER the delete FK-fails, so the emit must precede it — a
+    raced claim therefore fans one `chatDeleted` for a row that still exists, and the client's re-read
+    corrects it.
 - **Law landing (rides R0):** a D-ledger entry minting the model (draft clause: *"A chat row exists
   from the creation click; an unclaimed room is list-hidden by a server lens, claimed by its first
   activity, and reaped best-effort on nav-away with a TTL belt; creation-time stats fire at claim"*),
