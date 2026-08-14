@@ -4,8 +4,7 @@
 // space; one load serves both the embed and imageEmbed roles.
 
 import process from "node:process";
-import type { DataType, DeviceType } from "@huggingface/transformers";
-import { AutoModel, AutoModelForSequenceClassification, AutoProcessor, AutoTokenizer, env, pipeline, RawImage, Tensor } from "@huggingface/transformers";
+import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { getLog } from "#foundation/observability";
@@ -13,6 +12,25 @@ import { ProviderError } from "../../contract/index.ts";
 
 // Small on purpose — each ONNX session holds native (off-heap) memory; the headroom just absorbs a deliberate model switch.
 const MODEL_CACHE_CAP = 4;
+
+type TransformersModule = typeof import("@huggingface/transformers");
+
+// THE IMPORT IS DYNAMIC ON PURPOSE — this file's whole reason to exist is being the SOLE home of the
+// @huggingface/transformers coupling, and a STATIC import made that containment a lie at module-graph level:
+// `@huggingface/transformers` pulls `onnxruntime-node`, whose NAPI binding loads at import time, so merely
+// importing anything that transitively reached this file paid a native-addon load. Measured cost of the eager
+// spelling (2026-08-14): under a worker-thread pool 85 test files died on `Module did not self-register:
+// onnxruntime_binding.node` — the entire infra/providers tree, all of domain/preset, entry/compose, entry/boot,
+// chat engine + verbs — because a non-context-aware addon cannot load off the main thread. That is what kept
+// the Stryker mutation gate from ever booting (its runner hardcodes `pool:'threads'`). Deferring the import to
+// first model load keeps the header's "lazy, memoized" promise honest at the MODULE level too, and costs
+// nothing: every consumer of this seam is already async. Keep it dynamic; a static import here is a regression.
+let transformersPromise: Promise<TransformersModule> | undefined;
+
+function loadTransformers(): Promise<TransformersModule> {
+  transformersPromise ??= import("@huggingface/transformers");
+  return transformersPromise;
+}
 
 const DEFAULT_DEVICE: DeviceType = "auto";
 const CPU_DEVICE: DeviceType = "cpu";
@@ -83,9 +101,11 @@ function tensorRows(t: Tensor): Float32Array[] {
 }
 
 // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
-function requireTensor(out: Record<string, unknown>, key: string, modelId: string): Tensor {
+// `Tensor` arrives as a PARAMETER, not a module binding: the class is only reachable after the dynamic
+// import resolves, and every caller already holds the resolved module.
+function requireTensor(out: Record<string, unknown>, key: string, modelId: string, TensorCtor: TransformersModule["Tensor"]): Tensor {
   const value = out[key];
-  if (!(value instanceof Tensor)) {
+  if (!(value instanceof TensorCtor)) {
     throw new ProviderError({
       kind: "server",
       retryable: false,
@@ -203,37 +223,63 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
   const device = config.device ?? DEFAULT_DEVICE;
   const dtype = config.dtype ?? DEFAULT_DTYPE;
 
-  if (config.allowRemoteModels !== undefined) {
-    env.allowRemoteModels = config.allowRemoteModels;
-  }
-  if (config.cacheDir !== undefined) {
-    env.cacheDir = config.cacheDir;
-  }
+  // The `env` writes used to run HERE, at construction — which is precisely what forced the eager import.
+  // They now run once, on this cache's first model load, still before any `from_pretrained`: same ordering
+  // guarantee (env is configured before the lib reads it), no import cost for a cache nobody ever uses.
+  let configured = false;
+  const transformers = async (): Promise<TransformersModule> => {
+    const mod = await loadTransformers();
+    if (!configured) {
+      configured = true;
+      if (config.allowRemoteModels !== undefined) {
+        mod.env.allowRemoteModels = config.allowRemoteModels;
+      }
+      if (config.cacheDir !== undefined) {
+        mod.env.cacheDir = config.cacheDir;
+      }
+    }
+    return mod;
+  };
 
   const jinaEmbedder = createMemo(
-    (id) => loadWithCpuFallback(device, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype })),
+    async (id) => {
+      const { AutoModel } = await transformers();
+      return await loadWithCpuFallback(device, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype }));
+    },
     (m) => {
       void m.dispose();
     },
   );
   const reranker = createMemo(
-    (id) => loadWithCpuFallback(device, (dev) => AutoModelForSequenceClassification.from_pretrained(id, { device: dev, dtype })),
+    async (id) => {
+      const { AutoModelForSequenceClassification } = await transformers();
+      return await loadWithCpuFallback(device, (dev) => AutoModelForSequenceClassification.from_pretrained(id, { device: dev, dtype }));
+    },
     (m) => {
       void m.dispose();
     },
   );
   const tokenizer = createMemo(
-    (id) => AutoTokenizer.from_pretrained(id),
+    async (id) => {
+      const { AutoTokenizer } = await transformers();
+      return await AutoTokenizer.from_pretrained(id);
+    },
     () => undefined,
   );
   const processor = createMemo(
-    (id) => AutoProcessor.from_pretrained(id),
+    async (id) => {
+      const { AutoProcessor } = await transformers();
+      return await AutoProcessor.from_pretrained(id);
+    },
     () => undefined,
   );
   // The background-removal segmentation pipeline (RMBG-1.4 by default) — a SEPARATE lazy model from the
   // embed/rerank sessions, loaded through the same device/dtype/CPU-fallback mechanics + LRU cap.
   const bgRemover = createMemo(
-    (id) => loadWithCpuFallback(device, (dev) => pipeline("background-removal", id, { device: dev, dtype })),
+    async (id) => {
+      const { pipeline } = await transformers();
+      return await loadWithCpuFallback(device, (dev) => pipeline("background-removal", id, { device: dev, dtype }));
+    },
     (p) => {
       void p.dispose();
     },
@@ -241,10 +287,10 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
 
   // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   const embedJinaTexts = async (modelId: string, texts: readonly string[]): Promise<Float32Array[]> => {
-    const [proc, model] = await Promise.all([processor(modelId), jinaEmbedder(modelId)]);
+    const [{ Tensor: TensorCtor }, proc, model] = await Promise.all([transformers(), processor(modelId), jinaEmbedder(modelId)]);
     const inputs = await proc([...texts], null, { padding: true, truncation: true });
     const out = (await model(inputs)) as Record<string, unknown>;
-    return tensorRows(requireTensor(out, "text_embeddings", modelId));
+    return tensorRows(requireTensor(out, "text_embeddings", modelId, TensorCtor));
   };
 
   return {
@@ -256,23 +302,23 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
       if (documents.length === 0) {
         return [];
       }
-      const [tok, model] = await Promise.all([tokenizer(modelId), reranker(modelId)]);
+      const [{ Tensor: TensorCtor }, tok, model] = await Promise.all([transformers(), tokenizer(modelId), reranker(modelId)]);
       const queries = documents.map(() => query);
       const inputs = tok(queries, { text_pair: [...documents], padding: true, truncation: true });
       const out = (await model(inputs)) as Record<string, unknown>;
       // Single-label logit, or the positive class of a 2-label head (last index); never normalized here.
-      return tensorRows(requireTensor(out, "logits", modelId)).map((row) => row.at(-1) ?? 0);
+      return tensorRows(requireTensor(out, "logits", modelId, TensorCtor)).map((row) => row.at(-1) ?? 0);
     },
 
     async embedImages(modelId, images): Promise<Float32Array[]> {
       if (images.length === 0) {
         return [];
       }
-      const [proc, model] = await Promise.all([processor(modelId), jinaEmbedder(modelId)]);
+      const [{ RawImage, Tensor: TensorCtor }, proc, model] = await Promise.all([transformers(), processor(modelId), jinaEmbedder(modelId)]);
       const raws = await Promise.all(images.map((image) => RawImage.read(toImageSource(image))));
       const inputs = await proc(null, raws);
       const out = (await model(inputs)) as Record<string, unknown>;
-      return tensorRows(requireTensor(out, "image_embeddings", modelId));
+      return tensorRows(requireTensor(out, "image_embeddings", modelId, TensorCtor));
     },
 
     embedClipTexts(modelId, texts): Promise<Float32Array[]> {

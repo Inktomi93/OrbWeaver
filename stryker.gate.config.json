@@ -24,7 +24,7 @@
     "!packages/**/*.d.ts"
   ],
 
-  "_ignore_comment": "Prune the sandbox copy — same shape as the base config. .cache/** (8.8G vLLM venv; its lib64 symlink crashes copyfile EISDIR) and .models/** (25G HF weights) MUST be excluded or the sandbox copy explodes. data/** + *.db* (the dev database) are pruned too — ignorePatterns is ACTIVE now that the sandbox patch makes a NORMAL sandbox work (it was a no-op under the old --inPlace).",
+  "_ignore_comment": "Prune the sandbox copy — same shape as the base config. .cache/** (8.8G vLLM venv; its lib64 symlink crashes copyfile EISDIR) and .models/** (25G HF weights) MUST be excluded or the sandbox copy explodes. data/** + *.db* (the dev database) are pruned too — ignorePatterns is ACTIVE now that the sandbox patch makes a NORMAL sandbox work (it was a no-op under the old --inPlace). Stryker does NOT read .gitignore, so every gitignored artifact tree needs an explicit entry here: the scripts/probes/st-goldens/** block is the ST-parity probe's captured FOREIGN SillyTavern install + its generated fixtures/outputs (.gitignore:104-108, and excluded the same way by tsconfig.json:135-141) — 2,196 runtime files that the 4 mutation targets have nothing to do with, and whose unterminated-tag HTML made the DisableTypeChecksPreprocessor emit a parse warning on every run (audit RC-02, 2026-08-13). Measured: 7358 -> 5162 project files at startup, warning gone.",
   "ignorePatterns": [
     ".stryker-tmp/**",
     ".git/**",
@@ -43,10 +43,17 @@
     "data/**",
     "*.db*",
     "playwright/**",
+    "scripts/probes/st-goldens/sillytavern-runtime/**",
+    "scripts/probes/st-goldens/fixtures/**",
+    "scripts/probes/st-goldens/output/**",
+    "scripts/probes/st-goldens/orbweaver-output/**",
     "FINAL-*.md"
   ],
 
   "_coverage_comment": "coverageAnalysis NOT set — the vitest-runner ignores it and always uses perTest.",
+
+  "_dryruntimeout_comment": "Stryker's DEFAULT dryRunTimeoutMinutes is 5, and the initial run blew through it at exactly 5:02 (05:14:40 -> 05:19:42, `Initial test run timed out!`) — the third of three invisible blockers that kept this gate from EVER producing a score. The dry run executes the whole unit+integration+contract set to collect perTest coverage, and the runner pins `maxThreads:1`/`maxConcurrency:1` (vitest-test-runner.js:36-49), so ~1,300 files that take 7.3 min of wall time across 14 parallel forks run ONE AT A TIME here. This is the documented knob for exactly that; keep it comfortably above the measured dry-run duration recorded in the thresholds comment.",
+  "dryRunTimeoutMinutes": 45,
 
   "ignoreStatic": true,
   "_concurrency_comment": "24-core / 125GB box; default is n-1 (=23). 16 → ~8 checker + ~8 runner processes with headroom. Bump toward 20 for a dedicated run.",
