@@ -13,7 +13,7 @@ import type { AssetId, ChatId } from "@orb/kit/ids";
 import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC, useUploadAsset } from "#data";
 import { subscribeUserMessageCommitted } from "#state";
-import { turnMutationToast } from "../lib/turn-abort-notice.ts";
+import { turnMutationToast } from "#lib";
 
 interface SendVars {
   readonly chatId: ChatId;

@@ -10,8 +10,8 @@ import {
   TURN_STALE_ABORT_COPY,
   turnAbortNotice,
   turnMutationToast,
-} from "../../../../../packages/client/src/features/chat/lib/turn-abort-notice.ts";
-import { expect, test } from "../../../../support/fixtures.ts";
+} from "../../../packages/client/src/lib/turn-abort-notice.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 // ── turnAbortNotice: reason → user-visible copy (or null) ──────────────────────────────────────────
 

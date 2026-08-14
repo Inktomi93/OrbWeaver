@@ -7,7 +7,7 @@
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { turnMutationToast } from "../lib/turn-abort-notice.ts";
+import { turnMutationToast } from "#lib";
 
 interface ContinueTurnVars {
   readonly chatId: ChatId;

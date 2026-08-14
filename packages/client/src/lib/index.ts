@@ -107,6 +107,7 @@ export { timeLib } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export type { TrpcOpLogEntry } from "./trpc-devlog.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
+export { isSilencedTurnAbort, TURN_LOCKED_COPY, TURN_STALE_ABORT_COPY, turnAbortNotice, turnMutationToast } from "./turn-abort-notice.ts";
 export { useDebouncedValue } from "./use-debounced-value.ts";
 export { useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
 export { withViewTransition } from "./view-transition.ts";
