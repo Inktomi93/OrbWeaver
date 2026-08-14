@@ -319,7 +319,7 @@ export interface ChatRoute {
 }
 
 /** Set the routing.roleDefaults.chat pin over the API (patches the `routing` settings section). RESTORE the
- *  original in a finally — this is the shared single-user settings row (retro-workboard E2E-spend caveat). */
+ *  original in a finally — this is the shared single-user settings row, so cleanup is mandatory. */
 export function setChatRoute(route: ChatRoute): Promise<unknown> {
   return updateSettingsSection("routing", { roleDefaults: { chat: route } });
 }

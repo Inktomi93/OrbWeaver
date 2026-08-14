@@ -115,7 +115,7 @@ export function createAutosaveEntityForm<TValues extends object>(
    */
   function Session({ entityId, serverValues, save, readOnly, pendingSeed, discardRef, reseed, children }: SessionProps): ReactElement {
     // The identity of the server snapshot this epoch mounts over — the baseline a surviving draft must
-    // have been begun on to still outrank it (retro-workboard #11). Computed at mount and held stable for
+    // have been begun on to still outrank it. Computed at mount and held stable for
     // the epoch (a structural change to `serverValues` remounts via the boundary key or re-baselines the
     // clean echo below; either path recomputes). `undefined` server (a create/loading) → an ungated read.
     const baselineHash = serverValues === undefined ? undefined : hashServerBaseline(serverValues);
@@ -210,7 +210,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         // future stale-draft heal. The status fold below keeps it from ever reading "Saved" over an edit.
         return;
       }
-      // The oscillation backstop (§11 / retro-workboard #11): a store-values change that came from a
+      // The oscillation backstop (§11): a store-values change that came from a
       // REAL field edit clears the breaker's edit-free run; a submit that fires with no intervening edit
       // (a save→echo→re-submit loop) counts toward the trip. `values !== prevValues` is exactly "a values
       // change happened"; a values change the driver itself did NOT cause (the debounce fired, save

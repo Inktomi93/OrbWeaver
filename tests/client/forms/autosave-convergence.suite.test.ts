@@ -1,5 +1,5 @@
 // Cross-cutting PROPERTY suite (`.suite.test.ts` — exempt from the 1:1 test-layout mirror; it spans every
-// autosave form model): the CONVERGENCE property behind the localStorage-brick fix (retro-workboard #11).
+// autosave form model): the CONVERGENCE property behind the localStorage-brick fix.
 //
 // The brick's oscillation vector is a NON-IDEMPOTENT project/save/echo hop: if projecting a server row to
 // form values, mapping back to a save patch, applying it (the SERVER SHAPE — a zod parse with its `.catch`

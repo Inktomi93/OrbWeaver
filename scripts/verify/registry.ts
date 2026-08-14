@@ -189,7 +189,7 @@ export const REGISTRY: readonly StageDef[] = [
     tiers: STATIC,
     argv: ["pnpm", "check:tests-execution-membership"],
     // Our OWN 0/1/2/3-speaking tsx script (scripts/verify/tests-execution-membership.ts): types-membership's
-    // EXECUTION-lane sibling (#22, docs/retro-workboard.md) — reconciles every tests/** runner-suffixed file
+    // EXECUTION-lane sibling (GitHub issue #22) — reconciles every tests/** runner-suffixed file
     // against the union of vitest's `--list` view + both playwright configs' `--list` views, BOTH directions
     // (a file matched by no runner REDs; a runner view matching zero files REDs — the marinara silent-no-op
     // disease). Asks each runner its OWN --list, never re-parses glob strings (drift-proof).

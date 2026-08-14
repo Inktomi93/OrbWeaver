@@ -114,7 +114,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
   // adds two more type stages IN the types group: `types:tests-dom` (the DOM-coupled non-`.tsx` test home)
   // and `types:tests-membership` (the reconciliation guard that makes a silently-un-type-checked test file
   // structurally impossible). Both are whole-tree invariants → static/push/full. `tests:execution-membership`
-  // (#22, docs/retro-workboard.md) is its EXECUTION-lane sibling — same whole-tree-invariant shape, in the
+  // (GitHub issue #22) is its EXECUTION-lane sibling — same whole-tree-invariant shape, in the
   // `tests` group (it reconciles RUNNER coverage, not type-program coverage).
   const staticNames = stagesForTier("static").map((s) => s.name);
   expect(staticNames).toEqual([
