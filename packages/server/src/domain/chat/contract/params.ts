@@ -401,8 +401,12 @@ export interface ClearVariablesParams extends ChatScopedParams {}
 /** `delete` — deletes the chat (host-only; cascades messages/roster/invites/etc.). */
 export interface DeleteChatParams extends ChatScopedParams {}
 
-/** `reapTemporaryChats` — sweeps the caller's expired temporary chats. */
+/** `reapTemporaryChats` — sweeps the caller's expired temporary chats AND expired husks (R0 §4.6). */
 export interface ReapTemporaryChatsParams extends ChatActorParams {}
+
+/** `reapHusk` — the nav-away drop of ONE unclaimed room (R0 §4.6). Host-only; the server re-checks
+ *  `started_at IS NULL`, so this is a REQUEST to reap, never an assertion that the room is a husk. */
+export interface ReapHuskParams extends ChatScopedParams {}
 
 export interface UpdateTitleParams extends ChatScopedParams {
   readonly title: string | null;

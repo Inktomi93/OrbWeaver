@@ -786,7 +786,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
 
-    const roster = createRoster(makeChatContext(db), { emit: async (): Promise<void> => undefined });
+    const roster = createRoster(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
     await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: joiner, visibility: "from-join" });
 
     const after = await listMessages({ principal: principal(joiner), chatId });
@@ -805,7 +805,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
 
-    const roster = createRoster(makeChatContext(db), { emit: async (): Promise<void> => undefined });
+    const roster = createRoster(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
     await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: joiner, visibility: "full" });
 
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
@@ -1505,7 +1505,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const emit = async (): Promise<void> => undefined;
     // "Playing as Alex" — the REAL write `persona.setActivePersona` delegates to (verbs/roster.ts).
     await setParticipantActivePersona(db, emit, { chatId, targetUserId: me, personaId: newPersona });
-    const life = createChatLifecycle(ctx, { emit, activeTurns: createActiveTurns() });
+    const life = createChatLifecycle(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit, activeTurns: createActiveTurns() });
     return {
       me,
       chatId,

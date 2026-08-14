@@ -162,6 +162,7 @@ describe("bus golden — the canon-edit verbs (edit/delete/move) exact sequences
 
     const busEvents: ChatBusEvent[] = [];
     const edit = createEdit(chat.ctx, {
+      claimChat: (): Promise<void> => Promise.resolve(),
       emit: (e) => {
         busEvents.push(e);
         return Promise.resolve();
@@ -193,6 +194,7 @@ describe("bus golden — the canon-edit verbs (edit/delete/move) exact sequences
 
     const busEvents: ChatBusEvent[] = [];
     const edit = createEdit(chat.ctx, {
+      claimChat: (): Promise<void> => Promise.resolve(),
       emit: (e) => {
         busEvents.push(e);
         return Promise.resolve();
@@ -222,6 +224,7 @@ describe("bus golden — the canon-edit verbs (edit/delete/move) exact sequences
 
     const busEvents: ChatBusEvent[] = [];
     const edit = createEdit(chat.ctx, {
+      claimChat: (): Promise<void> => Promise.resolve(),
       emit: (e) => {
         busEvents.push(e);
         return Promise.resolve();

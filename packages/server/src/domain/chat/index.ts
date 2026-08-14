@@ -116,11 +116,14 @@ export { createPromptTransformRegistry, PROMPT_TRANSFORM_DEADLINE_MS } from "./s
 // The standalone (out-of-turn) variable write (automation-design/03 §1.1) — the injected `applyVariableOps`
 // op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
 export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";
+// The rpg-facing generic chat surface (rpg-design/02 §1.1) — wired into `RpgContext.chat` at the composition
+// root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
+// THE husk→real claim chokepoint (R0). Exported because the narrator op is built OUTSIDE
+// `createChatService` (it is an injected rpg op, not a routed verb) and needs the SAME one behavior.
+export { createClaimChat } from "./verbs/claim-chat.ts";
 // The imagery quiet-extraction shaper (imagery-design/02 §2) — imagery consumes it as an injected op at the
 // composition root; chat owns the history window + the {{char}}/{{user}} MacroContext.
 export { createExtractQuiet } from "./verbs/extract-quiet.ts";
-// The rpg-facing generic chat surface (rpg-design/02 §1.1) — wired into `RpgContext.chat` at the composition
-// root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
 export { createGetMembership } from "./verbs/get-membership.ts";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";
 export { createPostNarratorMessage } from "./verbs/post-narrator-message.ts";

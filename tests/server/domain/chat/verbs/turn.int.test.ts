@@ -43,6 +43,7 @@ import {
   loadSlotTarget,
   loadTurnOrigin,
 } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
 import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -222,6 +223,9 @@ function harness(
     engine,
     activeTurns,
     emit,
+    // The REAL claim chokepoint (R0) — a turn claims its room in production, so the turn suite drives the
+    // real one. Every chat these tests seed is born CLAIMED, so it is a no-op and nothing here shifts.
+    claimChat: createClaimChat(ctx),
     prng: over.prng ?? seededPrng(),
     delay: () => Promise.resolve(),
     resolveConnection: () => Promise.resolve(over.connection ?? testConnection(over.connectionSource ?? "vllm")),

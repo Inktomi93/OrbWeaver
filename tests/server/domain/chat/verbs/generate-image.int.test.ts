@@ -16,7 +16,7 @@ import { createGenerateImage } from "../../../../../packages/server/src/domain/c
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { makeChatContext, noClaim, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -51,7 +51,7 @@ describe("generateImage", () => {
         });
       },
     });
-    const { generateImage } = createGenerateImage(ctx, { emit });
+    const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
     const view = await generateImage({
       principal: principal(host),
@@ -93,7 +93,7 @@ describe("generateImage", () => {
           warnings: [{ code: "image_edit_dropped", detail: "img-model lacks image-edit; generated without the avatar reference" }],
         }),
     });
-    const { generateImage } = createGenerateImage(ctx, { emit });
+    const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
     await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
 
@@ -115,7 +115,7 @@ describe("generateImage", () => {
         return Promise.resolve({ images: [], warnings: [] });
       },
     });
-    const { generateImage } = createGenerateImage(ctx, { emit });
+    const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
     await expect(generateImage({ principal: principal(outsider), chatId, mode: "free", prompt: "x" })).rejects.toThrow();
     expect(called).toBe(false);

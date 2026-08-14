@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "aa15a51c-da4d-4ac5-82f8-ece34ff9c92f",
+  "id": "8bf7c85e-ea32-4db5-89f7-da247a0badfc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1651,6 +1651,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "pending_host_user_id": {
           "name": "pending_host_user_id",
