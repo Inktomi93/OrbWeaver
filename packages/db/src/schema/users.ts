@@ -20,7 +20,7 @@ import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "./_shared.ts";
+import { checkList } from "#kit";
 
 // The default global role for a freshly-provisioned user (owner/admin are granted explicitly — D17).
 const DEFAULT_ROLE = "user";
