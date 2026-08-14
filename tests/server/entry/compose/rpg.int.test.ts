@@ -23,6 +23,8 @@ import type { ChatApi, ModelCapability } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
+import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
+import { STRUCTURED_OUTPUT_VEHICLES } from "@orb/contracts/role-clients";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
 import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { StructuredOutputShape } from "@orb/contracts/settings";
@@ -196,6 +198,9 @@ interface ExtractionSpy {
   /** The `strict` flag each `responseFormat` carried (undefined = unset ⇒ the BACKEND's own default). The
    *  strict-shape half the schema alone can't show — D126's admin knob sets both, or neither. */
   readonly strictFlags: (boolean | undefined)[];
+  /** The `vehicle` each `responseFormat` carried (task #36). `undefined` is the LOAD-BEARING value here — see
+   *  the "#36 vehicle knob" pin below: the rail asking for no vehicle is what keeps it on the forced tool. */
+  readonly vehicles: (StructuredOutputVehicle | undefined)[];
   /** The system prompts the impl sent — so a test can assert the R1 ref enumeration (the fallback arm). */
   readonly systemPrompts: string[];
   /** The user prompts the impl sent — so a §1.3 test can assert the RECENT STORY block (window arm) + the
@@ -229,6 +234,7 @@ function recordChatTurn(spy: ExtractionSpy, req: Parameters<NonNullable<Paramete
   if (req.responseFormat !== undefined) {
     spy.schemas.push(req.responseFormat.schema);
     spy.strictFlags.push(req.responseFormat.strict);
+    spy.vehicles.push(req.responseFormat.vehicle);
   }
   if ("tools" in req && Array.isArray(req.tools)) {
     spy.wireTools.push(req.tools as { name: string; description: string; parameters: Record<string, unknown> }[]);
@@ -307,6 +313,7 @@ function buildCannedRpgWithText(args: {
         spy.summarizeModels.push(req.model);
         spy.schemas.push(req.responseFormat.schema);
         spy.strictFlags.push(req.responseFormat.strict);
+        spy.vehicles.push(req.responseFormat.vehicle);
         spy.systemPrompts.push(req.inputs[0]?.systemPrompt ?? "");
         spy.userPrompts.push(req.inputs[0]?.userPrompt ?? "");
         spy.signals.push(req.signal);
@@ -368,6 +375,7 @@ const emptySpy = (): ExtractionSpy => ({
   wireTools: [],
   schemas: [],
   strictFlags: [],
+  vehicles: [],
   systemPrompts: [],
   userPrompts: [],
   signals: [],
@@ -769,6 +777,66 @@ test("D126 (switched): the admin knob's strict-compatible arm reaches scrubWireS
   // boundary) — the reshape is a wire concern, not a semantics change.
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the obsidian tower");
+});
+
+// ── #36 VEHICLE KNOB: rpg-lite is protected BY CONSTRUCTION, and this is the pin that keeps it that way ──
+// The owner's 2026-08-09 ruling on the structured-output vehicle knob (`auto` / `response-format` /
+// `forced-tool`) requires the rpg suites to stay green at ALL THREE values. They are — but the reason is
+// STRUCTURAL, not incidental, and it is worth stating because it is the thing a future wiring can break:
+//
+//   the deployment knob has exactly ONE reader — `entry/compose/role-clients.ts`'s `resolveVehicle`, on the
+//   `summarize`→`structured` facade. The rpg extraction rail does not go through that facade: it mints its
+//   own `ResponseFormat` (`EXTRACTION_RESPONSE_FORMATS`, the D126 SHAPE knob and nothing else) and hands it
+//   straight to `executor.structured` / `executor.runChatTurn`. So the rail asks for NO vehicle, and
+//   `backends/openrouter`'s `vehicleOf` maps an unstamped format to the FORCED TOOL — the 2026-08-02 shape,
+//   byte-for-byte. No value of the deployment knob can reach this request.
+//
+// Parameterizing this test over the three values would therefore be a tautology (the knob is not a dep of
+// `buildRpg` — there is nothing to set). The honest pin is the PREMISE the backend fence rests on: the rail
+// emits no vehicle. It goes red the moment anyone stamps one, on either arm, which is exactly the regression
+// that would silently move rpg onto an enforcing hosted grammar. The other half of the chain — "no vehicle
+// asked for ⇒ forced tool" — is pinned at
+// `tests/server/infra/providers/backends/openrouter/index.test.ts` ("the extraction rail's fence").
+test("#36 (vehicle knob): the rpg extraction rail asks for NO vehicle on either arm — the forced-tool fence's premise", async ({ app, db }) => {
+  // ARM 1 — the agent-sdk chat path (`executor.runChatTurn`), the per-turn extraction.
+  const chatSpy = emptySpy();
+  const { chatId, hostId } = await seedHostGameChat(db, "vehicle-chat");
+  const chatCompose = buildCannedRpg(app, db, "agent-sdk", chatSpy);
+  await chatCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await chatCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
+  await chatCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
+
+  expect(chatSpy.schemas.length).toBeGreaterThan(0); // the round actually fired — an empty spy proves nothing
+  expect(chatSpy.vehicles).toEqual([undefined]);
+
+  // ARM 2 — the `structured` dispatcher (a non-agent-sdk wire), reached through the host POPULATE door.
+  const structuredSpy = emptySpy();
+  const populate = await seedHostGameChat(db, "vehicle-structured");
+  const characterId = await seedCharacter(db, populate.hostId, "mara", { id: mintTypeId(ID_PREFIX.character) });
+  await seedParticipant(db, { chatId: populate.chatId, key: "vehicle_char", characterId, joinSeq: 1 });
+  await seedMessage(db, populate.chatId, 1, { role: "assistant", content: "You meet Mara at the ford." });
+  const structuredCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: structuredSpy,
+    cannedText: JSON.stringify(CANNED_POPULATE),
+  });
+  await structuredCompose.service.createGame({ principal: hostPrincipal(populate.hostId), chatId: populate.chatId, mode: "lite" });
+  await structuredCompose.service.populateFromCharacter({
+    principal: hostPrincipal(populate.hostId),
+    chatId: populate.chatId,
+    actorRef: { kind: "character", characterId },
+  });
+
+  expect(structuredSpy.summarizeModels).toEqual(["fake-chat-model"]); // the structured dispatcher is the arm that fired
+  expect(structuredSpy.vehicles).toEqual([undefined]);
+
+  // Stated against the UNION rather than the three literals: if a fourth vehicle is ever minted, the claim
+  // this test makes ("no member of it reaches the rail") is still the claim being checked.
+  const asked = [...chatSpy.vehicles, ...structuredSpy.vehicles];
+  expect(asked.filter((v) => v !== undefined && (STRUCTURED_OUTPUT_VEHICLES as readonly string[]).includes(v))).toEqual([]);
 });
 
 // ── F1: the state round rides the NARRATION turn's connection + consent verdict, never a re-resolve ──────

@@ -6,7 +6,16 @@
 //   STATS    — the accounting an author needs to reason about a schema's size before spending a call.
 // Advisories NEVER block. Nothing here can refuse anything: the return value is data the editor paints.
 //
-// THE RULING FORK, STATED (orchestrator's to reconcile). `docs/design/refinery-schema-renderer.md` §1's
+// THE RULING FORK — RECONCILED 2026-08-14 (task #36 follow-up). It was raised as "orchestrator's to
+// reconcile" and it has been: the ADVISORY posture below is RATIFIED, and the fork is closed. A #36 brief
+// asked for these to become hard REFUSALS at the transpile layer, at ≤24 optionals / ≤16 unions. Both halves
+// lost. Posture: a refusal would reverse §1's "providers own their wire" ruling AND task #40's
+// bounds→description relay, neither of which is this file's to overturn. Numbers: 46 and 8 are MEASURED and
+// carry the receipts cited under SOURCE-PINNED below, while 24/16 were written from probe-era notes and cite
+// nothing — measured beats remembered. The paragraph that follows is the original statement of the fork,
+// kept because it is the argument that won.
+//
+// `docs/design/refinery-schema-renderer.md` §1's
 // last table row rules the OG's `validate.ts` ACCIDENTAL — "Client-side re-implementation of provider
 // schema law … dies to `liftJsonSchema`/`scrubWireSchema`/`runStructuredTurn`" (port study §2 E3: "the
 // extension's validator polices ANTHROPIC limits client-side because it had no server; orb's providers own
