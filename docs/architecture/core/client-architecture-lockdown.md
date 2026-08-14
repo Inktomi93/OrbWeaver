@@ -401,6 +401,34 @@ Already correct and gated; recorded because "state/ is a god-store" and "editor-
 - **`use-viewer.ts` is THE canonical "who am I"** — composes three already-cached reads (sessions.me + settings + persona list) via `useSuspenseQueries` so every caller dedupes on the shared cache. A scattered `trpc.sessions.me` read for identity is the wrong move (the settings host's plain role read is the sanctioned exception class: a non-suspense probe that must never block its shell).
 - **The rest:** `invalidation.ts` (§13.5) · `query-boundary.tsx` + `query-error-state.tsx` (§11) · `bus/` (§13) · `skeleton-rows.tsx` (shape-matched loading rows) · `use-gated-query.ts` (`skipToken` — kills `castId("")`).
 
+### 10a. The three-class data contract + the durable-local contract (D138, landed W10 2026-08-14)
+
+Every piece of client state is exactly one of three classes — the blunt "cross-feature → trpc" rule in
+§12 is this contract's corollary, not a separate rule:
+
+- **Server truth** lives ONLY in the query cache; freshness rides the buses (§13) + the mutation XOR +
+  the gap-heals. Never persisted — a query-cache persister would be a second durable staleness layer, and
+  is banned (`staleness-and-session-freshness.md` §4.6).
+- **Client-ephemeral** state dies with the tab; needs no invalidation. Home: §12 row 1 (`state/*`).
+- **Durable-local** state is device-scoped VIEW/DRAFT state and MUST satisfy the durable-local contract:
+  1. **Per-user namespacing.** Every persisted key is `orb:u/<userId>/<name>` (drafts
+     `orb-draft:u/<userId>/<name>`); `state/create-persisted-store.ts` mints against a boot pointer
+     (`orb:active-user`) and `bindDurableLocalToUser(userId)` rebinds once the viewer resolves, adopting
+     any legacy un-namespaced blob into the first bound user then deleting it. A genuine identity CHANGE
+     keeps the existing hard-reload boundary.
+  2. **Referential integrity for any server row id a persisted field carries** — two pure-render rules
+     (no effects; `no-effect-on-shared-selection` stays intact): an id unknown to its authority read is
+     EXCLUDED from filtering (a dead reference can never veto rows), and an ACTIVE entry always renders
+     its chip (named when resolvable, else an explicit "deleted" chip, clearable either way) — no
+     auto-prune, no write-on-render.
+  3. **Total migrate** (pre-existing law) stays; identity/referential validity are 1 and 2's job, not a
+     smarter migrate.
+
+Enforcer: `persistence-boundary` (raw-storage-outside-the-doors belt, §9) plus `state-files`/
+`persist-partialize-and-total-migrate`. Design of record + the as-built deltas (why store rebind reads a
+boot pointer rather than minting fresh, why legacy adoption goes through each store's own persist
+storage): `docs/design/staleness-and-session-freshness.md` §4.2, §5a.
+
 ## 11. The error-handling battery + the three-states law
 
 The stack, outermost-in (all verified):
@@ -417,12 +445,13 @@ The stack, outermost-in (all verified):
 
 The blunt rule "cross-feature reads → trpc" is WRONG for client-ephemeral state (there is no row to fetch). This matrix is the law; each row carries a live cite and its enforcer. **The critical clarification: a `trpc.*` read is CACHE-FIRST** — TanStack Query dedupes and caches per key, so reading another feature's server entity (a persona's name while the persona list is loaded) is a cache hit, not a network round-trip; `staleTime: Infinity` + the bus means it refetches only on invalidation. The anti-pattern is ONLY using trpc for ephemeral client state (or a store for server rows).
 
-**REFRESHED 2026-08-03 (F-6).** The table below is the CURRENT decision table — eleven rows, one per
-mechanism that actually exists on the tree, each with its home, its enforcer, and the ONE question that
-selects it. It supersedes the four-mechanism version this section shipped with, which predated region
-claims (D119), the settings-section seam (D120), home tiles, slash commands, the two tool-renderer seams,
-the door-injected `trpcProxy` factory, the door-threaded render-prop projection, `peekQueryData`, and the
-cross-feature filter store. Every named symbol was re-verified against the tree on the day it landed.
+**REFRESHED 2026-08-03 (F-6); row 12 added 2026-08-14 (W10).** The table below is the CURRENT decision
+table — twelve rows, one per mechanism that actually exists on the tree, each with its home, its
+enforcer, and the ONE question that selects it. It supersedes the four-mechanism version this section
+shipped with, which predated region claims (D119), the settings-section seam (D120), home tiles, slash
+commands, the two tool-renderer seams, the door-injected `trpcProxy` factory, the door-threaded
+render-prop projection, `peekQueryData`, the cross-feature filter store, and the session channel. Every
+named symbol was re-verified against the tree on the day it landed.
 
 | # | Channel | Home / receipt | Enforced by | When it is THE choice |
 | - | - | - | - | - |
@@ -439,6 +468,7 @@ cross-feature filter store. Every named symbol was re-verified against the tree 
 | 9 | editor-bridge | `forms/create-form-handle-bridge.ts` | INTRA-feature only, by its own header | a feature's own CONTENT ↔ its own CONTEXT inspector. **Plainly: not an inter-feature channel** — across features the analog is row 4 |
 | 10 | type-only cross-feature imports | `@orb/contracts` shapes + the `client-features-no-cross` type-only arm | that rule's `dependencyTypesNot: ["type-only"]` | a SHAPE wired at the composition root |
 | 11 | agent-bridge OBSERVER | `lib/agent-bridge.ts` + the `agent-nav`/`agent-seed` composition-tier impls (§3) | header law + `client-composition-tier-door-only` | tooling observation/drive, never product code |
+| 12 | session channel — typed cross-tab BroadcastChannel + Web Locks single-flight | `lib/session-channel.ts` (tier-4, imports nothing above `#lib`); consumed by `data/stale-session.ts` (recovery single-flight) + the auth feature's logout flow | `session-channel-boundary` (LIVE — `new BroadcastChannel` outside this module is RED, plus the §4.6-blindness ARM B tripwire) | SESSION LIFECYCLE coordination across tabs/devices (`signed-out`/`session-recovering`/`session-recovered`) or a `durable-local-written {storeName}` rehydrate poke. **NEVER a server-truth payload** — that is row 8's job (§13) |
 
 Two rows that are NOT on this table because they are not channels: **cross-SECTION navigation** is row 1
 (`setActiveSection` + a seed such as `startNewChat({characterIds})` / `selectCharacter` — §4.2 physics rule
@@ -500,6 +530,7 @@ Plus `presence-registry.ts`: presence = a ref-count per userId over open SSE con
 4. **Producer coverage is ratcheted.** Every declared event type has a real server emit site or a cited DEFERRED entry, both directions (stale entries RED). Enforcers: `bus-coverage` + `user-bus-coverage` (LIVE); G11 requires the belt for any NEW bus.
 5. **One client-side event→cache router.** `data/invalidation.ts` is the ONE seam for EVERY client-consumed bus (verified 2026-08-03: `BUS_FILTERS` + `USER_BUS_FILTERS` + `RPG_BUS_FILTERS` + the derived gap-heal set in one file; `no-inline-invalidate-outside-seam` gates every other `.invalidateQueries`; `bus-onData-no-store-write` keeps `onData` from becoming a second store). A new bus's client half MUST land in this same file — G11 checks it.
 6. **Presence is server-derived only.** A client-asserted presence write is banned — review; no client API exists to misuse today.
+7. **Server truth never rides BroadcastChannel (D138).** The session channel (§12 row 12) carries SESSION LIFECYCLE + durable-local rehydration pokes only; a data payload on it would fork the ONE invalidation router (rule 5) into a second, unversioned path. Enforcer: `session-channel-boundary`.
 
 **The unification (`defineBusChannel` — the transport half, built M9):** `chat-events-bus.ts`, `user-events-bus.ts`, `notifications-bus.ts` hand-rolled identical machinery three times — module-scope `EventEmitter` + `setMaxListeners(0)` + `channelFor(key)` + `on(emitter, channel, {signal})` + the untyped-args unwrap generator. ONE `defineBusChannel<Key extends string | number, Event>(channelFor: (key: Key) => string, opts?: { firehose: true })` (home `server/src/transport/trpc/bus-channel.ts`) — a per-bus key→channel-string mapper plus an optional firehose opt-in (the `{firehose:true}` overload returns the `FirehoseBusChannel` with `subscribeAll`) — returns `{ publish(key, event), subscribe(key, signal), subscribeAll? }`; durability stays PER-BUS POLICY composed in front of `publish` (chat: the awaited INSERT; user: nothing; notifications: the inbox record op) — the tiers are deliberate and stay; only the plumbing unifies. **Buddy stays as-is — adoption DEFERRED by owner ruling (O4, tracked in §18):** the primitive covers chat + user + notifications now; buddy's `@orb/kit/replay-buffer` emitter (D10) adopts later, in its own decision. **⚠ Truth-repaired 2026-08-03 (with D121): this O4 clause is DESIGN of record, not live — `domain/buddy` was purged 2026-07-25; O4's deferred item has no live subject.** G10 then seals: `new EventEmitter()` under `transport/` outside the primitive's home is RED (buddy's bus is domain-minted, not a transport `EventEmitter`, so it passes as-is — the automation bus rides `defineBusChannel`, so it is unaffected by this rule either way).
 
