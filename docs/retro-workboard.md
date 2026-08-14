@@ -97,6 +97,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-13 | **USAGE RE-RULE — bigger chunks, cheaper fan-out. The orchestrator is NOT throttled.** Real shape (owner): TWO Max accounts, primary resets Thu 23:00 and the second Sat 05:00 — the gap to close is a DAY-ISH, not 3×. Cause is **"five opus plus orchestrator at full tilt"**, i.e. TIER on the fan-out, not the orchestrator working. Ruled: (1) **lane = one AREA, 4-8 items, one brief, one commit** — the agent's cold area read is the expensive part and per-ticket lanes re-pay it every ticket; (2) **MODEL TIER is the lever** — cheapest role that can plausibly succeed, escalate on failure; every ad-hoc agent / fan-out sets `model` EXPLICITLY (unset inherits the main tier = accidental Opus lanes); (3) **warm `SendMessage` legs over fresh spawns** for a second task in a live agent's area. **OVERRULED same day:** an orchestrator "diet" (cap 3, waves, go-quiet, no source reads) — owner: *"I'd rather the orchestrator properly runs and works itself normally… don't footgun us and I fully intend to still do all day things."* Cap stays FIVE, fill the lanes. The only surviving load rule is the independent \~3 GATE-HEAVY-lanes flake ceiling. |
 | 08-13 | **AGENT-SDK×vLLM RESIDUE — STRIP (owner-flagged).** The skin was retired by the 2026-07-27 ruling (`buildClaudeVllmEnv` deleted · `translate.ts:70` refuses `case "vllm"` · `deriveRunner` throws at `dispatch.ts:37-46`); what survived is vLLM-side scaffolding built FOR it. **Agent-sdk itself STAYS** (max-pro-sub + the OR-Anthropic skin). Scope + the do-not-touch list in the LANE-READY row. Key hazard: the flags are mostly still LIVE, only the RATIONALE died — a strip driven by comments alone breaks rpg tool calling. |
 | 08-13 | **SICK-WINDOW POSTURE** (norovirus; owner unavailable): static-verifiable work only · no fleet ops · no pushes · no DB wipe / re-import / baseline-squash · cap 3 in waves. Lifts on his word. Recorded in LIVE STATE. |
+| 08-14 | **`maxTurns` BANNED on EVERY agent (owner, overnight, verbatim "hell no")** — reverted same night (`579f28161`) after the agents-revamp lane added it (80/40/25) and the pre-existing scout 45 / Explore 30 were stripped too. WHY: the dispatch model is bigger chunks per agent FOR caching + wider dispatch; a turn cap decapitates long area-lanes and a killed lane re-pays its cold read. Runaway protection = the orchestrator watching lanes (TaskStop), never a per-agent ceiling. agent-authoring skill §5 carries the ban. The rest of the revamp (permissionMode / memory / mcpServers scoping) STANDS. |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -163,9 +164,13 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 - **Gates land on a FIXED tree**; allowlists are permanent deliberate exemptions, never debt parking.
 - **Overnight full-auto:** work the queue via the escalation ladder, no blocking questions. Block
   only for: destructive/irreversible · owner-sacred (persona pin) · origin pushes · scope pivots.
-- Board commits are `-c core.hooksPath=/dev/null` + `node scripts/docs/format-md.ts --write` first
-  (path corrected 08-13 — the recorded `scripts/check/format-md.ts` is MODULE\_NOT\_FOUND)
-  (owner word); code merges keep the discipline above. D-numbers allocate at DISPATCH when two live
+- **DOC-ONLY commits are `--no-verify`** (owner re-affirmed 08-14) + `node scripts/docs/format-md.ts --write` first (path corrected 08-13 — `scripts/check/format-md.ts` is MODULE\_NOT\_FOUND). **Gate
+  economics (lefthook.yml read IN FULL 08-14):** `pre-commit` AND `pre-merge-commit` each run the whole
+  \~150s static tier; `pre-push` runs the full battery (static + tests:node + CT + e2e-smoke + cpd +
+  parity). So: merge a DRAINING TRAIN `--no-verify` on branch-side green receipts and gate ONCE at the
+  train's end — never pay the static tier twice for one tree state. `scripts/verify/registry.ts` /
+  `pnpm verify --list` is the tier authority; anything else is folklore (lefthook's own words). Code
+  merges otherwise keep the discipline above. D-numbers allocate at DISPATCH when two live
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
@@ -398,8 +403,9 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   - **LANE A (the owner-named starter): AGENTS REVAMP** — `mech-executor`, area = `.claude/agents/*` +
     `~/.claude/agents/*` (9 files). Invoke the `agent-authoring` skill FIRST; it is the spec. Per file:
     add `permissionMode` (`acceptEdits` for executor/mech/forge; security-executor stays default;
-    read-only roles scout/Explore/verifier/side-eye/stickler need none) · `maxTurns` runaway guards
-    (generous: 80 exec-class, 40 review-class, 25 scout-class) · `memory: project` on stickler +
+    read-only roles scout/Explore/verifier/side-eye/stickler need none) · ~~maxTurns~~ **(EXECUTED with
+    maxTurns, then owner OVERRULED same night — BANNED fleet-wide, reverted `579f28161`; see ledger)** ·
+    `memory: project` on stickler +
     verifier · scope `mcpServers: ["authentik"]` to security-executor and REMOVE the global
     `enabledMcpjsonServers` grant (coupled site: `.claude/settings.local.json`) · keep every existing
     `model`/`effort` pin EXACTLY as-is · no role gains `Agent`. Done = all 9 files + a table receipt.
