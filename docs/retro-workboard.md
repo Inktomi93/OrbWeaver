@@ -422,6 +422,13 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   token removed) and `DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS` = **1024** (also the prompt reserve via
   token-guard). Raising either = value-changing change, owes the BATTERY. rpg extraction sends NO cap
   (engine-window bounded) — already maximal. Morning decision: new values + the battery run.
+- [ ] **density-tier ratchet over-budget by 2, stale arm half-blind (T3 find, gate-semantics change so
+  fenced out):** baseline sums 226 vs live-admitted 224; its A5 arm only reds files at ZERO live findings,
+  never fewer-than-budgeted — finding-overload-provenance has the correct `actual < budget` arm (52/52
+  exact). Small lane: port that arm + regen baseline (GATE-AUTHORING §4.4a mode A).
+- [ ] **Low-scan gates, human eye when convenient (denominators visible for the first time):**
+  bus-payload-allowlist 5 files · modal-body-not-placeholder 7 · selection-store-via-factory 9 ·
+  turn-identity 10 — presumably intended-narrow; no invented threshold added, just now readable.
 - [ ] **Residue-lane smalls:** move the `genRepetitionPenalty` editor row out of the restart-gated
   Engines section to sit beside its now-hot twin in admin-system-tuning (client + CT) · tighten
   `no-test-fabrication.baseline.json` for chat.test.ts 2→1 (gate-ledger edit, do at a quiet moment).
@@ -439,8 +446,13 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
      \--json meta; zero-scan zeroes become LOUD; CLI/stdout byte-compatible).
   2. Concurrent-CT execution races — **IGNORED per owner word** ("haven't taught Codex worktrees yet" —
      our lanes are worktree-isolated; their agents share the main checkout's reports/ + cache).
-  3. Per-gate scan health + ratchet debt in structure reports — already rowed from the synthesis
-     (GA-H-01/02); **priority-bumped, next harness slot** (T3).
+  3. Per-gate scan health — **DONE, merged** (`abd3f2fac`): every gate line + reports/check-structure.json
+     carry candidates/scanned/visited/skipped; scanned=0 at real-tree scope = EXIT-2 tool error ("the
+     checker is BLIND, not clean"); ratchet debt printed (admitted-by-ratchet per gate + the summary
+     line). ctx.scan() is a context METHOD — all 200 gates compiled untouched. **Codex verify:**
+     `pnpm check:structure` (read the new per-gate lines + the 276-admitted summary) +
+     `pnpm vitest run tests/tooling/check-gates.int.test.ts` (committed tripwires: every gate states a
+     denominator, zero blind gates, both ratchets name counts).
   4. Newline/line-count alignment — the one byte that was OURS is DONE (`f18314e1d`, gen jinja trailing
      newline; 331→331 agree). Their receipt-counting convention is their tooling.
   5. export-rot dry-run abort — **REFUSED BY LEDGER LAW, correctly** (T2 lane receipt): the disposition
