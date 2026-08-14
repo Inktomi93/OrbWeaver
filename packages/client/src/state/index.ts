@@ -74,6 +74,7 @@ export {
   subscribeTurnSlot,
   subscribeUserMessageCommitted,
   useSwipeTargetMessageId,
+  useTurnCommittedMessageId,
   useTurnPhase,
   useTurnSlot,
   useTurnSpeakerCharacterId,

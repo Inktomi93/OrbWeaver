@@ -4,7 +4,7 @@
 // on the pure mock harness in auth-routes.test.ts. Determinism: the throttle window is pinned via `now`.
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import type { SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
 import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator } from "@orb/server/entry/http";
@@ -19,6 +19,14 @@ const THIRTY_DAYS_MS = 2_592_000_000;
 const COOKIE = "__Host-orb_session";
 const CSRF = "x-orb-csrf";
 const LOGIN = "/api/auth/login";
+// The route's own fixed-window size (`LOGIN_WINDOW_MS`, module-private there) — mirrored so the rollover arm
+// below can step the injected clock past a window boundary deterministically.
+const LOGIN_WINDOW_MS = 60_000;
+/** B1 — a deliberately TIGHT per-IP cap for the handle-axis arms (see that describe's header). */
+const IP_CAP = 2;
+/** IP_CAP × the route's `LOGIN_HANDLE_LIMIT_MULTIPLIER` — the handle cap sits ABOVE the per-IP one. */
+const HANDLE_CAP = IP_CAP * 3;
+const VICTIM_HANDLE = castId<Handle>("victim");
 /** The session row a logout ends — the id `revokeByToken` reports so the route can evict its sockets. */
 const REVOKED_SESSION_ID = castId<SessionId>("sess_logout");
 // Distinct fake TCP peers so per-IP throttle buckets don't collide across tests (each test keys its own IP).
@@ -129,6 +137,80 @@ describe("login throttle — 10/min/IP (brute-force + scrypt-flood cap)", () => 
     const res = await postLogin(app, ip, { handle: "owner", password: "hunter2pw" });
     expect(res.status).toBe(429);
     expect(res.headers.get("set-cookie")).toBeNull();
+  });
+});
+
+describe("login throttle — the HANDLE axis (B1: the distributed brute force the per-IP cap cannot see)", () => {
+  // A TIGHT per-IP cap is what makes these arms unambiguous: every attempt below comes from a peer that has
+  // spent at most 1 of its 2 points, so an IP-axis 429 is structurally impossible here and any 429 can only
+  // be the handle axis. (The 429 body/headers are identical on both axes on purpose — which belt fired is an
+  // operator signal, never a hint that tells an attacker whether to rotate IPs or handles.)
+  /** A real password check: only `hunter2pw` authenticates, so a burst is genuinely failed logins. */
+  const passwordAuth: LocalAuthenticator = (_handle, password: string): Promise<UserId | null> =>
+    Promise.resolve(password === "hunter2pw" ? castId<UserId>("usr_owner") : null);
+
+  /** Exhaust one handle's budget from ROTATING peers — the shape a botnet produces and the per-IP cap cannot
+   *  see. Sequential: the fixed-window increment is racy under parallel calls. */
+  async function burstFromRotatingIps(app: Hono, handle: Handle, octetBase: number): Promise<void> {
+    for (let i = 0; i < HANDLE_CAP; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: the throttle counts SEQUENTIAL attempts — parallel calls would race the fixed-window increment.
+      const res = await postLogin(app, `192.0.2.${octetBase + i}`, { handle, password: "wrong" });
+      expect(res.status).toBe(401);
+    }
+  }
+
+  test("one handle, N fresh IPs → the next attempt is 429 with Retry-After (no IP is anywhere near its cap)", async () => {
+    const app = await appWith({ authenticate: passwordAuth, resolveLoginLimit: (): number => IP_CAP });
+    await burstFromRotatingIps(app, VICTIM_HANDLE, 10);
+
+    const throttled = await postLogin(app, "192.0.2.100", { handle: VICTIM_HANDLE, password: "wrong" });
+    expect(throttled.status).toBe(429);
+    expect(throttled.headers.get("retry-after")).not.toBeNull();
+  });
+
+  test("the handle key is the one `authenticate` looks the row up with — padding does not mint a fresh bucket", async () => {
+    const app = await appWith({ authenticate: passwordAuth, resolveLoginLimit: (): number => IP_CAP });
+    await burstFromRotatingIps(app, VICTIM_HANDLE, 20);
+
+    // `sessions.authenticate` trims before `eq(users.handle, …)`, so the throttle must trim too — otherwise a
+    // brute-forcer dodges the whole axis with a space.
+    const padded = await postLogin(app, "192.0.2.101", { handle: `  ${VICTIM_HANDLE} `, password: "wrong" });
+    expect(padded.status).toBe(429);
+  });
+
+  test("the axes are INDEPENDENT — a different handle is untouched mid-throttle, and the IP axis never fired", async () => {
+    const app = await appWith({ authenticate: passwordAuth, resolveLoginLimit: (): number => IP_CAP });
+    await burstFromRotatingIps(app, VICTIM_HANDLE, 30);
+    expect((await postLogin(app, "192.0.2.102", { handle: VICTIM_HANDLE, password: "wrong" })).status).toBe(429);
+
+    // Another account from a fresh peer: the handle axis is per-account, so this proceeds to a normal 401.
+    expect((await postLogin(app, "192.0.2.103", { handle: "bystander", password: "wrong" })).status).toBe(401);
+    // …and a peer from the burst (1 of its 2 points spent) still proceeds — the IP axis is provably not what
+    // fired above, and one account's throttle never spills onto the neighbours behind the same NAT.
+    expect((await postLogin(app, "192.0.2.30", { handle: "bystander", password: "wrong" })).status).toBe(401);
+  });
+
+  test("the handle throttle fires BEFORE credential verification — a lucky guess can't slip through", async () => {
+    const app = await appWith({ authenticate: passwordAuth, resolveLoginLimit: (): number => IP_CAP });
+    await burstFromRotatingIps(app, VICTIM_HANDLE, 40);
+
+    const correct = await postLogin(app, "192.0.2.104", { handle: VICTIM_HANDLE, password: "hunter2pw" });
+    expect(correct.status).toBe(429);
+    expect(correct.headers.get("set-cookie")).toBeNull();
+  });
+
+  test("ROLLING WINDOW, never a lockout — the real user is in on the next window with their own password", async () => {
+    let clock = NOW;
+    const app = await appWith({ authenticate: passwordAuth, resolveLoginLimit: (): number => IP_CAP, now: (): number => clock });
+    await burstFromRotatingIps(app, VICTIM_HANDLE, 50);
+    expect((await postLogin(app, "192.0.2.105", { handle: VICTIM_HANDLE, password: "hunter2pw" })).status).toBe(429);
+
+    // The whole anti-DoS point: an attacker hammering someone's handle SLOWS them for one window, it never
+    // locks the account — no persisted state, the next window is clean.
+    clock = NOW + LOGIN_WINDOW_MS;
+    const after = await postLogin(app, "192.0.2.106", { handle: VICTIM_HANDLE, password: "hunter2pw" });
+    expect(after.status).toBe(200);
+    expect(after.headers.get("set-cookie") ?? "").toContain(`${COOKIE}=tok-123`);
   });
 });
 

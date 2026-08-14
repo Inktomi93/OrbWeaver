@@ -35,6 +35,7 @@ import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
+import { HIDDEN_TAGS } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -248,6 +249,29 @@ function callerHistoryFloorSql(): SQL<number> {
     then max(${chatParticipants.joinSeq}, 0) else 0 end`;
 }
 
+/** The MEMBER arm of the search's message predicate (§3.6, the D106 member-plane clamp in SQL). A hidden-class
+ *  span (`<lie …/>`, `<ofilter …/>`) NEVER reaches a non-host member's payload — `stripHiddenSpans` removes it
+ *  from every view and `projectBodyForPreview` from every scent line — so a LIKE over the raw body made the
+ *  search the one read that could confirm those bytes: the member types the GM's truth and the room comes back,
+ *  which is the whole answer regardless of what the stripped preview then shows (result PRESENCE is the oracle,
+ *  and `totalCount` says it again).
+ *
+ *  So for a NON-HOST caller the body arm is withheld entirely on a tail that carries ANY hidden tag. SQL cannot
+ *  strip a span (no regex in SQLite, and the strip is a real tokenizer — `tokenizeForHiddenScan`), so matching
+ *  the visible half would mean matching the raw bytes; the honest SQL-expressible verdict is fail-CLOSED. The
+ *  cost is FEWER results on exactly the rooms that run the deception grammar, never a leak — and it lands the
+ *  member's search back on the 2026-08-01 ruling's own words ("the snippet the row shows"), because the snippet
+ *  a member is shown is the stripped one.
+ *
+ *  DERIVED FROM THE REGISTRY, not a hardcoded pair: `HIDDEN_TAGS` is the open hidden-channel registry (graft
+ *  #V2 — a third tag is a row there), so a new hidden class joins this guard with no edit here. The `%<tag%`
+ *  shape deliberately over-matches (a literal `<lied` in prose suppresses the arm too): over-suppression costs
+ *  a search result, under-suppression costs the secret. An empty registry ⇒ `and()` is undefined ⇒ members get
+ *  no body arm at all, which is the right way for this to fail. */
+function memberHiddenBodyGuard(): SQL | undefined {
+  return or(eq(chatParticipants.role, "host"), and(...HIDDEN_TAGS.map((def) => sql`lower(${messageVariants.content}) not like ${`%<${def.tag}%`}`)));
+}
+
 /** The library-list SEARCH predicate (owner ruling 2026-08-09 — "I'm fine with a server-side message
  *  thing"), matching the 2026-08-01 semantics: the chat TITLE, a participant NAME, or the newest message's
  *  body — the snippet the row already shows, not full-transcript search.
@@ -255,7 +279,8 @@ function callerHistoryFloorSql(): SQL<number> {
  *  TWO DEVIATIONS, both deliberate and both visible to the user as MORE results rather than fewer:
  *  • The message arm matches the newest message's RAW body, while the rendered `lastMessagePreview` is that
  *    body run through `projectBodyForPreview` (hidden-class + structured spans dropped, flattened, ~120
- *    chars). So a hit can land on a room whose visible snippet does not contain the term.
+ *    chars). So a hit can land on a room whose visible snippet does not contain the term. HIDDEN-CLASS bytes
+ *    are the one exception, and they are gated the other way — see {@link memberHiddenBodyGuard}.
  *  • The name arm matches CHARACTER seats only. Human display names live in the identity publics table, and
  *    THE HEADER LAW OF THIS FILE reserves `users` for the verb layer — resolving a human's name here would
  *    be exactly the roster-name resolution that law keeps out. Character seats are joined the way
@@ -288,6 +313,7 @@ function searchPredicate(db: Db, needle: string): SQL | undefined {
               .from(messages)
               .where(eq(messages.chatId, chats.id))})`,
             gte(messages.seq, callerHistoryFloorSql()),
+            memberHiddenBodyGuard(),
             sql`lower(${messageVariants.content}) like ${like}`,
           ),
         ),

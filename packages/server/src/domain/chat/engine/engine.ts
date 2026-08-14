@@ -10,7 +10,8 @@
 // (`TurnPrep.slotAccepted`, set by every verb that emits `turnAccepted`), in which case the refusal ALSO emits
 // `turnAborted` to close it (`closePreStartRefusal`): the engine is the only party that knows `turnStarted`
 // never fired, and an accepted-but-unresolved slot is a stuck Stop button. A turn nobody accepted (the
-// `opening` turn, `forceCharacterTurn`) keeps the historical bus-silent refusal, byte-identically.
+// founding `opening` turn — every other turn-starting verb accepts) keeps the historical bus-silent refusal,
+// byte-identically.
 //
 // The chat bus emit, the per-member budget debit, and the per-turn host policy are not ChatContext ops —
 // they're injected as engine deps wired at the entry composition root.

@@ -15,7 +15,7 @@
 import type { SeatKnobs } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, ChatParticipantId } from "@orb/kit/ids";
 import { createEntityMutation } from "#data";
-import { isSilencedTurnAbort } from "../lib/turn-abort-notice.ts";
+import { turnMutationToast } from "#lib";
 
 /** `chat.addCharacterToChat` vars — add one host-owned character to the roster (J7 add-member, host-only). */
 interface AddCharacterToChatVars {
@@ -73,5 +73,5 @@ export const useForceCharacterTurn = createEntityMutation<ForceCharacterTurnVars
   options: (trpc) => trpc.chat.forceCharacterTurn.mutationOptions(),
   // Bus-driven: summoning a member runs a turn (turnCompleted → chatReads) on the OPEN chat.
   busDriven: true,
-  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't summon that member to speak."),
+  errorToast: (error) => turnMutationToast(error, "Couldn't summon that member to speak."),
 });

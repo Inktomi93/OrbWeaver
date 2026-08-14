@@ -10,14 +10,14 @@ import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { characters, chatParticipants, chats } from "@orb/db";
+import { characters, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { getToolRecurseLimit } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
@@ -25,7 +25,7 @@ import { createRoster, setParticipantActivePersona } from "../../../../../packag
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, noClaim, seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -55,7 +55,11 @@ function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
-const card = (name: string): CharacterCard => ({ name, avatarAssetId: null }) as unknown as CharacterCard;
+/** `greetings` is a REQUIRED array on the real card (`characterCardSchema`) and `addCharacterToChat` reads
+ *  `greetings[0]` for the F6 in-window join greeting — a double that omits it is a lying double, so the
+ *  default is the honest "card with no greetings" (`[]`), never absent. */
+const card = (name: string, greetings: readonly string[] = []): CharacterCard =>
+  ({ name, avatarAssetId: null, greetings: greetings.map((text) => ({ text })) }) as unknown as CharacterCard;
 
 /** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
  *  only for its OWNER, `null` for a non-owner. The handoff cast-drop resolver (D64 / F4) calls this per seated
@@ -576,6 +580,108 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.characterId, characterId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.talkativeness).toBe(0.9);
+  });
+});
+
+// F6 (chat-creation-draft-mode-replacement.md §4.8/§5): a character added while the GREETING WINDOW is still
+// open greets, preserving the affordance the deleted draft plane had (a panel-added member's greeting row
+// appeared before the first send). After the window closes it is today's silent join, byte-identically. The
+// window predicate is the one `setSeededGreeting` refuses on — "no user-role canon row".
+describe("add character to chat — the F6 in-window join greeting", () => {
+  /** The canon slots, oldest-first, as `[seq, role, content]`. */
+  async function canonOf(chatId: ChatId): Promise<[number, string, string | null][]> {
+    const rows = await db
+      .select({ seq: messages.seq, role: messages.role, content: messageVariants.content })
+      .from(messages)
+      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+      .where(eq(messages.chatId, chatId))
+      .orderBy(asc(messages.seq));
+    return rows.map((r) => [r.seq, r.role, r.content]);
+  }
+
+  test("WINDOW OPEN: the added character's card greeting lands at the canon head + fans messageCommitted", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const brann = await seedCharacter(db, host, "brann");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 0 });
+    // The founding greeting — an assistant row, so the window is still OPEN (no USER row).
+    await seedMessage(db, chatId, 1, { role: "assistant", characterId: aria, content: "Aria's opener" });
+    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])) }), { emit, claimChat: noClaim });
+
+    await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
+
+    expect(await canonOf(chatId)).toEqual([
+      [1, "assistant", "Aria's opener"],
+      [2, "assistant", "Brann strides in."],
+    ]);
+    // The room learns about the row the same way it learns about any other commit.
+    expect(emitted.map((e) => e.type)).toEqual(["chatUpdated", "messageCommitted"]);
+    expect(emitted[1]).toMatchObject({
+      type: "messageCommitted",
+      chatId,
+      view: { seq: 2, role: "assistant", characterId: brann, content: "Brann strides in." },
+    });
+  });
+
+  test("FROZEN (a user row exists): the join stays SILENT — today's no-greet late-add semantics", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const brann = await seedCharacter(db, host, "brann");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hello" });
+    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])) }), { emit, claimChat: noClaim });
+
+    await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
+
+    expect(await canonOf(chatId)).toEqual([[1, "user", "hello"]]);
+    expect(emitted.map((e) => e.type)).toEqual(["chatUpdated"]);
+  });
+
+  test("a card with NO greeting seeds nothing, even in the window", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const brann = await seedCharacter(db, host, "brann");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann")) }), { emit, claimChat: noClaim });
+
+    await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
+
+    expect(await canonOf(chatId)).toEqual([]);
+    expect(emitted.map((e) => e.type)).toEqual(["chatUpdated"]);
+  });
+
+  test("a re-add greets ONCE — the idempotent present-seat return never re-seeds", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const brann = await seedCharacter(db, host, "brann");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])) }), { emit, claimChat: noClaim });
+
+    await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
+    await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
+
+    expect(await canonOf(chatId)).toEqual([[1, "assistant", "Brann strides in."]]);
+  });
+
+  test("the seeded greeting pushes its OWN canonMessageDelta (the claim replay already ran — this row is post-claim)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const brann = await seedCharacter(db, host, "brann");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const deltas: { ownerId: UserId; characterId: CharacterId | null; assistantTurns: number }[] = [];
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])),
+      applyStatsDelta: (_stmts, _db, delta): void => {
+        deltas.push({ ownerId: delta.ownerId, characterId: delta.characterId, assistantTurns: delta.assistantTurns ?? 0 });
+      },
+    });
+    const roster = createRoster(ctx, { emit, claimChat: noClaim });
+
+    await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
+
+    expect(deltas).toEqual([{ ownerId: host, characterId: brann, assistantTurns: 1 }]);
   });
 });
 

@@ -474,6 +474,38 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
     expect((await listChats({ principal: principal(clamped), search: "sealed", limit: 50 })).items.map((c) => c.id)).toEqual([chatId]);
   });
 
+  test("`search` cannot find a HIDDEN-class span's text — result PRESENCE is the oracle, not the preview", async () => {
+    const host = await seedUser(db, castId<Handle>("gm"));
+    const member = await seedUser(db, castId<Handle>("player"));
+    const chatId = await seedChat(db, "deception", { title: "The Vault" });
+    await seedParticipant(db, { chatId, key: "dc_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "dc_m", userId: member, role: "member" });
+    // The §3.6 deception grammar: the truth rides a hidden-class span the member's payload never carries
+    // (`stripHiddenSpans`) and the row's scent line never shows (`projectBodyForPreview` drops it for every
+    // viewer). The member is NOT floored — the D16 arm cannot save this one.
+    await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      content: 'The vault door is sealed. <lie character="Kai" truth="the reliquary is already empty"/>',
+    });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const found = async (userId: UserId, q: string): Promise<readonly ChatId[]> =>
+      (await listChats({ principal: principal(userId), search: q, limit: 50 })).items.map((c) => c.id);
+
+    // The host reads canon verbatim (the reveal-eye plane) — their own search finds their own lie.
+    expect(await found(host, "reliquary is already empty")).toEqual([chatId]);
+    // THE LEAK: a member who GUESSES the phrase learns it is in the newest message purely because the row
+    // comes back. A stripped preview does not save it — the result's presence IS the answer.
+    expect(await found(member, "reliquary is already empty")).toEqual([]);
+    // …and the census is the same oracle one level down: a page of zero rows over `totalCount: 1` still says yes.
+    expect((await listChats({ principal: principal(member), search: "reliquary is already empty", limit: 50 })).totalCount).toBe(0);
+    // THE DELIBERATE NARROWING (pinned, not incidental): for a non-host the whole BODY arm is withheld on a
+    // tail that carries any hidden tag — SQL cannot strip a span, so matching the visible half would have to
+    // match the raw bytes. Fewer results, never a leak. The other two arms are untouched.
+    expect(await found(member, "door is sealed")).toEqual([]);
+    expect(await found(member, "vault")).toEqual([chatId]); // the TITLE arm still finds their own room
+  });
+
   test("the filters COMPOSE — search inside a character projection stays membership-scoped", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const stranger = await seedUser(db, castId<Handle>("stranger"));
