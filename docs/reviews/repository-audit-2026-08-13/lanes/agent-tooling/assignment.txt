@@ -1,0 +1,44 @@
+# Claude, Codex, agent, hook, and local instruction tooling
+# Snapshot: 41e18afe74afa570b67a3e670a1a38863c486a00
+# Owned: 31 files, 6061 lines, 429738 bytes
+# kind	lines	bytes	sha256	path
+OWNED	119	8084	4cb17ba1066be3722657a47b7f5885c4704423defad1cc0dec3de7177101d1c1	.agents/skills/agent-authoring/SKILL.md
+OWNED	398	31999	61c4a76e954b9ff75d3320fff37dee20f9763c2f541e30c830eb64b864a133b5	.agents/skills/side-eye-design-review/SKILL.md
+OWNED	478	41332	54d304c7b246119ea2baec92e3a5ff86bc3deac64e10f24bb932d1fb1943097c	.claude/agent-doctrine.md
+OWNED	51	7391	735e4a7e2b26d72b63be755e236553c6334ff05c4e5509d3af400bd0d17500e2	.claude/agents/executor.md
+OWNED	35	8061	e1de7eed3504872abc2ce55a8defe3e2430a9721e8a38dd3d8a5f5a85f4192d6	.claude/agents/forge.md
+OWNED	19	2019	7a40dab22b53e16592eaa40b272dbf9b01670041023e170aa846bbd5769d58d7	.claude/agents/mech-executor.md
+OWNED	31	3031	ef2a1f2c7adabfa8285f38b51896a287db9d46c5e2a843323d0cf418f7e4ceac	.claude/agents/security-executor.md
+OWNED	320	27533	22ea74aa3f3ba1183be02d4e30aefa35ecfba1b418cac388f44d85d5e0cdf907	.claude/agents/side-eye.md
+OWNED	79	13826	f1ebb3666db7c8807601b9d3882ea576c0062d8371f23edec9dfb6d057be0797	.claude/agents/stickler.md
+OWNED	41	3897	351bc7fc830abb67fb171d3bddcf1717aa014b7ecc3d3d24738524848eb847f0	.claude/agents/verifier.md
+OWNED	0	0	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	.claude/apisurface-client-unused.txt
+OWNED	907	62975	c449bd6df7af388db3b1d18f7b75dee825cd8c88cb99994631f6670e6057a30c	.claude/apisurface-client.txt
+OWNED	0	0	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	.claude/apisurface-contracts-unused.txt
+OWNED	1	104	68302b49736af24f16c35ab929990a1452578e199ce85809a5e61390a5bb7836	.claude/apisurface-db-unused.txt
+OWNED	17	2665	d1da0182086b91e7d5b66185184afba779d8f523b5b0d67a2f9ad59d6f2671ca	.claude/apisurface-db.txt
+OWNED	0	0	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	.claude/apisurface-kit-unused.txt
+OWNED	32	2013	9fed6928e10b434b7011d94ee21c5fc288f28ad6a4dc5c43787ddb752a5a11f2	.claude/apisurface-kit.txt
+OWNED	78	4344	b3773234e6fa88c96628a1ccd52de1b608a30ff0e990759c4e61116b8cfddcf7	.claude/apisurface-run1.txt
+OWNED	0	0	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	.claude/apisurface-server-unused.txt
+OWNED	1221	76687	2a264f6b087a9c036a884bc41979346b6068aeeced98d93e017d6a29161ebb1e	.claude/apisurface-server.txt
+OWNED	0	0	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	.claude/apisurface-ui-unused.txt
+OWNED	227	12373	7105fbb7788a1b8934687843c1b9b4c5c3ddab678b502e565d391750af04e5d0	.claude/apisurface-ui.txt
+OWNED	147	8174	30ab8045ef00e902d5837a78c726d2ec99a27cad039aa4923dbeeb542baea5af	.claude/hooks/biome-check.sh
+OWNED	983	55750	07e20db1fb2bde2ef95c835ab87e4d35ca9e1c7410a2af32bf7e7b32b01b026b	.claude/hooks/tool-guard.mjs
+OWNED	47	2038	9fe8293e1957346d52fecd8491ddaccf5dd339ff0e0a98c71ddd5bd16b456d43	.claude/hooks/worktree-remove.sh
+OWNED	60	2982	ea785f0acb77604e4feeae8f83006d776ba4bbf3263a05f5891c0f27713f9fce	.claude/hooks/worktree-setup.sh
+OWNED	19	502	f13dac43b4770a9d586851a3adc2f3cd7adb16cca289179d63fbde10aab8070b	.claude/launch.json
+OWNED	97	7757	7fed77f35c66a01e64e70d1e11f6db582caef6dd10a7014aa313ee2ca48c5f1d	.claude/rules/orchestration.md
+OWNED	131	3653	6429ebcb696577004beb10aec022fb6800703d6faa8fc0e4f065be54f21e69fd	.claude/settings.json
+OWNED	125	8549	881d7a456ae7ef93219fcbd75878f1cb7ccdbd9fccb496c4883f45531f6109e5	.claude/skills/agent-authoring/SKILL.md
+OWNED	398	31999	61c4a76e954b9ff75d3320fff37dee20f9763c2f541e30c830eb64b864a133b5	.claude/skills/side-eye-design-review/SKILL.md
+SHARED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+SHARED	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	docs/Mission.md
+SHARED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+SHARED	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	docs/architecture/core/Spine-TypeScript-and-Patterns.md
+SHARED	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	docs/architecture/core/Spine-Testing.md
+SHARED	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	scripts/codemods/ast.ts
+SHARED	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	docs/reviews/repository-audit-2026-08-13/README.md
+SHARED	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	docs/reviews/repository-audit-2026-08-13/RUBRIC.md
+SHARED	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md

@@ -1,0 +1,43 @@
+# Server boot entry and mirrored tests
+# Snapshot: e777c47e5860a105c114e061dcf98bcab1baa952
+# Owned: 30 files, 2306 lines, 285802 bytes
+# kind	lines	bytes	sha256	path
+OWNED	0	0	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	packages/server/src/entry/boot/.gitkeep
+OWNED	24	1504	34d059f3cc549734917c54f25741288b2a6218f69f770ac45c316e8ec6d0136a	packages/server/src/entry/boot/index.ts
+OWNED	79	4373	2ee5aa740540bf6b09859669714e40a2e73e22b0b936a909f09e96e8f765a372	packages/server/src/entry/boot/migrate.ts
+OWNED	33	1547	04b1053365d30bd3829d3558a2b6e35f47cd2fda1fd737fad50e02bb79c22c03	packages/server/src/entry/boot/reclaim-locks.ts
+OWNED	65	71508	1605a473c6003793bcdb8e61ac7bddd5c2b32db83a52fae20a81c3ff0161f28d	packages/server/src/entry/boot/seed-assets/demo-chats/ashen-spire.jsonl
+OWNED	18	19366	e7a74bfd5eb9119ccfafb050830ee99f22172367ab20f4f816aeaba487de11b9	packages/server/src/entry/boot/seed-assets/demo-chats/birdie-rust.jsonl
+OWNED	20	25068	a966b00c84ec4b5e9452464225507dfc987c859b976be036ceb7424edf65e7da	packages/server/src/entry/boot/seed-assets/demo-chats/elias-marginalia.jsonl
+OWNED	16	17849	15071df878ce2a72a30e5bff941814a242f0a3f21d46a3d706c0bcd9848e7823	packages/server/src/entry/boot/seed-assets/demo-chats/hana-bench.jsonl
+OWNED	17	22431	bf6fa486371130c75367973f6a58fd2d5aa76c43db7e7e10b68ce2138e0f1cd6	packages/server/src/entry/boot/seed-assets/demo-chats/midnight-run.jsonl
+OWNED	17	17585	26a341093bc5d946f4c47d55fb067c535aa36c7403bdd547f51c990c8bc1b5cb	packages/server/src/entry/boot/seed-assets/demo-chats/second-opinion.jsonl
+OWNED	52	2348	67c2ca0a21b609f01d3095174be387d745bb9c53ec3e96860f18911d8275b57b	packages/server/src/entry/boot/seed-assets/index.ts
+OWNED	52	3087	035a3062fba36018e0a7f66c53aa64037d6edddbd066bd59d2653493d382b6f1	packages/server/src/entry/boot/seed-cas-schedules.ts
+OWNED	43	2151	15a0c3ba25cfb827c02a6149b23c95541c64056c97cde6003ecef90e012d02a6	packages/server/src/entry/boot/seed-credential.ts
+OWNED	17	828	8254e249b08c2dae6b0fa05007b72e989bbbe9fb6597ef9b78ed89631533eb56	packages/server/src/entry/boot/seed-default-characters.ts
+OWNED	15	615	47cbf6b97a31b89728061e8278c29e1520da536691ddb9ba5388b938e86f4d4c	packages/server/src/entry/boot/seed-default-persona-step.ts
+OWNED	112	6686	e836c14b81e522d7b35d2e90a991c9f9ce59c08eb164044b4dd0040368aa201b	packages/server/src/entry/boot/seed-default-persona.ts
+OWNED	14	534	c8ef2550cf506fc8c13645dc03cda8b6b70ddf71837e0ee48b3689babbd059a5	packages/server/src/entry/boot/seed-default-preset.ts
+OWNED	21	1097	b4ecffa9fd8ede965e6e11fb5b5f9d39ed3e7c5f3726e1a3285d73f941dbdfd2	packages/server/src/entry/boot/seed-demo-chats.ts
+OWNED	145	8737	a8457d96f3d3ddd2967edad02e20997e07f61b3979924ad490e2860710be2a7f	packages/server/src/entry/boot/seed-owner.ts
+OWNED	12	394	a766fd8a06fa65957376a4d66aa6ee4a04b669244aa07cc224280bdbd7232104	packages/server/src/entry/boot/seed-themes.ts
+OWNED	125	7362	b596e14cfd76c8b2eef4d3418e59d167bdde374f5f602402e051916beb755cab	tests/server/entry/boot/migrate.int.test.ts
+OWNED	82	3816	b4b8b6cbfc89d3309fb27447ded29d6f644ca5684d0a119db42a4cad32de5bc1	tests/server/entry/boot/reclaim-locks.int.test.ts
+OWNED	191	9221	44d2ebed7a230e63b9577a89eb247d8256b950e6d328a96b23039d913918067e	tests/server/entry/boot/seed-avatars.suite.int.test.ts
+OWNED	111	4753	7407b49a78d85dcbaaec2304914edbaf557cda81314ebbf1f3e76ed77c06dd21	tests/server/entry/boot/seed-cas-schedules.test.ts
+OWNED	94	3299	a8d9ef07dd1e15c808139d1cfc0178137d141bc5f52eeb2df2cb8543ff179c02	tests/server/entry/boot/seed-credential.test.ts
+OWNED	32	1206	9231ec7ef641f4afe7ccd3e8661441b605ad9cce1b618aa963308078b3451136	tests/server/entry/boot/seed-default-characters.test.ts
+OWNED	223	10525	0237fbfb8d28b1401d4f3e1625711812311b6e05964cb96302eec5a111fb3c6e	tests/server/entry/boot/seed-default-persona.int.test.ts
+OWNED	40	1973	88156e74a90fe040d2c28e952073518e4672232a73b09291d3811b5a708ad933	tests/server/entry/boot/seed-default-preset.int.test.ts
+OWNED	321	20937	1f34deb419e14b5c94fc6bbb12edce6db078123d99caff4e7aa0aaa02299c53a	tests/server/entry/boot/seed-demo-chats.int.test.ts
+OWNED	315	15002	362a02d4234c35b89d3f9511bd128448a73c8f158eba3f8cbf6e90626bc2028f	tests/server/entry/boot/seed-owner.int.test.ts
+SHARED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+SHARED	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	docs/Mission.md
+SHARED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+SHARED	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	docs/architecture/core/Spine-TypeScript-and-Patterns.md
+SHARED	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	docs/architecture/core/Spine-Testing.md
+SHARED	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	scripts/codemods/ast.ts
+SHARED	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	docs/reviews/repository-audit-2026-08-13/README.md
+SHARED	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	docs/reviews/repository-audit-2026-08-13/RUBRIC.md
+SHARED	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md

@@ -1,0 +1,9 @@
+kind	lines	bytes	sha256	path
+OWNED	434	55547	5c6e7dbe5f9984a631fc1726d7b96ba4f42abb04248987f8a7e1ba7be8a743e1	docs/architecture/core/UI-Architecture-and-Layout.md
+OWNED	314	24383	38f400dd07683fa646bebd1ee7670b34eaede55c12497cb477c503c75a769403	docs/architecture/core/UI-Gates-and-Lessons.md
+OWNED	203	26952	0f5df04b79ffdaf313da08058a2341c487869dd5fb278b2824eaca92dc324409	docs/architecture/core/UI-Primitives-and-Reuse.md
+OWNED	121	22353	62d0b1239e1f4f5057dbf4369cc9fb352e6d90e1cd808d0f63786fe0cd4dc31d	docs/architecture/core/UI-Theming-and-Content.md
+OWNED	279	22127	e35035e131c1e95cecfcd4be81745ea9e9e8e328bf5218d1490befed3b582377	docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md
+OWNED	676	120617	80204bccf3f5e4052f6e6abc6a984d42c3cb0e03202e1b623c71ef4298674181	docs/architecture/core/client-architecture-lockdown.md
+OWNED	397	24802	f43b45872c46bc0093dd20d998aac3a25a613e0d5c61ae2fed0005221716d16e	docs/architecture/core/motion-and-animation-guide.md
+OWNED	523	52275	43c4807c213a4c0f48e19b11e03cbbecac663d6fade0f027299b3b2ed02aff90	docs/architecture/core/ui-package-design.md

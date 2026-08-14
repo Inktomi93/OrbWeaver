@@ -1,0 +1,30 @@
+# Core law, enforcement, status, and architecture documents
+# Snapshot: 41e18afe74afa570b67a3e670a1a38863c486a00
+# Owned: 17 files, 2817 lines, 594666 bytes
+# kind	lines	bytes	sha256	path
+OWNED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+OWNED	144	10915	d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252	docs/architecture/core/Chat-Macro-Resolution.md
+OWNED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+OWNED	336	70328	5ba5a586b3441098d5ef547d3055c4a4bd99b016dd4b6d78d250c11823674699	docs/architecture/core/Core-Audits-and-Debt.md
+OWNED	63	3788	585224830eb26a60d3a22365d612a3f003bb3f3b7cc46818e3299765781701f0	docs/architecture/core/Core-Docs-Formatting-Law.md
+OWNED	334	138664	aed54335dd4845a431d47fcda7d0fe11c853033b7c5c9300908dec1c096f8596	docs/architecture/core/Core-Enforcement-Active-Gates.md
+OWNED	70	9056	ef3a13f00d7f6b925ab4c3becd90f6f8d8550090472cc75a3f8aecf0a8ab8ca2	docs/architecture/core/Core-Enforcement-Deferred-Dropped.md
+OWNED	68	14113	8c4964ccaed241a6bee95d6ec0f9251ed0d7f8029dc335625d938eab837a07e2	docs/architecture/core/Core-Laws-and-Precedents.md
+OWNED	13	1054	e01f593b3e552b05d725fd4e15b2082e3d1190f555e64cbf8506f27774afda15	docs/architecture/core/Core-Legacy-Migration-and-Gaps.md
+OWNED	516	228033	d3579b99d12d3f010ffbc126b788f51dbc5136b57a2c29cc404bcbf73dd204ed	docs/architecture/core/Core-Path-Registry.md
+OWNED	67	4299	ca76c1f2bb8d44ca3a95c3ad267e6ae1dfd6e6e31736874f91420d8a86ec67cc	docs/architecture/core/Core-Planning-and-Checklists.md
+OWNED	152	20032	7fc6b5d4aad8b49fb28a3686614e8d334c201d10bdfed90e74ab3ae002a0b836	docs/architecture/core/Core-ST-Feature-Gap-Register.md
+OWNED	36	2613	f69763702bfde1d4a3b0882f94a85180ea08e6459563c711788b6372458a0d6f	docs/architecture/core/Core-STATUS.md
+OWNED	34	3495	02cd1379fe114f3aa087a2ad831e9a7515c909c80cb18f252e12e983a1a0cdfb	docs/architecture/core/Core-Shared-Dissolution.md
+OWNED	114	11107	48f47f52c2a07c935a6cdf9a89cf74ed5c3e074256b90a2274db675f4033a2ca	docs/architecture/core/Core-SillyTavern-Feature-Map.md
+OWNED	207	23615	a32a87a85ffe033b972dc612f66bb2cab3be4f1b668acd14ef7f575b2e84ad18	docs/architecture/core/Documentation-Law.md
+OWNED	63	4427	19bde53d8b552cdd3963a2b431655604367345e2c975a38b02a8977ee6839605	docs/architecture/core/Knowledge-Cluster.md
+SHARED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+SHARED	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	docs/Mission.md
+SHARED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+SHARED	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	docs/architecture/core/Spine-TypeScript-and-Patterns.md
+SHARED	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	docs/architecture/core/Spine-Testing.md
+SHARED	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	scripts/codemods/ast.ts
+SHARED	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	docs/reviews/repository-audit-2026-08-13/README.md
+SHARED	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	docs/reviews/repository-audit-2026-08-13/RUBRIC.md
+SHARED	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md

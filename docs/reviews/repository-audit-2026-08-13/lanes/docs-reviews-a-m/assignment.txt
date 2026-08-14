@@ -1,0 +1,27 @@
+# Historical reviews A through M
+# Snapshot: 41e18afe74afa570b67a3e670a1a38863c486a00
+# Owned: 14 files, 3845 lines, 334387 bytes
+# kind	lines	bytes	sha256	path
+OWNED	233	17901	90824878da1beeb1813698e2b886cc46f8d28c6a6ea3cd0f261c2b5e1a2fdf4f	docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md
+OWNED	54	4426	5b784134c66c75492fbef9cf95f41e4cd8c7e7bc9551d732006d82dfddcf73bd	docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md
+OWNED	388	40543	8c9771827d3c9d45d3d5e96a8b82ae3f2e040f18f6259a942c725fdf63a54cdd	docs/reviews/misc/2026-08-03-archive-rescue-audit.md
+OWNED	261	26539	a13cbc126a14be0bafb27b64f27c4c33ea51f2b04ec65a1cfadb9c716a8069ea	docs/reviews/misc/2026-08-03-export-rot-dispositions.md
+OWNED	77	6013	792859b20707c9fdae6b8b5a68f13ebe9955d5f805f7024a44da0e5f64c3e8e4	docs/reviews/misc/2026-08-03-registry-map.md
+OWNED	566	41114	4f844a4f1d70ee2881297e8ae527706a9d79ff44deb69a4f159b64d962105851	docs/reviews/misc/2026-08-08-import-fidelity-audit.md
+OWNED	340	28153	d5eb1cd87ebe6f36e066f988a607be43e274a57706b05a659eb7e0b5cfaaa6ca	docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md
+OWNED	687	75848	c6cf176ead74dedcaca53bbf6cd24a646204acf9939f6e8fd33d0a4b9a41493a	docs/reviews/misc/2026-08-09-api-surface-classification.md
+OWNED	76	4970	77161df9294ad0bd617006068b9c6db6a83af29426c0672f32ca446dc550f2af	docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md
+OWNED	139	11059	2aa461eda365c42fd800779e5ae75a1456cae8c056c8de1d325dffabb30daad8	docs/reviews/misc/2026-08-09-package-report-cards-worklist.md
+OWNED	183	15649	069fa9451b9dad9afeec069aa17ae5f9b77598de0859b7068165057027491d9b	docs/reviews/misc/2026-08-09-refinery-live-e2e.md
+OWNED	196	13416	623c79023abebcc93dc703318cc1d559facef9c5683f5e99578c0c0ebf377896	docs/reviews/misc/2026-08-14-global-agents-proposed.md
+OWNED	262	21018	a5fc7978b119f97fff3d6a379a253976cd1df79612d6d8f6cdc462525b7aa88a	docs/reviews/misc/marinara-engine-parser-macro-audit.md
+OWNED	383	27738	d81fd7d6360e97a10eca40ecbed375b0a12f4817bd403628573c2f7654e60310	docs/reviews/misc/marinara-st-extension-lite-mode.md
+SHARED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+SHARED	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	docs/Mission.md
+SHARED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+SHARED	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	docs/architecture/core/Spine-TypeScript-and-Patterns.md
+SHARED	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	docs/architecture/core/Spine-Testing.md
+SHARED	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	scripts/codemods/ast.ts
+SHARED	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	docs/reviews/repository-audit-2026-08-13/README.md
+SHARED	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	docs/reviews/repository-audit-2026-08-13/RUBRIC.md
+SHARED	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md

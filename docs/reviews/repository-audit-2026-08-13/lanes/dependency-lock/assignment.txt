@@ -1,0 +1,14 @@
+# Dependency lockfile
+# Snapshot: 41e18afe74afa570b67a3e670a1a38863c486a00
+# Owned: 1 files, 14341 lines, 486132 bytes
+# kind	lines	bytes	sha256	path
+OWNED	14341	486132	561939039fe1be2908269d5407e5185fbd9e5943febfd6ae9d06d5a0f61a7036	pnpm-lock.yaml
+SHARED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+SHARED	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	docs/Mission.md
+SHARED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+SHARED	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	docs/architecture/core/Spine-TypeScript-and-Patterns.md
+SHARED	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	docs/architecture/core/Spine-Testing.md
+SHARED	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	scripts/codemods/ast.ts
+SHARED	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	docs/reviews/repository-audit-2026-08-13/README.md
+SHARED	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	docs/reviews/repository-audit-2026-08-13/RUBRIC.md
+SHARED	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md

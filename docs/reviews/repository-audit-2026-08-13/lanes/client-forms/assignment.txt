@@ -1,0 +1,56 @@
+# Client form framework and mirrored tests
+# Snapshot: 41e18afe74afa570b67a3e670a1a38863c486a00
+# Owned: 43 files, 3544 lines, 184092 bytes
+# kind	lines	bytes	sha256	path
+OWNED	76	4016	bc9c346f7cf9d0258dbba9d89c130f7dddd9c41e8f7c79e828847ba7a4ae2969	packages/client/src/forms/autosave-status.tsx
+OWNED	84	3831	eccdf1ab721eecfa7089f172dddb4e3e89d32afb09f11049de1b1f409eaa94cb	packages/client/src/forms/bound-fields/avatar-upload-field.tsx
+OWNED	60	2759	6e1ef5a991b85ec09b6569e84f513227bfd1d86ba637bf02a2576cb422fb89b2	packages/client/src/forms/bound-fields/color-field.tsx
+OWNED	35	1342	a5c08de96e17a81a4ab8d09b0a9264e5f2a00416a470f8210fcb43ef35e0792f	packages/client/src/forms/bound-fields/field-error.ts
+OWNED	53	2194	d8e9c9a3eeaec94101fe633ad326f9e7db958a2ae452d660519ea5007f02c0a3	packages/client/src/forms/bound-fields/form-chrome.tsx
+OWNED	73	3765	497ec491c3325047b5816041dd999953aaa76eac884f66eb8087fff0486b6cdc	packages/client/src/forms/bound-fields/macro-field.tsx
+OWNED	52	2383	b0b4cca7448c1d1c3c0d435c0d6160d74b85fa35c64c8586182e31516b09caa9	packages/client/src/forms/bound-fields/multi-toggle-field.tsx
+OWNED	47	2118	62ec47aef8c1319581a87d8f71bf9e89d367eff7c157ab51f8525f828ed9a6ce	packages/client/src/forms/bound-fields/number-field.tsx
+OWNED	43	1571	5e0586bd4ef933f728be775650ab588b434d1cbb4962054287b1311eac30da35	packages/client/src/forms/bound-fields/select-field.tsx
+OWNED	39	1428	dddd3245c6053782f28f7e7cd408a074091338c10a9c2740000fce3a4006a461	packages/client/src/forms/bound-fields/slider-field.tsx
+OWNED	32	1140	0545360314ad580cddd5b3fe46a3e045c86519fe010454b2e99c5806b14439a9	packages/client/src/forms/bound-fields/switch-field.tsx
+OWNED	43	1857	6fad54f367ff136757ba87c1b5515f0fe28185b923df3be874b84f355288a94a	packages/client/src/forms/bound-fields/text-field.tsx
+OWNED	35	1181	bbba99edbf7d14ca98dc075e7e2a5b4e795ddcbb36d25de84cd7337de8870c42	packages/client/src/forms/bound-fields/textarea-field.tsx
+OWNED	64	3170	9072d605e58bda84026ac5e6d6151bc095c0201dcefd54668d9e089e798f29c1	packages/client/src/forms/bound-fields/use-bound-field.ts
+OWNED	24	1787	abce11086bcf4ae93b2a40111c6a55b8f529f9edf9b2617a7f4e9b4f1a3d41d6	packages/client/src/forms/capped-field-model.ts
+OWNED	39	2282	ab22ef6c1704c057bba0d437db7167b32fb39b8442d00a526b4e6c75a8b10d16	packages/client/src/forms/capped-field.tsx
+OWNED	8	529	d5fcaf6bc8fcfc732e3b76cab6fe4d3c3a0dc4f3fba47199a894b2920fe2d744	packages/client/src/forms/contexts.ts
+OWNED	410	26546	9bd5c7b0c4519894c66b6f3d952e41735f05f61aed94fd1cfbe3a4e0744f0a7f	packages/client/src/forms/create-autosave-entity-form.tsx
+OWNED	56	2232	5c9f6e56904459fb39de09a212c4d63a3c0d078784eabed2e145b41ab036ad8c	packages/client/src/forms/create-form-handle-bridge.ts
+OWNED	158	8494	e6806ae1cb572442b02c1c117b5d8c78ce67c9578669442628186453403928a7	packages/client/src/forms/create-saved-entity-form.ts
+OWNED	91	4825	85fda48a254b94590eab0d94b88f4079b5935f2fdcf4e49c6f7d90ca8d3b5b71	packages/client/src/forms/entity-form-base.ts
+OWNED	38	2571	f3b9875e98c162b781c86b2d20a46e660f04ffcb2258e33fa3c4aee308e88ab9	packages/client/src/forms/index.ts
+OWNED	64	3206	b97310de46d2e2f636adb291aca2843150c4a595d084120db6d499d08ac36207	packages/client/src/forms/save-circuit-breaker.ts
+OWNED	33	1919	fb99435e370954e0dc933e6a1de9044df3208377b13d24470a8cf5223867c5c1	packages/client/src/forms/save-status-seam.ts
+OWNED	47	2984	e23c5d9601d0fa71cd8022785b6e739dc2c1dfa4afa1f738b6fa6b66a7bfdfd6	packages/client/src/forms/section-save-status.tsx
+OWNED	64	3386	2365c4a3ee33851485c7af20ae6598118a3fb1ef5e1a85fa7a8e42ec2e71e85c	packages/client/src/forms/use-app-form.ts
+OWNED	598	27382	f18a68b50cfdd8c8b727eb93b0fd2911f15430440118edbc3156789aa76bf6ac	tests/client/forms/_ct-stories.tsx
+OWNED	36	1941	d754e3c47760090a13c2600a74332bdec5a7d2f69a43c14ae9cf7d9b4e94dc3f	tests/client/forms/_form-identity-stories.tsx
+OWNED	136	8478	ddfd593397baa736287041764f75df52e8ecae24775115be1c87cb3fde33f037	tests/client/forms/autosave-convergence.suite.test.ts
+OWNED	34	2062	0de1e619aec4ff9ec34390b3b0a0776bd450d9807f0f6bc8b4378a54ccf14d46	tests/client/forms/autosave-status.ct.tsx
+OWNED	40	2258	86f16db9ff844421a6418176a7d2b5d045e688a6a7823e8b07e4e1292877bffd	tests/client/forms/bound-fields/_ct-stories.tsx
+OWNED	96	4575	b3f161b7604319b82eecad94a4bb00b06b85695f9b1f416e14456dedee94eb49	tests/client/forms/bound-fields/use-bound-field.ct.tsx
+OWNED	36	1881	007cb3756d4dc292c7283e2420826a5fff3c13f6fb2559c6a289908f280d22d5	tests/client/forms/capped-field-model.test.ts
+OWNED	39	2374	e334be513da9b8c8de0b72d957e67c1b4f9329c8d2cbe071ff6cfd51b3fb3d57	tests/client/forms/capped-field.ct.tsx
+OWNED	179	10877	e5d298686485856582d796b8c7c1a913d92e06e39822ea4997df1c8160ef724a	tests/client/forms/create-autosave-entity-form.ct.tsx
+OWNED	46	1644	845abbc3c423265c032dde29bf5acbe9fdf1d9ab42fe083416d2b1228b59dc6d	tests/client/forms/create-form-handle-bridge.test.ts
+OWNED	127	6707	b5459e531e1a6ae1e1d72e0964fe4c898931907481f3d45a087b2dc78a14ba4d	tests/client/forms/create-saved-entity-form.ct.tsx
+OWNED	49	2081	b826e79bf90a8af9ba3ebe735f41782c8f6cd270d65e89b91907f1839041deb8	tests/client/forms/create-saved-entity-form.test.ts
+OWNED	55	2187	3be10e42a7f072b3ce3788bd9ebd081643b87c743eb6c35d419e7a8cc93f7fd2	tests/client/forms/entity-form-base.test.ts
+OWNED	136	7582	58501fd7abefc6073eae865b3b53b7cebf94496fac13f0a36acd7029f3cb3e3a	tests/client/forms/form-identity.suite.ct.tsx
+OWNED	80	3392	011b20fc4edba2b0e3c18e266ed4af7987960667f39e66718fd1cdda60a5cb51	tests/client/forms/save-circuit-breaker.test.ts
+OWNED	43	2564	cdb00f62a460424736b298fea1988efb160e51949778e3907071574909d8f7e4	tests/client/forms/save-status-seam.ct.tsx
+OWNED	46	2591	949063f7327293d7bf5a8771f5645a1099df7907d8dec764ee0b4ba7979c3412	tests/client/forms/section-save-status.ct.tsx
+SHARED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+SHARED	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	docs/Mission.md
+SHARED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+SHARED	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	docs/architecture/core/Spine-TypeScript-and-Patterns.md
+SHARED	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	docs/architecture/core/Spine-Testing.md
+SHARED	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	scripts/codemods/ast.ts
+SHARED	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	docs/reviews/repository-audit-2026-08-13/README.md
+SHARED	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	docs/reviews/repository-audit-2026-08-13/RUBRIC.md
+SHARED	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md

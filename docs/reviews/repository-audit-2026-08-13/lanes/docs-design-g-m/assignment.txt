@@ -1,0 +1,18 @@
+# Design documents G through M
+# Snapshot: 41e18afe74afa570b67a3e670a1a38863c486a00
+# Owned: 5 files, 2234 lines, 192108 bytes
+# kind	lines	bytes	sha256	path
+OWNED	133	9909	a75cea93fb72048ea58be6a1729d26928b9d068ec054dc01959a14892fddda3b	docs/design/gate-ignore-mention-fence.md
+OWNED	100	6591	15b77b24787afb00f36f3a18b2570480b51190497e29c84a1ae712d099532d33	docs/design/home-tile-promotion.md
+OWNED	624	63287	5da7af6c07564ff8baa55b4160a3f7e9bfe1e1dce27a269b4535dca0ab56913f	docs/design/list-pane-projection-proposal.md
+OWNED	915	76164	b5fc08263112412a67edfd2e63c9c28c6ae94008f4fd23ce19cfec2812d418a4	docs/design/lite-plus-guided-substrate-spec.md
+OWNED	462	36157	6ba4ae661202e18d6151e03153d30e811731ddb88f4faacd1ccabe567549ebdb	docs/design/login-loading-screen.md
+SHARED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+SHARED	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	docs/Mission.md
+SHARED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+SHARED	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	docs/architecture/core/Spine-TypeScript-and-Patterns.md
+SHARED	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	docs/architecture/core/Spine-Testing.md
+SHARED	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	scripts/codemods/ast.ts
+SHARED	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	docs/reviews/repository-audit-2026-08-13/README.md
+SHARED	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	docs/reviews/repository-audit-2026-08-13/RUBRIC.md
+SHARED	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md

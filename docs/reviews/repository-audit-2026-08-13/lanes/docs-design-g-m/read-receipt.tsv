@@ -1,0 +1,6 @@
+kind	lines	bytes	sha256	path
+OWNED	133	9909	a75cea93fb72048ea58be6a1729d26928b9d068ec054dc01959a14892fddda3b	docs/design/gate-ignore-mention-fence.md
+OWNED	100	6591	15b77b24787afb00f36f3a18b2570480b51190497e29c84a1ae712d099532d33	docs/design/home-tile-promotion.md
+OWNED	624	63287	5da7af6c07564ff8baa55b4160a3f7e9bfe1e1dce27a269b4535dca0ab56913f	docs/design/list-pane-projection-proposal.md
+OWNED	915	76164	b5fc08263112412a67edfd2e63c9c28c6ae94008f4fd23ce19cfec2812d418a4	docs/design/lite-plus-guided-substrate-spec.md
+OWNED	462	36157	6ba4ae661202e18d6151e03153d30e811731ddb88f4faacd1ccabe567549ebdb	docs/design/login-loading-screen.md

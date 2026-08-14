@@ -1,0 +1,33 @@
+# Remaining vendored Vite references
+# Snapshot: 41e18afe74afa570b67a3e670a1a38863c486a00
+# Owned: 20 files, 2860 lines, 117196 bytes
+# kind	lines	bytes	sha256	path
+OWNED	77	3421	77374d5f85acc61c2ecc0d9f22799db4c3f5c334f451fb0c10782db7a01ac68c	docs/vendor/vite/INDEX.md
+OWNED	40	1473	79d42228fd8d4430a0b602a325ebb1f8e3d6942ca05204d3cb849aabeee1cbc0	docs/vendor/vite/acknowledgements.md
+OWNED	29	1542	ba9494e9cf645ba2fabc4b82643de00bd59f5a9512e260427cea979febfbb872	docs/vendor/vite/changes.md
+OWNED	125	3569	10191963ae3d0c281397ab595821d87eaa02a9e697c36c51c40fef20c6cbd6c5	docs/vendor/vite/changes/hotupdate-hook.md
+OWNED	43	2301	486b8b9f0985941f83cbf888633530da1640a3ee91f1c31c6292d3fce98060d6	docs/vendor/vite/changes/per-environment-apis.md
+OWNED	84	2300	fe40c0cc7d2c1bae72e84e9be24ce34af6fcacc24fd1fe32e7dce18274f0b678	docs/vendor/vite/changes/shared-plugins-during-build.md
+OWNED	26	1312	4f5b02f2c1bad0015b5837163ac7af4c56d1fef7d72634249f5d5d28d98568ff	docs/vendor/vite/changes/ssr-using-modulerunner.md
+OWNED	46	2426	9df71cf1b92b04ad16bf6743b964bb8ef212bf6bf830b5dffe910da2e2351946	docs/vendor/vite/changes/this-environment-in-hooks.md
+OWNED	177	7101	f9e89374ca08cfa698f87496fb0b8128ca4d604f08b3309767055fd3104b89ec	docs/vendor/vite/config.md
+OWNED	377	16966	65f048a93b6305f99640bdc9c3199999a7e472666306cb7ebea14b1f552d2a3b	docs/vendor/vite/config/build-options.md
+OWNED	115	5802	127e6fd5e0faa841db12f4b510ec68a925a961c71f7197f16f4649f204238362	docs/vendor/vite/config/dep-optimization-options.md
+OWNED	101	3163	a0d5d327f2574926603eabcafdf9b1c8e3d76487998c048bc612775ad1ce4017	docs/vendor/vite/config/preview-options.md
+OWNED	485	20006	7d2c4454d63d4ec8461947781c6163226041d27b549ab4e38df7a57f46a72a35	docs/vendor/vite/config/server-options.md
+OWNED	642	23239	0722c84cef07b028f28b4ecff3b03196f766870a463f83b52563b992c7f949b4	docs/vendor/vite/config/shared-options.md
+OWNED	65	3277	c538f4aaa27aa5bc6b4c7d5ab6cb6acd0378e1c5089624b63071b4aed9141d6c	docs/vendor/vite/config/ssr-options.md
+OWNED	33	1014	e4772bd0045cd7539014a4a0d4d08e2028c9fc999c5bc188403ae6b9942c72f3	docs/vendor/vite/config/worker-options.md
+OWNED	274	10930	9190e97a232e9d94800d13cefdc8a90f124c63b0a81b17bd3a8f1a63cb30bddd	docs/vendor/vite/guide.md
+OWNED	8	270	ad74a49f8dc1da8d40c3fa5600005bb511c6f85c3c68a6b4a1935c73408e2cb5	docs/vendor/vite/live.md
+OWNED	56	2832	981d95aab69d2396f2379e1b9e591a17f0413ff1b1a2c8a23154282934f6ff84	docs/vendor/vite/plugins.md
+OWNED	57	4252	6d1d5c986dc7e1bac79d9384b474db1dfb37bf2dd68391e3e060ffc2786bd7ae	docs/vendor/vite/releases.md
+SHARED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+SHARED	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	docs/Mission.md
+SHARED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+SHARED	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	docs/architecture/core/Spine-TypeScript-and-Patterns.md
+SHARED	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	docs/architecture/core/Spine-Testing.md
+SHARED	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	scripts/codemods/ast.ts
+SHARED	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	docs/reviews/repository-audit-2026-08-13/README.md
+SHARED	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	docs/reviews/repository-audit-2026-08-13/RUBRIC.md
+SHARED	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md

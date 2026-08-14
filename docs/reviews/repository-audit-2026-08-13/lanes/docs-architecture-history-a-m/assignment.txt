@@ -1,0 +1,45 @@
+# Architecture history A through M
+# Snapshot: 41e18afe74afa570b67a3e670a1a38863c486a00
+# Owned: 32 files, 8810 lines, 869357 bytes
+# kind	lines	bytes	sha256	path
+OWNED	424	92504	ce57734327936f4d4e1cc9ebf8223fbf422bdb2848b610c8b86f4e51670d5c74	docs/architecture/history/BUILD-QUEUE.md
+OWNED	42	2296	a8eef5f217ea8fba4d71119c4a3812b84ff285d98eac68bc046ac9d7606ef8c1	docs/architecture/history/Core-BUILD-PLAN.md
+OWNED	126	93001	540319bcac0ea69705d521f591e1f8403933c8aefe8dbaa57c15cda908dbae7b	docs/architecture/history/Core-Debt-Cleared-Ledger.md
+OWNED	174	15033	d941a1e3ab9213d4931c348d78ee97a1893884021988bff7586a53aa6912470b	docs/architecture/history/Core-Doc-Inconsistency-Audit-2026-06-26.md
+OWNED	460	28502	173adb9b99d0e42983d2e1a5e0e8cea5384a05882f2e8ca2ca337ab9b2523c86	docs/architecture/history/Core-Doc-Review-Punchlist-2026-06-28.md
+OWNED	238	20841	a58a73cc260e2ca7dbc2961c77364396e7177eaf357a807cab7758891e1c57e0	docs/architecture/history/Core-Event-Bus-Parity-Audit.md
+OWNED	183	14614	5c4b77bed788d3ffea5281ae6f87cf5349cb4d00e87173fe7029857308978dd9	docs/architecture/history/D62-Prefold-Design-Enforcement-2026-07-05.md
+OWNED	508	34491	dcc503adb7b1cf00198049c2189bf18447181c6ba4e7fa03803689ffbe019647	docs/architecture/history/D62-Prefold-UI-Polish-Punchlist-2026-07-05.md
+OWNED	597	48684	db13d18828cca107a4acc011a3fc9cca92e03df06d0ca9d92cb5964ed65f2b6a	docs/architecture/history/D62-Prefold-UX-Flow-Revamp-2026-07-05.md
+OWNED	506	45503	ce4df3b76ff3796d6d24bf7273955749a313fa0db6e5d2cffc8b073c2f1994f7	docs/architecture/history/DESIGN-REVIEW-2026-07-01.md
+OWNED	349	27646	7d3ed1e5eda7c21e17d99b391f7341420ebc36c0177b3f5928782bc3a4ea8dc9	docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md
+OWNED	140	10856	0e9bee2d70bf0efefec64f33d3e63b0e98cee85534dfa45d0762bcfedc02e283	docs/architecture/history/Grounded-Intelligence-AST-Scan.md
+OWNED	97	11344	fb7e83712bd2bfd832099e626492fe92571a74bae5267b8ad69a6131190ab9f8	docs/architecture/history/Marinara-Residue-Non-RPG.md
+OWNED	122	8219	0af19da8c7ec0f782cefc2ec0e66f6898ac0c80ecf5cfd471fcb6f345b77d1ce	docs/architecture/history/assets-maintenance.md
+OWNED	95	6024	e271245efb3b38740fef39297e6cd6ace1ffe2319bf3728ab24e6e1361da003c	docs/architecture/history/buddy-observer-reaction-engine.md
+OWNED	274	22720	51ddb9a67415bc137a36e444c8fc53f359060f1392e2459df3c9a32e8f2a4fcf	docs/architecture/history/build-plan-record.md
+OWNED	296	38229	f947acac7179c0b011deb169efa5726ca2be8fc548fcfaff92e2b5ea552458c0	docs/architecture/history/claude-design-cohesion-handoff-2026-07-13.md
+OWNED	1164	103692	f3cf26f3559cd27e1ba660e29d37df1c17183402c84e891c8abea9891d80baa5	docs/architecture/history/client-lockdown-agent-prompts.md
+OWNED	99	14054	6c2c3ec1410e1894cb2e8d4c35811e831e4969a40beef24eb654873851f069ec	docs/architecture/history/client-tooling-setup.md
+OWNED	829	70126	22dbe6741f07b48bb17efcd9dbc96d37bcfc4109eea0ef6ff2370c2b6701072d	docs/architecture/history/comfyui-control-integration-spec.md
+OWNED	43	2403	13cbb0af80a154453e461dff0f5e877c854cef5376bc3d0639e052d3a1b44bf6	docs/architecture/history/core-0-structure-archaeology-record.md
+OWNED	118	19142	d61966d9365cc0c7fb782094a2b79501e37c8b14d29394cfc1c1a174c0d5d77f	docs/architecture/history/core-laws-archaeology-record.md
+OWNED	265	23334	75c81e564ad6f463853e9c259e2428db3126cadf97ab5a7bdb2de53040ad0aab	docs/architecture/history/derive-modernization-audit.md
+OWNED	183	16809	11b8d3ecfda6caec813b88c05425881a5cab82866d950671b0a47ecf0205381f	docs/architecture/history/design-enforcement.md
+OWNED	138	9748	e6a56e17a9b8718e4aef973155635de6233a36720eff27b909aad3abc191b460	docs/architecture/history/discord-ux-recon.md
+OWNED	116	13609	f1a95a9fcaaa44ba80f05256551f4e2fd855c41dc438caa7090ff490a9c4085b	docs/architecture/history/discovery-deferred-corpus-surface.md
+OWNED	73	4737	c3962a09b32762ce2930d3388b614a13cacbb90942cf4560e9c87242cead98a8	docs/architecture/history/enforcement-archaeology-record.md
+OWNED	218	17995	a5bf11998e00550c323d3b55d20caca3f485e291fe4500dc18084eb830c84d4c	docs/architecture/history/export-import-portability.md
+OWNED	480	29284	dd31ede8994246dae81641c5296d1610a632ea5123bfcd68d41610598e1e96cf	docs/architecture/history/gallery-design.md
+OWNED	214	10183	12127749b8f2b3d2f03b2b3a57426d25dfc5494151eb5595dc997c5f03ccb3de	docs/architecture/history/gallery.md
+OWNED	64	4705	c7108553cb1fe164df69d560849c38fecf89317a0c198f9730aa9e618aa429c9	docs/architecture/history/misc-core-archaeology-record.md
+OWNED	175	9029	61bdbb522941fb42c1a646f7458599cd4971f63e399e3b54373ce0fb9a1a6dc7	docs/architecture/history/motion-guide-archaeology-record.md
+SHARED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+SHARED	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	docs/Mission.md
+SHARED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+SHARED	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	docs/architecture/core/Spine-TypeScript-and-Patterns.md
+SHARED	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	docs/architecture/core/Spine-Testing.md
+SHARED	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	scripts/codemods/ast.ts
+SHARED	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	docs/reviews/repository-audit-2026-08-13/README.md
+SHARED	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	docs/reviews/repository-audit-2026-08-13/RUBRIC.md
+SHARED	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md

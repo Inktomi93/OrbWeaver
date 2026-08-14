@@ -1,0 +1,27 @@
+# Design documents A through F
+# Snapshot: 41e18afe74afa570b67a3e670a1a38863c486a00
+# Owned: 14 files, 5487 lines, 413160 bytes
+# kind	lines	bytes	sha256	path
+OWNED	237	17350	54c567e39c8716d2cbbf6cf671626778e2fa7d0be6d0090f13e40540c0aed586	docs/design/actions-tab-information-architecture.md
+OWNED	387	33114	136c06b279197e10e8496dd6df8611fe31aca7c527edcc3a4e8922805f7c9958	docs/design/boot-loader-smoothness-options.md
+OWNED	191	12378	a747fe9e5d3a65cec8b3bdbcfe6251eb0e1d3cfa0518d1dc89a29c22924f9771	docs/design/config-ia-the-junk-drawer-problem.md
+OWNED	83	14108	b2853f130e5ca666bdf1395a741200fec2b8b0e2f8b283833751e03226fea795	docs/design/config-rail-spec.md
+OWNED	191	16796	77bea0f8f9d8362d0f7d6d0608390d6de876abdd06d2483d41698c9a669d060d	docs/design/containerize-build-plan.md
+OWNED	484	38063	935b2e24ec443519b07fee64d2ccd312aadd90e47363a94904c086be7b26bf18	docs/design/containerize-prod-image-spec.md
+OWNED	189	15561	233dae203ad850289f73a9c84fde4c39797549ed302f950849fbe1b7e94d63f0	docs/design/context-panel-fidelity-findings.md
+OWNED	491	46355	c9e429a5d4f75d8f33d2221ec7b418e800744b751e555d9ff6de171d83cdd3ef	docs/design/databank-surface-spec.md
+OWNED	1788	119828	1f43ec306b74580c0f1c7dd665b751153c12c31d0668f35d0157b3c46cbd4e2f	docs/design/default-character-roster.md
+OWNED	96	5715	184e8194f705254c1f039d2038db9b41e6ff8250ad5300938a2b854ea91b21f5	docs/design/demo-seeding-rebuild.md
+OWNED	313	21341	0f241b7251eae6bedd89baaf7219881bbcb44afa0e09aa501e5569f19ea2e63e	docs/design/density-pass-spec.md
+OWNED	530	27914	d7c9707c1a553e6788cbb95a6cd555f6fbaae40ed69ed8ba13a2e484ca113511	docs/design/docker-modern-practices-research.md
+OWNED	69	4173	78c5f7942a5beb2bf7bcd5e5ada0d91612704dbe9e58991829a695567a0ceec2	docs/design/draft-trust-render-policy-seam.md
+OWNED	438	40464	bc158d4e6786f95b8e76d711a98d48da8888af2e69e30424e51e25a050e4781c	docs/design/event-bus-coverage-survey.md
+SHARED	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	docs/architecture/core/AGENTS.md
+SHARED	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	docs/Mission.md
+SHARED	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	docs/architecture/core/Core-0-Architecture-and-Structure.md
+SHARED	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	docs/architecture/core/Spine-TypeScript-and-Patterns.md
+SHARED	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	docs/architecture/core/Spine-Testing.md
+SHARED	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	scripts/codemods/ast.ts
+SHARED	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	docs/reviews/repository-audit-2026-08-13/README.md
+SHARED	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	docs/reviews/repository-audit-2026-08-13/RUBRIC.md
+SHARED	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md

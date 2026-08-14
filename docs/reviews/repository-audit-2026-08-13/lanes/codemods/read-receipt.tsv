@@ -1,0 +1,16 @@
+kind	path	lines	bytes	sha256	read_method	completed_at_utc	reconciliation
+OWNED	scripts/codemods/.gitkeep	0	0	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855	full-read	2026-08-14T06:28:35Z	MATCH
+OWNED	scripts/codemods/ast.ts	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	full-read	2026-08-14T06:28:35Z	MATCH
+OWNED	scripts/codemods/codemod-kit.ts	3357	139042	c7c7733dd88ee9dd2d4c9ff395188daf61bdbfa3004becc34ad8d24e4d7728a5	full-read	2026-08-14T06:28:35Z	MATCH
+OWNED	scripts/codemods/codemod.ts	60	2053	9069f2e76eedc74b37e38a84aa45d5b520f753fce138078a417df0adeb20d81d	full-read	2026-08-14T06:28:35Z	MATCH
+OWNED	scripts/codemods/export-rot-cleanup.ts	637	36220	9c0b839cf7e10a2970c61ce0a8d9cfba3b171d74bdb6a46eb4933f95c07236d1	full-read	2026-08-14T06:28:35Z	MATCH
+OWNED	scripts/codemods/migrate-macro-blocks.ts	113	5408	09a5ca66e916308d9183937880df74710955633be19290b2caaaa19aef47a5cb	full-read	2026-08-14T06:28:35Z	MATCH
+SHARED	docs/architecture/core/AGENTS.md	343	30441	8b50cc7e042e901a95afbc98681e2e8860f9ff83a3d93dfa490ed4fbf0e80140	full-read	2026-08-14T06:28:35Z	MATCH
+SHARED	docs/Mission.md	41	1997	1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f	full-read	2026-08-14T06:28:35Z	MATCH
+SHARED	docs/architecture/core/Core-0-Architecture-and-Structure.md	257	18686	598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58	full-read	2026-08-14T06:28:35Z	MATCH
+SHARED	docs/architecture/core/Spine-TypeScript-and-Patterns.md	135	14977	5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126	full-read	2026-08-14T06:28:35Z	MATCH
+SHARED	docs/architecture/core/Spine-Testing.md	146	19718	c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1	full-read	2026-08-14T06:28:35Z	MATCH
+SHARED	scripts/codemods/ast.ts	4099	223111	3fb787531f2e1456b31b3d78eb39f3c06061999b0f8776119894f7406084b572	full-read	2026-08-14T06:28:35Z	MATCH
+SHARED	docs/reviews/repository-audit-2026-08-13/README.md	51	3365	738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b	full-read	2026-08-14T06:28:35Z	MATCH
+SHARED	docs/reviews/repository-audit-2026-08-13/RUBRIC.md	89	4542	04d081b5e7b7816ce1dab862a26eb403af450658c822449aea327d646c2a4ac3	full-read	2026-08-14T06:28:35Z	MATCH
+SHARED	docs/reviews/repository-audit-2026-08-13/REPORT-TEMPLATE.md	73	2015	2410c69138e3e9556a43dd602f237da0fed74616dd2c62d66dd382621343be16	full-read	2026-08-14T06:28:35Z	MATCH
