@@ -86,6 +86,7 @@ export type {
   TurnAbortReason,
   TurnInitiator,
   TurnIntent,
+  TurnLockedOpCode,
   TurnOrigin,
 } from "./bus.ts";
 export {
@@ -100,6 +101,7 @@ export {
   TURN_ABORTED_OP_CODE,
   TURN_INITIATORS,
   TURN_INTENTS,
+  TURN_LOCKED_OP_CODE,
 } from "./bus.ts";
 export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.ts";
 export { CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema, cardFrameUrl } from "./card-frame.ts";
