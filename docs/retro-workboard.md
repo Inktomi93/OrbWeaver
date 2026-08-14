@@ -1331,6 +1331,20 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   touching it risks the follow-intent detector)" as a lead. Owner drive CONFIRMS it. It is now a row.
 - [ ] **Regex scripts do not import** with the ST user-data import. Folds into the deferred import lane
   (#28) with databank/user-settings/backgrounds/themes.
+- [x] **REFINERY CUSTOM-SCHEMA DRIVE — GRADUATED 8/9 (`beabbc1d6`; arm 8 blocked ONLY on the OR
+  wall the flip window is clearing).** The 08-09 "NOT EXERCISED" gap closed: describe→generate→live
+  preview · refine-in-place · all three forge arms · needs-raw refusal · strippedKeys advisory ·
+  manual-rewrite · full custom run→save-as-copy · fixed-payload regression all PASS live. Vehicle
+  knob correction banked: the three forge ARMS (tested) ≠ the auto/response-format/forced-tool
+  deployment knob (vLLM IGNORES it — folds into arm 8). Wire-ring-blind-to-structured claim (08-09)
+  is DEAD — it carries full response\_format bodies now (truth-repair if cited). **3 DEFECTS → FIX
+  LANE `meter-scale` RUNNING:** D1 Meter renders a 1-10 score as a PERCENT on BOTH the custom gauge
+  AND the shipped built-in payload's `aria-valuetext` (§3.4 scale-honesty violated live; fix at the
+  PRIMITIVE) · D2 GaugeRow double-labels · D3 save-refusal paints the raw ZodError array not the
+  author sentence. **BOARDED observations (no lane yet):** every forge arm emits TWO `role:"hero"`
+  nodes · the Setup tab hardcodes stage=score/editing=null so custom-analyze schemas + edit-saved-
+  schema are UI-unreachable though both verbs work · `__orb.nav.contextTab()` returns ok without
+  switching (bridge gap, second sighting).
 - [ ] **ROLE→CONNECTION SWITCHING IS CLUNKY (owner dogfood 08-14 evening, verbatim: "that shit
   needs to get fixed or boarded that is clunky as fuck"):** reaching a different backend for a role
   (chat / structured / summarize / etc.) requires a GLOBAL settings flip of that role's connection —
