@@ -381,7 +381,7 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   spawnSync("git", ["-C", repo, "init", "-q"], { encoding: "utf8" });
   spawnSync("git", ["-C", repo, "add", "tracked-run.sh"], { encoding: "utf8" });
 
-  const rows: [string, BatchResult["decision"], string | null, BatchCase?][] = [
+  const rows: [string, BatchResult["decision"], string | null, Partial<Omit<BatchCase, "command">>?][] = [
     // MUST BITE — the body is what runs
     [`bash ${evil} 2>&1 | tail -40`, "deny", "script:git-destructive"],
     [`bash "${evil}"`, "deny", "script:git-destructive"], // quoting the path is the same file
