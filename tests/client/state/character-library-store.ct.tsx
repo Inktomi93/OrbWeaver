@@ -68,3 +68,20 @@ test("the tag filter cycles include → exclude → off, and clears", async ({ m
   await probe.getByRole("button", { name: "clear tags" }).click();
   await expect(state).toContainText("tags=none");
 });
+
+// The library's filtered-empty state offers ONE way out (UI-Arch §4.3 rule 1), and this is the action
+// behind it: every NARROWING chip drops at once. `showArchived` is deliberately untouched — its OFF state
+// is the resting library, not a narrowing anyone needs rescuing from.
+test("clearCharacterFilters drops favorites + tags in one act, and leaves the archived toggle alone", async ({ mount }) => {
+  const probe = await mount(<CharacterLibraryStoreProbe />);
+  const state = probe.locator("output");
+
+  await probe.getByRole("button", { name: "toggle favorites" }).click();
+  await probe.getByRole("button", { name: "toggle archived" }).click();
+  await probe.getByRole("button", { name: "cycle tag" }).click();
+  await expect(state).toContainText("fav=true archived=true bulk=false tags=tag_ct_probe:include");
+
+  await probe.getByRole("button", { name: "clear filters" }).click();
+  await expect(state).toContainText("fav=false archived=true");
+  await expect(state).toContainText("tags=none");
+});

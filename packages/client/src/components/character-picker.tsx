@@ -5,6 +5,14 @@
 // the Command body. Reads characters through the tRPC seam (`trpc.character.list`), never a character-feature
 // internal — so it is legal to consume from the chat feature.
 //
+// THE SEARCH IS THE SERVER'S (owner ruling 2026-08-13). This used to be ONE `limit: 100` recency page with
+// cmdk filtering inside it: past the hundredth card a character was simply unreachable from the new-chat
+// picker, and typing her name found nothing while she sat in the library — the owner hit exactly that. The
+// typed value is now a DEBOUNCED `character.list` search param over the whole library, so the picker and the
+// library answer the same question with the same predicate. cmdk's own value filter is left ON: it is a
+// second, cheap narrowing of the page already in hand, and it keeps keyboard highlighting coherent while a
+// new page is in flight.
+//
 // OWNER RULING: lives client-shared (NOT @orb/ui — it wires #data/#state client seams). Named `CharacterPicker`
 // (not the spec's generic "EntityPicker"): both consumers pick characters and the row is character-shaped
 // (avatar+name); an honest name beats a speculative generalization (§13.9).
@@ -21,13 +29,18 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useRef } from "react";
+import { useDeferredValue, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { useFocusOnSwap } from "#lib";
+import { useDebouncedValue, useFocusOnSwap } from "#lib";
 
+/** Rows per page. With a server predicate behind the box this is a page of the MATCHES, not a slice of the
+ *  library taken before the question was asked. */
 const PICKER_PAGE_LIMIT = 100;
 const DEFAULT_SKELETON_ROW_COUNT = 5;
+
+/** Keystroke→request damper (the chats pane / library value). */
+const SEARCH_DEBOUNCE_MS = 250;
 
 type CharacterListItem = inferOutput<Trpc["character"]["list"]>["items"][number];
 
@@ -94,7 +107,14 @@ function CharacterPickerBody({
   // decline exactly when the caret is wanted.
   useFocusOnSwap(searchRef, autoFocusSearch);
   const trpc = useTRPC();
-  const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: PICKER_PAGE_LIMIT }));
+  const [term, setTerm] = useState("");
+  const settled = useDebouncedValue(term.trim(), SEARCH_DEBOUNCE_MS);
+  // DEFERRED on top of the debounce, and that is load-bearing with `useSuspenseQuery`: a deferred update is
+  // a transition, so a new search keeps the CURRENT rows (and the caret) on screen while the next page
+  // loads. Without it the changed query key suspends this body into the QueryBoundary's skeleton and the
+  // search field is unmounted mid-keystroke.
+  const search = useDeferredValue(settled);
+  const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: PICKER_PAGE_LIMIT, ...(search === "" ? {} : { search }) }));
   const excluded = new Set<string>(excludeIds ?? []);
   const candidates = page.items.filter((c) => !excluded.has(c.id));
 
@@ -104,7 +124,7 @@ function CharacterPickerBody({
 
   return (
     <Command className="min-h-0" label={label} {...(onEscape === undefined ? {} : { onEscape })}>
-      <CommandInput aria-label={placeholder} placeholder={placeholder} ref={searchRef} />
+      <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
       <CommandList className={listClassName ?? "max-h-80"}>
         <CommandEmpty>{emptyText}</CommandEmpty>
         {leadingGroup}

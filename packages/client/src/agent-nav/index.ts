@@ -147,20 +147,26 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
     },
     async openCharacter(idOrName: string): Promise<NavResult> {
       // The characters-section twin of openChat: switch the rail to Characters + select the character
-      // via the SAME store action a library-row click calls (selectCharacter), never a parallel path. The
-      // dev library is small, so one generous page resolves every id/name (no keyset walk needed here).
-      const page = await queryClient.fetchQuery(trpc.character.list.queryOptions({ limit: CHARACTER_NAV_PAGE_LIMIT })).catch(() => null);
-      if (page === null) {
-        return { ok: false, reason: "character list query failed — cannot resolve the character" };
-      }
-      const byId = page.items.find((ch) => ch.id === idOrName);
-      if (byId) {
+      // via the SAME store action a library-row click calls (selectCharacter), never a parallel path.
+      //
+      // NEITHER ARM SCANS A BOUNDED PAGE ANY MORE (2026-08-13). The id arm is a direct `character.get` (a
+      // read of the one row, which no page ceiling can hide), and the name arm is a SERVER SEARCH — a
+      // `.find()` over one recency page made "no character matches" mean "not in the first N", which is
+      // the wrong one of those for a bridge to say.
+      const byId = await queryClient.fetchQuery(trpc.character.get.queryOptions({ characterId: idOrName as CharacterId })).catch(() => null);
+      if (byId !== null) {
         setActiveSection("characters");
         selectCharacter(byId.id);
         return OK;
       }
+      const page = await queryClient.fetchQuery(trpc.character.list.queryOptions({ limit: CHARACTER_NAV_PAGE_LIMIT, search: idOrName })).catch(() => null);
+      if (page === null) {
+        return { ok: false, reason: "character list query failed — cannot resolve the character" };
+      }
       // Names are NOT unique — REFUSE loudly on a multi-match (openChat's ambiguity contract), so the
-      // caller disambiguates with the character id.
+      // caller disambiguates with the character id. The EXACT-name test still runs here: the server's
+      // search is a substring match across name/handle/pitch/tags, which is the right net to cast and the
+      // wrong one to select from.
       const byName = page.items.filter((ch) => ch.name === idOrName);
       if (byName.length > 1) {
         return { ok: false, reason: `ambiguous name "${idOrName}" matches ${byName.length} characters — use the character id` };
@@ -171,7 +177,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
         selectCharacter(singleName.id as CharacterId);
         return OK;
       }
-      return { ok: false, reason: `no character matches id-or-name "${idOrName}" (${page.items.length} character(s) in list)` };
+      return { ok: false, reason: `no character matches id-or-name "${idOrName}" (searched the whole library; ${String(page.totalCount)} match(es))` };
     },
     closeModal(): NavResult {
       closeModal();

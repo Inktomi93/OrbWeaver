@@ -157,3 +157,66 @@ export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture>
     ...overrides,
   };
 }
+
+/** One `character.list` page (`ListCharactersResult`) — `totalCount` is the server's census over the
+ *  request's scope, which the library's live region and the list band both print. */
+export interface CharacterListPageFixture {
+  readonly items: readonly CharacterSummaryFixture[];
+  readonly nextCursor: { readonly sort: "recent"; readonly lastChattedAt: number | null; readonly createdAt: number; readonly id: string } | null;
+  readonly totalCount: number;
+}
+
+/**
+ * An INPUT-AWARE `character.list` responder — the stub applies the same narrowing the server does (`search`
+ * · `starred` · `archived` · `includeTagIds` · `excludeTagIds` · `limit` · `cursor`), so a CT drives the
+ * real semantics instead of a stub that hands back everything no matter what the surface asked.
+ *
+ * That distinction is the whole point after 2026-08-13, when every library lens moved server-side: a
+ * fixed-array stub would make each filter/search CT pass by ignoring the very input under test — and it is
+ * exactly what let the client-side-filtering defect live behind green CTs for months.
+ *
+ * The `chat.listChats` twin (`features/chat/fixtures.ts`) is the shape this mirrors. Ordering is the
+ * ARRAY's — a fixture author states the order they want to assert; the cursor is the last served row's id.
+ */
+export function characterListResponder(all: readonly CharacterSummaryFixture[]): (input: unknown) => CharacterListPageFixture {
+  return (input: unknown): CharacterListPageFixture => {
+    const args = (input ?? {}) as {
+      search?: string;
+      starred?: boolean;
+      archived?: boolean;
+      includeTagIds?: readonly string[];
+      excludeTagIds?: readonly string[];
+      limit?: number;
+      cursor?: { id?: string };
+    };
+    const needle = args.search?.trim().toLowerCase() ?? "";
+    // `wanted` rather than `tagId`: fixture ids are plain wire strings (see the header), and a `tagId:
+    // string` parameter is a `brand-in-name-position` violation — the gate is right, the fixture layer is
+    // the exception it does not need to learn.
+    const has = (row: CharacterSummaryFixture, wanted: string): boolean => row.tags.some((tag) => tag.id === wanted);
+    const matched = all.filter(
+      (row) =>
+        (needle === "" ||
+          row.name.toLowerCase().includes(needle) ||
+          row.handle.toLowerCase().includes(needle) ||
+          (row.elevatorPitch?.toLowerCase().includes(needle) ?? false) ||
+          row.tags.some((tag) => tag.name.toLowerCase().includes(needle))) &&
+        (args.starred === undefined || row.starred === args.starred) &&
+        (args.archived === undefined || row.archived === args.archived) &&
+        (args.includeTagIds ?? []).every((tagId) => has(row, tagId)) &&
+        (args.excludeTagIds ?? []).every((tagId) => !has(row, tagId)),
+    );
+    const cursorId = args.cursor?.id;
+    const from = cursorId === undefined ? 0 : matched.findIndex((row) => row.id === cursorId) + 1;
+    const limit = args.limit ?? matched.length;
+    const items = matched.slice(from, from + limit);
+    const last = items.at(-1);
+    return {
+      items,
+      // A FULL page always carries a cursor — the server mints one without a lookahead peek, so exhaustion
+      // is discovered on the next (short) fetch. Reproduced here or the tail-fetch guard stops one page early.
+      nextCursor: items.length === limit && last !== undefined ? { sort: "recent", lastChattedAt: null, createdAt: last.createdAt, id: last.id } : null,
+      totalCount: matched.length,
+    };
+  };
+}

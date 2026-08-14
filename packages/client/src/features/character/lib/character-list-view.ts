@@ -1,13 +1,17 @@
-// Pure view helpers for the character LIST (FINAL-Character §4.3/§4.4/§4.5) — filter chips, the
-// categorized group-by-tag fold, and the resume-or-new target map. All pure + structural (they take the
-// minimal row/chat shape, not the full tRPC types) so they unit-test without a data layer. The surface
-// composes them in RENDER (§5.1 render-only reader taxonomy — no effect keyed on selection/prefs).
+// Pure view helpers for the character LIST (FINAL-Character §4.3/§4.4) — the categorized group-by-tag fold
+// and the resume-or-new target map. All pure + structural (they take the minimal row/chat shape, not the
+// full tRPC types) so they unit-test without a data layer. The surface composes them in RENDER (§5.1
+// render-only reader taxonomy — no effect keyed on selection/prefs).
+//
+// THE CHIP FILTER IS NOT HERE ANY MORE (owner ruling 2026-08-13): `filterByChips` ran the favorites /
+// archived / three-state tag predicates over the loaded keyset window, which is a filter over "whatever
+// pages happened to be in memory". Those axes are `character.list` query params now
+// (`domain/character/verbs/list.ts`), so the semantics they encoded live in SQL beside the search.
 
 import type { TagFolderType } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, TagId } from "@orb/kit/ids";
-import type { ActiveTagFilterState, TagFilterEntry } from "#lib";
 
-/** The tag shape both filter + group need (a structural subset of `TagView`). */
+/** The tag shape the categorized fold reads (a structural subset of `TagView`). */
 export interface RowTag {
   readonly id: TagId;
   readonly name: string;
@@ -17,40 +21,9 @@ export interface RowTag {
   readonly folderType: TagFolderType;
 }
 
-/** The character shape the filters read (a structural subset of `CharacterSummary`). */
+/** The character shape the categorized fold reads (a structural subset of `CharacterSummary`). */
 export interface FilterableRow {
-  readonly starred: boolean;
-  readonly archived: boolean;
   readonly tags: readonly RowTag[];
-}
-
-export interface LibraryFilters {
-  readonly favoritesOnly: boolean;
-  readonly showArchived: boolean;
-  /** THREE-STATE tag chips, AND-semantics on BOTH arms: every `include` tag must be on the row and every
-   *  `exclude` tag must be off it (§4.5 + the exclusion axis). A tag with no entry is unfiltered. */
-  readonly tagFilter: readonly TagFilterEntry[];
-}
-
-// A total Record over the ACTIVE states — the exclusion arm's whole semantics in two lines. A fourth
-// filter state is a tsc error here rather than a chip that silently passes everything.
-const TAG_ENTRY_PASSES: Record<ActiveTagFilterState, (rowHasTag: boolean) => boolean> = {
-  include: (rowHasTag) => rowHasTag,
-  exclude: (rowHasTag) => !rowHasTag,
-};
-
-/** §4.5 chip filter: archived hidden unless opted-in · favorites-only · tag multi-select (include AND
- *  exclude). Order is irrelevant (all conjunctive). Search (name) stays in `filterCharacters`. */
-export function filterByChips<T extends FilterableRow>(items: readonly T[], filters: LibraryFilters): readonly T[] {
-  return items.filter((item) => {
-    if (!filters.showArchived && item.archived) {
-      return false;
-    }
-    if (filters.favoritesOnly && !item.starred) {
-      return false;
-    }
-    return filters.tagFilter.every((entry) => TAG_ENTRY_PASSES[entry.state](item.tags.some((tag) => tag.id === entry.id)));
-  });
 }
 
 /** A categorized bucket: a visible tag (or the null "Uncategorized" catch-all) + its members. */

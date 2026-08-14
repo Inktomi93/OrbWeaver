@@ -221,6 +221,8 @@ interface SeedRawCharacterOverrides {
   readonly handle?: CharacterHandle;
   readonly name?: string;
   readonly starred?: boolean;
+  /** The library list's archived axis — seeded raw because the CRUD wire only reaches it through `update`. */
+  readonly archived?: boolean;
   readonly synthetic?: boolean;
   readonly importedFrom?: string | null;
   readonly importHash?: string | null;
@@ -245,6 +247,7 @@ export async function seedRawCharacter(db: Db, overrides: SeedRawCharacterOverri
     ownerId: overrides.ownerId,
     name: overrides.name ?? "Seed",
     starred: overrides.starred ?? false,
+    archived: overrides.archived ?? false,
     synthetic: overrides.synthetic ?? false,
     importedFrom: overrides.importedFrom ?? null,
     importHash: overrides.importHash ?? null,

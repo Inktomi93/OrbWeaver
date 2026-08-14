@@ -11,10 +11,10 @@ import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characterStats, characterSummaries, characters, characterTags, tags } from "@orb/db";
 import { parseStringArrayColumn } from "@orb/db/kit";
-import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gt, inArray, isNull, lt, not, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
 import { AssetNotFoundError } from "../contract/errors.ts";
@@ -90,7 +90,23 @@ export async function loadOwnedCharacterWithAvatar(db: Db, ownerId: UserId, char
   return rows[0];
 }
 
-interface ListOwnedPageInput {
+/** The library list's LENS axes — every narrowing the toolbar offers, as SQL predicates over the same scope
+ *  the page windows and the census counts (owner ruling 2026-08-13; the `MemberChatFilter` precedent in
+ *  `domain/chat/persistence/queries.ts`). Exported for the ONE caller that builds it — the verb normalizes
+ *  the request into this shape once and hands the SAME object to both the page read and the census.
+ *
+ *  `starred`/`archived` are TRI-STATE — `undefined` is unfiltered, which is what lets the four lookup-map
+ *  callers keep reading the whole library while the library pane's own chips narrow it. */
+export interface CharacterListFilter {
+  /** Already trimmed + lowercased by the verb; `undefined` = the unsearched list. */
+  readonly search?: string | undefined;
+  readonly starred?: boolean | undefined;
+  readonly archived?: boolean | undefined;
+  readonly includeTagIds?: readonly TagId[] | undefined;
+  readonly excludeTagIds?: readonly TagId[] | undefined;
+}
+
+interface ListOwnedPageInput extends CharacterListFilter {
   readonly ownerId: UserId;
   readonly limit: number;
   readonly sort: CharacterListSort;
@@ -275,9 +291,60 @@ function keysetFor(cursor: CharacterListCursor): SQL | undefined {
   return assertNever(cursor);
 }
 
-/** Owner's non-synthetic characters, sorted + keyset-paged. No offset (skips/dupes under concurrent writes). */
+/** The library SEARCH predicate — the strings the ROW ITSELF renders, over the whole library: the name, the
+ *  handle (the subtitle's last fallback), the distilled elevator pitch (the subtitle when it exists), and an
+ *  ACCEPTED tag's name. The chat list's `searchPredicate` is the shape this mirrors; the tag arm is what the
+ *  client-side `filterCharacters` already matched, kept whole rather than quietly dropped in the move.
+ *
+ *  PENDING suggestions are NOT searchable: a staged tag is not on the card yet (`canonicalTagsFor` filters
+ *  the same way), so matching one would surface a row by a label the user never sees on it. */
+function searchPredicate(db: Db, needle: string): SQL | undefined {
+  const like = `%${needle}%`;
+  return or(
+    sql`lower(${characters.name}) like ${like}`,
+    sql`lower(${characters.handle}) like ${like}`,
+    sql`lower(coalesce(${characterSummaries.elevatorPitch}, '')) like ${like}`,
+    exists(
+      db
+        .select({ labelled: sql`1` })
+        .from(characterTags)
+        .innerJoin(tags, eq(characterTags.tagId, tags.id))
+        .where(and(eq(characterTags.characterId, characters.id), eq(characterTags.status, "accepted"), sql`lower(${tags.name}) like ${like}`)),
+    ),
+  );
+}
+
+/** Does this row carry (or not carry) the chip's tag? One EXISTS per id rather than an `IN` + count: the
+ *  include arm is AND-semantics (`filterByChips`' own contract — every include tag must be present), and a
+ *  single `IN` would silently degrade it to OR. */
+function carriesTag(db: Db, tagId: TagId): SQL {
+  return exists(
+    db
+      .select({ tagged: sql`1` })
+      .from(characterTags)
+      .where(and(eq(characterTags.characterId, characters.id), eq(characterTags.tagId, tagId), eq(characterTags.status, "accepted"))),
+  );
+}
+
+/** The ONE place the library list's owner scope + lens predicates are spelled, so the page and its census can
+ *  never disagree about what they are a window into / a count of. Synthetic buckets are excluded here, which
+ *  is what keeps invariant 3 true of the census as well as of the rows. */
+function ownedCharacterScope(db: Db, ownerId: UserId, filter: CharacterListFilter): SQL | undefined {
+  return and(
+    eq(characters.ownerId, ownerId),
+    eq(characters.synthetic, false),
+    filter.starred === undefined ? undefined : eq(characters.starred, filter.starred),
+    filter.archived === undefined ? undefined : eq(characters.archived, filter.archived),
+    filter.search === undefined ? undefined : searchPredicate(db, filter.search),
+    ...(filter.includeTagIds ?? []).map((tagId) => carriesTag(db, tagId)),
+    ...(filter.excludeTagIds ?? []).map((tagId) => not(carriesTag(db, tagId))),
+  );
+}
+
+/** Owner's non-synthetic characters, LENS-filtered, sorted + keyset-paged. No offset (skips/dupes under
+ *  concurrent writes). */
 export async function listOwnedCharactersWithAvatar(db: Db, input: ListOwnedPageInput): Promise<CharacterListRow[]> {
-  const scope = and(eq(characters.ownerId, input.ownerId), eq(characters.synthetic, false));
+  const scope = ownedCharacterScope(db, input.ownerId, input);
   const keyset = input.cursor === undefined ? undefined : keysetFor(input.cursor);
   const rows = await db
     .select({
@@ -296,6 +363,19 @@ export async function listOwnedCharactersWithAvatar(db: Db, input: ListOwnedPage
     .orderBy(...orderFor(input.sort))
     .limit(input.limit);
   return rows;
+}
+
+/** The library list's CENSUS — how many characters match the same scope the page above is a window into. A
+ *  real `COUNT`, never `items.length`: a keyset list's loaded-row count is a number that silently means
+ *  something else (`countMemberChats`' own note). The `character_summaries` join is the search predicate's,
+ *  not a projection — the count selects nothing but the total. */
+export async function countOwnedCharacters(db: Db, ownerId: UserId, filter: CharacterListFilter): Promise<number> {
+  const rows = await db
+    .select({ total: count() })
+    .from(characters)
+    .leftJoin(characterSummaries, eq(characterSummaries.characterId, characters.id))
+    .where(ownedCharacterScope(db, ownerId, filter));
+  return rows.at(0)?.total ?? 0;
 }
 
 /** One owned character row (no avatar join) — the `getCard`/remove fast path. Undefined when not owned. */
