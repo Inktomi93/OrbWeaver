@@ -3,6 +3,8 @@
 // callers/importers/exports/jsx/ident + rot lenses orphans/testonly/chains/cycles/aliases/stringy) and module-
 // graph layer (depcruise pass-throughs flow/reaches, same config the gates run). Run bare for full usage
 // with examples (the USAGE block below is the doc). Prefer this over grep for CODE questions.
+// EVERY run ends with an audit epilogue on STDERR naming the scope it actually entered — see "THE SCAN
+// LEDGER" below; a zero-scan run is a tool error (exit 2), never a clean "no results".
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import process from "node:process";
@@ -36,6 +38,320 @@ const KEY_SEP = "\u0000";
 
 type Flags = { in: string | null; json: boolean; max: number; filesOnly: boolean; public: boolean };
 type Hit = { file: string; line: number; kind: string; text: string };
+
+// ── THE SCAN LEDGER — every invocation ends with ONE auditable epilogue ────────────────────────
+// WHY (Codex repository audit, 2026-08-13): `no results` and `the search never happened` print the SAME
+// line, so a lens can read clean while blind. Three shapes produce that lie here, all measured on this
+// tree, none visible in the RESULT line:
+//   1. THE TWO CORPORA. The syntactic verbs load `harnessGlobs` (packages/*/src + tests +
+//      scripts/check/gates); only the TYPED verbs load `searchGlobs`, which adds all of scripts/**,
+//      packages/*/*.ts, *.mts and playwright/**. So `ast ident REPO_ROOT --in scripts/` printed
+//      `no results` against a corpus that never contained one scripts/ file (verified 2026-08-13).
+//   2. A SCOPE THAT ADMITS NOTHING. `resolveScope` has always rejected a zero-file positional scope with
+//      exit 2 — but the verbs that take a raw path substring (`exports`, `aliases`, `cycles`) had no such
+//      gate, and neither did `--in`, so a typo there degraded straight to a clean zero.
+//      (`--filter` is a pnpm BUILD selector and never scoped this lens at all — `scope=` now says so.)
+//   3. TS vs TSX. `.ts` and `.tsx` are different languages to every structural tool; `langs=` prints the
+//      per-extension file counts so a mixed-tree answer cannot hide a single-language scan.
+//
+// So every invocation ends with ONE line on STDERR — stdout stays byte-identical, pipelines keep working:
+//   [ast] verb=<v> scope=<parts> langs=<ext:count,…> scanned=<n> skipped=<n>(<reason:count,…>) matches=<n> status=…
+// and `--json` carries the same fields as an ADDITIVE `meta` object (no existing key moves or changes).
+//
+// WHAT `scanned` MEANS, precisely — it is the CANDIDATE corpus: the files this invocation's scope admits,
+// the files a hit can come from. A lens may additionally walk the whole workspace to DECIDE a verdict
+// (`buildLiveness`, reference resolution, the depcruise graph); that substrate pass is deliberately not
+// counted, because a scope typo cannot silence it and counting it would hide the number that a typo DOES
+// move. The count is not re-derived either: it is taken by the same {@link scanCorpus} call that hands the
+// verb its files, so it cannot drift from what the lens read. A verb that walks `project.getSourceFiles()`
+// for its own candidates reports a scan it never proved — do not add one.
+//
+// `scanned=0` is a TOOL ERROR (status=error, `SCOPE ENTERED NOTHING`, exit 2), never a result — the
+// exit-2 discipline `resolveScope` established, extended to every other way a scope can enter nothing.
+// The same rule covers the scopes that resolve to UNITS rather than paths ({@link noteUnits}): zero
+// procedures / tables / registries / domains is a blind lens, not a clean one.
+
+/** Why a loaded source file is NOT in the scanned corpus. `out-of-filter` is the `--in` path filter: the
+ *  file was walked but cannot contribute a hit (`dedupe` drops it), so it is skipped, never scanned. */
+type SkipReason = "out-of-scope" | "out-of-filter" | "test-file" | "declaration-file";
+
+/** complete = every match was displayed · partial = the display was capped (raise `--max`) · error = the
+ *  run is NOT a verdict (the scope entered nothing, or a tool broke). Mirrors the verify exit contract. */
+type ScanStatus = "complete" | "partial" | "error";
+
+/** The epilogue as DATA — one stderr line, and the `--json` `meta` object, from the same record.
+ *  `scanned`/`skipped` are null only for a pass-through verb whose corpus is not ours to count (the
+ *  depcruise arm): a fabricated number would be exactly the lie this ledger exists to kill. */
+type ScanMeta = {
+  readonly verb: string;
+  readonly scope: string;
+  readonly langs: Readonly<Record<string, number>>;
+  readonly scanned: number | null;
+  readonly skipped: number | null;
+  readonly skippedBy: Readonly<Record<SkipReason, number>>;
+  readonly matches: number;
+  readonly status: ScanStatus;
+};
+
+type ScanLedger = {
+  readonly verb: string;
+  /** the `--in` path filter, folded into the scope because it decides what can be REPORTED. */
+  readonly filter: string | null;
+  readonly scopeParts: string[];
+  readonly langs: Map<string, number>;
+  readonly skipped: Map<SkipReason, number>;
+  /** null until a scan seam records a corpus (a pass-through verb never sets it). */
+  scanned: number | null;
+  matches: number;
+  /** the printed hit list omitted matches (the `--max` cap) — status=partial. */
+  truncated: boolean;
+  /** a tool error: an empty unit scope, a failed subprocess, an unavailable checker API. */
+  failed: boolean;
+  finished: boolean;
+};
+
+/** The invocation's ledger. Undefined when this module is IMPORTED rather than run (the self-test and the
+ *  push-tier ratchet drive the pure collectors) — every note is a no-op then, so importing prints nothing. */
+let ledger: ScanLedger | undefined;
+
+const TOOL_ERROR_EXIT = 2;
+const EPILOGUE_TAG = "[ast]";
+/** What the two `getWorkspace` arms load, named in `scope=` so a corpus-shaped zero is self-diagnosing. */
+const CORPUS_TYPED = "search-globs(packages/*/src,tests,scripts/**,packages/*/*.ts,*.mts,playwright)";
+const CORPUS_SYNTACTIC = "harness-globs(packages/*/src,tests,scripts/check/gates)";
+const CORPUS_DEPCRUISE = "depcruise(.dependency-cruiser.cjs)";
+
+function beginRun(verb: string, corpus: string, flags: Flags): void {
+  const scopeParts = [`corpus:${corpus}`];
+  ledger = {
+    verb,
+    filter: flags.in,
+    scopeParts,
+    langs: new Map(),
+    skipped: new Map(),
+    scanned: null,
+    matches: 0,
+    truncated: false,
+    failed: false,
+    finished: false,
+  };
+}
+
+/** Add a RESOLVED scope component to `scope=` (`path:/packages/server/src/`, `tables:3`). */
+function noteScope(part: string): void {
+  ledger?.scopeParts.push(part);
+}
+
+/** A scope that resolves to UNITS, not paths — tRPC procedures, drizzle tables, registries, domains. Zero
+ *  units is a lens that entered nothing (a router shape it no longer recognizes, a table name typo): the
+ *  same tool error as a zero-file path scope, and the reason `unwired` can no longer report a silent clean
+ *  when `appRouter` stops matching. */
+function noteUnits(kind: string, count: number): void {
+  noteScope(`${kind}:${count}`);
+  if (count === 0 && ledger !== undefined) {
+    ledger.failed = true;
+  }
+}
+
+function noteSkip(reason: SkipReason): void {
+  if (ledger !== undefined) {
+    ledger.skipped.set(reason, (ledger.skipped.get(reason) ?? 0) + 1);
+  }
+}
+
+/** `.tsx` and `.ts` are different LANGUAGES to every structural tool, and `.d.ts` is a third thing —
+ *  each gets its own bucket so a single-language scan of a mixed tree is visible in the epilogue. */
+function langOf(filePath: string): string {
+  if (filePath.endsWith(".d.ts")) {
+    return "dts";
+  }
+  const dot = filePath.lastIndexOf(".");
+  return dot < 0 ? "(none)" : filePath.slice(dot + 1);
+}
+
+function noteScannedFile(filePath: string): void {
+  if (ledger === undefined) {
+    return;
+  }
+  ledger.scanned = (ledger.scanned ?? 0) + 1;
+  const lang = langOf(filePath);
+  ledger.langs.set(lang, (ledger.langs.get(lang) ?? 0) + 1);
+}
+
+/** Record ONE emitted result set: how many matches survived dedupe + `--in`, and how many were displayed. */
+function noteMatches(total: number, shown: number): void {
+  if (ledger === undefined) {
+    return;
+  }
+  ledger.matches += total;
+  ledger.truncated = ledger.truncated || shown < total;
+}
+
+/** The run is not a verdict — a broken subprocess, an unavailable compiler API, an empty unit scope. */
+function noteToolError(): void {
+  if (ledger !== undefined) {
+    ledger.failed = true;
+  }
+}
+
+function statusOf(current: ScanLedger): ScanStatus {
+  if (current.failed || current.scanned === 0) {
+    return "error";
+  }
+  return current.truncated ? "partial" : "complete";
+}
+
+const NO_SKIPS: Readonly<Record<SkipReason, number>> = { "out-of-scope": 0, "out-of-filter": 0, "test-file": 0, "declaration-file": 0 };
+
+/** The ledger as `ScanMeta` — the ONE shape both the stderr epilogue and the `--json` `meta` are built
+ *  from, so the two can never disagree. Zeroed when the module is imported rather than run. */
+function scanMeta(): ScanMeta {
+  if (ledger === undefined) {
+    return { verb: "(none)", scope: "(none)", langs: {}, scanned: null, skipped: null, skippedBy: NO_SKIPS, matches: 0, status: "complete" };
+  }
+  const skippedBy = { ...NO_SKIPS, ...Object.fromEntries(ledger.skipped) };
+  const skipped = [...ledger.skipped.values()].reduce((a, b) => a + b, 0);
+  // `in:` reads LAST — corpus, then the resolved scope, then the output filter narrowing it.
+  const scopeParts = ledger.filter === null ? ledger.scopeParts : [...ledger.scopeParts, `in:${ledger.filter}`];
+  return {
+    verb: ledger.verb,
+    scope: scopeParts.join("+"),
+    langs: Object.fromEntries([...ledger.langs.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    scanned: ledger.scanned,
+    skipped: ledger.scanned === null ? null : skipped,
+    skippedBy,
+    matches: ledger.matches,
+    status: statusOf(ledger),
+  };
+}
+
+/** `k:v,k:v` — the epilogue's compact sub-field form (no spaces: the line stays one greppable token run). */
+function pairsOf(counts: Readonly<Record<string, number>>): string {
+  const shown = Object.entries(counts).filter(([, n]) => n > 0);
+  return shown.length === 0 ? "-" : shown.map(([k, n]) => `${k}:${n}`).join(",");
+}
+
+function formatEpilogue(meta: ScanMeta): string {
+  const scanned = meta.scanned === null ? "n/a" : String(meta.scanned);
+  const skipped = meta.skipped === null ? "n/a" : String(meta.skipped);
+  return `${EPILOGUE_TAG} verb=${meta.verb} scope=${meta.scope} langs=${pairsOf(meta.langs)} scanned=${scanned} skipped=${skipped}(${pairsOf(meta.skippedBy)}) matches=${meta.matches} status=${meta.status}`;
+}
+
+/** The LOUD second line for a zero-scan run: which fence swallowed the corpus, and what to do about it.
+ *  A zero here is never "no results" — it is "this question was never asked of any file". */
+function emptyScopeDiagnosis(current: ScanLedger): string {
+  const filtered = current.skipped.get("out-of-filter") ?? 0;
+  const cause =
+    current.filter !== null && filtered > 0
+      ? `--in "${current.filter}" matched none of the ${filtered} file(s) the scope admitted`
+      : `scope ${current.scopeParts.join("+")} admitted no file from the loaded corpus`;
+  return `${EPILOGUE_TAG} SCOPE ENTERED NOTHING — ${cause}. This is a TOOL ERROR (exit ${TOOL_ERROR_EXIT}), not a clean result: nothing was searched, so nothing could be found. Note the two corpora — syntactic verbs load ${CORPUS_SYNTACTIC}; the TYPED verbs (refs/cycles/orphans/testonly/prodonly/unwired/clientgap/swallowed/respell/typeonly-alive/columns/chains/stringy/apisurface) also load ${CORPUS_TYPED}.`;
+}
+
+/** Print the epilogue (stderr) and set the exit code when the run is not a verdict. Idempotent — the
+ *  tool-error path calls it before exiting, and `main` calls it on the way out. */
+function finishRun(): void {
+  if (ledger === undefined || ledger.finished) {
+    return;
+  }
+  ledger.finished = true;
+  const meta = scanMeta();
+  console.error(formatEpilogue(meta));
+  if (meta.status !== "error") {
+    return;
+  }
+  if (ledger.scanned === 0) {
+    console.error(emptyScopeDiagnosis(ledger));
+  }
+  // Never DOWNGRADE an exit code a lens already set: the two-sided STALE-marker arms (swallowed /
+  // typeonly-alive / columns) and the depcruise pass-through own exit 1, and that verdict outranks the
+  // generic tool-error code here.
+  if (process.exitCode === undefined || process.exitCode === 0) {
+    process.exitCode = TOOL_ERROR_EXIT;
+  }
+}
+
+/** A tool error with its own message: print it, close the ledger (so the epilogue still lands), exit 2.
+ *  The ONE exit-2 door — every scope/API failure in this file goes through it, so none can skip the audit. */
+function exitToolError(message: string): never {
+  console.error(message);
+  noteToolError();
+  finishRun();
+  process.exit(TOOL_ERROR_EXIT);
+}
+
+/** ONE exclusion a verb applies to its candidate corpus: the reason it is skipped and the predicate that
+ *  decides it. Mirror the verb's OWN filter here — the point is that the count and the lens agree. */
+type SkipRule = { readonly reason: SkipReason; readonly test: (filePath: string) => boolean };
+
+/** The verbs' own test fence is `TEST_FILE_RE` (a `.test`/`.ct` FILE), not `isTestPath` — mirror the
+ *  spelling the lens uses, or the count and the lens disagree on the tests/ tree. */
+const SKIP_TEST_FILES: SkipRule = { reason: "test-file", test: (fp) => TEST_FILE_RE.test(fp) };
+const SKIP_DECLARATION_FILES: SkipRule = { reason: "declaration-file", test: (fp) => fp.endsWith(".d.ts") };
+
+/** A path SUBSTRING (or several, OR'd) every candidate file must contain. `""` / `[]` = the whole corpus. */
+type ScopeMatch = string | readonly string[];
+
+/** What files a verb's lens may look at: the scope, how it prints, and the verb's own exclusions. */
+type ScanSpec = { readonly scope: ScopeMatch; readonly label: string; readonly skip?: readonly SkipRule[] };
+
+/** The whole loaded corpus — the symbol verbs (`refs`/`callers`/`importers`/`jsx`/`ident`), which search
+ *  workspace-wide and narrow only their OUTPUT with `--in`. */
+const WHOLE_CORPUS: ScanSpec = { scope: "", label: "workspace" };
+
+function inScopeOf(filePath: string, scope: ScopeMatch): boolean {
+  if (typeof scope === "string") {
+    return scope === "" || filePath.includes(scope);
+  }
+  return scope.length === 0 || scope.some((s) => filePath.includes(s));
+}
+
+/** THE SCAN SEAM. Returns the files the verb's lens may look at, and records the same walk in the ledger:
+ *  every loaded file lands in exactly one bucket (scanned, or skipped with a reason), so scanned+skipped is
+ *  the corpus and `scanned=0` is provably "nothing was searched".
+ *
+ *  THE ONE ASYMMETRY, stated because it is load-bearing: a file excluded by `--in` is COUNTED as
+ *  `out-of-filter` but still RETURNED. `--in` filters hits (`dedupe`), never the walk — several verbs print
+ *  corpus-wide summaries beside their hits ("N type alias(es) examined", the chain/column tables) and
+ *  dropping files here would silently change those. The ledger observes; it never filters. */
+function scanCorpus(project: Project, spec: ScanSpec): SourceFile[] {
+  noteScope(spec.label);
+  if (ledger !== undefined) {
+    // A scan seam RAN, so the corpus is ours to count: `scanned` leaves `null` (the pass-through sentinel)
+    // here and not one file later. Without this, a scope that admits nothing reports `scanned=n/a` — the
+    // "we did not measure" answer wearing the clothes of "we measured zero", which is the whole defect.
+    ledger.scanned = ledger.scanned ?? 0;
+  }
+  const skips = spec.skip ?? [];
+  const files: SourceFile[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (!inScopeOf(fp, spec.scope)) {
+      noteSkip("out-of-scope");
+      continue;
+    }
+    const rule = skips.find((r) => r.test(fp));
+    if (rule !== undefined) {
+      noteSkip(rule.reason);
+      continue;
+    }
+    files.push(sf);
+    if (ledger?.filter !== undefined && ledger.filter !== null && !fp.includes(ledger.filter)) {
+      noteSkip("out-of-filter");
+      continue;
+    }
+    noteScannedFile(fp);
+  }
+  return files;
+}
+
+/** The scanned corpus as an `inScope` predicate — how a verb hands the EXACT file set it was measured on
+ *  to a collector that takes a path predicate. One predicate, both jobs: the count cannot drift from the
+ *  lens (a hand-rolled `fp.includes(prefix)` beside a `scanCorpus` call is how the two fork). */
+function corpusPredicate(files: readonly SourceFile[]): (filePath: string) => boolean {
+  const paths = new Set(files.map((sf) => sf.getFilePath()));
+  return (filePath) => paths.has(filePath);
+}
 
 function parseFlags(rest: string[]): Flags {
   const flags: Flags = { in: null, json: false, max: DEFAULT_MAX, filesOnly: false, public: false };
@@ -99,12 +415,17 @@ function emit(hits: Hit[], flags: Flags, label: string): void {
   const files = new Set(unique.map((h) => h.file)).size;
   if (flags.json) {
     const shown = unique.slice(0, flags.max);
-    console.log(JSON.stringify({ label, total: unique.length, shown: shown.length, hits: shown }, null, 1));
+    noteMatches(unique.length, shown.length);
+    // `meta` is ADDITIVE and last — every pre-existing key keeps its name, order and value, so a consumer
+    // reading `total`/`hits` is untouched while a new one can audit the scope the answer came from.
+    console.log(JSON.stringify({ label, total: unique.length, shown: shown.length, hits: shown, meta: scanMeta() }, null, 1));
     return;
   }
   if (flags.filesOnly || (unique.length > Math.max(flags.max, COLLAPSE_THRESHOLD) && flags.max === DEFAULT_MAX)) {
     // The at-a-glance mode: WHERE the hits live, one line per file. Explicit via --files, or
     // automatic when raw lines would flood the reader (pass --max <n> to force raw lines).
+    // NOT truncation — every hit is accounted for at file granularity, so status stays `complete`.
+    noteMatches(unique.length, unique.length);
     for (const [file, n] of perFileCounts(unique)) {
       console.log(`${file}  (${n})`);
     }
@@ -114,6 +435,7 @@ function emit(hits: Hit[], flags: Flags, label: string): void {
     return;
   }
   const shown = unique.slice(0, flags.max);
+  noteMatches(unique.length, shown.length);
   for (const h of shown) {
     console.log(`${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
@@ -128,10 +450,11 @@ function loadProject(needTypes: boolean): Project {
   return getWorkspace({ root: REPO_ROOT, types: needTypes });
 }
 
-/** Every exported (workspace-wide) or module-local (same-file refs still matter) declaration named `name`. */
-function declarationsNamed(project: Project, name: string): Node[] {
+/** Every exported (workspace-wide) or module-local (same-file refs still matter) declaration named `name`,
+ *  over the SCANNED corpus (the caller's `scanCorpus` result — never a second walk of the project). */
+function declarationsNamed(files: readonly SourceFile[], name: string): Node[] {
   const out: Node[] = [];
-  for (const sf of project.getSourceFiles()) {
+  for (const sf of files) {
     const exported = sf.getExportedDeclarations().get(name);
     if (exported) {
       out.push(...exported);
@@ -151,7 +474,7 @@ function declarationsNamed(project: Project, name: string): Node[] {
 }
 
 function cmdRefs(project: Project, name: string, flags: Flags): void {
-  const decls = declarationsNamed(project, name);
+  const decls = declarationsNamed(scanCorpus(project, WHOLE_CORPUS), name);
   if (decls.length === 0) {
     emit([], flags, `refs ${name} (no declaration found — try \`pnpm ast ident ${name}\`)`);
     return;
@@ -174,7 +497,7 @@ function cmdRefs(project: Project, name: string, flags: Flags): void {
 
 function cmdCallers(project: Project, name: string, flags: Flags): void {
   const hits: Hit[] = [];
-  for (const sf of project.getSourceFiles()) {
+  for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
     for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const expr = call.getExpression();
       const isMethod = Node.isPropertyAccessExpression(expr);
@@ -223,7 +546,7 @@ function dynamicImporterHits(sf: SourceFile, spec: string): Hit[] {
 
 function cmdImporters(project: Project, spec: string, flags: Flags): void {
   const hits: Hit[] = [];
-  for (const sf of project.getSourceFiles()) {
+  for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
     hits.push(...staticImporterHits(sf, spec), ...dynamicImporterHits(sf, spec));
   }
   emit(hits, flags, `importers ${spec}`);
@@ -231,10 +554,9 @@ function cmdImporters(project: Project, spec: string, flags: Flags): void {
 
 function cmdExports(project: Project, path: string, flags: Flags): void {
   const hits: Hit[] = [];
-  for (const sf of project.getSourceFiles()) {
-    if (!sf.getFilePath().includes(path)) {
-      continue;
-    }
+  // The scope IS the positional arg (a file or dir path substring) — a path that matches no loaded file is
+  // now the same tool error a bad package scope has always been, instead of an empty export list.
+  for (const sf of scanCorpus(project, { scope: path, label: `path:${path === "" ? "(none)" : path}` })) {
     for (const [name, decls] of sf.getExportedDeclarations()) {
       const d = decls[0];
       if (d !== undefined) {
@@ -249,7 +571,7 @@ function cmdExports(project: Project, path: string, flags: Flags): void {
 
 function cmdJsx(project: Project, name: string, flags: Flags): void {
   const hits: Hit[] = [];
-  for (const sf of project.getSourceFiles()) {
+  for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
     for (const kind of [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement] as const) {
       for (const el of sf.getDescendantsOfKind(kind)) {
         if (el.getTagNameNode().getText() === name) {
@@ -263,7 +585,7 @@ function cmdJsx(project: Project, name: string, flags: Flags): void {
 
 function cmdIdent(project: Project, name: string, flags: Flags): void {
   const hits: Hit[] = [];
-  for (const sf of project.getSourceFiles()) {
+  for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
     for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
       if (id.getText() === name) {
         hits.push(hitOf(id, "ident"));
@@ -902,8 +1224,8 @@ function resolveScope(project: Project, arg: string, verb: string): Scope {
     guess === undefined
       ? `expected one of: ${WORKSPACE_PACKAGES.join(", ")}, or a path like packages/server/src/domain`
       : `did you mean \`pnpm ast ${verb} ${guess}\` (a package name), or a path under packages/${guess}/src/?`;
-  console.error(`ast ${verb}: scope "${arg}" (tried path substring "${scope.prefix}") matched no source files — ${hint}`);
-  process.exit(2);
+  noteScope(`path:${scope.prefix}(no-files)`);
+  exitToolError(`ast ${verb}: scope "${arg}" (tried path substring "${scope.prefix}") matched no source files — ${hint}`);
 }
 
 /** A candidate export of `sf` that a consumer might reach: `(name, first-decl)` for each export whose
@@ -1082,8 +1404,9 @@ function printSuppressed(suppressed: readonly Hit[], hitCount: number, flags: Fl
  *  permanent-zero `orphans contracts` bug: 100%-barrel packages reported clean while blind). */
 function cmdOrphans(project: Project, arg: string, flags: Flags): void {
   const scope = resolveScope(project, arg, "orphans");
+  const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const live = buildLiveness(project);
-  const candidates = collectOrphanCandidates(project, live, (fp) => fp.includes(scope.prefix));
+  const candidates = collectOrphanCandidates(project, live, inScope);
   const hits = candidates.filter((c) => !c.starSuppressed).map((c) => candidateHit(c, "orphan-export"));
   const suppressed = candidates.filter((c) => c.starSuppressed).map((c) => candidateHit(c, "star-suppressed"));
   printSuppressed(suppressed, dedupe(hits, flags).length, flags);
@@ -1111,13 +1434,11 @@ function scanTestOnly(sf: SourceFile, live: Liveness): Hit[] {
 /** Exports of `<scope>` reached ONLY from test paths — code alive solely because a test imports it. */
 function cmdTestOnly(project: Project, arg: string, flags: Flags): void {
   const scope = resolveScope(project, arg, "testonly");
+  const files = scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] });
   const live = buildLiveness(project);
   const hits: Hit[] = [];
-  for (const sf of project.getSourceFiles()) {
-    const fp = sf.getFilePath();
-    if (fp.includes(scope.prefix) && !TEST_FILE_RE.test(fp)) {
-      hits.push(...scanTestOnly(sf, live));
-    }
+  for (const sf of files) {
+    hits.push(...scanTestOnly(sf, live));
   }
   emit(hits, flags, `testonly ${scope.label}`);
 }
@@ -1254,13 +1575,13 @@ function reachableFrom(entries: Set<string>, project: Project): Set<string> {
  *  lens. Complements testonly's per-symbol view. */
 function cmdProdOnly(project: Project, arg: string, flags: Flags): void {
   const scope = resolveScope(project, arg, "prodonly");
+  // `.d.ts` ambient declarations are consumed by the type system, never by an import edge — they are
+  // never "reachable" and are not orphans (knip excludes them from unused-files too).
+  const files = scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES, SKIP_DECLARATION_FILES] });
   const reachable = reachableFrom(deriveEntryFiles(project), project);
   const hits: Hit[] = [];
-  for (const sf of project.getSourceFiles()) {
-    const fp = sf.getFilePath();
-    // `.d.ts` ambient declarations are consumed by the type system, never by an import edge — they are
-    // never "reachable" and are not orphans (knip excludes them from unused-files too).
-    if (fp.includes(scope.prefix) && !TEST_FILE_RE.test(fp) && !fp.endsWith(".d.ts") && !reachable.has(fp)) {
+  for (const sf of files) {
+    if (!reachable.has(sf.getFilePath())) {
       hits.push(hitOf(sf, "prod-unreachable"));
     }
   }
@@ -1321,6 +1642,9 @@ function findCycles(graph: Map<string, string[]>): string[][] {
  *  barrels are visible (a relative-only walk reports a false 0). */
 function cmdCycles(project: Project, pkg: string, flags: Flags): void {
   const prefix = `/packages/${pkg}/src/`;
+  // A package name this corpus holds no file for is a tool error, not "no cycles" — the graph would be
+  // empty either way, and an empty graph reads exactly like a clean one.
+  scanCorpus(project, { scope: prefix, label: `path:${prefix}` });
   const hits: Hit[] = [];
   for (const cycle of findCycles(resolvedGraph(project, prefix))) {
     const first = project.getSourceFile(cycle[0] ?? "");
@@ -1383,10 +1707,7 @@ function rebindHits(sf: SourceFile): Hit[] {
  *  renames — the same declaration living under N public names. Scope with --in <pkg-substr>. */
 function cmdAliases(project: Project, scope: string, flags: Flags): void {
   const hits: Hit[] = [];
-  for (const sf of project.getSourceFiles()) {
-    if (!sf.getFilePath().includes(scope)) {
-      continue;
-    }
+  for (const sf of scanCorpus(project, { scope, label: `path:${scope === "" ? "(all)" : scope}` })) {
     hits.push(...renameSpecifierHits(sf), ...rebindHits(sf));
   }
   emit(hits, flags, `aliases ${scope}`);
@@ -1608,7 +1929,27 @@ function isUnwiredExempt(decl: Node): boolean {
  *  `// @server-only: <reason>` (no client consumer by design) or `// @test-fixture: <reason>` (a deliberate
  *  always-ship test/sweep fixture) is excluded from the report. */
 function cmdUnwired(project: Project, scope: string, flags: Flags): void {
+  scanCorpus(project, WHOLE_CORPUS);
   const procs = collectServerProcedures(project);
+  // The scope of THIS lens is the enumerated procedure set, not a path: zero procedures means the
+  // `appRouter = t.router({…})` shape stopped matching, and a structurally blind run must not print clean.
+  noteUnits("procs", procs.length);
+  if (procs.length === 0) {
+    exitToolError(
+      "ast unwired: enumerated ZERO server procedures — the `appRouter = t.router({ … })` shape this lens derives from did not match, so nothing could be reported. Re-check packages/server/src/transport (the router shape), not the client.",
+    );
+  }
+  if (scope !== "") {
+    // A `<ns>.<proc>` substring that names no enumerated procedure is a scope that entered nothing —
+    // the router-name typo that used to read as "this router is fully wired".
+    const scoped = procs.filter((p) => p.full.includes(scope));
+    noteUnits(`procs-matching-"${scope}"`, scoped.length);
+    if (scoped.length === 0) {
+      exitToolError(
+        `ast unwired: scope "${scope}" matched none of the ${procs.length} enumerated procedure(s) — pass a \`<ns>.<proc>\` substring (a router name), or run bare for all.`,
+      );
+    }
+  }
   const valid = new Set(procs.map((p) => p.full));
   const consumed = collectClientConsumed(project, valid);
   const hits: Hit[] = [];
@@ -1640,13 +1981,10 @@ function cmdClientGap(project: Project, arg: string, flags: Flags): void {
   const scoped = arg === "" ? "contracts" : arg;
   const scope = resolveScope(project, scoped, "clientgap");
   const isContracts = scope.prefix.includes(CONTRACTS_SRC_PREFIX);
+  const files = scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] });
   const live = buildLiveness(project);
   const hits: Hit[] = [];
-  for (const sf of project.getSourceFiles()) {
-    const fp = sf.getFilePath();
-    if (!fp.includes(scope.prefix) || TEST_FILE_RE.test(fp)) {
-      continue;
-    }
+  for (const sf of files) {
     for (const { name, decl } of ownExports(sf)) {
       const key = declKey(decl);
       const gap = live.usedServerProd.has(key) && !live.usedClientProd.has(key) && !live.usedTest.has(key);
@@ -1848,8 +2186,8 @@ function printStaleSwallowedTags(project: Project, inScope: (fp: string) => bool
  *  deliberate keep carries `// @swallowed-ok: <reason>`; a stale marker is reported and exits 1. */
 function cmdSwallowed(project: Project, arg: string, flags: Flags): void {
   const scope = arg === "" ? { prefix: "/packages/", label: "(all packages)" } : resolveScope(project, arg, "swallowed");
+  const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const live = buildLiveness(project);
-  const inScope = (fp: string): boolean => fp.includes(scope.prefix);
   const candidates = collectSwallowedCandidates(project, live, inScope);
   printStaleSwallowedTags(project, inScope, new Set(candidates.map((c) => declKey(c.decl))));
   const hits = candidates.filter((c) => !isSwallowedExempt(c.decl)).map(swallowedHit);
@@ -1887,10 +2225,9 @@ type AssignabilityChecker = { isTypeAssignableTo: (source: unknown, target: unkn
 export function assignabilityChecker(project: Project): AssignabilityChecker {
   const compiler = project.getTypeChecker().compilerObject as unknown as Partial<AssignabilityChecker>;
   if (typeof compiler.isTypeAssignableTo !== "function") {
-    console.error(
+    exitToolError(
       "ast respell: this TypeScript build exposes no `checker.isTypeAssignableTo` (a TS internal this lens depends on) — the comparison cannot run. Re-verify the API after a TypeScript bump; scripts/codemods/ast.ts.",
     );
-    process.exit(2);
   }
   return { isTypeAssignableTo: compiler.isTypeAssignableTo.bind(compiler) };
 }
@@ -2027,10 +2364,17 @@ export function respellHitsFor(project: Project, checker: AssignabilityChecker, 
  *  exports — the RENAMED re-spell the syntactic gate cannot see. Optional arg = one domain; bare = all. */
 function cmdRespell(project: Project, arg: string, flags: Flags): void {
   const domains = domainsWithContracts(project, arg);
+  noteUnits("domains", domains.length);
   if (domains.length === 0) {
-    console.error(`ast respell: no domain contract/ dir matched "${arg}" — try a domain name (chat, rpg, preset, …) or run bare for all.`);
-    process.exit(2);
+    exitToolError(`ast respell: no domain contract/ dir matched "${arg}" — try a domain name (chat, rpg, preset, …) or run bare for all.`);
   }
+  // The candidate corpus is BOTH sides of the comparison: the domain `contract/` dirs and their sibling
+  // `@orb/contracts/<domain>` packages. A domain whose contracts package is empty is why a run can be
+  // legitimately quiet — `scanned` shows which side actually held files.
+  scanCorpus(project, {
+    scope: domains.flatMap((d) => [`/packages/contracts/src/${d}/`, `/packages/server/src/domain/${d}/contract/`]),
+    label: `path:domain-contracts(${domains.length})`,
+  });
   const checker = assignabilityChecker(project);
   const hits: Hit[] = [];
   for (const domain of domains) {
@@ -2264,7 +2608,7 @@ function printStaleTypeOnlyTags(project: Project, inScope: (fp: string) => boole
  *  package. A deliberate conformance seam carries `// @typeonly-ok: <reason>`; a stale marker exits 1. */
 function cmdTypeOnly(project: Project, arg: string, flags: Flags): void {
   const scope = arg === "" ? { prefix: "/packages/", label: "(all packages)" } : resolveScope(project, arg, "typeonly-alive");
-  const inScope = (fp: string): boolean => fp.includes(scope.prefix);
+  const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
   const candidates = collectTypeOnlyCandidates(project, inScope);
   printStaleTypeOnlyTags(project, inScope, new Set(candidates.map((c) => declKey(c.decl))));
   const hits = candidates.filter((c) => !isTypeOnlyExempt(c.decl)).map(typeOnlyHit);
@@ -2871,12 +3215,15 @@ function cmdColumns(project: Project, arg: string, flags: Flags): void {
   const all = collectSchemaTables(project);
   const tables =
     arg === "" ? all : all.filter((t) => t.sqlName.includes(arg) || t.varName.includes(arg) || t.columns[0]?.decl.getSourceFile().getFilePath().includes(arg));
+  noteUnits("tables", tables.length);
   if (tables.length === 0) {
-    console.error(
+    exitToolError(
       `ast columns: scope "${arg}" matched no table — pass a SQL table name (rpg_games), a table variable (rpgGames), a schema-file substring (schema/rpg), or run bare for all ${all.length} tables.`,
     );
-    process.exit(2);
   }
+  // The scope resolves to TABLES; the files it admits are the schema files those tables are declared in
+  // (the read/write arms then walk the workspace to decide each column — substrate, not candidate corpus).
+  scanCorpus(project, { scope: tables.flatMap((t) => t.columns.map((c) => c.decl.getSourceFile().getFilePath())), label: "path:schema-files" });
   const audit = collectColumnCandidates(project, tables);
   printColumnSummary(audit, tables);
   printStaleColumnTags(audit.candidates);
@@ -3046,12 +3393,15 @@ function dispatchSitesOf(key: string, ownerFile: string, index: ReadonlyMap<stri
 function cmdRegKeys(project: Project, arg: string, flags: Flags): void {
   const all = collectRegistries(project);
   const registries = arg === "" ? all : all.filter((r) => r.name.includes(arg) || r.filePath.includes(arg));
+  noteUnits("registries", registries.length);
   if (registries.length === 0) {
-    console.error(
+    exitToolError(
       `ast regkeys: scope "${arg}" matched no registry — pass a registry const name (TEMPLATE_DEFS), a file substring, or run bare for all ${all.length}.`,
     );
-    process.exit(2);
   }
+  // The scope resolves to REGISTRIES; the files it admits are the ones declaring them (the dispatch-site
+  // index is a workspace-wide substrate pass, deliberately not counted as the candidate corpus).
+  scanCorpus(project, { scope: registries.map((r) => r.filePath), label: "path:registry-files" });
   const index = spellingIndex(project);
   const hits: Hit[] = [];
   for (const registry of registries) {
@@ -3363,8 +3713,17 @@ function printChainSummary(audit: ChainAudit): void {
  *  package. No marker of its own: the fix (and the `@public` exemption) lives at the chain's HEAD. */
 function cmdChains(project: Project, arg: string, flags: Flags): void {
   const scope = arg === "" ? { prefix: PACKAGES_PREFIX, label: "(all packages)" } : resolveScope(project, arg, "chains");
+  // The audited surface is `packages/*/src` non-test only (ROOT 2 makes everything else an alive root),
+  // so the corpus fences match `buildChainGraph`'s own — the count and the graph agree by construction.
+  const inScope = corpusPredicate(
+    scanCorpus(project, {
+      scope: scope.prefix,
+      label: `path:${scope.prefix}`,
+      skip: [SKIP_TEST_FILES, { reason: "out-of-scope", test: (fp) => !PACKAGE_SRC_RE.test(fp) }],
+    }),
+  );
   const live = buildLiveness(project, { edges: true });
-  const audit = collectChainAudit(project, live, (fp) => fp.includes(scope.prefix));
+  const audit = collectChainAudit(project, live, inScope);
   const { candidates } = audit;
   printChainSummary(audit);
   console.log(
@@ -3530,7 +3889,8 @@ function stringyHit(candidate: StringyCandidate): Hit {
  *  path); bare = every package. Reports the RESOLUTION CHAIN, which is what names the fix. */
 function cmdStringy(project: Project, arg: string, flags: Flags): void {
   const scope = arg === "" ? { prefix: PACKAGES_PREFIX, label: "(all packages)" } : resolveScope(project, arg, "stringy");
-  const audit = collectStringyAudit(project, (fp) => fp.includes(scope.prefix));
+  const inScope = corpusPredicate(scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] }));
+  const audit = collectStringyAudit(project, inScope);
   console.log(
     `stringy: ${audit.aliases} type alias(es) examined in scope — a zero below means every one of them NARROWS or BRANDS, not that the lens is blind. (This is NOT \`aliases\`, which reports rename laundering and never inspects a type's meaning.)`,
   );
@@ -3827,8 +4187,11 @@ function apiSurfaceHit(entry: ApiSurfaceEntry): Hit {
  *  (a package name / path); bare = every package. */
 function cmdApiSurface(project: Project, arg: string, flags: Flags): void {
   const scope = arg === "" ? { prefix: PACKAGES_PREFIX, label: "(all packages)" } : resolveScope(project, arg, "apisurface");
-  const entries = collectApiSurface(project, (fp) => fp.includes(scope.prefix));
-  printApiSummary(entries, project.getSourceFiles().length, scope.label);
+  const files = scanCorpus(project, { scope: scope.prefix, label: `path:${scope.prefix}`, skip: [SKIP_TEST_FILES] });
+  const entries = collectApiSurface(project, corpusPredicate(files));
+  // The summary's file count is the SCOPE's, not the whole project's — a scoped run used to print the
+  // workspace total beside a package's exports, which reads as far more coverage than the run had.
+  printApiSummary(entries, files.length, scope.label);
   console.log(
     "apisurface is a CANDIDATE lens — an INTERNAL verdict is EVIDENCE that an export could be made module-private, never proof (a same-package-only export may be a deliberate seam wired at a composition root). UNUSED is the `orphans` set verbatim; a namespace consumer (`import * as ns`) promotes a whole module to PUBLIC exactly as `orphans` errs alive — verify with `swallowed`. Default lists INTERNAL + TEST-ONLY + UNUSED (the actionable arms); pass `--public` to also list the cross-package PUBLIC rows.",
   );
@@ -3867,6 +4230,7 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
 const DEPCRUISE_VERBS: Record<string, string> = { flow: "--focus", reaches: "--reaches" };
 
 function runDepcruise(mode: string, pattern: string): void {
+  noteScope(`${mode}:${pattern}`);
   const res = spawnSync("node_modules/.bin/depcruise", ["packages", "--config", ".dependency-cruiser.cjs", "--output-type", "text", mode, pattern], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -3874,8 +4238,13 @@ function runDepcruise(mode: string, pattern: string): void {
   });
   const out = (res.stdout ?? "").trim();
   console.log(out === "" ? `RESULT ast ${mode} ${pattern}: no edges` : out);
+  // A pass-through: depcruise owns the walk, so `scanned` stays n/a rather than carrying a number this
+  // process did not measure. `matches` is the edge-line count — the one result quantity we DO observe.
+  const lines = out === "" ? 0 : out.split("\n").length;
+  noteMatches(lines, lines);
   if (res.status !== 0 && out === "") {
     console.error((res.stderr ?? "").trim());
+    noteToolError();
     process.exitCode = 1;
   }
 }
@@ -3934,9 +4303,27 @@ const USAGE = [
   "  pnpm ast flow chat/engine          module graph: X's direct edges both ways (depcruise, text)",
   "  pnpm ast reaches agent-sdk         every module that can transitively reach X (depcruise)",
   "",
+  "AUDIT EPILOGUE — every run ends with ONE line on STDERR (stdout is byte-unchanged, so pipes/redirects",
+  "  keep working). It is what makes a zero trustworthy:",
+  "    [ast] verb=… scope=… langs=ts:N,tsx:N scanned=N skipped=N(reason:count,…) matches=N status=complete|partial|error",
+  "  scanned = the files the SCOPE admitted (what a hit can come from), counted by the same pass that fed",
+  "  the lens; a whole-workspace substrate pass (liveness, reference resolution) is deliberately NOT counted.",
+  "  skipped reasons: out-of-scope · out-of-filter (--in) · test-file · declaration-file.",
+  "  status: complete = all matches shown · partial = the list was capped (raise --max) · error = NOT a",
+  "  verdict. `--json` carries the same fields as an additive `meta` object (no existing key changes).",
+  "  scanned=0 prints `SCOPE ENTERED NOTHING` and exits 2 — nothing was searched, so nothing could be found.",
+  "  TWO CORPORA, and the epilogue names yours: syntactic verbs load packages/*/src + tests +",
+  "  scripts/check/gates; the TYPED verbs (refs/cycles/orphans/testonly/prodonly/unwired/clientgap/swallowed/",
+  "  respell/typeonly-alive/columns/chains/stringy/apisurface) also load scripts/**, packages/*/*.ts, *.mts",
+  "  and playwright/**. So `ident X --in scripts/dev` scans ZERO files — it now says so instead of `no results`.",
+  "  (`pnpm --filter <pkg>` scopes the BUILD, never this lens: use the scope arg or --in, and read scope=.)",
+  "",
   "Scope arg (orphans/testonly/prodonly): a package NAME (kit|contracts|db|server|client|ui) OR a path",
   "  under packages/<pkg>/src (`packages/server/src/domain/chat`). A scope matching zero files is a tool",
-  '  error — it prints what was tried + a suggestion and exits 2 (never a silent "no results").',
+  '  error — it prints what was tried + a suggestion and exits 2 (never a silent "no results"). The same',
+  "  rule now covers every other scope shape: a raw path (exports/aliases/cycles), an --in filter that",
+  "  matches nothing, and the UNIT scopes (unwired procedures, columns tables, regkeys registries,",
+  "  respell domains) — zero units is a blind lens, not a clean one.",
   "  orphans/testonly key liveness on (declaring-file, export name), not bare name: same-file use,",
   "  dynamic import(), and `import * as` namespaces all count as alive; name collisions never merge.",
   "  orphans NAMES every star-suppressed candidate (`~ file:line [star-suppressed] <symbol>`) above the hit",
@@ -4055,7 +4442,9 @@ const USAGE = [
 function main(): void {
   const [verb, arg, ...rest] = process.argv.slice(2);
   if (verb !== undefined && arg !== undefined && DEPCRUISE_VERBS[verb] !== undefined) {
+    beginRun(verb, CORPUS_DEPCRUISE, parseFlags(rest));
     runDepcruise(DEPCRUISE_VERBS[verb], arg);
+    finishRun();
     return;
   }
   const run = verb === undefined ? undefined : VERBS[verb];
@@ -4073,7 +4462,11 @@ function main(): void {
     console.log(USAGE);
     return;
   }
-  run(loadProject(TYPED_VERBS.has(verb)), effectiveArg, parseFlags(flagTokens));
+  const typed = TYPED_VERBS.has(verb);
+  const flags = parseFlags(flagTokens);
+  beginRun(verb, typed ? CORPUS_TYPED : CORPUS_SYNTACTIC, flags);
+  run(loadProject(typed), effectiveArg, flags);
+  finishRun();
 }
 
 // Run only as the CLI entrypoint — importing this module (the self-test drives the pure enumeration
@@ -4084,7 +4477,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   } catch (e) {
     if (e instanceof CodemodError) {
       console.error(`ast: ${e.message}`);
+      // exitCode BEFORE the epilogue: `finishRun` never downgrades a verdict a caller already set.
       process.exitCode = 1;
+      noteToolError();
+      finishRun();
     } else {
       throw e;
     }
