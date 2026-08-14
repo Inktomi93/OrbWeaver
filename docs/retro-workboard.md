@@ -284,18 +284,32 @@ brief's convention wiring — every lane's scoped check missed it, all branched 
 `7994de156` (schema imports the LEAF, depcruise 80→0). Drain small: knip flags
 LiveResolverRootElement unused in live-token-resolver.ts.
 
-**THIRD ROTATION RUNNING (5, cap-full):** **weave-lab upgrade leg** (warm second leg in the motion
-lane's worktree — physics module · prey AI · character presets + anatomy v2 + frame-laying itinerary
-· WebSpinner weave-loop ported onto the shipped data-animate system · interactive/wind/character/
-tempo API; a11y flag owed on interactive=true vs the decoration contract) · **R1 draft-mode**
-(create-on-Start-click client wiring over R0; §2.7 draftKey collision dissolves by construction;
-reapHusk nav-away wiring) · **smalls-3** (phantom-scroll CLASS sweep w/ readEscapedAbsolutes ·
-provenance-thunk trio · ScopeEditorDialog stale image · Qwen-doc truth-repair) · **#36 schema-forge
-enforced structured output** (two seams, vehicle knob ×3, OR two-sided re-probe, floor refusals —
-BLOCKS R3's graduation lens) · **mutation gate run 5** (arm B landed — transformers import truly
-lazy; threads probe expected 87→0; calibration next).
+**THIRD ROTATION — CLOSED except R1 (running: R1 draft-mode a662d9e17adb6dc35, the R1+R2-client
+one-commit arm w/ the channels ruling; alternate-step verb = its next leg).** Landed:
+
+- **THE MUTATION GATE HAS ITS FIRST SCORE EVER + A LIVE BREAK.** Run 5 completed (84m03s):
+  **55.56 total / 58.02 covered** (guard 63.64 · assemble 52.25 · **round 81.97** · resolve 50.00);
+  `break: 50` calibrated + committed `2463765ed` — **RC-01 fully closed, the gate can FAIL now.**
+  Caveat in the config comment: load 40-60 + 503 excluded mutant errors → a quiet-box rerun may
+  raise the floor. Artifacts: reports/mutation/run5-2026-08-14.log + run5-gate.html. Merges:
+  runnability `be258f4e9` + threshold `2463765ed`.
+- **WEAVE LAB MERGED `242a08707`** (16 modules now, all under the cap): physics (pluck/shiver/wind,
+  swayGain≡1 at rest = byte-identical frames for existing hosts, regression-pinned) · prey AI ·
+  character presets (default calm, shipped 0.22 turnRate — the lab's `full` default would have
+  reversed the turbo ruling) · frame-laying itinerary (**the pinned 104px scaffold seam is GONE —
+  zero jumps**) · spinner weave-loop (spec's −L sign was WRONG, built +L with reasoning) ·
+  interactive/wind/character/tempo API. **Deliberate a11y ruling: interactive flips pointer-events,
+  NOT aria-hidden** (nameless canvas, no keyboard path) — side-eye candidate when a host mounts
+  interactive=true (none does yet). As-builts in the design doc.
+- **smalls-3 `2f9a9897e`** · **#36 CLOSED (was built 08-09; vehicle-knob pin is the new work)** ·
+  the drain smalls (`c18592d8a`) · checkList-cycle fix (`7994de156`) · factory fix (`bbfa31605`).
 
 **QUEUED:** gates G-A/G-B/G-C/G-D/G-E (fixed tree at drain; G-C's historical control banked) ·
+**G-F scroller-positioning gate** (smalls-3's measured win: overflow-y-auto/overflow-auto/
+overflow-y-scroll className must carry relative/absolute/fixed/sticky — \~40-site enumeration +
+preset-editor 11-escapee receipt attached to the lane report; readPhantomScrollers in
+tests/support/ct/scroll-containing-block.ts is the positive-control instrument; strictly stronger
+than per-surface symptom pins, which are hereby NOT owed) ·
 R2/R3 draft-mode · R3 refinery build + #39 polish + NL→schema (after #36) · #37 trust-gated card
 images · #38 leftovers · C1 persona status investigation · #33 templating · #43 code-split ·
 \#52 demo-v4 (fleet) · chats-pane eviction trap **(CLOSED — see the \[x] row below)** ·
