@@ -349,10 +349,12 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   **QUEUED — LANE 2 (dispatch when ghost-tail lands; bus.ts collision fence):** chatDeleted
   live-only + both delete paths DELETE-first (R1-4a closes) + the baseline SQUASH (⚠ next boot
   wipes then) + quiet (room,kind) generalization + F-G rename + the G-A roomReach SEATED-red gate
-  lane. **NEW ROW — ENTITY-DELETE FRESHNESS (named by the lane, boarded as promised):** deleting a
-  seated persona / attached book reaches NO member (SET NULL/CASCADE fires with no verb emit; reach
-  resolves ∅ post-write by construction) — fix shape = pre-write reach capture, per the
-  emits-precede-deletes law; recorded in contracts/events member headers + doc §3.6. **Follow-up
+  lane. **ENTITY-DELETE FRESHNESS — ✅ FIXED + MERGED (`3288346`; 25/25 suites, D16 33/33 byte-clean):**
+  deleting a seated persona / attached book now reaches every member via a PRE-WRITE reach capture
+  (`createDeleteReachCapture` at compose — snapshots seated rooms while junctions intact, fans the
+  captured `roomEntityChanged` after the row is gone; error-isolated so a lookup fault fans nothing
+  rather than faulting the delete; entry-delete needed nothing, the book survives). **THE BRIDGE
+  PROGRAM IS COMPLETE** (LANE 1 + LANE 2 + delete-freshness). **Follow-up
   small:** `forceCharacterTurn` still opens its slot only at turnStarted (the aux-accepted lane's
   \~6-line leftover; `slotAccepted` machinery exists). Original design row:
   `docs/design/entity-room-member-freshness-bridge.md` (stickler lane, 427 lines, check:docs green).
@@ -1420,7 +1422,7 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   density-tier 224 → **BURN LANE RUNNING** `density-burn` (owner-flung 08-14; A1 radius/A2 box-in-box
   - obvious A3 per density-pass-spec §5.1, taste-ambiguous A3 left for design; side-eye owed;
     the 07-31 taste audit's per-file budgets, shrink-only) + finding-overload-provenance
-    51 (gate-harness ignore-machinery bypass — BURN LANE RUNNING `overload-burn`). Standing brief
+    **36** (gate-harness ignore-machinery bypass — two burn lanes 51→41→36; \~12 files/36 rows remain, fresh lane per 3-4 gates). Standing brief
     policy adopted: a lane touching a density-baselined file burns that file's rows in-lane.
 - [ ] **CODEX DOC-SWEEP MISSES (their git-additions method beat the board's dir-walk — 2 real, both
   verified on tree 08-14 evening):** (1) **D129's two UNBUILT commitments never rowed:** the
