@@ -181,6 +181,9 @@ export interface GhostMessageRowProps {
   readonly smoothStream?: boolean | undefined;
   /** PD-146 — the `UserSettings.chat.smoothStreamCps` pref: the trickle floor when `smoothStream` is on. */
   readonly smoothStreamCps?: number | undefined;
+  /** The `UserSettings.chat.reasoningAutoCollapse` pref: fold the live reasoning trace on the first answer
+   *  token (default ON). Absent ⇒ ON. */
+  readonly reasoningAutoCollapse?: boolean | undefined;
   /** True only on the render the ghost genuinely appears; a mid-stream scrollback remount gets false. */
   readonly enterMotion?: boolean;
 }
@@ -202,6 +205,7 @@ export function GhostMessageRow({
   cardTier = "tierA",
   smoothStream = false,
   smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
+  reasoningAutoCollapse = true,
   enterMotion = false,
 }: GhostMessageRowProps): ReactElement {
   const enterClasses = useEnterMotion(enterMotion);
@@ -258,6 +262,7 @@ export function GhostMessageRow({
           showIcon={showLLMReasoningIcon}
           smoothStream={smoothStream}
           smoothStreamCps={smoothStreamCps}
+          autoCollapse={reasoningAutoCollapse}
         />
       ) : null}
       <GhostBubbleBody held={held} streaming={streaming} colorQuotes={colorQuotedSpeech} cardTier={cardTier} />

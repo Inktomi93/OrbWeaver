@@ -682,15 +682,38 @@ export interface ReasoningBlockStoryProps {
   readonly thinking: boolean;
   readonly smoothStream?: boolean;
   readonly smoothStreamCps?: number;
+  readonly autoCollapse?: boolean;
 }
 
 /** The bare `<ReasoningBlock>` — a pure-render leaf (no chat-store dependency), so the CT test drives
  *  its TTFT/auto-collapse/toggle behavior by mounting with props and re-`update()`-ing them, exactly
  *  like `crossfade-image.ct.tsx` drives a prop transition. */
-export function ReasoningBlockStory({ reasoning, thinking, smoothStream, smoothStreamCps }: ReasoningBlockStoryProps): ReactElement {
+export function ReasoningBlockStory({ reasoning, thinking, smoothStream, smoothStreamCps, autoCollapse }: ReasoningBlockStoryProps): ReactElement {
   return (
     <div style={{ width: 360 }}>
-      <ReasoningBlock reasoning={reasoning} thinking={thinking} smoothStream={smoothStream} smoothStreamCps={smoothStreamCps} />
+      <ReasoningBlock reasoning={reasoning} thinking={thinking} smoothStream={smoothStream} smoothStreamCps={smoothStreamCps} autoCollapse={autoCollapse} />
+    </div>
+  );
+}
+
+export interface ReasoningAnchorStoryProps {
+  readonly reasoning: string;
+  readonly thinking: boolean;
+  readonly autoCollapse?: boolean;
+  /** The answer-prose sibling BELOW the reasoning block — the ghost row's `<GhostBubbleBody>` analogue.
+   *  Absent until the first answer token lands, exactly as the production ghost mounts it. */
+  readonly showProse: boolean;
+}
+
+/** The reasoning disclosure ABOVE an answer-prose sibling, reproducing the ghost row's layout
+ *  (`<ReasoningBlock>` over `<GhostBubbleBody>`) so a CT can measure the prose's top RELATIVE to the row
+ *  across the auto-collapse — the `streaming-shape-churn.md` §8 metric (`firstBlock.top − row.top`). The
+ *  `data-testid` anchors give the geometry probe stable handles. */
+export function ReasoningAnchorStory({ reasoning, thinking, autoCollapse, showProse }: ReasoningAnchorStoryProps): ReactElement {
+  return (
+    <div style={{ width: 360 }} data-testid="anchor-row">
+      <ReasoningBlock reasoning={reasoning} thinking={thinking} autoCollapse={autoCollapse} />
+      {showProse ? <div data-testid="anchor-prose">The answer prose begins here, right under the trace.</div> : null}
     </div>
   );
 }
