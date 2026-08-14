@@ -1,33 +1,19 @@
 // An exported `make*` pure builder must not accept a db param; a `seed*` persisted builder must.
-import type { FunctionDeclaration, Node } from "ts-morph";
+import type { FunctionDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Violation } from "../harness.ts";
 
-function checkFactoryFunction(func: FunctionDeclaration, filePath: string): Violation | null {
+/** Does this `make*`/`seed*` factory violate the pure/persisted split? The node overload carries the
+ *  report — this predicate only needs a boolean, never a Finding-shaped record. */
+function violatesFactoryContract(func: FunctionDeclaration): boolean {
   const name = func.getName() ?? "";
   if (name.startsWith("make")) {
-    const hasDb = func.getParameters().some((p) => p.getName() === "db" || p.getType().getText().includes("Database"));
-    if (hasDb) {
-      return {
-        file: filePath,
-        line: func.getStartLineNumber(),
-        message: `Factory pure builder '${name}' must not accept a database parameter (core/Spine-Testing.md §4).`,
-      };
-    }
-    return null;
+    return func.getParameters().some((p) => p.getName() === "db" || p.getType().getText().includes("Database"));
   }
   if (name.startsWith("seed")) {
-    const hasDb = func.getParameters().some((p) => p.getName() === "db");
-    if (!hasDb) {
-      return {
-        file: filePath,
-        line: func.getStartLineNumber(),
-        message: `Factory persisted builder '${name}' must accept a 'db' parameter (core/Spine-Testing.md §4).`,
-      };
-    }
+    return !func.getParameters().some((p) => p.getName() === "db");
   }
-  return null;
+  return false;
 }
 
 export const gate: GateDescriptor = {
@@ -40,12 +26,11 @@ export const gate: GateDescriptor = {
   fix: "keep `make*` builders db-free (pure) and give `seed*` builders a `db` parameter (persisted).",
   scanRoot: (p) => p.includes("tests/support/factories/"),
   kinds: [SyntaxKind.FunctionDeclaration],
-  visit: (node: Node, _sf, ctx) => {
+  visit: (node, _sf, ctx) => {
     if (!(node.isKind(SyntaxKind.FunctionDeclaration) && node.isExported())) {
       return;
     }
-    const v = checkFactoryFunction(node, "");
-    if (v !== null) {
+    if (violatesFactoryContract(node)) {
       ctx.report(node, { token: node.getName() ?? "factory", offset: 0 });
     }
   },

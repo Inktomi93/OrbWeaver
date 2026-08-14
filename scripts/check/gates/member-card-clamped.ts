@@ -5,7 +5,7 @@
 // Three freezes: no `MemberCardView` declaration outside packages/contracts/; no clamp declaration outside domain/chat/substrate/auth/; `getRosterCardView` banned in server src.
 import type { Node } from "ts-morph";
 import { Node as NodeGuards, SyntaxKind } from "ts-morph";
-import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
+import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 
 const CONTRACTS = /\/packages\/contracts\//u;
 const SERVER_SRC = /\/packages\/server\/src\//u;
@@ -14,31 +14,18 @@ const VIEW_TYPE = "MemberCardView";
 const CLAMP_SYMBOLS = new Set(["clampMemberCard", "resolveCardVisibility"]);
 const DELETED_VERB = "getRosterCardView";
 
-const TYPE_MESSAGE =
-  "MemberCardView declared outside @orb/contracts — the level-clamped projection has ONE home (contracts/chat; D22/PD-111): a re-spelled local shape is exactly how the clamp levels diverged. Import the contracts type.";
-const CLAMP_MESSAGE =
-  "clamp symbol declared outside domain/chat/substrate/auth/ — clampMemberCard/resolveCardVisibility are the ONE D22 decision site (PD-111): a second clamp re-spells the visibility lattice.";
-const VERB_MESSAGE =
-  "getRosterCardView resurrected — PD-111 deleted this duplicate clamp; the sanctioned surface is the matrix's non-verb roster-card-read, served by chat over clampMemberCard (D22 — Core-Laws-and-Precedents.md §7 D22).";
+// Three arms, THREE scopes — ONE group message; the node overload (§1, GATE-AUTHORING.md) carries no
+// per-finding message, so the `token` (VIEW_TYPE / the clamp symbol name / DELETED_VERB) is what
+// distinguishes which arm fired; see mustFlag below.
+const GROUP_MESSAGE =
+  "a member-card clamp boundary broke: MemberCardView declared outside @orb/contracts (the level-clamped " +
+  "projection has ONE home — contracts/chat), a clamp symbol (clampMemberCard/resolveCardVisibility) " +
+  "declared outside domain/chat/substrate/auth/ (the ONE D22 decision site), or the deleted duplicate verb " +
+  "getRosterCardView resurrected in server src — a re-spelled local shape or a second clamp is exactly how " +
+  "the clamp levels diverged before (D22/PD-111 — Core-Laws-and-Precedents.md §7 D22).";
 
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-// Three arms, THREE scopes, THREE messages — ONE gate. The type arm (MemberCardView decl outside
-// contracts), the clamp arm (clampMemberCard/resolveCardVisibility decl outside the clamp home), and the
-// resurrection arm (getRosterCardView identifier in server src). Each arm re-checks the file path inside
-// visit — the scopes overlap differently, so there is no single scanRoot.
-function reportAt(ctx: GateRunCtx, node: Node, message: string, token: string): void {
-  const sf = node.getSourceFile();
-  const finding: Finding = {
-    file: relPath(ctx.root, sf.getFilePath()),
-    line: node.getStartLineNumber(),
-    column: sf.getLineAndColumnAtPos(node.getStart()).column,
-    message,
-    token,
-  };
-  ctx.report(finding);
+function reportAt(ctx: GateRunCtx, node: Node, token: string): void {
+  ctx.report(node, { token, offset: 0 });
 }
 
 /** The declared name of a clamp-symbol function/variable declaration node, else undefined. */
@@ -54,7 +41,7 @@ export const gate: GateDescriptor = {
   docRow: "ledger D22 / PD-111 (Core-Laws-and-Precedents.md §7 D22)",
   status: "active",
   scopeSafety: "incremental-safe",
-  message: TYPE_MESSAGE,
+  message: GROUP_MESSAGE,
   fix: "MemberCardView has ONE home (@orb/contracts/chat); the clamp lives ONLY in domain/chat/substrate/auth/; getRosterCardView is deleted — use the matrix's roster-card-read.",
   // No scanRoot: the three arms scope themselves per-file (contracts / server-src / clamp-home) inside
   // visit, exactly as the legacy run.
@@ -69,7 +56,7 @@ export const gate: GateDescriptor = {
     const path = sf.getFilePath();
     // Type arm: a MemberCardView interface/type-alias declaration outside contracts.
     if ((NodeGuards.isInterfaceDeclaration(node) || NodeGuards.isTypeAliasDeclaration(node)) && node.getName() === VIEW_TYPE && !CONTRACTS.test(path)) {
-      reportAt(ctx, node, TYPE_MESSAGE, VIEW_TYPE);
+      reportAt(ctx, node, VIEW_TYPE);
       return;
     }
     if (!SERVER_SRC.test(path)) {
@@ -78,31 +65,31 @@ export const gate: GateDescriptor = {
     // Clamp arm: a clamp-symbol function/variable declaration outside the clamp home.
     const clampName = CLAMP_HOME.test(path) ? undefined : clampDeclName(node);
     if (clampName !== undefined && CLAMP_SYMBOLS.has(clampName)) {
-      reportAt(ctx, node, CLAMP_MESSAGE, clampName);
+      reportAt(ctx, node, clampName);
       return;
     }
     // Resurrection arm: the deleted-verb identifier anywhere in server src.
     if (NodeGuards.isIdentifier(node) && node.getText() === DELETED_VERB) {
-      reportAt(ctx, node, VERB_MESSAGE, DELETED_VERB);
+      reportAt(ctx, node, DELETED_VERB);
     }
   },
   mustFlag: [
     {
       files: "export interface MemberCardView { name: string }\n",
       at: "packages/server/src/domain/character/x.ts",
-      expect: { messageIncludes: "ONE home" },
+      expect: { token: VIEW_TYPE },
       why: "a re-spelled MemberCardView outside contracts — exactly how the clamp levels diverged (PD-111)",
     },
     {
       files: "export function clampMemberCard() {}\n",
       at: "packages/server/src/domain/character/y.ts",
-      expect: { messageIncludes: "ONE D22 decision site" },
+      expect: { token: "clampMemberCard" },
       why: "a second clamp declaration outside the clamp home — re-spells the visibility lattice",
     },
     {
       files: "export const use = getRosterCardView;\n",
       at: "packages/server/src/domain/character/z.ts",
-      expect: { messageIncludes: "resurrected" },
+      expect: { token: DELETED_VERB },
       why: "the deleted duplicate verb resurrected in server src (D22)",
     },
   ],
