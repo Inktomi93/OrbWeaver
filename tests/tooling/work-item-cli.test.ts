@@ -42,7 +42,7 @@ interface FakeState {
     readonly type: string;
     readonly options?: readonly { readonly id: string; readonly name: string }[];
   }[];
-  readonly items: readonly FakeProjectItem[];
+  readonly items: FakeProjectItem[];
   readonly issues: Record<string, FakeIssue> & { readonly "11": FakeIssue };
   readonly calls: string[][];
 }
@@ -71,6 +71,16 @@ if (args[0] === "issue" && args[1] === "view") {
   text({ fields: state.fields });
 } else if (args[0] === "project" && args[1] === "item-list") {
   text({ items: state.items });
+} else if (args[0] === "project" && args[1] === "item-add") {
+  const url = value("--url");
+  const target = Object.values(state.issues).find((candidate) => candidate.url === url);
+  if (!target) throw new Error("Project item content was not found");
+  let current = state.items.find((candidate) => candidate.content.number === target.number);
+  if (!current) {
+    current = { id: "item-" + target.number, content: { number: target.number, url: target.url } };
+    state.items.push(current);
+  }
+  text(current);
 } else if (args[0] === "project" && args[1] === "item-edit") {
   const current = state.items.find((candidate) => candidate.id === value("--id"));
   const field = state.fields.find((candidate) => candidate.id === value("--field-id"));
@@ -243,6 +253,26 @@ defineTest("ready accepts live ingress and resume statuses but not review", () =
   expect(review.stderr).toContain("must be Triage, Needs owner, Blocked, or Parked before Ready");
 });
 
+defineTest("ready initializes raw and statusless Project ingress without duplicate items", () => {
+  const rawIssue = createState("Triage");
+  rawIssue.items.splice(0, 1);
+  expect(drive(rawIssue, "ready", "11").status).toBe(0);
+  expect(rawIssue.items).toHaveLength(1);
+  expect(fieldValue(rawIssue, STATUS_FIELD)).toBe("Ready");
+  expect(rawIssue.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(1);
+  expect(rawIssue.calls.filter((args) => args.includes("--single-select-option-id") && args.includes("triage"))).toHaveLength(1);
+  expect(drive(rawIssue, "ready", "11").status).toBe(TOOL_ERROR_EXIT);
+  expect(rawIssue.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(1);
+
+  const statusless = createState("Triage");
+  delete statusless.items[0]?.[STATUS_FIELD];
+  expect(drive(statusless, "ready", "11").status).toBe(0);
+  expect(statusless.items).toHaveLength(1);
+  expect(fieldValue(statusless, STATUS_FIELD)).toBe("Ready");
+  expect(statusless.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(0);
+  expect(statusless.calls.filter((args) => args.includes("--single-select-option-id") && args.includes("triage"))).toHaveLength(1);
+});
+
 defineTest("ready and unblock clear parked metadata before becoming Ready", () => {
   const parked = createState("Parked");
   addParkedMetadata(parked);
@@ -263,6 +293,7 @@ defineTest("closed work items refuse lifecycle mutations", () => {
   const result = drive(state, "ready", "11");
   expect(result.status).toBe(TOOL_ERROR_EXIT);
   expect(result.stderr).toContain("cannot change a closed work item");
+  expect(state.calls.some((args) => args[0] === "project")).toBe(false);
 });
 
 defineTest("block and unblock retries reconcile without repeating relations", () => {
