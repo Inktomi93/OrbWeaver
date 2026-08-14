@@ -37,6 +37,7 @@ import { createTurnEngine } from "../../../packages/server/src/domain/chat/engin
 import { loadWitnessHorizons } from "../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { createClaimChat } from "../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
 import { createTurn } from "../../../packages/server/src/domain/chat/verbs/turn.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../server/domain/chat/_support.ts";
 import { freshDb } from "../db.ts";
@@ -278,6 +279,9 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     delay: () => Promise.resolve(),
     resolveConnection: () => Promise.resolve(connectionOf()),
     resolveForeignInputs,
+    // The REAL claim chokepoint (R0), not a stub: a turn driven through this harness claims its room exactly
+    // as production does, so every suite riding the scenario covers the send/generate claim arms for free.
+    claimChat: createClaimChat(ctx),
   });
 
   return {

@@ -117,7 +117,8 @@ export const CHAT_VERB_AUTHORITY = {
   getUserMacroPicks: "member", // #24: the picks pane read — the pickable macro DECLARATIONS (identity + inputs; never the body, which is prompt content) + the room's picks. Same member floor as its write.
   clearVariables: "member",
   delete: "host", // host-only
-  reapTemporaryChats: "non-chat-scoped", // per-user maintenance: sweeps the CALLER's own expired temp chats
+  reapTemporaryChats: "non-chat-scoped",
+  reapHusk: "host", // R0 §4.6 — the nav-away husk drop; host-only AND server-re-checked (`started_at IS NULL`) // per-user maintenance: sweeps the CALLER's own expired temp chats
   updateTitle: "host", // shared chats-row config (no per-participant column exists today) — see FLAG
   star: "host", // shared chats-row flag (room-level column, not per-user library) — see FLAG
   archive: "host", // archiving removes the room from every member's active list — host

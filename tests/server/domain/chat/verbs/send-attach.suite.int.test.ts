@@ -121,6 +121,7 @@ function harness(database: Db, names: Readonly<Record<string, string>>): Harness
     runCompaction: stubRunCompaction,
   });
   const turn = createTurn(ctx, {
+    claimChat: (): Promise<void> => Promise.resolve(),
     engine,
     activeTurns: createActiveTurns(),
     emit,

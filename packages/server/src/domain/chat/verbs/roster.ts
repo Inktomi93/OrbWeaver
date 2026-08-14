@@ -36,6 +36,7 @@ import type { AssetId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
+import type { ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import { TOOL_RECURSE_LIMIT_MAX, TOOL_RECURSE_LIMIT_MIN, toolRecurseLimitSchema } from "../contract/metadata.ts";
 import type {
@@ -81,6 +82,13 @@ type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
 /** The extra collaborators the roster bundle needs beyond `ChatContext`. */
 interface RosterDeps {
   readonly emit: EmitChatEvent;
+  /** The husk→real transition (R0 SS4.2). Every MUTATING roster/config verb here claims the room
+   *  BEFORE it writes -- tuning a room is 'doing something with it' (F4(a)), so it stops being an
+   *  abandonable husk. The five membership-lifecycle verbs deliberately abstain (see the NAMES note in
+   *  the factory bodies): a departure is not effort, and each needs a second human whose invite claimed
+   *  the room already. Ordering is load-bearing -- claim AFTER the authority guard (a stranger must not
+   *  be able to flip a room's visibility) and BEFORE the write (`verbs/claim-chat.ts`). */
+  readonly claimChat: ClaimChatOp;
 }
 
 /** The roster slice of `ChatService` this grouped file owns. */
@@ -106,19 +114,19 @@ type RosterVerbs = Pick<
 
 /** The roster/group/override/membership-lifecycle verb bundle the composition root spreads into the full service. */
 export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
-  const { emit } = deps;
+  const { emit, claimChat } = deps;
   return {
-    setGroupConfig: createSetGroupConfig(ctx, emit),
-    setRoomOverrides: createSetRoomOverrides(ctx, emit),
-    setChatDocumentVisibility: createSetChatDocumentVisibility(ctx, emit),
-    setChatBackground: createSetChatBackground(ctx, emit),
-    setHostDisplayScripts: createSetHostDisplayScripts(ctx, emit),
-    setToolRecurseLimit: createSetToolRecurseLimit(ctx, emit),
+    setGroupConfig: createSetGroupConfig(ctx, emit, claimChat),
+    setRoomOverrides: createSetRoomOverrides(ctx, emit, claimChat),
+    setChatDocumentVisibility: createSetChatDocumentVisibility(ctx, emit, claimChat),
+    setChatBackground: createSetChatBackground(ctx, emit, claimChat),
+    setHostDisplayScripts: createSetHostDisplayScripts(ctx, emit, claimChat),
+    setToolRecurseLimit: createSetToolRecurseLimit(ctx, emit, claimChat),
     getGroupConfigForChat: createGetGroupConfigForChat(ctx),
     getRoomOverridesForChat: createGetRoomOverridesForChat(ctx),
-    addCharacterToChat: createAddCharacterToChat(ctx, emit),
-    removeCharacterFromChat: createRemoveCharacterFromChat(ctx, emit),
-    setSeatKnobs: createSetSeatKnobs(ctx, emit),
+    addCharacterToChat: createAddCharacterToChat(ctx, emit, claimChat),
+    removeCharacterFromChat: createRemoveCharacterFromChat(ctx, emit, claimChat),
+    setSeatKnobs: createSetSeatKnobs(ctx, emit, claimChat),
     kick: createKick(ctx, emit),
     setMemberHistoryVisibility: createSetMemberHistoryVisibility(ctx, emit),
     selfLeave: createSelfLeave(ctx, emit),
@@ -160,9 +168,10 @@ async function characterParticipantView(
 /** `setGroupConfig` — host-only. Parses the lenient GroupConfigInput into a fully-defaulted GroupConfig,
  *  merges into chatMetadata.group, persists, emits chatUpdated. SEALS the agent-GM narrator+merged invariant
  *  (F5, below). */
-function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent): ChatService["setGroupConfig"] {
+function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setGroupConfig"] {
   return async ({ principal, chatId, config }: SetGroupConfigParams) => {
     const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
     const parsed = groupConfigSchema.parse(config);
     // SEAL (D60 AP4a, agent-principal-design/05 §2 — F5): a GAME chat whose GM seat is AGENT-held may not be
     // flipped OFF narrator+merged (to `per-speaker`). narrator+merged keeps the GM tool loop on the narrator
@@ -201,9 +210,10 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent): ChatServic
 
 /** `setRoomOverrides` — host-only. The three-field allowlist default-denies a stray field (including the
  *  RETIRED `authorsNote` — at-depth steering is a `chat_injections` row now). */
-function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent): ChatService["setRoomOverrides"] {
+function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setRoomOverrides"] {
   return async ({ principal, chatId, overrides }: SetRoomOverridesParams) => {
     const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
     const parsed = roomOverridesSchema.safeParse(overrides);
     if (!parsed.success) {
       throw new ChatOperationError(
@@ -238,9 +248,10 @@ function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent): ChatServ
  *  The write MERGES into the sibling sub-blobs (`...chat.metadata`) so a visibility write never nukes
  *  roomOverrides/group. The audit logs only the hidden-id COUNT — never document names/ids (a log row must
  *  not become a databank membership oracle). */
-function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent): ChatService["setChatDocumentVisibility"] {
+function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setChatDocumentVisibility"] {
   return async ({ principal, chatId, visibility }: SetChatDocumentVisibilityParams): Promise<ChatDocumentVisibility> => {
     const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
     const parsed = chatDocumentVisibilitySchema.safeParse(visibility);
     if (!parsed.success) {
       throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: databank visibility accepts only a { hidden: DocumentId[] } set`);
@@ -278,9 +289,10 @@ function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent):
  *  why a host cannot use it to rewrite what the model sees, only what the room LOOKS like.
  *
  *  The write MERGES into the sibling sub-blobs (`...chat.metadata`) so it never nukes roomOverrides/group. */
-function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent): ChatService["setHostDisplayScripts"] {
+function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setHostDisplayScripts"] {
   return async ({ principal, chatId, enabled }: SetHostDisplayScriptsParams): Promise<boolean> => {
     const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
     // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
     // spread and the freshness excess-property check never fires on the new key.
     const nextMetadata = { ...chat.metadata, hostDisplayScripts: enabled };
@@ -328,9 +340,10 @@ async function materializeExternal(ctx: ChatContext, principal: Principal, sourc
  *  is the gate; a non-owned/absent asset is a `forbiddenOverride`. The write MERGES into the sibling
  *  sub-blobs (`...chat.metadata`) so it never nukes roomOverrides/group. The audit logs only the source KIND
  *  — never the url/hash (a background can be card-body-like text). */
-function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent): ChatService["setChatBackground"] {
+function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setChatBackground"] {
   return async ({ principal, chatId, background }: SetChatBackgroundParams): Promise<ThemeBackground> => {
     const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
     const parsed = themeBackgroundSchema.safeParse(background);
     if (!parsed.success) {
       throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: invalid background source`);
@@ -372,9 +385,10 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent): ChatSer
 /** `setToolRecurseLimit` — host-only write of the per-chat tool-call recursion cap
  *  (`chatMetadata.toolRecurseLimit`, 1..20). Merges into the sibling sub-blobs (`...chat.metadata`) so it never
  *  nukes roomOverrides/group. An out-of-range value is a `forbiddenOverride`, never a silent write. */
-function createSetToolRecurseLimit(ctx: ChatContext, emit: EmitChatEvent): ChatService["setToolRecurseLimit"] {
+function createSetToolRecurseLimit(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setToolRecurseLimit"] {
   return async ({ principal, chatId, limit }: SetToolRecurseLimitParams): Promise<number> => {
     const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
     const parsed = toolRecurseLimitSchema.safeParse(limit);
     if (!parsed.success) {
       throw new ChatOperationError(
@@ -422,9 +436,10 @@ function createGetRoomOverridesForChat(ctx: ChatContext): ChatService["getRoomOv
  *  floor against a double-add (two present rows → double arbitration weight + multi-row knob updates). It is the
  *  floor RP1's `applyToChat` re-apply idempotency stands on (saved-rosters §7). Matches the `seatAgent`/`kick`
  *  idempotent idiom — a re-add is a no-op, never a coded refusal. */
-function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent): ChatService["addCharacterToChat"] {
+function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["addCharacterToChat"] {
   return async ({ principal, chatId, characterId }: AddCharacterToChatParams) => {
     await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
     // The character must be the host's (owner-scoped read — foreign == missing, leak-free). A roster
     // character is always host-owned, keeping the stats rebuild's ownerId attribution consistent.
     const card = await ctx.getCard({ ownerId: principal.userId, characterId });
@@ -483,9 +498,10 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent): ChatSe
  *  the WITNESSING boundary (D55): from the stamp the pruned character stops witnessing this chat's canon — the
  *  intended semantic for a cast member peeled out of a scene fork (a doorway for the parked rpg-design's
  *  scene-cast prune, `rpg-design/07 §2.2`, not a live consumer today). */
-function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent): ChatService["removeCharacterFromChat"] {
+function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["removeCharacterFromChat"] {
   return async ({ principal, chatId, characterId }: RemoveCharacterFromChatParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
     // Present-only roster (`leftSeq IS NULL`); an already-left / never-present character has no seat → no-op.
     const seat = (await loadRoster(ctx.db, chatId)).find((p) => p.kind === "character" && p.characterId === characterId);
     if (seat === undefined) {
@@ -550,9 +566,10 @@ function seatKnobsSet(patch: SetSeatKnobsParams["patch"]): { talkativeness?: num
   return set;
 }
 
-function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent): ChatService["setSeatKnobs"] {
+function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setSeatKnobs"] {
   return async ({ principal, chatId, participantId, patch }: SetSeatKnobsParams) => {
     await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
     const seat = (await loadRoster(ctx.db, chatId)).find((p) => p.id === participantId);
     if (seat === undefined || !isAiDriven(seat.kind)) {
       throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: ${participantId} is not a present AI seat`);

@@ -353,6 +353,10 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
         anchorPersonaId: ci.anchorPersonaId,
         importedFrom: ci.importedFrom,
         importHash: ci.importHash,
+        // BORN CLAIMED (R0 §4.2): this room arrives with canon already in it, so there is no unstarted
+        // state for a husk to represent and the reaper must never see it. `startChat` is the ONE mint
+        // that produces a husk.
+        startedAt: ctx.now(),
         // Absent ⇒ NULL, byte-identically the ST import. A supplied blob goes through the column's OWN
         // parser (the same fault-isolated read seam every consumer uses) so a caller can never land a
         // sub-blob shape the readers would heal away — one validation home, no second spelling here.

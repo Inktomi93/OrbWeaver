@@ -35,7 +35,7 @@ import type { ChatContext } from "../context.ts";
 import type { ActiveTurns } from "../contract/active-turns.ts";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration.ts";
 import type { TurnUserMacros } from "../contract/assembly-macros.ts";
-import type { ChatRpgGatherResult } from "../contract/context.ts";
+import type { ChatRpgGatherResult, ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp, TurnTrigger } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
@@ -121,6 +121,10 @@ interface TurnDeps {
   /** The foreign half of the assemble ctx (preset/persona/settings), resolved at the composition root. The
    *  chat-internal half is gathered by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
+  /** The husk→real transition (R0). A user line and a generated turn are the two loudest claims
+   *  there are; both fire through the two chokepoints below (`commitUserTurn` / `resolveTurnBase`),
+   *  never per-verb, so no turn-running arm can be added without one. */
+  readonly claimChat: ClaimChatOp;
 }
 
 /** The turn-running slice of `ChatService` this grouped file owns. */
@@ -1319,6 +1323,9 @@ async function commitUserTurn(
 ): Promise<CommittedUserTurn> {
   const { principal, chatId, content, personaId, guided } = args;
   const membership = await requireParticipant(ctx, principal, chatId);
+  // A committed user line is THE claim (R0 F4(a)). Before the row, per the ordering invariant: the
+  // claim replays the creation stats over the canon present at claim, and this row is about to join it.
+  await deps.claimChat(chatId);
   const attachments = args.attachmentAssetIds ?? [];
   await assertAttachmentsOwned(ctx, principal.userId, chatId, attachments);
   // Same trust boundary as impersonate: an EXPLICIT personaId stamped onto the committed user row must be
@@ -1658,6 +1665,10 @@ async function resolveTurnBase(
   },
 ): Promise<TurnBase> {
   const { principal, chatId } = args;
+  // Every generated turn claims (R0 F4(a)) -- the four callers (swipe / continue / impersonate /
+  // generate) share this base, so the claim cannot be forgotten on one of them. Each caller has
+  // already run its own membership guard; this is before any engine write.
+  await deps.claimChat(chatId);
   const room = await loadRoom(ctx, chatId);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,

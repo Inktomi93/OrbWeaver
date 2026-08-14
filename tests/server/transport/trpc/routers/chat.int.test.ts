@@ -42,7 +42,10 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
     const chatId: ChatId = await seedChat(db, "room");
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
 
-    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(db) }), { emit: () => Promise.resolve() });
+    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(db) }), {
+      claimChat: (): Promise<void> => Promise.resolve(),
+      emit: () => Promise.resolve(),
+    });
     const hostCtx = makeContext({
       auth: callerPrincipal("user", { userId: host }),
       services: { chat: { addCharacterToChat: roster.addCharacterToChat, removeCharacterFromChat: roster.removeCharacterFromChat } },
@@ -71,7 +74,10 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "room_m", userId: member, role: "member" });
 
-    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(db) }), { emit: () => Promise.resolve() });
+    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(db) }), {
+      claimChat: (): Promise<void> => Promise.resolve(),
+      emit: () => Promise.resolve(),
+    });
     const hostCtx = makeContext({
       auth: callerPrincipal("user", { userId: host }),
       services: { chat: { addCharacterToChat: roster.addCharacterToChat, removeCharacterFromChat: roster.removeCharacterFromChat } },

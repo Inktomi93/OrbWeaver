@@ -624,6 +624,13 @@ export const chatRouter = t.router({
   // fires it fire-and-forget on home mount (owner decision H5; a workloads runner would add scheduling
   // for one indexed delete).
   reapTemporaryChats: authedProcedure.mutation(({ ctx }) => ctx.services.chat.reapTemporaryChats({ principal: ctx.auth })),
+  // R0 §4.6 — the nav-away husk drop. Fired when the client deliberately leaves a room it believes nobody
+  // started; the VERB re-checks `started_at IS NULL` under the host gate, so this input is a request, never a
+  // verdict, and a chatId the caller does not host is the usual leak-free refusal. Host-only + id-scoped, so
+  // unlike `reapTemporaryChats` it does take an input.
+  reapHusk: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .mutation(({ ctx, input }) => ctx.services.chat.reapHusk({ principal: ctx.auth, chatId: input.chatId })),
   // Generate image(s) in a chat (the I5 mode picker + /imagine surface). mode/prompt/n/size map onto
   // `chat.generateImage` → `imagery.generatePicture` (an absent `size` falls to the leaf's `defaultSizeFor`).
   generateImage: authedProcedure.input(generatePictureRequestSchema.extend({ chatId: brandedId<ChatId>() })).mutation(({ ctx, input }) =>
