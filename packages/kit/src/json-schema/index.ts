@@ -20,6 +20,7 @@
 // vanish into a success record (D112 (3), banned-silent-fork).
 
 import { z } from "zod";
+import { isPlainObject } from "#guards";
 
 /** A raw JSON-Schema blob that has NOT been through {@link projectJsonSchema}: the stored refinery schema,
  *  a lifted guest tool schema, an author's draft in the raw-JSON door. Plain by construction — structurally
@@ -51,10 +52,6 @@ export { dropNullValues, scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from
 
 const OBJECT_TYPE = "object";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function pinObjectNodes(node: unknown): void {
   if (Array.isArray(node)) {
     for (const item of node) {
@@ -62,7 +59,7 @@ function pinObjectNodes(node: unknown): void {
     }
     return;
   }
-  if (!isRecord(node)) {
+  if (!isPlainObject(node)) {
     return;
   }
   if (node["type"] === OBJECT_TYPE && node["additionalProperties"] === undefined) {

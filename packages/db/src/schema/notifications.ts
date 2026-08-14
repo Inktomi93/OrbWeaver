@@ -26,6 +26,7 @@ import type { NotificationEvent, NotificationType } from "@orb/contracts/notific
 import type { NotificationId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { users } from "./users.ts";
 
 // The delivery-reason discriminant set. `satisfies readonly NotificationType[]` ties every member to the
@@ -43,7 +44,7 @@ const NOTIFICATION_TYPES = [
 
 // CHECK list derived from the same tuple (NOT re-spelled): `type in ('invite', …)`. Raw fragment — a
 // CHECK is static DDL and cannot carry bound parameters (users.ts pattern).
-const TYPE_CHECK_LIST = NOTIFICATION_TYPES.map((t) => `'${t}'`).join(", ");
+const TYPE_CHECK_LIST = checkList(NOTIFICATION_TYPES);
 
 export const notifications = sqliteTable(
   "notifications",

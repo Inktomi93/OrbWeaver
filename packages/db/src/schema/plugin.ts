@@ -14,13 +14,13 @@ import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { assets } from "./assets.ts";
 import { users } from "./users.ts";
 
-// CHECK lists derived from the canonical contract tuples (NOT re-spelled) — a CHECK is static DDL and cannot
-// carry bound parameters, so it is built as a raw fragment (assets.ts / notifications.ts pattern).
-const STATUS_CHECK_LIST = PLUGIN_STATUSES.map((s) => `'${s}'`).join(", ");
-const ORIGIN_CHECK_LIST = PLUGIN_ORIGINS.map((o) => `'${o}'`).join(", ");
+// CHECK lists derived from the canonical contract tuples (NOT re-spelled).
+const STATUS_CHECK_LIST = checkList(PLUGIN_STATUSES);
+const ORIGIN_CHECK_LIST = checkList(PLUGIN_ORIGINS);
 const KV_KEY_MAX_CHARS = 128;
 const KV_VALUE_MAX_BYTES = 65_536; // 64 KiB
 

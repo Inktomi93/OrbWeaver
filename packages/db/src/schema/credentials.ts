@@ -21,6 +21,7 @@ import { CRED_PROVIDERS } from "@orb/contracts/credentials";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { users } from "./users.ts";
 
 // A freshly-added credential is active (the domain's `add`/`upsert` deactivates any prior active row
@@ -28,7 +29,7 @@ import { users } from "./users.ts";
 const DEFAULT_ACTIVE = true;
 // CHECK list derived from the canonical tuple (NOT re-spelled): `provider in ('openrouter', …)`.
 // A static fragment because a CHECK is DDL and cannot carry bound parameters (mirrors users.ts).
-const PROVIDER_CHECK_LIST = CRED_PROVIDERS.map((provider) => `'${provider}'`).join(", ");
+const PROVIDER_CHECK_LIST = checkList(CRED_PROVIDERS);
 
 export const userCredentials = sqliteTable(
   "user_credentials",

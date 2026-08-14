@@ -14,6 +14,7 @@
 // round-trip (lift → projectJsonSchema ≡ input, per supported construct) is the engine's proof.
 
 import { z } from "zod";
+import { isPlainObject } from "#guards";
 
 /** The ONE annotation keyword the lift ACCEPTS-AND-IGNOREs on any node: the refinery's render-hint
  *  channel (`docs/design/refinery-schema-renderer.md` §4.2). Hints are DISPLAY metadata a stored schema
@@ -73,10 +74,6 @@ const INTEGER_TYPE = "integer";
 const BOOLEAN_TYPE = "boolean";
 const OBJECT_TYPE = "object";
 const ARRAY_TYPE = "array";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 /** Per-type constraint keywords, keyed by `type` (`integer` shares `number`'s). */
 const PER_TYPE_KEYS: Readonly<Record<string, readonly string[]>> = {
@@ -178,7 +175,7 @@ function liftUnion(node: Record<string, unknown>, path: string, depth: number): 
   }
   const lifted = members.map((member, index) => {
     const memberPath = `${path}/anyOf/${index}`;
-    if (!isRecord(member)) {
+    if (!isPlainObject(member)) {
       throw new JsonSchemaLiftError("anyOf (non-object member)", memberPath);
     }
     return liftNode(member, memberPath, depth + 1);
@@ -191,7 +188,7 @@ function liftArray(node: Record<string, unknown>, path: string, depth: number): 
   if (items === undefined) {
     throw new JsonSchemaLiftError("array (missing items)", path);
   }
-  if (!isRecord(items)) {
+  if (!isPlainObject(items)) {
     // A tuple schema (items: []) is refused — only a single homogeneous item schema lifts.
     throw new JsonSchemaLiftError("items (tuple/array form)", path);
   }
@@ -207,7 +204,7 @@ function liftArray(node: Record<string, unknown>, path: string, depth: number): 
 
 function liftObject(node: Record<string, unknown>, path: string, depth: number): z.ZodType {
   const properties = node["properties"] ?? {};
-  if (!isRecord(properties)) {
+  if (!isPlainObject(properties)) {
     throw new JsonSchemaLiftError("properties (not an object)", path);
   }
   const required = node["required"];
@@ -218,7 +215,7 @@ function liftObject(node: Record<string, unknown>, path: string, depth: number):
 
   const shape: Record<string, z.ZodType> = {};
   for (const [key, propNode] of Object.entries(properties)) {
-    if (!isRecord(propNode)) {
+    if (!isPlainObject(propNode)) {
       throw new JsonSchemaLiftError("property (not an object schema)", `${path}/properties/${key}`);
     }
     const lifted = liftNode(propNode, `${path}/properties/${key}`, depth + 1);

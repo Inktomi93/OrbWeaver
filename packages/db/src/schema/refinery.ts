@@ -34,15 +34,16 @@ import type { CharacterId, ModelId, RefineryRunId, RefinerySchemaId, RefinerySes
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { characters } from "./character.ts";
 import { users } from "./users.ts";
 
 // CHECK lists derived from the canonical contracts tuples (NOT re-spelled — §7.5): drizzle's `{enum:}`
 // is TYPE-only for sqlite, so the SQL-level closure is an explicit tuple-built CHECK (the assets idiom).
 // A CHECK is static DDL and cannot carry bound parameters, so it is built as a raw fragment.
-const SESSION_STATUS_CHECK_LIST = REFINERY_SESSION_STATUSES.map((status) => `'${status}'`).join(", ");
-const RUN_STAGE_CHECK_LIST = REFINERY_STAGES.map((stage) => `'${stage}'`).join(", ");
-const SCHEMA_STAGE_CHECK_LIST = REFINERY_SCHEMA_STAGES.map((stage) => `'${stage}'`).join(", ");
+const SESSION_STATUS_CHECK_LIST = checkList(REFINERY_SESSION_STATUSES);
+const RUN_STAGE_CHECK_LIST = checkList(REFINERY_STAGES);
+const SCHEMA_STAGE_CHECK_LIST = checkList(REFINERY_SCHEMA_STAGES);
 
 export const refinerySessions = sqliteTable(
   "refinery_sessions",

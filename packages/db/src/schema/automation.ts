@@ -43,13 +43,9 @@ import {
   sqliteTable,
   text,
 } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { chats } from "./chat.ts";
 import { users } from "./users.ts";
-
-// CHECK list derived from the canonical tuple (NOT re-spelled) — static DDL fragment.
-function checkList(values: readonly string[]): string {
-  return values.map((v) => `'${v}'`).join(", ");
-}
 
 // Named numeric bounds/defaults (`noMagicNumbers`) — automation-design/04 §1 + 02 §4 values.
 const RULE_NAME_MAX_CHARS = 120;

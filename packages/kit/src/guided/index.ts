@@ -1,5 +1,11 @@
+import type { DIRECTIVE_FENCE_NAMES } from "#content";
 import type { MacroRegistry, ProcessMacroOptions } from "#macro";
 import { neutralizeMacros, processMacros } from "#macro";
+
+// The `:::choices` fence name the offer-choices template instructs the model to emit — TIED to `#content`'s
+// `DIRECTIVE_FENCE_NAMES` (its one home) via `satisfies`: if that fence is ever renamed or dropped from the
+// registry, this line fails `tsc` instead of leaving the template's prose silently stale.
+const CHOICES_FENCE_NAME = "choices" satisfies (typeof DIRECTIVE_FENCE_NAMES)[number];
 
 // Guided Generations — the pure resolver for an owner-editable guided-action prompt template.
 //
@@ -109,8 +115,7 @@ const PLOT_DEESCALATE_TEMPLATE =
   "[Story steer: lower the intensity this turn — give the scene room to breathe. Let a tension ease, offer a quiet beat, a small comfort, or a moment of reflection before the story moves again.]";
 const PLOT_ADVANCE_TEMPLATE =
   "[Story steer: the current act has run its course. Bring its open threads to a head and carry the story into the NEXT act — a clear shift in situation, goal, or stakes.\n{{rpgSceneState}}]";
-const OFFER_CHOICES_TEMPLATE =
-  "[For this turn only: end your response with a set of choices for the player. After your narration, add a line containing exactly :::choices then 3-5 numbered options (1. ...), each a distinct action the player could take next, then a line containing exactly ::: on its own.]";
+const OFFER_CHOICES_TEMPLATE = `[For this turn only: end your response with a set of choices for the player. After your narration, add a line containing exactly :::${CHOICES_FENCE_NAME} then 3-5 numbered options (1. ...), each a distinct action the player could take next, then a line containing exactly ::: on its own.]`;
 
 /** The plot steer defs the wand's Plot submenu renders (kind → label + template). */
 export const RPG_PLOT_STEERS: Readonly<Record<RpgPlotSteerKind, GuidedGameSteerDef>> = {
