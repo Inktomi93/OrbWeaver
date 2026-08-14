@@ -2,7 +2,7 @@
 // props (getItemKey/estimateSize/renderItem) live HERE; the tests pass only numbers/strings.
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement, ReactNode } from "react";
-import { Component, useState } from "react";
+import { Component, useRef, useState } from "react";
 
 interface FixtureItem {
   readonly id: string;
@@ -154,6 +154,114 @@ export function CustomRangeExtractorList({ itemCount }: { readonly itemCount: nu
           base.add(0);
           return Array.from(base).sort((a, b) => a - b);
         }}
+        renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
+        className="h-full"
+      />
+    </div>
+  );
+}
+
+/** `overscan` distinguishes from the seal's own default (1): a larger value renders more off-screen
+ *  rows than the default window. */
+export function OverscanList({ itemCount, overscan }: { readonly itemCount: number; readonly overscan?: number }): ReactElement {
+  const items = makeItems(itemCount);
+  return (
+    <div style={{ height: 200 }}>
+      <VirtualList
+        items={items}
+        getItemKey={(item): string => item.id}
+        estimateSize={(): number => 20}
+        {...(overscan === undefined ? {} : { overscan })}
+        renderItem={(item): ReactElement => <div style={{ height: 20 }}>{item.label}</div>}
+        className="h-full"
+      />
+    </div>
+  );
+}
+
+/** `fadeEdge`: proves the `data-more` cue is present while more list is below the fold and lifts
+ *  once scrolled to the bottom — the default (false) never writes the attribute at all. */
+export function FadeEdgeList({ itemCount, fadeEdge }: { readonly itemCount: number; readonly fadeEdge: boolean }): ReactElement {
+  const items = makeItems(itemCount);
+  return (
+    <div style={{ height: 200 }}>
+      <VirtualList
+        items={items}
+        getItemKey={(item): string => item.id}
+        estimateSize={(): number => 40}
+        fadeEdge={fadeEdge}
+        renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
+        className="h-full"
+      />
+    </div>
+  );
+}
+
+/** `scrollToIndex`: the declarative "pin to bottom" seam — flipping the prop scrolls the last item
+ *  into view (end-aligned), unlike `BoundedList` which never scrolls programmatically. */
+export function ScrollToIndexList({ itemCount }: { readonly itemCount: number }): ReactElement {
+  const items = makeItems(itemCount);
+  const [target, setTarget] = useState<number | undefined>(undefined);
+  return (
+    <div>
+      <button data-testid="pin-to-end" onClick={(): void => setTarget(itemCount - 1)} type="button">
+        pin
+      </button>
+      <div style={{ height: 200 }}>
+        <VirtualList
+          items={items}
+          getItemKey={(item): string => item.id}
+          estimateSize={(): number => 40}
+          {...(target === undefined ? {} : { scrollToIndex: target })}
+          renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
+          className="h-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** `onEndApproach`/`endApproachRows`: fires once the rendered window's last index is within
+ *  `endApproachRows` of the tail — a small list (below the threshold from mount) fires immediately;
+ *  a distinct counter of invocations proves it isn't re-firing every render. */
+export function EndApproachList({ itemCount, endApproachRows }: { readonly itemCount: number; readonly endApproachRows?: number }): ReactElement {
+  const items = makeItems(itemCount);
+  const [calls, setCalls] = useState(0);
+  // Stable identity: `onEndApproach` is an effect dependency on the seal side (VirtualList's own
+  // useLayoutEffect deps list), so an inline arrow recreated on every re-render would retrigger the
+  // effect every time `calls` changes — an infinite update loop, not a defect in the seal itself.
+  // A ref (not useCallback — the Compiler already memoizes compiled code, D54/no-manual-memo) keeps
+  // the SAME function identity across renders: the initializer runs once, `setCalls` is itself
+  // React-guaranteed stable, so the closure never needs to be recreated.
+  const handleEndApproachRef = useRef((): void => setCalls((n) => n + 1));
+  return (
+    <div>
+      <div data-testid="calls">{calls}</div>
+      <div style={{ height: 200 }}>
+        <VirtualList
+          items={items}
+          getItemKey={(item): string => item.id}
+          estimateSize={(): number => 40}
+          onEndApproach={handleEndApproachRef.current}
+          {...(endApproachRows === undefined ? {} : { endApproachRows })}
+          renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
+          className="h-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** `aria-label` passthrough onto the `role="list"` scroll container. */
+export function AriaLabelList({ itemCount, ariaLabel }: { readonly itemCount: number; readonly ariaLabel: string }): ReactElement {
+  const items = makeItems(itemCount);
+  return (
+    <div style={{ height: 200 }}>
+      <VirtualList
+        items={items}
+        getItemKey={(item): string => item.id}
+        estimateSize={(): number => 40}
+        aria-label={ariaLabel}
         renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
         className="h-full"
       />
