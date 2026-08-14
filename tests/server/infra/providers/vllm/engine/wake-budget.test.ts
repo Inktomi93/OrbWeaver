@@ -45,8 +45,8 @@ describe("engineVramNeed — per-engine GPU footprint (mirrors buildEngineArgv p
     expect([...need.fractionByGpu.entries()]).toEqual([[0, 0.14]]);
   });
 
-  test("rerank sits on GPU0 (co-located with embed) with the matching multi/single util", () => {
-    expect([...engineVramNeed("rerank", 2, UTIL).fractionByGpu.entries()]).toEqual([[0, 0.16]]);
+  test("rerank sits on GPU1 multi-GPU (one pooling tenant per card, 27B swap), GPU0 single-GPU", () => {
+    expect([...engineVramNeed("rerank", 2, UTIL).fractionByGpu.entries()]).toEqual([[1, 0.16]]);
     expect([...engineVramNeed("rerank", 1, UTIL).fractionByGpu.entries()]).toEqual([[0, 0.22]]);
   });
 

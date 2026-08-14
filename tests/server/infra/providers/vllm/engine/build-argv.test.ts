@@ -82,6 +82,7 @@ describe("buildEngineArgv snapshots", () => {
         "Qwen/Qwen3-VL-Embedding-2B",
         "--runner",
         "pooling",
+        "--enforce-eager",
         "--hf_overrides",
         "{"is_matryoshka": true}",
         "--chat-template",
@@ -115,6 +116,7 @@ describe("buildEngineArgv snapshots", () => {
         "Qwen/Qwen3-VL-Reranker-2B",
         "--runner",
         "pooling",
+        "--enforce-eager",
         "--host",
         "127.0.0.1",
         "--port",
@@ -145,8 +147,8 @@ describe("buildEngineArgv snapshots", () => {
         "serve",
         "Qwen/Qwen3-VL-8B-Instruct",
         "--served-model-name",
-        "Qwen/Qwen3-VL-8B-Instruct",
         "Qwen3-VL-8B-Instruct",
+        "Qwen/Qwen3-VL-8B-Instruct",
         "--tensor-parallel-size",
         "2",
         "--host",
@@ -155,17 +157,32 @@ describe("buildEngineArgv snapshots", () => {
         "8703",
         "--gpu-memory-utilization",
         "0.28",
+        "--max-num-batched-tokens",
+        "2096",
+        "--max-num-seqs",
+        "150",
         "--max-model-len",
         "32768",
-        "--dtype",
-        "bfloat16",
+        "--reasoning-parser",
+        "qwen3",
+        "--chat-template",
+        "/repo/scripts/dev/qwen3_gen_thinking_serve.jinja",
+        "--default-chat-template-kwargs",
+        "{"enable_thinking": false, "preserve_thinking": true}",
+        "--structured-outputs-config",
+        "{"enable_in_reasoning":true}",
         "--enable-auto-tool-choice",
         "--tool-call-parser",
-        "hermes",
+        "qwen3_coder",
+        "--enable-prefix-caching",
+        "--mm-encoder-tp-mode",
+        "data",
+        "--mm-processor-cache-type",
+        "shm",
         "--mm-processor-kwargs",
         "{"max_pixels": 4194304}",
         "--override-generation-config",
-        "{"temperature":0.7,"top_p":0.8,"top_k":20,"repetition_penalty":1.05}",
+        "{"temperature":1,"top_p":0.95,"top_k":20,"repetition_penalty":1.05}",
         "--disable-access-log-for-endpoints",
         "/health,/metrics,/ping",
         "--enable-request-id-headers",
@@ -177,24 +194,24 @@ describe("buildEngineArgv snapshots", () => {
 });
 
 describe("buildEngineArgv — gen --override-generation-config repetition_penalty (#23)", () => {
-  test("env-default gen argv carries the Qwen3-VL card base + repetition_penalty 1.05 as override-generation-config JSON", () => {
+  test("env-default gen argv carries the thinking-mode card base (1.0/0.95/20) + repetition_penalty 1.05 as override-generation-config JSON", () => {
     const config = resolveEngineLaunchConfig(FLOOR, undefined);
     expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe(
-      '{"temperature":0.7,"top_p":0.8,"top_k":20,"repetition_penalty":1.05}',
+      '{"temperature":1,"top_p":0.95,"top_k":20,"repetition_penalty":1.05}',
     );
   });
 
   test("an admin genRepetitionPenalty override changes the emitted JSON (retune → restart)", () => {
     const config = resolveEngineLaunchConfig(FLOOR, { genRepetitionPenalty: 1.1 });
     expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe(
-      '{"temperature":0.7,"top_p":0.8,"top_k":20,"repetition_penalty":1.1}',
+      '{"temperature":1,"top_p":0.95,"top_k":20,"repetition_penalty":1.1}',
     );
   });
 
   test("an env-floor bump to the penalty shows up in the flag (env-layered default)", () => {
     const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_GEN_REPETITION_PENALTY: 1.15 }, undefined);
     expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe(
-      '{"temperature":0.7,"top_p":0.8,"top_k":20,"repetition_penalty":1.15}',
+      '{"temperature":1,"top_p":0.95,"top_k":20,"repetition_penalty":1.15}',
     );
   });
 
@@ -202,7 +219,7 @@ describe("buildEngineArgv — gen --override-generation-config repetition_penalt
     const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_GEN_REPETITION_PENALTY: 1.15 }, { genRepetitionPenalty: 1.2 });
     expect(config.genRepetitionPenalty).toBe(1.2);
     expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe(
-      '{"temperature":0.7,"top_p":0.8,"top_k":20,"repetition_penalty":1.2}',
+      '{"temperature":1,"top_p":0.95,"top_k":20,"repetition_penalty":1.2}',
     );
   });
 
@@ -317,9 +334,9 @@ describe("buildEngineArgv — GPU-count topology", () => {
     expect(flagVal(buildEngineArgv("rerank", config, ctx), "--gpu-memory-utilization")).toBe("0.22");
   });
 
-  test("engineCudaVisibleDevices pins embed→0, rerank→0 (co-located with embed), gen→null (TP spans)", () => {
+  test("engineCudaVisibleDevices pins embed→0, rerank→1 multi (one pooling tenant per card), gen→null (TP spans)", () => {
     expect(engineCudaVisibleDevices("embed", 2)).toBe("0");
-    expect(engineCudaVisibleDevices("rerank", 2)).toBe("0");
+    expect(engineCudaVisibleDevices("rerank", 2)).toBe("1");
     expect(engineCudaVisibleDevices("rerank", 1)).toBe("0");
     expect(engineCudaVisibleDevices("gen", 2)).toBeNull();
   });

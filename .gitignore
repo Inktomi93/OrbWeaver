@@ -111,3 +111,6 @@ scratch/
 # to the invoking package root, for speedscope.app. An instrument's output, never an artifact we keep;
 # how to read one is documented in packages/client/vite.config.ts's header.
 *.cpuprofile
+
+# Codex CLI's own config/scratch dir (its audit copies live here — never ours to lint or track)
+.codex/

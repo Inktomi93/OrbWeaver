@@ -27,7 +27,11 @@ import type { VllmEngineClient } from "../engine/index.ts";
 // Qwen3-VL-8B-Instruct card default applied when the preset is silent (not in generation_config.json). The
 // FALLBACK when compose doesn't inject the resolved getter (tests); the LIVE value comes from
 // deps.genPresencePenalty (item 7 — engineLaunch.genPresencePenalty, env floor 1.5 ⊕ AppSettings override).
-const CARD_DEFAULT_PRESENCE_PENALTY = 1.5;
+// 2026-08-10: 1.5 → 0.0 with the THINKING-checkpoint swap, tracking VLLM_GEN_PRESENCE_PENALTY_DEFAULT.
+// This is the fallback for the no-getter-injected path only (compose always injects), but a fallback that
+// disagrees with the env floor is a second home for the same value waiting to be read as authoritative.
+// Qwen's card gives presence_penalty 0.0 for both thinking modes; 1.5 is its non-thinking number.
+const CARD_DEFAULT_PRESENCE_PENALTY = 0.0;
 
 const CHAT_PATH = "/v1/chat/completions";
 
@@ -151,6 +155,11 @@ function strictByDefault(format: ResponseFormat): ResponseFormat {
 // vLLM speaks raw snake_case; reshapes into the kit reducer's camelCase chunk shape.
 interface RawDelta {
   readonly content?: string | null;
+  /** vLLM 0.26 emits the reasoning delta as `reasoning`; older builds used `reasoning_content`. BOTH are
+   *  declared and read (new name first) — LIVE-VERIFIED 2026-08-10 against 0.26 + the thinking checkpoint:
+   *  streaming deltas carry ONLY `reasoning`, so a `reasoning_content`-only read silently dropped every
+   *  reasoning token (no error, just an empty scratchpad). */
+  readonly reasoning?: string | null;
   readonly reasoning_content?: string | null;
   readonly tool_calls?: unknown;
 }
@@ -180,7 +189,7 @@ async function* toChunks(raw: AsyncIterable<unknown>): AsyncGenerator<ChatComple
         {
           delta: {
             content: choice?.delta?.content,
-            reasoning: choice?.delta?.reasoning_content,
+            reasoning: choice?.delta?.reasoning ?? choice?.delta?.reasoning_content,
             ...(toolCalls !== undefined ? { toolCalls } : {}),
           },
           finishReason: choice?.finish_reason,

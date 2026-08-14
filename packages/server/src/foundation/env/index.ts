@@ -39,17 +39,24 @@ const VLLM_GEN_MAX_MODEL_LEN_DEFAULT = 32_768;
 // the absence-degrade floor when the engine is warming/disabled.
 const VLLM_EMBED_MAX_MODEL_LEN_DEFAULT = 8192;
 const VLLM_RERANK_MAX_MODEL_LEN_DEFAULT = 8192;
-// Per-engine --gpu-memory-utilization floors (measured bare-metal — see buildEngineArgv's header). Multi-GPU
-// gen uses the split default; single-GPU packing is derived in the builder from these + the GPU count.
-const VLLM_EMBED_GPU_UTIL_DEFAULT = 0.14;
-const VLLM_RERANK_GPU_UTIL_MULTI_DEFAULT = 0.16;
-const VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT = 0.22;
-// 0.28 was the ComfyUI-coexistence floor: it left the gen engine 45,328 KV tokens = 1.38x concurrency at
-// the 32,768 max-model-len (vLLM's own boot math, 2026-07-27) — ONE in-flight chat-sized request, so any
-// slow turn starved every other. ComfyUI's GPU residency ended; gen claims the freed VRAM for KV headroom
-// (~6x full-context concurrency on 2×A6000). Owner-directed re-provision — drop back toward 0.28 if a
-// ComfyUI-class GPU tenant returns.
-const VLLM_GEN_GPU_UTIL_MULTI_DEFAULT = 0.6;
+// Per-engine --gpu-memory-utilization floors. RETUNED 2026-08-13 for the 27B-THINKING swap (W8A8-int8,
+// TP=2): pooling engines squeezed to 0.1 each and moved to --enforce-eager (no CUDA-graph buffers — the
+// graph overshoot is what the 08-10 measurements below caught), rerank re-homed to GPU1 so each card
+// carries exactly ONE pooling tenant beside its gen half. Topology: GPU0 = embed(0.1)+gen(0.8) · GPU1 =
+// gen(0.8)+rerank(0.1) — 0.9/card sum, deliberate. ⚠ UNVERIFIED until the first boot on this config.
+const VLLM_EMBED_GPU_UTIL_DEFAULT = 0.1;
+const VLLM_RERANK_GPU_UTIL_MULTI_DEFAULT = 0.1;
+const VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT = 0.1;
+// GEN HISTORY (keep — each number is paid tuition): 0.28 was the ComfyUI-coexistence floor (1.38x
+// concurrency = ONE in-flight request; ComfyUI left, gen took the VRAM). 0.60 then OOM'd on vLLM 0.26
+// during gen's CUDA-graph capture — died asking 2 MiB with 29 MiB free; measured residency: embed
+// 7.68 GiB (0.14 budget → 0.162 actual), rerank 8.67 (0.16 → 0.183), gen 30.49 (0.60 → 0.643) — every
+// engine overshoots its fraction ~2-4% ON GRAPHS, so 0.90-sum WITH graphs was fatal. gpu-memory-utilization
+// is PER-INSTANCE (weights+KV), it reserves nothing for co-tenants. 2026-08-13, 27B swap: gen NEEDS 0.8
+// for the int8 weights + usable KV; the 0.9/card sum is bought back by pooling going enforce-eager (kills
+// the graph overshoot arm on the small engines). If first boot OOMs: drop gen 0.8 → 0.75 before touching
+// the pooling floors, and re-measure — that retune IS the verification step.
+const VLLM_GEN_GPU_UTIL_MULTI_DEFAULT = 0.8;
 const VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT = 0.5;
 // --mm-processor-kwargs max_pixels caps: pooling engines (embed/rerank) at the reference 1.84M-px vision
 // regime; the gen VL engine at its 4.2M-px cap. ONE home for the two literals the shell hand-carried.
@@ -64,9 +71,14 @@ const VLLM_GEN_MAX_PIXELS_DEFAULT = 4_194_304;
 // over-penalizing repetition. ONE home for the literal; env-layered so an admin can retune + restart.
 const VLLM_GEN_REPETITION_PENALTY_DEFAULT = 1.0;
 // The gen engine's default PRESENCE penalty applied per-REQUEST by the vLLM chat surface when a preset is
-// silent (Phase B ⑩ item 7). 1.5 = the former hardcoded CARD_DEFAULT_PRESENCE_PENALTY (Qwen3-VL card), now
-// env-layered ⊕ AppSettings override so an admin can retune the per-launched-model default. OpenAI range -2..2.
-const VLLM_GEN_PRESENCE_PENALTY_DEFAULT = 1.5;
+// silent (Phase B ⑩ item 7). Env-layered ⊕ AppSettings override so an admin can retune the per-launched-model
+// default. OpenAI range -2..2.
+// 2026-08-10: 1.5 → 0.0 with the THINKING-checkpoint swap. 1.5 was the Qwen3-VL-Instruct card value (the
+// former hardcoded CARD_DEFAULT_PRESENCE_PENALTY) and it is Qwen's NON-THINKING number; the card gives
+// presence_penalty 0.0 for both thinking modes. A presence penalty punishes reusing tokens already in
+// context, which is exactly what a chain of thought does — restating constraints and repeating entity names
+// across reasoning steps — so 1.5 pushed a thinking model off its own scratchpad vocabulary.
+const VLLM_GEN_PRESENCE_PENALTY_DEFAULT = 0.0;
 // The agent-sdk backend's max in-flight summarize calls (Phase B ⑩ item 1, Q6). 4 = the former hardcoded
 // SUMMARIZE_CONCURRENCY; env-layered ⊕ AppSettings override. DISTINCT from the vLLM engine's summarize floor.
 const AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT = 4;

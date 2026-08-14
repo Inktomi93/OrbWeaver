@@ -11,7 +11,7 @@
 # are no-ops unless the pin changes.
 #
 # TORCH BACKEND NOTE: `auto` is only safe when vLLM's own compiled kernels
-# were built against the same CUDA major the driver reports. vLLM 0.22 builds
+# were built against the same CUDA major the driver reports. vLLM 0.26 builds
 # against torch 2.11 (cu13x) which matches CUDA-13 drivers, so auto works.
 # If a future bump dies at boot with `ImportError: libcudart.so.NN`, the wheel
 # was built against a different CUDA than auto picked — pin TORCH_BACKEND to
@@ -34,7 +34,7 @@ VENV="$STORE_ROOT/.cache/vllm/venv"
 
 # Pinned vLLM line. Bump deliberately; the venv rebuilds when the marker
 # below doesn't match.
-VLLM_PIN="vllm>=0.22,<0.23"
+VLLM_PIN="vllm>=0.26,<0.27"
 TORCH_BACKEND="auto"
 PIN_MARKER="$VENV/.orb-pin"
 

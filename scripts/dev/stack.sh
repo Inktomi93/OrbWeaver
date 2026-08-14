@@ -95,9 +95,11 @@ HEALTHZ="http://127.0.0.1:$BACKEND_PORT/healthz"
 # legitimately still booting. Override via env for slower/faster hardware.
 SERVER_HEALTHZ_TIMEOUT="${SERVER_HEALTHZ_TIMEOUT:-180}"
 READINESS_TIMEOUT="${READINESS_TIMEOUT:-240}"
-# vLLM fleet ports (embed/rerank/gen) — force teardown polls these free after
-# SIGKILLing the detached fleet. Match scripts/dev/engines.ts launch ports.
-FLEET_PORTS=(8701 8702 8703)
+# vLLM fleet ports (embed/rerank/gen) — force teardown polls these free after SIGKILLing the detached
+# fleet. Read through the SAME env vars engines.sh uses (same literal fallbacks, since bash can't import
+# foundation/env): a bare literal list here silently ignored a VLLM_*_PORT override, so teardown polled
+# ports the fleet never bound and reported the fleet gone while it was still holding VRAM.
+FLEET_PORTS=("${VLLM_EMBED_PORT:-8701}" "${VLLM_RERANK_PORT:-8702}" "${VLLM_GEN_PORT:-8703}")
 mkdir -p "$RUN_DIR"
 
 # ── MODE + --debug dispatch (mode-aware stack control) ───────────────────────
