@@ -1,4 +1,23 @@
-# ☀️ DELTA (2026-08-14 midday — TRAIN SEALED + PUSHED)
+# ☀️ DELTA (2026-08-14 — GITHUB CONTROL PLANE)
+
+**Mutable work moved to [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1).** The
+Project and its issues now own status, priority, assignment, dependencies, decisions, and completion.
+This file remains the cold-start operational spine: owner rulings, standing laws, recovery context,
+and pointers into the live graph. It is not a second backlog.
+
+- Migration parent: [#1](https://github.com/Inktomi93/orbweaver/issues/1)
+- Committed future programs: [#4](https://github.com/Inktomi93/orbweaver/issues/4) and its child
+  sprints
+- Documentation truth/control work: [#2](https://github.com/Inktomi93/orbweaver/issues/2) through
+  [#12](https://github.com/Inktomi93/orbweaver/issues/12), plus
+  [#52](https://github.com/Inktomi93/orbweaver/issues/52)
+- Migrated operational work: [#30](https://github.com/Inktomi93/orbweaver/issues/30) through
+  [#58](https://github.com/Inktomi93/orbweaver/issues/58)
+
+Rows below the **archived pre-migration snapshot** are evidence and recovery history only. Reopen or
+create an issue from fresh current-tree proof; never resume work from an unchecked historical box.
+
+## Archived delta (2026-08-14 midday — train sealed + pushed)
 
 **Origin is CURRENT: pushed `6155e3050..31f9516be` (160 commits; owner word, `--no-verify` on battery
 receipts). Battery 2 (`verify --push`, clean-room) landed ONE red — structure:full ×2, both fallout of
@@ -15,10 +34,12 @@ clean). Every other battery stage was green.**
 - Open work: the OPEN ITEMS list in LIVE STATE (entity→room bridge design · gate candidates G-G + ui
   exports-arm · guard follow-up family · R1-4a · F6 · vite-prebundle ops lead · owner pile).
 
-# Retro Workboard — the live board
+# Retro Workboard — operations spine and recovery record
 
-> **THIS IS THE WORKING DOC** (owner-stated). Not law, not a deliverable — the durable state an
-> orchestrator resumes from cold. Authority for LAW = `docs/architecture/core/**`; the D-ledger
+> **THIS IS THE OPERATIONAL SPINE** (owner-stated). Not law and no longer the mutable backlog — it
+> is the durable context an orchestrator resumes from cold. Live work state is in
+> [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1). Authority for LAW =
+> `docs/architecture/core/**`; the D-ledger
 > (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D139** — D138 landed
 > 08-14 with the W10 freshness contract, D139 with the documentation control plane) wins on
 > ANY conflict. `docs/architecture/proposed/**`
@@ -33,11 +54,9 @@ clean). Every other battery stage was green.**
 > [`retro-workboard-2026-08-03.md`](history/retro-workboard-2026-08-03.md). Nothing was deleted;
 > things moved.
 >
-> **BOARD RULES (how this doc stays trustworthy):** CURRENT-STATE ONLY — when a block goes stale,
-> REWRITE it in place, never stack a session layer on top · every row states its EVIDENCE METHOD
-> (live-verified / grep-sourced / relayed-claim) or it is a LEAD, not a row · a remainder belongs in
-> a CHECKBOX, never a prose tail under a ✅ · a status claim ("routed", "dispatched") owes the same
-> receipt a row does.
+> **CONTROL-PLANE RULES:** one mutable home per item. GitHub Project owns status after migration;
+> this file owns rulings, operating law, recovery notes, and links. A status claim still owes an
+> evidence receipt. Historical checkboxes are never executable backlog.
 
 ## ═══ WHY RETRO EXISTS — the north star ═══
 
@@ -208,7 +227,33 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
-## ═══ LIVE STATE (2026-08-14 afternoon — DAYTIME ROTATION, rewritten in place at the lens+probes merges) ═══
+## ═══ LIVE CONTROL-PLANE POINTERS (2026-08-14) ═══
+
+Project 1 is the only mutable queue. Start from its **Active board**, **Ready**, **Needs owner**,
+**Verify**, and **Parked** views; do not infer current work from the frozen snapshot below.
+
+Current migration residue that survived a full current-tree re-derivation:
+
+- [#40](https://github.com/Inktomi93/orbweaver/issues/40) — refinery custom-schema live E2E,
+  narrowed to the OpenRouter arm and blocked by the strict-compatible probe in
+  [#33](https://github.com/Inktomi93/orbweaver/issues/33).
+- [#58](https://github.com/Inktomi93/orbweaver/issues/58) — delete the remaining server-side chat
+  draft carry (R2). R1 and R3 are already built.
+- [#54](https://github.com/Inktomi93/orbweaver/issues/54) — real-session demo seeding; owner/live-fleet
+  gated.
+- [#43](https://github.com/Inktomi93/orbweaver/issues/43) — quiesced merge-train closeout and final
+  behavioral verification.
+
+The historical refinery #47/#49 re-derivation and G-F scroller-gate duplicates were closed as
+already resolved in [#41](https://github.com/Inktomi93/orbweaver/issues/41) and
+[#42](https://github.com/Inktomi93/orbweaver/issues/42). Current issue numbers #47/#49 describe
+unrelated guard decisions; never interpret a historical board number as a GitHub issue number.
+
+## ═══ ARCHIVED PRE-MIGRATION LIVE SNAPSHOT (frozen 2026-08-14) ═══
+
+> **ARCHIVE — NOT A QUEUE.** This block is retained for cold recovery and provenance. Its RUNNING,
+> OPEN, QUEUED, and unchecked states are frozen observations. Project 1 supersedes every mutable
+> status below.
 
 **Main `dd8683627`+, \~110 commits ahead of origin (owner pushes himself). Tree CLEAN (sweep
 `68566aec7`: apisurface-\*.txt gitignored as regenerable scratch; Codex's .agents/skills committed;

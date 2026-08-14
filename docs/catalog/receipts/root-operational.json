@@ -6,74 +6,90 @@
     {
       "path": "docs/Mission.md",
       "assignedSha256": "1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f",
+      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+      "verifiedAt": "2026-08-14",
+      "evidence": ["docs/Mission.md:1", "git log --oneline -5 -- docs", "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"],
+      "summary": "Full-read current authority; fact-check receipt refreshed against current main."
     },
     {
       "path": "docs/Qwen_Offline_Investigation.md",
       "assignedSha256": "71c2c4bb8fa3b77747b5c2ffe8b69d3f90f4ff168d011fc9ab83486aedaaad54",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "71c2c4bb8fa3b77747b5c2ffe8b69d3f90f4ff168d011fc9ab83486aedaaad54",
+      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/Qwen_Offline_Investigation.md:1",
+        "git log --oneline -5 -- docs",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
     },
     {
       "path": "docs/barrel-star-reexport-residue.md",
       "assignedSha256": "3e7b3e9f57158a11f45f53e4d93d7b3051435fe196f14f23c9fd29d3bf66c918",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "3e7b3e9f57158a11f45f53e4d93d7b3051435fe196f14f23c9fd29d3bf66c918",
+      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/barrel-star-reexport-residue.md:1",
+        "git log --oneline -5 -- docs",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
     },
     {
       "path": "docs/client-smalls-lane.md",
       "assignedSha256": "c3bf562b7af2010d9b6a27f7c9bbac870f23205061a03c29c15169e4b00d0671",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "c3bf562b7af2010d9b6a27f7c9bbac870f23205061a03c29c15169e4b00d0671",
+      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+      "verifiedAt": "2026-08-14",
+      "evidence": ["docs/client-smalls-lane.md:1", "git log --oneline -5 -- docs", "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"],
+      "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
     },
     {
       "path": "docs/orbweaver-card-debug-handoff.md",
       "assignedSha256": "94c10da6b8f2eee71296dcca88877ee1cb87b08f2b7a6fc5827748b681705de5",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "94c10da6b8f2eee71296dcca88877ee1cb87b08f2b7a6fc5827748b681705de5",
+      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/orbweaver-card-debug-handoff.md:1",
+        "git log --oneline -5 -- docs",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
     },
     {
       "path": "docs/retro-workboard.md",
       "assignedSha256": "d8f6ef306ab2c0d187d6bf0166f2b7fc4a8311d2c313562a12ad9cac8666776d",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "operational",
+      "fullRead": true,
+      "verifiedSha256": "c013fded52dbc2e5584a1af90ebb004fd9e1be359108fc7f9415629b7b94c7d0",
+      "verifiedCommit": "7bc8c05139452af9f2f695c79984660a52b222a3",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/retro-workboard.md:1-18: GitHub Project is the sole mutable work home",
+        "docs/retro-workboard.md:230-257: current Project pointers and frozen-snapshot boundary",
+        "GitHub REST re-derivation of issues #13-#58 on 2026-08-14; stale duplicates #41/#42 closed and R2 residue created as #58"
+      ],
+      "summary": "Full-read operational spine migrated to Project pointers; rulings and recovery history remain in place while mutable status has one GitHub home."
     }
   ]
 }
