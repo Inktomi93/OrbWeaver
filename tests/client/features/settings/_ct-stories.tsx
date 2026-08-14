@@ -111,6 +111,27 @@ export function SettingsModalStory(): ReactElement {
   );
 }
 
+/** The shell inside the RUNNING APP'S containing-block topology: a POSITIONED, height-capped,
+ *  `overflow-y:auto` host. That is what `DialogPopup` resolves to live — measured on :5173 2026-08-14 with
+ *  the settings modal open at 1920×1080: `[data-slot=dialog-popup]` clientHeight 1014, scrollHeight **2900**,
+ *  `offsetParent` of the pane's `sr-only` Base UI boxes = the popup itself. The plain `SettingsModalStory`
+ *  CANNOT see this: in the CT harness the popup computes `position: static`, so the escaping boxes land on
+ *  the fixed `dialog-viewport` instead of a scroller and inflate nothing. This story restores the one
+ *  property the harness drops (a positioned scrolling host) and nothing else. */
+export function SettingsShellInScrollingHostStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div data-testid="scrolling-host" style={{ height: 560, overflowY: "auto", position: "relative", width: 900 }}>
+          <div style={{ height: "100%" }}>
+            <SettingsShell />
+          </div>
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** The real theme picker/library (D44 §12.1) — wrapped in the data layer (its `listThemes` +
  *  `getUserSettings` reads are stubbed per-test via routeTrpc) + TooltipProvider for the row chrome. */
 export function ThemePickerStory(): ReactElement {

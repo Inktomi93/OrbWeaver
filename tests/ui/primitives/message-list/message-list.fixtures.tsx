@@ -4,7 +4,7 @@
 import type { MessageListHandle, MessageListProps } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import type { ReactElement, ReactNode } from "react";
-import { Component, useRef, useState } from "react";
+import { Component, useEffect, useRef, useState } from "react";
 
 interface FixtureItem {
   readonly id: string;
@@ -323,6 +323,82 @@ export function TailGrowthList({ initialCount, rowHeightPx, listHeightPx }: Appe
           getItemKey={(item): string => item.id}
           estimateSize={(): number => rowHeightPx}
           renderItem={(item, index): ReactElement => <div style={{ height: index === lastIndex ? tailHeightPx : rowHeightPx }}>{item.label}</div>}
+          className="h-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** The measured live cadence of a streaming ghost's re-measure: ~12px of new content, ~10×/s
+ *  (`docs/design/streaming-reveal-42.md` §D4, re-measured 2026-08-14 — step histogram 12px×8, 11px×4
+ *  over a 6s window). The fixture reproduces the GROWTH, which is what makes virtual-core's
+ *  `anchorTo:"end"` reconciliation write scrollTop; nothing here fakes a scroll. */
+const STREAM_STEP_PX = 12;
+const STREAM_TICK_MS = 100;
+
+interface StreamingTailListProps extends AppendableListProps {
+  /**
+   * Starting height of the growing tail row. LOAD-BEARING, and the reason an earlier version of this
+   * fixture was green-by-absence: virtual-core only runs its end-anchor `reconcileScroll` when a
+   * re-measured row actually moves the anchor. With a short tail, a reader who scrolls up leaves the
+   * growing row entirely BELOW the viewport and no reconciliation ever fires (measured: 27 programmatic
+   * `scrollTo`s before the wheel, ZERO after — a test that could not fail). A real streaming reply is
+   * thousands of px tall, so scrolling up 400px leaves the reader still INSIDE the growing row, which
+   * is the live condition: four reconcile writes inside 385ms.
+   */
+  readonly tailStartPx: number;
+}
+
+/**
+ * The STREAMING TAIL shape (owner dogfood 2026-08-13: "follow-mode is jumpy when you manually scroll up
+ * to read the top mid-generation"). The last row grows on a timer, exactly like a ghost row taking
+ * tokens, so the tail march and virtual-core's end-anchor reconciliation are both live while the test
+ * drives a REAL wheel. `data-testid=scroll-top` mirrors the container's scrollTop into the DOM each
+ * frame so a CT can watch the fight without reaching into React.
+ */
+export function StreamingTailList({ initialCount, rowHeightPx, listHeightPx, tailStartPx }: StreamingTailListProps): ReactElement {
+  const [items] = useState<FixtureItem[]>(() => makeItems(initialCount));
+  const [tailHeightPx, setTailHeightPx] = useState(tailStartPx);
+  const [streaming, setStreaming] = useState(false);
+  const [scrollTop, setScrollTop] = useState(0);
+  const scrollNodeRef = useRef<HTMLDivElement | null>(null);
+  const lastIndex = items.length - 1;
+
+  useEffect((): (() => void) | undefined => {
+    if (!streaming) {
+      return;
+    }
+    const timer = setInterval((): void => setTailHeightPx((h) => h + STREAM_STEP_PX), STREAM_TICK_MS);
+    return (): void => clearInterval(timer);
+  }, [streaming]);
+
+  useEffect((): (() => void) => {
+    let raf = 0;
+    const sample = (): void => {
+      const node = scrollNodeRef.current;
+      if (node !== null) {
+        setScrollTop(Math.round(node.scrollTop));
+      }
+      raf = requestAnimationFrame(sample);
+    };
+    raf = requestAnimationFrame(sample);
+    return (): void => cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <div>
+      <button type="button" data-testid="start-stream" onClick={(): void => setStreaming(true)}>
+        start stream
+      </button>
+      <div data-testid="scroll-top">{scrollTop}</div>
+      <div style={{ height: listHeightPx }}>
+        <MessageList
+          items={items}
+          getItemKey={(item): string => item.id}
+          estimateSize={(): number => rowHeightPx}
+          renderItem={(item, index): ReactElement => <div style={{ height: index === lastIndex ? tailHeightPx : rowHeightPx }}>{item.label}</div>}
+          scrollContainerRef={scrollNodeRef}
           className="h-full"
         />
       </div>
