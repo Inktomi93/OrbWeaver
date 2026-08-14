@@ -1213,9 +1213,18 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **vLLM is forced into strict mode at all times.** Receipt: `strictByDefault(format: ResponseFormat)`
   in `packages/server/src/infra/providers/vllm/surfaces/chat.ts`. Decide whether strict is a floor, a
   default, or a knob — it interacts with the #36 structured-output vehicle work.
+- [ ] **SWIPE GHOST-VISIBILITY (owner dogfood 08-14 afternoon, verbatim: "when we swipe it
+  disappears the old message shows until the new one finishes sometimes") — INVESTIGATION LANE
+  RUNNING (four-hop instrumentation):** the streaming new variant sometimes never paints; the old
+  variant holds until terminal. H1 checked FIRST because it would be a same-day regression: the R3
+  seq-floor change (`caa06972c` — bounds.maxSeq adopted as live-dedup floor) silently dropping a
+  swipe stream's frames on a reconnect/attach race. H2: ghost mount keyed to SELECTED variant,
+  selection flips only at terminal. Evidence picks; reproduced-and-diagnosed is a valid outcome.
 - [ ] **RPG-LITE is broken around rewind** — swipes especially; **state ends up stuck**. Owner-reported as
   a class, not a single repro. Needs a real investigation lane with instrumentation directives (per
-  \[\[rpg-lite-state-loop-gotchas]]), not endpoint poking.
+  \[\[rpg-lite-state-loop-gotchas]]), not endpoint poking. *(08-14 note: the rpg stat+rewind lane
+  `73041bf59` fixed the stat-revert + rewind arm overnight — if the swipe-ghost lane's findings
+  overlap this row's swipe residue, reconcile both rows at its merge.)*
 - [ ] **Stat attributes do not persist** — type `20` into strength, click out, it reverts to `1`. Concrete
   repro. Likely the writable-field commit seam (\[\[rpg-writable-field-coupled-sites]] — a writable field
   is \~7 coupled sites).
