@@ -6,710 +6,946 @@
     {
       "path": "docs/design/actions-tab-information-architecture.md",
       "assignedSha256": "54c567e39c8716d2cbbf6cf671626778e2fa7d0be6d0090f13e40540c0aed586",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "54c567e39c8716d2cbbf6cf671626778e2fa7d0be6d0090f13e40540c0aed586",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/actions-tab-information-architecture.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/actions-tab-information-architecture.md: 98adcec67 docs(design): Actions-tab IA truth-repaired to the merged tree — 67 rows / 41 extract / round=8; measured perf before/after recorded",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "The Actions tab at 67 rows — information architecture (FORGE lane, 2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/boot-loader-smoothness-options.md",
       "assignedSha256": "136c06b279197e10e8496dd6df8611fe31aca7c527edcc3a4e8922805f7c9958",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "136c06b279197e10e8496dd6df8611fe31aca7c527edcc3a4e8922805f7c9958",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/boot-loader-smoothness-options.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/boot-loader-smoothness-options.md: 65a0d56a4 docs(design): reweight boot-loader Layer-A rec to animated SVG (waystone precedent)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Boot-loader smoothness — options matrix + recommendation: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/chat-creation-draft-mode-replacement.md",
       "assignedSha256": "d093ec0de8b1c5dea6835ff45b6fe8bf21c0192ac8923269a536a9a2a9c38670",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "d093ec0de8b1c5dea6835ff45b6fe8bf21c0192ac8923269a536a9a2a9c38670",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/chat-creation-draft-mode-replacement.md:1 (design; proposed)",
+        "git log --oneline -1 -- docs/design/chat-creation-draft-mode-replacement.md: d05081dee feat(chat): forceCharacterTurn accepts its slot + F6 in-window join greeting",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Chat-creation draft mode → instant-create — cost inventory, research, design, migration: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/config-ia-the-junk-drawer-problem.md",
       "assignedSha256": "a747fe9e5d3a65cec8b3bdbcfe6251eb0e1d3cfa0518d1dc89a29c22924f9771",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "a747fe9e5d3a65cec8b3bdbcfe6251eb0e1d3cfa0518d1dc89a29c22924f9771",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/config-ia-the-junk-drawer-problem.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/config-ia-the-junk-drawer-problem.md: fdcc9af0e docs(board+config-ia): #59 merged (main 6a319267c); templates-in-settings finding (imagery, not D132 leftover) + config-revamp/registry-lever intent recorded",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Config IA — the junk-drawer problem, and the tag model that falls out of it: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/config-rail-spec.md",
       "assignedSha256": "b2853f130e5ca666bdf1395a741200fec2b8b0e2f8b283833751e03226fea795",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "b2853f130e5ca666bdf1395a741200fec2b8b0e2f8b283833751e03226fea795",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/config-rail-spec.md:1 (spec; draft)",
+        "git log --oneline -1 -- docs/design/config-rail-spec.md: e7a86df18 feat(config-rail): R2 — World Info leaves the rail and becomes a Configuration collection",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "CONFIG RAIL — the Configuration workspace (R1 design set): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/containerize-build-plan.md",
       "assignedSha256": "77bea0f8f9d8362d0f7d6d0608390d6de876abdd06d2483d41698c9a669d060d",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "77bea0f8f9d8362d0f7d6d0608390d6de876abdd06d2483d41698c9a669d060d",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/containerize-build-plan.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/containerize-build-plan.md: fd4ae9119 feat(deploy): production container — 2-profile Dockerfile + compose + the D2 external-engine code arms",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Containerize — build plan (the forge lane's phase-1 artifact): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/containerize-prod-image-spec.md",
       "assignedSha256": "935b2e24ec443519b07fee64d2ccd312aadd90e47363a94904c086be7b26bf18",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "needs-owner",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "935b2e24ec443519b07fee64d2ccd312aadd90e47363a94904c086be7b26bf18",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/containerize-prod-image-spec.md:1 (design; draft)",
+        "git log --oneline -1 -- docs/design/containerize-prod-image-spec.md: 06a706551 fix(auth): boot-refuse single-user + AUTH_FALLBACK=deny; pin the shim↔firewall coupled site",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Production container image + deployment spec (all auth modes): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/context-panel-fidelity-findings.md",
       "assignedSha256": "233dae203ad850289f73a9c84fde4c39797549ed302f950849fbe1b7e94d63f0",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "233dae203ad850289f73a9c84fde4c39797549ed302f950849fbe1b7e94d63f0",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/context-panel-fidelity-findings.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/context-panel-fidelity-findings.md: f066b71b7 feat(chat): the context-budget bar is FILL-VS-HEADROOM (owner ruling D-4a)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Context-panel meta-tabs + model picker — fidelity findings (the \"is it getting dirty\" audit): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/databank-surface-spec.md",
       "assignedSha256": "c9e429a5d4f75d8f33d2221ec7b418e800744b751e555d9ff6de171d83cdd3ef",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "c9e429a5d4f75d8f33d2221ec7b418e800744b751e555d9ff6de171d83cdd3ef",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/databank-surface-spec.md:1 (spec; draft)",
+        "git log --oneline -1 -- docs/design/databank-surface-spec.md: e9a1a99d8 fix(lane-sm3): 6 smalls — dead gate wrapper, stale canAgent comments, databank rail count, typeonly-ok marker, content-class table dispatch, facet Record collapse",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "DATABANK CLIENT SURFACE — the documents library, the per-chat rack, and the D85 visibility toggle: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/default-character-roster.md",
       "assignedSha256": "1f43ec306b74580c0f1c7dd665b751153c12c31d0668f35d0157b3c46cbd4e2f",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "1f43ec306b74580c0f1c7dd665b751153c12c31d0668f35d0157b3c46cbd4e2f",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/default-character-roster.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/default-character-roster.md: f01e98460 docs(design): roster — UI-copy rider: Charlotte's welcome-slot line now matches real menu copy ('Set as welcome greeter', character-actions-menu.tsx:67); old card's 'Set / Unset as Welcome Page Assistant / More…' was pre-existing rot (no such affordance). Receipt in wiring notes item 8.",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Default character roster — authored pack v2: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/demo-seeding-rebuild.md",
       "assignedSha256": "184e8194f705254c1f039d2038db9b41e6ff8250ad5300938a2b854ea91b21f5",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "needs-owner",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "184e8194f705254c1f039d2038db9b41e6ff8250ad5300938a2b854ea91b21f5",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/demo-seeding-rebuild.md:1 (design; draft)",
+        "git log --oneline -1 -- docs/design/demo-seeding-rebuild.md: e810841fa docs(design): demo-seeding rebuild — audit of the seeder jank + the rpg-in-export owner fork (lane #52 stopped-before-build)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Demo seeding — the jank, and what \"the actual way\" costs: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/density-pass-spec.md",
       "assignedSha256": "0f241b7251eae6bedd89baaf7219881bbcb44afa0e09aa501e5569f19ea2e63e",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "0f241b7251eae6bedd89baaf7219881bbcb44afa0e09aa501e5569f19ea2e63e",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/density-pass-spec.md:1 (spec; approved (owner-ruled 2026-08-01))",
+        "git log --oneline -1 -- docs/design/density-pass-spec.md: fb36e52c5 feat(chat,ui): density S6 — the transcript + composer on the tier map, baseline 290 → 244",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "The density pass — tier map, mechanism, enforcement: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/docker-modern-practices-research.md",
       "assignedSha256": "d7c9707c1a553e6788cbb95a6cd555f6fbaae40ed69ed8ba13a2e484ca113511",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "needs-owner",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "d7c9707c1a553e6788cbb95a6cd555f6fbaae40ed69ed8ba13a2e484ca113511",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/docker-modern-practices-research.md:1 (research; draft)",
+        "git log --oneline -1 -- docs/design/docker-modern-practices-research.md: a7c550e3e docs(design): modern Docker practices research (2026, cited) — pnpm deploy --legacy gotcha, per-profile bases, compose/GPU/secrets/PID-1, anti-patterns",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Modern Docker/BuildKit/Compose practices — builder brief for the two-profile prod image: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/draft-trust-render-policy-seam.md",
       "assignedSha256": "78c5f7942a5beb2bf7bcd5e5ada0d91612704dbe9e58991829a695567a0ceec2",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "78c5f7942a5beb2bf7bcd5e5ada0d91612704dbe9e58991829a695567a0ceec2",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/draft-trust-render-policy-seam.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/draft-trust-render-policy-seam.md: 7e0301698 docs: #48 + #50 merged (a6133ffe4/02f0a91a0); draft-trust doc corrected (inverted mechanism, arm 1 built); C12 refused",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "DRAFT-TRUST render-policy seam — decision brief: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/entity-room-member-freshness-bridge.md",
       "assignedSha256": "6109a5c3db81c418bec3dfd319600d34582b6da7928d08edfddcf62ffccf8499",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "6109a5c3db81c418bec3dfd319600d34582b6da7928d08edfddcf62ffccf8499",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/entity-room-member-freshness-bridge.md:1 (spec; draft)",
+        "git log --oneline -1 -- docs/design/entity-room-member-freshness-bridge.md: c3301aede docs(bridge): §5 truth-repaired to as-built — F-G ruled+done, terminal is a caller thunk",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Entity→room member-freshness bridge — design + build plan: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/event-bus-coverage-survey.md",
       "assignedSha256": "872888f9e59ebe0740eb750f94d6aa5ebfc9239dc32d6eb32d2cab9641cc5eb9",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "872888f9e59ebe0740eb750f94d6aa5ebfc9239dc32d6eb32d2cab9641cc5eb9",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/event-bus-coverage-survey.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/event-bus-coverage-survey.md: 7ba64dd95 feat(bus): rulesChanged wired + databankChanged + corpusRecomputed sweep terminals",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Event-bus coverage survey — inventory · audit · gate expansion · the extension contract: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/gate-ignore-mention-fence.md",
       "assignedSha256": "a75cea93fb72048ea58be6a1729d26928b9d068ec054dc01959a14892fddda3b",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "a75cea93fb72048ea58be6a1729d26928b9d068ec054dc01959a14892fddda3b",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/gate-ignore-mention-fence.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/gate-ignore-mention-fence.md: fed99940f fix(gates): markers under scripts/ were uninventoried; prose could suppress",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "The `@orb-gate-ignore` mention fence — closing the scripts/ inventory gap: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/home-tile-promotion.md",
       "assignedSha256": "15b77b24787afb00f36f3a18b2570480b51190497e29c84a1ae712d099532d33",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "needs-owner",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "15b77b24787afb00f36f3a18b2570480b51190497e29c84a1ae712d099532d33",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/home-tile-promotion.md:1 (design; open — owner decision pending)",
+        "git log --oneline -1 -- docs/design/home-tile-promotion.md: 24f99e257 feat(databank): the bank is walkable past its first page",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Conditional HOME-tile promotion (the databank `useOrder` follow-up): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/list-pane-projection-proposal.md",
       "assignedSha256": "5da7af6c07564ff8baa55b4160a3f7e9bfe1e1dce27a269b4535dca0ab56913f",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "5da7af6c07564ff8baa55b4160a3f7e9bfe1e1dce27a269b4535dca0ab56913f",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/list-pane-projection-proposal.md:1 (spec; draft)",
+        "git log --oneline -1 -- docs/design/list-pane-projection-proposal.md: c8bdf92bf docs(history): archive three closed programs + two closed reviews (2nd sweep)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "LIST-PANE PROJECTION — the character screen's pane becomes her chats (face → history → play): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/lite-plus-guided-substrate-spec.md",
       "assignedSha256": "b5fc08263112412a67edfd2e63c9c28c6ae94008f4fd23ce19cfec2812d418a4",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "needs-owner",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "b5fc08263112412a67edfd2e63c9c28c6ae94008f4fd23ce19cfec2812d418a4",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/lite-plus-guided-substrate-spec.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/lite-plus-guided-substrate-spec.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "LITE + GUIDED SUBSTRATE — the fresh-build carve spec: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/login-loading-screen.md",
       "assignedSha256": "6ba4ae661202e18d6151e03153d30e811731ddb88f4faacd1ccabe567549ebdb",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "6ba4ae661202e18d6151e03153d30e811731ddb88f4faacd1ccabe567549ebdb",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/login-loading-screen.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/login-loading-screen.md: 20b70532e feat(brand): login + boot loading web-weave, brand A install, one-loader WebSpinner",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Login + loading screen — the web-weave design + brand pack (BUILT — see §9): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/mocks/README.md",
       "assignedSha256": "624bdee7298c73b38df8047e6a7119eefcedc5ee91e96669ee5fc48c6270a686",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "624bdee7298c73b38df8047e6a7119eefcedc5ee91e96669ee5fc48c6270a686",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/mocks/README.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/mocks/crunchy-cluster-redesign/DESIGN.md",
       "assignedSha256": "6f6a593ac2b3b1f9ba2832a2687404ad396700915b87ce622e7cccc2ac0241b5",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "6f6a593ac2b3b1f9ba2832a2687404ad396700915b87ce622e7cccc2ac0241b5",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/mocks/crunchy-cluster-redesign/DESIGN.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/mocks/crunchy-cluster-redesign/DESIGN.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "THE CRUNCHY-CLUSTER REDESIGN — extraction depth · the wand · fork-clones-the-game · the sweep: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/mocks/panel-redesign/DESIGN.md",
       "assignedSha256": "b82aa098e074d26f1d2f3ddb4b28ad1b3d5420e0e07a0ce913b8619196549414",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "b82aa098e074d26f1d2f3ddb4b28ad1b3d5420e0e07a0ce913b8619196549414",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/mocks/panel-redesign/DESIGN.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/mocks/panel-redesign/DESIGN.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "The RPG Context Panel — redesign rationale: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/node-26-adoption-program.md",
       "assignedSha256": "f72043730d4cf2aff055c7515ebb0b420a86ed1c82e696b535bf86c52b0c49ac",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "f72043730d4cf2aff055c7515ebb0b420a86ed1c82e696b535bf86c52b0c49ac",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/node-26-adoption-program.md:1 (design; proposed)",
+        "git log --oneline -1 -- docs/design/node-26-adoption-program.md: 8bf392be3 refactor(node-26): W4.5 withResolvers + W4.2 toSorted burn-down; both gate arms land",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Node 21 → 26 maximal-adoption program: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/node-26-w4-residual-burndown.md",
       "assignedSha256": "8dc168e0d02635e8170bcf8fa79008355aaf2c1437915cdcda889297464be0c5",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "8dc168e0d02635e8170bcf8fa79008355aaf2c1437915cdcda889297464be0c5",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/node-26-w4-residual-burndown.md:1 (design; landed)",
+        "git log --oneline -1 -- docs/design/node-26-w4-residual-burndown.md: 8bf392be3 refactor(node-26): W4.5 withResolvers + W4.2 toSorted burn-down; both gate arms land",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Node-26 program — W4 residual burn-down (W4.5 withResolvers + W4.2 toSorted): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/note-token-intent-history.md",
       "assignedSha256": "c58f1999a8a34dd9a13a9a93ea6dc8c87102fa7a666e9b52f166f9c02bb73bdb",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "c58f1999a8a34dd9a13a9a93ea6dc8c87102fa7a666e9b52f166f9c02bb73bdb",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/note-token-intent-history.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/note-token-intent-history.md: be00fe738 docs(investigate): {{note}} intent history — warn-never-block was INHERITED not decided; divergence from {{entry}} is stale classification, one real counter-precedent (:::card)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "`{{note}}` — original intent & classification archaeology: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/oidc-authentik-openwebui-study.md",
       "assignedSha256": "da8fc7bfbd9bcd46b7435436c9518d417afa8c0e5921e3c1054aa723dedc0e67",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "needs-owner",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "da8fc7bfbd9bcd46b7435436c9518d417afa8c0e5921e3c1054aa723dedc0e67",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/oidc-authentik-openwebui-study.md:1 (design; draft)",
+        "git log --oneline -1 -- docs/design/oidc-authentik-openwebui-study.md: 626e1985a docs(design): OIDC/Authentik study — Open WebUI mined vs our flow (owner-authorized out-of-band)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "OIDC / Authentik: the Open WebUI integration, read against ours: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/openrouter-provider-findings.md",
       "assignedSha256": "d63b5d29af24d54da8df2b819a4c03eda8d36c99208ce2fb0231966b0df64175",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "d63b5d29af24d54da8df2b819a4c03eda8d36c99208ce2fb0231966b0df64175",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/openrouter-provider-findings.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/openrouter-provider-findings.md: 05b69a9e9 fix(providers): cache breakpoints count conversational depth, + an admin depth knob",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "OpenRouter chat-completions backend — measured findings & fixes: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/openwebui-auth-methods-study.md",
       "assignedSha256": "d9310928a10a41dbf8a10fc4052281e99ddee4353449a4942591689c53bc90ad",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "needs-owner",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "d9310928a10a41dbf8a10fc4052281e99ddee4353449a4942591689c53bc90ad",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/openwebui-auth-methods-study.md:1 (design; draft)",
+        "git log --oneline -1 -- docs/design/openwebui-auth-methods-study.md: 3c944f854 docs(design): auth study III — first-run bootstrap + mode-switch (§7); MS-W1 non-owner orphan gap + B5 admin-link-SSO verb",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Open WebUI's other login methods (local / LDAP / SCIM), read against ours — the unification study: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/parity-plus-program-spec.md",
       "assignedSha256": "a78752057c12b11032dcc01f624c3d33db56813111a21268a061a0f173fab451",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "a78752057c12b11032dcc01f624c3d33db56813111a21268a061a0f173fab451",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/parity-plus-program-spec.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/parity-plus-program-spec.md: b596fe7c1 fix(chat): mount a streamed card at FENCE CLOSE, not at message commit (§4.5)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "PARITY-PLUS — the seven-feature \"make it first-class and better\" program spec: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/parked-options-config-port.md",
       "assignedSha256": "fa88ac190c432ebd5e171073ff33e2cac8fb11af0270e6e9555b6fb633183576",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "fa88ac190c432ebd5e171073ff33e2cac8fb11af0270e6e9555b6fb633183576",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/parked-options-config-port.md:1 (design-options; decision-input)",
+        "git log --oneline -1 -- docs/design/parked-options-config-port.md: c91162bfc docs(investigate): config-port parked-options — presets-into-rail is a seam migration not an array edit; JSON-card already server-built (client submenu only)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Parked options — config-rail + portability: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/parked-options-ops-posture.md",
       "assignedSha256": "280ed417d1fe7e362dab8eb7a2c6b70e91f08c8647136539fc38d7ce9b15f2bb",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "needs-owner",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "280ed417d1fe7e362dab8eb7a2c6b70e91f08c8647136539fc38d7ce9b15f2bb",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/parked-options-ops-posture.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/parked-options-ops-posture.md: 67ed651a3 docs(investigate): ops/posture parked-options — containerize has no prod Dockerfile referent (6 forks), .env is oidc, AGENT-1 over-blocked, entry-exports after amputation",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Parked options — ops + posture cluster (investigate-only): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/parked-options-persona-prose.md",
       "assignedSha256": "4c6fc9854f479db4fc3f84d61ce8f9bf5d668a759c0406fda4ba6d4ec7cb15c2",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "4c6fc9854f479db4fc3f84d61ce8f9bf5d668a759c0406fda4ba6d4ec7cb15c2",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/parked-options-persona-prose.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/parked-options-persona-prose.md: b9930fbea docs(investigate): persona/prose parked-options — kind-polymorphic cast (not flag), ship nudge texts verbatim, {{note}} is a silent-loss carrier (block-vs-warn fork)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Parked options — persona / prose cluster (I-8): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/parked-options-tag-contract.md",
       "assignedSha256": "b46abd41673234e0006fa71e88814d7b2ba92ce3a34a3de474fba908dfe83705",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "b46abd41673234e0006fa71e88814d7b2ba92ce3a34a3de474fba908dfe83705",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/parked-options-tag-contract.md:1 (design-options; draft)",
+        "git log --oneline -1 -- docs/design/parked-options-tag-contract.md: 91ebf56ce feat(#48): ruled smalls — smoothStream ON, ⋯ to the composer, tag folders OPEN, preview render policy",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Parked options: tag taste-calls + the guided-prompt contract cap: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/persona-character-kind-substrate.md",
       "assignedSha256": "27a6c628af0e29c1a4538a596bdd5855acd264cd7697e9cbbffd73d7e9ca0f9a",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "needs-owner",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "27a6c628af0e29c1a4538a596bdd5855acd264cd7697e9cbbffd73d7e9ca0f9a",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/persona-character-kind-substrate.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/persona-character-kind-substrate.md: 425ca37e1 docs(design): D137 execution rider on the persona-character design doc",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Persona ↔ character unification — the kind-polymorphic cast + the card-face substrate: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/preset-surface-redesign.md",
       "assignedSha256": "50df95e3727cc48780fa768a4614e3e722606b107fe3d683ef7039f729f803d3",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "50df95e3727cc48780fa768a4614e3e722606b107fe3d683ef7039f729f803d3",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/preset-surface-redesign.md:1 (spec; closed (BUILT — see D121))",
+        "git log --oneline -1 -- docs/design/preset-surface-redesign.md: 83f0b21ce docs(history): graduate the preset-execution crunch list (36/36 accounted); repoint its three refs",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "PRESET SURFACE REDESIGN — make the generation deck crunchy (PRESET-1): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/prod-build-cls-investigation.md",
       "assignedSha256": "3d13d9f56d7b88e5b4463d9a6f24759446874359d12d4c1f7fe145600ab21e4c",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "3d13d9f56d7b88e5b4463d9a6f24759446874359d12d4c1f7fe145600ab21e4c",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/prod-build-cls-investigation.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/prod-build-cls-investigation.md: a99e8f939 docs(investigate): populate-round prose census + prod-build CLS lead",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Prod-build CLS lead — investigation only, no fix: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/prose-1-populate-census.md",
       "assignedSha256": "2e2b16e28505a1847c383c53accfd58c09d86a1490d5b897efec9071432ab5b6",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "2e2b16e28505a1847c383c53accfd58c09d86a1490d5b897efec9071432ab5b6",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/prose-1-populate-census.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/prose-1-populate-census.md: cc4404bf2 feat(prose): the populate round's last 7 hardcoded strings are host-editable slots",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "PROSE-1 — the populate round's own prose (post-census enumeration): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/prose-1-rpg-extraction-followon.md",
       "assignedSha256": "80522324722791abf79ad817dc1415c99945b0ce96962c99f63bf51d8afd480a",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "80522324722791abf79ad817dc1415c99945b0ce96962c99f63bf51d8afd480a",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/prose-1-rpg-extraction-followon.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/prose-1-rpg-extraction-followon.md: cc4404bf2 feat(prose): the populate round's last 7 hardcoded strings are host-editable slots",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "PROSE-1 — the rpg EXTRACTION seam (follow-on to the reminder-seam lane): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/prose-1-spec.md",
       "assignedSha256": "d3b5f64d3f0070877456103452b73e798dafb4d87e21348bb40e86a236eaef55",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "d3b5f64d3f0070877456103452b73e798dafb4d87e21348bb40e86a236eaef55",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/prose-1-spec.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/prose-1-spec.md: 90ae6aa30 feat(prose): templating fork ARM B — the 21 steer fragments become server-composed preset slots",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "PROSE-1 — model-facing prose becomes host-editable data: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/refinery-og-extension-feedback.md",
       "assignedSha256": "0a79f43d2cf594f7dea44fa30571e858f3372658a8a1f111bf2e1c2490057e57",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "0a79f43d2cf594f7dea44fa30571e858f3372658a8a1f111bf2e1c2490057e57",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/refinery-og-extension-feedback.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/refinery-og-extension-feedback.md: addb13faa docs(refinery): §19 supersession map — record banners, truth-repair pointers, mock deltas",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Refinery — the OG extension's community feedback, mapped to orb (2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/refinery-r0.md",
       "assignedSha256": "71cc849f0e4b05c605e2fe4c89184a12f1824966fd1703a3f9e9411fb058a370",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "71cc849f0e4b05c605e2fe4c89184a12f1824966fd1703a3f9e9411fb058a370",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/refinery-r0.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/refinery-r0.md: addb13faa docs(refinery): §19 supersession map — record banners, truth-repair pointers, mock deltas",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Refinery R0 — contracts + db foundation (FORGE lane, 2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/refinery-r3-build-plan.md",
       "assignedSha256": "039180f92287854b3b79081f41413347a3b6d0b823ba3b952de02b422c258acf",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "039180f92287854b3b79081f41413347a3b6d0b823ba3b952de02b422c258acf",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/refinery-r3-build-plan.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/refinery-r3-build-plan.md: bba4bb13e feat(refinery): R4 — library score sweep, score sorts + dossier readout, greeting APPEND arm",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Refinery R3 — build plan (the ratified design mapped onto code): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/refinery-schema-renderer.md",
       "assignedSha256": "0082e97ece67b753f62b850792bd35a69d4d633d7e0aa29ab4c55e3c94900046",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "0082e97ece67b753f62b850792bd35a69d4d633d7e0aa29ab4c55e3c94900046",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/refinery-schema-renderer.md:1 (design; proposed)",
+        "git log --oneline -1 -- docs/design/refinery-schema-renderer.md: bba4bb13e feat(refinery): R4 — library score sweep, score sorts + dossier readout, greeting APPEND arm",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Refinery R3 — the schema-driven result renderer (crowning-feature design workshop): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/rpg-extraction-one-call-spike.md",
       "assignedSha256": "fb9eeeff27abcb54cd68992007796cb33a3fb4ee8b27886a14f795aab586b4eb",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "fb9eeeff27abcb54cd68992007796cb33a3fb4ee8b27886a14f795aab586b4eb",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/rpg-extraction-one-call-spike.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/rpg-extraction-one-call-spike.md: a933ef4cf feat(rpg)!: delete the reliable extraction mode + build the RV-11 guide readers",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "RPG state extraction — one-call-tools spike & recommendations: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/rpg-rewind-stuck-state.md",
       "assignedSha256": "aa51cdf927b2c46b3a6f77167baa41edf7279ac1cc8de0d5184d7d5f909dd76d",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "aa51cdf927b2c46b3a6f77167baa41edf7279ac1cc8de0d5184d7d5f909dd76d",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/rpg-rewind-stuck-state.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/rpg-rewind-stuck-state.md: 3f02a6ef7 fix(rpg): stat attributes persist; a swipe actually rewinds the panel",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "RPG-LITE REWIND/SWIPE — \"state stuck\" — diagnosis + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/st-import-plane-classification.md",
       "assignedSha256": "723ac5b8b9107315b4bb84006e4092eb793de10524f787ccc666e566f493c39b",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "723ac5b8b9107315b4bb84006e4092eb793de10524f787ccc666e566f493c39b",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/st-import-plane-classification.md:1 (reference; active)",
+        "git log --oneline -1 -- docs/design/st-import-plane-classification.md: acf531a6a feat(import): ST backgrounds → background library, themes → safe-converted palettes, power_user → its real homes",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "SillyTavern import — the per-plane classification: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/st-message-shaping-atlas.md",
       "assignedSha256": "1dc503dc857537b0b7a2fe11437d90b465747e6437fa9995cce0fe04cdfbf380",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "1dc503dc857537b0b7a2fe11437d90b465747e6437fa9995cce0fe04cdfbf380",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/st-message-shaping-atlas.md:1 (reference; active)",
+        "git log --oneline -1 -- docs/design/st-message-shaping-atlas.md: 23aaa625a docs(graduation,doctrine): dogfood doc graduates to history (refs repointed); the double campaign's orchestrator + lane lessons minted into onboarding and agent doctrine",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "SillyTavern message-shaping atlas — storage identity, wire identity, and our delta: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/staleness-and-session-freshness.md",
       "assignedSha256": "8033416d081174e1be3ba55f5e4afdb4121f330fefd342d0997de6aa4ddfc68f",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "8033416d081174e1be3ba55f5e4afdb4121f330fefd342d0997de6aa4ddfc68f",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/staleness-and-session-freshness.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/staleness-and-session-freshness.md: 786fe372c feat(bridge): chatDeleted goes live-only — R1-4a closed, quiet coalescer spans both planes, SEATED-red gate arm",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Staleness & session freshness — diagnosis + design + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/streaming-reveal-42.md",
       "assignedSha256": "1c63f2adfeae92b947027939884d5eaf00d52ac19c7c6a83219bb101bc55c90d",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "1c63f2adfeae92b947027939884d5eaf00d52ac19c7c6a83219bb101bc55c90d",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/streaming-reveal-42.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/streaming-reveal-42.md: 91ebf56ce feat(#48): ruled smalls — smoothStream ON, ⋯ to the composer, tag folders OPEN, preview render policy",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "#42 — Streaming reveal: measured root causes + the fix design: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/streaming-shape-churn.md",
       "assignedSha256": "1e6b30a26e45d7bee3f39b814861fbe5e97172e11a616a0cf5c6c411bb64b8ad",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "e04d9a63b3fa6a1bcaed881ced653978beeccd64b1c02236e69ba3a4f0843a02",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/streaming-shape-churn.md:343-555 (M4 §7 verdict amended by current §8 evidence)",
+        "packages/ui/src/markdown/markdown.tsx:119-127 and tests/ui/markdown/markdown.ct.tsx:462-558 (M1/M5 shipped and rendered proofs)",
+        "tests/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts:1 and 016dae9ec fix(observability): silent-500 outcome surface closed"
+      ],
+      "summary": "Streaming message SHAPE CHURN — measured mechanism + the ranked fix plan: current active design authority; M1/M5 are built and tested, §8 restores M4 as the largest measured churn on an OpenRouter chat-completions connection, and the §7.5 silent-500 defect is fixed by 016dae9ec."
     },
     {
       "path": "docs/design/templating-fork-rows-53-73.md",
       "assignedSha256": "c0118c9c74b2b79a38dee86d838f4daf01b6a8ba4088794f4bf6f0cd8af16684",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "c0118c9c74b2b79a38dee86d838f4daf01b6a8ba4088794f4bf6f0cd8af16684",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/templating-fork-rows-53-73.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/templating-fork-rows-53-73.md: 90ae6aa30 feat(prose): templating fork ARM B — the 21 steer fragments become server-composed preset slots",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "The templating fork — PROSE-1 census rows 53-73 (REWRITE\\_TOGGLES / GREETING\\_TRANSFORMS): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/tracked-field-unification.md",
       "assignedSha256": "679bb917e76b873a8b6e54221d93eb29a367b64e23cdb9ffa66125af21c584ff",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "needs-owner",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "679bb917e76b873a8b6e54221d93eb29a367b64e23cdb9ffa66125af21c584ff",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/tracked-field-unification.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/tracked-field-unification.md: cb5e426e5 fix(client): model-text wraps everywhere + hints ride hover (owner dogfood round)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Tracked-field unification + panel IA repair — the pool/meter/cast-field untangle: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/tsx-shedding-migration-spec.md",
       "assignedSha256": "e532c89f1fd7bde0e03e9924d2c4dc20dce2c17a5b44f47543ee2bbd95557414",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "e532c89f1fd7bde0e03e9924d2c4dc20dce2c17a5b44f47543ee2bbd95557414",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/tsx-shedding-migration-spec.md:1 (design; landed)",
+        "git log --oneline -1 -- docs/design/tsx-shedding-migration-spec.md: e899498a5 feat(build): tsx-shedding STAGE 3 — all ~38 tooling invocations move to node; tsx leaves @orb/ui",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Shedding tsx — native-node TypeScript migration (quiet-tree work order): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/user-macro-delivery-spec.md",
       "assignedSha256": "17574de8d44d81920c6d8ce4139ad53960bc8caababf79d8e6e30c1ca2ca83ed",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "17574de8d44d81920c6d8ce4139ad53960bc8caababf79d8e6e30c1ca2ca83ed",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/user-macro-delivery-spec.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/user-macro-delivery-spec.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "User-macro INPUT-VALUE DELIVERY — implementation blueprint: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/v3-demo-transcripts-heal.md",
       "assignedSha256": "0af8d14b15189766c684258c6b0826843f159e1a5ed634eb2b9bd5a6f7cb86ac",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "0af8d14b15189766c684258c6b0826843f159e1a5ed634eb2b9bd5a6f7cb86ac",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/v3-demo-transcripts-heal.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/v3-demo-transcripts-heal.md: 446668f88 docs(design): DRAFT-TRUST + v3-transcripts decision briefs (lane #51 scout reconstruction, receipts in-lane)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "v3 demo-transcripts heal — decision brief: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/weave-lab-upgrades.md",
       "assignedSha256": "e062920750efbe4eafef70407cff8231b15e0431ad703fe034df647661deca5e",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "e062920750efbe4eafef70407cff8231b15e0431ad703fe034df647661deca5e",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/weave-lab-upgrades.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/weave-lab-upgrades.md: 27f2b3a56 feat(ui): WebSpinner weaves instead of pulsing — the loader IS a web being spun",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Weave Lab — the second-generation motion upgrade spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     },
     {
       "path": "docs/design/web-weave-motion-fixes.md",
       "assignedSha256": "2f374f70b7a30ea7a5fc64e5b57d4db3ba66eb791a8b9b47d75668408afa0bfd",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "2f374f70b7a30ea7a5fc64e5b57d4db3ba66eb791a8b9b47d75668408afa0bfd",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/design/web-weave-motion-fixes.md:1 (design; active)",
+        "git log --oneline -1 -- docs/design/web-weave-motion-fixes.md: f688f56d4 fix(ui): WebWeave motion — connected tips, containment, spider pathing, per-segment glint",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "WebWeave motion fixes — the Claude Design handoff spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation."
     }
   ]
 }
