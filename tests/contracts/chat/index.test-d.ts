@@ -99,6 +99,9 @@ test("ChatBusEvent's key vocabulary is CLOSED (a new member's free-text field is
     // persona switch
     | "from"
     | "to"
+    // the entity→room bridge: a CLOSED enum (`RoomEntityKind`), not free text — a string-literal union does
+    // not satisfy `string extends T`, so it stays out of the raw-string pin below by construction
+    | "entity"
   >();
 });
 

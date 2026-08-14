@@ -16,7 +16,7 @@
 // before chat composes; the real const into automation after).
 
 import { randomUUID } from "node:crypto";
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
@@ -412,7 +412,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // assembly, a genuine cycle) and threaded into persona's write, expressions' classify emit, and
   // buildChatService.
   const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
-  const emitChatEvent = async (event: ChatBusEvent): Promise<void> => {
+  const emitChatEvent = async (event: DurableChatBusEvent): Promise<void> => {
     const logged = await chatBus.emit(event);
     // `null` ⇒ the durable append was dropped + reported (bus.ts FLAG[emit-is-total], e.g. the chat was
     // deleted mid-turn). Durable-first means an un-logged event is never fanned — it has no replay cursor.
@@ -421,6 +421,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     if (logged !== null) {
       publishChatEvent(logged);
     }
+  };
+  // THE LIVE-ONLY FAN (entity→room member-freshness bridge, design §3.4) — the durable-append-free twin of
+  // `emitChatEvent`. No `chat_events` INSERT, no ring entry, no seq: the member carries no canon, so there is
+  // nothing to replay and a durable row would only cost an INSERT per seated room per edit. The pump yields it
+  // at the CURRENT cursor (`stream/sources/chat.ts`, the attach-synthetic non-advancement rule) and the client
+  // admits it by TYPE. Restricted to `LiveOnlyChatBusEvent` — a durable member cannot take this door, and a
+  // live-only member cannot take the durable one (both `chatBus.emit` and `emitChatEvent` narrow the other way).
+  // Not async and never rejecting: a no-listener publish is a free `EventEmitter.emit`, so there is no failure
+  // mode to classify (contrast the durable path's FLAG[emit-is-total] append classification).
+  const emitChatEventLive = (event: LiveOnlyChatBusEvent): void => {
+    publishChatEvent({ seq: null, event });
   };
 
   // The side-gen sampling ladder's MIDDLE rung (WHICH preset's params a side-gen call reads) — ONE home so
@@ -482,6 +493,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settings,
     getEffectiveConfig: () => effectiveConfig.getEffectiveConfig(),
     emitChatEvent,
+    emitChatEventLive,
     corpusAutoindex: resolved.corpusAutoindex,
     // preset's ONE cross-feature op (`resolveEffective` projects the funnel against the caller's own chat
     // model) — the SAME verb the client's params panel already reads, so the two can't disagree.
@@ -709,6 +721,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     audit,
     sessions,
     emitChatBusEvent,
+    emitDomainEvent: eventBus.emit,
     assets,
     character,
   });

@@ -7,13 +7,14 @@ import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { USER_BUS_EVENT_TYPES } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
-import type { InvalidateQueryFilters, QueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import { busDupCheck, busInvalidate, IS_DEV } from "#lib";
 import { collapseFilters } from "./collapse-filters.ts";
+import type { InvalidateFilter } from "./invalidation-reads.ts";
+import { chatCanonReads, chatReads, hiddenRevealRead, promptPreviewReads, ROOM_ENTITY_FILTERS } from "./invalidation-reads.ts";
 import type { Trpc } from "./trpc.ts";
 
-/** What the proxy's `.queryFilter()`/`.pathFilter()` return — accepted by `invalidateQueries`. */
-export type InvalidateFilter = InvalidateQueryFilters;
+export type { InvalidateFilter } from "./invalidation-reads.ts";
 
 /** The tRPC filter's dotted path — the readable key name the `[bus]` dev log keys off. Dev-only. */
 function filterKeyName(filter: InvalidateFilter): string {
@@ -50,73 +51,6 @@ type BusFilterMap = {
 };
 
 const nothing = (): readonly InvalidateFilter[] => [];
-
-// The open chat's CANON reads (no chat list, no `getChat`) — message list, the swipe strip's step-target
-// resolver, and the transcript divider's present-tense fit budget (previewContextFit — the boundary moves
-// when canon commits/trims, so it refetches on every canon-terminal alongside the list).
-//
-// `getChat` is DELIBERATELY ABSENT: `ChatDetail` projects the `chats` ROW + roster only (title/star/archived/
-// anchor/pendingHost/metadata group·overrides·background·rpg·opening/compact checkpoint/participants — see
-// `substrate/chat-detail.ts`), and NOTHING in it derives from canon. Every transition that DOES stale it fires
-// its own event, each naming `getChat` explicitly below: `chatUpdated` (title/star/archive/variables/
-// injections/roster/handoff AND the auto-compaction checkpoint — the engine emits it on every marker write),
-// `personaSwitched`, `chatOpened`, `historyTruncated`, the five `wi*` arms, `chatDeleted`. Carrying it here
-// re-fetched the room on every commit/edit/terminal — the measured startChat burst was FOUR `getChat` wire
-// fetches in 80ms (two of them from the greeting + user-row `messageCommitted` pair), and a plain turn paid
-// two more on commit+complete. `invalidateQueries` does NOT dedupe against an in-flight fetch (it cancels and
-// restarts), so every redundant row here is a real round-trip.
-//
-function chatCanonReads(trpc: Trpc): readonly InvalidateFilter[] {
-  return [
-    trpc.chat.listMessages.pathFilter(),
-    trpc.chat.listMessageVariants.pathFilter(),
-    trpc.chat.previewContextFit.pathFilter(),
-    ...promptPreviewReads(trpc),
-  ];
-}
-
-// `rpg.revealHidden` is an RPG read with a CANON driver: the verb DERIVES it from the stored selected-variant
-// assistant BODIES (`domain/rpg/verbs/read/reveal-hidden.ts` — no table of its own), so its freshness driver
-// is a BODY WRITE, not the rpg bus. Without a row the host's veiled cue + Veiled ledger froze at the count
-// they had when the panel first mounted (the previewAssembly class — every new GM lie invisible until GC or
-// a reload).
-//
-// It rides the BODY-WRITE terminals ONLY, never `turnCompleted`: a generated turn emits `messageCommitted`
-// (the commit that writes the body) and then `turnCompleted` on the very next line of the engine — the second
-// event changes no body, so carrying the reveal on both bought a duplicate wire fetch on EVERY turn (and
-// `invalidateQueries` does not dedupe against an in-flight fetch — it cancels and restarts it). Every path
-// that writes/changes an assistant body does emit `messageCommitted` (engine commit, edit, narrator post,
-// generated image, the opening greeting), and the swipe/edit/delete family carries it through `chatReads`,
-// so nothing the host can see goes stale. Costs nothing on a non-RPG chat or for a member: `invalidateQueries`
-// is a no-op for a key with no cache entry, and the read only mounts for the host of a game.
-function hiddenRevealRead(trpc: Trpc): readonly InvalidateFilter[] {
-  return [trpc.rpg.revealHidden.pathFilter()];
-}
-
-// The NEXT TURN'S PROMPT, as the Preview tab shows it: the assembled-prompt trace + the content-free shape
-// trace (`features/chat/components/assembly-preview-panel.tsx`). Both were in ZERO map rows, and the
-// QueryClient runs `staleTime: Infinity` — so the tab froze at its first fetch FOREVER (the reported "old
-// persona still in the preview": the server re-pin was correct, the panel was showing a snapshot from before
-// it). They ride the SAME row as `previewContextFit` everywhere — the fit is the budget of exactly this
-// assembly, so a row that refetches one and not the other makes the two halves of that tab disagree.
-// `previewActionTemplates` (D8 / preset-surface-redesign §7.1) rides HERE, not a row of its own: it is the
-// same class of read — a dry-run render of the next turn's prose against the live chat — and it goes stale on
-// exactly the same moments. Through this one member it inherits every driver the pair already has:
-// `presetsChanged` (the editor's own autosave — the resolved preview must move with the template you just
-// typed, which is what makes "settle-live" true here), `settingsChanged` (a model/persona swap changes what
-// `{{user}}`/`{{char}}` resolve TO), and every canon terminal (the macros read `{{lastMessage}}` &c). The
-// binding's OTHER freshness axis — the bind target moving to a different chat — needs no row at all: `chatId`
-// is in the query key, so a switch is a cold fetch of a new key by construction (§4.4's binding rows).
-function promptPreviewReads(trpc: Trpc): readonly InvalidateFilter[] {
-  return [trpc.chat.previewAssembly.pathFilter(), trpc.chat.getShapeTrace.pathFilter(), trpc.chat.previewActionTemplates.pathFilter()];
-}
-
-// Canon reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for. Every
-// event on this set moves (or can move) a stored body — an edit, a swipe, a hide, a delete/reorder — so the
-// host-reveal derivation rides with it.
-function chatReads(trpc: Trpc): readonly InvalidateFilter[] {
-  return [...chatCanonReads(trpc), ...hiddenRevealRead(trpc), trpc.chat.listChats.pathFilter()];
-}
 
 const BUS_FILTERS: BusFilterMap = {
   delta: nothing,
@@ -160,7 +94,14 @@ const BUS_FILTERS: BusFilterMap = {
   // so its `listChats` row was a pure second wire fetch of the list the fan had already refetched.
   chatCreated: nothing,
   chatDeleted: (e, trpc) => [...chatReads(trpc), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
-  chatOpened: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
+  // Widened with `getMemberCard` as the LIVE-ONLY LANE'S HEAL (the entity→room bridge §3.4/§3.7): a
+  // `roomEntityChanged` is never replayed, so a device that was dark through a card edit learns about it on
+  // its next attach — and `chatOpened` re-fires on EVERY (re)attach (reopen, reconnect, shed-restart), which
+  // is exactly the moment that gap closes. Free when the dialog is shut: the read is `enabled: open`, so
+  // there is no cache entry and `invalidateQueries` is a no-op. Deliberately NOT widened with the fit/preview
+  // reads — those would re-pay a BOOT-4X-class fetch on every room open, and their staleness bound is one
+  // turn (the next canon terminal refetches them through the durable replay).
+  chatOpened: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId }), trpc.chat.getMemberCard.pathFilter()],
   historyTruncated: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
   // The roster/group/override/membership catch-all ("refetch the chat detail"). `getGroupConfig` rides
   // here EXPLICITLY: it is the Group tab's OWN read of the `chats.metadata.group` sub-blob and does not
@@ -197,6 +138,17 @@ const BUS_FILTERS: BusFilterMap = {
     // Free when the panel is closed: `invalidateQueries` is a no-op for a key with no cache entry.
     trpc.databank.listActiveForChat.queryFilter({ chatId: e.chatId }),
   ],
+
+  // THE ENTITY→ROOM BRIDGE (design §3.7). An owner-plane entity edit somewhere else in the box moved
+  // something THIS room renders or assembles. Dispatches on `event.entity` through a Record over
+  // `RoomEntityKind` — the SAME union the server's reach table and the gate lane key on, so a fourth kind
+  // fails tsc here until it names its reads.
+  //
+  // NARROW ON PURPOSE, and this is the whole reason the bridge did not reuse `chatUpdated`: that row
+  // refetches the canon reads + the chat list + `getChat` + six chat-scoped reads, and `invalidateQueries`
+  // CANCELS AND RESTARTS an in-flight fetch — so a card editor's autosave would storm every open member
+  // device with full-room refetches. Each row below is the reads that entity actually moves.
+  roomEntityChanged: (e, trpc) => ROOM_ENTITY_FILTERS[e.entity](e.chatId, trpc),
 };
 
 // Second map: the per-user bus. staleTime: Infinity means only a bus tick refetches a non-chat

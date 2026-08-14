@@ -365,6 +365,10 @@ function buildCanonEvent(type: CanonEventType, chatId: ChatId): ChatBusEvent {
 
     case "wiEntryScopeChanged":
       return { type, chatId, surface: "chat", entryId: WORLD_ENTRY_ID, scope: "keyword" };
+    // The entity→room bridge: invalidate-only, exactly like `chatUpdated`. It reaches the reducer through
+    // the LIVE-ONLY lane (no durable seq), which is the seq guard's concern, not this reducer's.
+    case "roomEntityChanged":
+      return { type, chatId, entity: "character" };
     default:
       return assertNeverCanon(type);
   }

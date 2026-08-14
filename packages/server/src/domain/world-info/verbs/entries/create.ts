@@ -61,6 +61,10 @@ export function createCreate(ctx: WorldInfoContext): WorldInfoService["createEnt
       await ctx.emitWiEvent({ type: "wiEntryAttached", chatId, surface: "chat", entryId, scope });
     }
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
+    // The ROOM plane (entity→room bridge §3.6) — the ASSEMBLY changed. Distinct from the `wiEntryAttached`
+    // fan above, which moves the per-chat ATTACHMENT VIEW: that one reaches only chat-scope attachments,
+    // this one reaches every room reading the book through ANY of the four scopes.
+    ctx.emit({ type: "world-info.updated", bookId });
 
     return {
       id: entryId,

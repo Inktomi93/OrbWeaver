@@ -15,7 +15,7 @@
 // The chat bus emit, the per-member budget debit, and the per-turn host policy are not ChatContext ops —
 // they're injected as engine deps wired at the entry composition root.
 
-import type { AssembleContext, ChatBusEvent, ChatWarningCode, MessageView, TurnAbortReason } from "@orb/contracts/chat";
+import type { AssembleContext, ChatWarningCode, DurableChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import { buildCastNameContext, DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 
@@ -74,7 +74,7 @@ import { assertMaxProSubConsent, resolveOwnerConsented } from "./turn-identity.t
 
 /** The non-ctx engine deps wired at the composition root. */
 interface EngineDeps {
-  readonly emit: (event: ChatBusEvent) => Promise<void>;
+  readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   readonly debitBudget: DebitBudgetOp;
   readonly resolveTurnPolicy: ResolveTurnPolicyOp;
   readonly holder: string;
@@ -809,7 +809,7 @@ function preTurnCoveragePoint(args: {
 
 /** Emit a bus event, swallowing any failure — a background warning/update must never re-throw out of the
  *  fire-and-forget compaction body (and a nested `.catch` trips noNestedPromises). */
-async function emitQuiet(deps: EngineDeps, event: ChatBusEvent): Promise<void> {
+async function emitQuiet(deps: EngineDeps, event: DurableChatBusEvent): Promise<void> {
   try {
     await deps.emit(event);
   } catch {
@@ -1680,7 +1680,7 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
  *  @internal exported for the drop-warning unit test — the structured-output flag has no engine INPUT path yet
  *  (no chat consumer sets `responseFormat`, 04 §3), so the emit branch is only reachable directly. */
 async function emitCapabilityDropWarnings(
-  emit: (event: ChatBusEvent) => Promise<void>,
+  emit: (event: DurableChatBusEvent) => Promise<void>,
   chatId: ChatId,
   result: {
     readonly imageDropped: boolean;

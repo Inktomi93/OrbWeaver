@@ -14,7 +14,7 @@
 // `ctx`/`foreign` override rather than forking the driver.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { AssemblePersona, ChatBusEvent, GroupPolicy, MessageView } from "@orb/contracts/chat";
+import type { AssemblePersona, DurableChatBusEvent, GroupPolicy, MessageView } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
@@ -126,7 +126,7 @@ export interface ChatScenarioOptions {
   /** A REAL bus emit to run BESIDE the in-memory `events` recorder (e.g. `createChatBus(ctx).emit`) — for the
    *  tests that need the durable `chat_events` write itself, not just the event stream (the delete-mid-turn FK
    *  race). Awaited after the recorder push; omitted ⇒ recorder only. */
-  readonly emit?: (event: ChatBusEvent) => Promise<unknown>;
+  readonly emit?: (event: DurableChatBusEvent) => Promise<unknown>;
   /** Extra `ChatContext` overrides merged over the defaults (an escape hatch for a seam the driver doesn't
    *  surface — `readPresence`, `resolveSeatDeco`, …). Applied AFTER the driver's own wiring. */
   readonly ctx?: Partial<ChatContext>;
@@ -166,7 +166,7 @@ export interface ChatScenario {
   /** characterId → display name (the `getCard`/`@mention` map). */
   readonly names: Readonly<Record<string, string>>;
   /** Every bus event the engine/verbs emitted, in order (turnStarted/delta/messageCommitted/…). */
-  readonly events: readonly ChatBusEvent[];
+  readonly events: readonly DurableChatBusEvent[];
   /** Every stats delta the canon-mutators pushed (economics accounting). */
   readonly statsDeltas: readonly StatsDelta[];
   /** Every wire `TurnRequest` the tape saw, in turn order (for `assertStaticPrefixStable`). */
@@ -229,7 +229,7 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
   const db = options.db ?? (await freshDb());
   const { host, chatId, chars, names } = await seedRoom(db, options);
 
-  const events: ChatBusEvent[] = [];
+  const events: DurableChatBusEvent[] = [];
   const statsDeltas: StatsDelta[] = [];
   const requests: TurnRequest[] = [];
 
@@ -248,7 +248,9 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     ...options.ctx,
   });
 
-  const emit = async (event: ChatBusEvent): Promise<void> => {
+  // DURABLE only: this seam drives the turn engine, whose every emit is appended to `chat_events`. The
+  // live-only lane (`roomEntityChanged`) never passes through a turn.
+  const emit = async (event: DurableChatBusEvent): Promise<void> => {
     events.push(event);
     await options.emit?.(event);
   };

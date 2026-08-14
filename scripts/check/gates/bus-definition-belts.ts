@@ -54,6 +54,12 @@ const NAMED_BUS_UNIONS: ReadonlySet<string> = new Set(["DomainEvent"]);
 /** Bus unions that legitimately have NO belt of their own → why, and what would end it. Two-sided: a row
  *  whose union is gone, or which has since grown its own belt, is RED. */
 const BELT_EXEMPT: ExemptionTable = {
+  DurableChatBusEvent: {
+    why: "NOT a bus — a DERIVED SUBSET of ChatBusEvent (`Exclude<ChatBusEvent, {type: LiveOnlyChatEventType}>`, packages/contracts/src/chat/bus.ts), so every member it can contain is already belted by CHAT_BUS_EVENT_TYPES; a second belt would be a parallel home for the same discriminators AND could not be total over anything new. It exists to narrow the two DURABLE emit surfaces (domain/chat/bus::emit, entry/compose/services::emitChatEvent) so a live-only member cannot be appended to chat_events. Ends the day it stops being an Exclude<> over ChatBusEvent — i.e. if it ever becomes a union declared in its own right, it owes a belt and this row must go.",
+  },
+  LiveOnlyChatBusEvent: {
+    why: "NOT a bus — the COMPLEMENT of the row above (`Extract<ChatBusEvent, {type: LiveOnlyChatEventType}>`), belted by the same CHAT_BUS_EVENT_TYPES for the same reason. Its own membership is separately belted at RUNTIME by the LIVE_ONLY_CHAT_EVENT_TYPES partition pin in tests/contracts/chat/index.contract.test.ts (durable ∪ live-only = every member, ∩ = ∅). Ends on the same condition: if it stops being an Extract<> over ChatBusEvent, delete this row and give it a belt.",
+  },
   WiBusEvent: {
     why: "NOT a bus — a SUB-UNION spliced into ChatBusEvent (packages/contracts/src/chat/bus.ts), so its five members are already belted by CHAT_BUS_EVENT_TYPES and a second belt would be a parallel home for the same discriminators. Ends the day world-info gets its own transport room: it would then need its own belt, its own coverage spec, and this row deleted. If WiBusEvent ever stops being spliced into ChatBusEvent, this row is a lie and must go.",
   },

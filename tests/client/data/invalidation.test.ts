@@ -39,6 +39,14 @@ function isInvalidated(queryClient: QueryClient, queryKey: readonly unknown[]): 
   return queryClient.getQueryCache().find({ queryKey: [...queryKey] })?.state.isInvalidated ?? false;
 }
 
+/** Seed every tracked read so `isInvalidated` reflects the FILTER under test, not an absent cache entry.
+ *  ONE home for the seed (the `as never` payload is irrelevant to this seam — only key MATCHING is). */
+function seedReads(queryClient: QueryClient, keys: Iterable<readonly unknown[]>): void {
+  for (const key of keys) {
+    queryClient.setQueryData([...key], [] as never);
+  }
+}
+
 // ── The exhaustive event→filter contract ─────────────────────────────────────────────────────────
 // The five reads any `BUS_FILTERS` entry can touch. A new invalidation TARGET beyond these needs a new
 // tracked key here (the seed + assert loop then covers it). Declared as a tuple (the axis lives once),
@@ -75,6 +83,11 @@ const TRACKED_KEYS = [
   // emits the `chatUpdated` catch-all (verbs/chat-lifecycle.ts), but only the writing tab reconciled — the
   // `getGroupConfig` case, one proc over.
   "listChatInjections",
+  // The D22 member-card dialog (`chat.getMemberCard`). THE read the entity→room bridge was built for: a
+  // co-member's open card dialog had NO chat-bus driver at all (it rode only the editor-local user-bus
+  // `charactersChanged` row), so another human's card edit was invisible until the dialog was reopened
+  // outside its gcTime window.
+  "getMemberCard",
 ] as const;
 type TrackedKey = (typeof TRACKED_KEYS)[number];
 
@@ -131,8 +144,10 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections"],
   // Room + the prompt preview: a re-anchored persona rewrites `{{user}}` in the next turn's prompt.
   personaSwitched: ["getChat", "previewAssembly", "getShapeTrace"],
-  // Room-only (an attach/resume signal — the prompt didn't change, the transport did).
-  chatOpened: ["getChat"],
+  // The attach/resume signal — the room read, PLUS the member card as the LIVE-ONLY LANE'S HEAL: a
+  // `roomEntityChanged` is never replayed, and `chatOpened` re-fires on every (re)attach, so this is where a
+  // device that was dark through a card edit catches up (bridge §3.4).
+  chatOpened: ["getChat", "getMemberCard"],
   historyTruncated: ["getChat"],
   // World-info attachment — the WI reads + the room + the prompt preview (assembly POOL changed).
   wiBookAttached: ["worldInfo", "getChat", "previewAssembly", "getShapeTrace"],
@@ -145,6 +160,11 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   // ever reaches the creator via the draft→committed replay seed, so a `listChats` row here was a second wire
   // fetch of the list that fan had already refetched (the measured startChat burst: listChats 3× in 79ms).
   chatCreated: [],
+  // The entity→room bridge. The map is keyed by TYPE, so this row is the `character` arm (what `eventOf`
+  // builds); the persona / world-info arms are asserted by their own test below. NARROW by design — the
+  // reason the bridge did not reuse `chatUpdated`, whose row refetches the canon reads + the list + six
+  // more and cancels every in-flight fetch on each autosave tick.
+  roomEntityChanged: ["getMemberCard", "getChat", "previewContextFit", "previewAssembly", "getShapeTrace"],
 };
 
 // A minimal event of a given `type`. Every `BUS_FILTERS` handler reads ONLY the discriminant `type` (the
@@ -153,7 +173,10 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
 // the contract `.test-d` / reducer test's job — coupling this filter test to 26 payload shapes would add
 // churn with no coverage, hence the deliberate `as unknown as`.
 function eventOf(type: ChatBusEvent["type"]): ChatBusEvent {
-  return { type, chatId: CHAT_ID } as unknown as ChatBusEvent;
+  // `roomEntityChanged` is the ONE member whose handler reads a second field (`entity`, its dispatch axis),
+  // so the minimal event carries it. Without it the Record lookup is `undefined` and the row would throw
+  // rather than assert — the failure mode this note exists to stop a future editor from re-introducing.
+  return { type, chatId: CHAT_ID, entity: "character" } as unknown as ChatBusEvent;
 }
 
 describe("invalidation — the bus half (invalidate)", () => {
@@ -179,11 +202,9 @@ describe("invalidation — the bus half (invalidate)", () => {
         getShapeTrace: trpc.chat.getShapeTrace.queryKey({ chatId: CHAT_ID }),
         revealHidden: trpc.rpg.revealHidden.queryKey({ chatId: CHAT_ID }),
         listChatInjections: trpc.chat.listChatInjections.queryKey({ chatId: CHAT_ID }),
+        getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
       };
-      // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry.
-      for (const key of Object.values(keys)) {
-        queryClient.setQueryData([...key], [] as never);
-      }
+      seedReads(queryClient, Object.values(keys));
 
       invalidate(eventOf(type));
 
@@ -194,6 +215,36 @@ describe("invalidation — the bus half (invalidate)", () => {
     // keys changed (far more legible than 26 × 5 bare `toBe`s).
     const expected = Object.fromEntries(Object.entries(EXPECTED).map(([type, ks]) => [type, ks.toSorted()]));
     expect(actual).toEqual(expected);
+  });
+
+  // The map above is keyed by event TYPE, but `roomEntityChanged` dispatches a second axis (`entity`) — so
+  // its other two arms would be entirely untested by that loop. Each arm's point is what it does NOT
+  // invalidate: a persona edit must not refetch the member CARD, and a lorebook edit must not refetch the
+  // ROOM. Both are the over-invalidation the narrow member exists to avoid.
+  test.each([
+    ["persona", ["getChat", "previewContextFit", "previewAssembly", "getShapeTrace"]],
+    ["world-info", ["previewContextFit", "previewAssembly", "getShapeTrace"]],
+  ] as const)("roomEntityChanged{entity:%s} invalidates exactly its own reads", (entity, expectedKeys) => {
+    const { invalidate, queryClient, trpc } = setup();
+    const keys: Partial<Record<TrackedKey, readonly unknown[]>> = {
+      getChat: trpc.chat.getChat.queryKey({ chatId: CHAT_ID }),
+      getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
+      previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
+      previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
+      getShapeTrace: trpc.chat.getShapeTrace.queryKey({ chatId: CHAT_ID }),
+      listMessages: trpc.chat.listMessages.queryKey({ chatId: CHAT_ID }),
+      listChats: trpc.chat.listChats.queryKey(),
+      worldInfo: trpc.worldInfo.listBooks.queryKey(),
+    };
+    seedReads(queryClient, Object.values(keys));
+
+    invalidate({ type: "roomEntityChanged", chatId: CHAT_ID, entity });
+
+    const hit = Object.entries(keys)
+      .filter(([, key]) => isInvalidated(queryClient, key))
+      .map(([name]) => name)
+      .sort();
+    expect(hit).toEqual([...expectedKeys].sort());
   });
 });
 

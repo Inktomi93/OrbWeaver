@@ -439,6 +439,11 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
       case "asset.created":
         return indexer.onAssetCreated(event);
       // The chat-crew + rpg domain-event mirrors touch no embeddable canon — the indexer ignores them.
+      // Same for the entity→room bridge's two members: personas and lorebooks are not embedded sources, so
+      // they are explicit no-ops here (mirroring the production subscriber at compose/search-discovery.ts).
+      case "persona.updated":
+      case "world-info.updated":
+        return Promise.resolve();
 
       default:
         return assertNeverEvent(event);

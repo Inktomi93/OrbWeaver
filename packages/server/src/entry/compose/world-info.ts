@@ -8,7 +8,8 @@
 // role-sensitive ops; the owner resolver serves the automation/plugin/portability author-ownership gates. Two
 // distinct call sites, kept distinct.
 
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent } from "@orb/contracts/chat";
+import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -36,7 +37,12 @@ export interface WorldInfoComposeDeps {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly sessions: SessionsService;
   /** chat's bus durable-first emit (`ChatComposeResult.emitBusEvent`) — world-info publishes WI events onto it. */
-  readonly emitChatBusEvent: (event: ChatBusEvent) => Promise<void>;
+  readonly emitChatBusEvent: (event: DurableChatBusEvent) => Promise<void>;
+  /** The in-process domain-event emit. World-info's CONTENT writes raise `world-info.updated`, which the
+   *  entity→room reach engine (`room-reach.ts`, subscribed at the search-discovery seam) fans to every room
+   *  whose assembly pool reads the book. Distinct plane from both `emitChatBusEvent` (one chat's ATTACHMENT
+   *  view) and `publishUserEvent` (the owner's own library list). */
+  readonly emitDomainEvent: EmitDomainEvent;
   readonly assets: Pick<AssetsService, "resolveOwnedAssetRefs">;
   /** character's find-or-mint of a room's synthetic `__group__<chatId>` narrator identity — the SAME op
    *  chat's turn verb runs for a live `output:"narrator"` round. The bulk-import write needs it so an
@@ -66,6 +72,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     requireChatMember: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
     emitWiEvent: deps.emitChatBusEvent,
     emitUserEvent: publishUserEvent,
+    emit: deps.emitDomainEvent,
   });
 
   // Wired here so the live card-import path actually writes an imported card's embedded character_book.
