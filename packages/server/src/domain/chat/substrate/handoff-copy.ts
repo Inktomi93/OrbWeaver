@@ -1,5 +1,5 @@
-// domain/chat/substrate/handoff-copy — the ACCEPTED-OFFER copy plan for `acceptHostHandoff` (stickler
-// 2026-08-03 §5/§6(f)). SUBSTRATE, not a verb: it takes no principal and gates nothing — `acceptHostHandoff`
+// domain/chat/substrate/handoff-copy — the ACCEPTED-OFFER copy plan for `acceptHostHandoff`.
+// SUBSTRATE, not a verb: it takes no principal and gates nothing — `acceptHostHandoff`
 // has already proven the caller IS the nominee. It exists apart from `roster.ts` because it carries its own
 // crash contract: roster.ts owns the atomic room swap, this owns the LIBRARY half that must land before it.
 //

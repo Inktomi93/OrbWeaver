@@ -404,8 +404,8 @@ export type ResolveRpgRoster = (chatId: ChatId) => Promise<readonly RpgRosterAct
  *  at the composition root. */
 export type ResolveCanonWindow = (chatId: ChatId, opts: { readonly maxTokens: number }) => Promise<readonly RpgTurnTranscriptMessage[]>;
 
-/** The BORN-STATE corpus one character's populate round reads (the host `populateFromCharacter` verb, owner
- *  ruling 2026-08-01): the card's authored prose + the room's OPENING line. This is deliberately NOT the story
+/** The BORN-STATE corpus one character's populate round reads (the host `populateFromCharacter` verb):
+ *  the card's authored prose + the room's OPENING line. This is deliberately NOT the story
  *  window — a populate round establishes what the character walked IN with, so reading play would let a beat
  *  that already happened bleed into the born state (that is `resyncFromStory`'s job, and it is a different
  *  verb). Card reads resolve under the room HOST's ownership (the `ResolveRpgRoster` seat precedent, D18/D19). */
@@ -723,7 +723,7 @@ export interface ChatRpgOps {
    *  `resolveReasoningHostOnly`/`copyVariantStmt` already strip the reasoning + body channels across). `null` when
    *  rpg isn't wired / the source isn't a game ⇒ `{cloned:false}` and the fork stays plain. */
   readonly forkGame: (args: ForkGameArgs) => Promise<ForkGameResult>;
-  /** HOST HANDOFF (stickler 2026-08-03 F1): the rpg-side statements `acceptHostHandoff` must commit IN ITS OWN
+  /** HOST HANDOFF: the rpg-side statements `acceptHostHandoff` must commit IN ITS OWN
    *  SWAP BATCH when room authority moves to `newHostUserId`. Today that is the `gmPresetId` heal — the twin of
    *  the fork's `resolveForkGmPreset` gate: a GM-voice preset the NEW host cannot read is nulled, since from the
    *  swap onward `resolvePresetOverride` resolves it under THEM (owner-scoped) and would degrade the game's voice
@@ -733,7 +733,7 @@ export interface ChatRpgOps {
    *  already ride. Empty for a non-game chat / an unset knob ⇒ a handoff in a plain room is byte-identical. Chat
    *  stays rpg-table-blind: it folds the statements into its batch and reads nothing inside them.
    *
-   *  `args.copyGmPreset`/`args.cardCopies` are the ACCEPTED OFFER's rpg arms (2026-08-03): with the preset
+   *  `args.copyGmPreset`/`args.cardCopies` are the ACCEPTED OFFER's rpg arms: with the preset
    *  offered, an unreadable knob is COPIED into the new host's library and re-pointed instead of nulled (the
    *  room keeps the voice it had); `cardCopies` re-keys `rpg_sheets` off the departing host's cards onto the
    *  nominee's copies, so the transferred cast's durable identity data stops depending on a library the old

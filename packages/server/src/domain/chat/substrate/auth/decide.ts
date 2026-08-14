@@ -4,7 +4,7 @@
 // verdict. The `chat_participants.role` (`host|member`) IS the authority signal (D18 — replaces owner-equality;
 // there is no `chats.ownerId`).
 //
-// PD-1 — RESOLVED (this chunk). The privilege DECISION routes through the ONE injected `can()` seam (spine §6):
+// PD-1 — RESOLVED. The privilege DECISION routes through the ONE injected `can()` seam (spine §6):
 // chat loads its own roster and calls `can(principal, 'read'|'host', {kind:'chat', roster})`. The `role ===
 // 'host'` comparison lives INSIDE `can()` (admin/guard.ts) and NOWHERE in chat (spine #6). What STAYS chat's:
 // (1) the leak-free PRESENCE answer — a `loadMemberChat` miss is a NOT-FOUND, not a `can()` deny (a non-member
@@ -67,7 +67,7 @@ export function assertHost(can: Can, principal: Principal, role: ParticipantRole
  * model. Consumer: `verbs/fork.ts::assertForkAllowed` (host OR sole-present-human — the seam answers "is this
  * caller the host?", the verb owns what that means for a fork and throws its own `not_host`).
  *
- * THE BOUNDARY (two sanctioned classes — do not collapse them; ruled 2026-08-03, F1 closed at stage R2):
+ * THE BOUNDARY (two sanctioned classes — do not collapse them):
  * - **This is the ENFORCEMENT arm.** A role comparison that DECIDES what an operation may do belongs here,
  *   under spine invariant #6 ("`can()` is the ONLY privilege-comparison site"). Never re-spell
  *   `role === "host"` inline for a gate.

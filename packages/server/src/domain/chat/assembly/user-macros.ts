@@ -8,7 +8,7 @@
 // registry is a fresh `createDefaultRegistry()` per turn. It rides `TurnPrep` (server-only), NEVER the
 // serializable `AssembleContext` (a client-imported contract shape).
 //
-// TWO AUTHORING HOMES, ONE TURN (owner ruling #20 + the 2026-08-01 collision ruling): defs come from the
+// TWO AUTHORING HOMES, ONE TURN: defs come from the
 // active preset (`promptConfig.userMacros`) AND from the game (`rpg_games.config.userMacros`, delivered by
 // the injected `ChatRpgOps.resolveUserMacros` — never a sideways import). On a name clash the GAME wins
 // (specific-over-general, the `roomOverrides` precedent) — `substrate/user-macros::shadowPresetUserMacros`

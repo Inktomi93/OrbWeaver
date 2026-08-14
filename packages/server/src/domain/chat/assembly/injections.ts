@@ -4,10 +4,9 @@
 // (before/in-prompt section render) and SHAPE (the `in_chat` history splice) — one home, no drift.
 //
 // The two NOTE frames are PROSE-1 slots (`chat.injection.systemNote`/`.userNote`) resolved through
-// `resolveProseText`'s `{{note}}` pre-substitution token. HOME = per-PRESET since the owner ruling of
-// 2026-08-07 ("templates need to have one home in presets"): the override is stored in
-// `promptConfig.prose` and authored in the preset Templates tab, NOT — as this header said until that
-// ruling — per-USER under the room host. `prose` defaults to `{}` everywhere, so a caller that doesn't
+// `resolveProseText`'s `{{note}}` pre-substitution token. HOME = per-PRESET ("templates need one home in
+// presets"): the override is stored in `promptConfig.prose` and authored in the preset Templates tab, never
+// per-USER under the room host. `prose` defaults to `{}` everywhere, so a caller that doesn't
 // thread it gets the shipped frames byte-for-byte.
 
 import type { ChatInjection } from "@orb/contracts/chat";

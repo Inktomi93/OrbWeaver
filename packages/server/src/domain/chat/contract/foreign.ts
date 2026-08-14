@@ -61,12 +61,11 @@ export interface ResolvedPersonas {
  *     every trigger-less READ: a preview, a card display, a host instrument): `{{user}}` binds to the chat
  *     ANCHOR, the chat-invariant identity (D51 rider), never a presence-order bystander.
  *
- * TWO ARMS, AND THE UNION IS REQUIRED — there is no absent/`undefined` third state (owner ruling,
- * 2026-08-07). It used to exist, meaning "the trigger is UNKNOWN", and resolved through a `personaIds[0]`
- * fallback: the first PRESENT human's persona, i.e. whoever happened to join first. That is
- * nondeterministic (a join re-orders it), and on a host instrument it is a cross-member read — a multi-human
- * room's preview could show ANOTHER member's persona as `{{user}}`. Retiring it means every caller states
- * which arm it is in, and "I have no triggering human" now has exactly one spelling with one well-defined
+ * TWO ARMS, AND THE UNION IS REQUIRED — there is no absent/`undefined` third state. An absent trigger meaning
+ * "the trigger is UNKNOWN" would have to resolve through some fallback (e.g. the first PRESENT human's
+ * persona) — nondeterministic (a join re-orders it), and on a host instrument a cross-member read (a
+ * multi-human room's preview could show ANOTHER member's persona as `{{user}}`). Every caller must instead
+ * state which arm it is in, and "I have no triggering human" has exactly one spelling with one well-defined
  * meaning. Making the field REQUIRED rather than throwing on absence is the enforcement-ladder call: the
  * missing state becomes unrepresentable instead of loud (§2.2).
  */

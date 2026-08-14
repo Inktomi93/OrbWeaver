@@ -33,7 +33,7 @@ interface GenerateDigestsArgs {
 }
 
 /** The admin-resolved summarize call options (`AppSettings.memorySummarizer`) — passed onto every `summarize`
- *  call. The summarizer keeps its OWN sampler knobs (owner ruling 2026-08-08 — NOT coupled to chat presets):
+ *  call. The summarizer keeps its OWN sampler knobs (NOT coupled to chat presets):
  *  each admin-set knob rides; an unset knob falls to the engine default, EXCEPT `maxTokens` and
  *  `presencePenalty`, which ALWAYS ride at their memory-build defaults when unset. Both are the same loop fix:
  *  the summarize wire does NOT inherit the vLLM chat surface's per-request presence default, so a

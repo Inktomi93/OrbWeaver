@@ -1,12 +1,12 @@
 // domain/chat/substrate/user-macros — the user-macro DECLARATION-SET policy: how the chat's two authoring
-// homes (the active preset's `promptConfig.userMacros` and the game's `rpg_games.config.userMacros`, owner
-// ruling #20) combine into the ONE effective set. The `substrate/variables.ts` sibling for the other knob
+// homes (the active preset's `promptConfig.userMacros` and the game's `rpg_games.config.userMacros`)
+// combine into the ONE effective set. The `substrate/variables.ts` sibling for the other knob
 // family — a pure rule with TWO consumers that must never diverge: the per-turn registry build
 // (`assembly/user-macros.ts`) and the picks-pane read (`verbs/chat-lifecycle.ts::getUserMacroPicks`). It
 // lives in substrate/ because a verb reaches a named subsystem only through this slot, and because a pane
 // that asked about a def the turn no longer resolves would be a lie.
 
-/** THE COLLISION POLICY (owner ruling, 2026-08-01) — the game's def SHADOWS the preset's on a name clash.
+/** THE COLLISION POLICY — the game's def SHADOWS the preset's on a name clash.
  *  Specific-over-general, the `roomOverrides` precedent: a game is the narrower authoring home, so a game
  *  that redefines `{{mood}}` gets its own definition, not a refusal. Returns the preset defs that SURVIVE.
  *

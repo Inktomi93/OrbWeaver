@@ -2,7 +2,7 @@
 // spelling for the whole class. Zero I/O, zero Principal: it reads an already-loaded roster (the
 // `persistence/roster::loadRoster` rows or a resolved `ParticipantView[]`) and answers WHO the host is.
 //
-// THE CLASS (stage R2, 2026-08-03 — the role-authority clause): a host lookup is in NEITHER of the two
+// THE CLASS (the role-authority clause): a host lookup is in NEITHER of the two
 // role-comparison classes. It is not ENFORCEMENT (it decides nothing, throws nothing — that is
 // `substrate/auth/decide.ts::assertHost`/`permitsHost` over the injected `can()`, spine invariant #6) and it
 // is not a DATA PROJECTION of the viewer's own authority (that is `member-visibility.ts::viewerHoldsHost`,

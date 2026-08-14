@@ -137,7 +137,7 @@ interface ShapeOutput {
 // Trailing-user cue for a turn with no real user input and no group nudge — the delivered history must
 // end on a user turn (a trailing assistant turn is response prefill; rejected when thinking is on).
 //
-// PROSE-1 slot `chat.assembly.continuationNudge` (per-PRESET, owner ruling 2026-08-07): it is a sentence
+// PROSE-1 slot `chat.assembly.continuationNudge` (per-PRESET): it is a sentence
 // that reaches the model, so it is authorable in the preset Templates tab rather than a `const` here. An
 // absent override resolves the shipped bytes, so the wire is byte-identical until a host edits it.
 function continuationNudge(prose: ProseOverrides | undefined): string {

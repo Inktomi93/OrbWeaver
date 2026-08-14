@@ -1417,7 +1417,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     } satisfies Parameters<typeof runTurnPipeline>[0];
     const firstPass = await runTurnPipeline(pipelineArgs);
     captureTurnOutcome(prep, firstPass, ctx.now());
-    // RECOVER, do not discard (owner ruling 2026-08-07, dogfood EMPTYGEN-REASONING). A reasoning turn whose
+    // RECOVER, do not discard. A reasoning turn whose
     // tool calls landed but whose prose did not is not a failed turn — it is a turn missing its second half,
     // and the half it HAS is the expensive one. `resolveTurnNarrative` re-runs it once for the narrative and
     // carries the state writes forward; on every other turn it returns `firstPass` untouched, having made no

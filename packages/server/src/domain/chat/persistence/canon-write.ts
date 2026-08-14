@@ -155,8 +155,7 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
 }
 
 // ── THE FREEZE-PROVENANCE RULE (D129-F) ──────────────────────────────────────────────────────────────
-// Stated precisely, because the first draft of it overclaimed and the DB could violate it (verifier finding,
-// 2026-08-07). `rawContent`/`macroFreezes` describe how THIS variant's CURRENT `content` came to be, so:
+// `rawContent`/`macroFreezes` describe how THIS variant's CURRENT `content` came to be, so:
 //
 //   1. FORWARD (an invariant, enforced here, true of every row): `raw_content` is stored NON-NULL only when
 //      it DIFFERS from `content`, and `macro_freezes` non-null only when it is non-empty. No redundant copy
@@ -492,7 +491,7 @@ export function reattributeMessagesStatement(db: Db, chatId: ChatId, messageIds:
 }
 
 /** Re-stamp EVERY slot in this chat authored by `fromCharacterId` onto `toCharacterId` — the host-handoff
- *  COPY's canon arm (stickler 2026-08-03 §5.5). Not a re-voicing: the copy IS the same character, and the
+ *  COPY's canon arm. Not a re-voicing: the copy IS the same character, and the
  *  point is that the transferred room's history stops depending on a card the departed host still owns.
  *  Without it the old host's `characters` DELETE would SET NULL every one of those slots (schema/chat.ts —
  *  the deliberate all-NULL-tolerant attribution CHECK) and the room's transcript would lose its speakers.

@@ -501,7 +501,7 @@ async function buildTurnContext(
     readonly presentHumanUserIds: readonly UserId[];
     readonly anchorPersonaId: PersonaId | null;
     /** WHO drives this turn ({@link TurnTrigger}) — binds prompt-config `{{user}}` to the speaker. REQUIRED
-     *  (the union's two arms are total; the absent/`personaIds[0]` third state was retired 2026-08-07): a
+     *  (the union's two arms are total; there is no absent/`personaIds[0]` third state): a
      *  turn with no live triggering human states `{kind:"none"}` and binds the anchor. */
     readonly trigger: TurnTrigger;
     readonly pendingUserText?: string | undefined;
@@ -560,7 +560,7 @@ async function buildTurnContext(
           // The swipe/reroll target (VER-1b): rpg resolves the turn's tracked state as of BEFORE this slot, the
           // same cut this turn's canon context takes, so a reroll is never told the abandoned variant's beats.
           regenSlotMessageId: args.regenSlotMessageId,
-          // PROSE-1 — the reminder's teach/heading overrides, PRESET-homed (owner ruling 2026-08-08). Composed
+          // PROSE-1 — the reminder's teach/heading overrides, PRESET-homed. Composed
           // by home for the same no-cascade reason `buildAssembleContext` does it: a key only survives from the
           // storage its slot actually homes in, so a stale key in the blob is inert rather than authoritative.
           // `foreign.promptConfig` is the REDIRECTED preset on a game turn (`presetOverride`, resolved above), so
@@ -596,7 +596,7 @@ async function buildTurnContext(
       personaIds: args.personaIds,
       // SHAPE's null-stamp guard needs the identity behind `speakers.user`: a canon row with NO persona stamp
       // may borrow this turn's `{{user}}` only when it is that human's OWN row (see `toShapeCanon`). `none`
-      // ⇒ null ⇒ no row borrows it (the union has no third arm since 2026-08-07).
+      // ⇒ null ⇒ no row borrows it (the union has no third arm).
       triggerUserId: args.trigger.kind === "human" ? args.trigger.userId : null,
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
@@ -737,7 +737,7 @@ async function arbitrate(
 ): Promise<ArbitrationOutcome> {
   const forced = args.forcedIds ?? [];
   let refs: readonly SpeakerRef[];
-  // NARRATOR SHORT-CIRCUIT (owner ruling 2026-08-08): a narrator round voices the whole cast in ONE
+  // NARRATOR SHORT-CIRCUIT: a narrator round voices the whole cast in ONE
   // generation authored by the synthetic group character and consumes NO arbitrated speaker (`round.ts`
   // ignores `speakers` on that arm), so buying the side-LLM arbiter there costs a real model call for a
   // verdict nothing reads — and its degrade would warn the room about a decision that governs nothing. The
@@ -1788,31 +1788,27 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
   };
 }
 
-// THE AUXILIARY TURNS' ACCEPTANCE (the ghost-slot open, built 2026-08-14 from the FLAG[aux-turns-have-no-accept]
-// diagnosis this replaces — owner dogfood: "when we swipe it disappears the old message shows until the new one
-// finishes sometimes").
-//
-// The three verbs that go straight to `runRegistered` — swipe / continueTurn / generate — used to emit NOTHING
-// until the engine's `turnStarted`, which lands only AFTER `resolveTurnBase`: room + identity + connection
-// resolve, context assembly, MEMORY RECALL (embed → vector search → rerank), the macro registry, then the
-// per-chat lock. Until that event the client slot is `idle`, so the ghost never mounts and the committed OLD
-// variant sits there with no feedback. MEASURED at 151 / 341 / 1075 / 1719 / 1887 ms over 5 clean drives, and
-// unbounded by construction (it scales with load, recall latency and lock contention — the reported
-// "sometimes"). So each verb now ACCEPTS at its own acceptance instant, carrying the REAL `targetMessageId`
-// (`ChatBusEvent.turnAccepted`'s ghost-slot field, which had no producer until this change).
+// THE AUXILIARY TURNS' ACCEPTANCE. Each turn-initiating verb (swipe / continueTurn / generate / send)
+// accepts at its OWN acceptance instant, carrying the REAL `targetMessageId`
+// (`ChatBusEvent.turnAccepted`'s ghost-slot field) — rather than relying solely on the engine's
+// `turnStarted`, which lands only AFTER `resolveTurnBase`: room + identity + connection resolve, context
+// assembly, MEMORY RECALL (embed → vector search → rerank), the macro registry, then the per-chat lock.
+// Until that event the client slot is `idle`; that resolution window is unbounded by construction (it
+// scales with load, recall latency, and lock contention), so a client that waits for it alone sees no
+// feedback for however long resolution takes.
 //
 // TOTAL RESOLUTION is the price, and it is split at the ONE seam that can prove it — whether `turnStarted`
 // fired:
 //   • BEFORE the engine (the resolve + the verb's own post-resolve validation): {@link withAcceptedSlot}
 //     closes the slot with `turnAborted` on any throw.
 //   • INSIDE the engine (lock contention · consent · budget · a missing persist target — all shared with
-//     `send`, which had the SAME open strand): `runRegistered` marks the prep `slotAccepted`, and the engine's
+//     `send`): `runRegistered` marks the prep `slotAccepted`, and the engine's
 //     `closePreStartRefusal` closes it. Only the engine knows `turnStarted` never fired; a verb-level catch
 //     around `runTurn` would DOUBLE-emit on every post-start fault (the engine already emits there).
 // The NOT_FOUND target throw needs no closer: the target load is ordered BEFORE the accept, so a bad slot id
 // never opens one.
 //
-// `forceCharacterTurn` joined this shape (2026-08-14) with the same wall and one structural difference: it
+// `forceCharacterTurn` follows the same wall with one structural difference: it
 // drives a ROUND rather than calling `runRegistered`, so its engine-side half is a `slotAccepted` stamp on the
 // `RoundBase` (see the verb). That difference matters — `driveRound` SWALLOWS a `locked` refusal, so on that
 // path the engine's close is the ONLY thing that resolves the slot.

@@ -1,4 +1,4 @@
-// The BORN-STATE corpus read op (the host `populateFromCharacter` round, owner ruling 2026-08-01): one roster
+// The BORN-STATE corpus read op (the host `populateFromCharacter` round): one roster
 // character's CARD prose + the room's OPENING line. STANDALONE + principal-free (the `resolveRpgRoster`/
 // `resolveCanonWindow` injected-op precedent — the rpg verb gated its HOST caller before invoking; this op only
 // reads). Homed in chat because the card read + the canon read are chat's — rpg stays table-blind (§2

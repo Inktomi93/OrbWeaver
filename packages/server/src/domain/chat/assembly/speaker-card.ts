@@ -10,12 +10,12 @@
 // PURE — never mutates the input ctx (§5: per-speaker is a fresh shape, not a mutation). A ctx with no
 // `castMembers` (solo / hand-built / preview) returns UNCHANGED → byte-identical (D16, no `if(isGroup)`).
 //
-// WHY NARRATOR NEEDS ITS OWN ARM (2026-08-07, the live-drive fix): a narrator round's speaker is the SYNTHETIC
-// group character, which by construction is NOT in `castMembers` — so it fell through the `idx === -1` guard
-// below and the round assembled as if it were a SOLO turn for the primary. A live drive counted the resulting
-// system row naming the primary 7×, the co-speaker 0×, opening "write <primary>'s perspective only" on a turn
-// that was voicing the whole cast. The model produced the cast anyway, from a nudge naming names it had never
-// been given a card for. The `-1` guard stays: it is the honest fallback for a genuinely off-cast speaker on a
+// WHY NARRATOR NEEDS ITS OWN ARM: a narrator round's speaker is the SYNTHETIC
+// group character, which by construction is NOT in `castMembers` — without this arm it would fall through
+// the `idx === -1` guard below and assemble as if it were a SOLO turn for the primary (a system row naming
+// only the primary, opening "write <primary>'s perspective only" on a turn that voices the whole cast, with
+// the model nonetheless attempting the cast from a nudge naming names it was never given a card for). The
+// `-1` guard stays: it is the honest fallback for a genuinely off-cast speaker on a
 // PER-SPEAKER round (a wiring gap), and narrator no longer reaches it.
 //
 // D60: `castMembers` carries `agent` refs too. An agent has NO card — its resolved SOUL fills the same

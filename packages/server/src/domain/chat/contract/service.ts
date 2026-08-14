@@ -147,9 +147,9 @@ export interface ChatService {
    *  becomes the `host` participant; the founding characters join the roster. */
   readonly startChat: (params: StartChatParams) => Promise<StartChatResult>;
   /** ONE KEYSET PAGE of the caller's chats (pure membership — host or member), newest activity first,
-   *  optionally projected to one character's seats. Paged since 2026-08-09: a membership list grows without
-   *  bound and every row costs a per-chat participant read, so an 872-chat library used to serve ~872 rows
-   *  and ~880 queries to every consumer that only wanted eight of them. */
+   *  optionally projected to one character's seats. Paged because a membership list grows without
+   *  bound and every row costs a per-chat participant read — an unpaged read would cost every consumer
+   *  a full-library scan even when it only wants a handful of rows. */
   readonly listChats: (params: ListChatsParams) => Promise<ChatListPage>;
   /** The membership-scoped fork children of a chat. */
   readonly listForks: (params: ListForksParams) => Promise<ChatSummary[]>;

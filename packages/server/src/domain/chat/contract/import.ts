@@ -24,8 +24,8 @@ export interface ChatImportContext {
   readonly newMessageVariantId: () => MessageVariantId;
   readonly newMessageAssetId: () => MessageAssetId;
   readonly newParticipantId: () => ChatParticipantId;
-  /** The ST `note_prompt` lands as a `chat_injections` row (the ONE per-chat prose door since the
-   *  room-override author's note was retired — owner ruling 2026-08-01), so the write mints injection ids. */
+  /** The imported author's-note prompt lands as a `chat_injections` row (the ONE per-chat prose door — the
+   *  room-override author's note is retired), so the write mints injection ids. */
   readonly newChatInjectionId: () => ChatInjectionId;
   /** #67 — the subset of `assetIds` that EXIST for `ownerId` on the target box (owner-scoped; wired from
    *  `assets.resolveOwnedAssetRefs`). Import re-creates a `message_assets` retaining row ONLY for an inline

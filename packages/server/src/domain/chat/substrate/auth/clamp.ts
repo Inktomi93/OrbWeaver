@@ -22,7 +22,7 @@
 //     the durable replay AND by the live SSE fan-out, so one durable row gets one answer. Both are
 //     per-CALLER (the floor comes from the caller's own row), so a host is never clamped by a member's floor.
 //
-// THE HOST BIT IS COMPOSED, NEVER RE-SPELLED (stage R2 / F6, 2026-08-03). Both clamps take `role` as an INPUT
+// THE HOST BIT IS COMPOSED, NEVER RE-SPELLED. Both clamps take `role` as an INPUT
 // to a policy VALUE — the POLICY-RESOLUTION class, which is neither ENFORCEMENT (nothing throws here; that is
 // `auth/decide.ts::assertHost`/`permitsHost` over the injected `can()`, spine invariant #6) nor a roster
 // LOOKUP (`substrate/roster-host.ts::hostUserIdOf`, role -> identity, D19). It is the DATA-PROJECTION class's

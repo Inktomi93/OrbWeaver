@@ -55,7 +55,7 @@ export const CHAT_VERB_AUTHORITY = {
   // `{{persona}}` resolves the roster's cards at FULL, which is the D22 `memberCardVisibility` bypass the whole
   // preview family is host-gated for. RENDERED ⇒ `host`.
   previewActionTemplates: "host",
-  // SECURITY (2026-08-01, was `member` — the latent hole beside the door): `previewSection` RENDERS an
+  // SECURITY: `previewSection` RENDERS an
   // arbitrary preset section against the LIVE assemble ctx, and the marker sections' static sources ARE the
   // full-fidelity card (`main_prompt` ← `character.systemPrompt` + every co-speaker's; `post_history` ←
   // postHistoryInstructions; `char_description`/`scenario`/`dialogue_examples` ← the card text; `persona` ←
@@ -111,7 +111,7 @@ export const CHAT_VERB_AUTHORITY = {
   clearReasoning: "author-or-host",
   moveMessage: "host", // re-stamps canon ORDER (the §11 "reorder" host-only entry)
   duplicateMessage: "author-or-host",
-  forkChat: "host", // fork is HOST-authority (owner policy 2026-07-28) — the fork is a new chat where the forker is host; a non-host may fork ONLY a SOLO room (they are the sole present human — nothing to launder), a documented in-verb widening of this `host` floor
+  forkChat: "host", // fork is HOST-authority — the fork is a new chat where the forker is host; a non-host may fork ONLY a SOLO room (they are the sole present human — nothing to launder), a documented in-verb widening of this `host` floor
   // ── injections (room-wide prompt content — write is a one-shot room jailbreak surface → host; read → member) ──
   setChatInjection: "host",
   listChatInjections: "member",

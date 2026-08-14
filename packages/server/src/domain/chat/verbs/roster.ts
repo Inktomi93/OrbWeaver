@@ -837,7 +837,7 @@ function anchorSurvivesHandoff(ctx: ChatContext, newOwnerUserId: UserId, anchorP
  *  construction. From the swap onward the room references only the new host's property, so the old host
  *  editing or deleting their originals cannot reach it — which is the whole point of the arm.
  *
- *  Everything ROOM-side rides ONE batch (stickler 2026-08-03 F1/F2 + the copy): the heals and the re-points
+ *  Everything ROOM-side rides ONE batch (including the copy): the heals and the re-points
  *  are properties of the authority move, so a crash must never be able to land the promotion without them.
  *  The LIBRARY mints necessarily precede it — see {@link executeHandoffCopy} for the crash contract. The audit
  *  row records what fired, so the transfer stays inspectable rather than silent. */

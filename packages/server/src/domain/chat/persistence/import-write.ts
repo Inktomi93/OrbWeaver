@@ -341,8 +341,8 @@ function injectionStmts(ctx: ChatImportContext, chatId: ChatId, ci: BulkImportCh
 }
 
 /** The chat row + founding roster inserts for one imported chat. Per-chat prose rides in as `chat_injections`
- *  rows — the ONE per-chat prose door (owner ruling 2026-08-01 retired the `roomOverrides.authorsNote` twin:
- *  both landed as the SAME at-depth splice). */
+ *  rows — the ONE per-chat prose door (the retired `roomOverrides.authorsNote` twin
+ *  landed as the SAME at-depth splice). */
 function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs): BatchStmt[] {
   const { db } = ctx;
   return [

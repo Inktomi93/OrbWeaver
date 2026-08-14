@@ -1,17 +1,17 @@
 // domain/chat/verbs/fork — `forkChat`: a fork is a deep copy into a new membership-scoped chat; the only
-// link is `chats.parentChatId`, no shared rows. FORK GATE (owner policy 2026-07-28): the HOST may fork any
+// link is `chats.parentChatId`, no shared rows. FORK GATE: the HOST may fork any
 // room, and a non-host may fork ONLY a solo room (they are the sole present human) — a non-host in a
 // MULTI-HUMAN room is refused (the member→host laundering case). A host who wants a member to fork a
 // multi-human room transfers the room via `acceptHostHandoff` first. The forker becomes the new chat's host
 // (a fork grants no parent membership). Every copied row gets a fresh id, and the slot's `selectedVariantId`
 // pointer is remapped to the copied variant. The whole copy commits in one atomic `db.batch`.
 //
-// THE ROW COPIES ARE ALLOW-LISTS, KEPT TOTAL BY `tsc` (2026-08-07): `forkVariantValues`/`forkSlotValues` name
+// THE ROW COPIES ARE ALLOW-LISTS, KEPT TOTAL BY `tsc`: `forkVariantValues`/`forkSlotValues` name
 // every `message_variants` / `messages` column and return `Required<…$inferInsert>`, so a column added to
 // either table is a MISSING PROPERTY and fails the build until its author classifies it. They replaced a
 // `...row` spread minus a hand-maintained deny-list — a shape that defaults a NEW column to COPIED, which is
-// backwards at a member→host trust boundary and had already let three columns through (`promptSnapshot`,
-// retro-fitted 2026-08-02; `rawContent`/`macroFreezes`, added by the identity spine). The classification law
+// backwards at a member→host trust boundary and had already let three columns through (`promptSnapshot`;
+// `rawContent`/`macroFreezes`, added by the identity spine). The classification law
 // lives on `forkVariantValues`: a column readable ONLY through a HOST-GATED surface does not survive the fork.
 //
 // Copied: the chat row's behavior (title/metadata/anchor/variables), the character roster the forker owns
@@ -79,12 +79,11 @@ interface ForkCopyPosture {
   readonly stripReasoning: boolean;
 }
 
-/** THE COPY IS AN ALLOW-LIST, AND `tsc` KEEPS IT TOTAL (2026-08-07 — the second column to slip past the old
- *  deny-list). This function names EVERY `message_variants` column and is typed
+/** THE COPY IS AN ALLOW-LIST, AND `tsc` KEEPS IT TOTAL. This function names EVERY `message_variants` column and is typed
  *  `Required<…$inferInsert>`, so a column ADDED to the table is a MISSING PROPERTY here and fails `tsc` until
  *  its author classifies it. The predecessor spread `...variant` and then subtracted a hand-maintained list of
  *  host-plane fields; that shape defaults a NEW column to COPIED, which is exactly backwards at a
- *  member→host trust boundary — `promptSnapshot` had to be retro-fitted once (RAWVIEW 2026-08-02), and
+ *  member→host trust boundary — `promptSnapshot` had to be retro-fitted once, and
  *  `rawContent`/`macroFreezes` rode in unclassified the moment the identity spine added them.
  *
  *  THE CLASSIFICATION LAW (one line, so a future column is decidable without re-deriving §3.6): a column
@@ -445,7 +444,7 @@ function buildForkStandaloneDeltas(args: {
   return [...baseline, ...carryAbove(historyFloorSeq)];
 }
 
-/** `forkChat` — deep copy. Gate the fork (host, OR the sole present human — owner policy 2026-07-28), copy
+/** `forkChat` — deep copy. Gate the fork (host, OR the sole present human), copy
  *  the chat + cast + canon + injections with fresh ids into a new chat where the forker is host, in one atomic
  *  batch. Emits `chatCreated`.
  *
@@ -517,7 +516,7 @@ async function forkGameOntoFork(
   }
 }
 
-/** THE FORK GATE (owner policy 2026-07-28): the member→host secret-laundering risk exists ONLY when ANOTHER
+/** THE FORK GATE: the member→host secret-laundering risk exists ONLY when ANOTHER
  *  human could receive a laundered secret, so a fork is allowed when the caller is the HOST (role==="host",
  *  D19/D64 — a transferred-to NEW host qualifies, NOT first-join-seq) OR the SOLE present HUMAN in the room (a
  *  solo game/chat — nothing to launder; the sole remaining human forking their own room is always safe, even
@@ -543,7 +542,7 @@ function assertForkAllowed(args: {
   }
 }
 
-/** The ANCHOR arm of the fork's single-owner rule (stickler 2026-08-03 F2, the host-handoff heal's twin): the
+/** The ANCHOR arm of the fork's single-owner rule (the host-handoff heal's twin): the
  *  fork's host is the FORKER, and the D51 `{{user}}` anchor is resolved under the host's principal
  *  (owner-scoped `persona.get`), so copying a foreign `anchorPersonaId` verbatim would mint a room born with a
  *  dead POV pin — `{{user}}` silently falls through to the active persona while the knob serves an id the new
@@ -560,7 +559,7 @@ async function resolveForkAnchorPersonaId(ctx: ChatContext, forkerUserId: UserId
 function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat"] {
   return async ({ principal, chatId, throughSeq, title }: ForkChatParams): Promise<ForkResult> => {
     // `requireParticipant` first — a non-member gets a leak-free `ChatNotFoundError` (never reveal existence);
-    // then `assertForkAllowed` enforces the host-or-sole-human fork gate (owner policy 2026-07-28). The
+    // then `assertForkAllowed` enforces the host-or-sole-human fork gate. The
     // member→host strips downstream are DEFENSE-IN-DEPTH: this gate closes the multi-human laundering case at
     // the source, and the solo arm has no OTHER human to launder to, so the strips are belt (safe if it relaxes).
     const membership = await requireParticipant(ctx, principal, chatId);
