@@ -417,6 +417,21 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **Residue-lane smalls:** move the `genRepetitionPenalty` editor row out of the restart-gated
   Engines section to sit beside its now-hot twin in admin-system-tuning (client + CT) · tighten
   `no-test-fabrication.baseline.json` for chat.test.ts 2→1 (gate-ledger edit, do at a quiet moment).
+- [ ] **CODEX TOOLING PUNCH LIST (owner-relayed 08-14, priority-ordered; audit dir is READ-ONLY law;
+  deliverable back to Codex = commit SHAs + exact verification commands):**
+  1. `pnpm ast` negative-output auditability — **LANE RUNNING** (one reporting seam, stderr epilogue +
+     \--json meta; zero-scan zeroes become LOUD; CLI/stdout byte-compatible).
+  2. Concurrent-CT execution races — **IGNORED per owner word** ("haven't taught Codex worktrees yet" —
+     our lanes are worktree-isolated; their agents share the main checkout's reports/ + cache).
+  3. Per-gate scan health + ratchet debt in structure reports — already rowed from the synthesis
+     (GA-H-01/02); **priority-bumped, next harness slot** (T3).
+  4. Newline/line-count alignment — the one byte that was OURS is DONE (`f18314e1d`, gen jinja trailing
+     newline; 331→331 agree). Their receipt-counting convention is their tooling.
+  5. export-rot-cleanup.ts aborts dry-run on stale PersonaMetadataWrite disposition — reconcile row +
+     rerun full no-write preview — **T2 smalls bundle**.
+  6. engines.ts parses empty boot lock as PID 0 → `process.kill(0,0)` wedges future starts — reuse
+     `_kit/spawn-lock.ts` positive-PID discipline + fs regression test — **T2 smalls bundle**
+     (memory \[\[kill-signal-zero-pid-zero-always-succeeds]] predicted this exact class).
 - [ ] **GATE CANDIDATES (evaluate, two-receipt law each):** (G-C) whole-record-replace-on-JSON-column
   where any writer is key-wise — ast-grep `X: {...patch.X}` shape over patch/update verbs; historical
   control = mergeSheet + refinery selection · (G-D) `maxPages`/windowed infinite query paired with
