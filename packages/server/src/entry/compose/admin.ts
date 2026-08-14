@@ -32,7 +32,10 @@ export interface AdminComposeDeps {
   readonly vllmEngine: VllmEngineHandle | null;
   readonly character: Pick<CharacterService, "getCard" | "loadCardText">;
   readonly embeddings: Pick<EmbeddingsService, "store">;
-  readonly embedModel: RoleClientsWithSignal["embedModel"];
+  /** The ACTIVE embed-space model tag, read per call — a thunk, never a captured string, because
+   *  `roleClients.embedModel` is now a live getter that follows a role re-point (`role-clients.ts` header).
+   *  Capturing it here would re-freeze at compose exactly what that binder stopped freezing. */
+  readonly embedModel: () => RoleClientsWithSignal["embedModel"];
   /** CAS + the sharp image transform for the export service's character/chat bundle serialization. */
   readonly cas: Parameters<typeof createExportService>[0]["cas"];
   readonly imageTransform: Parameters<typeof createExportService>[0]["imageTransform"];
@@ -106,7 +109,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
           lens: "card-text",
           characterId,
           content: text,
-          model: deps.embedModel,
+          model: deps.embedModel(),
           dim: env.VLLM_EMBED_DIM,
         });
         return true;
