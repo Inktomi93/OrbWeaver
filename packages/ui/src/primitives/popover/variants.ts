@@ -12,7 +12,7 @@ export const popoverVariants = tv({
     // Positioner publishes the space left between the anchor and the viewport edge, and a tall popover
     // body (a form, a settings stack) that ignores it overflows the viewport with no way to reach the
     // bottom. Capped + scrollable is the same contract `POPUP_SURFACE` gives the list seals.
-    popup: `max-h-(--available-height) max-w-cq-sm overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-block text-popover-foreground shadow-overlay ${OVERLAY_MOTION.anchoredPopup}`,
+    popup: `relative max-h-(--available-height) max-w-cq-sm overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-block text-popover-foreground shadow-overlay ${OVERLAY_MOTION.anchoredPopup}`,
     arrow: OVERLAY_ARROW,
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",
