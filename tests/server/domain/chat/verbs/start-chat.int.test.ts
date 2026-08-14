@@ -21,12 +21,13 @@ import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { TurnEngine, TurnOutcome, TurnPrep } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support.ts";
 
 /** A page bound comfortably above every fixture here — these arms are about the FILTERS, not the keyset. */
 const TEST_PAGE_LIMIT = 100;
@@ -91,6 +92,9 @@ function makeDeps(
 ): Parameters<typeof createStartChat>[1] {
   return {
     emit,
+    // The REAL claim chokepoint (R0) — startChat mints a husk and only the `generate` opening arm claims it,
+    // so a stub here would hide exactly the behavior this suite covers.
+    claimChat: createClaimChat(makeChatContext(db)),
     loadParticipantViews,
     engine: over.engine ?? { runTurn: notReached },
     resolveConnection: over.resolveConnection ?? notReached,
@@ -144,8 +148,14 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
   });
 });
 
+// R0 §4.7 MOVED THE CREATION STATS TO THE CLAIM. Creation itself is now delta-SILENT: a husk nobody
+// started must not inflate chat-created economics, and the firstness probe must not let a husk consume
+// a character's one `newCharacter` bump. These two arms therefore assert the SILENCE, which is this
+// verb's whole remaining stats contract; the counters themselves (chat-created, the per-character first
+// bumps, the seeded greetings' contribution) are proved end-to-end over creation→claim in
+// `husk-lifecycle.suite.int.test.ts` — one home for the timing, one for the arithmetic.
 describe("startChat — canon-mutator stats push (stats.md)", () => {
-  test("creation pushes the chat-created counters + the seeded greeting contribution", async () => {
+  test("creation pushes NOTHING — the chat-created counters and the greeting contribution wait for the claim", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const deltas: StatsDelta[] = [];
@@ -157,21 +167,15 @@ describe("startChat — canon-mutator stats push (stats.md)", () => {
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
 
-    expect(deltas).toHaveLength(2);
-    const created = deltas.find((d) => d.chats === 1);
-    expect(created?.chatsCreated).toBe(1);
-    expect(created?.characterId).toBe(aria);
-    // PD-96: the character's FIRST chat live-counts it (owner_stats.characters bumps via newCharacter).
-    expect(created?.newCharacter).toBe(true);
-    const greeting = deltas.find((d) => d.assistantTurns === 1);
-    expect(greeting?.characterId).toBe(aria);
-    expect(greeting?.assistantWords).toBe(3);
-    expect(new Set(deltas.map((d) => d.ownerId))).toEqual(new Set([host]));
+    expect(deltas).toStrictEqual([]);
+    // …and the room really was created with its greeting — the silence is a TIMING change, not a
+    // creation that failed.
+    expect(await db.select().from(messages).where(eq(messages.chatId, chat.id))).toHaveLength(1);
   });
 
-  test("PD-96: a SECOND chat with the same character does NOT re-count it; a fresh co-founder rides its own newCharacter delta", async () => {
+  test("PD-96 firstness is DEFERRED too: two creations in a row push nothing, so no husk can spend a character's first-chat bump", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const bryn = await seedCharacter(db, host, "bryn");
@@ -184,21 +188,13 @@ describe("startChat — canon-mutator stats push (stats.md)", () => {
     });
     const { startChat } = createStartChat(ctx, makeDeps());
 
-    // Chat 1 seats aria (her first chat — asserted above); chat 2 re-seats her + founds bryn.
+    // Two husks back to back. Under the OLD timing the first would have spent aria's `newCharacter`
+    // bump at creation — and if it were then abandoned and reaped, that bump was gone forever. Now
+    // neither creation counts anything, and whichever room is CLAIMED first is the one that gets it.
     await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
-    deltas.length = 0;
     await startChat({ principal: principal(host), characterIds: [aria, bryn], opening: "none" });
 
-    // The created delta (primary = aria, already chatted) carries NO newCharacter; bryn's first chat
-    // rides one owner-grain newCharacterDelta (characterId null — no manufactured character_stats row).
-    expect(deltas).toHaveLength(2);
-    const created = deltas.find((d) => d.chats === 1);
-    expect(created?.characterId).toBe(aria);
-    expect(created?.newCharacter).toBeUndefined();
-    const brynFirst = deltas.find((d) => d.newCharacter === true);
-    expect(brynFirst?.characterId).toBeNull();
-    expect(brynFirst?.chats).toBeUndefined();
-    expect(brynFirst?.ownerId).toBe(host);
+    expect(deltas).toStrictEqual([]);
   });
 });
 
@@ -809,6 +805,10 @@ describe("startChat — PD-65 temporary rooms are HIDDEN from the library", () =
 
     const temp = await startChat({ principal: principal(host), characterIds: [aria], temporary: true, opening: "none" });
     const permanent = await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
+    // R0: a freshly minted room is ALSO a husk, and the husk lens would hide the permanent one too — so
+    // claim it, isolating what this arm is about (the `temporary` exclusion) from the husk arm beside it.
+    await db.update(chats).set({ startedAt: FROZEN_AT }).where(eq(chats.id, permanent.chat.id));
+    await db.update(chats).set({ startedAt: FROZEN_AT }).where(eq(chats.id, temp.chat.id));
 
     expect((await listMemberChats(db, host, { limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toEqual([permanent.chat.id]);
     expect((await listMemberChats(db, host, { includeArchived: true, limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toEqual([permanent.chat.id]);

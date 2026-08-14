@@ -13,7 +13,9 @@ import {
   BoundaryCleanEchoStory,
   BoundaryEchoDuringDebounceStory,
   BoundaryIdentitySwitchStory,
+  BoundaryReadOnlyStory,
   BoundaryReseedStory,
+  BoundarySeamlessRefusalStory,
   BoundaryStatusStory,
   BoundaryUnmountFlushStory,
 } from "./_ct-stories.tsx";
@@ -159,6 +161,50 @@ test("CT-10: unmounting the boundary flushes the pending edit instead of droppin
 
   await expect(page.getByTestId("unmount-log")).toHaveText("unmount-entity=edited then left");
   await expect(page.getByTestId("unmount-count")).toHaveText("1");
+});
+
+// CT-11 — a mount with NO persistence seam REFUSES instead of lying (Codex audit client-forms-01). Both
+// seams were optional and the driver ran `await save?.(value)`: it resolved on `undefined`, so the edit was
+// re-baselined away, its crash-survival draft CLEARED, and the status set to "saved" — success reported for
+// a write that never happened. The seam is now compile-required (the .test-d sibling pins that); this pins
+// the runtime backstop a cast can still reach — the draft SURVIVES and the status is honest.
+test("CT-11: a boundary with no persistence seam reports error and keeps the draft, never 'saved'", async ({ mount, page }) => {
+  await mount(<BoundarySeamlessRefusalStory />);
+
+  await expect(page.getByLabel("Seamless text")).toHaveValue("server value");
+
+  // Edit → the 50ms driver submits → onSubmit refuses before the rebaseline/clearDraft/"saved" sequence.
+  await page.getByLabel("Seamless text").fill("edit that must not be discarded");
+
+  await expect(page.getByTestId("seamless-state")).toHaveText("error");
+  // THE PIN: the crash-survival draft still holds the edit (pre-fix it was cleared as "saved").
+  await expect(page.getByTestId("seamless-draft")).toHaveText("edit that must not be discarded");
+  // The edit is still in the box, and the status never flips back to a success it did not earn.
+  await expect(page.getByLabel("Seamless text")).toHaveValue("edit that must not be discarded");
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
+  await expect(page.getByTestId("seamless-state")).toHaveText("error");
+});
+
+// CT-12 — the DECLARED read-only arm (the member view of the Group / Field-overrides / Injections editors).
+// It must never report "Saved" over an edit, and it must mirror nothing it could never save. The story's
+// field is deliberately ENABLED — it plays the `disabled={!isHost}` a future field forgets — so what is
+// under test is the boundary's own honesty, not the field's.
+test("CT-12: a declared read-only mount reads 'blocked' when edited and mirrors no draft", async ({ mount, page }) => {
+  await mount(<BoundaryReadOnlyStory />);
+
+  // An untouched read-only mount is in sync with the server row.
+  await expect(page.getByTestId("read-only-state")).toHaveText("saved");
+
+  await page.getByLabel("Read-only text").fill("an edit that can never be saved");
+
+  // THE PIN: the status is `blocked`, never "saved" — the driver is not making this write and says so.
+  await expect(page.getByTestId("read-only-state")).toHaveText("blocked");
+  // A macrotask past the 50ms debounce: no driver ever armed, so nothing flips it back to "saved".
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
+  await expect(page.getByTestId("read-only-state")).toHaveText("blocked");
+  // Nothing was mirrored to the crash draft — a draft this mount could never save is only a future
+  // stale-draft heal.
+  await expect(page.getByTestId("read-only-draft")).toHaveText("");
 });
 
 // CT-7/CT-8 — the localStorage-brick fix (retro-workboard #11). The store is PRE-SEEDED with a poisoned

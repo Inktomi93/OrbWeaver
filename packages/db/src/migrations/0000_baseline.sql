@@ -145,6 +145,7 @@ CREATE TABLE `characters` (
 	`avatar_asset_id` text,
 	`refinery` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`avatar_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE set null
 );
@@ -252,9 +253,10 @@ CREATE INDEX `chat_stream_events_message_idx` ON `chat_stream_events` (`message_
 CREATE TABLE `chats` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text,
-	`star` integer DEFAULT false NOT NULL,
+	`starred` integer DEFAULT false NOT NULL,
 	`archived` integer DEFAULT false NOT NULL,
 	`temporary` integer DEFAULT false NOT NULL,
+	`started_at` integer,
 	`pending_host_user_id` text,
 	`pending_handoff_offer` text,
 	`anchor_persona_id` text,
@@ -1340,6 +1342,7 @@ CREATE TABLE `world_books` (
 	`name` text NOT NULL,
 	`description` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -1356,6 +1359,7 @@ CREATE TABLE `world_entries` (
 	`ignore_budget` integer DEFAULT false NOT NULL,
 	`metadata` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`world_book_id`) REFERENCES `world_books`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint

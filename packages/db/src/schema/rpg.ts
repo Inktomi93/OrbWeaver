@@ -47,7 +47,7 @@ import type {
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "./_shared.ts";
+import { checkList } from "../kit/check-list.ts";
 import { characters } from "./character.ts";
 import { chats, messages, messageVariants } from "./chat.ts";
 import { presets } from "./preset.ts";

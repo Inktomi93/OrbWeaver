@@ -58,7 +58,7 @@ async function seedRoom(
   await db.insert(chats).values({
     id: CHAT_ID,
     title: "A Long Road",
-    star: true,
+    starred: true,
     archived: true,
     compactSummary: "the first leg",
     compactedAtSeq: 2,
@@ -130,7 +130,7 @@ describe("exportChatBundle — the fidelity planes", () => {
     const bundle = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));
 
     expect(bundle.title).toBe("A Long Road");
-    expect(bundle.star).toBe(true);
+    expect(bundle.starred).toBe(true);
     expect(bundle.archived).toBe(true);
     expect(bundle.compactSummary).toBe("the first leg");
     expect(bundle.compactedAtSeq).toBe(2);

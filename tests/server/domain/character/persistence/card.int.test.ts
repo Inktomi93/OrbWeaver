@@ -88,7 +88,7 @@ describe("persistence/card", () => {
     const b = castId<CharacterId>("character_b");
     await insertCharacter(db, makeRow(owner, "character_a", castId<CharacterHandle>("a")));
     await insertCharacter(db, makeRow(owner, "character_b", castId<CharacterHandle>("b")));
-    const flipped = await setArchivedBulk(db, owner, [a, b], true);
+    const flipped = await setArchivedBulk(db, owner, [a, b], { archived: true, updatedAt: Date.now() });
     expect(flipped).toHaveLength(2);
     const rows = await db.select().from(characters);
     expect(rows.every((r) => r.archived)).toBe(true);

@@ -52,7 +52,7 @@ export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateEnt
     const at = ctx.now();
     const rows = await ctx.db
       .update(worldEntries)
-      .set(edits)
+      .set({ ...edits, updatedAt: at })
       .where(and(eq(worldEntries.id, entryId), inArray(worldEntries.worldBookId, ownedBooks)))
       .returning();
     const updated = rows[0];

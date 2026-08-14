@@ -37,8 +37,8 @@ const GAME = makeChatSummary({
   lastMessagePreview: "The door gives way and the market noise floods in from the street beyond, louder than anything you have…",
   isGame: true,
 });
-// F7 state rows: the summary already carries star/archived — the row must SHOW them.
-const STARRED = makeChatSummary({ id: "chat_starred", title: "A pinned thread", star: true });
+// F7 state rows: the summary already carries starred/archived — the row must SHOW them.
+const STARRED = makeChatSummary({ id: "chat_starred", title: "A pinned thread", starred: true });
 const ARCHIVED = makeChatSummary({ id: "chat_archived", title: "A shelved thread", archived: true });
 
 // A 3-seat room — D3: it must lead with an AvatarStack, not borrow one member's portrait.
@@ -273,7 +273,7 @@ test("§12 the star is the row's state TOGGLE, and clicking it fires the star MU
   // not the thing under test): the click hits `chat.star` with THIS row's id and the flipped value.
   await component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).hover();
   await unstarred.click();
-  await expect.poll(() => recorder.lastInput("chat.star")).toEqual({ chatId: "chat_adventure", star: true });
+  await expect.poll(() => recorder.lastInput("chat.star")).toEqual({ chatId: "chat_adventure", starred: true });
   // ONESHOT-OK: settled — the recorded input above proves the request already landed, so the COUNT for that
   // same procedure is final at this point (a second fire would need another click).
   expect(recorder.count("chat.star")).toBe(1);

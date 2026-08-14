@@ -111,7 +111,7 @@ function chat(over: Partial<PortableChat> = {}): PortableChat {
     title: "P8 Chat",
     createdAt: 1_699_999_000_000,
     updatedAt: 1_700_000_001_000,
-    star: true,
+    starred: true,
     archived: false,
     compactSummary: "Everything before the bridge collapse, in brief.",
     compactedAtSeq: 1,

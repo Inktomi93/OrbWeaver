@@ -46,7 +46,7 @@ export function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraits
     <ChatSummaryRow
       actionName={rowName}
       chat={chat}
-      onToggleStar={(next): void => starChat.mutate({ chatId: chat.id, star: next })}
+      onToggleStar={(next): void => starChat.mutate({ chatId: chat.id, starred: next })}
       portraits={portraits}
       // `group` roots the row so the kebab's + the star's hover/focus-within reveal (P3) fires on row hover
       // (the character-card precedent); the reveal lives on RowActionsMenu's `reveal` / ROW_REVEAL.
@@ -57,7 +57,7 @@ export function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraits
       // name carries the row's stamp too — the same one the row shows, escalated by the surface where even
       // that collided (side-eye P3a + P2c).
       // `title` (raw, nullable) still seeds the rename input — the empty box for an unnamed chat is intact.
-      menu={<ChatListRowMenu archived={chat.archived} chatId={chat.id} onDeleted={onDeletedChat} rowName={rowName} starred={chat.star} title={chat.title} />}
+      menu={<ChatListRowMenu archived={chat.archived} chatId={chat.id} onDeleted={onDeletedChat} rowName={rowName} starred={chat.starred} title={chat.title} />}
       onSelect={onSelect}
       selected={selected}
     />

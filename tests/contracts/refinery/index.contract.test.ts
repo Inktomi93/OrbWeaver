@@ -22,6 +22,7 @@ import {
   refineryRewritePayloadSchema,
   refineryRunSchema,
   refineryScorePayloadSchema,
+  refinerySelectionPatchSchema,
   refinerySelectionSchema,
   refinerySessionNameSchema,
   refinerySessionSummarySchema,
@@ -389,6 +390,24 @@ test("greetingIndex is bounded by the card's own greetings ceiling (payload entr
   };
   expect(refineryScorePayloadSchema.safeParse(score).success).toBe(false);
   expect(refinerySelectionSchema.safeParse({ fields: ["greetings"], greetingIndexes: [GREETING_INDEX_MAX + 1] }).success).toBe(false);
+  // The DELTA shape reuses the same axis bounds — a second spelling would be a bound that drifts.
+  expect(refinerySelectionPatchSchema.safeParse({ greetingIndexes: [GREETING_INDEX_MAX + 1] }).success).toBe(false);
+});
+
+// The three-state greeting axis of the `updateSession` delta. This is the fence on the two-writer seam:
+// `applyFields` remaps `greetingIndexes` server-side, so "I did not address greetings" has to be SAYABLE
+// (absent), distinct from "every greeting" (`null`) — the meaning the VALUE shape already spends absence
+// on. Collapse the two and the remap dies under the next scope save.
+test("the selection DELTA distinguishes absent (keep) from null (every greeting) from an array", () => {
+  const absent = refinerySelectionPatchSchema.parse({ fields: ["greetings"] });
+  expect("greetingIndexes" in absent && absent.greetingIndexes !== undefined).toBe(false);
+  expect(refinerySelectionPatchSchema.parse({ greetingIndexes: null }).greetingIndexes).toBeNull();
+  expect(refinerySelectionPatchSchema.parse({ greetingIndexes: [0, 2] }).greetingIndexes).toEqual([0, 2]);
+  // Every member is optional — a delta may address ONE axis and say nothing about the other.
+  expect(refinerySelectionPatchSchema.safeParse({}).success).toBe(true);
+  // …and `null` is a greetings-only spelling: the VALUE shape still refuses it, so a delta cannot be
+  // stored verbatim (the verb merges, then re-parses through the value schema).
+  expect(refinerySelectionSchema.safeParse({ fields: [], greetingIndexes: null }).success).toBe(false);
 });
 
 // The behavioral twin of the greeting caps: an index of GREETING_INDEX_MAX is exactly the last slot the

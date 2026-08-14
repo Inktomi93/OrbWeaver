@@ -16,7 +16,7 @@
 //
 // Copied: the chat row's behavior (title/metadata/anchor/variables), the character roster the forker owns
 // (an owner forking their own chat keeps all), the canon (whole, even a dropped character's prior lines),
-// the injections. Reset: `parentChatId`/`forkedAt`/timestamps/`star`/`archived`; the host becomes the
+// the injections. Reset: `parentChatId`/`forkedAt`/timestamps/`starred`/`archived`; the host becomes the
 // forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
 // only). The compaction checkpoint copies only when covered by the fork point, else reset to null — and under
 // a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
@@ -656,6 +656,11 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
           title: title ?? source.title,
           parentChatId: chatId,
           forkedAt: now,
+          // BORN CLAIMED (R0 §4.2): a fork arrives with the parent's canon already copied into it, so
+          // there is no unstarted state for a husk to represent and the reaper must never see it.
+          // `startChat` is the ONE mint that produces a husk. The fork's OWN creation stats fire here
+          // in this batch (`pushForkStatsDeltas`), never at a claim — nothing is deferred for a fork.
+          startedAt: now,
           anchorPersonaId: forkAnchorPersonaId,
           compactSummary: keepCheckpoint ? source.compactSummary : null,
           compactedAtSeq: keepCheckpoint ? source.compactedAtSeq : null,

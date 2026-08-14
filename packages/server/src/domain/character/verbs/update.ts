@@ -60,6 +60,7 @@ async function applyEdit(
     ...next,
     contentHash: nextHash,
     tokenSize: cardTokenSize(next),
+    updatedAt: at,
     ...flagEdits(input),
     // Inline narrow: exactOptionalPropertyTypes rejects `handle: string | undefined` against the required column.
     ...(input.handle !== undefined && input.handle !== current.handle ? { handle: input.handle } : {}),

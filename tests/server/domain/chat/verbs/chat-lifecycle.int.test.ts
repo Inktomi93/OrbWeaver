@@ -17,6 +17,7 @@ import { createActiveTurns } from "../../../../../packages/server/src/domain/cha
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { ActiveTurns } from "../../../../../packages/server/src/domain/chat/contract/active-turns.ts";
+import type { ClaimChatOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { loadStoredUserMacroValues } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
@@ -26,7 +27,7 @@ import { tape } from "../../../../support/chat/tape.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, makeChatContext, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeChatContext, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -43,8 +44,8 @@ const emit = (event: ChatBusEvent): Promise<void> => {
 
 /** The bundle deps: the recorder emit + a private (empty) turn registry. `delete` sweeps the registry, so the
  *  delete-mid-turn arm below wires the SCENARIO's live one instead. */
-function lifecycleDeps(): { emit: typeof emit; activeTurns: ActiveTurns } {
-  return { emit, activeTurns: createActiveTurns() };
+function lifecycleDeps(): { emit: typeof emit; activeTurns: ActiveTurns; claimChat: ClaimChatOp } {
+  return { emit, activeTurns: createActiveTurns(), claimChat: noClaim };
 }
 
 function principal(userId: UserId): Principal {
@@ -85,10 +86,10 @@ describe("chat-row flags (host-only)", () => {
     const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     await life.archive({ principal: principal(host), chatId, archived: true });
-    await life.star({ principal: principal(host), chatId, star: true });
+    await life.star({ principal: principal(host), chatId, starred: true });
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.archived).toBe(true);
-    expect(row?.star).toBe(true);
+    expect(row?.starred).toBe(true);
   });
 
   test("delete drops the chat + emits chatDeleted + writes the chat.delete audit row", async () => {
@@ -140,6 +141,7 @@ describe("chat-row flags (host-only)", () => {
     // The verb emits through the SAME durable bus the turn does — `chatDeleted` is itself an append into the
     // chat it is deleting, so its ordering against the row drop is part of what this test pins.
     const life = createChatLifecycle(makeChatContext(db), {
+      claimChat: (): Promise<void> => Promise.resolve(),
       emit: async (event: ChatBusEvent): Promise<void> => {
         await bus.emit(event);
       },
@@ -576,10 +578,14 @@ describe("reapTemporaryChats — the caller's expired temp chats (PD-65)", () =>
     const surviving = (await db.select({ id: chats.id }).from(chats)).map((r) => r.id);
     expect(surviving).not.toContain(reapable);
     expect(surviving).toEqual(expect.arrayContaining([fresh, persistent, foreign]));
-    // No bus event for reaped ephemera (neo parity — see the verb header).
-    expect(emitted).toEqual([]);
+    // R0 §4.5 REVERSED the old silence: the sweep now also reaps HUSKS, and a husk can be the OPEN room on
+    // the creating device, so every reaped room emits `chatDeleted` (the temporary arm rides the same emit
+    // rather than re-reading the rows to classify them — an extra event for a room nobody has open is inert).
+    expect(emitted).toEqual([{ type: "chatDeleted", chatId: reapable }]);
     // Idempotent: a second sweep finds nothing.
+    emitted.length = 0;
     expect(await life.reapTemporaryChats({ principal: principal(host) })).toEqual({ reaped: 0 });
+    expect(emitted).toEqual([]);
   });
 
   // ⑧(a) — the reap TTL is the caller's `UserSettings.chat.tempChatTtlHours` (via the FOREIGN op), not a

@@ -189,31 +189,74 @@ test("typing a matching prefix opens the autocomplete tooltip listing the comple
   await expect(tooltip).not.toContainText("--radius-card");
 });
 
-test("accepting a completion inserts the FULL themeable var name into the document", async ({ mount }) => {
+// CM6's `acceptCompletion` refuses while the dialog is younger than `interactionDelay` — it compares
+// the wall clock against `open.timestamp`
+// (@codemirror/autocomplete 6.20.3 `dist/index.js:1096-1102`; the facet default is 75ms, ibid. :393).
+// It is a real-user guard — it stops a fast typist committing a suggestion they never saw — not a
+// bug, and NOT something the component may lower just to make a test convenient.
+const CM6_INTERACTION_DELAY_MS = 75;
+
+/*
+ * THE FLAKE THIS TEST WAS (audit UI-RENDERING-01, traced 2026-08-14) — read before "simplifying" the
+ * barrier below.
+ *
+ * SIGNATURE: `Expected "--color-primary" / Received "--color-p"`, after a 15s poll. 4/20 at
+ * `--repeat-each=20`.
+ *
+ * MECHANISM (measured, not inferred — instrumented copy of this test, 30 repeats):
+ *   1. `pressSequentially` finishes; @codemirror/autocomplete debounces the query by
+ *      `activateOnTypingDelay` (100ms, `dist/index.js:379`), so the dialog opens — and stamps its
+ *      `timestamp` — at roughly lastKeystroke+105ms.
+ *   2. Playwright's `expect(...).toBeVisible()` polls on a ~100ms grid, so it resolves in one of two
+ *      cohorts: ~105ms after the last keystroke (it caught the dialog on the first tick it existed)
+ *      or ~190ms (it missed that tick). Measured split: every observation in the 103-133ms cohort
+ *      pressed Enter 119-202ms after the last keystroke — i.e. INSIDE the dialog's 75ms window — and
+ *      failed; every 187-220ms observation passed. That grid quantization IS the coin flip.
+ *   3. A refused `acceptCompletion` returns false, so Enter falls through the keymap to
+ *      `insertNewlineAndIndent`. The doc becomes `--color-p\n`, which closes the dialog, and
+ *      `completeFromList` never reopens it (no word before the cursor on the fresh empty line).
+ *   4. The old fix re-pressed Enter until the doc contained the full name. That retry is DESTRUCTIVE
+ *      and unrecoverable: each re-press adds another newline, and `.cm-content` renders lines as
+ *      sibling divs so `textContent` reports a bare `--color-p` no matter how many landed. The retry
+ *      could only ever burn the 15s budget. Its comment blamed a re-arming readiness window; the
+ *      timestamp is in fact CARRIED FORWARD across dialog rebuilds (`dist/index.js:872`), so there
+ *      was never anything to starve on — the first Enter decided the run.
+ *
+ * THE BARRIER: hold until the tooltip has been OBSERVED for longer than `interactionDelay`, then
+ * press Enter exactly ONCE. Sound by construction rather than by luck: the tooltip's DOM cannot
+ * predate the dialog that built it, so "≥N ms since WE saw it" implies "≥N ms since `timestamp`".
+ * With the precondition satisfied a fall-through is a real regression and must RED, not be retried
+ * away.
+ *
+ * A SLEEP-FREE BARRIER WAS TRIED AND IT DOES NOT WORK — do not re-attempt it. Staging the prefix
+ * (`--color-`, await the list, then `p`, await the narrowed list) looks like it should age the dialog
+ * on rendered state alone, because `timestamp` really is carried forward across rebuilds
+ * (`dist/index.js:872`). It fails 2/30: `completeFromList` sets `validFor`, so narrowing an existing
+ * result REFILTERS SYNCHRONOUSLY on the keystroke (`:904` — the change touches the result range, so
+ * the dialog is rebuilt immediately with no second debounce). The narrowed list therefore renders
+ * within a few ms of the original open, and the same 100ms poll grid puts Enter back inside the
+ * window. There is no DOM event at `timestamp + 75ms`: the precondition is purely wall-clock, which
+ * is exactly the case the lint rule below does not cover.
+ */
+test("accepting a completion inserts the FULL themeable var name into the document", async ({ mount, page }) => {
   const component = await mount(<CompletionsEditor initialValue="" completions={THEME_VAR_COMPLETIONS} />);
   const content = component.locator(".cm-content");
   const tooltip = component.locator(".cm-tooltip-autocomplete");
   await content.click();
   await content.pressSequentially("--color-p");
   await expect(tooltip).toBeVisible();
-  // CM6's acceptCompletion no-ops if Enter lands within ~75ms of the tooltip opening (CM6
-  // internal readiness, not our code) — re-press while the tooltip is still open until the
-  // completion actually lands. Re-pressing after acceptance is a no-op guard: it only re-fires
-  // while the doc doesn't yet contain the full var name, so an already-accepted completion never
-  // gets a stray newline. Intervals stay >=100ms so each re-press clears the 75ms readiness
-  // window even under heavy parallel-worker CPU contention (a tighter poll can keep landing
-  // inside a freshly-reset window and starve).
-  await expect
-    .poll(
-      async () => {
-        if (!(await content.textContent())?.includes("--color-primary")) {
-          await content.press("Enter");
-        }
-        return content.textContent();
-      },
-      { intervals: [100, 150, 250], timeout: 15_000 },
-    )
-    .toBe("--color-primary");
+  // Waiting the full delay from HERE (rather than netting off however long the assertion above took)
+  // keeps the arithmetic clock-free — `test-determinism` bans an ambient wall-clock read in a test,
+  // and overshooting by a few ms costs nothing: the dialog does not close on its own.
+  // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: inverted premise — this wait is what REMOVES the flake (4/20 red without it, 0/40 with it), and CM6 exposes no state to wait FOR at `timestamp + interactionDelay`; see the block comment above.
+  await page.waitForTimeout(2 * CM6_INTERACTION_DELAY_MS);
+  await content.press("Enter");
+
+  await expect(content).toHaveText("--color-primary");
+  // The fall-through inserts a NEWLINE, and `textContent` cannot see it (CM6 renders each line as its
+  // own div, so `--color-p\n` reads as `--color-p`). Assert on the line count so the next regression
+  // names itself instead of arriving as a cryptic truncated string.
+  await expect(content.locator(".cm-line")).toHaveCount(1);
 });
 
 // THE KEYBOARD USER MUST SEE THEY ARRIVED (side-eye X-4, WCAG 2.4.7). CodeMirror's editable surface is a

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "aa15a51c-da4d-4ac5-82f8-ece34ff9c92f",
+  "id": "4b211e5f-efcc-42f6-acbd-9b4554a5880f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -957,6 +957,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
         }
       },
       "indexes": {
@@ -1628,8 +1636,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "star": {
-          "name": "star",
+        "starred": {
+          "name": "starred",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -1651,6 +1659,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "pending_host_user_id": {
           "name": "pending_host_user_id",
@@ -8690,6 +8705,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
         }
       },
       "indexes": {
@@ -8792,6 +8815,14 @@
         },
         "created_at": {
           "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

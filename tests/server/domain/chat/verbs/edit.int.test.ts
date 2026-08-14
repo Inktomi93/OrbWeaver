@@ -29,7 +29,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { emptyState, seedGame, snapshotId } from "../../rpg/_support.ts";
-import { addVariant, FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { addVariant, FROZEN_AT, makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 import { seedDigest } from "../memory/_support.ts";
 
 let db: Db;
@@ -88,7 +88,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
       authorUserId: member,
       content: "orig",
     });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const view = await edit.editMessage({
       principal: principal(member),
@@ -112,7 +112,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
       role: "assistant",
       characterId: charA,
     });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const err = await edit.editMessage({ principal: principal(member), chatId, messageId, content: "x" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -136,7 +136,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve({ name: "Aria", avatarAssetId: null, regexScripts: [] } as never),
     });
-    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });
 
     const view = await edit.editMessage({
       principal: principal(host),
@@ -179,7 +179,7 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
     });
     globalScripts = [script({ placement: ["AI_OUTPUT"], runOnEdit: true })];
     const ctx = regexSourcesCtx("Aria");
-    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });
 
     const view = await edit.editMessage({
       principal: principal(host),
@@ -202,7 +202,7 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
     });
     globalScripts = [script({ placement: ["AI_OUTPUT"], runOnEdit: false })];
     const ctx = regexSourcesCtx("Aria");
-    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });
 
     const view = await edit.editMessage({
       principal: principal(host),
@@ -219,7 +219,7 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
     const { messageId } = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
     globalScripts = [script({ placement: ["USER_INPUT"], runOnEdit: true })];
     const ctx = regexSourcesCtx("Aria");
-    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });
 
     const view = await edit.editMessage({
       principal: principal(member),
@@ -246,7 +246,7 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
         throw new Error("regex timeout (watchdog)");
       },
     });
-    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });
 
     const view = await edit.editMessage({
       principal: principal(host),
@@ -269,7 +269,7 @@ describe("selectVariant — flip the pointer to a sibling swipe (D26 zero-copy)"
     });
     const swipe1 = await addVariant(db, messageId, 1, "swipe1");
     const other = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const view = await edit.selectVariant({
       principal: principal(host),
@@ -321,7 +321,7 @@ describe("D46 runtime plane — swipe-clobber rewind (ST #3263)", () => {
     const v1 = await addVariant(db, messageId, 1, "nothing about X");
     await db.update(messageVariants).set({ variableDelta: [] }).where(eq(messageVariants.id, v1));
 
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     // Swipe to v1 → X REWINDS (the fold of the new selected chain has no X). ST #3263 cannot occur.
     await edit.selectVariant({ principal: principal(host), chatId, messageId, variantId: v1 });
@@ -349,7 +349,7 @@ describe("D46 runtime plane — swipe-clobber rewind (ST #3263)", () => {
       .set({ runtimeVariables: { hp: "2" } })
       .where(eq(chats.id, chatId));
 
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
     // Delete the later message → the fold rewinds to the earlier delta (X=1).
     await edit.deleteMessages({ principal: principal(host), chatId, messageIds: [b.messageId] });
     expect(await runtimeCache(chatId)).toEqual({ hp: "1" });
@@ -363,7 +363,7 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
       role: "assistant",
       characterId: charA,
     });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const view = await edit.setMessageHidden({
       principal: principal(host),
@@ -384,7 +384,7 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
       role: "assistant",
       characterId: charA,
     });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const edited = await edit.editReasoning({
       principal: principal(host),
@@ -408,7 +408,7 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
     const { host, chatId, charA } = await seedRoom();
     const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
     const b = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.deleteMessages({
       principal: principal(host),
@@ -426,7 +426,7 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
   test("a member cannot delete another member's slot (not_author)", async () => {
     const { member, chatId, charA } = await seedRoom();
     const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const err = await edit.deleteMessages({ principal: principal(member), chatId, messageIds: [a.messageId] }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -444,7 +444,7 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
           return Promise.resolve();
         },
       }),
-      { emit, resolveForeignInputs },
+      { emit, resolveForeignInputs, claimChat: noClaim },
     );
 
     // Refused first (member ≠ author) — existence-before-audit: NO phantom row for a delete that never ran.
@@ -479,7 +479,7 @@ describe("canon-mutator stats deltas (stats.md — the delete/edit push)", () =>
         deltas.push(delta as StatsDelta);
       },
     });
-    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.deleteMessages({ principal: principal(host), chatId, messageIds: [a.messageId] });
 
@@ -509,7 +509,7 @@ describe("canon-mutator stats deltas (stats.md — the delete/edit push)", () =>
         deltas.push(delta as StatsDelta);
       },
     });
-    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.editMessage({
       principal: principal(member),
@@ -621,7 +621,7 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
       .where(eq(messageVariants.id, v1));
 
     const deltas: StatsDelta[] = [];
-    const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs });
+    const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs, claimChat: noClaim });
 
     // Baseline: reconcile the PRE-flip canon (v0 selected) into the rollups.
     await reconcileStats(db, { ownerId: host, now: clock.now });
@@ -669,7 +669,7 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
       .where(eq(messageVariants.id, variantId));
 
     const deltas: StatsDelta[] = [];
-    const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs });
+    const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await reconcileStats(db, { ownerId: host, now: clock.now });
     await edit.duplicateMessage({ principal: principal(host), chatId, messageId });
@@ -698,7 +698,7 @@ describe("moveMessage — host-only re-sequence", () => {
     });
     await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA, content: "two" });
     await seedMessage(db, chatId, 3, { role: "assistant", characterId: charA, content: "three" });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.moveMessage({
       principal: principal(host),
@@ -733,7 +733,7 @@ describe("moveMessage — host-only re-sequence", () => {
     await seedMessage(db, chatId, 3, { role: "assistant", characterId: charA, content: "3" });
     await seedMessage(db, chatId, 4, { role: "assistant", characterId: charA, content: "4" });
     await seedMessage(db, chatId, 5, { role: "assistant", characterId: charA, content: "5" });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.moveMessage({
       principal: principal(host),
@@ -783,7 +783,7 @@ describe("moveMessage — host-only re-sequence", () => {
       .update(chats)
       .set({ runtimeVariables: { hp: "20" } })
       .where(eq(chats.id, chatId));
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     // Move B before A (B → seq 2, A → seq 3): now A is the LATER op → the fold flips to hp=10.
     await edit.moveMessage({
@@ -800,7 +800,7 @@ describe("moveMessage — host-only re-sequence", () => {
   test("a member is refused (not_host)", async () => {
     const { member, chatId } = await seedRoom();
     const m1 = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
     const err = await edit.moveMessage({ principal: principal(member), chatId, messageId: m1.messageId, toSeq: 2 }).catch((e: unknown) => e);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
@@ -814,7 +814,7 @@ describe("duplicateMessage / reattributeMessages", () => {
       characterId: charA,
       content: "echo",
     });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const dup = await edit.duplicateMessage({ principal: principal(host), chatId, messageId });
     expect(dup.content).toBe("echo");
@@ -829,7 +829,7 @@ describe("duplicateMessage / reattributeMessages", () => {
     const { host, chatId, charA } = await seedRoom();
     const charB = await seedCharacter(db, host, "borg");
     const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributeMessages({
       principal: principal(host),
@@ -864,7 +864,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     const { member, chatId } = await seedRoom();
     const persona = await seedPersona(db, member, "mara");
     const { messageId } = await seedUserMsg(chatId, 1, member);
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({
       principal: principal(member),
@@ -884,7 +884,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     const { host, member, chatId } = await seedRoom();
     const persona = await seedPersona(db, member, "mara"); // owned by the MEMBER (the row's author)
     const { messageId } = await seedUserMsg(chatId, 1, member);
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({
       principal: principal(host),
@@ -903,7 +903,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     await seedParticipant(db, { chatId, key: "o", userId: other, role: "member" });
     const persona = await seedPersona(db, member, "mara");
     const { messageId } = await seedUserMsg(chatId, 1, member); // authored by `member`
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const err = await edit
       .reattributePersona({
@@ -924,7 +924,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     const { host, member, chatId } = await seedRoom();
     const hostPersona = await seedPersona(db, host, "hostpersona"); // owned by the HOST, not the author
     const { messageId } = await seedUserMsg(chatId, 1, member);
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const err = await edit
       .reattributePersona({
@@ -944,7 +944,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     const { host, member, chatId, charA } = await seedRoom();
     const persona = await seedPersona(db, member, "mara");
     const asst = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const err = await edit
       .reattributePersona({
@@ -966,7 +966,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     const m1 = await seedUserMsg(chatId, 1, member);
     const m2 = await seedUserMsg(chatId, 2, member);
     const m3 = await seedUserMsg(chatId, 3, member);
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({
       principal: principal(member),
@@ -985,7 +985,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
   test("an empty messageIds set is an idempotent no-op (no event, no write)", async () => {
     const { member, chatId } = await seedRoom();
     const persona = await seedPersona(db, member, "mara");
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({
       principal: principal(member),
@@ -1005,7 +1005,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       personaId: mara,
       content: "{{user}} waves",
     });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     // The per-chat name producer (Chat-Macro-Resolution §1) covering both personas.
     const personaNamesById = new Map<PersonaId, RowPersonaName>([
@@ -1058,7 +1058,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
       // biome-ignore lint/performance/noAwaitInLoops: seq-ordered inserts against one db — the ordering IS the fixture.
       await seedMessage(db, chatId, seq, { role: "user", authorUserId: member, content: "{{user}} waves" });
     }
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine" }, personaId: persona });
 
@@ -1076,7 +1076,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
     const mine = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
     const theirs = await seedMessage(db, chatId, 2, { role: "user", authorUserId: host });
     const reply = await seedMessage(db, chatId, 3, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine" }, personaId: persona });
 
@@ -1094,7 +1094,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
     const early = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member, personaId: mara });
     const cut = await seedMessage(db, chatId, 2, { role: "user", authorUserId: member, personaId: mara });
     const late = await seedMessage(db, chatId, 3, { role: "user", authorUserId: member, personaId: mara });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine", fromSeq: 2 }, personaId: zara });
 
@@ -1109,7 +1109,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
     const stranger = await seedUser(db, castId<Handle>("stranger"));
     const persona = await seedPersona(db, member, "mara");
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const err = await edit.reattributePersona({ principal: principal(stranger), chatId, scope: { kind: "mine" }, personaId: persona }).catch((e: unknown) => e);
 
@@ -1123,7 +1123,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
     const { host, member, chatId } = await seedRoom();
     const persona = await seedPersona(db, member, "mara");
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host }); // someone ELSE's line
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine" }, personaId: persona });
 
@@ -1166,7 +1166,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
       snapshots: await db.select().from(rpgSnapshots),
       digests: await db.select().from(chatDigests),
     };
-    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine" }, personaId: persona });
 
@@ -1226,7 +1226,7 @@ describe("edit verbs — the §3.6 caller-role RETURN belt", () => {
    *  the reasoning WRITERS run last. Returns each verb's RETURN view, keyed by verb name. */
   async function driveAllReturns(chatId: ChatId, caller: UserId): Promise<Record<string, MessageView>> {
     const { messageId, siblingVariantId } = await seedAuthoredSpillRow(chatId, caller);
-    const edit = createEdit(deceptionCtx(), { emit, resolveForeignInputs });
+    const edit = createEdit(deceptionCtx(), { emit, resolveForeignInputs, claimChat: noClaim });
     const p = principal(caller);
     return {
       setMessageHidden: await edit.setMessageHidden({ principal: p, chatId, messageId, hidden: true }),
@@ -1271,7 +1271,7 @@ describe("edit verbs — the §3.6 caller-role RETURN belt", () => {
     const { messageId } = await seedAuthoredSpillRow(room.chatId, room.member);
     emitted.length = 0;
 
-    const edit = createEdit(deceptionCtx(), { emit, resolveForeignInputs });
+    const edit = createEdit(deceptionCtx(), { emit, resolveForeignInputs, claimChat: noClaim });
     const returned = await edit.setMessageHidden({ principal: principal(room.member), chatId: room.chatId, messageId, hidden: true });
 
     // The RETURN is stripped for this non-host caller…

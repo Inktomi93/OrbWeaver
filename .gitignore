@@ -123,3 +123,4 @@ ds-bundle/
 .design-sync/node_modules
 packages/ui/.ds-preview-tokens.css
 .claude/apisurface-*.txt
+packages/ui/.ds-preview-fonts/

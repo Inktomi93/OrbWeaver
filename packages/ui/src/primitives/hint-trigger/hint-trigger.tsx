@@ -1,7 +1,9 @@
 import type { ReactElement, ReactNode } from "react";
+import { cn } from "#lib";
 import { Button } from "#primitives/button";
 import { Icon, Info } from "#primitives/icons";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
+import { hintTriggerVariants } from "./variants.ts";
 
 export interface HintTriggerProps {
   /** The tooltip's content. */
@@ -25,6 +27,7 @@ export interface HintTriggerProps {
  *  via the W3C accname subtree-concatenation algorithm (both call sites' own layout enforces this;
  *  this component only owns the trigger+popup atom, not its position). */
 export function HintTrigger({ hint, subject, className, size = "inline" }: HintTriggerProps): ReactElement {
+  const slots = hintTriggerVariants();
   let ariaLabel = "More info";
   if (typeof subject === "string" && subject.trim().length > 0) {
     const subjectString: string = subject;
@@ -34,7 +37,7 @@ export function HintTrigger({ hint, subject, className, size = "inline" }: HintT
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button aria-label={ariaLabel} className={className} intent="ghost" size={size} type="button">
+          <Button aria-label={ariaLabel} className={cn(slots.trigger(), className) ?? ""} data-slot="hint-trigger" intent="ghost" size={size} type="button">
             <Icon icon={Info} size="xs" />
           </Button>
         }
