@@ -19,7 +19,15 @@ const turnStartMark = (chatId: ChatId): string => `turn-begin:${chatId}`;
 const ttftMeasure = (chatId: ChatId): string => `turn-ttft:${chatId}`;
 const turnLatencyMeasure = (chatId: ChatId): string => `turn-latency:${chatId}`;
 
-/** The per-chat turn slot — one phase at a time, fields per phase (never optional-field soup). */
+/** The per-chat turn slot — one phase at a time, fields per phase (never optional-field soup).
+ *
+ *  `committedMessageId` (the three LIVE phases): the canon row THIS turn wrote, once its
+ *  `messageCommitted` has been seen — null until then. It is the ghost's HANDOVER signal: the seam applies
+ *  that event's `view` carrier into the message-list cache (`data/invalidation.ts` applyCanonView), so the
+ *  instant this is stamped the canon list already holds the ghost's own bytes and the ghost has nothing
+ *  left to show (`use-message-items.ts`). Stamped for an ASSISTANT commit only — the caller's own user row
+ *  commits inside the same live slot on a `send`, and standing that down as the turn's output would blank
+ *  the ghost for the whole turn. */
 export type TurnSlot =
   | { readonly phase: "idle" }
   | {
@@ -27,12 +35,14 @@ export type TurnSlot =
       readonly intent: TurnIntent;
       readonly speakerCharacterId: CharacterId | null;
       readonly targetMessageId: MessageId | null;
+      readonly committedMessageId: MessageId | null;
     }
   | {
       readonly phase: "streaming";
       readonly intent: TurnIntent;
       readonly speakerCharacterId: CharacterId | null;
       readonly targetMessageId: MessageId | null;
+      readonly committedMessageId: MessageId | null;
       readonly text: string;
       readonly reasoning: string;
     }
@@ -43,6 +53,7 @@ export type TurnSlot =
       readonly intent: TurnIntent;
       readonly speakerCharacterId: CharacterId | null;
       readonly targetMessageId: MessageId | null;
+      readonly committedMessageId: MessageId | null;
       readonly text: string;
       readonly reasoning: string;
     }
@@ -137,6 +148,7 @@ function flushChat(chatId: ChatId): void {
         intent: slot.intent,
         speakerCharacterId: slot.speakerCharacterId,
         targetMessageId: slot.targetMessageId,
+        committedMessageId: slot.committedMessageId,
         text: pending.text,
         reasoning: pending.reasoning,
       },
@@ -198,6 +210,9 @@ export interface ChatStreamApi {
   /** Called via `data/bus`'s `markTurnStopping` wrapper: pending/streaming → stopping, preserving
    *  accumulated text/reasoning. Idempotent no-op from any other phase. */
   readonly markStopping: (chatId: ChatId) => void;
+  /** Stamp the canon row this LIVE turn just wrote (`messageCommitted` for an assistant view) — the
+   *  ghost's handover signal (see `TurnSlot`). Idempotent no-op off-turn; never called for a user row. */
+  readonly markCommitted: (chatId: ChatId, messageId: MessageId) => void;
 }
 
 // Fire-and-forget notification, not state anyone reads back — homing it as store state would only
@@ -229,7 +244,7 @@ export const chatStream: ChatStreamApi = {
     pendingTokensByChat.delete(chatId);
     scheduledChats.delete(chatId);
     perfMark(turnStartMark(chatId));
-    setSlot(chatId, { phase: "pending", ...turn }, "turn/begin");
+    setSlot(chatId, { phase: "pending", committedMessageId: null, ...turn }, "turn/begin");
   },
   appendDelta: (delta) => {
     const slot = slotOf(delta.chatId);
@@ -280,6 +295,7 @@ export const chatStream: ChatStreamApi = {
           intent: slot.intent,
           speakerCharacterId: slot.speakerCharacterId,
           targetMessageId: slot.targetMessageId,
+          committedMessageId: slot.committedMessageId,
           text: "",
           reasoning: "",
         },
@@ -291,6 +307,18 @@ export const chatStream: ChatStreamApi = {
       setSlot(chatId, { ...slot, phase: "stopping" }, "turn/stopping");
     }
     // idle / stopping / completed / aborted: idempotent no-op (the double-abort guard).
+  },
+  markCommitted: (chatId, messageId) => {
+    const slot = slotOf(chatId);
+    // Live phases only. A commit with no live slot is somebody else's write (a narrator post, another
+    // device's edit) — the canon refetch owns it and there is no ghost to hand over to.
+    if (slot.phase !== "pending" && slot.phase !== "streaming" && slot.phase !== "stopping") {
+      return;
+    }
+    if (slot.committedMessageId === messageId) {
+      return; // idempotent — a replayed commit must not re-render every ghost subscriber.
+    }
+    setSlot(chatId, { ...slot, committedMessageId: messageId }, "turn/committed");
   },
 };
 
@@ -332,6 +360,20 @@ export function useSwipeTargetMessageId(chatId: ChatId | null): MessageId | null
       return null;
     }
     return slot.intent === "swipe" ? slot.targetMessageId : null;
+  });
+}
+
+/** The canon row a LIVE turn has already committed — the ghost's HANDOVER signal (see `TurnSlot`): once
+ *  the list carries this id, the seam has applied the same commit's `view` into it, so those bytes are on
+ *  screen as CANON and the ghost must yield. `null` off-turn or before the commit lands. Stable across
+ *  every token delta (only text/reasoning change), so reading it never re-renders the list on a token. */
+export function useTurnCommittedMessageId(chatId: ChatId | null): MessageId | null {
+  return useChatStreamStore((s) => {
+    if (chatId === null) {
+      return null;
+    }
+    const slot = s.turns[chatId] ?? IDLE_TURN;
+    return slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping" ? slot.committedMessageId : null;
   });
 }
 
