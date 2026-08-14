@@ -1,6 +1,7 @@
 // Replay the REAL captured cheap tool-round body against OR, non-streaming, to see whether the model
 // emits assistant message.content ALONGSIDE tool_calls (the message production currently discards).
 import { readFileSync } from "node:fs";
+import { REPO_ROOT } from "../_kit/artifacts.ts";
 
 type ReqBody = Record<string, unknown>;
 interface RawToolCall {
@@ -13,10 +14,9 @@ interface RawResp {
 }
 
 const DIR = new URL(".", import.meta.url).pathname;
-const REPO = "~/dev/orbweaver";
 
 // --- read OPENROUTER_API_KEY from .env (never printed) ---
-const env = readFileSync(`${REPO}/.env`, "utf8");
+const env = readFileSync(`${REPO_ROOT}/.env`, "utf8");
 const m = env.match(/^OPENROUTER_API_KEY=(.*)$/m);
 if (!m) { console.error("no OPENROUTER_API_KEY in .env"); process.exit(1); }
 // biome-ignore lint/style/noNonNullAssertion: capture group 1 is present whenever the pattern matched.
