@@ -17,8 +17,9 @@ import { HEAD_DOWN } from "./web-weave-character.ts";
 import type { WeavePoint } from "./web-weave-geometry.ts";
 import { wrapToPi } from "./web-weave-math.ts";
 
+/** The machine's five states — internal; callers read `PreyState["mode"]` if they need it. */
 const PREY_MODES = ["rest", "alert", "sprint", "inspect", "return"] as const;
-export type PreyMode = (typeof PREY_MODES)[number];
+type PreyMode = (typeof PREY_MODES)[number];
 
 /** The freeze: she reads the vibration before she commits (ms). */
 const ALERT_MS = 170;

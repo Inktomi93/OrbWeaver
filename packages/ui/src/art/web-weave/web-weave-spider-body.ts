@@ -68,7 +68,7 @@ const BREATHE_HZ = 0.0012;
 const BREATHE_AMP = 0.04;
 
 /** How she is CARRYING herself this frame — the gait's speed and reach, plus the two life beats. */
-export interface SpiderMood {
+interface SpiderMood {
   readonly gaitHz: number;
   readonly gaitAmp: number;
   /** Leg-swing amplitude while she is still (a resting spider is not a statue). */

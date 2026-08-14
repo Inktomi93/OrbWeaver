@@ -9,13 +9,14 @@
 import type { CharacterPreset } from "./web-weave-character.ts";
 import { REST_GAIT_AMP, SPRINT_GAIT } from "./web-weave-character.ts";
 import type { WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+import { glintSegmentLit, glintSweepAngle } from "./web-weave-glint.ts";
 import { clamp01, easeOutCubic } from "./web-weave-math.ts";
-import type { WeavePluck } from "./web-weave-physics.ts";
-import { pluckDisplacement, swayGain } from "./web-weave-physics.ts";
 import type { PreyState } from "./web-weave-prey.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
 import { idleTwitchPhase, STRAND_OUT_MS, spiderPose, spiralUpTo } from "./web-weave-spider.ts";
 import { drawSpiderBody } from "./web-weave-spider-body.ts";
+import type { WeavePluckMap, WeaveSway, WeaveWeather } from "./web-weave-sway.ts";
+import { strandPoint, swayPt } from "./web-weave-sway.ts";
 import { WEAVE_TIMELINE } from "./web-weave-timeline.ts";
 
 /** The token-derived paint set (§1.3) — resolved by the component via computed style, never literals. */
@@ -55,18 +56,8 @@ export interface WeaveFrameInput {
   readonly plucks: WeavePluckMap;
 }
 
-/** Live plucks per strand. Mutable across frames (the component owns it), read-only to the painters. */
-export type WeavePluckMap = ReadonlyMap<WeaveStrand, readonly WeavePluck[]> | null;
-
 const TAU = Math.PI * 2;
 
-// Ambient magnitudes — named so the calm is a design decision, not sprinkled numbers (§9.4 tweak 2).
-const SWAY_X_PX = 2.1;
-const SWAY_Y_PX = 1.5;
-const SWAY_X_HZ = 0.0006;
-const SWAY_Y_HZ = 0.0005;
-const SWAY_X_WAVELENGTH = 0.012;
-const SWAY_Y_WAVELENGTH = 0.009;
 const FRESH_STRAND_MS = 300;
 const FRESH_WIDTH_BOOST = 0.5;
 const STRAND_ALPHA_BASE = 0.6;
@@ -80,13 +71,10 @@ const BRIDGE_FLOAT_ALPHA = 0.25;
 const BRIDGE_FLOAT_AMP_PX = 6;
 const BRIDGE_FLOAT_HZ = 0.004;
 const BRIDGE_FLOAT_PHASE_PER_SAMPLE = 0.5;
-/** The settle glint: a slow accent window sweeping the web once per period (guide: linear loop). */
-const GLINT_PERIOD_MS = 9000;
-const GLINT_HALF_WIDTH_RAD = 0.3;
+/** The settle glint's paint (its LIGHTING lives in web-weave-glint.ts). */
 const GLINT_ALPHA = 0.5;
 const GLINT_WIDTH = 1.1;
 const GLINT_BLUR = 6;
-const GLINT_MIN_LIT = 0.05;
 const DEW_CONDENSE_MS = 900;
 const DEW_TWINKLE_FLOOR = 0.35;
 const DEW_TWINKLE_GAIN = 0.65;
@@ -110,57 +98,6 @@ const GLINT_GLOW_WIDTH = 2.86;
 const GLINT_GLOW_ALPHA = 0.5;
 const STRAND_OUT_GLOW_WIDTH = 3.6;
 const STRAND_OUT_GLOW_ALPHA = 0.5;
-
-/** How a layer rides the ambient breath. ONE field, applied to EVERYTHING that must stay on the silk —
- *  strand points, glint segments, dew, the weaver (a layer painted at rest coordinates over a swaying
- *  web visibly floats off it):
- *    • `field`  — the per-point wave, for the live re-stroked path (renderWeaveFrame);
- *    • `offset` — the single whole-canvas translate the RESTING path's cached blit is drawn with
- *      (design §1.2), so live layers painted over that blit land on the blitted silk;
- *    • `null`   — rigid (reduced motion, the baked buffer, and the bridge while it is still floating).
- */
-export type WeaveSway = ({ readonly kind: "field" | "offset"; readonly now: number } & WeaveWeather) | null;
-
-/** The two dials that scale the ambient breath (weave-lab §1): the `wind` prop, and the decaying
- *  web-wide `shiver` a pluck raises. Both zero = the sway the web shipped with, to the bit. */
-export interface WeaveWeather {
-  readonly wind: number;
-  readonly shiver: number;
-}
-
-const ORIGIN: WeavePoint = { x: 0, y: 0 };
-
-/** Move a point onto the swaying silk. Pure — the fixed point of the whole sway story. */
-export function swayPt(p: WeavePoint, sway: WeaveSway): WeavePoint {
-  if (sway === null) {
-    return p;
-  }
-  if (sway.kind === "offset") {
-    const { dx, dy } = weaveSwayOffset(sway);
-    return { x: p.x + dx, y: p.y + dy };
-  }
-  const gain = swayGain({ now: sway.now, x: p.x, wind: sway.wind, shiver: sway.shiver });
-  return {
-    x: p.x + Math.sin(sway.now * SWAY_X_HZ + p.y * SWAY_X_WAVELENGTH) * SWAY_X_PX * gain,
-    y: p.y + Math.cos(sway.now * SWAY_Y_HZ + p.x * SWAY_Y_WAVELENGTH) * SWAY_Y_PX * gain,
-  };
-}
-
-/** One strand SAMPLE as drawn: the sway, plus the transverse ring of any live pluck on that strand.
- *  A strand with no plucks pays nothing beyond the sway (weave-lab perf note). */
-function strandPoint(strand: WeaveStrand, index: number, sway: WeaveSway, plucks: WeavePluckMap): WeavePoint {
-  const swayed = swayPt(strand.pts[index] as WeavePoint, sway);
-  // Rigid (reduced motion / the baked buffer) means rigid: no rings either.
-  if (sway === null) {
-    return swayed;
-  }
-  const live = plucks?.get(strand);
-  if (live === undefined || live.length === 0) {
-    return swayed;
-  }
-  const push = pluckDisplacement(strand, index, live, sway.now);
-  return { x: swayed.x + push.x, y: swayed.y + push.y };
-}
 
 /** Draw pts[0..upTo] through the sway. */
 function drawPolyline(ctx: CanvasRenderingContext2D, pts: readonly WeavePoint[], upTo: number, sway: WeaveSway): void {
@@ -276,33 +213,6 @@ function drawStrands(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, sway
       drawBridgeFloat(ctx, strand, input, frame.upTo);
     }
   }
-}
-
-/** The accent window's center angle at a wall-clock instant (one sweep per GLINT_PERIOD_MS). */
-export const glintSweepAngle = (now: number): number => ((now / GLINT_PERIOD_MS) % 1) * TAU;
-
-/** Hermite smoothstep (3p² − 2p³) — the highlight eases in and out of the sweep window instead of
- *  ramping linearly into it. */
-const SMOOTHSTEP_CUBIC = 3;
-const SMOOTHSTEP_QUADRATIC = 2;
-const smoothstep = (p: number): number => p * p * (SMOOTHSTEP_CUBIC - SMOOTHSTEP_QUADRATIC * p);
-
-/** How lit ONE SEGMENT is under the sweep, sampled at its midpoint: 1 at the window's center, 0 outside
- *  it or below the visibility floor. Per-SEGMENT is the whole point — canvas applies `globalAlpha` at
- *  stroke() time, so a multi-segment path accumulated while the alpha is mutated per segment paints the
- *  entire run at the LAST segment's value, and the highlight pops as the window sweeps. */
-export function glintSegmentLit(a: WeavePoint, b: WeavePoint, hub: WeavePoint, sweep: number): number {
-  const mx = (a.x + b.x) / 2;
-  const my = (a.y + b.y) / 2;
-  let d = Math.abs((((Math.atan2(my - hub.y, mx - hub.x) - sweep) % TAU) + TAU) % TAU);
-  if (d > Math.PI) {
-    d = TAU - d;
-  }
-  if (d >= GLINT_HALF_WIDTH_RAD) {
-    return 0;
-  }
-  const lit = smoothstep(1 - d / GLINT_HALF_WIDTH_RAD);
-  return lit < GLINT_MIN_LIT ? 0 : lit;
 }
 
 function strokeSegment(ctx: CanvasRenderingContext2D, a: WeavePoint, b: WeavePoint): void {
@@ -473,14 +383,4 @@ export function drawLiveLayers(ctx: CanvasRenderingContext2D, input: WeaveFrameI
   drawStrandOut(ctx, input, "soft", sway);
   paintSpider(ctx, input, tracker, sway);
   ctx.globalAlpha = 1;
-}
-
-/** The settled web's imperceptible breathing, as a whole-canvas translate offset (px) for the cached
- *  blit — the design §1.2 "sway painted live" applied to the buffer instead of re-stroking every
- *  point (2px amplitude, so the drop from per-point to rigid sway is invisible). */
-export function weaveSwayOffset(sway: NonNullable<WeaveSway>): { dx: number; dy: number } {
-  // The field sampled at the origin — so the blit's rigid sway and the per-point field are the same
-  // motion by construction, and a layer switched between them cannot drift.
-  const p = swayPt(ORIGIN, { ...sway, kind: "field" });
-  return { dx: p.x, dy: p.y };
 }

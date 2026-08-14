@@ -7,6 +7,8 @@
  * one geometry, every scale).
  */
 
+export type { WeaveCharacter } from "./web-weave-character.ts";
+export { WEAVE_CHARACTERS } from "./web-weave-character.ts";
 export type { WeaveVeilProps } from "./weave-veil.tsx";
 export { WeaveVeil } from "./weave-veil.tsx";
 export type { WebGlyphGeometry, WebGlyphInput, WebGlyphSpoke } from "./web-glyph.ts";
