@@ -29,6 +29,8 @@
     "tests/client/data/import-characters.test.ts",
     "tests/client/data/import-chats.test.ts",
     "tests/client/data/import-tree.test.ts",
+    "tests/client/data/invalidation-carrier.test.ts",
+    "tests/client/data/invalidation-reads.test.ts",
     "tests/client/data/invalidation.test.ts",
     "tests/client/data/peek-query.test.ts",
     "tests/client/data/query-boundary.ct.tsx",
@@ -172,7 +174,6 @@
     "tests/client/features/chat/lib/slash-command.test.ts",
     "tests/client/features/chat/lib/speaker-color.test.ts",
     "tests/client/features/chat/lib/split-paragraphs.test.ts",
-    "tests/client/features/chat/lib/turn-abort-notice.test.ts",
     "tests/client/features/chat/lib/warning-notice.test.ts",
     "tests/client/features/chat/surfaces/chat-landing-surface.ct.tsx",
     "tests/client/features/chat/surfaces/chat-list-surface.ct.tsx",
@@ -339,6 +340,7 @@
     "tests/client/lib/tag-filter-state.test.ts",
     "tests/client/lib/tag-sort.test.ts",
     "tests/client/lib/trpc-devlog.test.ts",
+    "tests/client/lib/turn-abort-notice.test.ts",
     "tests/client/lib/weave-glyph.ct.tsx",
     "tests/client/routes/app-root.ct.tsx",
     "tests/client/routes/route-pending.ct.tsx",
@@ -771,6 +773,7 @@
     "tests/server/domain/chat/verbs/send-attach.suite.int.test.ts",
     "tests/server/domain/chat/verbs/set-rpg-pointer.int.test.ts",
     "tests/server/domain/chat/verbs/start-chat.int.test.ts",
+    "tests/server/domain/chat/verbs/turn-accept-slot.suite.int.test.ts",
     "tests/server/domain/chat/verbs/turn.int.test.ts",
     "tests/server/domain/chat/verbs/volatile-freeze-record.suite.int.test.ts",
     "tests/server/domain/chat/wire-capture-fidelity.suite.int.test.ts",
@@ -1290,7 +1293,6 @@
     "tests/server/entry/compose/chat.test.ts",
     "tests/server/entry/compose/databank.int.test.ts",
     "tests/server/entry/compose/demo-chat-game.test.ts",
-    "tests/server/entry/compose/emit-character-updated.int.test.ts",
     "tests/server/entry/compose/emit-chat-changed.int.test.ts",
     "tests/server/entry/compose/event-bus.test.ts",
     "tests/server/entry/compose/materialize-background.test.ts",
@@ -1299,6 +1301,7 @@
     "tests/server/entry/compose/regex.int.test.ts",
     "tests/server/entry/compose/resolve-image-ref.test.ts",
     "tests/server/entry/compose/role-clients.test.ts",
+    "tests/server/entry/compose/room-reach.int.test.ts",
     "tests/server/entry/compose/rpg.int.test.ts",
     "tests/server/entry/compose/services.test.ts",
     "tests/server/entry/debug-gate.suite.test.ts",
@@ -1621,6 +1624,7 @@
     "tests/ui/markdown/policy.test.ts",
     "tests/ui/markdown/reveal-plugin.test.ts",
     "tests/ui/markdown/shiki-plugin.test.ts",
+    "tests/ui/markdown/tail-hold.test.ts",
     "tests/ui/primitives/accordion/accordion.ct.tsx",
     "tests/ui/primitives/alert-dialog/alert-dialog.ct.tsx",
     "tests/ui/primitives/autocomplete/autocomplete.ct.tsx",
@@ -1751,6 +1755,9 @@
     },
     "tests/client/data/use-draft-cast-cards.ct.tsx": {
       "why": "`use-draft-cast-cards.ts` is DELETED with draft mode (R1): it was a list-first peek over warm `character.list` pages, built to kill the ~2s '? | ? | ? | New chat' placebo window a pre-send room showed while N cold `character.get` reads landed. There is no such window — `useStartChat` seeds `chat.getChat` from `startChat`'s own response, so the room's first frame is warm off the read it actually uses (tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx drives that path end-to-end)."
+    },
+    "tests/client/features/chat/lib/turn-abort-notice.test.ts": {
+      "why": "moved, not deleted: the turn-notice mapper re-homed from features/chat/lib to the client #lib tier (owner channel-law ruling 2026-08-14 — shared machinery lives in the lib tier, never sideways feature internals; the rpg CYOA choice-echo was the one unmapped consumer). The suite moved byte-intact to tests/client/lib/turn-abort-notice.test.ts (the mirror of the new home) and gained nothing/lost nothing. Un-deletes only if the mapper ever re-homes back into a feature."
     }
   }
 }
