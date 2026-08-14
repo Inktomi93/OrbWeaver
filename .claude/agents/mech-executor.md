@@ -3,6 +3,8 @@ name: mech-executor
 description: Mechanical execution of FULLY-SPECIFIED work in the orbweaver repo — pattern-based refactors and renames, writing tests that follow existing conventions, doc/comment updates, bulk multi-file edits from an explicit spec, running the gate/test suites and fixing trivial failures. Use when the task needs no design decisions; hand it a complete spec (goal, exact scope, done-criteria, paths). NOT for judgment work — that's `executor`.
 model: sonnet
 effort: low
+permissionMode: acceptEdits
+maxTurns: 80
 color: green
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
 ---
