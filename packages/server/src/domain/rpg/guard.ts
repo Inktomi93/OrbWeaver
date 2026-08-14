@@ -8,7 +8,7 @@
 // (a foreigner learns nothing about whether the chat is a game), and a member reaching a host-only plane gets a
 // `DomainForbidden` (they legitimately know the chat exists — the action, not the chat, is gated).
 //
-// THE SPLIT (stage R1, 2026-08-03): the VERDICT is the kernel's, the REFUSAL is this file's. Every host
+// THE SPLIT: the VERDICT is the kernel's, the REFUSAL is this file's. Every host
 // comparison routes through the injected `can()` seam (`ctx.can`, `domain/admin/guard.ts` — spine invariant #6:
 // `role === "host"` is compared THERE and nowhere else; the `AutomationContext.can` precedent), and this file
 // catches the kernel's `DomainForbiddenError` and re-raises the rpg-coded sentence — chat's `permits()`

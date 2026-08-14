@@ -2,17 +2,13 @@
 // type home: a per-turn structured event STREAM emitted through an injected {@link RpgTraceSink}, ring-buffered
 // by the compose-built recorder (`../trace.ts`), read host-only at `/api/_debug/rpg/traces`.
 //
-// PORTED from `legacy-main:packages/server/src/domain/rpg/contract/trace.ts` (43d5169fd, R-OBS) and RE-CUT to
-// today's tree, which is not the tree that file was written for. What changed and WHY:
-//   • The legacy `staging` / `domain-event` phases are GONE. The staging accumulator's ops are no longer the
-//     interesting boundary — today's flush is one `writeFlush` with its own contract-invalid backstop, and the
-//     legacy per-op stream would trace a shape that no longer decides anything.
-//   • A `flush` phase REPLACES them, carrying the R1 delivery fork (`path`/`fallbackReason`) that did not exist
-//     when the original was written. It is the single most diagnostic rpg fact on today's tree: a `folded` game
-//     silently falling back to the post-commit round is correct-but-expensive, and invisible without this.
-//   • `tool` carries the args VERBATIM and adds the DROP/SALVAGE verdict, because the live failure class this
-//     recorder was re-lit for (`SCENE-DROPPED`/`TOOLDROP-BLIND`, `dogfood-tracking.md`) is precisely "the model
-//     sent something the schema refused" — a trace that only recorded successes would have been blind to all 12.
+// The staging accumulator's individual ops are NOT traced — today's flush is one `writeFlush` with its own
+// contract-invalid backstop, so a per-op stream would trace a shape that no longer decides anything. Instead a
+// `flush` phase carries the R1 delivery fork (`path`/`fallbackReason`) — the single most diagnostic rpg fact on
+// this tree: a `folded` game silently falling back to the post-commit round is correct-but-expensive, and
+// invisible without this. `tool` carries the args VERBATIM plus the DROP/SALVAGE verdict, because the failure
+// class this recorder exists for is precisely "the model sent something the schema refused" — a trace that only
+// recorded successes would be blind to it.
 //
 // OPT-IN + ZERO-COST WHEN OFF: the sink is `undefined` unless tracing is enabled, and every emit site guards
 // with `trace?.(buildEvent())` — an optional CALL short-circuits its ARGUMENT, so the event object is never

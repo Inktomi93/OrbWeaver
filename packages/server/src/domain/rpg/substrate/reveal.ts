@@ -2,9 +2,9 @@
 // `<lie>`/`<ofilter>` hidden spans out of the assistant transcript bodies (`@orb/kit/content::scanHiddenSpans`
 // + the `HIDDEN_TAGS` registry — LITERALLY the strip's twin, one fence-blind pass feeding both, so the reveal
 // shows EXACTLY what the strip removed and the two cannot drift) and projects them into the per-message reveal
-// + the standing-lie inventory. That shared pass is why an in-card lie now reaches the host's eye: before
-// 2026-08-14 both sides tokenized fence-strict, so a `<lie …/>` inside a `:::card` body was missing from the
-// host's own standing inventory while riding into every member's payload. ZERO I/O — the
+// + the standing-lie inventory. That shared pass is why an in-card lie reaches the host's eye even inside a
+// `:::card` fence body — a fence-strict scan would leave it missing from the host's own standing inventory
+// while it still rides into every member's payload. ZERO I/O — the
 // verb reads the bodies and hands them in (the reminder/delta purity contract). A third hidden channel is a
 // `HIDDEN_TAGS` row: this file re-derives its field set from the registry, never a hardcoded lie/ofilter shape.
 
@@ -30,9 +30,9 @@ function revealSpan(span: HiddenContentSpan): RpgRevealedSpan | null {
 }
 
 /** The hidden spans of ONE body, projected. Reads the SAME kit pass the member-strip reads (`scanHiddenSpans`
- *  — its literal twin), so the reveal shows exactly what was stripped, FENCE BODIES INCLUDED: before
- *  2026-08-14 both sides were fence-strict, so an in-card `<lie …/>` was invisible to the host's own eye AND
- *  leaked to the member. A body with no hidden spans yields `[]`. */
+ *  — its literal twin), so the reveal shows exactly what was stripped, FENCE BODIES INCLUDED: a fence-strict
+ *  scan would leave an in-card `<lie …/>` invisible to the host's own eye while it still leaks to the member.
+ *  A body with no hidden spans yields `[]`. */
 function revealBodySpans(content: string): RpgRevealedSpan[] {
   const out: RpgRevealedSpan[] = [];
   for (const span of scanHiddenSpans(content)) {

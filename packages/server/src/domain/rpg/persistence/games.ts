@@ -17,7 +17,7 @@ import type { NewRpgGame, RpgGameRow } from "../contract/service.ts";
 
 const LIMIT_ONE = 1;
 
-/** PRE-LAUNCH HEAL, scoped to ONE field (owner ruling 2026-08-01 — a delivery mode was DELETED whole, NO-LEGACY).
+/** PRE-LAUNCH HEAL, scoped to ONE field (a delivery mode was DELETED whole, NO-LEGACY).
  *  A game blob written while the retired mode existed would fail the enum and hard-throw the whole game on read —
  *  a dead knob taking down a live room. So an UNRECOGNIZED `extractionMode` is dropped to `undefined`, which the
  *  schema `.default` then fills with the born default. Nothing else is softened: every other corrupt field still

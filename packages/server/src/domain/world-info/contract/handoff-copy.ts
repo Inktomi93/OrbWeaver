@@ -1,5 +1,5 @@
 // domain/world-info/contract/handoff-copy — the `WorldInfoHandoffCopyContext` DI bundle + op type for the
-// world-info-owned lore copy the host-handoff property offer executes (stickler 2026-08-03 §5.2/§5.3).
+// world-info-owned lore copy the host-handoff property offer executes.
 //
 // WHY A COPY AND NOT A CARRY. `character.duplicate`'s book carry (PD-141) re-points fresh junctions at the
 // SAME books, which is right for a clone inside ONE library. It is exactly WRONG across owners: the

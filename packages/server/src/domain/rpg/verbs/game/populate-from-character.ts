@@ -1,4 +1,4 @@
-// domain/rpg/verbs/game/populate-from-character — populateFromCharacter (owner ruling 2026-08-01). The HOST
+// domain/rpg/verbs/game/populate-from-character — populateFromCharacter. The HOST
 // "read this character's card and fill what they walked in with" doorway: ONE model call over the character
 // CARD + the room's OPENING line that establishes the BORN state — the identity sheet (`title`/`level`), the
 // starting inventory + purse, and the quests the background already implies.

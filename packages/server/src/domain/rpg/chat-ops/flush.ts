@@ -20,12 +20,12 @@
 //
 // THE WRITE BASE IS READ AT FLUSH START AND THE ROUND TAKES 0.8-2.9s — so a HAND EDIT can land inside the
 // flight, and by D124 the hand row it writes OUTRANKS this slot's turn row (the human edited on top of that
-// beat). Left alone that shadowed the turn's writes on every plane, including ones the human never touched
-// (HAND-EDIT-VS-FLUSH, 2026-08-07). `writeFlush` therefore FOLDS its state into that hand row, arbitrated by
+// beat). Left alone that would shadow the turn's writes on every plane, including ones the human never touched.
+// `writeFlush` therefore FOLDS its state into that hand row, arbitrated by
 // the auto-locks the edit stamped — the human keeps what they claimed, the turn keeps the rest. Neither writer
 // can erase the other any more; see `foldIntoShadowingHandRow` below and `snapshot-edit.ts`.
 //
-// CANCELLATION (RPG-SIGNAL, 2026-08-03): the round is cancelable through `turn.signal`, minted by the flush
+// CANCELLATION: the round is cancelable through `turn.signal`, minted by the flush
 // barrier (see `../flush-barrier.ts` for why the character turn's own signal cannot serve). THE INVARIANT: a
 // CANCELLED ROUND IS BYTE-IDENTICAL TO A NON-WRITING TURN — it refuses to write and discards its staging, and
 // it never rolls back a write that already landed. `flushTurn` below states the reasoning.
@@ -277,7 +277,7 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
     return;
   }
   await stageStateRound(ctx, game, turn, resolveStateRound(ctx, game, turn, mode));
-  // THE WRITE BOUNDARY, RE-READ (the cancellation ruling, RPG-SIGNAL 2026-08-03): REFUSE TO WRITE, NEVER ROLL
+  // THE WRITE BOUNDARY, RE-READ: REFUSE TO WRITE, NEVER ROLL
   // BACK. A round that was cancelled while in flight discards whatever it staged and writes nothing — so a
   // cancelled round is byte-identical to a non-writing turn, the same errors-as-data invariant a failed
   // extraction already satisfies. Staging is cleared here for the same reason `onTurnAborted` clears it: a dead

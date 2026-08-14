@@ -14,10 +14,9 @@
 // round-trip to display data the client already held. THAT RULING STANDS — see the paragraph below, which
 // closes the defect it was blamed for WITHOUT reversing it.
 //
-// THE WINDOW COUNTS TURNS, NOT ROWS (2026-08-14, `docs/reviews/misc/2026-08-14-dogfood-class-sweep.md` row
-// `turn-tool-calls.ts:45-52`). The finding read as "this is missing the journal's lineage filter"; the sweep
-// itself corrects that framing — "this is NOT a wrong-row defect, it IS a window-budget defect". Rows are
-// one-per-VARIANT, so a reroll-heavy slot leaves abandoned siblings in the table, and a flat newest-50-ROWS
+// THE WINDOW COUNTS TURNS, NOT ROWS — this is NOT the journal's lineage filter, it is a window-budget
+// concern. Rows are one-per-VARIANT, so a reroll-heavy slot leaves abandoned siblings in the table, and a flat
+// newest-50-ROWS
 // window spent its budget on rows NOBODY CAN EVER LOOK AT: the disclosure went dark for older SELECTED turns
 // still on screen. Both texts are true at once — the client MUST hold the siblings (that is what makes a
 // swipe free), and the BUDGET must not be denominated in them. So the window is the newest `turnLimit`

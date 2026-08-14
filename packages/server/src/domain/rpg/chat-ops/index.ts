@@ -154,7 +154,7 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     // inherits its disengaged pointer (see `fork-game.ts`), preserving the source's front-door state, never
     // silently re-engaging it.
     forkGame: (args): ReturnType<ChatRpgOps["forkGame"]> => forkGame(ctx, args),
-    // HOST HANDOFF (F1 + the 2026-08-03 copy offer): the unexecuted `gmPresetId` heal/gift + the `rpg_sheets`
+    // HOST HANDOFF (F1 + the copy offer): the unexecuted `gmPresetId` heal/gift + the `rpg_sheets`
     // re-key, folded into chat's role-swap batch — the fork carry-gate's twin on the OTHER member→host
     // transition. Reads the game row directly (a DISENGAGED game still carries the knob); `[]` for a non-game
     // chat ⇒ a plain-room handoff is byte-identical, and an offer-less accept is byte-identical to the

@@ -101,7 +101,7 @@ function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextPro
     // keep, an unrelated config edit would reset them to the schema default `[]`). The turn registers these
     // beside the preset's, the game winning a name clash.
     userMacros: patch?.userMacros !== undefined ? [...patch.userMacros] : current.userMacros,
-    // NO `prose` ARM (owner ruling 2026-08-08): the reminder teach/heading overrides are PRESET-homed
+    // NO `prose` ARM: the reminder teach/heading overrides are PRESET-homed
     // (`promptConfig.prose`, the Templates tab). This door writes game state only.
   };
 }

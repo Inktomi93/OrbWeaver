@@ -10,9 +10,6 @@
 //
 // ASSUMES(single-replica): the ring is per-process (the `bus.ts` precedent). The recorder stamps each record's
 // `seq` (a monotonic counter) + `at` (via the injected `now`), so the emitters stay clock-free.
-//
-// PORTED from `legacy-main:packages/server/src/domain/rpg/trace.ts` (43d5169fd) — the ring itself is the
-// original's; the filter keys follow this tree's re-cut event union (`contract/trace.ts` header).
 
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import type { RpgTraceEvent, RpgTraceFilter, RpgTraceRecord, RpgTraceRecorder } from "./contract/trace.ts";

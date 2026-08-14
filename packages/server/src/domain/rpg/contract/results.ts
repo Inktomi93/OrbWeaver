@@ -45,7 +45,7 @@ export type HandDoorResult = { readonly ok: true } | { readonly ok: false; reado
  *      the sentence the host reads — it names which, so a provider outage never masquerades as "no drift". */
 export type ResyncResult = { readonly ok: true; readonly rebuilt: boolean } | { readonly ok: false; readonly reason: string };
 
-/** THE POPULATE VERDICT (`populateFromCharacter`, owner ruling 2026-08-01) — the RESYNC grammar on the OTHER
+/** THE POPULATE VERDICT (`populateFromCharacter`) — the RESYNC grammar on the OTHER
  *  host verb that spends real money on a model call. It returned `void`, which is the same silent fork
  *  RESYNC-OR closed on its sibling: a card round that never RAN (the room connection didn't resolve, the wire
  *  has no structured writer, the provider refused the structured request — the live 400 on the default hosted

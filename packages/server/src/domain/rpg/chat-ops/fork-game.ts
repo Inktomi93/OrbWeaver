@@ -2,8 +2,7 @@
 // atomic fork batch commits; rpg clones FIVE of its six tables from the source game onto the fork through the
 // fork's id maps, in ONE `db.batch`, then writes the fork's `metadata.rpg` pointer LAST.
 //
-// THE SIXTH TABLE IS NOT COPIED: `rpg_turn_tool_calls` has no clone arm here (this header claimed a "whole
-// 6-table vertical" until 2026-08-07, which is what made the omission invisible to a sweep). Not a leak — the
+// THE SIXTH TABLE IS NOT COPIED: `rpg_turn_tool_calls` has no clone arm here. Not a leak — the
 // rows are MEMBER-readable by design (`listTurnToolCalls` is `resolveMember`: "what the model DID on a turn you
 // watched"), so copying them would be safe; the fork simply loses its tool record. A product call, boarded.
 //
@@ -30,8 +29,8 @@
 // THE ENFORCEMENT IS THE SHAPE, NOT THE LIST — two ratchets, because the leak lives at two granularities:
 //   • per-PLANE: the five `fork*Values` builders name EVERY column and return `Required<typeof X.$inferInsert>`,
 //     so a column added to any rpg table is a MISSING PROPERTY and fails `tsc` until its author classifies it.
-//     The predecessor spread `...row` and subtracted a hand-maintained strip list, which defaults a NEW column
-//     to COPIED — backwards at a trust boundary (`verbs/fork.ts` was inverted the same way, 2026-08-07).
+//     A spread-and-strip approach (`...row` minus a hand-maintained strip list) defaults a NEW column
+//     to COPIED — backwards at a trust boundary (`verbs/fork.ts` guards against the same inversion).
 //   • per-CONFIG-FIELD: `rpg_games.config` is ONE column holding a dozen independently-gated fields, so a
 //     table-level allow-list is blind inside it. `stripConfigForForker` therefore builds an EXHAUSTIVE
 //     `RpgGameConfig`/`RpgGameFeatures` literal (no spread) — a new config field fails `tsc` here too. That
@@ -115,7 +114,7 @@ function stripConfigForForker(config: RpgGameConfig, readsHidden: boolean): RpgG
     // ── HOST-PLANE — served ONLY behind `getConfigView`'s `resolveHost` ──────────────────────────────────
     // The GM directive. Blanked, never removed: `lite` is a required sub-object and the note has a "" default.
     lite: { steeringNote: "" },
-    // NO `prose` KEY — the teach/heading overrides left this blob entirely (owner ruling 2026-08-08: PRESET-homed).
+    // NO `prose` KEY — the teach/heading overrides left this blob entirely (PRESET-homed).
     // Nothing to strip here, and the host-plane guarantee is UNCHANGED rather than merely moved: the overrides now
     // live in the GM preset, which rides `resolveForkGmPreset` — a preset the forker cannot READ is dropped to
     // null, so a non-host fork can no more resolve the host's re-authored copy than it could read the preset.
@@ -161,10 +160,9 @@ function stripFeaturesForForker(features: RpgGameFeatures): RpgGameFeatures {
  *     host-gated `updateConfig`. So every beat outside that window has NO member-gated reader in the source
  *     room, and the forker becomes HOST of the copy and may widen the knob at will. `keepLast: 0` is the sharp
  *     arm: the member read ZERO beats, so nothing may cross. The slice uses the SOURCE game's knob, because
- *     that is the value that governed what this forker could actually read. This clause was MISSING until
- *     2026-08-07 and the whole log crossed; the rationale that hid it ("beats are the same distillation class
- *     `listJournal` serves unbounded") is a CLASS argument, and the law is about BYTES behind a gate — the
- *     journal's rows are not these bytes. It also bounds the D16 arm: the log spans turns below a clamped
+ *     that is the value that governed what this forker could actually read. ("Beats are the same distillation
+ *     class `listJournal` serves unbounded" is a CLASS argument, and the law is about BYTES behind a gate — the
+ *     journal's rows are not these bytes.) It also bounds the D16 arm: the log spans turns below a clamped
  *     member's history floor, and the window is what they were actually shown.
  *  2. THE HIDDEN-SPAN BELT (defense in depth). Each surviving entry is a stored body fragment the extractor may
  *     have quoted, so each runs the SAME `stripHiddenSpans` the body copy applies (§1.6 recommendation A keeps

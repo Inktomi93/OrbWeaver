@@ -4,11 +4,9 @@
 // feature-structure allowlist pre-documents).
 //
 // WHY it exists: the post-turn flush is FIRE-AND-FORGET (a background state write must NEVER turn a committed
-// reply into an abort — `engine.ts:fireRpgTurnCompleted`). With the DEDICATED state round (owner ruling
-// 2026-07-27) that flush now takes 0.8-2.9s (a real extraction/tool-round call), so a fast re-send can begin
-// ASSEMBLING the next turn's reminder BEFORE the prior flush landed — the reminder reads STALE state (the
-// race the exec confirmed live: ex2 read beats:0 while ex1's flush was in flight). This was unraceable at the
-// old 5-54ms window; the dedicated round made it real.
+// reply into an abort — `engine.ts:fireRpgTurnCompleted`). The dedicated state round makes that flush a real
+// extraction/tool-round call (0.8-2.9s), so a fast re-send can begin ASSEMBLING the next turn's reminder
+// BEFORE the prior flush landed — the reminder would read STALE state without this barrier.
 //
 // THE BARRIER: `register(chatId, flush)` records a chat's in-flight flush promise; `await awaitInFlight(chatId)`
 // (called by the gather BEFORE it builds the reminder — `chat-ops/gather.ts`) blocks the next turn's assembly
@@ -18,14 +16,14 @@
 // resolves, logs the timeout (via the injected `onTimeout`), and the turn PROCEEDS on the last-known state
 // (visible degrade, never a hung turn — the honest-arms posture).
 //
-// A SET PER CHAT, NOT LATEST-ONLY (S2 hardening): after a barrier TIMEOUT (the prior flush released the wait but
+// A SET PER CHAT, NOT LATEST-ONLY: after a barrier TIMEOUT (the prior flush released the wait but
 // is still in flight) OR a lock-free `generate` running concurrent with a locked `send`, TWO flushes can be in
 // flight on one chat at once. A latest-only slot would leave the OLDER one untracked → the gather could read
 // one-beat-staler state in that corner. Tracking a SET and awaiting ALL of them kills the corner outright: every
 // in-flight flush for a chat is waited on, each entry self-removes from the set on settle (`.finally`), and an
 // empty set is deleted so the common fast path stays a Map miss.
 //
-// IT IS ALSO THE ROUND'S CANCELLATION SCOPE (RPG-SIGNAL, 2026-08-03) — and it has to be, because the CHARACTER
+// IT IS ALSO THE ROUND'S CANCELLATION SCOPE — and it has to be, because the CHARACTER
 // TURN's own AbortSignal cannot reach the round. The timeline, measured on this tree:
 //   1. `engine.ts` commits the reply, then fires the flush FIRE-AND-FORGET (`fireRpgTurnCompleted`);
 //   2. `executeTurn` returns microseconds later; `runRegistered`'s `finally` calls `handle.release()`;
@@ -54,9 +52,7 @@
 // over an error's name+message, so an abort reason whose text contains "timeout"/"connection"/"network" would
 // classify a CANCELLED round as a retryable fault and `retry.ts` would RE-RUN it — the opposite of cancelling.
 // Re-aborting our own controller with no argument makes every cause a plain AbortError.
-// TRUTH-REPAIR 2026-08-06 (STRUCTURED-ABORT-REASON-LEAK): this header used to say the `structured` role passes
-// `req.signal` straight through, "so flattening HERE is what covers both arms". That is no longer true — every
-// role dispatch now flattens at the ONE provider seam (`infra/providers/roles/dispatch.ts::runRole`, law in
+// Every role dispatch flattens at the ONE provider seam (`infra/providers/roles/dispatch.ts::runRole`, law in
 // `backends/kit/abort-flatten.ts`), so no caller depends on this fold for classifier safety. The fold STAYS
 // regardless: this controller is the round's own cancellation SCOPE (it must exist for `cancel`), the fold is
 // how a turn abort reaches it, and flattening at both ends is free.

@@ -198,20 +198,15 @@ function boundsBefore(pos: LadderPos): { readonly turnBelow: number; readonly ha
  * `selectedVariantId` pointer encodes "visible" and "chosen", so this is a variant-pointer walk: a swipe
  * re-resolves it with zero writes.
  *
- * IT WALKS DOWN THE LINEAGE; IT USED TO INSPECT EXACTLY ONE SLOT (RPG-REWIND-STUCK, 2026-08-13). The old shape
- * read the last assistant slot, looked up its selected variant's snapshot, and returned `undefined` if there
- * wasn't one — with no descent. But a snapshot-less variant is the NORMAL case, not an edge: `chat-ops/flush.ts`
- * states outright that "a turn that staged NOTHING writes NO snapshot", and under the born-default `folded` mode
- * every beat that changes no tracked state is exactly that. So this arm went dark on most beats, and the head
- * fell through to the game-wide {@link latestSnapshot} fallback — which orders by `createdAt`, is blind to story
- * position, and applies NO slot exclusion.
- *
- * In linear play that fallback is right BY ACCIDENT (write order agrees with story order), which is why the
- * defect had no single repro. After a REWIND it is wrong in the worst possible way: swiping a beat to a quiet
- * sibling resolved the ABANDONED sibling's own snapshot — measured, with the correct row sitting committed on
- * the selected lineage one beat below, unreachable. That directly contradicts the D26/D124 promise this file's
+ * IT WALKS DOWN THE LINEAGE, NOT JUST THE LAST SLOT — a snapshot-less variant is the NORMAL case, not an
+ * edge: `chat-ops/flush.ts` states outright that "a turn that staged NOTHING writes NO snapshot", and under
+ * the born-default `folded` mode every beat that changes no tracked state is exactly that. Inspecting only
+ * the last slot would go dark on most beats and fall through to the game-wide {@link latestSnapshot}
+ * fallback — which orders by `createdAt`, is blind to story position, and applies NO slot exclusion, so
+ * after a REWIND it can resolve the ABANDONED sibling's own snapshot instead of the correct row sitting
+ * committed one beat below on the selected lineage. That would contradict the D26/D124 promise this file's
  * own header makes ("each variant's snapshot is its truth"; `db/schema/rpg.ts`: "a swipe rewinds BY
- * CONSTRUCTION"), so the walk is enforcement of recorded law, not a new policy.
+ * CONSTRUCTION"), so the descent below is enforcement of recorded law, not a new policy.
  *
  * ONE query, not a loop: `rpg_snapshots.variantId` is UNIQUE among non-null, so joining it to the slot's
  * `selectedVariantId` is 1:1 and `order by seq desc limit 1` IS the descent. A slot whose selected variant
@@ -295,12 +290,11 @@ async function ladderPosOf(db: Db, row: RpgSnapshotRow): Promise<LadderPos | und
  *  precisely the ones a new variant must not inherit (VER-1a). HAND rows carry no `messageId`, so they are
  *  never that slot's siblings and must survive the exclusion (a bare `ne` on a NULL column drops them).
  *
- *  IT IS SCOPED TO THE LIVE LINEAGE (RPG-REWIND-STUCK, 2026-08-13). This walk is ordered by `createdAt` and is
+ *  IT IS SCOPED TO THE LIVE LINEAGE. This walk is ordered by `createdAt` and is
  *  blind to story position, which is tolerable for "any state at all" — but it must never answer with a row
  *  belonging to a variant NOBODY IS LOOKING AT. Under D26 each variant's snapshot is that variant's truth, so
- *  an unselected sibling's row is the truth of prose the user navigated away from; returning it is exactly the
- *  stuck-state the lineage walk above was built to end, surviving one rung lower. Walking the lineage fixed the
- *  common shape; this closes the residue where BOTH arms are dark and the only rows left are dead variants'.
+ *  an unselected sibling's row is the truth of prose the user navigated away from; returning it would be a
+ *  stuck state where BOTH the turn and hand arms are dark and the only rows left are dead variants'.
  *  HAND rows (`variantId IS NULL`) stay eligible unconditionally — a hand write has no variant to rewind with
  *  (`db/schema/rpg.ts`), and this file's header rules that a hand row survives a swipe of any slot. */
 async function latestSnapshot(db: Db, gameId: RpgGameId, excludeMessageId?: MessageId): Promise<RpgSnapshotRow | undefined> {
@@ -362,10 +356,10 @@ export async function resolveSnapshotHead(db: Db, game: SnapshotGameRef): Promis
   if (head !== undefined) {
     return { row: head.row, arm: head.pos.hand ? "hand" : "turn", seq: head.pos.seq };
   }
-  // THE LAST RESORT, and since RPG-REWIND-STUCK it is very nearly unreachable — deliberately kept, deliberately
-  // demoted. It is POSITION-BLIND (ordered by `createdAt`, not by story seq) and applies no slot exclusion, so
-  // it must never be the answer for a game that HAS a lineage: that was the stuck-state bug, where a rewind
-  // resolved the abandoned sibling variant's row because the turn arm went dark one rung above. Now that the
+  // THE LAST RESORT, deliberately kept, deliberately demoted, and very nearly unreachable in practice. It is
+  // POSITION-BLIND (ordered by `createdAt`, not by story seq) and applies no slot exclusion, so
+  // it must never be the answer for a game that HAS a lineage — that answer risks resolving an abandoned
+  // sibling variant's row instead of the true head. Because the
   // turn arm walks the whole selected lineage, both arms come back empty only when there is genuinely nothing
   // positioned to find — a game with zero lineage rows. It can still legitimately fire there: a snapshot whose
   // slot was hard-deleted, or a row written against a variant that is no longer selected anywhere. Answering

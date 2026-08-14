@@ -12,13 +12,13 @@
 // change land in the fiction" has its referent (always on, omitted on no-change); (3) the STEERING LICENSE (the versioned constant below — values visibly shape behaviour,
 // acknowledge changes, never recite the numbers); (4) `config.lite.steeringNote` — the always-wins user slot, LAST.
 //
-// NO tool-update guidance here (owner ruling 2026-07-27): the character turn is ALWAYS tool-less prose — state
+// NO tool-update guidance here (owner ruling): the character turn is ALWAYS tool-less prose — state
 // is captured by a DEDICATED post-commit round (`runToolRound`), so this reminder never asks the
 // character turn to call a tool. The "call every applicable tool" checklist now lives in the TOOL ROUND's own
 // prompt (`toolRoundSystem`, entry/compose/rpg.ts), where the tools actually fire. This reminder injects the
 // tracked state as FLAVOR the character reacts off — steering, not writing.
 //
-// TWO SURFACES, ONE VOCABULARY (the live-turn drop, 2026-08-01): a tracker's MEANING is taught once per turn
+// TWO SURFACES, ONE VOCABULARY (the live-turn drop): a tracker's MEANING is taught once per turn
 // (`Trackers: Corruption (how corrupted someone is)`) and every reading below — party, cast, game-subject —
 // carries only `label value/max`, exactly like `attributeGloss`/`attributeReading`. The retired inline gloss
 // was READING-BOUND, so a tracker nobody had moved yet reached the model NOWHERE: the owner's pinned
@@ -27,7 +27,7 @@
 // value. LOCKED trackers read here in full (D113 #4: the reminder is the model's KNOWLEDGE, the tools are its
 // permissions — the lock filter belongs at the write-schema assembly and nowhere in this path).
 //
-// THIS FILE IS THE ONE HOME OF THE STATE-LINE GRAMMAR (the third-surface parity fix, 2026-08-01). The macro /
+// THIS FILE IS THE ONE HOME OF THE STATE-LINE GRAMMAR (the third-surface parity fix). The macro /
 // CEL feed (`chat-ops/macro-view.ts`) is a SECOND model-facing consumer of the same lines — `{{rpgSceneState}}`
 // / `{{rpgCast}}` / `{{rpgQuests}}` — and it carried its OWN cast/actor/ambient/quest builders, which had
 // silently drifted into a strict subset: no volatile plane on any carrier (hp · wallet · carrying · status ·
@@ -201,7 +201,7 @@ function conditionsSeg(conditions: RpgActorVolatile["conditions"]): string | nul
 /** The per-item ANNOTATION cap, in characters. The carrying line is a ROLL-CALL the model re-reads on EVERY
  *  turn, for every carrier, so an item's prose rides it TRUNCATED at a word boundary (`…`) rather than
  *  multiplying a party's inventory prose into the state block — the exact cost that kept `description` off the
- *  read surfaces until the owner ruled it on (2026-08-01). */
+ *  read surfaces until the owner ruled it on. */
 const RPG_ITEM_NOTE_MAX = 60;
 
 /** Trim + hard-cap one item annotation at the nearest word boundary under {@link RPG_ITEM_NOTE_MAX}. */
@@ -546,14 +546,12 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   // P4 teaches the `:::card` fence (the M3 sub-toggle picks the interactive vs static ask — the ask, never
   // the render).
   //
-  // ORDER, and why it moved (dogfood CARD-TEACH-RECENCY, 2026-08-07): teach used to sit between the delta and
-  // the license, which cost it TWICE. It broke the `delta → license` adjacency `:516-518` exists for — the
-  // license's "let the change land in the fiction" wants its referent next to it — and it buried the card
-  // teach 244-1,031+ chars from the end of the prompt (the license, the steering note, and the reconcile note
-  // `gather.ts` appends all stack after it), which is the recency position models weight least. Both
-  // complaints are satisfied by one move: the delta and the license are adjacent again, and teach lands in
-  // the last stretch before the user turn. Landed on a measured A/B, not on the argument — the argument cuts
-  // both ways (moving teach last also moves the license off the end).
+  // ORDER: teach sits AFTER the license, not between the delta and the license — the license's "let the change
+  // land in the fiction" wants its referent (the delta block) immediately before it, and teach instead lands
+  // in the last stretch before the user turn (the license, the steering note, and the reconcile note
+  // `gather.ts` appends all stack after it), which is the recency position models weight most. Landed on a
+  // measured A/B, not on the argument alone — the argument cuts both ways (moving teach last also moves the
+  // license off the end).
   blocks.push(...teachingBlocks(input));
 
   const note = renderSteeringNote(input.steeringNote, input.steerMacros);

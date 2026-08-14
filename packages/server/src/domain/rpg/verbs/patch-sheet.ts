@@ -11,9 +11,9 @@
 // FIELDS of that row are mine", and the tracker EXCEPTIONS are the one pair that differs on that second axis.
 // `trackerGrants`/`trackerRevokes` decide which meters an actor CARRIES — the applicability model the host
 // authors from the Tracker access editor ("grants are the host's call",
-// `client/features/rpg/components/rpg-tracker-grants.tsx`). Until 2026-08-07 that invariant lived only in the
-// client's PERMISSION-omit of the control, so a member could self-grant or self-revoke a meter on their own
-// `user` sheet by hand-sending the field — game integrity, not cross-tenant. The gate is now here, at the write
+// `client/features/rpg/components/rpg-tracker-grants.tsx`). The client's PERMISSION-omit of the control is not
+// itself a gate — a member could self-grant or self-revoke a meter on their own `user` sheet by hand-sending
+// the field, a game-integrity issue, not cross-tenant. The gate lives here, at the write
 // boundary, on the SAME injected `can()` seam every other rpg host answer runs through (`guard.ts`): a member
 // naming either field is REFUSED (the domain's convention for a non-member-writable plane — rpg rejects with a
 // verb-specific `DomainForbidden` sentence, it never silently strips), and every other field of the same patch
@@ -55,10 +55,9 @@ function assertAttributes(game: RpgGameRow, attributes: Readonly<Record<string, 
  * The record was a whole-record REPLACE, and the takeover's attribute cell writes exactly one key per blurred
  * cell (`patch:{attributes:{[key]:next}}`). So filling a sheet in cell by cell deleted every attribute written
  * before it, and because an absent key renders the profile's range FLOOR, the host watched a typed `20` come
- * back as `1` — the owner's live repro, and the reason the 2026-08-07 client-side optimistic patch
- * (`use-rpg-mutations.ts`) only appeared to fix it: that cache write merges key-wise and is CORRECT, so the
- * panel painted the right sheet for exactly one round-trip and then the invalidate settled onto the clobbered
- * row.
+ * back as `1`. A client-side optimistic patch (`use-rpg-mutations.ts`) only appears to fix it: that cache write
+ * merges key-wise and is CORRECT, so the panel paints the right sheet for exactly one round-trip and then the
+ * invalidate settles onto the clobbered row underneath — the server merge below is the actual fix.
  *
  * The sub-patch carries the house [merge-clear] grammar (D108): a number SETS, an omitted key KEEPS, an
  * explicit `null` CLEARS. The clear is what keeps the profile's attribute vocabulary shrinkable — `updateConfig`
@@ -100,7 +99,7 @@ function actorIds(ref: RpgActorRef): { characterId: CharacterId | null; userId: 
 
 /** Merge the MA-4 patch onto the current sheet (omit = keep). `level` uses key-presence (`"level" in patch`),
  *  NOT `??`, because a passed `null` is a REAL clear value ("clear the level") — `??` would swallow it.
- *  Hoisted so `patchSheet` stays under the cognitive-complexity gate. `maxHp` is gone with hp's demotion (R3):
+ *  Hoisted so `patchSheet` stays under the cognitive-complexity gate. `maxHp` is gone with hp's demotion:
  *  a meter's per-carrier ceiling has ONE home now, on the tracker value. */
 function mergeSheet(current: RpgSheet, patch: PatchSheetParams["patch"]): RpgSheet {
   return {
