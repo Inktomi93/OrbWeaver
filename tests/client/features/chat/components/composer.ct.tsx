@@ -52,19 +52,6 @@ test("D111: the ⋯ chat-options menu renders in the composer, LEFT of the guide
   expect(optionsBox?.x ?? 0).toBeLessThan(clusterBox?.x ?? 0);
 });
 
-test("D111: a DRAFT gets the SAME ⋯ in the same gutter (#8 — one options surface across both phases)", async ({ mount }) => {
-  const component = await mount(<ComposerStory committed={false} />);
-  await expect(component.getByRole("button", { name: "Chat options" })).toBeVisible();
-});
-
-test("Send is disabled on an empty draft", async ({ mount }) => {
-  // A DRAFT (no committed chat) — the keyboard generate arm (W-E) is committed-only, so an empty draft has
-  // nothing to send/continue/generate and Send stays disabled. (On a committed empty chat, generate-on-empty
-  // makes Send the "prompt a reply" affordance — covered by the W-E tests.)
-  const component = await mount(<ComposerStory committed={false} />);
-  await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
-});
-
 // ── #54 honest-refusal pre-send gate: SEND + the guided fire actions refuse when the connection can't serve ─
 // The composer reads `chat.checkSendAvailability` (a deterministic verdict, no turn fired). When it returns
 // `available:false`, Send disables WITH the cause-specific reason surfaced via the base-ui-disabled idiom
@@ -217,7 +204,6 @@ test("a generate-image that SUCCEEDS clears the typed prompt (clear-on-success)"
 // Now a ✨-menu item: a disabled Base UI MenuItem renders aria-disabled with its `title` reason (the
 // base-ui-disabled-menuitem-title idiom — never a tooltip wrap). Pins the reason surfaces per phase.
 const TYPE_TO_UNLOCK = /type a message/iu;
-const SEND_TO_UNLOCK = /send the first message/iu;
 
 test("#8: the generate-image item (committed, empty) is disabled with a 'type a message' reason", async ({ mount, page }) => {
   const component = await mount(<ComposerStory />); // committed by default, empty composer
@@ -225,17 +211,6 @@ test("#8: the generate-image item (committed, empty) is disabled with a 'type a 
   const generate = page.getByRole("menuitem", { name: "Generate image from text" });
   await expect(generate).toBeDisabled();
   await expect(generate).toHaveAttribute("title", TYPE_TO_UNLOCK);
-});
-
-test("#8: the generate-image item (DRAFT) names the send-first unlock (image gen needs a committed chat)", async ({ mount, page }) => {
-  const component = await mount(<ComposerStory committed={false} />);
-  const textarea = component.getByLabel("Message", { exact: true });
-  // Even WITH text, a draft can't generate — it has no chat to post into. The reason names that unlock.
-  await textarea.fill("a neon city at dusk");
-  await component.getByRole("button", UTILITY_TRIGGER).click();
-  const generate = page.getByRole("menuitem", { name: "Generate image from text" });
-  await expect(generate).toBeDisabled();
-  await expect(generate).toHaveAttribute("title", SEND_TO_UNLOCK);
 });
 
 test("wand v2: Attach images lives in the ✨ menu (image controls re-homed off the bar)", async ({ mount, page }) => {
@@ -308,26 +283,6 @@ test("committed handle: Send fires chat.send; the draft is NOT cleared until the
   // The bus confirms the user's own row committed → the composer clears.
   await component.getByTestId("drive-message-committed").click();
   await expect(textarea).toHaveValue("");
-});
-
-test("draft handle: Send lazily starts the chat, then commits the typed text as its first send", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, {
-    "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: null }),
-    "chat.send": () => ({ ok: true }),
-  });
-  const component = await mount(<ComposerStory committed={false} />);
-
-  await component.getByLabel("Message", { exact: true }).fill("First message");
-  await component.getByRole("button", { name: "Send message" }).click();
-
-  await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
-  await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
-  await expect
-    .poll(() => trpc.lastInput("chat.send"))
-    .toMatchObject({
-      chatId: COMPOSER_CHAT_ID,
-      content: "First message",
-    });
 });
 
 test("Stop shows 'stopping' immediately on click and fires chat.abort; the button stays in the Stop family (never reverts to Send) until turnAborted lands", async ({
@@ -437,28 +392,6 @@ const PNG_1PX = Buffer.from(PNG_1PX_BASE64, "base64");
 // validates the prefix + base32 suffix — a bogus string would throw at the boundary).
 
 const STUB_ASSET_ID = "asset_01h455vb4pex5vsknk084sn02q";
-
-test("picking an image shows a removable preview and enables Send on an empty draft", async ({ mount, page }) => {
-  // The attach control is now inside the ✨ menu (wand v2) — open it, then set files on the portalled dropzone
-  // input (the FileDropzone's `closeOnClick={false}` keeps the menu open through the OS picker).
-  const component = await mount(<ComposerStory committed={false} />);
-  // Empty draft → Send disabled to start.
-  await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
-
-  await component.getByRole("button", UTILITY_TRIGGER).click();
-  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
-
-  // The pending preview appears and an attachment-only draft is now sendable.
-  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
-  await expect(component.getByRole("button", { name: "Send message" })).toBeEnabled();
-
-  // Close the ✨ menu (it stayed open through the picker) before touching the preview strip below it.
-  await page.keyboard.press("Escape");
-  // Remove-before-send drops the preview and re-disables Send.
-  await component.getByRole("button", { name: REMOVE_BTN }).click();
-  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
-});
 
 test("sending with an attachment uploads it to CAS and includes the asset id on chat.send", async ({ mount, page }) => {
   // Stub the raw multipart upload route (not tRPC) → returns a StoredAsset.
@@ -592,4 +525,23 @@ test("generateOnEmptySend OFF: an empty Send on a USER tail is a no-op (Send dis
   // Nothing to send/continue/generate → Send stays disabled; the ▷ Response icon remains the explicit path.
   await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(0);
+});
+
+// The attach control lives inside the ✨ menu (wand v2) — open it, then set files on the portalled dropzone
+// input (the FileDropzone's `closeOnClick={false}` keeps the menu open through the OS picker).
+test("picking an image shows a removable preview and makes an attachment-only message sendable", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />);
+
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
+
+  // The pending preview appears and a text-less message is now sendable on its attachment alone.
+  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Send message" })).toBeEnabled();
+
+  // Close the ✨ menu (it stayed open through the picker) before touching the preview strip below it.
+  await page.keyboard.press("Escape");
+  // Remove-before-send drops the preview.
+  await component.getByRole("button", { name: REMOVE_BTN }).click();
+  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(0);
 });

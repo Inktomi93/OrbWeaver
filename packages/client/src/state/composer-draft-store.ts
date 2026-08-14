@@ -2,7 +2,13 @@
 // ChatRoomSurface-local `useState` into chat-scoped client state so it survives a surface remount
 // (draft-loss on remount is a real papercut). The draft is ephemeral client state, never a server value —
 // chat owns the read (Composer `value`/`onChange`) + the send-clear (an empty `onChange("")`). Keyed by a
-// stable per-room SCOPE KEY (a committed chat's `ChatId`, or a draft's `draftKey`); an unseen scope reads "".
+// stable per-room SCOPE KEY — the room's `ChatId`, always, since a chat row exists from the creation click
+// (chat-creation-draft-mode-replacement.md §4.1). It used to also accept a client-minted `draftKey`, and
+// `migrateComposerDraft` carried the text across the draftKey→ChatId flip at commit. BOTH ARE GONE, and the
+// §2.7 collision goes with them BY CONSTRUCTION: the draftKey was a MODULE COUNTER that reset on reload while
+// this store persisted under it, so the first fresh room of a session inherited the previous session's unsent
+// text (reproduced live, 2026-08-14 — new-chat-picker-surface.ct.tsx pins it). A ChatId cannot collide.
+// An unseen scope reads "".
 //
 // IT NOW SURVIVES A RELOAD (owner pick, 2026-08-09). This header used to say "Not persisted (an unsent
 // draft is transient; matches the prior local state)" — the ruling is superseded, and only for the reload
@@ -65,17 +71,10 @@ export function setComposerDraft(scopeKey: string, text: string): void {
   useComposerDraftStore.setState({ drafts: next }, false, "composerDraft/set");
 }
 
-/** Move a draft from one scope key to another (draft→committed promotion keeps the in-flight text visible
- *  across the `draftKey → ChatId` key flip — the send is optimistic and the row may not have cleared yet). */
-export function migrateComposerDraft(fromScopeKey: string, toScopeKey: string): void {
-  const { drafts } = useComposerDraftStore.getState();
-  const text = drafts[fromScopeKey];
-  if (text === undefined) {
-    return;
-  }
-  const next: Record<string, string> = { ...drafts, [toScopeKey]: text };
-  delete next[fromScopeKey];
-  useComposerDraftStore.setState({ drafts: next }, false, "composerDraft/migrate");
+/** Non-reactive snapshot of one room's draft text (the husk-reap skip reads it outside a render; `""` when
+ *  unset). The reactive `useComposerDraft` is what a surface uses. */
+export function readComposerDraft(scopeKey: string): string {
+  return useComposerDraftStore.getState().drafts[scopeKey] ?? "";
 }
 
 /** Reactive: a room's current draft text (defaults to "" when unset). */

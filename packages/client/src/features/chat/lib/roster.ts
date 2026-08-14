@@ -77,14 +77,3 @@ export function membersTabJustified(participants: readonly ParticipantView[], mu
   const peopleJustifies = multiHumanCapable && (isHost || humans >= PEOPLE_TAB_FLOOR);
   return peopleJustifies || castSectionVisible(participants);
 }
-
-/** The DRAFT twin of {@link membersTabJustified} — the pre-send room has no roster rows, so the predicate
- *  reads the founding CAST instead. The People arm cannot apply (nobody can be invited into a chat that
- *  does not exist yet), so this is the cast floor alone, the same one `castSectionVisible` uses.
- *
- *  ONE HOME because it now gates TWO coupled sites: the Members context tab's `when` (chats-section.tsx)
- *  and the topbar roster CHIP, which is that tab's only doorway. Split, the chip becomes a dead link on a
- *  solo draft — a control that opens a tab the panel is hiding. */
-export function draftMembersTabJustified(cast: readonly CharacterId[]): boolean {
-  return cast.length >= CAST_SECTION_FLOOR;
-}

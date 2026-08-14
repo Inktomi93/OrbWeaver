@@ -1,19 +1,19 @@
-// The composer's Send: branches on the ChatHandle discriminant, never an ambient isOptimistic boolean.
-// A committed chat fires `send` directly; a draft lazily creates the chat (startChat) then commits the
-// typed text as its first send. Stop/streaming state reads from useTurnPhase, never from isPending here
-// — the send mutation's promise stays open for the whole turn, not just the user row's commit.
+// The composer's Send: fires `chat.send` against the room's real chat row. Stop/streaming state reads from
+// useTurnPhase, never from isPending here — the send mutation's promise stays open for the whole turn, not
+// just the user row's commit.
+//
+// IT NO LONGER CREATES ANYTHING (chat-creation-draft-mode-replacement.md §4.1, R1). This hook used to carry
+// the draft→committed COMMIT PATH: a first send lazily called `chat.startChat` with a nine-field carry of
+// pre-send config (`resolveDraftCommit`), then sent into the room it had just minted. That path is gone —
+// the room exists from the creation click, so a send is a send. Two whole failure classes go with it: the
+// scope-key flip mid-send (the "first send doesn't clear the composer" bug) and the double-mint on a retry.
 
 import type { UserIntent } from "@orb/contracts/preset";
-import type { AssetId, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { AssetId, ChatId } from "@orb/kit/ids";
 import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC, useUploadAsset } from "#data";
-import type { ChatHandle, DraftSeed } from "#state";
-import { clearDraftConfig, isCommitted, subscribeUserMessageCommitted } from "#state";
-import type { DraftCarry } from "../lib/draft-commit.ts";
-import { resolveDraftCommit } from "../lib/draft-commit.ts";
+import { subscribeUserMessageCommitted } from "#state";
 import { isSilencedTurnAbort } from "../lib/turn-abort-notice.ts";
-
-export type { DraftSeed } from "#state";
 
 interface SendVars {
   readonly chatId: ChatId;
@@ -31,28 +31,9 @@ const useSendMutation = createEntityMutation<SendVars, unknown>({
   errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't send your message."),
 });
 
-interface StartChatVars extends DraftCarry {
-  // Mutable to match the wire schema's inferred array type under exactOptionalPropertyTypes.
-  characterIds: CharacterId[];
-  anchorPersonaId?: PersonaId | null | undefined;
-  title?: string | null | undefined;
-}
-
-interface StartChatResult {
-  readonly chat: { readonly id: ChatId };
-}
-
-const useStartChatMutation = createEntityMutation<StartChatVars, StartChatResult>({
-  options: (trpc) => trpc.chat.startChat.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't start the chat.",
-});
-
 export interface UseSendMessageOptions {
-  readonly handle: ChatHandle;
-  readonly draftSeed?: DraftSeed | undefined;
+  readonly chatId: ChatId;
   readonly intent?: Partial<UserIntent> | undefined;
-  readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
   /** Fires once the bus confirms the caller's own user row committed — the composer clears its draft
    *  here, never optimistically on submit, so a failed send leaves the draft intact for retry. */
   readonly onDraftCommitted?: (() => void) | undefined;
@@ -78,7 +59,6 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   const invalidation = useInvalidation();
   const upload = useUploadAsset();
   const sendMutation = useSendMutation({ trpc, invalidation });
-  const startChatMutation = useStartChatMutation({ trpc, invalidation });
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -88,33 +68,17 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   // messageCommitted, so onDraftCommitted never runs and the draft survives for retry untouched.
   const runSend = async (trimmed: string, attachments: readonly File[]): Promise<void> => {
     const attachmentAssetIds = await uploadAttachments(upload, attachments);
-    let committedChatId: ChatId | null = isCommitted(opts.handle) ? opts.handle.id : null;
-    let unsubscribe: (() => void) | null = null;
+    const unsubscribe = subscribeUserMessageCommitted(opts.chatId, () => opts.onDraftCommitted?.());
     try {
-      if (committedChatId === null) {
-        const { draftKey, characterIds, carry } = resolveDraftCommit(opts.handle, opts.draftSeed);
-        const result = await startChatMutation.mutateAsync({
-          characterIds,
-          anchorPersonaId: opts.draftSeed?.anchorPersonaId ?? null,
-          title: opts.draftSeed?.title ?? null,
-          ...carry,
-        });
-        committedChatId = result.chat.id;
-        opts.onCommitted?.(committedChatId);
-        if (draftKey !== null) {
-          clearDraftConfig(draftKey);
-        }
-      }
-      unsubscribe = subscribeUserMessageCommitted(committedChatId, () => opts.onDraftCommitted?.());
       const hasIntent = opts.intent !== undefined && Object.keys(opts.intent).length > 0;
       await sendMutation.mutateAsync({
-        chatId: committedChatId,
+        chatId: opts.chatId,
         content: trimmed,
         ...(hasIntent ? { intent: opts.intent } : {}),
         ...(attachmentAssetIds.length > 0 ? { attachmentAssetIds } : {}),
       });
     } finally {
-      unsubscribe?.();
+      unsubscribe();
     }
   };
 

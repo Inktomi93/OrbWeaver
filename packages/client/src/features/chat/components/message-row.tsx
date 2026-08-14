@@ -22,7 +22,6 @@ import { isNarratorVoiced, resolveRowAttribution, speakerThemesByName } from "..
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
-import type { GreetingBinding } from "../lib/synth-greeting-row.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
 import {
@@ -67,9 +66,6 @@ export interface MessageRowProps {
    *  resolved once by the surface, folded into this row's render policy. Absent ⇒ off. */
   readonly lenientHtmlCards?: boolean | undefined;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
-  /** Present ⇒ this row is a pre-commit draft greeting: Edit/Swipe route to the greeting card, and
-   *  Fork/Delete/Hide are suppressed (no server row). Body/attribution render identically to committed. */
-  readonly greeting?: GreetingBinding | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
   /** D121-E/F1: the VIEWER's own enabled DISPLAY-placement scripts, resolved ONCE by the list surface
    *  (never per row — one query, N rows). Absent ⇒ the display leg is a no-op, exactly as before. */
@@ -98,11 +94,10 @@ export interface MessageRowProps {
   /** True only when this mount is a genuinely-new arrival, never "the row mounted" (a windowed row
    *  remounts on scrollback). Latched at mount by `useEnterMotion`. */
   readonly enterMotion?: boolean;
-  /** The §6c/M8 message-footer seam — omitted for a pre-commit draft-greeting row (no server row to
-   *  attach a footer to); the committed transcript always supplies it. */
+  /** The §6c/M8 message-footer seam; absent ⇒ no footer. */
   readonly surfaceContributors?: ContributorRegistry<ChatSurfaceContribution> | undefined;
-  /** The §6c per-tool-name renderer registry — omitted for a pre-commit draft-greeting row (it has no
-   *  persisted tool records); absent ⇒ every record renders through the generic `ToolCallBlock`. */
+  /** The §6c per-tool-name renderer registry; absent ⇒ every record renders through the generic
+   *  `ToolCallBlock`. */
   readonly toolRenderers?: ContributorRegistry<ToolRenderer> | undefined;
 }
 
@@ -149,7 +144,6 @@ export function MessageRow({
   viewerUserId,
   lenientHtmlCards,
   onChatForked,
-  greeting,
   autoFixMarkdown,
   displayScripts,
   colorQuotedSpeech,
@@ -218,7 +212,6 @@ export function MessageRow({
   const content = resolveRowContent({
     editing,
     message,
-    greeting,
     trainParagraphs,
     render,
     renderContext,
@@ -282,7 +275,6 @@ export function MessageRow({
               {renderRowActions({
                 editing,
                 selecting,
-                greeting,
                 message,
                 onChatForked,
                 messageActions,
@@ -306,7 +298,7 @@ export function MessageRow({
             })}
             {editing ? null : <MessageToolCalls records={message.toolCalls} renderers={toolRenderers} />}
             {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} />}
-            {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
+            {renderRowSwipe({ editing, showSwipes, role, message })}
             {footerContributions.length === 0 ? null : (
               <Stack gap="field" data-slot="message-footer">
                 {footerContributions.map((c) => (

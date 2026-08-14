@@ -15,7 +15,6 @@ export { ChatsWithCharacterPane } from "./components/chats-with-character-pane.t
 export type { ComposerProps } from "./components/composer.tsx";
 export { Composer } from "./components/composer.tsx";
 export type {
-  DraftSeed,
   UseSendMessageOptions,
   UseSendMessageResult,
 } from "./hooks/use-send-message.ts";

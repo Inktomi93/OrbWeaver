@@ -159,7 +159,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
           {lightbox === null ? null : (
             <Stack gap="block" className="min-h-0">
               <DialogTitle>Gallery image</DialogTitle>
-              <Stack className="min-h-0 flex-1 overflow-y-auto">
+              <Stack className="relative min-h-0 flex-1 overflow-y-auto">
                 <CrossfadeImage src={blobUrl(lightbox.hash)} alt="Gallery image" aspectRatio={1} fit="contain" className="max-h-96" />
               </Stack>
               <Row justify="between" align="center" gap="row" className="shrink-0">

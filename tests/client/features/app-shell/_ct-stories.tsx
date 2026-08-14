@@ -30,10 +30,8 @@ import {
   selectCollectionMember,
   selectCorpusCharacter,
   selectDocumentFromList,
-  startNewChat,
   useSectionListIsScreen,
 } from "@orb/client/state";
-import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings, Users } from "@orb/ui/icons";
@@ -253,25 +251,6 @@ export function AppShellDropGuardStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtFakeSectionRegistry sections={{ chats: { content: <DropZonePane /> } }}>
-        <LandOn section="chats" />
-        <AppShell />
-      </CtFakeSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The shell over an ACTIVE PRE-SEND DRAFT seeded with a founding cast (`startNewChat`, the exact action
- *  the new-chat picker fires) — the BG-C draft-parity CT's mount. `characterIds` is threaded so one story
- *  covers the solo arm (one card takes the room over), the group arm (no arbitrary pick) and the blank arm
- *  (nothing carried); the .ct.tsx stubs `character.get` with the card each arm needs. No chat is ever
- *  committed, so this is the shell's view of a chat that has no server row at all. */
-export function AppShellDraftBackgroundStory({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
-  useEffect(() => {
-    startNewChat({ characterIds });
-  }, [characterIds]);
-  return (
-    <CtDataProviders>
-      <CtFakeSectionRegistry sections={{ chats: { content: <p>chats content pane</p> } }}>
         <LandOn section="chats" />
         <AppShell />
       </CtFakeSectionRegistry>

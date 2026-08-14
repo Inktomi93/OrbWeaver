@@ -1,14 +1,21 @@
 // The message-list surface: composes canon (`MessagesPage`) + roster (`chat.getChat`) via a plural
-// `useSuspenseQueries` (parallel, avoids a request waterfall), gated on the ChatHandle discriminant so
-// a draft never mounts the query. Merges canon + the streaming ghost into one id-keyed list and
-// subscribes only to lifecycle (`useTurnPhase`) — token text stays inside the one ghost row, so a delta
-// never re-renders the list. A draft has no committed chatId; `DraftGreetingThread` renders each
-// founding character's greeting as a normal, editable `MessageRow` instead of an empty state.
+// `useSuspenseQueries` (parallel, avoids a request waterfall). Merges canon + the streaming ghost into one
+// id-keyed list and subscribes only to lifecycle (`useTurnPhase`) — token text stays inside the one ghost
+// row, so a delta never re-renders the list.
+//
+// ONE THREAD (chat-creation-draft-mode-replacement.md §4.1/§4.8, R1). There used to be a second one:
+// `DraftGreetingThread` fabricated a `MessageView` per founding character (`synthGreetingRow`) because a
+// pre-send room had no canon to read, and it carried its own macro producers — including a CLIENT MIRROR of
+// the server's four-rung anchor-persona chain, fed by three extra queries, kept in lockstep by comment only.
+// A chat row exists from the creation click, so the greeting rows are REAL canon from frame one and they
+// render through the ONE committed thread over the ONE roster plane. The censused group-tint divergence (a
+// draft row had no `participants` plane, so its per-speaker tints differed from the committed room's) is not
+// fixed here — it is UNREACHABLE, which is the better outcome.
 
 import type { CastEntry, ContextFitPreview, MessageKind } from "@orb/contracts/chat";
 import { buildCastAvatarMaps, buildCastNameContext, castKey } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
@@ -20,8 +27,7 @@ import type { ChatBusDeps } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { useFocusOnMount } from "#lib";
-import type { ChatHandle, DraftSeed } from "#state";
-import { isCommitted, isLiveTurnPhase, resolveDraftCharacterIds, useDraftConfig, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
+import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
@@ -32,77 +38,36 @@ import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
-import { resolveDraftAnchorPersona } from "../lib/draft-commit.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
-import { synthGreetingRow } from "../lib/synth-greeting-row.ts";
 
 /** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
 const ESTIMATED_ROW_PX = 96;
 
-/** The founding-cast size the server's connected-persona anchor rung is gated on (`verbs/start-chat.ts`). */
-const SOLO_FOUNDING_CAST = 1;
-
 export interface MessageListSurfaceProps {
-  readonly handle: ChatHandle;
+  readonly chatId: ChatId;
   readonly busDeps: ChatBusDeps;
-  /** A draft renders each founding character's greeting as a normal message row from this seed. */
-  readonly draftSeed?: DraftSeed | undefined;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
 
-/** The scrolling chat transcript for one chat (or a draft's editable greeting preview). */
-export function MessageListSurface({ handle, busDeps, draftSeed, onChatForked, surfaceContributors, toolRenderers }: MessageListSurfaceProps): ReactElement {
+/** The scrolling chat transcript for one chat. */
+export function MessageListSurface({ chatId, busDeps, onChatForked, surfaceContributors, toolRenderers }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
-  const chatId = isCommitted(handle) ? handle.id : null;
   useChatBus(chatId, busDeps);
   const chatStyle = useChatStyle();
-  // Reactive (unlike `resolveDraftCommit`'s commit-time snapshot): a panel-added character must show its
-  // greeting row the instant it's added, not just after commit — same union the commit will write.
-  const draftKey = handle.kind === "draft" ? handle.draftKey : "";
-  const draftConfig = useDraftConfig(draftKey);
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 w-full outline-none">
-      {((): ReactElement => {
-        if (chatId === null) {
-          const characterIds = handle.kind === "draft" ? resolveDraftCharacterIds(draftSeed?.characterIds, draftConfig.addedCharacterIds) : [];
-          if (handle.kind !== "draft" || characterIds.length === 0) {
-            return <EmptyThread />;
-          }
-          return (
-            <QueryBoundary
-              fallback={<SkeletonRows count={3} />}
-              renderError={(_error, retry): ReactElement => <QueryErrorState label="this conversation" onRetry={retry} />}
-            >
-              <DraftGreetingThread
-                draftKey={handle.draftKey}
-                characterIds={characterIds}
-                chatStyle={chatStyle}
-                seedAnchorPersonaId={draftSeed?.anchorPersonaId ?? null}
-              />
-            </QueryBoundary>
-          );
-        }
-        return (
-          <QueryBoundary
-            fallback={<SkeletonRows count={3} />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="this conversation" onRetry={retry} />}
-          >
-            <ChatThread
-              chatId={chatId}
-              chatStyle={chatStyle}
-              onChatForked={onChatForked}
-              surfaceContributors={surfaceContributors}
-              toolRenderers={toolRenderers}
-            />
-          </QueryBoundary>
-        );
-      })()}
+      <QueryBoundary
+        fallback={<SkeletonRows count={3} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="this conversation" onRetry={retry} />}
+      >
+        <ChatThread chatId={chatId} chatStyle={chatStyle} onChatForked={onChatForked} surfaceContributors={surfaceContributors} toolRenderers={toolRenderers} />
+      </QueryBoundary>
     </Stack>
   );
 }
@@ -310,132 +275,12 @@ function contextFitLabel(fit: ContextFitPreview): string {
   return fit.ceilingEstimated ? `${fit.usedTokens} used · window unknown · ${reserved}` : `${fit.usedTokens} of ${fit.ceilingTokens} used · ${reserved}`;
 }
 
-interface DraftGreetingThreadProps {
-  readonly draftKey: string;
-  readonly characterIds: readonly CharacterId[];
-  readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
-  /** The draft seed's explicit anchor pin (rung 1 of the anchor chain); null ⇒ predict it like the commit will. */
-  readonly seedAnchorPersonaId: PersonaId | null;
-}
-
-/** A draft's editable greeting preview — one MessageRow per founding character, in greet-all order.
- *
- *  The row renders through the SAME `MessageRow` → `MessageContent` → display pipeline a committed row
- *  does, so it must also be fed the same MACRO producers: the founding cards supply `{{char}}`, and the
- *  viewer's owned personas + the predicted anchor (`resolveDraftAnchorPersona`) supply `{{user}}`/
- *  `{{persona}}` — otherwise the greeting reads "User" before send and the persona's name after, for one
- *  unchanged string.
- *
- *  ⚠️ THIS COMMENT'S OLD CLAUSE WAS HALF WRONG, and the half that was wrong shipped a real defect (owner
- *  dogfood 2026-08-06). It read: "render trust AND a character's authored theme are resolved at
- *  roster-build time … so a draft honestly renders at the untrusted floor with the deterministic hash
- *  tint." The TRUST half stands and is deliberate — `RenderPolicy` is a server verdict and a client must
- *  never fabricate one, so a draft still renders at the untrusted floor (the standing DRAFT-TRUST item).
- *  The THEME half was not a policy at all, just a consequence of the room chrome being wired to the
- *  roster: a card's `themeOverride`/`backgroundOverride` is card DATA the client already holds off
- *  `character.get`, it is clamped at the DOM boundary by `clampThemeTokens` exactly as the committed path
- *  is, and gating it on a chat row is what made a new room re-skin itself at the first send. The ROOM-level
- *  takeover (theme + background) is now resolved from the phase-independent `CarriedAppearanceCast`.
- *  What is still absent here is only the PER-ROW `participants` plane, so a draft row keeps its
- *  deterministic hash tint — in a solo room the room scope makes that invisible; in a GROUP draft the
- *  per-speaker tints still differ from the committed room's. That divergence is unfixed and censused. */
-function DraftGreetingThread({ draftKey, characterIds, chatStyle, seedAnchorPersonaId }: DraftGreetingThreadProps): ReactElement {
-  const trpc = useTRPC();
-  const draftConfig = useDraftConfig(draftKey);
-  const messageAppearance = useMessageAppearance();
-  const characters = useSuspenseQueries({
-    queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })),
-  });
-  const [{ data: personas }, { data: settings }] = useSuspenseQueries({
-    queries: [trpc.persona.list.queryOptions(), trpc.settings.getUserSettings.queryOptions()],
-  });
-  // The connected-persona rung is gated on a SOLO founding cast server-side — a group founding never reads
-  // connections, so it never issues the query either.
-  const soloFounding = characterIds.length === SOLO_FOUNDING_CAST ? characterIds : [];
-  const connected = useSuspenseQueries({
-    queries: soloFounding.map((characterId) => trpc.persona.listConnectedToCharacter.queryOptions({ characterId })),
-  });
-  const anchorPersonaId = resolveDraftAnchorPersona({
-    seedAnchorPersonaId,
-    ownedPersonaIds: personas.map((p) => p.id),
-    connectedPersonaIds: connected[0]?.data.map((p) => p.id) ?? [],
-    currentPersonaId: settings.config.seeds.currentPersonaId,
-    defaultPersonaId: settings.config.seeds.defaultPersonaId,
-  });
-  // DRAFT-PHASE CAST — built from the fetched cards + the viewer's personas (a draft has no committed
-  // chat, so no wire producer exists yet); same entry shape, same projections, so the greeting preview
-  // resolves through the identical path a committed row does.
-  //
-  // The avatar half — verified root cause, and it is NOT a missing data thread. `resolveAssistantAttribution`
-  // takes a row's portrait from the live `participants` (a draft has none — nothing is seated yet) and falls
-  // back to the character avatar map, which this thread once never passed: it built the NAME producer off the
-  // fetched cards and stopped there, so every draft greeting rendered its initials while the topbar — reading
-  // the SAME `character.get` payload two components away — showed the portrait. Self-healing on commit is the
-  // roster arriving, not a race. The hashes are already in hand, off the same query.
-  const draftCast: readonly CastEntry[] = [
-    ...characters.map((c): CastEntry => ({ kind: "character", id: c.data.id, name: c.data.name, avatarHash: c.data.avatarHash })),
-    ...personas.map((p): CastEntry => ({ kind: "persona", id: p.id, name: p.name, description: p.description, avatarHash: p.avatarHash })),
-  ];
-  const { characterNamesById, personaNamesById } = buildCastNameContext(draftCast);
-  const { characterAvatarsById } = buildCastAvatarMaps(draftCast);
-  // The draft-greeting preview renders through the same display leg as a committed row, so a viewer's
-  // DISPLAY script transforms the greeting they are about to pick too (one render path, one answer).
-  const displayScripts = useDisplayScripts(null);
-
-  const rows = characters.flatMap((c, i) => {
-    const character = c.data;
-    const shown = draftConfig.greetings?.[character.id] ?? character.greetings[0] ?? "";
-    const text = typeof shown === "string" ? shown : shown.text;
-    return text.length === 0 ? [] : [{ character, row: synthGreetingRow(character.id, text, i) }];
-  });
-
-  if (rows.length === 0) {
-    return <DraftGreetingEmpty names={characters.map((c) => c.data.name)} />;
-  }
-  return (
-    <Stack gap="block" padding="section" className="h-full overflow-y-auto">
-      {rows.map(({ character, row }) => (
-        <MessageRow
-          key={character.id}
-          message={row}
-          chatStyle={chatStyle}
-          avatarSize={messageAppearance.avatarSize}
-          avatarShape={messageAppearance.avatarShape}
-          avatarAspect={messageAppearance.avatarAspect}
-          avatarRing={messageAppearance.avatarRing}
-          showInChatAvatars={messageAppearance.showInChatAvatars}
-          autoFixMarkdown={messageAppearance.autoFixMarkdown}
-          displayScripts={displayScripts}
-          colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
-          messageActions={messageAppearance.messageActions}
-          characterNamesById={characterNamesById}
-          characterAvatarsById={characterAvatarsById}
-          personaNamesById={personaNamesById}
-          anchorPersonaId={anchorPersonaId}
-          greeting={{ draftKey, characterId: character.id, variants: character.greetings.map((g) => (typeof g === "string" ? g : g.text)) }}
-        />
-      ))}
-    </Stack>
-  );
-}
-
-/** A characterful draft whose cast has no opening yet — the composer below is the next step (§4.3 rule 1). */
-function DraftGreetingEmpty({ names }: { readonly names: readonly string[] }): ReactElement {
-  const label = names.filter((n) => n.length > 0).join(", ");
+/** The empty-transcript state — a room whose opening policy seeded nothing, before its first turn. */
+function EmptyThread(): ReactElement {
   return (
     <Stack align="center" justify="center" padding="section" className="h-full">
       {/* An empty state stays READABLE PROSE — the prose default, not a muted gloss (density S3 ruling):
           the one line standing in for a whole transcript is the last thing that should recede. */}
-      <Text>{label.length > 0 ? `Say hello to ${label} to begin the scene.` : "No messages yet."}</Text>
-    </Stack>
-  );
-}
-
-/** The empty-transcript state (a draft, or a committed chat with no messages). */
-function EmptyThread(): ReactElement {
-  return (
-    <Stack align="center" justify="center" padding="section" className="h-full">
-      {/* Readable prose, not a gloss — see DraftGreetingEmpty above (density S3 ruling). */}
       <Text>No messages yet.</Text>
     </Stack>
   );

@@ -1,5 +1,5 @@
 // The active chat's identity — reused across TWO shell surfaces from one cluster:
-//  · the topbar LEAD (`ChatHeaderSurface` / `DraftChatHeader`): lead avatar/AvatarStack, title, and the
+//  · the topbar LEAD (`ChatHeaderSurface`): lead avatar/AvatarStack, title, and the
 //    member-count chip (entry-only — always opens the Context panel on Members). The chat-options ⋯ is NOT
 //    here and no longer in the trail either: D111's drawn control map homes it in the COMPOSER's left
 //    gutter (`composer-chat-options.tsx`, owner ruling 2026-08-09), and the trail widget was removed with
@@ -12,7 +12,7 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { AvatarStack } from "@orb/ui/avatar-stack";
@@ -21,16 +21,14 @@ import { Icon, Users } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Separator } from "@orb/ui/separator";
-import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useAuthConfig, useDraftCastCards, useTRPC } from "#data";
+import { useAuthConfig, useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
 import { deriveChatTitle, testId } from "#lib";
 import { revealContextPanel } from "#state";
-import { draftChatTitle } from "../lib/chat-summary-row.ts";
-import { draftMembersTabJustified, filterCharacters, membersTabJustified } from "../lib/roster.ts";
+import { filterCharacters, membersTabJustified } from "../lib/roster.ts";
 import { AddMemberPopover } from "./add-member-popover.tsx";
 
 export interface ChatHeaderSurfaceProps {
@@ -111,7 +109,7 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
   );
 }
 
-/** The roster CHIP itself — the `Users` glyph + the seat count, one spelling for both chat phases. Its
+/** The roster CHIP itself — the `Users` glyph + the seat count. Its
  *  accessible name carries the count (the visible digit is `aria-hidden`, so the name is the only place a
  *  screen reader learns the number). */
 function RosterChipButton({ count, onClick }: { readonly count: number; readonly onClick?: (() => void) | undefined }): ReactElement {
@@ -132,7 +130,7 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
   );
 }
 
-/** Open the Members context tab — the roster chip's action in a GROUP room, both phases. Entry-only: it
+/** Open the Members context tab — the roster chip's action in a GROUP room. Entry-only: it
  *  never toggles closed (the collapse affordance is the context header's own control, D66 §2). */
 function openMembersTab(): void {
   revealContextPanel("members" satisfies ChatContextTabId);
@@ -253,106 +251,9 @@ function CastAvatars({ cast }: { readonly cast: readonly CharacterParticipant[] 
 // The CONTEXT-panel band identity (`ChatContextHeader`, north-star §4 N4/P4) was DELETED with CP-1's
 // header de-dup (the topbar owns identity; the band reduces to neutral chrome — Context-Panel-Program.md
 // §1 Q3). CP-4's scene banner is a NEW component, not a resurrection — git history holds the old one.
-
-export interface DraftChatHeaderProps {
-  readonly characterIds: readonly CharacterId[];
-}
-
-/** A pre-send draft's human seats: the viewer, alone. Nobody can be invited into a chat that has no row
- *  yet, so the count the chip shows is `1 + cast` — the same arithmetic the committed room's present-seat
- *  count produces for the room this draft becomes (a solo draft and its committed twin both read 2). */
-const DRAFT_VIEWER_SEATS = 1;
-
-/**
- * The draft identity (topbar LEAD): the founding cast's avatar(s), the room's title, and the roster chip.
- *
- * It says the SAME thing about the same concept as its committed twin (§13 one-home), which it did not
- * before: a GROUP draft was titled after `cast[0]` alone and carried no seat count, so a Hana + Kohaku
- * draft read "Hana Mizushima" and the second character was discoverable only by scrolling to their
- * greeting (side-eye P2, 2026-08-06). The title now runs through the SAME `deriveChatTitle` the committed
- * header uses — a draft carries no stored title, so it always resolves to the joined cast names.
- *
- * The chip renders only where a draft HAS a Members tab to open (`draftMembersTabJustified`, the shared
- * predicate the tab's own `when` reads) — below that floor it would be a control that opens a tab the
- * panel is hiding. A SOLO draft therefore still lacks the chip its committed twin shows; that residue is
- * reported, not papered over with a second roster surface.
- *
- * No options menu: that lives in the composer's left gutter (`composer-chat-options.tsx`), which serves
- * both phases — a draft renders the same menu with the not-yet-available actions disabled.
- */
-export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactElement {
-  // LIST-FIRST (side-eye 2026-08-07 §④ P2). This read N cold `character.get` queries, while the picker the
-  // user had just come through resolved the same cards through `character.list` one frame earlier — so a
-  // brand-new draft's topbar spent ~2s reading "? | ? | ? | New chat" and then snapped correct. That first
-  // frame is the worst possible one for a room the user just deliberately composed, and it made three
-  // separately-landed fixes (title, theme, background) all look broken at once.
-  const cards = useDraftCastCards(characterIds);
-  const cast = cards.map((card, index) => ({
-    // The founding id is the seat's identity BEFORE its card resolves — which is what lets the loading
-    // placeholders carry a real key instead of an array index.
-    id: characterIds[index] ?? "",
-    name: card?.name ?? "",
-    avatarHash: card?.avatarHash ?? null,
-    // AN UNRESOLVED SEAT IS LOADING, NOT AN ERROR. `initialsFor("")` renders a literal "?" — which cold-read
-    // is a failure glyph, not a spinner, and it was on screen for the whole placebo window.
-    resolved: card !== undefined,
-  }));
-  // `draftChatTitle` (lib/chat-summary-row.ts) owns the whole rule — the cast join, the un-landed-name drop
-  // and the "New chat" fallback — because the MOBILE topbar prints the same statement and had invented its
-  // own (side-eye 2026-08-07 finding 1: it read `cast[0]` and titled a three-hander after one person).
-  const title = draftChatTitle(cast.map((c) => c.name));
-  return (
-    <Row gap="row" align="center" className="min-w-0">
-      <ChatIdentityCluster avatars={<DraftCastAvatars cast={cast} />} title={title} />
-      {draftMembersTabJustified(characterIds) ? <RosterChipButton count={DRAFT_VIEWER_SEATS + characterIds.length} onClick={openMembersTab} /> : null}
-    </Row>
-  );
-}
-
-/** One draft seat as the topbar sees it — `resolved: false` is the LOADING arm (skeleton), never a "?". */
-interface DraftCastSeat {
-  /** The founding character id — the seat's identity before its card lands. */
-  readonly id: string;
-  readonly name: string;
-  readonly avatarHash: string | null;
-  readonly resolved: boolean;
-}
-
-function DraftCastAvatars({ cast }: { readonly cast: readonly DraftCastSeat[] }): ReactElement | null {
-  if (cast.length === 0) {
-    return null;
-  }
-  // WHILE THE CAST IS UNRESOLVED THE CLUSTER IS A SKELETON (side-eye 2026-08-07 §④ P2). An avatar whose
-  // initials are "?" is not a loading state — it is what a BROKEN seat looks like, and it painted for the
-  // whole cold window on a room the user had just composed by hand. One skeleton per seat keeps the
-  // cluster's geometry identical to the resolved shape, so the topbar does not reflow when the names land.
-  // It is all-or-nothing to match the carried appearance's own gate: a half-named cluster reads as a
-  // different, smaller room for a frame.
-  if (cast.some((seat) => !seat.resolved)) {
-    return (
-      <Row align="center" aria-busy={true} gap="tight" data-slot="draft-cast-loading">
-        {cast.map((seat) => (
-          <Skeleton key={seat.id} variant="circle" className="size-avatar-sm" />
-        ))}
-      </Row>
-    );
-  }
-  const lead = cast[0];
-  if (cast.length === 1 && lead !== undefined) {
-    return (
-      <Avatar size="sm" fallbackDelay={0} {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}>
-        {initialsFor(lead.name)}
-      </Avatar>
-    );
-  }
-  return (
-    <AvatarStack
-      size="sm"
-      items={cast.map((c) => ({
-        name: c.name,
-        ...(c.avatarHash === null ? {} : { src: blobUrl(c.avatarHash) }),
-      }))}
-      aria-label={`${cast.length} characters`}
-    />
-  );
-}
+//
+// `DraftChatHeader` (the pre-send twin: founding-card avatars, `draftChatTitle`, a `1 + cast` seat count,
+// and a list-first card peek to beat the ~2s "? | ? | ? | New chat" placebo window) was DELETED 2026-08-14
+// with draft mode — the room has a roster from the creation click, and `useStartChat` seeds this exact
+// `getChat` key from `startChat`'s own response, so the committed header is correct on the first frame with
+// zero extra reads. That is strictly better than the peek it replaces.

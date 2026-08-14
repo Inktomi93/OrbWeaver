@@ -20,7 +20,7 @@ import {
 } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
-import { clearCharacterSelection, selectCharacter, useActiveDraftSeed, useActiveSection, useSectionRegistry } from "@orb/client/state";
+import { clearCharacterSelection, selectCharacter, useActiveChatId, useActiveSection, useSectionRegistry } from "@orb/client/state";
 import type { CharacterHandle, CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -299,14 +299,14 @@ function CharactersListHarness(): ReactElement {
     throw new Error("ct-stories: the characters section has no list pane");
   }
   const activeSection = useActiveSection();
-  const draftSeed = useActiveDraftSeed();
+  const activeChatId = useActiveChatId();
   return (
     <div style={{ height: 560, width: 320 }}>
       <div data-testid="list-band">{definition.listHeader?.()}</div>
       {list()}
       {/* Probes for the cross-section WRITES the pane fires (assert the store action, not a UI echo). */}
       <p data-testid="active-section">{activeSection}</p>
-      <p data-testid="draft-cast">{(draftSeed?.characterIds ?? []).join(",")}</p>
+      <p data-testid="started-chat">{activeChatId ?? ""}</p>
     </div>
   );
 }

@@ -1,8 +1,10 @@
 // The manual-injections manager: ad-hoc positional context a user adds to a chat. Not
 // createCollectionSurface — a chat holds a handful of these, so it's a plain mapped list of per-row
-// autosave forms. Source-agnostic: the presentational InjectionsList takes rows + CRUD callbacks,
-// owning neither read nor write; a committed chat wires chat.listChatInjections + the verbs, a draft
-// wires draftConfig.injections + setDraftInjections. No enabled/disabled toggle — "off" = delete the row,
+// autosave forms. The presentational `InjectionsList` takes rows + CRUD callbacks, owning neither read nor
+// write — it was source-agnostic AND EXPORTED because a draft wired it to `draftConfig.injections` instead
+// of the verbs. Draft mode is gone (chat-creation-draft-mode-replacement.md §4.9, R1), so there is one
+// source (chat.listChatInjections + the verbs) and the split is module-private again: a second wiring is a
+// deliberate re-export, not a leftover door. No enabled/disabled toggle — "off" = delete the row,
 // and an EMPTY-content row is inert (assembly skips it at every position), which the row says out loud.
 
 import type { ChatInjection } from "@orb/contracts/chat";
@@ -58,7 +60,7 @@ interface InjectionListRow {
   readonly value: InjectionFields;
 }
 
-export interface InjectionsListProps {
+interface InjectionsListProps {
   readonly rows: readonly InjectionListRow[];
   readonly isHost: boolean;
   readonly onAdd: () => void;
@@ -66,7 +68,7 @@ export interface InjectionsListProps {
   readonly onDelete: (key: string) => void;
 }
 
-export function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsListProps): ReactElement {
+function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsListProps): ReactElement {
   return (
     <Stack gap="section">
       <Text voice="gloss">
