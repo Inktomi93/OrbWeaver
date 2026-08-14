@@ -481,15 +481,20 @@ At the next occurrence (or on the current FQDN profile, now):
    `orb:character-library`, reload → list renders EMPTY with no corresponding chip. Plant, observe,
    remove.
 
-## 7. Owner forks (each with a recommendation; none blocks W1/W5/W8)
+## 7. Owner forks — RULED 2026-08-14 (owner, via question tool, overnight sitting)
 
-| # | Fork | Options | Recommendation |
+> **PREMISE CORRECTION carried into every ruling (owner, verbatim intent):** multi-HUMAN-on-one-box is
+> NOT a scenario — one human per box. The binding requirement is ONE user, many tabs, many devices.
+> This doc's earlier "multi-human install" phrasing is superseded; the W-items survive re-motivated
+> (W6 by db-remint identity splits, W7 by multi-device propagation).
+
+| # | Fork | RULING | Notes |
 | - | - | - | - |
-| F1 | Durable-local identity scoping (W6) | (a) per-user key rebind · (b) clear-all-on-logout only | **(a)** — (b) leaks across alternating logins on one browser and still cannot invalidate a stale-era blob under the same user |
-| F2 | Local-mode re-auth UX (W3 rung 1) | (a) in-app modal, cache preserved · (b) keep the hard redirect | **(a)** — the hard redirect destroys exactly the state the owner is mid-flow on; (b) survives as rung 2 |
-| F3 | OIDC silent path | (a) redirect bounce + resume snapshot · (b) `prompt=none` iframe | **(a)** — authentik session makes the bounce near-silent; (b) buys CSP/frame friction for marginal gain |
-| F4 | Socket eviction granularity (W7a) | (a) per-user · (b) per-session | **(a)** — valid sessions self-heal in one reconnect; (b) threads a sessionId into the Principal mint (D135 surface) for no user-visible gain |
-| F5 | Import-storm containment (W8) | (a) client coalescing window · (b) server quiet-mode bulk emits | **(a)** — contains every storm class, not one producer; keeps per-verb emit semantics honest |
+| F1 | Durable-local identity scoping (W6) | **(a) per-user key rebind** | as recommended |
+| F2 | Local-mode re-auth UX (W3) | **(a) in-app modal, cache preserved** | as recommended; hard redirect survives as rung 2 |
+| F3 | OIDC silent path | **(a) redirect bounce + resume snapshot** | taken on this doc's rec as a stated orchestrator assumption (reversible); owner did not rule it directly |
+| F4 | Socket eviction granularity (W7a) | **(b) per-SESSION** — logout on the phone must not kill the desktop | ⚠ RULED AGAINST this doc's rec, and honestly: the orchestrator's question framed per-session as recommended (product semantics under the one-human correction) WITHOUT surfacing this doc's cost note — per-session threads a sessionId into the Principal mint (a D135 surface). **CONFIRMED same sitting with the D135 cost explicitly on the table** — per-session stands; admin REVOKE stays per-user (back-channel precedent). |
+| F5 | Import-storm containment (W8) | **(b) server quiet-mode bulk emits** (the #23 terminal-fan generalized) | ⚠ RULED AGAINST this doc's rec under the same framing caveat — the doc's counter-argument (a client window contains EVERY storm class, not one producer) was not surfaced in the question. **CONFIRMED same sitting with the every-storm-class counter-argument explicitly on the table** — server quiet-mode stands; a thin client debounce may still ride later as a belt if a non-bulk storm class materializes. |
 
 ## 8. Regions not read (scope honesty)
 
