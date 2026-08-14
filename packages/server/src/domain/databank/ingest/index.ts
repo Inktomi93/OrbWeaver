@@ -10,6 +10,19 @@
 // Partial failure is DATA (`failed[]`), not a throw: a chunk embed failing mid-run leaves the earlier chunks
 // written (retrieval over them is safe — missing chunks simply aren't hits yet) and one bad document must
 // never fail an owner-wide reindex.
+//
+// EACH PASS ANNOUNCES ITSELF ONCE, AT ITS TERMINAL (event-bus coverage survey H3/§2.5, the #23 import-terminal
+// shape): one `databankChanged` per owner whose documents this pass actually touched — see `announceIngest`.
+// This is the half no mutation could ever drive: the writer is a WORKLOAD, so not even the tab that hit
+// Reindex has an `invalidates` to hang on, and what moves is the `chunkCount`/`embeddedCount` every library
+// row projects.
+//
+// THE CLIENT'S MID-INGEST POLL STAYS, and it is NOT redundant with this event (owner ruling 2026-08-14 —
+// written down here because "the bus covers it now" is the predictable future misread). The library's
+// bounded `refetchInterval` while a row is ingesting is the only driver of PROGRESS: the chunk counts tick
+// continuously between enqueue and terminal, and nothing emits per chunk — correctly, since a per-chunk fan
+// is a corpus-sized storm. This terminal event announces the FINAL state; the poll shows the work happening.
+// Two facts, two drivers; deleting the poll would silently freeze the counts mid-run.
 
 import type { IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import { documents } from "@orb/db";
@@ -126,14 +139,32 @@ async function resolveReindexIds(ctx: DatabankContext, ownerId: UserId | null, s
   return await (ownerId === null ? listAllDocumentIds(ctx.db) : listOwnedDocumentIds(ctx.db, ownerId));
 }
 
+/**
+ * THE TERMINAL FAN (survey H3, the #23 import-terminal shape): ONE `databankChanged` per owner whose
+ * documents this pass touched, at the END of the pass — never per document (that is a storm over a
+ * bank-sized loop) and never per chunk.
+ *
+ * PER OWNER, not per pass: the box-wide bulk arm (`ownerId: null`) reindexes across owners, and a user-bus
+ * event reaches exactly one user's channel — a single fan would leave every other owner frozen. The audience
+ * is the owners the pass actually LOADED a document for, so an owner with nothing in scope gets nothing,
+ * which is the truth. No `documentId` hint: a pass touches many, and naming one would be a lie the client's
+ * root path-invalidate does not need anyway.
+ */
+function announceIngest(ctx: DatabankContext, touchedOwners: ReadonlySet<UserId>): void {
+  for (const owner of touchedOwners) {
+    ctx.emitUserEvent(owner, { type: "databankChanged" });
+  }
+}
+
 export function createDatabankIngest(ctx: DatabankContext): DatabankIngest {
-  const runDocument = async (documentId: DocumentId, mode: ReindexMode, acc: IngestAccumulator): Promise<void> => {
+  const runDocument = async (documentId: DocumentId, mode: ReindexMode, acc: IngestAccumulator, touchedOwners: Set<UserId>): Promise<void> => {
     const doc = await loadDocument(ctx.db, documentId);
     if (doc === undefined) {
       // A document deleted between enqueue and dispatch — no work, no failure (its chunks CASCADEd away).
       return;
     }
     acc.addDocument();
+    touchedOwners.add(doc.ownerId);
     try {
       const source = mode === "re-extract" ? await maybeReExtract(ctx, doc, acc) : doc;
       acc.addCounts(await ingestOne(ctx, source));
@@ -145,20 +176,33 @@ export function createDatabankIngest(ctx: DatabankContext): DatabankIngest {
   return {
     ingestDocument: async ({ documentId }): Promise<IngestRunResult> => {
       const acc = new IngestAccumulator();
-      await runDocument(documentId, "chunk-embed", acc);
-      return acc.result();
+      const touchedOwners = new Set<UserId>();
+      try {
+        await runDocument(documentId, "chunk-embed", acc, touchedOwners);
+        return acc.result();
+      } finally {
+        announceIngest(ctx, touchedOwners);
+      }
     },
     reindex: async ({ ownerId, scope, mode, signal }): Promise<IngestRunResult> => {
       const acc = new IngestAccumulator();
-      const ids = await resolveReindexIds(ctx, ownerId, scope);
-      for (const id of ids) {
-        if (signal.aborted) {
-          break;
+      // Accumulated as the documents land and announced from a `finally`, so a CANCELLED sweep still tells
+      // the owners whose documents it already re-embedded (an abort mid-pass would otherwise leave half-new
+      // chunk counts on every device until something unrelated moved).
+      const touchedOwners = new Set<UserId>();
+      try {
+        const ids = await resolveReindexIds(ctx, ownerId, scope);
+        for (const id of ids) {
+          if (signal.aborted) {
+            break;
+          }
+          // biome-ignore lint/performance/noAwaitInLoops: documents reindex sequentially — one bad document must not fail the sweep, and the shared embed provider is serialized anyway. Cooperative abort between documents.
+          await runDocument(id, mode, acc, touchedOwners);
         }
-        // biome-ignore lint/performance/noAwaitInLoops: documents reindex sequentially — one bad document must not fail the sweep, and the shared embed provider is serialized anyway. Cooperative abort between documents.
-        await runDocument(id, mode, acc);
+        return acc.result();
+      } finally {
+        announceIngest(ctx, touchedOwners);
       }
-      return acc.result();
     },
   };
 }

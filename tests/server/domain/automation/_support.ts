@@ -190,6 +190,10 @@ export interface RuleFixture {
   readonly host: UserId;
   readonly chatId: ChatId;
   readonly svc: AutomationService;
+  /** Every event the verbs pushed at the injected `notify` sink, in order — the automation bus's ONE producer
+   *  seam. The rule-lifecycle suites assert `rulesChanged` here (event-bus coverage survey H2/F5); before the
+   *  fix wave the member was declared and emitted nowhere, so this ledger was empty for every rule verb. */
+  readonly events: AutomationBusEvent[];
 }
 
 /** A fresh db + a host + their chat + the built service — the shared rule-lifecycle test setup. */
@@ -197,6 +201,11 @@ export async function ruleFixture(): Promise<RuleFixture> {
   const db = await freshDb();
   const host = await seedUser(db, "user_host");
   const chatId = await seedHostChat(db, host);
-  const svc = createAutomationService(makeAutomationHarness(db));
-  return { db, host, chatId, svc };
+  const events: AutomationBusEvent[] = [];
+  const svc = createAutomationService(
+    makeAutomationHarness(db, {
+      notify: (event): void => void events.push(event),
+    }),
+  );
+  return { db, host, chatId, svc, events };
 }

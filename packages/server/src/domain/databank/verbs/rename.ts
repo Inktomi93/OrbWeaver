@@ -24,6 +24,9 @@ export function createRename(ctx: DatabankContext): DatabankService["rename"] {
       throw new DocumentNotFoundError(id);
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.rename", entityType: "document", entityId: id, metadata: { name } }, at);
+    // Announced after the RETURNING proved the row was the caller's and was written; a not-owned/not-found
+    // rename threw above, so a refused write announces nothing (survey H3).
+    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
     const counts = await ctx.countChunks({ documentIds: [id], model: ctx.getActiveEmbedSpace().model });
     return toDocumentView(
       {

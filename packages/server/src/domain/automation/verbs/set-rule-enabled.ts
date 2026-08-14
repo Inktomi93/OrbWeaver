@@ -9,10 +9,13 @@ import { setRuleEnabledRow } from "../persistence/rules.ts";
 
 export function createSetRuleEnabled(ctx: AutomationContext): AutomationService["setRuleEnabled"] {
   return async ({ principal, ruleId, enabled }: SetRuleEnabledParams): Promise<void> => {
-    await requireRuleHost(ctx, principal, ruleId);
+    const rule = await requireRuleHost(ctx, principal, ruleId);
     await setRuleEnabledRow(ctx.db, ruleId, enabled, ctx.now());
     await ctx.enabled.reload();
     // A transform_draft rule's registration into the turn pipeline (A7) follows enablement — reconcile it.
     await ctx.transforms.reload();
+    // Enablement is the CONSENT act, so it is the one rule write a second host tab most needs announced
+    // (survey H2/F5). Emitted after both indexes reconcile — a re-read on this event sees the settled state.
+    ctx.notify({ type: "rulesChanged", chatId: rule.chatId });
   };
 }

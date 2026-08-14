@@ -250,6 +250,20 @@ const USER_TRACKED_KEYS = [
   // + every scope's attached list live under the one `regex` path — so one coarse member covers the
   // settings pane, the preset/character pickers, and the viewer's display-tier read in one invalidation.
   "regex",
+  // The document-bank router root (`trpc.databank`) — library list, one document's detail, the global id
+  // set, the "Active in" chips, the per-chat rack. Before `databankChanged` every one of the nine databank
+  // mutations named its own reads, and nothing reconciled a SECOND tab (event-bus coverage survey H3).
+  "databank",
+  // The corpus-analytics router root (`trpc.discovery`) — all 27 dashboard reads. Their writers are
+  // background workloads, so before `corpusRecomputed` they had no driver of any kind (§2.5).
+  "discovery",
+  // `search.similarArt`, tracked SEPARATELY from a search root that deliberately does not exist here: it is
+  // pure image-vector cosine written by the same passes, while its `search.*` neighbours are input-keyed
+  // live queries that must NOT be dragged into a recompute invalidate.
+  "similarArt",
+  // An input-keyed live search (`search.search`) — tracked ONLY as the negative control for the row above:
+  // it must stay untouched by every member, including `corpusRecomputed`.
+  "searchQuery",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
@@ -279,6 +293,14 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // one card's derived signals, never the library (that is `charactersChanged`'s job). Every persisting
   // refinery verb emits this, which is what turned the whole feature's mutations busDriven.
   refineryChanged: ["refinery", "characterGet"],
+  // The databank ROOT and nothing else — the member is coarse because every databank write moves at least
+  // two reads under that one router. Notably NOT `chatGet`: a host's attach changes what the ROOM sees, but
+  // that half is member-visible state on the chat bus, never a user-bus widening (`membership-fan-guard`).
+  databankChanged: ["databank"],
+  // The discovery ROOT + `search.similarArt`, and deliberately NOT `searchQuery`: the live search reads are
+  // input-keyed (the typed query IS the cache key), so invalidating them on a background recompute would
+  // re-run someone's search for no freshness gain. That exclusion is the point of the negative control.
+  corpusRecomputed: ["discovery", "similarArt"],
   // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection
   // router, so the capability read under it goes stale too.
   connectionsChanged: ["connection", "chatCapability"],
@@ -317,6 +339,10 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         stats: trpc.stats.overview.queryKey(),
         refinery: trpc.refinery.listSessions.queryKey(),
         characterGet: trpc.character.get.queryKey({ characterId: CHARACTER_ID }),
+        databank: trpc.databank.list.queryKey({}),
+        discovery: trpc.discovery.home.queryKey(),
+        similarArt: trpc.search.similarArt.queryKey({ characterId: CHARACTER_ID }),
+        searchQuery: trpc.search.search.queryKey({ query: "anything" }),
       };
       for (const key of Object.values(keys)) {
         queryClient.setQueryData([...key], [] as never);
@@ -372,6 +398,13 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       // The refinery root joined the heal set the moment `refineryChanged` joined the map — the set is
       // DERIVED from `USER_BUS_EVENT_TYPES`, so this row is a pin on that derivation, not a second list.
       trpc.refinery.listSessions.queryKey(),
+      // Same derivation, same lane: the databank + corpus-analytics roots joined the blanket heal the moment
+      // their members joined the map. This matters more here than for most members, because BOTH new planes
+      // are live-only and their producers are background passes — a reconnect that missed a sweep is exactly
+      // the gap the blanket exists to close.
+      trpc.databank.list.queryKey({}),
+      trpc.discovery.home.queryKey(),
+      trpc.search.similarArt.queryKey({ characterId: CHARACTER_ID }),
     ];
     for (const key of roots) {
       queryClient.setQueryData([...key], [] as never);

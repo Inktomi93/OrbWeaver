@@ -8,6 +8,7 @@
 import { databankSettingsSchema } from "@orb/contracts/databank";
 import type { ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, chatParticipants } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
@@ -84,7 +85,18 @@ export interface DatabankHarness {
   readonly assetsStore: Mock<DatabankContext["assetsStore"]>;
   /** The bytes the assets fake stored, keyed by minted assetId (the re-extract `loadAssetBytes` source). */
   readonly storedBytes: Map<AssetId, Uint8Array>;
+  /** Every recorded `emitUserEvent` call, in order — the per-user freshness plane the verbs fan
+   *  `databankChanged` on, and the ingest subsystem fans per touched owner at its terminal (event-bus
+   *  coverage survey H3). Shared by the service AND the ingest product, exactly as compose wires one
+   *  publisher for both. */
+  readonly userEvents: UserEventCall[];
   readonly advance: (ms: number) => void;
+}
+
+/** One recorded user-bus emit. */
+interface UserEventCall {
+  readonly userId: UserId;
+  readonly event: UserBusEvent;
 }
 
 const EXTRACTOR_VERSION = "textlike-1";
@@ -126,12 +138,16 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
   });
 
   const settings = databankSettingsSchema.parse(options.settings ?? { chunk: {}, retrieval: {} });
+  const userEvents: UserEventCall[] = [];
 
   const ctx: DatabankContext = {
     db,
     now: () => clock.now(),
     newDocumentId: () => castId<DocumentId>(ids.next("document")),
     audit: () => Promise.resolve(),
+    emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
+      userEvents.push({ userId, event });
+    },
     assetsStore,
     loadAssetBytes: (assetId) => Promise.resolve(storedBytes.get(assetId)),
     embeddingsStore: embeddings.store,
@@ -160,6 +176,7 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
     extractText,
     assetsStore,
     storedBytes,
+    userEvents,
     advance: (ms) => clock.advance(ms),
   };
 }

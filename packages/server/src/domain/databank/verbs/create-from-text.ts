@@ -49,6 +49,10 @@ export function createCreateFromText(ctx: DatabankContext): DatabankService["cre
 
     const queued = await queueIngest(ctx, { documentId: id, ownerId });
     await ctx.audit({ actorUserId: ownerId, action: "databank.createFromText", entityType: "document", entityId: id, metadata: { name, ...queued } }, at);
+    // The bank announces itself (survey H3). The DUPLICATE arm above returns early and stays silent — nothing
+    // was written, so there is nothing for a second tab to re-read. The ingest that was just queued announces
+    // AGAIN at its own terminal, when the chunk counts this row projects actually move.
+    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
 
     const document = toDocumentView(
       { id, name, mime: TEXT_MIME, origin: "text", sourceUrl: null, byteSize, charCount: text.length, createdAt: at, updatedAt: at },

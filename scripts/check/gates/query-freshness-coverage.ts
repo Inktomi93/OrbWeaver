@@ -85,58 +85,22 @@ const STATIC: Record<string, string> = {
   "assets.listGallery":
     "writer-local — add/remove gallery art (features/chat/hooks/use-character-gallery.ts) `invalidates` it; the gallery dialog is the only writer of the junction it reads.",
 
-  // ── corpus analytics: derived data whose only writer is a background pass that announces NOTHING ────────
-  // There is no producer to hang a row on: the embeddings indexer / bulk discovery passes rewrite the derived
-  // tables with no bus event of any kind, and every one of these reads is a route-scoped dashboard panel that
-  // cold-fetches when it mounts after gcTime eviction. A row becomes POSSIBLE only once a corpus-recompute
-  // event exists (then these entries go stale-RED and get deleted, which is the point).
-  "discovery.home":
-    "the corpus home dashboard's headline projection (features/discovery/surfaces/corpus-home-surface.tsx) — recomputed only by the indexer/bulk passes.",
-  "discovery.catalog":
-    "the browse catalog projection (features/discovery/components/corpus-browse-view.tsx + the list/context headers) — indexer-written derived data.",
-  "discovery.browseCharacters":
-    "the faceted browse result set (features/discovery/components/corpus-browse-view.tsx, reused by the compare tab) — indexer-written.",
-  "discovery.characterFacets": "the browse facet rails (features/discovery/components/corpus-browse-view.tsx) — derived from the same indexer pass.",
-  "discovery.archetypes": "the archetype clustering (features/discovery/components/corpus-archetypes-tab.tsx) — a bulk discovery pass writes it.",
-  "discovery.visualArchetypes": "the image-embedding archetype clustering (same tab) — written by the image-embed bulk pass.",
-  "discovery.themes": "the theme rollup (features/discovery/components/corpus-home-charts.tsx) — recomputed by the themes workload.",
-  "discovery.themeDetail": "one theme's drill-down (features/discovery/surfaces/corpus-home-surface.tsx) — same themes workload.",
-  "discovery.themeDrift": "theme drift over time (features/discovery/components/corpus-home-charts.tsx) — same themes workload.",
-  "discovery.topKeywords": "the keyword rollup (features/discovery/components/corpus-home-charts.tsx) — distillation-pass output.",
-  "discovery.cooccurringKeywords": "keyword co-occurrence (same chart surface) — distillation-pass output.",
-  "discovery.characterKeywords": "one card's keywords (features/discovery/surfaces/corpus-dossier-surface.tsx) — distillation-pass output.",
-  "discovery.characterDossier": "the per-card dossier projection (features/discovery/surfaces/corpus-dossier-surface.tsx) — indexer/distillation output.",
-  "discovery.askCard": "the dossier's ask-the-card answer (same surface) — derived over the card's embedded corpus.",
-  "discovery.compareCharacters": "the pairwise compare projection (features/discovery/components/corpus-compare-tab.tsx) — embedding-derived.",
-  "discovery.compareCharactersDeep": "the deep compare projection (same tab) — embedding-derived.",
-  "discovery.corpusProjection": "the 2-D corpus map (features/discovery/components/corpus-map-tab.tsx) — recomputed by the projection pass.",
-  "discovery.similarityGraph": "the similarity graph (features/discovery/components/corpus-similarity-tab.tsx) — cosine over indexer-written vectors.",
-  "discovery.duplicateCharacters": "near-duplicate cards (features/discovery/components/corpus-similarity-tab.tsx) — same pass.",
-  "discovery.duplicateChats": "near-duplicate chats (same tab) — same pass.",
-  "discovery.imageDuplicates": "near-duplicate art (same tab) — image-embed pass.",
-  "discovery.imageFacets": "the visual facet rails (features/discovery/components/corpus-visuals-tab.tsx) — image-embed pass.",
-  "discovery.charactersByImageFacet": "the cards behind one visual facet (same tab) — image-embed pass.",
-  "discovery.portraitAlignment": "portrait-vs-card alignment scoring (same tab) — image-embed pass.",
-  "discovery.forgottenGems": "the neglected-cards shelf (features/discovery/surfaces/corpus-home-surface.tsx) — recency+centrality rollup.",
-  "discovery.unusedCharacters": "the never-played shelf (same surface) — same rollup.",
-  "discovery.modelRouting": "the model-routing summary (same surface) — a stats/discovery rollup written by the same passes.",
-  "search.similarArt":
-    "input-keyed (characterId) cosine over image vectors (features/discovery/surfaces/corpus-dossier-surface.tsx) — the vectors are rewritten only by the image-embed pass, which announces nothing (the analytics class above).",
+  // (The 27 `discovery.*` rows + `search.similarArt` that stood here were DELETED 2026-08-14, and their own
+  //  prose predicted it word for word: "A row becomes POSSIBLE only once a corpus-recompute event exists
+  //  (then these entries go stale-RED and get deleted, which is the point)." The `corpusRecomputed` user-bus
+  //  member landed — event-bus coverage survey §2.5/§3.4-4/F6 — fanned at the terminal of all six background
+  //  passes (discovery's five analytics kinds + the embeddings `index` sweep), and the seam gained
+  //  `trpc.discovery.pathFilter()` + `trpc.search.similarArt.pathFilter()`. Every one of the 28 keys went
+  //  stale-RED in the same run. `search.search`/`fields`/`suggest` deliberately did NOT join them: they are
+  //  input-keyed live queries and keep their own rows above.)
 
-  // ── databank: NO bus event exists, so every read is driven by the mutations' own `invalidates` (blind
-  //    spot 4). `USER_BUS_EVENT_TYPES` has ten members and none is databank, and `domain/databank/**` emits
-  //    nothing — so a seam row would have no event to hang on. The drivers are enumerated in
-  //    `features/databank/hooks/use-databank-mutations.ts`, which routes EVERY databank write through
-  //    `createEntityMutation` with an explicit `invalidates` naming these keys; the CTs at
-  //    tests/client/features/databank/** exercise the read↔write pairs. (databank-surface-spec.md §7.) ─────
-  "databank.list":
-    "the library list + the band's count. Driven by every producer and CRUD verb (createFromText / the three scrapers / rename / remove / reindex) through `invalidates: [databank.list.pathFilter()]`, and by the UPLOAD front door, which is a raw multipart POST and so calls `invalidation.invalidateFilters([...])` by hand from the add dialog. It ADDITIONALLY carries a bounded `refetchInterval` while any row is mid-ingest (D-3 arm b) — the ingest workload writes chunk rows with no event of its own.",
-  "databank.get":
-    "the open document's detail. Driven by `rename` and `reindex` through `invalidates: [..., databank.get.pathFilter()]`. Its `includeText` twin is the same key with a different input (the lazy source-text read), so it inherits the same driver.",
-  "databank.listGlobal":
-    "the D-1 global id SET behind the library row's Everywhere toggle. Driven by `attachGlobal`/`detachGlobal` (the only writers of `global_documents`) and by `remove` (the DB cascade drops the junction row), each naming it in `invalidates`.",
-  "databank.listAttachments":
-    "the CONTEXT panel's read-only 'Active in' chips. Driven by the same global attach/detach mutations; the chat/character junction writers (the per-chat rack, the character rack) are later stages of the databank program and land their own rows with the surfaces that write them.",
+  // (The four `databank.*` rows that stood here were DELETED 2026-08-14 for the same reason and by the same
+  //  machinery: the `databankChanged` user-bus member landed — survey H3 — every persisting verb emits it,
+  //  the ingest subsystem fans it per touched owner at its terminal, and the seam gained
+  //  `trpc.databank.pathFilter()`. The rows' citation had rested on "USER_BUS_EVENT_TYPES has ten members
+  //  and none is databank", which is precisely the kind of premise a citation should not be allowed to
+  //  outlive. The library's bounded mid-ingest `refetchInterval` STAYS and is not a freshness citation: it
+  //  drives PROGRESS between enqueue and terminal, which no event reports and none should.)
 
   // (The five `refinery.*` rows that stood here were DELETED 2026-08-14 by the machinery working as
   //  designed: the `refineryChanged` user-bus member landed — event-bus coverage survey H1/F1 — the seam

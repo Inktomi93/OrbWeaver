@@ -42,6 +42,10 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
     await ctx.enabled.reload();
     // A rule edit can add/remove transform_draft arms or change their target/template/predicate/order (A7).
     await ctx.transforms.reload();
+    // The roster announces itself AFTER the write AND after both in-process indexes reconcile (survey H2/F5):
+    // a subscriber that re-reads on this event must not observe a rule whose transform registration is still
+    // the pre-edit one. `chatId` comes off the guard-loaded row (the rule's chat is immutable here).
+    ctx.notify({ type: "rulesChanged", chatId: rule.chatId });
     return toRuleView(row);
   };
 }

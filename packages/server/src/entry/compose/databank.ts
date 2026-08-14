@@ -19,6 +19,7 @@ import type { AuditEntry } from "#foundation/observability";
 import { EXTRACTOR_VERSION } from "#infra/extraction";
 import { fetchWebDocument } from "#infra/network";
 import { requireHost, requireParticipant } from "../../domain/chat/index.ts";
+import { publishUserEvent } from "../../transport/trpc/index.ts";
 import { minter } from "./minter.ts";
 
 /** What the databank seam needs from the composition root: infra handles + the already-built sibling service
@@ -70,6 +71,10 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     now,
     newDocumentId: minter(ID_PREFIX.document),
     audit,
+    // The ONE per-user freshness plane (the house injected-emit pattern — the domain never reaches at
+    // transport, D38): every persisting verb fans `databankChanged`, and the ingest subsystem fans it once
+    // per touched owner at a pass terminal (event-bus coverage survey H3).
+    emitUserEvent: publishUserEvent,
     assetsStore: deps.assetsStore,
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await deps.loadAssetBytes(assetId)) ?? undefined,
     embeddingsStore: embeddings.store,
