@@ -5,6 +5,7 @@ import type { ReactElement, ReactNode, Ref } from "react";
 import { useCallback, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, gapPxFor, usePrefersReducedMotion } from "#lib";
+import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
 import { pinSpacerActive } from "./pin-spacer.ts";
 
 // Chat rows are tall/variable; deeper overscan than virtual-list's default avoids pop-in on scrollback.
@@ -160,6 +161,10 @@ export function MessageList<T>({
       stickToBottomRef.current = value;
     }
   }, []);
+  // Wall clock of the last real user scroll INPUT (see USER_SCROLL_YIELD_MS). Never state: it is read
+  // inside virtual-core's own scroll path, which must not depend on a React commit having landed.
+  const userScrollAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const userOwnsAxis = (): boolean => performance.now() - userScrollAtRef.current < USER_SCROLL_YIELD_MS;
 
   const itemAt = (index: number): T => {
     const item = items.at(index);
@@ -199,6 +204,16 @@ export function MessageList<T>({
             if (el === null) {
               return;
             }
+            // THE YIELD (see USER_SCROLL_YIELD_MS): while the reader's hand is on the axis AND we still
+            // think we are following, every programmatic write is dropped — that pair IS the tug-of-war,
+            // and dropping it is what lets the wheel land and the scroll event reach the intent detector.
+            // Scoped to `stickToBottomRef` deliberately: a blanket drop also swallows the LEGITIMATE
+            // anchor adjustment a prepend needs ("load older history"), and the prepend-stability CT
+            // caught exactly that — an 800px jump. A reader who has already scrolled away is not being
+            // marched at, so nothing there needs yielding.
+            if (userOwnsAxis() && stickToBottomRef.current) {
+              return;
+            }
             const top = offset + (options.adjustments ?? 0);
             el.scrollTo(options.behavior === undefined ? { top } : { top, behavior: options.behavior });
             programmaticTopRef.current = el.scrollTop;
@@ -213,6 +228,39 @@ export function MessageList<T>({
     directDomUpdatesMode: "position",
     useFlushSync: false,
   });
+
+  // The tail-adjustment veto (see `follow-yield.ts` for WHY — it is the fix for the 12px march that
+  // drags a reader parked inside a long streaming reply).
+  //
+  // ⚠ This is an INSTANCE FIELD, not an option — `Virtualizer` only ever READS
+  // `this.shouldAdjustScrollPositionOnItemSizeChange` and nothing in virtual-core or react-virtual
+  // assigns it from `options`. Passing it to `useVirtualizer` is a SILENT no-op (verified against
+  // virtual-core 3.17.3's shipped source; it cost this lane a green-looking run).
+  useLayoutEffect((): (() => void) => {
+    const lastIndex = items.length - 1;
+    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance): boolean =>
+      shouldAdjustForResizedItem({
+        hasCachedSize: instance.itemSizeCache.has(item.key),
+        index: item.index,
+        lastIndex,
+        scrollDirection: instance.scrollDirection,
+        scrollOffset: scrollRef.current?.scrollTop ?? 0,
+        start: item.start,
+      });
+    return (): void => {
+      virtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined;
+    };
+  }, [virtualizer, items.length]);
+
+  // The reader's own hand on the axis — passive listeners, wired in `follow-yield.ts`.
+  useLayoutEffect((): (() => void) | undefined => {
+    const el = scrollRef.current;
+    return el === null
+      ? undefined
+      : attachUserScrollInput(el, (): void => {
+          userScrollAtRef.current = performance.now();
+        });
+  }, []);
 
   // Explicit scrollToEnd on mount: anchorTo/followOnAppend alone only govern post-mount behavior.
   useLayoutEffect(() => {
@@ -246,6 +294,14 @@ export function MessageList<T>({
       return;
     }
     updateEdgeFades(el);
+    // A gesture's scroll chain KEEPS the axis: every scroll event that lands while the reader still owns
+    // it renews the yield, so the window means "until the scrolling their input started has stopped",
+    // not "150ms of wall clock". Without this the window can expire mid-flick under load — measured as a
+    // 578px re-pin in one contended CT worker while the same test passed 3/3 in isolation. Our own march
+    // cannot renew it: those writes happen with `userOwnsAxis()` already false.
+    if (userOwnsAxis()) {
+      userScrollAtRef.current = performance.now();
+    }
     if (!tailFollowActive) {
       return;
     }
