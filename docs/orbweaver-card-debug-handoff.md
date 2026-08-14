@@ -1,5 +1,11 @@
 # Orbweaver — immersive-card debugging handoff
 
+> **SUPERSEDED WHOLE (2026-08-14, owner-ruled at the Codex doc-audit).** Every open item below has
+> since resolved: INJECT / EMPTYGEN / the weather item landed via the dogfood history; the bounded-
+> shutdown test exists and passes (`tests/server/entry/lifecycle.test.ts`, 2/2); the Charlotte
+> live-validation step was KILLED by owner word (its guarded fixes landed via other receipts).
+> Nothing here is a resume point. Kept as archeology only.
+
 Context: diagnosing why hosted models (Sonnet 5 via OpenRouter) weren't producing rendered
 `:::card` immersive HTML cards in rpg-lite, while local vLLM appeared to. Session of 2026-08-03/04.
 Everything below is verified against the LIVE prod stack unless explicitly marked as inference.
@@ -268,6 +274,7 @@ bug, not the documented one.
 | `/api/_debug/rpg/traces` | **404 always** — see finding #7 |
 
 ### Do not look for presets/settings in the wire capture
+
 The ring at `wire/captures` logs the **literal wire payload** (e.g. Anthropic/OpenRouter API shape). By the time the request hits the wire, Orbweaver has already compiled settings, presets, and character overrides into raw `messages`, system prompts, and sampling parameters.
 **If you need to see a preset, guided action, or trust tier, query the `/api/_debug/config/*` endpoints.** The wire capture will only show you the result.
 
@@ -437,7 +444,7 @@ trust routing or render, not the model.
 **This doc teaches ACCESS, CONTROL and INVESTIGATION only. Actual issues do NOT go here.**
 
 Every finding from this investigation — and every dogfood bug — lives in
-[`docs/history/dogfood-tracking-2026-08-08.md`](./dogfood-tracking.md), in that file's house format
+[`docs/history/dogfood-tracking-2026-08-08.md`](history/dogfood-tracking-2026-08-08.md), in that file's house format
 (severity / status / effort / reporter / scout-coverage, with `#### What's broken`,
 `#### Root cause`, `#### Evidence`, `#### Advice`).
 

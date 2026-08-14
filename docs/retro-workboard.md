@@ -129,6 +129,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-14 | **BRIDGE FORKS F-A..F-G = ALL SEVEN ON RECS (question tool, midday):** gate-free `chatDeleted` to still-attached pumps (F-A, unblocks LANE 2) · bulk quiet window silences the room fan w/ coarse terminal per (room, kind) · ONE `roomEntityChanged` member with an `entity` enum · migrate the built character fan in the SAME wave (no double-fan) · databank/regex twins deferred as candidate rows under the SEATED-red gate arm · preset "host changed model" notice = registry-row end condition only, no build · rename `withQuietUserEvents` when it learns room pairs. LANE 1 dispatched (doc §10 1-7 = the spec). **SHAPE-CHURN = PROBE FIRST** (doc §4 live probe settles M1 table-promotion vs M4 reasoning-mount before any arm builds; probe lane dispatched). |
 | 08-14 | **EVENING SITTING (question tool):** guard **D GO** (quoted rm-rf target fix, own A/B leg — lane `guard-quoted-rm` dispatched); A/B narrowings NOT taken (stay strict — absence of a pick is not consent to loosen); E stays defer · **M4 probe config AUTHORIZED** (reasoning-emitting connection on a scratch room, restore after; lane queued next slot) · **client second belt SKIP** (server boundary suffices, twin-pinned) · **max-output KEEP 2048** (longer-outputs row CLOSES as ruled-keep). Also: **lanes-full posture re-affirmed** (owner: "stop worrying so much about draining, keep them lanes full"). |
 | 08-14 | **QUOTED-RM = STRICT + SAME-COMMAND VAR EXPANSION, in-lane (question tool):** the tighten ships (122,880-cmd A/B, 130 stricter/0 looser) AND variables assigned earlier in the same command resolve before the safe-test (evidence-gated, never a blanket $-hint; own A/B owed); comment-span false positive NOT taken (stays the standing owner item). |
+| 08-14 | **CODEX DOC-MISS SITTING (question tool, evening):** D129 = **TRUTH-REPAIR + BUILD BOTH** (ledger annotated owner-authorized same hour; one chat-area lane builds the narrator wire-mapping capability probe + the swipe re-resolution verb wiring — QUEUED next free slot) · **Charlotte live-validation = KILLED** (handoff doc superseded-whole, link repaired). Sweep-method lesson adopted: git additions, not dir walks. |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -1294,6 +1295,16 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   text-voice; shrink-only, stale-arm bidirectional since `64110bcc5`) + finding-overload-provenance
   51 (gate-harness ignore-machinery bypass — BURN LANE RUNNING `overload-burn`). Standing brief
   policy adopted: a lane touching a density-baselined file burns that file's rows in-lane.
+- [ ] **CODEX DOC-SWEEP MISSES (their git-additions method beat the board's dir-walk — 2 real, both
+  verified on tree 08-14 evening):** (1) **D129's two UNBUILT commitments never rowed:** the
+  narrator→wire-`system` mapping gated on a live per-model capability probe (`historySystemRows` —
+  ZERO code matches, 2-method receipt) at Registry (B), and the swipe re-resolution off
+  `rawContent`/`macroFreezes` at (F) ("kit replay engine exists and is pinned, no verb calls it").
+  Plus (G)'s "still owed: names/client-chrome/serde" is STALE — those sites exist now. D129 truth-repair DONE (owner-authorized, ledger annotated) + BUILD ruled — lane queued. (2) **`docs/orbweaver-card-debug-handoff.md`
+  is a stale "resume here"** — INJECT/EMPTYGEN/weather since fixed, lifecycle test 2/2, broken
+  `./dogfood-tracking.md` target at :440; being truth-repaired; Charlotte live-validation step =
+  owner keep/kill (posed). Lesson: future doc sweeps use GIT ADDITIONS as the corpus, not a
+  directory walk.
 - [x] **MEMBER-STRIP CARD-FENCE HOLE — FIXED + MERGED (`79fdc30fb`; red-first on BOTH planes incl.
   the member's literal listMessages payload carrying the truth).** ONE fence-blind hidden-scan pass
   in kit; `stripHiddenSpans` + the host reveal (`scanHiddenSpans`) are twins off it — reveal-equals-
@@ -1338,7 +1349,7 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   repro. Likely the writable-field commit seam (\[\[rpg-writable-field-coupled-sites]] — a writable field
   is \~7 coupled sites).
 - [ ] **LENS CALIBRATION — fix `pnpm ast` using its own 281-row output as the corpus (owner ruling,
-  08-13).** The audit is `docs/Qwen_Offline_Investigation.md` (currently UNTRACKED — track it; it is now a
+  08-13).** The audit is `docs/Qwen_Offline_Investigation.md` (tracked since `348d3fa7a`; it is now a
   calibration corpus, not a scratch file). An 08-13 draft of this row dismissed \~248 of its rows as
   "noise"; **the owner overruled that and he is right**: the rows came out of OUR OWN lenses, so a
   false-positive class is a finding ABOUT THE LENS, and a lens that cries wolf gets ignored (the same
