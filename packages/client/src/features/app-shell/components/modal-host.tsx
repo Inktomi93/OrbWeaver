@@ -85,7 +85,7 @@ function DialogModal({
   const isShellModal = def.size === "full" || def.size === "xl";
   // exactOptionalPropertyTypes: spread size only when set, never pass an explicit undefined.
   const sizeProp = def.size === undefined ? {} : { size: def.size };
-  const bodyClass = isShellModal ? "min-h-0 flex-1 overflow-y-auto" : "min-h-0 overflow-y-auto";
+  const bodyClass = isShellModal ? "relative min-h-0 flex-1 overflow-y-auto" : "relative min-h-0 overflow-y-auto";
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
       <DialogPopup {...sizeProp} container={container} finalFocus={(): HTMLElement | boolean => capturedTrigger ?? true}>

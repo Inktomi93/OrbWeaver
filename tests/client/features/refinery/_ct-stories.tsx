@@ -31,6 +31,7 @@ import {
   RefineryListSurface,
   RunControlsCard,
   SchemaEditorDialog,
+  ScopeEditorDialog,
   StagePane,
   StageStepper,
   TeachingState,
@@ -45,7 +46,8 @@ import {
   useUpdateRefinerySession,
 } from "@orb/client/features/refinery";
 import { selectRefinerySession, setRefineryViewedRun } from "@orb/client/state";
-import type { RefinerySchemaStage, RefineryStage } from "@orb/contracts/refinery";
+import type { CharacterCard } from "@orb/contracts/character";
+import type { RefinableField, RefinerySchemaStage, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { CharacterId, ModelId, RefinerySchemaId, RefinerySessionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -431,5 +433,77 @@ export function AcceptReviewStory({ entries }: AcceptReviewStoryProps): ReactEle
       entries={entries}
       onDecide={(index, decision): void => setDecided((prev) => prev.map((d, i) => (i === index ? decision : d)))}
     />
+  );
+}
+
+/** The card the scope rows describe. Declared HERE, in full, rather than taken as a prop: the dialog's
+ *  contract is `CharacterCard` (the contracts shape), and the character CT fixture is a WIRE fixture that
+ *  does not satisfy it. Nothing in this story turns on the card's content — only on its field texts
+ *  supplying each row's gloss and its two greetings giving the tri-state parent something to count. */
+const SCOPE_CARD: CharacterCard = {
+  name: "Zephyrine Vale",
+  description: "A wandering cartographer who fills ledgers nobody asked her for.",
+  personality: "Guarded, precise.",
+  scenario: null,
+  greetings: [{ text: "The road is long." }, { text: "You again." }],
+  exampleMessages: null,
+  systemPrompt: null,
+  postHistoryInstructions: null,
+  depthPrompt: null,
+  creatorNotes: null,
+  creator: null,
+  cardVersion: null,
+  nickname: null,
+  source: null,
+  creationDate: null,
+  modificationDate: null,
+  extensions: null,
+  residualData: null,
+  avatarAssetId: null,
+  refinery: null,
+};
+
+export interface ScopeEditorReopenStoryProps {
+  /** The scope image the pane mounts with. */
+  readonly initialFields: readonly RefinableField[];
+  /** The image a SERVER write lands while the dialog is closed (the `applyFields` remap). */
+  readonly remappedFields: readonly RefinableField[];
+}
+
+/**
+ * `ScopeEditorDialog` held exactly the way BOTH production call sites hold it
+ * (`surfaces/refinery-content-surface.tsx`, `components/refinery-context-tabs.tsx`): mounted PERMANENTLY
+ * beside the pane and merely gated by `open`, with its `selection` fed from a value a server write can move
+ * underneath it.
+ *
+ * "Remap scope" stands in for `refinery.applyFields` rewriting `view.selection`. In production that change
+ * reaches the client through the USER BUS (`useApplyRefineryFields`/`useUpdateRefinerySession` are both
+ * `busDriven: true`, so neither mutation invalidates on its own), and a CT has no bus to fire — so the story
+ * drives the same prop change the bus-invalidated refetch produces, which is the input the dialog actually
+ * sees either way.
+ */
+export function ScopeEditorReopenStory({ initialFields, remappedFields }: ScopeEditorReopenStoryProps): ReactElement {
+  const [open, setOpen] = useState(false);
+  const [fields, setFields] = useState<readonly RefinableField[]>(initialFields);
+  return (
+    <CtAppDataProviders>
+      <button onClick={(): void => setOpen(true)} type="button">
+        Open scope
+      </button>
+      <button onClick={(): void => setFields(remappedFields)} type="button">
+        Remap scope
+      </button>
+      <ScopeEditorDialog
+        card={SCOPE_CARD}
+        onOpenChange={setOpen}
+        // The pane's own write-back: a save moves the session image, which is the second way `selection`
+        // changes under a dialog that is still mounted. `fields` is OPTIONAL on the patch (the delta only
+        // ever omits the GREETING axis, but the type allows either), so an absent one leaves the image be.
+        onSave={(patch): void => setFields((prev) => patch.fields ?? prev)}
+        open={open}
+        score={null}
+        selection={{ fields: [...fields] }}
+      />
+    </CtAppDataProviders>
   );
 }

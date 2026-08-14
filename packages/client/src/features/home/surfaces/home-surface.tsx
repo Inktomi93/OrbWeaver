@@ -43,7 +43,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
     // floating-island radius) instead of the instrument ones. Declared here rather than in HomeTile so the
     // grid's own rhythm and its cells agree by construction.
     <Surface tier="form">
-      <Stack align="center" className="h-full min-h-0 overflow-y-auto outline-none" padding="section" ref={surfaceRef} tabIndex={-1}>
+      <Stack align="center" className="relative h-full min-h-0 overflow-y-auto outline-none" padding="section" ref={surfaceRef} tabIndex={-1}>
         <Container className="w-full" size="lg">
           {list.length === 0 ? (
             <EmptyState

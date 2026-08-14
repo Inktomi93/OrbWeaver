@@ -189,7 +189,7 @@ export function makeDiscoveryHarness(
     newCharacterKeywordProfileId: seededMinter<CharacterKeywordProfileId>("character_keyword_profile"),
     newDuplicateChatPairId: seededMinter<DuplicateChatPairId>("duplicate_chat_pair"),
     summarize: summarize.op,
-    summarizerModel: overrides.summarizerModel ?? "test-summarize-model",
+    summarizerModel: () => overrides.summarizerModel ?? "test-summarize-model",
     attachCardTagByName: overrides.attachCardTagByName ?? tagAttach.op,
     // The side-gen sampling ladder's middle rung; default = an empty posture (no preset params) so the distill/
     // analyze floors stand. A test asserting the ladder overrides it with a scripted params object.

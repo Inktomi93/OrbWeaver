@@ -953,7 +953,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
     summarize: input.roleClients.summarize,
-    summarizerContextTokens: input.roleClients.summarizerContextTokens,
+    // A thunk over the live getter — never the value: reading it here would bake the boot resolution.
+    summarizerContextTokens: () => input.roleClients.summarizerContextTokens,
     memorySummarizer: input.settings.getEffectiveConfig().memorySummarizer,
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).

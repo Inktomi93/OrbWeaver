@@ -1042,8 +1042,11 @@ export interface ChatContext {
   readonly applyStatsDelta: ApplyStatsDeltaOp;
   readonly summarize: SummarizeOp;
   /** The summarizer model's resolved context window (tokens) — the memory build's token-guard fits each
-   *  summarizer call to the user's actual context. */
-  readonly summarizerContextTokens: number;
+   *  summarizer call to the user's actual context. A THUNK, never a captured number, because
+   *  `RoleClients.summarizerContextTokens` is a live getter over the latest per-call role resolution
+   *  (`entry/compose/role-clients.ts` header): capturing it at compose would re-freeze at boot exactly what
+   *  that binder stopped freezing, and the guard would size every digest to the model the server started on. */
+  readonly summarizerContextTokens: () => number;
   /** The admin-resolved memory-summarizer sampling (`AppSettings.memorySummarizer`) — the memory build passes
    *  `{maxTokens, temperature}` onto every `summarize` call AND mirrors `maxTokens` into the token-guard's
    *  output reserve (one home, so the fit and the request can't diverge). Both fields absent ⇒ the summarizer

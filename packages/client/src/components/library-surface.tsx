@@ -92,7 +92,7 @@ export function LibraryListLayout({
         {isEmpty ? (
           empty
         ) : (
-          <Stack {...rowsGroup} className="min-h-0 flex-1 overflow-y-auto" gap="tight" ref={rowsRef}>
+          <Stack {...rowsGroup} className="relative min-h-0 flex-1 overflow-y-auto" gap="tight" ref={rowsRef}>
             {children}
           </Stack>
         )}

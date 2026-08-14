@@ -61,10 +61,15 @@ export interface RefineryContext {
   readonly newRefineryRunId: () => RefineryRunId;
   readonly newRefinerySchemaId: () => RefinerySchemaId;
   readonly summarize: Summarize;
-  readonly summarizerModel: string;
+  /** The summarize role's resolved model tag, read PER CALL — a thunk, never a captured string, because
+   *  `RoleClients.summarizerModel` is a live getter that follows a role re-point
+   *  (`entry/compose/role-clients.ts` header). A run stamped with the boot model after the owner moved the
+   *  summarize role is provenance that contradicts the model that actually answered. */
+  readonly summarizerModel: () => string;
   /** The summarize role's context window (`RoleClients.summarizerContextTokens`) — the preflight's input
-   *  denominator; null when the backend declares none. */
-  readonly summarizerContextTokens: number | null;
+   *  denominator; null when the backend declares none. A thunk for the same reason `summarizerModel` is:
+   *  the window belongs to whatever connection the role points at RIGHT NOW. */
+  readonly summarizerContextTokens: () => number | null;
   readonly resolveUserPresetParams: ResolveUserPresetParams;
   readonly resolveUserProse: ResolveUserProse;
   /**
@@ -111,8 +116,10 @@ export interface RefineryWorkloadDeps {
   readonly summarize: Summarize;
   /** The summarize role's resolved context window (null when the connection reports none) — the sweep's
    *  output cap is payload-aware like every other score call, and the window is what clamps it
-   *  (`substrate/output-budget`). Present here for exactly that reason: the sweep has no `RefineryContext`. */
-  readonly summarizerContextTokens: number | null;
+   *  (`substrate/output-budget`). Present here for exactly that reason: the sweep has no `RefineryContext`.
+   *  A THUNK for the same reason the context's is: a sweep queued before a role re-point must clamp to the
+   *  window of the connection that will actually serve it. */
+  readonly summarizerContextTokens: () => number | null;
   readonly resolveUserPresetParams: ResolveUserPresetParams;
   readonly resolveUserProse: ResolveUserProse;
   /** The sweep's enumeration (injected character op — refinery reads no `characters` row itself). */

@@ -335,7 +335,7 @@ export function SettingsShell(): ReactElement {
             <Stack
               role="navigation"
               aria-label="Settings sections"
-              className={`w-(--width-sidebar-sm) min-h-0 shrink-0 overflow-y-auto @max-md:w-full ${pushed ? "@max-md:hidden" : ""}`}
+              className={`relative w-(--width-sidebar-sm) min-h-0 shrink-0 overflow-y-auto @max-md:w-full ${pushed ? "@max-md:hidden" : ""}`}
               gap="section"
             >
               {SETTINGS_GROUPS.map((group) => (

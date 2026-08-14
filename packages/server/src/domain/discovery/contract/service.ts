@@ -167,7 +167,11 @@ export interface AnalyzeDeps {
 export interface DistillCharactersDeps {
   readonly now: () => number;
   readonly summarize: Summarize;
-  readonly summarizerModel: string;
+  /** The summarize role's resolved model tag, read PER CALL — a thunk, never a captured string, because
+   *  `RoleClients.summarizerModel` is a live getter that follows a role re-point
+   *  (`entry/compose/role-clients.ts` header). A distilled summary row stamps the CONFIGURED model, so a
+   *  boot-frozen string would label rows with a model the owner has since moved off. */
+  readonly summarizerModel: () => string;
   readonly attachCardTagByName: AttachCardTagByName;
   /** The card owner's default-preset params (the side-gen sampling ladder's middle rung). The whole-library
    *  batch has no single owner ⇒ the floor stands; the on-demand single-card pass folds `opts.ownerId`'s. */
@@ -185,7 +189,9 @@ export interface DiscoveryContext {
   readonly newDuplicateCharacterPairId: () => DuplicateCharacterPairId;
   readonly newThemeClusterId: () => ThemeClusterId;
   readonly summarize: Summarize;
-  readonly summarizerModel: string;
+  /** The summarize role's resolved model tag, read PER CALL — same thunk contract as
+   *  `DistillCharactersDeps.summarizerModel` above, which this field is threaded into verbatim. */
+  readonly summarizerModel: () => string;
   readonly attachCardTagByName: AttachCardTagByName;
   /** The side-gen sampling ladder's middle rung — the card owner's default-preset params (distill + analyze). */
   readonly resolveUserPresetParams: ResolveUserPresetParams;

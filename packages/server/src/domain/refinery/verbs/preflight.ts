@@ -94,7 +94,7 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
     // The working overlay mirrors the engine's (cleared entries shrink it, exactly as a run would see).
     const working = rewritePayload.fields.length === 0 ? session.originalCard : overlayRewrite(session.originalCard, rewritePayload);
 
-    const model = castId<ModelId>(ctx.summarizerModel);
+    const model = castId<ModelId>(ctx.summarizerModel());
     const resolutions = await Promise.all(REFINERY_STAGES.map((stage) => resolveStageResolution(ctx, { ownerId, stage, session })));
     const stages: StagePreflight[] = REFINERY_STAGES.map((stage, i) => {
       const resolution = resolutions[i] ?? { kind: "fixed" as const };
@@ -103,7 +103,7 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
       // The SAME expression the engine evaluates for this stage (substrate/output-budget) — so this readout
       // reports the budget the next run will request, never a floor the run is free to ignore.
       const subject = stageSubjectOf(stage, session);
-      const sampling = resolveStageSampling({ subject, presetParams, contextTokens: ctx.summarizerContextTokens, inputEstimate });
+      const sampling = resolveStageSampling({ subject, presetParams, contextTokens: ctx.summarizerContextTokens(), inputEstimate });
       return {
         stage,
         model,
@@ -113,7 +113,7 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
         outputEstimate: outputEstimateOf(subject),
       };
     });
-    return { contextTokens: ctx.summarizerContextTokens, stages } satisfies PreflightResult;
+    return { contextTokens: ctx.summarizerContextTokens(), stages } satisfies PreflightResult;
   };
 }
 

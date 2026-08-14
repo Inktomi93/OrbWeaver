@@ -117,7 +117,7 @@ export function RpgHud({ view }: RpgHudProps): ReactElement {
             the HUD's own now (the shell's panel-body padding is dropped under a claim), so a body keeps its
             breathing room while the chrome around it reaches the pane's edges. */}
         {view.tabs.map((tab) => (
-          <TabsPanel key={tab.id} value={tab.id} aria-labelledby={cellDomId(tab.id)} className="min-h-0 flex-initial overflow-y-auto px-row py-row">
+          <TabsPanel key={tab.id} value={tab.id} aria-labelledby={cellDomId(tab.id)} className="relative min-h-0 flex-initial overflow-y-auto px-row py-row">
             {tab.node}
           </TabsPanel>
         ))}

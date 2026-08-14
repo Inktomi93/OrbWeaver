@@ -130,7 +130,7 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
   });
   const sampleOpts: SummarizeOptions = {
     responseFormat: REFINERY_RESPONSE_FORMATS.score,
-    ...toSummarizeOptions(sweepOutputSamplingOf(items, presetParams, deps.summarizerContextTokens)),
+    ...toSummarizeOptions(sweepOutputSamplingOf(items, presetParams, deps.summarizerContextTokens())),
   };
 
   signal?.throwIfAborted();

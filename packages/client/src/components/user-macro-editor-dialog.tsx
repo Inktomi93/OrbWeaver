@@ -107,7 +107,7 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
       }}
       title="Edit macro"
     >
-      <Stack gap="block" className="min-h-0 overflow-y-auto">
+      <Stack gap="block" className="relative min-h-0 overflow-y-auto">
         <form.AppField name={`userMacros[${index}].name`}>
           {(field): ReactElement => <field.TextField label="Name" description="Called as {{name}} in your prompt. Letters, digits, _ or - only." />}
         </form.AppField>

@@ -9,6 +9,7 @@
 //     never a `Textarea` (legacy's form control announced the canon as an editable textbox).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
 import { DatabankDetailStory, DatabankDetailWideStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
 import { INDEXING_DOC, READY_DOC, SOURCE_TEXT, stubDatabank } from "../fixtures.ts";
 
@@ -94,4 +95,28 @@ test("source text is a read-only REGION, fetched only on reveal — not a Textar
   // The readout is not a form control — legacy's `Textarea readOnly` announced as an editable textbox.
   await expect(workspace.locator("textarea")).toHaveCount(0);
   await expect.poll(() => trpc.inputs("databank.get"), { intervals: [20, 50, 100] }).toContainEqual({ id: READY_DOC.id, includeText: true });
+});
+
+// THE CONTAINING-BLOCK PIN (phantom-scroll CLASS sweep, 2026-08-14). The detail pane owns its scroll axis (`h-full min-h-0 overflow-y-auto`).
+// An `overflow` scroller only clips — and only absorbs the scrollable overflow of — an absolutely-positioned
+// descendant whose CONTAINING BLOCK is inside it. A `position: static` scroller establishes none, so the
+// `sr-only` boxes Base UI form primitives emit (`position: absolute` — NumberField's bounds announcer,
+// Switch/Checkbox's hidden input, the combobox status line) resolve theirs further up and add their static
+// positions to a POSITIONED ancestor's scrollable area instead. That is the owner's 2026-08-13 "scrolls past
+// the end of its results" defect (fixed once for the settings pane region, swept as a class here), and
+// `relative` on the scroller is the whole fix. `readPhantomScrollers` measures the MECHANISM document-wide —
+// the SYMPTOM needs a positioned scrolling host, which is the settings shell CT's own story.
+// HONEST LABEL: a FENCE, not a defect proof — measured GREEN against the pre-fix source, because this
+// surface's CT story paints read-only content (no Base UI form primitive, so no `sr-only` absolute box
+// exists to escape). The DEFECT PROOFS for this class are the preset-editor and character-editor pins,
+// which red against HEAD. This fence is what stops the class coming back the day a form control lands
+// in this pane — which is exactly how the settings pane acquired it.
+test("no absolutely-positioned box escapes the databank detail scroller (the containing-block pin)", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  // SETTLED: the opened document's own heading — the pane has painted its detail, not a spinner.
+  await expect(workspace.getByRole("heading", { name: "The Crimson Court" })).toBeVisible();
+
+  expect(await readPhantomScrollers(page)).toEqual([]);
 });

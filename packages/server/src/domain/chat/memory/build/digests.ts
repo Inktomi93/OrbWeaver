@@ -153,7 +153,7 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "mode off" });
     return null;
   }
-  if (ctx.summarizerContextTokens < SUMMARIZER_CONTEXT_FLOOR) {
+  if (ctx.summarizerContextTokens() < SUMMARIZER_CONTEXT_FLOOR) {
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "summarizer context below floor" });
   }
   const macroNames = args.macroNames ?? EMPTY_MACRO_NAMES;
@@ -280,7 +280,7 @@ async function collectTier0(
       skipped += 1;
       continue;
     }
-    const fitted = fitBlockToBudget(block.rows, env.macroNames, ctx.summarizerContextTokens, systemPromptTokens, outputReserve(ctx));
+    const fitted = fitBlockToBudget(block.rows, env.macroNames, ctx.summarizerContextTokens(), systemPromptTokens, outputReserve(ctx));
     if (fitted === null) {
       skippedTokenGuard += 1;
       continue;

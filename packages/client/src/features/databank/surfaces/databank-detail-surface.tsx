@@ -42,7 +42,7 @@ export function DatabankDetailSurface(): ReactElement {
 
   return (
     <Container className="h-full min-h-0">
-      <Stack className="h-full min-h-0 overflow-y-auto outline-none" data-slot="databank-content" ref={surfaceRef} tabIndex={-1}>
+      <Stack className="relative h-full min-h-0 overflow-y-auto outline-none" data-slot="databank-content" ref={surfaceRef} tabIndex={-1}>
         {documentId === null ? (
           <DatabankWelcome />
         ) : (

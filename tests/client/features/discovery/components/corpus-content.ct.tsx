@@ -18,6 +18,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
 import { CorpusContentStory } from "../_ct-stories.tsx";
 
 /** A library with real characters but nothing analysed — the exact first-run shape. */
@@ -120,4 +121,27 @@ test("the CONTENT region insets its own body — no row starts flush at the pane
     throw new Error("the corpus content region or its first heading did not render a box");
   }
   expect(headingBox.x, "the body is inset from the pane's left edge").toBeGreaterThan(regionBox.x);
+});
+
+// THE CONTAINING-BLOCK PIN (phantom-scroll CLASS sweep, 2026-08-14). The corpus CONTENT region owns its scroll axis (`h-full min-h-0 overflow-y-auto overscroll-contain`), and each of its five tabs is its own `flex-1 overflow-y-auto` scroller.
+// An `overflow` scroller only clips — and only absorbs the scrollable overflow of — an absolutely-positioned
+// descendant whose CONTAINING BLOCK is inside it. A `position: static` scroller establishes none, so the
+// `sr-only` boxes Base UI form primitives emit (`position: absolute` — NumberField's bounds announcer,
+// Switch/Checkbox's hidden input, the combobox status line) resolve theirs further up and add their static
+// positions to a POSITIONED ancestor's scrollable area instead. That is the owner's 2026-08-13 "scrolls past
+// the end of its results" defect (fixed once for the settings pane region, swept as a class here), and
+// `relative` on the scroller is the whole fix. `readPhantomScrollers` measures the MECHANISM document-wide —
+// the SYMPTOM needs a positioned scrolling host, which is the settings shell CT's own story.
+// HONEST LABEL: a FENCE, not a defect proof — measured GREEN against the pre-fix source, because this
+// surface's CT story paints read-only content (no Base UI form primitive, so no `sr-only` absolute box
+// exists to escape). The DEFECT PROOFS for this class are the preset-editor and character-editor pins,
+// which red against HEAD. This fence is what stops the class coming back the day a form control lands
+// in this pane — which is exactly how the settings pane acquired it.
+test("no absolutely-positioned box escapes the corpus content scroller (the containing-block pin)", async ({ mount, page }) => {
+  await stub(page, ANALYSED);
+  const component = await mount(<CorpusContentStory />);
+  // SETTLED: Coverage is the region's first real heading past the suspense arm.
+  await expect(component.getByRole("heading", { name: "Coverage" })).toBeVisible();
+
+  expect(await readPhantomScrollers(page)).toEqual([]);
 });

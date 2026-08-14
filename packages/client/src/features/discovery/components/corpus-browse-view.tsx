@@ -124,7 +124,7 @@ function BrowseRows({
     );
   }
   return (
-    <Stack aria-label="Distilled catalog" className="min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="row" role="list">
+    <Stack aria-label="Distilled catalog" className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="row" role="list">
       {rows.map((row) => (
         <BrowseCharacterRow key={row.characterId} row={row} />
       ))}

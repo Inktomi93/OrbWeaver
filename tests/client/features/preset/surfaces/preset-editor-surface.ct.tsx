@@ -31,6 +31,7 @@ import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundt
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
 import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
 import {
   PresetEditorCapabilityFreshnessStory,
@@ -1172,4 +1173,30 @@ test("O-17 — Delivery + Collapsing render under Transforms and are gone from P
   await expect(component.getByRole("combobox", { name: "Continue delimiter" })).toBeVisible();
   await expect(component.getByRole("combobox", { name: "Adjacent-role merging" })).toBeVisible();
   await expect(component.getByRole("switch", { name: "Squash system notes" })).toBeVisible();
+});
+
+// THE CONTAINING-BLOCK PIN (phantom-scroll CLASS sweep, 2026-08-14). This surface owns its scroll axis
+// (`h-full min-h-0 overflow-y-auto`), and it was `position: static` — measured here with
+// `readPhantomScrollers` before the fix: ELEVEN absolutely-positioned boxes resolved their containing block
+// past the scroller and out to `<body>` (`[number-field-bounds].sr-only`, the Quality select's hidden
+// `<input>`, the Switch inputs). An `overflow` scroller only clips — and only absorbs the scrollable
+// overflow of — descendants whose containing block is INSIDE it, so under a positioned scrolling ancestor
+// (the shell, or a `DialogPopup`) their static positions get added to THAT element's scrollable area
+// instead. That is the owner's 2026-08-13 "scrolls past the end of its results" defect, generalized: it is
+// the same mechanism the settings pane region was fixed for, and the sr-only boxes Base UI form primitives
+// emit put every form-bearing scroller in the class. `relative` is the one-class fix.
+test("no absolutely-positioned box escapes the preset editor's scroller (the containing-block pin)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "connection.resolveChatCapability": () => CAPABILITY,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  // A SETTLED barrier: the model-fed sampling knob only paints once the capability read has landed, which
+  // is also when the NumberField/Switch sr-only boxes this pin is about exist at all.
+  await expect(component.getByRole("slider", { name: "Temperature" })).toBeVisible();
+
+  expect(await readPhantomScrollers(page)).toEqual([]);
 });
