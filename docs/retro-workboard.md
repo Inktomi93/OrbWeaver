@@ -408,6 +408,15 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   its own hour arm one line up) · doc truth-repairs: staleness design §1.1 `orb-draft:*` inventory is
   STALE (`createEntityDraftStore` has ZERO call sites, 429+503 scanned w/ control — W6 is smaller than
   written).
+- [ ] **"LONGER OUTPUTS" LEVER (owner ruling, cap inventory landed by the residue lane):** the two binding
+  constants are `DEFAULT_MAX_OUTPUT_TOKENS` = **2048** (`contracts/preset/index.ts:238` — BOTH the wire
+  max\_tokens AND the history-fit reserve: `history-budget.ts:65,112`, every output token is a prompt
+  token removed) and `DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS` = **1024** (also the prompt reserve via
+  token-guard). Raising either = value-changing change, owes the BATTERY. rpg extraction sends NO cap
+  (engine-window bounded) — already maximal. Morning decision: new values + the battery run.
+- [ ] **Residue-lane smalls:** move the `genRepetitionPenalty` editor row out of the restart-gated
+  Engines section to sit beside its now-hot twin in admin-system-tuning (client + CT) · tighten
+  `no-test-fabrication.baseline.json` for chat.test.ts 2→1 (gate-ledger edit, do at a quiet moment).
 - [ ] **GATE CANDIDATES (evaluate, two-receipt law each):** (G-C) whole-record-replace-on-JSON-column
   where any writer is key-wise — ast-grep `X: {...patch.X}` shape over patch/update verbs; historical
   control = mergeSheet + refinery selection · (G-D) `maxPages`/windowed infinite query paired with
