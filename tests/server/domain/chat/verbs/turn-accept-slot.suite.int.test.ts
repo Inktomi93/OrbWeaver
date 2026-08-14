@@ -1,8 +1,9 @@
-// The ACCEPTED-SLOT TOTALITY property (cross-cutting: swipe / continueTurn / generate / send + the engine's
-// shared pre-start seam). One rule, proved per strand path: once a verb emits `turnAccepted` the client's turn
-// slot is OPEN, so EVERY exit of that verb must resolve it — `turnStarted`→terminal on the running path, else
-// `turnAborted`. An accepted-but-unresolved slot is a stuck Stop button over a stale variant, the exact class
-// the ghost-slot fix would otherwise have introduced while curing the late-open one.
+// The ACCEPTED-SLOT TOTALITY property (cross-cutting: swipe / continueTurn / generate / forceCharacterTurn /
+// send + the engine's shared pre-start seam). One rule, proved per strand path: once a verb emits
+// `turnAccepted` the client's turn slot is OPEN, so EVERY exit of that verb must resolve it —
+// `turnStarted`→terminal on the running path, else `turnAborted`. An accepted-but-unresolved slot is a stuck
+// Stop button over a stale variant, the exact class the ghost-slot fix would otherwise have introduced while
+// curing the late-open one.
 //
 // The strand paths, per verb, are the four ways an accepted aux turn can end WITHOUT reaching `turnStarted`:
 //   1. the verb's own post-accept validation throws (generate's unknown-speaker NOT_FOUND),
@@ -253,6 +254,82 @@ describe("accepted-slot totality — generate", () => {
     refuse.now = true;
 
     await expect(chat.turn.generate({ principal: chat.principal(), chatId: chat.chatId })).rejects.toMatchObject({ code: "budget_exceeded" });
+
+    expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
+  });
+});
+
+// `forceCharacterTurn` is the ROUND-driving sibling of the three above — a host summoning a named roster
+// character. It never went through `runRegistered`, so it kept the late-open defect after the aux fix landed:
+// nothing at all reached the room until the engine's `turnStarted`, which lands only after `resolveConnection`
+// + `buildTurnContext` (the same memory-recall wall the aux diagnosis measured). Its slot is a FRESH reply
+// (`targetMessageId: null`, nothing to ghost over) but its speaker is known at the accept instant — the host
+// named them — so unlike `generate` it accepts WITH the character id.
+describe("accepted-slot totality — forceCharacterTurn", () => {
+  test("HAPPY: accepts with the FORCED speaker and no ghost target, before turnStarted", async () => {
+    const { chat, since } = await roomWithReply();
+
+    await chat.turn.forceCharacterTurn({ principal: chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId });
+
+    expect(types(since())).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
+    expect(since()[0]).toMatchObject({
+      type: "turnAccepted",
+      // A forced turn's bus intent is `generate` (KIND_TO_INTENT.force) — it appends a fresh assistant reply.
+      intent: "generate",
+      targetMessageId: null,
+      speakerCharacterId: chat.chars[0],
+    });
+  });
+
+  test("NOT_FOUND target (a character with no present seat): no slot is opened at all", async () => {
+    const { chat, since } = await roomWithReply();
+
+    await expect(
+      chat.turn.forceCharacterTurn({ principal: chat.principal(), chatId: chat.chatId, characterId: mintTypeId(ID_PREFIX.character) as CharacterId }),
+    ).rejects.toThrow();
+
+    // Same ORDERING decision as swipe's: the roster/presence check runs BEFORE the accept.
+    expect(types(since())).toEqual([]);
+  });
+
+  test("the context build throws → the accepted slot CLOSES with turnAborted", async () => {
+    const fail: { now: boolean } = { now: false };
+    const { chat, since } = await roomWithReply({ resolveForeignInputs: faultingForeign(fail) });
+    fail.now = true;
+
+    await expect(
+      chat.turn.forceCharacterTurn({ principal: chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId }),
+    ).rejects.toThrow();
+
+    expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
+    expect(since()[1]).toMatchObject({ type: "turnAborted", intent: "generate", reason: "error", automationDepth: 0 });
+  });
+
+  test("LOCK CONTENTION → the accepted slot CLOSES with turnAborted (driveRound SWALLOWS the refusal)", async () => {
+    const { chat, since } = await roomWithReply();
+    await holdLock(chat);
+
+    // Unlike the aux verbs, a forced turn rides `driveRound`, which treats `locked` as "yield the round" — so
+    // the verb RESOLVES with zero messages and the accept was the last event the room ever saw.
+    const outcome = await chat.turn.forceCharacterTurn({ principal: chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId });
+
+    expect(outcome.messages).toEqual([]);
+    expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
+    expect(since()[1]).toMatchObject({ reason: "error" });
+  });
+
+  test("engine PRE-START belt refusal (budget) → the accepted slot CLOSES with turnAborted", async () => {
+    const refuse: { now: boolean } = { now: false };
+    const { chat, since } = await roomWithReply({
+      engineBelts: {
+        debitBudget: (): Promise<void> => (refuse.now ? Promise.reject(new DomainRateLimitError("over", { remainingPoints: 0 })) : Promise.resolve()),
+      },
+    });
+    refuse.now = true;
+
+    await expect(
+      chat.turn.forceCharacterTurn({ principal: chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId }),
+    ).rejects.toMatchObject({ code: "budget_exceeded" });
 
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
   });

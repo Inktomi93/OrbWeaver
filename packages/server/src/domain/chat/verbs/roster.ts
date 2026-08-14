@@ -12,7 +12,7 @@
 // non-nominee accept is refused with not_turn_owner.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { DurableChatBusEvent, GroupConfig, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, GroupConfig, MessageView, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import {
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
@@ -32,7 +32,7 @@ import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
@@ -70,11 +70,13 @@ import {
   repointCharacterSeatStatement,
   setPendingHostStatement,
 } from "../persistence/participant.ts";
-import { loadMaxMessageSeq, loadPendingHandoff } from "../persistence/queries.ts";
+import { loadHasUserMessage, loadMaxMessageSeq, loadPendingHandoff } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
+import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 import { resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { canonMessageDelta } from "../substrate/stats-delta.ts";
 
 /** The emit op the mutating roster verbs close over. */
 type EmitChatEvent = (event: DurableChatBusEvent) => Promise<void>;
@@ -429,6 +431,82 @@ function createGetRoomOverridesForChat(ctx: ChatContext): ChatService["getRoomOv
   };
 }
 
+/**
+ * F6 (chat-creation-draft-mode-replacement.md §4.8/§5, arm (a)) — the IN-WINDOW join greeting. A character
+ * added while the room's greeting window is still open greets, exactly as a founding member does; after the
+ * window closes the join stays silent (today's late-add semantics). This preserves the one affordance the
+ * deleted draft plane had here: a panel-added member's greeting row appeared before the first send, and
+ * without it that UX silently regressed the day the draft plane went away.
+ *
+ * THE WINDOW is the same one `setSeededGreeting` refuses on (`greeting_frozen`, verbs/edit.ts): no user-role
+ * canon row. That instant is also `freezeGreetingVolatiles` (verbs/turn.ts), which bakes every prior
+ * greeting's volatile macros — so a row seeded here is guaranteed to still be malleable/steppable when it
+ * lands, and one seeded a beat later would be a frozen row pretending to be a greeting.
+ *
+ * THE STATS DELTA IS THIS VERB'S OWN, unlike `startChat`'s founding greetings. The caller has already CLAIMED
+ * the room (the ordering invariant, `verbs/claim-chat.ts`), so the creation replay has run over the canon that
+ * existed BEFORE this row; a delta-less row here would be invisible to the live counters and red the stats
+ * drift gate at the next reconcile. A verbatim greeting carries no generation economics — one variant,
+ * selected at idx 0, every token/cost column null.
+ *
+ * Returns the committed view so the caller can fan `messageCommitted`, or null when nothing was seeded (the
+ * window is closed, or the card carries no greeting).
+ */
+async function seedJoinGreeting(
+  ctx: ChatContext,
+  args: { readonly chatId: ChatId; readonly characterId: CharacterId; readonly card: CharacterCard; readonly ownerId: UserId },
+): Promise<MessageView | null> {
+  if (await loadHasUserMessage(ctx.db, args.chatId)) {
+    return null;
+  }
+  const text = args.card.greetings[0]?.text ?? "";
+  const now = ctx.now();
+  const seed = buildGreetingSeed(ctx, {
+    chatId: args.chatId,
+    now,
+    // The seat's own join boundary is the CURRENT head, so its greeting lands one past it — the joining
+    // character witnesses the row it just spoke (D55).
+    startSeq: await loadMaxMessageSeq(ctx.db, args.chatId),
+    greetings: [{ characterId: args.characterId, text }],
+  });
+  const view = seed.views[0];
+  if (view === undefined) {
+    return null; // an empty/cleared card greeting seeds no row.
+  }
+  const stmts = [...seed.stmts];
+  ctx.applyStatsDelta(
+    stmts,
+    ctx.db,
+    canonMessageDelta({
+      ownerId: args.ownerId,
+      row: {
+        characterId: args.characterId,
+        role: "assistant",
+        createdAt: now,
+        content: text,
+        tokensIn: null,
+        tokensOut: null,
+        costUsd: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        contextWindow: null,
+        genStartedAt: null,
+        genFinishedAt: null,
+        model: null,
+        provider: null,
+        reasoning: null,
+        metadata: null,
+        selectedIdx: 0,
+        variantCount: 1,
+      },
+      sign: 1,
+      now,
+    }),
+  );
+  await ctx.db.batch(batchMany(stmts));
+  return view;
+}
+
 /** `addCharacterToChat` — host-only; the character participant-insert chokepoint. Stamps a fresh member
  *  row at the current canon head, emits chatUpdated, returns the resolved roster row. IDEMPOTENT: a character
  *  that already holds a PRESENT seat returns that seat's view unchanged — the character half of the roster has
@@ -468,6 +546,12 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
       },
     ]);
     await emit({ type: "chatUpdated", chatId });
+    // F6 — the in-window join greeting. AFTER the seat exists (the greeting is voiced BY a present member) and
+    // after `chatUpdated`, so a client applying the commit already knows the speaker.
+    const greeting = await seedJoinGreeting(ctx, { chatId, characterId, card, ownerId: principal.userId });
+    if (greeting !== null) {
+      await emit({ type: "messageCommitted", chatId, messageId: greeting.id, view: greeting });
+    }
     return characterParticipantView(
       {
         id: participantId,
