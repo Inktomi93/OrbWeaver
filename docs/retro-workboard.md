@@ -127,6 +127,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-14 | **W7b/W8 in-lane rulings (orchestrator, receipted premise-deltas):** W8 sweep found every named bulk verb ALREADY single-emit — the ONLY real per-item storm is the IMPORT per-card path; quiet mode ships as a GENERAL primitive `withQuietUserEvents` at the one publish funnel (ALS-scoped so concurrent same-user edits pass; first emit = start marker, coarse terminal per silenced type from finally, satisfies-Record totality). W7b: no self-service profile verb exists; `identityChanged` emits from setRole/setEnabled (AdminContext) **+ the provisionIdentity updateExisting arm APPROVED** (ProvisionResult flag, entry callers emit — login-time demotion must reach live devices). Hint-less member, plain-TS+belt grammar (zod directive targets the dead-twin class, not this file). |
 | 08-14 | **DAYTIME SITTING (question tool, all four):** `chats.star`→`starred` = **RENAME EVERYWHERE** incl. the chat-bundle export/import wire key (NO-LEGACY; RPC mutation name `chat.star` stays per the archive precedent) · **updatedAt = ALL THREE** (characters/world\_books/world\_entries) via baseline squash · **33 unwired procs = PARK ALL** (dormant product surface by design; row closes as parked, NO deletions, no sitting — supersedes the intent-sitting row) · **max-output = KEEP 2048** (longer-outputs row stays parked until the owner names a number). Sequencing law for the two schema rulings: R0's squash lands FIRST, then ONE db-rename leg (star→starred + updatedAt + bundle-key rename) re-squashes on the merged tree — never two concurrent baseline regens. |
 | 08-14 | **R0 in-lane rulings (orchestrator, receipted):** squash rides R0 per tree law (Tier-1-DB regime 1 + baseline-single-migration gate — the brief's "additive only" line was WRONG, lane correctly refused) · stats rebuild-from-canon gets the SAME husk exclusion as the live delta (drift-gate contract; fence extended, no stats lane live) · host writes CLAIM incl. pre-first-turn greeting edits (F4(a) letter; losing hand-edits > premature visibility) · R0-early delta accepted: refused send → hidden husk reaped at 24h, recorded as-built. |
+| 08-14 | **Client cross-feature calls (owner, verbatim): "chat and character can call whatever they want on the client if they use proper channels/methods like trpc or etc."** Features still never import each other's INTERNALS, but any feature may fire any tRPC verb through the proper tiers (#data hooks / createEntityMutation) — no capability ceremony, no registry indirection required for a plain cross-feature mutation. Applied live to R1's use-start-chat.ts home. |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -203,57 +204,111 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
-## ═══ LIVE STATE (2026-08-14 \~05:30 — OVERNIGHT RUN, cold-resume snapshot at the 91% sentinel) ═══
+## ═══ LIVE STATE (2026-08-14 afternoon — DAYTIME ROTATION, rewritten in place at the lens+probes merges) ═══
 
-**Main \~55 commits ahead of origin (owner pushes himself). Tree CLEAN except Codex's untracked audit
-files (.codex/ gitignored; docs/reviews/repository-audit-* + scripts/audit/ + .agents/skills/* are
-CODEX'S, leave alone). STACK UP (localhost:5173→200, :8788 healthz ok) + FLEET UP on the 27B
-(19.04x concurrency, fixed jinja template, enable\_in\_reasoning:false — flag semantics were INVERTED,
-A/B receipts in build-argv.ts). ComfyUI stopped idle → `docker start comfyui` to restore.\*\*
+**Main `dd8683627`+, \~110 commits ahead of origin (owner pushes himself). Tree CLEAN (sweep
+`68566aec7`: apisurface-\*.txt gitignored as regenerable scratch; Codex's .agents/skills committed;
+audit dir committed `0de9e087d`, 330 files, hashes verified). STACK UP + FLEET UP on the 27B.**
 
-**STILL RUNNING (second rotation + backfills):** lens-calibration ac86ef0c995636eef (**class-2 PREMISE
-DEATH, lane-verified:** rows 101-133 are VERIFIED-REAL — 33 server procs with ZERO client-prod
-consumers, grep + typed-proxy receipts; owner then ruled PARK ALL 33. Lane hardens the blind matcher
-shapes — element-access + optional-chain — with planted controls; count delta 0 BY DESIGN; classes
-1/3-6 continue) · W7b+W8 a9bc951d32337de3a · **R0 draft-mode server substrate (executor, in flight —
-squash + husk lens + claim + reap; three in-lane rulings ledgered)** · **AGENT-TOOLING-01 P1 guard
-fix (security-executor, in flight)** · **DEPLOCK dep lane (mech, in flight — sharp≥0.35 +
-pdfjs-dist bump + peers + dedupe; TS/ESLint version bumps FENCED out)**. Report-cards lane
-afd5458183e0c973f idles WARM for the items-6/7 db-rename leg (sequenced behind R0's squash;
-worktree alive, do not sweep).
+**R0 MERGED `879827373`** (husk lens + ONE ClaimChatOp chokepoint \[claim after authority guard,
+before write; stats replay bucketed on created\_at] + both reap arms; baseline squash = one line;
+**⚠ NEXT STACK BOOT WIPES THE DEV DB** — regime 1, latch reseeds; red-first receipts all five arms,
+2639 tests; R1 substrate ready: chat.reapHusk live-unused row + unchanged StartChatResult). Items-6/7
+leg now UNBLOCKED (fires when the cleanup leg reports). Doc small owed: Tier-1-DB §Regime-1 step 2
+`rm -rf migrations` → mv-then-verify form (subagent rm-rf deny bit the lane; mv is safer anyway).
 
-**MERGED/LANDED SINCE:** smalls batch `ce7e9dac1` (9 of 10; turn-tool-calls SKIPPED-BY-LAW — header
-documents per-row disclosure as deliberate; theme-editor now autosaves per ruling; density-tier stale
-arm 226→224 with both receipts; loopback 3-strike exemption + universal testHealth button live) ·
-Codex audit committed `0de9e087d` (330 files, verbatim, hashes verified) · W7b+W8 `b85e82e24`
-(identityChanged + withQuietUserEvents; setEnabled REFUSED w/ receipt; **CT-broken claim vs sibling
-green CT receipts = CONTRADICTION, arbitrate on quiesced tree at drain — es2025/esbuild-0.25 suspicion,
-see 67d7805d0's dead premise**) · DEPLOCK `5d0105e72` (sharp 0.35 + pdfjs 6.2, audit highs 12→10,
-jsx-a11y/eslint-10 peer REFUSED-unfixable-upstream) · **AGENT-TOOLING-01 P1 CLOSED `27aad9d18`**
-(guard self-exemption identity-based post-blanking post-hard-floor; corpus A/B 119,845 real calls:
-self-exempt 106→1; 3 residual guard findings for review: quoted rm-rf target blind \[pre-existing] ·
-double-quoted `$()` invisible guard-wide · pipe-rewrite comment tail) · **design-sync first import
-`6598c489d`** (weave motion cluster → claude.ai/design "Orbweaver UI" project 2ec379a2-…; 3 components
-10 graded cells; owner's 4 motion defects ride the README conventions brief; app-level find: token
-stack names Geist but NO @font-face ever ships — app renders system fonts silently).
+**RUNNING (4):** **report-cards cleanup leg** afd5458183e0c973f (mech, warm-leg — the 9 consolidated-check structure
+violations: \_shared→db/src/kit re-home · density-tier ELEVATED\_ALLOW stale arm · suppressions
+regen · hint-trigger §13.7 trio+CT; structure must be exit-0 before the drain battery; items 6/7
+STILL HELD behind R0) · **forms autosave-honesty** a6792eef0a9000b6c (executor — client-forms-01:
+seams optional + unconditional "saved" = silent edit loss; mint-time rejection preferred) ·
+**refinery bundle** a33497e3148dbbb6d (executor — content-surface routed CT \[zero mounted CT on a
+crowning feature] + stale story header + `selection` two-writer mergeSheet fix) · **mutation gate**
+adeeb7c0ae82ce38c (executor — RC-01 break:null cannot fail + RC-02 foreign-tree scan; clean run →
+calibrated break + positive control; long run DETACHED).
 
-**DRAIN DEBT (found by consolidated check:structure, exit 1, 9 violations — ALL routed to the warm
-report-cards lane as a cleanup leg):** db schema/\_shared.ts is-not-a-schema (re-home checkList →
-db/src/kit) ×3 · density-tier ELEVATED\_ALLOW no-STALE-arm (gate-modernization arm B) ×1 · stale
-suppressions baseline rows (consolidation deleted markers — regen ratchets down) ×3 · hint-trigger
-primitive missing §13.7 trio + CT ×3-ish. Structure must be exit-0 before the drain battery.
+**MERGED THIS ROTATION (chronological):** Qwen cleanup `8fd771c4c` (6 of 33 dead; 27 marker-ratified/
+live — zod hypothesis VERIFIED nothing-to-restructure; delete verdicts owe a full leading-comment
+read) · smalls `ce7e9dac1` (9 of 10; theme-editor autosaves; density-tier 226→224; loopback 3-strike
+exemption + universal testHealth) · report-cards train `d5dee1bd7` (items 1-5, 10-11, 14-16; new
+homes: db checkList \[re-homing now], kit isIfTruthy, ui live-token-resolver + sin-hash +
+hint-trigger; item-14 "all three" premise stale — web-weave technique differs, consolidated 2-of-3) ·
+W7b+W8 `b85e82e24` (identityChanged + withQuietUserEvents; setEnabled REFUSED w/ receipt; **CT-broken
+claim vs sibling green CT = CONTRADICTION — arbitrate on the quiesced tree at drain;
+es2025/esbuild-0.25 suspicion, 67d7805d0's dead premise**) · DEPLOCK `5d0105e72` (sharp 0.35 + pdfjs
+6.2; audit highs 12→10; jsx-a11y/eslint-10 REFUSED-unfixable-upstream) · **AGENT-TOOLING-01 P1 CLOSED
+`27aad9d18`** (identity-based self-exemption post-blanking post-hard-floor; corpus A/B 119,845 calls:
+self-exempt 106→1; 3 residual guard findings for owner review: quoted rm-rf target blind
+\[pre-existing] · double-quoted `$()` invisible guard-wide · pipe-rewrite comment tail) ·
+**design-sync `6598c489d`** (weave cluster → claude.ai/design "Orbweaver UI" 2ec379a2-…; 3 components
+10 graded cells; motion brief in the README; find: app names Geist but ships NO @font-face) ·
+**lens calibration `defc033f2`** (six classes fixed AT THE LENS: typeonly 47→1, prodonly→derived,
+testonly \_\_-seams, columns→provenance, regkeys row-array shapes; rows 101-133 VERIFIED-REAL →
+owner ruled PARK ALL; 57 lens tests, stdout parity ×4 verbs) · **probes hygiene `dd8683627`**
+(fail-closed goldens, REPO\_ROOT resolver ×8, viewport >0, README 5→7).
 
-**MERGED THIS ROTATION:** Qwen \[V]-cleanup `8fd771c4c` — **verdict REVERSED by full-comment read:**
-only 6 of 33 rows genuinely dead (UI \*Handle aliases, deleted; factories kept). Rows 1-21+24-27
-SKIPPED-BY-MARKER (`@public twin/future` ratifications ON the decl, added post-08-12-scan — deleting
-a marked decl undoes a ratification); rows 22/23 SKIPPED-LIVE (real client consumers; corpus \[V]
-wrong). **Owner's zod hypothesis: verified, NOTHING to restructure** — every schema is already the
-tRPC `.input()` single source of truth. Lesson: `ast refs` + `grep -B2`/`tail` are BLIND to multi-line
-JSDoc markers; a delete verdict owes a full leading-comment read.
+**REFINERY BUNDLE MERGED `57fb8595b`** (arm C patch grammar: absent=keep · null=all · array=exact —
+"I didn't touch this" is now sayable on the wire; content surface has routed CT 41/41; straddle
+red-first = G-C's historical control banked). **es2025 CT arbitration — second cold receipt:**
+warnings-only, 3 full green builds on the refinery tree; W7b's hard-stop claim now the outlier;
+final word at the drain's cold `pnpm test:ct`. **New small from the lane:** ScopeEditorDialog seeds
+useState once at pane mount and never re-syncs from view\.selection — fields axis is last-write-wins
+from a possibly-ancient image (greetings axis now safe via the delta grammar); one-line remount fix
+(`key=` on view\.selection or open-time reset), rides any refinery client pass. **Lesson (board law
+restated):** an audit row's prescribed REMEDY can be a no-op for its own symptom — mergeSheet was
+right as a class name, wrong as an instruction; the tell was reading the actual WRITER, not the two
+verbs the row named.
 
-**QUEUED:** R0 draft-mode server substrate (owner-ratified GO — dispatching into the freed slot) ·
-gates G-A/G-B/G-C/G-D/G-E (G-B from survey §2.3's plant-receipt) · report-cards items 13-16 (ui
-consolidations, CT-capable lane) · Codex final-synthesis re-sweep.
+**WEAVE-LAB SECOND HANDOFF FETCHED + committed `bf1d3a654`** (spec: docs/design/weave-lab-upgrades.md;
+references vendored in mocks/): silk physics pure module (pluck/shiver/wind) · spider prey state
+machine (rest→alert→sprint→inspect→return) · character presets + araneid anatomy v2 + frame-laying
+itinerary · WebSpinner weave-loop redesign · WebWeave interactive/wind/character/tempo API.
+**AMENDS motion-fixes §2** (rect-bounded radii OVERSHOOT +14 as crop-anchors, never inset floating
+tips) — relayed to the in-flight motion lane mid-build. The upgrade program = the motion lane's
+SECOND LEG after its fixes commit (design side's own sequencing: fixes first).
+
+**UI-RENDERING-01 CLOSED `a383c669d`** (mechanism measured: toBeVisible's \~100ms poll grid vs CM6's
+75ms wall-clock accept-guard = the coin flip; the OLD retry band-aid was destructive — re-pressed
+Enter mutated the doc invisibly to textContent. Component INNOCENT, untouched; 300/300 ×2 at
+repeat-each=20 + neutralized-barrier control red. Watch-list row "CM6 75ms completion" closes with
+it. Product fact for the owner, not a defect: Enter within 75ms of the list appearing inserts a
+newline by CM6 design — `autocompletion({ interactionDelay })` is the lever if accept should be
+snappier. Gate note: `test-determinism` regexes COMMENTS too — prose mentioning Date.now() fires it,
+no exemption grammar. Lessons → \[\[ct-test-gotchas-hub]]).
+
+**MOTION FIXES MERGED `9be2fbd92`** (all four owner defects dead, red-first ×8, rendered
+before/after at three hosts; three-mode sway respects the shipped bake/blit cache; two residual
+seams PINNED: 104px scaffold entry \[choreography-scoped, may dissolve in the lab leg] + rest-beat
+snap). **Its pre-existing-red sweep caught the checkList-barrel 80-cycle class** (my cleanup-leg
+brief's convention wiring — every lane's scoped check missed it, all branched pre-re-home): FIXED
+`7994de156` (schema imports the LEAF, depcruise 80→0). Drain small: knip flags
+LiveResolverRootElement unused in live-token-resolver.ts.
+
+**THIRD ROTATION RUNNING (5, cap-full):** **weave-lab upgrade leg** (warm second leg in the motion
+lane's worktree — physics module · prey AI · character presets + anatomy v2 + frame-laying itinerary
+· WebSpinner weave-loop ported onto the shipped data-animate system · interactive/wind/character/
+tempo API; a11y flag owed on interactive=true vs the decoration contract) · **R1 draft-mode**
+(create-on-Start-click client wiring over R0; §2.7 draftKey collision dissolves by construction;
+reapHusk nav-away wiring) · **smalls-3** (phantom-scroll CLASS sweep w/ readEscapedAbsolutes ·
+provenance-thunk trio · ScopeEditorDialog stale image · Qwen-doc truth-repair) · **#36 schema-forge
+enforced structured output** (two seams, vehicle knob ×3, OR two-sided re-probe, floor refusals —
+BLOCKS R3's graduation lens) · **mutation gate run 5** (arm B landed — transformers import truly
+lazy; threads probe expected 87→0; calibration next).
+
+**QUEUED:** gates G-A/G-B/G-C/G-D/G-E (fixed tree at drain; G-C's historical control banked) ·
+R2/R3 draft-mode · R3 refinery build + #39 polish + NL→schema (after #36) · #37 trust-gated card
+images · #38 leftovers · C1 persona status investigation · #33 templating · #43 code-split ·
+\#52 demo-v4 (fleet) · chats-pane eviction trap **(CLOSED — see the \[x] row below)** ·
+gates G-A/G-B/G-C/G-D/G-E · Qwen-doc truth-repair (rows 101-133 "lens noise"→VERIFIED-REAL-then-
+PARKED + row 281 "safe to kill"→provenance-mechanized — lens lane deliberately left the doc to avoid
+a collision; the durable verdicts live in ast.ts's per-lens headers) · report-cards items 6/7 leg
+(AFTER R0 merges) · Codex final-synthesis re-sweep at drain.
+
+**DRAIN GATE OWED when the 5 drain:** consolidated `pnpm check` exit-0 (structure currently red-9,
+cleanup leg out) → CT-contradiction arbitration (`pnpm test:ct` cold on the quiesced tree) → full
+`verify --push` battery (value-changing merges: contracts user-bus + settings nullable + sharp bump
+
+- schema re-home) via setsid+Monitor → morning-delta rewrite at board top. Push stays OWNER'S.
 
 **MERGED OVERNIGHT (all hook-gated or branch-receipted, chronological):** WAVE-0 vLLM swap statics
 `c46e282ea` + tooling `348d3fa7a` · agents revamp (then maxTurns owner-BANNED, reverted `579f28161`) ·
@@ -503,11 +558,15 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **Refinery `selection` two-writer** (class-sweep P2): `update-session.ts:50` whole-replaces from a
   client image while `apply-fields.ts:67` server-remaps indexes — a scope-dialog save straddling an
   applyFields undoes the remap. The mergeSheet class server-side; small, rides any refinery lane.
-- [ ] **CHATS PANE STILL CARRIES THE EVICTION TRAP (P2, premise-death receipt from the character lane):**
-  \#45 never killed it — `use-chat-list-collection.ts:30` ships `maxPages: 5` + `getPreviousPageParam:
-  () => undefined`; identical unrecoverable-head-page bug at 250 chats. Annotated in place by the
-  character lane. Fix = the character lane's landed windowless+VirtualList shape (its server lenses are
-  ALREADY correct — smaller than the character job). One lane.
+- [x] **CHATS-PANE EVICTION: CLOSED — superseded by `181684772` (row was stale at dispatch).** The
+  overnight commit killed exactly this hook (no maxPages, no getPreviousPageParam on today's tree;
+  the row's `:30` receipt is dead — that line is now a comment). A dispatched lane REFUSED correctly
+  and added what the fix commit lacked: a planted-control proof the landed head-page CT pin can
+  actually fail (re-inserted window → red at the scroll-back assertion), and the `.find()` consumer
+  sweep (8 hits, all non-paged local arrays; ts 77 + tsx 104 scanned, `?.find` zero with control).
+  chats-with-character-pane deliberately NOT separately pinned (window is a property of the shared
+  hook — one fact, one assertion). Lesson pinned: board rows citing file:line owe a re-derive AT
+  DISPATCH (\[\[audit-lists-are-snapshots]]).
 - [ ] **World-info small:** `book-attachments.tsx:97` reads `character.list` with no limit (50-row
   default) and its kicker counts ALL characters as "Attached by" — wrong count + silent 50-cap.
 - [ ] **Smalls batch (sweep tail):** `turn-tool-calls.ts:45-52` window-budget (50 slots shared with
@@ -1058,6 +1117,13 @@ promotion · speaker-tint door · Meteocons · grimstone · tag-only backup (C9-
   fences vs siblings · `git -C` discipline · lane-unique scratch names · the explicit CT files the
   floor must run · re-verify-your-premise-first + a correct refusal is a SUCCESS · the WHY, and the
   hazards (every trap that bit was one no brief mentioned).
+- **RE-DERIVE EVERY ROW BEFORE DISPATCHING IT (minted 08-14 after TWO stale dispatches in one day:**
+  chats-eviction \[killed overnight by 181684772] and #36 schema-forge \[BUILT 08-09, e916b25a2 —
+  the ruled-never-rowed block even warns "statuses as-recorded"]**).** The ritual, \~60 seconds,
+  BEFORE the Agent call: `git log --oneline -5 -- <the row's primary path>` + Read the row's cited
+  file:line + `git log --all --grep="<the row's key noun>" --oneline -5`. A refusing lane costs
+  \~5 min; a lane fixing a fixed thing costs an hour. \[\[audit-lists-are-snapshots]] applies to THIS
+  BOARD at dispatch time.
 - Message live lanes by AGENT ID; verify the id↔lane mapping against dispatch results before every
   SendMessage. TaskStop an agent once its report merges; NEVER resume an agent whose worktree you
   removed.
@@ -1079,6 +1145,13 @@ promotion · speaker-tint door · Meteocons · grimstone · tag-only backup (C9-
 
 **Merges**
 
+- **AFTER EVERY VALUE-CHANGING MERGE: run `node scripts/ts7.cjs --noEmit -p tsconfig.json`
+  (types:graph, \~15s) — it is the ONLY cheap program that compiles scripts/ + tests/ + packages/
+  together** (minted 08-14: TWO whole-tree reds sat invisible on main in one session — the REPO
+  rename miss and the updatedAt factory omission — because lane floors ran the per-package program,
+  blind to tests/, and the train law defers `pnpm check` to drain. The mutation gate's root-program
+  compile caught both; this tripwire is that sensitivity at merge time. Briefs for value-changing
+  lanes must name types:graph in the floor, not bare `pnpm typecheck`.)
 - Rebase-then-ff (standing law above). NEVER chain teardown or verify behind a merge in one command;
   NEVER pipe `git merge` (a `| tail` swallowed a conflict; tsc then red TS1185 = tool-error, not
   code). Merge BARE, read output, THEN check. A staged-failed merge is `git merge --abort`.
