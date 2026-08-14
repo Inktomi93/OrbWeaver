@@ -47,7 +47,7 @@ export function CorpusArchetypesTab(): ReactElement {
   const visual = useQuery(trpc.discovery.visualArchetypes.queryOptions(kArg));
 
   return (
-    <Stack className="min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section">
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section">
       <ParamSelect label="Clusters" value={k} items={K_ITEMS} onValueChange={setK} />
 
       <Section heading="Writing archetypes">

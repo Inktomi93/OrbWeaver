@@ -63,7 +63,7 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
   const tagNames = data.tags.filter((tag) => !tag.isHiddenOnCard).map((tag) => tag.name);
 
   return (
-    <Stack gap="section" className="min-h-0 overflow-y-auto" data-slot="character-overview">
+    <Stack gap="section" className="relative min-h-0 overflow-y-auto" data-slot="character-overview">
       <Stack gap="row">
         {/* A kicker names a SECTION, never a datum (§2.3) — the character's own name is the footer's job. */}
         <Kicker>Card</Kicker>

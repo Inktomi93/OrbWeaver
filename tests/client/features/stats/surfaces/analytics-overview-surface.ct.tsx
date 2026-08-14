@@ -7,6 +7,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
 import { AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
 
 const COMPUTED_AT = 1_750_000_000_000;
@@ -117,4 +118,32 @@ test("a raced recompute (CONFLICT) renders the honest notice, not a failure", as
   // The dashboard is intact and the affordance is usable again — a refusal is not a broken surface.
   await expect(component.getByRole("button", { name: "Recompute now" })).toBeEnabled();
   await expect(component.getByText("Year in review")).toBeVisible();
+});
+
+// THE CONTAINING-BLOCK PIN (phantom-scroll CLASS sweep, 2026-08-14). The overview dashboard owns its scroll axis (`h-full min-h-0 overflow-y-auto overscroll-contain`), as do the three analytics tabs beside it.
+// An `overflow` scroller only clips — and only absorbs the scrollable overflow of — an absolutely-positioned
+// descendant whose CONTAINING BLOCK is inside it. A `position: static` scroller establishes none, so the
+// `sr-only` boxes Base UI form primitives emit (`position: absolute` — NumberField's bounds announcer,
+// Switch/Checkbox's hidden input, the combobox status line) resolve theirs further up and add their static
+// positions to a POSITIONED ancestor's scrollable area instead. That is the owner's 2026-08-13 "scrolls past
+// the end of its results" defect (fixed once for the settings pane region, swept as a class here), and
+// `relative` on the scroller is the whole fix. `readPhantomScrollers` measures the MECHANISM document-wide —
+// the SYMPTOM needs a positioned scrolling host, which is the settings shell CT's own story.
+// HONEST LABEL: a FENCE, not a defect proof — measured GREEN against the pre-fix source, because this
+// surface's CT story paints read-only content (no Base UI form primitive, so no `sr-only` absolute box
+// exists to escape). The DEFECT PROOFS for this class are the preset-editor and character-editor pins,
+// which red against HEAD. This fence is what stops the class coming back the day a form control lands
+// in this pane — which is exactly how the settings pane acquired it.
+test("no absolutely-positioned box escapes the analytics overview scroller (the containing-block pin)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => MOMENTUM,
+  });
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  // SETTLED: the recompute verb only renders once all four suspense reads have landed.
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
+
+  expect(await readPhantomScrollers(page)).toEqual([]);
 });

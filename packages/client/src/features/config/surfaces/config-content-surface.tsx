@@ -37,7 +37,7 @@ export function ConfigContentSurface({ collections }: ConfigContentSurfaceProps)
           `p-block` and the editors carried nothing. A per-editor inset is the same defect waiting for the
           fourth collection: the frame is the host's, so the inset is the host's. `section` is the mock's
           editor-pane inset (`workspace.html` `.mainbody{padding:20px 26px}`) on the token scale. */}
-      <Stack className="h-full min-h-0 overflow-y-auto outline-none" data-slot="config-content" padding="section" ref={surfaceRef} tabIndex={-1}>
+      <Stack className="relative h-full min-h-0 overflow-y-auto outline-none" data-slot="config-content" padding="section" ref={surfaceRef} tabIndex={-1}>
         {selection === null ? (
           <ConfigWelcome collections={collections} />
         ) : (

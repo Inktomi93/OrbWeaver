@@ -30,7 +30,7 @@ function ModelsBody(): ReactElement {
   const { data: latency } = useSuspenseQuery(trpc.stats.latency.queryOptions({ kind: "owner" }));
 
   return (
-    <Stack className="min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsModelsTab")}>
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsModelsTab")}>
       <Section heading="Latency (all models)">
         <Row gap="block" className="flex-wrap">
           <StatFigure label="Avg TTFT" value={formatMs(latency.avgTtftMs)} />

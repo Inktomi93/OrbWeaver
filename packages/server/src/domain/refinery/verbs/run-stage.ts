@@ -324,7 +324,7 @@ async function resolveStagePass(
       id: ctx.newRefineryRunId(),
       sessionId,
       iteration: session.iterationCount,
-      model: castId<ModelId>(ctx.summarizerModel),
+      model: castId<ModelId>(ctx.summarizerModel()),
       createdAt: ctx.now(),
     },
   };
@@ -339,7 +339,7 @@ function sampleOptsFor(ctx: RefineryContext, pass: StagePass, prompts: StageProm
   const sampling = resolveStageSampling({
     subject: pass.subject,
     presetParams: pass.presetParams,
-    contextTokens: ctx.summarizerContextTokens,
+    contextTokens: ctx.summarizerContextTokens(),
     inputEstimate: estimateTokens(`${prompts.system}\n${prompts.user}`),
   });
   return { responseFormat: pass.responseFormat, ...toSummarizeOptions(sampling) };

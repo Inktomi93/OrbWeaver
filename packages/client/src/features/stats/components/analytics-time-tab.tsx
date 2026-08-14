@@ -34,7 +34,7 @@ function TimeBody(): ReactElement {
   const peak = formatPeak(heatmap.peak);
 
   return (
-    <Stack className="min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsTimeTab")}>
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsTimeTab")}>
       <Section heading="Daily replies">
         <Histogram buckets={dailyTurnBuckets(points)} label="Assistant turns per day" />
       </Section>

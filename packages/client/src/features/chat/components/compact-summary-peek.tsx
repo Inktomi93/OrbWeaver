@@ -28,7 +28,7 @@ export function CompactSummaryPeek({ summary }: { readonly summary: string }): R
         }
       />
       <PopoverPopup side="top" align="center" className="max-w-prose">
-        <Stack gap="field" className="max-h-96 overflow-y-auto">
+        <Stack gap="field" className="relative max-h-96 overflow-y-auto">
           <Text as="span" voice="kicker">
             Compaction summary
           </Text>

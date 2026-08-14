@@ -52,7 +52,7 @@ function SimilarityBody(): ReactElement {
   const { data: dupArt } = useSuspenseQuery(trpc.discovery.imageDuplicates.queryOptions());
 
   return (
-    <Stack className="min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section">
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section">
       <NearestPairs />
 
       <Section heading="Duplicate characters">

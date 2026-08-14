@@ -82,7 +82,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
         // siblings (Field overrides, Macro picks, the host band) cannot. Without a cap of its own a
         // twenty-document room pushed every later section below the fold of the tab's scroller.
         // `overscroll-contain` keeps a flick inside the rack from chaining into the tab behind it.
-        <Stack className="max-h-96 overflow-y-auto overscroll-contain" gap="tight">
+        <Stack className="relative max-h-96 overflow-y-auto overscroll-contain" gap="tight">
           {rows.map((row) => (
             <ActiveDocumentRow
               document={row}
