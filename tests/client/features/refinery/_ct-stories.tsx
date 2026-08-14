@@ -1,11 +1,17 @@
 // Refinery R2 data-tier CT stories (core/Spine-Testing.md §7 — a CT mounts ONLY from a non-test module).
 //
-// R3 (the refinery SURFACE) is design-gated on the owner's mockup ruling, so there is no production surface
-// to drive the R2 hooks through yet. This probe is that surface's stand-in and NOTHING more: it mounts the
-// REAL hooks from the feature front door, through the REAL app QueryClient (`CtAppDataProviders` — the one
-// whose MutationCache `meta.errorToast` IS the `notify` channel) and the real toast surface, over a network
-// stubbed at `page.route`. Every observable the CTs assert is either rendered text the hooks produced or a
-// wire call `routeTrpc` counted — never a hand-mock of a hook.
+// R3 SHIPPED — `refinerySection` mounts `RefineryContentSurface` in the live CONTENT slot
+// (`features/refinery/lib/refinery-section.tsx:88`), and `RefineryContentStory` below drives that REAL
+// surface. (This header said the opposite until 2026-08-14: it claimed R3 was design-gated with no
+// production surface, which made `RefineryDataProbe` read as an unavoidable surrogate rather than what it
+// is — the WRITE-TIER probe. Audit finding `client-preset-refinery-02`.)
+//
+// `RefineryDataProbe` keeps its own job: the R2 hooks driven bare, so a mutation's toast/refusal channel is
+// observable without the surface's chrome in the way. It mounts the REAL hooks from the feature front door,
+// through the REAL app QueryClient (`CtAppDataProviders` — the one whose MutationCache `meta.errorToast` IS
+// the `notify` channel) and the real toast surface, over a network stubbed at `page.route`. Every observable
+// the CTs assert is either rendered text the hooks produced or a wire call `routeTrpc` counted — never a
+// hand-mock of a hook.
 //
 // The id props stay BRANDED across the CT process boundary. A brand is compile-time only, so a branded id
 // serializes as the plain string it already is — and the `.ct.tsx` MINTS them (`mintTypeId(ID_PREFIX.x)`,
@@ -20,6 +26,7 @@ import {
   BUILTIN_STAGE_HINTS,
   buildRenderPlan,
   PayloadView,
+  RefineryContentSurface,
   RefineryListHeader,
   RefineryListSurface,
   RunControlsCard,
@@ -37,6 +44,7 @@ import {
   useStartRefinerySession,
   useUpdateRefinerySession,
 } from "@orb/client/features/refinery";
+import { selectRefinerySession, setRefineryViewedRun } from "@orb/client/state";
 import type { RefinerySchemaStage, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { CharacterId, ModelId, RefinerySchemaId, RefinerySessionId } from "@orb/kit/ids";
@@ -130,6 +138,48 @@ export function RefineryDataStory({ sessionId, characterId }: RefineryDataStoryP
     <CtAppDataProviders>
       <CtToastSurface>
         <RefineryDataProbe characterId={characterId} sessionId={sessionId} />
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
+// --- The LIVE R3 CONTENT surface (the primary workflow, mounted whole) ---
+
+export interface RefineryContentStoryProps {
+  /** The session the drill store opens — the same seam the roster row writes. */
+  readonly sessionId: RefinerySessionId;
+  /** A run id the story can PIN through `setRefineryViewedRun` — the §16.1 view-back door. It lives in the
+   *  state commons because the CONTEXT Runs tab drives it from a SIBLING pane, so the button below is the
+   *  production seam standing in for that pane, not a stub of the surface's own behaviour. Absent ⇒ no
+   *  walker button (the plain live-latest arm). */
+  readonly viewBackRunId?: string;
+}
+
+/**
+ * The REAL `RefineryContentSurface`, exactly as `refinerySection` mounts it, on the REAL app data tier and
+ * toast channel over a `page.route`-stubbed network. Nothing here re-implements the surface: the story
+ * supplies only what the SHELL supplies in production — the drill selection, and the sibling pane's
+ * view-back door.
+ *
+ * THE DRILL IS SEEDED DURING THE FIRST RENDER PASS, NOT IN AN EFFECT. An effect would paint the START pane
+ * first and swap on the second commit, so every test would be racing a flash it does not care about — and a
+ * CT that barriers on a mid-flight state is exactly the flake the harness law forbids.
+ */
+export function RefineryContentStory({ sessionId, viewBackRunId }: RefineryContentStoryProps): ReactElement {
+  useState((): null => {
+    selectRefinerySession(sessionId);
+    setRefineryViewedRun(null);
+    return null;
+  });
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        {viewBackRunId === undefined ? null : (
+          <button onClick={(): void => setRefineryViewedRun(viewBackRunId)} type="button">
+            walk back
+          </button>
+        )}
+        <RefineryContentSurface />
       </CtToastSurface>
     </CtAppDataProviders>
   );

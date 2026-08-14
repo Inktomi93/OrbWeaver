@@ -208,17 +208,45 @@ export const REFINABLE_FIELDS = [
 export type RefinableField = (typeof REFINABLE_FIELDS)[number];
 export const refinableFieldSchema = z.enum(REFINABLE_FIELDS);
 
+// The two selection AXES, spelled once and reused by both the VALUE shape and the PATCH shape below —
+// the bounds are the same question in either direction, and a second spelling is a bound that drifts.
+const selectionFieldsSchema = z.array(refinableFieldSchema).refine((fields) => new Set(fields).size === fields.length, "selection fields must be unique");
+const selectionGreetingIndexesSchema = z
+  .array(z.number().int().min(0).max(GREETING_INDEX_MAX))
+  .max(GREETING_INDEXES_MAX)
+  .refine((idxs) => new Set(idxs).size === idxs.length, "greeting indexes must be unique");
+
 /** Which card content rides the pipeline — session state (stored, never wire-projected).
  *  `greetingIndexes` applies when `fields` includes `greetings`: absent ⇒ every greeting. */
 export const refinerySelectionSchema = z.object({
-  fields: z.array(refinableFieldSchema).refine((fields) => new Set(fields).size === fields.length, "selection fields must be unique"),
-  greetingIndexes: z
-    .array(z.number().int().min(0).max(GREETING_INDEX_MAX))
-    .max(GREETING_INDEXES_MAX)
-    .refine((idxs) => new Set(idxs).size === idxs.length, "greeting indexes must be unique")
-    .optional(),
+  fields: selectionFieldsSchema,
+  greetingIndexes: selectionGreetingIndexesSchema.optional(),
 });
 export type RefinerySelection = z.infer<typeof refinerySelectionSchema>;
+
+/**
+ * The `updateSession` SELECTION DELTA — a DISTINCT shape from the value above, and the distinction is
+ * load-bearing law. `selection` has TWO writers: the user's scope dialog and `applyFields`, which REMAPS
+ * `greetingIndexes` server-side when an accepted rewrite removes a greeting (the session speaks in
+ * positions). A whole-record replace from a client image built before that remap silently undoes it —
+ * the `mergeSheet` (rpg `patchSheet`) key-presence precedent, one JSON column over.
+ *
+ * THE THREE STATES OF `greetingIndexes` HERE — do NOT flatten them:
+ *   • ABSENT  ⇒ KEEP whatever is stored (the writer is not addressing greetings; the remap survives).
+ *   • `null`  ⇒ EVERY greeting — the patch-level spelling of the value shape's ABSENT.
+ *   • array   ⇒ exactly these positions.
+ *
+ * The `null` arm exists precisely so this delta can say "every greeting" WITHOUT reusing absence, which
+ * the value shape already spent on that meaning (and which the scope dialog's all-checked LAW depends
+ * on). Collapsing the two would make "I didn't touch greetings" unsayable and re-open the two-writer
+ * clobber. The verb re-parses the MERGED WHOLE through {@link refinerySelectionSchema}: this schema
+ * validates the delta, that one stays the stored-shape belt.
+ */
+export const refinerySelectionPatchSchema = z.object({
+  fields: selectionFieldsSchema.optional(),
+  greetingIndexes: selectionGreetingIndexesSchema.nullable().optional(),
+});
+export type RefinerySelectionPatch = z.infer<typeof refinerySelectionPatchSchema>;
 
 /** The session's loop-wide steering text ("keep her mean") — HOST-authored, but it is spliced into every
  *  stage prompt, so it crosses into the model wire and is bounded like any other model-facing prose. The
