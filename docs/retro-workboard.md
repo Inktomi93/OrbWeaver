@@ -362,7 +362,58 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   `domain/hub` reds) — re-run on a quiet tree before believing it.
 - [ ] Codex snapshot-only doc families = revalidate-when-touched (their own instruction) · owner
   pile: longer-outputs numbers · theme/dogfood live receipts (selector wire-capture flip, W3 revoke
-  probe) · re-import (owner-run) · the push.
+  probe) · re-import (owner-run). ~~the push~~ (PUSHED 08-14 midday, owner word).
+- [ ] **CODEX RECONCILIATION RESIDUE (their final verdict, 08-14 midday — routed items excluded):**
+  test-coverage cluster as ONE future lane (LOWER-DB-01 four schema behavioral tests · UI-AI-01
+  AriaAnnouncer · UI-SZ-01 VirtualList branches · LOWER-KIT-01 card-frame browser/iframe proof ·
+  CLIENT-SHELL-02 dev bridges · platform-tooling-01 egress-firewall behavioral proof ·
+  test-baseline manifest regen) — candidate SECOND Codex package if their docs round proves out.
+  CMD-01 refusal STANDS (ledger law, re-listed by them without new evidence). agent-sdk 0.3.232
+  exists upstream — a dedicated small proves whether it clears the fast-uri/ip-address/hono
+  transitive cluster. Already routed live: realpath self-exemption → guard lane · Active-Gates
+  count → gates lane · mermaid/dompurify → MERGED `c05a2e45d` + serving (installed, vite cache
+  cleared, stack bounced).
+
+**UNSETTLED-DESIGNS SWEEP (owner-asked 08-14 midday: "any designs we haven't settled or planned or
+brought into the board" — full docs/design cross-check, receipts = each doc's own status header):**
+
+- [ ] **SHAPE-CHURN ARM PICK (owner fork, info updated 08-14):** the caret risk premise in the plan
+  doc is CORRECTED — the caret and reveal fade are OURS (#42; `markdown.tsx:155-159` drops
+  Streamdown's caret prop deliberately; ours is CSS in the seal-owned ghost-stream-body scope), and
+  "remend" is Streamdown's `parseIncompleteMarkdown` (upstream). So arm 1 lands as a tail PRE-PASS
+  in OUR markdown seal (neutralize the ambiguous trailing pipe-row before Streamdown sees it) — no
+  upstream fork, blast radius = our seal + our caret/reveal CTs. Cheaper than the doc priced it.
+  Owner has the arm menu (tail-hold · +height-reserve · probe-first · park); lane on his word.
+- [ ] **LIST-PANE PROJECTION — ratified direction, DRAFT spec, never planned:**
+  `docs/design/list-pane-projection-proposal.md` (status: draft, 08-01) — "chats with this
+  character" as the character screen's pane (face → history → play), owner-ratified direction,
+  nothing built beyond the §2 seams. Needs an owner go/park before it rots further.
+- [ ] **DEFAULT-CHARACTER ROSTER — authored pack v2 sits UNWIRED, zero board presence:**
+  `docs/design/default-character-roster.md` — the ★ program was owner-approved 08-02, the roster
+  deliverable is complete ("this doc IS the roster"), and the seed-wiring lane (transplant into
+  `domain/character/seeder/cards.ts`) never ran. Straightforward mech lane when wanted.
+- [ ] **PARITY-PLUS PROGRAM — status unknown (C1-class investigation candidate):**
+  `docs/design/parity-plus-program-spec.md` v2.1 owner-RATIFIED 07-27, seven features, "W4
+  COMMITTED"; the board carries no row and no completion receipt for the residual features.
+  Establish status on the tree before anything else (the #36 lesson: rulings-ledger rows rot,
+  the tree is the authority).
+- [ ] **CONTEXT-PANEL FIDELITY FINDINGS — none fixed, gated:**
+  `docs/design/context-panel-fidelity-findings.md` (07-30) is the verification target for the W-H
+  side-eye, which unblocks AFTER re-import (LIVE-WINDOW list). Pointer row so the doc stops being
+  board-invisible.
+- [ ] **Config-rail R3-presets line is DEAD — doc amendment small:** `config-rail-spec.md` still
+  carries "R3 (presets, owner-timed) is unbuilt and remains one door line", but the 08-08 C5 ruling
+  closed it (presets STAY STANDALONE). Truth-repair the doc status; no build.
+- [ ] **Config panel revamp — owner intent, now rowed:** recorded in the junk-drawer doc §9;
+  registry-based relocations make it cheap when he calls it. Owner-timed.
+- [ ] **Preset/param "crunchy" smell — no design doc exists yet:** ledger row 08-14 ("not like the
+  registry system that is easy to grow") + the sampler-defaults MAYBE row = one future design lane
+  (stickler-class) when promoted. Any preset-area lane reads the smell first.
+- **Swept clean (no action):** actions-tab IA BUILT · preset-surface-redesign CLOSED (D121) ·
+  tracked-field-unification stages 1+2 SHIPPED · note-token-intent settled by C2 ·
+  gate-ignore-mention-fence BUILT · node-26-w4-residual LANDED · staleness W5 BUILT (lane 2,
+  08-14) · notifications domain EXISTS on tree · st-message-shaping-atlas + docker-research +
+  parked-options-\* = reference/parked by design.
 
 **QUEUED:** gates G-A/G-B/G-C/G-D/G-E (fixed tree at drain; G-C's historical control banked) ·
 **G-F scroller-positioning gate** (smalls-3's measured win: overflow-y-auto/overflow-auto/
@@ -1085,6 +1136,8 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   replaced by <table> 103-161ms later — markdown block grammar undecidable from a prefix; code fences
   DON'T churn because remend already recognizes unterminated fences (= the natural fix home). Reasoning
   mount + tool chips UNMEASURED (probe in doc). Four ranked fixes with costs; renderer untouched.
+  **08-14 UPDATE: the doc's arm-1 risk premise is corrected — see the SHAPE-CHURN ARM PICK row in
+  OPEN ITEMS (caret+reveal are OURS, fix = tail pre-pass in our seal, no upstream fork).**
 - [x] **Settings scroll-past-end FIXED + MERGED** (position:relative on the pane region; live A/B 2900→1014 scrollHeight; red-first mechanism+symptom pins). Original row: **Settings screen scrolls past the end of its results** — blank space below the last row for no
   reason. Small client fix; route with the next side-eye.
 - [ ] **Streaming message SHAPE CHURN** — during generation the message "changes shapes and kind of goes
