@@ -9,7 +9,6 @@
 import type { ChatContentItems, ChatFormatJsonSchemaConfig, ChatUserMessageContent, ChatRequest as SdkChatRequest } from "@openrouter/sdk/models";
 import { ChatRequest$outboundSchema } from "@openrouter/sdk/models";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import { errorMessage } from "@orb/kit/error-message";
 import { scrubWireSchema } from "@orb/kit/json-schema";
 import type {
   AccountCredits,
@@ -44,9 +43,11 @@ import type { ChatCompletionResult, NormalizeImageBytes } from "../kit/index.ts"
 import {
   extractChatRefusal,
   extractChatReply,
+  extractHttpErrorDiagnostic,
   logProviderSummarizeItem,
   parseChatCompletionResult,
   passthroughImageNormalizer,
+  providerErrorFromHttp,
   providerLog,
 } from "../kit/index.ts";
 import { getOpenRouterCredits, getOpenRouterGenerationCost } from "./account.ts";
@@ -220,9 +221,12 @@ function structuredReply(view: ChatCompletionResult, toolName: string): { readon
 //     "strict-compatible")`) with `strict:true`. openai's 400 was literally "'required' is required to be
 //     supplied and to be an array including every key in properties" — i.e. the D126 knob's own documented
 //     wall, and D126 is its own documented fix.
-//   • `provider.require_parameters` changed NO cell of the matrix in either direction. It rides anyway
-//     (routing to an endpoint that supports the parameter is correct hygiene), but it is NOT the fix, and
-//     any future note claiming it is should be checked against this table first.
+//   • `provider.require_parameters:true` changed NO cell of the 2026-08-09 matrix — TRUE THEN, FALSE NOW.
+//     CORRECTED 2026-08-14: OR's provider-routing changed, and `require_parameters:true` now flips EVERY cell
+//     200 → HTTP 404 "No endpoints found that can handle the requested parameters" (it demands an endpoint
+//     advertising the full request-parameter set and finds none). It was hardcoded on this path and was the
+//     sole breaker of all hosted `response_format` structured output; it is now OMITTED here (see the
+//     request-build site below). A hosted wire fact has a shelf life — this bullet is the receipt.
 //   • the optional-COUNT wall the 2026-08-02 note reports for the rpg extraction schema is untouched by
 //     this: `strict-compatible` is exactly what clears it, at the cost of one explicit `null` per unset
 //     field. Which is why the vehicle is a KNOB and `auto` keeps the forced tool for callers who have not
@@ -268,12 +272,22 @@ async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: Su
     ],
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.maxTokens !== undefined ? { maxCompletionTokens: req.maxTokens } : {}),
-    // The `response_format` vehicle rides with `require_parameters`, so OpenRouter only routes it to an
-    // endpoint that advertises the parameter. (Probe note: this did not change any 400 in the matrix — it is
-    // routing hygiene, not the fix.)
-    ...(req.responseFormat !== undefined && vehicle === "response-format"
-      ? { responseFormat: structuredResponseFormat(req.responseFormat), provider: { requireParameters: true } }
-      : {}),
+    // The `response_format` vehicle carries the schema ONLY — it does NOT ride `provider.require_parameters`.
+    // That flag was hardcoded `true` here on 2026-08-09 (commit e916b25a2) as "routing hygiene": force OR
+    // toward an endpoint that advertises every request parameter. OR's provider-routing has CHANGED since:
+    // as of 2026-08-14 `require_parameters:true` makes OR demand an endpoint advertising the FULL request-
+    // parameter set and find NONE → HTTP 404 "No endpoints found that can handle the requested parameters",
+    // on EVERY family and EVERY schema — the entire hosted `response_format` structured path was 100% broken.
+    // A single-variable raw-replay of the captured wire proved it (present ⇒ 404; absent ⇒ 200 with valid
+    // schema-honoring JSON; `docs/reviews/misc/2026-08-14-refinery-custom-schema-drive.md` "ARM 8 REAL-BUG").
+    // Omitting it does NOT reopen the "routed to a provider that ignores the schema" risk: OR applies
+    // `response_format` (incl. structured outputs) as a DEFAULT soft routing preference — a request is
+    // preferentially routed to the supporting providers even with `require_parameters` unset (OR
+    // provider-routing docs, "Default parameter preferences", read 2026-08-14). `require_parameters` is a real
+    // per-connection knob (`contracts/connection.openRouterProviderRoutingSchema.require_parameters`), and the
+    // CHAT path honors it OPTIONALLY (`runners/chat/shared.ts` — sent only when the connection sets it, never
+    // hardcoded). This structured path matches that DEFAULT (absent); it does not re-hardcode the breaker.
+    ...(req.responseFormat !== undefined && vehicle === "response-format" ? { responseFormat: structuredResponseFormat(req.responseFormat) } : {}),
     // The forced structured call is a SINGLE-RESULT vehicle: the caller's schema describes one object, and a
     // second call's payload has nowhere to go. `parallel_tool_calls:false` is the vendor's own knob for that
     // (Anthropic spells it `disable_parallel_tool_use`; this wire is OpenAI-dialect and the SDK maps it), so
@@ -283,7 +297,38 @@ async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: Su
   };
 }
 
-// The failed-item log + the re-thrown, cause-chained ProviderError (batch rejects exactly as before).
+// One failed batch item → the thrown, cause-chained ProviderError, with OpenRouter's OWN status + body
+// surfaced. A refusal (already a typed ProviderError) is reframed with the item's coordinates, its kind
+// preserved. A raw OpenRouter/SDK HTTP failure is classified through the shared HTTP table
+// (`providerErrorFromHttp` — a 404 is `model_unavailable` + non-retryable, NOT the retryable `server` a bare
+// re-throw used to guess) AND carries OR's raw response body: the Speakeasy client throws a
+// `ResponseValidationError` whose `.message` is the generic "Response validation failed" and SWALLOWS OR's
+// `{error}` envelope (e.g. a 404 "No endpoints found that can handle the requested parameters"). That body
+// rides `err.body` (`OpenRouterError.body`), so `extractHttpErrorDiagnostic` peels it out sanitized — the
+// next hosted-structured failure is diagnosable instead of opaque (D-ARM8-2 / the `instruments-lie` class:
+// an upstream 404 was presenting as an internal validation error, which is exactly why the earlier probe
+// "couldn't get the response body").
+function orBatchProviderError(role: "summarize" | "structured", index: number, err: unknown): ProviderError {
+  const prefix = `openrouter ${role} item ${index} failed`;
+  if (err instanceof ProviderError) {
+    return new ProviderError({ kind: err.kind, retryable: err.retryable, message: `${prefix}: ${err.message}`, cause: err });
+  }
+  const classified = providerErrorFromHttp(err, prefix);
+  const body = extractHttpErrorDiagnostic(err).body;
+  if (body === undefined) {
+    return classified;
+  }
+  return new ProviderError({
+    kind: classified.kind,
+    retryable: classified.retryable,
+    message: `${classified.message} — upstream body: ${body}`,
+    ...(classified.apiErrorStatus !== undefined ? { apiErrorStatus: classified.apiErrorStatus } : {}),
+    cause: err,
+  });
+}
+
+// The failed-item log + the re-thrown ProviderError (batch rejects exactly as before). The logged
+// `errorKind` is the CLASSIFIED kind (so a hosted 404 records `model_unavailable`, not the old `unknown`).
 function throwOrBatchFailure(args: {
   readonly role: "summarize" | "structured";
   readonly model: string;
@@ -293,6 +338,7 @@ function throwOrBatchFailure(args: {
   readonly err: unknown;
 }): never {
   const { role, model, index, durationMs, hasResponseFormat, err } = args;
+  const providerError = orBatchProviderError(role, index, err);
   logProviderSummarizeItem(OR_BACKEND, {
     role,
     model,
@@ -303,14 +349,9 @@ function throwOrBatchFailure(args: {
     tokensOut: null,
     finishReason: null,
     hasResponseFormat,
-    errorKind: err instanceof ProviderError ? err.kind : "unknown",
+    errorKind: providerError.kind,
   });
-  throw new ProviderError({
-    kind: err instanceof ProviderError ? err.kind : "server",
-    retryable: err instanceof ProviderError ? err.retryable : true,
-    message: `openrouter ${role} item ${index} failed: ${errorMessage(err)}`,
-    cause: err,
-  });
+  throw providerError;
 }
 
 // Run ONE item + emit its observability. Re-throws on failure; extracted so `runOrBatch` stays under the
