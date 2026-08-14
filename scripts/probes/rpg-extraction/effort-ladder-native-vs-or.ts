@@ -18,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
+import { REPO_ROOT } from "../_kit/artifacts.ts";
 
 // Raw OpenRouter chat-completions wire (snake_case; the OR arm hits the HTTP endpoint directly).
 interface OrResp {
@@ -30,7 +31,7 @@ interface OrToolTemplate {
 }
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const ENV = fs.readFileSync("~/dev/orbweaver/.env", "utf8").split(/\r?\n/);
+const ENV = fs.readFileSync(`${REPO_ROOT}/.env`, "utf8").split(/\r?\n/);
 const readEnv = (k: string): string => {
   let v = (ENV.find((l) => l.startsWith(`${k}=`)) || "").slice(k.length + 1).trim();
   if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);

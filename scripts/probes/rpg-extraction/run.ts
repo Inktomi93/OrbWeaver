@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { REPO_ROOT } from "../_kit/artifacts.ts";
 
 // ---- internal running-state model (the harness's own tracked-state shape, not a wire type) ----
 interface Hp {
@@ -220,7 +221,7 @@ function firstActor(state: GameState): Actor {
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(DIR, "out");
-const REPO_ENV = "~/dev/orbweaver/.env";
+const REPO_ENV = `${REPO_ROOT}/.env`;
 const MODEL = "anthropic/claude-sonnet-5";
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
