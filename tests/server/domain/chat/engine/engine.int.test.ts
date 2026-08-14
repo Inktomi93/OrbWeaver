@@ -818,8 +818,9 @@ describe("createTurnEngine — pre-start belt refusals (no turnStarted)", () => 
   });
 });
 
-// The three refusals above stay BUS-SILENT because nobody opened a client slot for those turns (the `opening`
-// turn and `forceCharacterTurn` are the live callers of that shape). When the CALLER accepted first
+// The three refusals above stay BUS-SILENT because nobody opened a client slot for those turns (the founding
+// `opening` turn is the ONE live caller of that shape — `forceCharacterTurn` joined the accepting set on
+// 2026-08-14, so it is no longer an example here). When the CALLER accepted first
 // (`slotAccepted` — every verb that emits `turnAccepted`), the same refusals owe a `turnAborted`: the client's
 // slot is open, `turnStarted` never fires, and nothing else on these paths emits, so the slot would strand as a
 // stuck Stop button. Depth rides `automationDepth` exactly as a real abort's does.

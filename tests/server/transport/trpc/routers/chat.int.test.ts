@@ -24,8 +24,11 @@ import { caller, principal as callerPrincipal, makeContext } from "../_support.t
 function ownedCard(rosterDb: Db): (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | null> {
   return async ({ ownerId, characterId }) => {
     const [row] = await rosterDb.select().from(characters).where(eq(characters.id, characterId));
-    // FABRICATION-OK: minimal CharacterCard double — the roster read only needs name + avatarAssetId.
-    return row !== undefined && row.ownerId === ownerId ? ({ name: row.name, avatarAssetId: null } as unknown as CharacterCard) : null;
+    // `greetings` is carried because it is ALWAYS present on a real card (`greetingsColumnSchema` catches to
+    // `[]`) and `addCharacterToChat` reads `greetings[0]` for the F6 in-window join greeting; `[]` here means
+    // "this card has no greeting to seed", which is what these two removal tests want.
+    // FABRICATION-OK: minimal CharacterCard double — the roster read needs name + avatarAssetId + greetings.
+    return row !== undefined && row.ownerId === ownerId ? ({ name: row.name, avatarAssetId: null, greetings: [] } as unknown as CharacterCard) : null;
   };
 }
 
