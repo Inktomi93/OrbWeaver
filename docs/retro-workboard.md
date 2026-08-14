@@ -235,8 +235,9 @@ Project 1 is the only mutable queue. Start from its **Active board**, **Ready**,
 Current migration residue that survived a full current-tree re-derivation:
 
 - [#40](https://github.com/Inktomi93/orbweaver/issues/40) — refinery custom-schema live E2E,
-  narrowed to the OpenRouter arm and blocked by the strict-compatible probe in
-  [#33](https://github.com/Inktomi93/orbweaver/issues/33).
+  narrowed to the OpenRouter arm and blocked by the `provider.require_parameters` routing defect in
+  [#33](https://github.com/Inktomi93/orbweaver/issues/33). The strict-compatible hypothesis was
+  disproved by a six-cell live matrix and raw replay.
 - [#58](https://github.com/Inktomi93/orbweaver/issues/58) — delete the remaining server-side chat
   draft carry (R2). R1 and R3 are already built.
 - [#54](https://github.com/Inktomi93/orbweaver/issues/54) — real-session demo seeding; owner/live-fleet
