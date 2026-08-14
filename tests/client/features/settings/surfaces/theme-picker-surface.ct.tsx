@@ -114,7 +114,7 @@ test("Customize + zero edits + Back mints NOTHING — no row ever existed", asyn
   expect(trpc.count("settings.createTheme")).toBe(0);
 });
 
-test("the first real edit mints the copy — and the Save that follows patches THAT row, not the seed", async ({ mount, page }) => {
+test("the first real edit mints the copy — and the autosave that follows patches THAT row, not the seed", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "settings.listThemes": () => THEMES,
     "settings.getUserSettings": () => SETTINGS_VIEW,
@@ -129,14 +129,34 @@ test("the first real edit mints the copy — and the Save that follows patches T
 
   await expect.poll(() => trpc.lastInput("settings.duplicateTheme"), { intervals: [20, 50, 100] }).toEqual({ id: "theme_00000000000000000000000002" });
 
-  await component.getByRole("button", { name: "Save theme" }).click();
+  // No Save button any more (#10 autosave conversion) — the debounced driver fires updateTheme on its own.
   await expect
-    .poll(() => trpc.lastInput("settings.updateTheme"), { intervals: [20, 50, 100] })
+    .poll(() => trpc.lastInput("settings.updateTheme"), { intervals: [50, 100, 200] })
     .toMatchObject({ id: OWNED.id, input: { name: "Mocha but mine" } });
-  // The mint happened exactly once across the whole session (the edit, not each keystroke or the save).
-  // ONESHOT-OK: reads AFTER the awaited updateTheme poll settled — the save is the LAST write the session
-  // can make, so no further mint can arrive.
+  // The mint happened exactly once across the whole session (the edit, not each keystroke or debounced save).
+  // ONESHOT-OK: reads AFTER the awaited updateTheme poll settled — the autosave save is the write the
+  // session made, so no further mint can arrive from this same edit.
   expect(trpc.count("settings.duplicateTheme")).toBe(1);
+});
+
+test("the editor autosaves — no Save button, and an edit fires updateTheme with no click at all (#10)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "settings.listThemes": () => THEMES,
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "settings.updateTheme": () => OWNED,
+  });
+  const component = await mount(<ThemePickerStory />);
+
+  await component.getByRole("button", { name: "My Theme actions" }).click();
+  await page.getByRole("menuitem", { name: "Edit" }).click();
+  const nameField = component.getByRole("textbox", { name: "Theme name" });
+  await expect(nameField).toBeVisible();
+  await expect(component.getByRole("button", { name: "Save theme" })).toHaveCount(0);
+
+  await nameField.fill("My Theme, retouched");
+  await expect
+    .poll(() => trpc.lastInput("settings.updateTheme"), { intervals: [50, 100, 200] })
+    .toMatchObject({ id: OWNED.id, input: { name: "My Theme, retouched" } });
 });
 
 test("New theme + zero edits + Back mints NOTHING (the same deferred mint, the create arm)", async ({ mount, page }) => {

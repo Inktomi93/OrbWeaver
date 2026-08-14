@@ -32,12 +32,9 @@ export const ENGINE_LAUNCH_NUMERIC_FIELDS = [
   { key: "embedGpuUtil", label: "Embed GPU-util", step: 0.01 },
   { key: "genMaxPixels", label: "Gen vision max_pixels", step: 65_536 },
   { key: "poolingMaxPixels", label: "Embed/rerank vision max_pixels", step: 65_536 },
-  {
-    key: "genRepetitionPenalty",
-    label: "Gen repetition penalty",
-    step: 0.01,
-    hint: "Sent as repetition_penalty on every gen request whose preset doesn't set one — applies immediately, no restart. 1 = off.",
-  },
+  // genRepetitionPenalty does NOT live here: unlike the argv flags above, it is a per-request default (the
+  // vLLM chat surface's `repetition_penalty`, sent fresh on every call) that applies live with no restart —
+  // its home is `admin-system-tuning`, beside its hot twin `genPresencePenalty`.
 ] as const satisfies readonly { key: keyof ResolvedEngineLaunch; label: string; step: number; hint?: string }[];
 
 /** The model-id launch fields, edited as text. */

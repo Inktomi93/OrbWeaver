@@ -21,7 +21,6 @@ const ENGINES = {
 // `toHaveValue` reads nothing). Locate them by accessible name; the model-id fields stay plain Inputs.
 const GEN_WINDOW = "Gen context window (tokens)";
 const GEN_GPU_UTIL_MULTI = "Gen GPU-util (multi-GPU)";
-const GEN_REPETITION_PENALTY = "Gen repetition penalty";
 const EMBED_GPU_UTIL = "Embed GPU-util";
 
 const ENGINE_DETAIL_RE = /exited 137/u;
@@ -46,7 +45,6 @@ const APP_SETTINGS = {
     genGpuUtilSingle: 0.5,
     poolingMaxPixels: 1_843_200,
     genMaxPixels: 4_194_304,
-    genRepetitionPenalty: 1.05,
   },
 };
 
@@ -94,22 +92,6 @@ test("launch config: renders the resolved per-engine flags off getAppSettings", 
   await expect(config.getByRole("textbox", { name: GEN_WINDOW })).toHaveValue("32,768");
   await expect(config.getByRole("textbox", { name: GEN_GPU_UTIL_MULTI })).toHaveValue("0.28");
   await expect(config.getByTestId("engine-launch-genModel")).toHaveValue("Qwen/Qwen3-VL-8B-Instruct");
-  // #23: the gen repetition_penalty launch knob renders the resolved 1.05 loop-fix default.
-  await expect(config.getByRole("textbox", { name: GEN_REPETITION_PENALTY })).toHaveValue("1.05");
-});
-
-test("launch config: editing the gen repetition penalty fires updateAppSettings with only that field, then arms restart (#23)", async ({ mount, page }) => {
-  const trpc = await stub(page, { "settings.updateAppSettings": () => APP_SETTINGS });
-  const component = await mount(<AdminEnginesSectionStory />);
-
-  const config = component.getByTestId("engine-launch-config");
-  await setNumber(config.getByRole("textbox", { name: GEN_REPETITION_PENALTY }), "1.1");
-  await config.getByTestId("engine-launch-save").click();
-
-  await expect
-    .poll(() => trpc.lastInput("settings.updateAppSettings"), { intervals: [20, 50, 100] })
-    .toEqual({ partial: { engineLaunch: { genRepetitionPenalty: 1.1 } } });
-  await expect(config.getByTestId("engine-launch-pending-restart")).toBeVisible();
 });
 
 test("launch config: Save fires updateAppSettings with ONLY the moved field, then arms restart-to-apply", async ({ mount, page }) => {

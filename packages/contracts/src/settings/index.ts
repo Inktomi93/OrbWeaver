@@ -260,8 +260,10 @@ export const engineLaunchSchema = z.object({
   // silent (#23). Was a `--override-generation-config` launch flag until 2026-08-14 — it existed for the
   // retired sampler-less agent-sdk /v1/messages wire, and baking it clobbered the checkpoint's own
   // generation_config.json on every call. Admin-retunable; applies on the NEXT REQUEST, no engine restart
-  // (genPresencePenalty is the exact precedent). 0<p (a positive multiplier; 1 = no penalty).
-  genRepetitionPenalty: z.number().gt(GPU_UTIL_FLOOR).optional(),
+  // (genPresencePenalty is the exact precedent). 0<p (a positive multiplier; 1 = no penalty). `.nullable()`:
+  // joined genPresencePenalty in admin-system-tuning (moved off the restart-gated launch editor) and rides
+  // the SAME leaf-null merge-clear sentinel Reset sends.
+  genRepetitionPenalty: z.number().gt(GPU_UTIL_FLOOR).nullable().optional(),
   // The gen engine's default PRESENCE penalty applied per-REQUEST whenever the vLLM chat surface serves (main
   // chat AND role/side-gen traffic, e.g. when main chat rides agent-sdk and a swapped genModel runs on vLLM).
   // Replaces the surface's silent CARD_DEFAULT_PRESENCE_PENALTY=1.5 that hit ANY model; env floor 1.5,

@@ -21,7 +21,7 @@ const RESOLVED = {
   imageVariantQuality: 80,
   maxDatabankBytes: 20_971_520,
   promptCacheMinDepth: 0,
-  engineLaunch: { genPresencePenalty: 1.5 },
+  engineLaunch: { genPresencePenalty: 1.5, genRepetitionPenalty: 1.05 },
 };
 
 const UPDATE_PROC = "settings.updateAppSettings";
@@ -44,6 +44,8 @@ test("mounts with the resolved floors and shows the default beneath each field",
   await expect(page.getByRole("textbox", { name: "Agent-SDK summarize concurrency" })).toHaveValue("4");
   await expect(page.getByRole("textbox", { name: "Image-variant quality (1–100)" })).toHaveValue("80");
   await expect(page.getByRole("textbox", { name: "vLLM presence-penalty default" })).toHaveValue("1.5");
+  // #23: the gen repetition_penalty knob joined its hot twin here (moved off the restart-gated launch editor).
+  await expect(page.getByRole("textbox", { name: "Gen repetition penalty" })).toHaveValue("1.05");
   // The prompt-cache depth floor (findings §5). Its shipped floor 0 is the identity of the `Math.max` the
   // server applies, so a virgin deployment renders "0" and every wire body is byte-identical to pre-knob.
   await expect(page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)" })).toHaveValue("0");
@@ -89,6 +91,16 @@ test("editing the nested engineLaunch presence penalty + Save patches engineLaun
     .toBe(0.3);
 });
 
+test("editing the nested engineLaunch repetition penalty + Save patches engineLaunch.genRepetitionPenalty (#23)", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<SystemTuningSectionStory />);
+  await setNumber(page.getByRole("textbox", { name: "Gen repetition penalty" }), "1.1");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect
+    .poll(() => (lastPartial(trpc)?.["engineLaunch"] as Record<string, unknown> | undefined)?.["genRepetitionPenalty"], { intervals: [20, 50, 100] })
+    .toBe(1.1);
+});
+
 test("an active override shows 'Overridden' and Reset clears every ⑩ override to the floor", async ({ mount, page }) => {
   // The stub keeps `resolved` at the floor while `overrides` carries an active value (the rate-limits CT
   // precedent — the section flags the field as overridden off `overrides`, shows the floor off `resolved`).
@@ -107,6 +119,9 @@ test("an active override shows 'Overridden' and Reset clears every ⑩ override 
   // back to the floor (SET-SEAMS stage 4).
   expect(lastPartial(trpc)?.["promptCacheMinDepth"]).toBeNull();
   const patch = lastPartial(trpc);
-  expect(patch?.["engineLaunch"]).toEqual({ genPresencePenalty: null }); // leaf-null survives the wire, clears via the recursion
+  // Both ⑩-owned engineLaunch leaves clear together — a leaf missing from this set is an override with no
+  // way back to the floor (SET-SEAMS stage 4).
+  expect(patch?.["engineLaunch"]).toEqual({ genPresencePenalty: null, genRepetitionPenalty: null }); // leaf-null survives the wire, clears via the recursion
   expect((patch?.["engineLaunch"] as Record<string, unknown>)["genPresencePenalty"]).toBeNull();
+  expect((patch?.["engineLaunch"] as Record<string, unknown>)["genRepetitionPenalty"]).toBeNull();
 });
