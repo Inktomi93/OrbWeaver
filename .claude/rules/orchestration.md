@@ -28,7 +28,7 @@ running the biggest model everywhere — spend main-session tokens on judgment, 
 tiers.
 
 | Delegate to | When |
-|---|---|
+| - | - |
 | `scout` / `Explore` | any search, lookup, "where/how is X" reconnaissance (pinned cheap — never let a background search inherit the main model) |
 | `mech-executor` | fully-specified mechanical work: pattern refactors, convention-following tests, docs, bulk edits, running gate/test suites |
 | `executor` | implementation needing judgment: features, bug fixes, design-sensitive refactors |
@@ -44,15 +44,15 @@ a11y → `side-eye`; both if the change spans both.
 
 - **Spec in one shot:** goal, constraints, done-criteria, relevant paths, and the WHY — not just the what.
 - **RE-DERIVE EVERY ROW BEFORE DISPATCHING IT (2026-08-14, two stale dispatches in one day — one
-  fixed a fixed bug's board row, one dispatched a program built five days earlier).** ~60 seconds
+  fixed a fixed bug's board row, one dispatched a program built five days earlier).** \~60 seconds
   before any Agent call: `git log --oneline -5 -- <the row's primary path>` + Read the cited
   file:line + `git log --all --grep="<key noun>" --oneline -5`. A board/audit row claiming work is
-  UNBUILT owes the same tree receipt as one claiming it's done. A refusing lane costs ~5 min; a lane
+  UNBUILT owes the same tree receipt as one claiming it's done. A refusing lane costs \~5 min; a lane
   fixing a fixed thing costs an hour.
 - **Value-changing briefs name `types:graph` in the floor, never bare `pnpm typecheck`** (2026-08-14,
   paid twice in one day): the per-package program is BLIND to `tests/` and `scripts/`, so a schema
   column or rename leaves the shared factories/probes red in the one program nobody in the lane ran.
-  The orchestrator's half: run `node scripts/ts7.cjs --noEmit -p tsconfig.json` (~15s) after EVERY
+  The orchestrator's half: run `node scripts/ts7.cjs --noEmit -p tsconfig.json` (\~15s) after EVERY
   value-changing merge — the single skipped tripwire of 2026-08-14 was exactly the merge carrying
   the red.
 - **Reply routing: identify a lane by CONTENT ANCHOR + the dispatch map, never by role name**
@@ -102,6 +102,21 @@ a11y → `side-eye`; both if the change spans both.
   checks, commit with hooks bypassed when the whole-tree hook would duplicate the draining-train gate,
   then run one consolidated barrier on the integrated tree.
 
+## Work control quick path
+
+- **Existing mutable work?** Inspect it with `pnpm work:item show <issue>` and update that issue; do not
+  create a duplicate. **New work?** Create exactly one class: `work` for an executable build,
+  operations, or documentation outcome; `bug` for a reproducible contract violation; `decision` for an
+  owner fork; `program` for one committed future sprint; or `evidence` for a
+  re-derived finding routed to one of those classes. Use `pnpm work:item create <class> --title <title> --body-file <file>`; the matching `.github/ISSUE_TEMPLATE/*.yml` is the canonical issue body.
+- **Project is the only mutable lifecycle home.** Never mirror Triage, Ready, Running, Blocked, Verify,
+  or Done into docs. Decisions enter **Needs owner**. The lifecycle is `ready <issue>` → `claim <issue> --lane <lane>` → `review <issue>` → `verify <issue> --evidence <receipt>` → `done <issue> --evidence <same-receipt>`; set Kind, Priority, Area, and Review before Ready. Use `needs-owner <issue>` for raw
+  decision ingress, `block`/`unblock`, and `park --wake` for exceptions. `pnpm work:item --help` prints
+  the complete cookbook.
+- **Only the orchestrator mutates Project.** Subagents return path/commit/test receipts; the
+  orchestrator updates the linked issue. Issues point to durable repo evidence, and durable repo evidence
+  never copies Project lifecycle fields.
+
 ## What a brief must carry (subagents start almost naked)
 
 A non-fork subagent receives its own system prompt, the delegation message, the CLAUDE.md hierarchy
@@ -117,7 +132,7 @@ brief; it cannot read your memory.**
 
 ## Merge / load discipline (minted 2026-08-02, hardened 2026-08-13)
 
-- **Cap concurrent GATE-HEAVY lanes at ~3, stagger dispatches by minutes.** 5+ synchronize their
+- **Cap concurrent GATE-HEAVY lanes at \~3, stagger dispatches by minutes.** 5+ synchronize their
   verification into load-60 spikes that flake gates (10s-hook timeouts, unfired-gate phantoms) and starve
   the foreground. This is a FLAKE ceiling, not a usage one — the overall lane cap lives on the board.
 - **Under load:** merge with `--no-verify` on branch-side green receipts and run ONE consolidated check
@@ -129,7 +144,7 @@ brief; it cannot read your memory.**
   registered ones → `rm -rf` unregistered dirs → `git worktree prune` → `git branch -D wt/*` only after
   `git rev-list --left-right --count main...<branch>` shows 0 on the branch side.
 - **Never tear down a worktree you might resume** — a SendMessage resurrection lands in a deleted cwd.
-- **Killing a task mid-git leaves staged-no-MERGE_HEAD debris** — `git reset --hard HEAD` (the branch holds
+- **Killing a task mid-git leaves staged-no-MERGE\_HEAD debris** — `git reset --hard HEAD` (the branch holds
   everything) and redo, don't excavate.
 - **A lane's "done" report can lie about files it never staged** — require `git show --stat` receipts in
   briefs; spot-check `git -C <wt> status --short` before teardown.

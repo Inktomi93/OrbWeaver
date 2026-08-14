@@ -11,6 +11,7 @@ const ORIGINAL_PATH = execFileSync("printenv", ["PATH"], { encoding: "utf8" }).t
 const TOOL_ERROR_EXIT = 2;
 const MISUSE_EXIT = 3;
 const EXECUTABLE_MODE = 0o755;
+const TABLE_DRIVEN_TIMEOUT_MS = 15_000;
 const TARGET_ISSUE = 11;
 const FIRST_BLOCKER = 7;
 const SECOND_BLOCKER = 8;
@@ -19,6 +20,10 @@ const EVIDENCE_FIELD = "Evidence";
 const WAKE_CONDITION_FIELD = "Wake condition";
 const DISPOSITION_FIELD = "Disposition";
 const PRIORITY_FIELD = "Priority";
+const KIND_FIELD = "Kind";
+const AREA_FIELD = "Area";
+const REVIEW_FIELD = "Review";
+const CREATED_ISSUE = 12;
 const defineTest = test;
 
 interface FakeIssue {
@@ -45,6 +50,7 @@ interface FakeState {
   readonly items: FakeProjectItem[];
   readonly issues: Record<string, FakeIssue> & { readonly "11": FakeIssue };
   readonly calls: string[][];
+  failProject?: boolean;
 }
 
 const fakeGh = String.raw`#!/usr/bin/env node
@@ -66,11 +72,18 @@ if (args[0] === "issue" && args[1] === "view") {
   const current = issue();
   text({ id: current.id, number: current.number, url: current.url, state: current.state, comments: current.comments.map((body) => ({ body })) });
 } else if (args[0] === "project" && args[1] === "view") {
+  if (state.failProject) throw new Error("Injected Project failure");
   text({ id: "project-1" });
 } else if (args[0] === "project" && args[1] === "field-list") {
   text({ fields: state.fields });
 } else if (args[0] === "project" && args[1] === "item-list") {
   text({ items: state.items });
+} else if (args[0] === "issue" && args[1] === "create") {
+  const number = ${CREATED_ISSUE};
+  const url = "https://example.test/issues/" + number;
+  state.issues[String(number)] = { id: "issue-" + number, number, url, state: "OPEN", blockers: [], comments: [] };
+  save();
+  process.stdout.write(url);
 } else if (args[0] === "project" && args[1] === "item-add") {
   const url = value("--url");
   const target = Object.values(state.issues).find((candidate) => candidate.url === url);
@@ -139,10 +152,34 @@ function createState(status: string, blockers: number[] = []): FakeState {
       { id: "evidence", name: "Evidence", type: "ProjectV2Field" },
       { id: "lane", name: "Lane", type: "ProjectV2Field" },
       { id: "wake", name: "Wake condition", type: "ProjectV2Field" },
-      { id: "disposition", name: "Disposition", type: "ProjectV2SingleSelectField", options: [{ id: "parked", name: "Parked" }] },
+      {
+        id: "disposition",
+        name: "Disposition",
+        type: "ProjectV2SingleSelectField",
+        options: ["Untriaged", "Action", "Parked", "Killed", "Already resolved"].map((name) => ({ id: name.toLowerCase(), name })),
+      },
       { id: "priority", name: "Priority", type: "ProjectV2SingleSelectField", options: [{ id: "high", name: "High" }] },
+      { id: "area", name: "Area", type: "ProjectV2SingleSelectField", options: [{ id: "docs", name: "Docs" }] },
+      { id: "review", name: "Review", type: "ProjectV2SingleSelectField", options: ["Technical", "Owner"].map((name) => ({ id: name.toLowerCase(), name })) },
+      {
+        id: "kind",
+        name: "Kind",
+        type: "ProjectV2SingleSelectField",
+        options: ["Work", "Decision", "Program", "Evidence"].map((name) => ({ id: name.toLowerCase(), name })),
+      },
     ],
-    items: [{ id: "item-11", content: { number: 11, url: "https://example.test/issues/11" }, [STATUS_FIELD]: status, [PRIORITY_FIELD]: "High" }],
+    items: [
+      {
+        id: "item-11",
+        content: { number: 11, url: "https://example.test/issues/11" },
+        [STATUS_FIELD]: status,
+        [DISPOSITION_FIELD]: "Untriaged",
+        [KIND_FIELD]: "Work",
+        [PRIORITY_FIELD]: "High",
+        [AREA_FIELD]: "Docs",
+        [REVIEW_FIELD]: "Technical",
+      },
+    ],
     issues: {
       "7": { id: "issue-7", number: 7, url: "https://example.test/issues/7", state: "OPEN", blockers: [], comments: [] },
       "8": { id: "issue-8", number: 8, url: "https://example.test/issues/8", state: "OPEN", blockers: [], comments: [] },
@@ -152,7 +189,7 @@ function createState(status: string, blockers: number[] = []): FakeState {
   };
 }
 
-function drive(state: FakeState, ...args: string[]): { readonly status: number | null; readonly stderr: string } {
+function drive(state: FakeState, ...args: string[]): { readonly status: number | null; readonly stdout: string; readonly stderr: string } {
   const directory = mkdtempSync(join(tmpdir(), "work-item-cli-"));
   const statePath = join(directory, "state.json");
   const ghPath = join(directory, "gh");
@@ -176,7 +213,7 @@ function drive(state: FakeState, ...args: string[]): { readonly status: number |
       },
     );
     Object.assign(state, JSON.parse(readFileSync(statePath, "utf8")) as FakeState);
-    return { status: result.status, stderr: result.stderr };
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr };
   } finally {
     rmSync(directory, { force: true, recursive: true });
   }
@@ -184,6 +221,17 @@ function drive(state: FakeState, ...args: string[]): { readonly status: number |
 
 function targetIssue(state: FakeState): FakeIssue {
   return state.issues["11"];
+}
+
+function withBody(body: string, callback: (bodyFile: string) => void): void {
+  const directory = mkdtempSync(join(tmpdir(), "work-item-body-"));
+  const bodyFile = join(directory, "issue.md");
+  writeFileSync(bodyFile, body);
+  try {
+    callback(bodyFile);
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
 }
 
 function addParkedMetadata(state: FakeState): void {
@@ -195,8 +243,24 @@ function addParkedMetadata(state: FakeState): void {
 }
 
 function fieldValue(state: FakeState, name: string): string | undefined {
-  const value = Object.entries(state.items[0] ?? {}).find(([field]) => field.toLowerCase() === name.toLowerCase())?.[1];
+  return itemFieldValue(state, TARGET_ISSUE, name);
+}
+
+function itemFieldValue(state: FakeState, issue: number, name: string): string | undefined {
+  const item = state.items.find((candidate) => candidate.content.number === issue);
+  const value = Object.entries(item ?? {}).find(([field]) => field.toLowerCase() === name.toLowerCase())?.[1];
   return typeof value === "string" ? value : undefined;
+}
+
+function setRequiredMetadata(state: FakeState, issue: number): void {
+  const item = state.items.find((candidate) => candidate.content.number === issue);
+  if (item === undefined) {
+    throw new Error("created Project item is missing");
+  }
+  item[KIND_FIELD] = "Work";
+  item[PRIORITY_FIELD] = "High";
+  item[AREA_FIELD] = "Docs";
+  item[REVIEW_FIELD] = "Technical";
 }
 
 defineTest("claim requires a lane and produces the mutation intent", () => {
@@ -209,6 +273,76 @@ defineTest("parser errors become misuse exits at the CLI boundary", () => {
   const result = drive(createState("Triage"), "ready", "not-an-issue");
   expect(result.status).toBe(MISUSE_EXIT);
   expect(result.stderr).toContain("issue must be a positive numeric issue number");
+});
+
+defineTest("help prints the complete Project operator path", () => {
+  const result = drive(createState("Triage"), "--help");
+  expect(result.status).toBe(0);
+  expect(result.stdout).toContain("create <work|bug|decision|program|evidence>");
+  expect(result.stdout).toContain("Triage → Ready → Running → Review → Verify → Done");
+  expect(result.stdout).toContain(".github/ISSUE_TEMPLATE/*.yml");
+});
+
+defineTest(
+  "create maps each canonical class to its labels, Project Kind, and Triage",
+  () => {
+    const cases = [
+      { issueClass: "work", labels: ["kind:build", "triage"], projectKind: "Work", status: "Triage" },
+      { issueClass: "bug", labels: ["bug", "triage"], projectKind: "Work", status: "Triage" },
+      { issueClass: "decision", labels: ["kind:decision", "needs-owner", "triage"], projectKind: "Decision", status: "Needs owner" },
+      { issueClass: "program", labels: ["kind:design", "triage"], projectKind: "Program", status: "Triage" },
+      { issueClass: "evidence", labels: ["kind:finding", "triage"], projectKind: "Evidence", status: "Triage" },
+    ] as const;
+    for (const itemCase of cases) {
+      withBody("# current evidence", (bodyFile) => {
+        const state = createState("Triage");
+        const result = drive(state, "create", itemCase.issueClass, "--title", "Current finding", "--body-file", bodyFile);
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain(`#${CREATED_ISSUE} https://example.test/issues/${CREATED_ISSUE}`);
+        expect(result.stdout).toContain(
+          itemCase.issueClass === "decision" ? "set Priority, Area, and resolve the owner decision before ready" : "set Priority, Area, Review, then ready",
+        );
+        expect(itemFieldValue(state, CREATED_ISSUE, STATUS_FIELD)).toBe(itemCase.status);
+        expect(itemFieldValue(state, CREATED_ISSUE, DISPOSITION_FIELD)).toBe("Untriaged");
+        expect(itemFieldValue(state, CREATED_ISSUE, KIND_FIELD)).toBe(itemCase.projectKind);
+        expect(itemFieldValue(state, CREATED_ISSUE, REVIEW_FIELD)).toBe(itemCase.issueClass === "decision" ? "Owner" : undefined);
+        expect(state.items.filter((item) => item.content.number === CREATED_ISSUE)).toHaveLength(1);
+        const createCall = state.calls.find((args) => args[0] === "issue" && args[1] === "create");
+        expect(createCall).toEqual(expect.arrayContaining(itemCase.labels.flatMap((label) => ["--label", label])));
+        setRequiredMetadata(state, CREATED_ISSUE);
+        expect(drive(state, "ready", String(CREATED_ISSUE)).status).toBe(0);
+        expect(state.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(1);
+      });
+    }
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
+defineTest("create rejects malformed kinds, titles, and body files before Project mutation", () => {
+  expect(() => parseWorkCommand(["create", "wrong", "--title", "Current finding", "--body-file", "issue.md"])).toThrow("create kind must be");
+  expect(() => parseWorkCommand(["create", "work", "--title", " ", "--body-file", "issue.md"])).toThrow("--title requires a value");
+  withBody("  ", (bodyFile) => {
+    const state = createState("Triage");
+    const result = drive(state, "create", "work", "--title", "Current finding", "--body-file", bodyFile);
+    expect(result.status).toBe(TOOL_ERROR_EXIT);
+    expect(result.stderr).toContain("body file must not be empty");
+    expect(state.calls.some((args) => args[0] === "issue" && args[1] === "create")).toBe(false);
+  });
+  const unreadable = drive(createState("Triage"), "create", "work", "--title", "Current finding", "--body-file", "/missing/issue.md");
+  expect(unreadable.status).toBe(TOOL_ERROR_EXIT);
+  expect(unreadable.stderr).toContain("ENOENT");
+});
+
+defineTest("create prints a resumable issue receipt before Project setup", () => {
+  withBody("# current evidence", (bodyFile) => {
+    const state = createState("Triage");
+    state.failProject = true;
+    const result = drive(state, "create", "work", "--title", "Current finding", "--body-file", bodyFile);
+    expect(result.status).toBe(TOOL_ERROR_EXIT);
+    expect(result.stdout).toContain(`created #${CREATED_ISSUE} https://example.test/issues/${CREATED_ISSUE}`);
+    expect(state.issues[String(CREATED_ISSUE)]?.url).toBe(`https://example.test/issues/${CREATED_ISSUE}`);
+    expect(state.items.some((item) => item.content.number === CREATED_ISSUE)).toBe(false);
+  });
 });
 
 defineTest("unblock keeps an item blocked until every blocker relation is gone", () => {
@@ -230,11 +364,21 @@ defineTest("lifecycle commands reject invalid current status and unresolved bloc
   expect(done.stderr).toContain("must be Verify before Done");
 });
 
-defineTest("verify reads a flattened live Project item and persists evidence", () => {
-  const state = createState("Running");
-  expect(drive(state, "verify", "11", "--evidence", "all tests passed").status).toBe(0);
-  expect(fieldValue(state, EVIDENCE_FIELD)).toBe("all tests passed");
-  expect(fieldValue(state, STATUS_FIELD)).toBe("Verify");
+defineTest("review gates verification and rejects blocked work", () => {
+  const running = createState("Running");
+  const prematureVerify = drive(running, "verify", "11", "--evidence", "all tests passed");
+  expect(prematureVerify.status).toBe(TOOL_ERROR_EXIT);
+  expect(prematureVerify.stderr).toContain("must be Review before Verify");
+  expect(drive(running, "review", "11").status).toBe(0);
+  expect(fieldValue(running, STATUS_FIELD)).toBe("Review");
+  expect(drive(running, "verify", "11", "--evidence", "all tests passed").status).toBe(0);
+  expect(fieldValue(running, EVIDENCE_FIELD)).toBe("all tests passed");
+  expect(fieldValue(running, STATUS_FIELD)).toBe("Verify");
+
+  const blocked = createState("Running", [FIRST_BLOCKER]);
+  const review = drive(blocked, "review", "11");
+  expect(review.status).toBe(TOOL_ERROR_EXIT);
+  expect(review.stderr).toContain("cannot enter Review while blocked");
 });
 
 defineTest("set compares flattened field names case-insensitively", () => {
@@ -253,12 +397,74 @@ defineTest("ready accepts live ingress and resume statuses but not review", () =
   expect(review.stderr).toContain("must be Triage, Needs owner, Blocked, or Parked before Ready");
 });
 
+defineTest("ready requires complete metadata and changes disposition to Action", () => {
+  const state = createState("Triage");
+  const item = state.items[0];
+  if (item !== undefined) {
+    delete item[AREA_FIELD];
+  }
+  const missing = drive(state, "ready", "11");
+  expect(missing.status).toBe(TOOL_ERROR_EXIT);
+  expect(missing.stderr).toContain("must set Area before Ready");
+  const restored = state.items[0];
+  if (restored !== undefined) {
+    restored[AREA_FIELD] = " ";
+  }
+  const empty = drive(state, "ready", "11");
+  expect(empty.status).toBe(TOOL_ERROR_EXIT);
+  expect(empty.stderr).toContain("must set Area before Ready");
+  const completed = state.items[0];
+  if (completed !== undefined) {
+    completed[AREA_FIELD] = "Docs";
+  }
+  expect(drive(state, "ready", "11").status).toBe(0);
+  expect(fieldValue(state, DISPOSITION_FIELD)).toBe("Action");
+
+  const ready = createState("Ready");
+  delete ready.items[0]?.[REVIEW_FIELD];
+  const claim = drive(ready, "claim", "11", "--lane", "metadata-proof");
+  expect(claim.status).toBe(TOOL_ERROR_EXIT);
+  expect(claim.stderr).toContain("must set Review before claim");
+});
+
+defineTest("needs-owner routes raw decision ingress and refuses terminal disposition", () => {
+  const state = createState("Running");
+  const item = state.items[0];
+  if (item !== undefined) {
+    item["Lane"] = "active-lane";
+    item[WAKE_CONDITION_FIELD] = "await owner";
+    item[DISPOSITION_FIELD] = "Action";
+  }
+  expect(drive(state, "needs-owner", "11").status).toBe(0);
+  expect(fieldValue(state, STATUS_FIELD)).toBe("Needs owner");
+  expect(fieldValue(state, REVIEW_FIELD)).toBe("Owner");
+  expect(fieldValue(state, "Lane")).toBeUndefined();
+  expect(fieldValue(state, WAKE_CONDITION_FIELD)).toBeUndefined();
+  expect(fieldValue(state, DISPOSITION_FIELD)).toBe("Untriaged");
+
+  const terminal = createState("Blocked");
+  const terminalItem = terminal.items[0];
+  if (terminalItem !== undefined) {
+    terminalItem[DISPOSITION_FIELD] = "Killed";
+  }
+  const result = drive(terminal, "needs-owner", "11");
+  expect(result.status).toBe(TOOL_ERROR_EXIT);
+  expect(result.stderr).toContain("terminal Disposition cannot enter Needs owner");
+  expect(fieldValue(terminal, DISPOSITION_FIELD)).toBe("Killed");
+  expect(terminal.calls.some((args) => args[0] === "project" && args[1] === "item-edit")).toBe(false);
+});
+
 defineTest("ready initializes raw and statusless Project ingress without duplicate items", () => {
   const rawIssue = createState("Triage");
   rawIssue.items.splice(0, 1);
+  const missing = drive(rawIssue, "ready", "11");
+  expect(missing.status).toBe(TOOL_ERROR_EXIT);
+  expect(missing.stderr).toContain("must set Kind, Priority, Area, Review before Ready");
+  setRequiredMetadata(rawIssue, TARGET_ISSUE);
   expect(drive(rawIssue, "ready", "11").status).toBe(0);
   expect(rawIssue.items).toHaveLength(1);
   expect(fieldValue(rawIssue, STATUS_FIELD)).toBe("Ready");
+  expect(fieldValue(rawIssue, DISPOSITION_FIELD)).toBe("Action");
   expect(rawIssue.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(1);
   expect(rawIssue.calls.filter((args) => args.includes("--single-select-option-id") && args.includes("triage"))).toHaveLength(1);
   expect(drive(rawIssue, "ready", "11").status).toBe(TOOL_ERROR_EXIT);
@@ -269,6 +475,7 @@ defineTest("ready initializes raw and statusless Project ingress without duplica
   expect(drive(statusless, "ready", "11").status).toBe(0);
   expect(statusless.items).toHaveLength(1);
   expect(fieldValue(statusless, STATUS_FIELD)).toBe("Ready");
+  expect(fieldValue(statusless, DISPOSITION_FIELD)).toBe("Action");
   expect(statusless.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(0);
   expect(statusless.calls.filter((args) => args.includes("--single-select-option-id") && args.includes("triage"))).toHaveLength(1);
 });
@@ -278,19 +485,19 @@ defineTest("ready and unblock clear parked metadata before becoming Ready", () =
   addParkedMetadata(parked);
   expect(drive(parked, "ready", "11").status).toBe(0);
   expect(fieldValue(parked, "Wake condition")).toBeUndefined();
-  expect(fieldValue(parked, "Disposition")).toBeUndefined();
+  expect(fieldValue(parked, "Disposition")).toBe("Action");
 
   const unblocked = createState("Blocked");
   addParkedMetadata(unblocked);
   expect(drive(unblocked, "unblock", "11", "--by", String(FIRST_BLOCKER)).status).toBe(0);
   expect(fieldValue(unblocked, "Wake condition")).toBeUndefined();
-  expect(fieldValue(unblocked, "Disposition")).toBeUndefined();
+  expect(fieldValue(unblocked, "Disposition")).toBe("Action");
 });
 
 defineTest("closed work items refuse lifecycle mutations", () => {
   const state = createState("Triage");
   targetIssue(state).state = "CLOSED";
-  const result = drive(state, "ready", "11");
+  const result = drive(state, "review", "11");
   expect(result.status).toBe(TOOL_ERROR_EXIT);
   expect(result.stderr).toContain("cannot change a closed work item");
   expect(state.calls.some((args) => args[0] === "project")).toBe(false);
