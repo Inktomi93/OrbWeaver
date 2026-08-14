@@ -525,19 +525,27 @@ the deliverable path for design-shaped outputs.
   08-14) · notifications domain EXISTS on tree · st-message-shaping-atlas + docker-research +
   parked-options-\* = reference/parked by design.
 
-**QUEUED:** gates G-A/G-B/G-C/G-D/G-E (fixed tree at drain; G-C's historical control banked) ·
-**G-F scroller-positioning gate** (smalls-3's measured win: overflow-y-auto/overflow-auto/
-overflow-y-scroll className must carry relative/absolute/fixed/sticky — \~40-site enumeration +
-preset-editor 11-escapee receipt attached to the lane report; readPhantomScrollers in
-tests/support/ct/scroll-containing-block.ts is the positive-control instrument; strictly stronger
-than per-surface symptom pins, which are hereby NOT owed) ·
-R2/R3 draft-mode · R3 refinery build + #39 polish + NL→schema (after #36) · #37 trust-gated card
-images · #38 leftovers · C1 persona status investigation · #33 templating · #43 code-split ·
-\#52 demo-v4 (fleet) · chats-pane eviction trap **(CLOSED — see the \[x] row below)** ·
-gates G-A/G-B/G-C/G-D/G-E · Qwen-doc truth-repair (rows 101-133 "lens noise"→VERIFIED-REAL-then-
-PARKED + row 281 "safe to kill"→provenance-mechanized — lens lane deliberately left the doc to avoid
-a collision; the durable verdicts live in ast.ts's per-lens headers) · report-cards items 6/7 leg
-(AFTER R0 merges) · Codex final-synthesis re-sweep at drain.
+**QUEUED (truth-repaired 08-14 evening — the owner caught the refinery fossil):** ~~R3 refinery
+build + #39 polish + NL→schema~~ **REFINERY IS BUILT** (both surfaces + stage machinery +
+accept/apply + manual-rewrite + the FULL NL→schema editor door w/ three-tier raw belt + live
+preview; #36 closed on-tree, #39 side-eye graduated, live-e2e receipts) — the residue is
+**#39-close-part-2: the custom-schema LIVE-E2E verification drive** (all arms: single/guided/
+two-stage · needs-raw refusal · strippedKeys warn · manual-rewrite · OR reasoning×structured probe)
+
+- a re-derive on the #47/#49 pair · **#37 carries the same stale risk** (card trust tiers +
+  external-media axes since built — re-derive before laning). Still real: gates already landed ·
+  **G-F scroller-positioning gate** (smalls-3's measured win: overflow-y-auto/overflow-auto/
+  overflow-y-scroll className must carry relative/absolute/fixed/sticky — \~40-site enumeration +
+  preset-editor 11-escapee receipt attached to the lane report; readPhantomScrollers in
+  tests/support/ct/scroll-containing-block.ts is the positive-control instrument; strictly stronger
+  than per-surface symptom pins, which are hereby NOT owed) ·
+  R2/R3 draft-mode · R3 refinery build + #39 polish + NL→schema (after #36) · #37 trust-gated card
+  images · #38 leftovers · C1 persona status investigation · #33 templating · #43 code-split ·
+  \#52 demo-v4 (fleet) · chats-pane eviction trap **(CLOSED — see the \[x] row below)** ·
+  gates G-A/G-B/G-C/G-D/G-E · Qwen-doc truth-repair (rows 101-133 "lens noise"→VERIFIED-REAL-then-
+  PARKED + row 281 "safe to kill"→provenance-mechanized — lens lane deliberately left the doc to avoid
+  a collision; the durable verdicts live in ast.ts's per-lens headers) · report-cards items 6/7 leg
+  (AFTER R0 merges) · Codex final-synthesis re-sweep at drain.
 
 **DRAIN GATE OWED when the 5 drain:** consolidated `pnpm check` exit-0 (structure currently red-9,
 cleanup leg out) → CT-contradiction arbitration (`pnpm test:ct` cold on the quiesced tree) → full
