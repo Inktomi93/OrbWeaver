@@ -384,8 +384,17 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   lockdown doc (:639, 07-16), not Active-Gates; any core doc restating the count now REDS; the
   lockdown doc cites the line instead. Codex's "active-gates says 133" was mis-aimed at the right
   rot.
-- [ ] **R1-4a residual false-emit** (accepted-documented): closing needs a durable-append-free live
-  fan on the chat bus — pairs with the bridge item above, one bus-surface design.
+- [x] **R1-4a CLOSED, not narrowed (bridge LANE 2, merged):** all THREE removing verbs (delete ·
+  reapHusk · reapTemporaryChats — the doc said two, the third carried the identical residual) run
+  `DELETE … RETURNING` and fan only rows that came back; possible because chatDeleted went
+  LIVE-ONLY (no chat\_events append = no FK to protect = no forced emit-before-delete window).
+  Red-first: the interleave case that announced a SURVIVING room dead on HEAD. F-A kicked-member
+  pin beside the roomEntityChanged withhold case. **SQUASH REAL + WIPE CONFIRMED FIRED** (live db:
+  CHECK 26→25, applied identity = the new baseline, fresh 6-chat reseed — the watch-reload booted
+  at merge and the per-boot log truncation ate the warn; latch worked, instrument rotated).
+  roomReach gate = THREE arms (`bridge|seated-exempt|none`, two-sided) — orchestrator-accepted
+  deviation: the spec's two arms were unshippable against the F-E/F-F deferrals. quiet-fanout
+  re-homed + renamed (F-G, 17 occurrences). Tier-1-DB mv-then-verify doc small DISCHARGED in-lane.
 - [x] **F6 addMember-greets arm: BUILT (chat-smalls, red-first 3/5 arms).** Greeting-seed builder
   lifted to `domain/chat/substrate/greeting-seed.ts` (one home; byte-identity receipt vs start-chat
   — one statement differs, `startSeq` param), roster verb seeds at maxSeq+1 behind the same
