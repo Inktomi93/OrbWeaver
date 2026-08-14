@@ -207,7 +207,13 @@ CODEX'S, leave alone). STACK UP (localhost:5173→200, :8788 healthz ok) + FLEET
 (19.04x concurrency, fixed jinja template, enable\_in\_reasoning:false — flag semantics were INVERTED,
 A/B receipts in build-argv.ts). ComfyUI stopped idle → `docker start comfyui` to restore.\*\*
 
-**STILL RUNNING (2 lanes):** databank lenses+bankHealth (agent a811b7784ada5cb32 — rebases onto bus-2's
+**STILL RUNNING (5 lanes, second rotation — dispatched post-battery on owner word "there's work to be
+done"):** lens-calibration ac86ef0c995636eef (ast.ts 6-class fixes, corpus=regression suite) ·
+Qwen \[V]-row cleanup acceb2e3a54f11127 (rows 1-33; VERIFY-FIRST per owner; **owner directive: the dead
+TYPE TWINS likely want an ELEGANT ZOD solution — schema-first derivation, one home — not blind deletion;
+trust but verify each row**) · report-cards punch list afd5458183e0c973f (all 17 incl. db renames,
+db expendable) · W7b+W8 a9bc951d32337de3a · smalls batch aff94015fa7585f43 (7 items). Battery PASS is
+banked; push still owner's. OLD RUNNING BLOCK (drained): **previously running (2 lanes):** databank lenses+bankHealth (agent a811b7784ada5cb32 — rebases onto bus-2's
 use-databank-mutations.ts rewrite at merge; helpers listRead/detailRead/globalRead are DELETED, answer
 is busDriven) · staleness-2 W5+W7a (agent a11533cee105f8c80). **QUEUED:** W7b identityChanged + W8
 quiet-mode (unblocked NOW — bus-2 merged) · gates G-A/G-B/G-C/G-D (G-B starts from survey §2.3's
