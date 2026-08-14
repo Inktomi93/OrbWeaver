@@ -176,7 +176,11 @@ function localEvidenceLines(): ReadonlyMap<string, number> {
 }
 
 function headAncestors(): ReadonlySet<string> {
-  return new Set(gitResult(["rev-list", "HEAD"])?.split("\n").filter((commit) => commit !== "") ?? []);
+  return new Set(
+    gitResult(["rev-list", "HEAD"])
+      ?.split("\n")
+      .filter((commit) => commit !== "") ?? [],
+  );
 }
 
 function receiptFacts(entry: ReceiptEntry, doc: Doc, localEvidence: ReadonlyMap<string, number>, ancestors: ReadonlySet<string>): ReceiptFacts {
@@ -467,7 +471,7 @@ function coverageErrors(docs: readonly Doc[], byPath: ReadonlyMap<string, Receip
   return errors;
 }
 
-export function debtPathErrors(current: DebtPaths, allowed: DebtPaths | undefined): readonly string[] {
+function newDebtPathErrors(current: DebtPaths, allowed: DebtPaths | undefined): readonly string[] {
   if (allowed === undefined) {
     return [`${STATE_PATH}: legacy count-only state must be upgraded with pnpm doc-catalog:ratchet`];
   }
@@ -483,14 +487,26 @@ export function debtPathErrors(current: DebtPaths, allowed: DebtPaths | undefine
   return errors;
 }
 
+export function debtPathErrors(current: DebtPaths, allowed: DebtPaths | undefined): readonly string[] {
+  if (allowed === undefined) {
+    return newDebtPathErrors(current, allowed);
+  }
+  const errors = [...newDebtPathErrors(current, allowed)];
+  for (const key of Object.keys(current) as (keyof Floors)[]) {
+    const actual = new Set(current[key]);
+    for (const path of allowed[key]) {
+      if (!actual.has(path)) {
+        errors.push(`${key}: stale debt path ${path} remains in the ratchet allowance`);
+      }
+    }
+  }
+  return errors;
+}
+
 function validate(input: ValidationInput): readonly string[] {
   const indexed = indexReceipts(input.config, input.assignments, input.docs, input.receipts);
   const debt = migrationDebt(input.docs, input.receipts);
-  return [
-    ...indexed.errors,
-    ...coverageErrors(input.docs, indexed.byPath),
-    ...debtPathErrors(debt, input.state.allowed),
-  ];
+  return [...indexed.errors, ...coverageErrors(input.docs, indexed.byPath), ...debtPathErrors(debt, input.state.allowed)];
 }
 
 function pendingClaimsEvidence(entry: ReceiptEntry): boolean {
@@ -506,7 +522,15 @@ function pendingClaimsEvidence(entry: ReceiptEntry): boolean {
 }
 
 function isLifecycleReceipt(entry: ReceiptEntry): boolean {
-  return entry.disposition === "archive" || entry.disposition === "generated-artifact" || entry.disposition === "superseded" || entry.disposition === "vendor-snapshot" || entry.authority === "generated" || entry.authority === "historical" || entry.authority === "vendor";
+  return (
+    entry.disposition === "archive" ||
+    entry.disposition === "generated-artifact" ||
+    entry.disposition === "superseded" ||
+    entry.disposition === "vendor-snapshot" ||
+    entry.authority === "generated" ||
+    entry.authority === "historical" ||
+    entry.authority === "vendor"
+  );
 }
 
 function hasExpectedEvidenceRoot(kind: string, path: string): boolean {
@@ -536,7 +560,9 @@ function localEvidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, fac
   if (line < 1 || line > lines) {
     return [`${entry.path}: ${evidence.kind} evidence line is out of bounds: ${evidence.target}`];
   }
-  return path !== undefined && hasExpectedEvidenceRoot(evidence.kind, path) ? [] : [`${entry.path}: ${evidence.kind} evidence target has the wrong root: ${evidence.target}`];
+  return path !== undefined && hasExpectedEvidenceRoot(evidence.kind, path)
+    ? []
+    : [`${entry.path}: ${evidence.kind} evidence target has the wrong root: ${evidence.target}`];
 }
 
 function evidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, facts: ReceiptFacts | undefined): readonly string[] {
@@ -571,11 +597,21 @@ function typedClaimErrors(entry: ReceiptEntry, claim: ReceiptClaim, facts: Recei
 }
 
 function isReceiptEvidence(value: unknown): value is ReceiptEvidence {
-  return typeof value === "object" && value !== null && "kind" in value && typeof value.kind === "string" && "target" in value && typeof value.target === "string";
+  return (
+    typeof value === "object" && value !== null && "kind" in value && typeof value.kind === "string" && "target" in value && typeof value.target === "string"
+  );
 }
 
 function isReceiptClaim(value: unknown): value is ReceiptClaim {
-  return typeof value === "object" && value !== null && "claim" in value && typeof value.claim === "string" && "evidence" in value && Array.isArray(value.evidence) && value.evidence.every(isReceiptEvidence);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "claim" in value &&
+    typeof value.claim === "string" &&
+    "evidence" in value &&
+    Array.isArray(value.evidence) &&
+    value.evidence.every(isReceiptEvidence)
+  );
 }
 
 function claimEvidenceErrors(entry: ReceiptEntry, facts: ReceiptFacts | undefined): readonly string[] {
@@ -693,7 +729,7 @@ function sync(config: LaneConfig, docs: readonly Doc[], assignments: ReadonlyMap
 function ratchet(docs: readonly Doc[], receipts: readonly Receipt[]): void {
   const state = json<State>(STATE_PATH);
   const allowed = migrationDebt(docs, receipts);
-  const errors = state.allowed === undefined ? [] : debtPathErrors(allowed, state.allowed);
+  const errors = state.allowed === undefined ? [] : newDebtPathErrors(allowed, state.allowed);
   if (errors.length > 0) {
     throw new Error(errors.join("\n"));
   }
