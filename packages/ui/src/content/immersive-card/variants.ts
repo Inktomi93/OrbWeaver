@@ -12,7 +12,7 @@ export const immersiveCardVariants = tv({
     header: "flex items-center gap-row border-b border-border ps-block pe-row py-row",
     title: "min-w-0 flex-1 truncate text-label leading-label font-medium text-muted-foreground",
     origin: "text-label leading-label text-muted-foreground",
-    pre: "m-0 w-full overflow-auto whitespace-pre-wrap bg-muted p-block font-mono text-code text-foreground",
+    pre: "relative m-0 w-full overflow-auto whitespace-pre-wrap bg-muted p-block font-mono text-code text-foreground",
     lightboxHeader: "flex items-center gap-row",
     lightboxTitle: "min-w-0 flex-1 truncate",
     lightboxBody: "flex min-h-0 flex-1 flex-col",

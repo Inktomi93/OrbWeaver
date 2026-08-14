@@ -13,7 +13,7 @@ export const dialogVariants = tv({
     // Viewport gutter is set per-size (below), never in the base — else `full`'s `p-0` and a base `p-gutter`
     // are two padding classes tailwind-merge can't dedupe.
     viewport: "fixed inset-0 z-(--z-modal) flex items-center justify-center",
-    popup: `flex max-h-full flex-col overflow-y-auto overscroll-contain ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
+    popup: `relative flex max-h-full flex-col overflow-y-auto overscroll-contain ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",
   },

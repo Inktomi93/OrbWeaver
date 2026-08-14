@@ -348,6 +348,22 @@ export type AutomationBusEvent =
 /** @public twin: AutomationBusEvent — discriminant twin of the live union (cross-package PUBLIC). */
 export type AutomationBusEventType = AutomationBusEvent["type"];
 
+/** The automation bus's PRODUCER-coverage belt. The `satisfies Record<AutomationBusEvent["type"], true>`
+ *  makes `tsc` error the moment a member is added without an entry, and its existence is what puts the bus
+ *  inside the coverage ratchets' quantifier — `bus-definition-belts` and the `automation-bus-coverage` spec
+ *  both find the bus THROUGH this const. Minted 2026-08-14 with the G-B belt-existence arm: until then
+ *  `AutomationBusEvent` had no belt at all, so no gate could see the bus, and `rulesChanged` sat declared
+ *  and un-emitted for the life of the domain (event-bus coverage survey §2.3 — the newest bus already had
+ *  dead wire, invisibly). The const is NOT inert data: minting it alone fires both arms of
+ *  `bus-definition-belts`, which is why it lands WITH the gate work and not ahead of it. */
+export const AUTOMATION_BUS_EVENT_TYPES = {
+  quickReplySurfaced: true,
+  ruleFired: true,
+  ruleErrored: true,
+  ruleAutoDisabled: true,
+  rulesChanged: true,
+} satisfies Record<AutomationBusEvent["type"], true>;
+
 // The PROSE-1 slot table (census row 91) — the `set_chat_background` quiet pick's two authored clauses.
 // `#prose` imports this to compose `PROSE_SLOTS`; it lives beside the action vocabulary it teaches.
 export { AUTOMATION_PROSE_SLOTS } from "./prose.ts";

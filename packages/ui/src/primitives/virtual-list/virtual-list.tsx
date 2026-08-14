@@ -154,7 +154,7 @@ export function VirtualList<T>({
     // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
     <div
       ref={scrollRef}
-      className={cn("overflow-auto overscroll-contain", fadeEdge ? EDGE_FADE : undefined, className)}
+      className={cn("relative overflow-auto overscroll-contain", fadeEdge ? EDGE_FADE : undefined, className)}
       data-slot="virtual-list-scroll"
       onScroll={(event): void => {
         if (fadeEdge) {
