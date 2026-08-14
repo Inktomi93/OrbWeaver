@@ -4,8 +4,9 @@
 // on the pure mock harness in auth-routes.test.ts. Determinism: the throttle window is pinned via `now`.
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import type { SessionToken, UserId } from "@orb/kit/ids";
+import type { SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
 import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import { Hono } from "hono";
@@ -18,6 +19,8 @@ const THIRTY_DAYS_MS = 2_592_000_000;
 const COOKIE = "__Host-orb_session";
 const CSRF = "x-orb-csrf";
 const LOGIN = "/api/auth/login";
+/** The session row a logout ends — the id `revokeByToken` reports so the route can evict its sockets. */
+const REVOKED_SESSION_ID = castId<SessionId>("sess_logout");
 // Distinct fake TCP peers so per-IP throttle buckets don't collide across tests (each test keys its own IP).
 const connEnv = (addr: string): { incoming: { socket: { remoteAddress: string; remotePort: number; remoteFamily: string } } } => ({
   incoming: { socket: { remoteAddress: addr, remotePort: 40_000, remoteFamily: "IPv4" } },
@@ -27,12 +30,12 @@ function sessionsStub(over: Partial<AuthSessionsPort> = {}): AuthSessionsPort {
   return {
     create: (): Promise<{ token: SessionToken; expiresAt: number }> =>
       Promise.resolve({ token: castId<SessionToken>("tok-123"), expiresAt: NOW + THIRTY_DAYS_MS }),
-    revokeByToken: (): Promise<void> => Promise.resolve(),
+    revokeByToken: (): Promise<SessionId | null> => Promise.resolve(REVOKED_SESSION_ID),
     provisionIdentity: (
       _identity: ResolvedIdentity,
     ): Promise<{ outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole } | { outcome: "denied" }> =>
       Promise.resolve({ outcome: "provisioned", userId: castId<UserId>("usr_x"), enabled: true, role: "user" }),
-    revokeByExternalId: (): Promise<number> => Promise.resolve(0),
+    revokeByExternalId: (): Promise<RevokedSessionsSummary> => Promise.resolve({ revoked: 0, userIds: [] }),
     ...over,
   };
 }
@@ -47,6 +50,9 @@ async function appWith(over: Partial<AuthRoutesDeps> = {}): Promise<Hono> {
   const app = new Hono();
   const deps: AuthRoutesDeps = {
     sessions: sessionsStub(),
+    // W7a — the routes evict live sockets beside every revoke; this suite drives no socket, so the port is
+    // inert and the eviction pins live in the unit suite (auth-routes.test.ts), which can observe it.
+    sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
     now: (): number => NOW,
     db,
     resolveLoginLimit: (): number => 10,
@@ -217,9 +223,9 @@ describe("logout — CSRF gate (real app)", () => {
     let revoked: string | null = null;
     const app = await appWith({
       sessions: sessionsStub({
-        revokeByToken: (t: string): Promise<void> => {
+        revokeByToken: (t: string): Promise<SessionId | null> => {
           revoked = t;
-          return Promise.resolve();
+          return Promise.resolve(REVOKED_SESSION_ID);
         },
       }),
     });
@@ -232,9 +238,9 @@ describe("logout — CSRF gate (real app)", () => {
     let revoked: string | null = null;
     const app = await appWith({
       sessions: sessionsStub({
-        revokeByToken: (t: string): Promise<void> => {
+        revokeByToken: (t: string): Promise<SessionId | null> => {
           revoked = t;
-          return Promise.resolve();
+          return Promise.resolve(REVOKED_SESSION_ID);
         },
       }),
     });

@@ -12,6 +12,13 @@
 //   • "No matches" is now a claim this surface has standing to make — the whole library was searched.
 //   • The counts print the server's `totalCount`, not "loaded so far".
 //
+// THE TAG LIBRARY IS ALSO THE FILTER'S REFERENTIAL AUTHORITY (W5, staleness-and-session-freshness.md §4.2.2).
+// `orb:character-library` persists raw `TagId`s that outlive the rows they name — a deleted tag, or a whole
+// previous dev era's db. Because the server's tag predicate is AND on both arms, ONE such include-id matches
+// zero rows and empties the entire library, invisibly and across every reload: the owner's import repro, whose
+// only cure was wiping localStorage. So an entry the tag library does not know is dropped from the REQUEST
+// (`effectiveTagFilter`) while staying in the store, where the chip row renders it clearable — visible + inert.
+//
 // The two reads that deliberately do NOT ride the lens: the FAVORITES strip (its own `starred: true` page —
 // it is a shortcut across the library, not a view of the filtered set, and reading the filtered page would
 // empty it the moment you typed) and the TAG VOCABULARY (`tag.listTagsWithUsage` — the chips must offer
@@ -65,7 +72,7 @@ import { CharacterLibraryToolbar } from "../components/character-library-toolbar
 import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { useRestoreRowFocus } from "../hooks/use-restore-row-focus.ts";
-import { resultCountLabel, tagIdsInState, tagVocabulary } from "../lib/character-library-lens.ts";
+import { effectiveTagFilter, knownTagIds, resultCountLabel, tagIdsInState, tagVocabulary } from "../lib/character-library-lens.ts";
 import { groupByTag, resumeTargets } from "../lib/character-list-view.ts";
 
 const ESTIMATED_ROW_PX = 80;
@@ -157,6 +164,20 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   // resolves, fall back to the schema default so the first page fetches at the same size as pre-wire.
   const settingsQuery = useQuery(trpc.settings.getUserSettings.queryOptions());
   const pageSize = settingsQuery.data?.config.library.pageSize ?? DEFAULT_USER_SETTINGS.library.pageSize;
+  // The chip vocabulary is the OWNER'S TAG LIBRARY, not the loaded rows' tags (the dead-filter class): a
+  // chip that only exists once a matching row happens to be loaded is a filter you cannot turn off. It is
+  // ALSO the referential authority for the persisted filter (W5) — hoisted above the collection because the
+  // collection's query INPUT now depends on it.
+  const tagLibraryQuery = useQuery(trpc.tag.listTagsWithUsage.queryOptions());
+  const tagLibrary = tagLibraryQuery.data ?? [];
+  const availableTags = tagVocabulary(tagLibrary, tagFilter);
+  // W5 — a persisted entry whose tag the library does not know can never match a row, and the server's tag
+  // predicate is AND on both arms, so leaving it on the wire vetoes the ENTIRE library with nothing on screen
+  // explaining it (the owner's import repro). The authority is the SETTLED read: pending (and errored) is
+  // `null` = "not answered", which is NOT the same as "knows nothing" — trusting the blob until the answer
+  // lands is what keeps a LIVE filter from flashing off on every boot (`effectiveTagFilter`). A dropped entry
+  // stays in the store and still renders its chip: visible + inert, never a write-on-render.
+  const effectiveFilter = effectiveTagFilter(tagFilter, tagLibraryQuery.isSuccess ? knownTagIds(tagLibrary) : null);
   const collection = useCharacterLibraryCollection(
     { trpc },
     {
@@ -165,8 +186,8 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
       search: settledQuery,
       favoritesOnly,
       showArchived,
-      includeTagIds: tagIdsInState(tagFilter, "include"),
-      excludeTagIds: tagIdsInState(tagFilter, "exclude"),
+      includeTagIds: tagIdsInState(effectiveFilter, "include"),
+      excludeTagIds: tagIdsInState(effectiveFilter, "exclude"),
     },
   );
   const selectedId = useSelectedCharacterId();
@@ -188,10 +209,6 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   // shortcut must not vanish because you typed in the search box).
   const favoritesQuery = useQuery(trpc.character.list.queryOptions({ starred: true, limit: FAVORITES_STRIP_LIMIT }));
   const favorites = favoritesQuery.data?.items ?? [];
-  // The chip vocabulary is the OWNER'S TAG LIBRARY, not the loaded rows' tags (the dead-filter class): a
-  // chip that only exists once a matching row happens to be loaded is a filter you cannot turn off.
-  const tagLibraryQuery = useQuery(trpc.tag.listTagsWithUsage.queryOptions());
-  const availableTags = tagVocabulary(tagLibraryQuery.data ?? [], tagFilter);
 
   // A pick FROM THE PICKER (a card click / a favorites face): the same selection write, plus the focus
   // decision the pane swap needs — the projection that replaces this library takes focus (§3.7).
@@ -282,7 +299,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
             categorized={viewMode === "categorized"}
             error={collection.error}
             filtered={items}
-            filtersActive={favoritesOnly || tagFilter.length > 0}
+            filtersActive={favoritesOnly || effectiveFilter.length > 0}
             hasNextPage={collection.hasNextPage}
             isFetchingNextPage={collection.isFetchingNextPage}
             isPending={collection.isPending}
@@ -305,7 +322,9 @@ interface CharacterLibraryBodyProps {
   readonly ariaLabel: string;
   readonly query: string;
   /** Any chip narrowing the SERVER read (favorites / tag include-exclude). Archived is deliberately not one:
-   *  its OFF state is the resting library, so an empty library is not "the Archived toggle did this". */
+   *  its OFF state is the resting library, so an empty library is not "the Archived toggle did this". Nor is
+   *  a tag entry W5 dropped as unknown: it reaches no request, so blaming an empty library on it — and
+   *  offering "Clear filters" as the way out — would be a claim the pane has no standing to make. */
   readonly filtersActive: boolean;
   readonly categorized: boolean;
   readonly isPending: boolean;

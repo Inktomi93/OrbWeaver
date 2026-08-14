@@ -19,7 +19,7 @@
 // what reaches every owner- and admin-gated tRPC surface, so "who does this arm admit" is the whole boundary.
 
 import type { UserRole } from "@orb/contracts/identity";
-import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { ownerHandles } from "@orb/server/domain/sessions";
@@ -226,6 +226,7 @@ test("a valid cookie resolves DIRECTLY via sessions.validate (userId carried, ro
     sessions: stubSessions({
       validate: () =>
         Promise.resolve({
+          sessionId: castId<SessionId>("sess_cookie"),
           userId: COOKIE_UID,
           role: "user",
           handle: castId<Handle>("alice"),
@@ -393,6 +394,7 @@ test("isAdmin requires a CREDENTIAL as well as the admin role, and never throws"
     sessions: stubSessions({
       validate: () =>
         Promise.resolve({
+          sessionId: castId<SessionId>("sess_cookie"),
           userId: COOKIE_UID,
           role: "admin",
           handle: castId<Handle>("carol"),
@@ -408,6 +410,7 @@ test("isAdmin requires a CREDENTIAL as well as the admin role, and never throws"
     sessions: stubSessions({
       validate: () =>
         Promise.resolve({
+          sessionId: castId<SessionId>("sess_cookie"),
           userId: COOKIE_UID,
           role: "user",
           handle: castId<Handle>("alice"),

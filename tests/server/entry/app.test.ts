@@ -80,7 +80,7 @@ function fakeSeam(principal: Principal | null, onResolve?: () => void): AuthSeam
   return {
     resolvePrincipal: (): Promise<SeamResult> => {
       onResolve?.();
-      return Promise.resolve({ principal, csrfHeaderPresent: false });
+      return Promise.resolve({ principal, sessionId: null, csrfHeaderPresent: false });
     },
     isAdmin: (): Promise<boolean> => Promise.resolve(false),
   };

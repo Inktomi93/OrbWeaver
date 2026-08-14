@@ -8,7 +8,7 @@ import { automationActionSchema } from "@orb/contracts/automation";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, characterTags, chatParticipants, chats, tags, workloads } from "@orb/db";
-import type { CharacterHandle, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatParticipantId, Handle, SessionId, SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -20,6 +20,7 @@ import { createDomainEventBus, createServices } from "@orb/server/entry/compose"
 import { env } from "@orb/server/foundation/env";
 import { DEFAULT_EMBED_MODEL } from "@orb/server/infra/providers";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
+import type { SocketListener } from "@orb/server/transport/trpc";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { describe, onTestFinished, vi } from "vitest";
@@ -95,6 +96,50 @@ test("createServices builds the full graph: every Services key + the boot handle
   expect(result.secretBox).toBeDefined();
   // vLLM disabled → no engine handle for the lifecycle to supervise.
   expect(result.vllmEngine).toBeNull();
+});
+
+// W7a — THE ADMIN REVOKE → SOCKET EVICTION WIRE (staleness-and-session-freshness.md §4.4.3). The registry
+// suite proves `evictUser` stops a generator; this proves the admin verb is CONNECTED to it, which is the
+// half a unit test of either side cannot see. PER USER by owner ruling F4 ("admin REVOKE stays per-user"):
+// a revoke is a statement about the account, the human's still-valid devices reconnect and resume, and it is
+// the only arm that also reaches sockets admitted with no session row at all.
+test("W7a an admin revoke-all evicts that user's live sockets through the compose seam", async () => {
+  const db = await freshDb();
+  const clock = createFrozenClock();
+  const ownerId = castId<UserId>("u_owner");
+  const result = await createServices({
+    db,
+    now: clock.now,
+    ownerId,
+    secretBoxKey: null,
+    casDir: tmpdir(),
+    variantDir: tmpdir(),
+    sessionSecret: "test-session-secret-at-least-32-chars",
+    vllmDisabled: true,
+  });
+
+  const victim = castId<UserId>("u_victim");
+  const bystander = castId<UserId>("u_bystander");
+  const stopped: string[] = [];
+  const listener = (who: string): SocketListener => ({
+    onAttach: () => undefined,
+    onAnnounce: () => undefined,
+    onDetach: () => undefined,
+    onEvicted: (): void => {
+      stopped.push(who);
+    },
+  });
+  const victimCell = result.sockets.adopt(victim, castId<SocketId>("socket_victim"), castId<SessionId>("sess_victim"));
+  result.sockets.goLive(victimCell, listener("victim"));
+  const bystanderCell = result.sockets.adopt(bystander, castId<SocketId>("socket_bystander"), castId<SessionId>("sess_bystander"));
+  result.sockets.goLive(bystanderCell, listener("bystander"));
+
+  await result.services.admin.revokeUserSessions({
+    principal: { userId: ownerId, role: "owner", handle: castId<Handle>("owner"), externalId: null, via: "cookie" },
+    userId: victim,
+  });
+
+  expect(stopped).toEqual(["victim"]);
 });
 
 test("the boot-global RoleClients bundle resolves the derive roles to the vLLM floor model", async () => {
