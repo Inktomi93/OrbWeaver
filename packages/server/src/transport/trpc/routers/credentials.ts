@@ -4,9 +4,10 @@
 // boot/connection mints are internal — NOT exposed. `provider`/`metadata` derive from
 // `@orb/contracts/credentials`.
 //
-// Esoteric #9: `fetchModels`/`inspectEndpoint` are `.mutation()` despite being reads — they make an
-// outbound call to a user-supplied `baseUrl` (an SSRF surface), so they keep the CSRF gate tRPC applies to
-// mutations. Do NOT demote to `.query()`.
+// Esoteric #9: `fetchModels`/`inspectEndpoint`/`testHealth` are `.mutation()` despite being reads — they make
+// an outbound call to a user-supplied `baseUrl` (an SSRF surface; `testHealth` joined that set when its
+// custom_openai arm started really dialling the endpoint, SID-01) and `testHealth` additionally writes the
+// revocation state, so they keep the CSRF gate tRPC applies to mutations. Do NOT demote to `.query()`.
 
 import { credentialProviderSchema, providerMetadataSchema } from "@orb/contracts/credentials";
 import type { UserCredentialId } from "@orb/kit/ids";

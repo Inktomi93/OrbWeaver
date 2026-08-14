@@ -1,6 +1,8 @@
 // verb: testHealth — probe + throttle + circuit-breaker. Asserts the 60s throttle, the success/revoked
 // classifications + their row side-effects, the 3-strike breaker (with clock advance past the window),
-// the inactive-credential probe (invariant #5), and the no-probe-arm provider returning ok.
+// the inactive-credential probe (invariant #5), and the SID-01 honesty invariant: a `custom_openai` row is
+// really dialled (through the injected endpoint probe) and a provider with no probe arm reports `unchecked`
+// — this file previously asserted the defect (an unprobed `ok` for every non-openrouter provider).
 
 import { userCredentials } from "@orb/db";
 import { createCredentialsService } from "@orb/server/domain/credentials";
@@ -89,7 +91,55 @@ describe("testHealth", () => {
     expect(h.probed).toHaveLength(1);
   });
 
-  test("a provider with no probe arm returns ok without probing", async () => {
+  // ── SID-01: `ok` means A PROBE WENT OUT AND PASSED. Never an unprobed green. ──────────────────────
+
+  test("a provider with NO probe arm reports unchecked — never a green it did not earn", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const cred = await svc.add({ principal: principal(owner), provider: "anthropic", key: "k" });
+
+    const result = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+    expect(result.status).toBe("unchecked");
+    expect(h.probed).toHaveLength(0);
+    expect(h.endpointProbes).toHaveLength(0);
+  });
+
+  test("an unprobed provider does not burn the 60s window — a second ask is unchecked, not throttled", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const cred = await svc.add({ principal: principal(owner), provider: "openai", key: "k" });
+
+    await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+    const second = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+    expect(second.status).toBe("unchecked");
+  });
+
+  test("a custom_openai credential is REALLY probed — an unreachable endpoint is never ok", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const cred = await svc.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: "sk-byo-secret",
+      metadata: { kind: "custom_openai", baseUrl: "https://x.test/v1", headers: { "x-team": "alpha" } },
+    });
+
+    h.setEndpointProbeResult({ status: "unreachable", checkedAt: 0, reason: "ECONNREFUSED" });
+    const result = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+
+    expect(result.status).toBe("unreachable");
+    // The probe reached the endpoint the ROW declares, carrying the decrypted key (an auth check with no
+    // key would classify every authenticated endpoint as revoked).
+    expect(h.endpointProbes).toEqual([{ baseUrl: "https://x.test/v1", apiKey: "sk-byo-secret", headers: { "x-team": "alpha" } }]);
+  });
+
+  test("a custom_openai endpoint that rejects the key marks the row revoked", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCredentialsService(h.ctx);
@@ -100,8 +150,25 @@ describe("testHealth", () => {
       key: "k",
       metadata: { kind: "custom_openai", baseUrl: "https://x.test/v1" },
     });
+
+    h.setEndpointProbeResult({ status: "revoked", checkedAt: 0, reason: "endpoint rejected the credential (HTTP 401)" });
     const result = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
-    expect(result.status).toBe("ok");
-    expect(h.probed).toHaveLength(0);
+
+    expect(result.status).toBe("revoked");
+    const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
+    expect(rows[0]?.revokedAt).not.toBeNull();
+  });
+
+  test("a custom_openai row with no usable endpoint metadata is unchecked and dials NOTHING", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    // A corrupt/legacy row: the custom_openai provider with no baseUrl to probe (the parse seam collapses it).
+    const cred = await svc.add({ principal: principal(owner), provider: "custom_openai", key: "k" });
+
+    const result = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+    expect(result.status).toBe("unchecked");
+    expect(h.endpointProbes).toHaveLength(0);
   });
 });

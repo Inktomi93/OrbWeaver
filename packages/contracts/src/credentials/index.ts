@@ -78,12 +78,20 @@ export function parseProviderMetadata(raw: unknown): ProviderMetadata {
   return parsed.success ? parsed.data : null;
 }
 
-/** Result of a credential health probe; `throttled` is a domain-only state the provider can't see. */
+/** Result of a credential health probe; `throttled` is a domain-only state the provider can't see.
+ *
+ *  `ok` is an EARNED green — it means a probe went out and the credential was accepted, nothing else.
+ *  `unchecked` is the honest answer when no such probe happened or its answer did not classify: a provider
+ *  with no probe arm (SID-01 — the verb used to report a bare `ok` for those, so "Test" was green for a
+ *  credential nobody had ever dialled), a row with no usable endpoint metadata, or a reachable endpoint
+ *  answering a non-auth non-2xx. `unchecked` carries NO revocation/strike side-effect — it is not a
+ *  failure, it is the absence of a verdict, and it must never be rendered as a pass. */
 export type CredentialHealth =
   | { status: "ok"; checkedAt: number }
   | { status: "revoked"; checkedAt: number; reason: string }
   | { status: "unreachable"; checkedAt: number; reason: string }
-  | { status: "throttled"; checkedAt: number };
+  | { status: "throttled"; checkedAt: number }
+  | { status: "unchecked"; checkedAt: number; reason: string };
 
 // Phantom `unique symbol` brand: an arbitrary `{ source, ... }` literal can't satisfy it, so the ONLY
 // way to produce a `ResolvedCredential` is the domain `resolve.ts` factory's encapsulated cast.

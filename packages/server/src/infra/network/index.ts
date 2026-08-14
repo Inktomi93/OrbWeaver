@@ -1,7 +1,7 @@
 // infra/network — front door. The outbound-egress adapter: the SSRF egress firewall (private-range +
-// DNS-rebind block) + the staged safeFetch wrapper, the shared CIDR matcher, and the best-effort
-// `/models` probe. Reads foundation/env DOWN for the firewall config. NEVER imports @orb/db or any
-// domain (the sealed-executor invariant).
+// DNS-rebind block) + the staged safeFetch wrapper, the shared CIDR matcher, the best-effort `/models`
+// probe and its classified health twin (`probeOpenAiEndpoint`). Reads foundation/env DOWN for the firewall
+// config. NEVER imports @orb/db or any domain (the sealed-executor invariant).
 //
 // The ingress IP-allowlist belt (`ingress.ts` — PD-91): `ipAllowlistMiddleware` + `clientIp` (peer-vs-XFF
 // trust precedence, PD-52 anti-spoof) + `parseAllowlist`; mounted by `entry/app.ts`, `clientIp` reused by
@@ -38,4 +38,4 @@ export {
   matchesCidr,
   parseIp,
 } from "./ip-ranges.ts";
-export { type FetchOpenAiModelsArgs, fetchOpenAiModels } from "./openai-models.ts";
+export { type FetchOpenAiModelsArgs, fetchOpenAiModels, probeOpenAiEndpoint } from "./openai-models.ts";

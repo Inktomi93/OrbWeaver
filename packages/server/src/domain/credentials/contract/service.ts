@@ -26,8 +26,9 @@ import type {
 } from "./params.ts";
 import type { CredentialStorageStatus, CredentialView } from "./views.ts";
 
-/** The args the injected `/models` fetch op takes (infra/network's `fetchOpenAiModels` shape, declared
- *  here so the domain never imports the infra arg type). */
+/** The endpoint coordinates the injected infra/network ops take — the `/models` fetch AND the custom-endpoint
+ *  health probe (infra/network's `FetchOpenAiModelsArgs` shape, declared here so the domain never imports the
+ *  infra arg type). */
 export interface FetchModelsArgs {
   readonly baseUrl: string;
   readonly apiKey: string | null;
@@ -44,6 +45,12 @@ type InspectOp = (req: { readonly credential: ResolvedCredential; readonly model
 /** Best-effort `/models` fetch against a user-supplied endpoint (fetch-models' op; `[]` on any failure). */
 type FetchModelsOp = (args: FetchModelsArgs) => Promise<string[]>;
 
+/** Health-probe a user-configured OpenAI-compatible endpoint (testHealth's `custom_openai` arm — bound at
+ *  the root to infra/network's `probeOpenAiEndpoint` + the composition clock). Separate from {@link ProbeOp}
+ *  because the providers diagnostic dispatches on `credential.source`, and this arm answers for the STORAGE
+ *  axis (`row.provider`) — the verb resolves the endpoint off the row, so no `ResolvedCredential` is minted. */
+type ProbeEndpointOp = (args: FetchModelsArgs) => Promise<CredentialHealth>;
+
 /** The DI bundle the credential verbs close over, wired at the composition root. */
 export interface CredentialContext {
   readonly db: Db;
@@ -52,6 +59,7 @@ export interface CredentialContext {
   readonly box: SecretBox;
   readonly requireOwner: RequireOwner;
   readonly probe: ProbeOp;
+  readonly probeEndpoint: ProbeEndpointOp;
   readonly inspect: InspectOp;
   readonly fetchModels: FetchModelsOp;
   /** The db-bound best-effort `logAudit`, wired at the composition root (PD-142). Every credential mutation
