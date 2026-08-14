@@ -82,13 +82,14 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "7515e4ee45041d57adfc0a37a6efb69451c683b476a2f2152a668d92fd609a08",
-      "verifiedCommit": "611d17c88b322771003608b8693d1aff631a6e7e",
+      "verifiedSha256": "daa726219fd575a0e94b6fb869a550b0693367d85d2ad43ec719891cc34b1825",
+      "verifiedCommit": "b9d3371d422b62d55c4991fc5e5931ac2162c2d0",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/retro-workboard.md:1-18: GitHub Project control-plane boundary",
-        "docs/retro-workboard.md:436-472: OpenRouter Arm A, CT es2025 correction, and reasoning-collapse CT verification",
-        "docs/retro-workboard.md:165-166: owner control-plane posture",
+        "docs/retro-workboard.md:1-24: lawful runbook frontmatter and GitHub Project control-plane boundary",
+        "docs/retro-workboard.md:442-478: OpenRouter Arm A, CT es2025 correction, and reasoning-collapse CT verification",
+        "docs/retro-workboard.md:171-172: owner control-plane posture",
+        "git show b9d3371d4: exact workboard bytes after the frontmatter-only metadata repair",
         "git show c2a190d69: final workboard delta and Project #33/#40 graduation pointer",
         "git show 611d17c88: current verification commit contains the same final workboard blob",
         "git show 1e8b687bd: merged OpenRouter implementation/test equivalent of cited d7b07994",
@@ -116,7 +117,7 @@
           ]
         }
       ],
-      "summary": "Full-read operational spine reverified at 611d17c88: the Project control-plane boundary, OpenRouter Arm A, CT es2025 correction, reasoning-collapse verification, and #33/#40 graduation pointer match current merged code and tests."
+      "summary": "Full-read operational spine reverified at b9d3371d4 after a frontmatter-only metadata repair: the Project control-plane boundary, OpenRouter Arm A, CT es2025 correction, reasoning-collapse verification, and #33/#40 graduation pointer match current merged code and tests."
     }
   ]
 }
