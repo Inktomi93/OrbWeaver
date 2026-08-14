@@ -438,6 +438,20 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   Codex-verify line for the scan-denominators item names exactly that command. Standing consequence:
   while Codex is active, a structure red taken mid-window can be their `__g_` fixture race (phantom
   `domain/hub` reds) — re-run on a quiet tree before believing it.
+- [ ] **SILENT-500 TURN DEATH (m4-probe find, 3/3 repro — FIX LANE `silent-500` RUNNING):** an
+  agent-sdk terminal provider error leaves NO outcome row (`recordTurnOutcome`'s one call site runs
+  only on pipeline RESOLVE, engine.ts:1055), NO errors-ring row (empty through a pino ERROR + a
+  500\), and a bare tRPC 500 — plus the COST BUG: `tokensOut:8192` vs resolved cap 2048, the
+  agent-sdk path is not honoring the output ceiling on the paid sub. Four-hop trace + two candidate
+  arms in shape-churn doc §7/§7.5. Lane fixes: throw-path outcome row · errors-ring capture at the
+  chokepoint · the cap verdict (never-passed / wrong-field / documented-refusal).
+- [x] **SHAPE-CHURN PROGRAM COMPLETE:** M4 demoted UNMEASURED → STRUCTURALLY UNREACHABLE on
+  defaults (adaptive Opus declines to think; effort reached the wire, reasoningChars 0; no
+  user-reachable force — buildThinking reads mode off capability). Final ranking M5 > M1 > M4,
+  first two FIXED + merged. vLLM unblock documented-not-taken (parser gated on request
+  `chat_template_kwargs.enable_thinking`; the `<|think_on|>` template marker does NOT flip the
+  parser — trap written up in §7). M5 CSS re-receipt partial (rule live + computes visible; no
+  probe turn produced a fence — honest gap, closes on any future live drive with a code block).
 - [ ] **CODEX DOCS-SYSTEM REVAMP LIVE ON MAIN (owner-tasked, 08-14 \~13:30 — "revamping our entire
   documentation system"):** uncommitted footprint = AGENTS.md · CLAUDE.md · core/AGENTS.md ·
   package.json · scripts/verify/registry.ts · tests/tooling/verify-run.int.test.ts + untracked
