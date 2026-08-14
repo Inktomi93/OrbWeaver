@@ -45,7 +45,8 @@ async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): P
 }
 
 // THE bind-once mismatch predicate moved to `substrate/role-policy.ts` (`isSubjectMismatch`) so the admin
-// link capability can share the ONE rule without a verb→verb import (spine U1). Only the HANDLE fallback in
+// link capability can share the ONE rule without a verb→verb import (Spine-Identity-and-Auth.md invariant
+// #10 — every external-identity mode routes through THIS verb). Only the HANDLE fallback in
 // `findExisting` can reach it here — an `externalId` match is equal by construction — so a mismatch means
 // "someone else's login carries this row's handle" (the impostor refusal at the verb below).
 //
