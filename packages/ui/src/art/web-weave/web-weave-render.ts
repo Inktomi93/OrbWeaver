@@ -7,10 +7,10 @@
 // theme tokens upstream).
 
 import type { WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
-import { WEAVE_TIMELINE } from "./web-weave-geometry.ts";
 import { clamp01, easeOutCubic } from "./web-weave-math.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
 import { drawSpiderBody, STRAND_OUT_MS, spiderPose, spiralUpTo } from "./web-weave-spider.ts";
+import { WEAVE_TIMELINE } from "./web-weave-timeline.ts";
 
 /** The token-derived paint set (§1.3) — resolved by the component via computed style, never literals. */
 export interface WeavePalette {

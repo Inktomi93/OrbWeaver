@@ -23,11 +23,13 @@ import type { CSSProperties, ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { webWeaveVariants } from "./variants.ts";
-import type { WeavePhase, WeaveState, WovenWeb } from "./web-weave-geometry.ts";
-import { buildStrandOut, buildWeb, WEAVE_TIMELINE, weavePhaseAt } from "./web-weave-geometry.ts";
+import type { WeaveState, WovenWeb } from "./web-weave-geometry.ts";
+import { buildStrandOut, buildWeb } from "./web-weave-geometry.ts";
 import type { WeavePalette } from "./web-weave-render.ts";
 import { bakeStaticWeb, drawLiveLayers, renderWeaveFrame, weaveSwayOffset } from "./web-weave-render.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
+import type { WeavePhase } from "./web-weave-timeline.ts";
+import { WEAVE_TIMELINE, weavePhaseAt } from "./web-weave-timeline.ts";
 
 export interface WebWeaveProps {
   /** @defaultValue "settled" */
