@@ -367,8 +367,26 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
 - [ ] **R1-4a residual false-emit** (accepted-documented): closing needs a durable-append-free live
   fan on the chat bus — pairs with the bridge item above, one bus-surface design.
 - [ ] **F6 addMember-greets-before-freeze arm** (roster verb, out of R1/R3 scope).
-- [ ] **Guard follow-up family** (one security-executor leg; two items are OWNER calls — see the
-  merged-rotation row below for the four items).
+- [x] **Guard follow-up family — LEG LANDED (security-executor, merging):** four holes closed
+  red-first — `bash -c` operand extracted+classified (the HEADLINE: the push-word control was
+  bypassable by `bash -c 'git push …'`, 3 real corpus commands did it) · `$()`/backtick
+  substitutions classified when they'd RUN (single-quote/comment/heredoc stay text) · pipe-rewrite
+  comment tail (a `# comment` ate the exit-restore; harness exit 3 returned 0 — proven, fixed) ·
+  self-exemption = canonical REALPATH (a /tmp look-alike hook now denies; Codex's reconciliation
+  find). Corpus A/B 122,062 cmds: 61 moved, 17 stricter, 0 LOOSER; depth-cap 6 after a cap-2 run
+  cried wolf on benign `$(dirname $(readlink …))`; 16.9µs/cmd. 19 int tests. A/B report landing at
+  `docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md`.
+- [ ] **GUARD OWNER-CALL PILE (all surfaced by the leg, each would LOOSEN a control — rule when
+  convenient):** (A) 6 corpus cmds `$(sqlite3 "file:…backup-*?mode=ro" …)` now ask — a ro/backup
+  safe-hint is a loosening · (B) 4 cmds `"$(curl localhost | node -e …)"` now deny via the
+  net-pipe-shell floor arm — `node -e` doesn't exec fetched bytes, narrowing is a loosening ·
+  (C) one snap-in-substitution idiom now denies (piped harness inside `$()`, no safe rewrite) ·
+  (D) quoted `rm -rf "target"` blindness MECHANISM NAMED (greedy RM\_RF\_HEAD eats the blanked
+  quoted target → empty target list; 29/32,171 rows) — minimal fix = read targets off a
+  quote-stripped stage; separate A/B-owed change · (E) `script-scan-error` still DEFERS at the wire
+  (stalls a lane on a command nothing objected to; :989, one line, decision not fix) · (F) standing:
+  RM\_RF\_HEAD matches plain `rm -f` (bit the lane's own cleanup — live receipt the over-match
+  costs) + `__probe` not in RM\_SAFE\_TARGET.
 - [ ] **OPS LEAD:** after a merge that MOVES exports between modules, main's vite dev server serves
   stale prebundle (nearestRayHit outage, :5173 down until cache clear + bounce) — teach
   stack.sh/dev tooling to clear packages/client/node\_modules/.vite on merge, or document the bounce.
