@@ -625,6 +625,11 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.updateTitle({ chatId: i.chatId, title: "hacked" }),
   },
   { path: "chat.delete", call: (c, i) => c.chat.delete({ chatId: i.chatId }) },
+  // The R0 nav-away husk drop — host-only and DESTRUCTIVE (removes the row when the chat is still a
+  // husk), so a dropped belt would let a stranger reap A's just-minted room out from under them. A's
+  // fixture chat is CLAIMED (started), so even a belt-passing call must refuse on the husk predicate —
+  // the probe proves the ownership belt fires FIRST (leak-free NOT_FOUND, row intact post-sweep).
+  { path: "chat.reapHusk", call: (c, i) => c.chat.reapHusk({ chatId: i.chatId }) },
   {
     path: "chat.editMessage",
     call: (c, i) => c.chat.editMessage({ chatId: i.chatId, messageId: i.messageId, content: "hacked" }),
