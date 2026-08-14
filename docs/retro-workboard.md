@@ -726,6 +726,15 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 > grep-sourced or relayed. **Untriaged: no lane assigned, no root cause confirmed.** Two THEMES cut across
 > most of it (staleness, and event-bus absence) — triage those as programs, not as individual bugs.
 
+- [ ] **AUTOSAVE INCONSISTENCY (owner dogfood, 08-14 overnight): "we went with autosave most everywhere
+  yet there's still some spots with a manual save — it feels weird."** Untriaged; owes an INVENTORY
+  first (scout, next free slot): every surface with an explicit Save affordance vs the autosave/draft
+  pattern, classified three ways — (a) leftover manual save that should convert · (b) DELIBERATE
+  commit-semantics save (draft-edit-then-commit surfaces like preset/entity editors may be correct —
+  check \[\[entity-draft-store-dual-consumers]] + gen-settings-are-preset-owned before calling one a
+  leftover) · (c) autosave missing entirely. Then a convert lane for class (a) with the owner ruling
+  on any (b) that feels wrong to him anyway — consistency is the product requirement, the mechanism
+  per-surface is the design question.
 - [ ] **THEME A — APP-WIDE STALENESS (owner: "most of our app has a staleness problem").** After importing
   the full ST library he had to **delete localStorage + cache + cookies and reload** before characters
   rendered correctly. That is a cache-invalidation architecture gap, not one screen's bug. Needs a
