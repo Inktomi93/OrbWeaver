@@ -801,8 +801,13 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   known bounded ceiling — `RESUME_WINDOW=100` / the clamped `character.list` callers (see the roster-
   contract row above); the ST corpus is far past 100. This is the #45 keyset-paging class, applied to
   CHARACTERS instead of chats.
-- [ ] **Selector changes need a SERVER RESTART to take effect** — summarize and every other role selector
-  EXCEPT chat-completion. Config hot-reload gap on the role/selector path.
+- [x] **Selector restart-gap FIXED + MERGED** (`4720512e6`): every role selector re-resolves per call
+  (the defect was four boot-time closures over an already-hot resolver; per-call totality chosen over
+  hook enumeration, 0.072ms measured). MORNING RECEIPT OWED: after restart, flip summarize's selector
+  live → wire-capture shows the next call on the other backend (the lane correctly declined to prove
+  this against main's pre-fix code). FOLLOW-UP SMALL: three boot-frozen PROVENANCE reads survive
+  (chat.ts:955 summarizerContextTokens · compose/refinery.ts:50-65 · search-discovery.ts:243) — domain
+  contract fields need the thunk shape; \~3 files each, identical to the admin/databank conversion.
 - [ ] **Settings screen scrolls past the end of its results** — blank space below the last row for no
   reason. Small client fix; route with the next side-eye.
 - [ ] **Streaming message SHAPE CHURN** — during generation the message "changes shapes and kind of goes
