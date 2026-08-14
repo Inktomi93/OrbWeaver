@@ -392,7 +392,15 @@ export function SettingsShell(): ReactElement {
                 </Button>
                 <Text voice="kicker">{activePane.label}</Text>
               </Row>
-              <Stack ref={contentRef} role="region" aria-label={`${activePane.label} settings`} className="min-h-0 flex-1 overflow-y-auto">
+              {/* `relative` is LOAD-BEARING, not decoration (owner dogfood 2026-08-13 — "the settings screen
+                  scrolls past the end of its results"). Base UI form primitives park `sr-only` boxes at
+                  `position:absolute` (NumberField's bounds announcer, Switch/Checkbox's hidden input) — 35 of
+                  them in the Appearance pane alone. An `overflow` scroller only clips descendants whose
+                  CONTAINING BLOCK is inside it, so with a static scroller every one of those boxes resolved
+                  its containing block up to the modal popup and added its static position — thousands of px
+                  down a scrolled pane — to the POPUP's scrollable area. Measured live at 1920×1080: popup
+                  clientHeight 1014 / scrollHeight 2900, i.e. 1886px of empty card below the last row. */}
+              <Stack ref={contentRef} role="region" aria-label={`${activePane.label} settings`} className="relative min-h-0 flex-1 overflow-y-auto">
                 <SaveStatusHostContext value={true}>
                   <SettingsPane pane={activePane} />
                 </SaveStatusHostContext>

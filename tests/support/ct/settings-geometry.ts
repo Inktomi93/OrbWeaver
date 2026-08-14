@@ -78,6 +78,46 @@ export function readClippedNavLabels(page: Page): Promise<readonly string[]> {
   });
 }
 
+/** One absolutely-positioned descendant that ESCAPED the scroll container it lives in: an
+ *  `position:absolute` box whose containing block resolves OUTSIDE the scroller, so the scroller's
+ *  `overflow-y:auto` neither clips it nor counts it — its static position (deep inside the scrolled
+ *  content) is instead added to the ANCESTOR's scrollable area. */
+export interface EscapedAbsoluteBox {
+  /** `data-slot` (or tag name) of the escaping element. */
+  readonly what: string;
+  /** `data-slot` (or tag name) of the containing block it landed on. */
+  readonly landedOn: string;
+}
+
+/**
+ * Every absolutely-positioned descendant of `selector` whose containing block is outside it.
+ *
+ * `offsetParent` IS the containing-block question for an `position:absolute` box (it returns the nearest
+ * POSITIONED ancestor), which is exactly what decides whether an `overflow` scroller clips it. A scroller
+ * that is itself `position:static` clips nothing absolutely positioned inside it.
+ */
+export function readEscapedAbsolutes(page: Page, selector: string): Promise<readonly EscapedAbsoluteBox[]> {
+  return page.evaluate((sel: string): readonly EscapedAbsoluteBox[] => {
+    const scroller = document.querySelector<HTMLElement>(sel);
+    if (scroller === null) {
+      return [];
+    }
+    const name = (el: Element | null): string =>
+      el === null ? "«initial containing block»" : (el.getAttribute("data-slot") ?? el.getAttribute("role") ?? el.tagName);
+    const escaped: EscapedAbsoluteBox[] = [];
+    for (const el of scroller.querySelectorAll<HTMLElement>("*")) {
+      if (getComputedStyle(el).position !== "absolute") {
+        continue;
+      }
+      const containingBlock = el.offsetParent;
+      if (containingBlock === null || !scroller.contains(containingBlock)) {
+        escaped.push({ what: name(el), landedOn: name(containingBlock) });
+      }
+    }
+    return escaped;
+  }, selector);
+}
+
 /** Which of the shell's two columns is PAINTED, and how wide, at the current container width. Below the
  *  `@md` step exactly one may paint (push-detail); above it, both. `width` is 0 for an unpainted column. */
 export interface SettingsShellColumns {
