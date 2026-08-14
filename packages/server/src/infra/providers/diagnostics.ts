@@ -14,6 +14,10 @@
 // (source × verb) fail-closes with a typed `ProviderError` — there is NO probe for max-pro-sub / vllm /
 // local-light / custom_openai (and no accountCredits/generationCost off OpenRouter). Those are genuine
 // not-yet-built surfaces, surfaced as a typed not-supported throw — never faked.
+//   The custom_openai HEALTH check does exist, it just isn't here (SID-01): a stored BYO row is dialled by
+//   `credentials.testHealth` through its own injected infra/network op (`probeOpenAiEndpoint`, the host-pinned
+//   `/models` probe), because that arm dispatches on the STORAGE axis (`row.provider`) and needs no
+//   `ResolvedCredential`. A future backend probe arm would supersede it, not race it.
 
 import type { AgentSdkModel, ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth } from "@orb/contracts/credentials";

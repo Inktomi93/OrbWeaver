@@ -181,6 +181,11 @@ function formatHealth(health: CredentialHealth, isCustom: boolean): string {
   if (health.status === "throttled") {
     return "throttled — retry in a minute";
   }
+  // `unchecked` reads as "not checked", never as a pass: the server dialled nothing (or learned nothing), and
+  // its reason says which. Rendering it like an `ok` is the exact product lie the honest arm exists to end.
+  if (health.status === "unchecked") {
+    return `not checked — ${health.reason}`;
+  }
   return `${health.status} — ${health.reason}`;
 }
 
@@ -193,5 +198,10 @@ function testResultToneClass(result: TestResult): string {
   if (result.health.status === "ok") {
     return "text-success";
   }
-  return result.health.status === "revoked" ? "text-destructive" : "text-warning";
+  if (result.health.status === "revoked") {
+    return "text-destructive";
+  }
+  // `unchecked` is the absence of a verdict, not a failure — it keeps `gloss`'s own muted colour rather than
+  // borrowing success (a lie) or warning (a scare) for "nobody probed this".
+  return result.health.status === "unchecked" ? "" : "text-warning";
 }
