@@ -62,8 +62,12 @@ const RETIRED_SECTION_HEAL: Readonly<Record<string, SectionId>> = {
  *  databank tile), and while it lived as local `useState` in two components a third caller could only
  *  navigate you toward it — home's "Add your first document" landed on the library's own empty state, one
  *  more click from the thing it named (side-eye 2026-08-08 P1-2). A slot makes the dialog itself the
- *  destination, from anywhere, with one opener. */
-export const MODAL_SLOT_IDS = ["theme", "settings", "account", "command", "newChat", "you", "addDocument"] as const;
+ *  destination, from anywhere, with one opener.
+ *
+ *  `reauth` is the one slot NO human opens: the session-recovery ladder does (§4.4 rung 1), which is
+ *  precisely why it needs a slot — a modal that must appear over ANY surface, from a `data/` seam that
+ *  cannot import a feature, has nowhere else to live. */
+export const MODAL_SLOT_IDS = ["theme", "settings", "account", "command", "newChat", "you", "addDocument", "reauth"] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
 /** The settings vocabulary — the SettingsPaneDefinition registry is total over this tuple (assembled at

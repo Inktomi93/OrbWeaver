@@ -19,6 +19,8 @@ import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { useStore } from "zustand/react";
 import { createStore } from "zustand/vanilla";
 import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
+import type { DurableLocalPersistApi } from "./durable-local.ts";
+import { durableLocalKey, registerDurableLocalStore } from "./durable-local.ts";
 
 // Stable no-draft ref: a fresh {} per render would infinite-loop useSyncExternalStore under Object.is.
 const EMPTY: Readonly<Record<string, never>> = Object.freeze({});
@@ -43,7 +45,7 @@ interface DraftsState<TInput> {
 }
 
 export interface EntityDraftStoreConfig<TInput> {
-  /** Unique store name — becomes the namespaced localStorage key (`orb-draft:<name>`). */
+  /** Unique store name — becomes the per-user localStorage key (`orb-draft:u/<userId>/<name>`). */
   readonly name: string;
   /** Bump when the ENVELOPE shape changes; `migrate` decides what survives. @defaultValue 1 */
   readonly version?: number;
@@ -107,18 +109,23 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
   const empty = EMPTY as Readonly<Partial<TInput>>;
   const schemaVersion = config.schemaVersion ?? DEFAULT_SCHEMA_VERSION;
 
+  // Per-USER key (`durable-local.ts`): a draft is PROSE, so an era-changed identity must never rehydrate a
+  // previous one's half-written text. The devtools label keeps the plain name.
+  const storageKey = durableLocalKey(STORAGE_KEY_PREFIX, config.name);
+
   const store = createStore<DraftsState<TInput>>()(
     devtools(
       persist((): DraftsState<TInput> => ({ drafts: {} }), {
-        name: `${STORAGE_KEY_PREFIX}${config.name}`,
+        name: storageKey,
         version: config.version ?? DEFAULT_VERSION,
         partialize: (s): DraftsState<TInput> => ({ drafts: s.drafts }),
         migrate: migrateDrafts<TInput>,
         ...(config.storage === undefined ? {} : { storage: createJSONStorage(() => config.storage as StateStorage) }),
       }),
-      { name: `${STORAGE_KEY_PREFIX}${config.name}`, enabled: STORE_DEVTOOLS_ENABLED },
+      { name: storageKey, enabled: STORE_DEVTOOLS_ENABLED },
     ),
   );
+  registerDurableLocalStore({ prefix: STORAGE_KEY_PREFIX, name: config.name, api: store as unknown as DurableLocalPersistApi });
 
   const rawEnvelope = (id: string): DraftEnvelope<TInput> | undefined => store.getState().drafts[id];
 

@@ -115,6 +115,12 @@ export interface RoomRegistry {
   readonly lagged: (ref: StreamRoomRef) => void;
   /** A room failed (or the whole socket did, with `ref` omitted): surface it to the affected subscribers. */
   readonly failed: (message: string, ref?: StreamRoomRef) => void;
+  /** FORCE every joined room to re-attach, past the dedupe. The session-recovery ladder's resume rung calls
+   *  it: a session that died took every room's server-side cell with it (the frozen-principal socket is
+   *  refused on reconnect), so the cells this tab believes it holds may not exist. Same instrument
+   *  `socketLive` uses on a RE-connect, for the same reason — `stream.attach` is idempotent, so a room that
+   *  IS still attached costs one batched mutation and nothing else. */
+  readonly reannounceAll: () => void;
   /** Currently-joined room keys — the CT/probe lens. */
   readonly joined: () => readonly string[];
 }
@@ -316,6 +322,11 @@ export function createRoomRegistry(): RoomRegistry {
       const entry = rooms.get(roomKey(ref));
       for (const subscriber of entry?.subscribers ?? []) {
         subscriber.onSocketLive?.();
+      }
+    },
+    reannounceAll: (): void => {
+      for (const entry of rooms.values()) {
+        announce(entry, true);
       }
     },
     failed: (message, ref): void => {

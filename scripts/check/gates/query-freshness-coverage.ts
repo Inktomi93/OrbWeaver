@@ -46,8 +46,6 @@ import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 // REDs the stale entry). Founding set triaged against the live tree 2026-07-31, consumer by consumer.
 const STATIC: Record<string, string> = {
   // ── identity / content-addressed / self-keyed reads: the datum cannot go stale for its key ──────────────
-  "sessions.me":
-    "the viewer identity minted at login (data/use-viewer.ts). It changes only across a session boundary — login/logout remounts the app tree with a fresh cache — so no in-session writer exists to hang a row on.",
   "assets.resolveChatBlobRefs":
     "keyed by (chatId, the row's asset ids) over CONTENT-ADDRESSED blobs (features/chat/hooks/attachment-url-provider.tsx): the hash behind an assetId never changes, so the resolved map is immutable for its key.",
   "chat.getVariantWire":

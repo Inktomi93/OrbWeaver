@@ -31,7 +31,7 @@ holes at its edges**, plus one symptom that is not staleness at all:
 | # | Mechanism | Layer | Status |
 | - | - | - | - |
 | D1 | Persisted view-state carries server row ids with no referential integrity — a dead `tagFilter` include-id silently empties the character list and its chip is UNRENDERABLE | durable-local (localStorage) | CONFIRMED in code; the strongest single explanation of the import repro |
-| D2 | All `orb:*` localStorage keys are per-ORIGIN, not per-USER — filters, drafts and composer prose leak across accounts on one browser; an identity change cannot invalidate them | durable-local | CONFIRMED in code (multi-human defect) |
+| D2 | All `orb:*` localStorage keys are per-ORIGIN, not per-USER — filters, drafts and composer prose survive an identity change that no event can invalidate | durable-local | CONFIRMED in code. **Re-motivated per §7's premise correction** (one human per box): the live driver is the DB RE-MINT identity split — user ids move era to era while the browser's blobs persist — not a second human. FIXED (W6) |
 | D3 | A dead session is only detected on a QueryCache/MutationCache error — the SSE path's UNAUTHORIZED never reaches the belt, and a warm `staleTime: Infinity` tab can make zero such calls indefinitely = "stale login silently tolerated". Recovery, when it fires, is a state-destroying hard redirect, per tab, with no cross-tab/device coordination | session | CONFIRMED in code |
 | D4 | Character tab "does not load all characters when scrolled or searched" — `maxPages: 5` head-eviction with `getPreviousPageParam: () => undefined` (evicted pages unrecoverable) + client-side-only search over the loaded window + the picker's single `limit: 100` page. **NOT staleness — a bounds class.** The board's RESUME\_WINDOW hypothesis names the wrong constant: `RESUME_WINDOW` only picks the Chat CTA's resume target | pagination bounds | CONFIRMED in code; FENCED to the character-ceiling lane (backfill #3), interface specced in §5.9 |
 | D5 | Secondary: bulk import emits one `charactersChanged` per created row → invalidation storm (cancel-and-restart refetch churn) while the library is open; and NO user-bus member covers identity reads (`sessions.me` is in zero invalidation maps — a role grant never reaches a live client) | in-memory (TanStack) | CONFIRMED in code (churn + a narrow gap; not the repro cause) |
@@ -58,7 +58,7 @@ Every claim here was read off the tree this session (whole-file reads unless not
 | - | - | - | - |
 | Server truth | TanStack Query cache, keys 100% proxy-derived | `staleTime: Infinity`; the FIVE buses → the ONE invalidation seam; `refetchOnReconnect: true` for the browser-online edge; gap-heals on SSE reconnect | `packages/client/src/data/query-client.ts:47-55`; `data/invalidation.ts` (BUS\_FILTERS :114, USER\_BUS\_FILTERS :202, RPG\_BUS\_FILTERS :300, derived heal sets :325-345) |
 | Client-ephemeral | zustand stores via 3 doors | render lifetime; sanitized on rehydrate where persisted | `state/create-gated-store.ts` · `create-persisted-store.ts` · `create-entity-draft-store.ts` |
-| Durable-local | 7 `createPersistedStore` mints (`orb:*`) + entity-draft mints (`orb-draft:*`) | `version` + TOTAL `migrate` run on EVERY rehydrate (wired as `merge`) | `create-persisted-store.ts:35-71`; mints: shell · character-library · tag-library · composer-draft · recent-models · config-group-open · home-tile-box (grep receipt, this session) |
+| Durable-local | 7 `createPersistedStore` mints (`orb:*`); the `orb-draft:*` door exists but has ZERO call sites | `version` + TOTAL `migrate` run on EVERY rehydrate (wired as `merge`) | `create-persisted-store.ts`; mints: shell · character-library · tag-library · composer-draft · recent-models · config-group-open · home-tile-box. **TRUTH-REPAIRED 2026-08-14 (W10, lane 1):** this row originally read "+ entity-draft mints (`orb-draft:*`)". `createEntityDraftStore` has NO call site — two methods agree (ast-grep `createEntityDraftStore($$$A)` = 0 at scannedFileCount 429 ts + 502 tsx with `createPersistedStore` as the positive control; a literal sweep finds only the door, the barrel re-export, and three comments naming it as the road not taken). W6 therefore namespaced the 7 persisted mints; the draft door was namespaced too, through the SAME shared key seam, so the first draft store ever minted is born per-user |
 
 ### 1.2 The event/sync spine (unchanged by this design)
 
@@ -374,7 +374,7 @@ the client fix contains every storm class, including future ones.
 > `check:structure` + knip + depcruise where files move), red-first proofs where a defect is being
 > fixed.
 
-- **W1 — route subscription-path 401s into the belt.**
+- **W1 — route subscription-path 401s into the belt. BUILT 2026-08-14 (lane 1).**
   Files: `packages/client/src/data/bus/use-orb-socket.ts` (both `onError` and the
   `__subscriptionError` frame in `routeFrame`), `packages/client/src/data/stale-session.ts` (export a
   code-based entry `recoverIfUnauthorizedCode(code: string)` beside the error-shape one).
@@ -383,13 +383,13 @@ the client fix contains every storm class, including future ones.
   Tests: extend `tests/client/data/stale-session.test.ts`; new unit over `routeFrame` proving an
   UNAUTHORIZED terminal frame triggers recovery and a non-auth code still only toasts. **Red-first:**
   assert today's behavior (toast, no recovery) before the change.
-- **W2 — visibility probe.**
+- **W2 — visibility probe. BUILT 2026-08-14 (lane 1).**
   Files: new `packages/client/src/data/session-freshness.ts` (module: last-confirmed timestamp, the
   `visibilitychange` listener, the 5-min floor, calls the W3 ladder); mount in
   `packages/client/src/routes/app-root.tsx`.
   Tests: unit with injected clock + visibility stub (fires once past floor; never while hidden; never
   under floor). No CT needed (no rendered surface).
-- **W3 — the recovery ladder.**
+- **W3 — the recovery ladder. BUILT 2026-08-14 (lane 1).**
   Files: `packages/client/src/data/stale-session.ts` (the ladder; keep the one-shot latch semantics per
   ATTEMPT, released on verdict), `packages/client/src/data/invalidation.ts` (add
   `invalidateIdentity()`: `sessions.me` + the viewer-composite keys — NOT in the user-bus map, it has
@@ -403,7 +403,7 @@ the client fix contains every storm class, including future ones.
   **Verification note:** the recovery ladder is exactly the class where a green unit proves little —
   name a live-drive step in the lane report (kill the session server-side via `sessions.revoke`, watch
   a warm tab recover without reload).
-- **W4 — session channel + single-flight.**
+- **W4 — session channel + single-flight. BUILT 2026-08-14 (lane 1).**
   Files: new `packages/client/src/lib/session-channel.ts` (typed channel + Web Locks helper; tier-4,
   imports nothing above `#lib`); consumed by `stale-session.ts` (ladder single-flight) and the auth
   feature's logout flow (broadcast `signed-out`).
@@ -421,7 +421,7 @@ the client fix contains every storm class, including future ones.
   poisoned `orb:character-library` blob (the §6 probe as a fixture), mount, assert rows render AND a
   clearable chip appears. **This CT is the red-first proof of today's defect — write it against
   current source first and watch the empty list with zero chips.**
-- **W6 — per-user namespacing of durable-local state.**
+- **W6 — per-user namespacing of durable-local state. BUILT 2026-08-14 (lane 1).**
   Files: `packages/client/src/state/create-persisted-store.ts` + `create-entity-draft-store.ts` (the
   key scheme, the store registry, `bindDurableLocalToUser(userId)`, the legacy-blob adoption);
   `routes/app-root.tsx` (bind once viewer resolves). Check `scripts/check/gates/persistence-boundary.ts`
@@ -463,6 +463,46 @@ the client fix contains every storm class, including future ones.
   session recovery is single-flight, state-preserving, and cross-tab-coordinated; server truth rides
   only the SSE bus"*); board rows updated (THEME A → designed, AUTH → designed, character-tab row
   corrected to the bounds class).
+
+## 5a. AS-BUILT deltas — W1·W2·W3·W4·W6 (lane 1, 2026-08-14)
+
+Where the implementation deviated from §5's letter, and why. Each was forced by the tree, not chosen.
+
+1. **The cross-tab `session-recovered` message carries `handle`, not `userId`.** §4.3 specified a userId.
+   The recovery ladder's only identity read is `/api/auth/me` (the sole PUBLIC one — `sessions.me` is an
+   `authedProcedure` and 401s on exactly the state being recovered from), and it reports `handle`. The
+   userId-scoped half of the design lives where a userId genuinely exists: the durable-local rebind, off
+   `sessions.me` in `data/use-session-recovery.ts`.
+2. **The durable-local key is chosen at MINT time from a boot pointer.** §4.2.1's "stores mint on a boot
+   namespace, then rebind" is a flash on every load as written: zustand rehydrates a persisted store
+   SYNCHRONOUSLY at module scope, long before any query can name the viewer, so a store minted on a
+   placeholder renders defaults until the rebind lands. The door therefore records the last-bound userId
+   under one pointer key (`orb:active-user`) and mints against it, so the common case — the same human
+   returning — costs zero rehydrates and zero flash; only a genuine identity CHANGE pays one.
+3. **The legacy-blob adoption moves through each store's OWN persist storage**, never a raw
+   `localStorage` write, so an injected test storage adopts identically and a store on a different
+   backend is never bypassed. `packages/client/src/state/durable-local.ts` is on `persistence-boundary`'s
+   raw-storage allowlist for the POINTER only.
+4. **A storage-less store is skipped, not crashed on.** zustand's `persist` EARLY-RETURNS without ever
+   assigning `api.persist` when the resolved storage is falsy (verified in the installed
+   `zustand/esm/middleware.mjs`) — a node lane, or a browser that refuses storage. Such a store persists
+   nothing, so there is no key to re-key; the alternative was a boot crash on a storage-refusing browser.
+5. **The modal body is a `components/` file, not the `lib/*-modal.tsx`.** `useComponentExportOnlyModules`
+   requires a module that exports a non-component (the `ModalDefinition`) to export no component, so the
+   body lives at `features/auth/components/reauth-form.tsx` — the `accountModal`→`AccountSurface` shape.
+6. **The OIDC resume snapshot records ONE field, the open chat id.** The active SECTION already survives
+   a bounce on its own (durable-local `orb:shell`), and server truth re-fetches by construction; a second
+   restore protocol for a value that already persists would be pure surface. `data/session-resume.ts`.
+7. **The "mutations frozen" clause of §4.4 rung 1 is delivered by the DIALOG, not a mutation gate.** The
+   re-auth modal is a real dialog over the shell: while it is open no control is reachable, so no mutation
+   can be issued against a dead cookie. A cross-cutting freeze flag was considered and rejected — it is a
+   flag every future call site has to remember to check, guarding a window the modal already closes.
+8. **The `session-channel-boundary` gate ships with the ladder** (Core-Enforcement-Active-Gates.md): `new
+   BroadcastChannel` outside `lib/session-channel.ts` is RED, plus a §4.6 blindness tripwire (the home
+   loaded and constructing nothing is RED, so a rename cannot turn the fence into a permanent false green).
+9. **`invalidateIdentity()` gave `sessions.me` its first freshness driver**, so its
+   `query-freshness-coverage` STATIC exemption ("no in-session writer exists to hang a row on") is deleted
+   — the gate's own two-sided ratchet demanded it in the same change.
 
 ## 6. Instrumentation directives (confirm the live apportionment before W5/W6 land)
 

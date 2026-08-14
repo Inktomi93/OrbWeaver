@@ -4,14 +4,18 @@
 // and surfaces the `onLoggedIn` callback as rendered text so the test can assert the success path
 // without a navigation harness.
 
+import { bindSessionRecovery, recoverIfUnauthorizedCode } from "@orb/client/data";
 import { AccountSurface, LoginShellAnchor } from "@orb/client/features/auth";
+import type { ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
 // settings _ct-stories.tsx precedent for reaching one directly.
 import type { AuthConfig } from "../../../../packages/client/src/data/auth-config.ts";
 import { LoginFirstRunForm } from "../../../../packages/client/src/features/auth/components/login-first-run-form.tsx";
 import { LoginLocalForm } from "../../../../packages/client/src/features/auth/components/login-local-form.tsx";
+import { reauthModal } from "../../../../packages/client/src/features/auth/lib/reauth-modal.tsx";
 import { LoginBody } from "../../../../packages/client/src/features/auth/surfaces/login-surface.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
@@ -85,5 +89,47 @@ export function LoginFirstRunFormStory({ ownerHandle }: { readonly ownerHandle: 
     <div style={{ width: 360, padding: 16 }}>
       {done ? <p data-testid="ct-first-run-done">set up</p> : <LoginFirstRunForm ownerHandle={ownerHandle} onDone={(): void => setDone(true)} />}
     </div>
+  );
+}
+
+/** THE RUNG-1 LOOP, end to end (staleness-and-session-freshness.md §4.4, owner fork F2). Not the modal in
+ *  isolation: the probe binds a real recovery HOST and then kills the session the way the socket does, so
+ *  what the CT drives is the production ladder — UNAUTHORIZED → probe says signed-out → local mode → the
+ *  modal opens → a password → resume IN PLACE. The rendered `resumes` counter is the claim: recovery
+ *  happened and the surface was never navigated away from (a rung-2 redirect would tear this mount down).
+ *  `useEffect` is right here — binding a module-level host IS a subscription. */
+/** The handle the probe's cache "belongs to" — the ladder compares the re-authed handle against it. */
+const REAUTH_HANDLE = castId<Handle>("owner");
+
+function ReauthLadderProbe(): ReactElement {
+  const [open, setOpen] = useState(false);
+  const [resumes, setResumes] = useState(0);
+  useEffect(() => {
+    bindSessionRecovery({
+      resumeInPlace: (): void => setResumes((prev) => prev + 1),
+      openReauthPrompt: (): void => setOpen(true),
+      resumeChatId: (): ChatId | null => null,
+      currentHandle: (): Handle | null => REAUTH_HANDLE,
+    });
+    return (): void => {
+      bindSessionRecovery(null);
+    };
+  }, []);
+  return (
+    <div style={{ width: 420, padding: 16 }}>
+      <button type="button" data-testid="ct-kill-session" onClick={(): void => void recoverIfUnauthorizedCode("UNAUTHORIZED")}>
+        kill the session
+      </button>
+      <output data-testid="ct-resumes">{String(resumes)}</output>
+      {open && typeof reauthModal.body === "function" ? reauthModal.body() : null}
+    </div>
+  );
+}
+
+export function ReauthLadderStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ReauthLadderProbe />
+    </CtDataProviders>
   );
 }

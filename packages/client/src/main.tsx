@@ -35,7 +35,7 @@ import {
   fullscreenChrome,
   youModal,
 } from "#features/app-shell";
-import { accountModal } from "#features/auth";
+import { accountModal, reauthModal } from "#features/auth";
 import { characterSlashCommands, librarySettingsSection, makeCharactersSection } from "#features/character";
 import {
   appearanceAvatarsSection,
@@ -259,6 +259,8 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   newChat: newChatModal,
   addDocument: addDocumentModal,
   you: youModal,
+  // Opened by the session-recovery ladder, never by a human affordance (staleness §4.4 rung 1).
+  reauth: reauthModal,
 });
 
 // The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail
