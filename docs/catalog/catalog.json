@@ -14213,9 +14213,9 @@
       "path": "docs/retro-workboard.md",
       "lane": "root-operational",
       "issue": 8,
-      "lines": 1795,
-      "bytes": 197069,
-      "sha256": "d673de7e64ffa18c3876bcf56fdbabeeb46b7b2e7bdddfc0733f896ad105ae7c",
+      "lines": 1810,
+      "bytes": 199049,
+      "sha256": "7515e4ee45041d57adfc0a37a6efb69451c683b476a2f2152a668d92fd609a08",
       "frontmatter": {
         "present": false,
         "malformed": false,
@@ -14228,26 +14228,64 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "d673de7e64ffa18c3876bcf56fdbabeeb46b7b2e7bdddfc0733f896ad105ae7c",
-        "verifiedCommit": "f8bf31c9ccea900e3a4277b3c31fc5e31bb420ee",
+        "verifiedSha256": "7515e4ee45041d57adfc0a37a6efb69451c683b476a2f2152a668d92fd609a08",
+        "verifiedCommit": "611d17c88b322771003608b8693d1aff631a6e7e",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/retro-workboard.md:1-18: GitHub Project is the sole mutable work home",
-          "docs/retro-workboard.md:230-257: current Project pointers and frozen-snapshot boundary",
-          "GitHub REST re-derivation of issues #13-#58 on 2026-08-14; stale duplicates #41/#42 closed and R2 residue created as #58"
+          "docs/retro-workboard.md:1-18: GitHub Project control-plane boundary",
+          "docs/retro-workboard.md:436-472: OpenRouter Arm A, CT es2025 correction, and reasoning-collapse CT verification",
+          "docs/retro-workboard.md:165-166: owner control-plane posture",
+          "git show c2a190d69: final workboard delta and Project #33/#40 graduation pointer",
+          "git show 611d17c88: current verification commit contains the same final workboard blob",
+          "git show 1e8b687bd: merged OpenRouter implementation/test equivalent of cited d7b07994",
+          "git show cb0e29b27: merged CT configuration/reasoning-block locator equivalent of cited 1043466d7"
         ],
         "claims": [
           {
-            "claim": "GitHub owns mutable work.",
+            "claim": "GitHub owns mutable work while the workboard retains recovery and standing operations.",
             "evidence": [
               {
                 "kind": "ruling",
                 "target": "docs/architecture/core/Core-Path-Registry.md:523"
               }
             ]
+          },
+          {
+            "claim": "The OpenRouter structured-output path omits hardcoded require_parameters and surfaces upstream 4xx diagnostics.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/infra/providers/backends/openrouter/index.ts:272"
+              },
+              {
+                "kind": "test",
+                "target": "tests/server/infra/providers/backends/openrouter/index.test.ts:231"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:1e8b687bd7817de04152d6fc208197f0d01436fa"
+              }
+            ]
+          },
+          {
+            "claim": "The CT Vite transform targets es2024 and the reasoning-collapse pair's locator targets the mounted root.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "playwright-ct.config.ts:63"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/features/chat/components/reasoning-block.ct.tsx:128"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:cb0e29b279e519d6f380c25da587118648b0eb1c"
+              }
+            ]
           }
         ],
-        "summary": "Full-read operational spine migrated to Project pointers; rulings and recovery history remain in place while mutable status has one GitHub home."
+        "summary": "Full-read operational spine reverified at 611d17c88: the Project control-plane boundary, OpenRouter Arm A, CT es2025 correction, reasoning-collapse verification, and #33/#40 graduation pointer match current merged code and tests."
       },
       "receiptCurrent": true
     },
