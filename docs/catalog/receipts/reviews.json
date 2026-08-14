@@ -125,16 +125,16 @@
     },
     {
       "path": "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md",
-      "assignedSha256": "d5eb1cd87ebe6f36e066f988a607be43e274a57706b05a659eb7e0b5cfaaa6ca",
+      "assignedSha256": "e67c7a008e63dce630d5be05d8788db9896df2b7715c0e02cba1bc16673d88ad",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "d5eb1cd87ebe6f36e066f988a607be43e274a57706b05a659eb7e0b5cfaaa6ca",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "e67c7a008e63dce630d5be05d8788db9896df2b7715c0e02cba1bc16673d88ad",
+      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md:1-340 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md:1-347 full read; active review metadata verified",
+        "packages/server/src/domain/chat/verbs/turn.ts:848 and GitHub issue #7 (OPEN) checked on 2026-08-14"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -185,16 +185,16 @@
     },
     {
       "path": "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md",
-      "assignedSha256": "fca64089fc729884336b5314b05d9346999dadc5ad74c41d74e350558277e9f2",
+      "assignedSha256": "6641f7351d162c33b96e570894397c0f14593b5fb2eae07c5c77bd675a61cdc8",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "fca64089fc729884336b5314b05d9346999dadc5ad74c41d74e350558277e9f2",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "6641f7351d162c33b96e570894397c0f14593b5fb2eae07c5c77bd675a61cdc8",
+      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md:1-197 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md:1-203 full read; active review metadata verified",
+        "packages/db/src/kit/check-list.ts:1 and GitHub issue #8 (OPEN) checked on 2026-08-14"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -215,16 +215,16 @@
     },
     {
       "path": "docs/reviews/misc/2026-08-09-refinery-live-e2e.md",
-      "assignedSha256": "069fa9451b9dad9afeec069aa17ae5f9b77598de0859b7068165057027491d9b",
+      "assignedSha256": "33b33e89fdea1efa221553493465482db64901c264d293c19a4a9a0a2e180968",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "069fa9451b9dad9afeec069aa17ae5f9b77598de0859b7068165057027491d9b",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "33b33e89fdea1efa221553493465482db64901c264d293c19a4a9a0a2e180968",
+      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/reviews/misc/2026-08-09-refinery-live-e2e.md:1-183 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "docs/reviews/misc/2026-08-09-refinery-live-e2e.md:1-189 full read; active review metadata verified",
+        "packages/server/src/domain/refinery/substrate/output-budget.ts:1 and GitHub issue #40 (OPEN) checked on 2026-08-14"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -245,16 +245,16 @@
     },
     {
       "path": "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md",
-      "assignedSha256": "e435534af3374b80430860bac7aa80fb65f0857c0d16a939e6b73d0d24f9699d",
+      "assignedSha256": "d40d796598963a18a3acea8a67f945aeb93b360e830b897b92831f42e0ca1868",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "e435534af3374b80430860bac7aa80fb65f0857c0d16a939e6b73d0d24f9699d",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "d40d796598963a18a3acea8a67f945aeb93b360e830b897b92831f42e0ca1868",
+      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md:1-204 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md:1-210 full read; active review metadata verified",
+        "packages/client/src/components/character-picker.tsx:1 and GitHub issue #45 (OPEN) checked on 2026-08-14"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -275,16 +275,16 @@
     },
     {
       "path": "docs/reviews/misc/2026-08-14-global-agents-proposed.md",
-      "assignedSha256": "623c79023abebcc93dc703318cc1d559facef9c5683f5e99578c0c0ebf377896",
+      "assignedSha256": "1f8af45821055b8a07bb498f472454f1ae96102c44ba1fb4190c9ede43cce380",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "623c79023abebcc93dc703318cc1d559facef9c5683f5e99578c0c0ebf377896",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "1f8af45821055b8a07bb498f472454f1ae96102c44ba1fb4190c9ede43cce380",
+      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/reviews/misc/2026-08-14-global-agents-proposed.md:1-196 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "docs/reviews/misc/2026-08-14-global-agents-proposed.md:1-205 full read; active review metadata verified",
+        "GitHub issue #52 remains the recorded mutable-resolution route; GitHub API rate-limited during refresh"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -335,16 +335,16 @@
     },
     {
       "path": "docs/reviews/misc/marinara-engine-parser-macro-audit.md",
-      "assignedSha256": "a5fc7978b119f97fff3d6a379a253976cd1df79612d6d8f6cdc462525b7aa88a",
+      "assignedSha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "a5fc7978b119f97fff3d6a379a253976cd1df79612d6d8f6cdc462525b7aa88a",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
+      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/reviews/misc/marinara-engine-parser-macro-audit.md:1-262 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "docs/reviews/misc/marinara-engine-parser-macro-audit.md:1-279 full read; active review metadata verified",
+        "packages/kit/src/macro/engine.ts:1 and GitHub issue #28 (OPEN) checked on 2026-08-14"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -365,16 +365,16 @@
     },
     {
       "path": "docs/reviews/misc/marinara-st-extension-lite-mode.md",
-      "assignedSha256": "d81fd7d6360e97a10eca40ecbed375b0a12f4817bd403628573c2f7654e60310",
+      "assignedSha256": "74a9236c073f4d007a630d394b79f7672c7e2353cb3a54b5e92960579a9185a3",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "d81fd7d6360e97a10eca40ecbed375b0a12f4817bd403628573c2f7654e60310",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "74a9236c073f4d007a630d394b79f7672c7e2353cb3a54b5e92960579a9185a3",
+      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/reviews/misc/marinara-st-extension-lite-mode.md:1-383 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "docs/reviews/misc/marinara-st-extension-lite-mode.md:1-401 full read; active review metadata verified",
+        "GitHub issue #40 (OPEN) checked on 2026-08-14"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -466,16 +466,16 @@
     },
     {
       "path": "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md",
-      "assignedSha256": "55efb681362940c8507023417ddd866bf8086100ff64c789d038595e9110ef70",
+      "assignedSha256": "bd7620c756de2bf28747aac6421c8c9f93e51376744dd94c351622916f16aced",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "55efb681362940c8507023417ddd866bf8086100ff64c789d038595e9110ef70",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "bd7620c756de2bf28747aac6421c8c9f93e51376744dd94c351622916f16aced",
+      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md:1-261 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md:1-264 full read; active review metadata verified",
+        "GitHub issue #57 (OPEN) checked on 2026-08-14"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -492,16 +492,16 @@
     },
     {
       "path": "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md",
-      "assignedSha256": "06bc570ccc2f4393bb063e24a8820c7206c89f062ab406a5cc1e0329f8bf86d4",
+      "assignedSha256": "668f18f3cb2134adab01c9b410e93a0d515ba34bedc24553c2271c6140462948",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "06bc570ccc2f4393bb063e24a8820c7206c89f062ab406a5cc1e0329f8bf86d4",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "668f18f3cb2134adab01c9b410e93a0d515ba34bedc24553c2271c6140462948",
+      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md:1-191 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md:1-188 full read; active review metadata verified",
+        "packages/kit/src/macro/engine.ts:90-98 and GitHub issue #28 (OPEN) checked on 2026-08-14"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -522,16 +522,16 @@
     },
     {
       "path": "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md",
-      "assignedSha256": "1b5053c950a30a89cdb712a009cf84cf7e46b4f9afbe5c6e91df74155fc45136",
+      "assignedSha256": "91e0f3766a14b85fc1bb4fc97ddd9bd9e68c7e5c2ca9f1105c6529a311d595b7",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "1b5053c950a30a89cdb712a009cf84cf7e46b4f9afbe5c6e91df74155fc45136",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "91e0f3766a14b85fc1bb4fc97ddd9bd9e68c7e5c2ca9f1105c6529a311d595b7",
+      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md:1-360 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md:1-360 full read; active review metadata verified",
+        "packages/client/vite.config.ts:260 and packages/server/src/entry/http/spa.ts:63-70 checked; GitHub issue #57 (OPEN) checked on 2026-08-14"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
