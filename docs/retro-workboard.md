@@ -1213,6 +1213,15 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **vLLM is forced into strict mode at all times.** Receipt: `strictByDefault(format: ResponseFormat)`
   in `packages/server/src/infra/providers/vllm/surfaces/chat.ts`. Decide whether strict is a floor, a
   default, or a knob — it interacts with the #36 structured-output vehicle work.
+- [ ] **CARD FENCE-CLOSE MOUNT GATE (owner dogfood 08-14 afternoon: interactive cards "wont render
+  fully until the message is done … even when the html is done being written") — SECURITY LANE
+  RUNNING:** diagnosed at dispatch — the §4.5 forming-card design (`ghost-message-row.tsx:43-46`)
+  gates chip→real-card on message COMMIT; the right granularity is FENCE CLOSE (bytes final).
+  Routed security-executor because `srcdoc.ts:19` owns allow-scripts timing; lane owes the
+  four-point trust analysis (close-detection exactness · ONE trust resolver, no call-site re-derive
+  · abort-after-close drops the card · sandbox attrs byte-identical) + stable-key no-iframe-reload
+  pins + a commit-swap remount verdict. Refusal-with-receipt allowed if §4.5's one-hard-cut was
+  ruled for a reason that still binds.
 - [ ] **SWIPE GHOST-VISIBILITY (owner dogfood 08-14 afternoon, verbatim: "when we swipe it
   disappears the old message shows until the new one finishes sometimes") — INVESTIGATION LANE
   RUNNING (four-hop instrumentation):** the streaming new variant sometimes never paints; the old
