@@ -349,6 +349,46 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 
 ## ═══ THE ENDGAME (complete remainder — tagged by what unblocks each) ═══
 
+**═══ CODEX AUDIT — INTERIM SYNTHESIS ACTIONED (27/78 lanes, read in full 08-14; owner law: nothing falls into obscurity) ═══**
+
+> Source: `docs/reviews/repository-audit-2026-08-13/INTERIM-SYNTHESIS-2026-08-13.md`. Verdict at the
+> barrier: NO P0, NO proven P1; tenant/lifecycle/gate machinery "behaviorally serious". Items below are
+> the actionable residue + the convergences with tonight's work. Final synthesis lands when its
+> remaining 51 lanes finish — re-sweep this block then.
+
+- [ ] **P2 (Codex SID-01): custom-endpoint health FALSE GREEN** — `test-health.ts:75` returns
+  `{status:"ok"}` for `custom_openai` WITHOUT invoking `ctx.probe`; their int test PROVES the probe
+  ledger stays empty. Fix: probe through the existing redacted boundary OR return an explicit
+  `unchecked` state — never `ok` unprobed. Small server lane, red-first. (Their words: "is bullshit and
+  will mislead someone" — correct.)
+- [ ] **P2 (GA-H-02): structure artifact owes PER-GATE scan denominators** — candidate/scanned/skipped
+  per gate in normal output, else a predicate regression is a zero-scan placebo (OUR
+  \[\[instruments-lie-verify-the-verifier]] law at gate scale). Pairs with the G-A/G-B gate lane — same
+  harness region, fold in. Includes surfacing the **278 ratchet-admitted sites** (226 density + 52
+  finding-overload) as visible debt in the report (GA-H-01).
+- [ ] **33-proc tRPC INTENT reconciliation (their P2-candidate queue + our lens-calibration row = one
+  program):** their classification stands — 10 automation (P1-candidate pending client lanes + INTENT) ·
+  7 plugin = closed-intentional-dormancy · 1 regex.getScript · 5 content · 10 unclassified. The LENS
+  half (proxy-consumption resolution) is our lens-calibration lane; the INTENT half is an OWNER sitting
+  ("which server surfaces are product commitments vs parked") — added to OWNER-GATED. No bulk-wire, no
+  bulk-delete (their caution = the owner's 08-13 lens ruling, independently converged).
+- [x] **SPR-01 vLLM live receipt — CLOSED TONIGHT, receipts on this board:** their #4 blunt priority
+  (live flags/template/GPU/one-request proof) was satisfied hours after their cutoff — fleet booted on
+  the 27B, GPU topology verified (19.04x), probes P1-P4 green, enable\_in\_reasoning A/B'd live. Their
+  four vLLM argv "failures" in the accidental whole-suite run were the WAVE-0 statics, since fixed.
+- [ ] **Smalls batch (Codex tail):** wire-capture.ts:100 stale function contract (says never persisted,
+  spills at :106 — truth-repair the law, header is already honest) · imagery `PROMPT_TEMPLATES`/
+  `CAPTION_INSTRUCTIONS` compat re-exports are test-only (fold into lens-calibration verdicts) ·
+  GQZ-01 rpg-bus gate arm lacks a local positive control (gate-authoring debt) · local-light
+  `ORB_LOCAL_LIGHT_E2E=1` opt-in run (LIVE-WINDOW list; disposable networked env, never CI).
+- [ ] **bounded-list-limit KNOWN-NARROW verdict (GA-H-03):** it names only `limit`, misses topN/named
+  schemas BY DESIGN with passing controls preserving the bypass. Record verdict: acceptable-as-scoped
+  or widen — gate lane decides with the two-receipt law.
+- **Cross-refs, no new rows:** their 15 write-only DB columns = our lens-calibration `columns` class
+  (ORDER-BY blindness caveat stands) · their 27 contract orphan candidates = our Qwen corpus rows 1-33
+  overlap · chat-component/DB mirror-count debt = allocation signal only, their own caution — no
+  boilerplate tests.
+
 **═══ SWEEP ACTIONS (owner law: actioned or gate-evaluated — nothing falls into obscurity) ═══**
 
 - [ ] **MAYBE (owner-parked, do NOT let rot): per-launched-model SAMPLER-DEFAULTS map** — one generic
@@ -761,6 +801,7 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 
 **OWNER-GATED (his action/word, in order of appearance):**
 
+- [ ] **INTENT SITTING (from the Codex audit): which server capabilities are PRODUCT commitments vs internal seams vs deliberately parked** — the 33-proc queue reduces to this one owner question; 15-minute sitting with their classification table as the agenda.
 - [ ] **RV-13 talk-then-spec** — the conversation is his to open; spec lane spawns after.
 - [ ] **Re-import of the 3-year corpus** — his trigger, NOW UNBLOCKED (#45 landed). Note: dev db re-mints on next boot regardless.
 - [ ] **Taste pass** — :5173 live · forge-42 before/after gifs · refinery gifs/pngs.
