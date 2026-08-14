@@ -3,9 +3,10 @@
 // adminProcedure rejects a plain user but passes owner ∪ admin (LAYER-1, no db); a representative router
 // delegates to the injected service verb with the Principal; the CSRF gate fires on cookie mutations only;
 // the injected rate-limit gate's throw maps to TOO_MANY_REQUESTS; the multi-human belt (PD-106) 404s the
-// documented single-user-refused surface list and stays open in multi-user mode.
+// documented single-user-refused surface list and stays open in multi-user mode; and the errorFormatter's
+// PROD-LEAK belt keeps `stack` off the wire shape in EVERY env.
 
-import { DomainRateLimitError } from "@orb/kit/errors";
+import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInviteId, NotificationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
@@ -14,6 +15,7 @@ import type { NotificationsService } from "@orb/server/domain/notifications";
 import type { PersonaService } from "@orb/server/domain/persona";
 import type { SettingsService } from "@orb/server/domain/settings";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
+import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -250,5 +252,78 @@ describe("multiHumanProcedure — the multi-human capability 404 belt (PD-106 / 
     });
     expect(startChat).toHaveBeenCalledTimes(1);
     expect(addCharacterToChat).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── PROD-LEAK: the errorFormatter stack belt ────────────────────────────────────────────────────────────
+//
+// Live incident 2026-08-09: the public deployment was being served by a DEV process, so tRPC's
+// `config.isDev` (= `NODE_ENV !== "production"`, resolved ONCE at `initTRPC.create()`) was true and
+// `getErrorShape` attached `data.stack` to EVERY error — absolute host paths, the OS username and exact dep
+// versions, to any anonymous caller. `NODE_ENV` was the stopgap; the belt in `trpc.ts` is the fix, so the
+// leak is unrepresentable in every env.
+//
+// The formatter is the LAST hop before serialization: `getErrorShape` builds `shape.data`, attaches `stack`
+// when `config.isDev`, then hands the shape to the configured formatter. These drive the REAL router's own
+// configured formatter with exactly that input. (`createCaller` re-throws the raw TRPCError and never runs
+// the formatter at all, so a leak assertion against the caller would be vacuous by construction; the WIRE
+// proof — an anonymous HTTP GET through the mounted app — lives in tests/server/entry/app.test.ts, because
+// `@trpc/server`'s fetch adapter resolves only inside packages/server, not from a root test file.)
+
+/** A leaking `shape.data` exactly as `getErrorShape` builds it under `isDev` (the frames are the real
+ *  incident's shape: absolute host paths + the OS username + the dep version). */
+const LEAKING_STACK =
+  "TRPCError: Authentication required.\n    at /home/inktomi/orbweaver/packages/server/src/transport/trpc/trpc.ts:91:11\n    at /home/inktomi/node_modules/.pnpm/@trpc+server@11.18.0/dist/index.mjs:1:1";
+
+/** The classifier-mapped TRPCError the formatter receives in production (the DomainError rides as `.cause`,
+ *  which is what `domainReason` reads). Sourced from the real classifier — never hand-built. */
+function mappedError(err: Error): NonNullable<ReturnType<typeof classifyDomainError>> {
+  const result = classifyDomainError(err);
+  if (result === null) {
+    throw new Error("expected the classifier to map this error");
+  }
+  return result;
+}
+
+describe("errorFormatter — `stack` never reaches the wire (PROD-LEAK belt)", () => {
+  const { errorFormatter, isDev } = appRouter._def._config;
+
+  // POSITIVE CONTROL. Without it this block could be a false green: under NODE_ENV=production tRPC omits
+  // `stack` on its own and the strip would be untested. `isDev` true means this run IS the leaking regime,
+  // so the belt — not the ambient env — is what the assertions below are proving.
+  test("CONTROL: the router is configured isDev — this run is the regime that WOULD leak", () => {
+    expect(isDev).toBe(true);
+  });
+
+  test("strips `stack` from the shape getErrorShape hands it (the incident's exact shape)", () => {
+    const shaped = errorFormatter({
+      error: mappedError(new DomainOperationError("bad_input", "no")),
+      type: "query",
+      path: "persona.list",
+      input: undefined,
+      ctx: undefined,
+      shape: {
+        message: "Authentication required.",
+        code: -32_001,
+        data: { code: "UNAUTHORIZED", httpStatus: 401, path: "persona.list", stack: LEAKING_STACK },
+      },
+    });
+    expect(Object.keys(shaped.data)).not.toContain("stack");
+  });
+
+  test("the honest domain `reason` and the client-facing keys still ride (the strip drops ONLY stack)", () => {
+    const shaped = errorFormatter({
+      error: mappedError(new DomainOperationError("bad_input", "no")),
+      type: "query",
+      path: "persona.list",
+      input: undefined,
+      ctx: undefined,
+      shape: {
+        message: "no",
+        code: -32_600,
+        data: { code: "BAD_REQUEST", httpStatus: 400, path: "persona.list", stack: LEAKING_STACK },
+      },
+    });
+    expect(shaped.data).toMatchObject({ code: "BAD_REQUEST", httpStatus: 400, path: "persona.list", reason: "bad_input" });
   });
 });
