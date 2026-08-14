@@ -32,7 +32,7 @@
           "evidence": [
             {
               "kind": "ruling",
-              "target": "docs/architecture/core/Core-Path-Registry.md:527"
+              "target": "D140"
             },
             {
               "kind": "issue",
@@ -202,8 +202,8 @@
           "claim": "Registry wins conflicts.",
           "evidence": [
             {
-              "kind": "ruling",
-              "target": "docs/architecture/core/Core-Path-Registry.md:9"
+              "kind": "law",
+              "target": "docs/architecture/core/Core-Laws-and-Precedents.md §7"
             }
           ]
         }
@@ -353,7 +353,7 @@
           "evidence": [
             {
               "kind": "ruling",
-              "target": "docs/architecture/core/Core-Path-Registry.md:523"
+              "target": "D139"
             }
           ]
         },
@@ -362,7 +362,7 @@
           "evidence": [
             {
               "kind": "ruling",
-              "target": "docs/architecture/core/Core-Path-Registry.md:531"
+              "target": "D141"
             },
             {
               "kind": "issue",
