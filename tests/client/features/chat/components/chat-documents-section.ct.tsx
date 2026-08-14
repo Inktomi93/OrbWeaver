@@ -48,15 +48,19 @@ const HIDDEN_CHAR_DOC = { ...BASE_DOC, id: "document_00000000000000000003", name
 function stubRack(page: Page, over: TrpcRoutes = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "databank.listActiveForChat": () => [CHAT_DOC, GLOBAL_DOC, HIDDEN_CHAR_DOC],
-    // The caller's own bank: two of the three active documents plus one that reaches no room yet.
-    "databank.list": () => ({
-      items: [
+    // The caller's own bank: two of the three active documents plus one that reaches no room yet. The
+    // picker's search is a SERVER lens, so the stub narrows by the term it is handed (a fixed array would
+    // pass a search assertion while the component filtered nothing).
+    "databank.list": (input: unknown) => {
+      const bank = [
         { ...BASE_DOC, id: CHAT_DOC.id, name: CHAT_DOC.name },
         { ...BASE_DOC, id: HIDDEN_CHAR_DOC.id, name: HIDDEN_CHAR_DOC.name },
         { ...BASE_DOC, id: "document_00000000000000000004", name: "Unattached notes" },
-      ],
-      nextCursor: null,
-    }),
+      ];
+      const needle = ((input ?? {}) as { search?: string }).search?.trim().toLowerCase() ?? "";
+      const items = needle === "" ? bank : bank.filter((doc) => doc.name.toLowerCase().includes(needle));
+      return { items, nextCursor: null, totalCount: items.length };
+    },
     [SET_VISIBILITY]: () => ({ hidden: [] }),
     [DETACH]: () => null,
     [ATTACH]: () => null,

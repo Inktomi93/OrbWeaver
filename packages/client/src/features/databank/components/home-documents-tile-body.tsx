@@ -8,16 +8,19 @@
 // invisible from everywhere except the library pane, and the whole point of D-7 is that you should not have
 // to go looking. The health line is therefore the tile's FIRST line, above the documents.
 //
-// ONE PAGE, HONESTLY LABELLED: `databank.list({})` is the server's FIRST page (newest-activity first,
-// `desc(updatedAt), desc(id)`, `DATABANK_LIST_DEFAULT_LIMIT` rows) — so "recent" is the server's own order,
-// and the health line summarizes THAT PAGE ("100+ documents") rather than claiming a bank-wide census the
-// client never fetched. It shares the band header's cache entry and inherits every producer/CRUD
-// invalidation the library mutations already declare (they invalidate the whole `databank.list` path).
+// TWO READS, EACH ANSWERING ITS OWN QUESTION (2026-08-14). The ROWS are `databank.list`'s first page — a
+// four-row "recent" glance in the server's own order (`desc(updatedAt), desc(id)`). The HEALTH LINE and its
+// chips are `databank.bankHealth`, a real census.
 //
-// It is no longer byte-identical to what the LIBRARY PANE reads: that pane pages (`infiniteQueryOptions`,
-// `UserSettings.library.pageSize` per page) so a bank's 101st document is reachable, and an infinite query
-// is its own cache entry. The two cannot DISAGREE — same verb, same order, same derived-phase rules — the
-// tile simply never looks past the first page, which is exactly what a four-row "recent" glance wants.
+// It used to be one read doing both, and that was the defect: the line summarized the loaded page while
+// reading as a statement about the bank ("100+ documents", "12 stalled" — meaning "among your newest 100").
+// A chip is a CONTROL that scopes the library to a phase, so an aggregate counted over a window would send
+// the user to a pane that disagrees with it. The census counts through the same predicates the library
+// filters by, so the chip and its destination agree by construction.
+//
+// The rows read shares the band header's `databank.list` cache entry and inherits every producer/CRUD
+// invalidation the library mutations already declare (they invalidate the whole `databank.list` path); the
+// census is its own key (`databank.bankHealth`) and rides the same path-level invalidation.
 //
 // FRESHNESS: the same bounded poll the library pane runs (D-3 arm b), through the model's shared
 // `ingestPollInterval` — a tile that renders "2 indexing" and then never moves is the "is it stuck?" hole
@@ -25,7 +28,7 @@
 //
 // It suspends; home mounts every tile body inside its own `QueryBoundary`.
 
-import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
+import type { IngestPhase } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -38,7 +41,6 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { timeLib } from "#lib";
-import type { IngestPhase } from "#state";
 import { openModal, selectDocumentFromList, setActiveSection, setDatabankPhaseFilter } from "#state";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { bankHealth, bankHealthLine, documentSubtitle, ingestBadge, ingestPhase, ingestPollInterval, showsPhaseChip } from "../lib/databank-model.ts";
@@ -67,8 +69,17 @@ export function HomeDocumentsTileBody(): ReactElement {
   // library pane reads it: it ADVANCES with every poll tick, so a document that wedges while home is open
   // flips to `Stalled` here on the tick that crosses the threshold.
   const { data: page, dataUpdatedAt: nowMs } = useSuspenseQuery({
-    ...trpc.databank.list.queryOptions({}),
+    ...trpc.databank.list.queryOptions({ limit: RECENT_DOCUMENTS_LIMIT }),
     refetchInterval: (listQuery): number | false => ingestPollInterval(listQuery.state.data?.items, timeLib.now()),
+  });
+  // The census. Suspends alongside the rows (home mounts the whole body in one QueryBoundary) and rides the
+  // SAME bounded poll: a tile that renders "2 indexing" and then never moves is the "is it stuck?" hole one
+  // screen further out, and the count is exactly what has to move when the ingest finishes. The poll is NOT
+  // redundant with the databank bus event and must not be retired as such — the event fans at the ingest
+  // TERMINAL, and nothing emits per chunk (deliberately). Poll = in-flight progress; bus = settlement.
+  const { data: census } = useSuspenseQuery({
+    ...trpc.databank.bankHealth.queryOptions(),
+    refetchInterval: (): number | false => ingestPollInterval(page.items, timeLib.now()),
   });
   const documents = page.items;
 
@@ -92,8 +103,9 @@ export function HomeDocumentsTileBody(): ReactElement {
     );
   }
 
-  const health = bankHealth(documents, nowMs, RECENT_DOCUMENTS_LIMIT, DATABANK_LIST_DEFAULT_LIMIT);
-  const recents = documents.slice(0, RECENT_DOCUMENTS_LIMIT);
+  // The rows ARE the visible set (the read asks for exactly `RECENT_DOCUMENTS_LIMIT`), which is what the
+  // chip decision subtracts: a phase already named by a rendered row earns no aggregate above it.
+  const health = bankHealth(census, documents, nowMs);
 
   return (
     <Stack gap="row">
@@ -140,7 +152,7 @@ export function HomeDocumentsTileBody(): ReactElement {
           — ListRow's root is a plain div, so the role rides a layout-primitive wrapper (the home recents /
           quick-picks precedent; a literal <li> would be invalid HTML under a div[role=list]). */}
       <Stack aria-label="Recent documents" gap="row" role="list">
-        {recents.map((doc) => {
+        {documents.map((doc) => {
           const phase = ingestPhase(doc, nowMs);
           const badge = ingestBadge(phase);
           return (
@@ -178,15 +190,15 @@ export function HomeDocumentsTileBody(): ReactElement {
 
 /** The tile's ONE trailing affordance, which DISAPPEARS on an empty bank (side-eye 2026-08-08 P2-b): a
  *  header link promising "All documents →" beside a body saying "No documents yet" is two controls with one
- *  destination, one of which promises a list of nothing. It reads the SAME `databank.list` cache entry
- *  non-suspensefully (no new key, no second fetch, no boundary of its own — home renders the action in the
- *  tile FRAME, outside the body's QueryBoundary), and stays visible while that read is in flight: the
- *  steady state is a bank with documents in it, and flashing the link out and back in would be its own
- *  defect. */
+ *  destination, one of which promises a list of nothing. It asks the CENSUS whether the bank is empty — the
+ *  same cache entry the band header and the tile's own health line read, non-suspensefully (no new key, no
+ *  second fetch, no boundary of its own — home renders the action in the tile FRAME, outside the body's
+ *  QueryBoundary) — and stays visible while that read is in flight: the steady state is a bank with
+ *  documents in it, and flashing the link out and back in would be its own defect. */
 export function HomeDocumentsTileAction(): ReactElement | null {
   const trpc = useTRPC();
-  const { data: page } = useQuery(trpc.databank.list.queryOptions({}));
-  if (page?.items.length === 0) {
+  const { data: census } = useQuery(trpc.databank.bankHealth.queryOptions());
+  if (census?.total === 0) {
     return null;
   }
   return (

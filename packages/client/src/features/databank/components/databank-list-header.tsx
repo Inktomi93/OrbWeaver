@@ -15,14 +15,16 @@
 // (every document, junction and chunk survives — the canon is re-derived from bytes we still hold), and a
 // red confirm on a maintenance sweep teaches the wrong thing about the one control here that IS destructive.
 //
-// The count is a non-suspending `useQuery` over `databank.list`'s FIRST page (`limit` unnamed ⇒ the verb's
-// `DATABANK_LIST_DEFAULT_LIMIT`), so the title + actions render immediately and stay put while it settles.
-// It is deliberately its own read now that the pane below PAGES: the pane's rows live in an infinite query
-// keyed per page size, and a band count that grew as you pressed "Load more" would report how far you have
-// scrolled, not how big your bank is. The band states the bank's FLOOR ("100+" once the first page comes
-// back full — `cappedCount`), which is the same sentence the home tile makes about the same page.
+// THE COUNT IS THE SERVER'S CENSUS (`databank.bankHealth.total`, 2026-08-14) — a non-suspending `useQuery`,
+// so the title + actions render immediately and stay put while it settles. A COUNT read for a count: it
+// fetches no rows at all, where the band used to ask for a hundred documents to measure the length of the
+// list. It is deliberately not the pane's own read — the pane's rows live in an infinite query keyed per page
+// size, and a band count that grew as you scrolled would report how far you have got, not how big your bank is.
+//
+// It used to print `cappedCount(page.items.length, DATABANK_LIST_DEFAULT_LIMIT)` — "100+" — because a full
+// first page was the only number the client had, and reporting a page as a census was the lie that reading
+// made visible (side-eye 2026-08-08 P2-d).
 
-import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, RefreshCw } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -35,13 +37,12 @@ import { ConfirmDialog, ListPaneHeader, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { openModal } from "#state";
 import { useReindexDocuments } from "../hooks/use-databank-mutations.ts";
-import { cappedCount } from "../lib/databank-model.ts";
 
 export function DatabankListHeader(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const toast = useToastManager();
-  const { data: documents } = useQuery(trpc.databank.list.queryOptions({}));
+  const { data: census } = useQuery(trpc.databank.bankHealth.queryOptions());
   const reindex = useReindexDocuments({ trpc, invalidation });
   const [reExtractOpen, setReExtractOpen] = useState(false);
 
@@ -78,7 +79,7 @@ export function DatabankListHeader(): ReactElement {
             </Button>
           </Row>
         }
-        count={documents === undefined ? 0 : cappedCount(documents.items.length, DATABANK_LIST_DEFAULT_LIMIT)}
+        count={census?.total ?? 0}
         title="Databank"
       />
       <ConfirmDialog

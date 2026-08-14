@@ -30,6 +30,12 @@ export interface UploadResult {
 export interface ListDocumentsResult {
   readonly items: readonly DocumentView[];
   readonly nextCursor: DocumentListCursor | null;
+  /** How many documents match the SAME lens this page is a window into — a real `COUNT`, never `items.length`.
+   *  It is what retired the surfaces' `100+` reading: the band header and the home tile used to print a full
+   *  first PAGE as the bank's size-floor because a page was the only number they had (side-eye 2026-08-08
+   *  P2-d). A census is a different question from "how many rows this page happened to carry", and both
+   *  surfaces print the census. */
+  readonly totalCount: number;
 }
 
 /** The `{{databank}}` gather op's return (DB6, databank-design/07 §2). Never empty — an empty retrieval /

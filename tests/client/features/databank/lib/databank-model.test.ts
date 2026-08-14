@@ -2,10 +2,9 @@
 // subtitle. These are the rules that stand in for a `status` column the schema deliberately does not have,
 // so they are the one place a wrong answer becomes a wrong badge on every surface at once.
 
-import type { DocumentView } from "@orb/contracts/databank";
+import type { BankHealthView, DocumentView } from "@orb/contracts/databank";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { BankHealth } from "../../../../../packages/client/src/features/databank/lib/databank-model.ts";
 import {
   bankHealth,
   bankHealthLine,
@@ -147,70 +146,81 @@ describe("ingestPollInterval — ONE rule for both readers of databank.list", ()
 
 // D-7 — the HOME tile's summary. It must answer "is my bank doing its job" out of the SAME counts the rows
 // derive their phase from, or home and the library pane disagree about one document in two places.
+// THE CENSUS IS THE SERVER'S (2026-08-14). These used to hand `bankHealth` a page of documents and let it
+// sum them, which is exactly the defect the ruling retired: the tile summed the newest 100 and read as a
+// statement about the bank. The numbers are `databank.bankHealth`'s now; what is still derived here is the
+// chip DECISION — which counts earn an aggregate, in what order, given the rows the tile already renders.
 describe("bankHealth — the tile's ingest health (D-7)", () => {
-  /** The tile shows four rows and reads a 100-document page — the production call shape. */
-  const health = (documents: readonly DocumentView[], now: number, visible = 0, limit = 100): BankHealth => bankHealth(documents, now, visible, limit);
+  /** A census literal — the wire shape, over-specified on purpose so a changed field fails loudly. */
+  const census = (over: Partial<BankHealthView> = {}): BankHealthView => ({
+    byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 },
+    chunks: 0,
+    passages: 0,
+    total: 0,
+    ...over,
+  });
 
+  /** The four-phase bank, and the census a server would return for exactly it. */
   const bank: readonly DocumentView[] = [
     doc(),
     doc({ id: castId("document_00000000000000000002"), chunkCount: 39, embeddedCount: 22 }),
     doc({ id: castId("document_00000000000000000003"), charCount: 0, chunkCount: 0, embeddedCount: 0 }),
     doc({ id: castId("document_00000000000000000004"), chunkCount: 0, embeddedCount: 0, updatedAt: AT - FIVE_MINUTES }),
   ];
+  const bankCensus = census({ byPhase: { embedding: 1, empty: 1, indexing: 0, ready: 1, stalled: 1 }, chunks: 51, passages: 34, total: 4 });
 
-  test("counts PASSAGES against the chunks that exist — an un-embedded chunk is invisible to retrieval", () => {
-    // 12 embedded of 12 + 22 of 39 + 0 of 0 + 0 of 0. Reporting 34 alone would read as a finished count;
-    // reporting 51 (the chunks) would over-promise what a chat can actually pull.
-    expect(health(bank, AT).passages).toBe(34);
-    expect(health(bank, AT).chunks).toBe(51);
-    expect(health(bank, AT).total).toBe(4);
+  test("the numbers come STRAIGHT from the census — the tile sums nothing", () => {
+    // 12 embedded of 12 + 22 of 39 + 0 of 0 + 0 of 0, as the server counted it. Reporting 34 alone would
+    // read as a finished count; reporting 51 (the chunks) would over-promise what a chat can pull.
+    const health = bankHealth(bankCensus, [], AT);
+    expect(health.passages).toBe(34);
+    expect(health.chunks).toBe(51);
+    expect(health.total).toBe(4);
   });
 
   test("one chip per NON-READY phase, worst first, and READY earns none", () => {
-    expect(health(bank, AT).attention).toEqual([
+    expect(bankHealth(bankCensus, [], AT).attention).toEqual([
       { intent: "danger", label: "1 stalled", phase: "stalled" },
       { intent: "warning", label: "1 empty", phase: "empty" },
       { intent: "warning", label: "1 indexing", phase: "embedding" },
     ]);
     // A bank at rest says nothing beyond its size — the steady state is the absence of a chip (§6.1).
-    expect(health([doc(), doc({ id: castId("document_00000000000000000005") })], AT).attention).toEqual([]);
+    expect(bankHealth(census({ byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 2, stalled: 0 }, total: 2 }), [], AT).attention).toEqual([]);
   });
 
   // The aggregate exists for what the tile CANNOT show you. A phase whose every document is already a
   // visible row is the same fact twice, competing for one glance (side-eye 2026-08-08 P2-a).
   test("a phase fully visible in the rendered rows earns NO chip; one that reaches past them does", () => {
-    expect(health(bank, AT, bank.length).attention).toEqual([]);
+    expect(bankHealth(bankCensus, bank, AT).attention).toEqual([]);
     // The stalled row is LAST of four, so at three visible rows it is the only phase still hidden.
-    expect(health(bank, AT, 3).attention).toEqual([{ intent: "danger", label: "1 stalled", phase: "stalled" }]);
+    expect(bankHealth(bankCensus, bank.slice(0, 3), AT).attention).toEqual([{ intent: "danger", label: "1 stalled", phase: "stalled" }]);
   });
 
-  test("the stall overlay rides the INJECTED clock — the same document is queued, then wedged", () => {
+  // A CENSUS THAT REACHES PAST THE PAGE. The chip counts the SERVER's number, not the rendered rows', which
+  // is the whole point: twelve wedged documents and one of them on screen still reads "12 stalled".
+  test("the chip states the CENSUS count even when one of that phase is on screen", () => {
+    const wedged = doc({ chunkCount: 0, embeddedCount: 0, updatedAt: AT - FIVE_MINUTES });
+    const many = census({ byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 30, stalled: 12 }, chunks: 360, passages: 360, total: 42 });
+    expect(bankHealth(many, [wedged], AT).attention).toEqual([{ intent: "danger", label: "12 stalled", phase: "stalled" }]);
+  });
+
+  test("the stall overlay rides the INJECTED clock — the same visible document is queued, then wedged", () => {
     const queued = [doc({ chunkCount: 0, embeddedCount: 0 })];
-    expect(health(queued, AT + FIVE_MINUTES - 1).attention).toEqual([{ intent: "warning", label: "1 queued", phase: "indexing" }]);
-    expect(health(queued, AT + FIVE_MINUTES).attention).toEqual([{ intent: "danger", label: "1 stalled", phase: "stalled" }]);
+    const one = census({ byPhase: { embedding: 0, empty: 0, indexing: 1, ready: 0, stalled: 0 }, total: 1 });
+    // Before the threshold the row IS the census's `indexing` document, so the chip is suppressed…
+    expect(bankHealth(one, queued, AT + FIVE_MINUTES - 1).attention).toEqual([]);
+    // …and after it the rendered row reads `stalled` while the census still says `indexing`, so the
+    // aggregate re-appears: the tile is honest about a count it cannot see itself into agreement with.
+    expect(bankHealth(one, queued, AT + FIVE_MINUTES).attention).toEqual([{ intent: "warning", label: "1 queued", phase: "indexing" }]);
   });
 
-  test("documents in the SAME phase aggregate into one chip", () => {
-    const two = [
-      doc({ charCount: 0, chunkCount: 0, embeddedCount: 0 }),
-      doc({ id: castId("document_00000000000000000006"), charCount: 0, chunkCount: 0, embeddedCount: 0 }),
-    ];
-    expect(health(two, AT).attention).toEqual([{ intent: "warning", label: "2 empty", phase: "empty" }]);
-  });
-
-  test("the health LINE reads BOTH counts, with the singulars", () => {
-    expect(bankHealthLine(health(bank, AT))).toBe("4 documents · 34 of 51 passages indexed");
-    expect(bankHealthLine(health([doc({ chunkCount: 1, embeddedCount: 1 })], AT))).toBe("1 document · 1 of 1 passage indexed");
-    expect(bankHealthLine(health([], AT))).toBe("0 documents · 0 of 0 passages indexed");
-  });
-
-  // A FULL PAGE IS NOT A CENSUS (side-eye 2026-08-08 P2-d): `databank.list` returns at most its default
-  // limit, so a surface that prints `documents.length` as "N documents" states a bank size it never read.
-  test("a page filled to the limit reports 100+, never a count it did not take", () => {
-    const page = Array.from({ length: 4 }, (_, i) => doc({ id: castId(`document_0000000000000000000${i}`) }));
-    expect(bankHealthLine(health(page, AT, 0, 4))).toBe("4+ documents · 48 of 48 passages indexed");
-    expect(health(page, AT, 0, 4).capped).toBe(true);
-    expect(health(page, AT, 0, 5).capped).toBe(false);
+  test("the health LINE reads BOTH counts, with the singulars — and never a cap", () => {
+    expect(bankHealthLine(bankHealth(bankCensus, [], AT))).toBe("4 documents · 34 of 51 passages indexed");
+    expect(bankHealthLine(bankHealth(census({ chunks: 1, passages: 1, total: 1 }), [], AT))).toBe("1 document · 1 of 1 passage indexed");
+    expect(bankHealthLine(bankHealth(census(), [], AT))).toBe("0 documents · 0 of 0 passages indexed");
+    // A bank deeper than the old page limit states its SIZE. It used to read "100+" — a page length wearing
+    // a census's clothes (side-eye P2-d), which is the reading `databank.bankHealth` retired.
+    expect(bankHealthLine(bankHealth(census({ chunks: 1200, passages: 1170, total: 146 }), [], AT))).toBe("146 documents · 1,170 of 1,200 passages indexed");
   });
 });
 

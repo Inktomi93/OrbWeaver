@@ -41,10 +41,18 @@ const TREATISE = {
 
 const LEDGER = { ...TREATISE, id: castId<DocumentId>("document_00000000000000000012"), name: "The Ashfen Ledger", byteSize: 93_901 };
 
-/** The picker's ONE read, plus the attach it fires. `bank` scripts `databank.list` per case. */
-function stubPicker(page: Page, bank: readonly unknown[]): Promise<TrpcRecorder> {
+/** The picker's ONE read, plus the attach it fires. `bank` scripts `databank.list` per case.
+ *
+ *  INPUT-AWARE on `search`, because the picker's box is a SERVER lens (2026-08-14): a stub that returned the
+ *  whole bank regardless of the term would pass the search test while the component filtered nothing, which
+ *  is precisely how a client-side-filter defect hides behind a green CT. */
+function stubPicker(page: Page, bank: readonly { readonly name: string }[]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "databank.list": () => ({ items: bank, nextCursor: null }),
+    "databank.list": (input: unknown) => {
+      const needle = ((input ?? {}) as { search?: string }).search?.trim().toLowerCase() ?? "";
+      const items = needle === "" ? bank : bank.filter((doc) => doc.name.toLowerCase().includes(needle));
+      return { items, nextCursor: null, totalCount: items.length };
+    },
     "databank.attachToChat": () => null,
   });
 }
@@ -100,6 +108,42 @@ test("a bank that ALREADY reaches this room in full is a success state, said dif
   await expect(page.getByText("Your bank is empty")).toHaveCount(0);
   await expect(page.getByText("Every document you own already reaches this chat", { exact: false })).toBeVisible();
   await expect(page.getByRole("button", { name: "Close" })).toBeEnabled();
+});
+
+// THE PICKER SEARCHES THE BANK, ON THE SERVER (2026-08-14 — the paged-list-lens ruling applied to a picker).
+// Its read is ONE page, so on a bank deeper than that page the host could not reach a candidate at all: no
+// box, and scrolling ended where the page did.
+test("the search box asks the SERVER — a candidate past the picker's one page is reachable", async ({ mount, page }) => {
+  const deepBank = [
+    ...Array.from({ length: 100 }, (_unused, at) => ({ ...TREATISE, id: castId<DocumentId>(`document_fill_${String(at)}`), name: `Filler ${String(at)}` })),
+    { ...LEDGER, name: "Zephyrine's Almanac" },
+  ];
+  const trpc = await stubPicker(page, deepBank);
+  await mount(<AddChatDocumentDialogStory />);
+  await expect(page.getByText("Filler 0")).toBeVisible();
+
+  await page.getByRole("textbox", { name: "Search your documents" }).fill("zephyr");
+
+  await expect(page.getByText("Zephyrine's Almanac")).toBeVisible();
+  await expect(page.getByText("Filler 0")).toHaveCount(0);
+  await expect.poll(() => trpc.lastInput("databank.list"), { intervals: [20, 50, 100] }).toMatchObject({ search: "zephyr" });
+});
+
+test("a search with no candidates says so and keeps its way out — the box stays, with a clear", async ({ mount, page }) => {
+  await stubPicker(page, [TREATISE, LEDGER]);
+  await mount(<AddChatDocumentDialogStory />);
+  await expect(page.getByText("The Ashfen Ledger")).toBeVisible();
+
+  await page.getByRole("textbox", { name: "Search your documents" }).fill("nothing is called this");
+
+  await expect(page.getByText("No matches")).toBeVisible();
+  // NOT the empty-bank sentence: the bank has two documents, and telling the host to go make one would be a
+  // lie about their library (the two-nothings ruling, extended to the third).
+  await expect(page.getByText("Your bank is empty")).toHaveCount(0);
+  // The way out of a no-match is editing the term, so the box survives its own empty state.
+  await expect(page.getByRole("textbox", { name: "Search your documents" })).toBeVisible();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect(page.getByText("The Ashfen Ledger")).toBeVisible();
 });
 
 test("the candidate list loads through a shape-matched SKELETON — never a spinner or a void", async ({ mount, page }) => {

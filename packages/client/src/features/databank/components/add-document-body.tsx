@@ -140,8 +140,10 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
       try {
         const result = await uploadDocument(file);
         // The raw multipart seam has no `createEntityMutation` to hang `invalidates` on — refresh the list
-        // through the SAME sanctioned seam by hand (never a bare `invalidateQueries`).
-        invalidation.invalidateFilters([trpc.databank.list.pathFilter()]);
+        // AND the bank census through the SAME sanctioned seam by hand (never a bare `invalidateQueries`).
+        // Both, because an upload moves a row onto the list and a document onto the count: the producer
+        // mutations in `use-databank-mutations` pair the two for the same reason.
+        invalidation.invalidateFilters([trpc.databank.list.pathFilter(), trpc.databank.bankHealth.pathFilter()]);
         setSuccess(true);
         onLanded({
           id: result.document.id,

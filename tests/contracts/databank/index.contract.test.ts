@@ -1,4 +1,4 @@
-import type { DocOrigin, ScraperKind } from "@orb/contracts/databank";
+import type { DocOrigin, IngestPhase, ScraperKind } from "@orb/contracts/databank";
 import {
   chatDocumentVisibilitySchema,
   chunkParamsSchema,
@@ -8,9 +8,12 @@ import {
   docOriginSchema,
   documentIdSchema,
   documentViewSchema,
+  INGEST_PHASES,
+  ingestPhaseSchema,
   reindexModeSchema,
   reindexScopeSchema,
   SCRAPER_KINDS,
+  STALE_INGEST_MS,
   scraperKindSchema,
 } from "@orb/contracts/databank";
 import { mintTypeId } from "@orb/kit/ids";
@@ -53,6 +56,28 @@ test("SCRAPER_KINDS is the fetched-bytes subset of the origin axis (web/youtube/
 const SCRAPER_SEEN: Record<ScraperKind, true> = { web: true, youtube: true, wiki: true };
 test("ScraperKind has no member beyond the tuple", () => {
   expect(Object.keys(SCRAPER_SEEN).sort()).toEqual(SCRAPER_KINDS.toSorted());
+});
+
+test("INGEST_PHASES is the pinned phase axis, and the schema is built from that one tuple", () => {
+  expect(INGEST_PHASES).toEqual(["empty", "indexing", "embedding", "ready", "stalled"]);
+  expect(ingestPhaseSchema.options).toEqual(INGEST_PHASES);
+  // The `databank.list` phase lens is a WIRE input now, so a non-member has to be refused at the boundary
+  // rather than reaching a SQL predicate that would silently match nothing.
+  expect(ingestPhaseSchema.safeParse("queued").success).toBe(false);
+  expect(ingestPhaseSchema.safeParse("").success).toBe(false);
+});
+
+// Exhaustiveness: a `Record<IngestPhase, …>` is tsc-red if a member is added/removed — the same pin the
+// server's `byPhase` census and the client's badge/chip Records carry.
+const PHASE_SEEN: Record<IngestPhase, true> = { empty: true, indexing: true, embedding: true, ready: true, stalled: true };
+test("IngestPhase has no member beyond the tuple", () => {
+  expect(Object.keys(PHASE_SEEN).sort()).toEqual(INGEST_PHASES.toSorted());
+});
+
+// The stall threshold is CROSS-TIER: the server's `phase:'stalled'` SQL predicate and the client's rendered
+// chip both measure against it, so a lens can never select a row the badge then calls something else.
+test("STALE_INGEST_MS is the pinned 5-minute in-flight threshold", () => {
+  expect(STALE_INGEST_MS).toBe(300_000);
 });
 
 test("chunkParamsSchema.parse({}) yields the documented ST-derived defaults (the kit-shape twin's contract)", () => {

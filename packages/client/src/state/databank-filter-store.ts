@@ -8,28 +8,24 @@
 // dead-end notice: the user has to go to the Databank, guess which of 46 rows the chips meant, and count.
 // Each aggregate is a CONTROL now, and this is what it writes.
 //
-// THIS DOES NOT REOPEN D-5. That ruling declined an ORIGIN facet ("upload/web/youtube/wiki/text") on the
-// library — a taxonomy axis with no evidence of need at observed bank sizes, and one the SERVER would have
-// to serve (`databank.list({origin})`). This is a different axis: ingest phase is a CLIENT DERIVATION over
-// counts the list already returns (there is no status column), it is a transient triage scope rather than a
-// browsing facet, and it exists to answer a question the product itself just asked the user. No server read
-// changes.
+// THIS DOES NOT REOPEN D-5, WHICH IS ABOUT THE ORIGIN FACET. That ruling declined an ORIGIN chip
+// ("upload/web/youtube/wiki/text") on the library — a taxonomy axis with no evidence of need at observed bank
+// sizes. No origin chip has been added; `databank.list` has always accepted the facet and still offers no
+// control for it.
+//
+// AMENDED 2026-08-14. This paragraph used to continue: "ingest phase is a CLIENT DERIVATION over counts the
+// list already returns … No server read changes." That was true of a scope over a LOADED WINDOW, and it is
+// exactly what the owner ruling of 2026-08-13 retired — a paged list's lenses are the server's, or they are a
+// claim about rows the client never fetched (a chip reading "12 stalled" would scope the pane to whichever of
+// those twelve happened to be on the loaded pages). The phase axis is now an INPUT to `databank.list`; its
+// vocabulary moved to `@orb/contracts/databank` with the wire, and this store holds only which one is on.
 //
 // `createGatedStore`, not persisted: a hard reload landing on the unfiltered bank is right — a triage scope
 // is about the thing you clicked a moment ago, and a filter that survives a restart is a filter you forget
 // is on.
 
+import type { IngestPhase } from "@orb/contracts/databank";
 import { createGatedStore } from "./create-gated-store.ts";
-
-/** The derived ingest phase of a document — the CLIENT's answer to "where is this in its ingest", since the
- *  schema deliberately has no status column and the chunk/embed counts are the only truth.
- *
- *  THE TUPLE HOMES HERE, not in `features/databank/lib` where the derivation lives, because the axis became
- *  reachable from the SHELL the moment a phase could be a list scope (the store below names it, and a
- *  feature `lib/` may not export a type — `no-inline-types`). The derivation still owns the RULES
- *  (`ingestPhase()` and its badge/chip Records); this owns only the vocabulary they speak. */
-export const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalled"] as const;
-export type IngestPhase = (typeof INGEST_PHASES)[number];
 
 interface DatabankFilterState {
   readonly phaseFilter: IngestPhase | null;
