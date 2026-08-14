@@ -20,6 +20,13 @@ test("marks the owned document global; re-attach is idempotent", async () => {
   await h.service.attachGlobal({ principal: principalFor(owner), documentId: document.id }); // idempotent
   const rows = await db.select().from(globalDocuments).where(eq(globalDocuments.documentId, document.id));
   expect(rows).toEqual([{ ownerId: owner, documentId: document.id }]);
+  // TWO events, not three: the create and the FIRST attach announced; the idempotent re-attach returned
+  // before any write and announced nothing (event-bus coverage survey H3). A no-op toggle that told every
+  // device to refetch would be the storm the coarse member exists to avoid.
+  expect(h.userEvents).toEqual([
+    { userId: owner, event: { type: "databankChanged", documentId: document.id } },
+    { userId: owner, event: { type: "databankChanged", documentId: document.id } },
+  ]);
 });
 
 test("a foreign document id NEVER attaches — throws DocumentNotFoundError, no junction row (cross-tenant)", async () => {
@@ -31,4 +38,7 @@ test("a foreign document id NEVER attaches — throws DocumentNotFoundError, no 
 
   await expect(h.service.attachGlobal({ principal: principalFor(attacker), documentId: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);
   expect(await db.select().from(globalDocuments).where(eq(globalDocuments.documentId, document.id))).toHaveLength(0);
+  // The cross-tenant refusal announces on NO channel — not the attacker's (nothing of theirs changed) and
+  // not the owner's (nothing of theirs changed either). Only the create's event stands.
+  expect(h.userEvents).toEqual([{ userId: owner, event: { type: "databankChanged", documentId: document.id } }]);
 });

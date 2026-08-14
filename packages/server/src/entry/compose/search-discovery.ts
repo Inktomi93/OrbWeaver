@@ -16,7 +16,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { AppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { personas as personasTable } from "@orb/db";
-import type { Handle, PersonaId } from "@orb/kit/ids";
+import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
 import { can, isAdmin, requireOwner } from "#domain/admin";
@@ -24,7 +24,7 @@ import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { resolveActiveDocumentIds } from "#domain/databank";
 import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
-import { createDiscoveryService } from "#domain/discovery";
+import { createDiscoveryService, distinctCorpusOwners } from "#domain/discovery";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
@@ -106,6 +106,12 @@ export interface SearchDiscoveryComposeResult {
   readonly notifications: NotificationsService;
   readonly workloads: WorkloadService;
   readonly enqueueEmbedReindex: () => void;
+  /** The bulk-pass announce audience — every owner with corpus rows, bound over this seam's `db`. Threaded
+   *  into BOTH discovery's five analytics contributions and embeddings' `index` sweep as their
+   *  `listCorpusOwners` op, so the box-wide arm's `corpusRecomputed` fan reaches every owner it touched
+   *  (event-bus coverage survey §2.5/F6). Bound HERE, not at the caller, so the domain's own query stays
+   *  behind the seam that owns discovery. */
+  readonly listCorpusOwners: () => Promise<UserId[]>;
 }
 
 export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDiscoveryComposeResult {
@@ -321,5 +327,6 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     notifications,
     workloads,
     enqueueEmbedReindex,
+    listCorpusOwners: () => distinctCorpusOwners(db),
   };
 }

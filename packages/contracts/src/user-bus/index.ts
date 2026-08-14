@@ -23,6 +23,16 @@
 //     a second tab/device sat on the pre-write roster forever. Sessions and schemas are single-owned
 //     per-user rows — the exact "an entity you own changed" posture — so they ride HERE rather than paying
 //     the 5-site cost of a feature bus for scoping refinery does not have.
+//   • `databank` is the survey's H3 (§2.4/§3.4-3): 10+ mutating verbs, no member, the no-bus posture CITED at
+//     birth rather than argued. The bank is per-user owned rows exactly like refinery's, so it rides here.
+//     The per-chat RACK's freshness is a different question and stays where it was — that surface is
+//     member-visible and rides `chatUpdated` on the chat bus (`membership-fan-guard`: member-visible state
+//     fans to the roster, never to one user), so this member covers the OWNER's library, not the room's view.
+//   • `corpusRecomputed` is the ONE member for every background library-semantics pass (§2.5/F6 — themes,
+//     distillation, co-occurrence, near-duplicates, hub scores, the embeddings index sweep). It is the only
+//     member NOT named after a noun the user edits: nothing here has a user-facing WRITE at all, the writer
+//     is a workload, and so no mutation exists anywhere for a client to hang an `invalidates` on. One coarse
+//     member rather than one per pass (F6): every discovery read maps to the domain root regardless.
 //
 // LAWS honored (mirrors the `ChatBusEvent` allowlist): every member is a closed object literal of a branded id
 // (optional) — no `unknown`/`Record`/index field a secret could ride in; no caller id (a subscriber only ever
@@ -31,6 +41,7 @@
 import type {
   CharacterId,
   ChatId,
+  DocumentId,
   PersonaId,
   PresetId,
   RefinerySessionId,
@@ -61,6 +72,15 @@ export type UserBusEvent =
   // all — a second optional `schemaId` would buy nothing the root invalidate does not already do, and the
   // grammar here is one hint per member, not one per noun.
   | { type: "refineryChanged"; sessionId?: RefinerySessionId }
+  // The document bank: the library list · one document's detail · the global id set · the attachment chips.
+  // ONE coarse member (the client path-invalidates `trpc.databank`); the `documentId` hint is carried by the
+  // per-document writes (rename/remove/attach/detach/ingest) and omitted by the owner-wide reindex sweep,
+  // which touched too many to name one.
+  | { type: "databankChanged"; documentId?: DocumentId }
+  // The background library-semantics passes (survey §2.5/F6). NO id: the grain is "your corpus analytics were
+  // recomputed", the client maps it to the discovery root + `search.similarArt`, and a per-pass or per-card
+  // hint would be a targeting promise none of these passes can keep (they rewrite whole derived tables).
+  | { type: "corpusRecomputed" }
   // DEFERRED (no server emit yet — see the MEMBERSHIP note + the `user-bus-coverage` DEFERRED allowlist): a
   // user's connection config lives in settings today, so nothing emits this. Declared so the client map +
   // the ratchet track it for the day a per-user connection store lands.
@@ -81,6 +101,8 @@ export const USER_BUS_EVENT_TYPES = {
   credentialsChanged: true,
   chatsChanged: true,
   refineryChanged: true,
+  databankChanged: true,
+  corpusRecomputed: true,
   connectionsChanged: true,
 } satisfies Record<UserBusEvent["type"], true>;
 

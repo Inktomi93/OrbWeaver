@@ -52,6 +52,11 @@ export function createUpload(ctx: DatabankContext): DatabankService["upload"] {
 
     const queued = await queueIngest(ctx, { documentId: id, ownerId });
     await ctx.audit({ actorUserId: ownerId, action: "databank.upload", entityType: "document", entityId: id, metadata: { name, mime, ...queued } }, at);
+    // The bank announces itself (survey H3) — and this is the one producer the CLIENT could never drive from
+    // a mutation, because the upload front door is a raw multipart POST with no tRPC mutation to hang an
+    // `invalidates` on (it hand-called `invalidateFilters` from the add dialog). The duplicate arm above is
+    // silent; it wrote nothing.
+    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
 
     const document = toDocumentView(
       { id, name, mime, origin: "upload", sourceUrl: null, byteSize: bytes.length, charCount: extracted.text.length, createdAt: at, updatedAt: at },

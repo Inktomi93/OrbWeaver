@@ -17,5 +17,7 @@ export function createDetachGlobal(ctx: DatabankContext): DatabankService["detac
       return; // not attached — idempotent no-op
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.detachGlobal", entityType: "document", entityId: documentId }, ctx.now());
+    // Real change only — the idempotent no-op returned above (survey H3).
+    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

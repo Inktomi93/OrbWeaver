@@ -5,6 +5,7 @@
 
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -41,12 +42,28 @@ function fakeDiscovery(distill: DistillOverride = {}): Discovery {
  *  reads — a skipped/name-only card has no other reader). */
 type DistillOverride = Partial<{ scanned: number; distilled: number; failed: number; skipped: number; tagsStaged: number }>;
 
+/** One recorded terminal-fan emit (the `corpusRecomputed` freshness plane). */
+interface UserEventCall {
+  readonly userId: UserId;
+  readonly event: UserBusEvent;
+}
+
+/** The BULK arm's announce audience — two owners, so a test can prove the fan is per-owner and not one. */
+const BULK_OWNERS: readonly UserId[] = [castId<UserId>("user_alpha"), castId<UserId>("user_beta")];
+
 function build(
   settings: UserSettings = DEFAULT_USER_SETTINGS,
   distill: DistillOverride = {},
-): { readonly discovery: Discovery; readonly contributions: Contributions } {
+): { readonly discovery: Discovery; readonly contributions: Contributions; readonly userEvents: UserEventCall[] } {
   const discovery = fakeDiscovery(distill);
-  return { discovery, contributions: createDiscoveryWorkloadContributions({ discovery, loadUserSettings: () => Promise.resolve(settings) }) };
+  const userEvents: UserEventCall[] = [];
+  const contributions = createDiscoveryWorkloadContributions({
+    discovery,
+    loadUserSettings: () => Promise.resolve(settings),
+    emitUserEvent: (userId, event): void => void userEvents.push({ userId, event }),
+    listCorpusOwners: () => Promise.resolve([...BULK_OWNERS]),
+  });
+  return { discovery, contributions, userEvents };
 }
 
 function withKnobs(patch: Partial<UserSettings["workloads"]>): UserSettings {
@@ -178,6 +195,59 @@ describe("csls", () => {
     const result = await contributions[4].run(ctx, {}, vi.fn(), sig());
     expect(discovery.computeCharacterHubScores).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ scanned: 7, written: 7 });
+  });
+});
+
+// THE TERMINAL FAN (event-bus coverage survey §2.5/§3.4-4/F6). Before it, these five passes wrote the
+// derived tables 27 dashboard reads project and announced NOTHING on any plane — the writer is a workload,
+// so not even the acting tab had an `invalidates` to hang on, and every one of those reads sat frozen at
+// `staleTime: Infinity`. The fan is the ONLY freshness driver those surfaces have.
+describe("the corpusRecomputed terminal fan", () => {
+  test("every one of the five passes announces exactly once, to the scoped owner", async () => {
+    // Each index gets its OWN harness, so the five runs are independent — parallel, not a sequential loop.
+    const outcomes = await Promise.all(
+      ([0, 1, 2, 3, 4] as const).map(async (index) => {
+        const { contributions, userEvents } = build();
+        await contributions[index].run(ctx, {}, vi.fn(), sig());
+        return { kind: contributions[index].kind, userEvents };
+      }),
+    );
+    for (const { kind, userEvents } of outcomes) {
+      expect(userEvents, `contribution ${kind} must announce its terminal`).toEqual([{ userId: OWNER_ID, event: { type: "corpusRecomputed" } }]);
+    }
+  });
+
+  test("a BULK pass (ownerId null) fans PER OWNER — a user-bus event reaches exactly one channel", async () => {
+    const { contributions, userEvents } = build();
+    await contributions[0].run({ ...ctx, ownerId: null }, {}, vi.fn(), sig());
+    // Not one event for the pass, and NOT to `ctx.userId` (the triggering admin): a box-wide recompute
+    // rewrites every owner's analytics, and anyone not told stays frozen until gcTime evicts.
+    expect(userEvents).toEqual(BULK_OWNERS.map((userId) => ({ userId, event: { type: "corpusRecomputed" } })));
+  });
+
+  test("a pass that THROWS still announces what it already wrote (the fan is in a finally)", async () => {
+    const { discovery, contributions, userEvents } = build();
+    vi.mocked(discovery.computeCharacterHubScores).mockRejectedValueOnce(new Error("hub math blew up"));
+    await expect(contributions[4].run(ctx, {}, vi.fn(), sig())).rejects.toThrow("hub math blew up");
+    // These passes write incrementally and none of them rolls back, so a mid-pass failure leaves REAL new
+    // rows on disk. Swallowing the announce there would freeze exactly the owner who just had work done.
+    expect(userEvents).toEqual([{ userId: OWNER_ID, event: { type: "corpusRecomputed" } }]);
+  });
+
+  // FENCE, not a defect proof: it passes against the pre-fix source too (there was no enumerator to call).
+  // It guards the cost rule — a per-user run must not pay a corpus-wide distinct-owner scan on every pass.
+  test("the SCOPED arm never consults the bulk enumerator", async () => {
+    const discovery = fakeDiscovery();
+    const listCorpusOwners = vi.fn(() => Promise.resolve([...BULK_OWNERS]));
+    const contributions = createDiscoveryWorkloadContributions({
+      discovery,
+      loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
+      emitUserEvent: () => undefined,
+      listCorpusOwners,
+    });
+    await contributions[0].run(ctx, {}, vi.fn(), sig());
+    // A per-user run must not pay a corpus-wide distinct-owner scan on every pass.
+    expect(listCorpusOwners).not.toHaveBeenCalled();
   });
 });
 

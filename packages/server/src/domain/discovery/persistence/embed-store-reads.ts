@@ -190,6 +190,29 @@ export async function distinctImageHubOwners(db: Db): Promise<UserId[]> {
   return rows.map((r) => r.ownerId);
 }
 
+/**
+ * THE BULK-PASS ANNOUNCE AUDIENCE (event-bus coverage survey §2.5/§3.4-4) — every owner who has ANYTHING in
+ * the corpus, as the union of the four per-kind enumerations above. A background recompute run with
+ * `ownerId: null` rewrites derived rows across owners, and a user-bus event reaches exactly one user's
+ * channel, so the terminal fan needs a list; this is that list, homed beside the four sets it unions.
+ *
+ * DELIBERATELY OVER-INCLUSIVE, and the trade is the right way round. An owner whose rows this particular
+ * pass did not actually change gets one `corpusRecomputed` and pays one refetch of already-correct data;
+ * getting the set EXACT would mean threading a touched-owner accumulator through six independent pass
+ * internals (themes · distillation · co-occurrence · duplicates · hub scores · the embeddings index sweep).
+ * The user-bus contract licenses exactly this: the payload is a targeting HINT, delivery is live-only and
+ * droppable, and subscribers are level-triggered (re-read by id, never apply the event as a delta). The
+ * failure that matters is the other direction — an owner NOT told is frozen at `staleTime: Infinity` until
+ * gcTime evicts, which is the defect this member exists to close.
+ */
+export async function distinctCorpusOwners(db: Db): Promise<UserId[]> {
+  const perKind = await Promise.all([distinctCharacterHubOwners(db), distinctDigestHubOwners(db), distinctSegmentHubOwners(db), distinctImageHubOwners(db)]);
+  // `indexOf` rather than a Set: `persistence-no-in-memory-state` bans a constructed Set in this layer, and
+  // the rule is right even though this one would be query-local — the union is over the box's USER count,
+  // so the quadratic is a handful of comparisons and there is no reason to spend an exemption on it.
+  return perKind.flat().filter((ownerId, index, all) => all.indexOf(ownerId) === index);
+}
+
 // ── theme pass ────────────────────────────────────────────────────────────────
 /** Every digest embedding tagged with its owner (present chat host) + isGroup + tier + space — the theme
  *  clustering inputs. Present-host join only — a departed ex-host must not re-attribute the digest. */

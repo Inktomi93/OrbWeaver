@@ -295,6 +295,26 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // did not change — a refinery run touches derived signals on ONE card, and `charactersChanged` already
   // covers everything that moves the roster.
   refineryChanged: (_e, trpc) => [trpc.refinery.pathFilter(), trpc.character.get.pathFilter()],
+  // The document bank — the whole router root (library list · one document's detail · the global id set ·
+  // the "Active in" attachment chips · the per-chat rack). Coarse on purpose: every databank write moves at
+  // least two of those reads, and the previous alternative was nine mutations each hand-naming its own
+  // subset (event-bus coverage survey H3). The `documentId` hint is deliberately UNUSED here — a root
+  // path-invalidate is what the surface needs and it costs one refetch either way.
+  //
+  // Note what this row does NOT do: repaint the chat rack for a NON-owner participant. A user-bus event
+  // reaches one user's channel by construction, so the host's attach repaints the host; the room's view of
+  // what feeds its prompts is member-visible state and rides `chatUpdated` on the chat bus (see
+  // `BUS_FILTERS`, and `membership-fan-guard` for why widening this member would be the wrong fix).
+  databankChanged: (_e, trpc) => [trpc.databank.pathFilter()],
+  // The corpus analytics — the discovery ROOT (all 27 dashboard reads) plus `search.similarArt`, which lives
+  // under the search router but is pure image-vector cosine written by the same passes. These reads had NO
+  // driver of any kind: their writers are background workloads, so there was never a mutation to hang an
+  // `invalidates` on, and at `staleTime: Infinity` a mounted Corpus route froze until gcTime evicted it.
+  //
+  // NOT the search ROOT: `search.search`/`fields`/`suggest` are input-keyed live queries whose key IS the
+  // query text, so every ask is already a cold fetch of a new entry — invalidating them on a recompute
+  // would re-run someone's typed search for no freshness gain.
+  corpusRecomputed: (_e, trpc) => [trpc.discovery.pathFilter(), trpc.search.similarArt.pathFilter()],
   // Deferred member — never emitted today; the map entry is ready for when it lands.
   connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter()],
 };

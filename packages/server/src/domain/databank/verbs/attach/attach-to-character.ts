@@ -30,5 +30,9 @@ export function createAttachToCharacter(ctx: DatabankContext): DatabankService["
       { actorUserId: ownerId, action: "databank.attachToCharacter", entityType: "document", entityId: documentId, metadata: { characterId } },
       ctx.now(),
     );
+    // Both sides of this junction are the caller's OWN rows, so the whole change is owner-scoped — one
+    // `databankChanged` covers the attachment chips and the character rack alike (survey H3). Real attach
+    // only; the idempotent re-attach returned above.
+    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

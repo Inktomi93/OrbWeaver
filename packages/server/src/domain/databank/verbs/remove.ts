@@ -21,5 +21,10 @@ export function createRemove(ctx: DatabankContext): DatabankService["remove"] {
       throw new DocumentNotFoundError(id);
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.remove", entityType: "document", entityId: id }, ctx.now());
+    // Announced AFTER the row (and its cascaded chunks + junctions) are gone — the delete-emits-after-commit
+    // rule: there is no durable event row here to orphan, and the subscriber's re-read discipline is id-only,
+    // so it re-reads the list and finds the document absent. D50 bans a per-entity DELETION member; this is
+    // the same coarse `databankChanged` every other write sends, carrying the departed id as a hint.
+    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
   };
 }

@@ -788,6 +788,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       await embeddings.purgeMemoryVectors();
     },
     loadUserSettings: settings.loadUserSettings,
+    // The ONE per-user freshness plane the background passes fan `corpusRecomputed` on at their terminals
+    // (event-bus coverage survey §2.5/F6) — shared by discovery's five analytics kinds AND embeddings'
+    // `index` sweep, which is why it is wired once here rather than per domain seam.
+    emitUserEvent: publishUserEvent,
+    // The BULK arm's announce audience (`ownerId: null`), bound behind the search-discovery seam. Homed in
+    // discovery's persistence beside the four per-kind enumerations it unions; embeddings receives it as an
+    // injected op rather than reaching across the domain line for the same query.
+    listCorpusOwners: searchDiscovery.listCorpusOwners,
   });
 
   const services: Services = {
