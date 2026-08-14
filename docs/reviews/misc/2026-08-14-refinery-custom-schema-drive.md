@@ -180,3 +180,133 @@ the Meter fix lands** — until then this is the exact repro for D1/D2:
 
 Open `re-custom-schema-drive`, run score, and read `[data-field="overallScore"]` — D1 and D2 are both
 in that one element.
+
+---
+
+# ARM 8 REAL-BUG — the OpenRouter structured 500 is `provider.require_parameters`, NOT the schema shape (2026-08-14, lane `os-` / or-shape-test)
+
+Arm 8 above recorded a BLOCK ("record the block, change nothing") because the structured/summarize role
+resolved to local vLLM and repointing it is a global settings change. The owner AUTHORIZED the supervised
+flip and asked the direct question the m4-or-probe finding left open: **the OpenRouter structured call 500s
+in 83-174 ms — does flipping `structuredOutputShape` to D126 `strict-compatible` clear it?**
+
+**Verdict: (b) a REAL CODE BUG, not config.** `strict-compatible` does NOT clear it — and cannot, because
+the D126 shape knob is **not read on this path at all**. The 500 is OpenRouter returning **HTTP 404 "No
+endpoints found that can handle the requested parameters"**, caused by `provider.require_parameters: true`
+riding on the `response_format` structured vehicle. Drop that one field and the identical wire returns
+**200** with a valid structured reply. The shape knob (`as-projected` vs `strict-compatible`) is a no-op
+here in two independent ways: the source hardcodes the strict-compatible projection, and both settings
+produced byte-identical wires.
+
+## Restore receipt (verified FIRST, on the live stack, after the drive)
+
+Independent re-read + a live structured call, `reports/lane-os/step4.log` (verbatim):
+
+```
+SETTINGS shape resolved="as-projected" override=null overrideKeys=["structuredOutputShape"]
+SETTINGS roleDefaults={}
+SETTINGS summarize="<unset>"
+scratch os- cards present=[] (total 0)
+STRUCTURED CALL ok=true ms=494
+NEWEST WIRE CAPTURE backend=vllm api=structured model=…/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token
+FINAL scratch os- cards=[] (total 0)
+```
+
+- **structuredOutputShape** — resolved back to the floor `as-projected` (the recorded before-value). The
+  raw override sits at `null`, the verb's DOCUMENTED clear sentinel (`domain/settings/verbs/app-settings.ts:44`
+  — "can clear an override to the `null` sentinel"); `resolveStructuredOutput` reads `override ?? DEFAULT`,
+  so `null` and absent are behavior-identical. Not restored to key-absent because `updateAppSettings` has no
+  key-delete path and raw-KV surgery on a live stack was not worth the risk — flagged, not hidden.
+- **structured/summarize role** — fully pristine (`roleDefaults={}`, summarize unset), and a live structured
+  call re-resolves to **local vLLM** (`backend=vllm api=structured`), the recorded before-connection.
+- **scratch** — every `os-` card deleted; `character.list` = 0. The owner's cards/chats were never touched;
+  only the summarize (structured-carrier) role moved, so the chat/sub dogfooding was unaffected throughout.
+
+## The shape × complexity matrix — all six cells 500, one error, one wire
+
+Driven through `refinery.testSchema` (the structured wire; ring name `refinery_schema_preview`) on a minted
+`os-scratch-subject` card. Model per the owner's guidance (STRONG reasoning SKU): `anthropic/claude-sonnet-5`
+for the 2×2, `google/gemini-3.1-pro-preview` to rule out model-specificity. Every cell returned the SAME
+tRPC error: `openrouter structured item 0 failed: Response validation failed` (`HTTP 500`,
+`INTERNAL_SERVER_ERROR`). Timings 46-554 ms — the m4 "too fast to be generation" tell.
+
+| shape | complexity | model | result |
+| - | - | - | - |
+| `as-projected` | simple (1 optional) | sonnet-5 | 500 · 554 ms |
+| `as-projected` | complex (`re_vividness`) | sonnet-5 | 500 · 53 ms |
+| `strict-compatible` | simple | sonnet-5 | 500 · 49 ms |
+| `strict-compatible` | complex | sonnet-5 | 500 · 46 ms |
+| `as-projected` | simple | gemini-3.1-pro | 500 · 49 ms |
+| `strict-compatible` | simple | gemini-3.1-pro | 500 · 46 ms |
+
+**The shape knob changed nothing.** The `as-projected` and `strict-compatible` cells produced **byte-identical
+outbound wire** (`reports/lane-os/results.json`): both `required:["overallScore","note"]`, both `note` as
+`anyOf:[{string},{null}]`, both with bounds moved into `"[Constraints: …]"` description text, both
+`additionalProperties:false`, `strict:true`. That is the strict-compatible projection — emitted even in the
+`as-projected` cell — because `structuredResponseFormat` hardcodes
+`scrubWireSchema(format.schema, "strict-compatible")` (`backends/openrouter/index.ts:238-248`). **The D126
+`structuredOutputShape` AppSetting is never consulted on the OpenRouter `response_format` path.**
+
+## The definitive evidence — a raw replay of the captured wire (the response body m4 could not get)
+
+The SDK's "Response validation failed" is the Speakeasy client's RESPONSE-schema zod rejecting OpenRouter's
+reply — it swallows OR's actual body (which is exactly why the m4 probe could not see it). So I replayed the
+**exact captured wire body** as a raw `fetch` to `https://openrouter.ai/api/v1/chat/completions` with the
+owner's key (`reports/lane-os/step3.log` / `raw-replay.json`), one variable at a time:
+
+| replayed body | result |
+| - | - |
+| APP wire, verbatim (`response_format` + `provider.require_parameters:true`) | **404** `No endpoints found that can handle the requested parameters` · 227 ms |
+| APP wire, DROP `response_format` (keep `require_parameters`) | **404** same message · 43 ms |
+| APP wire, DROP `provider.require_parameters` (keep `response_format` + `strict:true`) | **200** · 16 563 ms · Amazon Bedrock · valid `{"overallScore":6.8,"note":"…"}` |
+| APP wire, `strict:false` (keep `require_parameters`) | **404** same message · 47 ms |
+| APP wire (gemini-3.1-pro), verbatim | **404** same message · 36 ms |
+
+**Single-variable conclusion: `provider.require_parameters: true` is the 404.** It is present ⇒ 404,
+regardless of `response_format`, `strict`, model, or schema complexity; it is absent ⇒ 200 with a correct
+schema-honoring structured reply from Amazon Bedrock. The 404 is fast (36-227 ms), which is the entire
+"too fast to be generation" symptom — it is OpenRouter's provider-routing layer rejecting before any model
+runs.
+
+## The two defects
+
+**D-ARM8-1 (PRIMARY, blocks the whole hosted structured path).** `require_parameters:true` on the
+`response-format` vehicle (`backends/openrouter/index.ts:274-276`) makes OpenRouter's router demand an
+endpoint advertising EVERY request parameter and find none → 404. The `response_format` structured role on
+OpenRouter is therefore **100% broken today**, for every model and every schema. Fix belongs at that one
+site: drop `provider: { requireParameters: true }` (the 2026-08-09 note already labelled it "routing
+hygiene, NOT the fix" — it has since become the breaker), or make it conditional/removable. Localized hop:
+`packages/server/src/infra/providers/backends/openrouter/index.ts:274-276` (the `provider: { requireParameters: true }`
+spread on the `vehicle === "response-format"` arm).
+
+**D-ARM8-2 (SECONDARY, observability).** A non-2xx OpenRouter response reaches the caller as the opaque
+`Response validation failed` — the SDK's response-schema zod chokes on OR's `{error:{message,code}}`
+envelope and `errorMessage(err)` (`index.ts:311`) keeps only the SDK's generic sentence, discarding OR's
+own `"No endpoints found…"` text. This is precisely why the m4 probe "couldn't get the response body," and
+why this diagnosis needed a raw replay. The error path should surface OR's HTTP status + body (the
+`instruments-lie` class: an upstream 404 presenting as an internal validation error).
+
+## Corrections to prior receipts (verify-before-building)
+
+- **`2026-08-09-openrouter-structured-output-probe.md` Finding 1 is now FALSE.** It ruled
+  "`require_parameters:true` changed NO cell of the matrix, in either direction" and warned "any future note
+  claiming it is what makes `response_format` work should be checked against this table first." Five days
+  later `require_parameters:true` flips EVERY cell 200 → 404. OpenRouter's provider-routing behaviour for
+  that flag (or the set of endpoints advertising these params) has changed since 2026-08-09. The flat-leaf
+  grammar + `strict-compatible` + `strict:true` shape the 2026-08-09 probe validated is STILL 200 — only the
+  `require_parameters` rider is now fatal.
+- **The owner's hypothesis (flip to `strict-compatible` clears it) does not hold, but not because
+  `strict-compatible` is wrong** — the OR `response_format` path already emits strict-compatible
+  unconditionally, and the blocker is the routing flag, orthogonal to schema shape.
+
+## Config-default recommendation
+
+**None — this is not a config question.** The D126 `structuredOutputShape` default should stay
+`as-projected`; it is inert on the OpenRouter `response_format` path either way. The fix is code
+(D-ARM8-1), routed to a follow-up lane; no board config-default change is warranted.
+
+## Scratch data (lane `os-`, all deleted; receipts in `reports/lane-os/`, gitignored)
+
+`os-scratch-subject`, `os-restore-probe`, `os-verify-probe` — all minted and removed by this lane;
+`character.list` = 0 afterward. Driver + logs: `os-kit.ts`, `os-step1…4*.ts`, `step1…4.log`,
+`results.json`, `raw-replay.json`, `debug-errors.json`, `wire-outcomes.json`.
