@@ -224,7 +224,7 @@ function blockers(target: Issue): readonly number[] {
     `owner=${PROJECT_OWNER}`,
     "-f",
     "repo=orbweaver",
-    "-f",
+    "-F",
     `number=${target.number}`,
   ]);
   return result.data.repository.issue.blockedBy.nodes.map((blocker) => blocker.number);
