@@ -17,6 +17,7 @@ import {
   insertSnapshot,
   resolveSnapshotBeforeSlot,
   resolveSnapshotForTurn,
+  resolveSnapshotHead,
   resolveTurnSnapshotPair,
   writeHandSnapshot,
   writeStagedSnapshot,
@@ -108,6 +109,100 @@ describe("the head resolution ladder", () => {
     const gameId = await seedGame(db, chatId);
     const base = await resolveSnapshotForTurn(db, { id: gameId, chatId });
     expect(base).toBeUndefined();
+  });
+});
+
+describe("RPG-REWIND-STUCK — the turn arm WALKS the selected lineage; a swipe rewinds", () => {
+  // The owner's class report was "rewinding swipes leaves state stuck" (2026-08-13, no single repro). The turn
+  // arm used to inspect exactly ONE slot: it read the tail assistant slot, looked up its SELECTED variant's
+  // snapshot, and returned nothing if there wasn't one. But a snapshot-less variant is the NORMAL case —
+  // `chat-ops/flush.ts`: "a turn that staged NOTHING writes NO snapshot", and under the born-default `folded`
+  // mode that is every beat which changes no tracked state. So the arm went dark on most beats and the head
+  // fell to the game-wide `latestSnapshot`, which orders by `createdAt`, is blind to story position, and
+  // excludes no slot. Linear play hid it (write order agrees with story order); a REWIND exposed it by
+  // resolving the ABANDONED SIBLING VARIANT'S OWN ROW.
+  //
+  // These are TRANSITION tests, not endpoint pokes (the merge-clear-needs-a-transition-test law): each drives
+  // the swipe and asserts the state on BOTH sides of it, because "stuck" is by definition a claim about what
+  // a transition failed to change.
+
+  test("swiping to a QUIET sibling rewinds to the previous beat — and swiping BACK returns", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const b1 = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: b1.variantId, key: "s1", location: "the ford" });
+    const b2 = await seedMessage(db, chatId, 2, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 2, variantId: b2.variantId, key: "s2", location: "the keep" });
+
+    // BEFORE: beat 2's own variant is selected and carries a snapshot.
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the keep");
+
+    // THE SWIPE — a sibling variant on the SAME slot whose turn was quiet, so it wrote no snapshot at all.
+    const quiet = await addVariant(db, b2.messageId, 1, "she says nothing of the keep");
+    await db.update(messages).set({ selectedVariantId: quiet }).where(eq(messages.id, b2.messageId));
+
+    // AFTER: beat 2 now contributes nothing, so the head is beat 1 — NOT the abandoned sibling's "the keep",
+    // which is the row the position-blind fallback used to hand back.
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the ford");
+
+    // AND BACK — the return leg is what makes this a transition test rather than two endpoints: re-selecting
+    // the original variant must restore its consequences with zero writes (D26's swipe-rewind promise).
+    await db.update(messages).set({ selectedVariantId: b2.variantId }).where(eq(messages.id, b2.messageId));
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the keep");
+  });
+
+  test("the head NEVER resolves a non-selected sibling's row — even when it is the only snapshot in the game", async () => {
+    // The starkest form of the same defect: one beat, two variants, only the ABANDONED one ever wrote state.
+    // The honest answer is the pre-story baseline (undefined ⇒ the caller synthesizes the born default), not a
+    // row belonging to prose the user navigated away from.
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: beat.variantId, key: "s1", location: "the keep" });
+    const quiet = await addVariant(db, beat.messageId, 1, "a quieter beat");
+    await db.update(messages).set({ selectedVariantId: quiet }).where(eq(messages.id, beat.messageId));
+
+    expect(await resolveSnapshotForTurn(db, { id: gameId, chatId })).toBeUndefined();
+  });
+
+  test("LINEAR play with a quiet tail beat resolves through the TURN arm, not the createdAt fallback", async () => {
+    // The control, and the reason the defect had no repro: this case was ALREADY answered correctly, but by the
+    // position-blind fallback rather than the ladder. Same visible answer, wrong machinery — and the wrong
+    // machinery is what broke the moment anything was rewound. Pinning the ANSWER alone would not have caught
+    // the defect, so this asserts the row identity that only the lineage walk can produce.
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const b1 = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: b1.variantId, key: "s1", location: "the ford" });
+    // Beat 2 is quiet — no snapshot row of its own.
+    await seedMessage(db, chatId, 2, { role: "assistant" });
+
+    const head = await resolveSnapshotHead(db, { id: gameId, chatId });
+    expect(head?.arm).toBe("turn");
+    expect(head?.seq).toBe(1);
+    expect(head?.row.location).toBe("the ford");
+  });
+
+  test("the walk stays on the SELECTED lineage — an unselected earlier sibling is skipped, not preferred", async () => {
+    // The descent must not turn into "any snapshot below me": beat 1 has two variants and the selected one is
+    // quiet, so the walk must pass beat 1 entirely rather than pick up its abandoned sibling on the way down.
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const b0 = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: b0.variantId, key: "s0", location: "the road" });
+    const b1 = await seedMessage(db, chatId, 2, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 2, variantId: b1.variantId, key: "s1", location: "the keep" });
+    // Swipe beat 2 to a quiet sibling, and beat 1 as well — beat 1's own contribution is now abandoned too.
+    const quiet2 = await addVariant(db, b1.messageId, 1, "quiet 2");
+    await db.update(messages).set({ selectedVariantId: quiet2 }).where(eq(messages.id, b1.messageId));
+
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the road");
+
+    const quiet0 = await addVariant(db, b0.messageId, 1, "quiet 1");
+    await db.update(messages).set({ selectedVariantId: quiet0 }).where(eq(messages.id, b0.messageId));
+
+    // Both beats are now quiet on the selected lineage — the story has established nothing.
+    expect(await resolveSnapshotForTurn(db, { id: gameId, chatId })).toBeUndefined();
   });
 });
 

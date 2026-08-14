@@ -6,7 +6,7 @@
 // decides whose ROW, never which FIELDS, so a member self-granting a meter on their own `user` sheet was
 // reachable until 2026-08-07 (the host-only invariant was client-side only).
 
-import { RPG_PROFILE_D20 } from "@orb/contracts/rpg";
+import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
@@ -15,7 +15,7 @@ import { beforeEach, describe } from "vitest";
 import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { findSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, makeRpgService, principal, seedChat, seedUser, test } from "../_support.ts";
+import { expect, makeRpgService, principal, rosterUser, seedChat, seedLiteGame, seedUser, test } from "../_support.ts";
 
 const RANGE_RE = /out of range/i;
 const UNKNOWN_ATTR_RE = /not in the profile/i;
@@ -132,6 +132,70 @@ describe("patchSheet", () => {
     await expect(
       service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "user", userId }, patch: { attributes: { str: 99 } } }),
     ).rejects.toThrow(RANGE_RE);
+  });
+});
+
+describe("patchSheet — RPG-STAT-CLOBBER: the attributes record is a PER-KEY merge, not a whole-record replace", () => {
+  // The owner's live repro (2026-08-13): "type 20 into strength, click out → reverts to 1". The panel's
+  // attribute cell writes ONE key (`patch:{attributes:{[key]:next}}` — `rpg-character-detail.tsx`), and an
+  // unset key renders `profile.range.min`, which for the d20 profile IS `1`. So a whole-record replace at the
+  // verb makes every OTHER attribute vanish on the next cell's blur — and the cell the host filled in first
+  // is the one that visibly "reverts to 1". The client's optimistic cache patch (2026-08-07,
+  // RPG-STAT-ENTRY-REVERTS in `use-rpg-mutations.ts`) already merges KEY-WISE and documents attributes as
+  // merging; the server did not, so the optimistic paint was correct for exactly one round-trip and then the
+  // invalidate settled onto the clobbered row. Asserted through `getTrackerView` — the read the panel
+  // actually renders — not the persistence row alone.
+
+  test("filling a sheet one cell at a time keeps every earlier attribute (the panel's exact payload)", async () => {
+    const hostId = await seedUser(db, castId<Handle>("host"));
+    const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "The Host")] });
+    const host = principal(castId<Handle>("host"));
+    await h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_D20 } });
+    const ref = { kind: "user" as const, userId: hostId };
+
+    // Cell by cell, exactly as the takeover writes them: one key per blur.
+    await h.service.patchSheet({ principal: host, chatId, actorRef: ref, patch: { attributes: { str: 20 } } });
+    await h.service.patchSheet({ principal: host, chatId, actorRef: ref, patch: { attributes: { dex: 14 } } });
+    await h.service.patchSheet({ principal: host, chatId, actorRef: ref, patch: { attributes: { con: 12 } } });
+
+    const view = await h.service.getTrackerView({ principal: host, chatId });
+    expect(view.actors[0]?.sheet.attributes).toEqual({ str: 20, dex: 14, con: 12 });
+  });
+
+  test("a null attribute value CLEARS that key — the [merge-clear] door a per-key merge owes the profile editor", async () => {
+    // Without an explicit clear, a merged key could never leave a sheet, and `updateConfig`'s
+    // `rpg_profile_referenced_remove` would then refuse to drop that attribute from the profile FOREVER (the
+    // Stat profile editor's Remove would be permanently dead for any attribute anyone ever filled in). The
+    // house grammar for this is [merge-clear] (D108): omit keeps, explicit `null` clears.
+    const hostId = await seedUser(db, castId<Handle>("host"));
+    const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "The Host")] });
+    const host = principal(castId<Handle>("host"));
+    await h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_D20 } });
+    const ref = { kind: "user" as const, userId: hostId };
+
+    await h.service.patchSheet({ principal: host, chatId, actorRef: ref, patch: { attributes: { str: 20, dex: 14 } } });
+    await h.service.patchSheet({ principal: host, chatId, actorRef: ref, patch: { attributes: { dex: null } } });
+
+    const view = await h.service.getTrackerView({ principal: host, chatId });
+    expect(view.actors[0]?.sheet.attributes).toEqual({ str: 20 });
+    // …and the cleared key no longer blocks the profile shrink (the referenced-remove gate reads the sheets).
+    await h.service.patchSheet({ principal: host, chatId, actorRef: ref, patch: { attributes: { str: null } } });
+    await expect(h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_FREEFORM } })).resolves.toBeUndefined();
+  });
+
+  test("a CLEAR is not a range check — null passes the vocabulary gate but skips the band", async () => {
+    // `null` still has to name a REAL attribute (clearing a key the profile never had is a caller bug worth
+    // hearing about), but it must not be measured against `[min,max]` — that comparison on null is the classic
+    // silent-true that would let a clear through a range gate for the wrong reason.
+    const hostId = await seedUser(db, castId<Handle>("host"));
+    const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "The Host")] });
+    const host = principal(castId<Handle>("host"));
+    await h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_D20 } });
+    const ref = { kind: "user" as const, userId: hostId };
+
+    await expect(h.service.patchSheet({ principal: host, chatId, actorRef: ref, patch: { attributes: { nonsense: null } } })).rejects.toThrow(UNKNOWN_ATTR_RE);
+    // Clearing a key the sheet never carried is a legal no-op (idempotent), not a refusal.
+    await expect(h.service.patchSheet({ principal: host, chatId, actorRef: ref, patch: { attributes: { wis: null } } })).resolves.toBeUndefined();
   });
 });
 

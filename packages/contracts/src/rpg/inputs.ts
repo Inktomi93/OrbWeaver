@@ -105,7 +105,14 @@ export const rpgPatchSheetInputSchema = z.object({
   actorRef: rpgActorRefSchema,
   patch: z.object({
     className: z.string().optional(),
-    attributes: z.record(z.string(), z.number().int()).optional(),
+    // RPG-STAT-CLOBBER — the attributes record is itself a [merge-clear] PATCH (D108's grammar), not an image:
+    // a named key is written, an OMITTED key is kept, and an explicit `null` CLEARS that key. The panel writes
+    // ONE key per blurred cell, so whole-record replace semantics here silently erased every other attribute
+    // on the sheet — the owner's "type 20 into strength, click out, it reverts to 1" (an absent key renders the
+    // profile's range floor). The `null` arm is not decoration: `updateConfig` refuses to REMOVE an attribute
+    // any sheet still references, so without an explicit clear a filled-in key would pin its attribute into the
+    // profile forever.
+    attributes: z.record(z.string(), z.number().int().nullable()).optional(),
     // The per-actor TRACKER EXCEPTIONS (the unification's applicability model): tracker KEYS this actor is
     // granted beyond its carrier class, and keys revoked from it. Omit keeps; a passed array REPLACES it.
     // Tracker DEFS are not here — they home once in `config.trackers` (`updateConfig` is their door).

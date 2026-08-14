@@ -23,15 +23,16 @@ import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
-import { Grid, Row, Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { StatCell, TrackerChip, TrackerValue } from "#components";
+import { TrackerChip, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-mutations.ts";
 import type { ActorEdit } from "./rpg-actor-trackers.tsx";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
+import { AttributeGrid } from "./rpg-attribute-grid.tsx";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
@@ -177,42 +178,6 @@ function WalletChips({
         />
       ))}
     </>
-  );
-}
-
-/** The ATTRIBUTES plane — the profile vocabulary as stat cells (hint on title), clamped into the profile
- *  range on commit (§12.3 Tier-1). A profile with NO attributes says so and points at where they are
- *  authored (the Game tab's Stat profile section, which now adds/renames/glosses them — RV-4/RV-12). */
-function AttributeGrid({
-  profile,
-  actor,
-  onEditAttribute,
-}: {
-  readonly profile: RpgStatProfile;
-  readonly actor: RpgActorView;
-  readonly onEditAttribute?: (key: string, next: number) => void;
-}): ReactElement {
-  return (
-    <Stack gap="field">
-      <Kicker>Attributes</Kicker>
-      {profile.attributes.length === 0 ? (
-        <RpgDoorwayLine>No attributes in this game yet — the host adds them in the Game tab's Stat profile.</RpgDoorwayLine>
-      ) : (
-        <Grid cols="tile" gap="field">
-          {profile.attributes.map((def) => (
-            <StatCell
-              key={def.key}
-              label={def.label}
-              value={actor.sheet.attributes[def.key] ?? profile.range.min}
-              {...(def.hint === "" ? {} : { hint: def.hint })}
-              {...(onEditAttribute === undefined
-                ? {}
-                : { onEditValue: (next: number): void => onEditAttribute(def.key, Math.min(profile.range.max, Math.max(profile.range.min, next))) })}
-            />
-          ))}
-        </Grid>
-      )}
-    </Stack>
   );
 }
 
@@ -365,7 +330,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
     : {};
   const attributeWrites = canEditSheet
     ? {
-        onEditAttribute: (key: string, next: number): void => {
+        onEditAttribute: (key: string, next: number | null): void => {
           patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { attributes: { [key]: next } } });
         },
       }
