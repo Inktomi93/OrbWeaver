@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "stats": {
     "pending": 0,
-    "missingFrontmatter": 287,
-    "invalidFrontmatter": 50,
+    "missingFrontmatter": 256,
+    "invalidFrontmatter": 37,
     "malformedFrontmatter": 1
   },
   "documents": [
@@ -99,26 +99,26 @@
       "lane": "architecture-proposed",
       "issue": 4,
       "lines": 247,
-      "bytes": 15191,
-      "sha256": "ca57999defbd99c0968ec17a3ee1ad728c1dba0df3a8be3a7e9e020bc0ed7b8b",
+      "bytes": 15193,
+      "sha256": "ff12971559ff7563295cdaa3158f8e4b5e4909c76a4d62c8c42f4813121c8d4f",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "audit",
-          "status": "draft",
-          "updated": "2026-07-22"
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
         },
-        "errors": ["docs/architecture/Agent-And-Composition-Pain-Points.md: invalid frontmatter kind audit"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/Agent-And-Composition-Pain-Points.md",
-        "assignedSha256": "ca57999defbd99c0968ec17a3ee1ad728c1dba0df3a8be3a7e9e020bc0ed7b8b",
+        "assignedSha256": "ff12971559ff7563295cdaa3158f8e4b5e4909c76a4d62c8c42f4813121c8d4f",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "ca57999defbd99c0968ec17a3ee1ad728c1dba0df3a8be3a7e9e020bc0ed7b8b",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "ff12971559ff7563295cdaa3158f8e4b5e4909c76a4d62c8c42f4813121c8d4f",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/Agent-And-Composition-Pain-Points.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -4014,23 +4014,27 @@
       "path": "docs/architecture/proposed/INDEX.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 38,
-      "bytes": 7430,
-      "sha256": "2248469002ff82e9012ee9c5c196efafcc911614ca15ac7127d0296728c6fcb2",
+      "lines": 44,
+      "bytes": 7486,
+      "sha256": "1bc9377962b5fb33e8a91dae64905dc0b8c1065a3ee1e4465a9af424be203f0a",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "index",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/INDEX.md",
-        "assignedSha256": "2248469002ff82e9012ee9c5c196efafcc911614ca15ac7127d0296728c6fcb2",
+        "assignedSha256": "1bc9377962b5fb33e8a91dae64905dc0b8c1065a3ee1e4465a9af424be203f0a",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "2248469002ff82e9012ee9c5c196efafcc911614ca15ac7127d0296728c6fcb2",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "1bc9377962b5fb33e8a91dae64905dc0b8c1065a3ee1e4465a9af424be203f0a",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/proposed/INDEX.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -4110,23 +4114,27 @@
       "path": "docs/architecture/proposed/agent-principal-design/01-identity-and-mint.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 230,
-      "bytes": 15527,
-      "sha256": "462027438c7faa0e09572ae4f0641e13d48ca49de7ebcf4bad3cc89d3c3fafa2",
+      "lines": 236,
+      "bytes": 15584,
+      "sha256": "36e99c8f58fbef6874744405d110d9159275d22600ca15670cfaab35af4f636b",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/agent-principal-design/01-identity-and-mint.md",
-        "assignedSha256": "462027438c7faa0e09572ae4f0641e13d48ca49de7ebcf4bad3cc89d3c3fafa2",
+        "assignedSha256": "36e99c8f58fbef6874744405d110d9159275d22600ca15670cfaab35af4f636b",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "462027438c7faa0e09572ae4f0641e13d48ca49de7ebcf4bad3cc89d3c3fafa2",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "36e99c8f58fbef6874744405d110d9159275d22600ca15670cfaab35af4f636b",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/proposed/agent-principal-design/01-identity-and-mint.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -4173,23 +4181,27 @@
       "path": "docs/architecture/proposed/agent-principal-design/02-participants-and-attribution.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 182,
-      "bytes": 13373,
-      "sha256": "c1541ad71fa19c3dbc5f5629f6958a677dfa1e6892c54763278978862de78fcc",
+      "lines": 188,
+      "bytes": 13430,
+      "sha256": "d27e788791d3a44f4869b0e9fbd885fd906eefd4b6c3d00708d2d486adb12aff",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/agent-principal-design/02-participants-and-attribution.md",
-        "assignedSha256": "c1541ad71fa19c3dbc5f5629f6958a677dfa1e6892c54763278978862de78fcc",
+        "assignedSha256": "d27e788791d3a44f4869b0e9fbd885fd906eefd4b6c3d00708d2d486adb12aff",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "c1541ad71fa19c3dbc5f5629f6958a677dfa1e6892c54763278978862de78fcc",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "d27e788791d3a44f4869b0e9fbd885fd906eefd4b6c3d00708d2d486adb12aff",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/proposed/agent-principal-design/02-participants-and-attribution.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -4236,23 +4248,27 @@
       "path": "docs/architecture/proposed/agent-principal-design/03-capability-ceiling.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 137,
-      "bytes": 10902,
-      "sha256": "d528590c13d352fe319568e3a50f7ccbc8197cc8dfa99935ce6ec0087cb07f16",
+      "lines": 143,
+      "bytes": 10959,
+      "sha256": "a19b7da991c6839bc1a3b1ad532a1570ee621f2c94243d8548b7c8f8b8e59efa",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/agent-principal-design/03-capability-ceiling.md",
-        "assignedSha256": "d528590c13d352fe319568e3a50f7ccbc8197cc8dfa99935ce6ec0087cb07f16",
+        "assignedSha256": "a19b7da991c6839bc1a3b1ad532a1570ee621f2c94243d8548b7c8f8b8e59efa",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "d528590c13d352fe319568e3a50f7ccbc8197cc8dfa99935ce6ec0087cb07f16",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "a19b7da991c6839bc1a3b1ad532a1570ee621f2c94243d8548b7c8f8b8e59efa",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/proposed/agent-principal-design/03-capability-ceiling.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -4299,23 +4315,27 @@
       "path": "docs/architecture/proposed/agent-principal-design/04-buddy-transition.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 156,
-      "bytes": 11127,
-      "sha256": "208e4ec0d19a88a24d5603c7674c7e15a0f11c03647a47d7895c876557ede65a",
+      "lines": 162,
+      "bytes": 11184,
+      "sha256": "96d4aee43f23fab02227628c92c82c5762529855416af642601a1d98ba7f70b4",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/agent-principal-design/04-buddy-transition.md",
-        "assignedSha256": "208e4ec0d19a88a24d5603c7674c7e15a0f11c03647a47d7895c876557ede65a",
+        "assignedSha256": "96d4aee43f23fab02227628c92c82c5762529855416af642601a1d98ba7f70b4",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "208e4ec0d19a88a24d5603c7674c7e15a0f11c03647a47d7895c876557ede65a",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "96d4aee43f23fab02227628c92c82c5762529855416af642601a1d98ba7f70b4",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/proposed/agent-principal-design/04-buddy-transition.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -4362,23 +4382,27 @@
       "path": "docs/architecture/proposed/agent-principal-design/05-seats.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 107,
-      "bytes": 8550,
-      "sha256": "6fb117b866bc855d77db0b974a8d6d5a73216fd3736dcd80f5fa9bab43ce993b",
+      "lines": 113,
+      "bytes": 8607,
+      "sha256": "b647e64982bb9905d4f3ca2e59e35d0816d1f245c6ddae2f38648f2a64664750",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/agent-principal-design/05-seats.md",
-        "assignedSha256": "6fb117b866bc855d77db0b974a8d6d5a73216fd3736dcd80f5fa9bab43ce993b",
+        "assignedSha256": "b647e64982bb9905d4f3ca2e59e35d0816d1f245c6ddae2f38648f2a64664750",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "6fb117b866bc855d77db0b974a8d6d5a73216fd3736dcd80f5fa9bab43ce993b",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "b647e64982bb9905d4f3ca2e59e35d0816d1f245c6ddae2f38648f2a64664750",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/proposed/agent-principal-design/05-seats.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -4425,23 +4449,27 @@
       "path": "docs/architecture/proposed/agent-principal-design/06-ripples.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 115,
-      "bytes": 7950,
-      "sha256": "e45819d696ec00f706bbb9372c36a7e060df8128d3b75fd8f0ad61c557ba8f36",
+      "lines": 121,
+      "bytes": 8007,
+      "sha256": "1c12716703baaf600d41d58fa03d8853defd1312f0d57a35f4eb41ea8be498a6",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/agent-principal-design/06-ripples.md",
-        "assignedSha256": "e45819d696ec00f706bbb9372c36a7e060df8128d3b75fd8f0ad61c557ba8f36",
+        "assignedSha256": "1c12716703baaf600d41d58fa03d8853defd1312f0d57a35f4eb41ea8be498a6",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "e45819d696ec00f706bbb9372c36a7e060df8128d3b75fd8f0ad61c557ba8f36",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "1c12716703baaf600d41d58fa03d8853defd1312f0d57a35f4eb41ea8be498a6",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/proposed/agent-principal-design/06-ripples.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -4488,23 +4516,27 @@
       "path": "docs/architecture/proposed/agent-principal-design/07-build-plan.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 140,
-      "bytes": 10481,
-      "sha256": "9701e540d8d3d4d77c3772fb834a6809b428a7097568f99bf6bd7948ec13f7b3",
+      "lines": 146,
+      "bytes": 10538,
+      "sha256": "dc8715e86f32767227ecfee2084c2004a10c65e08a18c6d11b1f898873a0dd43",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/agent-principal-design/07-build-plan.md",
-        "assignedSha256": "9701e540d8d3d4d77c3772fb834a6809b428a7097568f99bf6bd7948ec13f7b3",
+        "assignedSha256": "dc8715e86f32767227ecfee2084c2004a10c65e08a18c6d11b1f898873a0dd43",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "9701e540d8d3d4d77c3772fb834a6809b428a7097568f99bf6bd7948ec13f7b3",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "dc8715e86f32767227ecfee2084c2004a10c65e08a18c6d11b1f898873a0dd43",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/proposed/agent-principal-design/07-build-plan.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -4551,23 +4583,27 @@
       "path": "docs/architecture/proposed/agent-principal-design/README.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 101,
-      "bytes": 10070,
-      "sha256": "76627a79ed3f5480c138daefcd0beffb6aa73cb434a4081f41e65b72ae02efdf",
+      "lines": 107,
+      "bytes": 10127,
+      "sha256": "4cf4092b3471cf6b3aad4943faba64f5d26b62f1a4518390aaefbca6767499f8",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/agent-principal-design/README.md",
-        "assignedSha256": "76627a79ed3f5480c138daefcd0beffb6aa73cb434a4081f41e65b72ae02efdf",
+        "assignedSha256": "4cf4092b3471cf6b3aad4943faba64f5d26b62f1a4518390aaefbca6767499f8",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "76627a79ed3f5480c138daefcd0beffb6aa73cb434a4081f41e65b72ae02efdf",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "4cf4092b3471cf6b3aad4943faba64f5d26b62f1a4518390aaefbca6767499f8",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/proposed/agent-principal-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -5237,23 +5273,27 @@
       "path": "docs/architecture/proposed/bg-video-background-mini-spec.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 182,
-      "bytes": 12490,
-      "sha256": "996ce397e52f7ae3e903c638491d5e0e7006630788fc31709991fda80c51e77f",
+      "lines": 188,
+      "bytes": 12547,
+      "sha256": "819b2060c7da889bbd61136f6c5f158397eabc08993f9512f926593722132a56",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/bg-video-background-mini-spec.md",
-        "assignedSha256": "996ce397e52f7ae3e903c638491d5e0e7006630788fc31709991fda80c51e77f",
+        "assignedSha256": "819b2060c7da889bbd61136f6c5f158397eabc08993f9512f926593722132a56",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "996ce397e52f7ae3e903c638491d5e0e7006630788fc31709991fda80c51e77f",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "819b2060c7da889bbd61136f6c5f158397eabc08993f9512f926593722132a56",
+        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/architecture/proposed/bg-video-background-mini-spec.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -10171,23 +10211,27 @@
       "path": "docs/design/actions-tab-information-architecture.md",
       "lane": "design",
       "issue": 5,
-      "lines": 237,
-      "bytes": 17350,
-      "sha256": "54c567e39c8716d2cbbf6cf671626778e2fa7d0be6d0090f13e40540c0aed586",
+      "lines": 243,
+      "bytes": 17411,
+      "sha256": "732028fd2a35b57d4eee627eb59f6d069a11721c647f49448160dde9ee2a52bc",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/actions-tab-information-architecture.md",
-        "assignedSha256": "54c567e39c8716d2cbbf6cf671626778e2fa7d0be6d0090f13e40540c0aed586",
+        "assignedSha256": "732028fd2a35b57d4eee627eb59f6d069a11721c647f49448160dde9ee2a52bc",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "54c567e39c8716d2cbbf6cf671626778e2fa7d0be6d0090f13e40540c0aed586",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "732028fd2a35b57d4eee627eb59f6d069a11721c647f49448160dde9ee2a52bc",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/actions-tab-information-architecture.md:1 (design; unheaded)",
@@ -10217,23 +10261,27 @@
       "path": "docs/design/boot-loader-smoothness-options.md",
       "lane": "design",
       "issue": 5,
-      "lines": 387,
-      "bytes": 33114,
-      "sha256": "136c06b279197e10e8496dd6df8611fe31aca7c527edcc3a4e8922805f7c9958",
+      "lines": 392,
+      "bytes": 33166,
+      "sha256": "8efb0c6db36cea700bb553e241ae3ec1a090d6a645a6edb8b90ab0e3613371b9",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/boot-loader-smoothness-options.md",
-        "assignedSha256": "136c06b279197e10e8496dd6df8611fe31aca7c527edcc3a4e8922805f7c9958",
+        "assignedSha256": "8efb0c6db36cea700bb553e241ae3ec1a090d6a645a6edb8b90ab0e3613371b9",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "136c06b279197e10e8496dd6df8611fe31aca7c527edcc3a4e8922805f7c9958",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "8efb0c6db36cea700bb553e241ae3ec1a090d6a645a6edb8b90ab0e3613371b9",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/boot-loader-smoothness-options.md:1 (design; unheaded)",
@@ -10298,23 +10346,27 @@
       "path": "docs/design/config-ia-the-junk-drawer-problem.md",
       "lane": "design",
       "issue": 5,
-      "lines": 191,
-      "bytes": 12378,
-      "sha256": "a747fe9e5d3a65cec8b3bdbcfe6251eb0e1d3cfa0518d1dc89a29c22924f9771",
+      "lines": 197,
+      "bytes": 12435,
+      "sha256": "ad6b4f4d21b85a86f705cde02b87668ca1cd8acbc13dbee2b8462298db627cd5",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/config-ia-the-junk-drawer-problem.md",
-        "assignedSha256": "a747fe9e5d3a65cec8b3bdbcfe6251eb0e1d3cfa0518d1dc89a29c22924f9771",
+        "assignedSha256": "ad6b4f4d21b85a86f705cde02b87668ca1cd8acbc13dbee2b8462298db627cd5",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "a747fe9e5d3a65cec8b3bdbcfe6251eb0e1d3cfa0518d1dc89a29c22924f9771",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "ad6b4f4d21b85a86f705cde02b87668ca1cd8acbc13dbee2b8462298db627cd5",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/config-ia-the-junk-drawer-problem.md:1 (design; unheaded)",
@@ -10376,27 +10428,26 @@
       "lane": "design",
       "issue": 5,
       "lines": 191,
-      "bytes": 16796,
-      "sha256": "77bea0f8f9d8362d0f7d6d0608390d6de876abdd06d2483d41698c9a669d060d",
+      "bytes": 16671,
+      "sha256": "7859454c9c91374216e76aff22bcc0b80be9f1126f9e3e19daac421bfe4a02fd",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-08",
-          "scope": "build plan for the prod container artifacts + profile-2 code changes (forge lane, executes containerize-prod-image-spec.md)"
+          "updated": "2026-08-14"
         },
-        "errors": ["docs/design/containerize-build-plan.md: unsupported frontmatter key scope"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/containerize-build-plan.md",
-        "assignedSha256": "77bea0f8f9d8362d0f7d6d0608390d6de876abdd06d2483d41698c9a669d060d",
+        "assignedSha256": "7859454c9c91374216e76aff22bcc0b80be9f1126f9e3e19daac421bfe4a02fd",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "77bea0f8f9d8362d0f7d6d0608390d6de876abdd06d2483d41698c9a669d060d",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "7859454c9c91374216e76aff22bcc0b80be9f1126f9e3e19daac421bfe4a02fd",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/containerize-build-plan.md:1 (design; active)",
@@ -10426,28 +10477,27 @@
       "path": "docs/design/containerize-prod-image-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 484,
-      "bytes": 38063,
-      "sha256": "935b2e24ec443519b07fee64d2ccd312aadd90e47363a94904c086be7b26bf18",
+      "lines": 486,
+      "bytes": 38033,
+      "sha256": "a93959e4bbacf9959157066839c58effe0041a04fc8b1f63e75f60ba59a6084a",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "owner-review": "REQUIRED (forks in §7)",
-          "updated": "2026-08-08"
+          "updated": "2026-08-14"
         },
-        "errors": ["docs/design/containerize-prod-image-spec.md: unsupported frontmatter key owner-review"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/containerize-prod-image-spec.md",
-        "assignedSha256": "935b2e24ec443519b07fee64d2ccd312aadd90e47363a94904c086be7b26bf18",
+        "assignedSha256": "a93959e4bbacf9959157066839c58effe0041a04fc8b1f63e75f60ba59a6084a",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "935b2e24ec443519b07fee64d2ccd312aadd90e47363a94904c086be7b26bf18",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "a93959e4bbacf9959157066839c58effe0041a04fc8b1f63e75f60ba59a6084a",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/containerize-prod-image-spec.md:1 (design; draft)",
@@ -10543,23 +10593,27 @@
       "path": "docs/design/default-character-roster.md",
       "lane": "design",
       "issue": 5,
-      "lines": 1788,
-      "bytes": 119828,
-      "sha256": "1f43ec306b74580c0f1c7dd665b751153c12c31d0668f35d0157b3c46cbd4e2f",
+      "lines": 1791,
+      "bytes": 119847,
+      "sha256": "d31894370ae4199b49bcd5f7f81944eec92f22df33715eda6b23cd6d26b609d0",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/default-character-roster.md",
-        "assignedSha256": "1f43ec306b74580c0f1c7dd665b751153c12c31d0668f35d0157b3c46cbd4e2f",
+        "assignedSha256": "d31894370ae4199b49bcd5f7f81944eec92f22df33715eda6b23cd6d26b609d0",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "1f43ec306b74580c0f1c7dd665b751153c12c31d0668f35d0157b3c46cbd4e2f",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "d31894370ae4199b49bcd5f7f81944eec92f22df33715eda6b23cd6d26b609d0",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/default-character-roster.md:1 (design; unheaded)",
@@ -10589,28 +10643,27 @@
       "path": "docs/design/demo-seeding-rebuild.md",
       "lane": "design",
       "issue": 5,
-      "lines": 96,
-      "bytes": 5715,
-      "sha256": "184e8194f705254c1f039d2038db9b41e6ff8250ad5300938a2b854ea91b21f5",
+      "lines": 95,
+      "bytes": 5655,
+      "sha256": "6d897d068e9079ed110ab033620fbe635773a066961e116d37f3e732ebf67643",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "owner-fork": "REQUIRED (shape + the rpg-in-export strategic call)",
-          "updated": "2026-08-09"
+          "updated": "2026-08-14"
         },
-        "errors": ["docs/design/demo-seeding-rebuild.md: unsupported frontmatter key owner-fork"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/demo-seeding-rebuild.md",
-        "assignedSha256": "184e8194f705254c1f039d2038db9b41e6ff8250ad5300938a2b854ea91b21f5",
+        "assignedSha256": "6d897d068e9079ed110ab033620fbe635773a066961e116d37f3e732ebf67643",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "184e8194f705254c1f039d2038db9b41e6ff8250ad5300938a2b854ea91b21f5",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "6d897d068e9079ed110ab033620fbe635773a066961e116d37f3e732ebf67643",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/demo-seeding-rebuild.md:1 (design; draft)",
@@ -10637,26 +10690,26 @@
       "lane": "design",
       "issue": 5,
       "lines": 313,
-      "bytes": 21341,
-      "sha256": "0f241b7251eae6bedd89baaf7219881bbcb44afa0e09aa501e5569f19ea2e63e",
+      "bytes": 21316,
+      "sha256": "bf0a32846d6cc924b9251dd0b2c3e9c562df1627de1fd400795935950808d4eb",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
-          "status": "approved (owner-ruled 2026-08-01)",
-          "updated": "2026-07-31"
+          "status": "active",
+          "updated": "2026-08-14"
         },
-        "errors": ["docs/design/density-pass-spec.md: invalid frontmatter status approved (owner-ruled 2026-08-01)"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/density-pass-spec.md",
-        "assignedSha256": "0f241b7251eae6bedd89baaf7219881bbcb44afa0e09aa501e5569f19ea2e63e",
+        "assignedSha256": "bf0a32846d6cc924b9251dd0b2c3e9c562df1627de1fd400795935950808d4eb",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0f241b7251eae6bedd89baaf7219881bbcb44afa0e09aa501e5569f19ea2e63e",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "bf0a32846d6cc924b9251dd0b2c3e9c562df1627de1fd400795935950808d4eb",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/density-pass-spec.md:1 (spec; approved (owner-ruled 2026-08-01))",
@@ -10686,32 +10739,27 @@
       "path": "docs/design/docker-modern-practices-research.md",
       "lane": "design",
       "issue": 5,
-      "lines": 530,
-      "bytes": 27914,
-      "sha256": "d7c9707c1a553e6788cbb95a6cd555f6fbaae40ed69ed8ba13a2e484ca113511",
+      "lines": 529,
+      "bytes": 27783,
+      "sha256": "543bdf62e156d3391528c4799336a1646adc72e4f248fa003fd7fdb26c46673b",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "research",
           "status": "draft",
-          "owner-review": "not-required (input to the forge build lane)",
-          "updated": "2026-08-08",
-          "scope": "builder-ready Docker/BuildKit/Compose brief for containerize-prod-image-spec.md"
+          "updated": "2026-08-14"
         },
-        "errors": [
-          "docs/design/docker-modern-practices-research.md: unsupported frontmatter key owner-review",
-          "docs/design/docker-modern-practices-research.md: unsupported frontmatter key scope"
-        ]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/docker-modern-practices-research.md",
-        "assignedSha256": "d7c9707c1a553e6788cbb95a6cd555f6fbaae40ed69ed8ba13a2e484ca113511",
+        "assignedSha256": "543bdf62e156d3391528c4799336a1646adc72e4f248fa003fd7fdb26c46673b",
         "disposition": "needs-owner",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "d7c9707c1a553e6788cbb95a6cd555f6fbaae40ed69ed8ba13a2e484ca113511",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "543bdf62e156d3391528c4799336a1646adc72e4f248fa003fd7fdb26c46673b",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/docker-modern-practices-research.md:1 (research; draft)",
@@ -10858,27 +10906,27 @@
       "path": "docs/design/home-tile-promotion.md",
       "lane": "design",
       "issue": 5,
-      "lines": 100,
-      "bytes": 6591,
-      "sha256": "15b77b24787afb00f36f3a18b2570480b51190497e29c84a1ae712d099532d33",
+      "lines": 99,
+      "bytes": 6563,
+      "sha256": "7d0b82f70054c2cf526f9164ee16f2868d0240acb51c4d92b6495db78366bce0",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
-          "status": "open — owner decision pending",
-          "updated": "2026-08-08"
+          "status": "draft",
+          "updated": "2026-08-14"
         },
-        "errors": ["docs/design/home-tile-promotion.md: invalid frontmatter status open — owner decision pending"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/home-tile-promotion.md",
-        "assignedSha256": "15b77b24787afb00f36f3a18b2570480b51190497e29c84a1ae712d099532d33",
+        "assignedSha256": "7d0b82f70054c2cf526f9164ee16f2868d0240acb51c4d92b6495db78366bce0",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "15b77b24787afb00f36f3a18b2570480b51190497e29c84a1ae712d099532d33",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "7d0b82f70054c2cf526f9164ee16f2868d0240acb51c4d92b6495db78366bce0",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/home-tile-promotion.md:1 (design; open — owner decision pending)",
@@ -10943,23 +10991,27 @@
       "path": "docs/design/lite-plus-guided-substrate-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 915,
-      "bytes": 76164,
-      "sha256": "b5fc08263112412a67edfd2e63c9c28c6ae94008f4fd23ce19cfec2812d418a4",
+      "lines": 922,
+      "bytes": 76233,
+      "sha256": "bb8fbf9f11016305cf06ab84c7d3cf938773e9943160a3723cb42995b1e3af09",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "draft",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/lite-plus-guided-substrate-spec.md",
-        "assignedSha256": "b5fc08263112412a67edfd2e63c9c28c6ae94008f4fd23ce19cfec2812d418a4",
+        "assignedSha256": "bb8fbf9f11016305cf06ab84c7d3cf938773e9943160a3723cb42995b1e3af09",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "b5fc08263112412a67edfd2e63c9c28c6ae94008f4fd23ce19cfec2812d418a4",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "bb8fbf9f11016305cf06ab84c7d3cf938773e9943160a3723cb42995b1e3af09",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/lite-plus-guided-substrate-spec.md:1 (design; unheaded)",
@@ -11183,23 +11235,27 @@
       "path": "docs/design/note-token-intent-history.md",
       "lane": "design",
       "issue": 5,
-      "lines": 256,
-      "bytes": 18210,
-      "sha256": "c58f1999a8a34dd9a13a9a93ea6dc8c87102fa7a666e9b52f166f9c02bb73bdb",
+      "lines": 264,
+      "bytes": 18271,
+      "sha256": "b862f2977be533e1a114e4c8386803ccef41b054f1cf7199a5dcdd677d5b25cb",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/note-token-intent-history.md",
-        "assignedSha256": "c58f1999a8a34dd9a13a9a93ea6dc8c87102fa7a666e9b52f166f9c02bb73bdb",
+        "assignedSha256": "b862f2977be533e1a114e4c8386803ccef41b054f1cf7199a5dcdd677d5b25cb",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "c58f1999a8a34dd9a13a9a93ea6dc8c87102fa7a666e9b52f166f9c02bb73bdb",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "b862f2977be533e1a114e4c8386803ccef41b054f1cf7199a5dcdd677d5b25cb",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/note-token-intent-history.md:1 (design; unheaded)",
@@ -11230,27 +11286,26 @@
       "lane": "design",
       "issue": 5,
       "lines": 505,
-      "bytes": 43535,
-      "sha256": "da8fc7bfbd9bcd46b7435436c9518d417afa8c0e5921e3c1054aa723dedc0e67",
+      "bytes": 43508,
+      "sha256": "62db6f243afd959b51eee37dd5b158cf471a098891fed211fef0c604969cf881",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "owner-review": "REQUIRED (forks in §5)",
-          "updated": "2026-08-09"
+          "updated": "2026-08-14"
         },
-        "errors": ["docs/design/oidc-authentik-openwebui-study.md: unsupported frontmatter key owner-review"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/oidc-authentik-openwebui-study.md",
-        "assignedSha256": "da8fc7bfbd9bcd46b7435436c9518d417afa8c0e5921e3c1054aa723dedc0e67",
+        "assignedSha256": "62db6f243afd959b51eee37dd5b158cf471a098891fed211fef0c604969cf881",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "da8fc7bfbd9bcd46b7435436c9518d417afa8c0e5921e3c1054aa723dedc0e67",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "62db6f243afd959b51eee37dd5b158cf471a098891fed211fef0c604969cf881",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/oidc-authentik-openwebui-study.md:1 (design; draft)",
@@ -11311,28 +11366,27 @@
       "path": "docs/design/openwebui-auth-methods-study.md",
       "lane": "design",
       "issue": 5,
-      "lines": 514,
-      "bytes": 40912,
-      "sha256": "d9310928a10a41dbf8a10fc4052281e99ddee4353449a4942591689c53bc90ad",
+      "lines": 513,
+      "bytes": 40880,
+      "sha256": "12cd2491a28f081c53adbcd345de22da02f828b9d49572ed4d0cd5fdffefcc9b",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "owner-review": "REQUIRED (forks in §6)",
-          "updated": "2026-08-09"
+          "updated": "2026-08-14"
         },
-        "errors": ["docs/design/openwebui-auth-methods-study.md: unsupported frontmatter key owner-review"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/openwebui-auth-methods-study.md",
-        "assignedSha256": "d9310928a10a41dbf8a10fc4052281e99ddee4353449a4942591689c53bc90ad",
+        "assignedSha256": "12cd2491a28f081c53adbcd345de22da02f828b9d49572ed4d0cd5fdffefcc9b",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "d9310928a10a41dbf8a10fc4052281e99ddee4353449a4942591689c53bc90ad",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "12cd2491a28f081c53adbcd345de22da02f828b9d49572ed4d0cd5fdffefcc9b",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/openwebui-auth-methods-study.md:1 (design; draft)",
@@ -11393,32 +11447,27 @@
       "path": "docs/design/parked-options-config-port.md",
       "lane": "design",
       "issue": 5,
-      "lines": 221,
-      "bytes": 15651,
-      "sha256": "fa88ac190c432ebd5e171073ff33e2cac8fb11af0270e6e9555b6fb633183576",
+      "lines": 220,
+      "bytes": 15572,
+      "sha256": "ba64418ec539a817dbaf286d9908465046f98a072f0cfada99bf585a08fb173c",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "design-options",
-          "status": "decision-input",
-          "updated": "2026-08-08",
-          "scope": "config-rail + portability cluster — three parked items"
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
         },
-        "errors": [
-          "docs/design/parked-options-config-port.md: unsupported frontmatter key scope",
-          "docs/design/parked-options-config-port.md: invalid frontmatter kind design-options",
-          "docs/design/parked-options-config-port.md: invalid frontmatter status decision-input"
-        ]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/parked-options-config-port.md",
-        "assignedSha256": "fa88ac190c432ebd5e171073ff33e2cac8fb11af0270e6e9555b6fb633183576",
+        "assignedSha256": "ba64418ec539a817dbaf286d9908465046f98a072f0cfada99bf585a08fb173c",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "fa88ac190c432ebd5e171073ff33e2cac8fb11af0270e6e9555b6fb633183576",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "ba64418ec539a817dbaf286d9908465046f98a072f0cfada99bf585a08fb173c",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/parked-options-config-port.md:1 (design-options; decision-input)",
@@ -11448,23 +11497,27 @@
       "path": "docs/design/parked-options-ops-posture.md",
       "lane": "design",
       "issue": 5,
-      "lines": 263,
-      "bytes": 18349,
-      "sha256": "280ed417d1fe7e362dab8eb7a2c6b70e91f08c8647136539fc38d7ce9b15f2bb",
+      "lines": 271,
+      "bytes": 18412,
+      "sha256": "fbab257e3d52182e102c4cec1c658220681372659f85e71606f7954daa58cbe2",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/parked-options-ops-posture.md",
-        "assignedSha256": "280ed417d1fe7e362dab8eb7a2c6b70e91f08c8647136539fc38d7ce9b15f2bb",
+        "assignedSha256": "fbab257e3d52182e102c4cec1c658220681372659f85e71606f7954daa58cbe2",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "280ed417d1fe7e362dab8eb7a2c6b70e91f08c8647136539fc38d7ce9b15f2bb",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "fbab257e3d52182e102c4cec1c658220681372659f85e71606f7954daa58cbe2",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/parked-options-ops-posture.md:1 (design; unheaded)",
@@ -11494,23 +11547,27 @@
       "path": "docs/design/parked-options-persona-prose.md",
       "lane": "design",
       "issue": 5,
-      "lines": 303,
-      "bytes": 21878,
-      "sha256": "4c6fc9854f479db4fc3f84d61ce8f9bf5d668a759c0406fda4ba6d4ec7cb15c2",
+      "lines": 313,
+      "bytes": 21945,
+      "sha256": "90d8b987e627a836f9f2dfd5c548a7d887488d9770895e95348ea626e9a68f1a",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/parked-options-persona-prose.md",
-        "assignedSha256": "4c6fc9854f479db4fc3f84d61ce8f9bf5d668a759c0406fda4ba6d4ec7cb15c2",
+        "assignedSha256": "90d8b987e627a836f9f2dfd5c548a7d887488d9770895e95348ea626e9a68f1a",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "4c6fc9854f479db4fc3f84d61ce8f9bf5d668a759c0406fda4ba6d4ec7cb15c2",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "90d8b987e627a836f9f2dfd5c548a7d887488d9770895e95348ea626e9a68f1a",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/parked-options-persona-prose.md:1 (design; unheaded)",
@@ -11581,23 +11638,27 @@
       "path": "docs/design/persona-character-kind-substrate.md",
       "lane": "design",
       "issue": 5,
-      "lines": 347,
-      "bytes": 47618,
-      "sha256": "27a6c628af0e29c1a4538a596bdd5855acd264cd7697e9cbbffd73d7e9ca0f9a",
+      "lines": 353,
+      "bytes": 47675,
+      "sha256": "67b178c778674fa64e48a86240a936233929f9d37540773e8203c5e4f05577df",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "draft",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/persona-character-kind-substrate.md",
-        "assignedSha256": "27a6c628af0e29c1a4538a596bdd5855acd264cd7697e9cbbffd73d7e9ca0f9a",
+        "assignedSha256": "67b178c778674fa64e48a86240a936233929f9d37540773e8203c5e4f05577df",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "27a6c628af0e29c1a4538a596bdd5855acd264cd7697e9cbbffd73d7e9ca0f9a",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "67b178c778674fa64e48a86240a936233929f9d37540773e8203c5e4f05577df",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/persona-character-kind-substrate.md:1 (design; unheaded)",
@@ -11662,23 +11723,27 @@
       "path": "docs/design/prod-build-cls-investigation.md",
       "lane": "design",
       "issue": 5,
-      "lines": 57,
-      "bytes": 3512,
-      "sha256": "3d13d9f56d7b88e5b4463d9a6f24759446874359d12d4c1f7fe145600ab21e4c",
+      "lines": 63,
+      "bytes": 3570,
+      "sha256": "c86f4cd62345a0cf7c70330dba65ee0d440c2b989fea75162fa594a1b642c310",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/prod-build-cls-investigation.md",
-        "assignedSha256": "3d13d9f56d7b88e5b4463d9a6f24759446874359d12d4c1f7fe145600ab21e4c",
+        "assignedSha256": "c86f4cd62345a0cf7c70330dba65ee0d440c2b989fea75162fa594a1b642c310",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "3d13d9f56d7b88e5b4463d9a6f24759446874359d12d4c1f7fe145600ab21e4c",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "c86f4cd62345a0cf7c70330dba65ee0d440c2b989fea75162fa594a1b642c310",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/prod-build-cls-investigation.md:1 (design; unheaded)",
@@ -11952,23 +12017,27 @@
       "path": "docs/design/rpg-extraction-one-call-spike.md",
       "lane": "design",
       "issue": 5,
-      "lines": 1239,
-      "bytes": 91376,
-      "sha256": "fb9eeeff27abcb54cd68992007796cb33a3fb4ee8b27886a14f795aab586b4eb",
+      "lines": 1257,
+      "bytes": 91497,
+      "sha256": "e00c38e10d8a93f25600535d59a469d31bcd1e1ce73e41ff13dbc34aa88b1523",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/rpg-extraction-one-call-spike.md",
-        "assignedSha256": "fb9eeeff27abcb54cd68992007796cb33a3fb4ee8b27886a14f795aab586b4eb",
+        "assignedSha256": "e00c38e10d8a93f25600535d59a469d31bcd1e1ce73e41ff13dbc34aa88b1523",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "fb9eeeff27abcb54cd68992007796cb33a3fb4ee8b27886a14f795aab586b4eb",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "e00c38e10d8a93f25600535d59a469d31bcd1e1ce73e41ff13dbc34aa88b1523",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/rpg-extraction-one-call-spike.md:1 (design; unheaded)",
@@ -12295,23 +12364,27 @@
       "path": "docs/design/tracked-field-unification.md",
       "lane": "design",
       "issue": 5,
-      "lines": 217,
-      "bytes": 16432,
-      "sha256": "679bb917e76b873a8b6e54221d93eb29a367b64e23cdb9ffa66125af21c584ff",
+      "lines": 227,
+      "bytes": 16521,
+      "sha256": "e0b4ca9535c50fd08f21e6a0925d2ce56bd7362c62bbbf387545f94a00eaa2ee",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "draft",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/tracked-field-unification.md",
-        "assignedSha256": "679bb917e76b873a8b6e54221d93eb29a367b64e23cdb9ffa66125af21c584ff",
+        "assignedSha256": "e0b4ca9535c50fd08f21e6a0925d2ce56bd7362c62bbbf387545f94a00eaa2ee",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "679bb917e76b873a8b6e54221d93eb29a367b64e23cdb9ffa66125af21c584ff",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "e0b4ca9535c50fd08f21e6a0925d2ce56bd7362c62bbbf387545f94a00eaa2ee",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/tracked-field-unification.md:1 (design; unheaded)",
@@ -12372,23 +12445,27 @@
       "path": "docs/design/user-macro-delivery-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 513,
-      "bytes": 34827,
-      "sha256": "17574de8d44d81920c6d8ce4139ad53960bc8caababf79d8e6e30c1ca2ca83ed",
+      "lines": 531,
+      "bytes": 34898,
+      "sha256": "8f45db0703148fb49f2c03aa2261dde6ffd65ff5ba4c5e38df341fa3ef33159e",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/user-macro-delivery-spec.md",
-        "assignedSha256": "17574de8d44d81920c6d8ce4139ad53960bc8caababf79d8e6e30c1ca2ca83ed",
+        "assignedSha256": "8f45db0703148fb49f2c03aa2261dde6ffd65ff5ba4c5e38df341fa3ef33159e",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "17574de8d44d81920c6d8ce4139ad53960bc8caababf79d8e6e30c1ca2ca83ed",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "8f45db0703148fb49f2c03aa2261dde6ffd65ff5ba4c5e38df341fa3ef33159e",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/user-macro-delivery-spec.md:1 (design; unheaded)",
@@ -12418,23 +12495,27 @@
       "path": "docs/design/v3-demo-transcripts-heal.md",
       "lane": "design",
       "issue": 5,
-      "lines": 46,
-      "bytes": 2622,
-      "sha256": "0af8d14b15189766c684258c6b0826843f159e1a5ed634eb2b9bd5a6f7cb86ac",
+      "lines": 52,
+      "bytes": 2679,
+      "sha256": "0ce7e8cca547e5c277bf3cb6453d416357549eef92ecdf12701d47f08af29275",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/v3-demo-transcripts-heal.md",
-        "assignedSha256": "0af8d14b15189766c684258c6b0826843f159e1a5ed634eb2b9bd5a6f7cb86ac",
+        "assignedSha256": "0ce7e8cca547e5c277bf3cb6453d416357549eef92ecdf12701d47f08af29275",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0af8d14b15189766c684258c6b0826843f159e1a5ed634eb2b9bd5a6f7cb86ac",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "0ce7e8cca547e5c277bf3cb6453d416357549eef92ecdf12701d47f08af29275",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/v3-demo-transcripts-heal.md:1 (design; unheaded)",
@@ -14520,27 +14601,31 @@
       "path": "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 340,
-      "bytes": 28153,
-      "sha256": "d5eb1cd87ebe6f36e066f988a607be43e274a57706b05a659eb7e0b5cfaaa6ca",
+      "lines": 347,
+      "bytes": 28220,
+      "sha256": "e67c7a008e63dce630d5be05d8788db9896df2b7715c0e02cba1bc16673d88ad",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md",
-        "assignedSha256": "d5eb1cd87ebe6f36e066f988a607be43e274a57706b05a659eb7e0b5cfaaa6ca",
+        "assignedSha256": "e67c7a008e63dce630d5be05d8788db9896df2b7715c0e02cba1bc16673d88ad",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "d5eb1cd87ebe6f36e066f988a607be43e274a57706b05a659eb7e0b5cfaaa6ca",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "e67c7a008e63dce630d5be05d8788db9896df2b7715c0e02cba1bc16673d88ad",
+        "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md:1-340 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+          "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md:1-347 full read; active review metadata verified",
+          "packages/server/src/domain/chat/verbs/turn.ts:848 and GitHub issue #7 (OPEN) checked on 2026-08-14"
         ],
         "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
         "claims": [
@@ -14633,27 +14718,31 @@
       "path": "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 197,
-      "bytes": 15942,
-      "sha256": "fca64089fc729884336b5314b05d9346999dadc5ad74c41d74e350558277e9f2",
+      "lines": 203,
+      "bytes": 15999,
+      "sha256": "6641f7351d162c33b96e570894397c0f14593b5fb2eae07c5c77bd675a61cdc8",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md",
-        "assignedSha256": "fca64089fc729884336b5314b05d9346999dadc5ad74c41d74e350558277e9f2",
+        "assignedSha256": "6641f7351d162c33b96e570894397c0f14593b5fb2eae07c5c77bd675a61cdc8",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "fca64089fc729884336b5314b05d9346999dadc5ad74c41d74e350558277e9f2",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "6641f7351d162c33b96e570894397c0f14593b5fb2eae07c5c77bd675a61cdc8",
+        "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md:1-197 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+          "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md:1-203 full read; active review metadata verified",
+          "packages/db/src/kit/check-list.ts:1 and GitHub issue #8 (OPEN) checked on 2026-08-14"
         ],
         "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
         "claims": [
@@ -14678,27 +14767,31 @@
       "path": "docs/reviews/misc/2026-08-09-refinery-live-e2e.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 183,
-      "bytes": 15649,
-      "sha256": "069fa9451b9dad9afeec069aa17ae5f9b77598de0859b7068165057027491d9b",
+      "lines": 189,
+      "bytes": 15711,
+      "sha256": "33b33e89fdea1efa221553493465482db64901c264d293c19a4a9a0a2e180968",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/misc/2026-08-09-refinery-live-e2e.md",
-        "assignedSha256": "069fa9451b9dad9afeec069aa17ae5f9b77598de0859b7068165057027491d9b",
+        "assignedSha256": "33b33e89fdea1efa221553493465482db64901c264d293c19a4a9a0a2e180968",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "069fa9451b9dad9afeec069aa17ae5f9b77598de0859b7068165057027491d9b",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "33b33e89fdea1efa221553493465482db64901c264d293c19a4a9a0a2e180968",
+        "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/reviews/misc/2026-08-09-refinery-live-e2e.md:1-183 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+          "docs/reviews/misc/2026-08-09-refinery-live-e2e.md:1-189 full read; active review metadata verified",
+          "packages/server/src/domain/refinery/substrate/output-budget.ts:1 and GitHub issue #40 (OPEN) checked on 2026-08-14"
         ],
         "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
         "claims": [
@@ -14723,27 +14816,31 @@
       "path": "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 204,
-      "bytes": 19296,
-      "sha256": "e435534af3374b80430860bac7aa80fb65f0857c0d16a939e6b73d0d24f9699d",
+      "lines": 210,
+      "bytes": 19358,
+      "sha256": "d40d796598963a18a3acea8a67f945aeb93b360e830b897b92831f42e0ca1868",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md",
-        "assignedSha256": "e435534af3374b80430860bac7aa80fb65f0857c0d16a939e6b73d0d24f9699d",
+        "assignedSha256": "d40d796598963a18a3acea8a67f945aeb93b360e830b897b92831f42e0ca1868",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "e435534af3374b80430860bac7aa80fb65f0857c0d16a939e6b73d0d24f9699d",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "d40d796598963a18a3acea8a67f945aeb93b360e830b897b92831f42e0ca1868",
+        "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md:1-204 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+          "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md:1-210 full read; active review metadata verified",
+          "packages/client/src/components/character-picker.tsx:1 and GitHub issue #45 (OPEN) checked on 2026-08-14"
         ],
         "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
         "claims": [
@@ -14768,27 +14865,31 @@
       "path": "docs/reviews/misc/2026-08-14-global-agents-proposed.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 196,
-      "bytes": 13416,
-      "sha256": "623c79023abebcc93dc703318cc1d559facef9c5683f5e99578c0c0ebf377896",
+      "lines": 205,
+      "bytes": 13483,
+      "sha256": "1f8af45821055b8a07bb498f472454f1ae96102c44ba1fb4190c9ede43cce380",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/misc/2026-08-14-global-agents-proposed.md",
-        "assignedSha256": "623c79023abebcc93dc703318cc1d559facef9c5683f5e99578c0c0ebf377896",
+        "assignedSha256": "1f8af45821055b8a07bb498f472454f1ae96102c44ba1fb4190c9ede43cce380",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "623c79023abebcc93dc703318cc1d559facef9c5683f5e99578c0c0ebf377896",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "1f8af45821055b8a07bb498f472454f1ae96102c44ba1fb4190c9ede43cce380",
+        "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/reviews/misc/2026-08-14-global-agents-proposed.md:1-196 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+          "docs/reviews/misc/2026-08-14-global-agents-proposed.md:1-205 full read; active review metadata verified",
+          "GitHub issue #52 remains the recorded mutable-resolution route; GitHub API rate-limited during refresh"
         ],
         "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
         "claims": [
@@ -14862,27 +14963,31 @@
       "path": "docs/reviews/misc/marinara-engine-parser-macro-audit.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 262,
-      "bytes": 21018,
-      "sha256": "a5fc7978b119f97fff3d6a379a253976cd1df79612d6d8f6cdc462525b7aa88a",
+      "lines": 279,
+      "bytes": 21124,
+      "sha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/misc/marinara-engine-parser-macro-audit.md",
-        "assignedSha256": "a5fc7978b119f97fff3d6a379a253976cd1df79612d6d8f6cdc462525b7aa88a",
+        "assignedSha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "a5fc7978b119f97fff3d6a379a253976cd1df79612d6d8f6cdc462525b7aa88a",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
+        "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/reviews/misc/marinara-engine-parser-macro-audit.md:1-262 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+          "docs/reviews/misc/marinara-engine-parser-macro-audit.md:1-279 full read; active review metadata verified",
+          "packages/kit/src/macro/engine.ts:1 and GitHub issue #28 (OPEN) checked on 2026-08-14"
         ],
         "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
         "claims": [
@@ -14907,27 +15012,31 @@
       "path": "docs/reviews/misc/marinara-st-extension-lite-mode.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 383,
-      "bytes": 27738,
-      "sha256": "d81fd7d6360e97a10eca40ecbed375b0a12f4817bd403628573c2f7654e60310",
+      "lines": 401,
+      "bytes": 27802,
+      "sha256": "74a9236c073f4d007a630d394b79f7672c7e2353cb3a54b5e92960579a9185a3",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/misc/marinara-st-extension-lite-mode.md",
-        "assignedSha256": "d81fd7d6360e97a10eca40ecbed375b0a12f4817bd403628573c2f7654e60310",
+        "assignedSha256": "74a9236c073f4d007a630d394b79f7672c7e2353cb3a54b5e92960579a9185a3",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "d81fd7d6360e97a10eca40ecbed375b0a12f4817bd403628573c2f7654e60310",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "74a9236c073f4d007a630d394b79f7672c7e2353cb3a54b5e92960579a9185a3",
+        "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/reviews/misc/marinara-st-extension-lite-mode.md:1-383 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+          "docs/reviews/misc/marinara-st-extension-lite-mode.md:1-401 full read; active review metadata verified",
+          "GitHub issue #40 (OPEN) checked on 2026-08-14"
         ],
         "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
         "claims": [
@@ -20329,37 +20438,31 @@
       "path": "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 261,
-      "bytes": 18069,
-      "sha256": "55efb681362940c8507023417ddd866bf8086100ff64c789d038595e9110ef70",
+      "lines": 264,
+      "bytes": 17966,
+      "sha256": "bd7620c756de2bf28747aac6421c8c9f93e51376744dd94c351622916f16aced",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "security-review",
-          "status": "draft",
-          "owner-review": "REQUIRED (action items below)",
-          "updated": "2026-08-09",
-          "scope": "OIDC provider config crosscheck — live Authentik discovery vs our code + env surface"
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
         },
-        "errors": [
-          "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md: unsupported frontmatter key owner-review",
-          "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md: unsupported frontmatter key scope",
-          "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md: invalid frontmatter kind security-review"
-        ]
+        "errors": []
       },
       "receipt": {
         "path": "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md",
-        "assignedSha256": "55efb681362940c8507023417ddd866bf8086100ff64c789d038595e9110ef70",
+        "assignedSha256": "bd7620c756de2bf28747aac6421c8c9f93e51376744dd94c351622916f16aced",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "55efb681362940c8507023417ddd866bf8086100ff64c789d038595e9110ef70",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "bd7620c756de2bf28747aac6421c8c9f93e51376744dd94c351622916f16aced",
+        "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md:1-261 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+          "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md:1-264 full read; active review metadata verified",
+          "GitHub issue #57 (OPEN) checked on 2026-08-14"
         ],
         "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
         "claims": [
@@ -20380,42 +20483,31 @@
       "path": "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 191,
-      "bytes": 15095,
-      "sha256": "06bc570ccc2f4393bb063e24a8820c7206c89f062ab406a5cc1e0329f8bf86d4",
+      "lines": 188,
+      "bytes": 14792,
+      "sha256": "668f18f3cb2134adab01c9b410e93a0d515ba34bedc24553c2271c6140462948",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "security-review",
-          "status": "findings",
-          "date": "2026-08-09",
-          "scope": "macro / template-expansion engines + resolvers (kit / contracts / server / client)",
-          "threat": "DoS (ReDoS · expansion-bomb · unbounded recursion · no-timeout · resource exhaustion)",
-          "frame": "\"acceptable single-user, a real hole once multiuser\" (OIDC + approval queue + shared-instance auth just shipped)"
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
         },
-        "errors": [
-          "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md: missing frontmatter key updated",
-          "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md: unsupported frontmatter key date",
-          "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md: unsupported frontmatter key scope",
-          "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md: unsupported frontmatter key threat",
-          "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md: unsupported frontmatter key frame",
-          "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md: invalid frontmatter kind security-review",
-          "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md: invalid frontmatter status findings"
-        ]
+        "errors": []
       },
       "receipt": {
         "path": "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md",
-        "assignedSha256": "06bc570ccc2f4393bb063e24a8820c7206c89f062ab406a5cc1e0329f8bf86d4",
+        "assignedSha256": "668f18f3cb2134adab01c9b410e93a0d515ba34bedc24553c2271c6140462948",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "06bc570ccc2f4393bb063e24a8820c7206c89f062ab406a5cc1e0329f8bf86d4",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "668f18f3cb2134adab01c9b410e93a0d515ba34bedc24553c2271c6140462948",
+        "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md:1-191 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+          "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md:1-188 full read; active review metadata verified",
+          "packages/kit/src/macro/engine.ts:90-98 and GitHub issue #28 (OPEN) checked on 2026-08-14"
         ],
         "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
         "claims": [
@@ -20441,39 +20533,30 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 360,
-      "bytes": 25992,
-      "sha256": "1b5053c950a30a89cdb712a009cf84cf7e46b4f9afbe5c6e91df74155fc45136",
+      "bytes": 25830,
+      "sha256": "91e0f3766a14b85fc1bb4fc97ddd9bd9e68c7e5c2ca9f1105c6529a311d595b7",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "security-review",
-          "status": "findings",
-          "scope": "pre-auth (no-session) HTTP attack surface — routes + servable files",
-          "date": "2026-08-09",
-          "verified-against": "working tree @ main; live probe of the running stack on http://127.0.0.1:8788"
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
         },
-        "errors": [
-          "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md: missing frontmatter key updated",
-          "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md: unsupported frontmatter key scope",
-          "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md: unsupported frontmatter key date",
-          "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md: unsupported frontmatter key verified-against",
-          "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md: invalid frontmatter kind security-review",
-          "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md: invalid frontmatter status findings"
-        ]
+        "errors": []
       },
       "receipt": {
         "path": "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md",
-        "assignedSha256": "1b5053c950a30a89cdb712a009cf84cf7e46b4f9afbe5c6e91df74155fc45136",
+        "assignedSha256": "91e0f3766a14b85fc1bb4fc97ddd9bd9e68c7e5c2ca9f1105c6529a311d595b7",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "1b5053c950a30a89cdb712a009cf84cf7e46b4f9afbe5c6e91df74155fc45136",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "91e0f3766a14b85fc1bb4fc97ddd9bd9e68c7e5c2ca9f1105c6529a311d595b7",
+        "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
         "verifiedAt": "2026-08-14",
         "evidence": [
-          "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md:1-360 full read against frozen foundation",
-          "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+          "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md:1-360 full read; active review metadata verified",
+          "packages/client/vite.config.ts:260 and packages/server/src/entry/http/spa.ts:63-70 checked; GitHub issue #57 (OPEN) checked on 2026-08-14"
         ],
         "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
         "claims": [
