@@ -1,3 +1,9 @@
+---
+kind: runbook
+status: active
+updated: 2026-08-14
+---
+
 # ☀️ DELTA (2026-08-14 — GITHUB CONTROL PLANE)
 
 **Mutable work moved to [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1).** The
