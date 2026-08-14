@@ -17,14 +17,16 @@ import type { RpgContext, RpgService } from "../../contract/service.ts";
 import { resolveMember } from "../../guard.ts";
 import { listTurnToolCalls as listRows } from "../../persistence/turn-tool-calls.ts";
 
-/** The transcript window a disclosure needs — deep enough to cover a scrollback session, bounded so a long
- *  game never serves its whole history for a surface most people never open. Mirrors the journal's default. */
-const DEFAULT_TURN_TOOL_CALLS_LIMIT = 50;
+/** The transcript window a disclosure needs, in TURNS (message slots) — deep enough to cover a scrollback
+ *  session, bounded so a long game never serves its whole history for a surface most people never open.
+ *  Denominated in turns rather than rows so a reroll-heavy slot cannot evict an older SELECTED turn's
+ *  disclosure (the persistence header's window-budget paragraph). Mirrors the journal's default depth. */
+const DEFAULT_TURN_TOOL_CALLS_TURN_LIMIT = 50;
 
 export function createListTurnToolCalls(ctx: RpgContext): Pick<RpgService, "listTurnToolCalls"> {
   async function listTurnToolCalls(params: ListTurnToolCallsParams): Promise<readonly RpgTurnToolCallsView[]> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
-    const rows = await listRows(ctx.db, game.id, { limit: params.limit ?? DEFAULT_TURN_TOOL_CALLS_LIMIT });
+    const rows = await listRows(ctx.db, game.id, { turnLimit: params.turnLimit ?? DEFAULT_TURN_TOOL_CALLS_TURN_LIMIT });
     return rows.map((r) => ({ variantId: r.variantId, messageId: r.messageId, calls: r.calls, createdAt: r.createdAt }));
   }
   return { listTurnToolCalls };

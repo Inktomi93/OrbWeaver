@@ -371,11 +371,14 @@ export interface ListJournalParams {
 
 /** `listTurnToolCalls` — the window of recorded folded turns for a game (TOOLCALLS-INVISIBLE, arm A). No
  *  `offset`: the client indexes the whole window by `variantId` to render per-row disclosures, so paging
- *  BACKWARD through it would only ever produce a half-populated index. A deeper history raises `limit`. */
+ *  BACKWARD through it would only ever produce a half-populated index. A deeper history raises `turnLimit`. */
 export interface ListTurnToolCallsParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
-  readonly limit?: number | undefined;
+  /** TURNS (message slots), not rows — every record of a windowed slot ships, including the dead swipes the
+   *  client's variant index needs. Named for its unit because it USED to count rows, and a reroll-heavy slot
+   *  could then evict an older SELECTED turn's disclosure (`persistence/turn-tool-calls.ts`'s header). */
+  readonly turnLimit?: number | undefined;
 }
 
 // ── chat-ops-layer shapes (W1b-integration) ─────────────────────────────────────────────────────────────

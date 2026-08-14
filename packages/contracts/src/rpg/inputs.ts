@@ -271,7 +271,12 @@ export const rpgReadGameInputSchema = z.object({
 
 /** The `listJournal` / `listTurnToolCalls` page CEILINGS, enforced at the transport trust boundary (the
  *  `CHARACTER_LIST_MAX_LIMIT` precedent) — both are growing per-game catalogs whose verbs page an unbounded
- *  SQL `.limit()`, so an over-bound ask is a BAD_REQUEST naming the bound, never an unbounded fetch. */
+ *  SQL `.limit()`, so an over-bound ask is a BAD_REQUEST naming the bound, never an unbounded fetch.
+ *
+ *  The two ceilings count DIFFERENT things, which is why the tool-calls field is `turnLimit` and the
+ *  journal's is `limit`: the journal bounds ROWS, the tool-calls read bounds TURNS (message slots) and serves
+ *  every record of a windowed slot. The tool-calls row count is therefore turns × that slot's swipes — still
+ *  bounded, because a slot's variants are bounded by how many times a human pressed reroll. */
 export const RPG_JOURNAL_LIST_MAX_LIMIT = 200;
 export const RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT = 200;
 
@@ -284,8 +289,12 @@ export const rpgListJournalInputSchema = z.object({
 
 /** `rpg.listTurnToolCalls` — the recorded-turn window (TOOLCALLS-INVISIBLE, arm A). No `offset`: the client
  *  indexes the whole window by `variantId` to render per-row disclosures, so paging backward would only ever
- *  half-populate that index (see `ListTurnToolCallsParams`). */
+ *  half-populate that index (see `ListTurnToolCallsParams`).
+ *
+ *  `turnLimit`, not `limit` — the field was RENAMED with its unit (2026-08-14) when the window stopped
+ *  counting rows and started counting turns; a silently re-denominated `limit` would have left every caller
+ *  asking for something other than what it says. */
 export const rpgListTurnToolCallsInputSchema = z.object({
   chatId: chatIdField,
-  limit: z.number().int().min(1).max(RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT).optional(),
+  turnLimit: z.number().int().min(1).max(RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT).optional(),
 });

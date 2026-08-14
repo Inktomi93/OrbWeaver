@@ -23,9 +23,14 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { useGatedQuery, useTRPC } from "#data";
 
-/** How deep a scrollback the disclosure can answer for. Matches the server verb's own default — a deeper
- *  history would need both raised, which is the point of them being the same number. */
-const TURN_TOOL_CALLS_WINDOW = 50;
+/** How deep a scrollback the disclosure can answer for, in TURNS (message slots). Matches the server verb's
+ *  own default — a deeper history would need both raised, which is the point of them being the same number.
+ *
+ *  TURNS, NOT ROWS (2026-08-14). The window used to be 50 ROWS, and rows are one-per-VARIANT: a reroll-heavy
+ *  game spent the budget on dead swipes nobody can look at, and the disclosure went dark for older SELECTED
+ *  turns still on screen. The server now windows by slot and serves every record of a windowed slot, so the
+ *  siblings this hook's index needs still arrive AND cost the window nothing. */
+const TURN_TOOL_CALLS_TURN_WINDOW = 50;
 
 /** The empty index, hoisted so a room with no records hands every row the SAME Map instance —
  *  a fresh `new Map()` per render would be a new identity on every render for every row. */
@@ -44,7 +49,9 @@ export function useTurnToolCallsByVariant(chatId: ChatId): ReadonlyMap<MessageVa
   // Cache-first: every room surface already holds this read, so on a game room the gate costs no round-trip.
   const detail = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const isGame = isRpgEngaged(detail.data?.rpg ?? null);
-  const { data } = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.listTurnToolCalls.queryOptions({ chatId: id, limit: TURN_TOOL_CALLS_WINDOW }));
+  const { data } = useGatedQuery(isGame ? chatId : null, (id) =>
+    trpc.rpg.listTurnToolCalls.queryOptions({ chatId: id, turnLimit: TURN_TOOL_CALLS_TURN_WINDOW }),
+  );
   if (data === undefined) {
     return EMPTY_INDEX;
   }
