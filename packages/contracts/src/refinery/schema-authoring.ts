@@ -237,6 +237,9 @@ export type RefinerySchemaDocument = z.infer<typeof refinerySchemaDocumentSchema
 
 /** The schema-library wire row (the stage-config picker + the editor's library list). `version` bumps on
  *  every content update — the run log's provenance pin (P1-B). */
+// @typeonly-ok: server-trusted DB→wire projection (`schemaSummaryOf`) — nothing `.parse`s this schema at
+// runtime, but it is the one-home shape source for `RefinerySchemaSummary` (`no-inline-types`); the zod
+// literal IS the contract, consumed only through its inferred type.
 export const refinerySchemaSummarySchema = z.object({
   id: typeIdSchema(ID_PREFIX.refinerySchema),
   name: z.string(),
