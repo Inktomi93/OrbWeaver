@@ -117,6 +117,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import type {
   CallExpression,
   Diagnostic,
@@ -2542,7 +2543,10 @@ function renderPreview(opts: {
   const buf: string[] = [];
   buf.push("\n── Plans ──");
   if (plans.length === 0) {
-    buf.push("  (none)");
+    // The measured author mistake: kit helpers RETURN plans, and a returned-but-never-queued plan
+    // does nothing — even under --apply. A silent "(none)" reads like a clean empty answer; say the
+    // likely cause instead. (Partial forgetting — some queued, some dropped — is not detectable here.)
+    buf.push("  (none) — if you called kit helpers, remember they RETURN plans: queue each with ctx.plan(helperResult) or nothing runs, even with --apply");
   } else {
     plans.forEach((p, i) => {
       buf.push(`  ${i + 1}. ${p.description}`);
@@ -3335,6 +3339,30 @@ export function removeEmptyDirectory(ctx: CodemodContext, dir: string, opts: Ope
       rmSync(abs, { recursive: true, force: true });
     },
   };
+}
+
+// ── Direct-run guard ──────────────────────────────────────────────────────────
+// This file is a LIBRARY. Running it directly used to exit 0 in SILENCE — the
+// same shape as "the codemod ran and did nothing", which is exactly the false
+// clean this repo's instruments are calibrated to never print. Orient instead,
+// through the kit's OWN help system (bare → overview; `list`/`recipes`/`search
+// <q>` pass through), then exit 3 = misuse, the house CLI contract.
+const DIRECT_RUN_MISUSE_EXIT = 3;
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  const [sub, query] = process.argv.slice(2);
+  if (sub === "list") {
+    printList(query);
+  } else if (sub === "recipes") {
+    printRecipes();
+  } else if (sub === "search" && query !== undefined) {
+    searchHelpers(query);
+  } else {
+    printHelp();
+    process.stderr.write(
+      "(codemod-kit is a LIBRARY — import { kit, runCodemod } and write a codemod script; dry-run is the default, --apply commits. Also: `list [category]` · `recipes` · `search <q>`.)\n",
+    );
+    process.exitCode = DIRECT_RUN_MISUSE_EXIT;
+  }
 }
 
 // ── Footer ────────────────────────────────────────────────────────────────────

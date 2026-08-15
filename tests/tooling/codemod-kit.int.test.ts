@@ -16,9 +16,11 @@
 // Fixtures are REAL temp trees (the harness bootstraps a real ts-morph Project from a tsconfig and
 // saveSync()s to disk on --apply), rooted outside the repo and removed in `finally`.
 
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import process from "node:process";
 import { describe, vi } from "vitest";
 import type { CodemodContext, CodemodResult, Plan, RunCodemodOptions } from "../../scripts/codemods/codemod-kit.ts";
 import { applyTextReplacements, composePlans, deleteFiles, moveFiles, renameExportedSymbol, runCodemod } from "../../scripts/codemods/codemod-kit.ts";
@@ -306,5 +308,26 @@ describe("the kit's own helpers declare their real blast radius", () => {
         expect(() => read("dead.ts")).toThrow();
       },
     );
+  });
+});
+
+describe("direct-run guard (the library is not a runnable codemod)", () => {
+  // Running the LIBRARY file directly used to exit 0 in silence — indistinguishable from "the codemod
+  // ran and did nothing". The guard orients through the kit's own help system and exits 3 (misuse);
+  // the informational subcommands answer their question and exit 0. Spawned like an operator would.
+  const kitPath = join(process.cwd(), "scripts/codemods/codemod-kit.ts");
+
+  test("bare direct run prints the overview and exits 3", () => {
+    const res = spawnSync("node", [kitPath], { encoding: "utf8", timeout: 60_000 });
+    expect(res.status).toBe(3);
+    // The kit's own help system prints on STDOUT; the guard's library note rides STDERR.
+    expect(res.stdout).toContain("quick reference");
+    expect(res.stderr).toContain("codemod-kit is a LIBRARY");
+  });
+
+  test("`search <q>` answers and exits 0", () => {
+    const res = spawnSync("node", [kitPath, "search", "rename"], { encoding: "utf8", timeout: 60_000 });
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("renameNamedImport");
   });
 });
