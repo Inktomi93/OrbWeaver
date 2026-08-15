@@ -10,7 +10,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "c60f91ba99449513ea82b1043229b3b4b7ae7e340975b75a9e2c402fa5ea9cea",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/design/baseui-crunch.md:1-104 full read; SHA-256 matches frozen manifest",
@@ -40,7 +40,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "1e3c4d0910f4b480e0142050ac0fcfc2bfb9004fee9ed9b3475c1ccae3cd0507",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/design/hud-home-spec.md:1-646 full read; SHA-256 matches frozen manifest",
@@ -55,7 +55,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "f70c49f14b0213bc2af3ea9cf1149fbd651eb9f4964f582c904ad195828cc5e2",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/design/rpg-lite-and-full-cohesion-brief.md:1-159 full read; SHA-256 matches frozen manifest",
@@ -70,7 +70,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "08076c8b6cd1da2281ca1cd9b694ed1b13657631cc2e720cfd20908db2746ff9",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/design/rpg-lite-and-full-cohesion-game-plan.md:1-624 full read; SHA-256 matches frozen manifest",
@@ -85,7 +85,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "57e384378892f25dad14fa11d4d2f60df59a0fd49d26d145b9cac8fdc0d5b5bc",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/design/set-seams-spec.md:1-464 full read; SHA-256 matches frozen manifest",
@@ -100,7 +100,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "0d03cea1db2c3514d09fdf6567be2efd6fb227c198987acc14eb06f335a1d6c2",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/design/sse-multiplex-spec.md:1-620 full read; SHA-256 matches frozen manifest",
@@ -115,7 +115,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "71924ab85928e72ea6e73ec96280b82c31aceebdcd27f6fa7418167c6baaa73c",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/dogfood-tracking-2026-08-08.md:1-2289 full read; SHA-256 matches frozen manifest",
@@ -157,7 +157,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "0787e021983fae0555450d1d30f4c7da1a683844c9e8b6cc7ecb30874c6aad03",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/retro-workboard-2026-08-03.md:1-4071 full read; SHA-256 matches frozen manifest",
@@ -187,7 +187,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "dc9be7590b5c95d4e6c35cedb71479d59f613a7ac22b4aeb02ea5866aa2ce01b",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/retro-workboard-2026-08-08.md:1-2588 full read; SHA-256 matches frozen manifest",
@@ -202,7 +202,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "10f474df6afeefd21fb4fde827ffe0d0a8f20d81c66b97df217c55bd5a9aa277",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/retro-workboard-2026-08-09.md:1-1098 full read; SHA-256 matches frozen manifest",
@@ -233,7 +233,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "f4980e9b1c75bf38e3850e212959a20384ffaa2f0d859cda8fe8f13eb3ed2849",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-07-25-compose-services-seam-map.md:1-59 full read; SHA-256 matches frozen manifest",
@@ -248,7 +248,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "b4e87fcd66b9935176361b63949abbf8e3a5744df4045e56a8e218583659182a",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-07-25-kit-candidates-first-run.md:1-35 full read; SHA-256 matches frozen manifest",
@@ -263,7 +263,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "a4fb56a1b08e9cb778df937bcbc492fdb2cbb2a4dabce817c1ab76c784f9e3e1",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-07-25-settings-section-registry.md:1-92 full read; SHA-256 matches frozen manifest",
@@ -278,7 +278,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "b27783d6cc7dc5b1946fc0479ee114003bf026d76064e5c95838a953c3bb4893",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-07-25-side-gen-posture-inventory.md:1-51 full read; SHA-256 matches frozen manifest",
@@ -293,7 +293,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "7b83d2ef1eb313ba40e325b7694999b5f0ffccf48956b74d1a31c00eb92b130f",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-07-26-appsettings-admin-surfaces.md:1-56 full read; SHA-256 matches frozen manifest",
@@ -308,7 +308,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "cc387f71921392973f9ffa6cf46c969c6ec3a041eea4c8acec0891c6e222f81c",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-07-26-imagery-templates-lift.md:1-75 full read; SHA-256 matches frozen manifest",
@@ -323,7 +323,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "f3c3b536e999c5f2b78011e942b8603eb2ae385965c54a3e26f331b9ec1721c8",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-01-tool-coverage-audit.md:1-58 full read; SHA-256 matches frozen manifest",
@@ -338,7 +338,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "91bab5c1d7df8fa5115dcc276cc4e0d9973e3b34fee95399e63f69a264c9bed6",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-01-wiring-audit-au8-complete.md:1-46 full read; SHA-256 matches frozen manifest",
@@ -353,7 +353,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "c41a4d5c9ef0f36d561f70d37e66d9135236fe27ce2720cbd9bc8c3482095d69",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-02-default-character-art-pack.md:1-75 full read; SHA-256 matches frozen manifest",
@@ -368,7 +368,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "ea9c52f4a9a97d4a23ade782654344b405a682d6d8949fbbff3a5dae608ae2a1",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-02-default-character-recon.md:1-66 full read; SHA-256 matches frozen manifest",
@@ -383,7 +383,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "78e9a36a8a90bca8134601471635585f3bb0049ea0997e04002ddf6c08808720",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-02-preset-execution-crunch-list.md:1-524 full read; SHA-256 matches frozen manifest",
@@ -428,7 +428,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "901d64fe77f6c8f75df5184ff5efb2573aa9b5205b00ac34f964428769675a8d",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-03-avatar-pack-v2.md:1-141 full read; SHA-256 matches frozen manifest",
@@ -443,7 +443,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "4ba791a88ae74ef83623396f1396e4578edf7165141c06e4d38e146d73286bd3",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-03-core-docs-truth-audit.md:1-101 full read; SHA-256 matches frozen manifest",
@@ -458,7 +458,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "f01f1da3c44dc95948435ecc33d6c6132f2c1b80f899c8035989d447eb0fb1e3",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-03-structured-output-docs.md:1-253 full read; SHA-256 matches frozen manifest",
@@ -473,7 +473,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "133d4bd91e9cf23e13b5bfd6f7661a4a6d4412f6d2bac21259abd1c6dff5a5c4",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-03-tag-experience-audit.md:1-187 full read; SHA-256 matches frozen manifest",
@@ -488,7 +488,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "2667ab1ab14d92164fcc34986139c95583159665a69ad736d8a53f07311874d0",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-03-tool-use-antipattern-census.md:1-296 full read; SHA-256 matches frozen manifest",
@@ -503,7 +503,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "c2712ff8a303a2c76547ecbb045e2353e544a46d681924a768a16d7d490d4d38",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-07-ct-vite-8-spike.md:1-79 full read; SHA-256 matches frozen manifest",
@@ -518,7 +518,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "501c405b8a278334b59e6c18cd7085a63d07e89fce985efc32799fd1f8514997",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-07-icon-seal-doorways-assessment.md:1-69 full read; SHA-256 matches frozen manifest",
@@ -548,7 +548,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "dab2d8a601b445d53db7bb4e96c1588f4db3a8a95daafd1b105386356e8d4cdd",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/2026-08-08-followup-gap-audit.md:1-93 full read; SHA-256 matches frozen manifest",
@@ -563,7 +563,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "8dfd5f7754456266dc752a4dc54188900779ac5c8b1d670eeecc59bee4c102e2",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/misc/engine-tooling-sync-and-sleep-mode.md:1-483 full read; SHA-256 matches frozen manifest",
@@ -578,7 +578,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "ae023e4794170f24b741c9884b1de1542838d1bb172d0d37866ca9d46c90fb67",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/side-eye/2026-08-01-waystone-first-pass.md:1-70 full read; SHA-256 matches frozen manifest",
@@ -593,7 +593,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "425925078228f8031f04a29f450615609a29c221d96d893fb1c2b219cac83de6",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/side-eye/2026-08-02-preset-program.md:1-179 full read; SHA-256 matches frozen manifest",
@@ -608,7 +608,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "4bac63e310fc9d335162c42cc3919fd0822fc7496de08bad743013abc79bd784",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/side-eye/2026-08-07-rpg-graduation.md:1-136 full read; SHA-256 matches frozen manifest",
@@ -623,7 +623,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "66e729ed10bc8a87a4017a712d739022f04b3478636083cd61a4a0de21d23b56",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-07-24-wire-capture-bridge-custom-params.md:1-355 full read; SHA-256 matches frozen manifest",
@@ -638,7 +638,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "ad61a5ad26c400e556b5f9db42a068411def3f444f6f524429489b00189b99bf",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-07-25-contracts-layer-audit.md:1-224 full read; SHA-256 matches frozen manifest",
@@ -653,7 +653,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "b899dc37774fc6dbfcc748e36382051b22a03da520a6e4892151e216ea19dbf5",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-07-25-services-split-review.md:1-207 full read; SHA-256 matches frozen manifest",
@@ -668,7 +668,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "a016354d08dff3d391074a4803df1b11bbc85042da59ef1ae84ba13077824022",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md:1-560 full read; SHA-256 matches frozen manifest",
@@ -683,7 +683,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "8ef49b4998ebdfd87603127fe456fc7ef7971abb7241575407bfd3b2bfd6e301",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-07-26-w1-rpg-lite-vertical.md:1-218 full read; SHA-256 matches frozen manifest",
@@ -698,7 +698,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "ae1d702456b713a0a8cd74d310f34a281e058e018025344d451a28125a3b8e21",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-07-27-w4-batch.md:1-323 full read; SHA-256 matches frozen manifest",
@@ -713,7 +713,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "150e9a2cf69a4a546c4fc293276a91e7c1eaba00f5cb1021059d73660b6a3858",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-07-27-w4-my-lane.md:1-173 full read; SHA-256 matches frozen manifest",
@@ -728,7 +728,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "caf66f449c7139f006b580cd98f83b3e2f0c167c4aa90bae271d0ff019cd3640",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-08-02-actor-state-model.md:1-518 full read; SHA-256 matches frozen manifest",
@@ -743,7 +743,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "23378dcfe58ce29536f81f331ec2a6281842c018b735ea283428385aa99a7a33",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-08-02-r2r3-premerge.md:1-334 full read; SHA-256 matches frozen manifest",
@@ -758,7 +758,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "d210f87f8dd1bd62c7de6c89bcc66287acaaba213e2b466fb45ff06ecf723431",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-08-02-sse-s2-chat-fold.md:1-626 full read; SHA-256 matches frozen manifest",
@@ -773,7 +773,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "df1ed9b58660b715cd915da43e4761823cbe5206b179355536395f78460da954",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-08-02-workloads-stage-e.md:1-235 full read; SHA-256 matches frozen manifest",
@@ -788,7 +788,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "d0ffcabf8dbaf63822a4cbfdcb1050f6f4c184ceb7cf25be110608a1b05f7566",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-08-03-persona-rpg-and-history.md:1-268 full read; SHA-256 matches frozen manifest",
@@ -818,7 +818,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "e1555609cfa5e4ba8098632349480009b9026928b5070b11173c787452e90583",
-      "verifiedCommit": "f73c5ea23147911f430dbc67af3e2ce821e5bf28",
+      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/history/reviews/stickler/2026-08-03-theme-doors.md:1-211 full read; SHA-256 matches frozen manifest",
