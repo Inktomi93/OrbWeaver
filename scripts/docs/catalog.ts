@@ -162,11 +162,21 @@ function json<T>(path: string): T {
 
 function stableJson(value: unknown): string {
   const source = `${JSON.stringify(value, null, 2)}\n`;
-  return execFileSync("pnpm", ["exec", "biome", "format", "--stdin-file-path", OUTPUT_PATH], {
+  const formatted = execFileSync("pnpm", ["exec", "biome", "format", "--stdin-file-path", OUTPUT_PATH], {
     cwd: root,
     encoding: "utf8",
     input: source,
   });
+  // FAIL LOUD, never write garbage: past `files.maxSize` biome treats the stdin file as IGNORED and
+  // returns EMPTY stdout with exit 0 — writing that verbatim zeroed catalog.json (measured 2026-08-15,
+  // the file crossed 1 MiB). An empty or non-JSON round-trip is a tool failure, not a formatting result.
+  if (formatted.trim() === "") {
+    throw new Error(
+      `stableJson: biome returned empty output for ${OUTPUT_PATH} (file over biome files.maxSize? raise the override in biome.json) — refusing to write 0 bytes`,
+    );
+  }
+  JSON.parse(formatted);
+  return formatted;
 }
 
 function sha256(content: Buffer | string): string {
