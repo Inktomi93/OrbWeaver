@@ -504,7 +504,7 @@ const STDIN_DEADLINE_MS = 2_500;
 
 const REASONS = {
   harnessPipedDeny:
-    "Piping the harness loses its exit code (the pipeline reports tail/grep's status — a red run was reported green this way) AND hangs: playwright/vite/stack/vitest descendants inherit the pipe's write end, so the reader waits for an EOF that never comes (measured: `pnpm check` piped median 64.1s vs 2.3s unpiped, 28×). Run it bare — `pnpm check` — and read the auto-written artifacts: reports/verify.json + reports/verify/<stage>.log.",
+    "Piping the harness loses its exit code (the pipeline reports tail/grep's status — a red run was reported green this way) AND hangs: playwright/vite/stack/vitest descendants inherit the pipe's write end, so the reader waits for an EOF that never comes (measured: `pnpm check` piped median 64.1s vs 2.3s unpiped, 28×). Run it bare — `pnpm check` — and read the auto-written artifacts: reports/verify.json + reports/verify/<stage>.log. Same for a harness inside `$( … )` (owner ruling: the substitution form stays denied — no safe grammar exists for it): `pnpm snap`/`pnpm vitest` run BARE with output redirected to a file, then the file is read in a SEPARATE command.",
   harnessSwallowed:
     "`|| true` (or `; true`) after a harness command erases the failure — the tool reports success even when the gate was red. Let it exit non-zero; the failure list is already in reports/verify.json / reports/test-report.json.",
   gitDestructive:
