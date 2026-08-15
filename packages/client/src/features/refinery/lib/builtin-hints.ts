@@ -1,4 +1,4 @@
-// The FIXED payloads' hint sets (schema-renderer §3.3): the blessed built-in look IS the general
+// The FIXED payloads' hint sets: the blessed built-in look IS the general
 // renderer applied to a hinted schema — the owner's standing directive ("the built-in fixed payload is
 // ONE INSTANCE of a general renderer") made mechanical. The zod contracts carry no x-orb-ui, so these
 // overlay by JSON-pointer path onto `projectJsonSchema(REFINERY_STAGE_PAYLOADS[stage])`. Keyed per

@@ -1,18 +1,18 @@
-// The schema-driven RENDER PLAN (refinery R3 — schema-renderer §3, the crowning-feature directive's
+// The schema-driven RENDER PLAN (refinery R3 — the crowning-feature directive's
 // mechanical half): a PURE derivation from a payload SCHEMA (the liftable JSON-Schema subset + x-orb-ui
 // hints) to a widget tree, data-independent. The payload only ever FILLS values — nothing in this file
 // reads a datum to decide a widget, which is the structural negation of the OG's whole failure class
 // (scale guessed from the value, card anatomy from string lengths, item schema from data[0]).
 //
-// TOTALITY IS THE THEOREM (§2): the custom vocabulary is CLOSED (`LIFTABLE_JSON_SCHEMA`), so the node
+// TOTALITY IS THE THEOREM: the custom vocabulary is CLOSED (`LIFTABLE_JSON_SCHEMA`), so the node
 // dispatch below is a finite mapping with an arm for every kind and NO unknown branch — the raw-JSON
 // floor is unreachable, not merely forbidden. The `satisfies Record<LiftableNodeKind, …>` clause is the
 // tsc-forced proof; the property test over the OG schema corpus is the behavioral one.
 //
-// HINTS ELEVATE, NEVER CARRY (§4.2): a hintless schema renders well by structure alone; a malformed
+// HINTS ELEVATE, NEVER CARRY: a hintless schema renders well by structure alone; a malformed
 // hint heals to "no hint" (`renderHintOf`) — render-by-structure, never a render failure. Field NAMES
 // are used for exactly one thing: the label (prettified) — the ONE deliberate exception is the
-// structural hero elevation (§3.2), which is a structure fact, not a name guess.
+// structural hero elevation, which is a structure fact, not a name guess.
 
 import type { RenderHint, RenderHintTone } from "@orb/contracts/refinery";
 import { renderHintOf } from "@orb/contracts/refinery";

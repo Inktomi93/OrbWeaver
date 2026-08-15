@@ -1,12 +1,11 @@
-// The shared VALUE affordance for the tracker block kit (Context-Panel-Program §3.2; panel-redesign
-// DESIGN.md §12.4.1). Editable-in-place is the LAW, not an option — but the panel is an INSTRUMENT, not a
+// The shared VALUE affordance for the tracker block kit. Editable-in-place is the LAW, not an option — but the panel is an INSTRUMENT, not a
 // form: an editable value renders as STATIC display AT REST (indistinguishable from the read-only arm) and
-// reveals its inline input only on click/focus (the §12.4.1 "click the value → inline input → Enter/blur
+// reveals its inline input only on click/focus (the "click the value → inline input → Enter/blur
 // commits" grammar). The read-only arm (no `onEdit`) is the honest-arms fallback (a non-editor viewer),
-// never a silent degrade. The value TEXT is always the datum (§4.9): the rest state is a real <button>
+// never a silent degrade. The value TEXT is always the datum: the rest state is a real <button>
 // CARRYING that text (keyboard-reachable, focus-ringed), the edit state an input pre-filled with it.
 // Escape cancels the draft; Enter/blur commits. A passive re-render never clobbers an open draft
-// (§12.4.4 — the draft is seeded ONCE, when the editor opens).
+// (the draft is seeded ONCE, when the editor opens).
 import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Text } from "@orb/ui/text";
@@ -29,7 +28,7 @@ export interface TrackerValueProps {
   /** Text size of the at-rest/read-only display — "label" default; StatCell's big value passes "title". */
   readonly size?: ComponentProps<typeof Text>["size"];
   /** Shown (muted) in the REST state when the value is empty, and as the input's placeholder — so an
-   *  empty-but-editable field reads as intentionally-blank, not unfinished (§3.2). */
+   *  empty-but-editable field reads as intentionally-blank, not unfinished. */
   readonly placeholder?: string;
   /** Sizing/alignment for the EDIT input (and, absent `restClassName`, the rest button too). */
   readonly className?: string;
@@ -42,7 +41,7 @@ export interface TrackerValueProps {
    *  max home). An edit with game-wide reach says so before it's made. @defaultValue "Click to edit" */
   readonly editTitle?: string;
   /** Rest-state overflow: MODEL-AUTHORED free text (mood, status) must WRAP — the writer is a model with
-   *  no length contract, and a truncated datum hides the datum (§4.9: the text IS the value). Numerics and
+   *  no length contract, and a truncated datum hides the datum (the text IS the value). Numerics and
    *  host-named values keep the default single-line truncate (their width is layout-owned). @defaultValue false */
   readonly wrap?: boolean;
 }
@@ -64,7 +63,7 @@ export function TrackerValue({
 }: TrackerValueProps): ReactElement {
   const source = editValue ?? display;
   const [editing, setEditing] = useState(false);
-  // The draft is seeded when the editor OPENS (never reset by a passive re-render — §12.4.4: an external
+  // The draft is seeded when the editor OPENS (never reset by a passive re-render — an external
   // change mid-edit must not clobber the open draft; the feature-level swipe ward owns that conflict).
   const [draft, setDraft] = useState(source);
 
@@ -113,7 +112,7 @@ export function TrackerValue({
 
   return (
     <Input
-      // The input exists ONLY after an explicit click on the rest value (§12.4.1 click-to-edit) — moving
+      // The input exists ONLY after an explicit click on the rest value (click-to-edit) — moving
       // focus into it is the expected continuation of that gesture, not a focus steal.
       // eslint-disable-next-line jsx-a11y/no-autofocus
       autoFocus={true}

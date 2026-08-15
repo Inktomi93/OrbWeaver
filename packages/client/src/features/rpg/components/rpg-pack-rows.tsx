@@ -29,7 +29,7 @@ import { ConfirmDialog, PICKER_GAP_AT_COARSE, TrackerValue } from "#components";
 import { cn } from "#lib";
 import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
 
-/** The quest-bound tell - the model-written item `type` naming the quest taxonomy (DESIGN.md 12.2). */
+/** The quest-bound tell - the model-written item `type` naming the quest taxonomy. */
 const QUEST_TYPE_RE = /quest/i;
 
 /** The #37c icon-picker popover body — the curated `ITEM_ICON_CHOICES` grid; picking writes the name.
@@ -104,7 +104,7 @@ function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElemen
   return (
     <>
       {QUEST_TYPE_RE.test(item.type) ? (
-        // The accent quest-bound dot (§3 voice: primary = the game's pulse); the `type` text on the tile
+        // The accent quest-bound dot (primary voice = the game's pulse); the `type` text on the tile
         // title carries the datum (never color-alone).
         <Text as="span" voice="gloss" aria-hidden={true} className="absolute top-field right-field text-primary" title="quest item">
           ●
@@ -113,7 +113,7 @@ function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElemen
       <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="sm" className="shrink-0 text-muted-foreground" />
       <Stack gap="field" className="min-w-0 flex-1">
         <Row gap="field" align="baseline" className="min-w-0">
-          {/* The NAME is the datum (§4.9) and a model writes it: it WRAPS inside the tile rather than
+          {/* The NAME is the datum and a model writes it: it WRAPS inside the tile rather than
               truncating away — the tile grows a line, the pack keeps its rhythm (the grid row stretches). */}
           {/* `label` — the tile's NAME, the same voice the LIST row's `ItemName` speaks; a tile whose name
               recedes to `gloss` like its ×N and location has no head to read first. */}
@@ -209,11 +209,11 @@ function ItemName({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
       ariaLabel={`${item.name} name`}
       display={item.name}
       // A model names the items: no length contract, so the name WRAPS rather than truncating away the
-      // datum (the TrackerValue `wrap` arm — §4.9, the text IS the value).
+      // datum (the TrackerValue `wrap` arm — the text IS the value).
       wrap={true}
       onEdit={(next): void => {
         const trimmed = next.trim();
-        // Tier-2 refusal (§12.3): the item schema requires a name — a blank one never sends.
+        // Tier-2 refusal: the item schema requires a name — a blank one never sends.
         if (trimmed !== "") {
           edit.onPatchItem(item.id, { name: trimmed });
         }
@@ -245,7 +245,7 @@ function ItemQuantity({ item, edit }: { readonly item: RpgInventoryItem; readonl
         onEdit={(next): void => {
           const n = Number.parseInt(next, 10);
           if (!Number.isNaN(n)) {
-            // Tier-1 clamp (§12.3): the schema floor is 1 — dropping the item is the delete affordance.
+            // Tier-1 clamp: the schema floor is 1 — dropping the item is the delete affordance.
             edit.onPatchItem(item.id, { quantity: Math.max(1, n) });
           }
         }}

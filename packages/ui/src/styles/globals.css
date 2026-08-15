@@ -366,7 +366,7 @@
   animation: orb-word-reveal var(--motion-base) var(--ease-out-expo) both;
 }
 
-/* M5 — the code block's BIRTH GEOMETRY (docs/design/streaming-shape-churn.md §5; the owner's "changes
+/* M5 — the code block's BIRTH GEOMETRY (the owner's "changes
  * shapes then settles"). MECHANISM, not a symptom patch: Streamdown's code-block container hardcodes
  * `style={{ contentVisibility: "auto", containIntrinsicSize: "auto 200px" }}` on its own element
  * (streamdown/dist/chunk-BO2N2NFS.js, component `ot` — the `div[data-streamdown="code-block"]`). A

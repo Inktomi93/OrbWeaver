@@ -1,11 +1,11 @@
-// The SCENE tab (panel-redesign DESIGN.md §4 "Scene" — the NOW window): AmbientStrip → present-cast
+// The SCENE tab ("Scene" — the NOW window): AmbientStrip → present-cast
 // CastCards → GOALS (a PROJECTION of the quest plane — active-only compact echo of the SAME `quests` rows
-// the Quests tab homes, §12.1.8; one datum, two lenses) → subjectName-grouped custom widgets (accent rides
-// the §12.1.2 ward: a stored `widget.accent` must pass the strict hex/OKLCH grammar, else it heals to the
+// the Quests tab homes; one datum, two lenses) → subjectName-grouped custom widgets (accent rides
+// the strict-grammar ward: a stored `widget.accent` must pass the strict hex/OKLCH grammar, else it heals to the
 // ordinal ramp) → the P5 CHOICE-echo shell (wired-when-ready — no choice plane exists; renders nothing
 // until CYOA lands) → last-3 BeatLines ("Just now"). Scene = window; Journal = archive.
 //
-// EDIT-in-place (§3.2), all host-only in v1 (`canEditShared`, which also folds the read-only pill's honest
+// EDIT-in-place, all host-only in v1 (`canEditShared`, which also folds the read-only pill's honest
 // arm): ambient fields + game-tracker values + the cast IDENTITY rows ride `editSnapshot` (record/array
 // overlay under [merge-clear]); a cast member's TRACKED VALUES ride `patchActor` (the op door — a cast NPC's
 // values live on the per-actor plane, which left the image contract in R1); goals ride `upsertQuest`. Beats
@@ -63,7 +63,7 @@ function clearTimePatch(currentDay: number): Partial<RpgSnapshotState> {
   return { clock: { day: currentDay, hour: null, minute: null } };
 }
 
-/** Build the `editSnapshot` overlay for one ambient field edit (§2.7 — timeOfDay steers the clock through
+/** Build the `editSnapshot` overlay for one ambient field edit (timeOfDay steers the clock through
  *  the label→hour mapping). `next === null` is the strip's CLEAR (a closed-vocab field has no "nothing"
  *  member, so the clear rides the field's nullability — see the strip's header). Returns `null` for an
  *  unknown timeOfDay label (no-op). */
@@ -94,7 +94,7 @@ export interface RpgSceneTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The ambient field → snapshot lock-path map (§12.3) — the domain knowledge that lives in the feature,
+/** The ambient field → snapshot lock-path map — the domain knowledge that lives in the feature,
  *  not the shared AmbientStrip. A hand edit of `date` locks the `calendarDate` path, `timeOfDay` locks
  *  `clock`; `location`/`weather` are their own paths. */
 const AMBIENT_LOCK_PATH: Readonly<Record<"location" | "date" | "timeOfDay" | "weather", keyof typeof LOCK_PATH_NAME>> = {
@@ -112,7 +112,7 @@ interface SceneEditCallbacks {
   readonly onEditAmbient?: (field: "location" | "date" | "timeOfDay" | "weather", next: string | null) => void;
   readonly castEdit?: SceneCastEdit;
   readonly onEditGameTracker?: (entry: RpgTrackerEntry, next: number) => void;
-  /** Release a hand-lock path back to the model (§12.3). Present only for a host (same gate as the edits). */
+  /** Release a hand-lock path back to the model. Present only for a host (same gate as the edits). */
   readonly onReleaseLock?: (path: string) => void;
 }
 
@@ -171,7 +171,7 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
         chatId,
         patch: { trackerValues: { [entry.def.key]: { ...RPG_TRACKER_VALUE_EMPTY, ...entry.value, value: Math.max(0, next) } } },
       }),
-    // Release-only edit: an empty patch + the lock path to clear (§12.3 — a lock is metadata, not a leaf).
+    // Release-only edit: an empty patch + the lock path to clear (a lock is metadata, not a leaf).
     onReleaseLock: (path): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: [path] }),
   };
 }
@@ -187,7 +187,7 @@ const LOCK_PATH_NAME = {
   weather: "the weather",
 } as const;
 
-/** The section-scoped hand-lock pin (§12.3): `editSnapshot` stamps TOP-LEVEL patch paths, so one lock ⇒ one
+/** The section-scoped hand-lock pin: `editSnapshot` stamps TOP-LEVEL patch paths, so one lock ⇒ one
  *  pin ⇒ one Release beside the section label, NAMED off the map above. `null` unless locked AND host. */
 function sectionLockPin(locked: ReadonlySet<string>, path: keyof typeof LOCK_PATH_NAME, onReleaseLock: ((path: string) => void) | undefined): ReactNode {
   if (onReleaseLock === undefined || !locked.has(path)) {
@@ -197,7 +197,7 @@ function sectionLockPin(locked: ReadonlySet<string>, path: keyof typeof LOCK_PAT
 }
 
 /** The ambient card's props — the field values (nullable-honest), the edit callback, and the per-field
- *  lock pins (§12.3), split from the tab body for the complexity gate. */
+ *  lock pins, split from the tab body for the complexity gate. */
 function ambientStripProps(
   ambient: RpgTrackerView["ambient"],
   locked: ReadonlySet<string>,
@@ -213,7 +213,7 @@ function ambientStripProps(
     ...(timeLabel === null ? {} : { timeOfDay: timeLabel }),
     ...(ambient !== null && ambient.weather !== null ? { weather: ambient.weather.type } : {}),
     ...(onEditAmbient === undefined ? {} : { onEditField: onEditAmbient }),
-    // The pin + Release on a hand-locked ambient field (§12.3) — host-only (rides `onReleaseLock`).
+    // The pin + Release on a hand-locked ambient field — host-only (rides `onReleaseLock`).
     ...(onReleaseLock === undefined
       ? {}
       : {
@@ -241,7 +241,7 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
       {ambient === null && onEditAmbient === undefined ? null : <AmbientStrip {...ambientStripProps(ambient, locked, onEditAmbient, onReleaseLock)} />}
       <SceneCast cast={onStage} {...(castEdit === undefined ? {} : { edit: castEdit })} lockPin={sectionLockPin(locked, "presentCharacters", onReleaseLock)} />
       <SceneKnownCharacters offstage={offstage} {...(castEdit === undefined ? {} : { edit: castEdit })} />
-      {/* The Goals section is a filtered ECHO of the quest plane (§12.1.8): ACTIVE only, compact rows —
+      {/* The Goals section is a filtered ECHO of the quest plane: ACTIVE only, compact rows —
           the Quests tab is the plane's ONE edit home (#39 dual-homing). A goal row NAVIGATES there. */}
       <SceneGoals quests={tracker.quests.filter((q) => q.status === "active")} />
       <RpgChoiceEcho state={state} />
@@ -257,7 +257,7 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
   );
 }
 
-/** The panel-doorway to the §1.3 host resync (HOST-only — rides `canEditShared`, the same shared-plane gate the
+/** The panel-doorway to the host resync (HOST-only — rides `canEditShared`, the same shared-plane gate the
  *  edits use). Offered only when the scene reads STALE/EMPTY (no present cast AND no location) — the exact "panel
  *  out of sync?" state the escape hatch exists for. A member never sees it (the verb would refuse anyway; the gate
  *  keeps them from seeing a control that can't fire). The full control lives in the GM console; this is the
@@ -317,7 +317,7 @@ function SceneGameTrackers({
 }: {
   readonly trackers: RpgTrackerView["gameTrackers"];
   readonly onEditGameTracker?: (entry: RpgTrackerEntry, next: number) => void;
-  /** The section-scoped `trackerValues` hand-lock pin (§12.3) — ONE lock covers every game-tracker value,
+  /** The section-scoped `trackerValues` hand-lock pin — ONE lock covers every game-tracker value,
    *  so the pin renders once beside the section label. `null` when unlocked/not-host. */
   readonly lockPin?: ReactNode;
 }): ReactElement | null {
@@ -334,7 +334,7 @@ function SceneGameTrackers({
           // Unset stays unset (side-eye 08-01) — the em-dash arm, never a synthesized `0/0`.
           value={trackerNumber(entry.value ?? undefined)}
           max={trackerCeiling(entry.def, entry.value ?? undefined)}
-          // The tracker SHAPE glyph leads the row (the §12.5.5 closed-vocab Record — aria-hidden decoration;
+          // The tracker SHAPE glyph leads the row (the closed-vocab Record — aria-hidden decoration;
           // the label stays the datum).
           leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" className="shrink-0 text-muted-foreground" />}
           // The def's host-picked color, warded by the strict hex/OKLCH grammar; else the ordinal ramp.

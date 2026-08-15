@@ -169,7 +169,7 @@ export function Meter({
   const wrap = meterVariants({ kind });
   const geometry = renderGeometry(kind, { fraction, ticks, danger }, toFraction(0, lower, max));
 
-  // SCALE-HONEST BY DEFAULT (schema-renderer §3.4 "scale honesty"; live-drive D1 2026-08-14). Base UI's
+  // SCALE-HONEST BY DEFAULT ("scale honesty"; live-drive D1 2026-08-14). Base UI's
   // Meter.Root formats BOTH aria-valuetext AND the Meter.Value readout as a PERCENT of (min,max) when it is
   // handed no formatter — so a 1-10 score announces "89%" while its numeral reads 9. The meter must speak
   // its OWN bounds: `readout="scale"` (the default) shows `value/max` and announces `value of max`;

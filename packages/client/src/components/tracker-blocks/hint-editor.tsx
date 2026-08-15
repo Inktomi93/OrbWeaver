@@ -6,7 +6,7 @@
 // authors its gloss with the same gesture, the same cap, and the same counter.
 //
 // Anatomy: the muted "hint" tag (so an empty hint still reads as an offered field, not a gap) + the inline
-// display-at-rest value (§12.4.1) + the §12.3 quiet counter from 80% of the cap. A commit is TRUNCATED to
+// display-at-rest value + the quiet counter from 80% of the cap. A commit is TRUNCATED to
 // `max` (the wire cap is the same number — the field can't author a rejectable value).
 
 import { Row } from "@orb/ui/layout";
@@ -14,7 +14,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { TrackerValue } from "./tracker-value.tsx";
 
-/** Show the counter from 80% of the cap (§12.3 — "a quiet counter from 80% full"). */
+/** Show the counter from 80% of the cap ("a quiet counter from 80% full"). */
 const COUNTER_AT = 0.8;
 
 export interface HintEditorProps {

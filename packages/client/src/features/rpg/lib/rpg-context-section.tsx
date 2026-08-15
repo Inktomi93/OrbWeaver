@@ -1,9 +1,9 @@
-// The rpg CONTEXT-panel SECTION contribution (panel-redesign DESIGN.md §4; client-architecture-lockdown
+// The rpg CONTEXT-panel SECTION contribution (client-architecture-lockdown
 // §6c) — the FIRST real `chatContextContributors` consumer + rpg's registered definition (the
-// feature-owns-definition anchor). The GAME-rail tabs (HUD-1 §4): Status · Inventory · Scene ·
+// feature-owns-definition anchor). The GAME-rail tabs: Status · Inventory · Scene ·
 // Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction) + the
 // PHASE-locked Map (visible, `disabledReason` — "the promise visible, the gate honest"; 5 live + 1 locked).
-// **Sheet is NOT a tab** (the tracked-field unification §3): Status is the only list of people and expanding
+// **Sheet is NOT a tab** (the tracked-field unification): Status is the only list of people and expanding
 // a roster entry IS the sheet, so the sheet is a STATE of Status, not a sibling of it — a tab whose content
 // migrated to another tab depending on the stat profile was a hallway. Inventory STAYS its own tab
 // (plane-shaped, not character-card-shaped). rpg NEVER imports chat: `main.tsx` (the door) calls `makeRpgContextTabs({ trpc, queryClient })`
@@ -13,7 +13,7 @@
 // The APPLICABILITY gate (game-ness) is `rpg-game-chat.ts` — ONE predicate shared with the whole-pane HUD
 // CLAIM (`rpg-hud-region.tsx`), so a claimed pane and its tabs appear and disappear together. These defs own
 // the tabs; the HUD owns the ARRANGEMENT (band, rails, viewport) and the BAND identity, which is why no tab
-// here reaches for the shell's `.shell-panel-header` slot any more (HUD-1 §5.1 — that channel is deleted).
+// here reaches for the shell's `.shell-panel-header` slot any more (that channel is deleted).
 
 import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse, MapIcon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
@@ -40,7 +40,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
   // tabs and the claim can never disagree about whether this chat is a game.
   const isGameChat = makeIsGameChat(deps);
 
-  /** Is this a game chat the viewer HOSTS? The crown GM-console gate (§4 "Game" — host-only). Reads the
+  /** Is this a game chat the viewer HOSTS? The crown GM-console gate ("Game" — host-only). Reads the
    *  same cached `getChat` for `viewerIsHost`; a member never sees the tab (PERMISSION-omit) and the
    *  server verb is a second host gate. */
   const isHostGameChat = (s: ChatContextState): boolean => isGameChat(s) && peekChatDetail(deps, s)?.viewerIsHost === true;
@@ -60,7 +60,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
           // The ONE consolidated, ANNOUNCED error surface (FIX 3): the game-tab body owns it; the header BAND
           // collapses to nothing on error (below) so a failed read is a single `role="alert"` region, never two
           // fragmented unannounced blocks. Scene-named copy + a ≥44px Retry live in `RpgErrorState`. A NOT_FOUND
-          // read = the DANGLING POINTER state (§3.3): `RpgErrorState` discriminates it and renders the typed
+          // read = the DANGLING POINTER state: `RpgErrorState` discriminates it and renders the typed
           // gone-copy + the host's detach heal instead of a doomed Retry (host = the same cached `viewerIsHost`).
           renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={isHostGameChat(s)} error={error} onRetry={retry} />}
         >
@@ -76,7 +76,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       strip: "game",
       when: isGameChat,
       // A game chat lands on Status (the game-state centerpiece) — not the roster's Members, the
-      // declared-order first (Context-Panel-Program §4.1). A stored prior selection still wins.
+      // declared-order first. A stored prior selection still wins.
       defaultTab: isGameChat,
       body: gameTab("Status", (state) => <RpgStatusTab state={state} />),
     },
@@ -113,7 +113,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       body: gameTab("Journal", (state) => <RpgJournalTab state={state} />),
     },
     {
-      // The ONE PHASE-locked tab (panel-redesign §4 "Map"): visible, wearing a lock glyph with its reason
+      // The ONE PHASE-locked tab ("Map"): visible, wearing a lock glyph with its reason
       // on `title` — the promise visible, the gate honest. RV-7: it OPENS, onto the coming-soon body the
       // mock drew (`map.html`); MA-3 replaces that with the region map. Because it opens for every input,
       // the HUD's cell does NOT mark it `aria-disabled` (2026-08-01 side-eye: announcing "unavailable" over
@@ -130,8 +130,8 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       body: (s): ReactNode => (isGameChat(s) ? <RpgMapTab /> : null),
     },
     {
-      // The crown Game tab (panel-redesign §4 "Game") — the host-admin home AND the #40 FRONT DOOR.
-      // `strip:"meta"` (the bracket's bottom/administration strip, §4.2); host-only (`when:
+      // The crown Game tab ("Game") — the host-admin home AND the #40 FRONT DOOR.
+      // `strip:"meta"` (the bracket's bottom/administration strip); host-only (`when:
       // isHostCommitted` — PERMISSION-omit, a member never sees it). A LIVE game renders the GM console
       // (the `gameTab` wrapper — panel-state resolve + boundary; the console owns its OWN inner
       // `getConfigView` boundary, a second server-side host gate); a non-game / PAUSED chat renders the
@@ -140,7 +140,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       label: "Game",
       icon: Crown,
       strip: "meta",
-      // HOST-ONLY (HUD-1 §4) — the crown-gold glyph at rest in the admin rail. `when` is the real gate
+      // HOST-ONLY — the crown-gold glyph at rest in the admin rail. `when` is the real gate
       // (PERMISSION-omit); this is only how the HUD paints it.
       crown: true,
       when: isHostCommitted,
@@ -155,7 +155,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
           <QueryBoundary
             fallback={<Text voice="gloss">Loading…</Text>}
             // The Game-DOOR boundary (host-committed, non-game / paused chat). A host reaches it, so a dangling
-            // pointer here surfaces the host detach heal exactly like the tab bodies (§3.3).
+            // pointer here surfaces the host detach heal exactly like the tab bodies.
             renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={true} error={error} onRetry={retry} />}
           >
             <RpgGameDoor chatId={s.chatId} />

@@ -354,7 +354,7 @@ function SessionHeaderRow({
 }
 
 /** Which runs the pane is standing on: the view-back pin (the CONTEXT ledger's walker), the armed
- *  rewrite (§16.1 operate-back), the effective stage, and the rewrite the accept review targets. */
+ *  rewrite (operate-back), the effective stage, and the rewrite the accept review targets. */
 function runSelectionOf(
   allRuns: readonly RunView[],
   latestOf: ReadonlyMap<RefineryStage, RunView>,

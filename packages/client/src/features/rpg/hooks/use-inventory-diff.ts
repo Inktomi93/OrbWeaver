@@ -1,4 +1,4 @@
-// The Inventory "last change" EPHEMERAL diff (panel-redesign DESIGN.md §12.2.8): the design's "last change
+// The Inventory "last change" EPHEMERAL diff: the "last change
 // — dart bagged" line has NO backing datum (no per-item turn ref; views don't diff), so the honest arm is
 // a CLIENT-SIDE ephemeral diff — compare the previous vs the new inventory as the tracker view re-renders
 // and surface the delta ("dart ×1 added" / "poultice vial ×2 removed"). No TurnRef (the diff has no message
@@ -54,7 +54,7 @@ function firstRemove(prev: readonly RpgInventoryItem[], nextById: ReadonlyMap<st
 }
 
 /** The most-significant single change between two inventories, as a human line — or null when nothing
- *  material changed. Prefers an ADD, then a quantity change, then a REMOVE (§12.2.8 "last change"). */
+ *  material changed. Prefers an ADD, then a quantity change, then a REMOVE (the "last change" line). */
 function describeDelta(prev: readonly RpgInventoryItem[], next: readonly RpgInventoryItem[]): string | null {
   const prevById = new Map(prev.map((i) => [i.id, i]));
   const nextById = new Map(next.map((i) => [i.id, i]));

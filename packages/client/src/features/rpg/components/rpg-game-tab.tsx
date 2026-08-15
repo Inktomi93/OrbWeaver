@@ -1,6 +1,6 @@
-// The GAME tab (panel-redesign DESIGN.md §4 "Game" — the crown host-admin console): the ONE host-authored
+// The GAME tab ("Game" — the crown host-admin console): the ONE host-authored
 // surface, crown-tinted so the privilege reads at the strip. It is DEFINITIONS & RULES (the tracked-field
-// unification §3): the STAT PROFILE vocabulary (add / rename / gloss / remove + the value range — RV-4/RV-12),
+// unification): the STAT PROFILE vocabulary (add / rename / gloss / remove + the value range — RV-4/RV-12),
 // the TRACKERS (every tracked field in the game, one section, one vocabulary, one add flow — it absorbed the
 // Sheet tab's per-actor pool defs, the old cast-field schemas and the band-orb pin section), the relationship
 // hints, and the scalar knobs. VALUES are never authored here — they live on the character (Status → the
@@ -389,7 +389,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
       <HostConsoleScalars chatId={state.chatId} config={config} />
       <RpgGameMacros chatId={state.chatId} config={config} />
       <ResyncControl chatId={state.chatId} />
-      {/* The graduate doorway — the omitted full-only arms all point here (§4 "Graduate to full"). */}
+      {/* The graduate doorway — the omitted full-only arms all point here ("Graduate to full"). */}
       <RpgDoorwayLine>Full mode adds skills, combat, sessions, and the map arc — coming with the full graft.</RpgDoorwayLine>
     </Stack>
   );

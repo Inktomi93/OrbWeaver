@@ -1,9 +1,9 @@
-// The P5 ACT RAIL (panel-redesign DESIGN §4 "ACT II — THE BONE KEY ●I ─ ◉II ─ ○III") — extracted from
+// The P5 ACT RAIL ("ACT II — THE BONE KEY ●I ─ ◉II ─ ○III") — extracted from
 // rpg-quests-tab.tsx (the component-size cap; the RpgSceneCards precedent). Renders the snapshot-resident
 // `tracker.plot` plane (clone-forward like quests — swipe-consistent), current act embered
 // (text-highlight), past acts settled, future acts muted. TEXT is the datum (the "ACT II — title" line);
 // the dot row is aria-hidden decoration (the tracker-kit a11y model). Null plot ⇒ the caller renders
-// nothing (no client-invented acts, ever — §12.2.6).
+// nothing (no client-invented acts, ever).
 //
 // EDITABLE (host, #2 — act NAME + PROGRESS): the act number + the current act's title click-to-edit in
 // place, riding `editSnapshot` on the `plot` plane with FINE lock paths (#10: `plot.acts` for a title

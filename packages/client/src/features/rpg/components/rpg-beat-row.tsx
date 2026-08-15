@@ -1,9 +1,9 @@
 // One CHRONICLE BEAT — the journal tab's row family, split out of `rpg-journal-tab.tsx` (the component-size
 // cap; the tab keeps the scopes/grouping composition, this keeps the row anatomy).
 //
-// A beat renders as a BULLET LINE (§3: bordered cards are reserved for ARTIFACTS): the type word, the title,
+// A beat renders as a BULLET LINE (bordered cards are reserved for ARTIFACTS): the type word, the title,
 // then the body in the same muted voice. A member reads static text (PERMISSION-omit, never a disabled
-// control). For a HOST the title is click-to-edit in place (§12.4.1) and the BODY expands in place into a
+// control). For a HOST the title is click-to-edit in place and the BODY expands in place into a
 // real multi-line editor — owner dogfood 2026-07-31 ("clicking on a journal entry should expand an editor
 // like injections does and overrides, right now it just does a single line and its very hard to see"): a
 // journal body is a paragraph the model wrote, and a one-line input showed it through a letterbox. The
@@ -101,7 +101,7 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
 
 /** The host's BEAT body editor — the row at rest, its muted body line as the expand trigger, and the
  *  multi-line editor taking that line's place while open. The draft is seeded ONCE when the editor opens
- *  (§12.4.4 — a passive re-render never clobbers what the host is typing). */
+ *  (a passive re-render never clobbers what the host is typing). */
 function BeatBodyEditor({
   entryId,
   title,
@@ -120,7 +120,7 @@ function BeatBodyEditor({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(content);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
-  // The editor exists only after an explicit click on the beat's body (the §12.4.1 click-to-edit gesture) —
+  // The editor exists only after an explicit click on the beat's body (the click-to-edit gesture) —
   // and the panel is unmounted while closed, so mounting IS opening. Taking focus is that gesture's
   // continuation, not a focus steal (and it keeps the keyboard path whole: the trigger it replaced is gone).
   useEffect(() => {

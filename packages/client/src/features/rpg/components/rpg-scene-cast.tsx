@@ -100,7 +100,7 @@ function SceneCastCard({ actor, edit }: { readonly actor: RpgActorView; readonly
       {...guideProps(identity)}
       relationship={identity.relationship}
       fields={texts}
-      // The relationship KIND glyph (the §12.5.5 closed-vocab Record) leads the edit-mode picker.
+      // The relationship KIND glyph (the closed-vocab Record) leads the edit-mode picker.
       relationshipGlyph={<Icon icon={RELATIONSHIP_GLYPHS[identity.relationship.kind]} size="xs" className="shrink-0 text-muted-foreground" />}
       {...editProps}
       {...(meters.length === 0
@@ -117,7 +117,7 @@ function SceneCastCard({ actor, edit }: { readonly actor: RpgActorView; readonly
                 // The EFFECTIVE ceiling (this carrier's override, else the def default) — one resolver.
                 max={trackerCeiling(m.def, m.value ?? undefined)}
                 // The def's own color, else the ordinal ramp — the SAME derivation the host-console
-                // definition row and the band orb use (definition and display one system, §3).
+                // definition row and the band orb use (definition and display one system).
                 {...trackColorProps(resolveTrackerColor(m.def.color, i))}
                 {...(edit === undefined ? {} : { onEditValue: (next: number): void => edit.onEditTracker(ref, m.def, Math.max(0, next)) })}
               />
@@ -134,11 +134,11 @@ export function SceneCast({
 }: {
   readonly cast: readonly RpgActorView[];
   readonly edit?: SceneCastEdit;
-  /** The section-scoped presence hand-lock pin (§12.3) — `null` when unlocked/not-host. */
+  /** The section-scoped presence hand-lock pin — `null` when unlocked/not-host. */
   readonly lockPin?: ReactNode;
 }): ReactElement {
   if (cast.length === 0) {
-    // The honest empty-cast doorway (§12.1.5): the scene fills from the story; nothing to author by hand here.
+    // The honest empty-cast doorway: the scene fills from the story; nothing to author by hand here.
     return <RpgDoorwayLine>No one on stage yet — the story brings them in.</RpgDoorwayLine>;
   }
 

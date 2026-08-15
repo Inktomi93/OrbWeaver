@@ -1,16 +1,16 @@
-// The JOURNAL tab (panel-redesign DESIGN.md §4 "Journal" — live in lite AND full, the owner correction):
-// the campaign CHRONICLE. Scope row (the ONE mini-tab scope-selector semantics, §12.1.3): `All | Marks |
+// The JOURNAL tab ("Journal" — live in lite AND full, the owner correction):
+// the campaign CHRONICLE. Scope row (the ONE mini-tab scope-selector semantics): `All | Marks |
 // Cards` — Cards is the P4 immersive-card archive (APPLICABILITY: only when the game's `immersiveHtml` is
 // on); Wraps stays full-only/unbuilt (no `wrap` member in `RPG_JOURNAL_TYPES` — the scope row grows by
 // append). Entries group by REAL date (`timeLib.formatDate`) — the designed in-world day grouping needs
-// the flagged `rpg_journal.world_day` column (§12.2.5); until it lands the honest arm is real-date
+// the flagged `rpg_journal.world_day` column; until it lands the honest arm is real-date
 // headers, never a client-invented "Day 3".
 //
-// Plain beats render as BULLET LINES (`BeatLine` — the §3 rule: bordered cards are reserved for
-// ARTIFACTS), and immersive cards ARCHIVE INTO THE DAY THEY WERE BORN (§4 "Journal": the shared
+// Plain beats render as BULLET LINES (`BeatLine` — bordered cards are reserved for
+// ARTIFACTS), and immersive cards ARCHIVE INTO THE DAY THEY WERE BORN ("Journal": the shared
 // `collectArchivedCards` projection over the same `chat.listMessages` cache the Scene birth-home reads).
 //
-// MARKS (§12.2.4 — checkpoints' designed home): a mark row = label · created date · the host-only Restore
+// MARKS (checkpoints' designed home): a mark row = label · created date · the host-only Restore
 // (clone-forward `restoreCheckpoint`, behind a ConfirmDialog naming the consequence) + the host "New mark"
 // primary. Members see the list (the verb is member-read), no restore — PERMISSION-omit, never a disabled
 // control.
@@ -74,9 +74,9 @@ type ChronicleRow =
   | { readonly kind: "beat"; readonly key: string; readonly type: string; readonly label: string; readonly title: string; readonly content: string }
   | { readonly kind: "card"; readonly card: ArchivedCard };
 
-/** The host "New entry" composer (§12.4 flow — no dead ends): TYPE + TITLE, fired as one `addJournalEntry`
+/** The host "New entry" composer (no dead ends): TYPE + TITLE, fired as one `addJournalEntry`
  *  with an empty body. The BODY is not a third composer field on purpose — the panel is an instrument, not a
- *  form (§12.4.1): the born row's content is click-to-edit in place the instant it lands ("write the beat…"),
+ *  form: the born row's content is click-to-edit in place the instant it lands ("write the beat…"),
  *  which is the same authoring gesture every other datum here uses AND keeps this composer in the tab's
  *  one-draft-field grammar (the New-mark / New-quest siblings). A CREATION draft, so plain controls, exempt
  *  from display-at-rest. Tier-2 refusal: a blank title never sends (the wire requires min(1)). */
@@ -116,7 +116,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
     ? {
         onEditTitle: (entryId, next): void => {
           const trimmed = next.trim();
-          // Tier-2 refusal (§12.3): the wire requires min(1) — a blanked title is never sent.
+          // Tier-2 refusal: the wire requires min(1) — a blanked title is never sent.
           if (trimmed !== "") {
             editEntry.mutate({ chatId: state.chatId, entryId, patch: { title: trimmed } });
           }
@@ -131,7 +131,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
     : undefined;
 
   if (entries.length === 0 && cards.length === 0) {
-    // No dead end (§4.3 rule 1): the empty chronicle still offers the host the first page.
+    // No dead end: the empty chronicle still offers the host the first page.
     return (
       <Stack gap="section">
         <Text>
@@ -142,7 +142,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
     );
   }
 
-  // Merge beats + cards into one dated stream, newest first, then bucket by REAL date (§12.2.5 honest arm).
+  // Merge beats + cards into one dated stream, newest first, then bucket by REAL date (the honest arm).
   const rows: readonly { readonly createdAt: number; readonly row: ChronicleRow }[] = [
     ...entries.map((entry) => ({
       createdAt: entry.createdAt,

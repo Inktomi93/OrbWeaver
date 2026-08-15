@@ -1,5 +1,5 @@
 // @orb/contracts/refinery/schema-authoring — the custom payload-schema AUTHORING contract (R3 / SF0;
-// docs/design/refinery-r3-build-plan.md §1; the NL→schema design's §4.2 write-boundary belt + §7
+// the NL→schema design's write-boundary belt + its
 // security tightenings, homed HERE so the server verbs and the client editor validate through ONE
 // schema). A stored `refinery_schemas.schema` blob is LIFTABLE BY INVARIANT: every write parses through
 // {@link refinerySchemaDocumentSchema}, whose belt is `liftJsonSchema` (the same trust boundary that
@@ -8,14 +8,14 @@
 //
 // THE TIGHTENINGS, each with its reason (all refinery-tier — kit's lift subset is deliberately wider):
 //   • depth ≤ 8 (kit allows 32): an LLM-payload schema has no business nesting deeper, and the renderer's
-//     recursion budget is sized to this cap (schema-renderer §3.2's "nesting is bounded").
-//   • `pattern` REFUSED: a user regex executed server-side against model output is a ReDoS surface
-//     (NL design §6/§7); kit lifts it for plugin tools — the refinery declines the whole class.
+//     recursion budget is sized to this cap ("nesting is bounded").
+//   • `pattern` REFUSED: a user regex executed server-side against model output is a ReDoS surface;
+//     kit lifts it for plugin tools — the refinery declines the whole class.
 //   • per-node property/enum caps + name/description caps: user text inside a schema reaches provider
-//     wires as ResponseFormat content (NL design §7) — bounded like every other model-facing input.
+//     wires as ResponseFormat content — bounded like every other model-facing input.
 //   • `x-orb-ui` render hints are VALIDATED here (malformed hints refuse at save with their path; on
 //     READ the renderer heals a malformed hint to "no hint" — render-by-structure, never a failure).
-//   • the WELL-KNOWN CORE (NL design §4.3): a custom SCORE schema must keep `overallScore` on the exact
+//   • the WELL-KNOWN CORE: a custom SCORE schema must keep `overallScore` on the exact
 //     1-10 scale (the F6 stamp, library sorts and the dossier stay comparable across schemas); a custom
 //     ANALYZE schema must carry the verdict enum with the exact three spellings (the iterate loop's
 //     REGRESSION stop condition survives any custom shape).
@@ -28,7 +28,7 @@ import { JsonSchemaLiftError, liftJsonSchema, RENDER_HINT_KEY } from "@orb/kit/j
 import { z } from "zod";
 import { REFINERY_VERDICTS, SCORE_MAX, SCORE_MIN } from "./core.ts";
 
-// ── the authoring caps (all model-facing text — NL design §7) ───────────────────────────────────────────
+// ── the authoring caps (all model-facing text) ───────────────────────────────────────────
 
 /** ResponseFormat identifier grammar (the extension's own rule, `validate.ts:100`) — the stored name IS
  *  the wire `ResponseFormat.name`. */
@@ -48,16 +48,16 @@ export const REFINERY_SCHEMA_STAGES = ["score", "analyze"] as const;
 export type RefinerySchemaStage = (typeof REFINERY_SCHEMA_STAGES)[number];
 export const refinerySchemaStageSchema = z.enum(REFINERY_SCHEMA_STAGES);
 
-// ── the x-orb-ui render-hint vocabulary (schema-renderer §4.2 — CLOSED, save-validated) ─────────────────
+// ── the x-orb-ui render-hint vocabulary (CLOSED, save-validated) ─────────────────
 
 /** The hint tones — word-primary tint semantics the renderer maps to intent tokens. */
 export const RENDER_HINT_TONES = ["good", "warn", "bad", "info", "neutral"] as const;
 export type RenderHintTone = (typeof RENDER_HINT_TONES)[number];
 
-/** The hint roles — elevations over the structure-keyed floor (schema-renderer §3.2/§4.2). */
+/** The hint roles — elevations over the structure-keyed floor. */
 export const RENDER_HINT_ROLES = ["hero", "verdict", "axis", "prose", "title", "score", "body", "badge"] as const;
-/** @public future: the R3 refinery schema-renderer role-authoring surface (schema-renderer §4.2, board C15,
- *  design-gated/unbuilt) — the member twin of `RENDER_HINT_ROLES`, whose live consumers read the TUPLE (an
+/** @public future: the R3 refinery schema-renderer role-authoring surface (design-gated/unbuilt) — the
+ *  member twin of `RENDER_HINT_ROLES`, whose live consumers read the TUPLE (an
  *  INTERNAL value), never this alias. It belongs to whatever renders/authors a hint role BY NAME; kept, not a
  *  twin, because the tuple is same-package-only (apisurface INTERNAL). */
 export type RenderHintRole = (typeof RENDER_HINT_ROLES)[number];
@@ -199,7 +199,7 @@ function coreIssueOf(schema: Record<string, unknown>, stage: RefinerySchemaStage
       };
 }
 
-/** The liftable-subset check as a zod issue (the §4.5 lift-refusal bridge — the SAME message the model
+/** The liftable-subset check as a zod issue (the lift-refusal bridge — the SAME message the model
  *  sees on the bounded retry, and the same one the editor's raw-paste door surfaces verbatim). */
 function liftIssueOf(schema: Record<string, unknown>): BeltIssue | null {
   try {

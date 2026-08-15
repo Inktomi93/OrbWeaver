@@ -107,11 +107,11 @@ export const refineryRuns = sqliteTable(
     // summarize result DOES carry usage and the engine threads it — a null here is a silent backend.
     promptTokens: integer("prompt_tokens"),
     outputTokens: integer("output_tokens"),
-    // The run's WALL TIME — the Runs ledger's third economic column beside the token counts
-    // (schema-renderer §9.2). NOT NULL and un-backfillable, which is why it lands in the baseline window:
+    // The run's WALL TIME — the Runs ledger's third economic column beside the token counts.
+    // NOT NULL and un-backfillable, which is why it lands in the baseline window:
     // a run that produced a row took some measurable time, and there is no honest value to invent later.
     durationMs: integer("duration_ms").notNull(),
-    // The DAG parent: the run whose output this one CONSUMED (schema-renderer §21 edge 1) — an analyze
+    // The DAG parent: the run whose output this one CONSUMED — an analyze
     // names the rewrite it judged, a rewrite names the score/analyze it worked from. Without it the log is
     // a timestamp-ordered LIST, so "which rewrite did this analyze judge?" is answerable only by "the
     // latest at the time" — false the moment step-back targets an earlier run.

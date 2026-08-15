@@ -4,7 +4,7 @@
 // channels (the two teaching gates + the host reveal-eye offer) → Prompt budget (the reminder's
 // recent-beats slice) → Steering note →
 // Delivery model (the mock's SEGMENTED mode toggle with its honest consequence line — never a resting
-// dropdown, DESIGN §12.4.1) → Extraction depth (the §1.3 evidence trio). Everything autosaves (D66 A4). The
+// dropdown) → Extraction depth (the evidence trio). Everything autosaves (D66 A4). The
 // section ORDER inside this form is the tail of the mock's console order (game.html) — the array/record
 // sub-editors render before it in rpg-game-tab.tsx.
 
@@ -56,7 +56,7 @@ const CHOICE_BEHAVIOR_CONSEQUENCE: Readonly<Record<RpgConfigView["cyoaChoiceBeha
   send: "a pick sends immediately as your turn",
 };
 
-/** The extraction-CONTEXT consequence per arm (§1.3) — how much of the turn's own story the state round reads
+/** The extraction-CONTEXT consequence per arm — how much of the turn's own story the state round reads
  *  as evidence. Keyed over the closed axis, so a new context arm cannot ship without its honest cost line. */
 const EXTRACTION_CONTEXT_CONSEQUENCE: Readonly<Record<RpgExtractionContext, string>> = {
   beat: "only the latest beat — the cheapest read, and the one most likely to miss what set the scene up",
@@ -280,7 +280,7 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
           <Stack gap="field">
             <Kicker>Delivery model</Kicker>
             {/* The mock's SEGMENTED toggle over the whole mode axis + its honest consequence line — never
-                a resting dropdown (§12.4.1). */}
+                a resting dropdown. */}
             <form.AppField name="extractionMode">
               {(field): ReactElement => (
                 <Row gap="block" align="center">
@@ -321,7 +321,7 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
             </form.AppField>
           </Stack>
 
-          {/* EXTRACTION DEPTH (§1.3) — the knobs that decide how much EVIDENCE the state round reads.
+          {/* EXTRACTION DEPTH — the knobs that decide how much EVIDENCE the state round reads.
               Grouped under one kicker because they only make sense together: the context arm picks the shape,
               the token budget bounds the `window` arm (applicability-shown), and the cadence decides how often
               a beat re-states everything instead of just what changed.

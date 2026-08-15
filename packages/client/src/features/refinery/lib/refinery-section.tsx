@@ -3,7 +3,7 @@
 // as designed). LIST = the sessions roster (flat, delta 3 arm A) with its `selection` seam — declaring
 // the pair opts the section INTO the mobile one-shell rule (delta 1 arm A: the roster is the phone's
 // screen when nothing is open). CONTEXT = the cross-run ledger, `defineContextTabs<RefineryContextState>`
-// over Runs · Setup · Versions (delta 2 arm A + schema-renderer §16.3) — the anti-echo law holds: no tab
+// over Runs · Setup · Versions (delta 2 arm A) — the anti-echo law holds: no tab
 // restates CONTENT's payload; every row carries its action.
 
 import { FlaskConical } from "@orb/ui/icons";
@@ -18,7 +18,7 @@ import { useRefinerySession, useRefinerySessions } from "../hooks/use-refinery-s
 import { RefineryContentSurface } from "../surfaces/refinery-content-surface.tsx";
 import { RefineryListHeader, RefineryListSurface } from "../surfaces/refinery-list-surface.tsx";
 
-/** The Runs · Setup · Versions tab DEFS (delta 2 arm A + schema-renderer §16.3) — the array lives with
+/** The Runs · Setup · Versions tab DEFS (delta 2 arm A) — the array lives with
  *  the section (a component module exports only components); the BODIES are the components. */
 const refineryContextTabs: readonly ContextTabDef<RefineryContextState>[] = [
   {

@@ -1,4 +1,4 @@
-// The CONTEXT Relations tab (FINAL-Character §7) — the character's cross-entity links: Linked World Books
+// The CONTEXT Relations tab — the character's cross-entity links: Linked World Books
 // (worldInfo.attach/detach/listForCharacter) + Connected Personas (persona.connect/disconnect/
 // listConnectedToCharacter). Each is a RelationManagerSection (tier-2): an inline summary list + an add-picker
 // Dialog. All writes are IMMEDIATE (never the CONTENT save-bar). NO chat-lore control here (PD-30 — CHAT-scoped

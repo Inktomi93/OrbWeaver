@@ -36,7 +36,7 @@
 // hand-authored library rows. The correspondence is pinned in
 // `tests/contracts/refinery/schema-forge.contract.test.ts`.
 //
-// WHAT THE GRAMMAR CANNOT OWN (the residue the §4.5 lift-refusal retry bridge SHRANK to — it used to carry
+// WHAT THE GRAMMAR CANNOT OWN (the residue the lift-refusal retry bridge SHRANK to — it used to carry
 // the WHOLE belt): the document NAME's identifier grammar and a field `path`'s segment grammar. Both are
 // free strings; `pattern` is deliberately never sent to a grammar compiler. Everything else the belt used
 // to refuse — a `$ref`, a `oneOf`, a `pattern` inside the schema, a bad hint role, an over-deep nest, a
@@ -124,7 +124,7 @@ export const forgeFieldRowSchema = z.object({
   minimum: z.number().optional(),
   maximum: z.number().optional(),
   maxLength: z.number().int().min(1).optional(),
-  // ── the display vocabulary (schema-renderer §4.2) — flat here, assembled into one `x-orb-ui` by the
+  // ── the display vocabulary — flat here, assembled into one `x-orb-ui` by the
   //    transpiler, because a nested hint object is another closed-object level the hosted wires charge for.
   role: z.enum(RENDER_HINT_ROLES).optional(),
   group: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),

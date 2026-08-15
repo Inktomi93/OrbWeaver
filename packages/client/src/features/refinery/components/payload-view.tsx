@@ -1,4 +1,4 @@
-// PayloadView — the schema-driven payload renderer (refinery R3; schema-renderer §3): walks a
+// PayloadView — the schema-driven payload renderer (refinery R3): walks a
 // `RenderPlan` + the payload TOGETHER. The plan decided every widget from the SCHEMA alone; this file
 // only fills values — no datum ever picks a widget here (the anti-sniffing law). The FIXED payloads and
 // every custom schema render through this ONE component: the built-in surface is literally the general

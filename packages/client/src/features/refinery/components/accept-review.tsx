@@ -1,8 +1,8 @@
 // The ACCEPT review (arm B, RULED — the accept-ergonomics mock): per-block Keep/Discard VERBS over the
 // chosen rewrite run, tri-state with UNDECIDED failing closed (belt 10 rendered as UI: the default is
 // nothing accepted, every keep is an individual press, no bulk gesture). Blocks classify as REPLACED
-// (before/after pair), EMPTIED (before + the "Cleared" state panel — §15.4's distinct consent copy rides
-// the primitive's cleared Keep verb), and — for a diverged field — the §21 MERGE-CONFLICT treatment:
+// (before/after pair), EMPTIED (before + the "Cleared" state panel — the distinct consent copy rides
+// the primitive's cleared Keep verb), and — for a diverged field — the MERGE-CONFLICT treatment:
 // a three-pane BASE·LIVE·REWRITE block whose Keep carries `confirmDiverged`.
 //
 // FORK C: side-by-side pairs for prose-length texts, an inline word `DiffView` under ~200 chars.
@@ -37,7 +37,7 @@ function targetLabel(entry: RefineryRewriteField): string {
   return entry.field === "greetings" ? `greetings [${entry.greetingIndex ?? "?"}]` : entry.field;
 }
 
-/** The §15.4 consent copy: destruction is STATED per field kind, never inferred from a blank side. */
+/** The consent copy: destruction is STATED per field kind, never inferred from a blank side. */
 function clearNoteOf(field: RefinableField): string {
   if (field === "greetings") {
     return "This greeting slot will be removed — later greetings shift up.";

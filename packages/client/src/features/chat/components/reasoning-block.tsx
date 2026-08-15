@@ -11,7 +11,7 @@
 //     flung; the reader closes it by hand.
 //   • The auto open/close is INSTANT (`CollapsiblePanel instant` — the reduced-motion-mirroring 0.01ms
 //     snap), so the answer prose paints at its final position in ONE commit instead of travelling the whole
-//     trace height as a smooth fold drags it up (`streaming-shape-churn.md` §8, the measured 350–677px prose
+//     trace height as a smooth fold drags it up (the measured 350–677px prose
 //     fling). A MANUAL toggle (`override` non-null) restores the smooth Base UI fold.
 //
 // TWO MOUNTS, one component. The LIVE mount is the streaming ghost (`ghost-message-row.tsx`) — it owns the
@@ -89,7 +89,7 @@ export function ReasoningBlock({
   // user's choice for the row's life and beats both.
   const expanded = override ?? (thinking || !autoCollapse);
   // SNAP the AUTO open/close (no manual toggle yet) so the answer prose paints at its final position in one
-  // commit rather than travelling the trace's height as the panel folds (`streaming-shape-churn.md` §8). Once
+  // commit rather than travelling the trace's height as the panel folds. Once
   // the user has clicked, `override` is non-null and the smooth Base UI fold returns.
   const instant = override === null;
   const label = labelOverride ?? (thinking ? `Thinking… ${elapsedSeconds}s` : `Thought for ${elapsedSeconds}s`);

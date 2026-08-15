@@ -9,7 +9,7 @@ import { compareBlocksVariants } from "./variants.ts";
 export interface CompareBlock {
   /** Optional field name, shown above the pair — omitted for a single full-text pair. */
   readonly label?: string;
-  /** ABSENT-SIDE ARMS (the R3 widening, schema-renderer §18 row 1): at least one side is present.
+  /** ABSENT-SIDE ARMS (the R3 widening): at least one side is present.
    *  `before` only = a CLEARED block (the after side renders the "Cleared" state panel); `after` only =
    *  an ADDED block (no fabricated empty left pane — "was blank" would be a lie for an append). */
   readonly before?: string;

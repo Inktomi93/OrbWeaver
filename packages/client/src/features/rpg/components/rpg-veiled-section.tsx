@@ -1,4 +1,4 @@
-// The VEILED ledger (panel-redesign DESIGN.md §6 P3 — the deception `<lie>`/`<ofilter>` host surface):
+// The VEILED ledger (the deception `<lie>`/`<ofilter>` host surface):
 // Status hosts the standing-secrets ledger because secrets are game-state ABOUT the roster (the same lens
 // this tab already is). All crown-gold so "host-only" reads without a label. LIVE off `rpg.revealHidden`
 // (the P3 read — host-gated server-side, leak-free NOT_FOUND for a member): the `standingLies` inventory

@@ -36,12 +36,12 @@ import { RpgFieldLock } from "./rpg-field-lock.tsx";
 type ActorVolatile = NonNullable<RpgActorView["volatile"]>;
 
 /** The hand-edit callbacks for ONE actor's volatile plane — all whole-`actorState` overlays (host only,
- *  D108: NOT gated by `trackersReadOnly`). Clamps values to `≥ 0` (§12.3 Tier-1; over-max is representable
+ *  D108: NOT gated by `trackersReadOnly`). Clamps values to `≥ 0` (Tier-1; over-max is representable
  *  fiction). NOTE: no HP arm — in LITE health IS a tracker (D86); the `hp` FIELD is a full-mode combat slot
  *  (born null in lite, never rendered). */
 export interface ActorEdit {
   readonly onEditTracker: (key: string, next: number) => void;
-  /** Lower/raise THIS carrier's ceiling (§12.3 clamp-and-tell). Writes the per-carrier `value.max` override —
+  /** Lower/raise THIS carrier's ceiling (clamp-and-tell). Writes the per-carrier `value.max` override —
    *  cleared to absent when it equals the def's default (the anti-drift rule). Returns the consequence when
    *  lowering below the reading (the value is DRAGGED down in the SAME commit) so the caller can show the
    *  microline; `null` ⇒ no drag. Enforces the `max ≥ 1` floor. */
@@ -59,7 +59,7 @@ export interface ActorEdit {
 }
 
 /** One editable METER tracker on its EFFECTIVE ceiling (`value.max ?? def.max` — the one resolver), with the
- *  §12.3 max-lowering value-drag TELL: lowering the ceiling below the reading drags the reading down (in
+ *  max-lowering value-drag TELL: lowering the ceiling below the reading drags the reading down (in
  *  `onEditTrackerMax`'s one commit) and shows a transient microline ("Vitality 24 → 20 — ceiling lowered");
  *  an overfull value (value above the ceiling) reads in warning tone. An OVERRIDDEN ceiling states the default
  *  it departs from ("default: 30") so a divergence is visible and reversible — typing the default back clears
@@ -222,7 +222,7 @@ export function StatusLine({ status, edit }: { readonly status: string; readonly
 }
 
 /** Condition chips: lit danger badges (glyph + name). Editable ⇒ each chip removes on click (× affordance)
- *  and an "add condition" input appends (§12.3 Tier-2: an empty/duplicate name never sends). A pinned
+ *  and an "add condition" input appends (Tier-2: an empty/duplicate name never sends). A pinned
  *  conditions plane (`…conditions` locked, #10) leads with the pin + Release. */
 export function ConditionChips({
   conditions,

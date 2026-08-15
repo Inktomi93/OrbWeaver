@@ -32,7 +32,7 @@ export const colorFieldVariants = tv({
     // own, so nothing else owns the composite. MEASURED under a real Tab in the color-field CT.
     nativeColorInput: `h-control-md w-full cursor-pointer rounded-control border border-border p-0 outline-none disabled:cursor-not-allowed ${FOCUS_RING_ON_POPOVER}`,
     hexField: "w-full",
-    // The per-field clear affordance (FINAL-Character §8.1). Left-aligned under the hex field so it
+    // The per-field clear affordance. Left-aligned under the hex field so it
     // reads as a secondary action, not a full-width primary — it emits the empty "" clear sentinel.
     resetButton: "self-start",
   },

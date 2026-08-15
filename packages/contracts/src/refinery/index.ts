@@ -319,8 +319,7 @@ export const DEFAULT_REFINERY_STAGE_CONFIG = {
   analyze: { kind: "fixed", mode: "full" },
 } as const satisfies RefineryStageConfig;
 
-/** The RUN-side custom provenance arm — SELF-CONTAINED per the P1-B ruling
- *  (docs/design/refinery-schema-renderer.md §9.1): the run log is append-only forever, so a run EMBEDS
+/** The RUN-side custom provenance arm — SELF-CONTAINED per the P1-B ruling: the run log is append-only forever, so a run EMBEDS
  *  the schema it was produced under (depth-capped objects are small; runs are per-user artifacts, dedupe
  *  is not worth a join) plus the schema row's `version` at run time. The renderer and the read-seam
  *  re-parse never dereference a live `refinery_schemas` row for a historical run — "the schema is gone"
@@ -397,9 +396,9 @@ const rewriteFieldTarget = {
  *  EMPTYING IS REFINING (owner ruling 2026-08-08, overruling the R0 stance that lived on this comment —
  *  "why wouldn't they be able to empty personality? They can fill it therefore they can empty it").
  *  Consolidating several fields into one REQUIRES clearing the donors, so the pipeline must be able to say
- *  it. Design: docs/design/refinery-schema-renderer.md §15.
+ *  it.
  *
- *  WHY A TAGGED ARM AND NOT `text: ""` (§15.1 — all three reasons are load-bearing):
+ *  WHY A TAGGED ARM AND NOT `text: ""` (all three reasons are load-bearing):
  *   • GRAMMAR HONESTY. `text` keeps `min(1)`, so the projected `minLength` is unchanged on every wire and
  *     `""` never becomes a semantics-bearing token — "the model emitted nothing" stays distinguishable
  *     from "the user's consolidation emptied this field".
@@ -408,7 +407,7 @@ const rewriteFieldTarget = {
  *   • ANTI-SNIFFING. `""`-as-clear is one more data-sniffed convention — the failure class the whole
  *     schema-driven design exists to kill.
  *
- *  APPENDING IS REFINING TOO (fork F-T1, owner-ruled IN for R4 — schema-renderer §7b): "split one greeting
+ *  APPENDING IS REFINING TOO (fork F-T1, owner-ruled IN for R4): "split one greeting
  *  into two" is squarely the owner's SPLIT case, and before this arm a payload could only ever address slots
  *  the card already had (an entry naming `greetingIndex === liveGreetingCount` died at `greeting_index_invalid`).
  *  The arm is GREETINGS-ONLY: every other refinable target is a single field that already exists on the card,
@@ -494,7 +493,7 @@ export const REFINERY_STAGE_PAYLOADS = {
   analyze: refineryAnalyzePayloadSchema,
 } as const satisfies Record<RefineryStage, z.ZodType>;
 
-/** THE payload-schema dispatch (schema-renderer §9.6 — the honest one-home once the custom arm exists):
+/** THE payload-schema dispatch (the honest one-home once the custom arm exists):
  *  a fixed or manual run parses the stage's typed contract; a custom run parses the schema EMBEDDED in
  *  its own provenance (never a live row — P1-B). Throws `JsonSchemaLiftError` only on a corrupt embed,
  *  which the read seam treats as the payload-no-longer-parses heal. */
@@ -502,7 +501,7 @@ export function payloadSchemaFor(stage: RefineryStage, payloadConfig: RefinerySt
   return payloadConfig.kind === "custom" ? liftJsonSchema(payloadConfig.schema) : REFINERY_STAGE_PAYLOADS[stage];
 }
 
-// ── The stage-SYSTEM shape restatement (schema-renderer §9.3) ────────────────────────────────────────────
+// ── The stage-SYSTEM shape restatement ────────────────────────────────────────────
 // A weak-model courtesy that pairs with the real constraint (the structured-output `responseFormat`): the
 // system prompt names the JSON shape the payload above expects. It is SPLICED into the prose slots through
 // the `{{shape}}` pre-substitution token rather than written into them, so a host's prose override can
@@ -576,7 +575,7 @@ const refineryRunBaseSchema = z.object({
    *  rewrite names the score (or, on a refinement round, the analyze) it worked from. Null on a run that
    *  read no prior run.
    *
-   *  WHY IT IS A COLUMN AND NOT AN INFERENCE (docs/design/refinery-schema-renderer.md §21 edge 1): the
+   *  WHY IT IS A COLUMN AND NOT AN INFERENCE: the
    *  append-only log is a timestamp-ordered list, so "which rewrite did this analyze judge?" is answerable
    *  only by "the latest one at the time" — which stops being true the moment step-back lets an analyze
    *  target round 1 while round 2 exists. Recorded, the ledger draws the true DAG instead of implying a

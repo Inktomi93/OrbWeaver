@@ -17,7 +17,7 @@
 // inert text and rewritten text round-trips back into the card with its macros intact. Neutralizing here
 // would ZWSP-corrupt applied rewrites.
 //
-// THE JSON-SHAPE RESTATEMENT IS SPLICED, NOT BAKED (schema-renderer §9.3 — P2-D, pre-SF1). Each stage
+// THE JSON-SHAPE RESTATEMENT IS SPLICED, NOT BAKED (P2-D, pre-SF1). Each stage
 // SYSTEM slot carries the PRE-SUBSTITUTION token `{{shape}}` and the prompt substrate splices the ACTIVE
 // payload's restatement through `resolveProseText`'s token channel (a plain replace — never the macro
 // engine, which these slots do not run; the `{{person}}`/`{{base}}` guided precedent). Two reasons it

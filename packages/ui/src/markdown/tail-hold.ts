@@ -1,4 +1,4 @@
-// The seal's STREAMING tail-hold pre-pass (docs/design/streaming-shape-churn.md §2 "M1", §3 arm 1).
+// The seal's STREAMING tail-hold pre-pass ("M1", arm 1).
 //
 // THE DEFECT: markdown's block grammar is not decidable from a prefix, so the block a streamed tail is
 // currently painting as is not the block it will end up being. `| a | b |` is a paragraph until the

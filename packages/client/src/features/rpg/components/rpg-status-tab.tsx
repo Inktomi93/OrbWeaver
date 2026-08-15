@@ -1,14 +1,14 @@
-// The STATUS tab (panel-redesign DESIGN.md §4 "Status" + the tracked-field unification §3 IA repair):
+// The STATUS tab ("Status" + the tracked-field unification IA repair):
 // **the ONLY list of people**, and expanding an entry IS the sheet. Two states, one tab:
 //   • the ROSTER — portrait-led instrument cards (D44 portrait · name · relationship badge ON the name line,
-//     rendered ONLY when the roster character also stands in the scene cast, §12.2.3 — never a phantom
+//     rendered ONLY when the roster character also stands in the scene cast — never a phantom
 //     "neutral") with the quick edits that belong on a glanceable row: the volatile `status` line, the
 //     tracker meters (value AND max click-to-edit), the lit condition chips;
 //   • the CHARACTER TAKEOVER (`RpgCharacterDetail`) — the whole character, breadcrumb back to the roster.
 // Sheet-the-tab dissolved into that second state (SETTLED, owner 2026-07-31): its title/level/wallet/
 // attribute planes live in the takeover, its tracker DEF rows moved to the Game tab's one def home.
 //
-// VEILED (P3, §6) — the host-only standing-secrets ledger is a WIRED-WHEN-READY section shell
+// VEILED (P3) — the host-only standing-secrets ledger is a WIRED-WHEN-READY section shell
 // (`RpgVeiledSection`): the deception plane is being built by its own lane; until entries arrive the
 // shell renders NOTHING (the honest empty plane — no filler). The section + crown-gold grammar land here
 // because secrets are game-state about the ROSTER (the same lens this tab already is).
@@ -85,7 +85,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
         );
       },
       onEditTrackerMax: (key, nextMax): { readonly draggedTo: number } | null => {
-        const clampedMax = Math.max(1, nextMax); // the real `max ≥ 1` floor (§12.3 Tier-1)
+        const clampedMax = Math.max(1, nextMax); // the real `max ≥ 1` floor (Tier-1)
         const def = actor.trackers.find((d) => d.key === key);
         const reading = trackerNumber(actor.volatile?.trackerValues[key]);
         // THIS character's ceiling (owner amendment): the override rides the actor's own value plane, and
@@ -115,7 +115,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
 
   return (
     <Stack gap="section" data-slot="rpg-status-tab">
-      {/* The plane-wide hand-lock pin (§12.3). Nothing MINTS this coarse `actorState` pin any more — the ops
+      {/* The plane-wide hand-lock pin. Nothing MINTS this coarse `actorState` pin any more — the ops
           door stamps fine per-datum paths — but a snapshot written before R1 can carry one, and a pin with no
           Release is a trap: the section keeps the affordance so a stored plane-wide lock can be let go. */}
       <Kicker

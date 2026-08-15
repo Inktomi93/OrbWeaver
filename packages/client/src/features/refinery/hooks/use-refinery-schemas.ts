@@ -1,4 +1,4 @@
-// The custom-schema library data tier (R3/SF — the NL design §4.4's client half): reads + writes over
+// The custom-schema library data tier (R3/SF — the NL design's client half): reads + writes over
 // the schema CRUD, the NL forge pair, the testSchema drill, and the preflight readout. FRESHNESS rides the
 // BUS exactly like the sibling hooks: the three CRUD verbs emit the `refineryChanged` user-bus member, whose
 // seam row path-invalidates `trpc.refinery` (both keys live under it), so a schema saved on one device
@@ -26,7 +26,7 @@ export function useRefinerySchemas(): UseQueryResult<SchemaLibrary, TrpcReadErro
   return useQuery(trpc.refinery.listSchemas.queryOptions());
 }
 
-/** ONE session's output-budget preflight (schema-renderer §8) — re-resolved per fetch; the write tier
+/** ONE session's output-budget preflight — re-resolved per fetch; the write tier
  *  invalidates it whenever the session's scope/config moves. `null` asks nothing. */
 export function useRefineryPreflight(sessionId: RefinerySessionId | null): UseQueryResult<Preflight, TrpcReadError> {
   const trpc = useTRPC();
