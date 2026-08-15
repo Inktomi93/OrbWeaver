@@ -5,7 +5,7 @@
 //
 // ONE sort, so the cursor is a plain object rather than character's sort-discriminated union: `listChats` is
 // newest-updated-first and nothing offers another order (the star is a MARKER, never a sort key — the
-// list-pane-projection D4 ruling the chats pane and the character projection both render under). `id` is the
+// ruling the chats pane and the character projection both render under). `id` is the
 // tiebreak, not decoration: `chats.updated_at` is a millisecond stamp a bulk import stamps identically across
 // hundreds of rows, and a keyset without a unique tail silently skips or repeats rows at the page seam.
 
