@@ -55,6 +55,8 @@ interface FakeState {
   cacheDir?: string;
   listPageSize?: number;
   rateLimitAfter?: number;
+  secondaryRateLimit?: boolean;
+  failOptionAlways?: boolean;
 }
 
 // The fake gh speaks the CLI's quota-sane wire protocol: named GraphQL operations dispatched on the
@@ -97,6 +99,7 @@ if (args[0] === "api" && args[1] === "rate_limit") {
   text({ resources: { graphql: { remaining: 0, reset: ${FAKE_RESET_EPOCH} } } });
 } else if (args[0] === "api" && args[1] === "graphql") {
   if (typeof state.rateLimitAfter === "number" && state.calls.filter((call) => call[0] === "api" && call[1] === "graphql").length > state.rateLimitAfter) {
+    if (state.secondaryRateLimit) fail("You have exceeded a secondary rate limit. Please wait a few minutes before you try again.");
     fail("API rate limit exceeded for user ID 999. (RATE_LIMITED)");
   }
   if (query.includes("WorkItemProject")) {
@@ -145,6 +148,7 @@ if (args[0] === "api" && args[1] === "rate_limit") {
       if (kind === "clearProjectV2ItemFieldValue") { delete item[field.name]; continue; }
       const raw = variables[valueVariable];
       if (valueKind === "singleSelectOptionId") {
+        if (state.failOptionAlways) fail("The single select option does not belong to field '" + field.name + "'");
         const option = (field.options ?? []).find((candidate) => candidate.id === raw);
         if (!option) fail("The single select option does not belong to field '" + field.name + "'");
         item[field.name] = option.name;
@@ -764,4 +768,72 @@ defineTest("show prints the targeted item without enumerating the project", () =
   const absent = drive(createState("Running"), "show", "7");
   expect(absent.status).toBe(TOOL_ERROR_EXIT);
   expect(absent.stderr).toContain("#7 is not in Project 1");
+});
+
+defineTest("a stale cached single-select OPTION id self-heals through one refetch-and-retry", () => {
+  const cacheDir = mkdtempSync(join(tmpdir(), "work-item-cache-"));
+  try {
+    const state = createState("Ready");
+    state.cacheDir = cacheDir;
+    expect(drive(state, "list").status).toBe(0);
+    expect(operationCalls(state, "WorkItemProject")).toHaveLength(1);
+
+    const cachePath = join(cacheDir, "work-item-project.json");
+    const cached = JSON.parse(readFileSync(cachePath, "utf8")) as {
+      readonly fields: readonly { readonly name: string; readonly options?: readonly { readonly id: string; readonly name: string }[] }[];
+    };
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        ...cached,
+        fields: cached.fields.map((field) =>
+          field.name === DISPOSITION_FIELD ? { ...field, options: field.options?.map((choice) => ({ ...choice, id: `stale-${choice.id}` })) } : field,
+        ),
+      }),
+    );
+
+    const result = drive(state, "ready", "11");
+    expect(result.status).toBe(0);
+    expect(operationCalls(state, "WorkItemProject")).toHaveLength(2);
+    expect(fieldValue(state, DISPOSITION_FIELD)).toBe("Action");
+  } finally {
+    rmSync(cacheDir, { force: true, recursive: true });
+  }
+});
+
+defineTest("a persistently rejected option surfaces the real error after the second failure", () => {
+  const state = createState("Ready");
+  state.failOptionAlways = true;
+  const result = drive(state, "ready", "11");
+  expect(result.status).toBe(TOOL_ERROR_EXIT);
+  expect(result.stderr).toContain("does not belong to field");
+  expect(operationCalls(state, "WorkItemProject")).toHaveLength(2);
+  expect(fieldValue(state, DISPOSITION_FIELD)).toBe("Untriaged");
+});
+
+defineTest("secondary rate limits report GitHub's documented backoff, not the primary reset time", () => {
+  const state = createState("Running");
+  state.rateLimitAfter = 0;
+  state.secondaryRateLimit = true;
+  const result = drive(state, "review", "11");
+  expect(result.status).toBe(TOOL_ERROR_EXIT);
+  expect(result.stderr).toContain("secondary rate limit");
+  expect(result.stderr).not.toContain(new Date(FAKE_RESET_EPOCH * 1000).toISOString());
+  expect(result.stderr).not.toContain("GraphQL:");
+  expect(state.calls.some((call) => call[0] === "api" && call[1] === "rate_limit")).toBe(false);
+});
+
+defineTest("primary and secondary rate-limit failures produce two distinct operator messages", () => {
+  const primary = createState("Running");
+  primary.rateLimitAfter = 0;
+  const primaryResult = drive(primary, "review", "11");
+  const secondary = createState("Running");
+  secondary.rateLimitAfter = 0;
+  secondary.secondaryRateLimit = true;
+  const secondaryResult = drive(secondary, "review", "11");
+  expect(primaryResult.status).toBe(TOOL_ERROR_EXIT);
+  expect(secondaryResult.status).toBe(TOOL_ERROR_EXIT);
+  expect(primaryResult.stderr).not.toBe(secondaryResult.stderr);
+  expect(primaryResult.stderr).not.toContain("GraphQL:");
+  expect(secondaryResult.stderr).not.toContain("GraphQL:");
 });
