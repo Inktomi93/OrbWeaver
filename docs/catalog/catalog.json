@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stats": {
     "pending": 0,
-    "missingFrontmatter": 87,
+    "missingFrontmatter": 42,
     "invalidFrontmatter": 3,
     "malformedFrontmatter": 0
   },
@@ -18297,24 +18297,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-proposed-n-z/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 86,
-      "bytes": 8089,
-      "sha256": "ceb3e5b038ae8fea5982de4c43581b105cece75e7f918b87888ae5e03a7a9b0f",
+      "lines": 92,
+      "bytes": 8146,
+      "sha256": "05aaf13777c5b884dfc3c69455a4bd0d18b573d57be0592b8be52e10ac86eb51",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-proposed-n-z/report.md",
-        "assignedSha256": "ceb3e5b038ae8fea5982de4c43581b105cece75e7f918b87888ae5e03a7a9b0f",
+        "assignedSha256": "05aaf13777c5b884dfc3c69455a4bd0d18b573d57be0592b8be52e10ac86eb51",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "ceb3e5b038ae8fea5982de4c43581b105cece75e7f918b87888ae5e03a7a9b0f",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "05aaf13777c5b884dfc3c69455a4bd0d18b573d57be0592b8be52e10ac86eb51",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-proposed-n-z/report.md:1-86 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18327,24 +18331,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-a-m/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 21,
-      "bytes": 1620,
-      "sha256": "4a599ec82059d4d24b67710199654974896fec1a1c39d2a36c15335d6942dcd3",
+      "lines": 27,
+      "bytes": 1677,
+      "sha256": "5657deed07457ab1d6dfc3491471ac659cc3bf80023dd43c85816350c1dfa053",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-a-m/commands.md",
-        "assignedSha256": "4a599ec82059d4d24b67710199654974896fec1a1c39d2a36c15335d6942dcd3",
+        "assignedSha256": "5657deed07457ab1d6dfc3491471ac659cc3bf80023dd43c85816350c1dfa053",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "4a599ec82059d4d24b67710199654974896fec1a1c39d2a36c15335d6942dcd3",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "5657deed07457ab1d6dfc3491471ac659cc3bf80023dd43c85816350c1dfa053",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-a-m/commands.md:1-21 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18357,24 +18365,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-a-m/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 100,
-      "bytes": 8849,
-      "sha256": "7ed220561f5e82b475d85f983ec5ef9851a2c0e0c527ad22bbd53aeb692e0d87",
+      "lines": 106,
+      "bytes": 8906,
+      "sha256": "7581876887c9d90759013158cbabd5a80da39ceb99173420f499071b8da345e8",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-a-m/report.md",
-        "assignedSha256": "7ed220561f5e82b475d85f983ec5ef9851a2c0e0c527ad22bbd53aeb692e0d87",
+        "assignedSha256": "7581876887c9d90759013158cbabd5a80da39ceb99173420f499071b8da345e8",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "7ed220561f5e82b475d85f983ec5ef9851a2c0e0c527ad22bbd53aeb692e0d87",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "7581876887c9d90759013158cbabd5a80da39ceb99173420f499071b8da345e8",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-a-m/report.md:1-100 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18387,24 +18399,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-n-z/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 12,
-      "bytes": 1480,
-      "sha256": "9bb11f7896bf488fc5180418a0dc87f5d6ebf09b9eafd82e33e9ad4d405ff5f3",
+      "lines": 18,
+      "bytes": 1537,
+      "sha256": "1fec8d8a71027817dde600e64eb6d78c6d98e0f6944b645027cf48bf20bfcae4",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-n-z/commands.md",
-        "assignedSha256": "9bb11f7896bf488fc5180418a0dc87f5d6ebf09b9eafd82e33e9ad4d405ff5f3",
+        "assignedSha256": "1fec8d8a71027817dde600e64eb6d78c6d98e0f6944b645027cf48bf20bfcae4",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "9bb11f7896bf488fc5180418a0dc87f5d6ebf09b9eafd82e33e9ad4d405ff5f3",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "1fec8d8a71027817dde600e64eb6d78c6d98e0f6944b645027cf48bf20bfcae4",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-n-z/commands.md:1-12 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18417,24 +18433,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-n-z/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 72,
-      "bytes": 7178,
-      "sha256": "01f1f5b7c6005f724833d57cec4c8197b855c9e4e9fb5d343a47d3b604554520",
+      "lines": 78,
+      "bytes": 7235,
+      "sha256": "4e04baa5ddcd96f4a1d6abada72f11ff87ff1fa3490cd1c247b372bb946e8334",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-n-z/report.md",
-        "assignedSha256": "01f1f5b7c6005f724833d57cec4c8197b855c9e4e9fb5d343a47d3b604554520",
+        "assignedSha256": "4e04baa5ddcd96f4a1d6abada72f11ff87ff1fa3490cd1c247b372bb946e8334",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "01f1f5b7c6005f724833d57cec4c8197b855c9e4e9fb5d343a47d3b604554520",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "4e04baa5ddcd96f4a1d6abada72f11ff87ff1fa3490cd1c247b372bb946e8334",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-n-z/report.md:1-72 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18447,24 +18467,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-a-m/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 21,
-      "bytes": 3026,
-      "sha256": "35cb14e65584e4d329b797f4935070ab36718be98b8e295db0632291b15f75bd",
+      "lines": 27,
+      "bytes": 3083,
+      "sha256": "90677123235c45a590a27742bb0ad661a5d3a3b90f0efd9ed50884723e43378f",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-a-m/commands.md",
-        "assignedSha256": "35cb14e65584e4d329b797f4935070ab36718be98b8e295db0632291b15f75bd",
+        "assignedSha256": "90677123235c45a590a27742bb0ad661a5d3a3b90f0efd9ed50884723e43378f",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "35cb14e65584e4d329b797f4935070ab36718be98b8e295db0632291b15f75bd",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "90677123235c45a590a27742bb0ad661a5d3a3b90f0efd9ed50884723e43378f",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-a-m/commands.md:1-21 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18477,24 +18501,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-a-m/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 93,
-      "bytes": 10357,
-      "sha256": "9c98e6e5b3a2854a0e61da6db9a7069919484964141b7d70e9a7e26967b763be",
+      "lines": 99,
+      "bytes": 10414,
+      "sha256": "7be9c6e383c62103a518cfaba6843afe43db7b97b257ccffefc953710995794a",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-a-m/report.md",
-        "assignedSha256": "9c98e6e5b3a2854a0e61da6db9a7069919484964141b7d70e9a7e26967b763be",
+        "assignedSha256": "7be9c6e383c62103a518cfaba6843afe43db7b97b257ccffefc953710995794a",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "9c98e6e5b3a2854a0e61da6db9a7069919484964141b7d70e9a7e26967b763be",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "7be9c6e383c62103a518cfaba6843afe43db7b97b257ccffefc953710995794a",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-a-m/report.md:1-93 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18507,24 +18535,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 20,
-      "bytes": 2305,
-      "sha256": "07075c38f0099a64d6c2f137b9a74ef3caa20754cbe5d2ab5a40b02b6d6466fd",
+      "lines": 26,
+      "bytes": 2362,
+      "sha256": "d2f07dccfa299b701057b183c9cd52c89f7bd735b07cd870d2141bcb4105d903",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/commands.md",
-        "assignedSha256": "07075c38f0099a64d6c2f137b9a74ef3caa20754cbe5d2ab5a40b02b6d6466fd",
+        "assignedSha256": "d2f07dccfa299b701057b183c9cd52c89f7bd735b07cd870d2141bcb4105d903",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "07075c38f0099a64d6c2f137b9a74ef3caa20754cbe5d2ab5a40b02b6d6466fd",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "d2f07dccfa299b701057b183c9cd52c89f7bd735b07cd870d2141bcb4105d903",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/commands.md:1-20 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18537,24 +18569,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 74,
-      "bytes": 9235,
-      "sha256": "21d6698b9d97419545f440a4fb4c4ff7234445aa69d17d1e2fc77dd78cfc4f74",
+      "lines": 80,
+      "bytes": 9292,
+      "sha256": "778fa58f5fbdc85139d4c28df010b92d50a210331b923cd26470d2949a963b96",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/report.md",
-        "assignedSha256": "21d6698b9d97419545f440a4fb4c4ff7234445aa69d17d1e2fc77dd78cfc4f74",
+        "assignedSha256": "778fa58f5fbdc85139d4c28df010b92d50a210331b923cd26470d2949a963b96",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "21d6698b9d97419545f440a4fb4c4ff7234445aa69d17d1e2fc77dd78cfc4f74",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "778fa58f5fbdc85139d4c28df010b92d50a210331b923cd26470d2949a963b96",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/report.md:1-74 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18567,24 +18603,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-rest/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 21,
-      "bytes": 3651,
-      "sha256": "ae672bf49526605ad5392a813122febf6edbefcba836485654475aea60a1b614",
+      "lines": 27,
+      "bytes": 3708,
+      "sha256": "6402cae41874f1a220d609aea97eccaaf41a46a70e84345811bc05b0b98f4ce2",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-rest/commands.md",
-        "assignedSha256": "ae672bf49526605ad5392a813122febf6edbefcba836485654475aea60a1b614",
+        "assignedSha256": "6402cae41874f1a220d609aea97eccaaf41a46a70e84345811bc05b0b98f4ce2",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "ae672bf49526605ad5392a813122febf6edbefcba836485654475aea60a1b614",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "6402cae41874f1a220d609aea97eccaaf41a46a70e84345811bc05b0b98f4ce2",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-rest/commands.md:1-21 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18597,24 +18637,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-rest/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 94,
-      "bytes": 9749,
-      "sha256": "903ed6083441b094ac38a285a26aa5a1b74cbd6b16938401859f7ef21063ffeb",
+      "lines": 100,
+      "bytes": 9806,
+      "sha256": "4b6bd6984c53d8f8710261ace99a326e6fbc0fecc19c176bcd8c5c51404581ea",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-rest/report.md",
-        "assignedSha256": "903ed6083441b094ac38a285a26aa5a1b74cbd6b16938401859f7ef21063ffeb",
+        "assignedSha256": "4b6bd6984c53d8f8710261ace99a326e6fbc0fecc19c176bcd8c5c51404581ea",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "903ed6083441b094ac38a285a26aa5a1b74cbd6b16938401859f7ef21063ffeb",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "4b6bd6984c53d8f8710261ace99a326e6fbc0fecc19c176bcd8c5c51404581ea",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-rest/report.md:1-94 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18627,24 +18671,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-guide/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 17,
-      "bytes": 3045,
-      "sha256": "5c8f2c3bca4c89cea3812a5b3dea454c3ad008de34a77a77ddf54cb92c278d40",
+      "lines": 23,
+      "bytes": 3102,
+      "sha256": "d0b39746068f93a221ab4a1fe6b8ee651eb9edd000669f1a7904fd50d1033904",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-guide/commands.md",
-        "assignedSha256": "5c8f2c3bca4c89cea3812a5b3dea454c3ad008de34a77a77ddf54cb92c278d40",
+        "assignedSha256": "d0b39746068f93a221ab4a1fe6b8ee651eb9edd000669f1a7904fd50d1033904",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "5c8f2c3bca4c89cea3812a5b3dea454c3ad008de34a77a77ddf54cb92c278d40",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "d0b39746068f93a221ab4a1fe6b8ee651eb9edd000669f1a7904fd50d1033904",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-guide/commands.md:1-17 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18657,24 +18705,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-guide/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 93,
-      "bytes": 9911,
-      "sha256": "32f8e06636e7d3ac75cb79f7a918c1437e56fb7945250305d4dbc6771c3f544d",
+      "lines": 99,
+      "bytes": 9968,
+      "sha256": "3ad2d256ec8b806520d971f2e445a0a2457c2a5c97cc93589e3372988983eba6",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-guide/report.md",
-        "assignedSha256": "32f8e06636e7d3ac75cb79f7a918c1437e56fb7945250305d4dbc6771c3f544d",
+        "assignedSha256": "3ad2d256ec8b806520d971f2e445a0a2457c2a5c97cc93589e3372988983eba6",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "32f8e06636e7d3ac75cb79f7a918c1437e56fb7945250305d4dbc6771c3f544d",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "3ad2d256ec8b806520d971f2e445a0a2457c2a5c97cc93589e3372988983eba6",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-guide/report.md:1-93 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18687,24 +18739,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-rest/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 54,
-      "bytes": 3675,
-      "sha256": "89465e30752308b202bdc0604576b8d811e2b814c50795f4763154754a261d74",
+      "lines": 60,
+      "bytes": 3732,
+      "sha256": "7af2f91a611b5e7251b6097480bcb8bb3b16dbf6fe59b6ff1b2391eddb3d18bd",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-rest/commands.md",
-        "assignedSha256": "89465e30752308b202bdc0604576b8d811e2b814c50795f4763154754a261d74",
+        "assignedSha256": "7af2f91a611b5e7251b6097480bcb8bb3b16dbf6fe59b6ff1b2391eddb3d18bd",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "89465e30752308b202bdc0604576b8d811e2b814c50795f4763154754a261d74",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "7af2f91a611b5e7251b6097480bcb8bb3b16dbf6fe59b6ff1b2391eddb3d18bd",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-rest/commands.md:1-54 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18717,24 +18773,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-rest/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 57,
-      "bytes": 6956,
-      "sha256": "13ee316d92a064d75b42c368e7665dc15a9527935de34ef5030ec30d917ca52e",
+      "lines": 63,
+      "bytes": 7013,
+      "sha256": "caaf30b9fcf88f3273d5919384347988712e33ad0fd3941b0f238e4bbd16cb24",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-rest/report.md",
-        "assignedSha256": "13ee316d92a064d75b42c368e7665dc15a9527935de34ef5030ec30d917ca52e",
+        "assignedSha256": "caaf30b9fcf88f3273d5919384347988712e33ad0fd3941b0f238e4bbd16cb24",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "13ee316d92a064d75b42c368e7665dc15a9527935de34ef5030ec30d917ca52e",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "caaf30b9fcf88f3273d5919384347988712e33ad0fd3941b0f238e4bbd16cb24",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-rest/report.md:1-57 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18747,24 +18807,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-a-h/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 17,
-      "bytes": 2684,
-      "sha256": "126b57e169a0ebea2af3759a331f117e2f5d193936844d602ba7bb5f0c386e38",
+      "lines": 23,
+      "bytes": 2741,
+      "sha256": "c8d8765adb1f6da75085af97f7d8dd4f8d53575bc10840d6c1e1d540facc7831",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-a-h/commands.md",
-        "assignedSha256": "126b57e169a0ebea2af3759a331f117e2f5d193936844d602ba7bb5f0c386e38",
+        "assignedSha256": "c8d8765adb1f6da75085af97f7d8dd4f8d53575bc10840d6c1e1d540facc7831",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "126b57e169a0ebea2af3759a331f117e2f5d193936844d602ba7bb5f0c386e38",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "c8d8765adb1f6da75085af97f7d8dd4f8d53575bc10840d6c1e1d540facc7831",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-a-h/commands.md:1-17 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18777,24 +18841,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-a-h/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 99,
-      "bytes": 11621,
-      "sha256": "f542b199b0e321e8930e1e2d107993d556a763e6d13754ae5bf47e1ecc686f29",
+      "lines": 105,
+      "bytes": 11678,
+      "sha256": "bf86a5f3c8466137e4507171d5dcc1fc2dc42f3b2396cd74cca52eb2a0ab334b",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-a-h/report.md",
-        "assignedSha256": "f542b199b0e321e8930e1e2d107993d556a763e6d13754ae5bf47e1ecc686f29",
+        "assignedSha256": "bf86a5f3c8466137e4507171d5dcc1fc2dc42f3b2396cd74cca52eb2a0ab334b",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "f542b199b0e321e8930e1e2d107993d556a763e6d13754ae5bf47e1ecc686f29",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "bf86a5f3c8466137e4507171d5dcc1fc2dc42f3b2396cd74cca52eb2a0ab334b",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-a-h/report.md:1-99 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18807,24 +18875,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-i-p/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 20,
-      "bytes": 2352,
-      "sha256": "ce726961c76e161adfcdc63cf19cba3895cf0fe633caa3068fd70a7772d8deb5",
+      "lines": 26,
+      "bytes": 2409,
+      "sha256": "99f991aed9a5c956ac7eaf3ea7241c01354178ac44b9991b576935f49eb7bde7",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-i-p/commands.md",
-        "assignedSha256": "ce726961c76e161adfcdc63cf19cba3895cf0fe633caa3068fd70a7772d8deb5",
+        "assignedSha256": "99f991aed9a5c956ac7eaf3ea7241c01354178ac44b9991b576935f49eb7bde7",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "ce726961c76e161adfcdc63cf19cba3895cf0fe633caa3068fd70a7772d8deb5",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "99f991aed9a5c956ac7eaf3ea7241c01354178ac44b9991b576935f49eb7bde7",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-i-p/commands.md:1-20 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18837,24 +18909,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-i-p/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 66,
-      "bytes": 5555,
-      "sha256": "6b35a8faaced1f5dd215dc85c15f095de5497a83b328ce4ba088878e8f0efadf",
+      "lines": 72,
+      "bytes": 5612,
+      "sha256": "c0a4470bb7ab316935be69bc15d9d65eb7d53a30866fadc678b27209208e03d5",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-i-p/report.md",
-        "assignedSha256": "6b35a8faaced1f5dd215dc85c15f095de5497a83b328ce4ba088878e8f0efadf",
+        "assignedSha256": "c0a4470bb7ab316935be69bc15d9d65eb7d53a30866fadc678b27209208e03d5",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "6b35a8faaced1f5dd215dc85c15f095de5497a83b328ce4ba088878e8f0efadf",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "c0a4470bb7ab316935be69bc15d9d65eb7d53a30866fadc678b27209208e03d5",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-i-p/report.md:1-66 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18867,24 +18943,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-q-z/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 17,
-      "bytes": 2077,
-      "sha256": "ce967fc8fea8d902c249375628437b7970e9837d8c3b880b27f14dd185df22db",
+      "lines": 23,
+      "bytes": 2134,
+      "sha256": "7ac0e72cf04d4d98c24a2f45f398ee712ba8286ac78747f11fa5af81ff85a0b0",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-q-z/commands.md",
-        "assignedSha256": "ce967fc8fea8d902c249375628437b7970e9837d8c3b880b27f14dd185df22db",
+        "assignedSha256": "7ac0e72cf04d4d98c24a2f45f398ee712ba8286ac78747f11fa5af81ff85a0b0",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "ce967fc8fea8d902c249375628437b7970e9837d8c3b880b27f14dd185df22db",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "7ac0e72cf04d4d98c24a2f45f398ee712ba8286ac78747f11fa5af81ff85a0b0",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-q-z/commands.md:1-17 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18897,24 +18977,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-q-z/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 55,
-      "bytes": 13618,
-      "sha256": "2607ba7923828a38b41754432eecb64951b472573a30c6145fa80de61342db65",
+      "lines": 61,
+      "bytes": 13675,
+      "sha256": "4f262cf1e4ffc4253bf50650029d12b93b1aad3de985e5d63b86fad99e51383b",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/gates-q-z/report.md",
-        "assignedSha256": "2607ba7923828a38b41754432eecb64951b472573a30c6145fa80de61342db65",
+        "assignedSha256": "4f262cf1e4ffc4253bf50650029d12b93b1aad3de985e5d63b86fad99e51383b",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "2607ba7923828a38b41754432eecb64951b472573a30c6145fa80de61342db65",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "4f262cf1e4ffc4253bf50650029d12b93b1aad3de985e5d63b86fad99e51383b",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-q-z/report.md:1-55 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18927,24 +19011,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/integration-tests/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 77,
-      "bytes": 3397,
-      "sha256": "bf4d40c0128150b52c9e45a1bcc58c42f08a34f19a7e80c21b9612c8941f16a4",
+      "lines": 83,
+      "bytes": 3454,
+      "sha256": "d6423c8353f5af6d2319a070d3c63769a9494ba06c73c171c6efcc6c85e0d30a",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/integration-tests/commands.md",
-        "assignedSha256": "bf4d40c0128150b52c9e45a1bcc58c42f08a34f19a7e80c21b9612c8941f16a4",
+        "assignedSha256": "d6423c8353f5af6d2319a070d3c63769a9494ba06c73c171c6efcc6c85e0d30a",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "bf4d40c0128150b52c9e45a1bcc58c42f08a34f19a7e80c21b9612c8941f16a4",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "d6423c8353f5af6d2319a070d3c63769a9494ba06c73c171c6efcc6c85e0d30a",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/integration-tests/commands.md:1-77 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18957,24 +19045,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/integration-tests/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 109,
-      "bytes": 11653,
-      "sha256": "c5a75f5b74c46282706afee741424b50f8078752b356ebe26a4c40e1aad16066",
+      "lines": 115,
+      "bytes": 11710,
+      "sha256": "f3537c83fa36708e88ef9686546840d5f7752e7fc251a2789d258357e2ab2b4d",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/integration-tests/report.md",
-        "assignedSha256": "c5a75f5b74c46282706afee741424b50f8078752b356ebe26a4c40e1aad16066",
+        "assignedSha256": "f3537c83fa36708e88ef9686546840d5f7752e7fc251a2789d258357e2ab2b4d",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "c5a75f5b74c46282706afee741424b50f8078752b356ebe26a4c40e1aad16066",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "f3537c83fa36708e88ef9686546840d5f7752e7fc251a2789d258357e2ab2b4d",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/integration-tests/report.md:1-109 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -18987,24 +19079,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-contracts/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 18,
-      "bytes": 3177,
-      "sha256": "e7a11ca5868b921249e5640cff6520d89c29875eb473a646783e7d450b5ca429",
+      "lines": 24,
+      "bytes": 3234,
+      "sha256": "fb9306a95622f3e74b9787d97bec08efc39d44c875cff57952487943fb66206d",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-contracts/commands.md",
-        "assignedSha256": "e7a11ca5868b921249e5640cff6520d89c29875eb473a646783e7d450b5ca429",
+        "assignedSha256": "fb9306a95622f3e74b9787d97bec08efc39d44c875cff57952487943fb66206d",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "e7a11ca5868b921249e5640cff6520d89c29875eb473a646783e7d450b5ca429",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "fb9306a95622f3e74b9787d97bec08efc39d44c875cff57952487943fb66206d",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-contracts/commands.md:1-18 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19017,24 +19113,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-contracts/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 72,
-      "bytes": 7785,
-      "sha256": "b0abdb1342d4e1d6b2d3e5d32ef760d726a801f09aba6e4137efd93f013245ed",
+      "lines": 78,
+      "bytes": 7842,
+      "sha256": "7df5cddd2a6092a0440a695570be637c260b46e7d100938129665721dd746feb",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-contracts/report.md",
-        "assignedSha256": "b0abdb1342d4e1d6b2d3e5d32ef760d726a801f09aba6e4137efd93f013245ed",
+        "assignedSha256": "7df5cddd2a6092a0440a695570be637c260b46e7d100938129665721dd746feb",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "b0abdb1342d4e1d6b2d3e5d32ef760d726a801f09aba6e4137efd93f013245ed",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "7df5cddd2a6092a0440a695570be637c260b46e7d100938129665721dd746feb",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-contracts/report.md:1-72 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19047,24 +19147,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-db/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 63,
-      "bytes": 5155,
-      "sha256": "a645c0f50d258020a307b7e4555d47a2dda5246dea313ded9216d33b5da139f1",
+      "lines": 69,
+      "bytes": 5212,
+      "sha256": "281dde00883cd4b6ed2b9b81a4293049add62906237d499d577c37f7c209cb74",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-db/commands.md",
-        "assignedSha256": "a645c0f50d258020a307b7e4555d47a2dda5246dea313ded9216d33b5da139f1",
+        "assignedSha256": "281dde00883cd4b6ed2b9b81a4293049add62906237d499d577c37f7c209cb74",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "a645c0f50d258020a307b7e4555d47a2dda5246dea313ded9216d33b5da139f1",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "281dde00883cd4b6ed2b9b81a4293049add62906237d499d577c37f7c209cb74",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-db/commands.md:1-63 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19077,24 +19181,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-db/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 99,
-      "bytes": 14540,
-      "sha256": "0e5e0e6111396674a99687f6c4f8327033e12ad8c384fdca4d5a8369ca0f441b",
+      "lines": 105,
+      "bytes": 14597,
+      "sha256": "55f2a361babf1fcdd9c2e23f1c37507199de9d61969e8aa2aee844f71539f428",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-db/report.md",
-        "assignedSha256": "0e5e0e6111396674a99687f6c4f8327033e12ad8c384fdca4d5a8369ca0f441b",
+        "assignedSha256": "55f2a361babf1fcdd9c2e23f1c37507199de9d61969e8aa2aee844f71539f428",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "0e5e0e6111396674a99687f6c4f8327033e12ad8c384fdca4d5a8369ca0f441b",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "55f2a361babf1fcdd9c2e23f1c37507199de9d61969e8aa2aee844f71539f428",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-db/report.md:1-99 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19107,24 +19215,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-kit/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 21,
-      "bytes": 2971,
-      "sha256": "738321a192554c869f24de55d7554b28c6fe352561dcad8003214890ced19f1a",
+      "lines": 27,
+      "bytes": 3028,
+      "sha256": "38cad93d4cf43abdf417b7636ee0b68a4d6353cef026551122b43c7546ce5962",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-kit/commands.md",
-        "assignedSha256": "738321a192554c869f24de55d7554b28c6fe352561dcad8003214890ced19f1a",
+        "assignedSha256": "38cad93d4cf43abdf417b7636ee0b68a4d6353cef026551122b43c7546ce5962",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "738321a192554c869f24de55d7554b28c6fe352561dcad8003214890ced19f1a",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "38cad93d4cf43abdf417b7636ee0b68a4d6353cef026551122b43c7546ce5962",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-kit/commands.md:1-21 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19137,24 +19249,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-kit/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 78,
-      "bytes": 9043,
-      "sha256": "577c2df4ce3ef3fd06e76f861d084226c8493e5aba0d9ffd6708a6fc2785dc61",
+      "lines": 84,
+      "bytes": 9100,
+      "sha256": "c496d3cdb25c998732e34724375d9e7bdad85623dd11ef44500fce7a76d3c949",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/lower-kit/report.md",
-        "assignedSha256": "577c2df4ce3ef3fd06e76f861d084226c8493e5aba0d9ffd6708a6fc2785dc61",
+        "assignedSha256": "c496d3cdb25c998732e34724375d9e7bdad85623dd11ef44500fce7a76d3c949",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "577c2df4ce3ef3fd06e76f861d084226c8493e5aba0d9ffd6708a6fc2785dc61",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "c496d3cdb25c998732e34724375d9e7bdad85623dd11ef44500fce7a76d3c949",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-kit/report.md:1-78 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19167,24 +19283,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/platform-tooling/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 18,
-      "bytes": 2817,
-      "sha256": "78d927ac9b8faa391fb0b536585a980ed4359727fe3813db6e64a124558f71f0",
+      "lines": 24,
+      "bytes": 2874,
+      "sha256": "3faf5be48a445090a9df1cc56130a6d866eb1a4009fa9cb02d42f9a74f4f7901",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/platform-tooling/commands.md",
-        "assignedSha256": "78d927ac9b8faa391fb0b536585a980ed4359727fe3813db6e64a124558f71f0",
+        "assignedSha256": "3faf5be48a445090a9df1cc56130a6d866eb1a4009fa9cb02d42f9a74f4f7901",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "78d927ac9b8faa391fb0b536585a980ed4359727fe3813db6e64a124558f71f0",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "3faf5be48a445090a9df1cc56130a6d866eb1a4009fa9cb02d42f9a74f4f7901",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/platform-tooling/commands.md:1-18 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19197,24 +19317,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/platform-tooling/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 70,
-      "bytes": 5466,
-      "sha256": "d32d1c12b773808c94a573803432cc2870d2c927c6863622a1cabbcde7d1df15",
+      "lines": 76,
+      "bytes": 5523,
+      "sha256": "ea5ed3000dc70884111c87da4cf7e6f66e84c123effad28ab7bb9bbffe4f19b1",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/platform-tooling/report.md",
-        "assignedSha256": "d32d1c12b773808c94a573803432cc2870d2c927c6863622a1cabbcde7d1df15",
+        "assignedSha256": "ea5ed3000dc70884111c87da4cf7e6f66e84c123effad28ab7bb9bbffe4f19b1",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "d32d1c12b773808c94a573803432cc2870d2c927c6863622a1cabbcde7d1df15",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "ea5ed3000dc70884111c87da4cf7e6f66e84c123effad28ab7bb9bbffe4f19b1",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/platform-tooling/report.md:1-70 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19227,24 +19351,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/probes-provider-rpg/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 30,
-      "bytes": 2969,
-      "sha256": "6dea30b9bafe75abc8fe5dd832dcde039623b1522c0766af0abd437696f9e343",
+      "lines": 36,
+      "bytes": 3026,
+      "sha256": "439d4e6af64308c1a20e56956cffc9e10d55cf5efe0bb86b65e94c7562279bd6",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/probes-provider-rpg/commands.md",
-        "assignedSha256": "6dea30b9bafe75abc8fe5dd832dcde039623b1522c0766af0abd437696f9e343",
+        "assignedSha256": "439d4e6af64308c1a20e56956cffc9e10d55cf5efe0bb86b65e94c7562279bd6",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "6dea30b9bafe75abc8fe5dd832dcde039623b1522c0766af0abd437696f9e343",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "439d4e6af64308c1a20e56956cffc9e10d55cf5efe0bb86b65e94c7562279bd6",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/probes-provider-rpg/commands.md:1-30 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19257,24 +19385,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/probes-provider-rpg/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 95,
-      "bytes": 9101,
-      "sha256": "dc401fa61b2dd55de0e4ce672b7399882e5ff50f8978a1a3bfa2f8c2638cad01",
+      "lines": 101,
+      "bytes": 9158,
+      "sha256": "a99ed6a1603094bf90fd07afd5673d69c7ed565b0884a6a430a5a147acc6c0f9",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/probes-provider-rpg/report.md",
-        "assignedSha256": "dc401fa61b2dd55de0e4ce672b7399882e5ff50f8978a1a3bfa2f8c2638cad01",
+        "assignedSha256": "a99ed6a1603094bf90fd07afd5673d69c7ed565b0884a6a430a5a147acc6c0f9",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "dc401fa61b2dd55de0e4ce672b7399882e5ff50f8978a1a3bfa2f8c2638cad01",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "a99ed6a1603094bf90fd07afd5673d69c7ed565b0884a6a430a5a147acc6c0f9",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/probes-provider-rpg/report.md:1-95 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19287,24 +19419,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/probes-runtime/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 18,
-      "bytes": 1898,
-      "sha256": "841058d4da2c36a9372d61ded5860e918ceaadced00d3951fd853a7ae6b6fee1",
+      "lines": 24,
+      "bytes": 1955,
+      "sha256": "04e7594252bd104527b4f3d077622e22668874cee395f3dd35d4b73de1ee582a",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/probes-runtime/commands.md",
-        "assignedSha256": "841058d4da2c36a9372d61ded5860e918ceaadced00d3951fd853a7ae6b6fee1",
+        "assignedSha256": "04e7594252bd104527b4f3d077622e22668874cee395f3dd35d4b73de1ee582a",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "841058d4da2c36a9372d61ded5860e918ceaadced00d3951fd853a7ae6b6fee1",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "04e7594252bd104527b4f3d077622e22668874cee395f3dd35d4b73de1ee582a",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/probes-runtime/commands.md:1-18 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19317,24 +19453,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/probes-runtime/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 81,
-      "bytes": 7754,
-      "sha256": "9d30397ec26d654a1b5621c066287fd854e5eb1bbe8b09ed4845af6f86883483",
+      "lines": 87,
+      "bytes": 7811,
+      "sha256": "7d862970731b3c15f0ac2c56b4998fc5d394894ee0d3de74693cf8f66b2d2ff5",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/probes-runtime/report.md",
-        "assignedSha256": "9d30397ec26d654a1b5621c066287fd854e5eb1bbe8b09ed4845af6f86883483",
+        "assignedSha256": "7d862970731b3c15f0ac2c56b4998fc5d394894ee0d3de74693cf8f66b2d2ff5",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "9d30397ec26d654a1b5621c066287fd854e5eb1bbe8b09ed4845af6f86883483",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "7d862970731b3c15f0ac2c56b4998fc5d394894ee0d3de74693cf8f66b2d2ff5",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/probes-runtime/report.md:1-81 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19347,24 +19487,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/root-config/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 22,
-      "bytes": 3319,
-      "sha256": "964b2aa18e4eca08ceb2885121d3aa778689aedc2bda747ad02791ddcf133cfe",
+      "lines": 28,
+      "bytes": 3376,
+      "sha256": "e86821ad758c20fd83f916eb1870fe8009c939285906f4d1c6dcfa8e7c639cfa",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/root-config/commands.md",
-        "assignedSha256": "964b2aa18e4eca08ceb2885121d3aa778689aedc2bda747ad02791ddcf133cfe",
+        "assignedSha256": "e86821ad758c20fd83f916eb1870fe8009c939285906f4d1c6dcfa8e7c639cfa",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "964b2aa18e4eca08ceb2885121d3aa778689aedc2bda747ad02791ddcf133cfe",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "e86821ad758c20fd83f916eb1870fe8009c939285906f4d1c6dcfa8e7c639cfa",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/root-config/commands.md:1-22 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19377,24 +19521,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/root-config/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 87,
-      "bytes": 9982,
-      "sha256": "3a65836ed71dfa97d5b470a961120c02984cc498a44f611e21c8345c57f67c36",
+      "lines": 93,
+      "bytes": 10039,
+      "sha256": "f28668b3bf396b53fe099b87c028f0ad73328a67777910a25e6c972db07a8f51",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/root-config/report.md",
-        "assignedSha256": "3a65836ed71dfa97d5b470a961120c02984cc498a44f611e21c8345c57f67c36",
+        "assignedSha256": "f28668b3bf396b53fe099b87c028f0ad73328a67777910a25e6c972db07a8f51",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "3a65836ed71dfa97d5b470a961120c02984cc498a44f611e21c8345c57f67c36",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "f28668b3bf396b53fe099b87c028f0ad73328a67777910a25e6c972db07a8f51",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/root-config/report.md:1-87 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19407,24 +19555,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/scripts-misc/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 38,
-      "bytes": 4657,
-      "sha256": "20426fdd2ea06490f150eca4c02cb448e418948ed828ed592352024076566e9b",
+      "lines": 44,
+      "bytes": 4714,
+      "sha256": "17db713d0da76d1d8cea7ab7dce32f7021e0e4caa5456f20ca0b25a77dad7e32",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/scripts-misc/commands.md",
-        "assignedSha256": "20426fdd2ea06490f150eca4c02cb448e418948ed828ed592352024076566e9b",
+        "assignedSha256": "17db713d0da76d1d8cea7ab7dce32f7021e0e4caa5456f20ca0b25a77dad7e32",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "20426fdd2ea06490f150eca4c02cb448e418948ed828ed592352024076566e9b",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "17db713d0da76d1d8cea7ab7dce32f7021e0e4caa5456f20ca0b25a77dad7e32",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/scripts-misc/commands.md:1-38 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19437,24 +19589,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/scripts-misc/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 83,
-      "bytes": 9547,
-      "sha256": "f5113a55e3d64c040efed0b630736f09d1690bfb74b639f06e3913bab48e57f6",
+      "lines": 89,
+      "bytes": 9604,
+      "sha256": "15d4c378494d258a34a8de9641431ef99608ef68b72df9e17e00a80c9429b186",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/scripts-misc/report.md",
-        "assignedSha256": "f5113a55e3d64c040efed0b630736f09d1690bfb74b639f06e3913bab48e57f6",
+        "assignedSha256": "15d4c378494d258a34a8de9641431ef99608ef68b72df9e17e00a80c9429b186",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "f5113a55e3d64c040efed0b630736f09d1690bfb74b639f06e3913bab48e57f6",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "15d4c378494d258a34a8de9641431ef99608ef68b72df9e17e00a80c9429b186",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/scripts-misc/report.md:1-83 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19467,24 +19623,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-assembly/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 47,
-      "bytes": 4082,
-      "sha256": "d207d32060705f7b44aeac41f83444003cd08f39adeaa492d14d353faf37ef2c",
+      "lines": 53,
+      "bytes": 4139,
+      "sha256": "6421e8c64a0d64cc6c859c5779f55430036912db1f90cac4b97c0c37e8de2dc6",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-assembly/commands.md",
-        "assignedSha256": "d207d32060705f7b44aeac41f83444003cd08f39adeaa492d14d353faf37ef2c",
+        "assignedSha256": "6421e8c64a0d64cc6c859c5779f55430036912db1f90cac4b97c0c37e8de2dc6",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "d207d32060705f7b44aeac41f83444003cd08f39adeaa492d14d353faf37ef2c",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "6421e8c64a0d64cc6c859c5779f55430036912db1f90cac4b97c0c37e8de2dc6",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-assembly/commands.md:1-47 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19497,24 +19657,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-assembly/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 80,
-      "bytes": 8711,
-      "sha256": "efa1e5cedf7e302337d6c3959edad139850ab4f9fbe061c0aadca8f56629e5c8",
+      "lines": 86,
+      "bytes": 8768,
+      "sha256": "97503fa20b80bb92284bd6452c09c8cb2d6e814a6d1ea03526cecf06ee7f232a",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-assembly/report.md",
-        "assignedSha256": "efa1e5cedf7e302337d6c3959edad139850ab4f9fbe061c0aadca8f56629e5c8",
+        "assignedSha256": "97503fa20b80bb92284bd6452c09c8cb2d6e814a6d1ea03526cecf06ee7f232a",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "efa1e5cedf7e302337d6c3959edad139850ab4f9fbe061c0aadca8f56629e5c8",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "97503fa20b80bb92284bd6452c09c8cb2d6e814a6d1ea03526cecf06ee7f232a",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-assembly/report.md:1-80 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19527,24 +19691,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-core/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 36,
-      "bytes": 4317,
-      "sha256": "59d6bceb036eea4ab0233bf2c1181320f8fbd67d163d9899fb5f848d4489ad2b",
+      "lines": 42,
+      "bytes": 4374,
+      "sha256": "40ac9bbb9bfb8214d86d82047e2fc7746839d9d42fc5eb806cc38563798f8135",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-core/commands.md",
-        "assignedSha256": "59d6bceb036eea4ab0233bf2c1181320f8fbd67d163d9899fb5f848d4489ad2b",
+        "assignedSha256": "40ac9bbb9bfb8214d86d82047e2fc7746839d9d42fc5eb806cc38563798f8135",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "59d6bceb036eea4ab0233bf2c1181320f8fbd67d163d9899fb5f848d4489ad2b",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "40ac9bbb9bfb8214d86d82047e2fc7746839d9d42fc5eb806cc38563798f8135",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-core/commands.md:1-36 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19557,24 +19725,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-core/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 78,
-      "bytes": 11157,
-      "sha256": "6d46668424c7ea4ac36d66336fe2c6b7e32540e356b26ad958621a818ae80d43",
+      "lines": 84,
+      "bytes": 11214,
+      "sha256": "f36b3600bfe23c7d83bdad6230279638f0c5e77c0ed8c49b35793c7acb884031",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-core/report.md",
-        "assignedSha256": "6d46668424c7ea4ac36d66336fe2c6b7e32540e356b26ad958621a818ae80d43",
+        "assignedSha256": "f36b3600bfe23c7d83bdad6230279638f0c5e77c0ed8c49b35793c7acb884031",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "6d46668424c7ea4ac36d66336fe2c6b7e32540e356b26ad958621a818ae80d43",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "f36b3600bfe23c7d83bdad6230279638f0c5e77c0ed8c49b35793c7acb884031",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-core/report.md:1-78 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19587,24 +19759,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-verbs/commands.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 20,
-      "bytes": 2443,
-      "sha256": "99a0ad427bae5ec79c10638d91d1b4f9e2320101e2985ea23aaaffe4be98b8c5",
+      "lines": 26,
+      "bytes": 2500,
+      "sha256": "3dfc536db1d40cf75c534f35616f3c19cbc15a8bec370927358ef2cec5ae337d",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-verbs/commands.md",
-        "assignedSha256": "99a0ad427bae5ec79c10638d91d1b4f9e2320101e2985ea23aaaffe4be98b8c5",
+        "assignedSha256": "3dfc536db1d40cf75c534f35616f3c19cbc15a8bec370927358ef2cec5ae337d",
         "disposition": "generated-artifact",
         "authority": "generated",
         "fullRead": true,
-        "verifiedSha256": "99a0ad427bae5ec79c10638d91d1b4f9e2320101e2985ea23aaaffe4be98b8c5",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "3dfc536db1d40cf75c534f35616f3c19cbc15a8bec370927358ef2cec5ae337d",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-verbs/commands.md:1-20 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
@@ -19617,24 +19793,28 @@
       "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-verbs/report.md",
       "lane": "repository-audits",
       "issue": 6,
-      "lines": 78,
-      "bytes": 8754,
-      "sha256": "dcfc29b5c287d86afdcb0c4b72507c3f3c85e85e56d9edc6a3e68a9b3a5187fd",
+      "lines": 84,
+      "bytes": 8811,
+      "sha256": "7d1fc0d1b58cc23e44461c5f867c5a1332cf1f0ef2b8def24b052fed1dbc0601",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-verbs/report.md",
-        "assignedSha256": "dcfc29b5c287d86afdcb0c4b72507c3f3c85e85e56d9edc6a3e68a9b3a5187fd",
+        "assignedSha256": "7d1fc0d1b58cc23e44461c5f867c5a1332cf1f0ef2b8def24b052fed1dbc0601",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "dcfc29b5c287d86afdcb0c4b72507c3f3c85e85e56d9edc6a3e68a9b3a5187fd",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "7d1fc0d1b58cc23e44461c5f867c5a1332cf1f0ef2b8def24b052fed1dbc0601",
+        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-verbs/report.md:1-78 full read; SHA-256 matches frozen manifest",
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md:1-271 establishes the dated audit snapshot"
