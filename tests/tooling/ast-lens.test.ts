@@ -14,7 +14,7 @@
 import { fileURLToPath } from "node:url";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
-import type { ApiSurfaceEntry, ChainCandidate, DeadEvidence, Hit, Liveness, SwallowedCandidate } from "../../scripts/codemods/ast.ts";
+import type { ApiSurfaceEntry, ChainCandidate, DeadEvidence, Hit, Liveness, NearPairCandidate, SwallowedCandidate } from "../../scripts/codemods/ast.ts";
 import {
   assignabilityChecker,
   buildLiveness,
@@ -32,12 +32,14 @@ import {
   collectTypeOnlyCandidates,
   deadEvidenceFor,
   isColumnExempt,
+  isNearPairExempt,
   isProdConsumed,
   isPublicTagged,
   isSwallowedExempt,
   isTypeOnlyExempt,
   isUnwiredExempt,
   respellHitsFor,
+  respellNearCandidatesFor,
   rotChainHits,
   rotOrphanHits,
   rotSwallowedHits,
@@ -524,6 +526,78 @@ export type MemoryBackfillCounts = MemoryBackfillResult;
     const texts = respellHitsFor(project, assignabilityChecker(project), "chat").map((h) => h.text);
     // Skipped against its own origin, reported against the structurally-identical sibling.
     expect(texts).toEqual(["MemoryBackfillCounts  ≡  @orb/contracts/chat::MemoryScanResult"]);
+  });
+});
+
+// ── respell --near: a NEAR tier beside the exact one, Jaccard over (fieldName, resolvedTypeText) ──
+// `id/role/active:X` agree on both sides; the domain's `label:string` and the contracts' `name:string`
+// are the SAME type under a DIFFERENT name — the rename this tier's diff must name explicitly. Union = 5
+// distinct (name,type) pairs (id, role, active shared + label + name each counted once), intersection = 3,
+// so the planted pair scores exactly 60% — the boundary this fixture is built to sit on.
+
+const NEAR_CONTRACTS_SHAPE = "export interface RosterMemberSpec { id: string; name: string; role: string; active: boolean; }\n";
+const NEAR_DOMAIN_SHAPE = "export interface SeatKnobs { id: string; label: string; role: string; active: boolean; }\n";
+const NEAR_FILES: Record<string, string> = {
+  "packages/contracts/src/chat/roster.ts": NEAR_CONTRACTS_SHAPE,
+  "packages/server/src/domain/chat/contract/seat.ts": NEAR_DOMAIN_SHAPE,
+};
+
+describe("ast respell --near lens (Jaccard field-diff tier)", () => {
+  test("a renamed-same-type field pair scores exactly 60% — admitted at the boundary, excluded one point above", () => {
+    const project = projectOf(NEAR_FILES);
+    const checker = assignabilityChecker(project);
+    const at60 = respellNearCandidatesFor(project, checker, "chat", 60);
+    expect(at60).toHaveLength(1);
+    const candidate = at60[0] as NearPairCandidate;
+    expect(candidate.domainName).toBe("SeatKnobs");
+    expect(candidate.contractsName).toBe("RosterMemberSpec");
+    expect(candidate.diff.sharedCount).toBe(3);
+    expect(candidate.diff.totalFields).toBe(5);
+    expect(candidate.diff.pct).toBeCloseTo(60, 5);
+    expect(candidate.diff.renamed).toEqual([{ from: "label", to: "name", type: "string" }]);
+    expect(candidate.diff.domainOnly).toEqual([]);
+    expect(candidate.diff.contractsOnly).toEqual([]);
+
+    // ONE point over the exact score excludes it — `>=` admits the boundary, nothing past it.
+    expect(respellNearCandidatesFor(project, checker, "chat", 61)).toEqual([]);
+  });
+
+  test("shapes below the 4-field floor are never compared, even at 100% overlap", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/tiny.ts": "export interface TinyContract { id: string; name: string; }\n",
+      "packages/server/src/domain/chat/contract/tiny.ts": "export interface TinyDomain { id: string; name: string; }\n",
+    });
+    const checker = assignabilityChecker(project);
+    expect(respellNearCandidatesFor(project, checker, "chat", 1)).toEqual([]);
+  });
+
+  test("a pair the EXACT tier already resolves is excluded from the near tier at ANY threshold", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/exact.ts": "export interface ExactContract { id: string; name: string; role: string; active: boolean; }\n",
+      "packages/server/src/domain/chat/contract/exact.ts": "export interface ExactDomain { id: string; name: string; role: string; active: boolean; }\n",
+    });
+    const checker = assignabilityChecker(project);
+    // The exact tier DOES report this pair (same field names AND types)…
+    expect(respellHitsFor(project, checker, "chat").map((h) => h.text)).toEqual(["ExactDomain  ≡  @orb/contracts/chat::ExactContract"]);
+    // …so `--near` must not re-flag what `respell` already resolved, at any threshold including 0.
+    expect(respellNearCandidatesFor(project, checker, "chat", 0)).toEqual([]);
+  });
+
+  test("`// @nearpair-ok: <reason>` marks a deliberate keep; raising the threshold past its score is the STALE precondition (tagged, no longer a candidate)", () => {
+    const project = projectOf({
+      ...NEAR_FILES,
+      "packages/server/src/domain/chat/contract/seat.ts": `// @nearpair-ok: independent concepts; the field overlap is coincidence.\n${NEAR_DOMAIN_SHAPE}`,
+    });
+    const seat = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/domain/chat/contract/seat.ts`).getInterfaceOrThrow("SeatKnobs");
+    expect(isNearPairExempt(seat)).toBe(true);
+
+    const checker = assignabilityChecker(project);
+    // At its own score the marked shape is STILL a raw candidate — the CLI's exempt filter reads the
+    // marker, the collector does not (so the stale check can compare "tagged" against "still a candidate").
+    expect(respellNearCandidatesFor(project, checker, "chat", 60).map((c) => c.domainName)).toContain("SeatKnobs");
+    // Raise the bar past its 60% score: the marker is now tagged on a shape that near-matches NOTHING —
+    // exactly the precondition `printStaleNearPairTags` reds on.
+    expect(respellNearCandidatesFor(project, checker, "chat", 90)).toEqual([]);
   });
 });
 

@@ -36,7 +36,7 @@ const TRAILING_SLASHES_RE = /\/+$/u;
 // (declFile, declStart) identity separator — a NUL can never appear in a path or a decimal offset.
 const KEY_SEP = "\u0000";
 
-type Flags = { in: string | null; json: boolean; max: number; filesOnly: boolean; public: boolean; all: boolean };
+type Flags = { in: string | null; json: boolean; max: number; filesOnly: boolean; public: boolean; all: boolean; near: number | null };
 type Hit = { file: string; line: number; kind: string; text: string };
 
 // ── THE SCAN LEDGER — every invocation ends with ONE auditable epilogue ────────────────────────
@@ -369,18 +369,44 @@ const BOOLEAN_FLAGS: Readonly<Record<string, keyof Pick<Flags, "json" | "filesOn
   "--all": "all",
 };
 
+/** A flag that consumes a VALUE — sets the field on `flags` and returns how many extra tokens it ate
+ *  (0 or 1), so `--near`'s OPTIONAL number doesn't force `--in`/`--max` into the same optional shape. */
+type ValueFlagHandler = (flags: Flags, rest: readonly string[], i: number) => number;
+
+/** `--near [pct]`: the next token only when it parses as a plain number (not another `--flag`); a bare
+ *  `--near` defaults to {@link RESPELL_NEAR_DEFAULT_PCT}. */
+function applyNearFlag(flags: Flags, rest: readonly string[], i: number): number {
+  const next = rest[i + 1];
+  const numeric = next !== undefined && !next.startsWith("--") ? Number(next) : Number.NaN;
+  if (Number.isFinite(numeric)) {
+    flags.near = numeric;
+    return 1;
+  }
+  flags.near = RESPELL_NEAR_DEFAULT_PCT;
+  return 0;
+}
+
+/** The value-taking flags, dictionary-dispatched for the same reason `BOOLEAN_FLAGS` is — keeps
+ *  `parseFlags` a flat two-branch loop under the complexity ceiling however many flags this file grows. */
+const VALUE_FLAGS: Readonly<Record<string, ValueFlagHandler>> = {
+  "--in": (flags, rest, i) => {
+    flags.in = rest[i + 1] ?? null;
+    return 1;
+  },
+  "--max": (flags, rest, i) => {
+    flags.max = Number(rest[i + 1] ?? DEFAULT_MAX) || DEFAULT_MAX;
+    return 1;
+  },
+  "--near": applyNearFlag,
+};
+
 function parseFlags(rest: string[]): Flags {
-  const flags: Flags = { in: null, json: false, max: DEFAULT_MAX, filesOnly: false, public: false, all: false };
+  const flags: Flags = { in: null, json: false, max: DEFAULT_MAX, filesOnly: false, public: false, all: false, near: null };
   for (let i = 0; i < rest.length; i += 1) {
     const t = rest[i];
-    if (t === "--in") {
-      flags.in = rest[i + 1] ?? null;
-      i += 1;
-      continue;
-    }
-    if (t === "--max") {
-      flags.max = Number(rest[i + 1] ?? DEFAULT_MAX) || DEFAULT_MAX;
-      i += 1;
+    const valueFlag = t === undefined ? undefined : VALUE_FLAGS[t];
+    if (valueFlag !== undefined) {
+      i += valueFlag(flags, rest, i);
       continue;
     }
     const key = t === undefined ? undefined : BOOLEAN_FLAGS[t];
@@ -2783,6 +2809,199 @@ function cmdRespell(project: Project, arg: string, flags: Flags): void {
     `respell is a CANDIDATE lens — structural identity is EVIDENCE of a re-spell, not proof: two shapes may agree today and be free to diverge tomorrow. Verify intent before acting, and prefer a derive when the domain shape IS the contracts shape. (${RESPELL_PROPERTY_FLOOR}+ properties, checker-resolved; a \`respell-same-name\` hit is already RED at the \`contract-derives-not-respells\` gate.)`,
   );
   emit(hits, flags, `respell ${arg === "" ? "(all domains)" : arg}`);
+  // `--near` is ADDITIVE: when it is absent, nothing below this line runs and the exact tier's output
+  // (everything above) is byte-identical to before it existed.
+  if (flags.near !== null) {
+    cmdRespellNear(project, checker, { domains, thresholdPct: flags.near }, flags);
+  }
+}
+
+// ── respell --near: a NEAR tier beside the exact one — Jaccard over (fieldName, resolvedTypeText) ──
+// Exact `respell` asks "is this shape MUTUALLY ASSIGNABLE with a contracts sibling" — a yes/no that misses
+// the shape that STARTED as a copy and drifted a field or two (a rename, a dropped/added property). This
+// tier is a SIMILARITY score on the SAME axis (domain `contract/` vs `@orb/contracts/<domain>`, never
+// widened to all-pairs — a `RequestInit`-shaped coincidence anywhere in the workspace is noise, not a
+// re-spell candidate), reported as a FIELD-LEVEL DIFF because the percentage alone tells a reader nothing
+// actionable: "82%" doesn't say WHICH field moved. The diff does: shared-field count, fields that kept
+// their TYPE but changed NAME (the rename a syntactic tool cannot see either), and each side's leftover
+// fields.
+//
+// FLOOR: {@link RESPELL_NEAR_PROPERTY_FLOOR}+ fields on BOTH sides — below it, two shapes coincide on most
+// of a tiny signature by chance (every `{id, name}`-ish pair in the repo would score high).
+//
+// EXCLUDED from the near tier, deliberately: any (domain shape, contracts shape) pair the EXACT tier
+// already reports (mutually assignable + same signature) — `--near` never re-flags what `respell` already
+// resolved — and the bare-alias-IS-the-derive exclusion `respellHitsFor` applies (a `type X = ContractsY`
+// alias is the recommended fix, never a defect, at either tier).
+
+/** How many fields a shape needs on BOTH sides before a near-match means anything. */
+const RESPELL_NEAR_PROPERTY_FLOOR = 4;
+/** `--near` with no explicit percentage. */
+const RESPELL_NEAR_DEFAULT_PCT = 80;
+/** Ratio-to-percentage scale — the ONE place `nearFieldDiffOf` converts. */
+const PCT_SCALE = 100;
+
+/** ONE field: its name and its RESOLVED type text (through the checker, at the shape's own declaration —
+ *  the same resolution `mutuallyAssignable` uses, so a `CharacterId`/`TypeIdOf<"character">` alias pair
+ *  compares as the SAME type text here too, never as a spurious near-miss). */
+type FieldPair = { readonly name: string; readonly type: string };
+
+/** `<name>\0<type>` — the identity the Jaccard set and the exact-shared count both key on. */
+function pairKey(pair: FieldPair): string {
+  return `${pair.name}${KEY_SEP}${pair.type}`;
+}
+
+/** A shape's `(fieldName, resolvedTypeText)` pairs. Reuses `decl.getType().getProperties()` — the same
+ *  property enumeration `shapeSignature`'s floor already filters to object shapes with. */
+function fieldPairsOf(decl: Node): FieldPair[] {
+  const type = decl.getType();
+  return type.getProperties().map((prop) => ({ name: prop.getName(), type: prop.getTypeAtLocation(decl).getText() }));
+}
+
+/** The field-level diff a near-hit REPORTS — the percentage is the admission threshold, this is the
+ *  deliverable. Renames are matched GREEDILY: an unmatched domain field pairs with the first unmatched
+ *  contracts field of the SAME resolved type and a DIFFERENT name; anything left over is each-side-only. */
+type NearFieldDiff = {
+  readonly pct: number;
+  readonly sharedCount: number;
+  readonly totalFields: number;
+  readonly renamed: readonly { readonly from: string; readonly to: string; readonly type: string }[];
+  readonly domainOnly: readonly string[];
+  readonly contractsOnly: readonly string[];
+};
+
+function nearFieldDiffOf(domainFields: readonly FieldPair[], contractsFields: readonly FieldPair[]): NearFieldDiff {
+  const domainKeys = new Set(domainFields.map(pairKey));
+  const contractsKeys = new Set(contractsFields.map(pairKey));
+  const sharedCount = [...domainKeys].filter((k) => contractsKeys.has(k)).length;
+  const totalFields = new Set([...domainKeys, ...contractsKeys]).size;
+  const pct = totalFields === 0 ? 0 : (sharedCount / totalFields) * PCT_SCALE;
+  const contractsRemainder = contractsFields.filter((f) => !domainKeys.has(pairKey(f)));
+  const renamed: { from: string; to: string; type: string }[] = [];
+  const domainOnly: string[] = [];
+  for (const df of domainFields.filter((f) => !contractsKeys.has(pairKey(f)))) {
+    const matchAt = contractsRemainder.findIndex((cf) => cf.type === df.type && cf.name !== df.name && !renamed.some((r) => r.to === cf.name));
+    if (matchAt === -1) {
+      domainOnly.push(df.name);
+      continue;
+    }
+    const match = contractsRemainder[matchAt] as FieldPair;
+    renamed.push({ from: df.name, to: match.name, type: df.type });
+  }
+  const renamedTo = new Set(renamed.map((r) => r.to));
+  const contractsOnly = contractsRemainder.filter((f) => !renamedTo.has(f.name)).map((f) => f.name);
+  return { pct, sharedCount, totalFields, renamed, domainOnly, contractsOnly };
+}
+
+/** ONE near-match: the domain shape, the contracts twin it was compared against, its domain, and the diff
+ *  that decided admission. */
+export type NearPairCandidate = {
+  readonly domain: string;
+  readonly domainName: string;
+  readonly domainDecl: Node;
+  readonly contractsName: string;
+  readonly contractsDecl: Node;
+  readonly diff: NearFieldDiff;
+};
+
+/** ONE domain's near-tier candidates: every (domain shape, contracts shape) pair at ≥{@link thresholdPct},
+ *  minus any pair the EXACT tier already resolves and minus the domain shapes below the field floor. Pure
+ *  enumeration — no exemption policy, no printing (the verb owns both), so the self-test drives the same
+ *  function the CLI does. */
+export function respellNearCandidatesFor(project: Project, checker: AssignabilityChecker, domain: string, thresholdPct: number): NearPairCandidate[] {
+  const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`).filter((s) => fieldPairsOf(s.decl).length >= RESPELL_NEAR_PROPERTY_FLOOR);
+  if (contractsShapes.length === 0) {
+    return [];
+  }
+  const out: NearPairCandidate[] = [];
+  for (const domainShape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
+    const domainFields = fieldPairsOf(domainShape.decl);
+    if (domainFields.length < RESPELL_NEAR_PROPERTY_FLOOR) {
+      continue;
+    }
+    const derivedFrom = bareAliasTargetKeys(domainShape.decl);
+    for (const twin of contractsShapes) {
+      // The exact-tier exclusion — same predicate `respellHitsFor` uses for both its arms.
+      if (derivedFrom.has(declKey(twin.decl)) || (twin.signature === domainShape.signature && mutuallyAssignable(checker, domainShape.decl, twin.decl))) {
+        continue;
+      }
+      const diff = nearFieldDiffOf(domainFields, fieldPairsOf(twin.decl));
+      if (diff.pct >= thresholdPct) {
+        out.push({ domain, domainName: domainShape.name, domainDecl: domainShape.decl, contractsName: twin.name, contractsDecl: twin.decl, diff });
+      }
+    }
+  }
+  return out;
+}
+
+const NEARPAIR_OK_RE = /@nearpair-ok:\s*\S/u;
+
+/** True if the domain shape carries a leading `// @nearpair-ok: <reason>` — a deliberate keep of a
+ *  near-match (the discipline `@typeonly-ok:`/`@swallowed-ok:` already use). */
+export function isNearPairExempt(decl: Node): boolean {
+  return commentHost(decl)
+    .getLeadingCommentRanges()
+    .some((range) => NEARPAIR_OK_RE.test(range.getText()));
+}
+
+/** `N/M shared (P%) · renamed-same-type: a→b · domain-only: x · contracts-only: y` — the field-level
+ *  deliverable; the percentage is the admission threshold, never the report on its own. */
+function nearFieldDiffText(diff: NearFieldDiff): string {
+  const renamedText = diff.renamed.length === 0 ? "" : ` · renamed-same-type: ${diff.renamed.map((r) => `${r.from}→${r.to}`).join(", ")}`;
+  const domainOnlyText = diff.domainOnly.length === 0 ? "" : ` · domain-only: ${diff.domainOnly.join(", ")}`;
+  const contractsOnlyText = diff.contractsOnly.length === 0 ? "" : ` · contracts-only: ${diff.contractsOnly.join(", ")}`;
+  return `${diff.sharedCount}/${diff.totalFields} shared (${diff.pct.toFixed(0)}%)${renamedText}${domainOnlyText}${contractsOnlyText}`;
+}
+
+function nearPairHit(candidate: NearPairCandidate): Hit {
+  const h = hitOf(candidate.domainDecl, "respell-near");
+  h.text = `${candidate.domainName}  ≈  @orb/contracts/${candidate.domain}::${candidate.contractsName}  —  ${nearFieldDiffText(candidate.diff)}`;
+  return h;
+}
+
+/** The STALE side of `@nearpair-ok:` — a marker on a domain shape that no longer near-matches ANY
+ *  contracts sibling above the current threshold (the exact tier resolved it, a field diverged past the
+ *  floor, or the shape/contract disappeared). Printed and exit-1, the two-sided-gate law every other
+ *  marker in this file follows. */
+function printStaleNearPairTags(project: Project, domains: readonly string[], candidateKeys: ReadonlySet<string>): void {
+  const stale: Hit[] = [];
+  for (const domain of domains) {
+    for (const shape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
+      if (!isNearPairExempt(shape.decl) || candidateKeys.has(declKey(shape.decl))) {
+        continue;
+      }
+      const h = hitOf(shape.decl, "stale-nearpair-ok");
+      h.text = `${shape.name}  —  ${h.text}`;
+      stale.push(h);
+    }
+  }
+  if (stale.length === 0) {
+    return;
+  }
+  console.log(
+    `respell --near: ${stale.length} STALE \`@nearpair-ok:\` marker(s) — the shape no longer near-matches any contracts sibling at the current threshold. Delete the marker or re-state the reason:`,
+  );
+  for (const h of stale) {
+    console.log(`  ! ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+  }
+  process.exitCode = 1;
+}
+
+/** The `--near` tier's own args, bundled to keep `cmdRespellNear` under the house parameter budget. */
+type RespellNearScope = { readonly domains: readonly string[]; readonly thresholdPct: number };
+
+/** The `--near` tier: run for every domain already resolved by the exact tier, at `thresholdPct`. A
+ *  SEPARATE `emit` call (its own RESULT line) beside the exact tier's — additive, never mixed into it. */
+function cmdRespellNear(project: Project, checker: AssignabilityChecker, scope: RespellNearScope, flags: Flags): void {
+  const { domains, thresholdPct } = scope;
+  const candidates = domains.flatMap((domain) => respellNearCandidatesFor(project, checker, domain, thresholdPct));
+  printStaleNearPairTags(project, domains, new Set(candidates.map((c) => declKey(c.domainDecl))));
+  const reportable = candidates.filter((c) => !isNearPairExempt(c.domainDecl));
+  const exempt = candidates.length - reportable.length;
+  console.log(
+    `respell --near is a CANDIDATE lens — Jaccard similarity over (fieldName, resolvedTypeText) pairs at ≥${thresholdPct}%, floor ${RESPELL_NEAR_PROPERTY_FLOOR}+ fields on both sides, EXCLUDING every pair the exact tier already resolves. A near-twin that STARTED as a copy and drifted a field is the drift class this exists to catch; a genuinely deliberate near-pair (two shapes that happen to share most fields) is legitimate — verify before acting. Keep one deliberately with \`// @nearpair-ok: <reason>\` on the domain declaration.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
+  );
+  emit(reportable.map(nearPairHit), flags, `respell --near>=${thresholdPct} ${domains.length === 1 ? domains[0] : "(all domains)"}`);
 }
 
 // ── typeonly-alive: VALUE exports kept alive ONLY by type positions (the structural-liveness rot) ─
@@ -4972,7 +5191,7 @@ const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 const USAGE = [
-  `usage: pnpm ast <${VERB_LIST}> <arg> [--in substr] [--files] [--public] [--all] [--json] [--max n]`,
+  `usage: pnpm ast <${VERB_LIST}> <arg> [--in substr] [--files] [--public] [--all] [--near [pct]] [--json] [--max n]`,
   "",
   "Symbol-aware workspace search (ts-morph). Prefer this over grep for CODE questions:",
   "it follows aliases/re-exports and ignores comments + string contents.",
@@ -4994,6 +5213,7 @@ const USAGE = [
   "  pnpm ast clientgap contracts       *View/*Summary contracts the SERVER uses but the CLIENT never does",
   "  pnpm ast swallowed db              exports alive ONLY because an `import * as` swallowed their module",
   "  pnpm ast respell chat              domain contract/ shapes structurally identical to an @orb/contracts shape",
+  "  pnpm ast respell chat --near 75    ADDS a NEAR tier beside the exact one: Jaccard field-diff, 75%+ threshold",
   "  pnpm ast typeonly-alive server     VALUE exports whose every reference is a TYPE position (runtime-dead)",
   "  pnpm ast columns rpg_games         drizzle columns by consumption: READ+WRITE / WRITE-only / READ-only / NEITHER",
   "  pnpm ast regkeys TEMPLATE_DEFS     registry ROWS whose key is dispatched nowhere (HEURISTIC, informational)",
@@ -5058,6 +5278,17 @@ const USAGE = [
   "  uses. It may still be load-bearing THROUGH the swallowing API — VERIFY, never auto-delete. Keep one",
   "  deliberately with `// @swallowed-ok: <reason>` on the declaration; a marker the lens no longer agrees",
   "  with is reported STALE and exits 1 (two-sided). Optional scope; bare = every package.",
+  "",
+  "respell (CANDIDATE lens, run on demand) = a domain `contract/` shape structurally identical to (mutually",
+  "  assignable with) a sibling `@orb/contracts/<domain>` shape — the RENAMED re-spell the syntactic gate",
+  "  (`contract-derives-not-respells`) cannot see. `--near [pct]` (default 80 when the flag is present)",
+  "  ADDS a NEAR tier beside it, never replacing it: Jaccard similarity over (fieldName, resolvedTypeText)",
+  "  pairs, on the SAME axis, floor 4+ fields both sides, excluding every pair the exact tier already",
+  "  resolves. Reports a FIELD-LEVEL DIFF, never a bare percentage — shared-field count, fields that kept",
+  "  their TYPE but changed NAME, and each side's leftover fields (`7/9 shared (82%) · renamed-same-type:",
+  "  updatedAt→modifiedAt · domain-only: scope`). Keep a deliberate near-pair with `// @nearpair-ok:",
+  "  <reason>` on the domain declaration; a marker the lens no longer agrees with is STALE and exits 1",
+  "  (two-sided). Optional scope; bare = every domain.",
   "",
   "typeonly-alive (CANDIDATE lens, run on demand) = the STRUCTURAL-liveness class: a VALUE export (function,",
   "  const, class, enum — never an interface/type alias, which is type-only by nature) whose EVERY reference",
@@ -5169,6 +5400,8 @@ const USAGE = [
   "       --all (columns/regkeys) per-table/per-registry sectioning over EVERY table/registry — full",
   "       findings for one that has any, one collapsed line for a clean one, instead of forty manual",
   "       per-table/per-registry runs ·",
+  "       --near [pct] (respell) ADDS a NEAR tier beside the exact one, default 80 when the flag is",
+  "       present — never changes the exact tier's output ·",
   "       --max <n> raw-line cap (default 60; big result sets auto-collapse to per-file counts) ·",
   "       --json machine output (repeated once per section for rot). Syntactic verbs load in ~10s;",
   "       refs/dead/cycles/orphans/testonly/prodonly/typeonly-alive/columns/apisurface/rot resolve types;",
