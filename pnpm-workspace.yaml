@@ -296,6 +296,28 @@ catalog:
 # `pnpm --filter @orb/client build` (es2025 target, exit 0). Cost of removal: a third esbuild copy in the
 # store (0.25.12 beside 0.18.20 and tsx's 0.28.1) — disk, not correctness.
 overrides:
+  # fast-uri is a pure transitive of ajv (nested under @modelcontextprotocol/sdk, itself under
+  # @anthropic-ai/claude-agent-sdk) — no workspace package.json declares it, so `pnpm update` cannot
+  # reach it (it only bumps packages declared by name in a manifest). Pin to a version already inside
+  # ajv's own declared `fast-uri: ^3.0.1` range to clear GHSA-v2hh-gcrm-f6hx / GHSA-7p8r-x3mc-p8w7 /
+  # GHSA-4c8g-83qw-93j6 (host-confusion via backslash/IDN authority parsing, all patched by 3.1.5).
+  # Falls away on its own once ajv's declared floor moves past 3.1.5.
+  fast-uri: ^3.1.5
+  # ip-address is a pure transitive of express-rate-limit (same @modelcontextprotocol/sdk chain as
+  # above) — same "no manifest names it" reason `pnpm update` can't reach it. Pin to a version already
+  # inside express-rate-limit's own declared `ip-address: ^10.2.0` range to clear GHSA-mwp4-54f8-5fhr /
+  # GHSA-4xrf-jv44-h6hh / GHSA-22jq-vg5j-6vgg (leading-zero-octet decode / CIDR-suffix / NAT64
+  # special-use SSRF bypasses, all patched by 10.3.1). Falls away once express-rate-limit's declared
+  # floor moves past 10.3.1.
+  ip-address: ^10.3.1
+  # @modelcontextprotocol/sdk declares its OWN `@hono/node-server: ^1.19.9` (a separate major line from
+  # our own catalog `@hono/node-server: ^2.0.6` dep, so pnpm cannot dedupe the two) — same "no manifest
+  # names the 1.x line by itself" reason `pnpm update` can't reach it. Pin to a version already inside
+  # that declared range to clear GHSA-frvp-7c67-39w9 (Windows encoded-backslash path traversal in
+  # serve-static, patched by 1.19.15). Falls away once @modelcontextprotocol/sdk's declared floor moves
+  # past 1.19.15. SCOPED to the mcp-sdk>@hono/node-server chain — a bare `"@hono/node-server":` key
+  # collapses BOTH major lines onto the 1.x pin, silently downgrading our own direct 2.x dependency.
+  "@modelcontextprotocol/sdk>@hono/node-server": ^1.19.15
   # Force the single @vitejs/plugin-react up to the catalog's v6 (vite-8-compatible). @playwright/
   # experimental-ct-react pins a transitive v4.7.0 whose vite peer maxes at ^7 → unmet-peer warning
   # against our vite 8. v6 is the only line that peers vite ^8, so we dedupe both the client build and
