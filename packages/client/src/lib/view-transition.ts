@@ -15,6 +15,7 @@ interface VtTransition {
   readonly updateCallbackDone?: Promise<unknown>;
 }
 interface VtDocument {
+  readonly querySelector?: (selector: string) => unknown;
   readonly startViewTransition?: (update: () => void) => VtTransition | undefined;
 }
 interface VtGlobals {
@@ -37,7 +38,8 @@ export function withViewTransition(update: () => void): void {
   const g = globalThis as VtGlobals;
   const start = g.document?.startViewTransition;
   const reducedMotion = prefersReducedMotionNow();
-  if (start === undefined || reducedMotion) {
+  const appReducedMotion = (g.document?.querySelector?.('[data-reduced-motion="true"]') ?? null) !== null;
+  if (start === undefined || reducedMotion || appReducedMotion) {
     update();
     return;
   }

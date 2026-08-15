@@ -107,7 +107,7 @@ export function EngineLaunchConfig(): ReactElement {
         ))}
         {NUMERIC_FIELDS.map((f) => (
           <Field key={f.key} label={f.label} orientation="horizontal" {...("hint" in f ? { hint: f.hint } : {})}>
-            <NumberField step={f.step} value={draft[f.key] === "" ? null : Number(draft[f.key])} onValueChange={setNumeric(f.key)} />
+            <NumberField aria-label={f.label} step={f.step} value={draft[f.key] === "" ? null : Number(draft[f.key])} onValueChange={setNumeric(f.key)} />
           </Field>
         ))}
       </Stack>

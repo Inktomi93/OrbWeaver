@@ -23,7 +23,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { openModal, selectChatFromList, setActiveSection } from "#state";
+import { openNewChatPicker, selectChatFromList, setActiveSection } from "#state";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
 
 const RECENTS_LIMIT = 8;
@@ -42,7 +42,7 @@ export function HomeRecentsTileBody(): ReactElement {
     return (
       <EmptyState
         action={
-          <Button intent="secondary" onClick={(): void => openModal("newChat")} size="sm">
+          <Button intent="secondary" onClick={(): void => openNewChatPicker()} size="sm">
             <Icon icon={Plus} size="sm" />
             New chat
           </Button>

@@ -57,7 +57,7 @@ function CastBarStrip({
     return null;
   }
   return (
-    <Row gap="field" align="center" className="flex-wrap px-block py-row" data-testid={testId("chatCastBar")} aria-label="Cast">
+    <Row gap="field" align="center" className="flex-wrap px-block py-row" data-testid={testId("chatCastBar")} aria-label="Cast" role="group">
       {(cast.length > 1 ? cast : []).map((member) => (
         <Row
           key={member.key}
@@ -105,7 +105,7 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
   const visible = humans.slice(0, HUMAN_CHIP_CAP);
   const overflow = humans.length - visible.length;
   return (
-    <Row gap="row" align="center" aria-label="People" data-slot="cast-bar-humans">
+    <Row gap="row" align="center" aria-label="People" data-slot="cast-bar-humans" role="group">
       {visible.map((member) => (
         <Row key={member.id} gap="row" align="center" data-slot="human-chip">
           <Avatar size="sm" fallbackDelay={0} hueSeed={member.id} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>

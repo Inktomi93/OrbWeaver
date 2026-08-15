@@ -7,8 +7,8 @@
 import type { DefaultError, QueryKey, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { skipToken, useQuery } from "@tanstack/react-query";
 
-type GatedOptions<TData, TError, TKey extends QueryKey> = Pick<
-  UseQueryOptions<TData, TError, TData, TKey>,
+type GatedOptions<TQueryData, TSelected, TError, TKey extends QueryKey> = Pick<
+  UseQueryOptions<TQueryData, TError, TSelected, TKey>,
   "queryKey" | "queryFn" | "staleTime" | "gcTime" | "meta" | "select" | "placeholderData"
 >;
 
@@ -20,11 +20,11 @@ const GATED_OFF_KEY = ["__gated__", "off"] as const;
  * builder runs ONLY when the id is present. ONE `useQuery` call site (the gate lives in the options
  * expression, never in a conditional hook).
  */
-export function useGatedQuery<TId, TData, TError = DefaultError, TKey extends QueryKey = QueryKey>(
+export function useGatedQuery<TId, TQueryData, TSelected = TQueryData, TError = DefaultError, TKey extends QueryKey = QueryKey>(
   id: TId | null | undefined,
-  optionsFor: (id: TId) => GatedOptions<TData, TError, TKey>,
-): UseQueryResult<TData, TError> {
-  return useQuery<TData, TError, TData, TKey>(
+  optionsFor: (id: TId) => GatedOptions<TQueryData, TSelected, TError, TKey>,
+): UseQueryResult<TSelected, TError> {
+  return useQuery<TQueryData, TError, TSelected, TKey>(
     id === null || id === undefined ? { queryKey: GATED_OFF_KEY as unknown as TKey, queryFn: skipToken } : optionsFor(id),
   );
 }

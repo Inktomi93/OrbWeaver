@@ -34,6 +34,7 @@ import { useDebouncedValue } from "#lib";
 import { selectChatFromList, setActiveSection, useActiveChatId } from "#state";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatPortraitMap } from "../hooks/use-chat-portrait-map.ts";
+import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row.ts";
 import { ChatListRow } from "./chat-list-row.tsx";
 
@@ -61,6 +62,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
   const [query, setQuery] = useState("");
   const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const collection = useChatListCollection({ trpc }, { characterId, search: settledQuery });
+  const actions = useChatListRowActions();
 
   if (collection.isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
@@ -97,6 +99,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
   const qualifiers = chatRowQualifiers(items);
   const renderRow = (chat: ChatListItem, index: number): ReactNode => (
     <ChatListRow
+      actions={actions}
       chat={chat}
       onSelect={(chatId): void => {
         selectChatFromList(chatId);

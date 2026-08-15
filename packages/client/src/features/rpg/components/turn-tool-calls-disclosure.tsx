@@ -13,8 +13,8 @@
 // non-game chat has no records, so it never renders — no flag, no branch, no "reduced" transcript.
 //
 // SWIPE-CORRECT FOR FREE: the record is keyed by the producing `variantId` and this reads
-// `message.selectedVariantId`, so swiping a row re-targets the lookup with NO refetch (the whole window is
-// already indexed client-side — see `useTurnToolCallsByVariant`).
+// `message.selectedVariantId`, so swiping a row re-targets the selector with NO refetch (the whole window is
+// already cached client-side — see `useTurnToolCallsForVariant`).
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { RpgRecordedToolCall, RpgToolCallVerdict } from "@orb/contracts/rpg";
@@ -24,7 +24,7 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useTurnToolCallsByVariant } from "../hooks/use-turn-tool-calls.ts";
+import { useTurnToolCallsForVariant } from "../hooks/use-turn-tool-calls.ts";
 
 /** The badge intent per verdict — a mapped Record, so a widened verdict axis fails `tsc` here (§5.5) rather
  *  than silently rendering a lost write as if it had landed. */
@@ -51,9 +51,8 @@ export interface TurnToolCallsDisclosureProps {
  * record, which is the applicability gate: most turns in most rooms have none.
  */
 export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProps): ReactElement | null {
-  const byVariant = useTurnToolCallsByVariant(message.chatId);
-  const calls = byVariant.get(message.selectedVariantId);
-  if (calls === undefined || calls.length === 0) {
+  const calls = useTurnToolCallsForVariant(message.chatId, message.selectedVariantId);
+  if (calls.length === 0) {
     return null;
   }
   return (

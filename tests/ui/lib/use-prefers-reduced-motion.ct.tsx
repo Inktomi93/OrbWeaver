@@ -27,3 +27,14 @@ test("stays live: a mid-session preference flip updates the hook without remount
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await expect(component).toHaveText("false");
 });
+
+test("stays live when the app-level preference changes", async ({ mount, page }) => {
+  const component = await mount(<ReducedMotionProbe />);
+  await expect(component).toHaveText("false");
+
+  await page.locator("html").evaluate((element) => element.setAttribute("data-reduced-motion", "true"));
+  await expect(component).toHaveText("true");
+
+  await page.locator("html").evaluate((element) => element.removeAttribute("data-reduced-motion"));
+  await expect(component).toHaveText("false");
+});

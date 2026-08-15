@@ -72,7 +72,13 @@ function LibraryPageSizeRow({ sectionId }: { readonly sectionId: string }): Reac
   return (
     <Section divider={true} heading={LIBRARY_SETTINGS_SUBCATEGORY.label} id={settingsAnchorId("appearance", LIBRARY_SETTINGS_SUBCATEGORY.id)}>
       <Field label="Rows per page" description="How many entries the library lists load per page as you scroll." orientation="horizontal">
-        <NumberField min={LIBRARY_PAGE_SIZE_MIN} max={LIBRARY_PAGE_SIZE_MAX} value={data.config.library.pageSize} onValueChange={onValueChange} />
+        <NumberField
+          aria-label="Rows per page"
+          min={LIBRARY_PAGE_SIZE_MIN}
+          max={LIBRARY_PAGE_SIZE_MAX}
+          value={data.config.library.pageSize}
+          onValueChange={onValueChange}
+        />
       </Field>
     </Section>
   );

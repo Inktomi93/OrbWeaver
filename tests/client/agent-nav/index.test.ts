@@ -20,12 +20,25 @@ const CHARACTER_ID = castId<CharacterId>("character_agentnav_a");
 
 // Minimal fake of the `Trpc` proxy — only the `.queryOptions()` shape `queryClient.fetchQuery` needs.
 function fakeTrpc(
-  chats: { readonly id: string; readonly title: string | null; readonly participantNames: readonly string[] }[],
-  characters: { readonly id: string; readonly name: string }[],
+  chats: { readonly id: ChatId; readonly title: string | null; readonly participantNames: readonly string[] }[],
+  characters: { readonly id: CharacterId; readonly name: string }[],
+  directChats: { readonly id: ChatId }[] = chats,
   // biome-ignore lint/suspicious/noExplicitAny: the return is a minimal structural fake of the full Trpc proxy — the bridge only touches the branches built below.
 ): any {
   return {
     chat: {
+      getChat: {
+        queryOptions: (args: { readonly chatId: ChatId }): { queryKey: unknown[]; queryFn: () => Promise<(typeof directChats)[number]> } => ({
+          queryKey: ["chat", "getChat", args],
+          queryFn: (): Promise<(typeof directChats)[number]> => {
+            const match = directChats.find((chat) => chat.id === args.chatId);
+            if (match === undefined) {
+              return Promise.reject(new Error("not found"));
+            }
+            return Promise.resolve(match);
+          },
+        }),
+      },
       listChats: {
         queryOptions: (args: unknown): { queryKey: unknown[]; queryFn: () => Promise<{ items: typeof chats; totalCount: number }> } => ({
           queryKey: ["chat", "listChats", args],
@@ -54,6 +67,20 @@ function fakeTrpc(
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+test("capabilities() exposes canonical targets and the mounted surface's published context tabs", () => {
+  state.publishContextTabIds(["runs", "setup"]);
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  expect(nav.capabilities()).toEqual({
+    sections: ["home", "chats", "characters", "corpus", "config", "databank", "presets", "refinery", "analytics"],
+    modalSlots: ["theme", "settings", "account", "command", "newChat", "you", "addDocument", "reauth"],
+    settingsCategories: ["personas", "appearance", "workloads", "backup", "chat-behavior", "connections", "automation", "admin"],
+    contextTabs: ["runs", "setup"],
+    contextTabsPublished: true,
+    chatPositions: ["first", "latest"],
+  });
 });
 
 test("section() dispatches setActiveSection with the exact id and returns ok:true", () => {
@@ -151,6 +178,17 @@ test("openChat(id) composes setActiveSection('chats') + selectChat — the exact
 
   expect(result).toEqual({ ok: true });
   expect(sectionSpy).toHaveBeenCalledExactlyOnceWith("chats");
+  expect(selectSpy).toHaveBeenCalledExactlyOnceWith(CHAT_ID);
+});
+
+test("openChat(id) resolves directly even when a temporary or old chat is absent from the recent list", async () => {
+  const selectSpy = vi.spyOn(state, "selectChat");
+  const trpc = fakeTrpc([], [], [{ id: CHAT_ID }]);
+  const nav = buildAgentNav(trpc, new RealQueryClient() as QueryClient);
+
+  const result = await nav.openChat(CHAT_ID);
+
+  expect(result).toEqual({ ok: true });
   expect(selectSpy).toHaveBeenCalledExactlyOnceWith(CHAT_ID);
 });
 

@@ -35,5 +35,8 @@ export interface ModalDefinition {
   /** The Dialog width/presentation variant. Ignored for `presentation: "drawer"`. */
   readonly size?: DialogPopupProps["size"];
   readonly trigger: ModalTrigger;
+  /** Feature-owned cleanup that must run when shell chrome dismisses the modal. Component unmount
+   *  cleanup is not equivalent: React Strict Mode probes it while the modal is still logically open. */
+  readonly onClose?: () => void;
   readonly body: (() => ReactElement) | { readonly planned: string };
 }

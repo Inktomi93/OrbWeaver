@@ -16,12 +16,13 @@ import { Button } from "@orb/ui/button";
 import { Check, Icon, Plus } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
+import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { ThemeEditor } from "../components/theme-editor.tsx";
 import { ThemeRowMenu } from "../components/theme-row-menu.tsx";
@@ -33,6 +34,7 @@ const HEARTH_NAME = "Hearth";
 const COPY_SUFFIX = " copy";
 /** The draft id a from-scratch session carries — it keys the editor's mount, and is never sent anywhere. */
 const NEW_THEME_DRAFT_ID = "theme_draft_new";
+const THEME_PICKER_SKELETON_ROWS = 8;
 
 /** What the editor pane is showing: an existing row (`mint` absent), or a draft plus the mint that would
  *  bring it into existence. */
@@ -55,13 +57,21 @@ export function ThemePickerSurface(): ReactElement {
 
   return (
     <Container ref={surfaceRef} tabIndex={-1} className="outline-none">
-      <QueryBoundary
-        fallback={<Text voice="gloss">Loading your themes…</Text>}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="your themes" onRetry={retry} />}
-      >
+      <QueryBoundary fallback={<ThemePickerLoading />} renderError={(_error, retry): ReactElement => <QueryErrorState label="your themes" onRetry={retry} />}>
         <ThemeManager />
       </QueryBoundary>
     </Container>
+  );
+}
+
+/** Reserves the picker's header band and entity-row deck while both theme reads settle. A one-line
+ * fallback made the centered dialog grow upward by 250px when eight rows arrived. */
+function ThemePickerLoading(): ReactElement {
+  return (
+    <Stack aria-busy={true} className="pb-section" gap="block">
+      <Skeleton className="h-control-lg w-full" />
+      <SkeletonRows count={THEME_PICKER_SKELETON_ROWS} shape="avatar-row" />
+    </Stack>
   );
 }
 

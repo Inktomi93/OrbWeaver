@@ -18,22 +18,33 @@ test("shimmers on the muted token and takes the caller-supplied height", async (
   expect(Math.round(box?.height ?? 0)).toBe(AVATAR_MD_PX);
 });
 
-test("the shimmer sweep is a moving gradient over --motion-shimmer (animated by default)", async ({ mount }) => {
+test("the shimmer sweep translates a compositor layer over --motion-shimmer", async ({ mount }) => {
   const skeleton = await mount(<Skeleton className="h-control-md w-full" />);
-  // The gradient sweep is a background-image (not just a color) with a running animation.
-  const image = await skeleton.evaluate((el) => getComputedStyle(el).backgroundImage);
-  expect(image).toContain("linear-gradient");
-  const name = await skeleton.evaluate((el) => getComputedStyle(el).animationName);
-  expect(name).toBe("orb-skeleton-shimmer");
+  const styles = await skeleton.evaluate((el) => {
+    const root = getComputedStyle(el);
+    const sweep = getComputedStyle(el, "::after");
+    return { rootAnimation: root.animationName, image: sweep.backgroundImage, name: sweep.animationName };
+  });
+  expect(styles.image).toContain("linear-gradient");
+  expect(styles.name).toBe("orb-skeleton-shimmer");
+  expect(styles.rootAnimation).toBe("none");
 });
 
 test("reduced-motion drops to a FLAT muted fill (no gradient, no animation)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const skeleton = await mount(<Skeleton className="h-control-md w-full" />);
-  // The class self-neutralizes under reduced motion: no gradient image, animation off — bg-muted shows.
-  await expect(skeleton).toHaveCSS("background-image", "none");
-  const name = await skeleton.evaluate((el) => getComputedStyle(el).animationName);
-  expect(name).toBe("none");
+  const styles = await skeleton.evaluate((el) => {
+    const sweep = getComputedStyle(el, "::after");
+    return { display: sweep.display, rootAnimation: getComputedStyle(el).animationName };
+  });
+  expect(styles.display).toBe("none");
+  expect(styles.rootAnimation).toBe("none");
+});
+
+test("the app-level reduced-motion preference also removes the shimmer layer", async ({ mount, page }) => {
+  await page.locator("html").evaluate((element) => element.setAttribute("data-reduced-motion", "true"));
+  const skeleton = await mount(<Skeleton className="h-control-md w-full" />);
+  await expect.poll(async () => await skeleton.evaluate((el) => getComputedStyle(el, "::after").display)).toBe("none");
 });
 
 test("the circle variant renders a square (aspect-square)", async ({ mount }) => {

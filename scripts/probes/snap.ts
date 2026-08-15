@@ -82,10 +82,9 @@
  *                                          # A function LITERAL is auto-invoked — `async()=>{…}`
  *                                          # / `()=>{…}` run and return their result (no more
  *                                          # silent-undefined from an un-called async arrow).
- *                                          # FOOTGUN: an ARROW IIFE `(()=>{…})()` MATCHES the
- *                                          # literal regex and gets double-invoked ("… is not a
- *                                          # function") — pass the BARE arrow. A classic
- *                                          # `(function(){…}())` IIFE is NOT matched and works.
+ *                                          # An already-invoked arrow IIFE `(()=>{…})()` is left
+ *                                          # alone; it is never mistaken for a bare function and
+ *                                          # double-invoked.
  *   pnpm snap / --contrast 'label.field'   # WCAG AA contrast of the FIRST match's text/icon color
  *                                          # vs its resolved backdrop (repeatable). Each line states
  *                                          # its METHOD honestly: `css-resolve` (an opaque ancestor bg,
@@ -320,6 +319,7 @@ const DIFF_SSIM_THRESHOLD = 0.98;
 // (--aria <selector> / --aria-depth N) so the text path never blows the budget
 // it exists to save.
 const ARIA_MAX_LINES = 400;
+const MAP_NAME_MAX_LENGTH = 80;
 // Human output is a triage view; --json is the lossless console record.
 const CONSOLE_REPORT_CAP = 200;
 // Cap on DEADCSS/EMPTYCSS lines echoed (the counts always print in full).
@@ -447,6 +447,10 @@ export type Args = {
   failureEvidence: boolean;
   /** Console errors always fail; this also promotes warnings to failures. */
   strictConsole: boolean;
+  /** Reset app diagnostics after the initial page reaches readiness and scope console/page-error
+   *  verdicts to the subsequent navigation, interaction, and capture window. The full boot log remains
+   *  in JSON so interaction truth does not erase startup truth. */
+  checkpoint: boolean;
   /** Include React Activity/inert/hidden DOM in dead-CSS scans. Default is rendered DOM only. */
   includeHidden: boolean;
   route: string;
@@ -645,6 +649,9 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--strict-console": (a) => {
     a.strictConsole = true;
+  },
+  "--checkpoint": (a) => {
+    a.checkpoint = true;
   },
   "--include-hidden": (a) => {
     a.includeHidden = true;
@@ -974,6 +981,7 @@ Assertions and reports:
   --json                            write a machine-readable run manifest
   --summary                         compact scenario output; pair with --json for full evidence
   --strict-console                  make console warnings red (errors are always red)
+  --checkpoint                      reset __orb evidence after readiness; scope console verdicts to actions
   --include-hidden                  include Activity/hidden DOM in map, CSS, and counts
 
 Interaction:
@@ -1183,6 +1191,7 @@ export function parseSnapArgs(argv: string[]): Args {
     summary: false,
     failureEvidence: true,
     strictConsole: false,
+    checkpoint: false,
     includeHidden: false,
     route: "/",
     vnc: false,
@@ -1273,6 +1282,15 @@ type CaptureOutcome = {
   mapError: string | null;
   assertions: AssertionOutcome[];
   perf: PerfEvidence | null;
+  /** Indices into this capture's ProbeSession arrays when --checkpoint owns the verdict window. */
+  evidenceRange: EvidenceRange | null;
+};
+
+type EvidenceRange = {
+  readonly consoleStart: number;
+  readonly consoleEnd: number;
+  readonly pageErrorStart: number;
+  readonly pageErrorEnd: number;
 };
 
 /** Did the app reach a SETTLED state? `settled` = the flag went up on a real query-cache idle; `degraded` =
@@ -1493,8 +1511,9 @@ type EvalOutcome = { expr: string; text: string; failed: boolean };
 // — so `async () => {…}` silently returns undefined (the worst failure mode). Detect a function literal
 // (arrow or `function`) and auto-invoke it as `(<expr>)()`. A plain value/expression is left untouched.
 const FN_LITERAL_RE = /^\s*(?:async\s+)?(?:function\b|(?:async\s*)?\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/u;
+const INVOKED_ARROW_RE = /^\s*\(\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>[\s\S]*\)\s*\(\s*\)\s*$/u;
 function wrapEvalExpr(expr: string): string {
-  return FN_LITERAL_RE.test(expr) ? `(${expr})()` : expr;
+  return !INVOKED_ARROW_RE.test(expr) && FN_LITERAL_RE.test(expr) ? `(${expr})()` : expr;
 }
 
 // A dev-server churn (HMR reload / Vite restart / tRPC 5xx mid-run) tears down the page's JS realm; its
@@ -1999,8 +2018,10 @@ function buildMapScript(selector: string, includeHidden: boolean): string {
     var root = document.querySelector(${JSON.stringify(selector)});
     if (!root) return null;
     var INTERACTIVE_SELECTOR = ${JSON.stringify(MAP_INTERACTIVE_SELECTOR)};
-    var IMPLICIT_ROLE = { a: "link", button: "button", select: "combobox", textarea: "textbox" };
+    var IMPLICIT_ROLE = { a: "link", aside: "complementary", button: "button", form: "form", img: "img", main: "main", nav: "navigation", select: "combobox", svg: "img", textarea: "textbox" };
     var INPUT_ROLES = { checkbox: "checkbox", radio: "radio", button: "button", submit: "button", range: "slider", search: "searchbox" };
+    var NON_TARGET_ROLES = { generic: true, listitem: true, none: true, presentation: true };
+    var LABELED_STRUCTURE_ROLES = { article: true, complementary: true, form: true, group: true, list: true, log: true, main: true, navigation: true, region: true, status: true };
 
     function isVisible(el) {
       if (${JSON.stringify(includeHidden)}) return true;
@@ -2039,7 +2060,7 @@ function buildMapScript(selector: string, includeHidden: boolean): string {
         if (text) return text;
       }
       var text2 = (el.textContent || "").trim().replace(/\\s+/g, " ");
-      if (text2) return text2.length > 60 ? text2.slice(0, 60) + "…" : text2;
+      if (text2) return text2;
       var title = el.getAttribute("title");
       if (title && title.trim()) return title.trim();
       if (el.tagName === "INPUT") {
@@ -2059,32 +2080,30 @@ function buildMapScript(selector: string, includeHidden: boolean): string {
       }
       return node.tagName.toLowerCase() + ":nth-of-type(" + idx + ")";
     }
-    // Fallback #4: a short ancestor-chain path (capped) — not globally unique CSS, but enough
-    // to point a human/agent at the right neighborhood when no testid/label/role+name exists.
+    // Fallback #4: a complete nth-of-type path from body. Verbose but unique in this live DOM; captureMap
+    // validates it before exposing it. A short "neighborhood" path is not an executable agent handle.
     function fallbackPath(node) {
       var parts = [];
       var cur = node;
-      var depth = 0;
-      while (cur && cur !== root && cur !== document.body && depth < 4) {
+      while (cur && cur !== document.body) {
         parts.unshift(nthOfType(cur));
         cur = cur.parentElement;
-        depth += 1;
       }
-      return parts.join(" > ");
+      return "body > " + parts.join(" > ");
     }
     // Priority: 1) own data-testid  2) nearest ancestor testid that UNIQUELY wraps this element
     // (its only interactive/labeled descendant)  3) own aria-label  4) role=X[name="Y"]
     // (Playwright locator syntax)  5) fallback ancestor-chain path.
     function bestSelector(el, role, name) {
       var testid = el.getAttribute("data-testid");
-      if (testid) return "[data-testid=\\"" + testid + "\\"]";
+      if (testid) return "[data-testid=" + JSON.stringify(testid) + "]";
       var anc = el.parentElement;
       var hops = 0;
       while (anc && hops < 3) {
         var atid = anc.getAttribute("data-testid");
         if (atid) {
           if (anc.querySelectorAll(INTERACTIVE_SELECTOR).length === 1) {
-            return "[data-testid=\\"" + atid + "\\"] " + el.tagName.toLowerCase();
+            return "[data-testid=" + JSON.stringify(atid) + "] " + el.tagName.toLowerCase();
           }
           break;
         }
@@ -2092,8 +2111,11 @@ function buildMapScript(selector: string, includeHidden: boolean): string {
         hops += 1;
       }
       var ownLabel = el.getAttribute("aria-label");
-      if (ownLabel && ownLabel.trim()) return "[aria-label=\\"" + ownLabel.trim() + "\\"]";
-      if (role && name) return "role=" + role + "[name=\\"" + name + "\\"]";
+      if (ownLabel && ownLabel.trim()) {
+        var visibleOnly = ${JSON.stringify(includeHidden)} ? "" : ":visible";
+        return "[aria-label=" + JSON.stringify(ownLabel.trim()) + "]" + visibleOnly;
+      }
+      if (role && name) return "role=" + role + "[name=" + JSON.stringify(name) + "]";
       return fallbackPath(el);
     }
 
@@ -2103,23 +2125,73 @@ function buildMapScript(selector: string, includeHidden: boolean): string {
       var el = els[i];
       if (!isVisible(el)) continue;
       var role = resolveRole(el);
+      if (NON_TARGET_ROLES[role]) continue;
+      if (LABELED_STRUCTURE_ROLES[role] && !el.hasAttribute("aria-label") && !el.hasAttribute("aria-labelledby")) continue;
       var name = accessibleName(el);
       if (!role && !name) continue;
-      out.push({ role: role || "(none)", name: name, selector: bestSelector(el, role, name) });
+      out.push({
+        role: role || "(none)",
+        name: name,
+        selector: bestSelector(el, role, name),
+        semanticFallback: role && name ? "role=" + role + "[name=" + JSON.stringify(name) + "]" : "",
+        fallback: fallbackPath(el)
+      });
+    }
+    // An ambiguous selector is not navigation help. Preserve the best semantic selector, then add the
+    // Playwright-native nth engine only when repeated names/labels make it non-unique on this surface.
+    var totals = Object.create(null);
+    var seen = Object.create(null);
+    for (var j = 0; j < out.length; j += 1) totals[out[j].selector] = (totals[out[j].selector] || 0) + 1;
+    for (var k = 0; k < out.length; k += 1) {
+      var base = out[k].selector;
+      if (totals[base] > 1) {
+        var occurrence = seen[base] || 0;
+        out[k].selector = base + " >> nth=" + occurrence;
+        seen[base] = occurrence + 1;
+      }
     }
     return out;
   })()`;
 }
 
-type MapEntry = { role: string; name: string; selector: string };
+type MapEntry = { role: string; name: string; selector: string; source: "semantic" | "dom" };
+type RawMapEntry = Omit<MapEntry, "source"> & { fallback: string; semanticFallback: string };
+
+async function mapSelectorIsExecutable(page: Page, selector: string, includeHidden: boolean): Promise<boolean> {
+  const locator = page.locator(selector);
+  const count = await locator.count().catch(() => 0);
+  return count === 1 && (includeHidden || locator.isVisible().catch(() => false));
+}
+
+async function validateMapEntry(page: Page, entry: RawMapEntry, includeHidden: boolean): Promise<MapEntry> {
+  if (await mapSelectorIsExecutable(page, entry.selector, includeHidden)) {
+    return {
+      role: entry.role,
+      name: entry.name,
+      selector: entry.selector,
+      source: entry.selector === entry.fallback ? "dom" : "semantic",
+    };
+  }
+  if (
+    entry.semanticFallback !== "" &&
+    entry.semanticFallback !== entry.selector &&
+    (await mapSelectorIsExecutable(page, entry.semanticFallback, includeHidden))
+  ) {
+    return { role: entry.role, name: entry.name, selector: entry.semanticFallback, source: "semantic" };
+  }
+  if (await mapSelectorIsExecutable(page, entry.fallback, includeHidden)) {
+    return { role: entry.role, name: entry.name, selector: entry.fallback, source: "dom" };
+  }
+  throw new Error(`map could not mint one visible selector for ${entry.role} ${JSON.stringify(entry.name)}`);
+}
 
 async function captureMap(page: Page, selector: string, includeHidden: boolean): Promise<{ entries: MapEntry[] | null; error: string | null }> {
   try {
-    const result = (await page.evaluate(buildMapScript(selector, includeHidden))) as MapEntry[] | null;
+    const result = (await page.evaluate(buildMapScript(selector, includeHidden))) as RawMapEntry[] | null;
     if (result === null) {
       return { entries: null, error: `no element matches "${selector}"` };
     }
-    return { entries: result, error: null };
+    return { entries: await Promise.all(result.map((entry) => validateMapEntry(page, entry, includeHidden))), error: null };
   } catch (e) {
     return { entries: null, error: errorMessage(e) };
   }
@@ -2177,7 +2249,7 @@ async function captureEvidence(page: Page, opts: Args, outcome: CaptureOutcome, 
   outcome.perf = await capturePerfEvidence(page);
 }
 
-async function capture(page: Page, opts: Args, plan: PagePlan): Promise<CaptureOutcome> {
+async function capture(page: Page, opts: Args, plan: PagePlan, evidence: Pick<ProbeSession, "consoleMessages" | "pageErrors">): Promise<CaptureOutcome> {
   const { pageIndex, totalPages } = plan;
   const outcome: CaptureOutcome = {
     pageIndex,
@@ -2194,6 +2266,7 @@ async function capture(page: Page, opts: Args, plan: PagePlan): Promise<CaptureO
     mapError: null,
     assertions: [],
     perf: null,
+    evidenceRange: null,
   };
   const forThisPage = <T extends { page: number }>(items: readonly T[]): T[] => items.filter((i) => i.page === pageIndex);
   const out = planOut(plan, pageIndex, totalPages);
@@ -2201,6 +2274,15 @@ async function capture(page: Page, opts: Args, plan: PagePlan): Promise<CaptureO
   const mask = opts.mask.map((s) => page.locator(s));
   try {
     outcome.navError = plan.navigatePage === false ? null : await navigate(page, opts, plan.url);
+    if (opts.checkpoint) {
+      await page.evaluate(() => globalThis.__orb?.resetEvidence());
+      outcome.evidenceRange = {
+        consoleStart: evidence.consoleMessages.length,
+        consoleEnd: evidence.consoleMessages.length,
+        pageErrorStart: evidence.pageErrors.length,
+        pageErrorEnd: evidence.pageErrors.length,
+      };
+    }
     // SPA nav (dev bridge) runs BEFORE the regular steps so `--goto presets --map` maps the presets surface.
     outcome.navFailures = await runNavActions(page, forThisPage(opts.navActions));
     outcome.stepFailures = await runSteps(page, forThisPage(opts.steps));
@@ -2218,6 +2300,15 @@ async function capture(page: Page, opts: Args, plan: PagePlan): Promise<CaptureO
       } catch {
         /* best effort — the report + RESULT line still land */
       }
+    }
+  } finally {
+    const range = outcome.evidenceRange;
+    if (range !== null) {
+      outcome.evidenceRange = {
+        ...range,
+        consoleEnd: evidence.consoleMessages.length,
+        pageErrorEnd: evidence.pageErrors.length,
+      };
     }
   }
   return outcome;
@@ -2322,7 +2413,7 @@ async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{ dead: 
     const skip = (t) =>
       t === "group" || t === "peer" || t.startsWith("group/") || t.startsWith("peer/") ||
       // third-party marker classes that ship no stylesheet rules
-      t.startsWith("lucide") || t.startsWith("TanStack") || t.startsWith("tsqd-");
+      t === "echarts-for-react" || t.startsWith("lucide") || t.startsWith("TanStack") || t.startsWith("tsqd-");
     const dead = [];
     for (const [token, count] of used) {
       if (!defined.has(token) && !skip(token)) dead.push({ token, count });
@@ -2364,6 +2455,56 @@ type SessionCounts = {
   readonly consoleMessages: readonly CapturedConsole[];
   readonly pageErrors: readonly string[];
 };
+
+function consoleForEvidence(messages: readonly CapturedConsole[], outcomes: readonly CaptureOutcome[]): readonly CapturedConsole[] {
+  const ranges = outcomes.map((outcome) => outcome.evidenceRange);
+  if (ranges.some((range) => range === null)) {
+    return messages;
+  }
+  const first = ranges[0] as EvidenceRange | undefined;
+  const last = ranges.at(-1) as EvidenceRange | undefined;
+  return first === undefined || last === undefined ? messages : messages.slice(first.consoleStart, last.consoleEnd);
+}
+
+function pageErrorsForEvidence(errors: readonly string[], outcomes: readonly CaptureOutcome[]): readonly string[] {
+  const ranges = outcomes.map((outcome) => outcome.evidenceRange);
+  if (ranges.some((range) => range === null)) {
+    return errors;
+  }
+  const first = ranges[0] as EvidenceRange | undefined;
+  const last = ranges.at(-1) as EvidenceRange | undefined;
+  return first === undefined || last === undefined ? errors : errors.slice(first.pageErrorStart, last.pageErrorEnd);
+}
+
+function extendEvidenceThroughWatch(outcomes: readonly CaptureOutcome[], session: ProbeSession): void {
+  const outcome = outcomes.findLast((candidate) => candidate.evidenceRange !== null);
+  const range = outcome?.evidenceRange;
+  if (outcome !== undefined && range !== null && range !== undefined) {
+    outcome.evidenceRange = {
+      ...range,
+      consoleEnd: session.consoleMessages.length,
+      pageErrorEnd: session.pageErrors.length,
+    };
+  }
+}
+
+function sessionForEvidence(session: SessionCounts, outcomes: readonly CaptureOutcome[]): SessionCounts {
+  const consoleMessages = consoleForEvidence(session.consoleMessages, outcomes);
+  return {
+    requests: session.requests,
+    consoleMessages,
+    consoleLines: consoleMessages.map((message) => message.line),
+    pageErrors: pageErrorsForEvidence(session.pageErrors, outcomes),
+  };
+}
+
+function printCheckpointScope(full: SessionCounts, scoped: SessionCounts): void {
+  const bootConsole = full.consoleMessages.length - scoped.consoleMessages.length;
+  const bootPageErrors = full.pageErrors.length - scoped.pageErrors.length;
+  if (bootConsole > 0 || bootPageErrors > 0) {
+    print(`checkpoint   interaction verdict excludes ${bootConsole} boot console message(s) and ${bootPageErrors} boot page error(s); JSON retains both`);
+  }
+}
 
 function printSummary(session: SessionCounts, outcome: CaptureOutcome, opts: Args, ctx: ReportCtx): void {
   let shotDisplay = ctx.out;
@@ -2438,9 +2579,11 @@ function printMapBlock(opts: Args, entries: MapEntry[] | null, error: string | n
     return;
   }
   const list = entries ?? [];
-  print(`\n--- MAP (${list.length} element(s)) ---`);
+  const fallbackCount = list.filter((entry) => entry.source === "dom").length;
+  print(`\n--- MAP (${list.length} element(s), ${fallbackCount} DOM fallback(s)) ---`);
   for (const e of list.slice(0, ARIA_MAX_LINES)) {
-    print(`  ${e.role}  "${e.name}"  →  ${e.selector}`);
+    const name = e.name.length > MAP_NAME_MAX_LENGTH ? `${e.name.slice(0, MAP_NAME_MAX_LENGTH - 1)}…` : e.name;
+    print(`  ${e.role}  "${name}"  →  ${e.selector}  [${e.source}]`);
   }
   if (list.length > ARIA_MAX_LINES) {
     print(`  … +${list.length - ARIA_MAX_LINES} more — scope with --map <selector>`);
@@ -2757,6 +2900,7 @@ function inheritScenarioSession(globalArgs: Args, checkpoint: Args, name: string
     debugToken: globalArgs.debugToken,
     failureEvidence: globalArgs.failureEvidence,
     strictConsole: globalArgs.strictConsole,
+    checkpoint: globalArgs.checkpoint || checkpoint.checkpoint,
     includeHidden: globalArgs.includeHidden || checkpoint.includeHidden,
     json: globalArgs.json,
     summary: globalArgs.summary || checkpoint.summary,
@@ -2865,6 +3009,13 @@ type SnapManifest = {
   readonly hars: readonly string[];
   readonly console: readonly CapturedConsole[];
   readonly pageErrors: readonly string[];
+  /** Interaction-scoped diagnostics when --checkpoint is active; console/pageErrors above remain the
+   *  lossless browser-lifetime record. */
+  readonly evidence?: {
+    readonly scope: "checkpoint";
+    readonly console: readonly CapturedConsole[];
+    readonly pageErrors: readonly string[];
+  };
   readonly failedRequests: CapturedRequest[];
   readonly captures: readonly CaptureOutcome[];
   /** Watch-only timeline. Present when --watch ran; ticks remain durable even when terminal output dedupes them. */
@@ -2932,6 +3083,17 @@ type OutcomeTotals = {
   readonly ariaSeen: boolean;
   readonly mapped: CaptureOutcome | undefined;
 };
+
+function mapOutputSummary(enabled: boolean, outcomes: readonly CaptureOutcome[]): { readonly count: string; readonly domFallbacks: string } {
+  if (!enabled) {
+    return { count: "no", domFallbacks: "no" };
+  }
+  const entries = outcomes.find((outcome) => outcome.mapResult !== null)?.mapResult ?? [];
+  return {
+    count: String(entries.length),
+    domFallbacks: String(entries.filter((entry) => entry.source === "dom").length),
+  };
+}
 
 function outcomeTotals(outcomes: readonly CaptureOutcome[]): OutcomeTotals {
   return {
@@ -3010,7 +3172,7 @@ async function capturePages(session: ProbeSession, opts: Args, plan: ShotPlan): 
   for (let index = 0; index < opts.pages; index += 1) {
     const page = session.pages[index] as Page;
     // biome-ignore lint/performance/noAwaitInLoops: pages are driven sequentially so later tabs observe earlier-tab actions.
-    outcomes.push(await capture(page, opts, { ...plan, pageIndex: index, totalPages: opts.pages }));
+    outcomes.push(await capture(page, opts, { ...plan, pageIndex: index, totalPages: opts.pages }, session));
   }
   return outcomes;
 }
@@ -3032,15 +3194,18 @@ async function snap(opts: Args): Promise<number> {
 
   const plan: ShotPlan = { url, out, produceShot };
   const outcomes = await capturePages(session, opts, plan);
+  const evidenceSession = sessionForEvidence(session, outcomes);
   // --watch: a timed series on PAGE 0 after everything settled (a streaming turn reflow, transient states).
   const watchTicks = opts.watchMs > 0 ? await runWatchSeries(session.pages[0] as Page, opts, pageOut(out, 0, totalPages)) : [];
+  extendEvidenceThroughWatch(outcomes, session);
   const failed = [...session.requests.values()].filter((r) => r.failed !== null || (r.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
   for (const outcome of outcomes) {
     const ctx: ReportCtx = { ...plan, out: pageOut(out, outcome.pageIndex, totalPages), failed, totalPages };
-    printPageReport(session, outcome, opts, ctx);
+    printPageReport(sessionForEvidence(session, [outcome]), outcome, opts, ctx);
   }
   printWatchBlock(watchTicks);
-  printCaptureLog(session, failed);
+  printCheckpointScope(session, evidenceSession);
+  printCaptureLog(evidenceSession, failed);
   printCropNote(opts, { ...plan, failed, totalPages });
   // Baseline/diff compares PAGE 0's shot (the canonical surface); multi-page baselines aren't a use case yet.
   const { diffPairs, ssimFailed } = await runBaselineOrDiff(opts, pageOut(out, 0, totalPages), name);
@@ -3053,9 +3218,9 @@ async function snap(opts: Args): Promise<number> {
   // Exit non-zero if anything observably went wrong, so `snap` is CI-usable.
   const failureSummary = buildFailureSummary({
     outcomes,
-    pageErrors: session.pageErrors.length,
+    pageErrors: evidenceSession.pageErrors.length,
     failedRequests: failed.length,
-    consoleMessages: session.consoleMessages,
+    consoleMessages: evidenceSession.consoleMessages,
     strictConsole: opts.strictConsole,
     watch: watchFailures,
     diff: Number(ssimFailed),
@@ -3075,11 +3240,21 @@ async function snap(opts: Args): Promise<number> {
     traces: artifacts.traces,
     hars: artifacts.hars,
     console: session.consoleMessages,
+    ...(opts.checkpoint
+      ? {
+          evidence: {
+            scope: "checkpoint" as const,
+            console: evidenceSession.consoleMessages,
+            pageErrors: evidenceSession.pageErrors,
+          },
+        }
+      : {}),
     pageErrors: session.pageErrors,
     failedRequests: failed,
     captures: outcomes,
     ...(watchTicks.length === 0 ? {} : { watch: { totalMs: opts.watchMs, intervalMs: opts.watchEveryMs, ticks: watchTicks } }),
   });
+  const mapSummary = mapOutputSummary(opts.map, outcomes);
   printResult("snap", [
     ["out", produceShot ? pageOut(out, 0, totalPages) : "(none)"],
     ["pages", totalPages],
@@ -3087,21 +3262,27 @@ async function snap(opts: Args): Promise<number> {
     ["watch-fails", watchFailures],
     ["aria", totals.ariaSeen ? "yes" : "no"],
     ["aria-fails", evidenceFailures.aria],
-    ["map", opts.map ? String((totals.mapped?.mapResult ?? []).length) : "no"],
+    ["map", mapSummary.count],
+    ["map-dom-fallbacks", mapSummary.domFallbacks],
     ["map-fails", evidenceFailures.map],
     ["evals", totals.evals],
     ["eval-fails", evidenceFailures.eval],
     ["contrast-fails", totals.contrast],
     ["assertion-fails", totals.assertions],
     ["console-errors", failureSummary.consoleErrors],
-    ["console-warnings", session.consoleMessages.filter((entry) => entry.type === "warning").length],
+    ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length],
+    [
+      "boot-console-warnings",
+      session.consoleMessages.filter((entry) => entry.type === "warning").length -
+        evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length,
+    ],
     ["trace", artifacts.traces[0] ?? "none"],
     ["har", artifacts.hars[0] ?? "none"],
     ["json", manifestPath ?? "none"],
     ["nav", totals.navigation > 0 ? "ERROR" : "OK"],
     ["nav-actions-failed", totals.navActions],
     ["steps-failed", totals.steps],
-    ["page-errors", session.pageErrors.length],
+    ["page-errors", evidenceSession.pageErrors.length],
     ["failed-req", failed.length],
     ["deadcss", totals.deadCss],
     ["emptycss", totals.emptyCss],
@@ -3123,11 +3304,11 @@ function scenarioFailureSummary(
   strictConsole: boolean,
 ): SnapFailureSummary {
   const evidence = evidenceFailureCounts(outcomes);
-  const consoleFailures = consoleFailureCounts(session.consoleMessages, strictConsole);
+  const consoleFailures = consoleFailureCounts(consoleForEvidence(session.consoleMessages, outcomes), strictConsole);
   return {
     navigation: outcomes.filter((outcome) => outcome.navError !== null).length,
     navActions: outcomes.reduce((count, outcome) => count + outcome.navFailures, 0),
-    pageErrors: session.pageErrors.length,
+    pageErrors: pageErrorsForEvidence(session.pageErrors, outcomes).length,
     failedRequests: failedRequests.length,
     steps: outcomes.reduce((count, outcome) => count + outcome.stepFailures, 0),
     contrast: outcomes.reduce((count, outcome) => count + outcome.contrastResults.filter((entry) => entry.failed).length, 0),
@@ -3173,7 +3354,7 @@ async function captureScenarioCheckpoints(
       // biome-ignore lint/performance/noAwaitInLoops: each checkpoint owns a distinct evidence window.
       await resetScenarioEvidence(session.page);
     }
-    outcomes.push(await capture(session.page, checkpoint, { ...plan, pageIndex: 0, totalPages: 1, navigatePage: !keepLivePage }));
+    outcomes.push(await capture(session.page, checkpoint, { ...plan, pageIndex: 0, totalPages: 1, navigatePage: !keepLivePage }, session));
     evidenceRanges.push({
       consoleStart,
       consoleEnd: session.consoleMessages.length,
@@ -3195,24 +3376,37 @@ type ScenarioReportArgs = {
   readonly failedRequests: CapturedRequest[];
 };
 
+function scenarioCheckpointSession(session: ProbeSession, outcome: CaptureOutcome, range: ScenarioEvidenceRange): SessionCounts {
+  if (outcome.evidenceRange !== null) {
+    return sessionForEvidence(session, [outcome]);
+  }
+  const consoleMessages = session.consoleMessages.slice(range.consoleStart, range.consoleEnd);
+  return {
+    requests: session.requests,
+    consoleMessages,
+    consoleLines: consoleMessages.map((message) => message.line),
+    pageErrors: session.pageErrors.slice(range.pageErrorStart, range.pageErrorEnd),
+  };
+}
+
 function printScenarioReports(args: ScenarioReportArgs): void {
   const { spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests } = args;
   for (let index = 0; index < outcomes.length; index += 1) {
     const plan = plans[index] as ShotPlan;
     const range = evidenceRanges[index] as ScenarioEvidenceRange;
-    const checkpointMessages = session.consoleMessages.slice(range.consoleStart, range.consoleEnd);
-    const checkpointSession: SessionCounts = {
-      requests: session.requests,
-      consoleLines: checkpointMessages.map((message) => message.line),
-      consoleMessages: checkpointMessages,
-      pageErrors: session.pageErrors.slice(range.pageErrorStart, range.pageErrorEnd),
-    };
+    const outcome = outcomes[index] as CaptureOutcome;
+    const checkpointSession = scenarioCheckpointSession(session, outcome, range);
     if (checkpoints[index]?.summary) {
-      const outcome = outcomes[index] as CaptureOutcome;
       const failedAssertions = outcome.assertions.filter((entry) => entry.failed).length;
-      const errors = checkpointMessages.filter((message) => message.type === "error").length;
-      const warnings = checkpointMessages.filter((message) => message.type === "warning").length;
-      const failed = outcome.navError !== null || outcome.navFailures > 0 || outcome.stepFailures > 0 || failedAssertions > 0 || errors > 0;
+      const errors = checkpointSession.consoleMessages.filter((message) => message.type === "error").length;
+      const warnings = checkpointSession.consoleMessages.filter((message) => message.type === "warning").length;
+      const failed =
+        outcome.navError !== null ||
+        outcome.navFailures > 0 ||
+        outcome.stepFailures > 0 ||
+        failedAssertions > 0 ||
+        errors > 0 ||
+        ((checkpoints[index]?.strictConsole ?? false) && warnings > 0);
       print(
         `CHECKPOINT ${spec.checkpoints[index]?.name ?? index} ${failed ? "FAIL" : "PASS"} ` +
           `shot=${plan.produceShot ? plan.out : "(none)"} nav=${outcome.navFailures} steps=${outcome.stepFailures} assertions=${failedAssertions} ` +
@@ -3226,7 +3420,9 @@ function printScenarioReports(args: ScenarioReportArgs): void {
   if (failedRequests.length > 0) {
     print(`\n${failedRequests.length} failed request(s) occurred across the scenario; the aggregate log follows.`);
   }
-  printCaptureLog(session, failedRequests);
+  const evidenceSession = sessionForEvidence(session, outcomes);
+  printCheckpointScope(session, evidenceSession);
+  printCaptureLog(evidenceSession, failedRequests);
 }
 
 async function snapScenario(opts: Args): Promise<number> {
@@ -3252,6 +3448,8 @@ async function snapScenario(opts: Args): Promise<number> {
   const first = checkpoints[0] as Args;
   const session = await launchSnapSession(first, spec.name);
   const { outcomes, plans, evidenceRanges } = await captureScenarioCheckpoints(session, checkpoints);
+  const evidenceConsole = consoleForEvidence(session.consoleMessages, outcomes);
+  const evidencePageErrors = pageErrorsForEvidence(session.pageErrors, outcomes);
   const failedRequests = [...session.requests.values()].filter((request) => request.failed !== null || (request.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
   const failureSummary = scenarioFailureSummary(outcomes, session, failedRequests, opts.strictConsole);
   const red = hasSnapFailure(failureSummary);
@@ -3271,6 +3469,7 @@ async function snapScenario(opts: Args): Promise<number> {
     hars: artifacts.hars,
     console: session.consoleMessages,
     pageErrors: session.pageErrors,
+    ...(opts.checkpoint ? { evidence: { scope: "checkpoint" as const, console: evidenceConsole, pageErrors: evidencePageErrors } } : {}),
     failedRequests,
     captures: outcomes,
     scenario: {
@@ -3287,7 +3486,11 @@ async function snapScenario(opts: Args): Promise<number> {
     ["checkpoints", outcomes.length],
     ["assertion-fails", failureSummary.assertions],
     ["console-errors", failureSummary.consoleErrors],
-    ["console-warnings", session.consoleMessages.filter((entry) => entry.type === "warning").length],
+    ["console-warnings", evidenceConsole.filter((entry) => entry.type === "warning").length],
+    [
+      "boot-console-warnings",
+      session.consoleMessages.filter((entry) => entry.type === "warning").length - evidenceConsole.filter((entry) => entry.type === "warning").length,
+    ],
     ["trace", artifacts.traces[0] ?? "none"],
     ["har", artifacts.hars[0] ?? "none"],
     ["json", manifestPath ?? "none"],
@@ -3382,21 +3585,30 @@ function reportOneContext(args: ContextReportArgs, i: number): { readonly failed
   const { opts, session, outcomes, users, plan, out, totalContexts } = args;
   const ctxSession = session.contexts[i] as (typeof session.contexts)[number];
   const outcome = outcomes[i] as CaptureOutcome;
+  const evidenceSession = sessionForEvidence(ctxSession, [outcome]);
   const failed = [...ctxSession.requests.values()].filter((r) => r.failed !== null || (r.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
   const ctx: ReportCtx = { ...plan, out: contextOut(out, i, totalContexts), failed, totalPages: totalContexts, label: "CONTEXT" };
   print(`\nuser         ${users[i]?.handle} (context ${i})`);
-  printPageReport(ctxSession, outcome, opts, ctx);
-  printCaptureLog(ctxSession, failed);
+  printPageReport(evidenceSession, outcome, opts, ctx);
+  printCheckpointScope(ctxSession, evidenceSession);
+  printCaptureLog(evidenceSession, failed);
   printCropNote(opts, ctx);
-  return { failedReq: failed.length, pageErrors: ctxSession.pageErrors.length };
+  return { failedReq: failed.length, pageErrors: evidenceSession.pageErrors.length };
 }
 
 async function captureContexts(session: ProbeSession, opts: Args, plan: ShotPlan, totalContexts: number): Promise<CaptureOutcome[]> {
   const outcomes: CaptureOutcome[] = [];
   for (let index = 0; index < totalContexts; index += 1) {
     const page = session.contexts[index]?.pages[0] as Page;
-    // biome-ignore lint/performance/noAwaitInLoops: contexts are driven sequentially so later users observe earlier-user actions.
-    outcomes.push(await capture(page, opts, { ...plan, pageIndex: index, totalPages: totalContexts, unit: "u" }));
+    outcomes.push(
+      // biome-ignore lint/performance/noAwaitInLoops: contexts are driven sequentially so later users observe earlier-user actions.
+      await capture(
+        page,
+        opts,
+        { ...plan, pageIndex: index, totalPages: totalContexts, unit: "u" },
+        session.contexts[index] as (typeof session.contexts)[number],
+      ),
+    );
   }
   return outcomes;
 }
@@ -3437,11 +3649,14 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[], target: F
   const totals = outcomeTotals(outcomes);
   const evidenceFailures = evidenceFailureCounts(outcomes);
   const allConsole = session.contexts.flatMap((context) => context.consoleMessages);
+  const allEvidenceConsole = session.contexts.flatMap((context, index) => consoleForEvidence(context.consoleMessages, [outcomes[index] as CaptureOutcome]));
+  const allPageErrors = session.contexts.flatMap((context) => context.pageErrors);
+  const allEvidencePageErrors = session.contexts.flatMap((context, index) => pageErrorsForEvidence(context.pageErrors, [outcomes[index] as CaptureOutcome]));
   const failureSummary = buildFailureSummary({
     outcomes,
     pageErrors: reportTotals.pageErrors,
     failedRequests: reportTotals.failedRequests,
-    consoleMessages: allConsole,
+    consoleMessages: allEvidenceConsole,
     strictConsole: opts.strictConsole,
   });
   const red = hasSnapFailure(failureSummary);
@@ -3459,26 +3674,33 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[], target: F
     traces: artifacts.traces,
     hars: artifacts.hars,
     console: allConsole,
-    pageErrors: session.contexts.flatMap((context) => context.pageErrors),
+    pageErrors: allPageErrors,
+    ...(opts.checkpoint ? { evidence: { scope: "checkpoint" as const, console: allEvidenceConsole, pageErrors: allEvidencePageErrors } } : {}),
     failedRequests: session.contexts.flatMap((context) =>
       [...context.requests.values()].filter((request) => request.failed !== null || (request.status ?? 0) >= HTTP_ERROR_STATUS_MIN),
     ),
     captures: outcomes,
   });
+  const mapSummary = mapOutputSummary(opts.map, outcomes);
   printResult("snap", [
     ["out", produceShot ? contextOut(out, 0, totalContexts) : "(none)"],
     ["contexts", totalContexts],
     ["users", users.map((u) => u.handle).join(",")],
     ["aria", totals.ariaSeen ? "yes" : "no"],
     ["aria-fails", evidenceFailures.aria],
-    ["map", opts.map ? String(outcomes.find((outcome) => outcome.mapResult !== null)?.mapResult?.length ?? 0) : "no"],
+    ["map", mapSummary.count],
+    ["map-dom-fallbacks", mapSummary.domFallbacks],
     ["map-fails", evidenceFailures.map],
     ["evals", totals.evals],
     ["eval-fails", evidenceFailures.eval],
     ["contrast-fails", totals.contrast],
     ["assertion-fails", totals.assertions],
     ["console-errors", failureSummary.consoleErrors],
-    ["console-warnings", allConsole.filter((entry) => entry.type === "warning").length],
+    ["console-warnings", allEvidenceConsole.filter((entry) => entry.type === "warning").length],
+    [
+      "boot-console-warnings",
+      allConsole.filter((entry) => entry.type === "warning").length - allEvidenceConsole.filter((entry) => entry.type === "warning").length,
+    ],
     ["trace", artifacts.traces[0] ?? "none"],
     ["har", artifacts.hars[0] ?? "none"],
     ["json", manifestPath ?? "none"],

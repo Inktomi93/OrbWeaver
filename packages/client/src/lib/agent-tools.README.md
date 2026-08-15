@@ -9,13 +9,13 @@ one-line hint pointing here.
 Read app state in ONE eval instead of scraping the DOM. Installed from `main.tsx` (`agent-bridge.ts`).
 
 | Call | Returns |
-| --- | --- |
-| `__orb.snap()` | one-call overview: `{ ready, shell, bus, queries, perf, renders, motion }` |
+| - | - |
+| `__orb.snap()` | cheap one-call overview: `{ ready, shell, bus, queries, perf, renders, motion, flags }`; motion summarizes recorded evidence without forcing a document-wide animation scan |
 | `__orb.queries()` | the full TanStack Query cache: `{ key, status, fetch, stale, updatedAt }[]` |
 | `__orb.bus()` | chat-bus: `{ live, events }` — live subscription count + the recent canon-event ring |
 | `__orb.perf()` | the `orb:*` User Timing measures: `{ name, ms }[]` (app-ready; turn TTFT/latency when wired) |
 | `__orb.renders()` | the render heatmap: per-surface `{ id, count, mounts, updates, totalMs, avgMs, maxMs }`, hottest-first |
-| `__orb.motion()` | LoAF ring + jank numbers: `{ loafs: { startTime, duration, blockingDuration, styleAndLayoutStart, scripts }[], cls, worstBlocking, worstShift }` — `styleAndLayoutStart>0` = style/layout ran in-frame (jank tell) |
+| `__orb.motion()` | LoAF ring + jank numbers: `{ loafs, cls, observedCls, worstBlocking, worstShift, shifts }`; each attributed shift says whether it followed real input, `__orb.nav`, or virtual-row reconciliation |
 | `__orb.animations()` | active animations: `{ id?, target, properties, compositorClean }[]` — `compositorClean:false` (animating a non-transform/opacity/filter prop) = per-frame-layout jank risk |
 | `__orb.flags()` | motion flagger records for the current evidence window |
 | `__orb.resetEvidence()` | clear flags, motion/CLS, and render-heatmap evidence before a driven checkpoint without resetting app state |
@@ -38,7 +38,8 @@ refusal, never a silent no-op. ids validate against the canonical tuples (`SECTI
 `SETTINGS_CATEGORY_IDS`).
 
 | Call | Effect |
-| --- | --- |
+| - | - |
+| `__orb.nav.capabilities()` | return the exact canonical section, modal, settings, and chat-position vocabularies plus the context-tab ids published by the surface mounted right now |
 | `__orb.nav.section(id)` | switch the active rail section (`SECTION_IDS`) |
 | `__orb.nav.openModal(slot)` | open a rail modal (`MODAL_SLOT_IDS`) |
 | `__orb.nav.openSettings(category)` | open Settings at a category (`SETTINGS_CATEGORY_IDS`) |
@@ -49,7 +50,9 @@ refusal, never a silent no-op. ids validate against the canonical tuples (`SECTI
 
 `pnpm snap` wraps these as `--goto <section|settings:cat|modal:slot>`, `--open-chat <idOrTitle>`,
 `--open-character <idOrName>`, `--context-tab <name>` (run before the regular steps; a `{ok:false}` reddens
-the exit).
+the exit). Add `--checkpoint` to reset `__orb` evidence after readiness and scope console/page-error
+verdicts to those actions. The JSON keeps the complete boot log under `console` and the interaction-only
+window under `evidence`, so neither phase can contaminate or erase the other.
 
 ## `data-app-ready` — the readiness wait target (dev + prod)
 
@@ -64,7 +67,7 @@ it instead of network-idle, which hangs on the never-idle SSE connection:
 
 ## Console channels
 
-Prefixed, low-noise, IS_DEV-gated — read via `preview_console_logs` or a console-capture transcript.
+Prefixed, low-noise, IS\_DEV-gated — read via `preview_console_logs` or a console-capture transcript.
 
 - **`[bus]`** (`bus-devlog.ts`) — chat-bus subscription lifecycle + live count, each canon event → the
   query keys it invalidated, and a duplicate-invalidate storm alarm. The peer to `[trpc]`.
@@ -81,7 +84,10 @@ Prefixed, low-noise, IS_DEV-gated — read via `preview_console_logs` or a conso
   - **`[drop]`** — a rAF gap over 50ms *while something is animating* (a stutter a user can feel).
   - **`[css]`** — a class on a live element that no CSS rule defines (`snap --dead-css`, live).
   - **`[space]`** — a replaced element with no reserved box: a layout shift that hasn't happened yet.
-  - **`[cls]`** (`motion-stats.ts`) — each layout shift over the noise floor, naming what moved.
+  - **`[cls]`** (`motion-stats.ts`) — each actionable layout shift over the noise floor, naming what moved. The
+    user-equivalent 500 ms after `__orb.nav` remains in `observedCls` and the attributed shift ring but does
+    not emit a false “unexpected” warning merely because Chrome saw no physical click. Shifts whose sources
+    are all rows inside a known virtualizer are likewise retained with `virtualized: true` but not warned.
 
 ## Perf marks (`perf-marks.ts`)
 

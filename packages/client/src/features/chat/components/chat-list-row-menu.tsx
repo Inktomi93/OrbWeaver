@@ -24,14 +24,14 @@ import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger 
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { RowActionsMenu } from "#components";
-import { useInvalidation, useTRPC } from "#data";
-import { useArchiveChat, useDeleteChat, useStarChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
+import type { ChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 /** The host-gated transcript download route (`GET /api/export/chat/:chatId`), one home for both formats. */
 const EXPORT_CHAT_PATH = "/api/export/chat/";
 
 export interface ChatListRowMenuProps {
+  readonly actions: ChatListRowActions;
   readonly chatId: ChatId;
   /** The row's current AUTHORED title (seeds the rename input) — null renders as an empty field. */
   readonly title: string | null;
@@ -46,14 +46,7 @@ export interface ChatListRowMenuProps {
 }
 
 /** The kebab menu + its rename/delete overlays for one chat-list row. */
-export function ChatListRowMenu({ chatId, title, rowName, starred, archived, onDeleted }: ChatListRowMenuProps): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const updateTitle = useUpdateChatTitle({ trpc, invalidation });
-  const starChat = useStarChat({ trpc, invalidation });
-  const archiveChat = useArchiveChat({ trpc, invalidation });
-  const deleteChat = useDeleteChat({ trpc, invalidation });
-
+export function ChatListRowMenu({ actions, chatId, title, rowName, starred, archived, onDeleted }: ChatListRowMenuProps): ReactElement {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
 
@@ -63,13 +56,13 @@ export function ChatListRowMenu({ chatId, title, rowName, starred, archived, onD
   };
   const saveRename = (): void => {
     const trimmed = renameValue.trim();
-    updateTitle.mutate({ chatId, title: trimmed === "" ? null : trimmed });
+    actions.updateTitle({ chatId, title: trimmed === "" ? null : trimmed });
     setRenameOpen(false);
   };
   const confirmDelete = (): void => {
     void (async (): Promise<void> => {
       try {
-        await deleteChat.mutateAsync({ chatId });
+        await actions.remove({ chatId });
         onDeleted?.(chatId);
       } catch {
         // The failure toast (mutation `meta.errorToast`) already surfaced it; stay on the chat.
@@ -92,11 +85,11 @@ export function ChatListRowMenu({ chatId, title, rowName, starred, archived, onD
           <Icon icon={Pencil} size="sm" />
           Rename
         </MenuItem>
-        <MenuItem onClick={(): void => starChat.mutate({ chatId, starred: !starred })}>
+        <MenuItem onClick={(): void => actions.star({ chatId, starred: !starred })}>
           <Icon icon={Star} size="sm" />
           {starred ? "Unstar" : "Star"}
         </MenuItem>
-        <MenuItem onClick={(): void => archiveChat.mutate({ chatId, archived: !archived })}>
+        <MenuItem onClick={(): void => actions.archive({ chatId, archived: !archived })}>
           <Icon icon={Archive} size="sm" />
           {archived ? "Unarchive" : "Archive"}
         </MenuItem>
@@ -120,7 +113,7 @@ export function ChatListRowMenu({ chatId, title, rowName, starred, archived, onD
       </RowActionsMenu>
 
       {/* Rename — a single controlled input (the §13.4 single-rename carve-out, not a form factory). */}
-      <RenameChatDialog open={renameOpen} onOpenChange={setRenameOpen} value={renameValue} onValueChange={setRenameValue} onSave={saveRename} />
+      {renameOpen ? <RenameChatDialog open={true} onOpenChange={setRenameOpen} value={renameValue} onValueChange={setRenameValue} onSave={saveRename} /> : null}
     </>
   );
 }

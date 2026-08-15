@@ -25,7 +25,13 @@ const SCORE_RE = /shift 0\.\d{4}/u;
 interface MotionRead {
   readonly cls: number;
   readonly observedCls: number;
-  readonly shifts: readonly { readonly value: number; readonly hadRecentInput: boolean; readonly sources: readonly string[] }[];
+  readonly shifts: readonly {
+    readonly value: number;
+    readonly hadRecentInput: boolean;
+    readonly agentNavigation: boolean;
+    readonly virtualized: boolean;
+    readonly sources: readonly string[];
+  }[];
 }
 
 /** Collect every console line the flagger emits. Attached BEFORE mount so nothing is missed. */
@@ -92,6 +98,18 @@ test("an UNEXPECTED shift (past the input window) counts toward CLS and is tagge
 
   const motion = await readMotion(page);
   expect(motion.cls).toBeGreaterThan(0);
+});
+
+test("agent navigation keeps attributed shift evidence without emitting a false unexpected warning", async ({ mount, page }) => {
+  const lines = captureClsLines(page);
+  const component = await mount(<MotionShiftFlaggerStory />);
+
+  await component.getByRole("button", { name: "agent-driven shift" }).evaluate((button) => (button as HTMLButtonElement).click());
+  await expect.poll(async () => (await readMotion(page)).observedCls).toBeGreaterThan(0);
+
+  const motion = await readMotion(page);
+  expect(motion.shifts.some((shift) => shift.agentNavigation && shift.sources.some((source) => source.includes("cls-victim")))).toBe(true);
+  expect(lines).toEqual([]);
 });
 
 test("the checkpoint reset clears accumulated shifts without reinstalling the observer", async ({ mount, page }) => {

@@ -168,6 +168,7 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
         // NOT wrapped in a second role="log" div.
         <MessageList
           ref={listHandleRef}
+          ariaLabel="Log entries"
           items={visible}
           getItemKey={(_line, index): number => keyOffset + index}
           estimateSize={(): number => ESTIMATED_LINE_HEIGHT_PX}
@@ -182,6 +183,7 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
         <div
           ref={scrollRef}
           role="log"
+          aria-label="Log entries"
           aria-live="polite"
           // biome-ignore lint/a11y/noNoninteractiveTabindex: WCAG 2.1.1 keyboard-scrollable overflow region — tabIndex=0 makes arrow/Page-key scrolling reachable without a mouse; not an accidental tab-stop.
           tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex -- same justification as the biome-ignore above

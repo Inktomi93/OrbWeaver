@@ -13,7 +13,7 @@ import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, ToolRenderer } from "#lib";
 import { notify, turnAbortNotice } from "#lib";
-import { chatDeletedFromList, isLanding, openModal, openSettingsTo, selectChat, useActiveChatHandle } from "#state";
+import { chatDeletedFromList, isLanding, openNewChatPicker, openSettingsTo, selectChat, useActiveChatHandle } from "#state";
 import { warningNotice } from "../lib/warning-notice.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
 import { ChatRoomSurface } from "../surfaces/chat-room-surface.tsx";
@@ -64,7 +64,7 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
   const busDeps: ChatBusDeps = { ...baseBusDeps, onTurnAbort: surfaceTurnAbort, onWarning: surfaceWarning, onChatDeleted: chatDeletedFromList };
 
   if (isLanding(handle)) {
-    return <ChatLandingSurface onNewChat={(): void => openModal("newChat")} />;
+    return <ChatLandingSurface onNewChat={openNewChatPicker} />;
   }
 
   return (

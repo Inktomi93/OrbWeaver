@@ -3,11 +3,13 @@
 
 import { Plus } from "@orb/ui/icons";
 import type { ModalDefinition } from "#state";
+import { clearNewChatIntent } from "#state";
 import { NewChatPicker } from "../surfaces/new-chat-picker-surface.tsx";
 
 export const newChatModal: ModalDefinition = {
   id: "newChat",
   title: "New chat",
   trigger: { placement: "surface", label: "New chat", icon: Plus },
+  onClose: clearNewChatIntent,
   body: (): ReturnType<typeof NewChatPicker> => <NewChatPicker />,
 };

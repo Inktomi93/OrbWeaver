@@ -26,8 +26,8 @@ import { installAppReadySignal } from "../../../packages/client/src/lib/agent-br
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
 import { installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
-import { installMotionFlaggers } from "../../../packages/client/src/lib/motion-flaggers.ts";
-import { __resetMotionStats, installMotionObservers, motionSnapshot } from "../../../packages/client/src/lib/motion-stats.ts";
+import { __resetMotionFlags, installMotionFlaggers } from "../../../packages/client/src/lib/motion-flaggers.ts";
+import { __resetMotionStats, installMotionObservers, markAgentNavigation, motionSnapshot } from "../../../packages/client/src/lib/motion-stats.ts";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
 // test (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.
@@ -111,12 +111,25 @@ export function MotionShiftFlaggerStory(): ReactElement {
     // resolves its own URL specifier and would hand the test a SECOND module instance with zero totals —
     // a green that proves nothing. The story owns the instance under test, so it owns the read.
     // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
-    (globalThis as unknown as { __motionRead?: typeof motionSnapshot }).__motionRead = motionSnapshot;
+    const probes = globalThis as unknown as { __motionRead: typeof motionSnapshot | undefined };
+    probes.__motionRead = motionSnapshot;
+    return (): void => {
+      probes.__motionRead = undefined;
+    };
   }, []);
   return (
     <div>
       <button type="button" onClick={(): void => setPushed(true)}>
         shift now
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          markAgentNavigation();
+          setPushed(true);
+        }}
+      >
+        agent-driven shift
       </button>
       <button
         type="button"
@@ -167,6 +180,48 @@ export function MotionFlaggersSpaceStory(): ReactElement {
       {/* A src that never resolves: the flagger judges the BOX (attrs/CSS), never whether content loaded. */}
       {showImg ? <img data-testid="unreserved-img" src="/__ct_blocked__.png" alt="" /> : null}
       {nudge ? <div data-testid="rescan-nudge" /> : null}
+    </div>
+  );
+}
+
+/** A deliberately dirty color transition. Under the global reduced-motion floor it still emits a
+ * transition event, but its computed 0.01ms duration makes it non-visible evidence the flagger ignores. */
+export function MotionFlaggersReducedMotionStory(): ReactElement {
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    installMotionFlaggers();
+  }, []);
+  return (
+    <div>
+      <button type="button" onClick={(): void => setActive(true)}>
+        change color
+      </button>
+      <div data-testid="dirty-color-transition" style={{ color: active ? "red" : "blue", transition: "color 100ms linear" }}>
+        color target
+      </div>
+    </div>
+  );
+}
+
+/** A visible animation that can outlive an evidence reset. The reset button is the real checkpoint seam;
+ * a later blocked frame must not be charged to motion that began before that checkpoint. */
+export function MotionFlaggersCheckpointStory(): ReactElement {
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    installMotionFlaggers();
+  }, []);
+  return (
+    <div>
+      <style>{"@keyframes orb-ct-checkpoint-motion { from { transform: translateX(0) } to { transform: translateX(20px) } }"}</style>
+      <button type="button" onClick={(): void => setActive(true)}>
+        start animation
+      </button>
+      <button type="button" onClick={__resetMotionFlags}>
+        reset evidence
+      </button>
+      <div data-testid="checkpoint-animation" style={active ? { animation: "orb-ct-checkpoint-motion 2s linear" } : undefined}>
+        moving target
+      </div>
     </div>
   );
 }

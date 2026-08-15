@@ -43,7 +43,8 @@ interface ActiveChatState {
   /** The intent the new-chat PICKER opens pre-loaded with, so there is ONE creation ceremony: an opener with
    *  a creation-only parameter (the home temp-chat tile) presets it here and opens the same modal every
    *  other "New chat" affordance opens, instead of forking a second launcher that skips the cast pick. The
-   *  picker clears it on unmount, so a later plain "New chat" can never inherit a stale intent. */
+   *  modal clears it on a real dismiss, and every opener overwrites it before opening. Component unmount
+   *  cleanup is forbidden here because React Strict Mode probes unmount while the modal remains open. */
   readonly newChatIntent: NewChatIntent | undefined;
   /** The one room this device CREATED and has not left — the husk-reap candidate (§4.6). Never a claim
    *  verdict: the server owns that. `null` whenever the active room was merely opened, not created here. */
@@ -101,8 +102,8 @@ export function openNewChatPicker(intent?: NewChatIntent): void {
   openModal("newChat");
 }
 
-/** Drop the picker's intent — called by the picker itself on unmount, so a modal dismissed without
- *  starting anything can never leak its parameters into the next plain "New chat". */
+/** Drop the picker's intent after a real dismiss. This is deliberately not component-unmount cleanup:
+ *  React Strict Mode probes unmount while the modal is still logically open. */
 export function clearNewChatIntent(): void {
   useActiveChatStore.setState({ newChatIntent: undefined }, false, "activeChat/clearNewChatIntent");
 }

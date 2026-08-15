@@ -79,6 +79,7 @@ export function AdminOverrideField({ label, hint, value, onChange, overridden, f
       {...(hint === undefined ? {} : { hint })}
     >
       <NumberField
+        aria-label={label}
         value={value === "" ? null : Number(value)}
         onValueChange={(next): void => onChange(next === null ? "" : String(next))}
         {...(min === undefined ? {} : { min })}

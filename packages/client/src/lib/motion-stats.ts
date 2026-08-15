@@ -8,9 +8,11 @@
 // re-export from the lib barrel.
 //
 // ── THE CLS FLAGGER (push, not just pull) ────────────────────────────────────────────────────────────
-// The layout-shift observer also CONSOLE-WARNS each shift over the noise floor, naming the element that
-// moved and how far, plus the running totals. Rationale: a snapshot nobody calls is a metric nobody
-// reads, and CLS regressions are otherwise found by feel. This is the same posture as
+// The layout-shift observer also CONSOLE-WARNS each actionable shift over the noise floor, naming the
+// element that moved and how far, plus the running totals. Virtual-list row reconciliation remains in the
+// metric/ring but is tagged instead of warned: absolute rows changing measured coordinates is the list
+// doing its job, not a stable surface losing its place. Rationale: a snapshot nobody calls is a metric nobody
+// reads, and real CLS regressions are otherwise found by feel. This is the same posture as
 // long-task-tracer.ts — one dev-gated observer, one console surface.
 //
 // The rest of the flagger pack ([anim] · [css] · [drop] · [space]) lives in `motion-flaggers.ts` —
@@ -48,6 +50,10 @@ const SHIFT_DECIMALS = 4;
 const MIN_REPORTED_SHIFT = 0.002;
 // The CWV "good" ceiling. Crossing it reddens the log line; it is also motion-audit's own CLS budget.
 const CLS_BUDGET = 0.1;
+// Matches the Layout Instability API's recent-input window. Agent navigation drives the same store
+// actions as a click, but Chrome cannot infer that intent from an in-page harness call.
+const AGENT_NAVIGATION_WINDOW_MS = 500;
+const VIRTUAL_VIEWPORT_SELECTOR = '[data-slot="message-list-viewport"],[data-slot="virtual-list-viewport"]';
 
 const SHIFT_STYLE = "color:#c60;font-weight:bold";
 const OVER_BUDGET_STYLE = "color:#c00;font-weight:bold";
@@ -75,6 +81,10 @@ interface ShiftRecord {
   readonly value: number;
   /** true ⇒ within 500ms of real input, so the CWV metric excludes it (but the relayout still happened). */
   readonly hadRecentInput: boolean;
+  /** true ⇒ caused inside the dev bridge's user-equivalent navigation window. Still measured, not warned. */
+  readonly agentNavigation: boolean;
+  /** true ⇒ every attributed source is an absolute row inside a known virtualizer viewport. */
+  readonly virtualized: boolean;
   /** The elements whose start position moved, described + measured, worst-first as the entry reported them. */
   readonly sources: readonly string[];
 }
@@ -83,6 +93,12 @@ const shiftRing: ShiftRecord[] = [];
 let clsTotal = 0;
 let observedClsTotal = 0;
 let worstShift = 0;
+let evidenceStartTime = 0;
+let agentNavigationUntil = 0;
+
+function entriesInCurrentCheckpoint(entries: readonly PerformanceEntry[]): readonly PerformanceEntry[] {
+  return entries.filter((entry) => entry.startTime >= evidenceStartTime);
+}
 
 export interface MotionSnapshot {
   readonly loafs: readonly LoafRecord[];
@@ -135,10 +151,18 @@ function describeShiftSource(node: Node | null, previousRect: DOMRectReadOnly, c
   return `${surfaceLabelOf(node)} moved ${dx}px,${dy}px`;
 }
 
+function sourcesAreVirtualized(sources: LayoutShiftEntry["sources"]): boolean {
+  return (
+    sources !== undefined &&
+    sources.length > 0 &&
+    sources.every((source) => source.node instanceof Element && source.node.closest(VIRTUAL_VIEWPORT_SELECTOR) !== null)
+  );
+}
+
 /** The console half of the flagger: one line per shift over the noise floor. Input-adjacent shifts are
  *  TAGGED, not dropped — see the header's two-totals note (the exclusion is what hid the shell defect). */
 function warnShift(record: ShiftRecord): void {
-  if (record.value < MIN_REPORTED_SHIFT) {
+  if (record.value < MIN_REPORTED_SHIFT || record.agentNavigation || record.virtualized) {
     return;
   }
   const overBudget = clsTotal > CLS_BUDGET;
@@ -163,7 +187,7 @@ export function installMotionObservers(): void {
 
   if (supported.includes("long-animation-frame")) {
     const loaf = new PerformanceObserver((list) => {
-      for (const raw of list.getEntries()) {
+      for (const raw of entriesInCurrentCheckpoint(list.getEntries())) {
         const e = raw as LoafEntry;
         loafRing.push({
           startTime: Math.round(e.startTime),
@@ -186,7 +210,7 @@ export function installMotionObservers(): void {
 
   if (supported.includes("layout-shift")) {
     const ls = new PerformanceObserver((list) => {
-      for (const raw of list.getEntries()) {
+      for (const raw of entriesInCurrentCheckpoint(list.getEntries())) {
         const e = raw as LayoutShiftEntry;
         observedClsTotal += e.value;
         // CWV definition: shifts within 500ms of user input are excluded from the METRIC (an expected
@@ -199,6 +223,8 @@ export function installMotionObservers(): void {
           startTime: Math.round(e.startTime),
           value: e.value,
           hadRecentInput: e.hadRecentInput,
+          agentNavigation: !e.hadRecentInput && e.startTime <= agentNavigationUntil,
+          virtualized: sourcesAreVirtualized(e.sources),
           sources: (e.sources ?? []).map((s) => describeShiftSource(s.node, s.previousRect, s.currentRect)),
         };
         shiftRing.push(record);
@@ -227,11 +253,19 @@ export function motionSnapshot(): MotionSnapshot {
 /** Clear the evidence accumulated by the motion observers without reinstalling them. A driven probe calls
  *  this immediately before each checkpoint so one surface cannot inherit another surface's LoAF/CLS debt. */
 export function __resetMotionStats(): void {
+  evidenceStartTime = performance.now();
   loafRing.length = 0;
   shiftRing.length = 0;
   clsTotal = 0;
   observedClsTotal = 0;
   worstShift = 0;
+  agentNavigationUntil = 0;
+}
+
+/** Mark the same 500ms expected-layout window a physical click receives. The shifts remain in both
+ *  totals and the attributed ring; only the false "unexpected" console accusation is suppressed. */
+export function markAgentNavigation(): void {
+  agentNavigationUntil = performance.now() + AGENT_NAVIGATION_WINDOW_MS;
 }
 
 // Attributes an animated Element to the nearest stable surface marker — testid > slot > aria-label >

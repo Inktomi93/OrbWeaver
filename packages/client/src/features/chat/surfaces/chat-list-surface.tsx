@@ -44,6 +44,7 @@ import { clearChatListCharacterFilter, setChatListCharacterFilter, useActiveChat
 import { ChatListRow } from "../components/chat-list-row.tsx";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatPortraitMap, useChatPortraitMapPending } from "../hooks/use-chat-portrait-map.ts";
+import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row.ts";
 import { recentFaces } from "../lib/recent-faces.ts";
@@ -63,8 +64,9 @@ const SEARCH_DEBOUNCE_MS = 250;
 
 /** How many recent chats the FACES curation reads. The strip answers "who was I just with", so a bounded
  *  recents page IS its question — and it must stay UNFILTERED (it is the thing you pick the filter from), so
- *  it cannot ride the scoped collection below. Matches the server's own page ceiling. */
-const FACES_SOURCE_LIMIT = 100;
+ *  it cannot ride the scoped collection below. Thirty covers the narrow-pane fold contract; the overflow
+ *  picker reaches the whole character library without enriching another 70 chat summaries. */
+const FACES_SOURCE_LIMIT = 30;
 
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;
@@ -301,6 +303,7 @@ interface ChatRowsProps {
 
 /** The search-empty → rows ladder. */
 function ChatRows({ activeChatId, characterById, items, listProps, onClearSearch, onDeletedChat, onSelect, query }: ChatRowsProps): ReactElement {
+  const actions = useChatListRowActions();
   if (items.length === 0) {
     // An HONEST claim now that the predicate is the server's: the whole library was searched, not the pages
     // that happened to be loaded — so "no chat matches" is a statement this surface has standing to make, and
@@ -323,6 +326,7 @@ function ChatRows({ activeChatId, characterById, items, listProps, onClearSearch
   const qualifiers = chatRowQualifiers(items);
   const renderRow = (chat: ChatListItem, index: number): ReactNode => (
     <ChatListRow
+      actions={actions}
       chat={chat}
       onDeletedChat={onDeletedChat}
       onSelect={onSelect}

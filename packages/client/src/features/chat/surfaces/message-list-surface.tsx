@@ -26,7 +26,7 @@ import { useEffect, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { resolveRowRenderPolicy, useFocusOnMount } from "#lib";
+import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
 import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
@@ -43,8 +43,19 @@ import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-wi
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 
-/** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
-const ESTIMATED_ROW_PX = 96;
+/** Initial row-height model. A flat 96px guess made a 3k-character RPG turn look like a one-line bubble,
+ *  so the bottom-anchored virtualizer mounted and parsed too many multi-KB rows before measurement caught up. */
+const ESTIMATED_ROW_BASE_PX = 96;
+const ESTIMATED_ROW_PX_PER_CHARACTER = 0.24;
+const ESTIMATED_ROW_MAX_PX = 1200;
+const CHAT_TRANSCRIPT_PROFILER_ID = "chat:transcript";
+
+function estimateMessageRow(item: { readonly kind: "message" | "ghost"; readonly view?: { readonly content: string } }): number {
+  if (item.kind === "ghost" || item.view === undefined) {
+    return ESTIMATED_ROW_BASE_PX;
+  }
+  return Math.min(ESTIMATED_ROW_MAX_PX, ESTIMATED_ROW_BASE_PX + item.view.content.length * ESTIMATED_ROW_PX_PER_CHARACTER);
+}
 
 export interface MessageListSurfaceProps {
   readonly chatId: ChatId;
@@ -68,7 +79,16 @@ export function MessageListSurface({ chatId, busDeps, onChatForked, surfaceContr
         fallback={<SkeletonRows count={3} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this conversation" onRetry={retry} />}
       >
-        <ChatThread chatId={chatId} chatStyle={chatStyle} onChatForked={onChatForked} surfaceContributors={surfaceContributors} toolRenderers={toolRenderers} />
+        {/* The parent content region owns the console warning; this nested profiler only attributes its cost. */}
+        <RenderProfiler id={CHAT_TRANSCRIPT_PROFILER_ID} warn={false}>
+          <ChatThread
+            chatId={chatId}
+            chatStyle={chatStyle}
+            onChatForked={onChatForked}
+            surfaceContributors={surfaceContributors}
+            toolRenderers={toolRenderers}
+          />
+        </RenderProfiler>
       </QueryBoundary>
     </Stack>
   );
@@ -278,9 +298,10 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
     <Stack className="relative h-full min-h-0">
       <MessageList
         ref={listHandleRef}
+        ariaLabel="Conversation messages"
         items={items}
         getItemKey={messageItemKey}
-        estimateSize={(): number => ESTIMATED_ROW_PX}
+        estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
         renderItem={renderItem}
         scrollContainerRef={jump.scrollContainerRef}
         scrollMode={behaviorPrefs.streamScrollMode}

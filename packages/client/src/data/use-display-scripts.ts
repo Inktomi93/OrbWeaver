@@ -30,12 +30,13 @@ import type { ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "./trpc.ts";
 
-const NO_SCRIPTS: readonly RegexScriptRow[] = [];
+const NO_SCRIPTS: never[] = [];
 const DISPLAY_PLACEMENT = "DISPLAY";
 
 /** Narrow a library read to the scripts that would actually fire on the display leg. */
 function displaySlice(rows: readonly RegexScriptRow[]): readonly RegexScriptRow[] {
-  return rows.filter((row) => row.enabled && row.placement.includes(DISPLAY_PLACEMENT));
+  const selected = rows.filter((row) => row.enabled && row.placement.includes(DISPLAY_PLACEMENT));
+  return selected.length === 0 ? NO_SCRIPTS : selected;
 }
 
 /**
@@ -52,12 +53,14 @@ export function useDisplayScripts(chatId: ChatId | null): readonly RegexScriptRo
   // display slice without a second network read or a second cache key.
   const own = useQuery({
     ...trpc.regex.listScripts.queryOptions(),
+    placeholderData: NO_SCRIPTS,
     select: displaySlice,
   });
   const room = useQuery({
     ...trpc.regex.listRoomDisplayScripts.queryOptions({ chatId: chatId ?? ("" as ChatId) }),
     // A chat-less surface has no room tier at all — the query never runs and the viewer's own set stands.
     enabled: chatId !== null,
+    placeholderData: NO_SCRIPTS,
     select: displaySlice,
   });
 

@@ -6,11 +6,16 @@
 interface ReducedMotionQuery {
   readonly matches: boolean;
 }
+interface ReducedMotionDocument {
+  readonly querySelector: (selector: string) => unknown;
+}
 
-/** `true` when the user has `prefers-reduced-motion: reduce` set, read fresh at call time. */
+/** `true` when the OS or the app-level preference requests reduced motion, read fresh at call time. */
 export function prefersReducedMotionNow(): boolean {
-  const matchMediaFn = (globalThis as { matchMedia?: (query: string) => ReducedMotionQuery }).matchMedia;
-  return typeof matchMediaFn === "function" && matchMediaFn("(prefers-reduced-motion: reduce)").matches;
+  const globals = globalThis as { matchMedia?: (query: string) => ReducedMotionQuery; document?: ReducedMotionDocument };
+  const osReduced = typeof globals.matchMedia === "function" && globals.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const appPreference = globals.document?.querySelector('[data-reduced-motion="true"]');
+  return osReduced || (appPreference !== null && appPreference !== undefined);
 }
 
 /** The scroll `behavior` to use right now for an imperative `scrollTo`/`scrollIntoView` call —

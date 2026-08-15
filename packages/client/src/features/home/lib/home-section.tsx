@@ -21,7 +21,7 @@
 import { Compass } from "@orb/ui/icons";
 import type { ContributorRegistry } from "#lib";
 import type { HomeTileContribution, SectionDefinition } from "#state";
-import { NO_SELECTION_TITLE, openModal } from "#state";
+import { NO_SELECTION_TITLE, openNewChatPicker } from "#state";
 import { HomeSurface } from "../surfaces/home-surface.tsx";
 
 export function makeHomeSection(tiles: ContributorRegistry<HomeTileContribution>): SectionDefinition {
@@ -36,7 +36,7 @@ export function makeHomeSection(tiles: ContributorRegistry<HomeTileContribution>
       title: "Home",
       description: "Your landing — recent threads, quick jumps, and whatever you keep here.",
     },
-    content: () => <HomeSurface onNewChat={(): void => openModal("newChat")} tiles={tiles} />,
+    content: () => <HomeSurface onNewChat={openNewChatPicker} tiles={tiles} />,
     context: { kind: "none" },
   };
 }

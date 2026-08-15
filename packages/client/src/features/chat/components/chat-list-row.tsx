@@ -7,9 +7,8 @@ import type { ChatId } from "@orb/kit/ids";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
 import { deriveChatTitle, timeLib } from "#lib";
-import { useStarChat } from "../hooks/use-chat-row-mutations.ts";
+import type { ChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 import { chatRowActionName } from "../lib/chat-summary-row.ts";
 import { ChatListRowMenu } from "./chat-list-row-menu.tsx";
@@ -28,14 +27,10 @@ export interface ChatListRowProps {
    *  the row shows, escalated where it collided. Omitted falls back to this row's own stamp, which is right
    *  for a one-off row and wrong for a list (side-eye P2c). */
   readonly qualifier?: string | undefined;
+  readonly actions: ChatListRowActions;
 }
 
-export function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraits, qualifier }: ChatListRowProps): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  // §12.2 — the row's ONE state toggle rides the SAME `useStarChat` mutation the kebab's Star item fires
-  // (mirror parity: the kebab keeps the item, so a keyboard user still has one menu that does everything).
-  const starChat = useStarChat({ trpc, invalidation });
+export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, portraits, qualifier }: ChatListRowProps): ReactElement {
   // ONE name for every action on this row (the kebab AND the star toggle inside the composite) — resolved
   // once here so the two can't spell the subject differently.
   const rowName = chatRowActionName(
@@ -46,7 +41,7 @@ export function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraits
     <ChatSummaryRow
       actionName={rowName}
       chat={chat}
-      onToggleStar={(next): void => starChat.mutate({ chatId: chat.id, starred: next })}
+      onToggleStar={chat.viewerRole === "host" ? (next): void => actions.star({ chatId: chat.id, starred: next }) : undefined}
       portraits={portraits}
       // `group` roots the row so the kebab's + the star's hover/focus-within reveal fires on row hover
       // (the character-card precedent); the reveal lives on RowActionsMenu's `reveal` / ROW_REVEAL.
@@ -57,7 +52,19 @@ export function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraits
       // name carries the row's stamp too — the same one the row shows, escalated by the surface where even
       // that collided (side-eye P3a + P2c).
       // `title` (raw, nullable) still seeds the rename input — the empty box for an unnamed chat is intact.
-      menu={<ChatListRowMenu archived={chat.archived} chatId={chat.id} onDeleted={onDeletedChat} rowName={rowName} starred={chat.starred} title={chat.title} />}
+      menu={
+        chat.viewerRole === "host" ? (
+          <ChatListRowMenu
+            actions={actions}
+            archived={chat.archived}
+            chatId={chat.id}
+            onDeleted={onDeletedChat}
+            rowName={rowName}
+            starred={chat.starred}
+            title={chat.title}
+          />
+        ) : undefined
+      }
       onSelect={onSelect}
       selected={selected}
     />

@@ -12,7 +12,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
-import { CreateOnStartClickStory, NewChatPickerStory } from "../_ct-stories.tsx";
+import { CreateOnStartClickStory, NewChatPickerStory, TemporaryNewChatPickerStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
@@ -148,6 +148,17 @@ test("the Start click MINTS THE ROOM — the picker fires chat.startChat and lan
   await expect(rename).not.toHaveAttribute("aria-disabled", "true");
 
   await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("temporary intent survives the dev Strict Mode mount probe and reaches chat.startChat", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, CREATED_ROOM_ROUTES);
+  const component = await mount(<TemporaryNewChatPickerStory />);
+
+  await component.getByRole("button", { name: "Open temporary picker" }).click();
+  await expect(component.getByTestId("new-chat-intent")).toContainText("temporary=true");
+  await page.getByText("Blank chat").click();
+
+  await expect.poll(() => trpc.lastInput("chat.startChat"), { intervals: [20, 50, 100] }).toMatchObject({ temporary: true });
 });
 
 test("a previous session's unsent composer text CANNOT repopulate a different room (the §2.7 draftKey collision)", async ({ mount, page }) => {

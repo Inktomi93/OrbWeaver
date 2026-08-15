@@ -524,7 +524,7 @@ describe("SessionCache — the injected SessionEntryWriter (D8, issue #71)", () 
 
     expect(writer.insert).toHaveBeenCalledTimes(1);
     expect(writer.update).not.toHaveBeenCalled();
-    const [entry] = writer.insert.mock.calls[0] as [{ chatId: string; sdkSessionId: string; seededThroughSeq: number; canonHash: string }];
+    const [entry] = writer.insert.mock.calls[0] as [{ chatId: ChatId; sdkSessionId: string; seededThroughSeq: number; canonHash: string }];
     expect(entry.chatId).toBe(CHAT_ID);
     expect(entry.sdkSessionId).toBe(decision.sessionId);
     expect(entry.seededThroughSeq).toBe(seed.length);
