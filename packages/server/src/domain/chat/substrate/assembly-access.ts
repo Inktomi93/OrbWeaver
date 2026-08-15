@@ -21,7 +21,6 @@ import {
   freezeVolatileMacros as freezeVolatileMacrosImpl,
   previewActionText as previewActionTextImpl,
   renderMacros as renderMacrosImpl,
-  resolveGuidedActionText as resolveGuidedActionTextImpl,
   resolveNudgeText as resolveNudgeTextImpl,
 } from "../assembly/macros.ts";
 import { shape, toShapeCanon as toShapeCanonImpl } from "../assembly/shape.ts";
@@ -96,13 +95,6 @@ export function renderMacros(...args: Parameters<typeof renderMacrosImpl>): Retu
  *  reached through this substrate seam like every other assembly touch. */
 export function loadCharacterCardLore(...args: Parameters<typeof loadCharacterCardLoreImpl>): ReturnType<typeof loadCharacterCardLoreImpl> {
   return loadCharacterCardLoreImpl(...args);
-}
-
-/** Resolve a guided-action TEMPLATE against the turn ctx (the guided steering resolver; PD-63).
- *  The legal `verbs/ → assembly/` bridge for the `opening` action, whose resolved template IS the turn prompt
- *  (it rides `appendUserTurn`, not a placement — `start-chat.ts`'s generate opening). */
-export function resolveGuidedActionText(...args: Parameters<typeof resolveGuidedActionTextImpl>): ReturnType<typeof resolveGuidedActionTextImpl> {
-  return resolveGuidedActionTextImpl(...args);
 }
 
 /** Render an unsteered trailing-user NUDGE template's macros (`{{user}}`/`{{char}}`/`{{person}}`) — the same
