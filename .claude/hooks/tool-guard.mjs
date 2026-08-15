@@ -790,10 +790,46 @@ function collectGrepWarn(command, blank, clauses, contexts) {
 const SUDO_HEAD = /^\s*(?:sudo|doas)\b/;
 const NET_FETCH_HEAD = /^\s*(?:\S*\/)?(?:curl|wget)\b/;
 // shells + `node -e` only. `python3 -c` is a sanctioned everyday tool here and is NOT a sink.
-const SHELL_SINK_HEAD = /^\s*(?:\S*\/)?(?:sh|bash|zsh|dash|ksh)\b|^\s*(?:\S*\/)?node\s+-e\b/;
+const SHELL_SINK_HEAD = /^\s*(?:\S*\/)?(?:sh|bash|zsh|dash|ksh)\b/;
+// node as a pipe SINK executes STDIN as a program — bare `node`, `node -`, or node with only flags —
+// byte-equivalent to `curl | sh` (owner ruling #47 replaced the old `node -e`-only spelling, which had
+// it INVERTED: `-e`/`-p` run LOCAL, command-visible code and read stdin as DATA, while the bare forms
+// run whatever the network sent). The threat this floor stops is NETWORK-authored code; an `-e` body
+// that chooses to eval(stdin) is still LOCAL authorship — the same power any allowed script already
+// has, and not this floor's business. Tokens are read off the RAW stage so a QUOTED script operand
+// (`node "x.js"`) is seen as file execution rather than misread as a bare-node sink.
+const NODE_SINK_HEAD = /^\s*(?:\S*\/)?node(?=\s|$)/;
+const NODE_EVAL_FLAG = /^(['"]?)(?:-e|--eval|-p|--print)\1$/;
+const NODE_EVAL_INLINE = /^(['"]?)--(?:eval|print)=.\S*\1$/;
+function nodeStdinSink(rawStage) {
+  const head = rawStage.match(NODE_SINK_HEAD);
+  if (head === null) {
+    return false;
+  }
+  const tokens = rawStage
+    .slice(head[0].length)
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
+  for (let i = 0; i < tokens.length; i += 1) {
+    const t = tokens[i];
+    if (NODE_EVAL_INLINE.test(t)) {
+      return false; // --eval=<code>: local code inline, stdin is data
+    }
+    if (NODE_EVAL_FLAG.test(t)) {
+      return tokens[i + 1] === undefined; // -e/-p WITH an operand: data pipe; a dangling flag is still a sink
+    }
+    if (t === "-") {
+      return true; // explicit read-the-program-from-stdin
+    }
+    if (!t.startsWith("-")) {
+      return false; // a script operand (quoted included): file execution, the script-body pass's business
+    }
+  }
+  return true; // bare node / flags only: stdin becomes the program
+}
 
 /** @returns {{decision: "deny"|"ask", rule: string, reason: string}|null} */
-function detectHardFloor(blank, clauses) {
+function detectHardFloor(blank, clauses, command) {
   for (const clause of clauses) {
     for (let i = 0; i < clause.stages.length; i += 1) {
       const stage = clause.stages[i];
@@ -801,9 +837,14 @@ function detectHardFloor(blank, clauses) {
       if (SUDO_HEAD.test(text)) {
         return { decision: "ask", rule: "sudo", reason: REASONS.sudo };
       }
-      // a network fetch feeding a shell — no legitimate sighting in a 133k-command corpus
+      // a network fetch feeding a shell — no legitimate sighting in a 133k-command corpus. The node
+      // sink is judged on the RAW stage (quoted script operands must read as file execution, #47).
       const next = clause.stages[i + 1];
-      if (NET_FETCH_HEAD.test(text) && next !== undefined && SHELL_SINK_HEAD.test(blank.slice(next.start, next.end))) {
+      if (
+        NET_FETCH_HEAD.test(text) &&
+        next !== undefined &&
+        (SHELL_SINK_HEAD.test(blank.slice(next.start, next.end)) || nodeStdinSink(command.slice(next.start, next.end)))
+      ) {
         return { decision: "deny", rule: "net-pipe-shell", reason: REASONS.netPipeShell };
       }
     }
@@ -1311,7 +1352,7 @@ export function classify(command, ctx) {
   const clauses = parseStructure(blank);
 
   // 0. THE HARD FLOOR — first, so neither a later rewrite tier NOR the self-exemption can route around it.
-  const floor = detectHardFloor(blank, clauses);
+  const floor = detectHardFloor(blank, clauses, command);
   if (floor) {
     return { ...floor, contexts: [] };
   }
