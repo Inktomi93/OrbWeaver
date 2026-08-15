@@ -14,10 +14,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/actions-tab-information-architecture.md:1 (design; unheaded)",
-        "git log --oneline -1 -- docs/design/actions-tab-information-architecture.md: 98adcec67 docs(design): Actions-tab IA truth-repaired to the merged tree — 67 rows / 41 extract / round=8; measured perf before/after recorded",
+        "git log --oneline -1 -- docs/design/actions-tab-information-architecture.md: 98adcec67 docs(design): Actions-tab IA truth-repaired to the merged tree \u2014 67 rows / 41 extract / round=8; measured perf before/after recorded",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "The Actions tab at 67 rows — information architecture (FORGE lane, 2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence.",
+      "summary": "The Actions tab at 67 rows \u2014 information architecture (FORGE lane, 2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #52.",
@@ -48,7 +48,7 @@
         "git log --oneline -1 -- docs/design/boot-loader-smoothness-options.md: 65a0d56a4 docs(design): reweight boot-loader Layer-A rec to animated SVG (waystone precedent)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Boot-loader smoothness — options matrix + recommendation: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Boot-loader smoothness \u2014 options matrix + recommendation: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
@@ -79,7 +79,7 @@
         "git log --oneline -1 -- docs/design/chat-creation-draft-mode-replacement.md: d05081dee feat(chat): forceCharacterTurn accepts its slot + F6 in-window join greeting",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Chat-creation draft mode → instant-create — cost inventory, research, design, migration: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Chat-creation draft mode \u2192 instant-create \u2014 cost inventory, research, design, migration: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/config-ia-the-junk-drawer-problem.md",
@@ -95,7 +95,7 @@
         "git log --oneline -1 -- docs/design/config-ia-the-junk-drawer-problem.md: fdcc9af0e docs(board+config-ia): #59 merged (main 6a319267c); templates-in-settings finding (imagery, not D132 leftover) + config-revamp/registry-lever intent recorded",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Config IA — the junk-drawer problem, and the tag model that falls out of it: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Config IA \u2014 the junk-drawer problem, and the tag model that falls out of it: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "Mutable resolution for this artifact is tracked in GitHub issue #38.",
@@ -114,15 +114,15 @@
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "b2853f130e5ca666bdf1395a741200fec2b8b0e2f8b283833751e03226fea795",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "a70621b2a4645673e1d7ab3cedeb3817d4e788076101a75890573cfcb192b08e",
+      "verifiedCommit": "9db1130ad95d1a3cf05cbd1bdae7063852650a35",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/config-rail-spec.md:1 (spec; draft)",
-        "git log --oneline -1 -- docs/design/config-rail-spec.md: e7a86df18 feat(config-rail): R2 — World Info leaves the rail and becomes a Configuration collection",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "git log --oneline -1 -- docs/design/config-rail-spec.md: R3 truth-repair \u2014 presets stay standalone per owner ruling C5 (2026-08-08, frozen board row 100); full re-read this verification"
       ],
-      "summary": "CONFIG RAIL — the Configuration workspace (R1 design set): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "CONFIG RAIL \u2014 the Configuration workspace (R1 design set): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/containerize-build-plan.md",
@@ -135,10 +135,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/containerize-build-plan.md:1 (design; active)",
-        "git log --oneline -1 -- docs/design/containerize-build-plan.md: fd4ae9119 feat(deploy): production container — 2-profile Dockerfile + compose + the D2 external-engine code arms",
+        "git log --oneline -1 -- docs/design/containerize-build-plan.md: fd4ae9119 feat(deploy): production container \u2014 2-profile Dockerfile + compose + the D2 external-engine code arms",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Containerize — build plan (the forge lane's phase-1 artifact): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Containerize \u2014 build plan (the forge lane's phase-1 artifact): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #53.",
@@ -166,7 +166,7 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/containerize-prod-image-spec.md:1 (design; draft)",
-        "git log --oneline -1 -- docs/design/containerize-prod-image-spec.md: 06a706551 fix(auth): boot-refuse single-user + AUTH_FALLBACK=deny; pin the shim↔firewall coupled site",
+        "git log --oneline -1 -- docs/design/containerize-prod-image-spec.md: 06a706551 fix(auth): boot-refuse single-user + AUTH_FALLBACK=deny; pin the shim\u2194firewall coupled site",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
       "summary": "Production container image + deployment spec (all auth modes): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
@@ -200,7 +200,7 @@
         "git log --oneline -1 -- docs/design/context-panel-fidelity-findings.md: f066b71b7 feat(chat): the context-budget bar is FILL-VS-HEADROOM (owner ruling D-4a)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Context-panel meta-tabs + model picker — fidelity findings (the \"is it getting dirty\" audit): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Context-panel meta-tabs + model picker \u2014 fidelity findings (the \"is it getting dirty\" audit): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/databank-surface-spec.md",
@@ -213,10 +213,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/databank-surface-spec.md:1 (spec; draft)",
-        "git log --oneline -1 -- docs/design/databank-surface-spec.md: e9a1a99d8 fix(lane-sm3): 6 smalls — dead gate wrapper, stale canAgent comments, databank rail count, typeonly-ok marker, content-class table dispatch, facet Record collapse",
+        "git log --oneline -1 -- docs/design/databank-surface-spec.md: e9a1a99d8 fix(lane-sm3): 6 smalls \u2014 dead gate wrapper, stale canAgent comments, databank rail count, typeonly-ok marker, content-class table dispatch, facet Record collapse",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "DATABANK CLIENT SURFACE — the documents library, the per-chat rack, and the D85 visibility toggle: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "DATABANK CLIENT SURFACE \u2014 the documents library, the per-chat rack, and the D85 visibility toggle: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/default-character-roster.md",
@@ -229,10 +229,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/default-character-roster.md:1 (design; unheaded)",
-        "git log --oneline -1 -- docs/design/default-character-roster.md: f01e98460 docs(design): roster — UI-copy rider: Charlotte's welcome-slot line now matches real menu copy ('Set as welcome greeter', character-actions-menu.tsx:67); old card's 'Set / Unset as Welcome Page Assistant / More…' was pre-existing rot (no such affordance). Receipt in wiring notes item 8.",
+        "git log --oneline -1 -- docs/design/default-character-roster.md: f01e98460 docs(design): roster \u2014 UI-copy rider: Charlotte's welcome-slot line now matches real menu copy ('Set as welcome greeter', character-actions-menu.tsx:67); old card's 'Set / Unset as Welcome Page Assistant / More\u2026' was pre-existing rot (no such affordance). Receipt in wiring notes item 8.",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Default character roster — authored pack v2: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Default character roster \u2014 authored pack v2: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #56.",
@@ -260,10 +260,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/demo-seeding-rebuild.md:1 (design; draft)",
-        "git log --oneline -1 -- docs/design/demo-seeding-rebuild.md: e810841fa docs(design): demo-seeding rebuild — audit of the seeder jank + the rpg-in-export owner fork (lane #52 stopped-before-build)",
+        "git log --oneline -1 -- docs/design/demo-seeding-rebuild.md: e810841fa docs(design): demo-seeding rebuild \u2014 audit of the seeder jank + the rpg-in-export owner fork (lane #52 stopped-before-build)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Demo seeding — the jank, and what \"the actual way\" costs: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "summary": "Demo seeding \u2014 the jank, and what \"the actual way\" costs: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [
         {
           "claim": "Mutable resolution for this artifact is tracked in GitHub issue #54.",
@@ -287,10 +287,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/density-pass-spec.md:1 (spec; approved (owner-ruled 2026-08-01))",
-        "git log --oneline -1 -- docs/design/density-pass-spec.md: fb36e52c5 feat(chat,ui): density S6 — the transcript + composer on the tier map, baseline 290 → 244",
+        "git log --oneline -1 -- docs/design/density-pass-spec.md: fb36e52c5 feat(chat,ui): density S6 \u2014 the transcript + composer on the tier map, baseline 290 \u2192 244",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "The density pass — tier map, mechanism, enforcement: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "The density pass \u2014 tier map, mechanism, enforcement: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
@@ -318,10 +318,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/docker-modern-practices-research.md:1 (research; draft)",
-        "git log --oneline -1 -- docs/design/docker-modern-practices-research.md: a7c550e3e docs(design): modern Docker practices research (2026, cited) — pnpm deploy --legacy gotcha, per-profile bases, compose/GPU/secrets/PID-1, anti-patterns",
+        "git log --oneline -1 -- docs/design/docker-modern-practices-research.md: a7c550e3e docs(design): modern Docker practices research (2026, cited) \u2014 pnpm deploy --legacy gotcha, per-profile bases, compose/GPU/secrets/PID-1, anti-patterns",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Modern Docker/BuildKit/Compose practices — builder brief for the two-profile prod image: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "Modern Docker/BuildKit/Compose practices \u2014 builder brief for the two-profile prod image: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/draft-trust-render-policy-seam.md",
@@ -337,7 +337,7 @@
         "git log --oneline -1 -- docs/design/draft-trust-render-policy-seam.md: 7e0301698 docs: #48 + #50 merged (a6133ffe4/02f0a91a0); draft-trust doc corrected (inverted mechanism, arm 1 built); C12 refused",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "DRAFT-TRUST render-policy seam — decision brief: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "DRAFT-TRUST render-policy seam \u2014 decision brief: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/entity-room-member-freshness-bridge.md",
@@ -369,7 +369,7 @@
         "git log --oneline -1 -- docs/design/event-bus-coverage-survey.md: 7ba64dd95 feat(bus): rulesChanged wired + databankChanged + corpusRecomputed sweep terminals",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Event-bus coverage survey — inventory · audit · gate expansion · the extension contract: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Event-bus coverage survey \u2014 inventory \u00b7 audit \u00b7 gate expansion \u00b7 the extension contract: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/gate-ignore-mention-fence.md",
@@ -397,7 +397,7 @@
       "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/design/home-tile-promotion.md:1 (design; open — owner decision pending)",
+        "docs/design/home-tile-promotion.md:1 (design; open \u2014 owner decision pending)",
         "git log --oneline -1 -- docs/design/home-tile-promotion.md: 24f99e257 feat(databank): the bank is walkable past its first page",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
@@ -432,7 +432,7 @@
         "git log --oneline -1 -- docs/design/list-pane-projection-proposal.md: c8bdf92bf docs(history): archive three closed programs + two closed reviews (2nd sweep)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "LIST-PANE PROJECTION — the character screen's pane becomes her chats (face → history → play): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "LIST-PANE PROJECTION \u2014 the character screen's pane becomes her chats (face \u2192 history \u2192 play): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/lite-plus-guided-substrate-spec.md",
@@ -448,7 +448,7 @@
         "git log --oneline -1 -- docs/design/lite-plus-guided-substrate-spec.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "LITE + GUIDED SUBSTRATE — the fresh-build carve spec: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "summary": "LITE + GUIDED SUBSTRATE \u2014 the fresh-build carve spec: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #40.",
@@ -479,7 +479,7 @@
         "git log --oneline -1 -- docs/design/login-loading-screen.md: 20b70532e feat(brand): login + boot loading web-weave, brand A install, one-loader WebSpinner",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Login + loading screen — the web-weave design + brand pack (BUILT — see §9): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Login + loading screen \u2014 the web-weave design + brand pack (BUILT \u2014 see \u00a79): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/mocks/README.md",
@@ -492,10 +492,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/mocks/README.md:1 (design; unheaded)",
-        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
+        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup \u2014 15 fixed, 33 archive-no-action, 10 needs-owner",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "docs/design/mocks \u2014 frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/mocks/crunchy-cluster-redesign/DESIGN.md",
@@ -527,7 +527,7 @@
         "git log --oneline -1 -- docs/design/mocks/panel-redesign/DESIGN.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "The RPG Context Panel — redesign rationale: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "The RPG Context Panel \u2014 redesign rationale: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/node-26-adoption-program.md",
@@ -543,7 +543,7 @@
         "git log --oneline -1 -- docs/design/node-26-adoption-program.md: 8bf392be3 refactor(node-26): W4.5 withResolvers + W4.2 toSorted burn-down; both gate arms land",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Node 21 → 26 maximal-adoption program: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Node 21 \u2192 26 maximal-adoption program: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/node-26-w4-residual-burndown.md",
@@ -559,7 +559,7 @@
         "git log --oneline -1 -- docs/design/node-26-w4-residual-burndown.md: 8bf392be3 refactor(node-26): W4.5 withResolvers + W4.2 toSorted burn-down; both gate arms land",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Node-26 program — W4 residual burn-down (W4.5 withResolvers + W4.2 toSorted): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Node-26 program \u2014 W4 residual burn-down (W4.5 withResolvers + W4.2 toSorted): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/note-token-intent-history.md",
@@ -572,10 +572,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/note-token-intent-history.md:1 (design; unheaded)",
-        "git log --oneline -1 -- docs/design/note-token-intent-history.md: be00fe738 docs(investigate): {{note}} intent history — warn-never-block was INHERITED not decided; divergence from {{entry}} is stale classification, one real counter-precedent (:::card)",
+        "git log --oneline -1 -- docs/design/note-token-intent-history.md: be00fe738 docs(investigate): {{note}} intent history \u2014 warn-never-block was INHERITED not decided; divergence from {{entry}} is stale classification, one real counter-precedent (:::card)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "`{{note}}` — original intent & classification archaeology: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "`{{note}}` \u2014 original intent & classification archaeology: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #39.",
@@ -603,7 +603,7 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/oidc-authentik-openwebui-study.md:1 (design; draft)",
-        "git log --oneline -1 -- docs/design/oidc-authentik-openwebui-study.md: 626e1985a docs(design): OIDC/Authentik study — Open WebUI mined vs our flow (owner-authorized out-of-band)",
+        "git log --oneline -1 -- docs/design/oidc-authentik-openwebui-study.md: 626e1985a docs(design): OIDC/Authentik study \u2014 Open WebUI mined vs our flow (owner-authorized out-of-band)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
       "summary": "OIDC / Authentik: the Open WebUI integration, read against ours: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
@@ -637,7 +637,7 @@
         "git log --oneline -1 -- docs/design/openrouter-provider-findings.md: 05b69a9e9 fix(providers): cache breakpoints count conversational depth, + an admin depth knob",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "OpenRouter chat-completions backend — measured findings & fixes: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "OpenRouter chat-completions backend \u2014 measured findings & fixes: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/openwebui-auth-methods-study.md",
@@ -650,10 +650,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/openwebui-auth-methods-study.md:1 (design; draft)",
-        "git log --oneline -1 -- docs/design/openwebui-auth-methods-study.md: 3c944f854 docs(design): auth study III — first-run bootstrap + mode-switch (§7); MS-W1 non-owner orphan gap + B5 admin-link-SSO verb",
+        "git log --oneline -1 -- docs/design/openwebui-auth-methods-study.md: 3c944f854 docs(design): auth study III \u2014 first-run bootstrap + mode-switch (\u00a77); MS-W1 non-owner orphan gap + B5 admin-link-SSO verb",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Open WebUI's other login methods (local / LDAP / SCIM), read against ours — the unification study: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "summary": "Open WebUI's other login methods (local / LDAP / SCIM), read against ours \u2014 the unification study: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #57.",
@@ -697,10 +697,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/parked-options-config-port.md:1 (design-options; decision-input)",
-        "git log --oneline -1 -- docs/design/parked-options-config-port.md: c91162bfc docs(investigate): config-port parked-options — presets-into-rail is a seam migration not an array edit; JSON-card already server-built (client submenu only)",
+        "git log --oneline -1 -- docs/design/parked-options-config-port.md: c91162bfc docs(investigate): config-port parked-options \u2014 presets-into-rail is a seam migration not an array edit; JSON-card already server-built (client submenu only)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Parked options — config-rail + portability: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Parked options \u2014 config-rail + portability: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #38.",
@@ -790,7 +790,7 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/parked-options-tag-contract.md:1 (design-options; draft)",
-        "git log --oneline -1 -- docs/design/parked-options-tag-contract.md: 91ebf56ce feat(#48): ruled smalls — smoothStream ON, ⋯ to the composer, tag folders OPEN, preview render policy",
+        "git log --oneline -1 -- docs/design/parked-options-tag-contract.md: 91ebf56ce feat(#48): ruled smalls \u2014 smoothStream ON, \u22ef to the composer, tag folders OPEN, preview render policy",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
       "summary": "Parked options: tag taste-calls + the guided-prompt contract cap: full content read against frozen tree; landed-state record retained as historical evidence."
@@ -836,11 +836,11 @@
       "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/design/preset-surface-redesign.md:1 (spec; closed (BUILT — see D121))",
+        "docs/design/preset-surface-redesign.md:1 (spec; closed (BUILT \u2014 see D121))",
         "git log --oneline -1 -- docs/design/preset-surface-redesign.md: 83f0b21ce docs(history): graduate the preset-execution crunch list (36/36 accounted); repoint its three refs",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "PRESET SURFACE REDESIGN — make the generation deck crunchy (PRESET-1): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "PRESET SURFACE REDESIGN \u2014 make the generation deck crunchy (PRESET-1): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/prod-build-cls-investigation.md",
@@ -856,7 +856,7 @@
         "git log --oneline -1 -- docs/design/prod-build-cls-investigation.md: a99e8f939 docs(investigate): populate-round prose census + prod-build CLS lead",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Prod-build CLS lead — investigation only, no fix: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Prod-build CLS lead \u2014 investigation only, no fix: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
@@ -887,7 +887,7 @@
         "git log --oneline -1 -- docs/design/prose-1-populate-census.md: cc4404bf2 feat(prose): the populate round's last 7 hardcoded strings are host-editable slots",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "PROSE-1 — the populate round's own prose (post-census enumeration): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "PROSE-1 \u2014 the populate round's own prose (post-census enumeration): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/prose-1-rpg-extraction-followon.md",
@@ -903,7 +903,7 @@
         "git log --oneline -1 -- docs/design/prose-1-rpg-extraction-followon.md: cc4404bf2 feat(prose): the populate round's last 7 hardcoded strings are host-editable slots",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "PROSE-1 — the rpg EXTRACTION seam (follow-on to the reminder-seam lane): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "PROSE-1 \u2014 the rpg EXTRACTION seam (follow-on to the reminder-seam lane): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/prose-1-spec.md",
@@ -932,10 +932,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/refinery-og-extension-feedback.md:1 (design; unheaded)",
-        "git log --oneline -1 -- docs/design/refinery-og-extension-feedback.md: addb13faa docs(refinery): §19 supersession map — record banners, truth-repair pointers, mock deltas",
+        "git log --oneline -1 -- docs/design/refinery-og-extension-feedback.md: addb13faa docs(refinery): \u00a719 supersession map \u2014 record banners, truth-repair pointers, mock deltas",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Refinery — the OG extension's community feedback, mapped to orb (2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Refinery \u2014 the OG extension's community feedback, mapped to orb (2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/refinery-r0.md",
@@ -948,10 +948,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/refinery-r0.md:1 (design; active)",
-        "git log --oneline -1 -- docs/design/refinery-r0.md: addb13faa docs(refinery): §19 supersession map — record banners, truth-repair pointers, mock deltas",
+        "git log --oneline -1 -- docs/design/refinery-r0.md: addb13faa docs(refinery): \u00a719 supersession map \u2014 record banners, truth-repair pointers, mock deltas",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Refinery R0 — contracts + db foundation (FORGE lane, 2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Refinery R0 \u2014 contracts + db foundation (FORGE lane, 2026-08-08): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/refinery-r3-build-plan.md",
@@ -964,10 +964,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/refinery-r3-build-plan.md:1 (design; active)",
-        "git log --oneline -1 -- docs/design/refinery-r3-build-plan.md: bba4bb13e feat(refinery): R4 — library score sweep, score sorts + dossier readout, greeting APPEND arm",
+        "git log --oneline -1 -- docs/design/refinery-r3-build-plan.md: bba4bb13e feat(refinery): R4 \u2014 library score sweep, score sorts + dossier readout, greeting APPEND arm",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Refinery R3 — build plan (the ratified design mapped onto code): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Refinery R3 \u2014 build plan (the ratified design mapped onto code): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #40.",
@@ -995,10 +995,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/refinery-schema-renderer.md:1 (design; proposed)",
-        "git log --oneline -1 -- docs/design/refinery-schema-renderer.md: bba4bb13e feat(refinery): R4 — library score sweep, score sorts + dossier readout, greeting APPEND arm",
+        "git log --oneline -1 -- docs/design/refinery-schema-renderer.md: bba4bb13e feat(refinery): R4 \u2014 library score sweep, score sorts + dossier readout, greeting APPEND arm",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Refinery R3 — the schema-driven result renderer (crowning-feature design workshop): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Refinery R3 \u2014 the schema-driven result renderer (crowning-feature design workshop): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/rpg-extraction-one-call-spike.md",
@@ -1014,7 +1014,7 @@
         "git log --oneline -1 -- docs/design/rpg-extraction-one-call-spike.md: a933ef4cf feat(rpg)!: delete the reliable extraction mode + build the RV-11 guide readers",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "RPG state extraction — one-call-tools spike & recommendations: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "RPG state extraction \u2014 one-call-tools spike & recommendations: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #25.",
@@ -1045,7 +1045,7 @@
         "git log --oneline -1 -- docs/design/rpg-rewind-stuck-state.md: 3f02a6ef7 fix(rpg): stat attributes persist; a swipe actually rewinds the panel",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "RPG-LITE REWIND/SWIPE — \"state stuck\" — diagnosis + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "RPG-LITE REWIND/SWIPE \u2014 \"state stuck\" \u2014 diagnosis + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/st-import-plane-classification.md",
@@ -1058,10 +1058,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/st-import-plane-classification.md:1 (reference; active)",
-        "git log --oneline -1 -- docs/design/st-import-plane-classification.md: acf531a6a feat(import): ST backgrounds → background library, themes → safe-converted palettes, power_user → its real homes",
+        "git log --oneline -1 -- docs/design/st-import-plane-classification.md: acf531a6a feat(import): ST backgrounds \u2192 background library, themes \u2192 safe-converted palettes, power_user \u2192 its real homes",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "SillyTavern import — the per-plane classification: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "SillyTavern import \u2014 the per-plane classification: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
@@ -1092,7 +1092,7 @@
         "git log --oneline -1 -- docs/design/st-message-shaping-atlas.md: 23aaa625a docs(graduation,doctrine): dogfood doc graduates to history (refs repointed); the double campaign's orchestrator + lane lessons minted into onboarding and agent doctrine",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "SillyTavern message-shaping atlas — storage identity, wire identity, and our delta: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "SillyTavern message-shaping atlas \u2014 storage identity, wire identity, and our delta: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #18.",
@@ -1120,10 +1120,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/staleness-and-session-freshness.md:1 (design; active)",
-        "git log --oneline -1 -- docs/design/staleness-and-session-freshness.md: 786fe372c feat(bridge): chatDeleted goes live-only — R1-4a closed, quiet coalescer spans both planes, SEATED-red gate arm",
+        "git log --oneline -1 -- docs/design/staleness-and-session-freshness.md: 786fe372c feat(bridge): chatDeleted goes live-only \u2014 R1-4a closed, quiet coalescer spans both planes, SEATED-red gate arm",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Staleness & session freshness — diagnosis + design + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Staleness & session freshness \u2014 diagnosis + design + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/streaming-reveal-42.md",
@@ -1136,10 +1136,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/streaming-reveal-42.md:1 (design; active)",
-        "git log --oneline -1 -- docs/design/streaming-reveal-42.md: 91ebf56ce feat(#48): ruled smalls — smoothStream ON, ⋯ to the composer, tag folders OPEN, preview render policy",
+        "git log --oneline -1 -- docs/design/streaming-reveal-42.md: 91ebf56ce feat(#48): ruled smalls \u2014 smoothStream ON, \u22ef to the composer, tag folders OPEN, preview render policy",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "#42 — Streaming reveal: measured root causes + the fix design: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "#42 \u2014 Streaming reveal: measured root causes + the fix design: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #35.",
@@ -1217,7 +1217,7 @@
         "git log --oneline -1 -- docs/design/tracked-field-unification.md: cb5e426e5 fix(client): model-text wraps everywhere + hints ride hover (owner dogfood round)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Tracked-field unification + panel IA repair — the pool/meter/cast-field untangle: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "summary": "Tracked-field unification + panel IA repair \u2014 the pool/meter/cast-field untangle: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [
         {
           "claim": "Mutable resolution for this artifact is tracked in GitHub issue #56.",
@@ -1241,10 +1241,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/tsx-shedding-migration-spec.md:1 (design; landed)",
-        "git log --oneline -1 -- docs/design/tsx-shedding-migration-spec.md: e899498a5 feat(build): tsx-shedding STAGE 3 — all ~38 tooling invocations move to node; tsx leaves @orb/ui",
+        "git log --oneline -1 -- docs/design/tsx-shedding-migration-spec.md: e899498a5 feat(build): tsx-shedding STAGE 3 \u2014 all ~38 tooling invocations move to node; tsx leaves @orb/ui",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Shedding tsx — native-node TypeScript migration (quiet-tree work order): full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "Shedding tsx \u2014 native-node TypeScript migration (quiet-tree work order): full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/user-macro-delivery-spec.md",
@@ -1260,7 +1260,7 @@
         "git log --oneline -1 -- docs/design/user-macro-delivery-spec.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "User-macro INPUT-VALUE DELIVERY — implementation blueprint: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "User-macro INPUT-VALUE DELIVERY \u2014 implementation blueprint: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #28.",
@@ -1291,7 +1291,7 @@
         "git log --oneline -1 -- docs/design/v3-demo-transcripts-heal.md: 446668f88 docs(design): DRAFT-TRUST + v3-transcripts decision briefs (lane #51 scout reconstruction, receipts in-lane)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "v3 demo-transcripts heal — decision brief: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "v3 demo-transcripts heal \u2014 decision brief: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "Mutable resolution for this artifact is tracked in GitHub issue #54.",
@@ -1315,10 +1315,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/weave-lab-upgrades.md:1 (design; active)",
-        "git log --oneline -1 -- docs/design/weave-lab-upgrades.md: 27f2b3a56 feat(ui): WebSpinner weaves instead of pulsing — the loader IS a web being spun",
+        "git log --oneline -1 -- docs/design/weave-lab-upgrades.md: 27f2b3a56 feat(ui): WebSpinner weaves instead of pulsing \u2014 the loader IS a web being spun",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Weave Lab — the second-generation motion upgrade spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Weave Lab \u2014 the second-generation motion upgrade spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "Mutable resolution for this artifact is tracked in GitHub issue #45.",
@@ -1342,10 +1342,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/web-weave-motion-fixes.md:1 (design; active)",
-        "git log --oneline -1 -- docs/design/web-weave-motion-fixes.md: f688f56d4 fix(ui): WebWeave motion — connected tips, containment, spider pathing, per-segment glint",
+        "git log --oneline -1 -- docs/design/web-weave-motion-fixes.md: f688f56d4 fix(ui): WebWeave motion \u2014 connected tips, containment, spider pathing, per-segment glint",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "WebWeave motion fixes — the Claude Design handoff spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "WebWeave motion fixes \u2014 the Claude Design handoff spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "Mutable resolution for this artifact is tracked in GitHub issue #45.",

@@ -10418,15 +10418,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 83,
-      "bytes": 14108,
-      "sha256": "b2853f130e5ca666bdf1395a741200fec2b8b0e2f8b283833751e03226fea795",
+      "bytes": 14200,
+      "sha256": "a70621b2a4645673e1d7ab3cedeb3817d4e788076101a75890573cfcb192b08e",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "draft",
-          "updated": "2026-08-02"
+          "updated": "2026-08-14"
         },
         "errors": []
       },
@@ -10436,13 +10436,13 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "b2853f130e5ca666bdf1395a741200fec2b8b0e2f8b283833751e03226fea795",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+        "verifiedSha256": "a70621b2a4645673e1d7ab3cedeb3817d4e788076101a75890573cfcb192b08e",
+        "verifiedCommit": "9db1130ad95d1a3cf05cbd1bdae7063852650a35",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/config-rail-spec.md:1 (spec; draft)",
-          "git log --oneline -1 -- docs/design/config-rail-spec.md: e7a86df18 feat(config-rail): R2 — World Info leaves the rail and becomes a Configuration collection",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+          "git log --oneline -1 -- docs/design/config-rail-spec.md: R3 truth-repair — presets stay standalone per owner ruling C5 (2026-08-08, frozen board row 100); full re-read this verification"
         ],
         "summary": "CONFIG RAIL — the Configuration workspace (R1 design set): full content read against frozen tree; landed-state record retained as historical evidence."
       },
