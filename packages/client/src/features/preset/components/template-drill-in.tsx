@@ -31,7 +31,7 @@ import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
 import { CAPPED_FIELD_MAX_ROWS, CappedFieldCounter, showsCappedFieldCounter } from "#forms";
 import { useFocusOnSwap } from "#lib";
-import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model.ts";
+import { GUIDED_INPUT_TOKEN, guidedFooterState } from "../lib/assembly-model.ts";
 import type { TemplateRow } from "../lib/template-rows.ts";
 import { proseTemplateDraft } from "../lib/template-rows.ts";
 import { DeliveryCluster } from "./delivery-cluster.tsx";
@@ -354,7 +354,7 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
   if (capability.kind !== "tokens") {
     return null;
   }
-  const { def, guidedKind } = row;
+  const { def, guidedKind, factoryDefault } = row;
   const tokens = capability.tokens;
   return (
     // THE CHIPS ARE A NAMED LIST, not two floating glyphs (side-eye F-17). They sat 30px under DELIVERY
@@ -386,7 +386,7 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
       {guidedKind === undefined || !tokens.includes(GUIDED_INPUT_TOKEN) ? null : (
         <form.Subscribe selector={(state): string => state.values.guidedActions?.[guidedKind].prompt ?? ""}>
           {(prompt): ReactElement | null =>
-            prompt.trim() === "" || prompt.includes(GUIDED_INPUT_TOKEN) ? null : (
+            !guidedFooterState(prompt, factoryDefault).missingInputLint ? null : (
               // The warning SIGNAL rides the band + the glyph, never a `tone` prop on Text — type colour
               // belongs to the four-voice grammar (§2).
               <Row align="center" className="rounded-base border border-warning bg-warning/10 text-warning" gap="field" padding="row">

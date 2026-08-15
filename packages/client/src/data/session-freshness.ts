@@ -60,7 +60,7 @@ export interface SessionFreshnessDeps {
 export function startSessionFreshness(deps: SessionFreshnessDeps): () => void {
   return deps.subscribe((): void => {
     const now = deps.now();
-    if (probing || !deps.isVisible() || now - lastConfirmedAt < FRESHNESS_FLOOR_MS) {
+    if (probing || !deps.isVisible() || sessionFreshnessAgeMs(now) < FRESHNESS_FLOOR_MS) {
       return;
     }
     probing = true;

@@ -39,7 +39,7 @@ import type { ReactElement } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useTRPC } from "#data";
 import { selectPresetSection } from "#state";
-import { isTemplatedMarker } from "../../lib/assembly-model.ts";
+import { isTemplatedMarker, sectionKind } from "../../lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count.ts";
 import { AssemblyPreview } from "../prompt-assembly/assembly-preview.tsx";
 import { deriveZones } from "../prompt-assembly/derive-zones.ts";
@@ -71,7 +71,7 @@ function barTokens(section: PromptSection, costs: MaterializedCosts | null): num
   if (costs !== null) {
     return costs.get(section.id)?.tokens ?? 0;
   }
-  if (section.type === "marker" && !isTemplatedMarker(section.marker)) {
+  if (sectionKind(section) === "plainMarker") {
     return null;
   }
   return estimateSectionTokens(section);

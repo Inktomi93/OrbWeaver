@@ -27,7 +27,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
 import { useFocusOnSwap } from "#lib";
-import { isTemplatedMarker, sectionGlyphIcon, triggersPillLabel } from "../../lib/assembly-model.ts";
+import { isTemplatedMarker, sectionGlyphIcon, sectionKind, triggersPillLabel } from "../../lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count.ts";
 import { estimateSectionTokens } from "./estimate-tokens.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
@@ -71,7 +71,7 @@ function sectionLabels(section: PromptSection): { name: string; subtitle: string
 
 /** Has this templated marker a custom framing template set? Drives the `custom` cue. */
 function hasCustomTemplate(section: PromptSection): boolean {
-  return section.type === "marker" && isTemplatedMarker(section.marker) && "template" in section && section.template !== undefined;
+  return sectionKind(section) === "templatedMarker" && "template" in section && section.template !== undefined;
 }
 
 /** Is this a templated marker whose card/room override is locked? Drives the lock cue. */
@@ -132,7 +132,7 @@ function SectionCues({ section }: { readonly section: PromptSection }): ReactEle
 
 export function SectionRow({ form, section, index, zone, selected, onSelect, onDrill, restoreFocus }: SectionRowProps): ReactElement {
   const { name, subtitle } = sectionLabels(section);
-  const carrier = section.type === "marker" && !isTemplatedMarker(section.marker);
+  const carrier = sectionKind(section) === "plainMarker";
   // ONE number format across the surface (side-eye F-29) — grouped, exactly as the readout's bars print it.
   const tokens = carrier ? CARRIER_COST_GLYPH : formatEstimate(estimateSectionTokens(section));
   const chevronRef = useRef<HTMLButtonElement>(null);
