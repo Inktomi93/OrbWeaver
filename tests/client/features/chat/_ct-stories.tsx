@@ -50,6 +50,7 @@ import {
   enterSelectionMode,
   isLiveTurnPhase,
   MessageToolsRendererRegistryProvider,
+  openNewChatPicker,
   SlashCommandRegistryProvider,
   selectChat,
   startEditingMessage,
@@ -1152,6 +1153,31 @@ export function NewChatPickerStory(): ReactElement {
       <div style={{ height: 560, width: 480 }}>
         <NewChatPicker />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** Mounts the picker only after the production temp-chat opener arms it. This catches React Strict Mode
+ *  probe unmounts clearing creation intent before the user can act. */
+export function TemporaryNewChatPickerStory(): ReactElement {
+  const [showPicker, setShowPicker] = useState(false);
+  return (
+    <CtDataProviders>
+      <button
+        type="button"
+        onClick={(): void => {
+          openNewChatPicker({ temporary: true });
+          setShowPicker(true);
+        }}
+      >
+        Open temporary picker
+      </button>
+      <NewChatIntentProbe />
+      {showPicker ? (
+        <div style={{ height: 560, width: 480 }}>
+          <NewChatPicker />
+        </div>
+      ) : null}
     </CtDataProviders>
   );
 }

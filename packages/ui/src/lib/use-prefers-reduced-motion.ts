@@ -10,7 +10,20 @@ interface ReducedMotionQuery {
   readonly addEventListener: (type: "change", listener: () => void) => void;
   readonly removeEventListener: (type: "change", listener: () => void) => void;
 }
+interface ReducedMotionDocument {
+  readonly documentElement?: unknown;
+  readonly querySelector: (selector: string) => unknown;
+}
+interface ReducedMotionObserver {
+  readonly observe: (target: unknown, options: { readonly attributes: true; readonly subtree: true; readonly attributeFilter: readonly string[] }) => void;
+  readonly disconnect: () => void;
+}
+interface ReducedMotionObserverConstructor {
+  new (listener: () => void): ReducedMotionObserver;
+}
 const matchMediaFn = (globalThis as { matchMedia?: (query: string) => ReducedMotionQuery }).matchMedia;
+const reducedMotionDocument = (globalThis as { document?: ReducedMotionDocument }).document;
+const ReducedMotionObserver = Reflect.get(globalThis, "MutationObserver") as unknown as ReducedMotionObserverConstructor | undefined;
 
 // Read once at module load and cached — the query's `.matches` stays live. `null` where matchMedia
 // doesn't exist (SSR / non-browser test runners); every consumer below degrades to `false`.
@@ -18,14 +31,21 @@ const reducedMotionQuery: ReducedMotionQuery | null = typeof matchMediaFn === "f
 
 function subscribeReducedMotion(onChange: () => void): () => void {
   reducedMotionQuery?.addEventListener("change", onChange);
-  return (): void => reducedMotionQuery?.removeEventListener("change", onChange);
+  const root = reducedMotionDocument?.documentElement;
+  const observer = root !== undefined && ReducedMotionObserver !== undefined ? new ReducedMotionObserver(onChange) : null;
+  observer?.observe(root, { attributes: true, subtree: true, attributeFilter: ["data-reduced-motion"] });
+  return (): void => {
+    reducedMotionQuery?.removeEventListener("change", onChange);
+    observer?.disconnect();
+  };
 }
 
 function getReducedMotionSnapshot(): boolean {
-  return reducedMotionQuery === null ? false : reducedMotionQuery.matches;
+  const appPreference = reducedMotionDocument?.querySelector('[data-reduced-motion="true"]');
+  return (reducedMotionQuery === null ? false : reducedMotionQuery.matches) || (appPreference !== null && appPreference !== undefined);
 }
 
-/** Live `prefers-reduced-motion: reduce` state, kept in sync via `useSyncExternalStore`. */
+/** Live OS OR app reduced-motion state, kept in sync via `useSyncExternalStore`. */
 export function usePrefersReducedMotion(): boolean {
   return useSyncExternalStore(subscribeReducedMotion, getReducedMotionSnapshot);
 }

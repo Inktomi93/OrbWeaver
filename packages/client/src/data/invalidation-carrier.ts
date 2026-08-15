@@ -26,21 +26,72 @@
 // first-time speaker's portrait/name entry) and the rest of the window. The wire read stays authoritative;
 // the patch only removes the interval in which the cache is KNOWABLY stale.
 
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "./trpc.ts";
 
-/** Apply a canon event's `view` to the open room's message list. Written to the room's TAIL page key
- *  (`{ chatId }` — the only `listMessages` key any client read uses; no caller passes `beforeSeq`, so the
- *  cached page is always the newest window): replace-by-id, or append at the tail for a row the page has
- *  never seen (a fresh reply / the caller's own just-sent user row). No-op for an event with no carrier and
- *  for a chat with no cached page (a background room never gains a phantom list). */
-export function applyCanonView(queryClient: QueryClient, trpc: Trpc, event: ChatBusEvent): void {
-  if (!("view" in event)) {
+interface PendingCanonQueue {
+  readonly views: Map<string, () => void>;
+  readonly unsubscribe: () => void;
+}
+
+const pendingCanonByClient = new WeakMap<QueryClient, Map<string, PendingCanonQueue>>();
+
+function removePendingQueue(queryClient: QueryClient, queryHash: string): PendingCanonQueue | undefined {
+  const clientQueues = pendingCanonByClient.get(queryClient);
+  const queue = clientQueues?.get(queryHash);
+  if (queue === undefined) {
     return;
   }
-  const view = event.view;
-  queryClient.setQueryData(trpc.chat.listMessages.queryKey({ chatId: event.chatId }), (page) => {
+  clientQueues?.delete(queryHash);
+  queue.unsubscribe();
+  if (clientQueues?.size === 0) {
+    pendingCanonByClient.delete(queryClient);
+  }
+  return queue;
+}
+
+function queueUntilInitialRead(queryClient: QueryClient, queryHash: string, view: MessageView, apply: () => void): void {
+  let clientQueues = pendingCanonByClient.get(queryClient);
+  if (clientQueues === undefined) {
+    clientQueues = new Map();
+    pendingCanonByClient.set(queryClient, clientQueues);
+  }
+  let queue = clientQueues.get(queryHash);
+  if (queue === undefined) {
+    const views = new Map<string, () => void>();
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      if (event.query.queryHash !== queryHash) {
+        return;
+      }
+      if (event.type === "removed") {
+        removePendingQueue(queryClient, queryHash);
+        return;
+      }
+      if (event.query.state.data === undefined) {
+        return;
+      }
+      const ready = removePendingQueue(queryClient, queryHash);
+      if (ready === undefined) {
+        return;
+      }
+      for (const patch of ready.views.values()) {
+        patch();
+      }
+    });
+    queue = { views, unsubscribe };
+    clientQueues.set(queryHash, queue);
+  }
+  // Multiple carriers for one row can arrive before the initial read. Only the newest view is canon.
+  queue.views.set(view.id, apply);
+}
+
+function applyCachedView(queryClient: QueryClient, trpc: Trpc, chatId: ChatBusEvent["chatId"], view: MessageView): boolean {
+  const key = trpc.chat.listMessages.queryKey({ chatId });
+  if (queryClient.getQueryData(key) === undefined) {
+    return false;
+  }
+  queryClient.setQueryData(key, (page) => {
     if (page === undefined) {
       return page;
     }
@@ -51,5 +102,29 @@ export function applyCanonView(queryClient: QueryClient, trpc: Trpc, event: Chat
     const messages = [...page.messages];
     messages[index] = view;
     return { ...page, messages };
+  });
+  return true;
+}
+
+/** Apply a canon event's `view` to the open room's message list. Written to the room's TAIL page key
+ *  (`{ chatId }` — the only `listMessages` key any client read uses; no caller passes `beforeSeq`, so the
+ *  cached page is always the newest window): replace-by-id, or append at the tail for a row the page has
+ *  never seen (a fresh reply / the caller's own just-sent user row). A carrier that beats the open room's
+ *  initial read queues until that read lands; a background room with no query still gains no phantom list. */
+export function applyCanonView(queryClient: QueryClient, trpc: Trpc, event: ChatBusEvent): void {
+  if (!("view" in event)) {
+    return;
+  }
+  const view = event.view;
+  if (applyCachedView(queryClient, trpc, event.chatId, view)) {
+    return;
+  }
+  const key = trpc.chat.listMessages.queryKey({ chatId: event.chatId });
+  const query = queryClient.getQueryCache().find({ queryKey: key, exact: true });
+  if (query?.state.fetchStatus !== "fetching") {
+    return;
+  }
+  queueUntilInitialRead(queryClient, query.queryHash, view, (): void => {
+    applyCachedView(queryClient, trpc, event.chatId, view);
   });
 }

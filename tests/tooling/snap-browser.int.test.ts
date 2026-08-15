@@ -41,7 +41,21 @@ function manifest(name: string): Record<string, unknown> {
 
 afterAll(() => {
   rmSync(TEMP, { recursive: true, force: true });
-  for (const suffix of ["active", "hidden", "warning", "error", "scenario", "disabled", "watch"]) {
+  for (const suffix of [
+    "active",
+    "hidden",
+    "warning",
+    "error",
+    "scenario",
+    "disabled",
+    "watch",
+    "checkpoint",
+    "map_duplicates",
+    "map_executable",
+    "map_svg",
+    "map_targets",
+    "deadcss_markers",
+  ]) {
     rmSync(join(REPORT_SNAPS, `${RUN_ID}_${suffix}.json`), { force: true });
     rmSync(join(REPORT_TRACES, `${RUN_ID}_${suffix}.zip`), { force: true });
     rmSync(join(REPORT_TRACES, `${RUN_ID}_${suffix}.har`), { force: true });
@@ -79,6 +93,91 @@ test("snap excludes React Activity-style hidden DOM unless the operator opts in"
   expect((hiddenCapture?.["mapResult"] as unknown[]).length).toBe(2);
 });
 
+test("snap maps repeated accessible names to distinct executable selectors", () => {
+  const page = fixture("map-duplicates", '<button aria-label="Save">One</button><button aria-label="Save">Two</button>');
+  const name = `${RUN_ID}_map_duplicates`;
+  const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ selector: string }> }>)[0];
+  expect(capture?.mapResult.map((entry) => entry.selector)).toEqual(['[aria-label="Save"]:visible >> nth=0', '[aria-label="Save"]:visible >> nth=1']);
+});
+
+test("snap omits semantic plumbing that is not an agent target", () => {
+  const page = fixture(
+    "map-targets",
+    '<main><div role="generic">plumbing</div><ul role="list"><li role="listitem">row</li></ul><section role="region" aria-label="Workspace"><button>Act</button></section></main>',
+  );
+  const name = `${RUN_ID}_map_targets`;
+  const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ role: string; name: string }> }>)[0];
+  expect(capture?.mapResult).toEqual([
+    expect.objectContaining({ role: "region", name: "Workspace" }),
+    expect.objectContaining({ role: "button", name: "Act" }),
+  ]);
+});
+
+test("snap recognizes labeled SVGs as image targets instead of minting a roleless DOM path", () => {
+  const page = fixture("map-svg", '<button aria-label="Open game">Game <svg aria-label="Game chat"><path /></svg></button>');
+  const name = `${RUN_ID}_map_svg`;
+  const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ role: string; name: string; source: string }> }>)[0];
+  expect(capture?.mapResult).toContainEqual(expect.objectContaining({ role: "img", name: "Game chat", source: "semantic" }));
+  expect(result.stdout).toContain("map-dom-fallbacks=0");
+});
+
+test("snap proves map selectors against the live accessible tree and falls back when a semantic guess lies", () => {
+  const longName = "A deliberately long control name that must remain complete inside the executable selector even when terminal output clips it";
+  const page = fixture(
+    "map-executable",
+    `<label for="query">Actual query label</label><input id="query" placeholder="Misleading placeholder"><button>${longName}</button><button aria-label='Say "hi"'>Quote</button><div style="display:none"><button aria-label="Save">Hidden</button></div><button aria-label="Save">Visible</button>`,
+  );
+  const name = `${RUN_ID}_map_executable`;
+  const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ name: string; selector: string; source: string }> }>)[0];
+  const entries = capture?.mapResult ?? [];
+  expect(entries.find((entry) => entry.name === longName)?.selector).toContain(longName);
+  expect(entries.find((entry) => entry.name === longName)?.source).toBe("semantic");
+  expect(entries.find((entry) => entry.name === "Misleading placeholder")).toMatchObject({ source: "dom" });
+  expect(entries.find((entry) => entry.name === "Misleading placeholder")?.selector.startsWith("body > ")).toBe(true);
+  expect(entries.find((entry) => entry.name === 'Say "hi"')).toMatchObject({ selector: '[aria-label="Say \\"hi\\""]:visible', source: "semantic" });
+  expect(entries.find((entry) => entry.name === "Save")).toMatchObject({ selector: '[aria-label="Save"]:visible', source: "semantic" });
+  expect(result.stdout).toContain("map-dom-fallbacks=1");
+});
+
+test("snap evaluates bare arrows and already-invoked arrow IIFEs exactly once", () => {
+  const page = fixture("eval-functions", '<main data-value="works">eval</main>');
+  const result = runSnap([
+    "--file",
+    page,
+    "--no-shot",
+    "--eval",
+    '()=>document.querySelector("main")?.dataset.value',
+    "--eval",
+    '(()=>document.querySelector("main")?.dataset.value)()',
+    "--no-failure-evidence",
+  ]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout.match(/"works"/gu)).toHaveLength(2);
+});
+
+test("snap dead-CSS scan ignores third-party marker classes without hiding real dead tokens", () => {
+  const page = fixture("deadcss-markers", '<main class="echarts-for-react definitely-dead">chart</main>');
+  const name = `${RUN_ID}_deadcss_markers`;
+  const result = runSnap(["--file", page, "--no-shot", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const capture = (manifest(name)["captures"] as Array<{ deadCss: Array<{ token: string }> }>)[0];
+  expect(capture?.deadCss.map((entry) => entry.token)).toEqual(["definitely-dead"]);
+});
+
 test("snap records warnings, fails strict warnings, and always fails console errors", () => {
   const warningPage = fixture("warning", '<main>warning</main><script>console.warn("slow render")</script>');
   const warningName = `${RUN_ID}_warning`;
@@ -100,6 +199,43 @@ test("snap records warnings, fails strict warnings, and always fails console err
 
   expect(error.status, error.stdout + error.stderr).toBe(1);
   expect(error.stdout).toContain("console-errors=1");
+});
+
+test("checkpoint mode retains boot diagnostics but judges only the interaction window", () => {
+  const page = fixture(
+    "checkpoint",
+    '<button type="button" onclick="console.warn(\'interaction warning\')">Warn</button><script>console.warn("boot warning")</script>',
+  );
+  const name = `${RUN_ID}_checkpoint`;
+  const bootOnly = runSnap(["--file", page, "--no-shot", "--checkpoint", "--strict-console", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(bootOnly.status, bootOnly.stdout + bootOnly.stderr).toBe(0);
+  expect(bootOnly.stdout).toContain("console-warnings=0");
+  expect(bootOnly.stdout).toContain("boot-console-warnings=1");
+  const bootReport = manifest(name);
+  expect((bootReport["console"] as unknown[]).length).toBe(1);
+  expect((bootReport["evidence"] as { console: unknown[] }).console.length).toBe(0);
+
+  const interaction = runSnap([
+    "--file",
+    page,
+    "--no-shot",
+    "--checkpoint",
+    "--click",
+    "button",
+    "--strict-console",
+    "--json",
+    "--no-failure-evidence",
+    "--out",
+    name,
+  ]);
+
+  expect(interaction.status, interaction.stdout + interaction.stderr).toBe(1);
+  expect(interaction.stdout).toContain("console-warnings=1");
+  expect(interaction.stdout).toContain("boot-console-warnings=1");
+  const interactionReport = manifest(name);
+  expect((interactionReport["console"] as unknown[]).length).toBe(2);
+  expect((interactionReport["evidence"] as { console: unknown[] }).console.length).toBe(1);
 });
 
 test("snap reports the WCAG exemption for an inactive control instead of failing its deliberate dimming", () => {

@@ -95,7 +95,7 @@ export function RowActionsMenu({
         </MenuPopup>
       </Menu>
 
-      {destructive === undefined ? null : (
+      {destructive === undefined || !confirmOpen ? null : (
         <ConfirmDialog
           confirmLabel={destructive.confirmLabel ?? destructiveLabel}
           description={destructive.description}

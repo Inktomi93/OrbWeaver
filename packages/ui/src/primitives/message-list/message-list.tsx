@@ -8,8 +8,9 @@ import { assertBoundedScrollHeight, cn, gapPxFor, usePrefersReducedMotion } from
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
 import { pinSpacerActive } from "./pin-spacer.ts";
 
-// Chat rows are tall/variable; deeper overscan than virtual-list's default avoids pop-in on scrollback.
-const DEFAULT_OVERSCAN = 10;
+// Chat rows are tall and expensive Markdown trees. Two rows covers a fast scroll gesture without parsing
+// multiple offscreen viewports of multi-kilobyte messages during cold room entry.
+const DEFAULT_OVERSCAN = 2;
 
 // 80px reads as "pinned to end" for real content; the library's 1px default is too tight for sub-pixel rounding.
 const DEFAULT_SCROLL_END_THRESHOLD_PX = 80;
@@ -72,6 +73,8 @@ export interface MessageListHandle {
 }
 
 export interface MessageListProps<T> {
+  /** Accessible name for the live log region (for example, "Conversation messages" or "Log entries"). */
+  readonly ariaLabel?: string;
   readonly items: readonly T[];
   /** Stable per-item key — must be id-based, not index (the list both appends and prepends). */
   readonly getItemKey: (item: T, index: number) => string | number;
@@ -126,6 +129,7 @@ export interface MessageListProps<T> {
  * keep-mounted rows for stateful content, and an imperative jump-to-latest handle.
  */
 export function MessageList<T>({
+  ariaLabel,
   items,
   getItemKey,
   estimateSize,
@@ -410,6 +414,7 @@ export function MessageList<T>({
         }
       }}
       role="log"
+      aria-label={ariaLabel}
       aria-live="polite"
       onScroll={onScrollTracked}
       className={cn("relative overflow-auto overscroll-contain", className)}

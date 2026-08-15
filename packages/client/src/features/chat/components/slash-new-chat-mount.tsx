@@ -4,11 +4,11 @@
 
 import { useEffect } from "react";
 import type { SlashCommandMountProps } from "#lib";
-import { openModal } from "#state";
+import { openNewChatPicker } from "#state";
 
 export function SlashNewChatMount({ onRunner }: SlashCommandMountProps): null {
   useEffect(() => {
-    onRunner((): void => openModal("newChat"));
+    onRunner((): void => openNewChatPicker());
   }, [onRunner]);
   return null;
 }

@@ -1,0 +1,15 @@
+# Orbweaver
+
+Orbweaver is a local-first workspace for character-driven AI conversations, world knowledge, presets,
+analysis, and role-playing state.
+
+## Agent operation
+
+- [Open Orbweaver](/)
+- [Read the development agent-tool guide](https://github.com/Inktomi93/orbweaver/blob/main/packages/client/src/lib/agent-tools.README.md)
+
+The signed-in application is a stateful single-page interface. In a development build, wait for
+`html[data-app-ready]`, inspect `window.__orb.snap()`, discover valid targets with
+`window.__orb.nav.capabilities()`, and navigate through `window.__orb.nav` instead of guessing click
+chains. Use the page accessibility tree for rendered state and the `pnpm snap` selector map for exact,
+executable targets.

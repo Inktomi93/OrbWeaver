@@ -50,7 +50,7 @@ export function ToolRecurseControl({ chatId }: ToolRecurseControlProps): ReactEl
       description="How many times one reply may loop back after using tools — not a cap on tool calls. A round can carry several tool calls; higher allows deeper multi-step work before the assistant must answer."
       orientation="horizontal"
     >
-      <NumberField min={TOOL_RECURSE_MIN} max={TOOL_RECURSE_MAX} value={current} onValueChange={onValueChange} />
+      <NumberField aria-label="Tool rounds per turn" min={TOOL_RECURSE_MIN} max={TOOL_RECURSE_MAX} value={current} onValueChange={onValueChange} />
     </Field>
   );
 }

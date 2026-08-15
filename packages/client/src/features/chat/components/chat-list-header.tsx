@@ -27,7 +27,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ListPaneHeader } from "#components";
 import { useTRPC } from "#data";
-import { openModal } from "#state";
+import { openNewChatPicker } from "#state";
 import { ChatImportDialog } from "./chat-import-dialog.tsx";
 
 /** The band wants the CENSUS, not the rows — the smallest page the server will serve still carries it. */
@@ -47,7 +47,7 @@ export function ChatListHeader(): ReactElement {
             <Button aria-label="Import a chat transcript" intent="ghost" onClick={(): void => setImportOpen(true)} size="sm">
               <Icon icon={Upload} size="sm" />
             </Button>
-            <Button intent="primary" onClick={(): void => openModal("newChat")} size="sm">
+            <Button intent="primary" onClick={(): void => openNewChatPicker()} size="sm">
               <Icon icon={Plus} size="sm" />
               New
             </Button>

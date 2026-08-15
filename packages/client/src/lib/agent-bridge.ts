@@ -14,6 +14,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import { busEventRing, busLiveCount } from "./bus-devlog.ts";
 import { IS_DEV } from "./dev-flag.ts";
+import { __resetLongTaskEvidence } from "./long-task-tracer.ts";
 import type { MotionFlagRecord } from "./motion-flaggers.ts";
 import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "./motion-flaggers.ts";
 import type { AnimationRecord, MotionSnapshot } from "./motion-stats.ts";
@@ -109,6 +110,17 @@ interface ShellSnapshot {
  *  rejected/invalid target. NEVER a silent no-op (a snap step reddens its exit on `ok:false`). */
 export type NavResult = { readonly ok: true } | { readonly ok: false; readonly reason: string };
 
+/** Canonical targets currently accepted by `__orb.nav`. Static vocabularies come from the same tuples the
+ *  actions validate against; context tabs are the ids published by the surface mounted right now. */
+export interface OrbNavCapabilities {
+  readonly sections: readonly string[];
+  readonly modalSlots: readonly string[];
+  readonly settingsCategories: readonly string[];
+  readonly contextTabs: readonly string[];
+  readonly contextTabsPublished: boolean;
+  readonly chatPositions: readonly string[];
+}
+
 /** The two seedable game shapes: `d20` = the classic six-attribute grid + level + everything; `freeform` =
  *  the same rich planes MINUS the attribute grid (freeform has no attribute vocabulary — the sparser Sheet). */
 export type SeedProfile = "d20" | "freeform";
@@ -130,6 +142,8 @@ export interface OrbSeedHandle {
  *  chain. Built at the composition tier (`client/src/agent-nav/`, a door-owned dir module that may legally
  *  compose #state/#features/#data — the lib/ floor may not) and injected into `installAgentDebugHandle`. */
 export interface OrbNavHandle {
+  /** Discover the exact target vocabularies without reading source or provoking a failed action. */
+  readonly capabilities: () => OrbNavCapabilities;
   /** Switch the active rail section (validated against SECTION_IDS). */
   readonly section: (id: string) => NavResult;
   /** Open a rail modal by slot (validated against MODAL_SLOT_IDS). */
@@ -194,8 +208,10 @@ declare global {
   var __orb: OrbDebugHandle | undefined;
 }
 
-/** The compact motion line for snap(): ring depth + the headline jank numbers + the count of active
- *  animations that aren't compositor-clean. `observedCls` rides beside `cls` because the CWV metric
+/** The compact motion line for snap(): ring depth + the headline jank numbers + the checkpoint's dirty
+ *  animation flag count. The explicit `.animations()` deep scan remains available, but running
+ *  `document.getAnimations()` inside every cheap snapshot forces a style walk and made the auditor create
+ *  layout frames on large surfaces. `observedCls` rides beside `cls` because the CWV metric
  *  excludes input-adjacent shifts and therefore reads ~0 through the exact interaction-driven relayout
  *  storms this line exists to surface (motion-stats.ts header) — a summary carrying only `cls` says
  *  "clean" about a shell that is thrashing. */
@@ -204,7 +220,7 @@ function motionSummary(): {
   worstBlocking: number;
   cls: number;
   observedCls: number;
-  dirtyAnimations: number;
+  dirtyAnimationFlags: number;
 } {
   const m = motionSnapshot();
   return {
@@ -212,7 +228,7 @@ function motionSummary(): {
     worstBlocking: m.worstBlocking,
     cls: m.cls,
     observedCls: m.observedCls,
-    dirtyAnimations: activeAnimations().filter((a) => !a.compositorClean).length,
+    dirtyAnimationFlags: motionFlags().filter((flag) => flag.tag === "anim").length,
   };
 }
 
@@ -274,6 +290,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
     flags: flagCounts(),
   });
   const resetEvidence = (): void => {
+    __resetLongTaskEvidence();
     __resetMotionFlags();
     __resetMotionStats();
     __resetRenderStats();
@@ -296,7 +313,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
     seed,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence() · .shell() · .nav.section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence() · .shell() · .nav.capabilities/section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

@@ -21,7 +21,7 @@ import {
 const ROW_HEIGHT_PX = 40;
 const LIST_HEIGHT_PX = 200; // 5 rows visible
 const ITEM_COUNT = 500;
-const MAX_WINDOWED_ROWS = 60; // a bounded 200px window + overscan(10) is ~2 dozen rows
+const MAX_WINDOWED_ROWS = 20; // a bounded 200px window + the default two-row overscan stays compact
 
 test("renders only a window of a 500-item list", async ({ mount }) => {
   const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
@@ -217,8 +217,10 @@ test("the tripwire THROWS when the parent gives no bounded height", async ({ mou
 });
 
 test("the scroll wrapper exposes role=log + aria-live=polite (arriving messages are announced)", async ({ mount }) => {
-  const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
-  const log = component.getByRole("log");
+  const component = await mount(
+    <AppendableList ariaLabel="Conversation messages" initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />,
+  );
+  const log = component.getByRole("log", { name: "Conversation messages" });
   await expect(log).toBeVisible();
   await expect(log).toHaveAttribute("aria-live", "polite");
 });

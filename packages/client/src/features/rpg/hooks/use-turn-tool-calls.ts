@@ -1,11 +1,11 @@
-// The recorded-turn window, indexed by producing variant (TOOLCALLS-INVISIBLE, arm A).
+// The recorded-turn window, selected by producing variant (TOOLCALLS-INVISIBLE, arm A).
 //
-// ONE QUERY PER ROOM, NOT PER ROW. The disclosure mounts on every committed assistant row, so a per-row query
-// would be a query storm against a surface most people never open. The server read is chat-scoped and returns
-// a window; this indexes it once and every row does a Map lookup.
+// ONE NETWORK READ PER ROOM, with one CHEAP SELECTOR per mounted assistant row. React Query deduplicates the
+// chat-scoped read; selecting the row's own variant means the response wakes only disclosures whose value
+// changed instead of publishing one new room-wide Map identity to every visible row.
 //
-// SWIPE-CORRECT WITH NO REFETCH: the index is keyed by `variantId` and the row looks up its OWN
-// `selectedVariantId`, so swiping re-targets an entry the client already holds.
+// SWIPE-CORRECT WITH NO REFETCH: the selector keys on the row's OWN `selectedVariantId`, so swiping
+// re-targets data the client already holds.
 //
 // GATED ON THE ROOM'S OWN RPG POINTER (side-eye 2026-08-07 P3). `listTurnToolCalls` resolves through
 // `resolveMember`, whose not-found is LEAK-FREE BY DESIGN — a non-member and a no-game chat get the SAME
@@ -18,7 +18,7 @@
 // game toggled OFF hides this disclosure exactly as it hides the panel, and re-engaging brings both back.
 // Gating also kills the RETRY: a query that never fires has nothing to retry.
 
-import type { RpgRecordedToolCall } from "@orb/contracts/rpg";
+import type { RpgRecordedToolCall, RpgTurnToolCallsView } from "@orb/contracts/rpg";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { useGatedQuery, useTRPC } from "#data";
@@ -32,28 +32,24 @@ import { useGatedQuery, useTRPC } from "#data";
  *  siblings this hook's index needs still arrive AND cost the window nothing. */
 const TURN_TOOL_CALLS_TURN_WINDOW = 50;
 
-/** The empty index, hoisted so a room with no records hands every row the SAME Map instance —
- *  a fresh `new Map()` per render would be a new identity on every render for every row. */
-const EMPTY_INDEX: ReadonlyMap<MessageVariantId, readonly RpgRecordedToolCall[]> = new Map<MessageVariantId, readonly RpgRecordedToolCall[]>();
+const EMPTY_CALLS: readonly RpgRecordedToolCall[] = [];
 
 /**
- * The room's recorded turns, keyed by the variant that produced them.
+ * The recorded calls for one selected variant in the room's shared query window.
  *
  * A plain `useQuery`, deliberately NOT suspense: this is a footer ornament on a transcript that must render
  * immediately. Suspending here would hold the whole row list behind an observability read — the disclosure
  * simply appears when the data lands, and a room with no live game never ASKS at all (an empty index, no
  * request, no error — see the header's gate note).
  */
-export function useTurnToolCallsByVariant(chatId: ChatId): ReadonlyMap<MessageVariantId, readonly RpgRecordedToolCall[]> {
+export function useTurnToolCallsForVariant(chatId: ChatId, variantId: MessageVariantId): readonly RpgRecordedToolCall[] {
   const trpc = useTRPC();
   // Cache-first: every room surface already holds this read, so on a game room the gate costs no round-trip.
   const detail = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const isGame = isRpgEngaged(detail.data?.rpg ?? null);
-  const { data } = useGatedQuery(isGame ? chatId : null, (id) =>
-    trpc.rpg.listTurnToolCalls.queryOptions({ chatId: id, turnLimit: TURN_TOOL_CALLS_TURN_WINDOW }),
-  );
-  if (data === undefined) {
-    return EMPTY_INDEX;
-  }
-  return new Map(data.map((row) => [row.variantId, row.calls]));
+  const { data } = useGatedQuery(isGame ? chatId : null, (id) => ({
+    ...trpc.rpg.listTurnToolCalls.queryOptions({ chatId: id, turnLimit: TURN_TOOL_CALLS_TURN_WINDOW }),
+    select: (rows: readonly RpgTurnToolCallsView[]): readonly RpgRecordedToolCall[] => rows.find((row) => row.variantId === variantId)?.calls ?? EMPTY_CALLS,
+  }));
+  return data ?? EMPTY_CALLS;
 }

@@ -23,6 +23,18 @@ import { MOTION_BUDGETS } from "./motion-flaggers.ts";
 
 const PERF_STYLE = "color:#c60;font-weight:bold";
 const MUTED_STYLE = "color:#888";
+let evidenceStartTime = 0;
+
+/** Move the observer's checkpoint floor without reinstalling it. Buffered entries delivered after a
+ * probe reset otherwise inherit the next surface's route and console range even though they began on
+ * the previous surface. */
+export function __resetLongTaskEvidence(): void {
+  evidenceStartTime = performance.now();
+}
+
+function belongsToCurrentCheckpoint(entry: PerformanceEntry): boolean {
+  return entry.startTime >= evidenceStartTime;
+}
 
 /** LoAF shapes — lib.dom predates the Long Animation Frames API, so we narrow the entry structurally. */
 interface LoafScript {
@@ -141,6 +153,17 @@ function route(): string {
   return globalThis.location.pathname + globalThis.location.search;
 }
 
+function actionableBlockingDuration(entry: LoafEntry): number | null {
+  if (entry.duration < MOTION_BUDGETS.longFrameMs) {
+    return null;
+  }
+  const blocking = Math.round(entry.blockingDuration ?? 0);
+  // Headless Chrome can stretch an otherwise idle/presentation frame past 100ms while reporting zero
+  // blocking work. Keep it in the pulled LoAF ring, but do not push a console accusation with nothing
+  // actionable to attribute; motion-audit likewise gates on blockingDuration, not wall time.
+  return blocking === 0 ? null : blocking;
+}
+
 /** Install the jank observers (idempotence is the caller's concern — main.tsx runs it exactly once). */
 export function installLongTaskTracer(): void {
   if (typeof PerformanceObserver === "undefined") {
@@ -153,12 +176,12 @@ export function installLongTaskTracer(): void {
   // per-entry "Deprecated API for given entry type" console notice, so we avoid it entirely on Chrome.
   if (supported.includes("long-animation-frame")) {
     const loaf = new PerformanceObserver((list) => {
-      for (const raw of list.getEntries()) {
+      for (const raw of list.getEntries().filter(belongsToCurrentCheckpoint)) {
         const entry = raw as LoafEntry;
-        if (entry.duration < MOTION_BUDGETS.longFrameMs) {
+        const blocking = actionableBlockingDuration(entry);
+        if (blocking === null) {
           continue;
         }
-        const blocking = Math.round(entry.blockingDuration ?? 0);
         const who = attributeFrame(entry.scripts ?? []);
         console.warn(
           `%c${logClock()} [frame]%c long frame ${Math.round(entry.duration)}ms · blocking ${blocking}ms (budget ${MOTION_BUDGETS.longFrameMs}ms) · ${who} · route ${route()}`,
@@ -177,7 +200,7 @@ export function installLongTaskTracer(): void {
     loaf.observe({ type: "long-animation-frame", buffered: true } as PerformanceObserverInit);
   } else if (supported.includes("longtask")) {
     const lt = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
+      for (const entry of list.getEntries().filter(belongsToCurrentCheckpoint)) {
         if (entry.duration < MOTION_BUDGETS.longFrameMs) {
           continue;
         }
@@ -190,7 +213,8 @@ export function installLongTaskTracer(): void {
   if (supported.includes("event")) {
     const seenInteractions = new Set<number>();
     const ev = new PerformanceObserver((list) => {
-      for (const timing of selectInteractionEntries(list.getEntries(), seenInteractions)) {
+      const currentEntries = list.getEntries().filter(belongsToCurrentCheckpoint);
+      for (const timing of selectInteractionEntries(currentEntries, seenInteractions)) {
         console.warn(
           `%c${logClock()} [input]%c slow ${timing.name} ${Math.round(timing.duration)}ms (budget ${MOTION_BUDGETS.interactionMs}ms) · ${describeTarget(
             timing.target ?? null,

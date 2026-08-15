@@ -22,9 +22,9 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createCollectionSurface } from "#data";
 
-/** Rows per fetch. The server clamps at 100; 50 is `character.list`'s own default, kept identical so the two
- *  library reads cost the same per page. */
-const CHAT_LIST_PAGE_SIZE = 50;
+/** Rows per fetch. Thirty clears the first viewport plus the end-approach runway without making the first
+ *  paint enrich twenty rows the virtualizer cannot mount yet. */
+const CHAT_LIST_PAGE_SIZE = 30;
 
 // Derived, not exported: `no-inline-types` keeps a feature's exported shapes in its contract home, and the
 // row type is a one-line `inferOutput` every consumer already spells for itself (chat-list-row.tsx,

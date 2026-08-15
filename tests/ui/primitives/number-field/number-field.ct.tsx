@@ -305,6 +305,7 @@ test("steppers take the field's own name as their subject when the call site sup
   // decrease WHAT. The `<Field>` label reaches the INPUT (aria-labelledby) but never the buttons.
   await expect(page.getByRole("button", { name: "Decrease Managed threshold" })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Increase Managed threshold" })).toHaveCount(1);
+  await expect(page.getByRole("group", { name: "Managed threshold" })).toHaveCount(1);
 });
 
 test("an unnamed field keeps the bare verb rather than inventing a subject", async ({ mount, page }) => {

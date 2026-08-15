@@ -29,7 +29,6 @@ export const listRowVariants = tv({
     // (rides the accent, so custom themes retint it), not a flat `--color-accent` fill (north-star §4 N2).
     body: [
       "group flex min-w-0 flex-1 items-center gap-row rounded-control border-l-2 border-l-transparent outline-none",
-      "transition-colors duration-(--motion-fast) ease-out-expo",
       `data-selected:border-l-primary data-selected:bg-primary/10 ${DISABLED_STATE}`,
     ],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
@@ -89,7 +88,7 @@ export const listRowVariants = tv({
         actions: [
           "pointer-fine:pointer-events-none pointer-fine:*:pointer-events-none pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:end-0",
           "pointer-fine:group-hover:*:pointer-events-auto pointer-fine:group-focus-within:*:pointer-events-auto",
-          "pointer-fine:rounded-control pointer-fine:ps-block pointer-fine:transition-colors",
+          "pointer-fine:rounded-control pointer-fine:ps-block",
           "pointer-fine:group-hover:bg-accent pointer-fine:group-focus-within:bg-accent",
         ],
       },
@@ -169,11 +168,7 @@ export const listRowVariants = tv({
     rowTint: {
       body: {},
       row: {
-        root: [
-          "rounded-control border-l-2 border-l-transparent pe-row",
-          "transition-colors duration-(--motion-fast) ease-out-expo",
-          "data-selected:border-l-primary data-selected:bg-primary/10",
-        ],
+        root: ["rounded-control border-l-2 border-l-transparent pe-row", "data-selected:border-l-primary data-selected:bg-primary/10"],
         body: "rounded-none border-l-0 hover:bg-transparent active:bg-transparent data-selected:bg-transparent data-selected:border-l-transparent",
       },
     },

@@ -9,6 +9,7 @@
 
 import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
 import { deriveChatTitle } from "#lib";
@@ -26,7 +27,8 @@ import {
   selectChat,
   setActiveSection,
 } from "#state";
-import type { NavResult, OrbNavHandle } from "../lib/agent-bridge.ts";
+import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "../lib/agent-bridge.ts";
+import { markAgentNavigation } from "../lib/motion-stats.ts";
 
 const OK: NavResult = { ok: true };
 // One page at the server's CEILING covers a dev character library — enough to resolve any id/name without a
@@ -39,7 +41,9 @@ const CHARACTER_NAV_PAGE_LIMIT = CHARACTER_LIST_MAX_LIMIT;
 const CHAT_NAV_PAGE_LIMIT = 100;
 // `openChat` targets that name a POSITION in the list instead of a chat: both mean its top row (see the
 // arm's comment — `listChats` is newest-updated-first, so top row === most recent).
-const CHAT_POSITION_SENTINELS = new Set(["first", "latest"]);
+const CHAT_POSITION_IDS = ["first", "latest"] as const;
+const CHAT_POSITION_SENTINELS = new Set<string>(CHAT_POSITION_IDS);
+const CHAT_ID_PREFIX = `${ID_PREFIX.chat}_`;
 
 function reject(kind: string, id: string, allowed: readonly string[]): NavResult {
   return { ok: false, reason: `unknown ${kind} "${id}" — expected one of: ${allowed.join(", ")}` };
@@ -61,8 +65,19 @@ function isSettingsCategory(id: string): id is SettingsCategoryId {
  *  pane that was never rendered). An arm that cannot take effect must compose what it needs or refuse; this
  *  one composes, exactly like its `openCharacter` sibling. */
 function openChatIn(chatId: ChatId): void {
+  markAgentNavigation();
   setActiveSection("chats");
   selectChat(chatId);
+}
+
+async function resolveDirectChatId(idOrTitle: string, trpc: Trpc, queryClient: QueryClient): Promise<ChatId | null> {
+  if (!idOrTitle.startsWith(CHAT_ID_PREFIX)) {
+    return null;
+  }
+  // The real tRPC boundary validates the complete TypeID. Prefix routing here only decides whether the
+  // caller named an opaque id or a display title; an invalid id simply falls through to the honest miss.
+  const chat = await queryClient.fetchQuery(trpc.chat.getChat.queryOptions({ chatId: idOrTitle as ChatId })).catch(() => null);
+  return chat?.id ?? null;
 }
 
 /** Build the `__orb.nav` handle. Called from the composition root under IS_DEV; `trpc` + `queryClient`
@@ -70,10 +85,22 @@ function openChatIn(chatId: ChatId): void {
  *  cache the chat list populates. */
 export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandle {
   return {
+    capabilities(): OrbNavCapabilities {
+      const contextTabs = [...getAvailableContextTabIds()];
+      return {
+        sections: [...SECTION_IDS],
+        modalSlots: [...MODAL_SLOT_IDS],
+        settingsCategories: [...SETTINGS_CATEGORY_IDS],
+        contextTabs,
+        contextTabsPublished: contextTabs.length > 0,
+        chatPositions: [...CHAT_POSITION_IDS],
+      };
+    },
     section(id: string): NavResult {
       if (!isSection(id)) {
         return reject("section", id, SECTION_IDS);
       }
+      markAgentNavigation();
       setActiveSection(id);
       return OK;
     },
@@ -81,6 +108,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       if (!isModalSlot(slot)) {
         return reject("modal slot", slot, MODAL_SLOT_IDS);
       }
+      markAgentNavigation();
       openModal(slot);
       return OK;
     },
@@ -88,6 +116,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       if (!isSettingsCategory(category)) {
         return reject("settings category", category, SETTINGS_CATEGORY_IDS);
       }
+      markAgentNavigation();
       openSettingsTo(category);
       return OK;
     },
@@ -108,10 +137,18 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       // COMPOSE the reveal, never a bare request (the `openChatIn` precedent: an arm that cannot take effect
       // must open what it needs). `setContextTab` alone left a collapsed panel unmounted, so the stored tab
       // was read by nothing — `revealContextPanel` opens the panel AND sets the tab, so the switch is visible.
+      markAgentNavigation();
       revealContextPanel(name);
       return OK;
     },
     async openChat(idOrTitle: string): Promise<NavResult> {
+      // IDs are not list positions. Resolve them directly so old, hidden-husk, and temporary chats remain
+      // agent-operable; a bounded recent-page scan made a perfectly valid opaque id unreachable.
+      const directId = await resolveDirectChatId(idOrTitle, trpc, queryClient);
+      if (directId !== null) {
+        openChatIn(directId);
+        return OK;
+      }
       // The list may not be loaded yet (a fresh nav straight to open a chat) — fetch through the SAME
       // query the chat list uses, so this reads/populates the identical cache entry.
       const page = await queryClient.fetchQuery(trpc.chat.listChats.queryOptions({ limit: CHAT_NAV_PAGE_LIMIT })).catch(() => null);
@@ -130,11 +167,6 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
           return { ok: false, reason: `no chat to open — "${idOrTitle}" resolves against the chat list, which is empty` };
         }
         openChatIn(top.id as ChatId);
-        return OK;
-      }
-      const byId = chats.find((c) => c.id === idOrTitle);
-      if (byId) {
-        openChatIn(byId.id);
         return OK;
       }
       // Fall back to an EXACT display-title match (the same derivation the list rows render), so a caller
@@ -167,6 +199,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       // the wrong one of those for a bridge to say.
       const byId = await queryClient.fetchQuery(trpc.character.get.queryOptions({ characterId: idOrName as CharacterId })).catch(() => null);
       if (byId !== null) {
+        markAgentNavigation();
         setActiveSection("characters");
         selectCharacter(byId.id);
         return OK;
@@ -185,6 +218,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       }
       const singleName = byName[0];
       if (singleName !== undefined) {
+        markAgentNavigation();
         setActiveSection("characters");
         selectCharacter(singleName.id as CharacterId);
         return OK;
@@ -192,6 +226,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       return { ok: false, reason: `no character matches id-or-name "${idOrName}" (searched the whole library; ${String(page.totalCount)} match(es))` };
     },
     closeModal(): NavResult {
+      markAgentNavigation();
       closeModal();
       return OK;
     },

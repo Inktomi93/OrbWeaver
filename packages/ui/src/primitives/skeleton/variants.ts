@@ -5,7 +5,7 @@ import { tv } from "#lib";
 // gradient over the `bg-muted` base; under `prefers-reduced-motion` it drops to the flat `bg-muted`
 // fill (the class self-neutralizes) — reduced-motion-safe by construction, no JS motion hook needed.
 export const skeletonVariants = tv({
-  base: "orb-skeleton-shimmer block bg-muted",
+  base: "orb-skeleton-shimmer relative block overflow-hidden bg-muted",
   variants: {
     variant: {
       rect: "rounded-control",

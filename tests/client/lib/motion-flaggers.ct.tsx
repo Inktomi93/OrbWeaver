@@ -12,7 +12,15 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { MotionFlaggersCssTrailingStory, MotionFlaggersExternalDevtoolsStory, MotionFlaggersSlowInputStory, MotionFlaggersSpaceStory } from "./_ct-stories.tsx";
+import { blockMainThread } from "../../support/ct/block-main-thread.ts";
+import {
+  MotionFlaggersCheckpointStory,
+  MotionFlaggersCssTrailingStory,
+  MotionFlaggersExternalDevtoolsStory,
+  MotionFlaggersReducedMotionStory,
+  MotionFlaggersSlowInputStory,
+  MotionFlaggersSpaceStory,
+} from "./_ct-stories.tsx";
 
 /** Collect every `[space]` console line the flagger emits. Attached BEFORE mount so nothing is missed. */
 function captureSpaceLines(page: Page): string[] {
@@ -84,4 +92,51 @@ test("one slow physical interaction emits one [input] warning, not its entire DO
 
   await component.locator("button").click({ force: true });
   await expect.poll(() => lines.length, { timeout: 5000 }).toBe(1);
+});
+
+test("a visible non-compositor transition is flagged", async ({ mount, page }) => {
+  const lines: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("[anim]")) {
+      lines.push(message.text());
+    }
+  });
+  const component = await mount(<MotionFlaggersReducedMotionStory />);
+  await component.getByRole("button", { name: "change color" }).click();
+  await expect.poll(() => lines.length).toBeGreaterThan(0);
+});
+
+test("the reduced-motion 0.01ms floor does not raise dirty-animation or dropped-frame flags", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const lines: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("[anim]") || message.text().includes("[drop]")) {
+      lines.push(message.text());
+    }
+  });
+  const component = await mount(<MotionFlaggersReducedMotionStory />);
+  await component.getByRole("button", { name: "change color" }).click();
+  await expect(component.getByTestId("dirty-color-transition")).toHaveCSS("color", "rgb(255, 0, 0)");
+  await component.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+  expect(lines).toEqual([]);
+});
+
+test("a checkpoint retires the drop loop from a pre-checkpoint animation", async ({ mount, page }) => {
+  const lines: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("[drop]")) {
+      lines.push(message.text());
+    }
+  });
+  const component = await mount(<MotionFlaggersCheckpointStory />);
+  await component.getByRole("button", { name: "start animation" }).click();
+  await component.getByRole("button", { name: "reset evidence" }).click();
+  await page.evaluate(blockMainThread, 80);
+  await component.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+  expect(lines).toEqual([]);
 });

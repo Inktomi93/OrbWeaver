@@ -1,6 +1,5 @@
 // The chat-list row write verbs (the per-row kebab: rename/star/archive/delete). All four are host-only
-// server-side; ChatSummary carries no viewer-role field to gate on, so a non-host's action error-toasts.
-// TODO(server): add the viewer's role to ChatSummary to hide host-only actions. All four are busDriven —
+// server-side; ChatSummary's viewerRole hides them from non-host rows. All four are busDriven —
 // the always-on user-bus subscription reconciles the acting device itself, so a self-invalidate here
 // would double-refetch.
 //
@@ -14,7 +13,7 @@
 // matched key for rollback); that is a change to the shared `data/` machine, not to this row.
 
 import type { ChatId } from "@orb/kit/ids";
-import { createEntityMutation } from "#data";
+import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 
 interface UpdateTitleVars {
   readonly chatId: ChatId;
@@ -32,7 +31,7 @@ interface StarChatVars {
   readonly starred: boolean;
 }
 
-export const useStarChat = createEntityMutation<StarChatVars, unknown>({
+const useStarChat = createEntityMutation<StarChatVars, unknown>({
   options: (trpc) => trpc.chat.star.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't update the star.",
@@ -43,7 +42,7 @@ interface ArchiveChatVars {
   readonly archived: boolean;
 }
 
-export const useArchiveChat = createEntityMutation<ArchiveChatVars, unknown>({
+const useArchiveChat = createEntityMutation<ArchiveChatVars, unknown>({
   options: (trpc) => trpc.chat.archive.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't archive the chat.",
@@ -58,3 +57,28 @@ export const useDeleteChat = createEntityMutation<DeleteChatVars, unknown>({
   busDriven: true,
   errorToast: "Couldn't delete the chat.",
 });
+
+export interface ChatListRowActions {
+  readonly updateTitle: (vars: UpdateTitleVars) => void;
+  readonly star: (vars: StarChatVars) => void;
+  readonly archive: (vars: ArchiveChatVars) => void;
+  readonly remove: (vars: DeleteChatVars) => Promise<unknown>;
+}
+
+/** One mutation pack per mounted list, not one pack per virtual row. A viewport can mount fifteen rows;
+ *  giving every row five React Query mutation observers made the skeleton→list commit cross the dev
+ *  profiler budget even though only one row can be acted on at a time. */
+export function useChatListRowActions(): ChatListRowActions {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const updateTitle = useUpdateChatTitle({ trpc, invalidation });
+  const star = useStarChat({ trpc, invalidation });
+  const archive = useArchiveChat({ trpc, invalidation });
+  const remove = useDeleteChat({ trpc, invalidation });
+  return {
+    updateTitle: updateTitle.mutate,
+    star: star.mutate,
+    archive: archive.mutate,
+    remove: remove.mutateAsync,
+  };
+}

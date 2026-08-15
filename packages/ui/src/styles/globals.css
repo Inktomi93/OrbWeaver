@@ -217,27 +217,34 @@
   scrollbar-width: thin;
 }
 
-/* Skeleton shimmer sweep: a keyframe gradient sweep Tailwind utilities can't express. Reduced-motion
- * also drops the gradient (flat bg-muted fill), not just the animation, to avoid a frozen mid-sweep frame. */
+/* Skeleton shimmer sweep: the gradient rides an oversized pseudo-element and translates on the
+ * compositor. Animating background-position repainted every skeleton on every frame. Reduced-motion
+ * removes the pseudo-element entirely, leaving the flat bg-muted fill. */
 @keyframes orb-skeleton-shimmer {
   from {
-    background-position: 200% 0;
+    transform: translateX(0);
   }
   to {
-    background-position: -200% 0;
+    transform: translateX(100%);
   }
 }
-.orb-skeleton-shimmer {
+.orb-skeleton-shimmer::after {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -100%;
+  width: 200%;
+  content: "";
+  pointer-events: none;
   background-image: linear-gradient(90deg, var(--color-muted) 30%, var(--color-accent) 50%, var(--color-muted) 70%);
-  background-size: 200% 100%;
-  background-repeat: no-repeat;
   animation: orb-skeleton-shimmer var(--motion-shimmer) linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .orb-skeleton-shimmer {
-    background-image: none;
-    animation: none;
+  .orb-skeleton-shimmer::after {
+    display: none;
   }
+}
+[data-reduced-motion="true"] .orb-skeleton-shimmer::after {
+  display: none;
 }
 
 /* Indeterminate hairline (refinery stage stepper's RUNNING cell; side-eye 2026-08-09 polish item 1).

@@ -35,6 +35,7 @@ export function ModalHost({ openModal, container, onClose }: ModalHostProps): Re
   const body = modalBody(def);
   const onOpenChange = (nextOpen: boolean): void => {
     if (!nextOpen) {
+      def.onClose?.();
       onClose();
     }
   };

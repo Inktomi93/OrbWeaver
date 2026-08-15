@@ -487,7 +487,7 @@ test("active press darkens the primary intent from its hover color", async ({ mo
   await control.hover();
   const hoverColor = await readBackgroundColor();
   await page.mouse.down();
-  // `transition-colors` animates the swap — poll past the transition instead of racing one frame.
+  // The color swap is intentionally immediate; the poll only avoids racing the browser's :active update.
   await expect.poll(readBackgroundColor, { intervals: [20, 50, 100] }).not.toBe(hoverColor);
   await page.mouse.up();
 });

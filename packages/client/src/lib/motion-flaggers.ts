@@ -28,6 +28,7 @@
 // re-export from the lib barrel (that would drag it into the prod bundle).
 
 import { logClock } from "./log-clock.ts";
+import { hasVisibleDuration, isExternalDevtoolsElement, runningAnimations, runningLabels } from "./motion-animation-state.ts";
 import { animatedProperties, COMPOSITOR_SAFE_PROPS, surfaceLabelOf } from "./motion-stats.ts";
 
 /** The pack's budgets — ONE table, so a console verdict and the CT that asserts it can never disagree.
@@ -55,15 +56,6 @@ const MUTED_STYLE = "color:#888";
 
 // A long session must not grow the ring unbounded.
 const FLAG_RING_CAP = 128;
-const RUNNING_LABEL_CAP = 8;
-// TanStack's injected development panel owns its own CSS/motion and is not an Orbweaver surface. Letting
-// it into the pack makes app audits mostly report the auditor (font/padding/scrollbar transitions and its
-// logo image), drowning the first-party offender list this bridge exists to produce.
-const EXTERNAL_DEVTOOLS_SELECTOR = '[data-testid^="tsd-"], [aria-label="Open TanStack Devtools"]';
-
-function isExternalDevtoolsElement(el: Element): boolean {
-  return el.closest(EXTERNAL_DEVTOOLS_SELECTOR) !== null;
-}
 
 /** One raised flag, as `__orb.flags()` returns it: which channel, what happened, who did it. */
 export interface MotionFlagRecord {
@@ -83,6 +75,8 @@ const flagRing: MotionFlagRecord[] = [];
 /** Dedupe identity per raised flag (`tag|offender|shape`). A component that animates `height` on every
  *  keystroke would otherwise bury the console in one defect — the point is the OFFENDER LIST, not a count. */
 const raised = new Set<string>();
+let dropLoopActive = false;
+let dropLoopGeneration = 0;
 
 /** The recent raised flags — `window.__orb.flags()`. Bounded; deduped per offender by construction. */
 export function motionFlags(): readonly MotionFlagRecord[] {
@@ -97,6 +91,10 @@ export function motionFlags(): readonly MotionFlagRecord[] {
 export function __resetMotionFlags(): void {
   flagRing.length = 0;
   raised.clear();
+  // A checkpoint must not inherit an rAF loop started by a boot animation. The queued callback cannot be
+  // cancelled without retaining every id, so generation invalidation makes it retire on its next tick.
+  dropLoopGeneration += 1;
+  dropLoopActive = false;
 }
 
 function route(): string {
@@ -142,6 +140,9 @@ function flagDirtyAnimationsOn(el: Element): void {
     return;
   }
   for (const anim of el.getAnimations()) {
+    if (!hasVisibleDuration(anim)) {
+      continue;
+    }
     const props = animatedProperties(anim.effect);
     // A zero-property effect carries nothing to judge (a CSS animation whose keyframes the engine has
     // not resolved yet) — silence beats a false accusation.
@@ -175,39 +176,6 @@ function installAnimationFlagger(): void {
 
 // ── [drop] — rAF gaps DURING an animation ────────────────────────────────────────────────────────────
 
-/** true while any animation is actually running (not merely attached — a finished/paused one is not a
- *  window we care about, and `getAnimations()` keeps finished CSS transitions briefly). */
-function animationTarget(animation: Animation): Element | null {
-  const effect = animation.effect;
-  const target = effect instanceof KeyframeEffect ? effect.target : null;
-  return target instanceof Element ? target : null;
-}
-
-function runningAnimations(): Animation[] {
-  return document.getAnimations().filter((animation) => {
-    const target = animationTarget(animation);
-    return animation.playState === "running" && target !== null && !isExternalDevtoolsElement(target);
-  });
-}
-
-/** The label set of what is animating right now — a dropped frame is only actionable if it names the
- *  motion it stuttered. */
-function runningLabels(animations: readonly Animation[]): string {
-  const labels = new Set<string>();
-  for (const anim of animations) {
-    const el = animationTarget(anim);
-    if (el !== null) {
-      labels.add(surfaceLabelOf(el));
-    }
-  }
-  const entries = [...labels];
-  const visible = entries.slice(0, RUNNING_LABEL_CAP);
-  const remaining = entries.length - visible.length;
-  return entries.length === 0 ? "(no animated element)" : `${visible.join(" · ")}${remaining > 0 ? ` · +${remaining} more` : ""}`;
-}
-
-let dropLoopActive = false;
-
 /** Measure inter-frame gaps for as long as something is animating, then stop. A permanent rAF loop in a
  *  dev build is itself a battery/jank cost, so the loop's LIFETIME is the animation window. */
 function runDropLoop(): void {
@@ -215,12 +183,22 @@ function runDropLoop(): void {
     return;
   }
   dropLoopActive = true;
+  const generation = dropLoopGeneration;
   let last = performance.now();
   const tick = (now: number): void => {
+    if (generation !== dropLoopGeneration) {
+      return;
+    }
     const gap = now - last;
     last = now;
     // One animation-tree walk per frame. Dev instrumentation must not create the jank it reports.
     const running = runningAnimations();
+    // An app/OS reduced-motion floor can finish the triggering animation before this first callback.
+    // A late frame with nothing still moving is not a dropped animation frame.
+    if (running.length === 0) {
+      dropLoopActive = false;
+      return;
+    }
     if (gap > MOTION_BUDGETS.frameGapMs) {
       const who = runningLabels(running);
       raise({
@@ -231,11 +209,7 @@ function runDropLoop(): void {
         overBudget: true,
       });
     }
-    if (running.length > 0) {
-      requestAnimationFrame(tick);
-      return;
-    }
-    dropLoopActive = false;
+    requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
 }

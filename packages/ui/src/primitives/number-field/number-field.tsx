@@ -111,7 +111,7 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           </BaseNumberField.ScrubAreaCursor>
         </BaseNumberField.ScrubArea>
       ) : null}
-      <BaseNumberField.Group className={slots.group()} data-slot="number-field-group">
+      <BaseNumberField.Group aria-label={ariaLabel} className={slots.group()} data-slot="number-field-group">
         {hasSteppers ? (
           <BaseNumberField.Decrement aria-label={stepperLabel(DECREMENT_LABEL, ariaLabel)} className={slots.decrement()} data-slot="number-field-decrement">
             <Icon className={slots.stepIcon()} icon={Minus} size="xs" />

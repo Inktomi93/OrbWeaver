@@ -22,11 +22,12 @@ interface AppendableListProps {
   readonly initialCount: number;
   readonly rowHeightPx: number;
   readonly listHeightPx: number;
+  readonly ariaLabel?: string;
 }
 
 /** A growable, bottom-anchored list — the "Add message" button appends ONE item at the tail, the
  *  real chat shape (new turns land at the end; the reader may or may not be pinned there). */
-export function AppendableList({ initialCount, rowHeightPx, listHeightPx }: AppendableListProps): ReactElement {
+export function AppendableList({ initialCount, rowHeightPx, listHeightPx, ariaLabel }: AppendableListProps): ReactElement {
   const [items, setItems] = useState<FixtureItem[]>(() => makeItems(initialCount));
   return (
     <div>
@@ -35,6 +36,7 @@ export function AppendableList({ initialCount, rowHeightPx, listHeightPx }: Appe
       </button>
       <div style={{ height: listHeightPx }}>
         <MessageList
+          {...(ariaLabel === undefined ? {} : { ariaLabel })}
           items={items}
           getItemKey={(item): string => item.id}
           estimateSize={(): number => rowHeightPx}

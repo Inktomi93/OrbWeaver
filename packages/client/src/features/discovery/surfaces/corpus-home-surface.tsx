@@ -13,6 +13,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
+import { VirtualList } from "@orb/ui/virtual-list";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -30,6 +31,7 @@ type ThemeLevel = "scene" | "arc";
 type ThemeRow = inferOutput<Trpc["discovery"]["home"]>["topSceneThemes"][number];
 
 const MONEY_PRECISION = 2;
+const CORPUS_INSIGHT_ROW_ESTIMATE_PX = 52;
 
 function money(value: number): string {
   return `$${value.toFixed(MONEY_PRECISION)}`;
@@ -127,17 +129,18 @@ function CorpusHomeBody(): ReactElement {
         {gems.length === 0 ? (
           <Text voice="gloss">No quiet-but-invested characters yet.</Text>
         ) : (
-          <Stack gap="row" role="list">
+          <Stack aria-label="Forgotten gems" gap="row" role="list">
             {gems.map((gem) => (
-              <ListRow
-                key={gem.characterId}
-                clickable={true}
-                onClick={(): void => selectCorpusCharacter(gem.characterId)}
-                leading={<CharacterAvatar id={gem.characterId} name={gem.name} hash={gem.avatarHash} />}
-                title={gem.name}
-                subtitle={`${gem.messageCount} messages · ${gem.tokensOut.toString()} tokens · last active ${timeLib.formatRelative(gem.lastActiveAt)}`}
-                actions={<Money value={gem.costUsd} />}
-              />
+              <Row key={gem.characterId} role="listitem">
+                <ListRow
+                  clickable={true}
+                  onClick={(): void => selectCorpusCharacter(gem.characterId)}
+                  leading={<CharacterAvatar id={gem.characterId} name={gem.name} hash={gem.avatarHash} />}
+                  title={gem.name}
+                  subtitle={`${gem.messageCount} messages · ${gem.tokensOut.toString()} tokens · last active ${timeLib.formatRelative(gem.lastActiveAt)}`}
+                  actions={<Money value={gem.costUsd} />}
+                />
+              </Row>
             ))}
           </Stack>
         )}
@@ -147,18 +150,24 @@ function CorpusHomeBody(): ReactElement {
         {unused.length === 0 ? (
           <Text voice="gloss">Every character has been played at least once.</Text>
         ) : (
-          <Stack gap="row" role="list">
-            {unused.map((character) => (
+          <VirtualList
+            aria-label="Never played characters"
+            className="max-h-96"
+            estimateSize={(): number => CORPUS_INSIGHT_ROW_ESTIMATE_PX}
+            fadeEdge={true}
+            gapToken="row"
+            getItemKey={(character): string => character.characterId}
+            items={unused}
+            renderItem={(character): ReactElement => (
               <ListRow
-                key={character.characterId}
                 clickable={true}
                 onClick={(): void => selectCorpusCharacter(character.characterId)}
                 leading={<CharacterAvatar id={character.characterId} name={character.name} hash={character.avatarHash} />}
                 title={character.name}
                 subtitle="Collected but never played"
               />
-            ))}
-          </Stack>
+            )}
+          />
         )}
       </Section>
 
@@ -200,16 +209,17 @@ function ThemeGroup({
       {themes.length === 0 ? (
         <Text voice="gloss">No {label.toLowerCase()} themes computed yet.</Text>
       ) : (
-        <Stack gap="row" role="list">
+        <Stack aria-label={`${label} themes`} gap="row" role="list">
           {themes.map((row) => (
-            <ListRow
-              key={row.id}
-              clickable={true}
-              selected={selected !== null && selected.clusterIdx === row.clusterIdx && selected.level === row.level}
-              onClick={(): void => onSelect({ clusterIdx: row.clusterIdx, level: row.level })}
-              title={row.name ?? "Unnamed theme"}
-              subtitle={`${row.size} digests`}
-            />
+            <Row key={row.id} role="listitem">
+              <ListRow
+                clickable={true}
+                selected={selected !== null && selected.clusterIdx === row.clusterIdx && selected.level === row.level}
+                onClick={(): void => onSelect({ clusterIdx: row.clusterIdx, level: row.level })}
+                title={row.name ?? "Unnamed theme"}
+                subtitle={`${row.size} digests`}
+              />
+            </Row>
           ))}
         </Stack>
       )}

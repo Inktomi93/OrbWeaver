@@ -25,7 +25,7 @@ export const buttonVariants = tv({
     "inline-flex select-none items-center justify-center gap-field whitespace-nowrap rounded-control font-sans font-medium",
     // Tailwind v4 `scale-*` sets the standalone `scale` CSS property, not the transform matrix, so the
     // transition must name `scale` — `transition-[...transform]` would not animate it.
-    "transition-[color,background-color,box-shadow,scale] duration-(--motion-fast) ease-out-expo active:scale-95",
+    "transition-[scale] duration-(--motion-fast) ease-out-expo active:scale-95",
     "outline-none",
     FOCUS_RING,
     DISABLED_STATE_NATIVE,

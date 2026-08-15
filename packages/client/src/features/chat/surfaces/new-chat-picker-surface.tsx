@@ -26,7 +26,7 @@ import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { CharacterPicker } from "#components";
 import { useStartChat } from "#data";
 import { useFocusOnMount } from "#lib";
@@ -40,11 +40,15 @@ export function NewChatPicker(): ReactElement {
 
   const [selected, setSelected] = useState<ReadonlySet<CharacterId>>(() => new Set<CharacterId>());
   // The creation parameters this open was PRE-ARMED with (the home temp-chat tile's `temporary: true`).
-  // Cleared when the modal unmounts — dismissing the picker must not leave them armed for the next plain
-  // New chat.
+  // Cleared by a real modal dismiss — never component cleanup, which React Strict Mode probes while this
+  // modal remains logically open. Every opener also overwrites it before opening.
   const intent = useNewChatIntent();
-  useEffect(() => clearNewChatIntent, []);
   const { startChat, isPending } = useStartChat();
+
+  const dismiss = (): void => {
+    clearNewChatIntent();
+    closeModal();
+  };
 
   const toggle = (id: CharacterId): void => {
     setSelected((prev) => {
@@ -111,7 +115,7 @@ export function NewChatPicker(): ReactElement {
           </CommandGroup>
         }
         listClassName="max-h-96"
-        onEscape={closeModal}
+        onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"
         rowsHeading="Characters"

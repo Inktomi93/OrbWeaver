@@ -50,6 +50,12 @@ const ANALYSED: TrpcRoutes = {
   "discovery.themeDrift": [],
 };
 
+const LARGE_UNUSED_LIBRARY = Array.from({ length: 206 }, (_, index) => ({
+  characterId: `character_${index.toString().padStart(3, "0")}`,
+  name: `Unplayed ${index.toString()}`,
+  avatarHash: null,
+}));
+
 function stub(page: Page, shape: TrpcRoutes): Promise<TrpcRecorder> {
   return routeTrpc(page, shape);
 }
@@ -92,6 +98,43 @@ test("once the jobs have run, the analysis sections are back and the collapsed s
   await expect(component.getByText("The long road")).toBeVisible();
   // The control for the assertion above: the collapse is CONDITIONAL, not a removal.
   await expect(component.getByText("Nothing analysed yet")).toHaveCount(0);
+});
+
+test("clickable insight collections expose named lists with real listitem children", async ({ mount, page }) => {
+  await stub(page, {
+    ...ANALYSED,
+    "discovery.forgottenGems": [
+      {
+        characterId: "character_quiet",
+        name: "Quiet star",
+        avatarHash: null,
+        messageCount: 42,
+        tokensOut: 1200,
+        lastActiveAt: 1_700_000_000_000,
+        costUsd: 0.25,
+      },
+    ],
+  });
+  const component = await mount(<CorpusContentStory />);
+
+  const themes = component.getByRole("list", { name: "Scenes themes" });
+  await expect(themes.getByRole("listitem")).toHaveCount(1);
+  await expect(themes.getByRole("button", { name: "The long road" })).toBeVisible();
+
+  const gems = component.getByRole("list", { name: "Forgotten gems" });
+  await expect(gems.getByRole("listitem")).toHaveCount(1);
+  await expect(gems.getByRole("button", { name: "Quiet star" })).toBeVisible();
+});
+
+test("a large never-played library is windowed instead of mounting every avatar row", async ({ mount, page }) => {
+  await stub(page, { ...ANALYSED, "discovery.unusedCharacters": LARGE_UNUSED_LIBRARY });
+  const component = await mount(<CorpusContentStory />);
+
+  const list = component.getByRole("list", { name: "Never played characters" });
+  await expect(list).toBeVisible();
+  await expect(list).toHaveAttribute("data-more", "");
+  await expect.poll(() => list.getByRole("listitem").count()).toBeLessThan(LARGE_UNUSED_LIBRARY.length);
+  await expect(list.getByRole("listitem").first()).toHaveAttribute("aria-setsize", LARGE_UNUSED_LIBRARY.length.toString());
 });
 
 test("the CONTENT region insets its own body — no row starts flush at the pane edge", async ({ mount, page }) => {

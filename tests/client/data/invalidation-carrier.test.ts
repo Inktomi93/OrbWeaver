@@ -128,4 +128,25 @@ describe("applyCanonView — the view carrier written into the room's message li
 
     expect(queryClient.getQueryData([...key])).toBeUndefined();
   });
+
+  test("a carrier that beats the open room's initial read patches the page as soon as that read lands", async () => {
+    const { queryClient, trpc } = setup();
+    const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
+    const initial = Promise.withResolvers<ReturnType<typeof page>>();
+    const read = queryClient.fetchQuery({ queryKey: [...key], queryFn: () => initial.promise });
+
+    applyCanonView(queryClient, trpc, {
+      type: "messageCommitted",
+      chatId: CHAT_ID,
+      messageId: MESSAGE_ID,
+      view: view(MESSAGE_ID, "new variant"),
+    });
+    initial.resolve(page([view(OTHER_MESSAGE_ID, "Ping?"), view(MESSAGE_ID, "old variant")]));
+    await read;
+
+    expect(cachedRows(queryClient, key)).toEqual([
+      { id: OTHER_MESSAGE_ID, content: "Ping?" },
+      { id: MESSAGE_ID, content: "new variant" },
+    ]);
+  });
 });
