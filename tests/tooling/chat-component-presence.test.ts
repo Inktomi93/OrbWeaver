@@ -58,6 +58,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "message-content",
     why: "MessageContent renders the choices block; the message-content choices CTs drive render + click-send + the disabled arms.",
   },
+  "card-block": {
+    coveredBy: "message-content",
+    why: "CardBlock is the shared card mount extracted from MessageContent; message-content.ct drives tierA/tierB, CSP media policy, srcdoc rendering, raw/expand/collapse, and truncated-card arms. ghost-message-row.ct separately drives the same mount during streaming.",
+  },
   "member-row": { coveredBy: "members-panel", why: "MembersPanel renders MemberRow; the members-panel CT drives its rows end-to-end." },
   "member-row-menu": { coveredBy: "members-panel", why: "buildMenuItems is exercised via the real row menu in members-panel.ct." },
   "talkativeness-popover": { coveredBy: "members-panel", why: "the Talkativeness… popover (commit/re-seed/snap-back) is driven through members-panel.ct." },

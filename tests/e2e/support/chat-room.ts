@@ -30,6 +30,11 @@ import { expect } from "@playwright/test";
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
 const APP_READY = "html[data-app-ready]";
 const BOOTSTRAP_MESSAGE = "Hi";
+// The first lazy Chats route can trigger Vite dependency optimization after the boot shell has already
+// marked itself ready. Vite then reloads the page and compiles the route graph; the cold push-gate receipt
+// measured 42s before the list appeared. This budget stays below the spec's 60s ceiling while covering
+// that one-time dev-server restart. Warm navigation remains immediate.
+const COLD_CHAT_SURFACE_TIMEOUT = 45_000;
 
 // The dev introspection handle's shape, as read from inside a browser-context `page.evaluate`. Declared
 // locally (not imported from the client's ambient `declare global`) — the e2e support tree stays
@@ -131,7 +136,7 @@ export async function openOrCreateChat(page: Page): Promise<void> {
   // branch is the normal path.
   const chatsList = page.getByRole("list", { name: "Chats" });
   const emptyState = page.getByText("No chats yet");
-  await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: 15_000 });
+  await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
 
   const rows = chatsList.getByRole("button");
   if ((await rows.count()) === 0) {
@@ -195,7 +200,7 @@ export async function openNewestChat(page: Page): Promise<void> {
   await page.goto("/");
   await waitForAppReady(page);
   const rows = page.getByRole("list", { name: "Chats" }).getByRole("button");
-  await expect(rows.first()).toBeVisible({ timeout: 15_000 });
+  await expect(rows.first()).toBeVisible({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
   await rows.first().click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
 }
@@ -267,7 +272,7 @@ export async function openChatByTitle(page: Page, title: string): Promise<void> 
   await page.goto("/");
   await waitForAppReady(page);
   const row = page.getByRole("list", { name: "Chats" }).getByRole("button", { name: title }).first();
-  await expect(row).toBeVisible({ timeout: 15_000 });
+  await expect(row).toBeVisible({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
   await row.click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
 }

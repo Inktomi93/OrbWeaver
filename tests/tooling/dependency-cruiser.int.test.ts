@@ -202,6 +202,10 @@ function writeAllFixtures(): void {
   // a FEATURE reaching one of them is the backdoor to another feature's front door (F-3).
   fx("packages/client/src/agent-nav/__dc_t.ts", VAL);
   fx("packages/client/src/features/__dc_cfeat/comptier.ts", `import "../../agent-nav/__dc_t.ts";\n`);
+  // client-compose-door-only: a feature importing the composition door would expose every feature front
+  // door through one apparently legal hop. The lazy-route composition split added this separate wall.
+  fx("packages/client/src/compose/__dc_t.ts", VAL);
+  fx("packages/client/src/features/__dc_cfeat/compose-door.ts", `import "../../compose/__dc_t.ts";\n`);
 
   // client-components-tier (G5): components/ never imports UP into features/routes/main.tsx.
   fx("packages/client/src/components/__dc_t/i.ts", VAL);
