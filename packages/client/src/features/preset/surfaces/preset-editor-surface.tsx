@@ -57,21 +57,16 @@ import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { setPresetEditorView, usePresetEditorView } from "#state";
-import { ActionsView } from "../components/actions-view.tsx";
-import { ParamsDeck } from "../components/params-deck.tsx";
 import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog.tsx";
-import { PresetStructureTabs } from "../components/preset-structure-tabs.tsx";
-import { RegexTab } from "../components/regex-tab.tsx";
-import { UserMacrosTab } from "../components/user-macros-tab.tsx";
-import { VariablesTab } from "../components/variables-tab.tsx";
 import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
 import { useResetPreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { resolvedForLabel } from "../lib/effective-knobs.ts";
 import { presetDraftStore } from "../lib/preset-draft-store.ts";
 import { seedConfig, validatePresetProse } from "../lib/preset-editor-model.ts";
-import type { PresetEditorView } from "../lib/preset-nav.ts";
-import { openSectionInPrompt, PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
+import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
+import type { ViewContentProps } from "../lib/preset-view-content.tsx";
+import { viewContent } from "../lib/preset-view-content.tsx";
 import type { ReadFailure } from "../lib/resolve-failure.ts";
 
 /** ONE string for the reset door's accessible name AND its hover tooltip (the O-3 icon-door anatomy). */
@@ -117,73 +112,6 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
       </QueryBoundary>
     </Stack>
   );
-}
-
-interface ViewContentProps {
-  readonly form: AppFormInstance<PromptConfig>;
-  readonly capability: ModelCapability | undefined;
-  readonly capabilityError: ReadFailure | null;
-  /** The funnel projected for this preset (§4.3) — undefined while unavailable. */
-  readonly effective: EffectiveProfileRow | undefined;
-  /** The server-only BYOK passthrough's keys (D7's presence row) — it never enters the form values. */
-  readonly customParameterKeys: readonly string[];
-  /** The Macros body's source attribution (`preset:<id>` in the browser). */
-  readonly presetId: PresetId;
-  /** Can this preset hold regex ATTACHMENTS? `false` for the built-in default (null `ownerId`), whose
-   *  attachment read `ensurePresetOwned` refuses by construction. The SAME fact the CONTEXT readout takes
-   *  (`TransformsReadout.attachable`) — one fact, one answer, so the Transforms tab and the readout beside it
-   *  cannot say different things about the same eight pipeline stages (side-eye 2026-08-07 P2). */
-  readonly attachable: boolean;
-  readonly onRevealSection?: (() => void) | undefined;
-}
-
-/** Render one VIEW's body. Params is the new deck; the other four are the landed bodies re-homed per the
- *  §3 map (Data and Transforms simply stack the leaves that used to be sub-tabs). */
-function viewContent(id: PresetEditorView["id"], props: ViewContentProps): ReactElement {
-  const { form, capability, capabilityError, effective, customParameterKeys, presetId, attachable, onRevealSection } = props;
-  switch (id) {
-    case "params":
-      return (
-        <ParamsDeck capability={capability} capabilityError={capabilityError} customParameterKeys={customParameterKeys} effective={effective} form={form} />
-      );
-    case "prompt":
-      // No `capability` here any more: the one cluster that read it (Collapsing's floor line) moved to
-      // Transforms with the rest of the wire-shaping tail (O-17★).
-      return <PresetStructureTabs form={form} onRevealSection={onRevealSection} presetId={presetId} tab="prompt" />;
-    case "actions":
-      return (
-        <ActionsView
-          form={form}
-          // THE REAL DOOR (crunch-list O-13): the cross-link used to select a rack row and leave you
-          // standing in Actions, where no rack exists — a click with no visible effect. `openSectionInPrompt`
-          // does both halves (view + selection); the reveal stays for the narrow regime, where the readout
-          // that echoes the selection is a closed sheet.
-          onSelectSection={(sectionId): void => {
-            openSectionInPrompt(sectionId);
-            onRevealSection?.();
-          }}
-        />
-      );
-    case "data":
-      return (
-        <Stack gap="section">
-          <VariablesTab form={form} />
-          <UserMacrosTab form={form} presetId={presetId} />
-        </Stack>
-      );
-    case "transforms":
-      return (
-        <Stack gap="section">
-          {/* DELIVERY + COLLAPSING lead the view (crunch-list O-17★): they shape the OUTGOING wire, so
-              they sit above the prompt-side regex lanes and everything reply-side, in the same execution
-              order the Transforms readout prints. */}
-          <PresetStructureTabs capability={capability} form={form} presetId={presetId} tab="delivery" />
-          <RegexTab attachable={attachable} presetId={presetId} />
-          <PresetStructureTabs form={form} presetId={presetId} tab="postProcess" />
-          <PresetStructureTabs form={form} presetId={presetId} tab="templates" />
-        </Stack>
-      );
-  }
 }
 
 function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): ReactElement {

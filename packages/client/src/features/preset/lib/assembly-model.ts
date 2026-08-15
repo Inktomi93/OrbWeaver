@@ -37,8 +37,8 @@ export function sectionKind(section: PromptSection): SectionKind {
 // updating here fails `tsc` at every narrowed call site instead of silently landing in only 2 of 3 `if`s
 // (Spine-TypeScript-and-Patterns.md §"String-union dispatch discipline").
 type MarkerSection = Extract<PromptSection, { type: "marker" }>;
-export type TemplatedMarkerSection = MarkerSection & { readonly marker: keyof typeof DEFAULT_MARKER_TEMPLATES };
-export type PlainMarkerSection = MarkerSection & { readonly marker: Exclude<MarkerType, keyof typeof DEFAULT_MARKER_TEMPLATES> };
+type TemplatedMarkerSection = MarkerSection & { readonly marker: keyof typeof DEFAULT_MARKER_TEMPLATES };
+type PlainMarkerSection = MarkerSection & { readonly marker: Exclude<MarkerType, keyof typeof DEFAULT_MARKER_TEMPLATES> };
 
 /** Narrows to the templated-marker arm — same test as `isTemplatedMarker`, applied to the whole section
  *  so a caller crossing a component-prop boundary keeps the narrowing (`section.template`/`.marker` read
@@ -51,7 +51,6 @@ export function isTemplatedMarkerSection(section: PromptSection): section is Tem
 export function isPlainMarkerSection(section: PromptSection): section is PlainMarkerSection {
   return section.type === "marker" && !isTemplatedMarker(section.marker);
 }
-
 
 /** The glyph icon for a section — the MARKER'S OWN glyph (`MARKER_COPY.glyph`), and Pencil for a literal
  *  (the author's own text). Per-marker, not per-kind (side-eye F-17): a kind glyph rendered nine of the

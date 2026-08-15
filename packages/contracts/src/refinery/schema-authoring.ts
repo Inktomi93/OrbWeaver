@@ -57,10 +57,10 @@ export type RenderHintTone = (typeof RENDER_HINT_TONES)[number];
 /** The hint roles — elevations over the structure-keyed floor. */
 export const RENDER_HINT_ROLES = ["hero", "verdict", "axis", "prose", "title", "score", "body", "badge"] as const;
 /** The member twin of `RENDER_HINT_ROLES` — the role-authoring surface (#73): the schema editor's
- *  render-hint picker (`schema-editor-dialog.tsx`) imports this to type its `<Select>` state, so an
- *  author picks a role from the vocabulary instead of hand-typing one of 8 magic strings. WIRED, not
- *  `@public future` any longer — the tuple stays the runtime value both the picker and the renderer
- *  read; this alias is the picker's compile-time handle on it. */
+ *  render-hint picker (`render-hint-picker.tsx`, split out of `schema-editor-dialog.tsx`) imports this
+ *  to type its `<Select>` state, so an author picks a role from the vocabulary instead of hand-typing
+ *  one of 8 magic strings. WIRED with a live prod consumer — the tuple stays the runtime value both the
+ *  picker and the renderer read; this alias is the picker's compile-time handle on it. */
 export type RenderHintRole = (typeof RENDER_HINT_ROLES)[number];
 
 /** One node's `x-orb-ui` hint. `tone` maps enum MEMBERS to tone words (the verdict banner's good/warn/bad
