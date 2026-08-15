@@ -102,8 +102,8 @@ export const useUpdateRefinerySession = createEntityMutation<inferInput<Trpc["re
   errorToast: "Couldn't save the session.",
 });
 
-/** @public future: the R3 refinery surface (board C15) — the R2 write tier for session deletion (the runs
- *  cascade with it). No prod consumer until R3; the CT drives it today. */
+/** @public future: the R3 refinery surface — the R2 write tier for session deletion (the runs cascade
+ *  with it). No prod consumer until the R3 session-library surface builds; the CT drives it today. */
 export const useDeleteRefinerySession = createEntityMutation<inferInput<Trpc["refinery"]["deleteSession"]>, unknown>({
   options: (trpc) => trpc.refinery.deleteSession.mutationOptions(),
   // The verb emits AFTER the delete (the user bus is live-only — no durable event row to orphan). A cached
