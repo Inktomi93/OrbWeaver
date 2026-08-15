@@ -126,6 +126,55 @@ function devCspMirror(): Plugin {
   };
 }
 
+// ── Workspace-export-move staleness (#32) ─────────────────────────────────────────────────────────
+// A merge that MOVES an export across a workspace-package boundary (@orb/kit, @orb/contracts,
+// @orb/ui — the three packages @orb/client actually reaches through the cake) rewrites that
+// package's own `package.json` "exports"/"imports" map. Vite's dev-server watcher is scoped to
+// `root` (this package) plus whatever files get pulled into the live MODULE GRAPH as transformable
+// modules — a sibling workspace's `package.json` is neither: the resolver reads it once per
+// specifier and never revisits it, and it never gets added to the watcher on its own. Measured live
+// (2026-08-14, this repo, rolldown-vite 8.1.2): with the dev server already running, editing
+// `packages/ui/package.json` to repoint an existing subpath at a DIFFERENT file produced ZERO HMR
+// event, and a client file that had already been transformed kept resolving through the STALE
+// target for the rest of that process's life — touching the client file (forcing Vite to
+// re-transform it) OR fully restarting the process both self-heal (a fresh process re-reads
+// `package.json` cold, no `--force` needed — Vite's own docs: "restart the dev server with --force"
+// covers the case where a linked package's THIRD-PARTY dependency LIST changes; a plain reachable
+// specifier remap needs only a restart). What neither self-heals is a LIVE session that never
+// restarts — exactly the shape of this repo's overnight multi-lane runs, where a sibling lane's
+// export move lands on disk while this dev server keeps running underneath it.
+//
+// So: explicitly watch the three package.json files client can reach through and RESTART THE
+// SERVER IN-PROCESS (`server.restart()`, no forced re-optimize — the plain restart already proved
+// sufficient above) the moment one changes. This is strictly narrower than nuking
+// `node_modules/.vite` on every boot (which would tax every ordinary restart) — it fires only when
+// the three files that actually define what a workspace import resolves to change, and it self-heals
+// a LIVE session without requiring the operator to notice, hand-clear the cache, and bounce :5173.
+function orbWorkspaceExportsRestart(): Plugin {
+  const workspaceRoot = searchForWorkspaceRoot(import.meta.dirname);
+  // db/server are excluded ON PURPOSE — client never imports through them (package cake:
+  // kit ← contracts ← db ← server ← client, + the sealed ui: kit ← ui ← client).
+  const watchedPkgJson = new Set(["kit", "contracts", "ui"].map((pkg) => `${workspaceRoot}/packages/${pkg}/package.json`));
+  return {
+    name: "orb:workspace-exports-restart",
+    apply: "serve",
+    configureServer(server): void {
+      for (const file of watchedPkgJson) {
+        server.watcher.add(file);
+      }
+      server.watcher.on("change", (file: string): void => {
+        if (!watchedPkgJson.has(file)) {
+          return;
+        }
+        server.config.logger.info(`orb: ${file.slice(workspaceRoot.length + 1)} changed — restarting dev server so workspace-export moves take effect`, {
+          timestamp: true,
+        });
+        void server.restart();
+      });
+    },
+  };
+}
+
 // @orb/client build — fully es2025, React-Compiler full-compile from day one (D54). Entry is
 // index.html + src/main.tsx with a hand-written code-based route tree (src/routes/ — no file-based
 // codegen, UI-Arch §6.1). Every non-default option below is annotated with its why; the full
@@ -196,6 +245,8 @@ export default defineConfig({
     }),
     // Dev-serve only: mirrors the backend's live, setting-dependent document CSP (see CSP_DEV_FALLBACK).
     devCspMirror(),
+    // Dev-serve only: self-heals a live session across a workspace export move (#32, see above).
+    orbWorkspaceExportsRestart(),
   ],
   optimizeDeps: {
     // Keep @orb/ui as SOURCE (never pre-bundled) so the React Compiler babel pass above actually
