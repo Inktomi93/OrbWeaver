@@ -120,6 +120,9 @@ const EPILOGUE_TAG = "[ast]";
 const CORPUS_TYPED = "search-globs(packages/*/src,tests,scripts/**,packages/*/*.ts,*.mts,playwright)";
 const CORPUS_SYNTACTIC = "harness-globs(packages/*/src,tests,scripts/check/gates)";
 const CORPUS_DEPCRUISE = "depcruise(.dependency-cruiser.cjs)";
+/** The syntactic verbs whose ARGUMENT is a symbol/module NAME (not a path) — the ones where a zero can be
+ *  a corpus false clean rather than an answer, so their no-results line carries the corpus caveat. */
+const NAME_LOOKUP_SYNTACTIC_VERBS = new Set(["callers", "ident", "jsx", "importers"]);
 
 function beginRun(verb: string, corpus: string, flags: Flags): void {
   const scopeParts = [`corpus:${corpus}`];
@@ -440,7 +443,18 @@ function emit(hits: Hit[], flags: Flags, label: string): void {
     console.log(`${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
   const overflow = unique.length > shown.length ? ` (showing ${shown.length} — raise --max)` : "";
-  console.log(unique.length === 0 ? `RESULT ast ${label}: no results` : `RESULT ast ${label}: ${unique.length} hit(s)${overflow} in ${files} file(s)`);
+  // A zero on a NAME-lookup syntactic verb is only as good as its corpus: scripts/** outside check/gates
+  // is not in harness-globs, so a symbol living there (e.g. scripts/github/*, scripts/dev/*) zero-matches
+  // while being fully alive — a real false clean, measured. Say so instead of printing a bare "no results".
+  // Path-scoped verbs (exports/aliases) stay bare: their argument names a file that WAS scanned.
+  const syntacticZero =
+    unique.length === 0 && ledger !== undefined && NAME_LOOKUP_SYNTACTIC_VERBS.has(ledger.verb) && ledger.scopeParts[0] === `corpus:${CORPUS_SYNTACTIC}`;
+  const corpusHint = syntacticZero
+    ? " — NOTE: the syntactic corpus excludes scripts/** outside check/gates; a symbol living there needs a search-corpus verb (refs)"
+    : "";
+  console.log(
+    unique.length === 0 ? `RESULT ast ${label}: no results${corpusHint}` : `RESULT ast ${label}: ${unique.length} hit(s)${overflow} in ${files} file(s)`,
+  );
 }
 
 // One workspace project per invocation, via the ONE sanctioned bootstrap (scripts/ts-workspace.ts).
@@ -453,24 +467,24 @@ function loadProject(needTypes: boolean): Project {
 /** Every exported (workspace-wide) or module-local (same-file refs still matter) declaration named `name`,
  *  over the SCANNED corpus (the caller's `scanCorpus` result — never a second walk of the project). */
 function declarationsNamed(files: readonly SourceFile[], name: string): Node[] {
-  const out: Node[] = [];
+  // Dedupe by node identity: `getExportedDeclarations()` resolves THROUGH re-exports, so every barrel
+  // that re-exports a shape returns the SAME origin node — without this, a barreled symbol counts one
+  // "declaration" per barrel (false one-home alarm) and refs run/push once per duplicate (inflated hits).
+  const candidates: Node[] = [];
   for (const sf of files) {
-    const exported = sf.getExportedDeclarations().get(name);
-    if (exported) {
-      out.push(...exported);
-    }
-    for (const fn of sf.getFunctions()) {
-      if (fn.getName() === name && !fn.isExported()) {
-        out.push(fn);
-      }
-    }
-    for (const v of sf.getVariableDeclarations()) {
-      if (v.getName() === name && !v.isExported()) {
-        out.push(v);
-      }
-    }
+    candidates.push(...(sf.getExportedDeclarations().get(name) ?? []));
+    candidates.push(...sf.getFunctions().filter((fn) => fn.getName() === name && !fn.isExported()));
+    candidates.push(...sf.getVariableDeclarations().filter((v) => v.getName() === name && !v.isExported()));
   }
-  return out;
+  const seen = new Set<string>();
+  return candidates.filter((node) => {
+    const key = `${node.getSourceFile().getFilePath()}:${node.getStart()}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 function cmdRefs(project: Project, name: string, flags: Flags): void {
@@ -4505,7 +4519,10 @@ function runDepcruise(mode: string, pattern: string): void {
     encoding: "utf8",
     maxBuffer: DEPCRUISE_MAX_BUFFER_BYTES,
   });
-  const out = (res.stdout ?? "").trim();
+  // depcruise emits one text line per EDGE INSTANCE, so a value import and a type import of the same
+  // module render as identical lines — dedupe before printing (order preserved; counts stay honest).
+  const raw = (res.stdout ?? "").trim();
+  const out = raw === "" ? "" : [...new Set(raw.split("\n"))].join("\n");
   console.log(out === "" ? `RESULT ast ${mode} ${pattern}: no edges` : out);
   // A pass-through: depcruise owns the walk, so `scanned` stays n/a rather than carrying a number this
   // process did not measure. `matches` is the edge-line count — the one result quantity we DO observe.

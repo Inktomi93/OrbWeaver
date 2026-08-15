@@ -83,6 +83,22 @@ test(
 );
 
 test(
+  "a zero-match NAME lookup on the syntactic corpus carries the corpus caveat — a symbol in unscanned scripts/** must not read as absent",
+  () => {
+    // `callers` scans harness-globs (packages src + tests + scripts/check/gates): a function that lives
+    // ONLY in e.g. scripts/github/ zero-matches here while being fully alive. The bare "no results" line
+    // read as a clean answer once (a file-local `gh()` helper); the caveat is the fix. Path-scoped verbs
+    // (the `exports` case above) stay bare — their argument names a file that WAS scanned.
+    const run = runAst(["callers", "thisSymbolExistsNowhereAtAll"]);
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain("no results — NOTE: the syntactic corpus excludes scripts/**");
+    expect(run.epilogue["matches"]).toBe("0");
+    expect(run.epilogue["status"]).toBe("complete");
+  },
+  SPAWN_TIMEOUT_MS,
+);
+
+test(
   "a matching run reports its matches, and the epilogue never touches stdout",
   () => {
     const run = runAst(["exports", "packages/kit/src/ids"]);
