@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, globSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, globSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -162,21 +162,24 @@ function json<T>(path: string): T {
 
 function stableJson(value: unknown): string {
   const source = `${JSON.stringify(value, null, 2)}\n`;
-  const formatted = execFileSync("pnpm", ["exec", "biome", "format", "--stdin-file-path", OUTPUT_PATH], {
-    cwd: root,
-    encoding: "utf8",
-    input: source,
-  });
-  // FAIL LOUD, never write garbage: past `files.maxSize` biome treats the stdin file as IGNORED and
-  // returns EMPTY stdout with exit 0 — writing that verbatim zeroed catalog.json (measured 2026-08-15,
-  // the file crossed 1 MiB). An empty or non-JSON round-trip is a tool failure, not a formatting result.
-  if (formatted.trim() === "") {
-    throw new Error(
-      `stableJson: biome returned empty output for ${OUTPUT_PATH} (file over biome files.maxSize? raise the override in biome.json) — refusing to write 0 bytes`,
-    );
+  // Format via a TEMP FILE inside docs/catalog (so the biome.json maxSize override matches) with the
+  // biome BINARY invoked directly — never `pnpm exec` + stdin: the double-hop with execFileSync's
+  // synchronous `input` buffer throws ENOBUFS past ~1 MiB, and the stdin route was also the
+  // silent-empty-output path when the payload crossed `files.maxSize` (both measured 2026-08-15).
+  const tmp = join(root, `${CATALOG_DIR}/catalog.tmp.json`);
+  try {
+    writeFileSync(tmp, source);
+    execFileSync(join(root, "node_modules/.bin/biome"), ["format", "--write", tmp], { cwd: root, encoding: "utf8" });
+    const formatted = readFileSync(tmp, "utf8");
+    // FAIL LOUD, never write garbage: an empty or non-JSON round-trip is a tool failure, not a result.
+    if (formatted.trim() === "") {
+      throw new Error(`stableJson: biome produced empty output for ${OUTPUT_PATH} — refusing to write 0 bytes`);
+    }
+    JSON.parse(formatted);
+    return formatted;
+  } finally {
+    rmSync(tmp, { force: true });
   }
-  JSON.parse(formatted);
-  return formatted;
 }
 
 function sha256(content: Buffer | string): string {
