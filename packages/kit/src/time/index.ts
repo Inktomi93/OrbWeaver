@@ -105,7 +105,7 @@ export interface TimeLib {
   /** `3m ago` / `in 2h`; past ~7 days falls back to `formatDate` (relative loses meaning). */
   readonly formatRelative: (epochMs: number) => string;
   /** `2h` / `1d` / `3w` — the LIST-ROW stamp form: the same instant with the tense words dropped, so a
-   *  dense row spends ~2-3 characters on recency instead of ~7 (list-pane-projection side-eye P1-2). Use
+   *  dense row spends ~2-3 characters on recency instead of ~7. Use
    *  it where the stamp is a COLUMN the eye scans; a sentence ("edited 5m ago") keeps `formatRelative`. */
   readonly formatRelativeCompact: (epochMs: number) => string;
   /** Current epoch-ms from the SAME injected clock the formatters use — the sanctioned "now" read (a
