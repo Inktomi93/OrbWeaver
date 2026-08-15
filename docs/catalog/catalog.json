@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "stats": {
     "pending": 0,
-    "missingFrontmatter": 213,
-    "invalidFrontmatter": 33,
+    "missingFrontmatter": 183,
+    "invalidFrontmatter": 12,
     "malformedFrontmatter": 0
   },
   "documents": [
@@ -2075,24 +2075,28 @@
       "path": "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 349,
-      "bytes": 27646,
-      "sha256": "7d3ed1e5eda7c21e17d99b391f7341420ebc36c0177b3f5928782bc3a4ea8dc9",
+      "lines": 355,
+      "bytes": 27708,
+      "sha256": "936352db7df9c8e05cc6f1d10994f951b8a0766f9baf1eac0e93bb785e854956",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-08-08"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md",
-        "assignedSha256": "7d3ed1e5eda7c21e17d99b391f7341420ebc36c0177b3f5928782bc3a4ea8dc9",
+        "assignedSha256": "936352db7df9c8e05cc6f1d10994f951b8a0766f9baf1eac0e93bb785e854956",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "7d3ed1e5eda7c21e17d99b391f7341420ebc36c0177b3f5928782bc3a4ea8dc9",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "936352db7df9c8e05cc6f1d10994f951b8a0766f9baf1eac0e93bb785e854956",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -2424,27 +2428,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 122,
-      "bytes": 8219,
-      "sha256": "0af19da8c7ec0f782cefc2ec0e66f6898ac0c80ecf5cfd471fcb6f345b77d1ce",
+      "bytes": 8225,
+      "sha256": "1438bac048005dbaa1ed428e98a82938d4fae4daf6b8708c665bde992a293186",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "shipped",
-          "updated": "2026-07-10"
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-12"
         },
-        "errors": ["docs/architecture/history/assets-maintenance.md: invalid frontmatter status shipped"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/assets-maintenance.md",
-        "assignedSha256": "0af19da8c7ec0f782cefc2ec0e66f6898ac0c80ecf5cfd471fcb6f345b77d1ce",
+        "assignedSha256": "1438bac048005dbaa1ed428e98a82938d4fae4daf6b8708c665bde992a293186",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "0af19da8c7ec0f782cefc2ec0e66f6898ac0c80ecf5cfd471fcb6f345b77d1ce",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "1438bac048005dbaa1ed428e98a82938d4fae4daf6b8708c665bde992a293186",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/assets-maintenance.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -2459,27 +2463,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 95,
-      "bytes": 6024,
-      "sha256": "e271245efb3b38740fef39297e6cd6ace1ffe2319bf3728ab24e6e1361da003c",
+      "bytes": 6030,
+      "sha256": "051757433757e9c67790c9f1b756e8b63c729b4392ac990844d6fe11dc4635b8",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "shipped",
-          "updated": "2026-07-10"
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-16"
         },
-        "errors": ["docs/architecture/history/buddy-observer-reaction-engine.md: invalid frontmatter status shipped"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/buddy-observer-reaction-engine.md",
-        "assignedSha256": "e271245efb3b38740fef39297e6cd6ace1ffe2319bf3728ab24e6e1361da003c",
+        "assignedSha256": "051757433757e9c67790c9f1b756e8b63c729b4392ac990844d6fe11dc4635b8",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "e271245efb3b38740fef39297e6cd6ace1ffe2319bf3728ab24e6e1361da003c",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "051757433757e9c67790c9f1b756e8b63c729b4392ac990844d6fe11dc4635b8",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/buddy-observer-reaction-engine.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -2599,27 +2603,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 99,
-      "bytes": 14054,
-      "sha256": "6c2c3ec1410e1894cb2e8d4c35811e831e4969a40beef24eb654873851f069ec",
+      "bytes": 14056,
+      "sha256": "6e1d36eed103c566d4f353bba64ca38e62213f898a0a175a2652becdf4bdb1ea",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "implemented",
-          "updated": "2026-07-11"
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-08-03"
         },
-        "errors": ["docs/architecture/history/client-tooling-setup.md: invalid frontmatter status implemented"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/client-tooling-setup.md",
-        "assignedSha256": "6c2c3ec1410e1894cb2e8d4c35811e831e4969a40beef24eb654873851f069ec",
+        "assignedSha256": "6e1d36eed103c566d4f353bba64ca38e62213f898a0a175a2652becdf4bdb1ea",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "6c2c3ec1410e1894cb2e8d4c35811e831e4969a40beef24eb654873851f069ec",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "6e1d36eed103c566d4f353bba64ca38e62213f898a0a175a2652becdf4bdb1ea",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/client-tooling-setup.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -2634,27 +2638,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 829,
-      "bytes": 70126,
-      "sha256": "22dbe6741f07b48bb17efcd9dbc96d37bcfc4109eea0ef6ff2370c2b6701072d",
+      "bytes": 70131,
+      "sha256": "8a2db7ee25dcc3c477bbf5cd6663b95046166c4765bf97a33fcdc4829a7c94b5",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "realized",
-          "updated": "2026-07-20"
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-24"
         },
-        "errors": ["docs/architecture/history/comfyui-control-integration-spec.md: invalid frontmatter status realized"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/comfyui-control-integration-spec.md",
-        "assignedSha256": "22dbe6741f07b48bb17efcd9dbc96d37bcfc4109eea0ef6ff2370c2b6701072d",
+        "assignedSha256": "8a2db7ee25dcc3c477bbf5cd6663b95046166c4765bf97a33fcdc4829a7c94b5",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "22dbe6741f07b48bb17efcd9dbc96d37bcfc4109eea0ef6ff2370c2b6701072d",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "8a2db7ee25dcc3c477bbf5cd6663b95046166c4765bf97a33fcdc4829a7c94b5",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/comfyui-control-integration-spec.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -2703,24 +2707,28 @@
       "path": "docs/architecture/history/core-laws-archaeology-record.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 118,
-      "bytes": 19142,
-      "sha256": "d61966d9365cc0c7fb782094a2b79501e37c8b14d29394cfc1c1a174c0d5d77f",
+      "lines": 124,
+      "bytes": 19204,
+      "sha256": "f26a3b3fe5aee15a82dd00e3a5aa821cb044fe6fcdccd86af8dc24f4c012264f",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-13"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/core-laws-archaeology-record.md",
-        "assignedSha256": "d61966d9365cc0c7fb782094a2b79501e37c8b14d29394cfc1c1a174c0d5d77f",
+        "assignedSha256": "f26a3b3fe5aee15a82dd00e3a5aa821cb044fe6fcdccd86af8dc24f4c012264f",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "d61966d9365cc0c7fb782094a2b79501e37c8b14d29394cfc1c1a174c0d5d77f",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "f26a3b3fe5aee15a82dd00e3a5aa821cb044fe6fcdccd86af8dc24f4c012264f",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/core-laws-archaeology-record.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -2735,27 +2743,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 265,
-      "bytes": 23334,
-      "sha256": "75c81e564ad6f463853e9c259e2428db3126cadf97ab5a7bdb2de53040ad0aab",
+      "bytes": 23337,
+      "sha256": "e8745c4bd482f72e7f28e14da716b5d9e88b20ed464ca678a97aca4d60d3641e",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "history",
-          "status": "shipped",
+          "status": "superseded",
           "updated": "2026-07-16"
         },
-        "errors": ["docs/architecture/history/derive-modernization-audit.md: invalid frontmatter status shipped"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/derive-modernization-audit.md",
-        "assignedSha256": "75c81e564ad6f463853e9c259e2428db3126cadf97ab5a7bdb2de53040ad0aab",
+        "assignedSha256": "e8745c4bd482f72e7f28e14da716b5d9e88b20ed464ca678a97aca4d60d3641e",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "75c81e564ad6f463853e9c259e2428db3126cadf97ab5a7bdb2de53040ad0aab",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "e8745c4bd482f72e7f28e14da716b5d9e88b20ed464ca678a97aca4d60d3641e",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/derive-modernization-audit.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -2770,27 +2778,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 183,
-      "bytes": 16809,
-      "sha256": "11b8d3ecfda6caec813b88c05425881a5cab82866d950671b0a47ecf0205381f",
+      "bytes": 16811,
+      "sha256": "63c2f43027bd1b3baa3562cf05f902a00bc80f219e573fb8b7421a8511053c52",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "history",
-          "status": "as-built",
-          "updated": "2026-07-11"
+          "status": "superseded",
+          "updated": "2026-07-12"
         },
-        "errors": ["docs/architecture/history/design-enforcement.md: invalid frontmatter status as-built"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/design-enforcement.md",
-        "assignedSha256": "11b8d3ecfda6caec813b88c05425881a5cab82866d950671b0a47ecf0205381f",
+        "assignedSha256": "63c2f43027bd1b3baa3562cf05f902a00bc80f219e573fb8b7421a8511053c52",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "11b8d3ecfda6caec813b88c05425881a5cab82866d950671b0a47ecf0205381f",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "63c2f43027bd1b3baa3562cf05f902a00bc80f219e573fb8b7421a8511053c52",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/design-enforcement.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -2910,27 +2918,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 218,
-      "bytes": 17995,
-      "sha256": "a5bf11998e00550c323d3b55d20caca3f485e291fe4500dc18084eb830c84d4c",
+      "bytes": 18001,
+      "sha256": "265aa609a00ea8281e9c91faa84a6df03fff951dd8f913069cf1fbf63bf9cf85",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "shipped",
-          "updated": "2026-07-11"
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-12"
         },
-        "errors": ["docs/architecture/history/export-import-portability.md: invalid frontmatter status shipped"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/export-import-portability.md",
-        "assignedSha256": "a5bf11998e00550c323d3b55d20caca3f485e291fe4500dc18084eb830c84d4c",
+        "assignedSha256": "265aa609a00ea8281e9c91faa84a6df03fff951dd8f913069cf1fbf63bf9cf85",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "a5bf11998e00550c323d3b55d20caca3f485e291fe4500dc18084eb830c84d4c",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "265aa609a00ea8281e9c91faa84a6df03fff951dd8f913069cf1fbf63bf9cf85",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/export-import-portability.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -2945,27 +2953,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 480,
-      "bytes": 29296,
-      "sha256": "e8334e8f4a3af238eacaa0f38395776c86c62502e7ed2e11e117c10ad4d290ec",
+      "bytes": 29298,
+      "sha256": "98f38cb464b10f5c2de3777c57911b790dbd2842e542af49a0ada21a57a1ddab",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "implemented",
-          "updated": "2026-07-11"
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-08-14"
         },
-        "errors": ["docs/architecture/history/gallery-design.md: invalid frontmatter status implemented"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/gallery-design.md",
-        "assignedSha256": "e8334e8f4a3af238eacaa0f38395776c86c62502e7ed2e11e117c10ad4d290ec",
+        "assignedSha256": "98f38cb464b10f5c2de3777c57911b790dbd2842e542af49a0ada21a57a1ddab",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "e8334e8f4a3af238eacaa0f38395776c86c62502e7ed2e11e117c10ad4d290ec",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "98f38cb464b10f5c2de3777c57911b790dbd2842e542af49a0ada21a57a1ddab",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/gallery-design.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -2980,27 +2988,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 214,
-      "bytes": 10183,
-      "sha256": "12127749b8f2b3d2f03b2b3a57426d25dfc5494151eb5595dc997c5f03ccb3de",
+      "bytes": 10185,
+      "sha256": "bab94cf89a10eae69848836db25a49f2d8e91545a05782d8639463230d34c5c1",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "implemented",
-          "updated": "2026-07-11"
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-12"
         },
-        "errors": ["docs/architecture/history/gallery.md: invalid frontmatter status implemented"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/gallery.md",
-        "assignedSha256": "12127749b8f2b3d2f03b2b3a57426d25dfc5494151eb5595dc997c5f03ccb3de",
+        "assignedSha256": "bab94cf89a10eae69848836db25a49f2d8e91545a05782d8639463230d34c5c1",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "12127749b8f2b3d2f03b2b3a57426d25dfc5494151eb5595dc997c5f03ccb3de",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "bab94cf89a10eae69848836db25a49f2d8e91545a05782d8639463230d34c5c1",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/gallery.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3084,24 +3092,28 @@
       "path": "docs/architecture/history/neo-orb-parity-audit.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 194,
-      "bytes": 49353,
-      "sha256": "3011dbdbdb80fa4237b25998ae6507ac2025a439b6be9b6c73f38288c1e84600",
+      "lines": 200,
+      "bytes": 49415,
+      "sha256": "a4bff96d5e94e9fbbe6be6e0134d6d3b2bfeb573b196c0b541af4a028239921b",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-13"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/neo-orb-parity-audit.md",
-        "assignedSha256": "3011dbdbdb80fa4237b25998ae6507ac2025a439b6be9b6c73f38288c1e84600",
+        "assignedSha256": "a4bff96d5e94e9fbbe6be6e0134d6d3b2bfeb573b196c0b541af4a028239921b",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "3011dbdbdb80fa4237b25998ae6507ac2025a439b6be9b6c73f38288c1e84600",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "a4bff96d5e94e9fbbe6be6e0134d6d3b2bfeb573b196c0b541af4a028239921b",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/neo-orb-parity-audit.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3115,24 +3127,28 @@
       "path": "docs/architecture/history/neo-test-steal-list.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 165,
-      "bytes": 12428,
-      "sha256": "9ea09c295979181a014fd0e1076022450fce3ff1c986d7bfcff5e5c4d70a7f99",
+      "lines": 171,
+      "bytes": 12490,
+      "sha256": "7ee63035b3eeeaf526d8bc7c35aa5d4139cf0c58729fc8458ad78921a6c75f8e",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-10"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/neo-test-steal-list.md",
-        "assignedSha256": "9ea09c295979181a014fd0e1076022450fce3ff1c986d7bfcff5e5c4d70a7f99",
+        "assignedSha256": "7ee63035b3eeeaf526d8bc7c35aa5d4139cf0c58729fc8458ad78921a6c75f8e",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "9ea09c295979181a014fd0e1076022450fce3ff1c986d7bfcff5e5c4d70a7f99",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "7ee63035b3eeeaf526d8bc7c35aa5d4139cf0c58729fc8458ad78921a6c75f8e",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/neo-test-steal-list.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3182,27 +3198,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 46,
-      "bytes": 2728,
-      "sha256": "c49368de45cf60da653c37dc5b7f693d2dae3a6f864be4c8dd7c81010a416090",
+      "bytes": 2737,
+      "sha256": "55c621e83f2840bd648ea05fa8c5a8e59c8b15a26ca58a74cfbd0bbbe13cd6f5",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "done",
-          "updated": "2026-07-12"
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-13"
         },
-        "errors": ["docs/architecture/history/preset-form-mapper-elimination.md: invalid frontmatter status done"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/preset-form-mapper-elimination.md",
-        "assignedSha256": "c49368de45cf60da653c37dc5b7f693d2dae3a6f864be4c8dd7c81010a416090",
+        "assignedSha256": "55c621e83f2840bd648ea05fa8c5a8e59c8b15a26ca58a74cfbd0bbbe13cd6f5",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "c49368de45cf60da653c37dc5b7f693d2dae3a6f864be4c8dd7c81010a416090",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "55c621e83f2840bd648ea05fa8c5a8e59c8b15a26ca58a74cfbd0bbbe13cd6f5",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/preset-form-mapper-elimination.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3216,24 +3232,28 @@
       "path": "docs/architecture/history/prompt-manager.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 512,
-      "bytes": 31859,
-      "sha256": "d2721896bc99ff81e21dc1ba776010d7304347ed5de55594dd247f262d97e1d8",
+      "lines": 518,
+      "bytes": 31921,
+      "sha256": "8b87727b8030e1cbed5a1c23ad30abefce0280a09e1a37286a757a0236b8bfa1",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-13"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/prompt-manager.md",
-        "assignedSha256": "d2721896bc99ff81e21dc1ba776010d7304347ed5de55594dd247f262d97e1d8",
+        "assignedSha256": "8b87727b8030e1cbed5a1c23ad30abefce0280a09e1a37286a757a0236b8bfa1",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "d2721896bc99ff81e21dc1ba776010d7304347ed5de55594dd247f262d97e1d8",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "8b87727b8030e1cbed5a1c23ad30abefce0280a09e1a37286a757a0236b8bfa1",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/prompt-manager.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3247,24 +3267,28 @@
       "path": "docs/architecture/history/rpg-console-commit-mini-spec.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 113,
-      "bytes": 9269,
-      "sha256": "84f337de8d469677846ee5fbde25be825e339a973c8b3da3352c49b5e060904c",
+      "lines": 119,
+      "bytes": 9331,
+      "sha256": "50a5efd60ea01f853378fd34726c559e84abc0c0e64ea250afb512a00b6f5183",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-24"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/rpg-console-commit-mini-spec.md",
-        "assignedSha256": "84f337de8d469677846ee5fbde25be825e339a973c8b3da3352c49b5e060904c",
+        "assignedSha256": "50a5efd60ea01f853378fd34726c559e84abc0c0e64ea250afb512a00b6f5183",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "84f337de8d469677846ee5fbde25be825e339a973c8b3da3352c49b5e060904c",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "50a5efd60ea01f853378fd34726c559e84abc0c0e64ea250afb512a00b6f5183",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/rpg-console-commit-mini-spec.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3314,27 +3338,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 207,
-      "bytes": 16413,
-      "sha256": "40359d5ccdeacefaf3abfaadb1b75d8f7bbcf95eabc9469dedc1c07b7ff14e00",
+      "bytes": 16416,
+      "sha256": "70dc64f0a083b98fe6b5b6b97725a889684883cebc29d5181e2a008374dd126c",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "history",
-          "status": "shipped",
+          "status": "superseded",
           "updated": "2026-07-16"
         },
-        "errors": ["docs/architecture/history/shell-chrome-unification.md: invalid frontmatter status shipped"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/shell-chrome-unification.md",
-        "assignedSha256": "40359d5ccdeacefaf3abfaadb1b75d8f7bbcf95eabc9469dedc1c07b7ff14e00",
+        "assignedSha256": "70dc64f0a083b98fe6b5b6b97725a889684883cebc29d5181e2a008374dd126c",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "40359d5ccdeacefaf3abfaadb1b75d8f7bbcf95eabc9469dedc1c07b7ff14e00",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "70dc64f0a083b98fe6b5b6b97725a889684883cebc29d5181e2a008374dd126c",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/shell-chrome-unification.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3383,24 +3407,28 @@
       "path": "docs/architecture/history/spine-testing-archaeology-record.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 39,
-      "bytes": 2685,
-      "sha256": "ea313461745dab7c12cc02487583bc353d709e3f73d07659c2ebcb30bde6d701",
+      "lines": 45,
+      "bytes": 2747,
+      "sha256": "9d5cfc04bce1aac340cea6a325b2004504fd639005458b41d5b3957a3e2d15ec",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-13"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/spine-testing-archaeology-record.md",
-        "assignedSha256": "ea313461745dab7c12cc02487583bc353d709e3f73d07659c2ebcb30bde6d701",
+        "assignedSha256": "9d5cfc04bce1aac340cea6a325b2004504fd639005458b41d5b3957a3e2d15ec",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "ea313461745dab7c12cc02487583bc353d709e3f73d07659c2ebcb30bde6d701",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "9d5cfc04bce1aac340cea6a325b2004504fd639005458b41d5b3957a3e2d15ec",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/spine-testing-archaeology-record.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3521,27 +3549,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 48,
-      "bytes": 2931,
-      "sha256": "8d060c07579e66bae87cc20b1413dc98e040893293105343f9b794d0bcbc5c8e",
+      "bytes": 2937,
+      "sha256": "4c309a1e2ee309ecb236234f4eb60adfeb8ac06a202cafcae0921173b6aff023",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "shipped",
-          "updated": "2026-07-03"
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-12"
         },
-        "errors": ["docs/architecture/history/tag-pending-review.md: invalid frontmatter status shipped"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/tag-pending-review.md",
-        "assignedSha256": "8d060c07579e66bae87cc20b1413dc98e040893293105343f9b794d0bcbc5c8e",
+        "assignedSha256": "4c309a1e2ee309ecb236234f4eb60adfeb8ac06a202cafcae0921173b6aff023",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "8d060c07579e66bae87cc20b1413dc98e040893293105343f9b794d0bcbc5c8e",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "4c309a1e2ee309ecb236234f4eb60adfeb8ac06a202cafcae0921173b6aff023",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/tag-pending-review.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3555,24 +3583,28 @@
       "path": "docs/architecture/history/test-quality-review.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 211,
-      "bytes": 16399,
-      "sha256": "30f766e3b9123f9beb0c78d8085d88c1a7d0e4e0895a902df72b5461053db46e",
+      "lines": 217,
+      "bytes": 16461,
+      "sha256": "23bf13c627e43edbc482cf89f6ece7aa2454463a262f12c23808985cc98f367a",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-10"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/test-quality-review.md",
-        "assignedSha256": "30f766e3b9123f9beb0c78d8085d88c1a7d0e4e0895a902df72b5461053db46e",
+        "assignedSha256": "23bf13c627e43edbc482cf89f6ece7aa2454463a262f12c23808985cc98f367a",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "30f766e3b9123f9beb0c78d8085d88c1a7d0e4e0895a902df72b5461053db46e",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "23bf13c627e43edbc482cf89f6ece7aa2454463a262f12c23808985cc98f367a",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/test-quality-review.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3586,24 +3618,28 @@
       "path": "docs/architecture/history/test-support-dry-punchlist.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 180,
-      "bytes": 14464,
-      "sha256": "ad7997a6816f06a111556cf034abfc2168d14bc4868987c09c93fcb2c14d5e3d",
+      "lines": 186,
+      "bytes": 14526,
+      "sha256": "401f930a47dadd22d0b0a1908d47e715622a3fd33719ba5b78e1bf2e388f6f35",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-10"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/test-support-dry-punchlist.md",
-        "assignedSha256": "ad7997a6816f06a111556cf034abfc2168d14bc4868987c09c93fcb2c14d5e3d",
+        "assignedSha256": "401f930a47dadd22d0b0a1908d47e715622a3fd33719ba5b78e1bf2e388f6f35",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "ad7997a6816f06a111556cf034abfc2168d14bc4868987c09c93fcb2c14d5e3d",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "401f930a47dadd22d0b0a1908d47e715622a3fd33719ba5b78e1bf2e388f6f35",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/test-support-dry-punchlist.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3618,27 +3654,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 366,
-      "bytes": 22540,
-      "sha256": "ac59a5d71ff928a0279a2771ccc3268b5f9882acd4813166bb94d49659f58d8e",
+      "bytes": 22542,
+      "sha256": "45aa3e212b708a3c89c7afbd542ffd59e06a1988e6587b24a0ecb26035b67919",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "implemented",
+          "kind": "history",
+          "status": "superseded",
           "updated": "2026-07-09"
         },
-        "errors": ["docs/architecture/history/themes-design.md: invalid frontmatter status implemented"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/themes-design.md",
-        "assignedSha256": "ac59a5d71ff928a0279a2771ccc3268b5f9882acd4813166bb94d49659f58d8e",
+        "assignedSha256": "45aa3e212b708a3c89c7afbd542ffd59e06a1988e6587b24a0ecb26035b67919",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "ac59a5d71ff928a0279a2771ccc3268b5f9882acd4813166bb94d49659f58d8e",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "45aa3e212b708a3c89c7afbd542ffd59e06a1988e6587b24a0ecb26035b67919",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/themes-design.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3862,24 +3898,28 @@
       "path": "docs/architecture/history/ui-polish-punchlist.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 552,
-      "bytes": 39967,
-      "sha256": "7cde0ff954da244a7c7642ab6cf4bc441f5b5d44de51607866fa1ea2692042bd",
+      "lines": 558,
+      "bytes": 40029,
+      "sha256": "ab0df633db16b1801dc171c516239b6a1eb4654ca20b837d2bc3e365f465de8d",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-13"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/ui-polish-punchlist.md",
-        "assignedSha256": "7cde0ff954da244a7c7642ab6cf4bc441f5b5d44de51607866fa1ea2692042bd",
+        "assignedSha256": "ab0df633db16b1801dc171c516239b6a1eb4654ca20b837d2bc3e365f465de8d",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "7cde0ff954da244a7c7642ab6cf4bc441f5b5d44de51607866fa1ea2692042bd",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "ab0df633db16b1801dc171c516239b6a1eb4654ca20b837d2bc3e365f465de8d",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/ui-polish-punchlist.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3963,24 +4003,28 @@
       "path": "docs/architecture/history/ux-flow-revamp.md",
       "lane": "architecture-history",
       "issue": 3,
-      "lines": 561,
-      "bytes": 47125,
-      "sha256": "e79aa4c839ccd7d71994c54787f6d98aca6ee67f0225251c1fa7cb5a04c3b500",
+      "lines": 567,
+      "bytes": 47187,
+      "sha256": "ef7045051715bab4b9dca8bd00ebf5bc4a7788754e612957b7614d15c9ef926e",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-13"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/ux-flow-revamp.md",
-        "assignedSha256": "e79aa4c839ccd7d71994c54787f6d98aca6ee67f0225251c1fa7cb5a04c3b500",
+        "assignedSha256": "ef7045051715bab4b9dca8bd00ebf5bc4a7788754e612957b7614d15c9ef926e",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "e79aa4c839ccd7d71994c54787f6d98aca6ee67f0225251c1fa7cb5a04c3b500",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "ef7045051715bab4b9dca8bd00ebf5bc4a7788754e612957b7614d15c9ef926e",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/ux-flow-revamp.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -3995,27 +4039,27 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 113,
-      "bytes": 8085,
-      "sha256": "efc9fb0b34535082d4fde783ffb649cb28d85bd033c93f6bae13d01694026fbd",
+      "bytes": 8091,
+      "sha256": "6c7dc1d3fa395f2a7c4ca568308da4d434f7093dc268665ef93c549a5db72be7",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "shipped",
-          "updated": "2026-07-03"
+          "kind": "history",
+          "status": "superseded",
+          "updated": "2026-07-31"
         },
-        "errors": ["docs/architecture/history/workloads-deferred-designs.md: invalid frontmatter status shipped"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/architecture/history/workloads-deferred-designs.md",
-        "assignedSha256": "efc9fb0b34535082d4fde783ffb649cb28d85bd033c93f6bae13d01694026fbd",
+        "assignedSha256": "6c7dc1d3fa395f2a7c4ca568308da4d434f7093dc268665ef93c549a5db72be7",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "efc9fb0b34535082d4fde783ffb649cb28d85bd033c93f6bae13d01694026fbd",
-        "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "6c7dc1d3fa395f2a7c4ca568308da4d434f7093dc268665ef93c549a5db72be7",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/workloads-deferred-designs.md:1 (full read; historical header/provenance evaluated)",
           "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
@@ -6101,24 +6145,28 @@
       "path": "docs/architecture/proposed/connections/CONNECTIONS-BUILD-SPEC.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 617,
-      "bytes": 40738,
-      "sha256": "6dd9640bda49a0aa807230359deec9c6c189adc034f6ff38c66db4fc7f108b86",
+      "lines": 623,
+      "bytes": 40795,
+      "sha256": "4d96abec603dc6e47ff74e4597542074389149010a70c3238c882a972a1f5ea4",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "spec",
+          "status": "complete",
+          "updated": "2026-07-13"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/connections/CONNECTIONS-BUILD-SPEC.md",
-        "assignedSha256": "6dd9640bda49a0aa807230359deec9c6c189adc034f6ff38c66db4fc7f108b86",
+        "assignedSha256": "4d96abec603dc6e47ff74e4597542074389149010a70c3238c882a972a1f5ea4",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "6dd9640bda49a0aa807230359deec9c6c189adc034f6ff38c66db4fc7f108b86",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "4d96abec603dc6e47ff74e4597542074389149010a70c3238c882a972a1f5ea4",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/proposed/connections/CONNECTIONS-BUILD-SPEC.md:1 (full read; lifecycle/frontmatter evaluated)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -10164,24 +10212,28 @@
       "path": "docs/barrel-star-reexport-residue.md",
       "lane": "root-operational",
       "issue": 8,
-      "lines": 213,
-      "bytes": 14314,
-      "sha256": "8c8ca0e2f959f3f028242383d84e3ad6cf263e7ca79696c8a7858ddd396c0768",
+      "lines": 219,
+      "bytes": 14373,
+      "sha256": "82e394e183b575ad8d0ff6b27ad271fa2f466dc155390ceb4be86e4d048f30a4",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "complete",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/barrel-star-reexport-residue.md",
-        "assignedSha256": "3e7b3e9f57158a11f45f53e4d93d7b3051435fe196f14f23c9fd29d3bf66c918",
+        "assignedSha256": "82e394e183b575ad8d0ff6b27ad271fa2f466dc155390ceb4be86e4d048f30a4",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "8c8ca0e2f959f3f028242383d84e3ad6cf263e7ca79696c8a7858ddd396c0768",
-        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "82e394e183b575ad8d0ff6b27ad271fa2f466dc155390ceb4be86e4d048f30a4",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/barrel-star-reexport-residue.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -10195,24 +10247,28 @@
       "path": "docs/client-smalls-lane.md",
       "lane": "root-operational",
       "issue": 8,
-      "lines": 70,
-      "bytes": 5280,
-      "sha256": "c3bf562b7af2010d9b6a27f7c9bbac870f23205061a03c29c15169e4b00d0671",
+      "lines": 76,
+      "bytes": 5339,
+      "sha256": "a4b39ae9943cb314d80bf059b40a9f7c4f191943688b90c7eb236ff7490c98f3",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "review",
+          "status": "complete",
+          "updated": "2026-08-07"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/client-smalls-lane.md",
-        "assignedSha256": "c3bf562b7af2010d9b6a27f7c9bbac870f23205061a03c29c15169e4b00d0671",
+        "assignedSha256": "a4b39ae9943cb314d80bf059b40a9f7c4f191943688b90c7eb236ff7490c98f3",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "c3bf562b7af2010d9b6a27f7c9bbac870f23205061a03c29c15169e4b00d0671",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "a4b39ae9943cb314d80bf059b40a9f7c4f191943688b90c7eb236ff7490c98f3",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/client-smalls-lane.md:1",
           "git log --oneline -5 -- docs",
@@ -10328,26 +10384,26 @@
       "issue": 5,
       "lines": 534,
       "bytes": 45781,
-      "sha256": "d093ec0de8b1c5dea6835ff45b6fe8bf21c0192ac8923269a536a9a2a9c38670",
+      "sha256": "83ef2862df248519475c761650cef39bfd774838993c24a57d5faef33a555588",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
-          "status": "proposed",
+          "status": "archived",
           "updated": "2026-08-14"
         },
-        "errors": ["docs/design/chat-creation-draft-mode-replacement.md: invalid frontmatter status proposed"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/chat-creation-draft-mode-replacement.md",
-        "assignedSha256": "d093ec0de8b1c5dea6835ff45b6fe8bf21c0192ac8923269a536a9a2a9c38670",
+        "assignedSha256": "83ef2862df248519475c761650cef39bfd774838993c24a57d5faef33a555588",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "d093ec0de8b1c5dea6835ff45b6fe8bf21c0192ac8923269a536a9a2a9c38670",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "83ef2862df248519475c761650cef39bfd774838993c24a57d5faef33a555588",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/chat-creation-draft-mode-replacement.md:1 (design; proposed)",
           "git log --oneline -1 -- docs/design/chat-creation-draft-mode-replacement.md: d05081dee feat(chat): forceCharacterTurn accepts its slot + F6 in-window join greeting",
@@ -10542,24 +10598,28 @@
       "path": "docs/design/context-panel-fidelity-findings.md",
       "lane": "design",
       "issue": 5,
-      "lines": 189,
-      "bytes": 15561,
-      "sha256": "233dae203ad850289f73a9c84fde4c39797549ed302f950849fbe1b7e94d63f0",
+      "lines": 195,
+      "bytes": 15620,
+      "sha256": "f287a9a5fdb8439c93f4c47bcebb591f4fa0ca6f1011d0d5d7bd996846278c16",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-07-31"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/context-panel-fidelity-findings.md",
-        "assignedSha256": "233dae203ad850289f73a9c84fde4c39797549ed302f950849fbe1b7e94d63f0",
+        "assignedSha256": "f287a9a5fdb8439c93f4c47bcebb591f4fa0ca6f1011d0d5d7bd996846278c16",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "233dae203ad850289f73a9c84fde4c39797549ed302f950849fbe1b7e94d63f0",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "f287a9a5fdb8439c93f4c47bcebb591f4fa0ca6f1011d0d5d7bd996846278c16",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/context-panel-fidelity-findings.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/context-panel-fidelity-findings.md: f066b71b7 feat(chat): the context-budget bar is FILL-VS-HEADROOM (owner ruling D-4a)",
@@ -10789,24 +10849,28 @@
       "path": "docs/design/draft-trust-render-policy-seam.md",
       "lane": "design",
       "issue": 5,
-      "lines": 69,
-      "bytes": 4173,
-      "sha256": "78c5f7942a5beb2bf7bcd5e5ada0d91612704dbe9e58991829a695567a0ceec2",
+      "lines": 75,
+      "bytes": 4232,
+      "sha256": "48c4db461a586e01aa0f47ca27f2dacb30e092094c617530c583e6a692f38d41",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-09"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/draft-trust-render-policy-seam.md",
-        "assignedSha256": "78c5f7942a5beb2bf7bcd5e5ada0d91612704dbe9e58991829a695567a0ceec2",
+        "assignedSha256": "48c4db461a586e01aa0f47ca27f2dacb30e092094c617530c583e6a692f38d41",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "78c5f7942a5beb2bf7bcd5e5ada0d91612704dbe9e58991829a695567a0ceec2",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "48c4db461a586e01aa0f47ca27f2dacb30e092094c617530c583e6a692f38d41",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/draft-trust-render-policy-seam.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/draft-trust-render-policy-seam.md: 7e0301698 docs: #48 + #50 merged (a6133ffe4/02f0a91a0); draft-trust doc corrected (inverted mechanism, arm 1 built); C12 refused",
@@ -10890,24 +10954,28 @@
       "path": "docs/design/gate-ignore-mention-fence.md",
       "lane": "design",
       "issue": 5,
-      "lines": 133,
-      "bytes": 9964,
-      "sha256": "5ead7f7dbcc747964f06f323d6b4e63dd9d7dda5b8a28fe69452facc444a163c",
+      "lines": 139,
+      "bytes": 10023,
+      "sha256": "5f38012edd9dfe8daf98fe6524be19c485fc83c2a34acfa3062c72ed45c26cff",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/gate-ignore-mention-fence.md",
-        "assignedSha256": "a75cea93fb72048ea58be6a1729d26928b9d068ec054dc01959a14892fddda3b",
+        "assignedSha256": "5f38012edd9dfe8daf98fe6524be19c485fc83c2a34acfa3062c72ed45c26cff",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "5ead7f7dbcc747964f06f323d6b4e63dd9d7dda5b8a28fe69452facc444a163c",
-        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "5f38012edd9dfe8daf98fe6524be19c485fc83c2a34acfa3062c72ed45c26cff",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/gate-ignore-mention-fence.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -11056,24 +11124,28 @@
       "path": "docs/design/login-loading-screen.md",
       "lane": "design",
       "issue": 5,
-      "lines": 462,
-      "bytes": 36157,
-      "sha256": "6ba4ae661202e18d6151e03153d30e811731ddb88f4faacd1ccabe567549ebdb",
+      "lines": 468,
+      "bytes": 36216,
+      "sha256": "f4ed81ea064b68dea7cda996748e7b3a0b7073635a84201de0489dafc28cd398",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-09"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/login-loading-screen.md",
-        "assignedSha256": "6ba4ae661202e18d6151e03153d30e811731ddb88f4faacd1ccabe567549ebdb",
+        "assignedSha256": "f4ed81ea064b68dea7cda996748e7b3a0b7073635a84201de0489dafc28cd398",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "6ba4ae661202e18d6151e03153d30e811731ddb88f4faacd1ccabe567549ebdb",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "f4ed81ea064b68dea7cda996748e7b3a0b7073635a84201de0489dafc28cd398",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/login-loading-screen.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/login-loading-screen.md: 20b70532e feat(brand): login + boot loading web-weave, brand A install, one-loader WebSpinner",
@@ -11087,24 +11159,28 @@
       "path": "docs/design/mocks/README.md",
       "lane": "design",
       "issue": 5,
-      "lines": 30,
-      "bytes": 4460,
-      "sha256": "624bdee7298c73b38df8047e6a7119eefcedc5ee91e96669ee5fc48c6270a686",
+      "lines": 36,
+      "bytes": 4519,
+      "sha256": "b89b9f4f3c38c24cf2eee7d96a67e6b889489326e04125c5dcf68b3f6cf78b69",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/mocks/README.md",
-        "assignedSha256": "624bdee7298c73b38df8047e6a7119eefcedc5ee91e96669ee5fc48c6270a686",
+        "assignedSha256": "b89b9f4f3c38c24cf2eee7d96a67e6b889489326e04125c5dcf68b3f6cf78b69",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "624bdee7298c73b38df8047e6a7119eefcedc5ee91e96669ee5fc48c6270a686",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "b89b9f4f3c38c24cf2eee7d96a67e6b889489326e04125c5dcf68b3f6cf78b69",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/mocks/README.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
@@ -11118,24 +11194,28 @@
       "path": "docs/design/mocks/crunchy-cluster-redesign/DESIGN.md",
       "lane": "design",
       "issue": 5,
-      "lines": 951,
-      "bytes": 78711,
-      "sha256": "a52c0a41fd03861e26b03fa3ff0874e565f055d38a8ee33e135ed2caf7d780da",
+      "lines": 957,
+      "bytes": 78770,
+      "sha256": "4ebe3d86a1ca3c07ec4e26a7486a7f8c5fb822efd0892e9bc39b947a93d3462e",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/mocks/crunchy-cluster-redesign/DESIGN.md",
-        "assignedSha256": "6f6a593ac2b3b1f9ba2832a2687404ad396700915b87ce622e7cccc2ac0241b5",
+        "assignedSha256": "4ebe3d86a1ca3c07ec4e26a7486a7f8c5fb822efd0892e9bc39b947a93d3462e",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "a52c0a41fd03861e26b03fa3ff0874e565f055d38a8ee33e135ed2caf7d780da",
-        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "4ebe3d86a1ca3c07ec4e26a7486a7f8c5fb822efd0892e9bc39b947a93d3462e",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/mocks/crunchy-cluster-redesign/DESIGN.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -11149,24 +11229,28 @@
       "path": "docs/design/mocks/panel-redesign/DESIGN.md",
       "lane": "design",
       "issue": 5,
-      "lines": 614,
-      "bytes": 43937,
-      "sha256": "b82aa098e074d26f1d2f3ddb4b28ad1b3d5420e0e07a0ce913b8619196549414",
+      "lines": 620,
+      "bytes": 43996,
+      "sha256": "5e5be8f7ac8f26a4df19701bd3756ad81356688e36ddd0d247779f972b540873",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-07-31"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/mocks/panel-redesign/DESIGN.md",
-        "assignedSha256": "b82aa098e074d26f1d2f3ddb4b28ad1b3d5420e0e07a0ce913b8619196549414",
+        "assignedSha256": "5e5be8f7ac8f26a4df19701bd3756ad81356688e36ddd0d247779f972b540873",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "b82aa098e074d26f1d2f3ddb4b28ad1b3d5420e0e07a0ce913b8619196549414",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "5e5be8f7ac8f26a4df19701bd3756ad81356688e36ddd0d247779f972b540873",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/mocks/panel-redesign/DESIGN.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/mocks/panel-redesign/DESIGN.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
@@ -11182,26 +11266,26 @@
       "issue": 5,
       "lines": 481,
       "bytes": 37254,
-      "sha256": "f72043730d4cf2aff055c7515ebb0b420a86ed1c82e696b535bf86c52b0c49ac",
+      "sha256": "112aa941bb48ccc94ebcdfb312c31b646425c7caf0db684e7ca5cc5030905a58",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
-          "status": "proposed",
-          "updated": "2026-08-03"
+          "status": "archived",
+          "updated": "2026-08-07"
         },
-        "errors": ["docs/design/node-26-adoption-program.md: invalid frontmatter status proposed"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/node-26-adoption-program.md",
-        "assignedSha256": "f72043730d4cf2aff055c7515ebb0b420a86ed1c82e696b535bf86c52b0c49ac",
+        "assignedSha256": "112aa941bb48ccc94ebcdfb312c31b646425c7caf0db684e7ca5cc5030905a58",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "f72043730d4cf2aff055c7515ebb0b420a86ed1c82e696b535bf86c52b0c49ac",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "112aa941bb48ccc94ebcdfb312c31b646425c7caf0db684e7ca5cc5030905a58",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/node-26-adoption-program.md:1 (design; proposed)",
           "git log --oneline -1 -- docs/design/node-26-adoption-program.md: 8bf392be3 refactor(node-26): W4.5 withResolvers + W4.2 toSorted burn-down; both gate arms land",
@@ -11216,27 +11300,27 @@
       "lane": "design",
       "issue": 5,
       "lines": 100,
-      "bytes": 8189,
-      "sha256": "8dc168e0d02635e8170bcf8fa79008355aaf2c1437915cdcda889297464be0c5",
+      "bytes": 8191,
+      "sha256": "f80939226b575d32b983f68ad76f8bad2dbe3620a9fc62a0bf5e39a466a54bb9",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
-          "status": "landed",
+          "status": "archived",
           "updated": "2026-08-07"
         },
-        "errors": ["docs/design/node-26-w4-residual-burndown.md: invalid frontmatter status landed"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/node-26-w4-residual-burndown.md",
-        "assignedSha256": "8dc168e0d02635e8170bcf8fa79008355aaf2c1437915cdcda889297464be0c5",
+        "assignedSha256": "f80939226b575d32b983f68ad76f8bad2dbe3620a9fc62a0bf5e39a466a54bb9",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "8dc168e0d02635e8170bcf8fa79008355aaf2c1437915cdcda889297464be0c5",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "f80939226b575d32b983f68ad76f8bad2dbe3620a9fc62a0bf5e39a466a54bb9",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/node-26-w4-residual-burndown.md:1 (design; landed)",
           "git log --oneline -1 -- docs/design/node-26-w4-residual-burndown.md: 8bf392be3 refactor(node-26): W4.5 withResolvers + W4.2 toSorted burn-down; both gate arms land",
@@ -11350,24 +11434,28 @@
       "path": "docs/design/openrouter-provider-findings.md",
       "lane": "design",
       "issue": 5,
-      "lines": 220,
-      "bytes": 13313,
-      "sha256": "d63b5d29af24d54da8df2b819a4c03eda8d36c99208ce2fb0231966b0df64175",
+      "lines": 226,
+      "bytes": 13372,
+      "sha256": "4825a2693fa609577203ed8281653ac368e5e4cc405af264678b2da68d0ce45e",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-08"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/openrouter-provider-findings.md",
-        "assignedSha256": "d63b5d29af24d54da8df2b819a4c03eda8d36c99208ce2fb0231966b0df64175",
+        "assignedSha256": "4825a2693fa609577203ed8281653ac368e5e4cc405af264678b2da68d0ce45e",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "d63b5d29af24d54da8df2b819a4c03eda8d36c99208ce2fb0231966b0df64175",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "4825a2693fa609577203ed8281653ac368e5e4cc405af264678b2da68d0ce45e",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/openrouter-provider-findings.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/openrouter-provider-findings.md: 05b69a9e9 fix(providers): cache breakpoints count conversational depth, + an admin depth knob",
@@ -11431,24 +11519,28 @@
       "path": "docs/design/parity-plus-program-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 2315,
-      "bytes": 192850,
-      "sha256": "0677b217ebf069e3de55c9e87d66455c4ae5d56c271f181592af76af47e2a789",
+      "lines": 2321,
+      "bytes": 192909,
+      "sha256": "2f0b26c19f5e6907f985cc205a9268c4f50f0e3499c8daf9a419cec098c35573",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/parity-plus-program-spec.md",
-        "assignedSha256": "a78752057c12b11032dcc01f624c3d33db56813111a21268a061a0f173fab451",
+        "assignedSha256": "2f0b26c19f5e6907f985cc205a9268c4f50f0e3499c8daf9a419cec098c35573",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "0677b217ebf069e3de55c9e87d66455c4ae5d56c271f181592af76af47e2a789",
-        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "2f0b26c19f5e6907f985cc205a9268c4f50f0e3499c8daf9a419cec098c35573",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/parity-plus-program-spec.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -11612,34 +11704,28 @@
       "path": "docs/design/parked-options-tag-contract.md",
       "lane": "design",
       "issue": 5,
-      "lines": 324,
-      "bytes": 24887,
-      "sha256": "b46abd41673234e0006fa71e88814d7b2ba92ce3a34a3de474fba908dfe83705",
+      "lines": 322,
+      "bytes": 24759,
+      "sha256": "d52842f01c25eb0ed9d951b9e5edd646c5334d59cadd773d4c1af183387c3087",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "design-options",
-          "status": "draft",
-          "updated": "2026-08-08",
-          "scope": "tag-experience taste calls (4) + guidedActions.prompt contract cap (1)",
-          "mode": "investigate-only — no code touched"
+          "kind": "design",
+          "status": "parked",
+          "updated": "2026-08-09"
         },
-        "errors": [
-          "docs/design/parked-options-tag-contract.md: unsupported frontmatter key scope",
-          "docs/design/parked-options-tag-contract.md: unsupported frontmatter key mode",
-          "docs/design/parked-options-tag-contract.md: invalid frontmatter kind design-options"
-        ]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/parked-options-tag-contract.md",
-        "assignedSha256": "b46abd41673234e0006fa71e88814d7b2ba92ce3a34a3de474fba908dfe83705",
+        "assignedSha256": "d52842f01c25eb0ed9d951b9e5edd646c5334d59cadd773d4c1af183387c3087",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "b46abd41673234e0006fa71e88814d7b2ba92ce3a34a3de474fba908dfe83705",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "d52842f01c25eb0ed9d951b9e5edd646c5334d59cadd773d4c1af183387c3087",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/parked-options-tag-contract.md:1 (design-options; draft)",
           "git log --oneline -1 -- docs/design/parked-options-tag-contract.md: 91ebf56ce feat(#48): ruled smalls — smoothStream ON, ⋯ to the composer, tag folders OPEN, preview render policy",
@@ -11704,27 +11790,27 @@
       "lane": "design",
       "issue": 5,
       "lines": 1118,
-      "bytes": 112602,
-      "sha256": "50df95e3727cc48780fa768a4614e3e722606b107fe3d683ef7039f729f803d3",
+      "bytes": 112585,
+      "sha256": "bb8860d7938ba645ada9cb16a2b74419f6cda31ea63e22c0a7d1e60a87b1bf72",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "spec",
-          "status": "closed (BUILT — see D121)",
+          "kind": "design",
+          "status": "archived",
           "updated": "2026-08-03"
         },
-        "errors": ["docs/design/preset-surface-redesign.md: invalid frontmatter status closed (BUILT — see D121)"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/preset-surface-redesign.md",
-        "assignedSha256": "50df95e3727cc48780fa768a4614e3e722606b107fe3d683ef7039f729f803d3",
+        "assignedSha256": "bb8860d7938ba645ada9cb16a2b74419f6cda31ea63e22c0a7d1e60a87b1bf72",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "50df95e3727cc48780fa768a4614e3e722606b107fe3d683ef7039f729f803d3",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "bb8860d7938ba645ada9cb16a2b74419f6cda31ea63e22c0a7d1e60a87b1bf72",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/preset-surface-redesign.md:1 (spec; closed (BUILT — see D121))",
           "git log --oneline -1 -- docs/design/preset-surface-redesign.md: 83f0b21ce docs(history): graduate the preset-execution crunch list (36/36 accounted); repoint its three refs",
@@ -11788,24 +11874,28 @@
       "path": "docs/design/prose-1-populate-census.md",
       "lane": "design",
       "issue": 5,
-      "lines": 70,
-      "bytes": 7440,
-      "sha256": "2e2b16e28505a1847c383c53accfd58c09d86a1490d5b897efec9071432ab5b6",
+      "lines": 76,
+      "bytes": 7499,
+      "sha256": "687141d115d83498a0208f5bc341d0c1e970b86aaa283c52931fbe78dca05354",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-08"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/prose-1-populate-census.md",
-        "assignedSha256": "2e2b16e28505a1847c383c53accfd58c09d86a1490d5b897efec9071432ab5b6",
+        "assignedSha256": "687141d115d83498a0208f5bc341d0c1e970b86aaa283c52931fbe78dca05354",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "2e2b16e28505a1847c383c53accfd58c09d86a1490d5b897efec9071432ab5b6",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "687141d115d83498a0208f5bc341d0c1e970b86aaa283c52931fbe78dca05354",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/prose-1-populate-census.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/prose-1-populate-census.md: cc4404bf2 feat(prose): the populate round's last 7 hardcoded strings are host-editable slots",
@@ -11819,24 +11909,28 @@
       "path": "docs/design/prose-1-rpg-extraction-followon.md",
       "lane": "design",
       "issue": 5,
-      "lines": 240,
-      "bytes": 19741,
-      "sha256": "80522324722791abf79ad817dc1415c99945b0ce96962c99f63bf51d8afd480a",
+      "lines": 246,
+      "bytes": 19800,
+      "sha256": "88fb7b1b2829b1d0cb5949aa96f578b1068550ae20e88e2d05b5928c4ca1ba32",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-08"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/prose-1-rpg-extraction-followon.md",
-        "assignedSha256": "80522324722791abf79ad817dc1415c99945b0ce96962c99f63bf51d8afd480a",
+        "assignedSha256": "88fb7b1b2829b1d0cb5949aa96f578b1068550ae20e88e2d05b5928c4ca1ba32",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "80522324722791abf79ad817dc1415c99945b0ce96962c99f63bf51d8afd480a",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "88fb7b1b2829b1d0cb5949aa96f578b1068550ae20e88e2d05b5928c4ca1ba32",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/prose-1-rpg-extraction-followon.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/prose-1-rpg-extraction-followon.md: cc4404bf2 feat(prose): the populate round's last 7 hardcoded strings are host-editable slots",
@@ -11850,24 +11944,28 @@
       "path": "docs/design/prose-1-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 505,
-      "bytes": 50320,
-      "sha256": "98b253d6e4dd998b4978123ad8ceabdc6b7b73aceab5b334845469c292062158",
+      "lines": 511,
+      "bytes": 50379,
+      "sha256": "f278658d2680b4c658af065f485d71a636d1f573c54eff0ce4b09da423a32a8f",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/prose-1-spec.md",
-        "assignedSha256": "d3b5f64d3f0070877456103452b73e798dafb4d87e21348bb40e86a236eaef55",
+        "assignedSha256": "f278658d2680b4c658af065f485d71a636d1f573c54eff0ce4b09da423a32a8f",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "98b253d6e4dd998b4978123ad8ceabdc6b7b73aceab5b334845469c292062158",
-        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "f278658d2680b4c658af065f485d71a636d1f573c54eff0ce4b09da423a32a8f",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/prose-1-spec.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -11881,24 +11979,28 @@
       "path": "docs/design/refinery-og-extension-feedback.md",
       "lane": "design",
       "issue": 5,
-      "lines": 48,
-      "bytes": 4575,
-      "sha256": "0a79f43d2cf594f7dea44fa30571e858f3372658a8a1f111bf2e1c2490057e57",
+      "lines": 54,
+      "bytes": 4634,
+      "sha256": "476e8552ba87443da2ab9655355d79133115babc2f438415ef8ec137a40a3fa3",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-08"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/refinery-og-extension-feedback.md",
-        "assignedSha256": "0a79f43d2cf594f7dea44fa30571e858f3372658a8a1f111bf2e1c2490057e57",
+        "assignedSha256": "476e8552ba87443da2ab9655355d79133115babc2f438415ef8ec137a40a3fa3",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "0a79f43d2cf594f7dea44fa30571e858f3372658a8a1f111bf2e1c2490057e57",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "476e8552ba87443da2ab9655355d79133115babc2f438415ef8ec137a40a3fa3",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/refinery-og-extension-feedback.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/refinery-og-extension-feedback.md: addb13faa docs(refinery): §19 supersession map — record banners, truth-repair pointers, mock deltas",
@@ -11999,26 +12101,26 @@
       "issue": 5,
       "lines": 976,
       "bytes": 80215,
-      "sha256": "0082e97ece67b753f62b850792bd35a69d4d633d7e0aa29ab4c55e3c94900046",
+      "sha256": "59e00ed22a8396bfc6d98ca0ecb71ed71beea8035e39f25942812082210918ec",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
-          "status": "proposed",
-          "updated": "2026-08-08"
+          "status": "archived",
+          "updated": "2026-08-09"
         },
-        "errors": ["docs/design/refinery-schema-renderer.md: invalid frontmatter status proposed"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/refinery-schema-renderer.md",
-        "assignedSha256": "0082e97ece67b753f62b850792bd35a69d4d633d7e0aa29ab4c55e3c94900046",
+        "assignedSha256": "59e00ed22a8396bfc6d98ca0ecb71ed71beea8035e39f25942812082210918ec",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "0082e97ece67b753f62b850792bd35a69d4d633d7e0aa29ab4c55e3c94900046",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "59e00ed22a8396bfc6d98ca0ecb71ed71beea8035e39f25942812082210918ec",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/refinery-schema-renderer.md:1 (design; proposed)",
           "git log --oneline -1 -- docs/design/refinery-schema-renderer.md: bba4bb13e feat(refinery): R4 — library score sweep, score sorts + dossier readout, greeting APPEND arm",
@@ -12082,24 +12184,28 @@
       "path": "docs/design/rpg-rewind-stuck-state.md",
       "lane": "design",
       "issue": 5,
-      "lines": 259,
-      "bytes": 16777,
-      "sha256": "aa51cdf927b2c46b3a6f77167baa41edf7279ac1cc8de0d5184d7d5f909dd76d",
+      "lines": 265,
+      "bytes": 16836,
+      "sha256": "4761f81a8ae16b3dc78f5167316e5a7d9d20fdf31574383724ddc51deb2fd5dc",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/rpg-rewind-stuck-state.md",
-        "assignedSha256": "aa51cdf927b2c46b3a6f77167baa41edf7279ac1cc8de0d5184d7d5f909dd76d",
+        "assignedSha256": "4761f81a8ae16b3dc78f5167316e5a7d9d20fdf31574383724ddc51deb2fd5dc",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "aa51cdf927b2c46b3a6f77167baa41edf7279ac1cc8de0d5184d7d5f909dd76d",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "4761f81a8ae16b3dc78f5167316e5a7d9d20fdf31574383724ddc51deb2fd5dc",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/rpg-rewind-stuck-state.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/rpg-rewind-stuck-state.md: 3f02a6ef7 fix(rpg): stat attributes persist; a swipe actually rewinds the panel",
@@ -12348,24 +12454,28 @@
       "path": "docs/design/templating-fork-rows-53-73.md",
       "lane": "design",
       "issue": 5,
-      "lines": 127,
-      "bytes": 11210,
-      "sha256": "4c5c5d2b90a6993ac6cbd7be95b5d5cd0be5457b3efee62b31f9cedcea76b4f7",
+      "lines": 133,
+      "bytes": 11269,
+      "sha256": "c448a01e53d4070127fe88770fa14081b2e1d7b2e7153aed5eed29570abccfa4",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "design",
+          "status": "archived",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/templating-fork-rows-53-73.md",
-        "assignedSha256": "c0118c9c74b2b79a38dee86d838f4daf01b6a8ba4088794f4bf6f0cd8af16684",
+        "assignedSha256": "c448a01e53d4070127fe88770fa14081b2e1d7b2e7153aed5eed29570abccfa4",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "4c5c5d2b90a6993ac6cbd7be95b5d5cd0be5457b3efee62b31f9cedcea76b4f7",
-        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "c448a01e53d4070127fe88770fa14081b2e1d7b2e7153aed5eed29570abccfa4",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/templating-fork-rows-53-73.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -12426,27 +12536,27 @@
       "lane": "design",
       "issue": 5,
       "lines": 110,
-      "bytes": 7215,
-      "sha256": "e532c89f1fd7bde0e03e9924d2c4dc20dce2c17a5b44f47543ee2bbd95557414",
+      "bytes": 7217,
+      "sha256": "86f8c943dbd6806e40606ed5cddc53de430f685861cc4821ad0f565184cdc756",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
-          "status": "landed",
+          "status": "archived",
           "updated": "2026-08-03"
         },
-        "errors": ["docs/design/tsx-shedding-migration-spec.md: invalid frontmatter status landed"]
+        "errors": []
       },
       "receipt": {
         "path": "docs/design/tsx-shedding-migration-spec.md",
-        "assignedSha256": "e532c89f1fd7bde0e03e9924d2c4dc20dce2c17a5b44f47543ee2bbd95557414",
+        "assignedSha256": "86f8c943dbd6806e40606ed5cddc53de430f685861cc4821ad0f565184cdc756",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "e532c89f1fd7bde0e03e9924d2c4dc20dce2c17a5b44f47543ee2bbd95557414",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "86f8c943dbd6806e40606ed5cddc53de430f685861cc4821ad0f565184cdc756",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/tsx-shedding-migration-spec.md:1 (design; landed)",
           "git log --oneline -1 -- docs/design/tsx-shedding-migration-spec.md: e899498a5 feat(build): tsx-shedding STAGE 3 — all ~38 tooling invocations move to node; tsx leaves @orb/ui",
@@ -14497,24 +14607,28 @@
       "path": "docs/orbweaver-card-debug-handoff.md",
       "lane": "root-operational",
       "issue": 8,
-      "lines": 509,
-      "bytes": 30190,
-      "sha256": "94c10da6b8f2eee71296dcca88877ee1cb87b08f2b7a6fc5827748b681705de5",
+      "lines": 515,
+      "bytes": 30252,
+      "sha256": "fcdb13fcbef21f9b417df00a6d98c95a74bf81eef2e35d1ae228517c231602be",
       "frontmatter": {
-        "present": false,
+        "present": true,
         "malformed": false,
-        "fields": {},
+        "fields": {
+          "kind": "handoff",
+          "status": "superseded",
+          "updated": "2026-08-14"
+        },
         "errors": []
       },
       "receipt": {
         "path": "docs/orbweaver-card-debug-handoff.md",
-        "assignedSha256": "94c10da6b8f2eee71296dcca88877ee1cb87b08f2b7a6fc5827748b681705de5",
+        "assignedSha256": "fcdb13fcbef21f9b417df00a6d98c95a74bf81eef2e35d1ae228517c231602be",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "94c10da6b8f2eee71296dcca88877ee1cb87b08f2b7a6fc5827748b681705de5",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "fcdb13fcbef21f9b417df00a6d98c95a74bf81eef2e35d1ae228517c231602be",
+        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/orbweaver-card-debug-handoff.md:1",
           "git log --oneline -5 -- docs",

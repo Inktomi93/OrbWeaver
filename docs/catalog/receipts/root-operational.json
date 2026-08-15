@@ -12,7 +12,11 @@
       "verifiedSha256": "1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f",
       "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
       "verifiedAt": "2026-08-14",
-      "evidence": ["docs/Mission.md:1", "git log --oneline -5 -- docs", "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"],
+      "evidence": [
+        "docs/Mission.md:1",
+        "git log --oneline -5 -- docs",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
       "claims": [
         {
           "claim": "Durable truth is in Git.",
@@ -44,13 +48,13 @@
     },
     {
       "path": "docs/barrel-star-reexport-residue.md",
-      "assignedSha256": "3e7b3e9f57158a11f45f53e4d93d7b3051435fe196f14f23c9fd29d3bf66c918",
+      "assignedSha256": "82e394e183b575ad8d0ff6b27ad271fa2f466dc155390ceb4be86e4d048f30a4",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "8c8ca0e2f959f3f028242383d84e3ad6cf263e7ca79696c8a7858ddd396c0768",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "82e394e183b575ad8d0ff6b27ad271fa2f466dc155390ceb4be86e4d048f30a4",
+      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/barrel-star-reexport-residue.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -60,25 +64,29 @@
     },
     {
       "path": "docs/client-smalls-lane.md",
-      "assignedSha256": "c3bf562b7af2010d9b6a27f7c9bbac870f23205061a03c29c15169e4b00d0671",
+      "assignedSha256": "a4b39ae9943cb314d80bf059b40a9f7c4f191943688b90c7eb236ff7490c98f3",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "c3bf562b7af2010d9b6a27f7c9bbac870f23205061a03c29c15169e4b00d0671",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-      "verifiedAt": "2026-08-14",
-      "evidence": ["docs/client-smalls-lane.md:1", "git log --oneline -5 -- docs", "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"],
+      "verifiedSha256": "a4b39ae9943cb314d80bf059b40a9f7c4f191943688b90c7eb236ff7490c98f3",
+      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedAt": "2026-08-15",
+      "evidence": [
+        "docs/client-smalls-lane.md:1",
+        "git log --oneline -5 -- docs",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
       "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
     },
     {
       "path": "docs/orbweaver-card-debug-handoff.md",
-      "assignedSha256": "94c10da6b8f2eee71296dcca88877ee1cb87b08f2b7a6fc5827748b681705de5",
+      "assignedSha256": "fcdb13fcbef21f9b417df00a6d98c95a74bf81eef2e35d1ae228517c231602be",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "94c10da6b8f2eee71296dcca88877ee1cb87b08f2b7a6fc5827748b681705de5",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "fcdb13fcbef21f9b417df00a6d98c95a74bf81eef2e35d1ae228517c231602be",
+      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/orbweaver-card-debug-handoff.md:1",
         "git log --oneline -5 -- docs",
