@@ -925,7 +925,172 @@ function markDynamicImports(sf: SourceFile, project: Project, bucket: Set<string
     const target = resolveModule(project, sf.getDirectoryPath(), arg.getLiteralText());
     if (target !== undefined) {
       markModuleAlive(target, bucket, record, "dynamic");
+      continue;
     }
+    // `resolveModule` above only follows RELATIVE specifiers, so a package-aliased lazy import
+    // (`import("@orb/ui/code-editor")`) falls through here — see `markLazyImportMembers` for the
+    // narrow, member-precise recovery (`pnpm ast rot ui` false-positive on `CodeEditor`, 2026-08-14).
+    markLazyImportMembers(call, sf, bucket, record);
+  }
+}
+
+// ── THE LAZY-IMPORT BLIND SPOT (owner-reproduced 2026-08-14) ────────────────────────────────────────────
+// `resolveModule` above is a hand-rolled resolver that only follows relative specifiers — deliberately
+// (its own doc comment: "the dev-only dynamic imports that mattered for the false-orphan class are all
+// relative"). A package-aliased lazy import never reaches `markModuleAlive` at all, so its member never
+// enters `usedProd`: `pnpm ast rot ui` flagged `CodeEditor` (packages/ui/src/code-editor/code-editor.tsx)
+// test-only with 0 production refs while `pnpm ast dead CodeEditor` (language-service `findReferences`,
+// which resolves through the real TS module graph) found 2 real production consumers — both of the shape
+// `const CodeEditor = lazy(() => import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })))`.
+//
+// Rather than widen `resolveModule` to alias-follow generally (a much bigger blast radius — it would
+// change the whole-module "dynamic" arm's liveness verdict for every aliased dynamic import in the
+// workspace, not just this member-access shape), this credits ONLY the specific MEMBER a `.then()`/
+// `await` read names, resolved through the TYPE CHECKER — the SAME resolution a static import gets
+// (tsconfig `paths`/`@orb/*` subpath exports included), never a second hand-rolled resolver. A dynamic
+// import's own expression type is always `Promise<typeof import("…")>`; unwrapping to the module type and
+// reading its symbol's SourceFile declaration is exactly what `imp.getModuleSpecifierSourceFile()` gives a
+// static import for free.
+//
+// CONSERVATIVE BY CONSTRUCTION: exactly three shapes are recognized (the ones this repo's lazy-loaded
+// barrel exports are actually written in) — `import(spec).then((m) => … m.X …)`,
+// `(await import(spec)).X`, and `const m = await import(spec); … m.X …`. An import outside these shapes,
+// or one the checker can't resolve (a computed specifier, a bare specifier the compiler itself can't
+// find), credits nothing — fail toward the OLD whole-module-only behavior, never invent liveness.
+
+/** Property-read names on `bindingName` within `scope` — all THREE property-read shapes
+ *  (`x.prop`/`x?.prop`/`x["prop"]`; a dot-only sweep is a known false clean in this repo, see the
+ *  `regkeys` fix beside this one). */
+function propertyAccessNamesOn(scope: Node, bindingName: string): Set<string> {
+  const names = new Set<string>();
+  for (const pa of scope.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
+    if (pa.getExpression().getText() === bindingName) {
+      names.add(pa.getName());
+    }
+  }
+  for (const ea of scope.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
+    if (ea.getExpression().getText() !== bindingName) {
+      continue;
+    }
+    const arg = ea.getArgumentExpression();
+    if (arg !== undefined && Node.isStringLiteral(arg)) {
+      names.add(arg.getLiteralText());
+    }
+  }
+  return names;
+}
+
+/** The single property name a `PropertyAccessExpression`/`ElementAccessExpression` reads off `target`, or
+ *  undefined when `access` isn't one of those two kinds reading `target` (including `access` itself being
+ *  undefined — no parent at all). */
+function propertyNameOfAccess(access: Node | undefined, target: Node): string | undefined {
+  if (access === undefined) {
+    return;
+  }
+  if (Node.isPropertyAccessExpression(access) && access.getExpression() === target) {
+    return access.getName();
+  }
+  if (!Node.isElementAccessExpression(access) || access.getExpression() !== target) {
+    return;
+  }
+  const arg = access.getArgumentExpression();
+  return arg !== undefined && Node.isStringLiteral(arg) ? arg.getLiteralText() : undefined;
+}
+
+/** Shape 1: `import(spec).then((m) => … m.X …)` — `call` chained directly into a `.then(cb)`, `cb`'s
+ *  first parameter walked for property reads. Empty when the shape doesn't match. */
+function thenCallbackMembers(call: Node): Set<string> {
+  const propAccess = call.getParent();
+  if (!Node.isPropertyAccessExpression(propAccess) || propAccess.getExpression() !== call || propAccess.getName() !== "then") {
+    return new Set();
+  }
+  const thenCall = propAccess.getParent();
+  if (!Node.isCallExpression(thenCall)) {
+    return new Set();
+  }
+  const cb = thenCall.getArguments()[0];
+  if (cb === undefined || !(Node.isArrowFunction(cb) || Node.isFunctionExpression(cb))) {
+    return new Set();
+  }
+  const paramName = cb.getParameters()[0]?.getNameNode();
+  return paramName !== undefined && Node.isIdentifier(paramName) ? propertyAccessNamesOn(cb, paramName.getText()) : new Set();
+}
+
+/** Shape 2: `(await import(spec)).X` — `call`'s `await` is parenthesized and immediately property-
+ *  accessed. Empty when the shape doesn't match. */
+function awaitedMemberAccess(call: Node): Set<string> {
+  const awaitExpr = call.getParent();
+  if (!Node.isAwaitExpression(awaitExpr)) {
+    return new Set();
+  }
+  const paren = awaitExpr.getParent();
+  if (!Node.isParenthesizedExpression(paren)) {
+    return new Set();
+  }
+  const name = propertyNameOfAccess(paren.getParent(), paren);
+  return name === undefined ? new Set() : new Set([name]);
+}
+
+/** Shape 3: `const m = await import(spec); … m.X …` — `call`'s `await` initializes a variable; the bound
+ *  identifier's property reads are collected over the WHOLE declaring file (a same-file over-attribution
+ *  in the erring-alive direction only — see the KNOWN OVER-ATTRIBUTION note on the `chains` edge map
+ *  above; a lens that nominates code for deletion must never err the other way). Empty when the shape
+ *  doesn't match. */
+function awaitedBindingMembers(call: Node, sf: SourceFile): Set<string> {
+  const awaitExpr = call.getParent();
+  if (!Node.isAwaitExpression(awaitExpr)) {
+    return new Set();
+  }
+  const decl = awaitExpr.getParent();
+  if (!Node.isVariableDeclaration(decl)) {
+    return new Set();
+  }
+  const nameNode = decl.getNameNode();
+  return Node.isIdentifier(nameNode) ? propertyAccessNamesOn(sf, nameNode.getText()) : new Set();
+}
+
+/** The member name(s) one of the three recognized lazy-import shapes reads off `call`'s resolved module,
+ *  or empty when `call` matches none of them. */
+function lazyImportMemberNames(call: Node, sf: SourceFile): Set<string> {
+  const then = thenCallbackMembers(call);
+  if (then.size > 0) {
+    return then;
+  }
+  const awaitedAccess = awaitedMemberAccess(call);
+  if (awaitedAccess.size > 0) {
+    return awaitedAccess;
+  }
+  return awaitedBindingMembers(call, sf);
+}
+
+/** Resolve a dynamic `import()` call to its target module SourceFile through the TYPE CHECKER — see the
+ *  section header above for why this is the right resolver and `resolveModule` is not. A dynamic import's
+ *  expression type is always `Promise<typeof import("…")>`; unwrap to the module type and read its
+ *  symbol's SourceFile declaration. Undefined when the checker can't resolve it: conservative, never
+ *  invents a target. */
+function resolveDynamicImportTarget(call: Node): SourceFile | undefined {
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const [moduleType] = call.getType().getTypeArguments();
+  const decls = moduleType?.getSymbol()?.getDeclarations() ?? [];
+  return decls.find((decl): decl is SourceFile => Node.isSourceFile(decl));
+}
+
+/** The member-precise recovery for a dynamic import `resolveModule` couldn't follow (a package-aliased
+ *  specifier). Credits nothing unless BOTH a recognized member-access shape AND a checker-resolved target
+ *  are found — the conservative fail-toward-old-behavior the section header commits to. */
+function markLazyImportMembers(call: Node, sf: SourceFile, bucket: Set<string>, record: ArmRecorder): void {
+  const members = lazyImportMemberNames(call, sf);
+  if (members.size === 0) {
+    return;
+  }
+  const target = resolveDynamicImportTarget(call);
+  if (target === undefined) {
+    return;
+  }
+  for (const name of members) {
+    markNamedAlive(target, name, bucket, record);
   }
 }
 
@@ -4165,7 +4330,7 @@ function spellingsOf(sf: SourceFile): Set<string> {
 
 /** filePath → the spellings that file uses. Built once; a key's dispatch question is then a scan of this map
  *  skipping the registry's own file and every test path. */
-function spellingIndex(project: Project): Map<string, Set<string>> {
+export function spellingIndex(project: Project): Map<string, Set<string>> {
   const index = new Map<string, Set<string>>();
   for (const sf of project.getSourceFiles()) {
     index.set(sf.getFilePath(), spellingsOf(sf));
@@ -4189,6 +4354,76 @@ function dispatchSitesOf(key: string, ownerFile: string, index: ReadonlyMap<stri
   return sites;
 }
 
+// ── DOT-ACCESS BLIND SPOT (owner-reproduced 2026-08-14) ──────────────────────────────────────────────────
+// `spellingsOf` above already captures a property-access NAME via the generic `Identifier` sweep — a
+// `PropertyAccessExpression`'s name node IS an Identifier — so `MOTION_BUDGETS.frameGapMs` elsewhere in the
+// WORKSPACE would already dispatch `frameGapMs`. The blind spot is narrower and structural: `dispatchSitesOf`
+// unconditionally EXCLUDES the registry's OWN file (`fp === ownerFile`), because a table's row DECLARATION
+// (`frameGapMs: 50`) is itself a spelling of the key — without the exclusion, every row would trivially
+// "dispatch" against its own definition. But that same exclusion also hides a REAL consumer that happens to
+// live in the same file: `MOTION_BUDGETS` (packages/client/src/lib/motion-flaggers.ts) reads
+// `MOTION_BUDGETS.frameGapMs`/`.cssScanIntervalMs`/`.spaceScanCap` from functions defined later in the SAME
+// file it declares — genuine dispatch, reported undispatched anyway. The fix is not to drop the owner-file
+// exclusion (that would un-blind the self-declaration false-negative it exists to prevent) — it is a
+// NARROWER, additional consumption class: a property read explicitly QUALIFIED by the registry's own
+// identifier (`REGISTRY.key`/`REGISTRY?.key`/`REGISTRY["key"]`) is real dispatch evidence wherever it
+// appears, including the registry's own file (a row's bare declaration never matches this qualified shape,
+// so crediting the owner file here cannot resurrect the self-declaration false-negative).
+
+/** `index.get(registryName)`, minting the empty bucket on first credit. */
+function qualifiedBucket(registryName: string, index: Map<string, Set<string>>): Set<string> {
+  const existing = index.get(registryName);
+  if (existing !== undefined) {
+    return existing;
+  }
+  const created = new Set<string>();
+  index.set(registryName, created);
+  return created;
+}
+
+/** Record `registryName.key`/`registryName?.key` reads in `sf` into `index`, for every name in
+ *  `registryNames`. Split off `qualifiedAccessIndex` to keep both node-kind walks under the complexity
+ *  ceiling. */
+function creditPropertyAccesses(sf: SourceFile, registryNames: ReadonlySet<string>, index: Map<string, Set<string>>): void {
+  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
+    const expr = pa.getExpression().getText();
+    if (registryNames.has(expr)) {
+      qualifiedBucket(expr, index).add(pa.getName());
+    }
+  }
+}
+
+/** Record `registryName["key"]` reads in `sf` into `index`, for every name in `registryNames`. */
+function creditElementAccesses(sf: SourceFile, registryNames: ReadonlySet<string>, index: Map<string, Set<string>>): void {
+  for (const ea of sf.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
+    const expr = ea.getExpression().getText();
+    if (!registryNames.has(expr)) {
+      continue;
+    }
+    const arg = ea.getArgumentExpression();
+    if (arg !== undefined && Node.isStringLiteral(arg)) {
+      qualifiedBucket(expr, index).add(arg.getLiteralText());
+    }
+  }
+}
+
+/** `registryNames` → the property names read off THAT identifier anywhere in the corpus (owner file
+ *  included — see the section header above), via all THREE property-read shapes (`REGISTRY.key`,
+ *  `REGISTRY?.key`, `REGISTRY["key"]` — a dot-only sweep is a known false clean in this repo). Test paths
+ *  are still excluded — a test enumerating a table is not a product consumer, the same rule `spellingsOf`
+ *  callers apply. ONE pass over the whole project, built once per `regkeys` invocation. */
+export function qualifiedAccessIndex(project: Project, registryNames: ReadonlySet<string>): Map<string, Set<string>> {
+  const index = new Map<string, Set<string>>();
+  for (const sf of project.getSourceFiles()) {
+    if (isTestPath(sf.getFilePath())) {
+      continue;
+    }
+    creditPropertyAccesses(sf, registryNames, index);
+    creditElementAccesses(sf, registryNames, index);
+  }
+  return index;
+}
+
 /** Registry rows whose key literal is spelled at ZERO dispatch sites outside their own table (and outside
  *  tests). INFORMATIONAL — a computed/DB-sourced/iterated key is a live row that looks dead here. Optional
  *  scope = a registry NAME or file substring; bare = every registry. Never exits non-zero on findings. */
@@ -4205,23 +4440,28 @@ function cmdRegKeys(project: Project, arg: string, flags: Flags): void {
   // index is a workspace-wide substrate pass, deliberately not counted as the candidate corpus).
   scanCorpus(project, { scope: registries.map((r) => r.filePath), label: "path:registry-files" });
   const index = spellingIndex(project);
-  const byRegistry = new Map(registries.map((r) => [r, regKeyHitsFor(r, index)] as const));
+  const qualified = qualifiedAccessIndex(project, new Set(registries.map((r) => r.name)));
+  const byRegistry = new Map(registries.map((r) => [r, regKeyHitsFor(r, index, qualified)] as const));
   if (flags.all) {
     printRegistriesPerTable(registries, byRegistry);
   }
   console.log(
-    `regkeys is a HEURISTIC, INFORMATIONAL lens — it NEVER gates and has no exemption marker (owner ruling). Registry dispatch is legitimately dynamic: a key that arrives from the DB, a URL segment, a template literal, or an \`Object.keys(REGISTRY)\` iteration is a LIVE row that looks dead here. Read the call sites before acting on any line below. (${registries.length} registry/registries, ${registries.reduce((n, r) => n + r.rows.length, 0)} row(s) examined; a registry = an exported const with ${REGISTRY_ROW_FLOOR}+ rows carrying a \`Record<…>\` annotation or a SCREAMING_SNAKE name, in either shape: an OBJECT literal keyed by property name, or an ARRAY literal of \`{ ${REGISTRY_ROW_ID_KEYS.join("|")}: "<key>" }\` rows.)`,
+    `regkeys is a HEURISTIC, INFORMATIONAL lens — it NEVER gates and has no exemption marker (owner ruling). Registry dispatch is legitimately dynamic: a key that arrives from the DB, a URL segment, a template literal, or an \`Object.keys(REGISTRY)\` iteration is a LIVE row that looks dead here — and three classes stay INVISIBLE to this lens entirely: ITERATION consumption (\`Object.entries(REGISTRY)\`/\`.map(...)\`, which spells no key at all), CSS-class-STRING derivation (a key concatenated into a class name rather than read as a property), and SAME-VALUE-different-SPELLING literals (a throw site spelling \`"compaction_empty"\` instead of \`CHAT_OP_CODES.compactionEmpty\`). Read the call sites before acting on any line below. (${registries.length} registry/registries, ${registries.reduce((n, r) => n + r.rows.length, 0)} row(s) examined; a registry = an exported const with ${REGISTRY_ROW_FLOOR}+ rows carrying a \`Record<…>\` annotation or a SCREAMING_SNAKE name, in either shape: an OBJECT literal keyed by property name, or an ARRAY literal of \`{ ${REGISTRY_ROW_ID_KEYS.join("|")}: "<key>" }\` rows.)`,
   );
   const hits = registries.flatMap((r) => byRegistry.get(r) ?? []);
   emit(hits, flags, `regkeys ${arg === "" ? "(all registries)" : arg}`);
 }
 
 /** ONE registry's undispatched rows — split off the main loop so `--all`'s per-registry breakdown and the
- *  default flat hit list are computed from the SAME per-registry call, never two independent walks. */
-function regKeyHitsFor(registry: RegistryDef, index: ReadonlyMap<string, Set<string>>): Hit[] {
+ *  default flat hit list are computed from the SAME per-registry call, never two independent walks. A row
+ *  is dispatched if EITHER the generic spelling-anywhere-else check finds it OR a qualified
+ *  `REGISTRY.key`/`REGISTRY["key"]` read names it (the latter checked FIRST, and checked including the
+ *  registry's own file — see the dot-access section header above for why that inclusion is safe). */
+export function regKeyHitsFor(registry: RegistryDef, index: ReadonlyMap<string, Set<string>>, qualified: ReadonlyMap<string, Set<string>>): Hit[] {
   const hits: Hit[] = [];
+  const qualifiedKeys = qualified.get(registry.name);
   for (const row of registry.rows) {
-    if (dispatchSitesOf(row.key, registry.filePath, index).length > 0) {
+    if (qualifiedKeys?.has(row.key) === true || dispatchSitesOf(row.key, registry.filePath, index).length > 0) {
       continue;
     }
     const h = hitOf(row.node, "regkey-undispatched");

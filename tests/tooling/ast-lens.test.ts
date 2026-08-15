@@ -38,6 +38,8 @@ import {
   isSwallowedExempt,
   isTypeOnlyExempt,
   isUnwiredExempt,
+  qualifiedAccessIndex,
+  regKeyHitsFor,
   respellHitsFor,
   respellNearCandidatesFor,
   rotChainHits,
@@ -47,6 +49,7 @@ import {
   rotTypeOnlyHits,
   scanRowReads,
   scriptEntryPaths,
+  spellingIndex,
   testOnlyClassOf,
   toolingConfigNames,
 } from "../../scripts/codemods/ast.ts";
@@ -57,6 +60,18 @@ const ROOT = "/repo";
 /** An in-memory workspace holding `files` (repo-relative path → source), rooted at ROOT. */
 function projectOf(files: Record<string, string>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, text] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, text);
+  }
+  return project;
+}
+
+/** Same as `projectOf`, but with a `compilerOptions.paths` alias map — the in-memory analogue of the real
+ *  tree's `@orb/*` subpath resolution, needed to exercise a PACKAGE-ALIASED specifier (`resolveModule`'s
+ *  hand-rolled resolver only follows relative ones, so a relative-only fixture never reaches the checker
+ *  path this lens fix adds — see the lazy-import describe block below). */
+function projectWithAliasesOf(paths: Record<string, string[]>, files: Record<string, string>): Project {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { baseUrl: ROOT, paths } });
   for (const [path, text] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, text);
   }
@@ -389,6 +404,84 @@ export const k = [__resetStore, __readStoreForTest, sneakyHelper];
     expect(classOf("sneakyHelper")).toBe("hit");
     // And a prod-reached export is neither.
     expect(classOf("useStore")).toBe("alive");
+  });
+});
+
+// ── the LAZY-IMPORT blind spot (owner-reproduced 2026-08-14): `pnpm ast rot ui` flagged `CodeEditor`
+// (packages/ui/src/code-editor/code-editor.tsx) test-only with 0 production refs while `pnpm ast dead
+// CodeEditor` (language-service `findReferences`, which resolves the real TS module graph) found 2 real
+// production consumers of the shape `lazy(() => import("@orb/ui/code-editor").then((m) => ({ default:
+// m.CodeEditor })))`. `resolveModule` (the dynamic-import resolver `buildLiveness` used) only follows
+// RELATIVE specifiers, so a package-aliased lazy import never reached `markModuleAlive` at all.
+describe("ast liveness: lazy dynamic-import member access (the CodeEditor blind spot)", () => {
+  test("testonly does not flag an export reached only through import(spec).then((m) => m.X)", () => {
+    // PACKAGE-ALIASED specifier (via compilerOptions.paths, the in-memory analogue of the real `@orb/*`
+    // resolution) — a RELATIVE specifier would already resolve through the OLD `resolveModule` arm and
+    // never exercise this fix at all.
+    const project = projectWithAliasesOf(
+      { "@orb/ui/code-editor": ["packages/ui/src/code-editor/code-editor"] },
+      {
+        "packages/ui/src/code-editor/code-editor.tsx": `
+export function CodeEditor(): null { return null; }
+export function ControlOnly(): null { return null; }
+`,
+        // The exact shape the live repro uses — a `.then()` chained directly onto the dynamic import,
+        // reading ONE member off its callback parameter.
+        "packages/ui/src/code-editor/consumer.tsx": `
+import { lazy } from "react";
+const CodeEditor = lazy(() =>
+  import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })),
+);
+export { CodeEditor };
+`,
+        // A test reaches ControlOnly — the CONTROL export the lazy site never touches, still a hit.
+        "tests/ui/code-editor.test.ts": `
+import { ControlOnly } from "../../packages/ui/src/code-editor/code-editor";
+export const k = ControlOnly;
+`,
+      },
+    );
+    const live = buildLiveness(project);
+    const target = project.getSourceFileOrThrow(`${ROOT}/packages/ui/src/code-editor/code-editor.tsx`);
+    const classOf = (name: string): string => testOnlyClassOf(target, name, target.getFunctionOrThrow(name), live);
+
+    expect(classOf("CodeEditor")).toBe("alive");
+    expect(classOf("ControlOnly")).toBe("hit");
+  });
+
+  test("testonly does not flag `(await import(spec)).X` or `const m = await import(spec); … m.X`", () => {
+    const project = projectWithAliasesOf(
+      { "@orb/ui/panel": ["packages/ui/src/panel/panel"] },
+      {
+        "packages/ui/src/panel/panel.tsx": `
+export function Panel(): null { return null; }
+export function OtherPanel(): null { return null; }
+export function UntouchedPanel(): null { return null; }
+`,
+        "packages/ui/src/panel/consumer-a.tsx": `
+export async function loadPanel() {
+  return (await import("@orb/ui/panel")).Panel;
+}
+`,
+        "packages/ui/src/panel/consumer-b.tsx": `
+export async function loadOtherPanel() {
+  const m = await import("@orb/ui/panel");
+  return m.OtherPanel;
+}
+`,
+        "tests/ui/panel.test.ts": `
+import { UntouchedPanel } from "../../packages/ui/src/panel/panel";
+export const k = UntouchedPanel;
+`,
+      },
+    );
+    const live = buildLiveness(project);
+    const target = project.getSourceFileOrThrow(`${ROOT}/packages/ui/src/panel/panel.tsx`);
+    const classOf = (name: string): string => testOnlyClassOf(target, name, target.getFunctionOrThrow(name), live);
+
+    expect(classOf("Panel")).toBe("alive");
+    expect(classOf("OtherPanel")).toBe("alive");
+    expect(classOf("UntouchedPanel")).toBe("hit");
   });
 });
 
@@ -1012,6 +1105,70 @@ export const fourth = (r: { swipe: number }): number => r.swipe;
       "packages/client/src/state/typed.ts": "export const handlers: Record<string, number> = { a: 1, b: 2, c: 3 };\n",
     });
     expect(collectRegistries(project).map((r) => r.name)).toEqual(["handlers"]);
+  });
+
+  // THE DOT-ACCESS blind spot (owner-reproduced 2026-08-14): MOTION_BUDGETS
+  // (packages/client/src/lib/motion-flaggers.ts) reads `.frameGapMs`/`.cssScanIntervalMs`/`.spaceScanCap`
+  // from functions defined LATER IN THE SAME FILE it declares the table in — genuine dispatch, reported
+  // undispatched anyway, because `dispatchSitesOf` unconditionally excludes the registry's OWN file (the
+  // exclusion exists so a row's bare declaration can't trivially "dispatch" against itself). The fix is a
+  // NARROWER, additional consumption class: a property read explicitly QUALIFIED by the registry's own
+  // identifier is real evidence wherever it appears, including that same file.
+  test('credits REGISTRY.key / REGISTRY?.key / REGISTRY["key"] reads as dispatch, even in the registry\'s own file', () => {
+    const project = projectOf({
+      "packages/client/src/lib/budgets.ts": `
+export const MOTION_BUDGETS = {
+  frameGapMs: 50,
+  cssScanIntervalMs: 2000,
+  spaceScanCap: 400,
+} as const;
+
+// All three property-read shapes, same file as the declaration — the live repro's exact shape.
+export function checkFrame(gap: number): boolean {
+  return gap > MOTION_BUDGETS.frameGapMs;
+}
+export function checkOptional(): number | undefined {
+  return MOTION_BUDGETS?.cssScanIntervalMs;
+}
+export function checkBracket(): number {
+  return MOTION_BUDGETS["spaceScanCap"];
+}
+`,
+    });
+    const registries = collectRegistries(project);
+    const registry = registries.find((r) => r.name === "MOTION_BUDGETS");
+    if (registry === undefined) {
+      throw new Error("MOTION_BUDGETS registry not derived");
+    }
+    const index = spellingIndex(project);
+    const qualified = qualifiedAccessIndex(project, new Set(registries.map((r) => r.name)));
+    // Currently flagged (pre-fix) — silent after: all three rows are qualified-accessed.
+    expect(regKeyHitsFor(registry, index, qualified)).toEqual([]);
+  });
+
+  test("a genuinely undispatched key (no spelling, no qualified access anywhere) is still flagged", () => {
+    const project = projectOf({
+      "packages/client/src/lib/other-budgets.ts": `
+export const OTHER_BUDGETS = {
+  used: 1,
+  alsoUsed: 2,
+  neverDispatched: 3,
+} as const;
+`,
+      "packages/client/src/features/consumer.ts": `
+export const open = (): string => "used";
+export const which = (r: { alsoUsed: number }): number => r.alsoUsed;
+`,
+    });
+    const registries = collectRegistries(project);
+    const registry = registries.find((r) => r.name === "OTHER_BUDGETS");
+    if (registry === undefined) {
+      throw new Error("OTHER_BUDGETS registry not derived");
+    }
+    const index = spellingIndex(project);
+    const qualified = qualifiedAccessIndex(project, new Set(registries.map((r) => r.name)));
+    const hits = regKeyHitsFor(registry, index, qualified);
+    expect(hits.map((h) => h.text)).toEqual([expect.stringContaining("neverDispatched")]);
   });
 });
 
