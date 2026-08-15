@@ -305,7 +305,20 @@ test("steppers take the field's own name as their subject when the call site sup
   // decrease WHAT. The `<Field>` label reaches the INPUT (aria-labelledby) but never the buttons.
   await expect(page.getByRole("button", { name: "Decrease Managed threshold" })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Increase Managed threshold" })).toHaveCount(1);
-  await expect(page.getByRole("group", { name: "Managed threshold" })).toHaveCount(1);
+});
+
+// ── fix #73: ONE accessible-name owner — the group is an unnamed layout wrapper ────────────────────────
+test("the group wrapper carries no name of its own — the input is the sole owner, findable unambiguously", async ({ mount, page }) => {
+  await mount(<NumberField aria-label="Managed threshold" defaultValue={5} max={20} min={1} />);
+  // A `role="group"` node WITHOUT its own aria-label/aria-labelledby computes an EMPTY accessible name —
+  // never falls back to the field's name (accessible names never flow from a container into its ARIA
+  // role computation the other way; each node computes independently). This is the regression guard for
+  // the strict-mode `getByLabel` violation the duplicate name caused (injections-manager/params-deck CTs).
+  await expect(page.getByRole("group", { name: "Managed threshold" })).toHaveCount(0);
+  await expect(page.getByRole("group")).not.toHaveAttribute("aria-label", "Managed threshold");
+  // A bare `getByLabel` now resolves to exactly the input — no strict-mode violation.
+  await expect(page.getByLabel("Managed threshold", { exact: true })).toHaveCount(1);
+  await expect(page.getByLabel("Managed threshold", { exact: true })).toHaveValue("5");
 });
 
 test("an unnamed field keeps the bare verb rather than inventing a subject", async ({ mount, page }) => {

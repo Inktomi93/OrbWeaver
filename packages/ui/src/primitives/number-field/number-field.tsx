@@ -111,7 +111,15 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           </BaseNumberField.ScrubAreaCursor>
         </BaseNumberField.ScrubArea>
       ) : null}
-      <BaseNumberField.Group aria-label={ariaLabel} className={slots.group()} data-slot="number-field-group">
+      {/* THE GROUP CARRIES NO NAME (fix #73 — the group/input duplicate-name defect): the INPUT is the
+          ONE accessible-name owner (its own `aria-label` in bare use; a wrapping `<Field>`'s
+          `aria-labelledby`, which OUTRANKS `aria-label` by the ARIA spec's own precedence, when
+          Field-composed — see `forms/bound-fields/number-field.tsx`'s header). A `role="group"` wrapper
+          with no name is a pure layout node: AT does not separately announce it, and every automated
+          `getByLabel`/manual voice-control match resolves to exactly the input. The steppers still name
+          their subject (`stepperLabel`, below) — that reads the `ariaLabel` JS variable directly, never
+          the group's DOM attribute, so dropping it here costs the steppers nothing. */}
+      <BaseNumberField.Group className={slots.group()} data-slot="number-field-group">
         {hasSteppers ? (
           <BaseNumberField.Decrement aria-label={stepperLabel(DECREMENT_LABEL, ariaLabel)} className={slots.decrement()} data-slot="number-field-decrement">
             <Icon className={slots.stepIcon()} icon={Minus} size="xs" />
