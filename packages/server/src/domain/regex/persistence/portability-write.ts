@@ -8,7 +8,7 @@
 // before failing to attach them would leave the library with orphan scripts and the card with none.
 
 import type { PortableRegexScript, RegexScriptRow } from "@orb/contracts/regex";
-import { characterRegexScripts, globalRegexScripts, regexScripts } from "@orb/db";
+import { characterRegexScripts, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -24,6 +24,8 @@ import type {
   ExportRegexScripts,
   ImportCardScripts,
   ImportCardScriptsResult,
+  ImportGlobalScripts,
+  ImportPresetScripts,
   ImportRegexScript,
   RegexPortabilityContext,
 } from "../contract/portability.ts";
@@ -57,6 +59,57 @@ export function createImportCardScripts(ctx: RegexPortabilityContext): ImportCar
       ...plan.attachIds.map((regexScriptId, position) =>
         ctx.db.insert(characterRegexScripts).values({ characterId, regexScriptId, position, createdAt: at }).onConflictDoNothing(),
       ),
+    ];
+    if (stmts.length > 0) {
+      await ctx.db.batch(batchMany(stmts));
+    }
+    return { created: plan.inserts.length, reused: plan.reused };
+  };
+}
+
+/**
+ * The PRESET lift (the card lift's twin — ST preset-scoped scripts → library rows + `preset_regex_scripts`).
+ * Same read → plan → ONE batch shape and the same shared planner; the ST preset wire has no carried-reference
+ * channel, so `carriedIds` is always empty and every candidate content-dedups against the owner's library.
+ * Junction `position` is the plan's attach order — the preset's execution order is the file's script order.
+ */
+export function createImportPresetScripts(ctx: RegexPortabilityContext): ImportPresetScripts {
+  return async ({ ownerId, presetId, scripts }): Promise<ImportCardScriptsResult> => {
+    const existing = await listOwnedScripts(ctx.db, ownerId);
+    const plan = planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId });
+
+    const at = ctx.now();
+    const stmts: BatchStmt[] = [
+      ...plan.inserts.map((row) =>
+        ctx.db.insert(regexScripts).values({ id: row.id, ownerId, name: row.name, enabled: row.enabled, behavior: row.behavior, createdAt: at, updatedAt: at }),
+      ),
+      ...plan.attachIds.map((regexScriptId, position) =>
+        ctx.db.insert(presetRegexScripts).values({ presetId, regexScriptId, position, createdAt: at }).onConflictDoNothing(),
+      ),
+    ];
+    if (stmts.length > 0) {
+      await ctx.db.batch(batchMany(stmts));
+    }
+    return { created: plan.inserts.length, reused: plan.reused };
+  };
+}
+
+/**
+ * The GLOBAL lift — ST's `extension_settings.regex` ("run on every chat") onto the library + the
+ * `global_regex_scripts` attachment (the PK-is-the-script junction, so attach order carries no position).
+ * Re-running the same profile import re-asserts the attachments and mints nothing (the shared dedup rule).
+ */
+export function createImportGlobalScripts(ctx: RegexPortabilityContext): ImportGlobalScripts {
+  return async ({ ownerId, scripts }): Promise<ImportCardScriptsResult> => {
+    const existing = await listOwnedScripts(ctx.db, ownerId);
+    const plan = planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId });
+
+    const at = ctx.now();
+    const stmts: BatchStmt[] = [
+      ...plan.inserts.map((row) =>
+        ctx.db.insert(regexScripts).values({ id: row.id, ownerId, name: row.name, enabled: row.enabled, behavior: row.behavior, createdAt: at, updatedAt: at }),
+      ),
+      ...plan.attachIds.map((regexScriptId) => ctx.db.insert(globalRegexScripts).values({ regexScriptId, createdAt: at }).onConflictDoNothing()),
     ];
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));

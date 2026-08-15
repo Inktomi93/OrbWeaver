@@ -49,7 +49,7 @@ import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
 import type { ToolUseService } from "#domain/tool-use";
 import type { WorkloadContributions } from "#domain/workloads";
-import { createImportStandaloneLorebook } from "#domain/world-info";
+import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
 import type { EnginesPosture } from "#foundation/env";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
@@ -787,6 +787,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       newBookId: minter(ID_PREFIX.worldBook),
       newEntryId: minter(ID_PREFIX.worldEntry),
     }),
+    // The ST world NAME-LINK attach (card `extensions.world` + charLore) — same ctx shape as the standalone
+    // import; the id minters are unused by an attach but ride the one WorldInfoImportContext bundle.
+    attachBooksByName: createAttachOwnedBooksByName({
+      db,
+      now,
+      newBookId: minter(ID_PREFIX.worldBook),
+      newEntryId: minter(ID_PREFIX.worldEntry),
+    }),
     galleryCtx,
     databankCtx: databankPortability,
     persona,
@@ -799,6 +807,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     importRpgGame: rpgCompose.importGame,
     importWorldInfo,
     importCardScripts: regexCompose.importCardScripts,
+    importPresetScripts: regexCompose.importPresetScripts,
+    importGlobalScripts: regexCompose.importGlobalScripts,
     exportRegexScripts: regexCompose.exportRegexScripts,
     importRegexScript: regexCompose.importRegexScript,
     bulkImportChats,

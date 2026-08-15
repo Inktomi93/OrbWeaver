@@ -184,6 +184,8 @@ export function cardToCreateInput(card: CharacterCard, avatarAssetId: AssetId | 
     source: card.source,
     creationDate: card.creationDate,
     modificationDate: card.modificationDate,
+    // ST's `extensions.fav`, promoted by the serde (residue drops the key; export re-emits the live row).
+    starred: card.starred === true,
     extensions: card.extensions,
     residualData: card.residualData,
     avatarAssetId,

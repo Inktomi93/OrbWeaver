@@ -13,6 +13,7 @@ import { createImportChatBundle } from "./verbs/import-chat-bundle.ts";
 import { createImportChatFile } from "./verbs/import-chat-file.ts";
 import { createImportChats } from "./verbs/import-chats.ts";
 import { createImportGroupChats } from "./verbs/import-group-chats.ts";
+import { createImportOrphanCharacter } from "./verbs/import-orphan-character.ts";
 import { createImportPersonas } from "./verbs/import-personas.ts";
 import { createImportPresets } from "./verbs/import-presets.ts";
 import { createImportThemes } from "./verbs/import-themes.ts";
@@ -25,6 +26,7 @@ export function createImportService(ctx: ImportContext): ImportService {
   const importChatBundle = createImportChatBundle(ctx);
   return {
     importCharacter: createImportCharacter(ctx),
+    importOrphanCharacter: createImportOrphanCharacter(ctx),
     importChats,
     importChatBundle,
     importChatFile: createImportChatFile(ctx, importChats, importChatBundle),

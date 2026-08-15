@@ -375,12 +375,48 @@ function fullFields(): ExportCardFields {
     source: ["https://example.test/aria", "chub:aria"],
     creationDate: 1_700_000_000,
     modificationDate: 1_700_100_000,
+    starred: true,
     tags: ["fantasy", "knight"],
     extensions: { vendorExtra: "kept" },
     regexScripts: [REGEX_SCRIPT],
     depthPrompt: { prompt: "remember the oath", depth: 3, role: "system" },
   };
 }
+
+// ── ST's favorite flag → `characters.starred` (the silent-gap sweep, 2026-08-15) ────────────────────────
+// `data.extensions.fav` is promoted out of the residue like `depth_prompt`/`regex_scripts` (D28); the OUT
+// emitter writes it back FROM THE LIVE ROW, so a star toggled in orb exports truthfully. Corpus: 313/313
+// cards carry the key (1 true, 312 false), so it was riding the residual blob unread.
+describe("starred (ST extensions.fav)", () => {
+  test("cardFromJson reads fav:true → starred:true and DROPS the key from the residue", () => {
+    const card = cardFromJson({ spec: "chara_card_v3", data: { name: "Fay", extensions: { fav: true, vendorExtra: "kept" } } }, "fb");
+    expect(card.starred).toBe(true);
+    expect(card.extensions).toEqual({ vendorExtra: "kept" });
+  });
+
+  test("fav:false and an absent key both read starred:false; a truthy STRING is not a star", () => {
+    expect(cardFromJson({ data: { name: "A", extensions: { fav: false } } }, "fb").starred).toBe(false);
+    expect(cardFromJson({ data: { name: "B" } }, "fb").starred).toBe(false);
+    expect(cardFromJson({ data: { name: "C", extensions: { fav: "true" } } }, "fb").starred).toBe(false);
+  });
+
+  test("buildCardV3 emits extensions.fav from the LIVE starred, never a stale residual byte", () => {
+    const card = buildCardV3({ ...fullFields(), starred: false, extensions: { fav: true, vendorExtra: "kept" } }, []);
+    const data = card.data as Record<string, unknown>;
+    expect((data["extensions"] as Record<string, unknown>)["fav"]).toBe(false);
+  });
+
+  test("fav round-trips: import → export → reimport preserves the star", () => {
+    const back = cardFromJson(buildCardV3({ ...fullFields(), starred: true }, []), "fb");
+    expect(back.starred).toBe(true);
+  });
+
+  test("starred does NOT participate in the content hash (a star is face state, not identity)", () => {
+    const a = cardFromJson({ data: { name: "Same", extensions: { fav: true } } }, "fb");
+    const b = cardFromJson({ data: { name: "Same", extensions: { fav: false } } }, "fb");
+    expect(cardContentHash(a)).toBe(cardContentHash(b));
+  });
+});
 
 describe("buildCardV3 → cardFromJson round-trip", () => {
   test("the strict OUT emitter re-parses cleanly through the tolerant IN adapter (content fields)", () => {

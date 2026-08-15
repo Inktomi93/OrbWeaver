@@ -5,7 +5,7 @@
 // Result shapes are structurally the delivery-core PortableFile/PortableImportOutcome so the entry-root
 // registry descriptor composes them without a mapping layer.
 
-import type { UserId } from "@orb/kit/ids";
+import type { PresetId, UserId } from "@orb/kit/ids";
 
 export interface PresetExportFile {
   readonly filename: string;
@@ -17,6 +17,11 @@ export interface PresetImportOutcome {
   readonly ok: boolean;
   readonly created?: boolean;
   readonly error?: string;
+  /** The row written (created OR merged onto) — the ST profile wave attaches the preset's carried regex
+   *  scripts to it (`preset_regex_scripts`). Present on every ok:true outcome; the verb knows its row, so
+   *  no second (ownerId, name) read exists to disagree with it. Optional to stay structurally compatible
+   *  with the delivery-core `PortableImportOutcome`. */
+  readonly presetId?: PresetId;
 }
 
 /** Export all of the owner's presets (excludes the shared, un-owned system default) as portable files. */

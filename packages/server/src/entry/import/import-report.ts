@@ -28,32 +28,48 @@ const REPORTS_DIR = "data/import-reports";
 // A reason row for a handled plane would be a lie the report tells forever, so the rows were deleted rather
 // than reworded. `HANDLED_ENTRIES` in `domain/import/loader/collect.ts` is the other half of that graduation.
 const UNHANDLED_REASONS = new Map<string, string>([
-  // Top-level profile planes
+  // Top-level profile planes.
+  // THE TEXT-COMPLETION TEMPLATE PLANES (context/instruct/sysprompt/reasoning + the oai_settings trio) are
+  // BY-DESIGN exclusions, not deferred work: the owner reaffirmed 2026-08-15 that orb will never run
+  // text-completion, so the old "needs an ST→orb template mapper (separate epic)" wording is gone — a
+  // deferral line on a ruled-out feature reads as debt forever.
   ["movingUI/", "saved UI layout state — no domain home"],
-  ["context/", "prompt-format templates — need an ST→orb template mapper (separate epic)"],
-  ["instruct/", "instruct templates — need an ST→orb template mapper (separate epic)"],
-  ["sysprompt/", "system-prompt templates — need an ST→orb template mapper (separate epic)"],
-  ["reasoning/", "reasoning-format templates — need an ST→orb template mapper (separate epic)"],
+  ["context/", "text-completion context templates — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)"],
+  ["instruct/", "text-completion instruct templates — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)"],
+  ["sysprompt/", "text-completion system-prompt templates — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)"],
+  [
+    "reasoning/",
+    "saved reasoning-format template library — the ACTIVE template already folds onto the live preset (reasoningParse); the library is text-completion-era and out of product scope (owner ruling, reaffirmed 2026-08-15)",
+  ],
   ["TextGen Settings/", "text-completion preset files — orb has no text-completion mode; ruled out by owner 2026-08-08"],
   ["NovelAI Settings/", "text-completion preset files — orb has no text-completion mode; ruled out by owner 2026-08-08"],
   ["KoboldAI Settings/", "text-completion preset files — orb has no text-completion mode; ruled out by owner 2026-08-08"],
-  ["QuickReplies/", "quick-reply macros — no domain home (not modeled)"],
+  ["QuickReplies/", "STscript quick-reply buttons — orb has no STscript executor (orb automation is CEL-based, D46)"],
   // Both observed rendering BARE on a real profile drive (2026-08-08).
-  ["assets/", "ST extension assets (expression sprites, audio) — no domain home"],
+  ["assets/", "ST extension assets (expression sprites, audio) — no domain home (the expressions design set is parked)"],
   ["vectors/", "ST's own vector store — orb re-embeds locally after import, so a foreign index never travels"],
-  ["extensions/", "third-party extension state — out of scope"],
-  ["user/", "misc user files — no canon home"],
+  ["extensions/", "third-party extension INSTALLS (code, not state) — out of scope"],
+  [
+    "user/",
+    "user/files (Data Bank) + user/images (character gallery) ARE walked and counted (see the Data Bank / gallery section); user/workflows is ST's stock ComfyUI workflow pair — orb has no ComfyUI workflow store",
+  ],
   ["secrets.json", "API keys — deliberately NOT imported (credentials are entered per-install)"],
   ["stats.json", "usage stats — recomputed locally, not import canon"],
   ["content.log", "ST install log — not canon"],
-  ["image-metadata.json", "gallery image metadata — no import path"],
+  ["image-metadata.json", "ST gallery/background thumbnail metadata — orb derives its own media metadata at CAS-store time"],
   // settings.json sections (ST snake_case interchange names)
   ["textgenerationwebui_settings", "live text-completion preset — orb has no text-completion mode; ruled out by owner 2026-08-08"],
   ["nai_settings", "live text-completion preset — orb has no text-completion mode; ruled out by owner 2026-08-08"],
   ["kai_settings", "live text-completion preset — orb has no text-completion mode; ruled out by owner 2026-08-08"],
-  ["world_info_settings", "global world-info activation knobs — per-book WI is imported; these globals have no home"],
+  [
+    "world_info_settings",
+    "global world-info activation knobs have no orb home; the per-character charLore bindings ARE read (see the world name-link section) and per-book WI is imported",
+  ],
   ["horde_settings", "Horde backend config — no import canon"],
-  ["extension_settings", "extension config — out of scope"],
+  [
+    "extension_settings",
+    "extension state — READ for regex (global scripts import; see the regex section; regex_presets/character_allowed_regex have no orb counterpart) and INVENTORIED for the Data Bank index (attachments/character_attachments); the rest is out of scope",
+  ],
   ["background", "which background was SELECTED — selection state; the background IMAGES themselves import"],
   ["proxies", "connection proxy config — no import canon"],
   ["selected_proxy", "selected proxy — no import canon"],
@@ -89,9 +105,19 @@ function section(title: string, lines: readonly string[]): string {
  *  string per line — `section` prefixes every entry with `- `, so per-line entries rendered as `-   - field`
  *  (a mangled list, caught only by reading the rendered markdown). A preset whose whole file mapped renders
  *  the reassuring "everything mapped" line rather than nothing at all — the operator has to be able to tell
- *  "landed whole" apart from "was never looked at". */
+ *  "landed whole" apart from "was never looked at". A preset that carried its own regex scripts (the ST
+ *  presetManager extension field) gets the lift accounting appended to its head line. */
 function presetNoteLines(report: ImportReport): string[] {
-  return noteLines(report.presetNotes);
+  const base = noteLines(report.presetNotes);
+  return base.map((line, i) => {
+    const note = report.presetNotes[i];
+    if (note === undefined || note.scriptsLifted + note.scriptsReused === 0) {
+      return line;
+    }
+    const scripts = `${note.scriptsLifted + note.scriptsReused} regex script(s) → the script library, attached to this preset (${note.scriptsLifted} new, ${note.scriptsReused} matched existing rows)`;
+    // The scripts line nests under the preset's head line, exactly like the unmapped fields do.
+    return `${line}\n  - ${scripts}`;
+  });
 }
 
 /** The shared renderer for a per-entity lossiness note (presets + themes carry the identical shape). */
@@ -104,6 +130,51 @@ function noteLines(notes: ImportReport["presetNotes"] | ImportReport["themeNotes
     const nested = note.fields.map((f) => `  - \`${f.field}\` — ${f.reason}`).join("\n");
     return `${head} — ${note.fields.length} field(s) not imported:\n${nested}`;
   });
+}
+
+/** The regex-plane accounting (the silent-gap sweep, 2026-08-15): every plane renders its count EVEN AT
+ *  ZERO, so "read and empty" is distinguishable from "never looked at" — this exact plane used to vanish
+ *  with no line at all (measured: 15 real preset-scoped scripts silently ignored on the 2026-08-15 run). */
+function regexLines(report: ImportReport): string[] {
+  const lines = [
+    `Card-carried scripts (\`data.extensions.regex_scripts\`): ${report.cardRegexScriptsLifted + report.cardRegexScriptsReused} attached (${report.cardRegexScriptsLifted} new library rows, ${report.cardRegexScriptsReused} matched existing)`,
+    `Preset-carried scripts (\`extensions.regex_scripts\` in a chat-completion preset): see each preset's own note above`,
+    `Global scripts (\`settings.json#extension_settings.regex\`): found ${report.globalRegexScriptsFound} — ${report.globalRegexScriptsLifted} new library rows (global), ${report.globalRegexScriptsReused} matched existing`,
+  ];
+  if (report.malformedGlobalRegexScripts > 0) {
+    lines.push(`Global entries that did not parse as regex scripts: ${report.malformedGlobalRegexScripts} — dropped, see the server log`);
+  }
+  if (report.globalRegexSkippedReason !== null) {
+    lines.push(`Global scripts NOT imported: ${report.globalRegexSkippedReason}`);
+  }
+  return lines;
+}
+
+/** The world NAME-LINK accounting (card `extensions.world` primary + `charLore` auxiliaries). */
+function worldLinkLines(report: ImportReport): string[] {
+  const lines = [`Book links attached by name: ${report.worldLinksAttached}`];
+  for (const miss of report.worldLinksMissing) {
+    lines.push(`\`${miss.character}\` names world book \`${miss.book}\` — no book of that name in this profile or your library (never near-matched)`);
+  }
+  if (report.worldLinksSkippedReason !== null) {
+    lines.push(`Name-links NOT attached: ${report.worldLinksSkippedReason}`);
+  }
+  return lines;
+}
+
+/** The ST Data Bank + character-gallery planes — counted, with the honest disposition. These have real orb
+ *  counterparts (`domain/databank`; the assets gallery) and the write waves are a NAMED FOLLOW-UP: the real
+ *  corpus carries zero files in both, so mappers today would be proven against nothing. The count line is
+ *  the guarantee that a future profile carrying data shows LOUDLY instead of vanishing under `user/`. */
+function userPlaneLines(report: ImportReport): string[] {
+  const disposition = (count: number, plane: string, home: string): string =>
+    count === 0
+      ? `${plane}: 0 files found — nothing to import`
+      : `${plane}: ${count} file(s) found — NOT imported yet (the ${home} import wave is a named follow-up; nothing was lost, the files stay in the ST profile)`;
+  return [
+    disposition(report.databankFileCount, "Data Bank files (`user/files/` + the attachments index)", "databank"),
+    disposition(report.galleryImageCount, "Character-gallery images (`user/images/`)", "gallery"),
+  ];
 }
 
 /** Render the import report as Markdown. `generatedAt` is epoch-ms (the run clock) → an ISO stamp header. */
@@ -140,9 +211,15 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
       report.skippedChats.map((f) => `\`${f}\``),
     ),
     section(
-      "Orphan chat directories (no matching card)",
+      "Orphan chat directories (no matching card — a placeholder character is minted; see the next section)",
       report.orphanChatDirs.map((d) => `\`${d}\``),
     ),
+    section("Orphan chats imported (placeholder minted from the directory's own evidence, tagged `orphan import`)", [
+      ...report.orphanImports.map(
+        (o) => `\`${o.dir}\` → \`${o.characterName}\` (${o.chatsImported} chat(s)${o.created ? "" : "; placeholder already existed from a prior run"})`,
+      ),
+      ...report.orphanSkipped.map((o) => `\`${o.dir}\` — NOT imported: ${o.reason}`),
+    ]),
     section("Characters skipped (skip-listed)", report.skippedCharacters),
     section("Presets imported — what did NOT map", presetNoteLines(report)),
     section(
@@ -153,6 +230,9 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
       "Preset files that failed to parse",
       report.unreadablePresets.map((f) => `\`${f}\``),
     ),
+    section("Regex scripts (cards · presets · global)", regexLines(report)),
+    section("World lorebook name-links (card `extensions.world` + `charLore`)", worldLinkLines(report)),
+    section("ST Data Bank / character-gallery planes (counted every run)", userPlaneLines(report)),
     section("Themes converted — what did NOT map", noteLines(report.themeNotes)),
     section(
       "Theme files NOT converted",
@@ -188,7 +268,7 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
     ),
     section("ST profile planes NOT imported (no importer yet)", report.unhandled.map(unhandledLine)),
     section(
-      "settings.json sections NOT imported (personas, library tags and the chat-completion preset are read today)",
+      "settings.json sections NOT (fully) imported (personas, library tags, the chat-completion preset, global regex scripts and charLore are read today)",
       report.unhandledSettings.map(unhandledLine),
     ),
   ].join("\n");

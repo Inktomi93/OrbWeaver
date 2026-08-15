@@ -13,7 +13,11 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { WorldInfoImportContext } from "../../../../../packages/server/src/domain/world-info/contract/import.ts";
-import { createBulkImportLorebook } from "../../../../../packages/server/src/domain/world-info/persistence/import-write.ts";
+import {
+  createAttachOwnedBooksByName,
+  createBulkImportLorebook,
+  createImportStandaloneLorebook,
+} from "../../../../../packages/server/src/domain/world-info/persistence/import-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter, seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -168,5 +172,66 @@ describe("createBulkImportLorebook", () => {
     const owner = await seedUser(db, {});
     const op = createBulkImportLorebook(importCtx(db));
     await expect(op({ ownerId: owner.id, characterId: castId("character_missing"), book: book() })).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+});
+
+// ── the ST NAME-LINK attach (the silent-gap sweep, 2026-08-15) ───────────────────────────────────────────
+// A card's `extensions.world` and `charLore.extraBooks` name books by NAME (ids never cross a box). The op
+// resolves by the standalone import's own (ownerId, name) key and honours the at-most-one-primary invariant.
+describe("createAttachOwnedBooksByName", () => {
+  test("attaches an owned book by exact name; primary when the seat is free, and dangling names come back", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const ctx = importCtx(db);
+    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: book({ name: "Eldoria" }) });
+    const op = createAttachOwnedBooksByName(ctx);
+
+    const result = await op({ ownerId: owner.id, characterId: character.id, names: ["Eldoria", "Never Downloaded"], role: "primary" });
+
+    expect(result.linked).toBe(1);
+    // Exact-name only — the corpus's 28 dangling world names must come back verbatim for the report.
+    expect(result.missing).toEqual(["Never Downloaded"]);
+    const attach = await db.select().from(characterBooks);
+    expect(attach).toHaveLength(1);
+    expect(attach[0]?.role).toBe("primary");
+  });
+
+  test("a `primary` request DEMOTES to auxiliary when an embedded book already claimed the seat", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const ctx = importCtx(db);
+    // The embedded `character_book` import runs FIRST in the profile-import ordering and takes primary.
+    await createBulkImportLorebook(ctx)({ ownerId: owner.id, characterId: character.id, book: book({ name: "Embedded" }) });
+    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: book({ name: "Eldoria" }) });
+
+    const result = await createAttachOwnedBooksByName(ctx)({ ownerId: owner.id, characterId: character.id, names: ["Eldoria"], role: "primary" });
+
+    expect(result.linked).toBe(1);
+    const roles = (await db.select().from(characterBooks)).map((r) => r.role).sort();
+    // ONE primary (the embedded book), the name-link demoted — never two primaries.
+    expect(roles).toEqual(["auxiliary", "primary"]);
+  });
+
+  test("charLore auxiliaries attach as auxiliary; a foreign owner's same-named book NEVER resolves; re-runs are idempotent", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const stranger = await seedUser(db, { handle: castId("stranger"), email: "s@x.test" });
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const ctx = importCtx(db);
+    // The STRANGER owns a book with exactly the name the charLore binding asks for — it must not link.
+    await createImportStandaloneLorebook(ctx)({ ownerId: stranger.id, book: book({ name: "Foreign Lore" }) });
+    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: book({ name: "Extra Lore" }) });
+    const op = createAttachOwnedBooksByName(ctx);
+
+    const result = await op({ ownerId: owner.id, characterId: character.id, names: ["Extra Lore", "Foreign Lore"], role: "auxiliary" });
+    expect(result.linked).toBe(1);
+    expect(result.missing).toEqual(["Foreign Lore"]);
+    expect((await db.select().from(characterBooks)).map((r) => r.role)).toEqual(["auxiliary"]);
+
+    // Idempotent: the PK collision no-ops, the attach count stays 1.
+    await op({ ownerId: owner.id, characterId: character.id, names: ["Extra Lore"], role: "auxiliary" });
+    expect(await db.select().from(characterBooks)).toHaveLength(1);
   });
 });

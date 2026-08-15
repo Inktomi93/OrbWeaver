@@ -8,6 +8,7 @@ export { WorldInfoNotFoundError } from "./contract/errors.ts";
 export type { ExportedWorldBook, ExportWorldBook, ListOwnedBookIds, WorldInfoExportContext } from "./contract/export.ts";
 export type { CopyHandoffBooks, HandoffCardPair, WorldInfoHandoffCopyContext } from "./contract/handoff-copy.ts";
 export type {
+  AttachOwnedBooksByName,
   BulkImportLorebook,
   CopyCharacterBooks,
   ImportStandaloneLorebook,
@@ -30,6 +31,7 @@ export type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "./c
 export { createCopyCharacterBooks } from "./persistence/duplicate-carry.ts";
 export { createCopyHandoffBooks } from "./persistence/handoff-copy-write.ts";
 export {
+  createAttachOwnedBooksByName,
   createBulkImportLorebook,
   createImportStandaloneLorebook,
 } from "./persistence/import-write.ts";

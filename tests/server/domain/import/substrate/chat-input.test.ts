@@ -95,6 +95,49 @@ describe("ST author's note → orb's injection system (owner ruling 2026-08-08)"
   });
 });
 
+// ── ST `/inject`-saved injections → the SAME door (the silent-gap sweep, 2026-08-15) ─────────────────────
+// `chat_metadata.script_injects` rides the same extension_prompt enums the note does, so the conversion is
+// the same matrix — 5 corpus chats / 6 injections were parsed to sourceMetadata and thrown away (§5.7).
+describe("ST script_injects → orb's injection system", () => {
+  test("a corpus-shaped inject becomes one chat_injections row through the note's own conversion", () => {
+    // Verbatim corpus shape (`main_Tessa_spec_v2` — the one non-null `scan` row): position 1, depth 1, role 2.
+    const injects = {
+      clothes: { value: "[Relevant Informations for portraying characters clothes]", position: 1, depth: 1, scan: true, role: 2, filter: null },
+    };
+    const input = buildBulkImportChatInput(collected("x.jsonl", { script_injects: injects }), DEPS);
+    expect(input.injections).toEqual([
+      {
+        position: "in_chat",
+        depth: 1,
+        role: "assistant",
+        content: "[Relevant Informations for portraying characters clothes]",
+        order: null,
+        createdAt: Date.UTC(2025, 4, 7, 22, 52, 11),
+      },
+    ]);
+  });
+
+  test("the note comes FIRST, then the injects in ST's own key order — one prose door for both channels", () => {
+    const meta = {
+      note_prompt: "Keep it tense.",
+      script_injects: {
+        b: { value: "second", position: 0, depth: 0, scan: false, role: 0, filter: null },
+        a: { value: "third", position: 2, depth: 0, scan: false, role: 1, filter: null },
+      },
+    };
+    const input = buildBulkImportChatInput(collected("x.jsonl", meta), DEPS);
+    expect(input.injections?.map((i) => i.content)).toEqual(["Keep it tense.", "second", "third"]);
+    expect(input.injections?.map((i) => i.position)).toEqual(["in_chat", "in_prompt", "before_prompt"]);
+    expect(input.injections?.map((i) => i.role)).toEqual(["system", "system", "user"]);
+  });
+
+  test("an inject with unrecorded/unmappable knobs takes the house register, like the note", () => {
+    const injects = { x: { value: "steer", position: 99, depth: null, scan: false, role: null, filter: null } };
+    const input = buildBulkImportChatInput(collected("x.jsonl", { script_injects: injects }), DEPS);
+    expect(input.injections?.[0]).toMatchObject({ position: "in_chat", depth: 4, role: "system" });
+  });
+});
+
 describe("the imported chat's display title", () => {
   test("the cast name + the chat's own date, never the ST filename token", () => {
     const input = buildBulkImportChatInput(collected("Emily Singleton - 2025-5-7 @22h 52m 11s 856ms.jsonl"), DEPS);

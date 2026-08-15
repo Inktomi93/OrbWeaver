@@ -202,6 +202,10 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
       // the serde emits no `pinnedPersona` — one fact, one spelling. The import leg reads ST's key so a
       // foreign profile's chat-bound pick survives; the export leg has nothing extra to say.
       pinnedPersonaName: null,
+      // ALWAYS empty on export, the notePrompt rule one seat up: orb's injections table does not remember
+      // which door a row entered by (`/inject` vs note), so `script_injects` has no unambiguous inverse.
+      // The import leg reads ST's key; the export leg is one-way (and the serde does not emit the key).
+      scriptInjects: [],
       bucket: classifyChat(parsedMessages),
       sourceMetadata: null,
       messages: parsedMessages,

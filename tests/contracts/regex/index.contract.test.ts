@@ -161,6 +161,84 @@ test("the depth scope is patchable through the update wire, and the PAIRING is c
   expect(regexScriptBehaviorSchema.safeParse(merged).success).toBe(false);
 });
 
+// ── THE GENUINE ST DIALECT (the silent-gap sweep, 2026-08-15) ────────────────────────────────────────────
+// Real SillyTavern writes `scriptName` (extensions/regex/index.js:850) and INTEGER placements
+// (engine.js:281 — {MD_DISPLAY:0, USER_INPUT:1, AI_OUTPUT:2, SLASH_COMMAND:3, WORLD_INFO:5, REASONING:6}).
+// The schema previously read only orb's own export dialect (`name`, string placements), so EVERY genuine
+// ST script failed safeParse and the lift dropped it silently — measured on the real corpus: all 15 scripts
+// on the Marinara chat-completion preset. The fixtures below are VERBATIM corpus scripts (default-user
+// profile, `OpenAI Settings/Marinara's Spaghetti Recipe.json`), not hand-idealized shapes.
+
+/** Verbatim corpus bytes: `extensions.regex_scripts[1]` of the Marinara preset (minDepth non-null!). */
+const MARINARA_CLEAN_OPTIONAL = {
+  id: "640cca10-b29a-4a48-9328-8d26499b1af7",
+  scriptName: "Clean Optional Stuff (Keeping Last)",
+  findRegex: "/```\\n[\\s\\S]*?\\n---\\n[\\s\\S]*?```\\n+/g",
+  replaceString: "",
+  trimStrings: [],
+  placement: [1, 2],
+  disabled: true,
+  markdownOnly: false,
+  promptOnly: true,
+  runOnEdit: true,
+  substituteRegex: 0,
+  minDepth: 3,
+  maxDepth: null,
+};
+
+/** Verbatim corpus bytes: `extensions.regex_scripts[2]` — the widest placement set the corpus records. */
+const MARINARA_FIX_ELLIPSIS = {
+  id: "2f5b7243-6200-4263-9a37-c71dcea01e70",
+  scriptName: "Fix Elipsis",
+  findRegex: "/\\.{3}/g",
+  replaceString: "…",
+  trimStrings: [],
+  placement: [1, 2, 3, 5, 6],
+  disabled: false,
+  markdownOnly: false,
+  promptOnly: false,
+  runOnEdit: true,
+  substituteRegex: 0,
+  minDepth: null,
+  maxDepth: null,
+};
+
+test("a VERBATIM ST script parses: scriptName → name, integer placements → orb members, disabled honoured", () => {
+  const parsed = regexScriptCardSchema.parse(MARINARA_CLEAN_OPTIONAL);
+  expect(parsed.name).toBe("Clean Optional Stuff (Keeping Last)");
+  expect(parsed.placement).toEqual(["USER_INPUT", "AI_OUTPUT"]);
+  expect(parsed.enabled).toBe(false);
+  expect(parsed.id).toBe("640cca10-b29a-4a48-9328-8d26499b1af7");
+  // The ST spellings do not survive into the canonical shape — one home per fact.
+  expect(parsed).not.toHaveProperty("scriptName");
+  expect(parsed).not.toHaveProperty("minDepth");
+});
+
+test("ST's SLASH_COMMAND (3) and legacy sendAs (4) placement NUMBERS drop the MEMBER, never the script", () => {
+  const parsed = regexScriptCardSchema.parse(MARINARA_FIX_ELLIPSIS);
+  // [1,2,3,5,6] → USER_INPUT, AI_OUTPUT, (3 dropped — no orb slash leg, D107), WORLD_INFO, REASONING.
+  expect(parsed.placement).toEqual(["USER_INPUT", "AI_OUTPUT", "WORLD_INFO", "REASONING"]);
+  expect(parsed.enabled).toBe(true);
+  const withLegacySendAs = { ...MARINARA_FIX_ELLIPSIS, placement: [4, 2] };
+  expect(regexScriptCardSchema.parse(withLegacySendAs).placement).toEqual(["AI_OUTPUT"]);
+});
+
+test("ST's deprecated MD_DISPLAY (0) maps onto orb's DISPLAY leg", () => {
+  const parsed = regexScriptCardSchema.parse({ ...MARINARA_FIX_ELLIPSIS, placement: [0] });
+  expect(parsed.placement).toEqual(["DISPLAY"]);
+});
+
+test("our `name` wins when both spellings are present (an orb-exported card round-trips exactly)", () => {
+  const parsed = regexScriptCardSchema.parse({ ...MARINARA_CLEAN_OPTIONAL, name: "Ours" });
+  expect(parsed.name).toBe("Ours");
+});
+
+test("the orb string-placement dialect still parses unchanged beside the ST numeric one", () => {
+  const parsed = regexScriptCardSchema.parse({ ...FULL_ROW, id: "st-uuid-5" });
+  expect(parsed.placement).toEqual(["AI_OUTPUT", "DISPLAY"]);
+  expect(parsed.name).toBe(FULL_ROW.name);
+});
+
 // ── The kit↔contracts satisfies-seam (Legacy-Migration-and-Gaps.md §6) ───────────────
 // The pure executor in `@orb/kit/regex` reads a structural `RegexScriptInput`; kit may not import
 // contracts, so the persisted row must `satisfies RegexScriptInput` FROM HERE. A field drift

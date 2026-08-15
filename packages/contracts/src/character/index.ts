@@ -138,6 +138,12 @@ export const characterCardSchema = z.object({
   creationDate: z.number().int().nullable(),
   /** Unix-seconds last-modification timestamp (ST V3 `data.modification_date`). */
   modificationDate: z.number().int().nullable(),
+  /** ST's favorite flag (`data.extensions.fav`) promoted onto `characters.starred` — the
+   *  promote-out-of-residue pattern of `depth_prompt`/`regex_scripts` (D28): the IN-adapter reads it, the
+   *  residue drops the key, and the OUT-emitter writes it back FROM THE LIVE ROW (so a star toggled in orb
+   *  exports truthfully instead of replaying the imported byte). OPTIONAL on the `regexScripts` precedent:
+   *  present at the serde boundary; the domain's card projection omits it (the row column is the home). */
+  starred: z.boolean().optional(),
   /** The ST card-wire regex scripts (`data.extensions.regex_scripts` / V2 root `data.regex_scripts`) —
    *  the LIFT/RE-EMBED slot, present ONLY at the serde boundary: the importer hands these to the regex
    *  domain to mint library rows + a `character_regex_scripts` attachment, and the exporter fills it by

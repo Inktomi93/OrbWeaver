@@ -165,10 +165,48 @@ const regexScriptCardFieldsSchema = regexScriptBehaviorSchema.extend({
   disabled: z.boolean().optional(),
 });
 
-export const regexScriptCardSchema = regexScriptCardFieldsSchema.transform(({ enabled, disabled, ...rest }) => ({
-  ...rest,
-  enabled: enabled ?? disabled !== true,
-}));
+/** ST's NUMERIC placement enum → orb's member (SOURCE-PINNED, SillyTavern
+ *  `public/scripts/extensions/regex/engine.js:281` — MD_DISPLAY 0 · USER_INPUT 1 · AI_OUTPUT 2 ·
+ *  SLASH_COMMAND 3 · WORLD_INFO 5 · REASONING 6; 4 is a struck legacy sendAs arm). `3`/`4` are
+ *  DELIBERATELY absent — orb has no slash-command text leg (D107; the header's accept-and-drop clause),
+ *  so they fall through the lenient placement filter like the string `"SLASH_COMMAND"` does. */
+const ST_REGEX_PLACEMENT_BY_NUMBER: Readonly<Record<number, RegexPlacement>> = {
+  0: "DISPLAY",
+  1: "USER_INPUT",
+  2: "AI_OUTPUT",
+  5: "WORLD_INFO",
+  6: "REASONING",
+};
+
+/** Normalize the GENUINE ST spelling onto the orb wire before the schema parses. ST's editor writes
+ *  `scriptName` (`extensions/regex/index.js:850`) and INTEGER placements — the orb-exported dialect
+ *  (`name`, string placements) is what the fields schema reads, so a real ST script failed `safeParse`
+ *  wholesale and the lift silently dropped it (measured: all 15 corpus preset scripts). Ours wins when
+ *  both spellings are present (the enabled/disabled precedent above); an unmapped placement NUMBER is
+ *  stringified so the lenient filter drops the MEMBER, never the script. */
+function normalizeStScriptWire(raw: unknown): unknown {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return raw;
+  }
+  const obj = raw as Record<string, unknown>;
+  const name = obj["name"] ?? obj["scriptName"];
+  const placement = Array.isArray(obj["placement"])
+    ? obj["placement"].map((member) => (typeof member === "number" ? (ST_REGEX_PLACEMENT_BY_NUMBER[member] ?? String(member)) : member))
+    : obj["placement"];
+  return {
+    ...obj,
+    ...(name === undefined ? {} : { name }),
+    ...(placement === undefined ? {} : { placement }),
+  };
+}
+
+export const regexScriptCardSchema = z.preprocess(
+  normalizeStScriptWire,
+  regexScriptCardFieldsSchema.transform(({ enabled, disabled, ...rest }) => ({
+    ...rest,
+    enabled: enabled ?? disabled !== true,
+  })),
+);
 
 export type RegexScriptCard = z.output<typeof regexScriptCardSchema>;
 

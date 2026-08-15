@@ -12,7 +12,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { BulkImportLorebookResult } from "@orb/contracts/world-info";
-import type { AssetId, CharacterId, Handle, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, Handle, PersonaId, PresetId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import type { ImportFsPort } from "@orb/server/domain/import";
@@ -282,7 +282,10 @@ function fakes(): Fakes {
 
   // The preset domain's real verb is idempotent on (ownerId, name): a same-named preset MERGES in place and
   // reports created:false. The fake mirrors that so the double-run test proves a clean no-op, not a duplicate.
-  const importPreset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }): Promise<{ ok: boolean; created?: boolean; error?: string }> => {
+  const importPreset = (args: {
+    readonly ownerId: UserId;
+    readonly bytes: Uint8Array;
+  }): Promise<{ ok: boolean; created?: boolean; error?: string; presetId?: PresetId }> => {
     const parsed: unknown = JSON.parse(new TextDecoder().decode(args.bytes));
     const name = (parsed as { name?: unknown }).name;
     if (typeof name !== "string") {
@@ -291,7 +294,8 @@ function fakes(): Fakes {
     presetWrites.push(name);
     const created = !presetNames.has(name);
     presetNames.add(name);
-    return Promise.resolve({ ok: true, created });
+    // The row id the real verb reports (create OR merge) — the preset-scripts lift attaches to exactly it.
+    return Promise.resolve({ ok: true, created, presetId: castId<PresetId>(`preset_${name.replaceAll(/\W/g, "")}`) });
   };
 
   const bulkImportChats = (args: { readonly characterId: CharacterId; readonly chats: readonly BulkImportChatInput[] }): Promise<BulkImportChatsResult> => {
@@ -773,6 +777,203 @@ describe("runProfileDirImport — ST groups", () => {
     // The same set was examined; no new character canon.
     expect(second.scanned).toBe(first.scanned);
     expect(f.log.filter((l) => l === "character.create")).toHaveLength(2);
+  });
+
+  // ── THE SILENT-GAP SWEEP (2026-08-15): regex (card · preset · global), world name-links, user planes ────
+  // Every plane below vanished with NO report line before this wave. The fixture values are the GENUINE ST
+  // dialect (scriptName + integer placements — verbatim corpus shapes), because the schema-level dialect gap
+  // was exactly how the card lift stayed silently empty even where it was wired.
+  test("regex scripts lift from cards, presets and settings; world names link; user planes are counted", async () => {
+    const stScript = (scriptName: string): Record<string, unknown> => ({
+      id: `st-${scriptName}`,
+      scriptName,
+      findRegex: "/\\.{3}/g",
+      replaceString: "…",
+      trimStrings: [],
+      placement: [1, 2],
+      disabled: false,
+      markdownOnly: false,
+      promptOnly: false,
+      runOnEdit: true,
+      substituteRegex: 0,
+      minDepth: null,
+      maxDepth: null,
+    });
+    // A card carrying BOTH its own scripts AND a world NAME-LINK (`extensions.world` — the ST primary-book
+    // binding; "Eldoria" resolves against `worlds/`, so the attach op must see it as primary).
+    const cardWithExtras = writeCardChunk(
+      MINIMAL_PNG,
+      JSON.stringify({
+        spec: "chara_card_v3",
+        spec_version: "3.0",
+        data: {
+          name: "Aria",
+          description: "Aria the bard",
+          first_mes: "Hello there!",
+          extensions: { world: "Eldoria", regex_scripts: [stScript("Card Script")] },
+        },
+      }),
+    );
+    const stWorld = JSON.stringify({ entries: { "0": { uid: 0, key: ["eldoria"], comment: "Eldoria", content: "A forest.", order: 100 } } });
+    const files: Record<string, Uint8Array> = {
+      "root/userA/characters/Aria.png": cardWithExtras,
+      "root/userA/chats/Aria/chat1.jsonl": ENC.encode(chatJsonl("Nate", "Aria")),
+      "root/userA/worlds/Eldoria.json": ENC.encode(stWorld),
+      "root/userA/OpenAI Settings/Marinara.json": ENC.encode(openAiPresetJson({ extensions: { regex_scripts: [stScript("Preset Script")] } })),
+      "root/userA/settings.json": ENC.encode(
+        JSON.stringify({
+          power_user: { personas: { "nate.png": "Nate" }, default_persona: "nate.png" },
+          extension_settings: { regex: [stScript("Global Script"), { scriptName: "malformed, no findRegex" }] },
+          // charLore keys by the CARD FILENAME STEM; "Test World Lore 2" is deliberately NOT in worlds/ —
+          // the corpus's dominant case (28 of 30 world names dangle) must come back as a report row.
+          world_info_settings: { world_info: { charLore: [{ name: "Aria", extraBooks: ["Eldoria", "Test World Lore 2"] }] } },
+        }),
+      ),
+      "root/userA/User Avatars/nate.png": MINIMAL_PNG,
+      // The Data Bank + character-gallery planes — counted, never silent (EMPTY on the real corpus).
+      "root/userA/user/files/notes.txt": ENC.encode("databank doc"),
+      "root/userA/user/images/Aria/pose1.png": MINIMAL_PNG,
+      "root/userA/user/images/Aria/pose2.png": MINIMAL_PNG,
+    };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const cardLifts: { characterId: CharacterId; names: string[] }[] = [];
+    const presetLifts: { presetId: PresetId; names: string[] }[] = [];
+    const globalLifts: string[][] = [];
+    const bookAttaches: { characterId: CharacterId; names: readonly string[]; role: string }[] = [];
+
+    const report = await runProfileDirImport({
+      ...deps(fs, f),
+      importCardScripts: ({ characterId, scripts }) => {
+        cardLifts.push({ characterId, names: scripts.map((s) => s.name) });
+        return Promise.resolve({ created: scripts.length, reused: 0 });
+      },
+      importPresetScripts: ({ presetId, scripts }) => {
+        presetLifts.push({ presetId, names: scripts.map((s) => s.name) });
+        return Promise.resolve({ created: scripts.length, reused: 0 });
+      },
+      importGlobalScripts: ({ scripts }) => {
+        globalLifts.push(scripts.map((s) => s.name));
+        return Promise.resolve({ created: scripts.length, reused: 0 });
+      },
+      attachBooksByName: ({ characterId, names, role }) => {
+        bookAttaches.push({ characterId, names, role });
+        const missing = names.filter((n) => !f.standaloneBooks.includes(n));
+        return Promise.resolve({ linked: names.length - missing.length, missing });
+      },
+    });
+
+    // CARD scripts: the ST dialect normalized (scriptName → name) and lifted onto the created character.
+    expect(cardLifts).toEqual([{ characterId: castId<CharacterId>("chr_1"), names: ["Card Script"] }]);
+    expect(report.cardRegexScriptsLifted).toBe(1);
+
+    // PRESET scripts: attached to exactly the row the (faked, presetId-reporting) import op wrote.
+    expect(presetLifts).toEqual([{ presetId: "preset_MarinaraOpenAI", names: ["Preset Script"] }]);
+    expect(report.presetNotes.find((n) => n.name === "Marinara (OpenAI)")).toMatchObject({ scriptsLifted: 1, scriptsReused: 0 });
+
+    // GLOBAL scripts: found 2 (1 malformed — counted, dropped), lifted 1.
+    expect(globalLifts).toEqual([["Global Script"]]);
+    expect(report.globalRegexScriptsFound).toBe(1);
+    expect(report.malformedGlobalRegexScripts).toBe(1);
+    expect(report.globalRegexScriptsLifted).toBe(1);
+    expect(report.globalRegexSkippedReason).toBeNull();
+
+    // WORLD LINKS: the card's own world attaches PRIMARY; the charLore extras attach AUXILIARY; the name the
+    // profile never downloaded comes back as a per-character report row, verbatim, never near-matched.
+    expect(bookAttaches).toEqual([
+      { characterId: castId<CharacterId>("chr_1"), names: ["Eldoria"], role: "primary" },
+      { characterId: castId<CharacterId>("chr_1"), names: ["Eldoria", "Test World Lore 2"], role: "auxiliary" },
+    ]);
+    expect(report.worldLinksAttached).toBe(2);
+    expect(report.worldLinksMissing).toEqual([{ character: "Aria", book: "Test World Lore 2" }]);
+
+    // USER PLANES: counted so a future profile carrying data can never again lose it silently.
+    expect(report.databankFileCount).toBe(1);
+    expect(report.galleryImageCount).toBe(2);
+  });
+
+  // ── THE ORPHAN WAVE (2026-08-15): transcripts whose card is absent import via a minted placeholder ──────
+  test("an orphan chats/ dir mints a placeholder (evidence-only), imports its chats, and is tagged for the owner", async () => {
+    const files: Record<string, Uint8Array> = {
+      ...fixtureFiles("root"),
+      // A REAL corpus shape: `Bonnie_Cow/` has no `Bonnie_Cow.png` card; its header carries the `"unused"`
+      // sentinel, so the DIR NAME is the mint's evidence.
+      "root/userA/chats/Bonnie_Cow/Bonnie Cow - 2025-07-18@12h00m00s.jsonl": ENC.encode(chatJsonl("Nate", "unused")),
+    };
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(memoryFs(files), f));
+
+    // The FOUND list still names the dir (the honesty line), and the new section says what happened to it.
+    expect(report.orphanChatDirs).toEqual(["bonnie-cow"]);
+    expect(report.orphanImports).toEqual([{ dir: "Bonnie_Cow", characterName: "Bonnie Cow", created: true, chatsImported: 1 }]);
+    expect(report.orphanSkipped).toEqual([]);
+    // The mint is discoverable: ONE library tag, manual/accepted, on the minted character (chr_2 — the card
+    // character chr_1 minted first).
+    expect(f.tagAttaches).toEqual([{ characterId: castId<CharacterId>("chr_2"), tagName: "orphan import", source: "manual", status: "accepted" }]);
+    // The transcripts imported through the ORDINARY chats verb against the mint.
+    expect(f.chatWrites.some((w) => w.characterId === castId<CharacterId>("chr_2") && w.chats.length === 1)).toBe(true);
+    // changed counts the mint + its chat (persona + card char + card chat + mint + orphan chat = 5).
+    expect(report.changed).toBe(5);
+
+    // The RE-RUN: the synthetic dir-keyed hash resolves the same mint; the chat dedups by its byte hash.
+    const second = await runProfileDirImport(deps(memoryFs(files), f));
+    expect(second.orphanImports).toEqual([{ dir: "Bonnie_Cow", characterName: "Bonnie Cow", created: false, chatsImported: 0 }]);
+    expect(second.changed).toBe(0);
+    // No second tag — the tag attaches only on a CREATE.
+    expect(f.tagAttaches).toHaveLength(1);
+  });
+
+  test("dryRun leaves orphan dirs reported-only (zero mints, zero writes)", async () => {
+    const files: Record<string, Uint8Array> = {
+      ...fixtureFiles("root"),
+      "root/userA/chats/Bonnie_Cow/Bonnie Cow - 2025-07-18@12h00m00s.jsonl": ENC.encode(chatJsonl("Nate", "unused")),
+    };
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(memoryFs(files), f, { dryRun: true }));
+
+    expect(report.orphanChatDirs).toEqual(["bonnie-cow"]);
+    expect(report.orphanImports).toEqual([]);
+    expect(f.log).toHaveLength(0);
+  });
+
+  test("found-but-unwired regex/world ops are RECORDED reasons, never silence", async () => {
+    const files: Record<string, Uint8Array> = {
+      ...fixtureFiles("root"),
+      "root/userA/settings.json": ENC.encode(
+        JSON.stringify({
+          power_user: { personas: { "nate.png": "Nate" }, default_persona: "nate.png" },
+          extension_settings: {
+            regex: [
+              {
+                id: "st-g",
+                scriptName: "Global Script",
+                findRegex: "a",
+                replaceString: "b",
+                trimStrings: [],
+                placement: [2],
+                disabled: false,
+                markdownOnly: false,
+                promptOnly: false,
+                runOnEdit: false,
+                substituteRegex: 0,
+                minDepth: null,
+                maxDepth: null,
+              },
+            ],
+          },
+        }),
+      ),
+    };
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(memoryFs(files), f));
+
+    expect(report.globalRegexScriptsFound).toBe(1);
+    expect(report.globalRegexScriptsLifted).toBe(0);
+    expect(report.globalRegexSkippedReason).toBe("global regex-script import is not wired into this composition");
   });
 });
 

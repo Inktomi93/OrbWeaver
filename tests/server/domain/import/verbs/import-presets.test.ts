@@ -5,7 +5,7 @@
 // (owning no serde and no collision rule), isolates a refusal PER PRESET, separates ACCEPTED from NET-NEW, and
 // emits a note for every preset that landed — including the empty-fields "landed whole" note.
 
-import type { UserId } from "@orb/kit/ids";
+import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CollectedPreset, ImportContext, ImportProfileDeps } from "@orb/server/domain/import";
 import { createImportService, stPresetFromJson } from "@orb/server/domain/import";
@@ -43,7 +43,7 @@ interface Recorded {
 }
 
 /** A context wired with ONLY what this verb needs; every other op throws if touched. */
-function ctxWith(importPreset: ImportProfileDeps["importPreset"]): ImportContext {
+function ctxWith(importPreset: ImportProfileDeps["importPreset"], importPresetScripts?: ImportProfileDeps["importPresetScripts"]): ImportContext {
   const unused = (): never => {
     throw new Error("unexpected op call");
   };
@@ -63,9 +63,28 @@ function ctxWith(importPreset: ImportProfileDeps["importPreset"]): ImportContext
       enqueueBackfill: () => Promise.resolve(),
       reconcileStats: () => Promise.resolve(),
       ...(importPreset === undefined ? {} : { importPreset }),
+      ...(importPresetScripts === undefined ? {} : { importPresetScripts }),
     },
   };
 }
+
+/** A VERBATIM corpus script (Marinara preset, default-user profile) — the genuine ST dialect: `scriptName`,
+ *  INTEGER placements, `disabled`. The silent gap this wave closes was measured on exactly these bytes. */
+const MARINARA_SCRIPT = {
+  id: "2f5b7243-6200-4263-9a37-c71dcea01e70",
+  scriptName: "Fix Elipsis",
+  findRegex: "/\\.{3}/g",
+  replaceString: "…",
+  trimStrings: [],
+  placement: [1, 2, 3, 5, 6],
+  disabled: false,
+  markdownOnly: false,
+  promptOnly: false,
+  runOnEdit: true,
+  substituteRegex: 0,
+  minDepth: null,
+  maxDepth: null,
+};
 
 describe("importPresets", () => {
   test("hands the preset domain the orb-native FILE bytes and reports accepted vs net-new separately", async () => {
@@ -132,5 +151,59 @@ describe("importPresets", () => {
 
     expect(result.presetsImported).toBe(0);
     expect(result.skippedPresets).toEqual([{ file: "OpenAI Settings/Marinara.json", reason: "preset import is not wired into this composition" }]);
+  });
+
+  // ── the preset-scoped regex scripts (the silent-gap sweep, 2026-08-15) ─────────────────────────────────
+  // ST's presetManager stores the regex extension's preset-scoped scripts ON the preset file
+  // (`extensions.regex_scripts` — 15 real scripts on the corpus's Marinara preset), and the wave used to
+  // ignore the key WITHOUT even a dropped-field note — the one class of drop the report could not see.
+
+  test("a preset's own regex scripts lift onto EXACTLY the row the import op wrote, and the note counts them", async () => {
+    const liftCalls: { presetId: PresetId; scriptNames: string[] }[] = [];
+    const importPreset = vi.fn(() => Promise.resolve({ ok: true, created: true, presetId: castId<PresetId>("preset_row_1") }));
+    const importPresetScripts = vi.fn(({ presetId, scripts }: { presetId: PresetId; scripts: readonly { name: string }[] }) => {
+      liftCalls.push({ presetId, scriptNames: scripts.map((s) => s.name) });
+      return Promise.resolve({ created: 1, reused: 0 });
+    });
+    const service = createImportService(ctxWith(importPreset, importPresetScripts as ImportProfileDeps["importPresetScripts"]));
+
+    const result = await service.importPresets({
+      presets: [collected("Marinara (OpenAI)", "OpenAI Settings/Marinara.json", stPresetJson({ extensions: { regex_scripts: [MARINARA_SCRIPT] } }))],
+    });
+
+    // The dialect normalized (scriptName → name) and the junction targeted the returned row id.
+    expect(liftCalls).toEqual([{ presetId: "preset_row_1", scriptNames: ["Fix Elipsis"] }]);
+    expect(result.notes[0]).toMatchObject({ scriptsLifted: 1, scriptsReused: 0 });
+  });
+
+  test("scripts on a preset with NO lift op wired are a RECORDED skip — the preset itself still imports", async () => {
+    const importPreset = vi.fn(() => Promise.resolve({ ok: true, created: true, presetId: castId<PresetId>("preset_row_2") }));
+    const service = createImportService(ctxWith(importPreset, undefined));
+
+    const result = await service.importPresets({
+      presets: [collected("Marinara (OpenAI)", "OpenAI Settings/Marinara.json", stPresetJson({ extensions: { regex_scripts: [MARINARA_SCRIPT] } }))],
+    });
+
+    expect(result.presetsImported).toBe(1);
+    expect(result.skippedPresets).toEqual([
+      {
+        file: "OpenAI Settings/Marinara.json",
+        reason: "1 preset regex script(s) not lifted (the preset imported; the script lift is not wired into this composition)",
+      },
+    ]);
+    expect(result.notes[0]).toMatchObject({ scriptsLifted: 0, scriptsReused: 0 });
+  });
+
+  test("a script-less preset never calls the lift, and unknown extensions keys join the unmapped note by name", async () => {
+    const importPreset = vi.fn(() => Promise.resolve({ ok: true, created: true, presetId: castId<PresetId>("preset_row_3") }));
+    const importPresetScripts = vi.fn(() => Promise.resolve({ created: 0, reused: 0 }));
+    const service = createImportService(ctxWith(importPreset, importPresetScripts as ImportProfileDeps["importPresetScripts"]));
+
+    const result = await service.importPresets({
+      presets: [collected("Plain (OpenAI)", "OpenAI Settings/Plain.json", stPresetJson({ extensions: { someVendorState: { a: 1 } } }))],
+    });
+
+    expect(importPresetScripts).not.toHaveBeenCalled();
+    expect(result.notes[0]?.fields.map((f) => f.field)).toContain("extensions.someVendorState");
   });
 });

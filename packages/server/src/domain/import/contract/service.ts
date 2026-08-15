@@ -9,16 +9,17 @@ import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/cont
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ImportPreset } from "#domain/preset";
-import type { ImportCardScripts } from "#domain/regex";
+import type { ImportCardScripts, ImportPresetScripts } from "#domain/regex";
 import type { ImportRpgGame } from "#domain/rpg";
 import type { SettingsImportOutcome } from "#domain/settings";
-import type { ImportCharacterInput } from "./params.ts";
+import type { ImportCharacterInput, ImportOrphanCharacterInput } from "./params.ts";
 import type {
   ImportCharacterResult,
   ImportChatFileOutcome,
   ImportChatsResult,
   ImportedCharacterRef,
   ImportGroupsResult,
+  ImportOrphanCharacterResult,
   ImportPersonasResult,
   ImportPresetsResult,
   ImportThemesResult,
@@ -120,6 +121,10 @@ export interface ImportProfileDeps {
    *  settings domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither.
    *  OPTIONAL on the `importPreset` precedent: absent ⇒ the theme plane simply does not restore. */
   readonly importTheme?: ImportTheme;
+  /** Regex-owned PRESET lift — a collected preset's own `extensions.regex_scripts` become library rows +
+   *  a `preset_regex_scripts` attachment, AFTER `importPreset` returns the row id. OPTIONAL on the
+   *  `importCardScripts` precedent: absent ⇒ the scripts are reported skipped-with-reason, never silent. */
+  readonly importPresetScripts?: ImportPresetScripts;
 }
 
 /** Settings-owned theme-backup import write op (`domain/settings` `createImportTheme`). Spelled here as an
@@ -147,6 +152,11 @@ export interface ImportContext {
 export interface ImportService {
   /** Imports one ST character card; idempotent by importHash, falls back to a handle match re-import. */
   readonly importCharacter: (input: ImportCharacterInput) => Promise<ImportCharacterResult>;
+  /** Mints a MINIMAL placeholder character for an ORPHAN chats/ directory (card PNG absent) from the dir's
+   *  own evidence — name at most, never invented prose — so its transcripts can import instead of being
+   *  skipped. Idempotent via a synthetic dir-keyed importHash. The driver then runs the ordinary
+   *  {@link ImportService.importChats} against the mint and tags it `orphan import` for discoverability. */
+  readonly importOrphanCharacter: (input: ImportOrphanCharacterInput) => Promise<ImportOrphanCharacterResult>;
   /** Imports loose ST chat .jsonl files into an existing owned character. Requires ctx.profile. */
   readonly importChats: (input: ImportChatsInput) => Promise<ImportChatsResult>;
   /** Imports ONE bundle-shaped chat file — the single-chat door AND the bundle descriptor's one path.

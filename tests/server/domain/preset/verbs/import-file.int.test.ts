@@ -33,7 +33,7 @@ describe("importFile", () => {
     const stranger = await seedUser(db, "stranger");
     const outcome = await svc.importFile({ userId: stranger, fileText: new TextDecoder().decode(file?.bytes) });
 
-    expect(outcome).toStrictEqual({ ok: true, created: true });
+    expect(outcome).toStrictEqual({ ok: true, created: true, presetId: castId<PresetId>("preset_000001") });
     const rows = await db.select().from(presets).where(eq(presets.ownerId, stranger));
     expect(rows.map((r) => r.name)).toStrictEqual(["Roundtrip"]);
     expect(rows[0]?.config.params.temperature).toBe(0.42);
@@ -46,8 +46,8 @@ describe("importFile", () => {
     const text = (temperature: number): string =>
       JSON.stringify({ schemaKind: "orb.preset", schemaVersion: 4, name: "Shared", config: configWith(temperature) });
 
-    expect(await svc.importFile({ userId: owner, fileText: text(0.3) })).toStrictEqual({ ok: true, created: true });
-    expect(await svc.importFile({ userId: owner, fileText: text(1.1) })).toStrictEqual({ ok: true, created: false });
+    expect(await svc.importFile({ userId: owner, fileText: text(0.3) })).toStrictEqual({ ok: true, created: true, presetId: castId<PresetId>("preset_000001") });
+    expect(await svc.importFile({ userId: owner, fileText: text(1.1) })).toStrictEqual({ ok: true, created: false, presetId: castId<PresetId>("preset_000001") });
 
     const rows = await db.select().from(presets).where(eq(presets.ownerId, owner));
     expect(rows).toHaveLength(1);

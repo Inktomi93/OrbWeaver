@@ -20,6 +20,8 @@ import type {
   ExportCardScripts,
   ExportRegexScripts,
   ImportCardScripts,
+  ImportGlobalScripts,
+  ImportPresetScripts,
   ImportRegexScript,
   RegexContext,
   RegexService,
@@ -29,6 +31,8 @@ import {
   createExportCardScripts,
   createExportRegexScripts,
   createImportCardScripts,
+  createImportGlobalScripts,
+  createImportPresetScripts,
   createImportRegexScript,
   createRegexService,
   createResolveRegexSources,
@@ -186,6 +190,10 @@ export interface RegexComposeResult {
   readonly resolveRegexSources: ResolveRegexSources;
   /** Injected into the card IMPORT path (the `importLorebook` twin). */
   readonly importCardScripts: ImportCardScripts;
+  /** The ST profile import's PRESET-scoped lift (`extensions.regex_scripts` on a chat-completion preset). */
+  readonly importPresetScripts: ImportPresetScripts;
+  /** The ST profile import's GLOBAL lift (`extension_settings.regex` → `global_regex_scripts`). */
+  readonly importGlobalScripts: ImportGlobalScripts;
   /** Injected into `ExportContext` — the card RE-EMBED. */
   readonly exportCardScripts: ExportCardScripts;
   /** The backup-bundle descriptor's two halves. */
@@ -215,6 +223,8 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     regex,
     resolveRegexSources: createResolveRegexSources({ db }),
     importCardScripts: createImportCardScripts(portabilityCtx),
+    importPresetScripts: createImportPresetScripts(portabilityCtx),
+    importGlobalScripts: createImportGlobalScripts(portabilityCtx),
     exportCardScripts: createExportCardScripts({ db }),
     exportRegexScripts: createExportRegexScripts({ db }),
     importRegexScript: createImportRegexScript(portabilityCtx),

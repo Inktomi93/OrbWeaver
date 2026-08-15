@@ -25,14 +25,14 @@ import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import { findOwnedPersonaByName } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import { createImportPresets } from "#domain/preset";
-import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
+import type { ExportRegexScripts, ImportCardScripts, ImportGlobalScripts, ImportPresetScripts, ImportRegexScript } from "#domain/regex";
 import type { ImportRpgGame } from "#domain/rpg";
 import type { SettingsContext } from "#domain/settings";
 import { createApplyImportedAppearance, createImportTheme } from "#domain/settings";
 import { reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
-import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
+import type { AttachOwnedBooksByName, ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
 import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "../../transport/trpc/index.ts";
 import { writeImportReport } from "../import/import-report.ts";
@@ -77,6 +77,11 @@ export interface PortabilityRunnerComposeDeps {
   readonly importCardScripts: ImportCardScripts;
   readonly exportRegexScripts: ExportRegexScripts;
   readonly importRegexScript: ImportRegexScript;
+  /** The ST profile import's PRESET-scoped + GLOBAL regex lifts (the silent-gap sweep, 2026-08-15). */
+  readonly importPresetScripts: ImportPresetScripts;
+  readonly importGlobalScripts: ImportGlobalScripts;
+  /** The ST world NAME-LINK attach (card `extensions.world` + charLore → the owner's books, by exact name). */
+  readonly attachBooksByName: AttachOwnedBooksByName;
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
@@ -191,6 +196,12 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           principal,
           ...profileImport,
           importStandaloneLorebook: deps.importStandaloneLorebook,
+          // The silent-gap sweep's three ST-profile-only ops: preset-scoped + global regex lifts and the
+          // world name-link attach. Direct args (not the shared `profileImport` slice) — the zip-bundle
+          // descriptors have no ST wire to spend them on.
+          importPresetScripts: deps.importPresetScripts,
+          importGlobalScripts: deps.importGlobalScripts,
+          attachBooksByName: deps.attachBooksByName,
           // The ST chat-completion preset wave writes through the preset domain's OWN import verb (idempotent
           // on (ownerId, name), one serde, one collision rule) — the same op the zip-bundle descriptor uses.
           importPreset: createImportPresets(deps.presetCtx),
