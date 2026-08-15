@@ -1154,7 +1154,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const routable: RouteChatAssignment = meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
       return input.connection.checkChatAvailability({ principal: await realHostPrincipal(runAsUserId), routableChat: routable });
     },
-    resolveCreatorGroupDefaults: async (userId) => (await input.settings.loadUserSettings(userId)).groupDefaults,
     resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, presentHumanUserIds, trigger, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
 

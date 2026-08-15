@@ -60,26 +60,22 @@ interface MessageScopedParams extends ChatScopedParams {
   readonly messageId: MessageId;
 }
 
-/** `startChat` — lazy chat+roster creation, greeting/verbatim seeding, first-turn delegate. */
+/** `startChat` — lazy chat+roster creation, greeting seeding, CREATION-INTENT inputs only
+ *  (chat-creation-draft-mode-replacement.md §4.1/R2). The former nine-field "draft carry"
+ *  (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided, plus the `generate` opening arm) is
+ *  GONE — R1 made every client caller create the real room before mounting, so post-create roster tuning,
+ *  group config, room overrides and greeting edits ride their own already-built verbs
+ *  (`setSeatKnobs`/`setGroupConfig`/`setRoomOverrides`/`editMessage`/`setSeededGreeting`) against the real
+ *  room instead. `opening` EXCLUDES `"generate"` — "guide the opening" is an ordinary post-creation
+ *  `chat.generate` action now, never a creation-fused turn. */
 export interface StartChatParams extends ChatActorParams {
   readonly characterIds: readonly CharacterId[];
   readonly anchorPersonaId?: PersonaId | null | undefined;
   readonly title?: string | null | undefined;
-  readonly opening?: OpeningPolicy | undefined;
-  /** Per-founding-character raw opening text (the draft's swiped/edited greeting). Absent/empty falls
-   *  back to the card's greetings[0]. */
-  readonly seedGreetings?: Readonly<Record<CharacterId, string>> | undefined;
-  /** Pre-send per-character roster tuning applied to the founding rows at creation. */
-  readonly rosterOverrides?:
-    | Readonly<Record<CharacterId, { readonly disabled?: boolean | undefined; readonly talkativeness?: number | undefined }>>
-    | undefined;
-  readonly groupConfig?: GroupConfigInput | undefined;
-  readonly roomOverrides?: RoomOverrides | undefined;
+  readonly opening?: Exclude<OpeningPolicy, "generate"> | undefined;
   readonly injections?: readonly ChatInjectionInput[] | undefined;
   /** Born ephemeral: hidden from listChats, swept by reapTemporaryChats once expired. */
   readonly temporary?: boolean | undefined;
-  /** The one-turn guided steer for a generate opening; only runGeneratedOpening reads it. */
-  readonly guided?: GuidedSteer | undefined;
   /** #40 DRAFT-TIME game start: mint a lite game for the new chat BEFORE the opening turn (turn 1 is
    *  already in-game). Threaded BLIND to the injected `ChatRpgOps.startGame` (the pointer precedent);
    *  `profile` is rpg's contract shape (omit = freeform). */

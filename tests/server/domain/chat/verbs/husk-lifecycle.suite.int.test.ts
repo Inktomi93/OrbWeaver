@@ -23,9 +23,7 @@
 // expressed against the old surface (the verb did not exist) and are post-implementation coverage.
 
 import type { ChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
@@ -134,27 +132,10 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
   }) as Db;
 }
 
-/** `startChat`'s collaborators — no engine arm is exercised here (every case uses a verbatim/none opening). */
-function startDeps(ctx: ChatContext): Parameters<typeof createStartChat>[1] {
-  const notReached = (): never => {
-    throw new Error("not reached in this suite");
-  };
-  return {
-    emit,
-    loadParticipantViews: makeLoadParticipantViews(db),
-    engine: { runTurn: notReached },
-    resolveConnection: notReached,
-    resolveCreatorGroupDefaults: () => Promise.resolve(DEFAULT_GROUP_CONFIG),
-    resolveForeignInputs: () =>
-      Promise.resolve({
-        promptConfig: DEFAULT_PROMPT_CONFIG,
-        personas: { anchor: null, active: null },
-        globalRegexScripts: [],
-        scanDepth: 6,
-        injectionTokenBudget: 0,
-      }),
-    claimChat: createClaimChat(ctx),
-  };
+/** `startChat`'s collaborators — creation itself never claims (R2 retired the generate-opening arm that
+ *  used to be the one claiming path here; every case in this suite claims through a SEPARATE verb call). */
+function startDeps(_ctx: ChatContext): Parameters<typeof createStartChat>[1] {
+  return { emit, loadParticipantViews: makeLoadParticipantViews(db) };
 }
 
 /** Read one chat's husk column back. */

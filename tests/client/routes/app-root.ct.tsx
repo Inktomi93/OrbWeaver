@@ -95,7 +95,7 @@ const PREVIEW_FIT_STUB = {
 function createdRoomRoutes(temporary: boolean, canon: readonly unknown[] = []): Record<string, unknown> {
   const chat = createdChat(temporary);
   return {
-    "chat.startChat": { chat, opening: null, openingFailure: null },
+    "chat.startChat": { chat, opening: null },
     "chat.getChat": chat,
     "chat.listMessages": { messages: canon, cast: [] },
     "chat.previewContextFit": PREVIEW_FIT_STUB,

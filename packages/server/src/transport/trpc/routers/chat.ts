@@ -39,38 +39,26 @@ import { toolRecurseLimitSchema } from "#domain/chat";
 import { withSubscriptionErrors } from "../subscriptions.ts";
 import { authedProcedure, t } from "../trpc.ts";
 
+// `startChat` — CREATION-INTENT inputs only (chat-creation-draft-mode-replacement.md §4.1/R2). The former
+// nine-field "draft carry" (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided, plus the
+// `generate` opening arm + its `openingFailure` degrade) is GONE: R1 made every client caller create the
+// real room before mounting, so those creation-time payloads were unreachable product surface. Post-create
+// roster tuning, group config, room overrides and greeting edits ride their own already-built verbs
+// (`setSeatKnobs`/`setGroupConfig`/`setRoomOverrides`/`editMessage`/`setSeededGreeting`) against the real
+// room instead. `opening` EXCLUDES `"generate"` — "guide the opening" is now an ordinary post-creation
+// `chat.generate` action against the real room, never a creation-fused turn.
 const startChatSchema = z.object({
   characterIds: z.array(brandedId<CharacterId>()),
   anchorPersonaId: brandedId<PersonaId>().nullish(),
   title: z.string().nullish(),
-  opening: openingPolicySchema.optional(),
-  // THE DRAFT CARRY (StartChatParams — a new chat is fully editable pre-send; the first send hands its
-  // draft-config state to this ONE creation entry). All optional/sparse: absent ⇒ today's plain new chat.
-  seedGreetings: z.record(brandedId<CharacterId>(), z.string()).optional(),
-  rosterOverrides: z
-    .record(
-      brandedId<CharacterId>(),
-      z.object({
-        disabled: z.boolean().optional(),
-        talkativeness: z.number().min(0).max(1).optional(),
-      }),
-    )
-    .optional(),
-  groupConfig: groupConfigSchema.optional(),
-  roomOverrides: roomOverridesSchema.optional(),
+  opening: openingPolicySchema.exclude(["generate"]).optional(),
   injections: z.array(chatInjectionInputSchema).optional(),
   // ST "Temporary Chat" (PD-65) — born ephemeral: persisted so turns can run, hidden from `listChats`
   // ALWAYS, swept by `reapTemporaryChats` once past the caller's own TTL. Creation-only BY DESIGN (a fork
   // is born non-temporary; no verb updates the column), so this is the ONE place the flag can be set.
   temporary: z.boolean().optional(),
-  // The composer wand's degenerate "Guide the opening" (a draft chat has no committed turn to steer
-  // yet — its guided input rides the founding `generate` opening instead; ignored by every other
-  // `opening` policy). The DERIVED `guidedSteerSchema` (F6) — the transport trust boundary; a garbage
-  // action/non-string input is refused here as BAD_REQUEST instead of 500ing the domain resolver.
-  guided: guidedSteerSchema.optional(),
-  // #40 DRAFT-TIME game start — the draft staged a "start as game" intent; the server mints the lite
-  // game right after chat creation, BEFORE the opening turn (turn 1 in-game). `profile` rides rpg's own
-  // contract schema (the trust boundary); omit = freeform.
+  // #40 DRAFT-TIME game start — mints the lite game right after chat creation, BEFORE the opening turn
+  // (turn 1 in-game). `profile` rides rpg's own contract schema (the trust boundary); omit = freeform.
   startAsGame: z.object({ profile: rpgStatProfileSchema.optional() }).optional(),
 });
 

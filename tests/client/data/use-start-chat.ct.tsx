@@ -34,7 +34,7 @@ const CREATED_CHAT = {
 };
 
 const START_CHAT_ROUTES = {
-  "chat.startChat": { chat: CREATED_CHAT, opening: null, openingFailure: null },
+  "chat.startChat": { chat: CREATED_CHAT, opening: null },
   // Deliberately NOT stubbed to the same row: `chat.getChat` answering `null` here is the CONTROL for the
   // seed pin below — if the response were not written into the cache, the reader would go cold.
 };
