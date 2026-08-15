@@ -104,7 +104,8 @@ a11y → `side-eye`; both if the change spans both.
 
 ## Work control quick path
 
-- **Existing mutable work?** Inspect it with `pnpm work:item show <issue>` and update that issue; do not
+- **Existing mutable work?** Scan it with `pnpm work:item list --status <status>`, inspect it with
+  `pnpm work:item show <issue>`, and update that issue; do not
   create a duplicate. **New work?** Create exactly one class: `work` for an executable build,
   operations, or documentation outcome; `bug` for a reproducible contract violation; `decision` for an
   owner fork; `program` for one committed future sprint; or `evidence` for a
@@ -112,7 +113,9 @@ a11y → `side-eye`; both if the change spans both.
 - **Project is the only mutable lifecycle home.** Never mirror Triage, Ready, Running, Blocked, Verify,
   or Done into docs. Decisions enter **Needs owner**. The lifecycle is `ready <issue>` → `claim <issue> --lane <lane>` → `review <issue>` → `verify <issue> --evidence <receipt>` → `done <issue> --evidence <same-receipt>`; set Kind, Priority, Area, and Review before Ready. Use `needs-owner <issue>` for raw
   decision ingress, `block`/`unblock`, and `park --wake` for exceptions. `pnpm work:item --help` prints
-  the complete cookbook.
+  the complete cookbook. Lifecycle commands write Status last and accept an identical retry after an
+  interrupted or uncertain GitHub response; rerun the operator command instead of repairing fields with
+  raw `gh` calls.
 - **Only the orchestrator mutates Project.** Subagents return path/commit/test receipts; the
   orchestrator updates the linked issue. Issues point to durable repo evidence, and durable repo evidence
   never copies Project lifecycle fields.

@@ -269,6 +269,12 @@ defineTest("claim requires a lane and produces the mutation intent", () => {
   expect(() => parseWorkCommand(["claim", "11", "--lane", "docs-catalog", "extra"])).toThrow("--lane accepts exactly one value");
 });
 
+defineTest("list accepts an optional status filter", () => {
+  expect(parseWorkCommand(["list"])).toEqual({ kind: "list" });
+  expect(parseWorkCommand(["list", "--status", "Needs owner"])).toEqual({ kind: "list", status: "Needs owner" });
+  expect(() => parseWorkCommand(["list", "--status"])).toThrow("--status requires a value");
+});
+
 defineTest("parser errors become misuse exits at the CLI boundary", () => {
   const result = drive(createState("Triage"), "ready", "not-an-issue");
   expect(result.status).toBe(MISUSE_EXIT);
@@ -279,8 +285,26 @@ defineTest("help prints the complete Project operator path", () => {
   const result = drive(createState("Triage"), "--help");
   expect(result.status).toBe(0);
   expect(result.stdout).toContain("create <work|bug|decision|program|evidence>");
+  expect(result.stdout).toContain("list [--status <status>]");
   expect(result.stdout).toContain("Triage → Ready → Running → Review → Verify → Done");
+  expect(result.stdout).toContain("Interrupted transitions are safe to rerun");
   expect(result.stdout).toContain(".github/ISSUE_TEMPLATE/*.yml");
+});
+
+defineTest("list returns a stable filtered Project snapshot without mutation", () => {
+  const state = createState("Running");
+  state.items.push({
+    id: "item-8",
+    content: { number: 8, url: "https://example.test/issues/8" },
+    [STATUS_FIELD]: "Ready",
+    [DISPOSITION_FIELD]: "Action",
+  });
+  const result = drive(state, "list", "--status", "ready");
+  expect(result.status).toBe(0);
+  const listed = JSON.parse(result.stdout) as { readonly items: readonly { readonly issue: number; readonly status: string }[] };
+  expect(listed.items).toHaveLength(1);
+  expect(listed.items[0]).toEqual(expect.objectContaining({ issue: 8, status: "Ready" }));
+  expect(state.calls.filter((args) => args[0] === "project" && args[1] === "item-edit")).toHaveLength(0);
 });
 
 defineTest(
@@ -394,7 +418,7 @@ defineTest("ready accepts live ingress and resume statuses but not review", () =
   }
   const review = drive(createState("Review"), "ready", "11");
   expect(review.status).toBe(TOOL_ERROR_EXIT);
-  expect(review.stderr).toContain("must be Triage, Needs owner, Blocked, or Parked before Ready");
+  expect(review.stderr).toContain("must be Triage, Needs owner, Blocked, Parked, or Ready before Ready");
 });
 
 defineTest("ready requires complete metadata and changes disposition to Action", () => {
@@ -467,7 +491,7 @@ defineTest("ready initializes raw and statusless Project ingress without duplica
   expect(fieldValue(rawIssue, DISPOSITION_FIELD)).toBe("Action");
   expect(rawIssue.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(1);
   expect(rawIssue.calls.filter((args) => args.includes("--single-select-option-id") && args.includes("triage"))).toHaveLength(1);
-  expect(drive(rawIssue, "ready", "11").status).toBe(TOOL_ERROR_EXIT);
+  expect(drive(rawIssue, "ready", "11").status).toBe(0);
   expect(rawIssue.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(1);
 
   const statusless = createState("Triage");
@@ -492,6 +516,48 @@ defineTest("ready and unblock clear parked metadata before becoming Ready", () =
   expect(drive(unblocked, "unblock", "11", "--by", String(FIRST_BLOCKER)).status).toBe(0);
   expect(fieldValue(unblocked, "Wake condition")).toBeUndefined();
   expect(fieldValue(unblocked, "Disposition")).toBe("Action");
+});
+
+defineTest("interrupted and uncertain lifecycle transitions converge when retried", () => {
+  const partialNeedsOwner = createState("Running");
+  const partialItem = partialNeedsOwner.items[0];
+  if (partialItem !== undefined) {
+    partialItem[REVIEW_FIELD] = "Owner";
+    Reflect.deleteProperty(partialItem, "Lane");
+    partialItem[WAKE_CONDITION_FIELD] = "stale wake";
+    partialItem[DISPOSITION_FIELD] = "Action";
+  }
+  expect(drive(partialNeedsOwner, "needs-owner", "11").status).toBe(0);
+  expect(fieldValue(partialNeedsOwner, STATUS_FIELD)).toBe("Needs owner");
+  expect(fieldValue(partialNeedsOwner, WAKE_CONDITION_FIELD)).toBeUndefined();
+  expect(fieldValue(partialNeedsOwner, DISPOSITION_FIELD)).toBe("Untriaged");
+  expect(drive(partialNeedsOwner, "needs-owner", "11").status).toBe(0);
+
+  const uncertainReady = createState("Ready");
+  addParkedMetadata(uncertainReady);
+  expect(drive(uncertainReady, "ready", "11").status).toBe(0);
+  expect(fieldValue(uncertainReady, WAKE_CONDITION_FIELD)).toBeUndefined();
+  expect(fieldValue(uncertainReady, DISPOSITION_FIELD)).toBe("Action");
+
+  const uncertainClaim = createState("Running");
+  const runningItem = uncertainClaim.items[0];
+  if (runningItem !== undefined) {
+    runningItem["Lane"] = "same-lane";
+  }
+  expect(drive(uncertainClaim, "claim", "11", "--lane", "same-lane").status).toBe(0);
+  const wrongLane = drive(uncertainClaim, "claim", "11", "--lane", "other-lane");
+  expect(wrongLane.status).toBe(TOOL_ERROR_EXIT);
+  expect(wrongLane.stderr).toContain("already Running in lane same-lane");
+
+  const uncertainVerify = createState("Verify");
+  const verifyItem = uncertainVerify.items[0];
+  if (verifyItem !== undefined) {
+    verifyItem[EVIDENCE_FIELD] = "receipt-a";
+  }
+  expect(drive(uncertainVerify, "verify", "11", "--evidence", "receipt-a").status).toBe(0);
+  const wrongEvidence = drive(uncertainVerify, "verify", "11", "--evidence", "receipt-b");
+  expect(wrongEvidence.status).toBe(TOOL_ERROR_EXIT);
+  expect(wrongEvidence.stderr).toContain("already Verify with different Evidence");
 });
 
 defineTest("closed work items refuse lifecycle mutations", () => {
