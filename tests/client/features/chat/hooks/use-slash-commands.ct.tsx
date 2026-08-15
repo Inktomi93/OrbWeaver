@@ -116,7 +116,7 @@ test("ArrowDown/Up cycle the highlight over the offers while focus STAYS in the 
   // doctrine), so the popup's appearance is announced by the polite status line while `aria-controls`
   // names the listbox; (until an arrow) no active descendant — the passive-open state.
   await expect(textarea).not.toHaveAttribute("aria-expanded", ANY_NONEMPTY);
-  await expect(component.locator('[data-slot="composer-slash-status"]')).toHaveText("2 slash commands");
+  await expect(component.getByRole("status")).toHaveText("2 slash commands");
   await expect(textarea).toHaveAttribute("aria-controls", SLASH_LISTBOX_ID);
   await expect(textarea).not.toHaveAttribute("aria-activedescendant", ANY_NONEMPTY);
   await expect(component.getByRole("listbox", { name: "Slash commands" })).toBeVisible();
