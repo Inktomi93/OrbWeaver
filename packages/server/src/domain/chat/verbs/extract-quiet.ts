@@ -24,6 +24,7 @@ import { processMacros } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import { loadCanonHistory, loadStoredUserMacroValues } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { buildTurnUserMacros } from "../substrate/assembly-access.ts";
@@ -64,7 +65,11 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
     // {{char}} = the subject (or the roster's first present character), read under the HOST's ownership.
     const roster = await loadRoster(deps.db, p.chatId);
     const hostUserId = hostUserIdOf(roster);
-    const subjectId = p.subjectCharacterId ?? roster.find((r) => r.kind === "character" && r.characterId !== null)?.characterId ?? null;
+    const firstCastCharacterId = roster.flatMap((r) => {
+      const actor = classifyParticipant(r);
+      return actor?.kind === "character" ? [actor.characterId] : [];
+    })[0];
+    const subjectId = p.subjectCharacterId ?? firstCastCharacterId ?? null;
     const charName = hostUserId !== null && subjectId !== null ? ((await deps.getCard({ ownerId: hostUserId, characterId: subjectId }))?.name ?? "") : "";
 
     // The bounded recent-history window (prompt-excluded rows dropped), as the scene the extractor reads.

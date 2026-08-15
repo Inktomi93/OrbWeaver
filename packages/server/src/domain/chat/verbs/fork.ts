@@ -41,6 +41,7 @@ import type { ForkResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import {
   loadChatInjections,
   loadChatRow,
@@ -374,9 +375,10 @@ async function resolveOwnedCharacterSeats(
   forkerUserId: UserId,
   roster: readonly (typeof chatParticipants.$inferSelect)[],
 ): Promise<CharacterSeatRow[]> {
-  const characterSeats = roster.flatMap((p) =>
-    p.kind === "character" && p.characterId !== null && p.leftSeq === null ? [{ ...p, characterId: p.characterId }] : [],
-  );
+  const characterSeats = roster.flatMap((p) => {
+    const actor = classifyParticipant(p);
+    return actor?.kind === "character" && p.leftSeq === null ? [{ ...p, characterId: actor.characterId }] : [];
+  });
   const cards = await Promise.all(characterSeats.map((s) => ctx.getCard({ ownerId: forkerUserId, characterId: s.characterId })));
   return characterSeats.filter((_, i) => cards[i] !== null);
 }
@@ -536,7 +538,7 @@ function assertForkAllowed(args: {
   readonly chatId: ChatId;
 }): void {
   const { can, principal, role, roster, chatId } = args;
-  const presentHumanCount = roster.filter((r) => r.kind === "human").length;
+  const presentHumanCount = roster.filter((r) => classifyParticipant(r)?.kind === "human").length;
   if (!permitsHost(can, principal, role) && presentHumanCount > 1) {
     throw new ChatOperationError(CHAT_OP_CODES.notHost, `chat ${chatId}: only the host may fork a multi-human room`);
   }

@@ -13,16 +13,20 @@
 // (`ResolveForeignInputsOp.presentHumanUserIds`). They disagreed before the widening — a host could pin a
 // member's persona the resolver then refused to read, so the sanctioned control produced a silently dead pin.
 
-import type { UserId } from "@orb/kit/ids";
+import type { ParticipantKind } from "@orb/contracts/chat";
+import type { CharacterId, UserId } from "@orb/kit/ids";
+import { classifyParticipant } from "../persistence/participant.ts";
 
-/** The two columns the human-seat lens reads — structural, so the raw `chat_participants` row (`loadRoster`)
+/** The columns the human-seat lens reads — structural, so the raw `chat_participants` row (`loadRoster`)
  *  passes unchanged (the row shape is never re-spelled here). */
 interface HumanSeat {
-  readonly kind: string;
+  readonly kind: ParticipantKind;
   readonly userId: UserId | null;
+  readonly characterId: CharacterId | null;
 }
 
-/** The room's PERSONA CONSENT SET: every human seat's `userId`, deduped (see the file header).
+/** The room's PERSONA CONSENT SET: every human seat's `userId`, deduped (see the file header). Routes
+ *  through {@link classifyParticipant} — the one-home XOR discriminator (2026-08-15 consolidation).
  *
  *  Pass a PRESENT roster (`loadRoster`'s default, `leftSeq IS NULL`) — presence IS the consent, so a departed
  *  member's persona stops resolving and a stale pin heals downward to the active persona (the HEAL
@@ -30,5 +34,12 @@ interface HumanSeat {
  *  `personaIds`: an OFFLINE member is still a member, and the anchor's owner is routinely offline (presence
  *  gates which persona BOOKS join the world-info pool, never whose identity the room may render). PURE. */
 export function presentHumanUserIdsOf(roster: readonly HumanSeat[]): readonly UserId[] {
-  return [...new Set(roster.flatMap((seat) => (seat.kind === "human" && seat.userId !== null ? [seat.userId] : [])))];
+  return [
+    ...new Set(
+      roster.flatMap((seat) => {
+        const actor = classifyParticipant(seat);
+        return actor?.kind === "human" ? [actor.userId] : [];
+      }),
+    ),
+  ];
 }

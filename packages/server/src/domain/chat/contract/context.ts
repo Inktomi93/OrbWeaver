@@ -474,6 +474,15 @@ type NotificationsEmitOp = (event: NotificationEvent, coStatements?: readonly un
  *  reads `users` itself. */
 type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
 
+/** The disabled-account containment gate (owner-ruled 2026-08-15): whether a human's backing `users` row
+ *  is enabled. Read fresh per call (never cached), mirroring `sessions.validate`'s per-request re-check, so
+ *  an admin disable propagates the very next round. Chat never reads `users` itself — see
+ *  {@link ResolveHandleOp}. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
+ *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
+ *  `substrate/roster-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
+ *  set the same way a departed member's already does. */
+type ResolveUserEnabledOp = (userId: UserId) => Promise<boolean>;
+
 /** Server-derived SSE liveness for a userId (never client-asserted — a spoofable presence is a
  *  prompt-composition attack). Read once per round for cast-gating. */
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
@@ -1060,6 +1069,7 @@ export interface ChatContext {
   readonly memorySummarizer: MemorySummarizerConfig;
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
+  readonly resolveUserEnabled: ResolveUserEnabledOp;
 
   readonly readPresence: PresenceReadOp;
   readonly generatePicture: GeneratePictureOp;

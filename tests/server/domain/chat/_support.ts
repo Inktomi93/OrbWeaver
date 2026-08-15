@@ -446,6 +446,10 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // no-multi-human-presence tests byte-identical (no persona drops); a cast-gating test overrides with a
     // fake that returns `online:false` for the away member.
     readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
+    // Default = everyone ENABLED (the disabled-account containment gate — `loadRoom` narrows
+    // `presentHumanUserIds` on this every round). Keeps every existing test byte-identical (no persona
+    // drops); the containment test overrides with a fake returning `false` for the disabled member.
+    resolveUserEnabled: () => Promise.resolve(true),
     // The imagery op (chat.generateImage) — a throwing stub; the generate-image verb test overrides it.
     generatePicture: notStubbed,
     // Default = null ⇒ expressions not wired (byte-identical no-op — the `tools` precedent). A classify-hook

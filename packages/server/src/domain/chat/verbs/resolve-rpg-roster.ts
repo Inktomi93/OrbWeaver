@@ -10,6 +10,7 @@ import type { chatParticipants } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { ResolveRpgRoster, RpgRosterActor } from "../contract/context.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 
@@ -24,17 +25,18 @@ async function resolveSeat(ctx: ChatContext, row: RosterRow, hostUserId: UserId 
     ...(avatar !== null ? { avatar } : {}),
   });
 
-  if (row.kind === "character" && row.characterId !== null && hostUserId !== null) {
-    const card = await ctx.getCard({ ownerId: hostUserId, characterId: row.characterId });
+  const actor = classifyParticipant(row);
+  if (actor?.kind === "character" && hostUserId !== null) {
+    const card = await ctx.getCard({ ownerId: hostUserId, characterId: actor.characterId });
     if (card === null) {
       return null; // a gone card — not an addressable actor
     }
-    return withAvatar({ kind: "character", characterId: row.characterId }, card.name, await ctx.resolveAssetHash(card.avatarAssetId));
+    return withAvatar({ kind: "character", characterId: actor.characterId }, card.name, await ctx.resolveAssetHash(card.avatarAssetId));
   }
-  if (row.kind === "human" && row.userId !== null) {
-    const publics = await ctx.resolveUserPublics(row.userId, row.activePersonaId);
+  if (actor?.kind === "human") {
+    const publics = await ctx.resolveUserPublics(actor.userId, row.activePersonaId);
     return withAvatar(
-      { kind: "user", userId: row.userId },
+      { kind: "user", userId: actor.userId },
       publics?.displayName ?? publics?.handle ?? "",
       await ctx.resolveAssetHash(publics?.avatarAssetId ?? null),
     );

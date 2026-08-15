@@ -21,42 +21,50 @@ type ParticipantActor = { readonly kind: "human"; readonly userId: UserId } | { 
 
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 
-/** Validate + discriminate a `chat_participants` row's actor (the XOR of `userId`/`characterId` the DB CHECK
- *  should already guarantee — this is the loud belt for a corrupt row). `default` is `never`-exhaustive
- *  against {@link ParticipantKind} today's two live kinds (`human`/`character`; `agent` was purged with the
- *  2026-07-25 rollback and has no live row shape — see `contracts/chat/participants.ts`'s header), so a
- *  reintroduced kind fails to compile here until handled.
- *
- *  Not yet wired into the hot roster-read path (`loadRoster`): every one of its ~25 call sites currently
- *  re-spells the `kind === "human" && userId !== null` narrowing inline rather than going through this row
- *  parser, which is the one-home violation this function exists to close — but making `loadRoster` throw on
- *  a corrupt row is a behavior change across every one of those callers and belongs to a dedicated
- *  consolidation pass, not a lone-symbol wiring pass. Exercised directly by its own int suite (every
- *  XOR-violation arm), which is this repo's precedent for a validated-row parser with no production caller
- *  yet (see the sibling `findSnapshotByVariant`-style reads). */
-export function parseParticipant(row: {
+/** The row shape both {@link classifyParticipant} and {@link parseParticipant} discriminate. */
+interface ParticipantRowShape {
   readonly kind: ParticipantKind;
   readonly userId: UserId | null;
   readonly characterId: CharacterId | null;
-}): ParticipantActor {
+}
+
+/** Discriminate a `chat_participants` row's actor — the pure, non-throwing classify (owner-ruled
+ *  2026-08-15 one-home consolidation). `null` on an XOR violation (the DB CHECK should already guarantee
+ *  `userId`/`characterId` are exclusive — a `null` here is the corrupt-row case) or an unrecognized kind.
+ *  `default` is `never`-exhaustive against {@link ParticipantKind}'s today's two live kinds
+ *  (`human`/`character`; `agent` was purged with the 2026-07-25 rollback and has no live row shape — see
+ *  `contracts/chat/participants.ts`'s header), so a reintroduced kind fails to compile here until handled.
+ *
+ *  THE ONE HOME for the `kind === "human" && userId !== null`-shaped narrowing every roster-derived read
+ *  needs — 29 call sites across the domain re-spelled this inline before the 2026-08-15 consolidation
+ *  (`loadRoster`'s hot read never throws on a corrupt row; a `.filter`/`.flatMap`/`.find` site's silent-skip
+ *  semantics are preserved by discarding a `null` classification exactly the way the inline guard already
+ *  discarded a failed condition — zero behavior change was the whole point of splitting this off
+ *  {@link parseParticipant}, which keeps the throwing contract for callers that want the loud belt). */
+export function classifyParticipant(row: ParticipantRowShape): ParticipantActor | null {
   switch (row.kind) {
-    case "human": {
-      if (row.userId === null || row.characterId !== null) {
-        throw new Error("corrupt participant: kind 'human' must carry userId XOR characterId");
-      }
-      return { kind: "human", userId: row.userId };
-    }
-    case "character": {
-      if (row.characterId === null || row.userId !== null) {
-        throw new Error("corrupt participant: kind 'character' must carry characterId XOR userId");
-      }
-      return { kind: "character", characterId: row.characterId };
-    }
+    case "human":
+      return row.userId !== null && row.characterId === null ? { kind: "human", userId: row.userId } : null;
+    case "character":
+      return row.characterId !== null && row.userId === null ? { kind: "character", characterId: row.characterId } : null;
     default: {
       const _exhaustive: never = row.kind;
-      throw new Error(`unknown participant kind: ${String(_exhaustive)}`);
+      return _exhaustive;
     }
   }
+}
+
+/** The loud belt for a corrupt row — throws on an XOR violation or unrecognized kind. Delegates to
+ *  {@link classifyParticipant} (one home, one enforcement mechanism); kept for callers that want a hard
+ *  failure rather than a silent skip (a future DB-integrity job, or a reader that never expects a corrupt
+ *  row to reach it at all — see the header note above). Exercised directly by its own int suite (every
+ *  XOR-violation arm). */
+export function parseParticipant(row: ParticipantRowShape): ParticipantActor {
+  const actor = classifyParticipant(row);
+  if (actor === null) {
+    throw new Error(`corrupt or unrecognized participant: kind '${row.kind}' must carry the XOR of userId/characterId for its kind`);
+  }
+  return actor;
 }
 
 /** A `character` participant is always `role='member'` — a character can never be the host. */
@@ -78,11 +86,14 @@ export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly
   return isPresent(p) && !p.disabled;
 }
 
-/** The PRINCIPAL kill-switch arm of the present-and-contributing predicate (D60; agent-principal-design/02
- *  §1.1, doc 03 §4): a USER-BACKED seat (`human`/`agent`) contributes only while its backing `users.enabled`
- *  is true — a disabled agent principal drops from every cast + arbitration pool the round after the flip
- *  (containment is a one-row flip, read fresh per round). A `character` seat has no backing user, so `enabled`
- *  never gates it (returns `true` regardless). Consumes {@link isUserBacked} so a 5th kind is caught upstream. */
+/** The PRINCIPAL kill-switch arm of the present-and-contributing predicate. Wired for `human` (owner-ruled
+ *  2026-08-15) at `verbs/turn.ts`'s `loadRoom`: a disabled human's backing `users.enabled` drops their
+ *  persona from the room's foreign-input consent set (`presentHumanUserIds`) the round after the flip
+ *  (containment is a one-row flip, read fresh per round via the injected `ctx.resolveUserEnabled`). Today's
+ *  only USER_BACKED_KINDS member is `human` (`character` has no backing user, so `enabled` never gates it —
+ *  returns `true` regardless); an `agent` kind, if it ever re-lands (D60; agent-principal-design/02 §1.1, doc
+ *  03 §4), extends automatically — this predicate's mechanism was never kind-specific. Consumes
+ *  {@link isUserBacked} so a 5th kind is caught upstream. */
 export function isBackingUserEnabled(kind: ParticipantKind, enabled: boolean): boolean {
   return isUserBacked(kind) ? enabled : true;
 }

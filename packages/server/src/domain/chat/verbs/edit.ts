@@ -68,6 +68,7 @@ import {
   setMessageSeqStatement,
   shiftSeqRangeStatement,
 } from "../persistence/canon-write.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import {
   loadAuthoredUserMessageIds,
   loadCanonStatRows,
@@ -208,7 +209,10 @@ async function applyRunOnEditRegex(
   }
   const { chatId, hostUserId } = args;
   const model = args.slot.model ?? "";
-  const castCharacterIds = args.roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
+  const castCharacterIds = args.roster.flatMap((r) => {
+    const actor = classifyParticipant(r);
+    return actor?.kind === "character" ? [actor.characterId] : [];
+  });
   const personaIds = args.editorPersonaId !== null ? [args.editorPersonaId] : [];
   const foreign = await deps.resolveForeignInputs({
     chatId,
@@ -349,7 +353,10 @@ async function freezeSelectedVariant(
   const source = args.variant.rawContent ?? args.variant.content;
   const stored = macroFreezeRecordSchema.safeParse(args.variant.macroFreezes);
   const model = args.variant.model ?? "";
-  const castCharacterIds = args.roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
+  const castCharacterIds = args.roster.flatMap((r) => {
+    const actor = classifyParticipant(r);
+    return actor?.kind === "character" ? [actor.characterId] : [];
+  });
   const foreign = await deps.resolveForeignInputs({
     chatId: args.chatId,
     runAsUserId: hostUserId,

@@ -76,6 +76,7 @@ import {
   setVariantContentStatement,
 } from "../persistence/canon-write.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
+import { classifyParticipant, isBackingUserEnabled } from "../persistence/participant.ts";
 import {
   loadCanonHistory,
   loadChatRow,
@@ -238,18 +239,28 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
     throw new ChatNotFoundError(chatId);
   }
   const aiRows = roster.filter((r) => isAiDriven(r.kind));
-  const charRows = aiRows.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [{ ...r, characterId: r.characterId }] : []));
+  const charRows = aiRows.flatMap((r) => {
+    const actor = classifyParticipant(r);
+    return actor?.kind === "character" ? [{ ...r, characterId: actor.characterId }] : [];
+  });
   const cards = await Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })));
 
   // An offline human's persona drops from the present-cast set for this round, since presence gates
   // which persona-book world-info joins the pool (a server-derived signal, never client-asserted).
-  const humanPersonas = roster.flatMap((r) =>
-    r.kind === "human" && r.userId !== null && r.activePersonaId !== null ? [{ userId: r.userId, personaId: r.activePersonaId }] : [],
-  );
+  const humanPersonas = roster.flatMap((r) => {
+    const actor = classifyParticipant(r);
+    return actor?.kind === "human" && r.activePersonaId !== null ? [{ userId: actor.userId, personaId: r.activePersonaId }] : [];
+  });
   const online = await Promise.all(humanPersonas.map((h) => ctx.readPresence(h.userId).then((p) => p.online)));
   const personaIds = humanPersonas.filter((_h, i) => online[i] === true).map((h) => h.personaId);
-  // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`).
-  const presentHumanUserIds = presentHumanUserIdsOf(roster);
+  // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
+  // disabled-account containment gate (owner-ruled 2026-08-15): a disabled human's backing `users` row drops
+  // their persona from the round the same way a departed member's already does — presence alone used to be
+  // the whole consent test, which let an admin-disabled account keep informing generation through a persona
+  // it can no longer act through.
+  const rawPresentHumanUserIds = presentHumanUserIdsOf(roster);
+  const humanEnabled = await Promise.all(rawPresentHumanUserIds.map((userId) => ctx.resolveUserEnabled(userId)));
+  const presentHumanUserIds = rawPresentHumanUserIds.filter((_userId, i) => isBackingUserEnabled("human", humanEnabled[i] ?? false));
 
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
     ref: { kind: "character", characterId: r.characterId },

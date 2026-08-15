@@ -22,6 +22,7 @@ import type { HandoffOffer } from "@orb/contracts/chat";
 import type { chatParticipants } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext, HandoffCopyPlan, OfferedSeat } from "../contract/context.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 
 /** The present character seats the DEPARTING host owns — the copy candidates for an accepted offer.
  *
@@ -36,9 +37,10 @@ async function resolveOfferedSeats(
   newOwnerUserId: UserId,
   roster: readonly (typeof chatParticipants.$inferSelect)[],
 ): Promise<OfferedSeat[]> {
-  const seats = roster.flatMap((p) =>
-    p.kind === "character" && p.characterId !== null && p.leftSeq === null ? [{ participantId: p.id, characterId: p.characterId }] : [],
-  );
+  const seats = roster.flatMap((p) => {
+    const actor = classifyParticipant(p);
+    return actor?.kind === "character" && p.leftSeq === null ? [{ participantId: p.id, characterId: actor.characterId }] : [];
+  });
   const verdicts = await Promise.all(
     seats.map(async (seat) => {
       const [fromOld, fromNew] = await Promise.all([

@@ -103,6 +103,7 @@ import type {
 } from "../contract/views.ts";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import {
   countMemberChats,
   listMemberChats,
@@ -378,13 +379,20 @@ async function resolvePreviewInputs(
   // so the SHAPE peek renders the shape the next turn will send, not a pinned `per-speaker` guess.
   const chatRow = await loadChatRow(ctx.db, chatId);
   const group = chatRow?.metadata.group ?? DEFAULT_GROUP_CONFIG;
-  const castIds = roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
+  const castIds = roster.flatMap((r) => {
+    const actor = classifyParticipant(r);
+    return actor?.kind === "character" ? [actor.characterId] : [];
+  });
   const castCharacterIds =
     speakerCharacterId !== null && speakerCharacterId !== undefined && castIds.includes(speakerCharacterId)
       ? [speakerCharacterId, ...castIds.filter((id) => id !== speakerCharacterId)]
       : castIds;
-  const personaIds = roster.flatMap((r) => (r.kind === "human" && r.activePersonaId !== null ? [r.activePersonaId] : []));
-  const hostPersonaId = roster.find((r) => r.kind === "human" && r.userId === hostUserId)?.activePersonaId ?? null;
+  const personaIds = roster.flatMap((r) => (classifyParticipant(r)?.kind === "human" && r.activePersonaId !== null ? [r.activePersonaId] : []));
+  const hostPersonaId =
+    roster.find((r) => {
+      const actor = classifyParticipant(r);
+      return actor?.kind === "human" && actor.userId === hostUserId;
+    })?.activePersonaId ?? null;
   const connection = await deps.resolveConnection({ runAsUserId: hostUserId, chatId });
   // THE GM-PRESET REDIRECT — the SAME early hop the turn runs (`verbs/turn.ts`: `resolvePresetOverride` before
   // the foreign read). A game chat assembles its `gmPresetId`, not the host's default preset; without this hop
@@ -500,7 +508,7 @@ async function buildPreviewContext(
     {
       user: inputs.foreign.personas.active?.name,
       char: participants
-        .filter((p) => p.kind === "character")
+        .filter((p) => classifyParticipant(p)?.kind === "character")
         .map((p) => p.displayName)
         .join(", "),
     },
@@ -734,7 +742,10 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     // below) and the present character seats (the roster-scope gate). A hostless room is unusable (leak-free).
     const roster = await loadRoster(ctx.db, chatId);
     const hostUserId = hostUserIdOf(roster);
-    const seated = roster.some((r) => r.kind === "character" && r.characterId === characterId);
+    const seated = roster.some((r) => {
+      const actor = classifyParticipant(r);
+      return actor?.kind === "character" && actor.characterId === characterId;
+    });
     if (hostUserId === null || !seated) {
       throw new ChatNotFoundError(chatId);
     }
