@@ -1,10 +1,7 @@
 ---
-name: qwen-offline-investigation
-description: Read-only recon over the workspace — durable orchestrator context, agent briefing, findings index
-metadata:
-  started: 2026-08-12
-  fleet: local vLLM, 1 orchestrator + 5 concurrent agents, 131k window each
-  mandate: "<FILL BEFORE FIRST DISPATCH>"
+kind: research
+status: draft
+updated: 2026-08-14
 ---
 
 # Offline Investigation
