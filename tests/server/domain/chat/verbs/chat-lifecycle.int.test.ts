@@ -260,6 +260,18 @@ describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Pers
     expect(row?.anchorPersonaId).toBeNull();
   });
 
+  test("a DISABLED member's persona is refused (not_persona_owner) — pin validation must agree with the enabled-axis narrowing generation uses (#73 second-commit fix)", async () => {
+    const { host, member, chatId } = await seedRoom();
+    const memberPersona = await seedPersona(db, member, "member_p");
+    const life = createChatLifecycle(makeChatContext(db, { resolveUserEnabled: (userId) => Promise.resolve(userId !== member) }), lifecycleDeps());
+
+    const err = await life.setChatAnchorPersona({ principal: principal(host), chatId, personaId: memberPersona }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_persona_owner");
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.anchorPersonaId).toBeNull();
+  });
+
   test("personaId: null clears an existing pin", async () => {
     const { host, chatId } = await seedRoom();
     const hostPersona = await seedPersona(db, host, "host_p");

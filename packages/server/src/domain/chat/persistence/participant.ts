@@ -87,10 +87,13 @@ export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly
 }
 
 /** The PRINCIPAL kill-switch arm of the present-and-contributing predicate. Wired for `human` (owner-ruled
- *  2026-08-15) at `verbs/turn.ts`'s `loadRoom`: a disabled human's backing `users.enabled` drops their
- *  persona from the room's foreign-input consent set (`presentHumanUserIds`) the round after the flip
- *  (containment is a one-row flip, read fresh per round via the injected `ctx.resolveUserEnabled`). Today's
- *  only USER_BACKED_KINDS member is `human` (`character` has no backing user, so `enabled` never gates it —
+ *  2026-08-15) through `substrate/roster-humans.ts::presentAndEnabledHumanUserIdsOf` — the ONE async
+ *  narrowing every consent-set consumer (`verbs/turn.ts`'s `loadRoom`, `setChatAnchorPersona`'s pin
+ *  validation, `edit.ts`'s runOnEdit re-apply + greeting re-bake) routes through, so a disabled human's
+ *  backing `users.enabled` drops their persona from EVERY reader of the room's foreign-input consent set the
+ *  round after the flip, not just the one a lone-symbol wiring pass happened to touch (containment is a
+ *  one-row flip, read fresh per round via the injected `ctx.resolveUserEnabled`). Today's only
+ *  USER_BACKED_KINDS member is `human` (`character` has no backing user, so `enabled` never gates it —
  *  returns `true` regardless); an `agent` kind, if it ever re-lands (D60; agent-principal-design/02 §1.1, doc
  *  03 §4), extends automatically — this predicate's mechanism was never kind-specific. Consumes
  *  {@link isUserBacked} so a 5th kind is caught upstream. */

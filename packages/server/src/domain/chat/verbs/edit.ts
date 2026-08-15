@@ -89,7 +89,7 @@ import { assertAuthorOrHost } from "../substrate/auth/index.ts";
 import { projectViewReturnForViewer } from "../substrate/member-visibility.ts";
 import { resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { presentHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
 import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 
@@ -214,14 +214,18 @@ async function applyRunOnEditRegex(
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
   const personaIds = args.editorPersonaId !== null ? [args.editorPersonaId] : [];
+  // The consent set for the persona read — the editor is a member of this room, so their own persona (and a
+  // member-owned anchor) resolve exactly as they do on a turn. `presentAndEnabledHumanUserIdsOf`, not the
+  // presence-only `presentHumanUserIdsOf` (2026-08-15): a runOnEdit re-apply must agree with the live turn
+  // path on the enabled axis too, or a disabled member's persona could re-resolve on every future edit even
+  // after generation started refusing it (the same silently-dead-pin bug class, edit-triggered).
+  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, args.roster);
   const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
     model,
     anchorPersonaId: args.anchorPersonaId,
-    // The consent set for the persona read — the editor is a member of this room, so their own persona (and
-    // a member-owned anchor) resolve exactly as they do on a turn.
-    presentHumanUserIds: presentHumanUserIdsOf(args.roster),
+    presentHumanUserIds,
     // The EDITOR is the triggering human: a runOnEdit re-apply re-runs THEIR receive-tier leg on THEIR row,
     // so `{{user}}` is theirs exactly as it was on the turn that authored it (a null seat persona floors,
     // never borrows). Byte-identical to the retired `personaIds[0]` arm, which resolved to this same id
@@ -357,12 +361,15 @@ async function freezeSelectedVariant(
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
+  // Same enabled-axis narrowing as the runOnEdit re-apply above (2026-08-15) — the greeting re-bake must agree
+  // with the live turn / edit paths on who's still a valid foreign-persona consent.
+  const presentHumanUserIdsForBake = await presentAndEnabledHumanUserIdsOf(ctx, args.roster);
   const foreign = await deps.resolveForeignInputs({
     chatId: args.chatId,
     runAsUserId: hostUserId,
     model,
     anchorPersonaId: args.anchorPersonaId,
-    presentHumanUserIds: presentHumanUserIdsOf(args.roster),
+    presentHumanUserIds: presentHumanUserIdsForBake,
     // The SELECTOR is the triggering human — the same arm the runOnEdit re-apply passes for the editor. A
     // greeting's `{{user}}` is the ANCHOR either way (a null-stamped assistant row never borrows a live
     // seat's persona), so this binds the volatile-only pass, not the identity one.

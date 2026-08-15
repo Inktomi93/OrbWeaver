@@ -257,6 +257,29 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
 
     expect(view.content).toBe("badword stays because the script was skipped");
   });
+
+  test("a DISABLED member drops from the runOnEdit foreign-input consent set (#73 second-commit fix — must agree with the live-turn narrowing)", async () => {
+    const { host, member, chatId, charA } = await seedRoom();
+    const { messageId } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: charA,
+    });
+    let presentHumanUserIds: readonly UserId[] = [];
+    const observingForeignInputs: Parameters<typeof createEdit>[1]["resolveForeignInputs"] = (args) => {
+      presentHumanUserIds = args.presentHumanUserIds;
+      return Promise.resolve({ promptConfig: DEFAULT_PROMPT_CONFIG, personas: { anchor: null, active: null }, scanDepth: 6, injectionTokenBudget: 0 });
+    };
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(card("Aria")),
+      resolveUserEnabled: (userId) => Promise.resolve(userId !== member),
+    });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs: observingForeignInputs, claimChat: noClaim });
+
+    await edit.editMessage({ principal: principal(host), chatId, messageId, content: "hi there" });
+
+    expect(presentHumanUserIds).toContain(host);
+    expect(presentHumanUserIds).not.toContain(member);
+  });
 });
 
 describe("selectVariant — flip the pointer to a sibling swipe (D26 zero-copy)", () => {
