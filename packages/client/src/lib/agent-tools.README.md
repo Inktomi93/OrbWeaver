@@ -11,6 +11,7 @@ Read app state in ONE eval instead of scraping the DOM. Installed from `main.tsx
 | Call | Returns |
 | - | - |
 | `__orb.snap()` | cheap one-call overview: `{ ready, shell, bus, queries, perf, renders, motion, flags }`; motion summarizes recorded evidence without forcing a document-wide animation scan |
+| `await __orb.rpg()` | active chat's authoritative game + selected-lineage tracker view + journal + recorded folded tool calls; read-only, through the production tRPC APIs |
 | `__orb.queries()` | the full TanStack Query cache: `{ key, status, fetch, stale, updatedAt }[]` |
 | `__orb.bus()` | chat-bus: `{ live, events }` — live subscription count + the recent canon-event ring |
 | `__orb.perf()` | the `orb:*` User Timing measures: `{ name, ms }[]` (app-ready; turn TTFT/latency when wired) |
@@ -31,7 +32,7 @@ The app has only 2 URL routes (`/`, `/login`); ALL navigation is client state (a
 modal, settings category, context tab, open chat — `state/shell-store.ts` + `state/active-chat-store.ts`).
 `__orb.nav` drives that state through the SAME store actions the real UI calls (`setActiveSection`,
 `openModal`, `openSettingsTo`, `setContextTab`, `selectChat`) — no parallel mutation path — so an agent /
-`pnpm snap` reaches any surface WITHOUT a click chain. Built at the composition root (`routes/agent-nav.ts`,
+`pnpm snap` reaches any surface WITHOUT a click chain. Built at the composition root (`agent-nav/index.ts`,
 which may compose `#state`/`#features`/`#data` — the `lib/` floor may not) and injected into
 `installAgentDebugHandle`. Every call returns `{ok:true}` or `{ok:false, reason}` — a bad id is a LOUD
 refusal, never a silent no-op. ids validate against the canonical tuples (`SECTION_IDS`, `MODAL_SLOT_IDS`,

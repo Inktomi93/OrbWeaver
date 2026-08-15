@@ -123,14 +123,16 @@ export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
  *      tools-incapable model): the channel came back `null`. Only a COMPLETED turn knows this.
  *    • `local-engine-fold-guard` — the wire CAN carry them but goes mute when they ride
  *      (`coEmitsProseWithTools` false — the measured local vLLM fact), so the mount is withheld ON PURPOSE,
- *      pre-commit, off the room connection's capability. Knowable BEFORE a turn runs. */
-export const RPG_FOLD_FALLBACK_REASONS = ["no-terminal-channel", "local-engine-fold-guard"] as const;
+ *      pre-commit, off the room connection's capability. Knowable BEFORE a turn runs.
+ *    • `no-terminal-calls`       — the tools rode but the model returned neither a state write nor the explicit
+ *      `no_changes` bookkeeping call, so the required post-commit round retries the state beat. */
+export const RPG_FOLD_FALLBACK_REASONS = ["no-terminal-channel", "local-engine-fold-guard", "no-terminal-calls"] as const;
 export type RpgFoldFallbackReason = (typeof RPG_FOLD_FALLBACK_REASONS)[number];
 
 /** The VEHICLE that produces a turn's state delta — the delivery axis as it actually LANDS, distinct from the
  *  `extractionMode` KNOB that asks for it (D112 (3): a `folded` game does not always fold). One home for the
  *  words so the flush's observability line and the panel's freshness surface cannot drift:
- *    • `folded`     — the character turn co-emitted its own state; ZERO extra model calls, state lands AT commit.
+ *    • `folded`     — the character turn co-emitted state or explicit `no_changes`; ZERO extra model calls.
  *    • `tool-round` — a dedicated post-commit model call writes this beat's state (the host's `cheap` choice, or
  *      a `folded` game that could not fold — `fallbackReason` names which).
  *    • `none`       — NO state round runs at all: the resolved connection has no model write path for this game

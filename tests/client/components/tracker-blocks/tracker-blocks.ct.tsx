@@ -277,7 +277,7 @@ test("CastCard: a long model-authored mood WRAPS instead of overflowing the card
       />
     </div>,
   );
-  const rest = page.getByRole("button", { name: "Sera mood" });
+  const rest = page.getByRole("button", { name: `Sera mood: ${longMood}` });
   await expect(rest).toBeVisible();
   const overflow = await page.evaluate(() => {
     const host = document.body;
@@ -346,7 +346,7 @@ test("CastCard guides editable: click-to-edit commits with (field, value)", asyn
   );
   // Display-at-rest like every other value in the kit: no input until the value is clicked.
   await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
-  await page.getByRole("button", { name: "Sera appearance" }).click();
+  await page.getByRole("button", { name: "Sera appearance: tall, silver-haired" }).click();
   const field = page.getByRole("textbox", { name: "Sera appearance" });
   await field.fill("shaven-headed, a fresh scar");
   await field.blur();
@@ -406,6 +406,11 @@ test("CastCard: a neutral relationship badges NOTHING (no clutter)", async ({ mo
   const component = await mount(<CastCard name="Bob" relationship={{ kind: "neutral", label: "" }} />);
   await expect(component).toContainText("Bob");
   await expect(component).not.toContainText("neutral");
+});
+
+test("CastCard editable relationship names the current value", async ({ mount, page }) => {
+  await mount(<CastCard name="Sera" relationship={{ kind: "friend", label: "" }} onEditRelationshipKind={(): void => undefined} />);
+  await expect(page.getByRole("button", { name: "Sera relationship: friend" })).toBeVisible();
 });
 
 test("CastCard: numeric cast-field meters render above the text chips (feature C, §2.8)", async ({ mount }) => {

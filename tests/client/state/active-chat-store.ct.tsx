@@ -22,6 +22,11 @@ test("selectChat makes an existing chat active; goToLanding returns to the landi
 
   await probe.getByRole("button", { name: "select chat" }).click();
   await expect(state).toHaveText("handle=committed:chat_probe_select openOverlayPanel=none reaped=none");
+  await probe.getByRole("button", { name: "inspect active chat" }).click();
+  await expect(probe.getByTestId("active-chat-inspection")).toHaveText("active=chat_probe_select");
+
+  await probe.getByRole("button", { name: "migrate active chat" }).click();
+  await expect(probe.getByTestId("active-chat-inspection")).toHaveText("migrated=chat_01m02xhnwkeh7s32mxccy1x17f");
 
   await probe.getByRole("button", { name: "go landing" }).click();
   await expect(state).toHaveText("handle=landing openOverlayPanel=none reaped=none");

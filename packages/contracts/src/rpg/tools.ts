@@ -105,10 +105,23 @@ export const updatePartyArgsSchema = z.object({
 });
 export type UpdatePartyArgs = z.infer<typeof updatePartyArgsSchema>;
 
-/** `update_inventory` — add/remove items + `walletDeltas` (the STORED named-amount wallet, §2.6). */
+/** `update_inventory` — add/update/remove items + `walletDeltas` (the STORED named-amount wallet, §2.6).
+ *  `update` addresses an existing item by its model-visible name and patches only the fields the beat moved.
+ *  Without this arm a story could put a carried key on a necklace while the tracker was structurally unable
+ *  to record anything except deleting and re-minting it. */
 export const updateInventoryArgsSchema = z.object({
   targetRef: targetRefField,
   add: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        quantity: z.number().int().min(1).optional(),
+        location: z.string().optional(),
+      }),
+    )
+    .optional(),
+  update: z
     .array(
       z.object({
         name: z.string().min(1),

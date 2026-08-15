@@ -25,7 +25,7 @@
 // Full ADDS its members additively (`clockChanged`/`checkResolved`/`encounterStarted`/… + the `hostOnly` emit
 // option) — the graft map (§C). No `hostOnly` machinery in v1 (lite has no hidden ring).
 
-import type { ChatId, RpgJournalId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
+import type { ChatId, ChatTurnId, RpgJournalId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 
 /** One rpg-game live event — a coarse "this plane changed, re-resolve" signal scoped to a game's `chatId`.
  *  The optional entity id is a targeting HINT; the client map is free to path-invalidate the whole panel
@@ -44,6 +44,12 @@ export type RpgBusEvent =
   | { type: "questChanged"; chatId: ChatId }
   /** A journal entry landed/changed (`addJournalEntry`-family or a staged flush) — the paged Journal refetches. */
   | { type: "journalChanged"; chatId: ChatId; journalId?: RpgJournalId }
+  /** The asynchronous post-commit state vehicle started/settled. Unlike the durable plane events, these two
+   *  carry no invalidation: they keep the freshness surface honest during the gap after narrative streaming
+   *  ends but before the RPG flush writes and announces its rows. `turnId` makes overlapping rounds a set,
+   *  never a boolean where one completion can hide another live round. */
+  | { type: "stateRoundStarted"; chatId: ChatId; turnId: ChatTurnId }
+  | { type: "stateRoundSettled"; chatId: ChatId; turnId: ChatTurnId }
   /** A folded turn's tool-call RECORD landed (TOOLCALLS-INVISIBLE, arm A) — the per-row "what this turn did"
    *  disclosure refetches.
    *
@@ -65,6 +71,8 @@ export const RPG_BUS_EVENT_TYPES = [
   "sheetChanged",
   "questChanged",
   "journalChanged",
+  "stateRoundStarted",
+  "stateRoundSettled",
   "turnToolCallsRecorded",
 ] as const satisfies readonly RpgBusEvent["type"][];
 export type RpgBusEventType = (typeof RPG_BUS_EVENT_TYPES)[number];

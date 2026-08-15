@@ -60,7 +60,7 @@ import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/prov
 import type { ActiveTurns } from "./active-turns.ts";
 import type { ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryLog } from "./memory.ts";
-import type { TurnRequest, TurnStreamChunk } from "./results.ts";
+import type { TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
 
 /** The node:vm ReDoS watchdog wrapping a host-side regex `text.replace` in a per-call timeout, so a
  *  catastrophic-backtracking pattern throws instead of hanging the turn. */
@@ -568,6 +568,11 @@ export interface RpgTurnTranscriptMessage {
  *  deep in a story it forgot fields and never reconciled inventory/quests against what happened — now it rides
  *  the turn's own loaded canon (zero extra model reads, §1.4). */
 export interface RpgTurnContext {
+  /** The generating verb's persistence shape. A continuation extends its selected variant in place, so RPG
+   *  must rebase on the current head and replace that variant's existing snapshot; every other kind writes a
+   *  new variant from the state before its slot. Threaded from the immutable turn prep, never inferred from
+   *  message contents after commit. */
+  readonly kind: TurnKind;
   /** The character turn's effective `{api, model, credential, capability}` — the agent-speaker's own or the
    *  round connection; the state round runs on THIS, never a re-resolve. */
   readonly connection: ResolvedConnection;

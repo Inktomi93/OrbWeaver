@@ -179,7 +179,6 @@
   "packages/ui/src/primitives/highlighted-text/highlighted-text.tsx": 2,
   "packages/ui/src/primitives/log-viewer/log-viewer.tsx": 3,
   "packages/ui/src/primitives/media-grid/media-grid.tsx": 5,
-  "packages/ui/src/primitives/message-list/message-list.tsx": 1,
   "packages/ui/src/primitives/radio-group/radio-group.tsx": 1,
   "packages/ui/src/primitives/slider/slider.tsx": 1,
   "packages/ui/src/primitives/virtual-list/virtual-list.tsx": 2,

@@ -71,7 +71,9 @@ const BUS_FILTERS: BusFilterMap = {
   messageCommitted: (_e, trpc) => [...chatCanonReads(trpc), ...hiddenRevealRead(trpc)],
   messageEdited: (_e, trpc) => chatReads(trpc),
   messageHidden: (_e, trpc) => chatReads(trpc),
-  variantSelected: (_e, trpc) => chatReads(trpc),
+  // A pointer flip changes both canon and the RPG lineage projected from that selected variant. No RPG
+  // event fires because selection writes no RPG row, so the chat event must repaint the two lineage reads.
+  variantSelected: (e, trpc) => [...chatReads(trpc), trpc.rpg.getTrackerView.queryFilter({ chatId: e.chatId }), trpc.rpg.listJournal.pathFilter()],
   messagesDeleted: (_e, trpc) => chatReads(trpc),
   messagesReordered: (_e, trpc) => chatReads(trpc),
   reasoningEdited: (_e, trpc) => chatReads(trpc),
@@ -321,6 +323,9 @@ const RPG_BUS_FILTERS: RpgBusFilterMap = {
   // but the listJournal read still invalidates for parity + the future lite→full graduation). Path-level (all
   // pages) — the read is paged, so a page-keyed queryFilter would miss the other pages.
   journalChanged: (_e, trpc) => [trpc.rpg.listJournal.pathFilter()],
+  // Lifecycle-only: the rpg-round store consumes these in `use-rpg-bus`; no durable read changed yet.
+  stateRoundStarted: () => [],
+  stateRoundSettled: () => [],
   // A folded turn's tool-call record landed — the per-row "what this turn did" disclosure refetches
   // (TOOLCALLS-INVISIBLE, arm A). Query-level (one chat): the read is chat-scoped and unpaged.
   turnToolCallsRecorded: (e, trpc) => [trpc.rpg.listTurnToolCalls.queryFilter({ chatId: e.chatId })],

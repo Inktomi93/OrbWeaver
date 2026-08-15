@@ -16,11 +16,12 @@
 // otherwise, and the 24h TTL belt is the real guarantee. Nav is never blocked on it.
 
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { withViewTransition } from "#lib";
 import type { ChatHandle } from "./chat-handle.ts";
 import { committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
 import { readComposerDraft } from "./composer-draft-store.ts";
-import { createGatedStore } from "./create-gated-store.ts";
+import { createPersistedStore } from "./create-persisted-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
 import { openModal, setOpenOverlayPanel } from "./shell-store.ts";
 
@@ -51,15 +52,40 @@ interface ActiveChatState {
   readonly createdChatId: ChatId | null;
 }
 
-const useActiveChatStore = createGatedStore<ActiveChatState>(
-  "active-chat",
-  (): ActiveChatState => ({
-    // Nothing selected → the route renders the landing surface, never an empty room.
-    handle: landingChat(),
-    newChatIntent: undefined,
-    createdChatId: null,
-  }),
-);
+type PersistedActiveChatState = Pick<ActiveChatState, "handle">;
+
+const DEFAULT_STATE: ActiveChatState = {
+  // Nothing selected → the route renders the landing surface, never an empty room.
+  handle: landingChat(),
+  newChatIntent: undefined,
+  createdChatId: null,
+};
+
+const CHAT_ID = typeIdSchema(ID_PREFIX.chat);
+
+/** Restore only a valid committed handle. Creation intent and husk candidacy are page-lifetime facts: a
+ * reload must not reopen a modal or claim that this device is still in the middle of creating a room. */
+export function __migrateActiveChatForTest(persisted: unknown): ActiveChatState {
+  if (persisted === null || typeof persisted !== "object") {
+    return DEFAULT_STATE;
+  }
+  const candidate = (persisted as { handle?: unknown }).handle;
+  if (candidate === null || typeof candidate !== "object") {
+    return DEFAULT_STATE;
+  }
+  const handle = candidate as { kind?: unknown; id?: unknown };
+  if (handle.kind === "landing") {
+    return DEFAULT_STATE;
+  }
+  const parsed = CHAT_ID.safeParse(handle.id);
+  return handle.kind === "committed" && parsed.success ? { handle: committedChat(parsed.data), newChatIntent: undefined, createdChatId: null } : DEFAULT_STATE;
+}
+
+const useActiveChatStore = createPersistedStore<ActiveChatState, PersistedActiveChatState>("active-chat", (): ActiveChatState => DEFAULT_STATE, {
+  version: 1,
+  migrate: __migrateActiveChatForTest,
+  partialize: (state): PersistedActiveChatState => ({ handle: state.handle }),
+});
 
 // ── The husk-abandoned notification (fire-and-forget; state nobody reads back) ─────────────────────────
 // Homing it as store state would only invite a stray selector and a fresh render on every navigation.
@@ -178,6 +204,12 @@ export function useActiveChatHandle(): ChatHandle {
  *  from here — key a Query off the returned id. */
 export function useActiveChatId(): ChatId | null {
   return useActiveChatStore((s) => (isCommitted(s.handle) ? s.handle.id : null));
+}
+
+/** Non-rendering read for dev composition seams (`__orb.rpg`). UI components use `useActiveChatId`. */
+export function activeChatId(): ChatId | null {
+  const { handle } = useActiveChatStore.getState();
+  return isCommitted(handle) ? handle.id : null;
 }
 
 /** The creation parameters the new-chat picker was opened with (`openNewChatPicker`), or undefined for a

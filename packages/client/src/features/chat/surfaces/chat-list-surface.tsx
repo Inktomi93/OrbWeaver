@@ -338,8 +338,9 @@ function ChatRows({ activeChatId, characterById, items, listProps, onClearSearch
   return (
     // The virtualizer's scroll element needs a BOUNDED height (`assertBoundedScrollHeight` throws at mount
     // otherwise) — `h-full` inside the surface's `min-h-0 flex-1` column is where that bound comes from.
-    <Stack aria-label="Chats" className="h-full min-h-0" role="list">
+    <Stack className="h-full min-h-0">
       <VirtualList
+        aria-label="Chats"
         className="h-full"
         endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}

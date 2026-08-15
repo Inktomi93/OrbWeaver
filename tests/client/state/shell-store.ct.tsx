@@ -88,7 +88,7 @@ test("publishContextTabIds / getAvailableContextTabIds round-trip the mounted su
   // Publishing writes the set; the non-reactive getter reads exactly what was stored (the honest signal the
   // `__orb.nav.contextTab` bridge validates a requested tab against, instead of a false `ok`).
   await probe.getByRole("button", { name: "publish context tabs" }).click();
-  await expect(probe.getByText("ctxTabIds=runs,setup,versions")).toBeVisible();
+  await expect(probe.getByText("ctxTabIds=runs,setup,versions|runs:Runs,setup:Setup,versions:Versions")).toBeVisible();
 });
 
 test("revealContextPanel dual-writes: contextTab + openOverlayPanel + the CONTEXT panel dock", async ({ mount }) => {

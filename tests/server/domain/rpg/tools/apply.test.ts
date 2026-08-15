@@ -147,6 +147,38 @@ test("update_inventory adds an item + applies a wallet delta on the same actor",
   expect(actor?.volatile.wallet).toEqual([{ name: "gold", amount: 25 }]);
 });
 
+test("update_inventory patches an existing item without re-minting it", () => {
+  const state = emptyState({
+    actorState: [
+      actorRow("hikari", {
+        inventory: [{ id: "i1", name: "small brass key", description: "a worn key", quantity: 1, location: "shirt pocket", type: "key", icon: "key" }],
+      }),
+    ],
+  });
+  const result = applyUpdateInventory(
+    state,
+    { targetRef: "Mira", update: [{ name: "small brass key", description: "hanging from a silver chain", location: "around her neck" }] },
+    idSeq("item"),
+    NO_ROSTER,
+  );
+  expect(result.actorState[0]?.volatile.inventory).toEqual([
+    { id: "i1", name: "small brass key", description: "hanging from a silver chain", quantity: 1, location: "around her neck", type: "key", icon: "key" },
+  ]);
+});
+
+test("update_inventory salvages an update for a new story item as an add", () => {
+  const state = emptyState({ actorState: [actorRow("hikari")] });
+  const result = applyUpdateInventory(
+    state,
+    { targetRef: "Mira", update: [{ name: "Phone", description: "dead phone", location: "charging on counter" }] },
+    idSeq("item"),
+    NO_ROSTER,
+  );
+  expect(result.actorState[0]?.volatile.inventory).toEqual([
+    { id: "item_1", name: "Phone", description: "dead phone", quantity: 1, location: "charging on counter", type: "" },
+  ]);
+});
+
 test("update_inventory remove decrements quantity, dropping the item at zero", () => {
   const state = emptyState({
     actorState: [actorRow("hero", { inventory: [{ id: "i1", name: "Potion", description: "", quantity: 3, location: "", type: "" }] })],

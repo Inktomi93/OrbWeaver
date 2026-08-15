@@ -194,8 +194,42 @@ export function applyUpdateParty(state: RpgSnapshotState, args: UpdatePartyArgs,
   return { actorState: withActor(state.actorState, { actor: { ...resolved.actor, volatile }, index: resolved.index }) };
 }
 
-/** `update_inventory` → the new `actorState` plane (item add/remove + wallet deltas). `add` mints item ids via
- *  the injected `mintItemId` (determinism). `roster` resolves the target NAME to a roster member's ref (F2). */
+/** `update_inventory` → the new `actorState` plane (item add/update/remove + wallet deltas). `add` mints item
+ *  ids via the injected `mintItemId` (determinism); `update` patches the first name-matched existing item and
+ *  preserves its id/type/icon. A missing update target is salvaged as an add: hosted models sometimes choose
+ *  the tool's `update` arm for a newly introduced item despite the wire description, and silently dropping a
+ *  fully described story item makes an `applied` call disagree with resolved state. `roster` resolves the
+ *  target NAME to a roster member's ref (F2). */
+function applyInventoryUpdates(
+  inventory: RpgInventoryItem[],
+  updates: NonNullable<UpdateInventoryArgs["update"]>,
+  mintItemId: () => string,
+): RpgInventoryItem[] {
+  const next = [...inventory];
+  for (const patch of updates) {
+    const index = next.findIndex((item) => item.name === patch.name);
+    const current = next[index];
+    if (current === undefined) {
+      next.push({
+        id: mintItemId(),
+        name: patch.name,
+        description: patch.description ?? "",
+        quantity: patch.quantity ?? 1,
+        location: patch.location ?? "",
+        type: "",
+      });
+      continue;
+    }
+    next[index] = {
+      ...current,
+      ...(patch.description !== undefined ? { description: patch.description } : {}),
+      ...(patch.quantity !== undefined ? { quantity: patch.quantity } : {}),
+      ...(patch.location !== undefined ? { location: patch.location } : {}),
+    };
+  }
+  return next;
+}
+
 export function applyUpdateInventory(
   state: RpgSnapshotState,
   args: UpdateInventoryArgs,
@@ -216,6 +250,7 @@ export function applyUpdateInventory(
       type: "",
     });
   }
+  inventory = applyInventoryUpdates(inventory, args.update ?? [], mintItemId);
   for (const rem of args.remove ?? []) {
     inventory = inventory.flatMap((it) => {
       if (it.name !== rem.name) {

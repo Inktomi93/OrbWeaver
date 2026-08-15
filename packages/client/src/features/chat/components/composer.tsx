@@ -45,7 +45,7 @@ import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { useStopTurn } from "../hooks/use-stop-turn.ts";
 import { shouldSendOnEnter } from "../lib/composer-send-keys.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
-import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashComboboxAria } from "../lib/slash-command.ts";
+import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashCompletionAria } from "../lib/slash-command.ts";
 import { ActiveChatOptionsMenu } from "./composer-chat-options.tsx";
 import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
@@ -395,7 +395,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
               // Editable-combobox wiring for the slash strip (a11y): while the strip is open the textarea
               // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a
               // screen reader announces the highlighted offer without focus ever leaving the textarea.
-              {...slashComboboxAria(stripOpen)}
+              {...slashCompletionAria(stripOpen)}
               aria-activedescendant={activeSlashOptionId}
               placeholder={placeholder}
               value={value}

@@ -104,11 +104,10 @@ interface ShellState {
   readonly openModal: ModalSlotId | null;
   /** Opaque "open this tab" request the active content's context surface interprets. Transient. */
   readonly contextTab: string | null;
-  /** The context-tab ids the MOUNTED context surface currently offers, published by the ONE selection
-   *  resolver (`useContextTabSelection`) so a non-rendering reader — the `__orb.nav.contextTab` dev bridge —
-   *  can tell a real tab from a typo instead of writing an opaque request and reporting a false `ok`. Empty
-   *  ⇒ no tabbed context surface is mounted (the panel is closed, or a `single`-kind context). Transient. */
+  /** Mounted context-tab ids published for the dev navigation bridge. Empty means no tabbed surface. */
   readonly contextTabIds: readonly string[];
+  /** Human-visible labels keyed by the published ids; transient. */
+  readonly contextTabLabels: Readonly<Record<string, string>>;
   /** Which side panel is open as a slide-over — mobile sheet OR narrow-desktop auto-overlay; `null` = no
    *  request, so the regime's default shows (content, the section's docked default, or — on mobile with
    *  nothing selected — the LIST as the screen); `"none"` = the user closed it explicitly. Device-state,
@@ -152,6 +151,7 @@ const DEFAULT_STATE: ShellState = {
   openModal: null,
   contextTab: null,
   contextTabIds: [],
+  contextTabLabels: {},
   openOverlayPanel: null,
   focusMode: false,
   settingsCategory: null,
@@ -230,6 +230,7 @@ function migrate(persisted: unknown): ShellState {
     openModal: null,
     contextTab: null,
     contextTabIds: [],
+    contextTabLabels: {},
     openOverlayPanel: null,
     focusMode: false,
     settingsCategory: null,
@@ -296,17 +297,36 @@ export function setContextTab(tab: string | null): void {
   useShellStore.setState({ contextTab: tab }, false, "shell/setContextTab");
 }
 
-/** Publish the tab ids the currently-mounted context surface offers — called ONLY by the ONE selection
- *  resolver (`useContextTabSelection`) as its tab set changes, and cleared to `[]` when it unmounts. The
- *  reader is the dev bridge; the live UI resolves selection from `contextTab` directly and ignores this. */
-export function publishContextTabIds(ids: readonly string[]): void {
-  useShellStore.setState({ contextTabIds: ids }, false, "shell/publishContextTabIds");
+export interface PublishedContextTab {
+  readonly id: string;
+  readonly label: string;
 }
 
-/** The context-tab ids the mounted surface currently offers — a non-reactive read for the dev bridge (it
- *  validates a requested tab against them). Empty ⇒ nothing tabbed is mounted right now. */
+/** Publish the mounted surface's honest id↔visible-label vocabulary for the dev navigation bridge. */
+export function publishContextTabs(tabs: readonly PublishedContextTab[]): void {
+  useShellStore.setState(
+    {
+      contextTabIds: tabs.map((tab) => tab.id),
+      contextTabLabels: Object.fromEntries(tabs.map((tab) => [tab.id, tab.label])),
+    },
+    false,
+    "shell/publishContextTabs",
+  );
+}
+
+export function publishContextTabIds(ids: readonly string[]): void {
+  publishContextTabs(ids.map((id) => ({ id, label: id })));
+}
+
+/** Non-reactive read for the dev bridge. */
 export function getAvailableContextTabIds(): readonly string[] {
   return useShellStore.getState().contextTabIds;
+}
+
+/** The mounted context surface's stable ids paired with the exact labels a human sees. */
+export function getAvailableContextTabs(): readonly PublishedContextTab[] {
+  const state = useShellStore.getState();
+  return state.contextTabIds.map((id) => ({ id, label: state.contextTabLabels[id] ?? id }));
 }
 
 /** Reveal the CONTEXT panel on a specific tab — the intent form of the old route-closure

@@ -10,7 +10,7 @@ import {
   parseSlashDraft,
   resolveSlashHighlight,
   SLASH_LISTBOX_ID,
-  slashComboboxAria,
+  slashCompletionAria,
   slashCompletionToken,
   slashOptionId,
   unknownCommandNotice,
@@ -141,7 +141,7 @@ test("resolveSlashHighlight: yields the highlighted command and its option id; -
   expect(resolveSlashHighlight(COMMANDS, -1)).toEqual({ command: undefined, activeOptionId: undefined });
 });
 
-test("slashComboboxAria: advertises the listbox only while open (no dangling aria-controls when closed)", () => {
-  expect(slashComboboxAria(true)).toEqual({ "aria-expanded": true, "aria-controls": SLASH_LISTBOX_ID });
-  expect(slashComboboxAria(false)).toEqual({ "aria-expanded": false, "aria-controls": undefined });
+test("slashCompletionAria: relates the textbox to the listbox only while open without invalid expanded metadata", () => {
+  expect(slashCompletionAria(true)).toEqual({ "aria-controls": SLASH_LISTBOX_ID });
+  expect(slashCompletionAria(false)).toEqual({ "aria-controls": undefined });
 });

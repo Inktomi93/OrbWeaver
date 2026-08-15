@@ -23,6 +23,9 @@ export interface TrackerValueProps {
   readonly kind?: "text" | "numeric";
   /** Accessible name for the value (rest button + edit field — the tracker's label, "Vitality value"). */
   readonly ariaLabel: string;
+  /** Accessible name for the at-rest button when it must include the displayed datum. The edit field keeps
+   *  `ariaLabel`, so automation has a stable field name after opening the value. */
+  readonly restAriaLabel?: string;
   /** Text tone for the at-rest/read-only display (foreground by default; muted for secondary). */
   readonly tone?: ComponentProps<typeof Text>["tone"];
   /** Text size of the at-rest/read-only display — "label" default; StatCell's big value passes "title". */
@@ -53,6 +56,7 @@ export function TrackerValue({
   onEdit,
   kind = "text",
   ariaLabel,
+  restAriaLabel,
   tone = "default",
   size = "label",
   placeholder,
@@ -84,7 +88,7 @@ export function TrackerValue({
         intent="ghost"
         size="inline"
         data-slot="tracker-value-rest"
-        aria-label={ariaLabel}
+        aria-label={restAriaLabel ?? ariaLabel}
         title={editTitle}
         onClick={(): void => {
           setDraft(source);

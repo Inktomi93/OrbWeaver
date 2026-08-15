@@ -37,6 +37,9 @@ const STORAGE_IDENTIFIER_RE = /^(?:localStorage|sessionStorage|indexedDB)$/u;
  *  it belongs in the synced `user_settings` blob instead, and this is the wrong tool). */
 const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
   shell: "panel dock/collapse + active section — per-device layout chrome (§12.1 carve-out)",
+  "active-chat":
+    "the room currently open in this browser — per-device navigation continuity across reloads, never " +
+    "shared chat state or a preference that should move another device's screen",
   "composer-draft":
     "unsent composer text per room, so a refresh/crash/tab-restore does not eat a message the user typed " +
     "(owner pick 2026-08-09). DEVICE-local on purpose: a half-written line is a THIS-tab artifact, and " +

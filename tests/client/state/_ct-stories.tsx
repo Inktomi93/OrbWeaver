@@ -12,12 +12,14 @@ import { createContributorRegistry } from "@orb/client/lib";
 import type { SectionDefinition, SettingsSectionContribution } from "@orb/client/state";
 import {
   __dismissPresetSectionForTest,
+  __migrateActiveChatForTest,
   __readComposerDraftsForTest,
   __resetCollectionGroupOpen,
   __resetComposerDrafts,
   __resetPresetSection,
   __resetPresetSelection,
   __resetTagFilter,
+  activeChatId,
   COMPOSER_DRAFT_CAP,
   chatDeletedFromList,
   clearAnalyticsSelection,
@@ -35,6 +37,7 @@ import {
   cycleTagFilter,
   enterCreatedChat,
   getAvailableContextTabIds,
+  getAvailableContextTabs,
   goToCollection,
   goToLanding,
   isCommitted,
@@ -43,6 +46,7 @@ import {
   openNewChatPicker,
   openSettingsTo,
   publishContextTabIds,
+  publishContextTabs,
   readComposerDraft,
   reportSectionSaveStatus,
   requestComposerFocus,
@@ -250,8 +254,17 @@ function ShellStoreProbeBody(): ReactElement {
       <button
         type="button"
         onClick={(): void => {
-          publishContextTabIds(["runs", "setup", "versions"]);
-          setCtxTabIds(getAvailableContextTabIds().join(","));
+          publishContextTabIds(["legacy"]);
+          publishContextTabs([
+            { id: "runs", label: "Runs" },
+            { id: "setup", label: "Setup" },
+            { id: "versions", label: "Versions" },
+          ]);
+          setCtxTabIds(
+            `${getAvailableContextTabIds().join(",")}|${getAvailableContextTabs()
+              .map((tab) => `${tab.id}:${tab.label}`)
+              .join(",")}`,
+          );
         }}
       >
         publish context tabs
@@ -316,6 +329,7 @@ function ShellStoreProbeBody(): ReactElement {
 
 const PROBE_CHARACTER = castId<CharacterId>("char_probe_aria");
 const PROBE_SELECT_CHAT = castId<ChatId>("chat_probe_select");
+const PROBE_MIGRATED_CHAT = castId<ChatId>("chat_01m02xhnwkeh7s32mxccy1x17f");
 const PROBE_CREATED_CHAT = castId<ChatId>("chat_probe_created");
 const PROBE_LIST_CHAT = castId<ChatId>("chat_probe_list");
 const PROBE_OTHER_CHAT = castId<ChatId>("chat_probe_other");
@@ -334,6 +348,7 @@ export function ActiveChatStoreProbe(): ReactElement {
   const intent = useNewChatIntent();
   const modal = useOpenModal();
   const [reaped, setReaped] = useState<string[]>([]);
+  const [inspection, setInspection] = useState("unread");
   useEffect(() => subscribeHuskAbandoned((chatId) => setReaped((prev) => [...prev, chatId])), []);
   const handleStr = isCommitted(handle) ? `committed:${handle.id}` : "landing";
   return (
@@ -341,6 +356,19 @@ export function ActiveChatStoreProbe(): ReactElement {
       <output>{`handle=${handleStr} openOverlayPanel=${openOverlayPanel ?? "none"} reaped=${reaped.join(",") || "none"}`}</output>
       {/* A `p`, not a second `<output>` — the store CTs read the state line as `locator("output")`. */}
       <p data-testid="new-chat-intent">{`modal=${modal ?? "none"} temporary=${intent === undefined ? "none" : String(intent.temporary === true)}`}</p>
+      <p data-testid="active-chat-inspection">{inspection}</p>
+      <button type="button" onClick={(): void => setInspection(`active=${activeChatId() ?? "none"}`)}>
+        inspect active chat
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          const migrated = __migrateActiveChatForTest({ handle: { kind: "committed", id: PROBE_MIGRATED_CHAT } });
+          setInspection(`migrated=${isCommitted(migrated.handle) ? migrated.handle.id : migrated.handle.kind}`);
+        }}
+      >
+        migrate active chat
+      </button>
       <button type="button" onClick={(): void => enterCreatedChat(PROBE_CREATED_CHAT)}>
         enter created chat
       </button>

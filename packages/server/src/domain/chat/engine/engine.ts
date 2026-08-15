@@ -1469,6 +1469,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // consumer runs its own post-commit round), `[]` = they rode and the model recorded nothing (a quiet beat).
     // They are handed ONLY here — never persisted on the variant, never streamed, never member-visible.
     fireRpgTurnCompleted(ctx, view, turnId, {
+      kind: prep.kind,
       connection,
       ownerConsented,
       transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames),

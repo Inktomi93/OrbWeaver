@@ -40,7 +40,7 @@ import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
-import { Row, Stack } from "@orb/ui/layout";
+import { InlineList, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
@@ -319,7 +319,7 @@ export function FaceStrip({
   selectMode = "current",
   pending = false,
 }: FaceStripProps): ReactElement | null {
-  const rowRef = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLUListElement>(null);
   const widthsRef = useRef<Map<string, number>>(new Map());
   const tileWidthRef = useRef<number | null>(null);
   const [fold, setFold] = useState<FoldState | null>(null);
@@ -371,41 +371,44 @@ export function FaceStrip({
   const showTile = folding && (fold === null || fold.hidden > 0);
 
   const faces = (
-    <Row aria-label={label} className={folding ? "overflow-hidden" : "overflow-x-auto"} gap="field" ref={rowRef} role="list">
+    <InlineList aria-label={label} className={folding ? "overflow-hidden" : "overflow-x-auto"} gap="field" ref={rowRef}>
       {shown.map((item) => (
-        <FaceButton
-          caption={caption}
-          item={item}
-          key={item.id}
-          onSelect={onSelect}
-          selectMode={selectMode}
-          selected={selectedId === item.id}
-          squeezed={faceKey(item) === squeezedKey}
-          verb={verb}
-        />
+        <li key={item.id}>
+          <FaceButton
+            caption={caption}
+            item={item}
+            onSelect={onSelect}
+            selectMode={selectMode}
+            selected={selectedId === item.id}
+            squeezed={faceKey(item) === squeezedKey}
+            verb={verb}
+          />
+        </li>
       ))}
       {showTile ? (
-        <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
-          <PopoverTrigger
-            render={
-              <Button aria-label={overflow.label} className="min-h-control-md min-w-control-md shrink-0" data-face-overflow="" intent="ghost" size="media">
-                <Stack align="center" gap="tight">
-                  {/* The tile is FACE-SHAPED (the avatar token square) so the row keeps one rhythm — and it
-                      prints the count, because "there are more" without a number is just a shrug. During the
-                      measuring pass the number is provisional; it is never painted (the fold lands in a
-                      layout effect, before the browser paints). */}
-                  <Row align="center" className="size-avatar-md rounded-control bg-muted" justify="center">
-                    <Text voice="gloss">{`+${fold === null ? items.length : fold.hidden}`}</Text>
-                  </Row>
-                  {caption ? <Text voice="gloss">More</Text> : null}
-                </Stack>
-              </Button>
-            }
-          />
-          <PopoverPopup>{overflow.render({ close: (): void => setPickerOpen(false), shownIds: shown.map((item) => item.id) })}</PopoverPopup>
-        </Popover>
+        <li>
+          <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
+            <PopoverTrigger
+              render={
+                <Button aria-label={overflow.label} className="min-h-control-md min-w-control-md shrink-0" data-face-overflow="" intent="ghost" size="media">
+                  <Stack align="center" gap="tight">
+                    {/* The tile is FACE-SHAPED (the avatar token square) so the row keeps one rhythm — and it
+                        prints the count, because "there are more" without a number is just a shrug. During the
+                        measuring pass the number is provisional; it is never painted (the fold lands in a
+                        layout effect, before the browser paints). */}
+                    <Row align="center" className="size-avatar-md rounded-control bg-muted" justify="center">
+                      <Text voice="gloss">{`+${fold === null ? items.length : fold.hidden}`}</Text>
+                    </Row>
+                    {caption ? <Text voice="gloss">More</Text> : null}
+                  </Stack>
+                </Button>
+              }
+            />
+            <PopoverPopup>{overflow.render({ close: (): void => setPickerOpen(false), shownIds: shown.map((item) => item.id) })}</PopoverPopup>
+          </Popover>
+        </li>
       ) : null}
-    </Row>
+    </InlineList>
   );
   return withKicker(kicker, faces);
 }

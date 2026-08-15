@@ -132,10 +132,6 @@ const DELTA_UNRENDERED: Readonly<Record<string, string>> = {
   "state.actorState[].volatile.conditions[].modifier": "a full-engine condition slot lite never writes (see state.actorState[].conditions[].stat).",
   "state.actorState[].volatile.conditions[].turnsLeft": "a full-engine condition slot lite never writes (see state.actorState[].conditions[].stat).",
   "state.actorState[].volatile.inventory[].id": "the inventory diff matches by NAME (a re-added item mints a new id — an id diff would report a phantom swap).",
-  "state.actorState[].volatile.inventory[].description":
-    "WRITE-ONCE AT ADD: `applyUpdateInventory` only pushes and removes — there is no edit arm, so an item's annotation never TRANSITIONS. The `+rope` line is the beat; the absolute carrying line (which now renders the capped note, owner ruling 2026-08-01) carries the prose.",
-  "state.actorState[].volatile.inventory[].location":
-    "write-once at add, exactly like inventory[].description — no edit door exists, so a location change is not a transition the diff could name. A re-add is a NEW row the add/remove lines already report.",
   "state.actorState[].volatile.inventory[].type": "always the empty string in lite (the applier writes no taxonomy), so there is nothing to diff.",
   "state.actorState[].volatile.inventory[].icon": "a HOST display pick from the icon seal — unwritable by play, so no beat can ever move it.",
   "state.actorState[].volatile.status":
@@ -524,14 +520,19 @@ const PROBES: readonly FieldProbe[] = [
     macroAbsent: () => [{ key: "rpgCast", text: "conditions: poisoned" }],
   },
   {
-    name: "inventory — carried items read by name × quantity + their capped annotation, and diff on add/remove/qty",
+    name: "inventory — carried items read by name × quantity + their capped annotation, and diff on add/remove/update",
     reminderPaths: [
       "state.actorState[].volatile.inventory[].name",
       "state.actorState[].volatile.inventory[].quantity",
       "state.actorState[].volatile.inventory[].location",
       "state.actorState[].volatile.inventory[].description",
     ],
-    deltaPaths: ["state.actorState[].volatile.inventory[].name", "state.actorState[].volatile.inventory[].quantity"],
+    deltaPaths: [
+      "state.actorState[].volatile.inventory[].name",
+      "state.actorState[].volatile.inventory[].quantity",
+      "state.actorState[].volatile.inventory[].location",
+      "state.actorState[].volatile.inventory[].description",
+    ],
     macroPaths: [
       "state.actorState[].volatile.inventory[].name",
       "state.actorState[].volatile.inventory[].quantity",
@@ -551,16 +552,26 @@ const PROBES: readonly FieldProbe[] = [
             // The CAP arm (owner ruling 2026-08-01): per-item prose rides the roll-call truncated at a word
             // boundary, so one verbose item cannot multiply the party's inventory prose into every turn.
             add: [{ name: "torch", description: "pitch-soaked rag wound on an ash haft, burns for about an hour before it gutters" }],
-            remove: [{ name: "rope", quantity: 1 }],
+            update: [{ name: "rope", description: "forty feet of rain-darkened hemp", quantity: 1, location: "across the shoulder" }],
           },
         ],
       });
     },
-    reminder: () => ["carrying: rope (the pack: forty feet of hemp), torch (pitch-soaked rag wound on an ash haft, burns for about an…)"],
+    reminder: () => [
+      "carrying: rope (across the shoulder: forty feet of rain-darkened hemp), torch (pitch-soaked rag wound on an ash haft, burns for about an…)",
+    ],
     absent: () => ["before it gutters"],
-    delta: (f) => [`+torch (${f.carrier.label})`, `${f.carrier.label} rope ×2→×1`],
+    delta: (f) => [
+      `+torch (${f.carrier.label})`,
+      `${f.carrier.label} rope ×2→×1`,
+      `${f.carrier.label} rope moved: the pack → across the shoulder`,
+      `${f.carrier.label} rope description → forty feet of rain-darkened hemp`,
+    ],
     macro: () => [
-      { key: "rpgCast", text: "carrying: rope (the pack: forty feet of hemp), torch (pitch-soaked rag wound on an ash haft, burns for about an…)" },
+      {
+        key: "rpgCast",
+        text: "carrying: rope (across the shoulder: forty feet of rain-darkened hemp), torch (pitch-soaked rag wound on an ash haft, burns for about an…)",
+      },
     ],
   },
   {
