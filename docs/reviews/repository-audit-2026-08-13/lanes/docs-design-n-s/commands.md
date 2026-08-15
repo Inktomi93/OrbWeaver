@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipts
 
 All commands ran from the repository root against working-tree bytes. This lane wrote only its three durable artifacts.

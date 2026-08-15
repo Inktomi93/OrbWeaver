@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipts — docs-design-a-f
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` against the current working tree. No command modified production source, tests, configuration, or an assigned document.

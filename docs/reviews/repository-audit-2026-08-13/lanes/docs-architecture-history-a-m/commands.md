@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # docs-architecture-history-a-m command receipt
 
 Working directory: `/home/inktomi/inktomi-stack/development/orbweaver`.

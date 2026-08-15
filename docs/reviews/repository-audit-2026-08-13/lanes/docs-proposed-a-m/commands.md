@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Commands — docs-proposed-a-m
 
 Ran from `/home/inktomi/inktomi-stack/development/orbweaver`. No production, test, config, or shared-audit file was modified.

@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # dependency-lock command receipt
 
 All commands ran in `/home/inktomi/inktomi-stack/development/orbweaver`. Times are wall-clock receipts from the command runner or `/usr/bin/time`; `—` means the runner did not emit a separate elapsed value. No command wrote a production file, test, gate, law, lockfile, or another lane artifact.

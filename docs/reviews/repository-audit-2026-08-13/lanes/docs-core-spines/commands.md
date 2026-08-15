@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Commands and results
 
 Snapshot assignment: `41e18afe74afa570b67a3e670a1a38863c486a00`. Working-tree HEAD at report: `356cd4b4fd0d524c4b027bc81d431aecf107e9e2`.

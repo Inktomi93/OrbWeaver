@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Commands — docs-design-g-m
 
 All commands ran from the repository root. Read commands are listed as receipts; no source, test, or configuration files were modified by this lane.

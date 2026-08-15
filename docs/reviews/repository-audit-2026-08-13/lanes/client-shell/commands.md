@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # client-shell command receipts
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` against working-tree bytes. The lane began from assignment snapshot `41e18afe74afa570b67a3e670a1a38863c486a00`; final receipt reconciliation used `a73d7272dc95ba93f85251121902a79858f47255`.

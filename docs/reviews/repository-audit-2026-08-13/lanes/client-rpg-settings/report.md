@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Client RPG, regex, settings, and stats lane report
 
 ## Lane identity

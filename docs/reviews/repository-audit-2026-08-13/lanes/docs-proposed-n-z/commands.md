@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Commands and receipts
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` on the working tree. The lane assignment snapshot is `41e18afe74afa570b67a3e670a1a38863c486a00`.

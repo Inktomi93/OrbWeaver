@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Client-state command receipts
 
 Working directory for every command: /home/inktomi/inktomi-stack/development/orbweaver.

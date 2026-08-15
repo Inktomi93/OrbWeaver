@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # docs-current command log
 
 Snapshot basis: working tree observed at `906d7aa125130e1c4691a7097c6725d8d31d113d` on 2026-08-14. The frozen assignment names `41e18afe...`, 4,802 lines, and 387,362 bytes. Current owned bytes total 4,961 lines and 403,614 bytes; the receipt is therefore the rolling byte authority.

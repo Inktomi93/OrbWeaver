@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Codemods lane command receipt
 
 Snapshot: `41e18afe74afa570b67a3e670a1a38863c486a00`; `HEAD` matched it during the audit. Scope is the six `OWNED` `scripts/codemods/**` rows plus nine `SHARED` records in `assignment.txt`; `ast.ts` intentionally appears once in each kind. No owned source path was dirty.

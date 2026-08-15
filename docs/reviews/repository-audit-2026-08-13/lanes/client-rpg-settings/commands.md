@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # client-rpg-settings command receipt
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` on 2026-08-13 MDT. `assignment.txt` was the frozen byte snapshot.

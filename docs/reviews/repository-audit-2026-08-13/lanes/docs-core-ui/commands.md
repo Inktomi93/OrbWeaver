@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Commands — docs-core-ui
 
 Working-tree basis: assignment snapshot `41e18afe74afa570b67a3e670a1a38863c486a00`; all eight owned files matched its lines, bytes, and SHA-256 at read and final hash reconciliation. `git diff --name-only -- <owned paths>` and `git status --short -- docs/architecture/core` produced no owned dirty path.

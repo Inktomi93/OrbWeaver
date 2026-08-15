@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # docs-history-n-z audit report
 
 ## Lane identity

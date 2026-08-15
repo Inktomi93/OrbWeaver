@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Commands — docs-design-mocks-panel
 
 Working-tree basis: `dab3c8440f23ee23883897e446fe80e3838c9b29`; owned paths were clean at both initial and final hash checks.
