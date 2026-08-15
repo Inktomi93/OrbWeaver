@@ -13,8 +13,13 @@
 // B (the F1 class, autosave-form-doctrine.md §1/§8). Autosave everywhere (D66 A4 / north-star §7): no
 // Save/Discard — the header carries the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where
 // Save used to be. The required title/content (`min(1)`) never spam rejects: the boundary's driver gates on
-// `form.state.isValid`, so a half-typed field simply doesn't autosave until it's valid. NO draft mirror:
-// on autosave the confirmed server row IS the mirror (the persona/appearance precedent, §13.4 obligation-5).
+// `form.state.isValid`, so a half-typed field simply doesn't autosave until it's valid.
+//
+// DRAFT MIRROR WIRED (#73, owner-ruled 2026-08-15, HIGH tier — free-prose `content`/`description` plus
+// the keyword-chip list). This AMENDS the §13.4 obligation-5 default ("on an AUTOSAVE form the
+// confirmed server row IS the mirror") for this surface specifically — the same owner exception as the
+// character editor; see `character-editor-surface.tsx`'s header for the full citation of why the
+// premise doesn't hold across a reload/crash mid-debounce.
 
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldEntryId } from "@orb/kit/ids";
@@ -33,6 +38,7 @@ import type { AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useRemoveWorldEntry, useUpdateWorldEntry } from "../hooks/use-world-info-mutations.ts";
+import { entryDraftStore } from "../lib/entry-draft-store.ts";
 import type { EntryFormValues } from "../lib/entry-editor-model.ts";
 import { entryFormFromEntity, entryUpdateInputFromForm, NEW_ENTRY_FORM } from "../lib/entry-editor-model.ts";
 
@@ -43,7 +49,7 @@ const KEYS_MAX = 500;
 // have stable identities; the boundary owns the entity key (keyed by entry id), so an entry switch remounts
 // the form. No module `config.save`: the persist fn closes over the live tRPC client (a React-context value
 // unreachable at module scope) — the surface supplies `save` per-instance.
-const EntryForm = createAutosaveEntityForm<EntryFormValues>({ defaultValues: NEW_ENTRY_FORM });
+const EntryForm = createAutosaveEntityForm<EntryFormValues>({ defaultValues: NEW_ENTRY_FORM, draft: entryDraftStore });
 
 const SCOPE_MODE_LABELS: Record<(typeof ENTRY_SCOPE_MODES)[number], string> = {
   auto: "Auto — keyword if it has keys, always if not",

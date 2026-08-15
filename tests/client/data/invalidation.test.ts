@@ -364,9 +364,10 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // input-keyed (the typed query IS the cache key), so invalidating them on a background recompute would
   // re-run someone's search for no freshness gain. That exclusion is the point of the negative control.
   corpusRecomputed: ["discovery", "similarArt"],
-  // The VIEWER TRIPLE and nothing else (W7b) — `sessions.me` plus the two composites `use-viewer.ts` derives
-  // `currentPersona` from. It routes through the SAME `identityFilters` helper the recovery ladder's resume
-  // rung calls, so this row is also the pin that the bus half and the ladder half cannot drift apart.
+  // The VIEWER TRIPLE and nothing else (W7b) — `sessions.me` plus the two reads a composed current-persona
+  // derivation would need (`settings.getUserSettings`/`persona.list`). It routes through the SAME
+  // `identityFilters` helper the recovery ladder's resume rung calls, so this row is also the pin that the
+  // bus half and the ladder half cannot drift apart.
   // Deliberately NOT the character/chat roots: a role grant changes what the viewer may DO, not what they own.
   identityChanged: ["sessionsMe", "userSettings", "persona"],
   // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection

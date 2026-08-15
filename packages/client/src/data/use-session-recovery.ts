@@ -49,8 +49,8 @@ function subscribeVisibility(listener: () => void): () => void {
 export function useSessionRecovery(): void {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  // The identity read every surface already dedupes on (`use-viewer.ts`) — non-suspense here so the shell
-  // never blocks on it; `undefined` just means "not bound yet", which every consumer below tolerates.
+  // The identity read every surface already dedupes on (the shared `sessions.me` query) — non-suspense
+  // here so the shell never blocks on it; `undefined` just means "not bound yet", every consumer tolerates it.
   const { data: me } = useQuery(trpc.sessions.me.queryOptions());
   const userId = me?.userId ?? null;
   const handle = me?.handle ?? null;
