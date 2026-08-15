@@ -1587,32 +1587,32 @@
       "path": "docs/architecture/core/client-architecture-lockdown.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 709,
-      "bytes": 125905,
-      "sha256": "ced2d111c70375f21faa9e7a5ced1c85cd8ed5db376b9e18bcb12af0d4da845b",
+      "lines": 711,
+      "bytes": 126103,
+      "sha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-14"
+          "updated": "2026-08-15"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/client-architecture-lockdown.md",
-        "assignedSha256": "ced2d111c70375f21faa9e7a5ced1c85cd8ed5db376b9e18bcb12af0d4da845b",
+        "assignedSha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "ced2d111c70375f21faa9e7a5ced1c85cd8ed5db376b9e18bcb12af0d4da845b",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
+        "verifiedCommit": "800937aebae1eafafef458eab57ae64115ac5c68",
+        "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
-          "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-15; 800937aeb)",
+          "pnpm check:docs (2026-08-15 restamp — receipt sha/commit refresh, #73 red-fixes)"
         ],
         "claims": [
           {
@@ -12212,6 +12212,52 @@
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
         ],
         "summary": "RPG-LITE REWIND/SWIPE — \"state stuck\" — diagnosis + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/st-import-completeness-2026-08-15.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 266,
+      "bytes": 23028,
+      "sha256": "8c409f3b1ad00c3e87bd4ca74991025cf96a0ef0eda816561ed20c373aa660f9",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-15"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/st-import-completeness-2026-08-15.md",
+        "assignedSha256": "8c409f3b1ad00c3e87bd4ca74991025cf96a0ef0eda816561ed20c373aa660f9",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "8c409f3b1ad00c3e87bd4ca74991025cf96a0ef0eda816561ed20c373aa660f9",
+        "verifiedCommit": "3227a33d8218d4acbd587d3f80af4d47e9c5b662",
+        "verifiedAt": "2026-08-15",
+        "evidence": [
+          "docs/design/st-import-completeness-2026-08-15.md:1 (design; active; full read)",
+          "git log --oneline -1 -- docs/design/st-import-completeness-2026-08-15.md: 3227a33d8 docs(design): ST import completeness — sweep inventory, corpus receipts, part-3 judgment table (#74)",
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        ],
+        "summary": "ST import completeness sweep (issue #74) — silent-gap inventory, corpus receipts against the real neo-tavern ST export, and the part-3 not-mapped re-judgment table; landed feature + deferred write-waves named with owner-sent forks.",
+        "claims": [
+          {
+            "claim": "Mutable resolution for this artifact is tracked in GitHub issue #74.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#74"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },

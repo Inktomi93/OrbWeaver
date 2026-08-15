@@ -14,8 +14,8 @@
 // so it re-implements no vendor law (the design's §1 "client-side re-implementation of provider schema
 // law" ruling stays honoured — see the advisory module's header for the full fork statement).
 
-import type { RefineryForgeArm, RefinerySchemaStage, RenderHintRole } from "@orb/contracts/refinery";
-import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS, RENDER_HINT_ROLES, refinerySchemaAdvisoryOf } from "@orb/contracts/refinery";
+import type { RefineryForgeArm, RefinerySchemaStage } from "@orb/contracts/refinery";
+import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS, refinerySchemaAdvisoryOf } from "@orb/contracts/refinery";
 import type { CharacterId, RefinerySchemaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -42,6 +42,7 @@ import { CharacterDoor } from "./character-door.tsx";
 import { PayloadView } from "./payload-view.tsx";
 import { RefineryChip } from "./refinery-chip.tsx";
 import { RefusalNote } from "./refusal-note.tsx";
+import { RenderHintPicker } from "./render-hint-picker.tsx";
 
 export interface SchemaEditorDialogProps {
   readonly open: boolean;
@@ -67,29 +68,6 @@ const FORGE_ARM_ITEMS: SelectItems<string> = REFINERY_FORGE_ARMS.map((value) => 
 /** The arm picker's ONE label string — rendered visibly by `Field` AND as the control's `aria-label`
  *  (see the call site's note: two spellings would be a WCAG 2.5.3 mismatch waiting to happen). */
 const FORGE_ARM_QUESTION = "How to build it";
-
-// THE RENDER-HINT ROLE PICKER (#73, owner-ruled 2026-08-15). The raw JSON pane is the ONLY place a hint
-// lands today (no per-node structured editor exists — the applicability fence: no new surface), so the
-// picker's job is narrower than a full hint-authoring UI: it gives the author a TYPED source for the
-// role STRING (autocomplete-safe, sourced from `RENDER_HINT_ROLES` the same way `FORGE_ARM_ITEMS`
-// derives from its own tuple above) instead of hand-typing one of 8 magic strings into JSON, where a
-// typo silently falls through to "no hint applied" (`render-plan.ts`'s own header: a malformed/unknown
-// hint HEALS to no-hint, never a failure — so a typo is invisible, not refused). "Insert" writes the
-// `x-orb-ui` hint OBJECT at the textarea's cursor, so the author positions inside the schema node they
-// want to elevate and drops in a compiling, correctly-spelled hint rather than typing it freehand.
-const RENDER_HINT_ROLE_ITEMS: SelectItems<string> = RENDER_HINT_ROLES.map((value) => ({ value, label: value }));
-const RENDER_HINT_ROLE_QUESTION = "Render hint role";
-
-/** Insert the `x-orb-ui` hint snippet for `role` at `textarea`'s cursor (or append, when unfocused —
- *  `selectionStart`/`End` default to the end of the value on an un-interacted control). Returns the new
- *  full text; the caller re-renders the textarea from it (a controlled component, never `execCommand`). */
-function insertRenderHint(text: string, textarea: HTMLTextAreaElement | null, role: RenderHintRole): string {
-  const snippet = `"x-orb-ui": { "role": "${role}" }`;
-  if (textarea === null) {
-    return `${text}${snippet}`;
-  }
-  return `${text.slice(0, textarea.selectionStart)}${snippet}${text.slice(textarea.selectionEnd)}`;
-}
 
 function dialogTitleOf(editing: SchemaEditorDialogProps["editing"], stage: RefinerySchemaStage): string {
   return editing === null ? `New ${STAGE_WORD[stage]} schema` : `Edit "${editing.name}"`;
@@ -373,7 +351,6 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
   const [schemaText, setSchemaText] = useState(editing === null ? "" : JSON.stringify(editing.schema, null, 2));
   const [forgeNote, setForgeNote] = useState<string | null>(null);
   const [arm, setArm] = useState<RefineryForgeArm>(REFINERY_FORGE_ARM_DEFAULT);
-  const [hintRole, setHintRole] = useState<RenderHintRole>(RENDER_HINT_ROLES[0]);
 
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -432,29 +409,13 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
         <Field label="Schema (JSON — the full vocabulary)">
           <Textarea onChange={(e): void => setSchemaText(e.target.value)} ref={schemaTextRef} rows={8} value={schemaText} />
         </Field>
-        {/* THE RENDER-HINT ROLE PICKER (#73): a typed source for the `x-orb-ui` role string, so an
+        {/* THE RENDER-HINT ROLE PICKER (#73) — split out (`render-hint-picker.tsx`, component-size +
+            form-factory-for-multifield gates): a typed source for the `x-orb-ui` role string, so an
             author elevates a node by PICKING a vocabulary member instead of hand-typing one of 8 magic
             strings (a typo silently heals to "no hint applied" — render-plan.ts's own header). Insert
             drops the hint object at the JSON pane's cursor; the author positions inside the node they
             want to elevate first. */}
-        <Row align="end" gap="field">
-          <Field className="min-w-0 max-w-sm flex-1" label={RENDER_HINT_ROLE_QUESTION}>
-            <Select
-              aria-label={RENDER_HINT_ROLE_QUESTION}
-              items={RENDER_HINT_ROLE_ITEMS}
-              onValueChange={(value): void => {
-                const next = RENDER_HINT_ROLES.find((role) => role === value);
-                if (next !== undefined) {
-                  setHintRole(next);
-                }
-              }}
-              value={hintRole}
-            />
-          </Field>
-          <Button intent="secondary" onClick={(): void => setSchemaText((text) => insertRenderHint(text, schemaTextRef.current, hintRole))} size="sm">
-            Insert render hint
-          </Button>
-        </Row>
+        <RenderHintPicker schemaTextRef={schemaTextRef} setSchemaText={setSchemaText} />
         {schema === null ? null : <PreflightNote schema={schema} />}
         <RefusalNote error={editing === null ? create.error : update.error} />
         {previewPlan !== null && schema !== null ? (

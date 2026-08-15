@@ -796,17 +796,17 @@
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
-      "assignedSha256": "ced2d111c70375f21faa9e7a5ced1c85cd8ed5db376b9e18bcb12af0d4da845b",
+      "assignedSha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "ced2d111c70375f21faa9e7a5ced1c85cd8ed5db376b9e18bcb12af0d4da845b",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
+      "verifiedCommit": "800937aebae1eafafef458eab57ae64115ac5c68",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-15; 800937aeb)",
+        "pnpm check:docs (2026-08-15 restamp — receipt sha/commit refresh, #73 red-fixes)"
       ],
       "claims": [
         {
