@@ -1,7 +1,13 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Stickler review — D117 stage E (workloads two-lane worker · durable progress · poison surface · stats.reconcile)
 
 - **Range reviewed:** `a541ae8f..8b284802` (the merge at HEAD; branch commit `bea2851c`). 43 files.
-  NOTE: `git diff a541ae8f..bea2851c` shows ~136 files (branch forked from older main) — the correct
+  NOTE: `git diff a541ae8f..bea2851c` shows \~136 files (branch forked from older main) — the correct
   review surface is what the MERGE introduced; all sweeps below use `a541ae8f..8b284802`.
 - **Spec of record:** `docs/history/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md` §3.3 + §5-E;
   ledger D117 clauses (9)–(12) amendment (`docs/architecture/core/Core-Path-Registry.md`).
@@ -54,8 +60,7 @@
 
 - **Where:** `packages/server/src/transport/jobs/workloads-worker.ts:19-20` — "wake-on-emit (an
   enqueued row short-circuits every lane's poll wait)".
-- **Evidence:** `ast-grep run -p 'emitWorkloadEvent($$$A)' -l ts packages/server/src
-  --files-with-matches` → exactly `engine/runner.ts` + `engine/reaper.ts`. Neither `start` nor
+- **Evidence:** `ast-grep run -p 'emitWorkloadEvent($$$A)' -l ts packages/server/src --files-with-matches` → exactly `engine/runner.ts` + `engine/reaper.ts`. Neither `start` nor
   `retry` nor `schedule-tick` nor the tRPC router emits anything at enqueue. The wake bus
   (`subscribeWorkloadWake`, progress-bus.ts:37-42) fires only on started/progress/terminal events of
   already-dispatched rows.
@@ -153,7 +158,7 @@ analytics-overview-surface).
      green: "progress cannot resurrect it"). Progress survives the terminal stamp (`markTerminal`
      does not touch the column; pinned green).
    - Throttle: `report()` writes at most once per cadence; the timer tick writes unconditionally
-     AND advances `lastWriteAt`, so steady-state is ~1 write/cadence with a worst case of one extra
+     AND advances `lastWriteAt`, so steady-state is \~1 write/cadence with a worst case of one extra
      write on phase alignment — the ledger's "chatty run costs the same as a silent one" holds to
      within +1 write/cadence. Pinned green (runner.int throttle test, injected clock).
    - Lost-progress: the final `report()` inside the last cadence window may not persist — durable

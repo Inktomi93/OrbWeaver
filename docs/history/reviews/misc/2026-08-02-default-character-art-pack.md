@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # Default-character art pack — receipts, gallery candidates, wiring gaps (Lane AV, 2026-08-02)
 
 Contact sheet for owner review: `docs/reviews/misc/2026-08-02-default-character-art-pack-contact-sheet.png`
@@ -7,7 +13,7 @@ Contact sheet for owner review: `docs/reviews/misc/2026-08-02-default-character-
 ## What landed
 
 | Handle | Avatar (512² PNG, `packages/server/src/entry/boot/seed-assets/avatars/`) | Background (1920×1080 JPEG, `packages/client/public/backgrounds/`) |
-|---|---|---|
+| - | - | - |
 | `assistant` (Charlotte) | `assistant.png` ⚠ owner-veto flag: she IS a spider | `assistant-bg.jpg` — study corner, empty web |
 | `jfc-coder` (JFC) | `jfc-coder.png` | `jfc-coder-bg.jpg` — dark office, X'd whiteboard |
 | `niko` (Niko) | `niko.png` | `niko-bg.jpg` — deserted rainy konbini street |
@@ -23,7 +29,7 @@ All 20 files byte-verified: PNG/JPEG magic bytes, exact dimensions, every file w
 5 MB `DEFAULT_MAX_IMAGE_BYTES` asset cap.
 
 Model: `google/gemini-3-pro-image` (Nano Banana Pro) via OpenRouter. 24 calls, **$3.35 total**
-(~$0.139/image). 20 shipped + 4 re-rolls (Charlotte, Birdie, Elias avatars; Niko background).
+(\~$0.139/image). 20 shipped + 4 re-rolls (Charlotte, Birdie, Elias avatars; Niko background).
 
 ## Wiring gaps — Lane SW owns these (this lane shipped FILES ONLY, zero code)
 

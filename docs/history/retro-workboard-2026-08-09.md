@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-14
+---
+
 > **ARCHIVE (2026-08-09 midday):** the board as it stood at the endgame rewrite — moved INTACT when
 > the live doc was rewritten to the ENDGAME shape (all forks ruled, nothing deferred). Nothing deleted;
 > the live board is docs/retro-workboard.md.
@@ -74,7 +80,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-08 | **Import-fidelity §5 rulings (owner, via question tool):** variants metadata = ONE CANONICAL SHAPE written at import (reader stays single-shape; pre-launch NO-LEGACY + re-import coming) · `chat_metadata.variables` = WIRE THROUGH to the existing column/field · author's note = ADAPT/CONVERT ST's note\_depth/position/role onto ORB'S OWN injection-system note ("we basically have our own author's note with our injection system — just adapt and convert to that") · #28 dispatch NOW alongside R3. |
 | 08-08 | **ST IMPORT PLANE RE-HOMES (owner):** backgrounds/ = GALLERY ("backgrounds is our gallery — a media store for characters and etc"), imports into the gallery/CAS media store (the "no domain home / cosmetic" report reason is dead). THEMES: orb's D71 pipeline is a legit target — owner open to a SAFE ST→orb theme conversion (mapping study first, convert what maps, report the rest). Both fold into the deferred import lane (task #28) with databank/user-settings. |
 | 08-08 | **NO TEXT-COMPLETION (owner, "who the fuck is building text completion"):** the #25 ST-preset import scope is CHAT-COMPLETION ONLY (OpenAI Settings/ + `oai_settings` via the shipped `importStChatCompletionPreset`). TextGen/NovelAI/KoboldAI preset families stay UNIMPORTED with an honest report reason — orb has no text-completion mode and no mapper gets built for one. (Orchestrator had wrongly approved 3 text-completion mappers; overruled live.) |
-| 08-08 | **Templating rows 53-73 = ARM B (owner, via question tool): SERVER composes** — wire carries toggle KINDS only, server joins the 21 fragments via prose slots (the "wire carries only the kind, never template text" doctrine generalized). Spec: `docs/design/templating-fork-rows-53-73.md`. Build = task #33, parked under the freeze. **"Runs" rename KEPT** (Jobs pane > Runs section — the 08-02 Jobs>Jobs letter yields to WCAG label-in-name; mechanism [user never sees "workload"] preserved). |
+| 08-08 | **Templating rows 53-73 = ARM B (owner, via question tool): SERVER composes** — wire carries toggle KINDS only, server joins the 21 fragments via prose slots (the "wire carries only the kind, never template text" doctrine generalized). Spec: `docs/design/templating-fork-rows-53-73.md`. Build = task #33, parked under the freeze. **"Runs" rename KEPT** (Jobs pane > Runs section — the 08-02 Jobs>Jobs letter yields to WCAG label-in-name; mechanism \[user never sees "workload"] preserved). |
 | 08-08 | **DISPATCH FREEZE (owner, late evening): no new agent dispatches until further notice — 5h session limit at 90%.** Running lanes finish + get merged by the orchestrator's own hands; queued tasks #30 (R4) / #31 (agents naming) / #32 (CLS+tab-strip) stay PARKED until the owner lifts it. |
 | 08-09 | **SCHEMA-FORGE STRUCTURED-OUTPUT VETO (owner, on the 13th-slot draft):** "asking the model to pretty-please output proper JSON is fragile as fuck and anti-everything about us" — the NL→schema generator must use ENFORCED structured output (xgrammar/tool-call grammar, the RP-extraction precedent), generalized so USER-BUILT schemas work by construction; the prompt describes the task, the grammar owns the shape. Rework = task #36, lands before the R3 graduation lens. |
 | 08-09 | **Schema-forge design elaboration (owner):** defaults are PRE-SUPPORTED (predefined shapes, full renderer treatment baked, zero model calls in the default path) · custom per-stage schemas = an authoring pipeline WITH OPTIONS — single enforced structured call / structured + tool calls / structured call → second call deriving format/render-hints via our TEACH machinery — "it's a one-time setup for them so they pay it once, but we should have options." vLLM local + OpenRouter env key + existing structured/tool support are the substrate. Folded into task #36. |
@@ -120,54 +126,56 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 > **This block supersedes the morning's LIVE STATE + TRAIN STATE below** (kept for history). Merge flow
 > is now rebase-in-worktree → `--no-ff` (pre-merge-commit hook gates every merge; see RULINGS).
 
-**~18 hook-gated merges landed this sitting.** Everything below is ON MAIN, unpushed (battery owed first):
+**\~18 hook-gated merges landed this sitting.** Everything below is ON MAIN, unpushed (battery owed first):
 
 - **Import program COMPLETE for matched planes:** #19 tags (`c921f5834`) · #25 chat-completion presets +
   group chats (`5d05d0101`, NO text-completion by ruling) · #29 fidelity fixes (`d36101b9c` — ST wall-clock
-  zone [dates were 6-7h early on 49.6% of msgs], loose filename regex [3 chats stamped 2027], token_count
-  by role [35% tokensOut inflation killed]) · §5 fixes (canonical variant shape [3.1k real reasoning
+  zone \[dates were 6-7h early on 49.6% of msgs], loose filename regex \[3 chats stamped 2027], token\_count
+  by role \[35% tokensOut inflation killed]) · §5 fixes (canonical variant shape \[3.1k real reasoning
   durations, not 12.7k — key-presence ≠ value census], chat variables 480 chats/2,813 values, author's-note
-  ADAPT-to-injection [ST recorded value wins, house register fallback], clean titles 1,083/1,083 with 615
+  ADAPT-to-injection \[ST recorded value wins, house register fallback], clean titles 1,083/1,083 with 615
   ` (2)` suffixes). **#28 in flight:** backgrounds→gallery (arm b: kind background + backgroundLibrary
-  entry), themes via the D71 converter ONLY (safe pairs), power_user multi-home classification (preset-owned
+  entry), themes via the D71 converter ONLY (safe pairs), power\_user multi-home classification (preset-owned
   keys → the (active) preset), databank. **Re-import of the owner's 3-year corpus waits for the train.**
-- **Memory/vLLM:** #21 summarize samplers+batching MERGED+LIVE-PROVEN (4-6s stops, ~6-25x/item) ·
-  #24 `/api/_debug/vllm/metrics` (3 engines, KV headroom warn; gen 7.516x matches its startup line) ·
-  #11 CAS schedule seed (existence-gated per kind). Client path concurrent-clean — NO queue built, ruling:
+- **Memory/vLLM:** #21 summarize samplers+batching MERGED+LIVE-PROVEN (4-6s stops, \~6-25x/item) ·
+  \#24 `/api/_debug/vllm/metrics` (3 engines, KV headroom warn; gen 7.516x matches its startup line) ·
+  \#11 CAS schedule seed (existence-gated per kind). Client path concurrent-clean — NO queue built, ruling:
   vLLM's continuous batcher + scheduler queue are the mechanism; the "hang" was the summarize loop.
 - **Auth:** #8 OIDC owner adoption + #23 refresh/stale-session (`f663abeb8`) + the cascade fix
   (`385d87776`: owner handle pinned to seed key, ensureUser loud-fail on phantom, **bind-once guard closing
   a live pre-existing account takeover** — handle-fallback could rebind a BOUND row's externalId).
-  Verifier-graduated with 2 findings in a fix lane (OWNER_HANDLES move bricks boot — path being made
+  Verifier-graduated with 2 findings in a fix lane (OWNER\_HANDLES move bricks boot — path being made
   real-or-honest; null-subject guard scope comment).
 - **Refinery:** P1 contract fixes merged (`ebacd3c05` — emptying arm end-to-end within belt-9, greetings
-  replace/clear as DISTINCT writes + index remap, duration_ms/source_run_id [D24 self-FK], {{shape}}
+  replace/clear as DISTINCT writes + index remap, duration\_ms/source\_run\_id \[D24 self-FK], {{shape}}
   splice; verifier CONFIRMED, no belt escape constructible) · **R3 + NL→schema: FORGE IN FLIGHT** —
-  all scope A-H built full-stack (refinery_schemas table, 10 service members, schema-driven render plan,
+  all scope A-H built full-stack (refinery\_schemas table, 10 service members, schema-driven render plan,
   arm-B review, tri-axis tabs, preflight, manual arm, §21 divergence belt), finishing biome→visual-mock
-  loop→one commit. **R4 queued** (task #30: sweep + I2 + dossier + F6/F7 + F-T1 append [ruled in]).
+  loop→one commit. **R4 queued** (task #30: sweep + I2 + dossier + F6/F7 + F-T1 append \[ruled in]).
 - **Engine/harness fixes:** #12 (`7544ffc6f` — pooled rotation vs allowSelfResponses, per-name @mention
-  masking, cache receipt now OBSERVES [2nd lying arm found+killed], unreachable-depth warn) · #7
-  (`85d8225a9` — 3 harnesses onto ORB_ENV_NO_FILE, runner rows) · #6 footer recognizer · #27 mop-up
-  (FK truth-repair+pin, derived KIND_HEADERS).
+  masking, cache receipt now OBSERVES \[2nd lying arm found+killed], unreachable-depth warn) · #7
+  (`85d8225a9` — 3 harnesses onto ORB\_ENV\_NO\_FILE, runner rows) · #6 footer recognizer · #27 mop-up
+  (FK truth-repair+pin, derived KIND\_HEADERS).
 - **Graduations:** C1/D137 CONFIRMED (phase gate byte-exact) · #8 · #12 · #25 · #29 (minus the group-chat
   zone gap → fix lane) · side-eye batch pass: C6 submenu GRADUATED clean; findings (turn-director model
   text, Corpus first-run redesign, Delete aria, flash ring, + P2/P3 pile) ALL in a fix lane per the
   side-eye-authority rule.
+
 ## ═══ LIVE STATE (2026-08-09 MIDDAY — ALL LANES DRAINED; supersedes late-morning) ═══
 
 **Main `3a432603e` — PUSHED to origin (`216725582..3a432603e`), one-shot clean.** ZERO lanes in
 flight, zero worktrees, tree clean. Battery receipt: `verify --push` 18/19 green INCLUDING the whole
 behavioral tier (tests:node 794s · e2e-smoke · cpd · parity); the one red was
 **`deps:orphan-ratchet` — 3 stale `@public` tags** whose exports gained consumers this train
-(`card-frame.ts` MintRequest/Response [#37] + `GreetingTransformId` [#33]) — push-tier-only stage,
+(`card-frame.ts` MintRequest/Response \[#37] + `GreetingTransformId` \[#33]) — push-tier-only stage,
 invisible to commit hooks by design; fixed by ratchet-down deletion `3a432603e`, stage re-run green
 before the push. :5173 stack RESTARTED (pgid 1232985) — the #42 forge flagged the same zombie-vite
 stale-graph class.
 
 **MERGED since late-morning (serial, foreground, hook-gated):**
+
 - **#35 corpus-settle `2073bbdc8`** — agent-bridge readiness hand-out, snap swallowing the readiness
-  result, CREDENTIALS_KEY not crossing to offset stages, preset CT flake. (Merge-conflict lesson: my
+  result, CREDENTIALS\_KEY not crossing to offset stages, preset CT flake. (Merge-conflict lesson: my
   first union resolve left the closing `>>>>>>>` marker — the merge hook caught it; repaired,
   branch-side check green.)
 - **#39 live e2e `275f5ea83`** — the refinery pipeline now runs end-to-end against the real fleet, it
@@ -196,7 +204,7 @@ unvirtualized unbounded renders: `chat-list-surface.tsx:311` · `chats-with-char
 paged (50/100) BUT 3 sites request 200-500 and get silently clamped to 100 (silent-undercount).
 Small-catalog list procedures (tag/regex/worldInfo/persona/preset/plugin/credentials) share the
 no-limit shape at harmless scale. **→ task #45** (the class fix: server keyset pagination + sealed
-VirtualList on the 3 renders + the [[paginating-a-list-breaks-resolve-by-find]] `.find()` sweep) —
+VirtualList on the 3 renders + the \[\[paginating-a-list-breaks-resolve-by-find]] `.find()` sweep) —
 **THE PRE-RE-IMPORT GATE, replacing #44** (whose home-skeleton half was verified ALREADY FIXED:
 home-tile-box-store measured-box reservation; fixed-3-rows survives only a memoryless first boot).
 **→ task #46** (gate: list procedures declare limit+max+default; mint AFTER #45 lands on a fixed
@@ -204,12 +212,13 @@ tree). Virtualizer seal enforcement itself verified airtight (ui-satellite-seals
 no-manual-memo compiler-denylist tripwire · thrown assertBoundedScrollHeight).
 
 **PENDING / HELD (the full remainder):**
+
 - **#45 chat-list class fix** — PRE-RE-IMPORT GATE, dispatchable now (brief written into the task).
 - **#46 pagination gate** — after #45.
 - **#47 count-up single-mechanism cleanup** — after push (owner-agreed).
 - **#41 transpiler additionalProperties** — generated schemas ship OPEN on hosted; fix in
   transpiler, not advisory. Parked.
-- **#43 boot 4.9MB chunk / ~610ms V8 parse** — code-split/lazy; real lane, owner whether/when.
+- **#43 boot 4.9MB chunk / \~610ms V8 parse** — code-split/lazy; real lane, owner whether/when.
 - **#39 CLOSE:** e2e phase DONE (this merge). Still owed: the RE-VERIFY side-eye on merged refinery
   (roster N-sessions labeling · chevron-at-wrap · stage-stepper {index+1} badge vs numeral ban) —
   plus the e2e's own NOT-EXERCISED tail: **checklist item 4 (custom schema, ALL arms) entirely
@@ -232,6 +241,7 @@ no-manual-memo compiler-denylist tripwire · thrown assertBoundedScrollHeight).
 ## ═══ SUPERSEDED: OVERNIGHT PLAN (2026-08-09 post-reset) ═══
 
 **METHOD (the session's ratified discipline — every step below follows it):**
+
 1. **Big lanes, ONE commit each**, worktree-isolated, briefs carry a READ-FIRST block (docs in full +
    contracts in BOTH homes + drizzle schemas per table touched).
 2. **Commits/merges gate themselves**: pre-commit + pre-merge-commit hooks run `pnpm check` — a landed
@@ -264,7 +274,7 @@ drafts-for-sign/veto: the `refinery.schemaForge.system` slot (being REWRITTEN by
 task per the structured-output veto — review the v-next text) AND `refinery.rewrite.system` +
 `refinery.refine.system` v2→v3 (R4 added ONE bullet each teaching the greeting-append arm — without
 it the arm is only reachable via manual rewrite). (4) re-import GO — note the dev db RE-MINTS on next
-boot (R4's WORKLOAD_KINDS addition regenerated the baseline; harmless, the re-import repopulates).
+boot (R4's WORKLOAD\_KINDS addition regenerated the baseline; harmless, the re-import repopulates).
 (5) standing decision pile (RV-13 spec go · chars+chats rail merge · home-tile WHETHER · DRAFT-TRUST
 seam · taste pile). (6) FROM THE R3 GRADUATION SIDE-EYE (docs/reviews/side-eye/2026-08-09-refinery-
 graduation.md — DO-NOT-SHIP, polish lane fixing everything): two OWNER questions it surfaced —
@@ -272,18 +282,18 @@ graduation.md — DO-NOT-SHIP, polish lane fixing everything): two OWNER questio
 feature unreachable at coarse — add a 5th tab? reachable via You? owner design call) and the
 mock-sanctioned 01/02/03 numbered markers (a §6 house-ban the mock itself used — bless or redraw).
 Also FYI: the side-eye restarted the dev stack once (phantom vite dep-cache white screen, cleared
-node_modules/.vite — not a product defect). (7) NEW POLICY FORK from the live e2e (mechanism landing
+node\_modules/.vite — not a product defect). (7) NEW POLICY FORK from the live e2e (mechanism landing
 in-lane, policy yours): after the payload-aware output-budget fix, the only remaining
 guaranteed-truncation case is an EXPLICIT USER PRESET CAP below the payload's need — should such a
 run **warn-and-proceed** (today's shape), **require confirm**, or **refuse with the fit receipt**?
 The e2e proved warn-alone spends two model calls to fail exactly as predicted. ALSO: strike the REGPAR owables row (#38 lane proved REGX2 shipped F3/F5/JSON-door
-08-07, F4 owner-refused — the row was an archive snapshot; residuals [bulk-placement kit lift, F6
+08-07, F4 owner-refused — the row was an archive snapshot; residuals \[bulk-placement kit lift, F6
 reasoning nit] stay parked where the board already has them).
 
 - **✅ SITTING FULLY DRAINED (late 08-08): all 3 freeze-era lanes LANDED + merged — nothing to
   resurrect.** Final merges: forge R3 `5727fcb12` (crown on main; the `refinery.schemaForge.system`
   slot text is forge's DRAFT awaiting owner sign-off) · grad-fix `6672d4fc5` (conflict-resolved vs
-  #28 by union, format-only diff verified) · side-eye fixes `ca29eaeed` (all findings; "Runs" rename
+  \#28 by union, format-only diff verified) · side-eye fixes `ca29eaeed` (all findings; "Runs" rename
   owner-KEPT). **Main `ca29eaeed`, 23 hook-gated merges this sitting, zero worktrees, zero stray
   branches, tree clean, UNPUSHED.** Mid-drain incident (recorded in memory): two overlapping
   background merge chains collided on the index — main briefly mid-merge, zero work lost, recovery
@@ -298,18 +308,19 @@ reasoning nit] stay parked where the board already has them).
   Worktree = the durable anchor; same-session resurrection = SendMessage to the agent; cross-session
   recovery = a fresh lane ADOPTS the worktree/branch (never tear down un-merged worktrees):
   · **forge R3** — `.claude/worktrees/agent-afabc86f4157916fe` (branch `wt/agent-afabc86f4157916fe`,
-    spawned off `7a81d81cb`): all scope A-H built, was finishing biome→knip→visual-mock-loop→ONE commit.
-    If resurrected: it has the post-compaction reading-list message + all standing corrections in-transcript.
+  spawned off `7a81d81cb`): all scope A-H built, was finishing biome→knip→visual-mock-loop→ONE commit.
+  If resurrected: it has the post-compaction reading-list message + all standing corrections in-transcript.
   · **grad-findings fix (security-executor)** — `.claude/worktrees/agent-ad73cbeaf85ef9f26`: fixes 1-4
-    (group-chat wallClockZone thread [the REFUTED one], OWNER_HANDLES migration real-or-honest,
-    null-subject guard comment, serde token comment) + fix 5 pinnedPersona [ruled]. No commit reported yet.
+  (group-chat wallClockZone thread \[the REFUTED one], OWNER\_HANDLES migration real-or-honest,
+  null-subject guard comment, serde token comment) + fix 5 pinnedPersona \[ruled]. No commit reported yet.
   · **side-eye fix batch (executor)** — `.claude/worktrees/agent-a21d6366e6ef2762c`: ALL side-eye findings
-    (turn-director re-version, Corpus first-run redesign, Delete aria, flash ring, memory-note type,
-    launcher affordance, triple-home resolution, subtitle clamp, readout selection, + P3 pile; "Runs"
-    rename landed + owner-KEPT). No commit reported yet.
+  (turn-director re-version, Corpus first-run redesign, Delete aria, flash ring, memory-note type,
+  launcher affordance, triple-home resolution, subtitle clamp, readout selection, + P3 pile; "Runs"
+  rename landed + owner-KEPT). No commit reported yet.
   **#28 import batch + templating recon: LANDED + merged before the freeze note** (5d05… era superseded).
-  **Queued/PARKED:** #30 R4 · #31 "agents" naming [ruled] · #32 CLS+tab-strip+panel-jank+CLS-flagger ·
-  #33 templating ARM B [ruled].
+  **Queued/PARKED:** #30 R4 · #31 "agents" naming \[ruled] · #32 CLS+tab-strip+panel-jank+CLS-flagger ·
+  \#33 templating ARM B \[ruled].
+
 - **Owner rulings this sitting:** ALL in the RULINGS table above (usage discipline / merge flow / no
   text-completion / plane re-homes / §5 arms / NL-first-class / F-T1 / pinnedPersona / "agents" naming).
 

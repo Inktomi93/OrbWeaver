@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # Avatar pack v2 — style redo receipts (Lane AV2, 2026-08-03)
 
 Owner ruling: the v1 art "gives me the ick". Owner authorised deriving the pack's aesthetic from his
@@ -50,7 +56,7 @@ Viewed full-size: Hikari, Ruby, Selene1, Azarael, Ayami, Bess, Bengal, Anika, Ri
 ## 2. The ick — why v1 read wrong (diagnosis that steered the prompts)
 
 1. **Wrong school entirely.** v1 is painterly western semi-realism — the default
-   fantasy-paperback-cover / D&D-splashbook look. The reference is anime illustration. That gap is
+   fantasy-paperback-cover / D\&D-splashbook look. The reference is anime illustration. That gap is
    the whole ick; every other complaint is downstream of it.
 2. **Muddy, desaturated, brown.** v1's palette is grey-brown-olive with low local contrast
    (Sabine, JFC, Birdie, Elias are nearly the same three colours). The reference is saturated with a
@@ -58,7 +64,7 @@ Viewed full-size: Hikari, Ruby, Selene1, Azarael, Ayami, Bess, Bengal, Anika, Ri
    drawer.
 3. **Dead eyes.** v1 renders realistic small eyes with no catchlight discipline. The reference's
    whole read at thumbnail size comes from big eyes with sparkle — v1 has no focal point at all
-   below ~128 px.
+   below \~128 px.
 4. **Smeary brush texture.** v1 carries the "AI oil-paint" grain over everything; faces get soft and
    generic, hands go vague (v1 Birdie's brush hand, v1 Kohaku's arm). The reference is clean-edged.
 5. **Everyone is aged up and tired-in-a-bad-way.** Semi-realism plus a dim palette made Hana,
@@ -75,7 +81,7 @@ Model `google/gemini-3-pro-image` via OpenRouter, 1024×1024 output, downscaled 
 direction* paragraph in `docs/design/default-character-roster.md`; only the aesthetic changed.
 
 | Handle | Character | Shipped roll | Notes |
-|---|---|---|---|
+| - | - | - | - |
 | `assistant` | Charlotte | `c` (3rd) | Kumo-Desu redesign — see below |
 | `jfc-coder` | JFC | `a` (1st) | |
 | `niko` | Niko | `a` (1st) | |
@@ -101,20 +107,20 @@ shipping and re-checked at 64 px (contact-sheet row 3): all ten hold a readable 
 
 ### Cost
 
-**16 calls, $2.2398** (~$0.1400/call), against an $8 ceiling. Costs are the authoritative
+**16 calls, $2.2398** (\~$0.1400/call), against an $8 ceiling. Costs are the authoritative
 `GET /api/v1/generation` `total_cost` per generation id — the value returned inline with the
 completion is unusable (it comes back `null` for the first few seconds after a generation, so the
 figures were re-queried in a second pass).
 
 | Call | $ | Outcome |
-|---|---|---|
+| - | - | - |
 | assistant-a | 0.138188 | rejected — pince-nez sat low over her mouth, no wave |
 | assistant-b | 0.141822 | rejected — fixed the glasses and the wave, but the model drew a black picture frame around the whole image |
 | assistant-c | 0.138138 | **SHIPPED** |
 | jfc-coder-a | 0.141198 | **SHIPPED** |
 | jfc-coder-b | 0.140892 | rejected — the "thinner lineart" nudge pushed him chibi/mascot |
 | niko-a | 0.138462 | **SHIPPED** |
-| hana-a | 0.138510 | rejected — read ~22 and un-tired; the card's entire joke is 23 years of fatigue |
+| hana-a | 0.138510 | rejected — read \~22 and un-tired; the card's entire joke is 23 years of fatigue |
 | hana-b | 0.141660 | rejected — fatigue landed, but full-figure framing shrank her face below thumbnail legibility |
 | hana-c | 0.139138 | **SHIPPED** — chest-up, dark circles, crooked tiara, weary warm quarter-smile |
 | morgatha-a | 0.141520 | rejected — model invented a legible book title ("MILLENNIAL ENNUI"); funny, but unauthored readable text in an avatar |

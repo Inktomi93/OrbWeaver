@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Side-generation posture inventory — hardcoded sampling vs connection resolution
 
 > Scout survey 2026-07-25, prompted by the owner's gripe ("so much is hardcoded... it should use my
@@ -11,7 +17,7 @@
   PER-CALLER via `bindRoleClientsForUser`, or the chat's own resolved connection
   (quiet-generate/compaction via `runChatTurn`/`resolveConnection`). automation-plugin re-binds per
   content-AUTHOR live (`automation-plugin.ts:169`) — never a stashed boot-global.
-- **Sampling posture: BROKEN as a class.** 9 sites, ~15 hardcoded constants, ZERO user-reachable
+- **Sampling posture: BROKEN as a class.** 9 sites, \~15 hardcoded constants, ZERO user-reachable
   overrides — except quiet-generate's `intent` fold, which only compaction exercises (partially,
   `{temperature: 0.3}`, maxTokens still floors).
 
@@ -47,5 +53,5 @@ sampling fields) → the caller's preset `params` (chat-scoped sites use the cha
 card/user-scoped sites use the caller's default preset — the greeting-template resolver already
 resolves exactly that preset) → per-site floor default AS DATA (a `SIDE_GEN_POSTURES` catalog in
 contracts — one home, documented, eventually settings-visible). Then the call-site sweep (9 sites)
-and a gate: no numeric sampling literals outside the catalog module. Sized: ~1 executor lane +
+and a gate: no numeric sampling literals outside the catalog module. Sized: \~1 executor lane +
 schema/consumer ripples.

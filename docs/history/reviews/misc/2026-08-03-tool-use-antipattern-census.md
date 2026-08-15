@@ -1,6 +1,12 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # Tool-use anti-pattern census (2026-08-03)
 
-**Purpose:** measure the real corpus of Bash tool_use calls across every Claude Code session
+**Purpose:** measure the real corpus of Bash tool\_use calls across every Claude Code session
 transcript on this box, to spec a PreToolUse hook against actual frequency/false-positive data
 instead of guessing a ruleset. Read-only. No repo source was touched.
 
@@ -18,7 +24,7 @@ node scripts/probes/transcript-census.ts --out reports/census.json
 ## Corpus scanned
 
 | | |
-|---|---|
+| - | - |
 | Roots | `~/.claude/projects/**/*.jsonl`, `~/.claude-b/projects/**/*.jsonl` |
 | Files | 3,138 |
 | Lines read | 929,054 |
@@ -47,10 +53,10 @@ For every `pnpm <script>` invocation I could match to a signature (`pnpm check`,
 `pnpm test`, `pnpm test:ct`, `pnpm lint`, `pnpm typecheck`, `pnpm e2e`, plus the `check:*`/
 `typecheck:*` sub-scripts), I split by whether the SAME command was piped into a swallower
 (`tail`/`head`/`grep`/`wc`/`less`/`awk`/`sed`/…) or stderr-merged-then-piped (`2>&1 |`), and
-compared **wall-clock tool_use→tool_result duration** for piped vs unpiped:
+compared **wall-clock tool\_use→tool\_result duration** for piped vs unpiped:
 
 | signature | piped n | piped median | unpiped n | unpiped median | inflation |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | `pnpm check` | 1,512 | **64.1s** | 408 | 2.3s | **28×** |
 | `pnpm verify` | 255 | **120.3s** | 40 | 2.2s | **55×**, clustered at the 2‑min ceiling |
 | `pnpm test` | 299 | **120.1s** | 99 | 0.07s | at the 2‑min ceiling (unpiped sample skewed by fast-fail no-arg invocations) |
@@ -62,12 +68,12 @@ compared **wall-clock tool_use→tool_result duration** for piped vs unpiped:
 | `pnpm check:file` | 82 | 12.0s | 18 | 11.4s | none |
 
 **87.3% of every harness invocation I could fingerprint (5,319 of 6,096) was piped** in a way that
-loses the exit code. Aggregate wall-clock for those 5,319 piped calls: **~3,655 minutes (61 hours)**.
+loses the exit code. Aggregate wall-clock for those 5,319 piped calls: **\~3,655 minutes (61 hours)**.
 Comparing each piped call's duration against the SAME command's unpiped median (a fair per-signature
-baseline, not a global average): **~2,743 minutes (45.7 hours) of that is excess** — time that would
+baseline, not a global average): **\~2,743 minutes (45.7 hours) of that is excess** — time that would
 not have been spent had the command not been piped. That excess is not evenly spread: it is almost
 entirely `pnpm check` (≈1,562 of the 2,743 minutes on its own) and `pnpm verify`/`pnpm test`
-(clustering at exactly the ~120s Bash-tool default timeout, i.e. genuinely hung until the tool
+(clustering at exactly the \~120s Bash-tool default timeout, i.e. genuinely hung until the tool
 killed them).
 
 **The concentration is real and matches the owner's sharpened hypothesis.** `check:docs`,
@@ -84,7 +90,7 @@ Claude Code's own Bash-tool timeout leaves a literal `"Command timed out after <
 `tool_result`. This is unambiguous — no heuristic involved.
 
 | | count | wall-clock |
-|---|---|---|
+| - | - | - |
 | Total timeouts | 243 | 651 minutes (10.9 hrs) |
 | — piped/stderr-merged | 137 | 397 minutes |
 | — not piped | 106 | 255 minutes |
@@ -92,6 +98,7 @@ Claude Code's own Bash-tool timeout leaves a literal `"Command timed out after <
 | — subagent | **192 (79%)** | |
 
 Verbatim examples (piped, timed out at exactly 120s — the default Bash-tool ceiling):
+
 - `git push origin main 2>&1 | tail -8` — 120s
 - `cd .../orbweaver; git rev-parse --abbrev-ref HEAD; git rev-list ...; echo "─ retrying push...` (contains a `| tail`-style tee later in the pipeline) — 122s
 - `pnpm check 2>&1 | grep -E "×|error TS|✗" | sort -u` — captured elsewhere at 64–136s range, consistent with the signature table above
@@ -104,7 +111,7 @@ be shaped around **"piped into a non-follow reader"**, not just "piped `pnpm`".
 ## Ranked frequency table (all Bash calls, main+subagent)
 
 | rank | tag | total | main | subagent | note |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | 1 | `grep -r` without `--exclude-dir` | 25,036 | 2,876 | 22,160 | **high false-positive rate — see below** |
 | 2 | bare `vitest run` / `npx vitest` | 6,410 | 590 | 5,820 | |
 | 3 | harness `2>&1 \|` | 5,383 | 918 | 4,465 | overlaps almost 1:1 with #4 |
@@ -137,7 +144,7 @@ rate, do not deny on this alone.** Sampled examples are overwhelmingly `grep -rn
 or `grep -rn "X" packages/server/src/domain/foo/` — a scoped single-file or narrow-subtree target
 where `-r` is redundant but harmless (no `node_modules` under a `.ts` file glob or a `packages/…/src/…`
 leaf directory). The real danger case — `grep -r "X" .` or `grep -r "X" packages/` from repo root,
-which WILL walk into `node_modules` and either hang on a huge tree or return node_modules noise —
+which WILL walk into `node_modules` and either hang on a huge tree or return node\_modules noise —
 is a small minority of the 25k. **Recommend WARN, not DENY, and only fire when the search root is
 unscoped** (`.`, `packages/`, or no path argument at all) rather than any `-r` flag whatsoever.
 
@@ -183,14 +190,14 @@ will cry wolf on the single most standard install pattern in the ecosystem.
 `npx knip`/`depcruise`) — LOW false-positive risk.** I did not find a single sampled example where
 running the bare tool was the *only* reasonable choice — every one had a `pnpm <equivalent>` script
 available. These are clean DENY candidates. The one nuance: `npx playwright test` has a **documented
-sanctioned form** (`rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts
-<paths>`) that the classifier already separates out (318 sanctioned vs 1,795 unsanctioned, i.e. 85%
+sanctioned form** (`rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts <paths>`) that the classifier already separates out (318 sanctioned vs 1,795 unsanctioned, i.e. 85%
 of Playwright CT invocations skip the cache-clear that lane doctrine requires) — the rule must
 recognize that exact prefix and NOT flag it.
 
 ## DENY vs WARN recommendation
 
 **DENY (hard-block, model must not proceed):**
+
 1. Any `pnpm check|verify|test*|lint|typecheck|e2e` (and the `pnpm exec`/`turbo`/`npm run`
    equivalents) piped into `tail`/`head`/`grep`/`wc`/`less`/`awk`/`sed`/`cut`/`column`, or with
    `2>&1 |` anywhere after the invocation. **Justification: not just exit-code loss — proven to
@@ -203,8 +210,7 @@ recognize that exact prefix and NOT flag it.
    work outright, already repo doctrine, and the false-positive rate is near zero (no sampled
    example was anything but the literal footgun). Fix text: *"never discard uncommitted work — if
    you need a clean tree, commit first."*
-3. Bare `npx vitest`/`vitest run`, `npx tsc` (when a `typecheck*` script exists), `npx biome …
-   --write`/`--apply`, unsanctioned `npx playwright test` (missing the cache-clear + `-c
+3. Bare `npx vitest`/`vitest run`, `npx tsc` (when a `typecheck*` script exists), `npx biome … --write`/`--apply`, unsanctioned `npx playwright test` (missing the cache-clear + `-c
    playwright-ct.config.ts` prefix). Fix text per-tool: *"use `pnpm test` — the bare runner skips
    the JSON reporter and `reports/test-report.json` never gets written."* / *"use `pnpm typecheck`
    — same compiler config, but wired into the report."* / *"never `biome --write`/`--apply` — see
@@ -213,6 +219,7 @@ recognize that exact prefix and NOT flag it.
    playwright-ct.config.ts <paths>`."*
 
 **WARN (advisory, let it proceed but surface the concern):**
+
 1. `grep -r` without `--exclude-dir=node_modules`, **only when the search root is unscoped**
    (`.`, a top-level package dir, or omitted) — too many legitimate single-file/narrow-dir hits to
    deny blindly.
@@ -237,10 +244,11 @@ false-positive section above. Building a DENY or WARN off the command TEXT alone
 whichever direction the box's actual `sg` resolution isn't; this needs `command -v sg` at hook time.
 
 ## Trend (weekly, normalized to a rate per 1,000 Bash calls — raw counts are misleading since call
+
 ## volume itself varies 4× week to week: W27=8.2k calls, W29=35.3k, W32=6.3k and partial)
 
 | tag | W27 | W28 | W29 | W30 | W31 | W32 (partial) | direction |
-|---|---|---|---|---|---|---|---|
+| - | - | - | - | - | - | - | - |
 | harness piped to swallower | 64.4 | 32.8 | 45.5 | 23.4 | 41.1 | 54.0 | **noisy, no clear improvement** — this is the class most needing a hook, not fixed by doctrine alone |
 | `git stash` | 5.12 | 2.28 | 1.81 | 1.53 | 0.53 | 0.32 | **clearly improving** — matches the standing doctrine ban; a hook here would mostly be reinforcement |
 | unsanctioned `playwright test` | 1.46 | 7.90 | 7.93 | 24.99 | 16.83 | 25.97 | **getting worse** — CT authoring ramped up faster than the sanctioned-prefix habit did |

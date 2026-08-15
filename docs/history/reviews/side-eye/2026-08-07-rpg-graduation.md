@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # side-eye — RPG/persona/chat graduation (rendered lens)
 
 Lane SIDE-EYE-RPG · main @ 20b883e3e · dev stack :5173 (single-user) · 2026-08-07

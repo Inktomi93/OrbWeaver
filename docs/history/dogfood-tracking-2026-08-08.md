@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-09
+---
+
 # Dogfood Bug Tracking — live
 
 > **⛔ DEV HALTED** — further feature work is blocked until this doc is cleared.
@@ -603,8 +609,8 @@ nothing else.
 > URI on a TRUSTED character's card — never a CAS blob. The `data:` row below is therefore no longer a
 > residual hole: `@orb/kit/card-frame` + `entry/http/card-frame.ts` opened it, per-character, without
 > loosening the app document's `img-src` by one byte. The reported symptom is best explained by **CARD-TRUST-INVERTED**, which this entry itself names
-as a dependency ("cards don't reach `ImmersiveCard` at all until \[it] is fixed") and which shipped in
-`9f30b7045`.
+> as a dependency ("cards don't reach `ImmersiveCard` at all until \[it] is fixed") and which shipped in
+> `9f30b7045`.
 
 **Why the existing coverage could not have told us:** the two pre-existing CTs read the CSP STRING off the
 `srcdoc` attribute and never look inside the frame — a card that ships a perfect policy and paints NOTHING

@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # kit-candidates lens — first run (2026-07-25)
 
 Ran `pnpm lens:kit-candidates` (jscpd, `--min-tokens 40`, format `typescript,tsx`, scope
@@ -7,7 +13,7 @@ are surfaced — same-side clones stay jscpd.json's job.
 
 ## Ranked findings (min-tokens 40)
 
-1. **[kit candidate]** 73 tokens, 16 lines
+1. **\[kit candidate]** 73 tokens, 16 lines
    - server: `packages/server/src/kit/serde/card/index.ts:300-320`
    - client: `packages/client/src/forms/entity-form-base.ts:28-43`
    - Both implement a recursive `stableStringify` (sort object keys at every depth, `JSON.stringify`

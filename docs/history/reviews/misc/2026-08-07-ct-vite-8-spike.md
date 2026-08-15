@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # CT-on-vite-8 spike — REFUSED, and CT's vite is now pinned (2026-08-07)
 
 **Question asked:** the tree carries TWO vite majors — vite 8 for the `@orb/client` build, vite 6 bundled
@@ -16,7 +22,7 @@ only the vite major differs). Repo: `pnpm-workspace.yaml` `overrides`, `playwrig
 
 | arm | vite | result |
 | - | - | - |
-| override ON, whole suite | 8.1.2 | 674 specs produced results; **670 reached retry2** — i.e. failing after both retries — starting at the FIRST spec. Run stopped at that point (`EXIT=143`, my SIGTERM); the suite was ~90 min in and every test was burning its full 30s timeout three times. |
+| override ON, whole suite | 8.1.2 | 674 specs produced results; **670 reached retry2** — i.e. failing after both retries — starting at the FIRST spec. Run stopped at that point (`EXIT=143`, my SIGTERM); the suite was \~90 min in and every test was burning its full 30s timeout three times. |
 | override ON, one file | 8.1.2 | `tests/client/data/query-error-state.ct.tsx` → **2 failed**, exit 1. Both failures are `mount()` → `Test timeout of 30000ms exceeded` at `@playwright/experimental-ct-core/lib/mount.js:45`. |
 | override OFF, one file | 6.4.3 | same file → **2 passed (27.9s)**, exit 0. |
 | reverted + pinned, one file | 6.4.3 | same file → **2 passed (12.8s)**, exit 0 — the revert is clean. |
@@ -31,9 +37,9 @@ Reproduce: set `"@playwright/experimental-ct-core>vite": "catalog:"` in `pnpm-wo
 `rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/data/query-error-state.ct.tsx --reporter=line --retries=0`.
 
 **Diagnosis.** The vite-8 CT build is not merely slower or noisier — it emits a structurally different
-bundle. Its own `[PLUGIN_TIMINGS]` block attributes ~72-75% of build time to `playwright:component-index`,
-ct-core's own plugin, and the emitted chunking differs sharply from vite 6's (vite 6 emits one ~9 MB
-`_ct-stories` chunk; vite 8 splits it into many, largest ~256 kB). `playwright:component-index` is written
+bundle. Its own `[PLUGIN_TIMINGS]` block attributes \~72-75% of build time to `playwright:component-index`,
+ct-core's own plugin, and the emitted chunking differs sharply from vite 6's (vite 6 emits one \~9 MB
+`_ct-stories` chunk; vite 8 splits it into many, largest \~256 kB). `playwright:component-index` is written
 against vite 6's Rollup-based build pipeline; Rolldown's is not it, and what survives is a bundle whose
 mount wiring is dead. This is why playwright pins its own vite rather than peering it — the harness is
 coupled to the bundler's internals, not just its config surface.
@@ -74,6 +80,6 @@ route today:
 Three full-suite attempts were consumed getting here, two of them lost to a cause that was not the code:
 a long-running suite launched as a tool-managed background task was reaped by the agent's own polling
 (each timed-out foreground poll became a new background task, and the manager killed the oldest — the
-suite). Both deaths landed at ~93% with `[ELIFECYCLE] Command failed` and no report, which is
+suite). Both deaths landed at \~93% with `[ELIFECYCLE] Command failed` and no report, which is
 INDISTINGUISHABLE from a crash near the end of a real run. Launch a long suite detached
 (`setsid nohup … </dev/null &`) with an exit-code file, outside the task manager.

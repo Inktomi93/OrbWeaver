@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # Structured output — vendor docs vs. our tree (2026-08-03)
 
 Read-only research pass. Every vendor claim below is cited to a fetched page (fetched 2026-08-03); every
@@ -6,10 +12,10 @@ tree claim is cited to `file:line`. Recommendations are marked **REC** and nothi
 ## Sources fetched
 
 | # | URL | What it is |
-|---|---|---|
+| - | - | - |
 | A1 | `https://platform.claude.com/docs/en/build-with-claude/structured-outputs.md` | Anthropic `output_config.format` + the JSON-Schema subset |
 | A2 | `https://platform.claude.com/docs/en/agents-and-tools/tool-use/strict-tool-use.md` | Anthropic `strict: true` on tools |
-| A3 | `https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.md` | Anthropic tool_choice / non-strict tools |
+| A3 | `https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.md` | Anthropic tool\_choice / non-strict tools |
 | O1 | `https://developers.openai.com/api/docs/guides/structured-outputs` | OpenAI `json_schema` + supported subset (301 from `platform.openai.com`) |
 | R1 | `https://openrouter.ai/docs/features/structured-outputs` | OpenRouter's proxy surface |
 
@@ -19,7 +25,7 @@ Measurement in this doc came from running our real projector over our real schem
 ### Measured facts (projector output, today)
 
 | Schema | bytes | object nodes | props | **optional** | required | max depth |
-|---|---|---|---|---|---|---|
+| - | - | - | - | - | - | - |
 | `rpgExtractionSchema` | 4571 | 17 | 68 | **46** | 22 | 9 |
 | `rpgPopulateSchema` | 1695 | 7 | 22 | 13 | 9 | 8 |
 
@@ -35,7 +41,7 @@ recursive `additionalProperties:false` pin (`index.ts:28-40`). **It strips nothi
 refinement goes on the wire verbatim. Four unsupported keywords land, not one:
 
 | Keyword | Count (extraction / populate) | Doc says | Our source |
-|---|---|---|---|
+| - | - | - | - |
 | `minLength` | **16** / 8 | A1: *"String constraints (`minLength`, `maxLength`)"* — **Not supported**. O1: *"Strings: minLength, maxLength"* — unsupported. | `packages/contracts/src/rpg/tools.ts:46` `const targetRefField = z.string().min(1);` and 15 more `.min(1)` string fields (`tools.ts:59,66,102,103,114,121,122,147,157,170,182,190,196,226`) |
 | `maxLength` | **1** / 0 | same rows as above — unsupported by **both** vendors | a `.max(n)` on `scene.weather.label` (projected at `$.properties.scene.properties.weather.properties.label`) |
 | `minimum` | **8** / 4 | A1: *"Numerical constraints (such as `minimum`, `maximum`, `multipleOf`)"* — **Not supported**. O1: **supported** (`minimum`, `exclusiveMinimum`) except on fine-tuned models. | `tools.ts:59` `z.number().int()`, plus `tools.ts:116,121,131,141` `z.number().int().min(1)` |
@@ -232,7 +238,7 @@ still accurate.
 ## Summary of RECs (none built)
 
 | ID | Rec | Why |
-|---|---|---|
+| - | - | - |
 | REC-1 | Wire-subset scrub in the projector: drop `minLength`/`maxLength`/`minimum`/`maximum`/`multipleOf`/`$schema` from the wire copy | 33 emitted keywords across the two rpg schemas are outside Anthropic's documented subset; 17 are outside OpenAI's too |
 | REC-2 | Keep the blanket forced-tool vehicle; fix the schema instead of forking on capability | OR support is per-provider not per-model (R1); our `structured` capability bit is a hand-floored guess (`resolve-model-capability.ts:217-229`) |
 | REC-2b | If a fork is mandated: OR `supported_parameters` + `require_parameters:true`, forced tool as fallback — never a family table | It is the vendor's own documented mechanism |

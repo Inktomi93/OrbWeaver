@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # SIDE-EYE: PRESET-1 program — DO NOT SHIP (fix the P0/P1 band first)
 
 > Verdict delivered 2026-08-02 against the merged tree (P0-P4). Fix-all law applies: every
@@ -11,13 +17,13 @@ dressed up as an empty state, and the ember accent budget has broken exactly whe
 warned it would.
 
 Stack note: :5173 was serving a stale-vite ghost at review start (contracts/prose served without
-USER_PROSE_SLOT_IDS → fatal page error); `pnpm stack restart` cleared it. Everything below is
+USER\_PROSE\_SLOT\_IDS → fatal page error); `pnpm stack restart` cleared it. Everything below is
 against the restarted, merged tree.
 
 ## Per-rider verdicts
 
 | # | Rider | Verdict |
-|---|---|---|
+| - | - | - |
 | 1 | Amber solid "Active" badge | Reads as a second CTA (same fill as + New). Soft + shape fix — F-06 |
 | 2 | Explicit KnobRow ember | Budget breaks. Drop the ember — F-09 |
 | 3 | Ghost value legibility | Contrast fine (8.66:1), size/treatment wrong; ghost slider FILL lies |
@@ -32,12 +38,14 @@ against the restarted, merged tree.
 ## Findings
 
 ### P0
+
 - **F-01 Three Actions rows render with NO visible name** (Greeting rewrite / New greeting /
   New-chat marker at 0px label width; Response clips "Respo…"). DOM/ARIA carry the names — the
   layout eats them: label + fires-gloss share one flex line with no basis. Fix: fixed/shrink-0
-  label column; the GLOSS truncates, never the identifier. Receipt: reports/snaps/actions-view.png.
+  label column; the GLOSS truncates, never the identifier. Receipt: reports/snaps/actions-view\.png.
 
 ### P1
+
 - **F-02 Capability-read FAILURE renders as "connect a chat model"** — server said `400
   incoherent routing (agent-sdk × local-light)`; deck told the user to connect a model (already
   connected), 3×. Branch isError vs no-model; surface the server message. Also: gate copy
@@ -68,7 +76,7 @@ against the restarted, merged tree.
 - **F-09 KnobRow: drop the explicit EMBER fill AND the ghost grey fill.** Explicit = ↺ + full-
   weight mono value (spec §4.1: weight, not accent; mock draws every slider neutral). Ghost
   paints a near-full grey fill that reads as a maxed meter — unset looks MORE set than set. Ghost
-  = hairline track + muted thumb, NO fill.
+  \= hairline track + muted thumb, NO fill.
 - **F-10 Import dialog never states the merge semantic** (dialog text duplicated 2×, says only
   "format is detected"). Fix: one line stating what actually happens + dedupe. Rejection UX good
   BUT the sniffer leaks its fall-through ("Not a SillyTavern preset…" for a malformed ORB file) —
@@ -78,6 +86,7 @@ against the restarted, merged tree.
 - **F-12 Landing copy false on mobile** ("Pick a preset on the left" — no left pane at 430px).
 
 ### P2
+
 - **F-13** Readout prints raw schema key `maxOutputTokens` (mock: "max output"); `context` has an
   effective value but no EFFECTIVE row.
 - **F-14** Lying provenance: `effort · none · clamped` on a model with no reasoning controls —
@@ -85,17 +94,17 @@ against the restarted, merged tree.
 - **F-15** QUALITY MAPPING shows no mapping (spec/mock: "deep → effort high · temp 1.0");
   rendered gloss is an override-status sentence that misreads as "everything overridden"; the
   CONTEXT panel repeats the same sentence instead of the datum.
-- **F-16** No max-width in CONTENT: rack rows span ~840px w/ ~60% dead gutter; drill-in gloss
-  ~130ch vs §2's 65-75ch; cap the column at the mock's 720px.
+- **F-16** No max-width in CONTENT: rack rows span \~840px w/ \~60% dead gutter; drill-in gloss
+  \~130ch vs §2's 65-75ch; cap the column at the mock's 720px.
 - **F-17** Rack type-glyph column is noise: 9 identical bright steel-blue sparkle discs — loudest
   thing in the pane, near-zero information. Mock: small, dim, zone-hued, type-differentiated.
   Tone down + vary by type, or drop the column.
-- **F-18** Pivot-band text collides with the chevron at ~530px (no truncation/min-width); the
+- **F-18** Pivot-band text collides with the chevron at \~530px (no truncation/min-width); the
   setup/post legends render as filled pills straddling the band border (mock: hairline caps
   kickers inside).
 - **F-19** Activate controls use aria-pressed toggle semantics for a one-of-N radio → role="radio"
-  + aria-checked in a role="radiogroup".
-- **F-20** Actions rows announce their entire template body (~600 chars) — aria-hidden the mono
+  - aria-checked in a role="radiogroup".
+- **F-20** Actions rows announce their entire template body (\~600 chars) — aria-hidden the mono
   preview; accessible name = label + fires-gloss.
 - **F-21** Provenance/bounds glosses are loose text fusing across rows — wire aria-describedby on
   slider + twin.
@@ -112,6 +121,7 @@ against the restarted, merged tree.
   row, zero/strike it.
 
 ### P3
+
 - **F-27** slider named "Max output tokens slider" — role restated.
 - **F-28** Preset name is a <p>; kickers are h3 with no h2 — heading nav can't find the artifact.
 - **F-29** Number formatting inconsistent in one cluster (1,500 vs 8192).
@@ -127,7 +137,7 @@ against the restarted, merged tree.
 ## Mock-vs-rendered classification
 
 | Divergence | Class |
-|---|---|
+| - | - |
 | Explicit KnobRow ember fill (mock: neutral) | RENDERED-WRONG (F-09) |
 | Ghost KnobRow full grey fill (mock: bare track) | RENDERED-WRONG (F-09) |
 | Rack ON switch bg-secondary (mock: ember fill) | RENDERED-WRONG on legibility; hue = any real luminance fill (F-08) |
@@ -141,12 +151,13 @@ against the restarted, merged tree.
 | List active marker color-only bolt (mock: filled dot vs hollow ring) | RENDERED-WRONG (F-06) |
 | List "Active" badge at rest existing | MOCK-STALE — sanctioned (P4/D11 arm) |
 | Pivot enable switch absent | MOCK-STALE — sanctioned (§5.1) |
-| ~tokens not struck when off (mock: line-through) | RENDERED-WRONG minor |
+| \~tokens not struck when off (mock: line-through) | RENDERED-WRONG minor |
 | Carrier drill-in lacks INJECT AT DEPTH (mock draws one) | JUDGMENT → RULED below |
 | Data/Transforms sans headings | RENDERED-WRONG (F-22) |
 | Dotted underline → ⓘ glyph | not a divergence (drawing convention) |
 
 ## ARIA recommendations (10)
+
 1 ghost selects render effective value · 2 drill focus mount/restore + region · 3 radio
 semantics · 4 active bolt fill + coarse badge · 5 aria-hidden template previews · 6
 aria-describedby glosses · 7 Quality radiogroup (+ drop duplicated name) · 8 preset name → h2 ·
@@ -154,6 +165,7 @@ aria-describedby glosses · 7 Quality radiogroup (+ drop duplicated name) · 8 p
 today).
 
 ## What's working — don't touch
+
 Rack keyboard model (4 named stops, real focus-visible rings) · carrier attribution panels ·
 the freshness contract FIRES (settingsChanged/presetsChanged fans verified live) · selection
 echo end-to-end · motion clean (no LoAF/CLS, zero DEADCSS). Dismissed false positives: TanStack
@@ -161,6 +173,7 @@ devtools z-index hits; Base UI chips-in-rows "nested cards"; the hidden Reset's 
 (visibility:hidden removes it from the tree — correct).
 
 ## The single biggest opportunity
+
 Finish the GHOST GRAMMAR — implemented in exactly one place today. One GhostValue treatment
 (muted foreground + provenance gloss + NO fill + custom/explicit derived from value !==
 undefined) applied uniformly to sliders, selects, textareas, badges closes F-03, F-05, F-09,

@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Stickler review — bridge extraction (4c734060) · captureWire threading (uncommitted) · harness-matrix proposal · customParameters precedence + OR removal blueprint
 
 Date: 2026-07-24 · Branch: retro-burn-down · Reviewer: stickler (fresh context)
@@ -17,7 +23,7 @@ ratify both; then REMOVE customParameters from openrouter entirely — blueprint
 - Defect: the captured `body` is the object handed to `client.chat.send` / `beta.responses.send`. The
   SDK then runs it through `ChatRequest$outboundSchema` / `ResponsesRequest$outboundSchema` — plain
   `z.object({...})` (NO `.passthrough()`/`.catchall` — verified by grep over both model files) —
-  which (a) STRIPS every unknown key, (b) REMAPS camelCase→snake_case (`maxCompletionTokens` →
+  which (a) STRIPS every unknown key, (b) REMAPS camelCase→snake\_case (`maxCompletionTokens` →
   `max_completion_tokens`, etc.), and (c) can FAIL validation (`safeParse` → "Input validation
   failed", no HTTP send at all). Only then does `encodeJSON` produce the actual POSTed bytes.
 - Evidence (this session):
@@ -48,7 +54,7 @@ ratify both; then REMOVE customParameters from openrouter entirely — blueprint
   of `ChatRequest` (pipeline.ts:474 and quiet-generate.ts:68 both consume the injected bridge), and it
   never sets `chatId` on the stateless arm. All four stateless capture sites forward `req.chatId`
   (=undefined).
-- Concrete failure: WIRE_CAPTURE=on, live vllm/OR/BYO turn → `GET /api/_debug/wire/captures?chatId=<id>`
+- Concrete failure: WIRE\_CAPTURE=on, live vllm/OR/BYO turn → `GET /api/_debug/wire/captures?chatId=<id>`
   returns `[]` for that chat forever. The harness is unaffected (it injects the sink directly), which is
   why this never bit.
 - Pre-existing for vllm; the uncommitted diff extends the pattern to two more backends and the
@@ -89,15 +95,15 @@ ratify both; then REMOVE customParameters from openrouter entirely — blueprint
 - Risk: custom-byo's built-in auth rides headers (never captured), but `includeBody` exists precisely
   for endpoints with nonstandard request shapes — including key-in-body auth. Such a secret lands in
   the wire-capture ring and is readable at `/api/_debug/wire/captures` by any debug-gate passer
-  (admin cookie ∪ DEBUG_TOKEN) while capture is on. Per D17 an admin is NOT the credential's owner —
+  (admin cookie ∪ DEBUG\_TOKEN) while capture is on. Per D17 an admin is NOT the credential's owner —
   the ring is cross-user, unlike the inspector (`inspect.ts`), which is reached through the owner's own
   credential flow and scrubs headers + response by known secret VALUE (`redactSecretsFromText`).
-- Mitigating facts (why LOW): WIRE_CAPTURE is default-off, dev/test-only, never persisted, ring-bounded;
+- Mitigating facts (why LOW): WIRE\_CAPTURE is default-off, dev/test-only, never persisted, ring-bounded;
   the ring already holds all users' full prompt content (pre-existing vllm/agent-sdk captures), so the
   audience/trust posture is unchanged — the marginal delta is the credential CLASS, not the audience.
 - Safe remediation options: scrub the captured custom-byo body by known secret literals before
   recording (the `secretHeaderValues`/`redactSecretsFromText` seam already exists), or add one header
-  line to `wire-capture.ts` documenting the accepted risk. If WIRE_CAPTURE is ever expected on in a
+  line to `wire-capture.ts` documenting the accepted risk. If WIRE\_CAPTURE is ever expected on in a
   multi-user deployment, route a `security-executor` pass first.
 
 ### Notes that are NOT defects (checked, deliberate or acceptable)
@@ -114,7 +120,7 @@ ratify both; then REMOVE customParameters from openrouter entirely — blueprint
 - Env-gating + host-only read are unchanged by the diff: the sink exists only when
   `deps.wireCapture === true || isWireCaptureEnabled()` (`entry/compose/services.ts:279-284`); with it
   off, backends receive no sink and the ring is never written. The debug read stays behind the
-  admin-cookie/DEBUG_TOKEN gate (`debug/routes.ts:151-179`). Zero-cost-off preserved.
+  admin-cookie/DEBUG\_TOKEN gate (`debug/routes.ts:151-179`). Zero-cost-off preserved.
 - Summarize sends are NOT captured (OR `runSummarize` posts via `client.chat.send` with no capture,
   `openrouter/index.ts:120-149`; the vllm summarize surface maps onto `engine/chat-completion`, not
   `createVllmChat`). Consistent with the feature's chat-TURN fidelity scope; named here so the scope

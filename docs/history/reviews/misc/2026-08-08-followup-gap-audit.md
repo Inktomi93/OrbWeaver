@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # Follow-up gap audit — flagged-but-uncaptured lane items (2026-08-08)
 
 **Question answered:** which follow-ups / actions / durable lessons did a completed lane FLAG (in its
@@ -23,9 +29,9 @@ grep of all three homes came back empty.
 ## GAPS (flagged, absent from board + memory + design/review docs), ranked by consequence
 
 | # | Item | Source lane | Type | Where it should go | Absence receipt |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | 1 | **Automation settings placeholder collapses to a 63px word-per-line ribbon** — DOG-POLISH's P3-15 fix wrapped `EmptyState` in `<Stack align="center">`; `EmptyState`'s root carries `@container` (`packages/ui/src/primitives/empty-state/variants.ts:15`), so under `align-items:center` it resolves to **width 0** and the description falls to min-content. The pane "looks *more* broken than before." Fix: drop `align="center"`, or `w-full` on the EmptyState root, or badge inside EmptyState. File: `packages/client/src/features/settings/components/settings-pane-placeholder.tsx`. | ad865d86 (dogfood re-verify) | ACTION (P1 UI regression, live) | Board row | grep board+memory+design+reviews for `settings-pane-placeholder\|EmptyState.*(w-full\|@container)\|automation.*ribbon\|63px` → **0 hits** |
-| 2 | **The structural fence for #1's whole class** — "a fix that only re-parents a component can break it without any CT noticing, because our CTs assert content/roles, not measure." Recommended: give `EmptyState`'s root a `w-full` floor so it can't shrink-to-fit, OR a gate/CT asserting a rendered `EmptyState` description is wider than ~200px wherever it mounts. "One structural fence kills the whole class." | ad865d86 | ACTION (gate/CT to author) | Board row (gate-authoring) | same as #1 — **0 hits** |
+| 2 | **The structural fence for #1's whole class** — "a fix that only re-parents a component can break it without any CT noticing, because our CTs assert content/roles, not measure." Recommended: give `EmptyState`'s root a `w-full` floor so it can't shrink-to-fit, OR a gate/CT asserting a rendered `EmptyState` description is wider than \~200px wherever it mounts. "One structural fence kills the whole class." | ad865d86 | ACTION (gate/CT to author) | Board row (gate-authoring) | same as #1 — **0 hits** |
 | 3 | **Group-draft mobile topbar names only the first participant** while the desktop `DraftChatHeader` on the identical state names the full cast + seat chip — the exact bug commit `86a1736bc` fixed on desktop, reintroduced on the phone. `chats-selection-title.ts:37` does `cast[0]?.data?.name` while its own header (`:11-12`) asserts the mobile title and desktop cluster "resolve it the same way." Fix: route the draft arm through `deriveChatTitle`. | a95eadb72, aedac329 (mobile-leg re-verify) | ACTION (P1/P2 mobile) | Board row | grep for `chats-selection-title\|group.?draft.*(mobile\|topbar)` on board → **0 hits** (the desktop half is in `docs/reviews/side-eye/2026-08-07-days-merges-rendered.md:188`; the mobile reintroduction is not captured anywhere) |
 | 4 | **Phone notification SHEET never marks anything read** — `notification-bell.tsx:155`'s comment claims "the same markAllRead the popover fires on open fires here on mount," but there is no `useEffect` and no mount-time call; `markAllRead.mutate` fires only in the popover `onOpenChange` path. A phone user's unread count can never clear. | aedac329 | ACTION (LOW) | Board row (rides beside the already-boarded phone unread-indicator item) | Board line 320 captures the phone unread **indicator** (showing), NOT this **clear** bug; grep for `markAllRead` on board → **0 hits** |
 | 5 | **`ashen-spire.jsonl`'s 26 blank state-anchor marked lines are unexercised** — the new canon-identity seed int test reads only `second-opinion.jsonl`, so ashen-spire's marked lines (blank `mes` debris that never survives parse, so their `extra.type` is inert) get no coverage. Verifier called it "worth a board line, not a fix." | a5efc87 (CHUNK A verifier) | HEADS-UP (coverage) | Board line | grep board for `ashen.?spire.*(unexercised\|marked line)` → **0 hits** (board:236 mentions the room only as the mis-named narrator-drive room) |
@@ -38,14 +44,14 @@ grep of all three homes came back empty.
 These recurred as candidates but ARE captured; not omissions:
 
 - **Narrator co-speaker cards never reach the model** / **primary-card `{{char}}`** / **empty-cast
-  `members`** / **D16 vacuous belt** / **PROMPT_HISTORY vs AI_OUTPUT `{{char}}` divergence** — all
+  `members`** / **D16 vacuous belt** / **PROMPT\_HISTORY vs AI\_OUTPUT `{{char}}` divergence** — all
   boarded (board:93-117, 239-248) and the `{{char}}`/empty-cast/belt items were **built by lane
   NARRATOR-CAST** (`a7ceca7cb`). The remaining open co-speaker-cards row is boarded `[ ]`.
 - **CANON-1 orphan `{{memory}}` digests** + **`rawContent` fork-strip landmine** — verifier findings
   (a65312a1), both **fixed** by CANON-1 leg 2 (`embeddings.pruneMemoryBlocks`, a86cbb4c) and FORKSTRIP
   (a69862c). D129/D133/D134 minted.
 - **GATEFORGE gates' self-proofs RED on main** (message-kind-policy-coverage) + **gen-model-prose-baseline
-  re-spells SEAM_PREFIXES** — verifier a5efc87 CHUNK B; both **fixed** by GATEFIX (ae12ce29).
+  re-spells SEAM\_PREFIXES** — verifier a5efc87 CHUNK B; both **fixed** by GATEFIX (ae12ce29).
 - **`check:structure` cannot pass in any worktree — 49 monotonic-tests violations under
   `tests/goldens/sillytavern-runtime/node_modules/**`** — flagged by a641ef49 (CARDKEEP) and aaffee6e
   (UI17); **fixed** by the st-goldens lane (ab5aaf175 — pruned the 49 manifest rows + `searchGlobs`
@@ -58,7 +64,7 @@ These recurred as candidates but ARE captured; not omissions:
 - **"Clear time" destroys the day counter** (a32cd940) — **fixed** (day-preserving time clear, verified
   PASS by a95eadb72/aedac).
 - **`admin.resetPassword` owner guard / atomic race clause / `cannot_modify_agent` / disabled-owner
-  recovery / DEBUG_GATE header comment / probeDebug pid** — all boarded (board:151-183) and the
+  recovery / DEBUG\_GATE header comment / probeDebug pid** — all boarded (board:151-183) and the
   resetPassword owner-takeover + disabled-owner heal were **built** by AUTHTAIL (abad209e).
 - **`chats.userMacroValues` silently lost on fork** (a69862c) — captured in the security review doc
   `docs/reviews/security/2026-08-07-fork-host-plane-strip.md:135-137` ("wants a product decision").

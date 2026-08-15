@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Design Brief — Making Orbweaver's RPG Cohesive, Dynamic & Extensible (Lite + Full)
 
 > **Purpose:** a self-contained brief for a max-effort design pass. Produce a GAME PLAN that unifies
@@ -8,14 +14,15 @@
 ## 0. The ask (one paragraph)
 
 Orbweaver's RPG today is ONE opinionated house system (d20 + degrees-of-success + clocks + encounters
-+ GM seat), committed at ledger D58. It's good, but it shoehorns: you can't run a different stat system
-(Fallout SPECIAL, custom), and there's no "lite" tier for the far more common ask — *"give my character
-some spicy stats + inventory and let the chat reference and update them to steer the story,"* WITHOUT
-the full GM/dice/encounter machine. We want a game plan for a design where a **FULL** RPG (server-
-authoritative, tool-driven, dice/encounters/clocks/GM) and a **LITE** stats-steering mode share **one
-flexible foundation** — cohesive, dynamic, extensible, flowing through the same turn engine. The stat
-model must stop hardcoding the D&D six. Decide the shape now: the schema is committed but **pre-launch**,
-so changes are cheap baseline regens today and painful migrations after ship — this window is closing.
+
+- GM seat), committed at ledger D58. It's good, but it shoehorns: you can't run a different stat system
+  (Fallout SPECIAL, custom), and there's no "lite" tier for the far more common ask — *"give my character
+  some spicy stats + inventory and let the chat reference and update them to steer the story,"* WITHOUT
+  the full GM/dice/encounter machine. We want a game plan for a design where a **FULL** RPG (server-
+  authoritative, tool-driven, dice/encounters/clocks/GM) and a **LITE** stats-steering mode share **one
+  flexible foundation** — cohesive, dynamic, extensible, flowing through the same turn engine. The stat
+  model must stop hardcoding the D\&D six. Decide the shape now: the schema is committed but **pre-launch**,
+  so changes are cheap baseline regens today and painful migrations after ship — this window is closing.
 
 ## 1. Where we are (facts, verified against the tree)
 
@@ -37,7 +44,7 @@ so changes are cheap baseline regens today and painful migrations after ship —
 
 ## 2. The problem, stated sharply
 
-1. **Rigidity:** the sheet's attribute *shape* is hardcoded to the D&D six; the mechanics assume it.
+1. **Rigidity:** the sheet's attribute *shape* is hardcoded to the D\&D six; the mechanics assume it.
    Alt-stat systems (Fallout SPECIAL = 7 different attributes; freeform "spicy stats") don't fit.
 2. **All-or-nothing:** "game-ness" is binary (an `rpg_games` row = the full engine). The lighter, likely
    higher-demand use case — a character sheet + inventory + custom trackers that *color a normal chat* —
@@ -53,12 +60,12 @@ The three patterns worth stealing:
 
 1. **Schema-as-data (single source of truth).** One editable `trackerConfig` object (custom meters,
    custom integer attributes, free-text fields, per-NPC fields/meters) drives prompt + parse + render.
-   Zero code per stat; the D&D six are just seed data. Nothing hardcodes an attribute set.
+   Zero code per stat; the D\&D six are just seed data. Nothing hardcodes an attribute set.
 2. **Compile-inject-rewrite-parse loop.** The schema compiles to a JSON skeleton with placeholder holes
-   + inline `//range` comments; injected as fake chat turns (prior state as a fake assistant msg,
-   instructions as a depth-0 user msg); the model rewrites the JSON in its normal reply; a tolerant
-   parser extracts it. Model-agnostic, no tool-calling. A field's LABEL doubles as a mini-prompt
-   ("Corruption (0–100, how compromised)" steers better than bare "corruption").
+   - inline `//range` comments; injected as fake chat turns (prior state as a fake assistant msg,
+     instructions as a depth-0 user msg); the model rewrites the JSON in its normal reply; a tolerant
+     parser extracts it. Model-agnostic, no tool-calling. A field's LABEL doubles as a mini-prompt
+     ("Corruption (0–100, how compromised)" steers better than bare "corruption").
 3. **The steering line (the key insight — this IS the ask).** One instruction every turn: *"let the
    trackers color character behavior, dialogue, and the scene."* That single license is what makes a
    value actually drive behavior (horny-meter → acts horny; health-down → steers the story). Both
@@ -81,7 +88,7 @@ Also: swipe-safe (each swipe stores its own stats); schemas export as portable J
   `resolveSnapshotForTurn`), custom HUD widgets (03 §8, arbitrary meters), the 8 rpg prompt macros
   (06 §1), the D48 tool machinery + registry (just built), the Tier-3b textual-tool-call **polyfill**
   (local/weak models get tools without native tool support), and the preset/GATHER prompt-assembly path.
-- **Local-model honesty** (owner doctrine, [plan-for-small-hardware]): every model feature ships hosted +
+- **Local-model honesty** (owner doctrine, \[plan-for-small-hardware]): every model feature ships hosted +
   local honest arms or a visible capability refusal — never a silent degrade.
 - **Pre-launch baseline-regen window** — spend it; don't design something that needs a post-launch
   migration to become flexible.
@@ -123,7 +130,7 @@ Also: swipe-safe (each swipe stores its own stats); schemas export as portable J
    and the macros; the shared sheet CONTRACT that both modes read/write; the projection rules (P3) for
    any hidden lite fields.
 7. **The extensibility line.** Does the flexible stat-spine + mode axis get us to alt-rulesets
-   (D&D-pure/Fallout/custom) directly, or does true rules-system swapping still belong to the D46 plugin
+   (D\&D-pure/Fallout/custom) directly, or does true rules-system swapping still belong to the D46 plugin
    program? Draw the line explicitly — what's foundation now vs plugin later.
 8. **Doc + ledger deltas.** This amends D58 and the rpg-design set (01 §6 non-goal, 03 schema §4.1,
    04 mechanics §2, likely a new mode doc). Specify the ledger entry and which docs change.
@@ -155,5 +162,5 @@ Also: swipe-safe (each swipe stores its own stats); schemas export as portable J
 
 *Assembled 2026-07-17 from the rpg-design set + the Marinara extension research. The full RPG is built
 through R4 (tool vertical, `acda8ffe`); lite mode + the flexible stat-spine are the net-new design this
-plan must produce. Owner context: "we're shoehorning into one rpg system — I want D&D-style / Fallout-
+plan must produce. Owner context: "we're shoehorning into one rpg system — I want D\&D-style / Fallout-
 style / a lite version where someone uses spicy stats + inventory to steer the chat."*

@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Imagery-templates design lift (Phase B ⑫)
 
 Applies the guided-actions treatment (catalog-as-data → editable cards → byte-identical defaults → override

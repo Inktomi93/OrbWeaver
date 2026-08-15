@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Seam map — `packages/server/src/entry/compose/services.ts` (1,632 lines)
 
 > Scout survey 2026-07-25 (read in full + callers + gate grep). Input for the ratified
@@ -37,7 +43,7 @@ comment-only references (persona/context.ts:3, chat-events-bus.ts:8).
 
 - Ubiquitous locals: `db` · `now` · `audit` · `eventBus` · `roleClients` · `settings`/`effectiveConfig` · `assets` · `character` · `workloads`.
 - TWO late-bound holder patterns breaking circular init: `materializeBackgroundOp` (367–535) and `enqueueEmbedReindex` (833) — preserve the pattern or reorder construction.
-- `resolveViewerVisibility` is built AFTER chat (1078) but forward-referenced by imagery's extractQuiet closure (defined ~948) — a genuine forward-reference cycle.
+- `resolveViewerVisibility` is built AFTER chat (1078) but forward-referenced by imagery's extractQuiet closure (defined \~948) — a genuine forward-reference cycle.
 - TWO separate `createHostPrincipalResolver(sessions)` calls (`resolveHostPrincipal` 1041, `resolveOwnerPrincipal` 1123) thread into automationOps, pluginHostOps, portability, runnerEnv.
 - automation + plugin are the MOST tangled pair (both close over imagery/chat/notifications/worldInfo/settings/resolveOwnerPrincipal; plugin reuses automation's op objects) — extract together or plugin imports automation's exported ops; do this pair LAST.
 - Extracted builders take an EXPLICIT deps object (the `buildChatService` signature precedent in compose/chat.ts) — never close over keystone locals.

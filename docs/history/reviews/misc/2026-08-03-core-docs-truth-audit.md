@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # Core-docs TRUTH AUDIT — 2026-08-03
 
 Sweep of every file in `docs/architecture/core/` (35 files) for verifiable claims — build-tense assertions, counts, named symbols/files/verbs, behavioral claims — verified against the tree (find/ast-grep/direct reads; presence claims chased to the declaration, never grep-alone). Trigger: five lies found incidentally in one day (Spine-Identity agent principals · D60 ledger · lockdown type sketches · UI-Gates §12.6 · Tier-1-DB:32).
@@ -8,7 +14,7 @@ Sweep of every file in `docs/architecture/core/` (35 files) for verifiable claim
 
 | Class | Count | Disposition |
 | - | - | - |
-| TRUE (spot-verified claims that held) | ~95 symbol/file/gate checks OK (see §5 method) | none |
+| TRUE (spot-verified claims that held) | \~95 symbol/file/gate checks OK (see §5 method) | none |
 | STALE-BUILT-TENSE | 14 surfaces | dated riders / in-place corrections in 12 non-CERD files; 2 → CERD notes (D67, D60-adjacent rows) |
 | COUNT-DRIFT | 6 | fixed in place |
 | PHANTOM-REF | 6 | fixed to what the prose means |
@@ -72,12 +78,12 @@ False alarms verified TRUE and left alone (worth recording): Knowledge-Cluster i
   - **D59** — crew "committed Phase-7+" vs the crew-DEAD owner ruling (see §3.2).
 - **AGENTS.md §6 domain map:** the `buddy` row describes a purged domain as kept; the gallery row cites `domain/hub` (purged); the connection row says "all 7 roles" (now 8, `structured`); "unbuilt → databank · expressions · automation" — databank + automation are BUILT; the "active program = ui-cohesion-north-star" pointers (§0.3, §1, §7 ×2) are superseded by `docs/retro-workboard.md` (2026-07-25).
 - **client-architecture-lockdown.md §13:** the bus inventory row `buddy (transport/trpc/buddy-bus.ts over domain/buddy's createBuddyBus)` — both purged; the D118 fold also reshaped the inventory (one socket, ROOM sources).
-- **Spine-Identity-and-Auth.md:** `containment.suite.int.test.ts` cite + the "Built: agent_principals…" §4 paragraph — covered by CERD's rewrite (confirmed still-broken on main as of this audit).
+- **Spine-Identity-and-Auth.md:** `containment.suite.int.test.ts` cite + the "Built: agent\_principals…" §4 paragraph — covered by CERD's rewrite (confirmed still-broken on main as of this audit).
 - **Core-Laws-and-Precedents.md §3** — "`contracts/observability` is absent" VERIFIED TRUE; §7 range counts fixed by CERD's diff (verified in their branch).
 
 ## 5. The ledger-sweep verdict (D1–D121, the full pass)
 
-Every D-entry's built-tense claims were read; the load-bearing named symbols were existence-checked (~95 checks, `sg`/grep-to-declaration). Verdict:
+Every D-entry's built-tense claims were read; the load-bearing named symbols were existence-checked (\~95 checks, `sg`/grep-to-declaration). Verdict:
 
 - **One outright built-tense LIE beyond D60: D67** (anth-direct — above). D68 carries the same purge shadow (`ANTH_DIRECT_SAMPLING`).
 - **Two rename drifts:** D109's `RpgTurnConnection` → `RpgTurnContext`; D112's `logMalformedCalls` → `malformedToolCalls`.
@@ -92,7 +98,7 @@ Every D-entry's built-tense claims were read; the load-bearing named symbols wer
 **Yes for two narrow arms; no for the general case.**
 
 - **Arm 1 — backticked-path existence (RECOMMEND, mechanically holdable):** every backtick token in `docs/architecture/core/**` that parses as a repo path (`packages/…`, `docs/…`, `scripts/…`, `tests/…`, plus the resolvable shorthands `domain/<x>/…` → `packages/server/src/domain/…`, `entry/…`, `infra/…`, `kit/<x>` → `packages/kit/src/<x>`, `@orb/<pkg>/<mod>` → `packages/<pkg>/src/<mod>`) must exist on disk, with a cited-allowlist for deliberately-dead mentions (struck-through/rider'd text, "the deleted X", reserved future homes). This audit's own sweep was exactly that script and it found gif-search/host.ts/anth-direct/agent-principals/render-trust in one pass. It is the `dangling-refs` shape (which already does md LINKS + gate docRows) widened to prose backtick paths — same gate family, both-ways ratchet for the allowlist. Main cost: the shorthand resolver must be total or fail-open per token (unresolvable shapes skip, never guess).
-- **Arm 2 — backticked-symbol existence (RECOMMEND with a fence):** a backtick token matching `[A-Z][A-Za-z0-9_]*[A-Z_]` (UPPER_SNAKE tuples, PascalCase types) or ending in `()` in core docs must have a declaration hit in `packages/**` (ts-morph name index, not grep). This finds `REATTRIBUTE_WINDOW`/`ANTH_DIRECT_SAMPLING`/`parseNeoPresetFile`/`RAIL_SLOTS`-class rot. Fence: only flag tokens ALSO absent from `tests/**` and `scripts/**`, and allowlist rider-quoted dead names — otherwise every "the deleted `X`" sentence reds. Expect a real founding-violation burn-down (this audit's fixes are most of it).
+- **Arm 2 — backticked-symbol existence (RECOMMEND with a fence):** a backtick token matching `[A-Z][A-Za-z0-9_]*[A-Z_]` (UPPER\_SNAKE tuples, PascalCase types) or ending in `()` in core docs must have a declaration hit in `packages/**` (ts-morph name index, not grep). This finds `REATTRIBUTE_WINDOW`/`ANTH_DIRECT_SAMPLING`/`parseNeoPresetFile`/`RAIL_SLOTS`-class rot. Fence: only flag tokens ALSO absent from `tests/**` and `scripts/**`, and allowlist rider-quoted dead names — otherwise every "the deleted `X`" sentence reds. Expect a real founding-violation burn-down (this audit's fixes are most of it).
 - **REFUTED — a general build-tense linter** ("X is built/wired/landed" ⇒ verify): tense detection is prose NLP, and the truth of "wired" is a *graph* property (a symbol can exist yet be product-unreachable — the dead-wire class), which no honest static rule can decide. The counts class ("N routers", "49 rules") is similarly unholdable generically — each count needs a bespoke comparator; the existing pattern for that is the `enforcement-registry-parity`/`knob-wire-coverage` per-count gate, minted only where a count is load-bearing.
 - **Already-covered ground, don't duplicate:** `d-citation-integrity` (D-refs), `pd-citation-integrity`, `dangling-refs` (md links + gate doc paths), `gate-modernization` arm C (§-anchors in gate docRows — the thing that caught UI-Gates §12.6).
 

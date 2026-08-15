@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # Icon-seal doorways — assessment (GLYPHSWEEP lane, 2026-08-07)
 
 Four named-not-built follow-ups on the icon seal (`packages/ui/src/primitives/icons/icon.tsx` +
@@ -40,7 +46,7 @@ size/strokeWidth/absoluteStrokeWidth machinery. Assessed against the actual glyp
   `createLucideIcon` still needs a wrapper for both — MORE surface, not less.
 - The geometry (mixed per-subpath `fill=currentColor stroke=none` center circle, a `opacity=0.5` detail
   path) maps onto `iconNode` attrs, but that only re-expresses working SVG for no gain.
-- The gain (weight/size axes) is UNWANTED: WeaveGlyph is a brand mark rendered at ~one size, and §13.9
+- The gain (weight/size axes) is UNWANTED: WeaveGlyph is a brand mark rendered at \~one size, and §13.9
   deliberately keeps it a hand-authored brand SVG, NOT an @orb/ui primitive. Coupling it to lucide's
   render machinery fights that ruling.
 

@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # GAME PLAN — The Stat-Profile Spine + the Lite/Full Mode Axis
 
 > **Deliverable of the max-effort design pass briefed in `docs/history/design/rpg-lite-and-full-cohesion-brief.md`
@@ -20,9 +26,9 @@
 1. **The stat spine generalizes to a data-defined STAT PROFILE** (`config.statProfile`): the
    attribute *vocabulary* (defs + hints), the skill→attribute governing map, a two-int modifier
    normalization `{center, step}`, and a perception-attribute key. `RpgSheet.attributes` becomes
-   `Record<string, number>`. The D&D six stop being a type and become the packaged `d20` profile's
+   `Record<string, number>`. The D\&D six stop being a type and become the packaged `d20` profile's
    seed data — exactly marinara's schema-as-data move, typed. The d20 house engine is untouched:
-   profiles normalize INTO the fixed modifier space (~−4..+10), so DC ladder, bands, crit,
+   profiles normalize INTO the fixed modifier space (\~−4..+10), so DC ladder, bands, crit,
    fail-forward, and every golden stay valid for ANY profile. Fallout SPECIAL is a second packaged
    profile; "spicy stats" is a custom one.
 2. **Lite is a MODE AXIS on the game row** (`rpg_games.mode: "lite" | "full"`), never a second
@@ -138,7 +144,7 @@ profile vocabulary. Three **packaged profiles** ship as contract data constants 
 precedent — defaults co-located with their contract, consumed by wizard AND server):
 
 | Key | Contents | Note |
-|---|---|---|
+| - | - | - |
 | `d20` | the six (labels + hints), range 1..30, modifier {10, 2}, the full `SKILL_ATTRIBUTE_MAP` as data, default `int`, perception `wis` | **byte-equivalent to today's constants** — the migration is a MOVE of `substrate/constants.ts:39–78` into data, provable by a golden asserting old-vs-new identical check results |
 | `special` | S·P·E·C·I·A·L (7 defs, Fallout hints), range 1..10, modifier {5, 1}, a Fallout-flavored governing map (e.g. sneak→agility, speech→charisma, lockpick→perception), default `luck`, perception `per` | the proof the spine works — a 7-attribute system running the house engine unmodified |
 | `freeform` | empty attributes, range 0..100, modifier {50, 10}, empty governing, nulls | lite's default — start empty, add spicy stats |
@@ -158,12 +164,13 @@ space. `check.ts` and `perception.ts` re-parameterize (pure, signature-level):
 WIS 16 on d20 (+3) and PER 8 on SPECIAL (+3) land identically; a 0–100 spicy profile at {50,10}
 spans ±5. DC ladder (2..30), bands, crit margins, morale terms, advantage — all live in modifier
 space and hold for every profile. **This is why the encounter engine, the consequence picker, the
-reminder's DC prose, the chip renderers, and all ~180 goldens survive the generalization
+reminder's DC prose, the chip renderers, and all \~180 goldens survive the generalization
 untouched.**
 
 *WHY this shape:* it is the smallest data surface that covers the three real axes systems differ
 on (vocabulary, score scale, skill governance) while keeping every number the server resolves
 inside one golden-tested engine. *Rejected alternatives:*
+
 - **Keep the six + alias-map-only** (the 04 §2 status quo) — fixes NAMES, not SHAPE; SPECIAL's 7
   attributes and freeform stats stay unrepresentable. The brief's core complaint.
 - **Per-sheet free-form keys, no profile** — no single source of truth: party members drift
@@ -191,9 +198,10 @@ Mutability (one rule, both modes, no mode branch): **attribute ADDS are always l
 backfill at center); **removes/renames require zero references** (not in `skillGoverning` values,
 not `perceptionAttribute`, not locked sheet paths); the `modifier`/`range` dials are host-editable
 (they are math dials, same tier as `criticalRange`). Enforced in `updateConfig` with typed errors
-+ a matrix test. *Rejected:* full-profile immutability after `startGame` — it kills lite's core
-gesture ("add a Corruption stat mid-chat") and over-protects full (an add is harmless by
-construction).
+
+- a matrix test. *Rejected:* full-profile immutability after `startGame` — it kills lite's core
+  gesture ("add a Corruption stat mid-chat") and over-protects full (an add is harmless by
+  construction).
 
 ---
 
@@ -227,6 +235,7 @@ and is already built — swipe-keyed snapshots + the resolution ladder, locks/au
 staging accumulator, widget bindings + swipe-keyed values, the tool registry, the bus. A separate
 lite subsystem re-implements or forks every one of those (the brief's named cohesion risk), and
 graduation becomes a data MIGRATION instead of a config flip. *Rejected:*
+
 - **A chat-level sheet with no `rpg_games` row** — loses snapshots/widgets/staging (all FK
   through `gameId`), forks the state model, and puts a second "game-ish" gather in chat. P4 says
   game-ness is one data row; lite-ness is one field on it.
@@ -239,7 +248,7 @@ graduation becomes a data MIGRATION instead of a config flip. *Rejected:*
 A lite game = a NORMAL chat (its own preset, characters, personas, arbitration — untouched) plus:
 
 | Piece | Mechanism (all built unless marked) |
-|---|---|
+| - | - |
 | flexible sheet (identity stats) | `rpg_party.sheet.attributes` over the profile vocabulary; `className` as free flavor |
 | meters on the player/party ("Health", "Sanity", "Corruption", "Arousal") | **pools** — `sheet.poolDefs` (+ per-def `hint`, §8) define; snapshot `partyState[].pools` carry swipe-keyed values; `update_party.poolDeltas` writes; the `pool` widget binding renders a HUD meter |
 | inventory | snapshot `partyState[].inventory` + `update_inventory` |
@@ -292,7 +301,7 @@ state) — throws away snapshots/history and breaks the chat's `metadata.rpg` po
 
 ### 4.1 The update mechanism: the D48 tool path, zero new tools
 
-Lite's write surface is a MODE_POLICY subset of the built registry:
+Lite's write surface is a MODE\_POLICY subset of the built registry:
 `["update_party", "update_inventory", "update_scene", "set_widget_value", "roll_dice"]`.
 Structured args, schema-validated, errors-as-data, lock-merged, staged through the R4
 accumulator, swipe-safe on flush, provenance-recorded as `ToolCallRecord`s (the client chips
@@ -334,7 +343,7 @@ most); silent best-effort (the named sin).
 `presentUpsertArg` (the `update_scene` tool arg) gains
 `customFields: z.array(z.object({ name: z.string().min(1), value: z.string() })).optional()` —
 an array-of-pairs, NOT a `z.record`, so the arg stays safely inside the D79 projector's
-`additionalProperties:false` regime ([tool-schema-no-branded-transform] discipline; the verb
+`additionalProperties:false` regime (\[tool-schema-no-branded-transform] discipline; the verb
 folds pairs into the snapshot's `Record<string,string>`). This closes "Sera's Corruption note
 lives ON Sera" for text trackers; numeric per-NPC meters ride `subjectName`d widgets (§3.2).
 *Reserved, explicitly not v1:* a structured `meters[]` array on `RpgPresentCharacter` — if
@@ -391,7 +400,7 @@ gesture pools already perform).
 ### 5.1 Who defines, where it lives
 
 | Definition | Home | Editor (client) |
-|---|---|---|
+| - | - | - |
 | attribute vocabulary + hints + range/modifier | `config.statProfile` (host; template pick at create — packaged `d20`/`special`/`freeform` — then row-level add/remove per §2.3 mutability) | the lite create dialog + a "Stats & Trackers" editor pane (lite) / wizard step 2 (full, profile pick added) |
 | per-member meters (poolDefs + hints) | `rpg_party.sheet.poolDefs` (member for own row, host for all — the 07 §3.1 axis) | sheet drawer "add meter" row: name + max + hint |
 | free/per-NPC meters | `rpg_hud_widgets` (+`subjectName`) — host CRUD (existing verbs) | widget editor (C7's form, reused in lite) |
@@ -427,7 +436,7 @@ export/import on the lite create dialog + profile editor; a hub/library surface 
 ## 6. Decision 6 — cohesion with the built state model (the shared-machinery map)
 
 | Machinery | Full | Lite | Delta |
-|---|---|---|---|
+| - | - | - | - |
 | `rpg_games` root + `chats.metadata.rpg` pointer | ✓ | ✓ | +`mode` column |
 | snapshots: clone-forward, resolution ladder, commit, swipe-rewind | ✓ | ✓ verbatim | none |
 | staging accumulator (`ChatTurnId`-keyed, read-through, abort-safe) | ✓ | ✓ verbatim | none |
@@ -436,7 +445,7 @@ export/import on the lite create dialog + profile editor; a hub/library surface 
 | pools (defs + volatile + `pool` widget binding + `update_party`) | ✓ | ✓ = the meters | +`hint` on poolDefs |
 | widgets + swipe-keyed `widgetValues` + `set_widget_value` | ✓ | ✓ | +`subjectName` on custom config |
 | present cast + customFields | ✓ | ✓ = per-NPC trackers | tool arg gains customFields (§4.3) |
-| tool registry + recurse loop + `ToolCallRecord` chips | ✓ 20+ tools | ✓ 5-tool subset | MODE_POLICY selects |
+| tool registry + recurse loop + `ToolCallRecord` chips | ✓ 20+ tools | ✓ 5-tool subset | MODE\_POLICY selects |
 | gather → macros + GM preset + reminder | ✓ | — | lite: ONE injection instead (§4.4) |
 | `resolvePresetOverride` | gmPresetId | null | mode dispatch in the op |
 | bus (`snapshotPatched`/`gameChanged`) + client invalidation | ✓ | ✓ same events | none |
@@ -453,7 +462,7 @@ an empty ring-1.
 ## 7. Decision 7 — the extensibility line (drawn explicitly)
 
 **Foundation, NOW (this plan):** stat VOCABULARIES are data. Any linear-modifier stat system —
-D&D-shaped, SPECIAL, spicy-custom, none-at-all — is a profile: attributes, range, {center, step},
+D\&D-shaped, SPECIAL, spicy-custom, none-at-all — is a profile: attributes, range, {center, step},
 governing map, perception key. Both modes, one engine, zero plugin machinery.
 
 **Plugins, LATER (D46 Tier-2, per 09 §c — unchanged):** alt-RESOLUTION systems. Anything that
@@ -468,7 +477,7 @@ schema re-shape. Opening either seam is a ledger decision.
 
 *WHY the line sits here:* the resolution engine's fixed points (bands, DC 2..30, modifier space,
 consequence priority) are load-bearing across the reminder prose, the tool result schemas, the
-chip renderers, the encounter engine, and ~180 goldens — swapping them is a product fork, not a
+chip renderers, the encounter engine, and \~180 goldens — swapping them is a product fork, not a
 parameter. Stat vocabulary, by the §1 audit, was never load-bearing anywhere but two call sites.
 The 01 §6 non-goal REWORDS (§10.2): from "no rules-system plugins; the mechanic set is THE house
 system" to "**stat profiles are data (this plan); RESOLUTION stays the house system; alt-resolution
@@ -479,9 +488,10 @@ is the D46 Tier-2 seam**."
 ## 8. The schema/contract delta (the pre-launch baseline regen — spend the window)
 
 All changes ride ONE `0000_baseline` regen + fixture updates (D50 precedent; `pnpm seed:demo`
-re-verifies per D82). Coupled sites called out per [new-domain-coupled-sites]/[gate-probe] habits.
+re-verifies per D82). Coupled sites called out per \[new-domain-coupled-sites]/\[gate-probe] habits.
 
 **`@orb/contracts/rpg`:**
+
 1. `RPG_GAME_MODES = ["lite","full"]` + schema + type (new axis tuple).
 2. `rpgStatProfileSchema` + `rpgStatAttributeDefSchema` (§2.1) + the THREE packaged profile
    constants (`RPG_PACKAGED_STAT_PROFILES` — d20 data lifted VERBATIM from
@@ -529,9 +539,9 @@ genuinely absent, not defaulted.)*
 ## 9. The build-chunk sequence (fits doc 10's R-chunks + the cross-set BUILD-QUEUE wave model)
 
 | Chunk | Contents | Size | When |
-|---|---|---|---|
+| - | - | - | - |
 | **L0 — the spine regen** | ALL of §8's schema/contract/db + the substrate re-parameterization + packaged profiles + the regression-pin tests. **Pure regen + refit; no new features.** | **M** | **FIRST — before any further R-chunk builds on the old shape** (R6 world-gen and R8 encounters both consume sheets; every week of delay grows the refit). This is the window-closing chunk. |
-| **L1 — the lite turn vertical** | `mode` on createGame + MODE_POLICY + mode guards; lite gather (state block, steering injection, tool subset, null override); `buildLiteReminder`; soft capability arm + `liteTrackersReadOnly`; `setMode` + graduation guards; the §4.3 tool-arg widening; bus/view mode plumbing. First playable lite chat (server-side; tRPC-driven). | **M** | after L0; independent of R5–R10 |
+| **L1 — the lite turn vertical** | `mode` on createGame + MODE\_POLICY + mode guards; lite gather (state block, steering injection, tool subset, null override); `buildLiteReminder`; soft capability arm + `liteTrackersReadOnly`; `setMode` + graduation guards; the §4.3 tool-arg widening; bus/view mode plumbing. First playable lite chat (server-side; tRPC-driven). | **M** | after L0; independent of R5–R10 |
 | **L2 — the lite client** | the lite create dialog (template pick, tracker quick-add, capability notice, import/export); the Stats & Trackers editor (profile rows, pool rows w/ hints, widget `subjectName`); tracker/HUD reuse over the lite views; read-only badge; the graduated-wizard flow. Folds into the C-chunk wave (reuses C1 gate/stream, C2 widgets, C4 tracker, C7 widget editor). | **M** | with/after C1–C4 |
 | **L3 — seeding + polish** | `rpgCardStatsSchema` seeding at joinParty (+ the world-gen mapping when R6 lands — world-gen's sheet prompt gains the profile vocabulary + hints as input); unmatched-key review surface; steeringNote UX. | **S** | trailing; the R6 half rides R6 |
 
@@ -545,7 +555,7 @@ files), so **L0 lands as its own wave immediately after the R4 vertical lands**,
 and D86 is never retro-fitted into the R4 lanes mid-flight.
 R6/R7 crew chunks build AGAINST the profile from birth (world-gen emits profile-keyed sheets —
 cheaper than retrofitting). AP4a (agent GM) is orthogonal (full-mode seat machinery; lite has no
-seat). The 05 §3 tool table stays the count home; MODE_POLICY cites it.
+seat). The 05 §3 tool table stays the count home; MODE\_POLICY cites it.
 
 ---
 
@@ -557,7 +567,7 @@ seat). The 05 §3 tool table stays the count home; MODE_POLICY cites it.
 > are DATA, not types: `config.statProfile` (attribute defs + hints, range, `{center,step}`
 > modifier normalization, skill-governing map, perception key) drives sheet shape, validation,
 > prompt, and the d20 engine's two attribute reads; `RpgSheet.attributes` is a record over the
-> profile vocabulary; the D&D six, Fallout SPECIAL, and `freeform` ship as packaged contract-data
+> profile vocabulary; the D\&D six, Fallout SPECIAL, and `freeform` ship as packaged contract-data
 > profiles (D33 pattern). The compatibility contract is the MODIFIER SPACE — profiles normalize
 > into it; the house resolution engine (d20/bands/DC/fail-forward/consequences/encounters) stays
 > THE system; alt-RESOLUTION remains the D46 Tier-2 seam (01 §6 reworded accordingly). LITE is a
@@ -582,13 +592,13 @@ seat). The 05 §3 tool table stays the count home; MODE_POLICY cites it.
 ### 10.2 rpg-design doc amendments (rider notes at the cited sections; the set stays the spec)
 
 | Doc | Change |
-|---|---|
+| - | - |
 | README | truth-table row for the L-chunks + the mode axis; reading order gains `13-lite-mode.md`; the one-paragraph design gains the mode sentence |
 | 01 | §6 non-goal REWORDED per §7 above; §5 ADD list notes the profile spine |
 | 02 | §2 layout: `MODE_POLICY` home in `contract/`; service surface + `setMode`; the lite gather arm |
 | 03 | §1 `rpg_games.mode` column; §1.1 config gains `statProfile`/`lite`; §2.2 volatile `hp` nullable; **§4.1 REWRITTEN** (record attributes, nullable maxHp, poolDef hints, the profile as vocabulary owner, seeding respec §5.2); §8 widget `subjectName` |
 | 04 | **§2 REWRITTEN at the attribute seam**: `SKILL_ATTRIBUTE_MAP`→profile data, `attributeModifier(profile, score)`, governing/default from profile, missing-key=center; §10 perception key from profile; the alias-map paragraph replaced by the §5.2 name-match rule |
-| 05 | §1 gather: mode dispatch + the lite injection + `liteTrackersReadOnly`; §3: MODE_POLICY cites the tool table as count home; `update_scene` arg gains customFields |
+| 05 | §1 gather: mode dispatch + the lite injection + `liteTrackersReadOnly`; §3: MODE\_POLICY cites the tool table as count home; `update_scene` arg gains customFields |
 | 06 | §1 note: the GM preset is FULL-mode; lite prompt = the injection (pointer to 13) |
 | 09 | §c cross-ref updated to the §7 line; §(+) polyfill note gains the lite read-only interim |
 | 10 | the L0–L3 chunks inserted (L0 pinned FIRST); R6 world-gen input gains the profile |

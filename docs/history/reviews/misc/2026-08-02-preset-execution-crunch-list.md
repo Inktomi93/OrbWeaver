@@ -1,8 +1,14 @@
+---
+kind: history
+status: archived
+updated: 2026-08-03
+---
+
 # PRESET-1 — mock-vs-rendered execution crunch list (orchestrator pass, 2026-08-02 night)
 
-> **WAVE STATUS (08-02 ~23:30): P0 ITEMS 1+2 VERIFIED FIXED LIVE** — post-merge real-pointer
+> **WAVE STATUS (08-02 \~23:30): P0 ITEMS 1+2 VERIFIED FIXED LIVE** — post-merge real-pointer
 > probe (CDP, owner's Chrome): 14 dispatches across the New-preset name edge → over:3/out:2/
-> mut:0 (pre-fix: 1,727 pairs @ ~85/s). Lanes A-F ALL MERGED @ `7689b5aa`+ — nearly every item
+> mut:0 (pre-fix: 1,727 pairs @ \~85/s). Lanes A-F ALL MERGED @ `7689b5aa`+ — nearly every item
 > below is landed or refuted; the AUTHORITATIVE per-item state is the lane reports + the
 > workboard wave block. Remaining: full strike-pass of this doc, side-eye RE-VERIFY
 > (desktop+mobile; incl. F's CD2 box-in-box + chip-radius flags), close-out D-entry,
@@ -38,7 +44,7 @@ This is the you-fucked-up-on-execution list; the fix lanes brief FROM this.
 
 **1. LIST hover render loop — CONFIRMED conditional-mount swap.** Owner console (real mouse, 21:02):
 `pointerover/out` alternate between `<span class="block…">` (row name) and `<button class="group…">`
-(row body) with every leave-target reported **(detached)**, ~200ms handler cost per flip. Hover
+(row body) with every leave-target reported **(detached)**, \~200ms handler cost per flip. Hover
 REMOUNTS row content (Active badge ⇄ action cluster, title-line width changes), the real pointer
 re-fires on the freshly-mounted node, which re-renders again → oscillation, worst at the name's edge.
 `mvr-list-hover.png` shows the swap: at rest the row carries the amber **Active** badge
@@ -46,6 +52,7 @@ re-fires on the freshly-mounted node, which re-renders again → oscillation, wo
 **Headless synthetic hover cannot reproduce** (`--hover` + `--watch` + `__orb.renders()`: region
 counts flat — Playwright doesn't re-fire pointerover when DOM swaps under a stationary pointer).
 That is why every CT is green while the live surface loops. Fix + regression proof:
+
 - Both badge and cluster PERMANENTLY MOUNTED; reveal = opacity/visibility only. Zero conditional
   mount, zero width change on the title line (reserve `max(badge, cluster)` width).
 - Verify with a REAL pointer (chrome-devtools MCP / CDP mouse-move series), not a CT.
@@ -57,6 +64,7 @@ against. Real-pointer verification is the doc's own P0-ROOT-CAUSE section's REGR
 re-run here per doctrine (no browser tooling in this pass).
 
 **2. LIST reveal cluster is jank (owner verbatim), and it hides state.**
+
 - The activate affordance renders as a FILLED AMBER LIGHTNING BOLT — reads as a one-shot zap
   action, not the mock's pressed toggle-dot (`list--pane-presets.png` + the toggle-semantics note
   crop). It also has no visible relationship to the Active state it toggles.
@@ -74,7 +82,7 @@ the permanently-mounted element, not a conditional swap).
 ## P1 — structural execution misses
 
 **3. The 720px column is LEFT-PINNED in the content pane — the "crunchy" root.** Header band spans
-full width, the deck clamps at ~720 hard left, everything right of it is dead void (half the pane at
+full width, the deck clamps at \~720 hard left, everything right of it is dead void (half the pane at
 1920 — `mvr-params-content.png`, `mvr-actions-content.png`). Self-inflicts item 8's truncation.
 The mock's 720 was its PANE width, not a clamp-inside-a-wider-pane. Needs ONE ruling for all five
 views: center the column, or let it breathe to a responsive max-width. Check the app's other
@@ -82,8 +90,8 @@ content-pane editors for the house convention before ruling. MEASURED LIVE (owne
 just… stops at a certain point" / "prompt stuff and etc just squishes itself in"): ALL FIVE
 tabpanels carry the SAME `max-width:720px` child, leftGap 0, rightGap 238-248 at a 958-968 pane
 (probe table: Params/Prompt/Actions/Data/Transforms identical) — one shared wrapper, one fix.
-In focus mode at full width the void is ~800px. OWNER NUANCE: "looks okay when both panels are
-out, but when you close them it looks awful" — the ruling must hold across pane widths ~960 →
+In focus mode at full width the void is \~800px. OWNER NUANCE: "looks okay when both panels are
+out, but when you close them it looks awful" — the ruling must hold across pane widths \~960 →
 full-bleed (a centered/responsive column degrades gracefully; a left-pinned fixed clamp cannot).
 
 ~~3.~~ ✅ `45cf001d` One shared wrapper across all five tabpanels, centered (`character-editor-
@@ -135,12 +143,12 @@ odd one out. One chip grammar.
 ~~7.~~ ✅ `c4844496` "One kind-chip grammar (outlined neutral, killing the odd filled-blue
 `format`)".
 
-**8. Truncation everywhere in Actions.** Descriptions and template previews cut at ~20-30 chars
-("[Take the following into speci…") while half the pane is void — falls out of item 3; verify the
+**8. Truncation everywhere in Actions.** Descriptions and template previews cut at \~20-30 chars
+("\[Take the following into speci…") while half the pane is void — falls out of item 3; verify the
 previews recover once the column ruling lands.
 
 ~~8.~~ ✅ `45cf001d` (item 3 fix) + `ed90cd59` (F-7, pre-dating this doc) — the void that starved
-the previews is gone (item 3) and the mono preview cell that clipped to a fixed ~30 chars was
+the previews is gone (item 3) and the mono preview cell that clipped to a fixed \~30 chars was
 deleted outright (`actions-view.tsx:160-166`, "the row's width now goes to the scent" — template
 text's homes are the drill-in + readout only).
 
@@ -164,13 +172,14 @@ With per-view swapping content, name the view in the pane header (`mvr-readout-*
 ~~11.~~ ✅ `c4844496` "The CONTEXT band names its projection ('Prompt · readout'), via a new
 optional `header` slot on the `single` context arm".
 
-**12. Actions readout is ~90% void.** DELIVERY PATH renders; the D8 binding chip + resolved preview
+**12. Actions readout is \~90% void.** DELIVERY PATH renders; the D8 binding chip + resolved preview
 are QUEUED post-P5 (sanctioned) — but until they land, ship the honest placeholder arm naming what
 arrives ("resolved preview appears when a chat is bound") instead of dead space
-([[empty-states-are-load-bearing]]).
+(\[\[empty-states-are-load-bearing]]).
 
 ~~12.~~ ✅ `c4844496` honest Resolved-preview placeholder arm shipped; D8 itself (the real binding
-+ chip) landed separately (`6b11ea7a`, `607d7e94`), so the void is gone either way.
+
+- chip) landed separately (`6b11ea7a`, `607d7e94`), so the void is gone either way.
 
 **13. Header title de-emphasized.** "New preset" renders at body weight/size; mock gives the name
 title weight. The truth chips (Active + model) are right.
@@ -182,7 +191,7 @@ title weight. The truth chips (Active + model) are right.
 
 **14. THE BLUE PROBLEM (cross-cutting).** Rack glyph discs (saturated blue circles — the
 "glyph-disc noise" RENDERED-WRONG row still reads loud; Post-history amber vs everything-else blue
-= accidental two-tone), Actions kind chips, macro token pills ({{input}}/{{person}} bright blue),
+\= accidental two-tone), Actions kind chips, macro token pills ({{input}}/{{person}} bright blue),
 Prompt-readout budget bars (blue fills) — a blue/steel family the mocks don't paint (mocks: neutral
 dark tiles, quiet chips, ONE blue SETUP kicker + green on-chip). Rule it once: either blue IS the
 preset-surface info hue (then mute + apply consistently) or it's drift (re-tint neutral/amber).
@@ -192,7 +201,7 @@ tint (`ed90cd59` F-17, `section-row.tsx:183` — "15% tint + hue text IS the moc
 treatment"); budget-bar/SETUP-kicker blue is the doc's own sanctioned deviation ("ONE blue SETUP
 kicker" — `prompt-readout.tsx:80`, zone-hued track by design). The macro-token pill closed last, in
 `8af6626e` (lane POLISH): `macro-text.tsx` chips now carry `tone="soft"` — the mock's own `.tok`
-treatment (a ~15% info tint + the info hue as TEXT, `context-readouts.html:73`), the same grammar the
+treatment (a \~15% info tint + the info hue as TEXT, `context-readouts.html:73`), the same grammar the
 glyph discs wear, so the surface speaks ONE muted-info dialect. The palette is untouched per the
 owner ruling (`--color-info` stays blue; the fix is the pill's rendering). `@orb/ui` Badge's in-flow
 arm also stopped drawing a border box in any tone — a border on an `inline` box is real horizontal
@@ -204,10 +213,10 @@ mono face; red-first against the pre-fix tree failed with `background-color: okl
 **SUPERSEDES the lane-C claim:** `c4844496`'s "macro token pills go quiet mono" was prose-only (zero
 diff hunks in `macro-text.tsx`, confirmed twice + archaeology); `8af6626e` is the real diff.
 
-**15. Rack token counts cramped** — ~30/~4/~— tiny and tight against the toggles; mock gives a
+**15. Rack token counts cramped** — \~30/\~4/\~— tiny and tight against the toggles; mock gives a
 dedicated right-aligned mono column with air.
 
-~~15.~~ ✅ `c4844496` "the ~token estimate takes a fixed-width right-aligned tabular-mono column".
+~~15.~~ ✅ `c4844496` "the \~token estimate takes a fixed-width right-aligned tabular-mono column".
 
 **16. Missing rack cue badges.** Guided instruction lacks "steered turns"; Post-history lacks
 lock + custom (mock draws them; registry carries fires-on + position-lock — the metadata exists).
@@ -224,7 +233,7 @@ Built: far right edge (reads as an action slot) — and see item 19: it collides
 no longer stacks under the revealed cluster at the row's end".
 
 **18. Cluster wrapper paints its OWN box on hover** (owner-spotted live, CDP-held-hover zoom
-receipt): the [⚡ · dup · kebab] cluster sits in a distinct darker rounded panel ON TOP of the
+receipt): the \[⚡ · dup · kebab] cluster sits in a distinct darker rounded panel ON TOP of the
 row's hover tint — box-in-box double highlight. Kill the wrapper background (glyphs ride the row
 tint) or make it seamless with it.
 
@@ -261,7 +270,7 @@ list+context docked; stored overrides still win). Red-first CTs; ShellLayout.imm
 DEFERRED SMALL: `__orb.shell()` should expose `focusMode` (the owner's own receipts came from that
 handle). LESSON (memory-worthy): a presentation mode must never be re-derived from the state it
 produces. Original finding:
-**20-orig. FOCUS-MODE STATE DESYNC — reproduced live with __orb.shell() receipts (owner report:
+**20-orig. FOCUS-MODE STATE DESYNC — reproduced live with \_\_orb.shell() receipts (owner report:
 "at certain window sizes focus mode doesn't bring the side panels at all"). NOT width-gated —
 a state bug.** Repro at constant viewport: enter focus → exit (panels RETURN but the button
 STILL reads "Exit focus mode" — flag stuck ON) → click "Exit focus mode" → panels COLLAPSE
@@ -274,7 +283,7 @@ presentation state — exit restores the saved pre-focus modes, label derives fr
 auto-collapse never writes into the saved state. NOTE: shell-tier bug (not preset-specific) —
 likely reproducible on every section; sibling of the HUD-H1 ≤1024 dead-toggle class.
 
-**22. NARROW-BAND OVERLAY PANELS ARE UNDRESSED (owner screenshot receipt, ~960px CSS,
+**22. NARROW-BAND OVERLAY PANELS ARE UNDRESSED (owner screenshot receipt, \~960px CSS,
 Pictures/Screenshot from 2026-08-02 00-17-35.png — SHELL-TIER, both panes, every section):** in
 the 48-64rem band the list/context panes flip to overlay mode but render with docked-pane
 clothing — NO backdrop scrim, NO elevation shadow, an orphan amber top edge, and the content
@@ -285,8 +294,8 @@ affordances (scrim + shadow + full-bleed height from topbar) OR the band's conte
 (true docked shrink); either way the two modes must be visually unambiguous. Same band as the
 focus-mode desync family. → the side-eye round leads with this after the two P0s.
 ADDENDUM: owner's live repro viewport = **418×634** (mobile band). Orchestrator could NOT hold
-that width (WM floor ~514); at 514×635 and 616×635 the mobile arm measures CORRECT (fixed panes
-48→579, tab bar 579→635, scrollH=vh). So the defect is pinned to <~500px width OR a
+that width (WM floor \~514); at 514×635 and 616×635 the mobile arm measures CORRECT (fixed panes
+48→579, tab bar 579→635, scrollH=vh). So the defect is pinned to <\~500px width OR a
 zoom/visual-viewport interaction (fixed+vh drift under zoom≠100% — owner asked to check).
 **~~REPRODUCED~~ CORRECTED (Lane H debunk, receipts accepted): the "navy pane" in
 reports/snaps/item22-418x634-navy-pane-repro.png was the ORCHESTRATOR'S OWN DevTools chrome
@@ -298,7 +307,7 @@ SIGHTING REMAINS OPEN-UNREPRODUCED (his morning re-look or side-eye owns it); AR
 48-64rem undressed overlay, owner screenshot) STANDS and Lane H is fixing it on the real
 mechanism (.shell-scrim exists, gated on layout.scrimVisible — H verifying why it doesn't
 paint in-band). NEW out-of-lane find (H): worldInfo's CONTEXT pane body is genuinely EMPTY at
-every width, no empty-state arm — [[empty-states-are-load-bearing]] class, world-info feature;
+every width, no empty-state arm — \[\[empty-states-are-load-bearing]] class, world-info feature;
 boarded as a small. Original (retracted) claim: Geometry LIES CLEAN (panes fixed
 48→578, scrollH=vh) while PAINT is broken: the context pane renders as an EMPTY NAVY column
 (wrong/unthemed background token — not the app's warm dark), its tab strip rotated into a
@@ -314,7 +323,7 @@ controls under an undressed overlay) is the OTHER band's arm of the same item.
 sheet clothing" — `--shadow-overlay` on overlay mode (the house drawer/dialog/toast recipe:
 scrim+shadow), floating context pane's docked-adjacency ember edge, content column goes `inert`
 behind the scrim (keyboard trap fixed too). Red-first CTs cited (box-shadow "none"/inert null on
-HEAD~).
+HEAD\~).
 ~~22-arm1 (owner's 418×634 sighting).~~ REFUTED WITH RECEIPTS `c2bb5b94` — "that receipt is a
 browser window with devtools docked below an emulated viewport — the vertical icon rail is
 devtools' own collapsed toolbar. A 418×634 dpr1 device-emulated sweep of all 8 sections × both
@@ -475,25 +484,26 @@ quality"; OFF stores as absence of `params.quality` (no fourth enum member), con
 the three-membered enum + the absence.
 
 ## P0 ROOT CAUSE — source-pinned + LIVE-MEASURED (real-mouse probe, owner + orchestrator, 08-02)
+
 `components/row-reveal.ts:24` — `ROW_REVEAL_SWAP = "group-hover/row:hidden …"` is a
 **display:none swap**, and the loop is **pure CSS layout/hit-test oscillation — NOT a React
-remount**. Live receipts (owner wiggled the name edge, in-page probe counted): **~1,727
-pointerover/out pairs (~85 boundary crossings/sec, frame-rate)** alternating SPAN.block(1569) ⇄
+remount**. Live receipts (owner wiggled the name edge, in-page probe counted): **\~1,727
+pointerover/out pairs (\~85 boundary crossings/sec, frame-rate)** alternating SPAN.block(1569) ⇄
 DIV.flex(1718) ⇄ BUTTON.group(158), with **ZERO childList mutations** in the pane for the whole
 storm. Mechanism: hover → badge `display:none` → title line reflows → span/flex boundary slides
 across the stationary pointer → hover recomputes → badge returns → boundary slides back, at
 refresh rate. The perf tracer's "(detached)" was log-time misattribution; "slow pointer" handlers
-are the symptom of 170 events/sec, not the cause. ROW_REVEAL (cluster half) is opacity-only and
+are the symptom of 170 events/sec, not the cause. ROW\_REVEAL (cluster half) is opacity-only and
 innocent. O-1 (persistent filled dot, reserved box) removes the swap entirely — one fix closes
-both P0 items. Sweep OTHER ROW_REVEAL_SWAP consumers (starred rows' title-line ★): a marker swap
+both P0 items. Sweep OTHER ROW\_REVEAL\_SWAP consumers (starred rows' title-line ★): a marker swap
 must reserve its box (visibility/opacity in a fixed slot), never `hidden`.
 REGRESSION PROOF (the probe, rerunnable): arm capture-phase pointerover/out counters + a
-childList MutationObserver on `[aria-label="Presets list"]`, real-mouse wiggle the name edge ~10s
+childList MutationObserver on `[aria-label="Presets list"]`, real-mouse wiggle the name edge \~10s
 → crossings must be single-digit; CTs cannot see this class (synthetic pointers don't re-hit-test
 on layout shift).
 
 ~~P0 root cause.~~ ✅ `5978fddf` — the swap is gone from the row (see item-1 strike); the
-"sweep other consumers" directive is fulfilled in the same commit: "ROW_REVEAL_SWAP survives for
+"sweep other consumers" directive is fulfilled in the same commit: "ROW\_REVEAL\_SWAP survives for
 its one remaining consumer (the chats row's ★) migrated to the reserved-box pattern:
 `invisible` on the hover axis... `hidden` kept only on `pointer-coarse`". Real-mouse regression
 proof itself is NOT re-run in this pass (doctrine bars browser tooling here); the doc's own
@@ -506,7 +516,7 @@ Rack row grammar (name=select, chevron=drill, grip, CHAT HISTORY splice band wit
 kickers) · carrier drill honesty (read-only body + Manage-in-World-info door + {{entry}} wrapper,
 no inject/trigger — `628a3666` holds) · section drill BODY/DELIVERY/PLACEMENT/TRIGGERS anatomy ·
 Actions census groups + Delivers-via note · readout CONTENT structure all five views (budget bars
-with struck-off rows + carrier ~— note, PIVOT row, assembled-preview door, no-selection arm as
+with struck-off rows + carrier \~— note, PIVOT row, assembled-preview door, no-selection arm as
 first-class ACTIVE PRESET readout, honest Data/Transforms empties, capability gloss) · ARIA grammar
 throughout (rack rows expose Reorder/name/enabled/Edit per row; kebab menus; alertdialog confirm).
 

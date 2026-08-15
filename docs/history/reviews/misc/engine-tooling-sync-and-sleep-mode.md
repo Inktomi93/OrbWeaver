@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # Engine/stack tooling sync audit + vLLM sleep-mode design
 
 > Phase-1 READ-ONLY deliverable (2026-07-27). No source/package edits made — this file is the only write.
@@ -153,7 +159,7 @@ replacing the `VLLM_DISABLED`/`STACK_ENGINES` combo folklore:
   every adopter's shared `client.ts` gate; `engines:status` is the single pane over all of it.
 
 **Supervision hygiene (owner addendum 2026-07-27 — "make this as clean as possible").** Each
-engine is a process FAMILY (APIServer → EngineCore → Worker_TP0/TP1 + multiproc resource
+engine is a process FAMILY (APIServer → EngineCore → Worker\_TP0/TP1 + multiproc resource
 trackers); an unclean death orphans VRAM-holding EngineCores/Workers with no live APIServer — the
 recurring zoo. The verb dispatcher owns the whole lifecycle:
 
@@ -208,7 +214,7 @@ and an `active.json` marker. Five questions settled by reads:
    job is dodging the live dev pair (8788/5173). Reword in the doc-fix step ("dodges the live dev
    pair; the vLLM engine ports 8701-8703 sit outside the band anyway") so "loopback" stops
    pointing at the deleted skin. Bonus fact the retirement fixes: the workboard KEY-FACT
-   ("E2E drives the engine even with VLLM_DISABLED=true via the loopback") is now HISTORY — with
+   ("E2E drives the engine even with VLLM\_DISABLED=true via the loopback") is now HISTORY — with
    the skin gone, `VLLM_DISABLED=true` stacks genuinely never touch the engines, which firms up
    B.7-trap-2's "e2e is moot" claim.
 3. **Pidfile scoping: per-TREE singleton — no cross-stack collision, one surprise.**
@@ -235,7 +241,7 @@ and an `active.json` marker. Five questions settled by reads:
    server's), which is the design's single-manager assumption made true by construction.
 5. **Teardown honesty: self-healing except ONE marker-loss window.** Reboot/crash: stale pidfiles
    self-heal (`group_alive` check), a same-sha unhealthy stage reboots in place (worktree +
-   node_modules + db reused, idempotent), sha-change tears down the predecessor, `worktree prune`
+   node\_modules + db reused, idempotent), sha-change tears down the predecessor, `worktree prune`
    runs on remove, a killed-mid-write marker reads as "no stage" → clean rebuild. The gap: a LOST
    marker with a still-running stage stack = an ownerless :8888/:5273 pair — the next boot gets
    stack.sh's honest port-conflict refusal (no clobber), but `--stage-down` can't find it (the
@@ -298,25 +304,25 @@ process state.
 | `/health` while asleep | **200.** `instrumentator/health.py` → `check_health()` raises only `EngineDeadError`; sleeping ≠ errored. Today's supervisor would classify a sleeping engine `healthy`→`adopted` (won't respawn it — safe — but the status would LIE and requests would hang). |
 | `is_sleeping` semantics | `scheduler paused OR executor sleeping` (`core.py:758`). Fresh under partial (tag-scoped) wake — stays true until fully woken; v1 avoids tag-partial wakes entirely, so no freshness trap. |
 | Cost when NOT sleeping | `enable_sleep_mode` force-enables the **cumem allocator** (`config/model.py:537`) — CUDA-VMM-backed alloc for weights/KV. **No pinned-CPU allocation at startup**: the pinned backup tensor is `torch.empty(..., pin_memory=…)`'d **inside `sleep()`** (`device_allocator/cumem.py:208`) and freed on the pointer's release. Steady-state inference cost ≈ nil (allocation-path overhead only); worth one post-GO A/B sanity throughput glance, not a blocker. |
-| Wake | `wake_up(tags)` remaps + copies pinned backup back; `"scheduling"` is a special tag (resume-only). Full wake = copy ~weights-size host→device over PCIe (pinned) + scheduler resume → seconds, no model reload, no process churn. |
+| Wake | `wake_up(tags)` remaps + copies pinned backup back; `"scheduling"` is a special tag (resume-only). Full wake = copy \~weights-size host→device over PCIe (pinned) + scheduler resume → seconds, no model reload, no process churn. |
 | Live engines now | :8701/:8702/:8703 → `/health` 200, `/is_sleeping` **404** on all three (flag absent from their argv, endpoints unregistered) — confirmed harmlessly, nothing slept. |
 
 ### B.2 RAM feasibility (this box, measured)
 
 - Level-1 backup ≈ GPU **weight** bytes (KV is discarded, not backed up):
   gen Qwen3-VL-8B bf16 ≈ **17 GiB** (TP=2 → two per-rank pinned buffers, same total) ·
-  embed 2B ≈ **4 GiB** · rerank 2B ≈ **4 GiB** → **~25 GiB pinned host RAM** while all three sleep.
-- Box: **125 Gi total, 72 Gi available** right now (with everything running). ~25 GiB pinned
-  (non-swappable — note swap is 1.9 Gi and already full, irrelevant to pinned) leaves ~47 Gi
+  embed 2B ≈ **4 GiB** · rerank 2B ≈ **4 GiB** → **\~25 GiB pinned host RAM** while all three sleep.
+- Box: **125 Gi total, 72 Gi available** right now (with everything running). \~25 GiB pinned
+  (non-swappable — note swap is 1.9 Gi and already full, irrelevant to pinned) leaves \~47 Gi
   headroom. **Comfortable, >2× margin. GO.**
-- VRAM recovered: engines currently hold ~34.8 + 35.1 GiB of 2×48 GiB. Level-1 sleep frees the
+- VRAM recovered: engines currently hold \~34.8 + 35.1 GiB of 2×48 GiB. Level-1 sleep frees the
   weights+KV allocations on both cards — ComfyUI-class tenants get effectively whole GPUs without
   touching the 0.55 gen-util provisioning (`foundation/env/index.ts:37-42`'s "drop back toward
   0.28 if a ComfyUI-class tenant returns" note is SUPERSEDED by sleep — annotate it post-GO).
 
 ### B.3 Per-engine decision: sleep ALL THREE
 
-Gen is the prize (~0.55×2 cards). But the 2B poolers still pin ~7 GiB (embed, GPU0) + ~8 GiB
+Gen is the prize (\~0.55×2 cards). But the 2B poolers still pin \~7 GiB (embed, GPU0) + \~8 GiB
 (rerank, GPU1) of util-fraction; their wake is <1 s (4 GiB pinned copy) and their traffic is
 machine-generated (indexer/search) so auto-wake needs no human patience. One policy for the trio is
 also the simpler supervisor state machine. Thrash guard: the idle timer only arms when ALL requests
@@ -331,14 +337,14 @@ are quiet per engine (B.5); an indexing burst keeps embed awake on its own merit
   the cache env, so BOTH owners inherit it (loopback bind already enforced by argv).
 - Tests: `tests/server/infra/providers/vllm/engine/build-argv.test.ts` + `spawn-engine.test.ts`
   snapshots; env-floor wiring test. **No live launch to verify the diff** (standing law
-  [[never-run-engine-launcher-live]]); live sleep/wake characterization happens post-GO on a
+  \[\[never-run-engine-launcher-live]]); live sleep/wake characterization happens post-GO on a
   RELAUNCHED set (B.8).
 
 ### B.5 Auto-sleep (owner extension — the centerpiece)
 
 **Idle seam: engine-side `/metrics`, not app-side timestamps.** Verified live on :8703 — vLLM
 exposes `vllm:num_requests_running`, `vllm:num_requests_waiting`, `vllm:request_success_total`
-(per-finish-reason counters). Idle(engine) := running == 0 AND waiting == 0 AND Σ success_total
+(per-finish-reason counters). Idle(engine) := running == 0 AND waiting == 0 AND Σ success\_total
 unchanged since the last tick. This is client-agnostic (catches probes, E2E stacks, hand curls —
 anything that can reach the loopback port), needs zero app coupling, and survives server restarts
 (the counters live in the engine). App-side last-dispatch timestamps see only OUR dispatches and
@@ -354,7 +360,7 @@ killed; (c) sleep is a loopback POST, so the manager can sleep engines it merely
 (d) engines.ts stays a dumb leader body with no poll loop — its virtue. The posture scoping is
 what keeps the fleet model honest: N adopter stacks never mean N sleep managers (a snap stage or
 e2e run can't sleep the fleet under the dev server), and the residual manager-vs-manager race (two
-`adopt-or-start` orbs on one box) is tolerated by an is_sleeping-guarded, catch-and-ignore sleep
+`adopt-or-start` orbs on one box) is tolerated by an is\_sleeping-guarded, catch-and-ignore sleep
 call — duplicate sleeps are idempotent in effect. The engines-up-with-NO-manager case (fleet
 started by the verb, no server running) has no requests and no timer — that is the *manual*
 verbs' case (`pnpm engines:sleep`), and a v2 `--auto-sleep` on the detached owner stays open if it
@@ -365,7 +371,7 @@ ever matters.
 wrong toward shorter), but in-chat thinking pauses routinely hit 5 min — 10 min keeps a live
 session warm while reclaiming the GPU within one coffee break of walking away. 15 min buys little.
 Knob-wire discipline: new env member + floor projection + supervisor opts + knob-gate registration
-= one coupled set, landed together.
+\= one coupled set, landed together.
 
 **Sleep call:** `POST /sleep?level=1` (mode default `abort` is fine — the idle gate guarantees no
 in-flight requests; level 2 stays a manual/model-swap tool, not auto policy).
@@ -389,7 +395,7 @@ original allocation set (weights handles get their pinned backup copied back; KV
 remapped as empty memory — `cumem.py wake_up()` walks ALL of `pointer_to_data`), so the need is the
 engine's original footprint, derivable from our own config with zero new knowledge:
 **need(engine, gpu) ≈ its `gpu-memory-utilization` fraction × card total** (embed 0.14 × GPU0 ·
-rerank 0.16 × GPU1 (multi) · gen 0.55 × BOTH cards) + a fixed ~1 GiB safety pad. The gate runs
+rerank 0.16 × GPU1 (multi) · gen 0.55 × BOTH cards) + a fixed \~1 GiB safety pad. The gate runs
 before EVERY wake attempt — auto-wake-on-request AND manual `engines:wake`: query per-GPU free
 memory + the compute-app process list (`nvidia-smi --query-gpu=index,memory.free` +
 `--query-compute-apps=pid,process_name,used_memory` — plain NVML facts), compare per touched GPU;
@@ -399,7 +405,7 @@ on insufficient → **REFUSE LOUDLY, the engine STAYS ASLEEP**, and the message 
 wake refused: gen needs ~26.9GiB on GPU0, 9.2GiB free — held by python3 (pid 3356292, 38.0GiB)
 ```
 
-**Generic by design — ZERO tenant-specific logic.** This is the [[plan-for-small-hardware]]
+**Generic by design — ZERO tenant-specific logic.** This is the \[\[plan-for-small-hardware]]
 visible-refusal doctrine applied to GPU contention, not a this-box special: any deployment sharing
 GPUs gets the same honest behavior, and process-naming makes ANY tenant self-identifying (a
 ComfyUI, someone else's training job). No ComfyUI sniffing, no tenant allowlists — the generic
@@ -445,8 +451,8 @@ precedent) but is deferred — the wake is seconds and the log + honest latency 
 2. **Alt/E2E stack adopting sleeping engines**: the e2e stack runs `VLLM_DISABLED=true` — never
    talks to engines; moot. A second dev server adopting them wakes them via its own first-request
    gate — same path, no special case.
-3. **rpg flush barrier (15 s)**: worst case now contains a wake (~1–3 s) + the state round
-   (measured ~4.5 s turn) ≈ 6–8 s — fits with margin, but the barrier absorbs the wake, so a
+3. **rpg flush barrier (15 s)**: worst case now contains a wake (\~1–3 s) + the state round
+   (measured \~4.5 s turn) ≈ 6–8 s — fits with margin, but the barrier absorbs the wake, so a
    cold-engine rpg turn eats most of its slack. Noted; no change needed.
 4. **Manual-vs-auto contention — SUPERSEDED by the VRAM pre-check (owner ruling, B.6)**: once a
    tenant OCCUPIES the VRAM, every wake refuses on physics alone — no policy needed, no "who wins."
@@ -473,7 +479,7 @@ precedent) but is deferred — the wake is seconds and the log + honest latency 
 | 3 | **The fleet front door (A.4)**: `engines:start` = THE spawner (reconcile → VRAM pre-check → setsid-detached + pidfile); `engines:stop/status/sleep/wake`; `pnpm engines` = adopt-or-start + log-follow (Ctrl-C detaches). `start`/`stop` pgid choreography in bash; `status/sleep/wake`/reconcile in `scripts/dev/engines-ctl.ts` importing the server module (budget math ONE-homed) + hold marker. **Supervision hygiene**: reconcile-before-spawn (stale pidfile + precise orphan-family sweep via the extracted+widened `reapOrphanedEngineCores` marker — never substring-grep; cwd EQUALITY never prefix), verified family-kill stop with report, family-tree status, pid-reuse-safe pidfiles (pgid + start-time) | `scripts/dev/engines.sh` · new `scripts/dev/engines-ctl.ts` · extract shared reaper from `supervisor.ts` · root `package.json` | `engines:status` RESULT-line self-check; reaper identification unit tests (family-match + false-positive class + stage-tree exclusion); no live launch in the diff |
 | 4 | **Posture vocabulary + ownership inversion**: `ENGINES_POSTURE ∈ off\|adopt-only\|adopt-or-start` knob + back-compat mapping with visible deprecation logs (`VLLM_DISABLED=true`→off · unset/false→adopt-or-start · `STACK_ENGINES=yes`→adopt-only+grace); supervisor refactor — DELETE `spawnOwned`'s in-process child + pipe watchdog, `spawn` action invokes the detached verb (breaker retained); dev.sh switches to `engines:start`; snap stage pins `adopt-only` (A.5-1); e2e stackEnv flips `VLLM_DISABLED=true` → `ENGINES_POSTURE=adopt-only` | `foundation/env/index.ts` · `supervisor.ts` · `scripts/dev/dev.sh` · `scripts/probes/_kit/snap-stage.ts` · `playwright.config.ts` + `stack.sh` pins | posture-mapping unit tests · `decideTick` posture cases · adopt-only fail-fast case ("engines down — pnpm engines:start") |
 | 5 | Status vocab: `sleeping` / `sleeping-held` + the ONE adoption probe everywhere (/health + `is_sleeping` arm) + hold-marker read; cold-start headroom gate in the spawner path (refusal detail, no breaker charge) | `engine-status.ts` · `supervisor.ts` · `scripts/dev/engines.ts` (+ exhaustive consumers) | `decideTick` unit cases · status tests · spawn-gate refusal case |
-| 6 | Auto-sleep (MANAGER posture only): metrics idle probe + `VLLM_AUTO_SLEEP_IDLE_MS` knob (default 600 000) + `/sleep?level=1` on idle, is_sleeping-guarded | `supervisor.ts` · env + knob-gate wiring arm | injected-clock unit tests (idle arm/disarm/thrash guard · adopt-only never sleeps) |
+| 6 | Auto-sleep (MANAGER posture only): metrics idle probe + `VLLM_AUTO_SLEEP_IDLE_MS` knob (default 600 000) + `/sleep?level=1` on idle, is\_sleeping-guarded | `supervisor.ts` · env + knob-gate wiring arm | injected-clock unit tests (idle arm/disarm/thrash guard · adopt-only never sleeps) |
 | 7 | Auto-wake gate (EVERY adopter, via the shared seam): headroom pre-check (refusal → holder-naming non-retryable ProviderError) + single-flight wake + bounded readiness + honest errors + waking/woke logs | `client.ts` (or a thin gate module beside it) + `wake-budget.ts` | unit tests: gate paths (sleeping→wake→send · held→refuse · no-headroom→named refusal · timeout→ProviderError) |
 | 8 | Docs + small parity: workboard STANDING-FACTS DB-claim fix (A.3-1) + supersede the 0.28-fallback env comment (B.2) + snap-stage :55 "loopback" reword (A.5-2) + `snap --stage-status` / marker-less `--stage-down` fallback (A.5-5) + delete the reader-less `RUNNER_OVERRIDE` comments or land its reader (A.6, owner call) | `docs/retro-workboard.md` · `foundation/env/index.ts` · `scripts/probes/_kit/snap-stage.ts` · `scripts/probes/snap.ts` · `playwright.config.ts` · `stack.sh` | check:docs · snap-stage unit tests |
 | 9 | POST-GO live characterization, relaunched fleet: sleep → `nvidia-smi` delta → wake `durMs` → request round-trip; queued-request-during-sleep confirm; wake-refusal drill (synthetic VRAM holder or ComfyUI itself) proving the named refusal on both surfaces; adopt-only stack against the fleet (snap + e2e); supervisor-tick observation | (no diff — observability harness run) | logged in the landing report |

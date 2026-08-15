@@ -1,37 +1,43 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # side-eye: the rebuilt Waystone — first pass (2026-08-01, overnight)
 
 > Fix-all batch target. Verdict: DO NOT SHIP as focal element yet — architecture sound (motion floor
 > certified: 0/934 dropped frames, compositor-clean, reduced-motion + hidden-pause verified, a11y
 > model correct), the RENDERED VALUES wrong. Owner rulings folded in at the end.
 
-## Findings (fix ALL — [[side-eye-fix-all-findings]])
+## Findings (fix ALL — \[\[side-eye-fix-all-findings]])
 
 - **F1 P1 — Light theme inverts day/night.** Sky recipe mixes every stop toward `--color-background`
-  → on Light, midnight (oklab L .932) renders LIGHTER than noon (.822); STAR_FILL flips to dark dirt.
+  → on Light, midnight (oklab L .932) renders LIGHTER than noon (.822); STAR\_FILL flips to dark dirt.
   FIX: polarity-fixed night anchor (dedicated dark token or mix toward black for the night half);
   stars derive from the anchor's contrast partner, never `--color-foreground`.
-- **F2 P1 — Noon hand sweeps ~360° BACKWARDS** (`% 360` wrap + numeric CSS interpolation over 1.4s;
+- **F2 P1 — Noon hand sweeps \~360° BACKWARDS** (`% 360` wrap + numeric CSS interpolation over 1.4s;
   measured 308→262→204→…→74deg). FIX: monotonic accumulated angle or prev+shortestDelta.
 - **F3 P1 — Sun/moon slides backwards across the sky at 05/19h** (arc u restarts; same DOM node
   transitions 73.95px→22px). FIX: key the <g> on body (remount + enter-fade) or run night arc RTL.
 - **F4 P1 — Gable:** flat base floats 0.92–2.36 units above the sloping ridge, 4.75px, no ember,
   1.3:1 vs hill. FIX: seat base ON the ridge (or union into horizon d) + 1–1.5u `--color-primary`
   window + scale up (owner leans anchor-not-kill; ember window at night done RIGHT).
-- **F5 P1 — CLOUD_DARK/LIGHT swapped** (dark = L .804, light = .500; storm clouds brightest thing in
+- **F5 P1 — CLOUD\_DARK/LIGHT swapped** (dark = L .804, light = .500; storm clouds brightest thing in
   the sky). FIX: swap + derive both from resolved sky lightness at the hour.
 - **F6 P1 — Rain = cyan chart token on a perfect lattice** (oklch .767/.08/199°; zero x-jitter,
   identical length/slant/width). FIX: atmospheric recipe anchored to the hour's sky + per-column
   jitter + per-cell length/opacity variance.
 - **F7 P1 — Authored 320px, shipped 76px** — stars 1.4px, gable 4.75px, ticks 1.9px: sub-pixel mush;
   "the dimmest orb in a row of orbs — hierarchy inverted." → SUPERSEDED BY OWNER RULING (below): the
-  stone GROWS (~120px) + the context panel widens on desktop; still add size-gating so any smaller
+  stone GROWS (\~120px) + the context panel widens on desktop; still add size-gating so any smaller
   render drops sub-pixel layers gracefully.
 - **F8 P1 — Fog = four rounded bars = skeleton loader.** FIX: wash veil + 1-2 wide low-opacity
   drifting ellipses; delete the bars.
 - **F9 P1 — Stars at 0.96 opacity through rainstorms** (starOpacity ignores weather). FIX: attenuate
   by cloudCount×cloudOpacity; storm ≈ 0.
 - **F10 P2 — Ash = bright peach confetti** (L .849, brighter than the moon). FIX: dark grey motes
-  L≈.35–.45 low-opacity, ~1-in-8 ember-tinted.
+  L≈.35–.45 low-opacity, \~1-in-8 ember-tinted.
 - **F11 P2 — Lightning bolt permanently drawn**, desynced from the 6.6s flash (one-shot enter anim →
   opacity 1 forever; highest-chroma object, dead center). FIX: bolt joins the strike keyframe cycle.
 - **F12 P2 — Precipitation bleeds through the horizon** (hill opacity .85 over .8 particles). FIX:
@@ -58,7 +64,7 @@
 
 ## Owner rulings (2026-08-01, live)
 
-1. **GROW the stone to ~120px** and **widen the whole context panel on desktop** ("a bit cramped") —
+1. **GROW the stone to \~120px** and **widen the whole context panel on desktop** ("a bit cramped") —
    the hierarchy-inversion cure; size-gating stays as the responsive floor.
 2. Gable: anchor + ember it properly (kill only if it still fails after).
 3. Dial geometry confirmed correct by owner readings; teach it (F14 glyphs).

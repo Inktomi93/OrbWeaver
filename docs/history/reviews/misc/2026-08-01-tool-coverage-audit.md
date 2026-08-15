@@ -1,14 +1,20 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # Tool-coverage audit — the 7 rpg tools vs stored state (2026-08-01)
 
 **Audited commit:** `22cf37ea` (main, post-Tracker-stage-1). **Method:** code-recon skill (ast-grep
 outline + full-file reads + `grep -a` two-method confirmation on every negative claim).
-**Snapshot posture:** [[audit-lists-are-snapshots]] — re-sweep before acting on any row.
+**Snapshot posture:** \[\[audit-lists-are-snapshots]] — re-sweep before acting on any row.
 
 ## The tool set (derived)
 
 `RPG_LITE_TOOL_NAMES` (`packages/contracts/src/rpg/tools.ts:17-32`): `update_party ·
 update_inventory · update_scene · set_tracker · upsert_quest · add_journal_entry · roll_dice`
-(roll_dice zero-state, excluded). All three delivery paths (reliable structured `runExtraction`,
+(roll\_dice zero-state, excluded). All three delivery paths (reliable structured `runExtraction`,
 cheap `runToolRound`, R1 folded terminal-tools) converge on the same
 `toolCallsToExtraction`/`extractionToStateDelta` fold (`entry/compose/rpg.ts:539,721,793,885`;
 `tools/apply.ts:511`).

@@ -1,6 +1,6 @@
 ---
 kind: spec
-status: closed (BUILT — see D119)
+status: complete
 updated: 2026-08-01
 ---
 
@@ -47,12 +47,12 @@ grew count-6/7 thresholds that can never fire in the shell (`shell.css:426-439`)
 
 **What the rent costs, in rendered defects** (F6, all four measured on a real game chat):
 
-1. one selection spread across two strips ~870px apart with no echo — the game strip reads as a dead icon
+1. one selection spread across two strips \~870px apart with no echo — the game strip reads as a dead icon
    toolbar;
 2. the game strip is icon-only at the panel's ONE real width, permanently — the "compressed form" is the
    only form;
 3. the meta strip reads as an action bar, not as more tabs of the same panel;
-4. a ~400px dead zone under a short scene body, while the band burns ~140px on a dial and one line of
+4. a \~400px dead zone under a short scene body, while the band burns \~140px on a dial and one line of
    "No ambient set".
 
 Each of those is a symptom of the same cause: **nobody owns the vertical composition.** The band is the
@@ -344,10 +344,10 @@ replacement for §4.2's opening and §4.11 items 1–5:
 
 | # | defect (as rendered) | structural fix | why it was impossible before |
 | - | - | - | - |
-| 1 | selection invisible across a ~870px gap; game strip reads as a dead toolbar | ONE component owns both strips: the non-owning strip recedes (muted glyphs, no resting fill) and the band's kicker line names the active tab ("GAME · STATUS" / "CHAT · THIS CHAT") | neither strip's renderer knew about the other's ownership state; the band belonged to a third party |
+| 1 | selection invisible across a \~870px gap; game strip reads as a dead toolbar | ONE component owns both strips: the non-owning strip recedes (muted glyphs, no resting fill) and the band's kicker line names the active tab ("GAME · STATUS" / "CHAT · THIS CHAT") | neither strip's renderer knew about the other's ownership state; the band belonged to a third party |
 | 2 | icon-only at every real width — six ambiguous glyphs | the HUD strip drops the container-query reveal entirely: every cell is glyph + always-visible caption (kicker voice), sized by `auto-cols-fr` across the panel width | the shared `.ctx-tab-strip` thresholds are global to every section; the game strip could not opt out without forking the CSS |
 | 3 | the meta strip reads as buttons, not tabs | the admin rail gets tab grammar: a "CHAT" kicker, the shared active treatment, label-voice captions, crown-gold host cells (§4) | the strip's skin is one shell-wide rule; a per-strip voice is a per-owner decision |
-| 4 | ~400px dead zone under a short body while the band burns ~140px | the HUD's own vertical budget: the viewport flows to CONTENT height and shrinks only when it must (§7.1), and the band compresses when ambient is unset (§7.3) | `min-h-0 flex-1` (`context-tabs-panel.tsx:88`) is the generic panel's law for every section; the band's height is `shell.css`'s |
+| 4 | \~400px dead zone under a short body while the band burns \~140px | the HUD's own vertical budget: the viewport flows to CONTENT height and shrinks only when it must (§7.1), and the band compresses when ambient is unset (§7.3) | `min-h-0 flex-1` (`context-tabs-panel.tsx:88`) is the generic panel's law for every section; the band's height is `shell.css`'s |
 
 ---
 
@@ -373,7 +373,7 @@ the dead-zone fix and it preserves the strength the audit named:
 **AMENDED 2026-08-01 (H1 side-eye, P1-2 — decision 6, answered on the real screenshots).** The rail is
 PINNED to the pane's bottom edge (a stable Fitts target), and the residual span between the body and it is
 a GROUND element that absorbs exactly what is left. Bare background read as truncation, not as a floor, and
-a rail floating ~400px up the pane read as a bug. The ground carries a treatment, not content — the surface
+a rail floating \~400px up the pane read as a bug. The ground carries a treatment, not content — the surface
 tint gathering toward the foot, `aria-hidden`, nothing to read; the "do NOT invent filler content" rule
 stands. On a tall body the ground measures ZERO, so the rail does not move between the two states.
 
@@ -385,7 +385,7 @@ written, measured and CT-pinned against the AMBIENT-UNSET arm alone (the budget 
 which left the arm a scene-set game actually lands on — the DEFAULT — unguarded at **41.2%**. That arm
 cannot reach 30% without deleting the composite this spec's own §7.3 calls "the signature element … not the
 problem": at the reference the two rails cost 116.4px of the 270px ceiling, leaving 153.6px for a band whose
-floor is ~159px with ZERO satellites (18px padding + the 120px stone row + 8px + the 13px echo). The only
+floor is \~159px with ZERO satellites (18px padding + the 120px stone row + 8px + the 13px echo). The only
 lever left is stepping the waystone below the size F16 grew it to, which re-breaks the defect that ruling
 fixed. So the law is stated honestly instead of aspirationally:
 
@@ -409,7 +409,7 @@ its own pane. Each arm has its own computed-value CT (§10.8).
 - Cells fill the row as equal columns (`grid-flow-col auto-cols-fr`) — the bracket reads as a solid frame,
   the 2026-07-28 owner ruling that `shell.css:348-357` records, carried over verbatim.
 - Hit target ≥ 32px fine / ≥ 44px coarse (CP-4 §4.7, unchanged).
-- Arithmetic check at the 17rem floor: 7 cells × ~38px = ~266px — fits; at 480px each cell is ~68px, wide
+- Arithmetic check at the 17rem floor: 7 cells × \~38px = \~266px — fits; at 480px each cell is \~68px, wide
   enough for a 6-character kicker caption. If a caption cannot fit at the floor, the FLOOR wins and the
   caption truncates — the full name stays the cell's `aria-label`, never a nameless glyph. (AMENDED
   2026-08-01: the truncation understudy is `aria-label`, NOT `title` — the bullet above reserves `title`
@@ -447,7 +447,7 @@ A prose-only boundary is a wish (constitution §2.3). Each rule names its wall.
 | a contributor cannot supply the panel band | **tsc** — `ContextTabDef.header` is DELETED; `rpg-context-section.tsx:122` fails to compile until it moves into the HUD | compile-time |
 | the shell cannot render a bracket | **tsc + deletion** — `strip`/`ContextTabStrip` gone from the resolved shape (or retained per decision 5), the branch deleted | compile-time |
 | a region is minted only by the mint | `context-definition-shape` **arm 5**: an object literal carrying a `region:` function property, or a hand-rolled `ContextRegionDef` shape, outside `lib/registry-contracts.ts` is RED | lint-time (ts-morph) |
-| **only the HUD writes its region** | `context-definition-shape` **arm 6**: at most ONE `defineContextRegion(` call site project-wide (`ctx.scope.kind === "project"`, zero baseline). Count-based, NOT path-keyed — a path allowlist dies silently on rename ([[path-keyed-gates-die-on-rename]]) | lint-time |
+| **only the HUD writes its region** | `context-definition-shape` **arm 6**: at most ONE `defineContextRegion(` call site project-wide (`ctx.scope.kind === "project"`, zero baseline). Count-based, NOT path-keyed — a path allowlist dies silently on rename (\[\[path-keyed-gates-die-on-rename]]) | lint-time |
 | no feature paints shell chrome | `context-definition-shape` **arm 7**: the literals `shell-panel-header` / `ctx-tab-strip` under `packages/client/src/features/**` outside `features/app-shell/**` are RED | lint-time |
 | one region host | **arm 8**: `data-context-region` written anywhere but `features/app-shell/components/context-region-host.tsx` (the density A4 single-writer idiom, `density-pass-spec.md:218`) | lint-time |
 | rpg still imports zero of chat | `client-features-no-cross` (LIVE) — unchanged | dep-cruiser |
@@ -456,7 +456,7 @@ A prose-only boundary is a wish (constitution §2.3). Each rule names its wall.
 
 **Extend `context-definition-shape.ts`, do not mint a new gate.** It is already the §6b/§6c wall (four
 arms today), extending costs one file + fixtures, and a new gate costs four coupled sites
-([[new-gate-four-coupled-sites]]). The Enforcement-Active-Gates row for it gets its arm list updated; the
+(\[\[new-gate-four-coupled-sites]]). The Enforcement-Active-Gates row for it gets its arm list updated; the
 gate count is unchanged.
 
 **LIVE as of H1 (`bf50477d`), verified at H4.** All four arms are in `scripts/check/gates/context-definition-shape.ts`
@@ -469,7 +469,7 @@ gate count is unchanged (no new gate). H4 probe receipts: four planted violation
 `single-pass: clean` on removal.
 
 **Declared blind spot** (write it in the gate header): arms 5–8 read literal shapes. A claim assembled
-through a variable, a re-export, or a computed property is invisible ([[gate-probe-literal-shapes]]) —
+through a variable, a re-export, or a computed property is invisible (\[\[gate-probe-literal-shapes]]) —
 the CTs in §10 are the required second lens, not a nice-to-have.
 
 ---
@@ -480,7 +480,7 @@ the CTs in §10 are the required second lens, not a nice-to-have.
 | - | - | - | - |
 | **H0** LANDED `9923438e` | the seam, vacuous: `ContextRegionDef` + `defineContextRegion` + `ContextRegionView` + `ResolvedContextTabs.region` + `ContextRegionHost` + the extracted shared selection hook. `main.tsx` assembles an EMPTY-but-typed `regions` registry (the M8 precedent, lockdown §6c) | zero visual delta anywhere | unit (resolve) + CT with a FAKE claimant + the no-claimant regression CT |
 | **H1** LANDED `bf50477d` (+ side-eye `66cdf997`) | the HUD claims: rpg mints `rpgHudRegion` composing band + game strip + viewport + admin rail from the handed tabs. SAME commit: every §5.1 deletion, the band suppression, the §7.1 viewport rule | the takeover renders from its own composition; generic panel simplified | CT (region + no-region) · snap geometry probes · side-eye |
-| **H2** LANDED `bda7ae4b` | the voice pass: admin-rail tab grammar + kicker, host-only crown treatment, non-owning-strip recede, band selection echo (F6 defects 1 + 3) | polish-only, no seam change | snap `--contrast`/`--map` · side-eye (authority — every finding fixed before close, [[side-eye-fix-all-findings]]) |
+| **H2** LANDED `bda7ae4b` | the voice pass: admin-rail tab grammar + kicker, host-only crown treatment, non-owning-strip recede, band selection echo (F6 defects 1 + 3) | polish-only, no seam change | snap `--contrast`/`--map` · side-eye (authority — every finding fixed before close, \[\[side-eye-fix-all-findings]]) |
 | **H3** LANDED `bda7ae4b` | the band's compressed form (`Waystone compact`) + the vertical-budget CT (F6 defect 4's second half) | polish-only | computed-value CT (band ratio) · snap on an ambient-less game |
 | **H4** | close-out: the §8 gate arms LIVE with fixtures (arms 5–8 landed with H1, `bf50477d`; probe-proven at H4 — planted violation ⇒ RED at the exact site ⇒ removed ⇒ clean), the §5.2 amendments applied to CP-doc + lockdown + density-spec, workboard HUD-HOME closed, ledger D-entry (orchestrator) | — | `check-gates.int` + `gate-conformance.int` green · `pnpm check` on a quiesced tree (orchestrator) |
 
@@ -501,12 +501,12 @@ thin conformance sweep + side-eye** rather than a restyle. Rationale: HUD-1 rewr
 would touch, and S1's `Text.voice`/`Section.kicker`/`Surface` are precisely the primitives §4 and §7 ask
 the HUD to speak. The alternative (HUD-1 first on today's primitives, S3 sweeps after) also works and is
 recorded as owner decision 8; what is NOT acceptable is running S3's context row and H1 concurrently on
-the same files ([[concurrent-main-lanes-gate-thrash]]).
+the same files (\[\[concurrent-main-lanes-gate-thrash]]).
 
 ### 9.2 Verification recipes (snap, per stage)
 
-The panel needs a model-populated game, not seeded data ([[seeded-data-never-verification]]). Base recipe
-([[snap-rpg-panel-recipe]]):
+The panel needs a model-populated game, not seeded data (\[\[seeded-data-never-verification]]). Base recipe
+(\[\[snap-rpg-panel-recipe]]):
 
 ```bash
 pnpm snap --dirty --wide --open-chat "<a real game chat>" \
@@ -539,7 +539,7 @@ before the stage closes.
 **CT (`tests/client/features/app-shell/components/`):**
 
 6. `context-region-host.ct.tsx` — a FAKE claimant renders; it receives the resolved tabs; clicking a
-   rendered cell calls `selectTab` and the STORE changes ([[assert-the-mutation-fired]] — assert the seam
+   rendered cell calls `selectTab` and the STORE changes (\[\[assert-the-mutation-fired]] — assert the seam
    fired, not a UI reaction); `activeTab` reflects a stored value, then the `defaultTab` flag, then first.
 7. `context-tabs-panel.ct.tsx` (existing) — with no claimant, ONE strip, no bracket, `aria-label="Detail"`
    (the pre-HUD contract, now permanent for generic sections).
@@ -560,7 +560,7 @@ before the stage closes.
 **Gate fixtures:** `mustFlag` for each new arm (a second `defineContextRegion` call site; a hand-rolled
 region literal; a feature file carrying `shell-panel-header`; a second `data-context-region` writer) and
 `mustPass` for the legal one, with `at:` paths at both a shallow and a deep path
-([[gate-scanroot-vs-getfilepath-path-format]]).
+(\[\[gate-scanroot-vs-getfilepath-path-format]]).
 
 **Not run in-lane:** whole-tree `pnpm check` / the full battery — orchestrator's, on a quiesced tree.
 
@@ -627,7 +627,7 @@ region literal; a feature file carrying `shell-panel-header`; a second `data-con
 7. **Ambient-less band: compressed stone, or no stone?** (§7.3)
    **Recommendation: compressed stone.** The unset stone teaches (it is the promise of what fills in), and
    `Waystone compact` keeps ONE sizing home. *Alternative: drop the stone entirely when unset — cheaper,
-   but the band then looks unbuilt ([[empty-states-are-load-bearing]]).*
+   but the band then looks unbuilt (\[\[empty-states-are-load-bearing]]).*
 
 8. **Sequencing vs the density pass** (§9.1): density S0–S2 → HUD-1 → S3-as-conformance
    (**recommended**), or HUD-1 first on today's primitives with S3 sweeping after.

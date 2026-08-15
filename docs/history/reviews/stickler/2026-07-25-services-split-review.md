@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Stickler review — compose/services.ts split (uncommitted, 2026-07-25)
 
 Diff under review: `packages/server/src/entry/compose/` — `services.ts` (1,632 → 527 lines) + 9 new
@@ -143,7 +149,7 @@ consts, or F2/F3). Scripts: `reports/stickler/scratch/absence-sweep.mjs`, `rever
    `rpgTrace` passthrough, unused in HEAD too).
 7. **minter.ts + the five promoted consts** — `minter` body byte-identical (+ `export`).
    `AUTOBG_TEMPERATURE` 0.2 ✓, `AUTOBG_MAX_TOKENS` 32 ✓, `AUTOBG_SYSTEM` string byte-identical ✓,
-   `PLUGIN_MESSAGE_CONTENT_CAP` 16_384 ✓, `PLUGIN_TRANSFORM_ORDER_BASE` 1000 ✓.
+   `PLUGIN_MESSAGE_CONTENT_CAP` 16\_384 ✓, `PLUGIN_TRANSFORM_ORDER_BASE` 1000 ✓.
 8. **The randomUUID/globalThis substitution class (the lane's admitted-and-reverted drift)** — per
    -file counts match HEAD exactly: `randomUUID` 2 uses (settings `newBackgroundEntryId`, pluginHost
    `mintId`), `Math.random` 4 uses (transforms/automation/runArm prng + pluginHost nextRandom), zero

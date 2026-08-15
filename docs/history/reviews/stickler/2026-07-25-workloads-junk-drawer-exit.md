@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Workloads / runner system — the junk-drawer exit investigation
 
 > Fable-tier architecture investigation, 2026-07-25. Read-only; this report is the only write.
@@ -17,7 +23,7 @@
 Pain-point doc entries this report answers (docs/architecture/Agent-And-Composition-Pain-Points.md):
 
 - **§7 "workloads is a god-domain"** (lines 167–174) — runners owned by other domains, the
-  `runner-env.ts` cross-feature hub, jobs organized by mechanism not ownership, a new job touching ~6
+  `runner-env.ts` cross-feature hub, jobs organized by mechanism not ownership, a new job touching \~6
   sites. Answered in §1 (census), §3 (target), §5 (migration). Current-tree numbers re-measured below.
 - **§7 "Import and export of the same entities live in different places"** (lines 178–183) — answered
   in §4 (portability/serde impact).
@@ -36,7 +42,7 @@ them a stub (`reconcile-world-state`, `stub:true` at :93). Modes policy map (`WO
 :71-96) is tsc-exhaustive. Statuses, sources, cadences, active-status tuple all live here (D34 — db
 derives its CHECKs from these tuples, `packages/db/src/schema/workloads.ts:56-71`).
 
-**The domain** — `packages/server/src/domain/workloads/` (58 files, ~2,340 lines):
+**The domain** — `packages/server/src/domain/workloads/` (58 files, \~2,340 lines):
 
 - `contract/runner-env.ts` — self-described *"the one true cross-feature composition seam"* (:1-4).
   **9 per-feature env sub-interfaces** (`WorkloadEmbeddingsEnv`, `Databank`, `Discovery`, `Import`,
@@ -79,7 +85,7 @@ Records (`WORKLOAD_KIND_LABELS` workloads-model.ts:31-50, `WORKLOAD_PARAM_SHAPE_
 Cross-feature consumers ride the tRPC procedure directly per the standing rule (hook imports across
 features are gate-banned).
 
-**Coupled sites for a new kind, re-measured** (the "~6–7 sites" repo fact, verified — it is worse than
+**Coupled sites for a new kind, re-measured** (the "\~6–7 sites" repo fact, verified — it is worse than
 7 when counted honestly): ① `WORKLOAD_KINDS` tuple + ② `WORKLOAD_KIND_MODES` row (contracts) ·
 ③ `PARAMS_SCHEMAS` + the `startWorkloadInput` union arm (same file, two edits) · ④ `ResultByKind` +
 result shape · ⑤ a `Workload<X>Env` op on `runner-env.ts` · ⑥ the runner file · ⑦ the `RUNNERS` map
@@ -97,7 +103,7 @@ packages/server/src/domain/workloads/runners/` → **32 runners** — the 17 sur
 -scene-plan/-session-distill/-world-gen`). The purged class was the queue's heaviest producer family:
 crew enqueued on a turn-completed cadence (`legacy-main:domain/crew/verbs/on-turn-completed.ts:41`),
 expressions enqueued sprite-sheet generation (`legacy-main:domain/expressions/verbs/
-generate-sprite-sheet.ts`), rpg fire-and-forgot ~10 kinds (`legacy-main:domain/rpg/contract/
+generate-sprite-sheet.ts`), rpg fire-and-forgot \~10 kinds (`legacy-main:domain/rpg/contract/
 service.ts:414-418`). **These domains are slated for rebuild** (rebuild-era rulings), so the target
 design must serve exactly this producer class again — a domain verb that enqueues an async
 generation/agent job and returns a workloadId the client tails.
@@ -124,7 +130,7 @@ that used the queue as a generic async executor for turn logic). What remains is
 work wearing the wrong ownership.
 
 | # | kind | owning domain (logic) | producers (enqueue receipts) | duration / nature | queue features ACTUALLY used | result read by | pre-rollback client consumer | verdict |
-|---|---|---|---|---|---|---|---|---|
+| - | - | - | - | - | - | - | - | - |
 | 1 | `index` | embeddings | run dialog; embed-model-change trigger (services.ts:833-836, bulk force); schedules | minutes+ (GPU embed sweep over corpus+assets); resumable-by-skip (`force=false`) | single-active per (kind,source,owner); cancel; progress; history | row preview only | yes (same pane, survives) | **(i)** |
 | 2 | `distill-characters` | discovery | run dialog; schedules | long (LLM per character) | single-active; cancel; history | row preview | yes | **(i)** |
 | 3 | `compute-themes` | discovery | run dialog; schedules | seconds–tens of seconds (k-means over digests); `k` knob via `ctx.loadUserSettings` (runners/compute-themes.ts:12) | single-active; history | row preview | yes | **(i-lite)** |
@@ -349,7 +355,7 @@ const contributions: WorkloadContributions = keyByKind([
 contracts · ② one contribution in the owning domain (schema + run body + lane/resume — ONE file in the
 owner's tree) · ③ one spread already covered by the owner's factory, or one new factory line at
 compose · ④ the client label/param-shape rows (tsc-forced by the existing exhaustive Records) ·
-⑤ tests in the owner's mirror. **~4 sites, three of them tsc-forced, and the job's brain lives with
+⑤ tests in the owner's mirror. **\~4 sites, three of them tsc-forced, and the job's brain lives with
 its owner.** Down from ten sites in five tiers.
 
 ### 3.3 The worker side (the "skims the seams" half)
@@ -402,7 +408,7 @@ touches it, and nothing in it breaks when runnerEnv dies.
 
 **The portability core is already the target pattern** — `@orb/contracts/portability` is the
 entity-agnostic descriptor registry (PortableEntity {kind, dir, ext, exportAll, importFile};
-PORTABLE_IMPORT_ORDER) this report's contribution seam imitates. Untouched by the move.
+PORTABLE\_IMPORT\_ORDER) this report's contribution seam imitates. Untouched by the move.
 
 **How import/export/backfill thread through runnerEnv TODAY:**
 
@@ -462,7 +468,7 @@ compose; add a 19th kind with no contribution → red). Engine tests move to fak
 9 kinds. Factories in their domains; params/result types promoted to the owners' contracts modules;
 delete `WorkloadDiscoveryEnv`/`Embeddings`/`Stats`/`Connection` sub-envs + their runner files.
 Decide §6 Q2 (catalog refresh) here. Proves: runner test mirrors re-homed; compose/runner-env.ts
-shrinks by ~half; no wire change (cross-tenant sweep untouched).
+shrinks by \~half; no wire change (cross-tenant sweep untouched).
 
 **Stage C — assets + chat sweeps.**
 `assets-backfill/gc/fsck` with the entry-tier gather re-homed into domain/assets (int-test the gather

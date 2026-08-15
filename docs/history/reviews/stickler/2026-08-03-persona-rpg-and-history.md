@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # PERSONA × RPG + STORED HISTORY — design pass (the D122 follow-up commission)
 
 ```
@@ -35,16 +41,16 @@ posture: review-and-propose only. ★ marks recommended fork arms.
 
 ### 1.1 INVENTORY — where rpg reads player identity today (every site, receipted)
 
-| Site | Read | Plane | Verdict |
-| - | - | - | - |
-| **Actor key** | `{kind:"user", userId}` (`contracts/rpg/actor.ts` — actor-ref arms; snapshot keys `user:<id>`) | identity KEY | **stable across persona changes by design** — `entry/compose/rpg.ts:389–394`: "the snapshot keys on `user:<id>` (stable across persona changes — verified, never orphaned by a display-name toggle)" |
-| **Display name** | `resolveRpgRoster` → `resolveUserPublics(row.userId, row.activePersonaId)` → persona name ?? handle (`chat/verbs/resolve-rpg-roster.ts:36–42`) | persona plane, LIVE | correct — and note this read is scoped by the persona's OWN owner (`compose/chat.ts` `resolveUserPublics` selects `personas WHERE id AND ownerId = userId`), so this path NEVER had the host-keyhole defect; it was D122-compatible before D122 |
-| **Panel names** | tracker view roster arm forces `identity: null` and takes `name: r.name` from the live roster (`rpg/chat-ops/tracker-view.ts:184–196`) | LIVE | a stored `identity.name` can never shadow a roster actor's live persona name — projection-inert by construction |
-| **Delta lines** | `gather.ts:106–113` resolves `rosterNames` LIVE per gather; `substrate/delta.ts:89–95` uses stored `identity.name` only for CAST actors | LIVE (roster) / stored (cast — correct, cast have no live source) | correct |
-| **Extraction ref vocab** | `resolveExtractionRefs` re-reads the roster per call; `PLAYER_SEMANTIC_REF="player"` is the stable token; the prompt explains `player = currently shown as "<name>"` (`compose/rpg.ts:394/:454–455/:501/:518–521`) | LIVE + stable token | correct — the model is steered onto the persona-independent ref |
-| **Extraction transcript** | `chat/verbs/resolve-canon-window.ts:30–36` — canon rows resolve identity macros through the row-stamp producer (`loadChatMacroNameProducer` → `renderHistoryMacros`) | per-row stamps, LIVE resolution of RAW macros | correct — the extraction model sees each row under its OWN author's persona name, never `{{user}}` tokens, never the viewer |
-| **steerIdentity ({{user}} in the host steeringNote)** | `turn.ts:521` `foreign.personas.active?.name` → `gather.ts:119` (`?? "User"` floor) | D122-widened, LIVE | correct post-R1 — a non-host trigger's name now resolves (noted at build) |
-| **Sheets** | `rpg_sheets` rows keyed `(gameId, characterId|userId)` — className/level/attributes/flavor; NO name column | key-only | correct — sheet identity is the KEY, presentation is the roster's |
+| Site | Read | Plane | Verdict | |
+| - | - | - | - | - |
+| **Actor key** | `{kind:"user", userId}` (`contracts/rpg/actor.ts` — actor-ref arms; snapshot keys `user:<id>`) | identity KEY | **stable across persona changes by design** — `entry/compose/rpg.ts:389–394`: "the snapshot keys on `user:<id>` (stable across persona changes — verified, never orphaned by a display-name toggle)" | |
+| **Display name** | `resolveRpgRoster` → `resolveUserPublics(row.userId, row.activePersonaId)` → persona name ?? handle (`chat/verbs/resolve-rpg-roster.ts:36–42`) | persona plane, LIVE | correct — and note this read is scoped by the persona's OWN owner (`compose/chat.ts` `resolveUserPublics` selects `personas WHERE id AND ownerId = userId`), so this path NEVER had the host-keyhole defect; it was D122-compatible before D122 | |
+| **Panel names** | tracker view roster arm forces `identity: null` and takes `name: r.name` from the live roster (`rpg/chat-ops/tracker-view.ts:184–196`) | LIVE | a stored `identity.name` can never shadow a roster actor's live persona name — projection-inert by construction | |
+| **Delta lines** | `gather.ts:106–113` resolves `rosterNames` LIVE per gather; `substrate/delta.ts:89–95` uses stored `identity.name` only for CAST actors | LIVE (roster) / stored (cast — correct, cast have no live source) | correct | |
+| **Extraction ref vocab** | `resolveExtractionRefs` re-reads the roster per call; `PLAYER_SEMANTIC_REF="player"` is the stable token; the prompt explains `player = currently shown as "<name>"` (`compose/rpg.ts:394/:454–455/:501/:518–521`) | LIVE + stable token | correct — the model is steered onto the persona-independent ref | |
+| **Extraction transcript** | `chat/verbs/resolve-canon-window.ts:30–36` — canon rows resolve identity macros through the row-stamp producer (`loadChatMacroNameProducer` → `renderHistoryMacros`) | per-row stamps, LIVE resolution of RAW macros | correct — the extraction model sees each row under its OWN author's persona name, never `{{user}}` tokens, never the viewer | |
+| **steerIdentity ({{user}} in the host steeringNote)** | `turn.ts:521` `foreign.personas.active?.name` → `gather.ts:119` (`?? "User"` floor) | D122-widened, LIVE | correct post-R1 — a non-host trigger's name now resolves (noted at build) | |
+| **Sheets** | `rpg_sheets` rows keyed \`(gameId, characterId | userId)\` — className/level/attributes/flavor; NO name column | key-only | correct — sheet identity is the KEY, presentation is the roster's |
 
 ### 1.2 JUDGMENT — the live loop is ALREADY D122-coherent. No persona-plane wiring is missing.
 
@@ -75,6 +81,7 @@ a coherent-as-is verdict with receipts — the owner's unease has a different ro
   is baked into the transcript bytes forever.
 
 **FORK Q1-A — the demo residue** (owner pick):
+
 - **★ (a) Regenerate the six transcripts once, on a persona'd stack** (a real named persona, so prose
   vocatives read as a name, not "You") — the owner's own "re-generate, never edit" law is the only
   sanctioned fix, and the hand-authored board state needs zero changes (it was built identity-agnostic).
@@ -107,6 +114,7 @@ labels — all model-authored text that referenced the name shown at extraction 
 **The one genuinely new semantic to rule — what does a switch MEAN to the story?**
 
 **FORK Q2-A** (owner pick):
+
 - **★ (a) Recast-is-story (no mechanism change).** The switch is a re-costuming of the same protagonist:
   keys hold, trackers/inventory/quests continue, the next extraction beat sees the new name in the
   transcript's new rows and the `player = "<new name>"` explainer, and the story absorbs it exactly like
@@ -123,6 +131,7 @@ labels — all model-authored text that referenced the name shown at extraction 
   multi-human made C strictly cheaper to build later; nothing in Q2/Q3 below forecloses it.
 
 **FORK Q2-B — should a persona switch mid-game emit a story-visible signal?** (a small, optional rider)
+
 - **★ (a) No new signal** — the next beat's transcript + explainer already carry it; the model handles
   renames well, and a forced "X is now Y" injection is exactly the kind of feature-forced prompt content
   the gen-settings law resists.
@@ -236,7 +245,7 @@ frozen content is OURS to re-mint).
   defect (the authored board is identity-agnostic via `seat:{kind:"player"}`). Fix = regenerate per the
   owner's own demo law (FORK Q1-A★).
 - **N3 (pre-authorized gap, becomes Q3's core):** reattribution is client-windowed at 100
-  (`persona-this-chat-section.tsx` REATTRIBUTE_WINDOW; FINAL §A.7's named limitation) — the
+  (`persona-this-chat-section.tsx` REATTRIBUTE\_WINDOW; FINAL §A.7's named limitation) — the
   server-side "restamp mine" arm is the missing piece.
 - **N4 (pleasant surprise, verified clean):** export per-row user labels ARE per-row-stamp-faithful
   (`export-chat.ts:65–72`); only the single header `user_name` is anchor-frozen, an ST-format
@@ -247,15 +256,16 @@ frozen content is OURS to re-mint).
 Read this session (beyond the prior report's corpus): D122 + the D123 cursor note; the c736ae8a merge
 stat + the six R-commits' log; `roster-humans.ts`, `resolve-personas-for-roster.ts` (whole),
 `persona/contract/ops.ts` (via wiring grep), the widened `compose/chat.ts` resolveForeignInputs region
-+ `activePersonaIdFor` site, `foreign.ts` consent-set contract lines, all six turn.ts consent-set
-threading sites; `contracts/rpg/actor.ts` (header + slug + ref arms), `compose/rpg.ts:380–530`
-(refs/player token), `resolve-rpg-roster.ts` (whole), `tracker-view.ts:170–240`, `gather.ts:100–135`,
-`substrate/delta.ts` name sites, `resolve-canon-window.ts` producer lines; `demo-chats.ts` (header,
-authored state, actor rows, casting), `ashen-spire.jsonl` (header + name-set sweep across the file);
-`export-chat.ts:44–190`. NOT read: the rpg tools/apply full body (only its name sites), snapshot-edit /
-staging internals, the other five demo jsonls beyond the name sweep, memory digest build internals
-(judged from D55 + the digest schema facts already in the ledger). No gates/tests run (read-only pass;
-zero tree mutations).
+
+- `activePersonaIdFor` site, `foreign.ts` consent-set contract lines, all six turn.ts consent-set
+  threading sites; `contracts/rpg/actor.ts` (header + slug + ref arms), `compose/rpg.ts:380–530`
+  (refs/player token), `resolve-rpg-roster.ts` (whole), `tracker-view.ts:170–240`, `gather.ts:100–135`,
+  `substrate/delta.ts` name sites, `resolve-canon-window.ts` producer lines; `demo-chats.ts` (header,
+  authored state, actor rows, casting), `ashen-spire.jsonl` (header + name-set sweep across the file);
+  `export-chat.ts:44–190`. NOT read: the rpg tools/apply full body (only its name sites), snapshot-edit /
+  staging internals, the other five demo jsonls beyond the name sweep, memory digest build internals
+  (judged from D55 + the digest schema facts already in the ledger). No gates/tests run (read-only pass;
+  zero tree mutations).
 
 ## UNCONFIRMED / LOW PRIORITY
 

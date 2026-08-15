@@ -1,10 +1,16 @@
+---
+kind: history
+status: archived
+updated: 2026-08-03
+---
+
 # SSE multiplex — ONE socket, typed room frames (SSE-1)
 
 **Status:** **CLOSED — BUILT S0-S5, D118.**
 **Scope:** the server transport stream layer (`packages/server/src/transport/trpc/**`), the client bus
 layer (`packages/client/src/data/bus/**` + the two feature stream hooks), the CT SSE stub, the e2e SSE
 instrument, and one new `initTRPC` option. Domain-side bus shapes are OUT of scope and unchanged.
-**Evidence:** the 2026-08-01 starvation incident (`a2658fbc`, [[sse-per-origin-connection-budget]]) ·
+**Evidence:** the 2026-08-01 starvation incident (`a2658fbc`, \[\[sse-per-origin-connection-budget]]) ·
 code recon of all seven live subscriptions (inventory §2) · `@trpc/server@11.18.0` d.ts (`ping` /
 `reconnectAfterInactivityMs` verified in `dist/unstable-core-do-not-import.d-BdVSvUCr.d.mts:1193-1237`,
 `1352-1357`).
@@ -18,7 +24,7 @@ carries unchanged.
 
 **The connection cap is a DEV/E2E problem, not a prod problem.** Prod terminates on Caddy with h2 + h3,
 where per-origin stream concurrency is a non-issue (multiplexed over one connection). Dev and e2e run
-plain HTTP/1.1 on `:5173` / `:8788`, where a browser allows ~6 concurrent connections per origin and
+plain HTTP/1.1 on `:5173` / `:8788`, where a browser allows \~6 concurrent connections per origin and
 every SSE subscription pins one for its lifetime. A "fix the cap" framing would therefore be dishonest —
 h2 in dev would also "fix" it.
 
@@ -54,7 +60,7 @@ freshness blackout instead of a partial one. §8 (heartbeat) is the mitigation a
 | `sessions.streamUserEvents` | principal `userId` | implicit (principal) | no | none | `data/bus/use-user-bus.ts` |
 | `rpg.stream` | `chatId` | chat membership via `chatEventBounds` probe, re-run PER YIELD | no | none | `data/bus/use-rpg-bus.ts` (gated on the game pointer) |
 | `notifications.notifications` | principal `userId` | `multiHumanProcedure` belt | yes (`list` paging) | `tracked(seq)` | `features/notifications/hooks/use-inbox-stream.ts` |
-| `automation.stream` | `chatId` | `resolveStreamAuthority` THROWS NOT_FOUND for a non-member; host-only events filtered per subscriber | no | per-stream ordinal | **none wired** |
+| `automation.stream` | `chatId` | `resolveStreamAuthority` THROWS NOT\_FOUND for a non-member; host-only events filtered per subscriber | no | per-stream ordinal | **none wired** |
 | `workloads.subscribe` | `workloadId` | verb-internal owner gate | no | n/a | `features/workloads/hooks/use-workload-subscription.ts` (one per open workload row) |
 | `chat.impersonateStream` | request | verb-internal | no | ordinal (explicitly NOT a cursor) | `features/chat/hooks/use-guided-actions.ts` (imperative `.subscribe`) |
 
@@ -81,7 +87,7 @@ stream.detach    // authedProcedure.mutation     — input { socketId, ref }
 
 `attach`/`detach` ride the ordinary batched HTTP link (`httpBatchLink`) — they cost **zero** connections
 and inherit the CSRF header + rate-limit + domain-error middleware every mutation gets. Delivery NEVER
-rides a mutation return ([[chat-turn-surface-bus-driven]]): `attach` returns `void`; everything a
+rides a mutation return (\[\[chat-turn-surface-bus-driven]]): `attach` returns `void`; everything a
 subscriber sees arrives as a frame on the socket.
 
 ### 3.2 Room refs and frames (home: `packages/contracts/src/stream/index.ts`)
@@ -189,7 +195,7 @@ the ladder).
 | `notifications` | the `multiHumanProcedure` capability belt, moved from the procedure onto the attach (the socket itself stays `authedProcedure` — a single-user deployment must still get its user/chat/rpg rooms) | none (self-scoped) | `routers/notifications.ts:4-7` |
 | `chat` | **none — accept always** (draft-tolerant: a client may attach before `chat.start` commits) | `chatEventBounds` per yield → membership + `historyFloorSeq` + `viewerIsHost` + `reasoningHostOnly`, ONE verdict; `null` ⇒ withhold WITHOUT advancing the cursor | `routers/chat.ts:8-26, 635-677` |
 | `rpg` | **none — accept always** (same withhold-not-throw posture; a game may be born while attached) | `isChatMember` probe per yield (a kicked member stops receiving) | `routers/rpg.ts:22-28, 146-161` |
-| `automation` | `resolveStreamAuthority` — THROWS NOT_FOUND for a non-member (refuse at attach) | host-only events filtered per subscriber tier | `automation-bus.ts:9-12`, `routers/automation.ts:135-142` |
+| `automation` | `resolveStreamAuthority` — THROWS NOT\_FOUND for a non-member (refuse at attach) | host-only events filtered per subscriber tier | `automation-bus.ts:9-12`, `routers/automation.ts:135-142` |
 
 **Migration invariant (non-negotiable):** the fold changes NO authorization verdict and NO gate ordering.
 Every predicate above is the SAME function, called at the SAME moment relative to the live attach
@@ -244,7 +250,7 @@ interface SocketCell {
 
 `stream.connect` (one per socket) runs the merge loop:
 
-1. adopt-or-create the cell for `(ctx.auth.userId, input.socketId)`; refuse (NOT_FOUND) if owned by
+1. adopt-or-create the cell for `(ctx.auth.userId, input.socketId)`; refuse (NOT\_FOUND) if owned by
    another principal; mark `live`.
 2. `ctx.presence.connect(ctx.auth.userId, signal)` — see §5.6.
 3. re-hydrate: for every room already in `cell.rooms`, start its pump from the stored cursor (the
@@ -288,12 +294,12 @@ verdict to it.
 | - | - | - |
 | cell reap after `!live` | 60s | > the EventSource retry window; a real tab close frees the rooms |
 | rooms per socket | 32 | a client bug cannot grow the map unboundedly; refuse with `RESOURCE_EXHAUSTED` |
-| sockets per user | 8 | ~one per tab + slack; refuse the 9th (oldest-`!live` cell is reaped first) |
+| sockets per user | 8 | \~one per tab + slack; refuse the 9th (oldest-`!live` cell is reaped first) |
 | duplicate attach of a live room | idempotent | re-attach with a LOWER `sinceSeq` is honored (it is a replay request); a higher one never rewinds the cursor forward |
 
 ### 5.5 Per-subscription member-strip — the leak-prone path
 
-This is the section to get right ([[reasoning-cut-durable-replay-leak]] — the member strip has three
+This is the section to get right (\[\[reasoning-cut-durable-replay-leak]] — the member strip has three
 paths and the REPLAY is the one that leaks).
 
 **The rule: scrub state is PER PUMP, and a pump belongs to exactly one (socket, room, principal).**
@@ -303,8 +309,8 @@ Concretely, carried over unchanged from `chatEventStream`:
   the socket, never in the registry. Two rooms on one socket have two independent maps; two tabs have
   four. A host subscriber still allocates none.
 - The durable replay stays inside the domain: `service.replayChatEvents` → `scrubChatEventReplayForMember`
-  + `scrubStreamReplayForMember` (`domain/chat/verbs/read.ts:863-876`). The transport never re-derives
-  `role === "host"`; it threads `viewerReadsHidden` / `reasoningHostOnly` as DATA (D106-F1).
+  - `scrubStreamReplayForMember` (`domain/chat/verbs/read.ts:863-876`). The transport never re-derives
+    `role === "host"`; it threads `viewerReadsHidden` / `reasoningHostOnly` as DATA (D106-F1).
 - The live half keeps `resolveLiveYield` verbatim: per-yield `memberBounds` → `isBelowHistoryFloor` →
   host verbatim / member `scrubDeltaEventForMember` | `stripChatEventForMember`.
 - **New invariant to test explicitly:** a socket attached to two chats where ONE has deception active
@@ -332,12 +338,12 @@ offline→online host-return drain (`drainDeferredTurns`) rides the same edge, m
 
 Homes (all under `packages/client/src/data/bus/`, the existing bus dir):
 
-| file | role |
-| - | - |
-| `socket-id.ts` | the per-tab `socketId` (module const); rotates on viewer-identity change |
-| `use-orb-socket.ts` | the ONE `useSubscription(trpc.stream.connect…)`; mounted ONCE at `routes/app-root.tsx` beside today's `useUserBus` |
-| `room-registry.ts` | `roomKey → { ref, handlers, gapHealers }`; ref-counted attach/detach via the imperative tRPC client |
-| `use-bus-room.ts` | `useBusRoom(ref | null, { onEvent, onSocketLive })` — the ONE room hook |
+| file | role | |
+| - | - | - |
+| `socket-id.ts` | the per-tab `socketId` (module const); rotates on viewer-identity change | |
+| `use-orb-socket.ts` | the ONE `useSubscription(trpc.stream.connect…)`; mounted ONCE at `routes/app-root.tsx` beside today's `useUserBus` | |
+| `room-registry.ts` | `roomKey → { ref, handlers, gapHealers }`; ref-counted attach/detach via the imperative tRPC client | |
+| `use-bus-room.ts` | \`useBusRoom(ref | null, { onEvent, onSocketLive })\` — the ONE room hook |
 
 **The feature-facing hook surface does not change.** `useChatBus(chatId, deps)`, `useUserBus(deps)`,
 `useRpgBus(chatId, deps)` and `useInboxStream()` keep their exact signatures and their existing
@@ -481,10 +487,10 @@ After stage 2 the standing per-tab spend is **1 socket**, game chat or not, N ta
   `packages/server/src/(domain|transport)/`, and no emit site moves.
 - **New gate `single-stream-transport`** (whole-project, ts-morph): NO `.subscription(` outside
   `routers/stream.ts`, with a cited EXEMPT list (`chat.impersonateStream`). This is the ratchet that
-  keeps the fold from silently un-folding — the property tsc cannot see. Per [[new-gate-four-coupled-sites]]
+  keeps the fold from silently un-folding — the property tsc cannot see. Per \[\[new-gate-four-coupled-sites]]
   it is 4 sites: the gate module, the Enforcement-Active-Gates row, the gate count, and `writeFixtures`
   (`mustFlag`: a probe router with a bare `.subscription(`; `mustPass`: the exempt one).
-- **Cross-tenant sweep** ([[new-router-needs-sweep-classification]]): `stream.attach` and `stream.detach`
+- **Cross-tenant sweep** (\[\[new-router-needs-sweep-classification]]): `stream.attach` and `stream.detach`
   classified **PROBED** (a stranger attaching a foreign `chatId` / a foreign `socketId`); `stream.connect`
   PROBED (a foreign `socketId`).
 
@@ -495,7 +501,7 @@ After stage 2 the standing per-tab spend is **1 socket**, game chat or not, N ta
 **Node unit (`tests/server/transport/trpc/stream/`):**
 
 - `socket-registry` — cell created by attach-before-connect AND connect-before-attach; attach→detach
-  before connect collapses to no room; cross-principal `socketId` = NOT_FOUND (not a hijack, not a 403);
+  before connect collapses to no room; cross-principal `socketId` = NOT\_FOUND (not a hijack, not a 403);
   room cap / socket cap refusals; reap after the window; a reconnect adopts the same cell with cursors.
 - `frame-queue` — each overflow policy: `lag` emits `roomLagged` with the last durable cursor and keeps
   the room; `collapse` keeps exactly one pending frame per `(roomKey, type)`; ordering within a room is
@@ -533,7 +539,7 @@ handshake instead of a sleep:
 - frames are authored as `{ channel, …, event }` — the existing scripted `ChatBusEvent[]` become
   `chat` frames with an explicit `seq`, preserving the synthetic-cursor cases
   (`chatOpened`/`historyTruncated` carry the non-advancing cursor).
-- the script is replayable on EVERY connect, not first-only ([[ct-sse-stub-replayable-every-connect]] —
+- the script is replayable on EVERY connect, not first-only (\[\[ct-sse-stub-replayable-every-connect]] —
   today's stub serves an empty stream on reconnect, which is a latent flake).
 - the recorder exposes `attaches()` / `detaches()` / `connects()`, so a CT can assert lifecycle directly:
   attach on chat open, detach on chat switch, exactly ONE connect per page.
@@ -546,7 +552,7 @@ Every existing chat CT keeps asserting the same reducer/store effects through th
   (`tests/e2e/support/sse.ts` → `collectSocketFrames`: POST `stream.attach` with the CSRF header, then
   GET `stream.connect?input={socketId}`, filter by `roomKey`).
 - **The starvation regression pin:** an `/api/_debug` counter of live sockets per user
-  ([[observability-harness-verify-landings]]) — assert 1 per tab, 2 across two tabs, and that opening a
+  (\[\[observability-harness-verify-landings]]) — assert 1 per tab, 2 across two tabs, and that opening a
   GAME chat adds ZERO. This is the assertion that makes the class unmakeable rather than merely fixed.
 - Honest limit to write into the test's comment: 6 TABS still hits the cap. One socket per tab is the
   floor, not immunity.
@@ -566,7 +572,7 @@ Every existing chat CT keeps asserting the same reducer/store effects through th
 3. **S2 — chat.** Move `chatEventStream` & friends into `sources/chat.ts` intact; swap `useChatBus`;
    delete `chat.streamMessages`; move the int tests; reshape the CT stub + the e2e instrument in the
    same commit (they are the only readers of the deleted proc). **This commit gets a `stickler` pass**
-   ([[proposed-done-needs-opus-stickler]]) — it moves the member-strip path.
+   (\[\[proposed-done-needs-opus-stickler]]) — it moves the member-strip path.
 4. **S3 — notifications + presence.** Belt relocation, presence move, `drainDeferredTurns` edge.
 5. **S4 — automation.** Server-only move.
 6. **S5 — workloads.** Contracts homing first, then the fold; `use-workload-subscription` keeps its
@@ -598,7 +604,7 @@ the same room.
    §5 disappear. **Recommendation: SSE.** It keeps the fetch-adapter/Hono mount, cookie auth, the CSRF
    posture, and the Caddy h2/h3 story exactly as they are; a WS upgrade adds a second auth seam, a second
    deployment concern, and re-opens questions D106/D110 §3.6 currently answer inside one request scope.
-   The lifecycle machinery this spec adds is ~3 small modules — cheaper than a transport change.
+   The lifecycle machinery this spec adds is \~3 small modules — cheaper than a transport change.
    *This is the one genuine architecture fork; if the owner prefers WS, stages 1-5 re-plan.*
 2. **`chat.impersonateStream` stays unfolded.** It is request-scoped, user-gesture-initiated, at most one
    at a time, and its abort semantics ARE the socket teardown. Folding it would mean modelling "detach =
@@ -617,4 +623,4 @@ the same room.
    the same commit.**
 6. **Numbers to ratify or ignore:** queue 512 frames · ping 15s · inactivity reconnect 45s · cell reap
    60s · 32 rooms/socket · 8 sockets/user. All are hygiene bounds, none is load-bearing; they are stated
-   so the build has no improvisation surface ([[spec-completeness-no-improvisation]]).
+   so the build has no improvisation surface (\[\[spec-completeness-no-improvisation]]).

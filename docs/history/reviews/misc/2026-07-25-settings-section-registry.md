@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Settings-section contribution seam — design (Phase B, stint 1)
 
 > Lane: Phase B settings-surface. Mandate (owner, final): mint the settings-SECTION registry BEFORE any

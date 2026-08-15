@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Stickler review — W1 rpg-lite domain vertical (uncommitted working tree vs HEAD)
 
 Date: 2026-07-26
@@ -30,12 +36,14 @@ The commit-before-validate seam: `persistence/snapshots.ts:149-156` (`insertSnap
 first seen with `delta <= 0` is minted with `max <= 0`, which violates the contract schema's `max >= 1`.
 
 **Concrete failure scenario (reproduced this session):**
+
 - The model narrates "the wizard spends 1 mana" and calls `update_party {targetRef:"Wizard", poolDeltas:[{name:"mana", delta:-3}]}` — an ordinary, high-probability action (a pool decremented before it was ever established).
 - The tool returns `{ok:true}` (the model believes it succeeded).
 - `onTurnCompleted` → flush → `writeStagedSnapshot` → `insertSnapshot` **commits** the row `actorState:[{...pools:[{name:"mana",value:-3,max:-3}]}]`, then `parseSnapshotRow` throws `RpgStateCorruptError`. The engine calls the hook `void ctx.rpg.onTurnCompleted(...).catch(()=>undefined)` (`domain/chat/engine/engine.ts:561`), so the throw is swallowed — but the invalid row is already in the DB.
 - Every subsequent read that resolves that snapshot (`getTrackerView`, the next turn's `gatherTurnContext` reminder, the next turn's base resolution) calls `parseSnapshotRow` and throws `RpgStateCorruptError`. The tracker panel is dead; the next chat turn's gather throws (and `getTrackerView` is a member read that now 500s).
 
 **Evidence (this session):**
+
 - `reports/stickler/scratch/repro3.ts` → `TOOL RESULT: {"ok":true,...}` then `FLUSH THREW: RpgStateCorruptError rpg_snapshots ...: actorState: [... "path":["actorState",0,"pools",0,"max"], "message":"Too small: expected number to be >=1"]`.
 - `reports/stickler/scratch/repro4.ts` → after the swallowed flush throw: `SNAPSHOT ROWS IN DB AFTER THROW: 1` and `getTrackerView THREW: RpgStateCorruptError` — the poisoned row persists and breaks the read side.
 - Reliable mode shares the vector: `apply.ts:346 extractionToStateDelta → applyUpdateParty` (grep confirmed), and `updatePartyArgsSchema.poolDeltas[].delta` is `z.number().int()` with no positivity floor, so a negative delta passes arg-validation and folds into the same poisoned `statePatch`.
@@ -80,6 +88,7 @@ sets on a party member (HP via `update_party`, pools, conditions, status, invent
 party-state loop is a no-op for the party.
 
 **Evidence (this session):**
+
 - `reports/stickler/scratch/repro.ts` → `TOOL RESULT: {"ok":true,...}`; `KAEL VOLATILE IS NULL: true`; the actors array shows `"volatile":null` for the roster character.
 - `reports/stickler/scratch/repro2.ts` → `PERSISTED actorState: [[{"actorRef":{"kind":"cast","castKey":"Kael"},...,"pools":[{"name":"focus","value":7,"max":7}]...}]]` — proving the write landed as an orphan `cast:Kael` entry, disconnected from the roster's `character:character_kael` key.
 - Grep: the only read of `state.actorState` in the view/reminder surfaces is `tracker-view.ts:90` (`volatileByKey`, joined by roster ref).
@@ -117,6 +126,7 @@ and `buildResolveTrackersReadOnly` (the `trackersReadOnly` capability verdict).
 (D64) — the swap flips roles in place without changing `joinSeq`, so the ORIGINAL host (now a plain member,
 `joinSeq 0`) is still the first human. Consequences on any post-handoff (or any member-joined-before-host)
 game:
+
 - Reliable extraction resolves its connection/credentials under the WRONG human — a D19 funding/attribution
   violation (the game turn must run under the current host's `runAsUserId`); if that human has no chat
   connection, `resolveRole` may throw → `runExtraction` throws → swallowed by the engine `.catch` → state
@@ -148,11 +158,11 @@ host-resolution op or surface role on the projection), not join order.
   - `upsertQuest`/`deleteQuest`/`editSnapshot` → resolve the game from `chatId`+membership, operate on THAT game's resolved snapshot; no caller-supplied cross-game id.
   - `patchSheet` → `assertOwnUserRef` (member limited to own `user` ref) + game-scoped `findSheet`/`upsertSheet`.
   - `rollDice` → member-gated, zero state.
-  The `authority.suite.int.test.ts` drives a real two-game exploit (host-of-A reaching game-B rows) and reads
-  the victim row back to prove it is untouched/surviving — asserts-the-real, not asserts-the-fake. The
-  host/member-own/member-foreign/non-member grid is covered per verb with leak-free NotFound vs Forbidden
-  distinctions matching `guard.ts`. `rpg.stream` correctly EXEMPT in the cross-tenant sweep (per-yield
-  `chatEventBounds` membership gate; matches `chat.streamMessages`).
+    The `authority.suite.int.test.ts` drives a real two-game exploit (host-of-A reaching game-B rows) and reads
+    the victim row back to prove it is untouched/surviving — asserts-the-real, not asserts-the-fake. The
+    host/member-own/member-foreign/non-member grid is covered per verb with leak-free NotFound vs Forbidden
+    distinctions matching `guard.ts`. `rpg.stream` correctly EXEMPT in the cross-tenant sweep (per-yield
+    `chatEventBounds` membership gate; matches `chat.streamMessages`).
 - **Injected-op caller gate:** `resolveRoster`/`setRpgPointer`/`gather` are principal-free by design; the
   authority gate is at the verb boundary (`createGame` checks membership+host before `setPointer`; every
   gated verb resolves through `guard.ts`). No caller-Principal is dropped en route to an authority check.
@@ -186,17 +196,17 @@ host-resolution op or surface role on the projection), not join order.
 - **DB schema:** 6 tables, no `ownerId` anywhere (D23), enum CHECKs derive from contracts tuples, JSON
   columns `$type<>`d + parse-on-read; `rpg_snapshots.variantId` UNIQUE+CASCADE, `rpg_checkpoints.snapshotId`
   RESTRICT, `rpg_journal.variantId` CASCADE, sheet actor-XOR CHECK. Baseline was correctly squashed (no
-  incremental `0001`; the `db-structure` BASELINE_RIDER for rpg was removed now that the producer domain
+  incremental `0001`; the `db-structure` BASELINE\_RIDER for rpg was removed now that the producer domain
   exists — a coupled-site cleanup done right).
 - **Gate coupling:** `rpg-bus-coverage` added (count 150→151 in the enforcement doc), all 5 members emit →
   moved to `UNFIXTURABLE_GATES`, `__g_rpgbus` fixture deleted, `check-gates.int` + cross-tenant-sweep +
-  `services.test` SERVICE_KEYS + `invalidation.test` all updated in lockstep. `RPG_BUS_FILTERS` is a total
+  `services.test` SERVICE\_KEYS + `invalidation.test` all updated in lockstep. `RPG_BUS_FILTERS` is a total
   mapped type over `RpgBusEvent["type"]` (the W2 `nothing`-returning forward-seam is honestly documented and
   tested). Emit sites verified present: `gameChanged` (create/updateConfig), `snapshotPatched` (flush +
   editSnapshot/quest verbs/restoreCheckpoint), `sheetChanged` (patchSheet), `questChanged` (upsert/delete
   quest), `journalChanged` (addJournal-family + staged flush).
 - **`rollDice`/`dice.ts`:** server CSPRNG via injected `randomInt`, bake-once, no seed input, bounded
-  notation (MAX_DICE/MAX_FACES) — no seed-replay, no unbounded loop.
+  notation (MAX\_DICE/MAX\_FACES) — no seed-replay, no unbounded loop.
 - **Static battery:** `pnpm check` GREEN (`reports/verify.json ok:true`), read in full.
 
 ## UNCONFIRMED / LOW PRIORITY (not findings)

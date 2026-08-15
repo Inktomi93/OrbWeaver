@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # SET-SEAMS — every settings section is self-owned
 
 **Status:** **BUILT (2026-08-01) — S0-S6 all landed and merged; the program is CLOSED.** Per-stage shas

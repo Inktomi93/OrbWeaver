@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-14
+---
+
 # Retro Workboard — the live board
 
 > **THIS IS THE WORKING DOC** (owner-stated). Not law, not a deliverable — the durable state an
@@ -71,7 +77,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **═══ ⚑ AUTHORITATIVE REMAINING WORK = `docs/retro-remaining-work-ledger.md` (2026-08-08, tree-reverified) ═══**
   The board below is layered/scattered and CONTRADICTS ITSELF in 4 places the ledger resolved — trust
   the LEDGER over any block below it: **AUTHFIX-2 is CLOSED (the "OPEN UNAUTHENTICATED HOLE" section
-  further down is STALE — DEBUGGATE graduated it; only rotate DEBUG_TOKEN + set IP_ALLOWLIST remain)**;
+  further down is STALE — DEBUGGATE graduated it; only rotate DEBUG\_TOKEN + set IP\_ALLOWLIST remain)**;
   databank pagination is BUILT; I-2 databank is CLOSED (its `### I-2` header lies "S3 unbuilt");
   capability-gate wiring is genuinely open. The ledger is A(in-flight)/B(dispatchable)/C(owner-decision)/
   D(older-open)/E(verify)/F(struck-done, 14 groups).
@@ -86,13 +92,13 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   - **LIVE lanes:** FORGE #4 Docker build (`a063356b2ad358a65`, worktree agent-forge-docker) · REFINERY
     R0 forge (`a91b702e2d9ae545c`, agent-refinery-r0) · **PRESET-FOLLOWUP** (`aa9a5c8df7d61786f`,
     executor, worktree) — B1 capability-gate→resolve-failure + B2 Prompt-view fork-eject + the P3
-    snake_case row-desc + 2 verification CTs (readout skeleton-height + error-arm). smallbatch3 MERGED.
+    snake\_case row-desc + 2 verification CTs (readout skeleton-height + error-arm). smallbatch3 MERGED.
   - **✅ PRESET/CONFIG SIDE-EYE LANDED — SHIP across all three** (`a528c629d6a4aa017`, ref-pinned stage
     `be00cf36a`). FORGE#1 Actions IA "database dump is genuinely gone" (67 rows, 4 distinct delivery-truth
     channels, fork-eject picker praised) · POLISH cluster SHIP (color focus ring, readout skeleton settles,
     error arm wired) · PROSE-GEOMETRY SHIP (12-row cap + internal scroll + on-screen counter/refusal). This
     was the fresh rendered lens the FORGE#1/POLISH/PROSE train was waiting on → those rows GRADUATE.
-    **Findings → PRESET-FOLLOWUP lane** (P3 snake_case desc; the 2 CTs it recommended). **OWNER intent Q
+    **Findings → PRESET-FOLLOWUP lane** (P3 snake\_case desc; the 2 CTs it recommended). **OWNER intent Q
     (parked, non-blocking):** color picker has no preset-colour "voices" SWATCHES — popup is ColorWell+Hex+
     reset only; if "tag colour voices" meant swatches they're absent, if it meant unset→theme-default that's
     present+correct. **Shell heads-up (out of preset scope):** the rail shows 9 facet icons (Home·Chats·
@@ -110,7 +116,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     landed SHIP; surface is quiet. Lane graduates on a fresh lens: verifier on B1's failure-classification
     logic + a light drill re-check on B2.
   - **PUSH:** conditional word granted for THIS train — after preset side-eye + fix legs + a FRESH
-    battery greens. Held tonight otherwise. E2E_LIVE owed on the push window.
+    battery greens. Held tonight otherwise. E2E\_LIVE owed on the push window.
   - **MERGE discipline:** rebase-onto-main-then-`--ff-only` (currency); read EVERY consolidated check
     exit (a slip let a lint error ride main tonight — caught by a `.exit` sweep). Board commits
     `git -c core.hooksPath=/dev/null`.
@@ -379,7 +385,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **THE DAY'S NUMBER:** 12 fresh-lens passes, **8 refutations** — every one already merged, gate-green
   and believed done. Six premise-kills by lanes, three against briefs the orchestrator wrote.
 
-## ═══ ~~AUTHFIX-2 — OPEN HOLE~~ **STALE — CLOSED by DEBUGGATE (graduated); see the ledger. Only DEBUG_TOKEN rotation + IP_ALLOWLIST remain (owner ops).** ═══
+## ═══ ~~AUTHFIX-2 — OPEN HOLE~~ **STALE — CLOSED by DEBUGGATE (graduated); see the ledger. Only DEBUG\_TOKEN rotation + IP\_ALLOWLIST remain (owner ops).** ═══
 
 **Severity HIGH on any box whose origin port is reachable. Found by lane AUTHFIX while fixing something
 else; deliberately NOT fixed, with reasons. Full write-up + exploit path + two costed fix shapes:
@@ -579,33 +585,33 @@ security lens.
   VERIFIER dispatched on the load-bearing pass.ts change.)**
 - **⚑ NEW BOARDED ROW (POLISH-CLUSTER find): wire CapabilityGate to resolve-failure.ts.** The same
   wrong-confident-cause sentence ("routing problem, not a missing connection") is ALSO hardcoded at
-  `capability-gate.tsx:66` over `resolveChatCapability`, which can fail PRECONDITION_FAILED
-  (DomainNoCredentialError = literally a missing credential — the claim INVERTED), NOT_FOUND, 500.
+  `capability-gate.tsx:66` over `resolveChatCapability`, which can fail PRECONDITION\_FAILED
+  (DomainNoCredentialError = literally a missing credential — the claim INVERTED), NOT\_FOUND, 500.
   The shared classifier lib landed tonight already owns the discrimination; wiring the deck was
   deferred (preset-editor-surface contested by FORGE + PROSE-GEOMETRY). 3-line change, quiet-tree.
 - **✅ POLISH-CLUSTER merged `66969d228`** (14 files, 9/9 new assertions positive-control-proven):
   color-picker focus ring · readout skeleton shape-match (144px collapse fixed) · the `resolve-failure.ts`
-  shared classifier (error arm keeps the routing verdict VERBATIM on BAD_REQUEST, withholds on
-  NOT_FOUND/transport — F-02 ruling preserved) + Retry · tag voices/#808080 seed · config band gutter ·
+  shared classifier (error arm keeps the routing verdict VERBATIM on BAD\_REQUEST, withholds on
+  NOT\_FOUND/transport — F-02 ruling preserved) + Retry · tag voices/#808080 seed · config band gutter ·
   empty-slot chrome. **Rendered re-verify BATCHES with the FORGE#1 + PROSE-GEOMETRY preset-surface
   lens** (one side-eye over the whole preset/config fix train). Freed slot HELD (barrel-amputation +
   capability-gate follow-up both want a quiet/uncontested tree).
 - **✅ TREE GREEN at `698a76f32` (train4 check PASS all stages).** FORGE#2 (mention-fence, `49b6e3620`)
-  + GAP-FIX (EmptyState w-full fence, `4a01d2854`) + the conditional-expect fix merged & certified.
-  **⚠ ORCHESTRATOR DISCIPLINE SLIP (owned):** I fire-and-forgot consolidated checks — DBANK-HOME's
-  `train3-check` was dispatched and NEVER READ, so a `noConditionalExpect` lint error rode main until
-  `forge2-check` caught it (a `.exit`-sweep found it). The law I quote lanes ("a finished check that
-  sits unread = skipping it") — I broke it. Fixed; going forward EVERY check exit gets read. All other
-  historical red `.exit` codes were intermediate states superseded by a green re-check before the next
-  merge (verified by train4 covering the current tree).
+  - GAP-FIX (EmptyState w-full fence, `4a01d2854`) + the conditional-expect fix merged & certified.
+    **⚠ ORCHESTRATOR DISCIPLINE SLIP (owned):** I fire-and-forgot consolidated checks — DBANK-HOME's
+    `train3-check` was dispatched and NEVER READ, so a `noConditionalExpect` lint error rode main until
+    `forge2-check` caught it (a `.exit`-sweep found it). The law I quote lanes ("a finished check that
+    sits unread = skipping it") — I broke it. Fixed; going forward EVERY check exit gets read. All other
+    historical red `.exit` codes were intermediate states superseded by a green re-check before the next
+    merge (verified by train4 covering the current tree).
 - **✅ FORGE #1 (Actions-tab IA) MERGED `dcaf87bc1`** — per-kind delivery-truth readout (derived from
   LIVE assembly: nudges ride appendUserTurn not the marker), 6 collapsed bands + tab filter over 41
   extract rows, fork-eject fixed (drill id → store axis), human row labels, chip off rows; red-first
-  ×2 + perf measured 87ms→0 long tasks + rendered snaps. Its MAX_FORMAT_STRING_LENGTH page-error was
+  ×2 + perf measured 87ms→0 long tasks + rendered snaps. Its MAX\_FORMAT\_STRING\_LENGTH page-error was
   STALE HMR (exported at preset/index.ts:44; dev vite lagged the PROSE-GEO merge). **Batched
   preset/config side-eye `a528c629d6a4aa017`** covers FORGE#1 + POLISH + PROSE-GEOMETRY (the deferred
   preset-surface lens). **2 forge findings boarded:** (a) snap-isolated can't boot post-D135 without
-  OWNER_HANDLES+CREDENTIALS_KEY in its env — a snap-stage propagation gap (tooling row); (b) the Prompt
+  OWNER\_HANDLES+CREDENTIALS\_KEY in its env — a snap-stage propagation gap (tooling row); (b) the Prompt
   view's section drill has the SAME fork-eject class (local drill state) — the store-axis fix applies,
   out-of-scope follow-up.
 - **✅ FORGE #3 (persona/character design) DELIVERED** `docs/design/persona-character-kind-substrate.md`.
@@ -619,16 +625,16 @@ security lens.
   132 agent reports read whole (2-pass: marker-grep + full report-tail), 222 noise files skipped;
   board coverage HIGH (most flags boarded/minted/banked/fixed-by-a-later-lane, incl. a cluster of
   scary verifier refutations all since-fixed). **6 GENUINE GAPS found:**
-  - **GAP-FIX lane `aa67f0c0d823dd667` (2 P1 UI regressions + the class fence + 1 doc):** [P1]
+  - **GAP-FIX lane `aa67f0c0d823dd667` (2 P1 UI regressions + the class fence + 1 doc):** \[P1]
     automation empty-state collapsed to a 63px word-per-line ribbon (DOG-POLISH P3-15 wrapped
-    `@container` EmptyState in a centering Stack → width 0) · [P1/P2] group-draft MOBILE topbar names
+    `@container` EmptyState in a centering Stack → width 0) · \[P1/P2] group-draft MOBILE topbar names
     only participant 1 (the `86a1736bc` desktop fix never reached the phone, `chats-selection-title.ts:37`
-    contradicts its own header) · [FENCE, do-it-right-once] the CLASS — a re-parent silently narrows a
-    component no CT width-asserts → an EmptyState w-full primitive floor + a rendered-width CT · [doc]
+    contradicts its own header) · \[FENCE, do-it-right-once] the CLASS — a re-parent silently narrows a
+    component no CT width-asserts → an EmptyState w-full primitive floor + a rendered-width CT · \[doc]
     `names.ts:2` header contradicts code.
-  - **BOARDED (low, not in the fix lane):** [LOW] phone notification sheet never marks read
+  - **BOARDED (low, not in the fix lane):** \[LOW] phone notification sheet never marks read
     (`notification-bell.tsx:155` mount-time markAllRead comment is FALSE — no useEffect; board captured
-    the phone unread *indicator*, not this *clear* bug) · [HEADS-UP] `ashen-spire.jsonl`'s 26 marked
+    the phone unread *indicator*, not this *clear* bug) · \[HEADS-UP] `ashen-spire.jsonl`'s 26 marked
     lines are unexercised by the canon-identity seed test (a seed-coverage add).
   - Audit's stated residual risk: a follow-up flagged ONLY mid-transcript via SendMessage (not restated
     in the final report) — the one class the report-tail method can't catch.
@@ -642,12 +648,12 @@ security lens.
   capabilities + best practices, fully modern and proper").** Pipeline (forge has no web tools):
   (1) WEB-RESEARCH lane `abeb1d71601a7c8d7` → `docs/design/docker-modern-practices-research.md`
   (current 2026 Docker/BuildKit/compose-v2 practice: cache+secret mounts, CUDA/node base, GPU device
-  reservation syntax, healthcheck start_period, non-root, PID-1 reaping, SBOM/provenance — cited);
+  reservation syntax, healthcheck start\_period, non-root, PID-1 reaping, SBOM/provenance — cited);
   (2) FORGE builds the real Dockerfile(s) + docker-compose + .dockerignore against the SPEC
   (`containerize-prod-image-spec.md`, 2-profile: all-in-one fleet default + slim) + the research, plus
-  the profile-2 code changes (VLLM_ENGINE_HOST at engine-url.ts + egress.ts, GPU-detect-under-posture
+  the profile-2 code changes (VLLM\_ENGINE\_HOST at engine-url.ts + egress.ts, GPU-detect-under-posture
   fix); (3) SECURITY-EXECUTOR reviews the §8 surface (secrets, auth-mode env, expose-only /
-  AUTH_FALLBACK=deny, the AUTHFIX-2 Host-mint control) before done. LIMIT: a lane cannot `docker build`
+  AUTH\_FALLBACK=deny, the AUTHFIX-2 Host-mint control) before done. LIMIT: a lane cannot `docker build`
   the GPU image in a worktree — image build+run is the owner's live-infra step (sequenced w/ the
   pentest cage), the lane proves the code changes + authors best-practice-correct Docker files.
 - **⚑ FOLLOW-UP CAPTURE (owner caught it 2026-08-08: closed lanes had attached follow-ups I relayed
@@ -697,11 +703,11 @@ security lens.
     a default).
 - **⚑ GAP-CLOSURE LENS REPORTED: SHIP WITH FIXES — 3 P1 · 10 P2 · 7 P3** (the five previously-unlensed
   surfaces; 1 own-retraction — same-tick reads vs React commit). HELD SURFACE: the preset ACTIONS TAB
-  ("a database dump wearing a UI" at 66 rows) — [P1] the readout states a FALSE DELIVERY PATH for all
-  51 teach/extract rows · snake_case row titles · 40-row flat group · false teaching sentence ·
-  fork-and-EJECT on editing the built-in Default · 131ms tab frame. PROSE editors: [P1] the over-cap
-  refusal renders ~900px below the fold (uncapped field-sizing) · [P2] "Saved" while refusing · three
-  cap regimes one signalled. [P1] colour-picker native input has no focus ring. TRANSWEEP verified
+  ("a database dump wearing a UI" at 66 rows) — \[P1] the readout states a FALSE DELIVERY PATH for all
+  51 teach/extract rows · snake\_case row titles · 40-row flat group · false teaching sentence ·
+  fork-and-EJECT on editing the built-in Default · 131ms tab frame. PROSE editors: \[P1] the over-cap
+  refusal renders \~900px below the fold (uncapped field-sizing) · \[P2] "Saved" while refusing · three
+  cap regimes one signalled. \[P1] colour-picker native input has no focus ring. TRANSWEEP verified
   clean live; the readout pending-arm lie confirmed dead; contrast uniformly strong; CONFIG-FINAL's
   claims held exactly. **THREE FIX LANES DISPATCHED: FORGE #1** (`ae00d9bbd323b47b2`, its maiden
   lane — the Actions-tab IA redesign, think-then-build) · PROSE-GEOMETRY (`ac5d3f3534e347fa9`) ·
@@ -715,7 +721,7 @@ security lens.
   BUILT both directions (liftJsonSchema ↔ projectJsonSchema, golden-proven); SF0-SF3 rides R0-R3;
   §10 shell-conformance — sessions = the LIST selection (one-shell rule joins), CONTEXT = the
   cross-run ledger (anti-echo tested), 3 D62 deltas NAMED FOR OWNER. Refinery kickoff after push.
-- **⚑ OWNER RULINGS (2026-08-08 ~04:00, pre-sleep batch):**
+- **⚑ OWNER RULINGS (2026-08-08 \~04:00, pre-sleep batch):**
   - **PUSH: conditional word GRANTED** — after the gap-closure side-eye lands (+ any fix legs) and a
     fresh battery greens, PUSH origin. The word is THIS sequence's; a red resets to ask-again.
   - **REFINERY: BUILD with the study's recommended forks** (F1 new domain/refinery · F2
@@ -724,9 +730,9 @@ security lens.
     design lands (designed together); security-executor pass MANDATORY pre-R1. Sequence: gap-lens →
     battery → push → refinery kickoff.
   - **Duplication class (landing cards + New-book): DEFERRED** (owner sleepy) — stays parked.
-  - **Row 27: WIRE IT** — RPG_STATE_TRACKING_GUIDE becomes a live prose slot on the write-surface
+  - **Row 27: WIRE IT** — RPG\_STATE\_TRACKING\_GUIDE becomes a live prose slot on the write-surface
     prompts; lane dispatched.
-- **═══ ⚑ NIGHT SEALED (2026-08-08 ~03:30) — CERTIFIED GREEN AT `6494c540e`, 107 AHEAD OF ORIGIN, NOT PUSHED (owner word) ═══**
+- **═══ ⚑ NIGHT SEALED (2026-08-08 \~03:30) — CERTIFIED GREEN AT `6494c540e`, 107 AHEAD OF ORIGIN, NOT PUSHED (owner word) ═══**
   **The full `verify --push` battery: PASS, ALL stages clean** — incl. tests:node (whole vitest+CT),
   e2e-smoke, cpd, parity. First run had ONE red: the orphan ratchet catching 13 contracts/rpg
   orphans the barrel conversion made visible (tagged @public w/ surface-naming reasons, the ruled
@@ -748,7 +754,7 @@ security lens.
   **New rows tonight's honesty minted (unbuilt, boarded):** databank pagination (the 100-doc
   ceiling) · home useOrder follow-up · the 136-name barrel amputation worklist
   (docs/barrel-star-reexport-residue.md) · --include-entry-exports posture lane · scripts/
-  gate-ignore inventory gap · E2E_LIVE on the next push window · prod-build CLS confirmation lead.
+  gate-ignore inventory gap · E2E\_LIVE on the next push window · prod-build CLS confirmation lead.
 - **⚑ ROSTER REFRESH (2026-08-08, later — 5 live after the full-board audit the owner ordered):**
   - ✅ **TRACKERGATE merged `a67cf44e9` + check PASS + verifier CONFIRMED** (own red-first on pre-fix
     source; COMPLETE writer sweep of the FIELD — all 6 sheet-blob writers accounted, bundle-restore is
@@ -761,8 +767,8 @@ security lens.
     check). Check running.
   - ✅➡️ **RE-HOME merged `61c9ee6c4`** (30 files; check PASS) — config.prose spine DELETED total (incl.
     dead `PROSE_HOMES.game`, pinned), preset `promptConfig.prose` threaded (GatherTurnContextArgs),
-    11 slots render under new `teach` TEMPLATE_KIND "Game teaches" (contract row per slot — the tab
-    walks TEMPLATE_DEFS, not slot ids; ≤17-char label grammar; memory banked). **Verifier
+    11 slots render under new `teach` TEMPLATE\_KIND "Game teaches" (contract row per slot — the tab
+    walks TEMPLATE\_DEFS, not slot ids; ≤17-char label grammar; memory banked). **Verifier
     `a6838f0af87a22dc6`: CONFIRMED on deletion/re-thread/byte-identity/fork-security (copy-on-write of
     the system default closes the shared-preset arm — STRONGER than the old blank) — 1 REFUTED:
     PREVIEW FIDELITY regressed** — turn runs `resolvePresetOverride` (GM redirect, turn.ts:530),
@@ -780,7 +786,7 @@ security lens.
     close ✕ drawn over the copy (26px overlap, every toast in the app) · copy says "direct/BYOK" which
     exists NOWHERE in the UI (zero user-facing hits). +3 P2 (no warn identity · 5s dismiss for 3 lines ·
     aria-hidden+tabindex close, h2-outline) +2 P3. CORRECTION: the map carries TWO codes not one
-    (custom_parameters_ignored + image_edit_dropped). Caveat banked: no client-side coalescing (server
+    (custom\_parameters\_ignored + image\_edit\_dropped). Caveat banked: no client-side coalescing (server
     dedupes; same code ×3 would stack). Receipts `reports/snaps/` + `reports/scratch-ct/`.
     **TOAST-FIX lane DISPATCHED** (`ac60e5cd15326dfc0`, fix-ALL-findings): widen Notify to
     {title,description?,action?,type} (collapses 5 findings) + 2 primitive geometry fixes + real
@@ -879,7 +885,7 @@ security lens.
   8/8 DEFERRED on pre-W4 plants — confirming the 8th ref-capture site; recall control 14/21
   SPREAD-SORT, 0 FP); NODE26-FIX mechanics byte-identical (8 functions string-compared). 2 doc gaps
   (undeclared call-handed-resolver blind spot + a six-vs-eight prose drift) routed to the live SMALLS
-  lane (same file). ~3,900 tests green across its runs.
+  lane (same file). \~3,900 tests green across its runs.
 - **✅ TOAST work-stream: ALL CLOSED — side-eye final verdict "It's finished."** Leg 2 merged
   `6c6d3f08f`, check PASS. Ring CLOSED (side-eye retracted its own near-false-negative — a same-tick
   read of the 220ms transition; settled values = ring token/2px/solid, elevation byte-intact; reduced-
@@ -896,7 +902,7 @@ security lens.
   40 slots, token-splice (NO ProseSlotDef widening — §4.5's arm was resolveProseText's splice all
   along), precedence relocated #prose→#prose-slot (one home), `resolveChatPresetProse` op w/ the
   two-invocation-class law documented at the seam. **Verifier CONFIRMED all 6 — GRADUATED, torn
-  down**: independent byte-identity repro (pre-tree materialized w/ its own node_modules, 14 combos,
+  down**: independent byte-identity repro (pre-tree materialized w/ its own node\_modules, 14 combos,
   md5-IDENTICAL 145,116 bytes both sides + a live positive control) · one-home proven (2 hits, the
   2nd is the editor-footer question) · no cycle (depcruise 2813 clean) · class-law traced at all 5
   sites w/ LADDER EQUALITY (door and turn run the same resolvePromptConfigWithOverride, same
@@ -904,7 +910,7 @@ security lens.
   fall-through matches siblings) · token-drop warn-never-block pinned + independently reproduced.
   Its one red was CONFIG-FIX debris (shell.css format — fixed `2bdbed447`, whitespace-only, sync
   suite green). 4 non-blocking observations banked in its report; ONE boarded as a small:
-  **PROSE_MAX_CHARS fail-open** — an over-4000-char override save heals to `{}` silently at the
+  **PROSE\_MAX\_CHARS fail-open** — an over-4000-char override save heals to `{}` silently at the
   contract (designed self-heal), so the preset editor should surface the limit BEFORE save (a
   maxLength + counter on the Templates-tab field; small, client-only).
 - **✅ CONFIG-FIX MERGED `5a7e2a060`** (34 files; 2049 CT · 870 unit · structure clean after fixing 7
@@ -917,13 +923,13 @@ security lens.
   scripts" = the phone win). FIX LEG in flight on the warm lane: 1 NEW P2 (the swatch sentence
   leaked into all 32 roster rows' aria-describedby + no separator — the documented subtitleLead
   seam trap) + 2 P3 (refinery's zero-children band wants the list-side :empty; Escape on the chat
-  Details overlay). TASTE NOTE for owner: two CONTEXT arms now spend ~383px declining honestly —
+  Details overlay). TASTE NOTE for owner: two CONTEXT arms now spend \~383px declining honestly —
   fine twice, worth noticing before a third joins.
   **⚑ DEV STACK RESTARTED (pre-authorized):** the running vite predated tonight's merges and
   white-screened on a stale HMR module graph. `pnpm stack restart dev` → up, healthz ok, client
-  200. Lanes drove isolated stages throughout.
+  200\. Lanes drove isolated stages throughout.
   3 lessons banked to memory (self-occluding reveals · dnd-kit frozen plugin closures ·
-  ListRow.leading aria-hidden).
+  ListRow\.leading aria-hidden).
 - **⏳ DATABANK S3 dispatched** (`afee5836975cedc36`) — the D-7 home tile per
   docs/design/databank-surface-spec.md; premise-re-verify first (3 prior databank premise-kills).
 - **✅ DBANK-S3 MERGED `88508bb6e`** — the D-7 home tile (premise SURVIVED for once: no tile existed;
@@ -945,11 +951,11 @@ security lens.
   (`af99c962b2df8aeb1`).** Roster rows PASS (one id, one fact — "the shape other list panes should
   copy"). **ESCAPE FINDING CLEARED** — reproduced dismissing 3/3 both focus arms, raw store and
   resolved mode never diverged; the original read was the snap instrument's step-then-eval ordering
-  (side-eye retracted its own near-finding). Remaining, ruled: [P2] the colour readout is ORPHAN text
+  (side-eye retracted its own near-finding). Remaining, ruled: \[P2] the colour readout is ORPHAN text
   — wire via `Field description` so the CONTROL announces the value (+ copy trim kills the 430
-  double-wrap) · [P3] the `:empty` band rule is DEAD CSS over an unreachable state w/ a fence the
+  double-wrap) · \[P3] the `:empty` band rule is DEAD CSS over an unreachable state w/ a fence the
   shell cannot produce — RULED arm (b): DROP it, record the measured truth, keep the working `:has()`
-  chain · [layout] the World Info empty-state one-line box (both affordances stay — mock-ratified).
+  chain · \[layout] the World Info empty-state one-line box (both affordances stay — mock-ratified).
   Members-chip dead-control fix in flight separately (`a8b871a5f15e96f57`).
 - **✅ I-2 DATABANK CLOSES — re-verify 7/7 Y under manufactured-state attack** (side-eye
   `afc03ded6ccd00510`; 3 own-retractions published incl. a pointer:none emulation trap that
@@ -994,7 +1000,7 @@ security lens.
   design; extending needs the literal-span exclusion extended to scripts/ — its own lane).
   **(CLOSED 2026-08-08 — the mention fence; see the TOOLING-INVESTIGATE row's closure note +
   docs/design/gate-ignore-mention-fence.md.)**
-- **⚑ PRIOR GATE-IGNORE ARC (for the record):** "FULLY CLOSED" REFUTED — a 4th leg is in flight.** Verifier
+- **⚑ PRIOR GATE-IGNORE ARC (for the record):** "FULLY CLOSED" REFUTED — a 4th leg is in flight.\*\* Verifier
   `a8fed8ee2276a7c1e` CONFIRMED the 14 converted gates (3 spot-checks incl. the over-exempt property
   at same-line granularity; kept-arms correctly §1-sanctioned; expect.token discriminates) but
   REFUTED the closure: **4 more gates** the closing sweep's regex missed (`no-vanity-alias` — proven
@@ -1002,7 +1008,7 @@ security lens.
   `ui-skin-fragment-purity` · `no-inline-union-redecl`), found via a stronger tell (column DERIVED
   from a node). Two hand-sweeps have each missed members → the fix lane
   (`aa3ff1114d475654b`) converts the 4 AND builds a STRUCTURAL TRIPWIRE (self-test AST scan of gate
-  sources w/ sanctioned-escape grammar) whose first run IS the exhaustive census of the ~171-call
+  sources w/ sanctioned-escape grammar) whose first run IS the exhaustive census of the \~171-call
   tail. The class closes when it's unmakeable, not re-swept.
 - **✅ TAG-WANTS: PREMISE-DEAD, correctly refused** (merge `d759eb354`, tests-only) — ALL THREE
   ranked wants from the TAGDIG audit shipped 5 days ago in `fb3cf32af` (sort mode w/ used-default ·
@@ -1020,14 +1026,14 @@ security lens.
   SKIPPED (already shipped `8ea171268`). **LEG 2 in flight (same worktree): zod-modern-spellings twin
   fix + a ONE-gate probe of the Finding-overload class (13 gates / 18 node-anchored sites — a LEAD;
   full burn-down decided on the probe's data).** Queued smalls: the `transition-all`-on-focusables
-  repo sweep (toast micro-leg lesson — outline-* interpolates, rings fade in).
+  repo sweep (toast micro-leg lesson — outline-\* interpolates, rings fade in).
 - **⚑ CONFIG-SWEEP (I-3 tail) REPORTED: SHIP WITH FIXES — 4 P1 · 9 P2 · 5 P3** (side-eye
   `a745bb9c0eab275f4`; receipts `reports/snaps/sweep-*.png`; SEEDED FIXTURE left in dev DB: 35 regex
   scripts / 32 tags / 6 databank docs, reusable). Root cause on most: a CONTEXT arm with nothing
   unique to say (duplicated headings desktop, full-screen occlusion mobile — the committed mock rules
   fold-into-CONTENT). P1s: list-row title aria-hidden unconditionally (non-clickable rows have NO
   accessible name — ui primitive, latent everywhere) · mobile field-drill overlay hides the thing just
-  opened · picker unfiltered at 35→~400 rows · regex facet prints its name 4× (X-7 regression).
+  opened · picker unfiltered at 35→\~400 rows · regex facet prints its name 4× (X-7 regression).
   WHAT HELD: keyboard reorder end-to-end (persisted, focus kept) · the 320px eye-column CT true live
   both pointer classes · touch floor CLEAN at coarse (0 real misses) · contrast clean everywhere
   measured · the >30 tag fork now honest. 3 self-retractions published (incl. its own truncated-string
@@ -1046,10 +1052,10 @@ security lens.
 - **✅ CARD-REFINERY PORT STUDY DELIVERED** → `docs/reviews/stickler/2026-08-08-card-refinery-port-study.md`.
   HEADLINE: orb PRE-BUILT the scaffold with zero producers — `refinerySignalsSchema` + `characters.refinery`
   column + 2 shipped null-guarded readouts + sealed-unused `DiffView`/`CompareBlocks` + the PLANNED
-  refinery section (D70 founding member). The 18k ST extension → **~3.5-5k orb-native LOC**; ~10k of
+  refinery section (D70 founding member). The 18k ST extension → **\~3.5-5k orb-native LOC**; \~10k of
   accidental ST-sandbox machinery dies on orb's rails (JSON-schema subsystem → projectJsonSchema+
   runStructuredTurn 0 lines; generation plumbing → providers 0; PNG writer → kit 0; IndexedDB → SQLite).
-  5 PORT rows (P1 engine ~500-700 · P2 sessions · P3 field selection · P4 per-field apply ~75 ·
+  5 PORT rows (P1 engine \~500-700 · P2 sessions · P3 field selection · P4 per-field apply \~75 ·
   P5 surface 1.5-2.5k) + 4 IMPROVE (incl. an orb-native batch score sweep the extension never had) +
   9 ALREADY-EXCEEDED + 7 SKIP. Sequencing R0-R4. **OWNER FORKS F1-F7 flagged w/ recs** (F1 new
   domain/refinery rec'd · F2 summarize-role v1 w/ `refine`-role escalation path · F3 fixed typed
@@ -1080,7 +1086,7 @@ security lens.
     member-tier verb; the sacred steering NOTE stays host-plane. Matrix classification stands.
   - **Barrel root-fix (56 `export *`) → IN SCOPE TONIGHT**, as the last lane on the quiet tree
     before the battery.
-  - **Tag ≤30 drag-cap at ~400 tags → LEAVE AS-IS** (deliberate cliff stands; I-4's flag closed).
+  - **Tag ≤30 drag-cap at \~400 tags → LEAVE AS-IS** (deliberate cliff stands; I-4's flag closed).
 - **✅ RE-HOME FULLY GRADUATED** — merge `61c9ee6c4` + preview-fidelity fix leg landed as patch
   `d808287ef` (the lane amended its branch; delta extracted `3e1cdb20e..ca188abe0`, applied, 99/99 on
   the pinned suite incl. the red-first-proven GM-redirect pin at the REAL seam; explicit editor
@@ -1099,7 +1105,7 @@ security lens.
   - **PUSHES HELD tonight** — even on a green battery. The train-drain `verify --push` battery still
     RUNS for verification; origin stays un-pushed until a fresh word on a later day.
   - ~~**Row 27: DEFER**~~ **SUPERSEDED — owner ruled WIRE 2026-08-08, and it LANDED** (`bbb6364a2`:
-    the guide is the `rpg.extract.stateTrackingGuide` slot on both write surfaces, ~160 tok/round
+    the guide is the `rpg.extract.stateTrackingGuide` slot on both write surfaces, \~160 tok/round
     measured; A/B quality measurement remains open). Original: leave dead-but-present; the extraction
     follow-on lane migrates around it and flags it again.
   - **Probe-lint: RESOLVED — leave `scripts/probes/**` as lint-free scratch** (bugs there are caught by
@@ -2302,18 +2308,19 @@ intact. `git log --follow docs/retro-workboard.md` is the other half.
 # APPENDIX — the absorbed remaining-work ledger (verbatim, absorbed into the board 2026-08-08)
 
 ---
+
 kind: ledger
 status: authoritative "what's left" — reconciled against the tree 2026-08-08
 supersedes-for-status: the scattered OPEN rows in docs/retro-workboard.md
 updated: 2026-08-08
----
+-------------------
 
 # Retro — remaining-work ledger (the single "what's left")
 
 **What this is.** One deduped, ranked, re-verified list of everything that still reads as open across
 `docs/retro-workboard.md` (2,272 lines), the four `docs/design/parked-options-*.md` decision docs, the
 gap-audit, and the standing owner items — with each item's board/doc SOURCE and a LIVE or STALE receipt.
-The board's measured stale rate on grep-sourced rows is ~50%, so **every item below was re-checked against
+The board's measured stale rate on grep-sourced rows is \~50%, so **every item below was re-checked against
 the current tree** (`main` @ `16ef01478`); I did not trust a row's own status.
 
 **The headline reconciliations this pass produced** (read these first — the scattered board contradicts
@@ -2333,7 +2340,7 @@ itself on all four):
 3. **I-2 DATABANK is CLOSED** (S1+S2+S3 all merged, `88508bb6e` + fixes). The `### I-2` header still says
    "S3 unbuilt" (`:1239`) — STALE. **See F3.**
 4. **capability-gate wiring is genuinely OPEN.** Verified: `features/preset/components/capability-gate.tsx`
-   still hardcodes "This is a routing problem, not a missing connection" (~:66) and does NOT import the
+   still hardcodes "This is a routing problem, not a missing connection" (\~:66) and does NOT import the
    shared classifier; `resolve-failure.ts` exists and owns the discrimination. **See B1.**
 
 Ranking is by consequence within each category. Coverage limits are stated at the foot.
@@ -2372,7 +2379,7 @@ neither deliverable has landed on the tree yet.
   `resolveChatCapability` can fail `PRECONDITION_FAILED` (`DomainNoCredentialError` = literally a missing
   credential — the claim INVERTED), `NOT_FOUND`, or 500. The shared classifier
   (`features/preset/lib/resolve-failure.ts`) already owns the discrimination and is consumed by
-  `readout-parts.tsx`. ~3-line change. **Queued behind A3** (same preset surface).
+  `readout-parts.tsx`. \~3-line change. **Queued behind A3** (same preset surface).
 - **B2 · Prompt-view section-drill fork-eject** (FORGE#1 finding (b), board `:582-583`). The Prompt view's
   section drill has the SAME local-drill-state fork-eject class the Actions-tab store-axis fix already
   solved; apply the store-axis fix. **Queued behind A3.**
@@ -2383,7 +2390,7 @@ neither deliverable has landed on the tree yet.
   (`prose-is-user-editable`). Rows 8-10 (host toasts) correctly excluded.
 - **B4 · `respell` derive-or-cite** (SMALLS, board `:1536`). `DigestsParams`/`SegmentsParams` ≡ contracts
   `MemoryQueryOptions` — a cite-or-derive cleanup (its `MemoryBackfillCounts` twin is already gone). Tiny.
-- **B5 · `no-test-fabrication.baseline.json` regen** (board `:1132`). Stale ~15 rows (deleted files,
+- **B5 · `no-test-fabrication.baseline.json` regen** (board `:1132`). Stale \~15 rows (deleted files,
   absorbed shrinks). One-line shrink-only cleanup; belongs to whoever owns the tree.
 - **B6 · `fork.ts:154-155` stale comment** (board `:1134`). "no production writer yet" is false since
   `c197ce01b` landed the host-plane-strip writers. Comment-only truth-repair; the strip itself is correct
@@ -2394,6 +2401,7 @@ neither deliverable has landed on the tree yet.
 ## C. OWNER-DECISION (needs his ruling — recommended arm from the options doc)
 
 ### Persona / prose cluster
+
 - **C1 · persona = character** — OWNER-SACRED. Design: `docs/design/persona-character-kind-substrate.md`
   (5 forks in §10). **Rec: Phase D now** (kind-polymorphic cast producer — `CAST_KINDS`+`CAST_KIND_POLICY`,
   no table, no pin-layer moves), **then Phase C** (4-field card-face substrate `@orb/contracts/card-face`,
@@ -2416,18 +2424,20 @@ neither deliverable has landed on the tree yet.
   instructions. LIVE (defaults, so every unedited room ships these bytes today).
 
 ### Config-rail / portability cluster (`parked-options-config-port.md`)
+
 - **C4 · Presets into the config rail** (owner-timed; §1, standing #4, board `:1256`). **Rec: arm 4** —
   leave presets standalone, KILL the false "one array member" premise (verified: presets is already its
   own top-level rail section, not a config collection; folding needs 3 seam extensions), migrate properly
   as a scoped seam job when the owner feels it.
 - **C5 · JSON-card export affordance** (§3, standing #8, I-6). **Rec: arm 1** — the server arm shipped
   (`?format=png|json`, verified `export.ts` + `export-character.ts`); add a PNG/JSON submenu to the
-  character kebab mirroring the chat kebab. ~10 lines. Pure "surface a built capability."
+  character kebab mirroring the chat kebab. \~10 lines. Pure "surface a built capability."
 - **C6 · Landing-cards + "New book" duplication** (§2, board `:699` owner DEFERRED). **Rec: arm 2 (split
   the class)** — fix the landing at the child level (each `CollectionLauncher` drops count+create once
   populated, keeps the blurb), KEEP the New-book double affordance (mock-ratified + CT-pinned + owner-drawn).
 
 ### Tag taste-calls + contract cap (`parked-options-tag-contract.md`)
+
 - **C7 · guided-prompt contract cap** (§2, board `:628-633`). **Rec: Option 2** — introduce shared
   `MAX_INJECTION_TEMPLATE_LENGTH` (=10000) referenced by BOTH `formatStrings` and `guidedActions.*.prompt`,
   plus wire the UI `maxLength`. **LIVE-VERIFIED still open:** `guidedActionConfigSchema.prompt` is
@@ -2436,10 +2446,11 @@ neither deliverable has landed on the tree yet.
 - **C8 · Four tag taste-calls** (§1). Recs: **1a** tag-only backup button → **SKIP** (bundle already
   carries `tags.json`); **1b** import Ask/All/Existing/None → **KEEP ours** (durable queue is strictly more
   capable); **1c** retire manual/`sortOrder` → **KEEP** (owner-ruled `tag-sort.ts:9-10`; reversible middle
-  = drop the mode, keep the column); **1d** folder OPEN vs CLOSED → **build OPEN, defer CLOSED** (else drop
+  \= drop the mode, keep the column); **1d** folder OPEN vs CLOSED → **build OPEN, defer CLOSED** (else drop
   the write-only `folderType`).
 
 ### Ops / posture cluster (`parked-options-ops-posture.md`)
+
 - **C9 · AGENT-1** (standing #7, board `:1824`). **Rec: SPLIT.** The credential is an OWNER ACTION
   (re-auth Claude Max OAuth on the host — the refresh code is correct and fails safe; `host-token.ts:85-87`).
   Arms 1-3 (knob honesty, reasoning-visibility parity, usage/context parity) are a **buildable lane that
@@ -2452,10 +2463,11 @@ neither deliverable has landed on the tree yet.
 - **C11 · Barrel amputation worklist** (the 135-name follow-up; `barrel-star-reexport-residue.md` §4,
   board `:668`, `:1775`). The root-fix conversion LANDED (57→28 stars); what's HELD for a quiet tree is the
   per-symbol amputation: **Tier A 85** (dead once the barrel line drops — each needs delete / `@public` /
-  header-cite; several are RPG_* shape-data protected by module law) + **Tier B 50** (surplus barrel line
+  header-cite; several are RPG\_\* shape-data protected by module law) + **Tier B 50** (surplus barrel line
   only, zero-risk drop). Owner-timed / needs a drained tree.
 
 ### Refinery / containerize residual forks
+
 - **C12 · Refinery F6/F7** (port-study §6). F1-F5 already ruled. **F6 auto-stamp** rec: every analyze
   refreshes `characters.refinery`, `applyFields` auto-snapshots first, prose baselines owner-signed.
   **F7 retention** rec: no caps v1. Low-stakes — fold into R0/R1 unless owner objects.
@@ -2464,6 +2476,7 @@ neither deliverable has landed on the tree yet.
   provisioning, and the live image-build + pentest-cage sequencing.
 
 ### Standing owner items still genuinely open (his word only)
+
 - **C14** DRAFT-TRUST server render-policy seam (standing #6, architecture call) · **VRAM-refusal drill**
   live arm (#11) · **v3-transcripts-reach-new-installs-only** heal (#12) · **RV-13 branch-and-save game
   modes** — ready to spec now that PROSE-1 landed (#13) · **unsent-draft reload persistence** fork (#14) ·
@@ -2495,7 +2508,7 @@ neither deliverable has landed on the tree yet.
   Own small. (Not re-verified live.)
 
 Note: the ARCHIVE-RESCUED "BOARD THESE" list is mostly struck (see F). The survivors that are genuine
-open work — PRESET-SLIDER-VERIFY, fillRule-evenodd probe, narrowest-mount gate, E2E_LIVE — are
+open work — PRESET-SLIDER-VERIFY, fillRule-evenodd probe, narrowest-mount gate, E2E\_LIVE — are
 verification/report-then-decide items and live in **E**, not here.
 
 ---
@@ -2509,7 +2522,7 @@ verification/report-then-decide items and live in **E**, not here.
 - **E2 · PRESET-SLIDER-VERIFY** (S; board `:1677`). The preset program closed without re-verifying the
   slider deck on a vLLM/OR connection (sonnet-5 exposes no sampling knobs, so the deck was never seen
   rendered). Its own crunch list demanded it.
-- **E3 · E2E_LIVE=1 pnpm e2e** owed on a push window (board `:1574`) — never re-confirmed since the era's
+- **E3 · E2E\_LIVE=1 pnpm e2e** owed on a push window (board `:1574`) — never re-confirmed since the era's
   start. Also flagged on every push window in the compact snapshot.
 - **E4 · narrowest-mount row gate candidate** (side-eye 08-08; board `:1600-1604`). The class behind both
   gap-audit P1s: a `Row` with a `shrink-0` trailing cluster sized wide and never re-measured at its
@@ -2561,7 +2574,7 @@ verification/report-then-decide items and live in **E**, not here.
   brand burn-down (`:1366`) · I-6 portability R6 (`:1384`) · I-7 observability (`:1417`) · per-actor
   tracker grant/revoke editor (`:1530`) · readout-parts pending-flash (`:1532`) · CapabilityGate PENDING
   arm (`:1534`, distinct from B1's wrong-cause copy) · field-reachability `.ok` (`:1546`) · R5b(a) verify
-  (`:1563`) · CONTRACTS-BARREL / CODEMOD-DOCS / CODEMOD-PATHMAP / SSE-SPEC-STATUS / PROMPT_MACROS phantom /
+  (`:1563`) · CONTRACTS-BARREL / CODEMOD-DOCS / CODEMOD-PATHMAP / SSE-SPEC-STATUS / PROMPT\_MACROS phantom /
   EMBER-VOCAB / WORKLOADS-LABEL (all premise-false, `:1739-1846`) · L8-INBOUND (`:1753`) · HAND-EDIT-VS-FLUSH
   (`:1726`) · STRUCTURED-ABORT-REASON-LEAK (`:1705`) · RPG-ROUND-SIGNAL (`:1725`) · INFRA-WARN-DEAF
   (`:1689`) · I-1 structured-output last item (RULED keep-default, `:1162`).
@@ -2581,7 +2594,7 @@ verification/report-then-decide items and live in **E**, not here.
   not confirm the merge). These are low-consequence.
 - **The gap-audit's own residual** stands: a follow-up flagged ONLY mid-transcript via SendMessage (never
   restated in a final report) is the one class neither the audit nor this ledger would catch.
-- I did **not** re-drive any live UI, run any battery, or read every one of the ~2,272 board lines
+- I did **not** re-drive any live UI, run any battery, or read every one of the \~2,272 board lines
   word-for-word — I read the STATE blocks, all initiatives (I-1..I-11), SMALLS/TAIL, ARCHIVE-RESCUED,
   BOARD-THESE (both passes), standing owner items, and the four decision docs in full, and sampled the
   history-archive pointers. A row not surfaced here is either struck on the board, or fell in a section I

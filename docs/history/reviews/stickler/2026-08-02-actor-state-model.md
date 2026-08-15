@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-02
+---
+
 # Stickler design review — the actor-state model (roster · cast · the volatile plane)
 
 **Charge (owner):** three defects landed in ONE seam in ONE day — `b962df48` (actorState additive),
@@ -63,7 +69,7 @@ Plus the ruled **hp demotion** (Q5, §6) and four smaller confirmed incoherences
 So the honest current taxonomy:
 
 | Kind | Identity home | Presence | Volatile | Sheet | Exceptions |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | roster human | chat roster (`user:<id>`) | `presentCharacters` row optional (`characterId` join for characters; never for users — `rpg-status-tab.tsx:45`) | `actorState[user:<id>]` | `rpg_sheets` row | `sheet.trackerGrants/Revokes` |
 | roster character | chat roster (`character:<id>`) | same | `actorState[character:<id>]` | `rpg_sheets` row | same |
 | cast NPC | **the `presentCharacters` row itself** (name-keyed) | the same row (identity ≡ presence) | `actorState[cast:<name>]` | none | def-side explicit `appliesTo` list only (`tracker.ts:143-145`) |
@@ -218,6 +224,7 @@ contract, not the flag.
 ## 4. Q4 — Gameplay, the wandering-NPC benchmark, and the owner's two arms
 
 ### 4.1 The ST `rpg-companion` reference (read: `src/utils/presentCharacters.js`,
+
 `src/systems/generation/promptBuilder.js`, `src/core/{state,persistence}.js`)
 
 Its model: the model **re-emits the entire tracker block every generation** (user stats + info box +
@@ -356,6 +363,7 @@ fold, salvage, enums, prompts) is untouched except where hp's demotion (§6) rem
 ### Stage R3 — hp demotion (§6, ruled) — rides R2's baseline squash
 
 ### Stage R4 — doorways (not this lane): promotion verb · `rpg_npcs` cross-game library · offstage
+
 steering line polish
 
 Recommended order: **R1 now** (defect-class kill, M, no schema), **R2+R3 as one lane** (one baseline
@@ -426,36 +434,36 @@ becomes mode-forkable. **M-sized**, cheapest it will ever be, and it shares R2's
 
 ## 7. Findings index (severity-ranked)
 
-1. **[RESHAPE/MS-1] The hand-write contract is image-shaped over a projection-split plane** —
+1. **\[RESHAPE/MS-1] The hand-write contract is image-shaped over a projection-split plane** —
    `contracts/rpg/inputs.ts` (editSnapshot patch) + `client/src/features/rpg/lib/volatile-patch.ts:19-32`
-   + `chat-ops/tracker-view.ts:174-181`. Failure class: all three of the day's defects + the latent
-   stale-image clobber + the member-arm hazard (§2). Evidence: code trace + the three commits + zero
-   client `castVolatile` consumers. Fix: §5 R1.
-2. **[RESHAPE/MS-2] NPC identity/presence fused, state split — departure destroys the standing half,
+   - `chat-ops/tracker-view.ts:174-181`. Failure class: all three of the day's defects + the latent
+     stale-image clobber + the member-arm hazard (§2). Evidence: code trace + the three commits + zero
+     client `castVolatile` consumers. Fix: §5 R1.
+2. **\[RESHAPE/MS-2] NPC identity/presence fused, state split — departure destroys the standing half,
    retains the hard half invisibly and irremovably** — `contracts/rpg/snapshot.ts:78-99` +
    `tools/apply.ts:266-303,609-626` + `merge.ts:98` + `tracker-view.ts:174-181`. Failure: return =
    blank guides + silent neutral relationship (no beat) + intact pack; no dismiss gesture exists; the
    plane is grow-only (even resync can't shrink it) and every tracked cast key rides the targetRef enum
    forever. Fix: §5 R2 + `dismissActor`.
-3. **[CONFIRMED] Cast NPC hard state is host-invisible** — model-written hp/status/conditions/
+3. **\[CONFIRMED] Cast NPC hard state is host-invisible** — model-written hp/status/conditions/
    inventory/wallet on a `cast:` actor render in no client surface (`castVolatile` consumers: zero;
    Inventory tab roster-only `rpg-inventory-tab.tsx:184`; Scene card renders identity+trackers only).
    The reminder sees it; the human doesn't. Interim fix rides the in-flight lane/R2.
-4. **[CONFIRMED] npcs/party carrier classes partition rows, not people → read/write tracker drift on a
+4. **\[CONFIRMED] npcs/party carrier classes partition rows, not people → read/write tracker drift on a
    scene-standing roster member** — `tracker-view.ts:176-181` vs `entry/compose/rpg.ts:373-407` (§1.4).
    A `trust(appliesTo:npcs)` def is taught on her cast line but unofferable (enforcing wire) or
    written-to-nowhere (loose wire). Dissolves under R2; a pre-R2 spot fix = skip `castCarrier` for cast
    rows whose `characterId`/name joins a roster actor.
-5. **[RULED→PLAN] hp's native privilege** — demotion plan §6; includes the live `sheet.maxHp` /
+5. **\[RULED→PLAN] hp's native privilege** — demotion plan §6; includes the live `sheet.maxHp` /
    `hp.max` dual-home incoherence (`sheet.ts:21` + `actor.ts:71`, no reconciler anywhere — swept).
-6. **[CONFIRMED, minor] "normalized" cast key is actually verbatim** — `actor.ts:9`/`snapshot.ts:78`
+6. **\[CONFIRMED, minor] "normalized" cast key is actually verbatim** — `actor.ts:9`/`snapshot.ts:78`
    doc claim vs `apply.ts:281,91`; case/spelling variance can mint sibling identities on non-enforcing
    wires; blocks rename; makes promotion re-key ugly. R2 should mint a real normalized key (slug) with
    display name separate — the unification's own key/label lesson (`tracker.ts:15-17`) applied to
    people.
-7. **[NO-ACTION] Q3 lock flag** — two-jobs-one-flag is real but currently defect-free; the R1 op
+7. **\[NO-ACTION] Q3 lock flag** — two-jobs-one-flag is real but currently defect-free; the R1 op
    contract retires the second job structurally (§3). Do not split now.
-8. **[NO-ACTION] `omissionRemoves` registry** — principled and correctly scoped for the model path;
+8. **\[NO-ACTION] `omissionRemoves` registry** — principled and correctly scoped for the model path;
    keep, including the contrast test (§2).
 
 ---
@@ -486,6 +494,7 @@ regions.
 
 **Sweeps performed (ast-grep v0.44 `ast-grep run` — the `/usr/bin/sg` shadow binary is not ast-grep on
 this host; `/usr/bin/grep -a` for literals per doctrine):**
+
 - `castVolatile` consumers: ast-grep pattern over `packages/client` in BOTH `-l ts` and `-l tsx` → zero;
   repo-wide literal grep → 5 files, all server/contracts (producer + reminder + macro-view + merge
   comment + views decl). The "client-unread" claim is a two-method absence check.
@@ -508,6 +517,7 @@ the actual verb against the seeded db and assert at `resolveSnapshotForTurn`; th
 errors-as-data throw is a genuine hardening; the merge contrast test pins the non-additive planes).
 
 **Unconfirmed suspicions (explicitly NOT findings):**
+
 - A hand edit landing mid-turn (between a turn's commit and its flush) may interleave with the flush's
   bucket write in an order that drops or clobbers one side — the anchor/slot ordering across
   `postNarratorMessage` vs the in-flight turn's messageId was not traced to a verdict. Low priority

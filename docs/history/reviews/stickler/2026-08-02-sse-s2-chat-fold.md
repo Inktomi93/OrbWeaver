@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-01
+---
+
 # Stickler review — SSE-1 S2: the chat room fold (`wt/agent-ae7a23e7ea4435982` @ `b4904ab4`, work commit `c52555b6`)
 
 **Reviewed:** `git diff main...HEAD` of the S2 worktree (`.claude/worktrees/agent-ae7a23e7ea4435982`), every
@@ -30,6 +36,7 @@ time, before `queue.push` may shed the frame.** `pumpRoom` calls `advanceCursor(
 sheds the room's entire pending tail AND drops the pushed frame itself — all frames whose seqs already
 advanced `cell.rooms.get(key).cursor`. The `roomLagged` control frame then carries
 `cursorFor(key)` = that advanced cursor. This directly contradicts:
+
 - `socket-registry.ts:49-50` — "`cursor` is the last DURABLE seq **delivered**";
 - `frame-queue.ts:82-84` — "`cursorFor` reads the room's last **delivered** DURABLE seq";
 - spec §7's legality argument for `lag` — "the client re-attaches at `cursor` and the durable replay
@@ -74,6 +81,7 @@ CLIENT's own high-water mark (the seq-guard already tracks it) or the server mus
 to the last *delivered* seq when it sheds.
 
 **Concrete failure scenarios (inputs/state → wrong outcome):**
+
 1. A member's tab is backgrounded/stalled while a turn streams (every token delta is one durable-seq
    frame — `chat.int.test.ts` shows deltas taking seqs 1,2,3…; 512 queued frames ≈ one long turn).
    The queue overflows → the tail (deltas, `messageCommitted`, `turnCompleted`…) is shed →
@@ -126,6 +134,7 @@ Fix: re-pin the first test's assertion to the multiplex wire (`stream.connect` s
 **Byte-identity of the moved bodies (the builder's central claim) — VERIFIED mechanically.**
 `git show main:packages/server/src/transport/trpc/routers/chat.ts` (== `e7a62b7b`, confirmed by diff)
 vs `stream/sources/chat.ts`, paren-aware whole-body extraction, comment lines stripped:
+
 - `resolveLiveYield`, `scrubberFor`, `retireScrubberOnCommit`: identical except the sanctioned type
   alias `ReturnType<typeof createHiddenSpanStreamScrubber>` → `HiddenSpanStreamScrubber` (same type).
 - `memberBounds`: byte-identical.
@@ -153,7 +162,7 @@ per probe).
 **Hot-spot 3 — cursor hold-or-lower on synthetics:** within a pump the synthetic carries the pump's own
 start cursor (`cursor ?? 0`) — hold; the `null → 0` transition on a cursor-less attach reproduces the
 pre-fold `Last-Event-ID:"0"` from-zero re-replay, which the seq-guard dedups (pinned in
-`message-list-surface.ct.tsx` MARK_THEN_REOPEN + `chat-event-seq-guard.test.ts`). Post-abort cursor
+`message-list-surface.ct.tsx` MARK\_THEN\_REOPEN + `chat-event-seq-guard.test.ts`). Post-abort cursor
 writes are fenced (`control.signal.aborted` checked before `advanceCursor`). The enqueue-vs-delivery
 defect is F1(a), not the synthetic path.
 
@@ -166,7 +175,7 @@ only `"seq" in frame` + the `roomKey` routing fields. Client sweep (`-l ts` + `-
 
 **Hot-spot 5 — principal provenance:** pump principal = the CONNECT ctx (`routers/stream.ts:33-37` →
 `runSocket` → `source.run({principal})`); attach authorizes under the ATTACH ctx; the registry's
-`owned()` gate (`socket-registry.ts:107-116`) collapses a foreign socketId to leak-free NOT_FOUND at
+`owned()` gate (`socket-registry.ts:107-116`) collapses a foreign socketId to leak-free NOT\_FOUND at
 BOTH adopt and detach, and `adopt` runs eagerly in the connect RESOLVER (refusal before the generator
 exists). Same-user cross-request principals converge because every verdict re-derives from the DB per
 yield.
@@ -180,7 +189,7 @@ re-adding it goes RED. `route-trpc-subscription.ts` deleted with zero remaining 
 **CT stub honesty (`route-orb-socket.ts`):** frames flow through the REAL client path
 (`useOrbSocket.routeFrame` → `roomRegistry.deliver` → `useChatBus.onEvent` → seq-guard →
 `applyChatBusEvent`) — the stub fakes only the network; replayable on every connect
-([[ct-sse-stub-replayable-every-connect]] honored); the recorder asserts the lifecycle
+(\[\[ct-sse-stub-replayable-every-connect]] honored); the recorder asserts the lifecycle
 (`attachRequests()` pins `sinceSeq: 0` seed vs `null`, `connects() === 1` pins one-socket-per-tab).
 Frames are typed `StreamFrame`, so the stub cannot silently author a shape the contract forbids.
 The handshake has a 5s poll timeout that serves the body anyway — a mis-scripted CT fails visibly
@@ -200,6 +209,7 @@ attach-then-connect with the split link. (I did NOT run the `@live` e2e specs �
 stack + fixture provider; their reshaped instrument code was reviewed line-by-line instead.)
 
 **Gates + suites run this session (worktree):**
+
 - `pnpm check` — PASS, all 12 stages (biome, eslint, types×5, tests:execution-membership,
   structure:full incl. `single-stream-transport`, depcruise, knip, docs) — full output read.
 - `pnpm vitest run` on every touched/moved server+client suite — 167/167 pass, 0 type errors
@@ -214,7 +224,7 @@ the cross-tenant sweep's chat classification note matches the accept-always/with
 and the S2 stream.test.ts dual-transport pin now asserts chat attaches while notifications/automation
 still refuse.
 
-**Regions NOT read in full:** the untouched middle of `routers/chat.ts` (the ~500 lines of CRUD
+**Regions NOT read in full:** the untouched middle of `routers/chat.ts` (the \~500 lines of CRUD
 procedures — only its diff hunks + header read; tsc green covers the import removals),
 `use-rpg-bus.ts`/`use-user-bus.ts` bodies (untouched; grepped for their gap-heal wiring only), the
 notifications/automation router bodies (comment-only hunks read). The `@live` e2e specs were reviewed,
@@ -507,8 +517,7 @@ a post-overlap new-room attach still gets its `attached` ack + pump.
 
 ### P3F2 (MEDIUM) — the barrier's liveness hangs on ONE swallowed, unretried HTTP mutation: a lost re-announce now silences a resumable room for the life of the connection
 
-`packages/client/src/data/bus/room-registry.ts:140-145` (`announce` = `void transport.attach(...).catch(()
-=> undefined)`) × `packages/server/src/transport/trpc/stream/socket.ts:168-172` (a held room lifts ONLY
+`packages/client/src/data/bus/room-registry.ts:140-145` (`announce` = `void transport.attach(...).catch(() => undefined)`) × `packages/server/src/transport/trpc/stream/socket.ts:168-172` (a held room lifts ONLY
 on `onAttach`/`onAnnounce` — both exist solely as consequences of that mutation; no timer, by design) ×
 spec §8 (ping 15s < `reconnectAfterInactivityMs` 45s ⇒ a healthy socket never self-reconnects).
 
@@ -516,7 +525,7 @@ spec §8 (ping 15s < `reconnectAfterInactivityMs` 45s ⇒ a healthy socket never
 the `stream.attach` re-announce are independent HTTP requests. If the announce fails while the stream
 succeeded — a flap outliving the reconnect by seconds, a server restart between the two, a cap/rate-limit
 refusal (`DomainRateLimitError` rides the same collapsed `.catch`, indistinguishable from the deliberate
-NOT_FOUND swallow) — then: the barrier holds the chat room (no `attached` ack, no `chatOpened`, no
+NOT\_FOUND swallow) — then: the barrier holds the chat room (no `attached` ack, no `chatOpened`, no
 frames); nothing retries the announce; `resumeAfterLag` cannot fire (the pump never ran, so it cannot
 shed); the ping keeps the socket alive so no inactivity reconnect ever comes. The transcript is frozen
 with zero signal until the user leaves and re-enters the chat or the network flaps again. Pre-barrier
@@ -528,7 +537,7 @@ delivery guarantee and its failure mode is total, silent, and unbounded in durat
 
 **Safe remediation direction:** any one of — a bounded retry on the announce (it is idempotent
 server-side by design, so retrying is free); surfacing a failed attach for a JOINED room to the room's
-`onError` instead of the blanket swallow (the swallow exists for the leak-free NOT_FOUND refusal, which
+`onError` instead of the blanket swallow (the swallow exists for the leak-free NOT\_FOUND refusal, which
 is distinguishable by code); or a server-side barrier timeout that degrades to the pre-barrier
 resume-from-cursor (delivery with a possible gap + `chatOpened` invalidate beats silence). Regression
 test: drop exactly the re-announce mutation in the room-registry/socket composition and assert the room
@@ -582,7 +591,7 @@ Restored; file re-run green (5/5); `git status` clean. The merge message's bite 
   drives exactly the re-attach-while-notice-pending interleaving and asserts the contiguous-prefix pin.
   A `collapse`-room park at capacity restarts via the same notice path (pass 2's noted small behavior
   change, unchanged).
-- **`refusedUntilFolded` / NO_FRAMES:** refusal precedes the pump in `stream.attach` (authorize first),
+- **`refusedUntilFolded` / NO\_FRAMES:** refusal precedes the pump in `stream.attach` (authorize first),
   so the pump is unreachable; `resumable` on the refused arms cannot gate anything.
 - **The scrub reconcile at the room source:** `deltaScrubbers`/`scrubberFor`/`retireScrubberOnCommit`
   deleted from `sources/chat.ts`; `resolveLiveYield` is now fully stateless (per-yield `memberBounds` →

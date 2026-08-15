@@ -1,3 +1,9 @@
+---
+kind: history
+status: archived
+updated: 2026-08-08
+---
+
 # Stickler design review — THEME DOORS + the card-embeddable appearance partition (Lane TD design pass)
 
 Date: 2026-08-03 · Reviewer: stickler (fresh context) · Charge: DESIGN (actor-state-review form — inventory → judgment → R-program → owner forks). Read-only; no code touched. Tree at review: `main`, clean except `reports/snaps/tracker-kit-trackers-tab.png` (unrelated snap churn). No diff under review ⇒ no gate battery run; every claim below is receipted against files read IN FULL this session.
@@ -9,41 +15,48 @@ GROUND (owner rulings, not re-opened): (1) character themes LEAVE the global pic
 ## §1 INVENTORY — what is actually on the tree (receipts)
 
 ### 1.1 The board's FIRST question: is `themeOverride` values-or-theme-ref today? → **VALUES.**
+
 - `packages/db/src/schema/character.ts:70-74` — `theme_override` / `background_override` are nullable JSON blobs typed `ThemeOverride` / `ThemeBackground`. No FK to `themes`, anywhere.
 - `packages/contracts/src/character/index.ts:188-192` — the update input carries `themeOverrideSchema.nullable().optional()` (values) + the BG-C twin.
 - `packages/contracts/src/chat/roster.ts:184-198` — `ParticipantView.themeOverride`/`backgroundOverride` thread the RAW value blob to every member ("threaded unmerged — chat assembly never reads the `themes` table").
 - Consequence: a theme-REF design would have to cross the owner boundary on the roster wire (themes are single-owned, `themes.ownerId`, `db/schema/settings.ts:57-82`; members cannot read the host's theme row). Values-on-the-card is the only shape compatible with D18/D21/D22 membership physics. **The first question is settled by the tree: values.**
 
 ### 1.2 The cascade homes + takeover gates (as-built)
+
 - **Background (BG-C), ONE home:** `@orb/contracts/chat` `resolveCarriedBackground` (`roster.ts:259-275`) — outer gate `isSingleHumanRoom` (widened per the 08-03 owner ruling, header at `roster.ts:223-227` states the widening + the permanent two-human INERT); cascade **chat-set > card-carried**; the card arm additionally `soleTrueSoloCharacter` (true-solo only, BY RULING — "no non-arbitrary pick among two cards' backgrounds"). Both the app-shell paint (`app-shell/lib/resolve-theme-background.ts:67-72`) and the panel echo (`chat/components/room-overrides-tab.tsx:65-88`, the honest-provenance gloss) call the ONE resolver.
 - **Theme takeover:** `client/features/chat/lib/attribution.ts:149-166` `resolveRoomTheme` — TRUE-SOLO only, card arm only (no chat-set theme field exists: `contracts/chat/metadata.ts` carries `background?` only, line 204). Applied at `chat-room-surface.tsx:98-100` + `:139` `<ThemeScope tokens={roomTheme ?? {}}>`, gated on committed (`isCommitted` → `roomChatId` — a DRAFT room shows the viewer theme BY DESIGN, SW's pinned lesson).
 - **Per-speaker plane (any room, all viewers):** `attribution.ts:104-125` — an assistant row's tokens = `participant.themeOverride ?? colorForCharacter(id)`; merged-narrator via `speakerThemesByName` (`:170-182`). This plane is NOT takeover-gated — bubble/prose colors on a character's OWN rows apply in group rooms too (in-room public face, same floor class as name/avatar).
 - **Viewer's global theme:** `app-shell/lib/resolve-theme-scope-tokens.ts` — seed themes pass an EMPTY override (D71 clause 2); custom themes flow their override + density. `use-selected-theme.ts` degrades a stale/deleted `selectedThemeId` to `null` → Hearth (never blank).
 
 ### 1.3 Consumption topology — which override axes are actually LIVE (the SW-precedent ground truth)
+
 - `chatStyle`: the row skin is chosen by `useChatStyle()` (`chat/hooks/use-chat-style.ts:20-24`) which reads **`UserSettings.appearance.chatStyle` ONLY**. `ThemeScope` stamps `data-chat-style` (`ui/content/theme-scope/theme-scope.tsx:26`) but **zero selectors/readers consume it** (repo-wide sweep: the only `data-chat-style` hit is theme-scope.tsx itself). ⇒ card chatStyle: DEAD. Theme chatStyle: DEAD.
 - `density`: the only `[data-density]` selector is `.shell-grid[data-density="compact"]` (`app-shell/surfaces/shell.css:70`), fed by `app-shell.tsx:193` from `resolveThemeScopeTokens(...).density` (custom-theme density ?? appearance pref). A nested scope's `data-density` matches nothing. ⇒ card density: DEAD. **Theme density: LIVE** (a custom global theme the viewer selected).
 - So the SW precedent ("density/chatStyle deliberately NOT card-forced") is enforced today by **consumption topology only** — the schema (`contracts/theme/override.ts:52-53`), the card editor (`character-appearance-tab.tsx:270-271`, Message style + Density selects), and the theme editor (`theme-editor.tsx:116` + model) all still SPELL and PERSIST the dead axes. See findings F-1.
 
 ### 1.4 The theme entity + picker state
+
 - `themes` table: TypeID PK, nullable `ownerId` (NULL = seed, non-deletable/non-editable by `fetchOwned` physics), `unique(ownerId, name)` (typed-conflict surface; NULLs distinct so seeds are seeder-guarded). `isSeed` DERIVES at projection from NULL owner (`contracts/theme/index.ts:43-50`) — never stored.
 - **The 13-theme picker is STILL LIVE on the tree** (ruling (1) is unbuilt — TD is the build): 12 value-set jsons in `ui/src/tokens/themes/` (mocha, light + the 10 character palettes: birdie, calamity, charlotte, elias, hana, jfc, kohaku, morgatha, niko, sabine) + Hearth-as-base; `seed-themes.ts` upserts all 13 at fixed sentinel ids, header: "Palettes 4–13 are the default-character pack's own palettes… published here as an installable app theme".
 - Enforcement already in place that the migration will lean on: `tests/server/domain/settings/seed-theme-pairing.suite.test.ts` (byte-equal + registry set-equality BOTH ways vs `SEED_THEME_VALUE_SETS`, generated `ui/src/tokens/themes.gen.ts`); the tokens freshness gate; `css-structure` (hand-authored `[data-theme]` block = RED); `palette-contrast` (derived from the generated registry, auto-covers/auto-shrinks); `tests/server/domain/character/seeder/cards.contract.test.ts` (pins card overrides byte-equal to the ui value-sets — this pin DIES with the value-sets, see M1).
-- Picker lifecycle (`settings/surfaces/theme-picker-surface.tsx`): select · new (create→editor) · customize-a-seed (duplicate→editor) · edit/delete owned · reset-to-Hearth. Known rider: the **zero-edit duplicate fork** (owner saw live; board ~1511: pick built-in → Customize → change nothing → back → a copy exists; "address if adjacent work touches theme-picker" — TD touches it).
+- Picker lifecycle (`settings/surfaces/theme-picker-surface.tsx`): select · new (create→editor) · customize-a-seed (duplicate→editor) · edit/delete owned · reset-to-Hearth. Known rider: the **zero-edit duplicate fork** (owner saw live; board \~1511: pick built-in → Customize → change nothing → back → a copy exists; "address if adjacent work touches theme-picker" — TD touches it).
 
 ### 1.5 Name-collision landscape (for the promote door)
+
 - `preset`: `uniquePresetName` — **mint-time numeric de-collision at the WRITE** (`domain/preset/substrate/names.ts`, used by create + update).
 - `theme.createTheme` (`verbs/create-theme.ts`): insert-optimistically, classify the constraint → **typed `DomainConflictError`** (explicit-name editor path; TOCTOU-safe, the `tag.create` precedent).
 - `theme.duplicateTheme` (`verbs/duplicate-theme.ts`): **mint-time de-collision** via local `freeThemeName` ("<base>", "<base> 2", …) + typed conflict only on the race. `freeThemeName` is currently PRIVATE to duplicate-theme.ts.
 
 ### 1.6 The viewer plane + the settings partition idiom
-- `AppearanceSettings` (`contracts/settings/index.ts:729-816`): ~35 flat keys — chatWidthPct, fontScale, avatar quartet + showInChatAvatars, density, elevation, chatStyle, 7 diagnostic `show*` toggles + messageActions, autoFixMarkdown, colorQuotedSpeech, blurSurfaces/blurStrength/shadowEffects/surfaceTexture, reducedMotion, the background sextet + library + fit/dim/blur, 5 reading-* keys + justifyBodyText, enableThemeColorization, showLLMReasoningIcon.
+
+- `AppearanceSettings` (`contracts/settings/index.ts:729-816`): \~35 flat keys — chatWidthPct, fontScale, avatar quartet + showInChatAvatars, density, elevation, chatStyle, 7 diagnostic `show*` toggles + messageActions, autoFixMarkdown, colorQuotedSpeech, blurSurfaces/blurStrength/shadowEffects/surfaceTexture, reducedMotion, the background sextet + library + fit/dim/blur, 5 reading-\* keys + justifyBodyText, enableThemeColorization, showLLMReasoningIcon.
 - The D120 owns-partition idiom (the enforcement shape to mirror): per-section `*_KEYS` tuples (e.g. `APPEARANCE_MESSAGE_STYLE_KEYS`, `chat/lib/appearance-message-style-model.ts:29`) + `owns` claims + `assertSettingsKeyPartition` at the door (zero cited gaps). Tuples + a door assert — **not DDL**.
 - `ThemeBackground` (`contracts/theme/background.ts`) already rules its own partition slice in the header: **source carried, fit/dim/blur NEVER carried** (ST `/lockbg` semantics); `BACKGROUND_IMAGE_KINDS` homed in theme, settings re-exports (the one-direction vocabulary precedent TD's tuple should copy).
 - Law bearing directly: UI-Theming §12.1 — "Appearance settings are **display-only** … they're user/AppSettings-level, **not per-character**." The card-carriable plane is deliberately NOT appearance: it is the two carried twins (`ThemeOverride`, `ThemeBackground`). The partition is therefore already half-structural: **a key not spellable in a carried schema cannot ride a card** (resolver physics). Core-0 §6 has no theme/appearance row — no drifted prior ruling; the partition question is genuinely new territory (checked before treating as new, per charge).
 - Serde: `server/kit/serde/theme/` exists (theme export/import — the bundle arm the promote door does NOT need to build). Card serde (`serde/card/`) carries **no** themeOverride/backgroundOverride — the presentation plane does not survive card export today (inventory fact, out of TD scope).
 
 ### 1.7 D-law bearing (read this session)
+
 D44 (two trust tiers; token-override via `<ThemeScope>` clamp; resolution character > global > default) · D62 (shipped theme set Hearth · Mocha · Light; settings IA) · D63 (background image = appearance, base surface COLOR = theme token) · D71 (all four clauses; seed value-sets generated-not-authored; seed renders from block only; clamp derives color-scheme) · D107 (dead-switch class; DOORWAY/DEFERRED registries) · D114 (a section homes with its READER) · D120 (SET-SEAMS; owns tuples + door assert) · **D121-D** (lifecycle chrome anatomy: band = Import · kebab = Export · ZERO lifecycle chrome in editors/rooms) · D121-F (`promoteActor` — the promote-verb precedent) · D122 (presentation-surface consent via present membership). Plus the BG-C header law and the 08-03 single-human widening ruling (board lines 745-756, built `47562f44`).
 
 ---
@@ -53,20 +66,23 @@ D44 (two trust tiers; token-override via `<ThemeScope>` clamp; resolution charac
 ### 2.1 Door 1 — "Save as theme" (promote)
 
 **Promote COPIES VALUES; re-ref is rejected.** Four independent reasons, each sufficient:
+
 1. The override IS values today (§1.1); there is no ref to preserve.
 2. The roster wire threads values to every member; a theme-ref cannot cross the single-owner boundary (`themes.ownerId` + `fetchOwned`) without inventing cross-owner theme reads.
 3. Deleting a theme must never strip N cards (no FK, no cascade surprise); `duplicateTheme`'s deep-copy is the standing precedent ("duplicate-to-customize", seeds never edited in place).
 4. Card portability: card serde drops presentation; a ref would dangle on any future export/import arm.
-One-home check: the card's look and a picker theme are two CONCEPTS (a character's authored identity vs the user's app-wide palette library entry); a one-time copy at a door is the `duplicateTheme` pattern, not a doubling. Post-promote edits deliberately do NOT sync either way.
+   One-home check: the card's look and a picker theme are two CONCEPTS (a character's authored identity vs the user's app-wide palette library entry); a one-time copy at a door is the `duplicateTheme` pattern, not a doubling. Post-promote edits deliberately do NOT sync either way.
 
 **Fidelity is exact BY CONSTRUCTION** — this is the payoff of the picker reversal: a promoted theme is an OWNED row, so it renders through `clampThemeTokens` — the SAME derivation the room takeover uses on the card values. (The old 3→13 approach rendered seeds from hand-tuned generated blocks; promote under that regime could never be byte-faithful. Under this design it is, with zero pipeline work.)
 
 **Payload = the card-embeddable subset only** (`cardEmbeddableSubset(themeOverride)`, §3): colors + font + radius + background + borderColor. Explicitly NOT copied:
+
 - `chatStyle`/`density` — a promoted theme must not smuggle a viewer-ergonomics force the card itself could not exert (theme density is LIVE when selected, §1.3 — copying a card's stale `density:"comfortable"` would silently pin the promoting user's shell density).
 - `backgroundOverride` — a theme has no image slot BY LAW (D63: the photo is appearance/carried-twin territory; the base surface COLOR is already in the override). Not a gap; the ruled shape.
 - `css: null` — cards have no CSS tier (Tier-B is per-character trust, not theme CSS).
 
 **Verb: `settings.promoteTheme`** (domain/settings, the themes owner — new verb beside createTheme):
+
 - Input `{name, override}` — same boundary clamp as createTheme (`themeOverrideSchema.parse`); the CLIENT supplies the values it already holds via `character.get` (the appearance tab's own query). No settings→character server edge: zero security gain from a server-side read (the caller can already `createTheme` arbitrary values; the clamp is identical), and the cake stays clean.
 - **Name policy: mint-time de-collision** (the `uniquePresetName` / `duplicateTheme` precedent) — default name = the character's display name; `freeThemeName` HOISTED from duplicate-theme.ts to a shared substrate home (one home, two callers); the constraint-race still classifies to the typed conflict. Rationale for de-collide-not-reject: promote is a mint the user did not type a name into — "Charlotte 2" is the honest outcome; the typed-conflict UX stays correct for `createTheme`'s explicit-name editor path. Two policies, two doors, each matching its input mode — this is the standing split on the tree already (§1.5).
 - Audits `theme.promote`, emits `themesChanged`, returns `ThemeView`. New tRPC proc → the new-router PROBED/EXEMPT sweep classification (one probed mutation).
@@ -79,6 +95,7 @@ One-home check: the card's look and a picker theme are two CONCEPTS (a character
 **This door is BUILT — the design confirms it as the sanctioned arm rather than building it twice.** Receipts: the whole character Appearance tab is an immediate-commit autosave riding `character.update` (`character-appearance-tab.tsx` + `use-character-theme-form.ts`, D78 boundary, 300ms debounce, per-field Inherit semantics, "Reset to global"); values one-homed on the card row; the BG-C background control is its sibling. Nothing new to persist, no new verb.
 
 Build residue that IS this door's to close:
+
 - **Strike the two dead selects** (Message style, Density) from the card tab — the partition's R3 (findings F-1; D107 dead-switch class: they write fields no consumer reads).
 - **The reversal opens a real UX hole: "make this card look like Mocha" is now hand-copying colors** (character themes left the picker; no path copies theme→card). Recommend the small inverse door: `Start from a theme…` on the same cluster row — pick any picker theme, copy `cardEmbeddableSubset(theme.override)` into the form fields (a one-time seed of form values through the SAME projection, no linkage, autosave persists as ordinary values). Fork O-6.
 
@@ -144,9 +161,10 @@ The partition changes WHAT can ride a card; it never touches WHEN it paints. Gat
 ## §4 Migration (existing overrides + the picker reversal)
 
 **M1 — picker curation (ruling (1)'s build):**
+
 - Delete the 10 character value-set jsons → `pnpm --filter @orb/ui tokens:build` (themes.gen + theme.css blocks regenerate away). This IS the D71-compliant direction — generated-not-authored means removal is also json-side only; never touch theme.css by hand (`css-structure` RED). The freshness gate forces the regen into the same commit.
 - `seed-themes.ts`: drop the 10 upserts + add a **DELETE arm** at the 10 fixed sentinel ids (the seeder is upsert-only today; without the delete, every existing install keeps 10 orphan picker rows forever). Keep the header's "overwrite can never clobber user data" truth: the delete targets only the sentinel ids, and **owned duplicates of character themes survive untouched** (they are the user's rows — correct under duplicate-to-customize).
-- **Heal `selectedThemeId`:** any user_settings whose `theme.selectedThemeId` ∈ the 10 sentinel ids → `null` (Hearth), only-if-set (the DEMO_CHAT_PACK heal precedent). The client already degrades a dangling id gracefully (`use-selected-theme` → null → Hearth), so the heal is for settings-blob honesty + picker active-row display, not crash safety.
+- **Heal `selectedThemeId`:** any user\_settings whose `theme.selectedThemeId` ∈ the 10 sentinel ids → `null` (Hearth), only-if-set (the DEMO\_CHAT\_PACK heal precedent). The client already degrades a dangling id gracefully (`use-selected-theme` → null → Hearth), so the heal is for settings-blob honesty + picker active-row display, not crash safety.
 - Tests self-adjust by derivation (seed-theme-pairing + palette-contrast both derive from `SEED_THEME_VALUE_SETS` — the D71 both-ways set-equality forces jsons and seeder to shrink TOGETHER). One pin dies honestly: `cards.contract.test.ts`'s byte-equal card↔value-set pairing loses its ui side — re-pin the card overrides as self-contained contract fixtures (the pack is frozen-source; any card edit rides the MIG pack-version stamp discipline).
 - **NO DDL anywhere in TD** — no new columns, no baseline concern (the 0000-squash rule is not triggered; flagging because no gate catches a stray 0001).
 
@@ -163,7 +181,7 @@ The partition changes WHAT can ride a card; it never touches WHEN it paints. Gat
 - **R2 — the partition substrate**: `CARD_EMBEDDABLE_THEME_KEYS` + `VIEWER_SACRED_THEME_KEYS` + `cardEmbeddableSubset` in contracts/theme; the partition suite (§3c-3); re-home `resolveRoomTheme` onto `soleTrueSoloCharacter` + the subset projection (F-2 fix); `speakerThemesByName` through the same projection; strike the card tab's two dead selects (F-1a) and the theme editor's Message-style select (F-1b, per O-4/O-5); update the roster.ts + override.ts headers to match.
 - **R3 — the doors**: `settings.promoteTheme` (verb + hoisted `freeThemeName` + audit + event + int tests incl. the collision-numbering and the subset-projection assertions) → the Appearance-tab `Save as theme…` button (+ CT: enabled-iff-override, success lands in picker, no auto-select) → (per O-6) `Start from a theme…` seeding. Rider: the zero-edit duplicate fork fix (O-8) while the picker is open.
 - **R4 — close-out**: D-entry mint (D123+; the partition table + both door shapes + the copy-not-ref ruling + the name-policy split); UI-Theming §12.1 amendment (the "not per-character" sentence gains the carried-twin partition pointer); board strike.
-Sequencing note: R1 ∥ R2 are independent; R3 depends on R2 (the subset projection is promote's boundary).
+  Sequencing note: R1 ∥ R2 are independent; R3 depends on R2 (the subset projection is promote's boundary).
 
 ---
 
@@ -174,7 +192,7 @@ Sequencing note: R1 ∥ R2 are independent; R3 depends on R2 (the subset project
 - **O-3 promote payload** — (a) `cardEmbeddableSubset` only; no chatStyle/density; no background; css null ★REC (no viewer-force smuggling; D63 says themes have no image slot) · (b) whole-override copy (rejected: silently pins the promoter's shell density).
 - **O-4 `chatStyle` field fate on ThemeOverride** — (a) DELETE the field from the schema + both editors; the `THEME_CHAT_STYLES` tuple stays (it is appearance's vocabulary home) ★REC (dead everywhere, §1.3 — the D107 dead-switch class, `rateLimits.general` deletion precedent; lenient parse makes old blobs a non-event) · (b) keep + cite-dormant as a DOORWAY (if the owner intends a future "theme forces skin" — nothing today suggests it).
 - **O-5 `density` exposure** — ★REC: field STAYS on the schema (theme-live); the CARD tab's Density select is struck (card-dead + viewer-sacred); the THEME editor's Density select stays (live, consented).
-- **O-6 the inverse door `Start from a theme…`** — (a) build the small seeding control (copy subset → form values, no linkage) ★REC (the reversal orphaned "make this card look like Mocha"; it is the same projection function run backwards, ~one select) · (b) defer (accept hand-copying).
+- **O-6 the inverse door `Start from a theme…`** — (a) build the small seeding control (copy subset → form values, no linkage) ★REC (the reversal orphaned "make this card look like Mocha"; it is the same projection function run backwards, \~one select) · (b) defer (accept hand-copying).
 - **O-7 chat-set THEME arm** (host-picked room theme mirroring the background cascade) — ★REC: DEFER, doorway named (§3d). Not ordered; adds a metadata field + resolver + panel row for a want nobody has voiced.
 - **O-8 zero-edit duplicate fork** (rider) — (a) auto-delete the copy on Back-with-zero-edits ★REC (cheapest honest arm; single-flight guard) · (b) defer-create until first edit (cleaner but reworks the editor session boundary) · (c) leave (owner already said "technically fine").
 - **O-9 the curated picker set** — ★REC: Hearth · Mocha · Light (the D62 shipped set verbatim). Any character palette the owner misses re-enters as ONE json (D71: a new theme = a json) — a taste call with a one-file cost, decidable any time.
@@ -199,7 +217,7 @@ Sequencing note: R1 ∥ R2 are independent; R3 depends on R2 (the subset project
 
 ## §9 Verified clean / coverage of my silence
 
-- Read IN FULL: agent-doctrine, AGENTS.md, Core-Laws-and-Precedents, UI-Theming-and-Content, contracts `theme/override.ts` + `theme/background.ts` + `chat/roster.ts`, `db/schema/settings.ts`, clamp.ts + theme-scope.tsx, resolve-theme-scope-tokens.ts, resolve-theme-background.ts, attribution.ts, use-chat-style.ts, use-selected-theme.ts, use-character-theme-form.ts, character-appearance-tab.tsx, room-overrides-tab.tsx, theme-picker-surface.tsx, create-theme.ts, duplicate-theme.ts, appearance-message-style-model.ts. Read in relevant part: Core-Path-Registry (D1–D122 sweep for bearing entries; D120/D121/D122 in full), retro-workboard (the TD/SW/BG threads, lines ~700-835 + 1400-1520), contracts/settings appearance block (:700-850), seed-themes.ts head, seeder/cards.ts (two cards + presentation blocks), app-shell.tsx (:150-210), chat-room-surface.tsx (:80-160), theme contract views, chat router BG-C procs, serde inventory.
+- Read IN FULL: agent-doctrine, AGENTS.md, Core-Laws-and-Precedents, UI-Theming-and-Content, contracts `theme/override.ts` + `theme/background.ts` + `chat/roster.ts`, `db/schema/settings.ts`, clamp.ts + theme-scope.tsx, resolve-theme-scope-tokens.ts, resolve-theme-background.ts, attribution.ts, use-chat-style.ts, use-selected-theme.ts, use-character-theme-form.ts, character-appearance-tab.tsx, room-overrides-tab.tsx, theme-picker-surface.tsx, create-theme.ts, duplicate-theme.ts, appearance-message-style-model.ts. Read in relevant part: Core-Path-Registry (D1–D122 sweep for bearing entries; D120/D121/D122 in full), retro-workboard (the TD/SW/BG threads, lines \~700-835 + 1400-1520), contracts/settings appearance block (:700-850), seed-themes.ts head, seeder/cards.ts (two cards + presentation blocks), app-shell.tsx (:150-210), chat-room-surface.tsx (:80-160), theme contract views, chat router BG-C procs, serde inventory.
 - Swept (Grep/glob, live-hit-verified): `resolveRoomTheme` / `resolveCarriedBackground` / `clampThemeTokens` all consumers; `data-chat-style` + `data-density` all occurrences; `override.chatStyle` all reads; `uniquePresetName` all call sites; `themeOverride`/`backgroundOverride` across packages + serde + tests; Core-0 §6 theme/appearance rows (none).
 - NOT read (bounded): theme-editor.tsx full body beyond the density/chatStyle rows; theme-row-menu.tsx; the theme serde bodies; the settings tRPC router; seed-theme-pairing test body; the remaining 8 seeder cards (presentation shape spot-checked ×2 + grep-confirmed ×10 for the dead axes). None bear on a §2–§6 ruling; all are R-program build-time reading.
 - Not run: `pnpm check` / test battery — no diff under review (design charge; tree clean but for an unrelated snap png).
