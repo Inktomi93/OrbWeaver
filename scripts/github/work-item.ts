@@ -1,17 +1,53 @@
+// work-item — the Project 1 operator CLI (show/list/create + the lifecycle verbs and their guards).
+//
+// DESIGN (2026-08-14 quota rebuild — wire protocol replaced, guard semantics preserved byte-for-byte):
+// • Cost model: the GraphQL primary budget prices a query at connection-requests/100 (min 1). The old
+//   implementation paid `gh project item-list --limit 1000` on EVERY command (twice on first touch),
+//   plus one `gh project item-edit` process per field — ~35 operator commands exhausted the whole
+//   5,000-point/hour budget and froze board operations for ~48 minutes.
+// • Item resolution is TARGETED: one WorkItemContext query walks repository→issue→projectItems and
+//   returns issue state, comments, blockedBy, and the item's fieldValues in one ~1-point request.
+//   Nothing but `list` ever enumerates the project, and `list` paginates 100/page requesting only the
+//   fields it prints (a manual cursor loop — `gh api graphql --paginate` emits one JSON doc per page).
+// • The project id and field/option ids are STABLE: they load once into
+//   .claude/cache/work-item-project.json (dir override: WORK_ITEM_CACHE_DIR) and SELF-HEAL — a missing
+//   field/option name or an id-resolution error drops the cache, refetches once, and retries the
+//   idempotent write; a second miss is a real error.
+// • Mutations BATCH: one aliased WorkItemFields request carries every non-Status change
+//   (update/clearProjectV2ItemFieldValue), then Status commits ALONE in a WorkItemStatus request.
+//   Status stays the transition's commit marker: GraphQL executes root mutation fields serially but a
+//   sibling's failure does not stop later fields, so batching Status into the same request could
+//   commit it past a failed field write and break the rerun promise. Writes are idempotent and
+//   skip-if-equal, so an interrupted command remains safe to rerun from its source state.
+// • Rate-limit failures CLASSIFY: a GraphQL failure matching a limit signature probes the free REST
+//   rate_limit endpoint and exits 2 with the reset timestamp — never a raw GraphQL stack.
+// • Typed variables: -F for Int (issue numbers — #59), -f for String/ID. Field lookups stay
+//   case-insensitive by NAME (#60: live vocabularies differ in key case). Field kinds dispatch on
+//   __typename, which matches the old `gh project field-list` type strings exactly.
+// Guards (LAW): claim needs Ready+unblocked+Kind/Priority/Area/Review; set refuses lifecycle fields;
+// done only from Verify (or rerun on Done) with byte-matched --evidence, posts the verification
+// comment exactly once, closes the issue; needs-owner refuses terminal dispositions; unblock promotes
+// to Ready when the last blocker clears; closed items are immutable except done.
+// Exit contract: 0 clean · 2 tool error · 3 misuse.
+
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const REPOSITORY = "Inktomi93/orbweaver";
 const PROJECT_OWNER = "Inktomi93";
-const PROJECT_NUMBER = "1";
+const REPO_NAME = "orbweaver";
+const REPOSITORY = `${PROJECT_OWNER}/${REPO_NAME}`;
+const PROJECT_NUMBER = 1;
 const ISSUE_RE = /^\d+$/u;
 const ISSUE_URL_RE = /\/issues\/(\d+)$/u;
+const RATE_LIMIT_RE = /rate limit|RATE_LIMITED/iu;
+const STALE_CONTEXT_RE = /could not resolve|no field named|no option named/iu;
 const EXIT_TOOL = 2;
 const EXIT_MISUSE = 3;
 const CREATE_OPTION_COUNT = 4;
+const MS_PER_SECOND = 1000;
 const LIFECYCLE_FIELDS = new Set(["status", "evidence", "lane", "wake condition", "disposition"]);
 const REQUIRED_READY_METADATA = ["Kind", "Priority", "Area", "Review"];
 const TERMINAL_DISPOSITIONS = new Set(["killed", "already resolved"]);
@@ -23,39 +59,116 @@ const ISSUE_CLASSES = {
   evidence: { labels: ["kind:finding", "triage"], projectKind: "Evidence", review: undefined, status: "Triage" },
 } as const;
 
+// biome-ignore lint/style/noProcessEnv: WORK_ITEM_CACHE_DIR is the test seam for the project-context cache directory — harness plumbing, not app config.
+const CACHE_DIR = process.env["WORK_ITEM_CACHE_DIR"] ?? join(resolve(dirname(fileURLToPath(import.meta.url)), "..", ".."), ".claude", "cache");
+const CACHE_FILE = join(CACHE_DIR, "work-item-project.json");
+
+const FIELD_VALUE_FRAGMENTS = `
+            ... on ProjectV2ItemFieldTextValue { text field { ... on ProjectV2FieldCommon { name } } }
+            ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2FieldCommon { name } } }`;
+
+const CONTEXT_QUERY = `query WorkItemContext($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $number) {
+      id number title url state
+      comments(last: 100) { nodes { body } }
+      blockedBy(first: 100) { nodes { number } }
+      projectItems(first: 10) {
+        nodes {
+          id
+          project { id number }
+          fieldValues(first: 50) { nodes {${FIELD_VALUE_FRAGMENTS}
+          } }
+        }
+      }
+    }
+  }
+}`;
+
+const PROJECT_QUERY = `query WorkItemProject($owner: String!, $number: Int!) {
+  user(login: $owner) {
+    projectV2(number: $number) {
+      id
+      fields(first: 50) {
+        nodes {
+          __typename
+          ... on ProjectV2FieldCommon { id name }
+          ... on ProjectV2SingleSelectField { options { id name } }
+        }
+      }
+    }
+  }
+}`;
+
+const LIST_QUERY = `query WorkItemList($project: ID!, $cursor: String) {
+  node(id: $project) {
+    ... on ProjectV2 {
+      items(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          content { ... on Issue { number title url } ... on PullRequest { number title url } ... on DraftIssue { title } }
+          fieldValues(first: 50) { nodes {${FIELD_VALUE_FRAGMENTS}
+          } }
+        }
+      }
+    }
+  }
+}`;
+
+const ADD_QUERY = `mutation WorkItemAdd($project: ID!, $content: ID!) {
+  addProjectV2ItemById(input: { projectId: $project, contentId: $content }) { item { id } }
+}`;
+
+const BLOCKERS_QUERY = `query WorkItemBlockers($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) { issue(number: $number) { blockedBy(first: 100) { nodes { number } } } }
+}`;
+
+const ISSUE_ID_QUERY = `query WorkItemIssueId($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) { issue(number: $number) { id } }
+}`;
+
 type IssueClass = keyof typeof ISSUE_CLASSES;
 
 class WorkItemUsageError extends Error {}
+
+interface FieldOption {
+  readonly id: string;
+  readonly name: string;
+}
 
 interface Field {
   readonly id: string;
   readonly name: string;
   readonly type: string;
-  readonly options?: readonly { readonly id: string; readonly name: string }[];
+  readonly options?: readonly FieldOption[];
 }
 
-interface Project {
-  readonly id: string;
-}
-
-interface ProjectItem {
-  readonly id: string;
-  readonly content?: { readonly number?: number; readonly title?: string; readonly url?: string };
+interface ProjectContext {
+  readonly owner: string;
+  readonly projectNumber: number;
+  readonly projectId: string;
+  readonly fields: readonly Field[];
 }
 
 interface Issue {
   readonly id: string;
   readonly number: number;
+  readonly title?: string;
   readonly url: string;
   readonly state: "OPEN" | "CLOSED";
   readonly comments: readonly { readonly body: string }[];
+  readonly blockers: readonly number[];
+}
+
+interface ItemState {
+  readonly id: string;
+  readonly projectId: string;
+  readonly fields: Record<string, string>;
 }
 
 interface WorkItemContext {
   readonly target: Issue;
-  readonly item: ProjectItem;
-  readonly project: Project;
-  readonly fields: readonly Field[];
+  readonly item: ItemState;
 }
 
 type LifecycleCommand =
@@ -81,12 +194,58 @@ interface ListCommand {
 
 export type WorkCommand = { readonly kind: "help" } | { readonly kind: "show"; readonly issue: number } | ListCommand | CreateCommand | LifecycleCommand;
 
-function gh(args: readonly string[]): string {
-  return execFileSync("gh", args, { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }).trim();
+function execOutput(error: unknown, channel: "stdout" | "stderr"): string {
+  if (typeof error !== "object" || error === null) {
+    return "";
+  }
+  const value = (error as Record<string, unknown>)[channel];
+  return typeof value === "string" ? value : "";
 }
 
-function ghJson<T>(args: readonly string[]): T {
-  return JSON.parse(gh(args)) as T;
+function graphqlResetTime(): string {
+  // The REST rate_limit endpoint is free — probing it never spends the budget it reports.
+  try {
+    const payload = JSON.parse(execFileSync("gh", ["api", "rate_limit"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })) as {
+      readonly resources?: { readonly graphql?: { readonly reset?: number } };
+    };
+    const reset = payload.resources?.graphql?.reset;
+    return typeof reset === "number" ? new Date(reset * MS_PER_SECOND).toISOString() : "the top of the hour";
+  } catch {
+    return "the top of the hour";
+  }
+}
+
+function ghFailure(error: unknown, args: readonly string[]): Error {
+  const detail = `${execOutput(error, "stderr")}\n${execOutput(error, "stdout")}`.trim();
+  if (args[0] === "api" && args[1] === "graphql" && RATE_LIMIT_RE.test(detail)) {
+    return new Error(`GitHub GraphQL rate limit exhausted; it resets at ${graphqlResetTime()}. Rerun this exact command after the reset.`);
+  }
+  if (detail !== "") {
+    return new Error(detail);
+  }
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function gh(args: readonly string[]): string {
+  try {
+    return execFileSync("gh", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  } catch (error) {
+    throw ghFailure(error, args);
+  }
+}
+
+type GraphqlVariables = Readonly<Record<string, string | number>>;
+
+function graphql<T>(query: string, variables: GraphqlVariables): T {
+  const args = ["api", "graphql", "-f", `query=${query}`];
+  for (const [name, value] of Object.entries(variables)) {
+    args.push(typeof value === "number" ? "-F" : "-f", `${name}=${value}`);
+  }
+  const payload = JSON.parse(gh(args)) as { readonly data?: T };
+  if (payload.data === undefined) {
+    throw new Error("GitHub GraphQL returned no data");
+  }
+  return payload.data;
 }
 
 function issueNumber(raw: string | undefined): number {
@@ -195,94 +354,146 @@ export function parseWorkCommand(argv: readonly string[]): WorkCommand {
   return parseLifecycle(name, issueNumber(rawIssue), rest);
 }
 
-function loadIssue(number: number): Issue {
-  return ghJson<Issue>(["issue", "view", String(number), "--repo", REPOSITORY, "--json", "id,number,url,state,comments"]);
+interface RawFieldNode {
+  readonly __typename: string;
+  readonly id?: string;
+  readonly name?: string;
+  readonly options?: readonly FieldOption[];
 }
 
-function loadProject(): Project {
-  return ghJson<Project>(["project", "view", PROJECT_NUMBER, "--owner", PROJECT_OWNER, "--format", "json"]);
-}
-
-function loadFields(): readonly Field[] {
-  return ghJson<{ readonly fields: readonly Field[] }>(["project", "field-list", PROJECT_NUMBER, "--owner", PROJECT_OWNER, "--format", "json"]).fields;
-}
-
-function loadItems(): readonly ProjectItem[] {
-  return ghJson<{ readonly items: readonly ProjectItem[] }>([
-    "project",
-    "item-list",
-    PROJECT_NUMBER,
-    "--owner",
-    PROJECT_OWNER,
-    "--limit",
-    "1000",
-    "--format",
-    "json",
-  ]).items;
-}
-
-function ensureItem(target: Issue, project: Project, fields: readonly Field[]): ProjectItem {
-  const item =
-    loadItems().find((candidate) => candidate.content?.number === target.number) ??
-    ghJson<ProjectItem>(["project", "item-add", PROJECT_NUMBER, "--owner", PROJECT_OWNER, "--url", target.url, "--format", "json"]);
-  if (currentValue(item, "Status") !== undefined && currentValue(item, "Disposition") !== undefined) {
-    return item;
+function fetchProjectContext(): ProjectContext {
+  const data = graphql<{
+    readonly user?: { readonly projectV2?: { readonly id: string; readonly fields: { readonly nodes: readonly RawFieldNode[] } } | null } | null;
+  }>(PROJECT_QUERY, { owner: PROJECT_OWNER, number: PROJECT_NUMBER });
+  const project = data.user?.projectV2;
+  if (project === undefined || project === null) {
+    throw new Error(`Project ${PROJECT_NUMBER} was not found for ${PROJECT_OWNER}`);
   }
-  const work = { target, item, project, fields };
-  setField(work, "Disposition", "Untriaged");
-  setField(work, "Status", "Triage");
-  const initialized = loadItems().find((candidate) => candidate.content?.number === target.number);
-  if (initialized === undefined) {
-    throw new Error(`Project ${PROJECT_NUMBER} did not return #${target.number} after initialization`);
+  const fields: Field[] = [];
+  for (const node of project.fields.nodes) {
+    if (node.id === undefined || node.name === undefined) {
+      continue;
+    }
+    fields.push(
+      node.options === undefined
+        ? { id: node.id, name: node.name, type: node.__typename }
+        : { id: node.id, name: node.name, type: node.__typename, options: node.options },
+    );
   }
-  return initialized;
+  const context: ProjectContext = { owner: PROJECT_OWNER, projectNumber: PROJECT_NUMBER, projectId: project.id, fields };
+  mkdirSync(CACHE_DIR, { recursive: true });
+  writeFileSync(CACHE_FILE, JSON.stringify(context));
+  return context;
 }
 
-function loadContext(target: Issue): WorkItemContext {
-  const project = loadProject();
-  const fields = loadFields();
-  return { target, item: ensureItem(target, project, fields), project, fields };
+function projectContext(fresh: boolean): ProjectContext {
+  if (!fresh) {
+    try {
+      const cached = JSON.parse(readFileSync(CACHE_FILE, "utf8")) as ProjectContext;
+      if (cached.owner === PROJECT_OWNER && cached.projectNumber === PROJECT_NUMBER && typeof cached.projectId === "string" && Array.isArray(cached.fields)) {
+        return cached;
+      }
+    } catch {
+      // an absent or unreadable cache falls through to the cold fetch
+    }
+  }
+  return fetchProjectContext();
 }
 
-function currentValue(item: ProjectItem, name: string): string | undefined {
-  const value = Object.entries(item).find(([field]) => field.toLowerCase() === name.toLowerCase())?.[1];
-  return typeof value === "string" ? value : undefined;
+// The cached project/field/option ids are stable but not immortal: one refetch-and-retry on any
+// stale-looking failure, then the error is real.
+function withProjectContext<T>(operation: (context: ProjectContext) => T): T {
+  const context = projectContext(false);
+  try {
+    return operation(context);
+  } catch (error) {
+    if (error instanceof Error && STALE_CONTEXT_RE.test(error.message)) {
+      return operation(projectContext(true));
+    }
+    throw error;
+  }
+}
+
+interface FieldValueNode {
+  readonly text?: string;
+  readonly name?: string;
+  readonly field?: { readonly name?: string };
+}
+
+function itemFields(nodes: readonly FieldValueNode[]): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const node of nodes) {
+    const name = node.field?.name;
+    const value = node.text ?? node.name;
+    if (name !== undefined && typeof value === "string") {
+      fields[name] = value;
+    }
+  }
+  return fields;
+}
+
+interface IssueContext {
+  readonly target: Issue;
+  readonly item?: ItemState;
+}
+
+interface RawItemNode {
+  readonly id: string;
+  readonly project: { readonly id: string; readonly number: number };
+  readonly fieldValues: { readonly nodes: readonly FieldValueNode[] };
+}
+
+interface RawIssueNode {
+  readonly id: string;
+  readonly number: number;
+  readonly title?: string;
+  readonly url: string;
+  readonly state: "OPEN" | "CLOSED";
+  readonly comments: { readonly nodes: readonly { readonly body: string }[] };
+  readonly blockedBy: { readonly nodes: readonly { readonly number: number }[] };
+  readonly projectItems: { readonly nodes: readonly RawItemNode[] };
+}
+
+function fetchIssueContext(number: number): IssueContext {
+  const data = graphql<{ readonly repository?: { readonly issue?: RawIssueNode | null } | null }>(CONTEXT_QUERY, {
+    owner: PROJECT_OWNER,
+    repo: REPO_NAME,
+    number,
+  });
+  const issue = data.repository?.issue;
+  if (issue === undefined || issue === null) {
+    throw new Error(`#${number} was not found in ${REPOSITORY}`);
+  }
+  const target: Issue = {
+    id: issue.id,
+    number: issue.number,
+    ...(issue.title === undefined ? {} : { title: issue.title }),
+    url: issue.url,
+    state: issue.state,
+    comments: issue.comments.nodes,
+    blockers: issue.blockedBy.nodes.map((blocked) => blocked.number),
+  };
+  const node = issue.projectItems.nodes.find((candidate) => candidate.project.number === PROJECT_NUMBER);
+  if (node === undefined) {
+    return { target };
+  }
+  return { target, item: { id: node.id, projectId: node.project.id, fields: itemFields(node.fieldValues.nodes) } };
+}
+
+function fieldOf(fields: Readonly<Record<string, string>>, name: string): string | undefined {
+  return Object.entries(fields).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
+}
+
+function currentValue(item: ItemState, name: string): string | undefined {
+  return fieldOf(item.fields, name);
 }
 
 function namedField(fields: readonly Field[], name: string): Field {
   const candidate = fields.find((item) => item.name.toLowerCase() === name.toLowerCase());
   if (candidate === undefined) {
-    throw new Error(`Project 1 has no field named ${name}`);
+    throw new Error(`Project ${PROJECT_NUMBER} has no field named ${name}`);
   }
   return candidate;
-}
-
-function setField(work: WorkItemContext, name: string, value: string): void {
-  if (currentValue(work.item, name)?.toLowerCase() === value.toLowerCase()) {
-    return;
-  }
-  const target = namedField(work.fields, name);
-  const args = ["project", "item-edit", "--id", work.item.id, "--project-id", work.project.id, "--field-id", target.id];
-  if (target.type === "ProjectV2Field") {
-    gh([...args, "--text", value]);
-    return;
-  }
-  if (target.type !== "ProjectV2SingleSelectField") {
-    throw new Error(`${target.name} is not a writable text or single-select field`);
-  }
-  const selected = target.options?.find((choice) => choice.name.toLowerCase() === value.toLowerCase());
-  if (selected === undefined) {
-    throw new Error(`${target.name} has no option named ${value}`);
-  }
-  gh([...args, "--single-select-option-id", selected.id]);
-}
-
-function clearField(work: WorkItemContext, name: string): void {
-  if (currentValue(work.item, name) === undefined) {
-    return;
-  }
-  const target = namedField(work.fields, name);
-  gh(["project", "item-edit", "--id", work.item.id, "--project-id", work.project.id, "--field-id", target.id, "--clear"]);
 }
 
 interface FieldChange {
@@ -290,38 +501,156 @@ interface FieldChange {
   readonly value?: string;
 }
 
-function transitionStatusLast(work: WorkItemContext, status: string, changes: readonly FieldChange[]): void {
-  // Status is the commit marker; an interrupted command remains safe to rerun from its source state.
-  for (const change of changes) {
-    if (change.value === undefined) {
-      clearField(work, change.name);
-    } else {
-      setField(work, change.name, change.value);
-    }
+type EncodedWrite =
+  | { readonly kind: "text" | "option"; readonly fieldId: string; readonly fieldName: string; readonly value: string; readonly local: string }
+  | { readonly kind: "clear"; readonly fieldId: string; readonly fieldName: string };
+
+function encodeWrite(fields: readonly Field[], change: FieldChange): EncodedWrite {
+  const field = namedField(fields, change.name);
+  if (change.value === undefined) {
+    return { kind: "clear", fieldId: field.id, fieldName: field.name };
   }
-  setField(work, "Status", status);
+  const value = change.value;
+  if (field.type === "ProjectV2Field") {
+    return { kind: "text", fieldId: field.id, fieldName: field.name, value, local: value };
+  }
+  if (field.type !== "ProjectV2SingleSelectField") {
+    throw new Error(`${field.name} is not a writable text or single-select field`);
+  }
+  const selected = field.options?.find((choice) => choice.name.toLowerCase() === value.toLowerCase());
+  if (selected === undefined) {
+    throw new Error(`${field.name} has no option named ${value}`);
+  }
+  return { kind: "option", fieldId: field.id, fieldName: field.name, value: selected.id, local: selected.name };
 }
 
-function transitionToReady(work: WorkItemContext): void {
-  transitionStatusLast(work, "Ready", [{ name: "Wake condition" }, { name: "Disposition", value: "Action" }]);
+function buildFieldMutation(
+  operationName: string,
+  item: ItemState,
+  writes: readonly EncodedWrite[],
+): { readonly query: string; readonly variables: GraphqlVariables } {
+  const declarations = ["$project: ID!", "$item: ID!"];
+  const operations: string[] = [];
+  const variables: Record<string, string | number> = { project: item.projectId, item: item.id };
+  for (const [index, write] of writes.entries()) {
+    const fieldVariable = `f${index}`;
+    declarations.push(`$${fieldVariable}: ID!`);
+    variables[fieldVariable] = write.fieldId;
+    if (write.kind === "clear") {
+      operations.push(
+        `  m${index}: clearProjectV2ItemFieldValue(input: { projectId: $project, itemId: $item, fieldId: $${fieldVariable} }) { clientMutationId }`,
+      );
+      continue;
+    }
+    const valueVariable = `v${index}`;
+    declarations.push(`$${valueVariable}: String!`);
+    variables[valueVariable] = write.value;
+    const valueKind = write.kind === "text" ? "text" : "singleSelectOptionId";
+    operations.push(
+      `  m${index}: updateProjectV2ItemFieldValue(input: { projectId: $project, itemId: $item, fieldId: $${fieldVariable}, value: { ${valueKind}: $${valueVariable} } }) { clientMutationId }`,
+    );
+  }
+  return { query: `mutation ${operationName}(${declarations.join(", ")}) {\n${operations.join("\n")}\n}`, variables };
 }
 
-function blockers(target: Issue): readonly number[] {
-  const result = ghJson<{
-    readonly data: { readonly repository: { readonly issue: { readonly blockedBy: { readonly nodes: readonly { readonly number: number }[] } } } };
-  }>([
-    "api",
-    "graphql",
-    "-f",
-    "query=query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){issue(number:$number){blockedBy(first:100){nodes{number}}}}}",
-    "-f",
-    `owner=${PROJECT_OWNER}`,
-    "-f",
-    "repo=orbweaver",
-    "-F",
-    `number=${target.number}`,
-  ]);
-  return result.data.repository.issue.blockedBy.nodes.map((blocker) => blocker.number);
+function applyLocally(item: ItemState, write: EncodedWrite): void {
+  const key = Object.keys(item.fields).find((candidate) => candidate.toLowerCase() === write.fieldName.toLowerCase()) ?? write.fieldName;
+  if (write.kind === "clear") {
+    Reflect.deleteProperty(item.fields, key);
+    return;
+  }
+  item.fields[key] = write.local;
+}
+
+function pendingChange(item: ItemState, change: FieldChange): boolean {
+  if (change.value === undefined) {
+    return currentValue(item, change.name) !== undefined;
+  }
+  return currentValue(item, change.name)?.toLowerCase() !== change.value.toLowerCase();
+}
+
+function writeFields(item: ItemState, changes: readonly FieldChange[], operationName: string): void {
+  const pending = changes.filter((change) => pendingChange(item, change));
+  if (pending.length === 0) {
+    return;
+  }
+  const writes = withProjectContext((context) => {
+    const encoded = pending.map((change) => encodeWrite(context.fields, change));
+    const request = buildFieldMutation(operationName, item, encoded);
+    graphql(request.query, request.variables);
+    return encoded;
+  });
+  for (const write of writes) {
+    applyLocally(item, write);
+  }
+}
+
+function setField(item: ItemState, name: string, value: string): void {
+  writeFields(item, [{ name, value }], name.toLowerCase() === "status" ? "WorkItemStatus" : "WorkItemFields");
+}
+
+function transitionStatusLast(item: ItemState, status: string, changes: readonly FieldChange[]): void {
+  // Status is the commit marker; an interrupted command remains safe to rerun from its source state.
+  writeFields(item, changes, "WorkItemFields");
+  setField(item, "Status", status);
+}
+
+function transitionToReady(item: ItemState): void {
+  transitionStatusLast(item, "Ready", [{ name: "Wake condition" }, { name: "Disposition", value: "Action" }]);
+}
+
+function addItem(target: Issue): ItemState {
+  return withProjectContext((context) => {
+    const data = graphql<{ readonly addProjectV2ItemById?: { readonly item?: { readonly id: string } } }>(ADD_QUERY, {
+      project: context.projectId,
+      content: target.id,
+    });
+    const id = data.addProjectV2ItemById?.item?.id;
+    if (id === undefined) {
+      throw new Error(`Project ${PROJECT_NUMBER} did not accept #${target.number}`);
+    }
+    return { id, projectId: context.projectId, fields: {} };
+  });
+}
+
+function ensureItem(target: Issue, existing: ItemState | undefined): ItemState {
+  const item = existing ?? addItem(target);
+  if (currentValue(item, "Status") !== undefined && currentValue(item, "Disposition") !== undefined) {
+    return item;
+  }
+  transitionStatusLast(item, "Triage", [{ name: "Disposition", value: "Untriaged" }]);
+  return item;
+}
+
+function fetchBlockers(number: number): readonly number[] {
+  const data = graphql<{
+    readonly repository?: { readonly issue?: { readonly blockedBy: { readonly nodes: readonly { readonly number: number }[] } } | null } | null;
+  }>(BLOCKERS_QUERY, { owner: PROJECT_OWNER, repo: REPO_NAME, number });
+  return (data.repository?.issue?.blockedBy.nodes ?? []).map((node) => node.number);
+}
+
+function blockerIssueId(number: number): string {
+  const data = graphql<{ readonly repository?: { readonly issue?: { readonly id: string } | null } | null }>(ISSUE_ID_QUERY, {
+    owner: PROJECT_OWNER,
+    repo: REPO_NAME,
+    number,
+  });
+  const id = data.repository?.issue?.id;
+  if (id === undefined || id === null) {
+    throw new Error(`#${number} was not found in ${REPOSITORY}`);
+  }
+  return id;
+}
+
+function mutateDependency(issueId: string, blockingIssueId: string, remove: boolean): void {
+  const mutation = remove ? "removeBlockedBy" : "addBlockedBy";
+  graphql(
+    `mutation WorkItemDependency($issueId: ID!, $blockingIssueId: ID!) { ${mutation}(input: { issueId: $issueId, blockingIssueId: $blockingIssueId }) { issue { id } } }`,
+    {
+      issueId,
+      blockingIssueId,
+    },
+  );
 }
 
 function requireStatus(work: WorkItemContext, allowed: readonly string[], message: string): void {
@@ -339,23 +668,9 @@ function requireReadyMetadata(work: WorkItemContext, action: string): void {
 }
 
 function requireUnblocked(target: Issue, message: string): void {
-  if (blockers(target).length > 0) {
+  if (target.blockers.length > 0) {
     throw new Error(message);
   }
-}
-
-function mutateDependency(target: Issue, blocker: Issue, remove: boolean): void {
-  const mutation = remove ? "removeBlockedBy" : "addBlockedBy";
-  gh([
-    "api",
-    "graphql",
-    "-f",
-    `query=mutation($issueId:ID!,$blockingIssueId:ID!){${mutation}(input:{issueId:$issueId,blockingIssueId:$blockingIssueId}){issue{id}}}`,
-    "-f",
-    `issueId=${target.id}`,
-    "-f",
-    `blockingIssueId=${blocker.id}`,
-  ]);
 }
 
 function claim(work: WorkItemContext, command: Extract<WorkCommand, { readonly kind: "claim" }>): void {
@@ -367,14 +682,14 @@ function claim(work: WorkItemContext, command: Extract<WorkCommand, { readonly k
     throw new Error(`work item is already Running in lane ${currentLane}`);
   }
   gh(["issue", "edit", String(work.target.number), "--repo", REPOSITORY, "--add-assignee", "@me"]);
-  transitionStatusLast(work, "Running", [{ name: "Lane", value: command.lane }]);
+  transitionStatusLast(work.item, "Running", [{ name: "Lane", value: command.lane }]);
 }
 
 function ready(work: WorkItemContext): void {
   requireStatus(work, ["Triage", "Needs owner", "Blocked", "Parked", "Ready"], "work item must be Triage, Needs owner, Blocked, Parked, or Ready before Ready");
   requireUnblocked(work.target, "work item cannot become Ready while blocked");
   requireReadyMetadata(work, "Ready");
-  transitionToReady(work);
+  transitionToReady(work.item);
 }
 
 function needsOwner(work: WorkItemContext): void {
@@ -386,7 +701,7 @@ function needsOwner(work: WorkItemContext): void {
   if (TERMINAL_DISPOSITIONS.has(currentValue(work.item, "Disposition")?.toLowerCase() ?? "")) {
     throw new Error("work item with a terminal Disposition cannot enter Needs owner");
   }
-  transitionStatusLast(work, "Needs owner", [
+  transitionStatusLast(work.item, "Needs owner", [
     { name: "Review", value: "Owner" },
     { name: "Lane" },
     { name: "Wake condition" },
@@ -397,7 +712,7 @@ function needsOwner(work: WorkItemContext): void {
 function review(work: WorkItemContext): void {
   requireStatus(work, ["Running", "Review"], "work item must be Running before Review");
   requireUnblocked(work.target, "work item cannot enter Review while blocked");
-  transitionStatusLast(work, "Review", []);
+  transitionStatusLast(work.item, "Review", []);
 }
 
 function verify(work: WorkItemContext, evidence: string): void {
@@ -407,7 +722,7 @@ function verify(work: WorkItemContext, evidence: string): void {
   if (currentValue(work.item, "Status")?.toLowerCase() === "verify" && currentEvidence !== undefined && currentEvidence !== evidence) {
     throw new Error("work item is already Verify with different Evidence");
   }
-  transitionStatusLast(work, "Verify", [{ name: "Evidence", value: evidence }]);
+  transitionStatusLast(work.item, "Verify", [{ name: "Evidence", value: evidence }]);
 }
 
 function done(work: WorkItemContext, evidence: string): void {
@@ -420,55 +735,98 @@ function done(work: WorkItemContext, evidence: string): void {
   if (!work.target.comments.some((item) => item.body === comment)) {
     gh(["issue", "comment", String(work.target.number), "--repo", REPOSITORY, "--body", comment]);
   }
-  setField(work, "Status", "Done");
+  setField(work.item, "Status", "Done");
   if (work.target.state !== "CLOSED") {
     gh(["issue", "close", String(work.target.number), "--repo", REPOSITORY, "--reason", "completed"]);
   }
 }
 
 function block(work: WorkItemContext, command: Extract<WorkCommand, { readonly kind: "block" }>): void {
-  if (!blockers(work.target).includes(command.blocker)) {
-    mutateDependency(work.target, loadIssue(command.blocker), false);
+  if (!work.target.blockers.includes(command.blocker)) {
+    mutateDependency(work.target.id, blockerIssueId(command.blocker), false);
   }
-  setField(work, "Status", "Blocked");
+  setField(work.item, "Status", "Blocked");
 }
 
 function unblock(work: WorkItemContext, command: Extract<WorkCommand, { readonly kind: "unblock" }>): void {
-  if (blockers(work.target).includes(command.blocker)) {
-    mutateDependency(work.target, loadIssue(command.blocker), true);
+  let remaining = work.target.blockers;
+  if (remaining.includes(command.blocker)) {
+    mutateDependency(work.target.id, blockerIssueId(command.blocker), true);
+    remaining = fetchBlockers(work.target.number);
   }
-  if (blockers(work.target).length === 0) {
-    transitionToReady(work);
+  if (remaining.length === 0) {
+    transitionToReady(work.item);
     return;
   }
-  setField(work, "Status", "Blocked");
+  setField(work.item, "Status", "Blocked");
 }
 
 function show(issue: number): void {
-  const item = loadItems().find((candidate) => candidate.content?.number === issue);
-  if (item === undefined) {
+  const context = fetchIssueContext(issue);
+  if (context.item === undefined) {
     throw new Error(`#${issue} is not in Project ${PROJECT_NUMBER}`);
   }
-  process.stdout.write(`${JSON.stringify(item, null, 2)}\n`);
+  const payload = {
+    id: context.item.id,
+    content: { number: context.target.number, title: context.target.title, url: context.target.url },
+    ...context.item.fields,
+  };
+  process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+}
+
+interface ListRow {
+  readonly content?: { readonly number?: number; readonly title?: string; readonly url?: string };
+  readonly fields: Readonly<Record<string, string>>;
+}
+
+interface RawListPage {
+  readonly node?: {
+    readonly items?: {
+      readonly pageInfo: { readonly hasNextPage: boolean; readonly endCursor?: string | null };
+      readonly nodes: readonly {
+        readonly content?: { readonly number?: number; readonly title?: string; readonly url?: string } | null;
+        readonly fieldValues: { readonly nodes: readonly FieldValueNode[] };
+      }[];
+    };
+  } | null;
+}
+
+function listItems(projectId: string): readonly ListRow[] {
+  const rows: ListRow[] = [];
+  let cursor: string | undefined;
+  do {
+    const variables: GraphqlVariables = cursor === undefined ? { project: projectId } : { project: projectId, cursor };
+    const page = graphql<RawListPage>(LIST_QUERY, variables).node?.items;
+    if (page === undefined) {
+      throw new Error(`Could not resolve Project ${PROJECT_NUMBER} from the cached project id`);
+    }
+    for (const node of page.nodes) {
+      const fields = itemFields(node.fieldValues.nodes);
+      rows.push(node.content === undefined || node.content === null ? { fields } : { content: node.content, fields });
+    }
+    cursor = page.pageInfo.hasNextPage && typeof page.pageInfo.endCursor === "string" ? page.pageInfo.endCursor : undefined;
+  } while (cursor !== undefined);
+  return rows;
 }
 
 function list(status?: string): void {
-  const items = loadItems()
-    .filter((item) => status === undefined || currentValue(item, "Status")?.toLowerCase() === status.toLowerCase())
+  const rows = withProjectContext((context) => listItems(context.projectId));
+  const items = rows
+    .filter((row) => status === undefined || fieldOf(row.fields, "Status")?.toLowerCase() === status.toLowerCase())
     .toSorted((left, right) => (left.content?.number ?? Number.MAX_SAFE_INTEGER) - (right.content?.number ?? Number.MAX_SAFE_INTEGER))
-    .map((item) => ({
-      issue: item.content?.number,
-      title: item.content?.title ?? currentValue(item, "Title"),
-      status: currentValue(item, "Status"),
-      kind: currentValue(item, "Kind"),
-      priority: currentValue(item, "Priority"),
-      area: currentValue(item, "Area"),
-      review: currentValue(item, "Review"),
-      disposition: currentValue(item, "Disposition"),
-      lane: currentValue(item, "Lane"),
-      evidence: currentValue(item, "Evidence"),
-      wakeCondition: currentValue(item, "Wake condition"),
-      url: item.content?.url,
+    .map((row) => ({
+      issue: row.content?.number,
+      title: row.content?.title ?? fieldOf(row.fields, "Title"),
+      status: fieldOf(row.fields, "Status"),
+      kind: fieldOf(row.fields, "Kind"),
+      priority: fieldOf(row.fields, "Priority"),
+      area: fieldOf(row.fields, "Area"),
+      review: fieldOf(row.fields, "Review"),
+      disposition: fieldOf(row.fields, "Disposition"),
+      lane: fieldOf(row.fields, "Lane"),
+      evidence: fieldOf(row.fields, "Evidence"),
+      wakeCondition: fieldOf(row.fields, "Wake condition"),
+      url: row.content?.url,
     }));
   process.stdout.write(`${JSON.stringify({ items }, null, 2)}\n`);
 }
@@ -500,17 +858,16 @@ function create(command: CreateCommand): void {
   ]);
   const number = createdIssueNumber(output);
   process.stdout.write(`created #${number} ${output}\n`);
-  const target = loadIssue(number);
-  const project = loadProject();
-  const fields = loadFields();
-  const item = ensureItem(target, project, fields);
-  setField({ target, item, project, fields }, "Kind", issueConfig.projectKind);
+  const context = fetchIssueContext(number);
+  const item = ensureItem(context.target, context.item);
+  const changes: FieldChange[] = [{ name: "Kind", value: issueConfig.projectKind }];
   if (issueConfig.review !== undefined) {
-    setField({ target, item, project, fields }, "Review", issueConfig.review);
+    changes.push({ name: "Review", value: issueConfig.review });
   }
-  setField({ target, item, project, fields }, "Status", issueConfig.status);
+  writeFields(item, changes, "WorkItemFields");
+  setField(item, "Status", issueConfig.status);
   const next = command.issueClass === "decision" ? "set Priority, Area, and resolve the owner decision before ready" : "set Priority, Area, Review, then ready";
-  process.stdout.write(`work-item — #${target.number} Project metadata initialized; ${next}\n`);
+  process.stdout.write(`work-item — #${context.target.number} Project metadata initialized; ${next}\n`);
 }
 
 function help(): void {
@@ -526,11 +883,11 @@ Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Prio
 }
 
 function runLifecycle(command: LifecycleCommand): void {
-  const target = loadIssue(command.issue);
-  if (target.state === "CLOSED" && command.kind !== "done") {
+  const context = fetchIssueContext(command.issue);
+  if (context.target.state === "CLOSED" && command.kind !== "done") {
     throw new Error("cannot change a closed work item");
   }
-  const work = loadContext(target);
+  const work: WorkItemContext = { target: context.target, item: ensureItem(context.target, context.item) };
   switch (command.kind) {
     case "claim":
       claim(work, command);
@@ -545,7 +902,7 @@ function runLifecycle(command: LifecycleCommand): void {
       needsOwner(work);
       break;
     case "set":
-      setField(work, command.field, command.value);
+      setField(work.item, command.field, command.value);
       break;
     case "verify":
       verify(work, command.evidence);
@@ -554,7 +911,7 @@ function runLifecycle(command: LifecycleCommand): void {
       done(work, command.evidence);
       break;
     case "park":
-      transitionStatusLast(work, "Parked", [
+      transitionStatusLast(work.item, "Parked", [
         { name: "Wake condition", value: command.wake },
         { name: "Disposition", value: "Parked" },
       ]);
