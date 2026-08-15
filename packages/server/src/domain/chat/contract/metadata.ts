@@ -67,7 +67,15 @@ export function getRoomOverrides(rawMetadata: unknown): RoomOverrides {
   return parseChatMetadata(rawMetadata).roomOverrides ?? DEFAULT_ROOM_OVERRIDES;
 }
 
+/** The default-fill tail both {@link getToolRecurseLimit} (raw-metadata callers) and the engine's two
+ *  `toolRecurseLimit` prep sites (`engine/engine.ts` — already holding the number off an earlier-parsed
+ *  `chat.metadata`, not a raw blob, so the full accessor doesn't fit there) share — ONE home for the `?? `
+ *  default instead of two inline copies of the same fallback. */
+export function resolveToolRecurseLimit(limit: number | undefined): number {
+  return limit ?? TOOL_RECURSE_LIMIT_DEFAULT;
+}
+
 /** The effective recurse-depth cap for a chat's raw `metadata` blob, or the seed default (5). */
 export function getToolRecurseLimit(rawMetadata: unknown): number {
-  return parseChatMetadata(rawMetadata).toolRecurseLimit ?? TOOL_RECURSE_LIMIT_DEFAULT;
+  return resolveToolRecurseLimit(parseChatMetadata(rawMetadata).toolRecurseLimit);
 }

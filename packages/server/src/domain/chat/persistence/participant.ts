@@ -17,17 +17,23 @@ import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
-type ParticipantActor =
-  | { readonly kind: "human"; readonly userId: UserId }
-  | { readonly kind: "character"; readonly characterId: CharacterId }
-  // Agent rows are minted by chat.seatAgent — this arm is reachable.
-  | { readonly kind: "agent"; readonly userId: UserId };
+type ParticipantActor = { readonly kind: "human"; readonly userId: UserId } | { readonly kind: "character"; readonly characterId: CharacterId };
 
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 
-/** Validate + discriminate a `chat_participants` row's actor. `default` is `never`-exhaustive, so a new
- *  participant kind fails to compile until handled. Throws on a corrupt row (the db CHECK should make that
- *  unreachable). */
+/** Validate + discriminate a `chat_participants` row's actor (the XOR of `userId`/`characterId` the DB CHECK
+ *  should already guarantee — this is the loud belt for a corrupt row). `default` is `never`-exhaustive
+ *  against {@link ParticipantKind} today's two live kinds (`human`/`character`; `agent` was purged with the
+ *  2026-07-25 rollback and has no live row shape — see `contracts/chat/participants.ts`'s header), so a
+ *  reintroduced kind fails to compile here until handled.
+ *
+ *  Not yet wired into the hot roster-read path (`loadRoster`): every one of its ~25 call sites currently
+ *  re-spells the `kind === "human" && userId !== null` narrowing inline rather than going through this row
+ *  parser, which is the one-home violation this function exists to close — but making `loadRoster` throw on
+ *  a corrupt row is a behavior change across every one of those callers and belongs to a dedicated
+ *  consolidation pass, not a lone-symbol wiring pass. Exercised directly by its own int suite (every
+ *  XOR-violation arm), which is this repo's precedent for a validated-row parser with no production caller
+ *  yet (see the sibling `findSnapshotByVariant`-style reads). */
 export function parseParticipant(row: {
   readonly kind: ParticipantKind;
   readonly userId: UserId | null;

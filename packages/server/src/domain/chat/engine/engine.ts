@@ -46,7 +46,7 @@ import type { ChatContext } from "../context.ts";
 import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { MemoryConfig, MemoryPassCounts, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory.ts";
-import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata.ts";
+import { resolveToolRecurseLimit } from "../contract/metadata.ts";
 import type { GeneratedText, HistoryMacroNames, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
 import {
@@ -1402,7 +1402,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       // The M2 card wire knob (parity-plus §3.5) — a game turn's gather threads it; absent = every card stubs
       // (the pipeline owns the 0 default).
       cardKeepLastX: prep.cardKeepLastX,
-      toolRecurseLimit: prep.toolRecurseLimit ?? TOOL_RECURSE_LIMIT_DEFAULT,
+      toolRecurseLimit: resolveToolRecurseLimit(prep.toolRecurseLimit),
       toolExecFrame: {
         runAsUserId: prep.runAsUserId,
         triggeredBy: prep.triggeredBy,
@@ -1694,7 +1694,7 @@ async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep:
       tools: ctx.tools,
       attachedToolNames: prep.attachedToolNames ?? [],
       cardKeepLastX: prep.cardKeepLastX,
-      toolRecurseLimit: prep.toolRecurseLimit ?? TOOL_RECURSE_LIMIT_DEFAULT,
+      toolRecurseLimit: resolveToolRecurseLimit(prep.toolRecurseLimit),
       toolExecFrame: {
         runAsUserId: prep.runAsUserId,
         triggeredBy: prep.triggeredBy,
