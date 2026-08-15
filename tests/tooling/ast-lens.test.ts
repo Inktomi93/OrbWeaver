@@ -14,7 +14,7 @@
 import { fileURLToPath } from "node:url";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
-import type { ApiSurfaceEntry, ChainCandidate, Liveness, SwallowedCandidate } from "../../scripts/codemods/ast.ts";
+import type { ApiSurfaceEntry, ChainCandidate, DeadEvidence, Hit, Liveness, SwallowedCandidate } from "../../scripts/codemods/ast.ts";
 import {
   assignabilityChecker,
   buildLiveness,
@@ -30,6 +30,7 @@ import {
   collectStringyAudit,
   collectSwallowedCandidates,
   collectTypeOnlyCandidates,
+  deadEvidenceFor,
   isColumnExempt,
   isProdConsumed,
   isPublicTagged,
@@ -37,6 +38,11 @@ import {
   isTypeOnlyExempt,
   isUnwiredExempt,
   respellHitsFor,
+  rotChainHits,
+  rotOrphanHits,
+  rotSwallowedHits,
+  rotTestOnlyHits,
+  rotTypeOnlyHits,
   scanRowReads,
   scriptEntryPaths,
   testOnlyClassOf,
@@ -1440,5 +1446,172 @@ describe("ast apisurface lens (package-boundary classification)", () => {
     // Both exports are PUBLIC — alpha is spelled, beta rode the whole-surface arm (the honest over-report).
     expect(byName.get("alpha")?.klass).toBe("public");
     expect(byName.get("beta")?.klass).toBe("public");
+  });
+});
+
+// ── dead: the evidence-ladder composite for ONE symbol ──────────────────────────────────────────
+// A CANDIDATE lens, evidence-PRIORITY order: ALIVE (≥1 prod ref) beats SWALLOWED-ONLY beats TAGGED-KEEP
+// beats TEST-ANCHORED beats CANDIDATE. Each arm gets its own minimal fixture; the re-export-passthrough
+// test is the load-bearing one — `findReferencesAsNodes` counts a barrel's `export { X } from "./y"`
+// specifier as a "reference", but that is NOT production consumption (the same MemoryLogEntry class
+// `buildLiveness` already excludes), so a barrel that ONLY re-exports a test-only symbol must not read
+// as ALIVE.
+
+describe("ast dead lens (evidence-ladder composite)", () => {
+  test("ALIVE: a real production reference outranks everything else", () => {
+    const project = projectOf({
+      "packages/server/src/dead/origin.ts": "export const aliveValue = 1;\n",
+      "packages/server/src/dead/consumer.ts": 'import { aliveValue } from "./origin"; export const used = aliveValue + 1;',
+    });
+    const origin = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/dead/origin.ts`);
+    const decl = origin.getVariableDeclarationOrThrow("aliveValue");
+    const evidence = deadEvidenceFor(project, decl, "aliveValue", buildLiveness(project));
+    expect(evidence.verdict).toBe("ALIVE");
+    // findReferencesAsNodes counts both the import specifier AND the usage line as sites.
+    expect(evidence.prodCount).toBe(2);
+    expect(evidence.testCount).toBe(0);
+  });
+
+  test("TEST-ANCHORED: reached only from a test path", () => {
+    const project = projectOf({
+      "packages/server/src/dead/testonly.ts": "export const testOnlyValue = 1;\n",
+      "tests/dead/testonly.test.ts": 'import { testOnlyValue } from "../../packages/server/src/dead/testonly"; export const v = testOnlyValue;',
+    });
+    const origin = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/dead/testonly.ts`);
+    const decl = origin.getVariableDeclarationOrThrow("testOnlyValue");
+    const evidence = deadEvidenceFor(project, decl, "testOnlyValue", buildLiveness(project));
+    expect(evidence.verdict).toBe("TEST-ANCHORED");
+    expect(evidence.prodCount).toBe(0);
+    // findReferencesAsNodes counts both the import specifier AND the usage line as sites.
+    expect(evidence.testCount).toBe(2);
+  });
+
+  test("a re-export PASS-THROUGH is NOT a production reference — a barrel that only re-exports a test-only symbol stays TEST-ANCHORED, never ALIVE", () => {
+    // findReferencesAsNodes counts the `export { barrelValue } from "./origin"` specifier as a "reference" to
+    // the origin decl; buildLiveness deliberately does NOT (the MemoryLogEntry class). Without the exclusion
+    // this fixture reported ALIVE with a bogus "production" site at the barrel's own re-export line.
+    const project = projectOf({
+      "packages/server/src/dead/origin.ts": "export const barrelValue = 1;\n",
+      "packages/server/src/dead/index.ts": 'export { barrelValue } from "./origin";\n',
+      "tests/dead/barrel.test.ts": 'import { barrelValue } from "../../packages/server/src/dead/index"; export const v = barrelValue;',
+    });
+    const origin = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/dead/origin.ts`);
+    const decl = origin.getVariableDeclarationOrThrow("barrelValue");
+    const evidence = deadEvidenceFor(project, decl, "barrelValue", buildLiveness(project));
+    expect(evidence.verdict).toBe("TEST-ANCHORED");
+    expect(evidence.prodCount).toBe(0);
+  });
+
+  test("SWALLOWED-ONLY: reuses `collectSwallowedCandidates` verbatim, scoped to the declaration's own file", () => {
+    const project = projectOf(SWALLOWED_FILES);
+    const tables = project.getSourceFileOrThrow(`${ROOT}/packages/db/src/schema/tables.ts`);
+    const decl = tables.getVariableDeclarationOrThrow("usersRelations");
+    const evidence = deadEvidenceFor(project, decl, "usersRelations", buildLiveness(project));
+    expect(evidence.verdict).toBe("SWALLOWED-ONLY");
+    expect(evidence.swallowedSites.some((s) => s.endsWith("packages/db/src/client/index.ts"))).toBe(true);
+  });
+
+  test("TAGGED-KEEP: an otherwise-unreached export carrying `@public future: <reason>`", () => {
+    const project = projectOf({
+      "packages/server/src/dead/tagged.ts": "/** @public future: the unbuilt admin surface this pairs with. */\nexport const taggedValue = 1;\n",
+    });
+    const origin = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/dead/tagged.ts`);
+    const decl = origin.getVariableDeclarationOrThrow("taggedValue");
+    const evidence = deadEvidenceFor(project, decl, "taggedValue", buildLiveness(project));
+    expect(evidence.verdict).toBe("TAGGED-KEEP");
+    expect(evidence.publicMarker?.kind).toBe("future");
+  });
+
+  test("CANDIDATE: nothing reaches it at all — the zero-evidence floor", () => {
+    const project = projectOf({ "packages/server/src/dead/unreached.ts": "export const unreachedValue = 1;\n" });
+    const origin = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/dead/unreached.ts`);
+    const decl = origin.getVariableDeclarationOrThrow("unreachedValue");
+    const evidence: DeadEvidence = deadEvidenceFor(project, decl, "unreachedValue", buildLiveness(project));
+    expect(evidence.verdict).toBe("CANDIDATE");
+    expect(evidence.prodCount).toBe(0);
+    expect(evidence.testCount).toBe(0);
+    expect(evidence.swallowedSites).toEqual([]);
+    expect(evidence.publicMarker).toBeUndefined();
+  });
+
+  test("the VENDORED-home and comment-mention arms are informational, read off the file header and body comments", () => {
+    const project = projectOf({
+      "packages/server/src/dead/vendored.ts":
+        "// vendored 2026-08-13 from upstream-lib, do not hand-edit.\nexport const vendoredValue = 1;\n// TODO: revisit vendoredValue once upstream fixes the bug.\n",
+    });
+    const origin = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/dead/vendored.ts`);
+    const decl = origin.getVariableDeclarationOrThrow("vendoredValue");
+    const evidence = deadEvidenceFor(project, decl, "vendoredValue", buildLiveness(project));
+    expect(evidence.vendored).toBe(true);
+    // The header comment says "vendored" but never the NAME; only the trailing TODO spells it — one mention.
+    expect(evidence.commentMentions).toBe(1);
+    // Neither arm changes the verdict — nothing reaches the export, so it is still a CANDIDATE.
+    expect(evidence.verdict).toBe("CANDIDATE");
+  });
+});
+
+// ── rot: the five collectors, called verbatim — parity is structural, not promised in prose ──────
+// Each `rotXHits` wraps the EXACT collector the standalone verb calls; these tests assert the composite's
+// output equals the direct collector call on the SAME project + scope, on each lens's OWN pinned fixture
+// from above.
+
+describe("ast rot composite (shared collectors, no re-derivation)", () => {
+  test("rotOrphanHits matches collectOrphanCandidates's unsuppressed candidates verbatim", () => {
+    const project = projectOf({ "packages/contracts/src/thing/solo.ts": "export interface SoloRot { c: number; }\n" });
+    const inScope = (fp: string): boolean => fp.includes("/packages/contracts/src/");
+    const live = buildLiveness(project);
+    const direct = collectOrphanCandidates(project, live, inScope)
+      .filter((c) => !c.starSuppressed)
+      .map((c) => c.name);
+    const rot = rotOrphanHits(project, live, inScope).map((h: Hit) => h.text.split("  —  ")[0]);
+    expect(rot).toEqual(direct);
+    expect(direct).toEqual(["SoloRot"]);
+  });
+
+  test("rotTestOnlyHits matches the standalone testonly hit set", () => {
+    const project = projectOf({
+      "packages/kit/src/rot/testonly.ts": "export const rotTestOnlyValue = 1;\n",
+      "tests/kit/rot/testonly.test.ts": 'import { rotTestOnlyValue } from "../../../packages/kit/src/rot/testonly"; export const v = rotTestOnlyValue;',
+    });
+    const inScope = (fp: string): boolean => fp.includes("/packages/kit/src/rot/");
+    const live = buildLiveness(project);
+    const names = rotTestOnlyHits(project, live, inScope).map((h: Hit) => h.text.split("  —  ")[0]);
+    expect(names).toEqual(["rotTestOnlyValue"]);
+  });
+
+  test("rotChainHits matches collectChainAudit's candidates over the pinned 3-link chain fixture", () => {
+    const project = projectOf(CHAIN_FILES);
+    const live = buildLiveness(project, { edges: true });
+    const direct = collectChainAudit(project, live, inChainScope)
+      .candidates.map((c) => c.name)
+      .sort(byString);
+    const rot = rotChainHits(project, live, inChainScope)
+      .map((h: Hit) => (h.text.split("  ←")[0] ?? "").trim())
+      .sort(byString);
+    expect(rot).toEqual(direct);
+    expect(direct).toEqual(["deepFn", "localHop", "midValue"]);
+  });
+
+  test("rotTypeOnlyHits matches collectTypeOnlyCandidates minus the exempt/union-source arms", () => {
+    const project = projectOf({
+      "packages/server/src/typeonly/origin.ts": TYPEONLY_ORIGIN,
+      "packages/client/src/features/typeonly/panel.ts": TYPEONLY_CONSUMER,
+    });
+    const direct = collectTypeOnlyCandidates(project, inTypeOnlyScope)
+      .map((c) => c.name)
+      .sort(byString);
+    const rot = rotTypeOnlyHits(project, inTypeOnlyScope)
+      .map((h: Hit) => (h.text.split("  ←")[0] ?? "").trim())
+      .sort(byString);
+    expect(rot).toEqual(direct);
+  });
+
+  test("rotSwallowedHits matches collectSwallowedCandidates's unexempted candidates", () => {
+    const project = projectOf(SWALLOWED_FILES);
+    const live = buildLiveness(project);
+    const direct = collectSwallowedCandidates(project, live, inDb).map((c) => c.name);
+    const rot = rotSwallowedHits(project, live, inDb).map((h: Hit) => h.text.split("  ←")[0]?.trim());
+    expect(rot).toEqual(direct);
+    expect(direct).toEqual(["usersRelations"]);
   });
 });

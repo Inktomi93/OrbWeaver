@@ -14,7 +14,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import knipConfig from "../../knip.ts";
 import type { SchemaTable } from "../check/schema-read.ts";
 import { schemaTables } from "../check/schema-read.ts";
-import { getWorkspace } from "../ts-workspace.ts";
+import { getWorkspace, searchGlobs } from "../ts-workspace.ts";
 import { CodemodError } from "./codemod-kit.ts";
 
 const REPO_ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/u, "");
@@ -36,7 +36,7 @@ const TRAILING_SLASHES_RE = /\/+$/u;
 // (declFile, declStart) identity separator — a NUL can never appear in a path or a decimal offset.
 const KEY_SEP = "\u0000";
 
-type Flags = { in: string | null; json: boolean; max: number; filesOnly: boolean; public: boolean };
+type Flags = { in: string | null; json: boolean; max: number; filesOnly: boolean; public: boolean; all: boolean };
 type Hit = { file: string; line: number; kind: string; text: string };
 
 // ── THE SCAN LEDGER — every invocation ends with ONE auditable epilogue ────────────────────────
@@ -119,6 +119,10 @@ const EPILOGUE_TAG = "[ast]";
 /** What the two `getWorkspace` arms load, named in `scope=` so a corpus-shaped zero is self-diagnosing. */
 const CORPUS_TYPED = "search-globs(packages/*/src,tests,scripts/**,packages/*/*.ts,*.mts,playwright)";
 const CORPUS_SYNTACTIC = "harness-globs(packages/*/src,tests,scripts/check/gates)";
+/** Same file set as {@link CORPUS_TYPED}, loaded WITHOUT the type graph — a purely syntactic walk (no
+ *  `import`/re-export resolution, no checker) needs no language service, so `literal` gets the wide
+ *  corpus (tests + fixtures + scripts — the coupled-fixture sweep) at the cheap ~10s load. */
+const CORPUS_WIDE_SYNTACTIC = "search-globs-no-types(packages/*/src,tests,scripts/**,packages/*/*.ts,*.mts,playwright)";
 const CORPUS_DEPCRUISE = "depcruise(.dependency-cruiser.cjs)";
 /** The syntactic verbs whose ARGUMENT is a symbol/module NAME (not a path) — the ones where a zero can be
  *  a corpus false clean rather than an answer, so their no-results line carries the corpus caveat. */
@@ -356,22 +360,32 @@ function corpusPredicate(files: readonly SourceFile[]): (filePath: string) => bo
   return (filePath) => paths.has(filePath);
 }
 
+/** The bare boolean switches, dictionary-dispatched (kept off the if/else chain, or `--all` pushes
+ *  `parseFlags` over the complexity ceiling). */
+const BOOLEAN_FLAGS: Readonly<Record<string, keyof Pick<Flags, "json" | "filesOnly" | "public" | "all">>> = {
+  "--json": "json",
+  "--files": "filesOnly",
+  "--public": "public",
+  "--all": "all",
+};
+
 function parseFlags(rest: string[]): Flags {
-  const flags: Flags = { in: null, json: false, max: DEFAULT_MAX, filesOnly: false, public: false };
+  const flags: Flags = { in: null, json: false, max: DEFAULT_MAX, filesOnly: false, public: false, all: false };
   for (let i = 0; i < rest.length; i += 1) {
     const t = rest[i];
     if (t === "--in") {
       flags.in = rest[i + 1] ?? null;
       i += 1;
-    } else if (t === "--json") {
-      flags.json = true;
-    } else if (t === "--files") {
-      flags.filesOnly = true;
-    } else if (t === "--public") {
-      flags.public = true;
-    } else if (t === "--max") {
+      continue;
+    }
+    if (t === "--max") {
       flags.max = Number(rest[i + 1] ?? DEFAULT_MAX) || DEFAULT_MAX;
       i += 1;
+      continue;
+    }
+    const key = t === undefined ? undefined : BOOLEAN_FLAGS[t];
+    if (key !== undefined) {
+      flags[key] = true;
     }
   }
   return flags;
@@ -460,8 +474,16 @@ function emit(hits: Hit[], flags: Flags, label: string): void {
 // One workspace project per invocation, via the ONE sanctioned bootstrap (scripts/ts-workspace.ts).
 // types:true = root-tsconfig resolution options + full-workspace globs (the refs verb needs the
 // language service to follow @orb/* exports and #aliases); types:false = the fast pure-AST arm.
-function loadProject(needTypes: boolean): Project {
-  return getWorkspace({ root: REPO_ROOT, types: needTypes });
+// `wide` loads the TYPED arm's file set (searchGlobs — tests+fixtures+scripts) WITHOUT the type graph:
+// a purely syntactic walk needs no language service, so `literal` gets the wide corpus at the cheap load.
+function loadProject(needTypes: boolean, wide = false): Project {
+  if (needTypes) {
+    return getWorkspace({ root: REPO_ROOT, types: true });
+  }
+  if (wide) {
+    return getWorkspace({ root: REPO_ROOT, types: false, globs: searchGlobs(REPO_ROOT) });
+  }
+  return getWorkspace({ root: REPO_ROOT, types: false });
 }
 
 /** Every exported (workspace-wide) or module-local (same-file refs still matter) declaration named `name`,
@@ -607,6 +629,64 @@ function cmdIdent(project: Project, name: string, flags: Flags): void {
     }
   }
   emit(hits, flags, `ident ${name}`);
+}
+
+// ── literal: string-LITERAL-only search — the exact complement of `ident` ──────────────────────────
+// `ident` never looks inside a string; this verb never looks anywhere ELSE. A value-changing merge (an
+// enum member, a wire field name, a user-facing label) needs "which code/tests pin this literal" as one
+// receipted command — the coupled-fixture sweep the executor doctrine's "shared-value change owes a
+// BATTERY" rule keeps paying a noisy `rg` for (comments AND identifiers both false-positive on it). Runs
+// over the WIDE corpus (tests + fixtures + scripts), because that IS the point: a contract test pinning a
+// literal in a fixture lives in `tests/`, which the syntactic verbs' harness-globs corpus does not admit
+// past `scripts/check/gates`. Loaded WITHOUT the type graph (see `loadProject`'s `wide` arm) — a purely
+// syntactic text match needs no language service, so the wide corpus costs the cheap ~10s load, not the
+// typed one.
+
+/** ONE static (non-interpolated) chunk of every `TemplateExpression` in `sf`: the `TemplateHead` plus each
+ *  `TemplateSpan`'s trailing `TemplateMiddle`/`TemplateTail` — the text between `${…}` interpolations. An
+ *  interpolated HOLE is never text, so it can never match; a `NoSubstitutionTemplateLiteral` (no `${}` at
+ *  all) is handled separately below, as its own whole literal. */
+function templateChunks(sf: SourceFile): { text: string; node: Node }[] {
+  const chunks: { text: string; node: Node }[] = [];
+  for (const tpl of sf.getDescendantsOfKind(SyntaxKind.TemplateExpression)) {
+    const head = tpl.getHead();
+    chunks.push({ text: head.getLiteralText(), node: head });
+    for (const span of tpl.getTemplateSpans()) {
+      const literal = span.getLiteral();
+      chunks.push({ text: literal.getLiteralText(), node: literal });
+    }
+  }
+  return chunks;
+}
+
+/** ONE file's literal-text hits: string literals, no-substitution template literals, and every static
+ *  template chunk. Split off `cmdLiteral`'s loop so neither trips the complexity ceiling. */
+function literalHitsIn(sf: SourceFile, value: string): Hit[] {
+  const hits: Hit[] = [];
+  for (const node of sf.getDescendantsOfKind(SyntaxKind.StringLiteral)) {
+    if (node.getLiteralText().includes(value)) {
+      hits.push(hitOf(node, "string-literal"));
+    }
+  }
+  for (const node of sf.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
+    if (node.getLiteralText().includes(value)) {
+      hits.push(hitOf(node, "template-literal"));
+    }
+  }
+  for (const chunk of templateChunks(sf)) {
+    if (chunk.text.includes(value)) {
+      hits.push(hitOf(chunk.node, "template-chunk"));
+    }
+  }
+  return hits;
+}
+
+function cmdLiteral(project: Project, value: string, flags: Flags): void {
+  const hits: Hit[] = [];
+  for (const sf of scanCorpus(project, WHOLE_CORPUS)) {
+    hits.push(...literalHitsIn(sf, value));
+  }
+  emit(hits, flags, `literal ${value}`);
 }
 
 // ── Resolution-based liveness (the substrate for orphans + testonly) ──────────────────────────
@@ -2325,6 +2405,198 @@ function cmdSwallowed(project: Project, arg: string, flags: Flags): void {
   emit(hits, flags, `swallowed ${scope.label}`);
 }
 
+// ── dead: a composite evidence-ladder verdict for ONE symbol ────────────────────────────────────────
+// Classifying one orphan today costs five separate commands (refs, ident, swallowed, a marker grep, a
+// comment grep) plus the reader's own glue to line the results up. This composite resolves the symbol
+// ONCE (`declarationsNamed`, the same substrate `refs` uses) and lays the evidence out as a compact
+// table: production references / test-only references / namespace-swallowed consumption / the `@public`
+// marker / a vendored-file home / raw comment-line mentions — then states a verdict.
+//
+// IT IS A CANDIDATE LENS, like `swallowed`/`typeonly-alive`/`chains` — the verdict is a human's, never a
+// delete signal ("unwired ≠ worthless", constitution §1). Evidence PRIORITY, not accumulation: a single
+// production reference outranks everything else (ALIVE); a namespace-only reach may still be load-bearing
+// THROUGH the swallowing API (SWALLOWED-ONLY); a `@public`-family marker is the author's own ratified
+// keep (TAGGED-KEEP); reach from a test alone is `testonly`'s class (TEST-ANCHORED); only when none of
+// those apply does it become a CANDIDATE.
+
+/** The five-way verdict `dead` renders — evidence PRIORITY order (see the header above), not a tally. */
+export type DeadVerdict = "ALIVE" | "TEST-ANCHORED" | "SWALLOWED-ONLY" | "TAGGED-KEEP" | "CANDIDATE";
+
+/** The full evidence ladder for one declaration — every arm `dead` prints ahead of the verdict. */
+export type DeadEvidence = {
+  readonly verdict: DeadVerdict;
+  readonly prodRefs: readonly string[];
+  readonly prodCount: number;
+  readonly testRefs: readonly string[];
+  readonly testCount: number;
+  readonly swallowedSites: readonly string[];
+  readonly publicMarker: PublicMarker | undefined;
+  readonly vendored: boolean;
+  readonly commentMentions: number;
+};
+
+/** How many sites a `dead` row names before it collapses to a count. */
+const DEAD_SITES_SHOWN = 3;
+/** A file path plausibly VENDORED — third-party code kept in-tree. There is no structural marker for
+ *  this in the repo (informational only, unlike `@public`/`@swallowed-ok`): a `/vendor/` directory, or
+ *  the file's own header comment saying so (the `build-argv.ts` chat-template convention). Vendored code
+ *  can still be genuinely dead — this arm is context for the reader, never a verdict input. */
+const VENDORED_PATH_RE = /\/vendor\//u;
+const VENDORED_HEADER_RE = /\bvendored\b/iu;
+
+/** `<repo-rel file>:<line>`, deduped and sorted prod-first, for a set of reference nodes. */
+function siteListOf(nodes: readonly Node[]): string[] {
+  return [...new Set(nodes.map((n) => `${relPath(n.getSourceFile().getFilePath())}:${n.getStartLineNumber()}`))].sort(byProdFirst);
+}
+
+/** `decl`'s own file lives under a `/vendor/` directory, or its FILE-level leading comment (the header,
+ *  never the declaration's own leading comment) says "vendored". */
+function isVendoredHome(decl: Node): boolean {
+  if (VENDORED_PATH_RE.test(decl.getSourceFile().getFilePath())) {
+    return true;
+  }
+  const header = decl.getSourceFile().getStatements()[0];
+  return header?.getLeadingCommentRanges().some((range) => VENDORED_HEADER_RE.test(range.getText())) ?? false;
+}
+
+/** Raw COMMENT-TEXT mentions of `name` anywhere in `sf` — the one arm in this file that deliberately
+ *  reads comments (every other lens excludes them by construction). Informational only: a TODO or design
+ *  note naming a symbol is not liveness, but it is context a deletion call should read before acting.
+ *  Comment ranges are deduped by start position — a range can attach as both one node's trailing trivia
+ *  and the next node's leading trivia. */
+function commentMentionsOf(sf: SourceFile, name: string): number {
+  const seen = new Set<number>();
+  let mentions = 0;
+  sf.forEachDescendant((node) => {
+    for (const range of [...node.getLeadingCommentRanges(), ...node.getTrailingCommentRanges()]) {
+      if (seen.has(range.getPos())) {
+        continue;
+      }
+      seen.add(range.getPos());
+      if (range.getText().includes(name)) {
+        mentions += 1;
+      }
+    }
+  });
+  return mentions;
+}
+
+/** The evidence-priority verdict (see the section header): ALIVE beats SWALLOWED-ONLY beats TAGGED-KEEP
+ *  beats TEST-ANCHORED beats CANDIDATE. */
+function deadVerdictOf(prodCount: number, swallowed: boolean, tagged: boolean, testCount: number): DeadVerdict {
+  if (prodCount > 0) {
+    return "ALIVE";
+  }
+  if (swallowed) {
+    return "SWALLOWED-ONLY";
+  }
+  if (tagged) {
+    return "TAGGED-KEEP";
+  }
+  return testCount > 0 ? "TEST-ANCHORED" : "CANDIDATE";
+}
+
+/** A reference that is only a re-export PASS-THROUGH (`export { X } from "./y"`, no `from`-less local
+ *  re-export) — `findReferencesAsNodes` counts the specifier as a "reference", but `buildLiveness`
+ *  deliberately does NOT (the MemoryLogEntry class: a file re-exporting its own symbol must not read as
+ *  using it). Excluding this class is what keeps `dead`'s ALIVE verdict agreeing with `testonly`'s: a
+ *  barrel that only re-exports a test-only export must not read as a production consumer of it. */
+function isReexportPassthroughRef(ref: Node): boolean {
+  const spec = ref.getFirstAncestorByKind(SyntaxKind.ExportSpecifier);
+  const exportDecl = spec?.getFirstAncestorByKind(SyntaxKind.ExportDeclaration);
+  return exportDecl?.getModuleSpecifier() !== undefined;
+}
+
+/** The whole evidence ladder for ONE declaration. Reuses the SAME collector `swallowed` calls
+ *  (`collectSwallowedCandidates`), scoped to just this declaration's own file, so the two lenses can
+ *  never disagree about what "namespace-swallowed" means. */
+export function deadEvidenceFor(project: Project, decl: Node, name: string, live: Liveness): DeadEvidence {
+  const sf = decl.getSourceFile();
+  const refs = Node.isReferenceFindable(decl)
+    ? decl
+        .findReferencesAsNodes()
+        .filter((r) => !(r.getSourceFile() === sf && r.getParent()?.getStart() === decl.getStart()))
+        .filter((r) => !isReexportPassthroughRef(r))
+    : [];
+  const prodNodes = refs.filter((r) => !isTestPath(r.getSourceFile().getFilePath()));
+  const testNodes = refs.filter((r) => isTestPath(r.getSourceFile().getFilePath()));
+  const swallowed = collectSwallowedCandidates(project, live, (fp) => fp === sf.getFilePath()).find((c) => declKey(c.decl) === declKey(decl));
+  const publicMarker = publicMarkerOf(decl);
+  return {
+    verdict: deadVerdictOf(prodNodes.length, swallowed !== undefined, publicMarker !== undefined, testNodes.length),
+    prodRefs: siteListOf(prodNodes).slice(0, DEAD_SITES_SHOWN),
+    prodCount: prodNodes.length,
+    testRefs: siteListOf(testNodes).slice(0, DEAD_SITES_SHOWN),
+    testCount: testNodes.length,
+    swallowedSites: swallowed?.sites ?? [],
+    publicMarker,
+    vendored: isVendoredHome(decl),
+    commentMentions: commentMentionsOf(sf, name),
+  };
+}
+
+/** `<name>` for a `twin`/`future`/`bare` marker — the one field each kind carries. */
+function publicMarkerText(marker: PublicMarker | undefined): string {
+  if (marker === undefined) {
+    return "none";
+  }
+  return marker.kind === "twin" ? `twin — ${marker.value}` : `${marker.kind} — ${marker.reason}`;
+}
+
+/** `N (site, site, … +M more)` — the `dead` table's reference-count cell. */
+function deadRefsCell(count: number, sites: readonly string[]): string {
+  if (count === 0) {
+    return "0";
+  }
+  const more = count > sites.length ? ` +${count - sites.length} more` : "";
+  return `${count} (${sites.join(", ")}${more})`;
+}
+
+/** `  <label> <value>` — the `dead` table's fixed left-column width. */
+const DEAD_LABEL_PAD = 20;
+function deadRow(label: string, value: string): string {
+  return `  ${label.padEnd(DEAD_LABEL_PAD)} ${value}`;
+}
+
+function printDeadEvidence(name: string, decl: Node, evidence: DeadEvidence): void {
+  console.log(`dead ${name} @ ${declSite(decl)}`);
+  console.log(deadRow("production refs:", deadRefsCell(evidence.prodCount, evidence.prodRefs)));
+  console.log(deadRow("test-only refs:", deadRefsCell(evidence.testCount, evidence.testRefs)));
+  const swallowedCell =
+    evidence.swallowedSites.length === 0 ? "no" : `YES — namespace-swallowed by ${evidence.swallowedSites.slice(0, DEAD_SITES_SHOWN).join(", ")}`;
+  console.log(deadRow("swallowed:", swallowedCell));
+  console.log(deadRow("@public marker:", publicMarkerText(evidence.publicMarker)));
+  console.log(deadRow("vendored home:", evidence.vendored ? "yes (informational)" : "no"));
+  console.log(deadRow("comment mentions:", `${evidence.commentMentions} (informational — raw comment text, never liveness)`));
+  console.log(deadRow("VERDICT:", evidence.verdict));
+}
+
+/** A composite evidence-ladder verdict for ONE symbol: production refs / test-only refs / namespace-
+ *  swallowed consumption / the `@public` marker / a vendored-file home / raw comment mentions, then a
+ *  verdict — ALIVE / TEST-ANCHORED / SWALLOWED-ONLY / TAGGED-KEEP / CANDIDATE. CANDIDATE lens — see the
+ *  section header above. Multiple declarations of the same name (a collision) are each classified. */
+function cmdDead(project: Project, name: string, flags: Flags): void {
+  const decls = declarationsNamed(scanCorpus(project, WHOLE_CORPUS), name);
+  if (decls.length === 0) {
+    console.log(`dead ${name}: no declaration found — try \`pnpm ast ident ${name}\``);
+    emit([], flags, `dead ${name}`);
+    return;
+  }
+  const live = buildLiveness(project);
+  const hits: Hit[] = [];
+  for (const decl of decls) {
+    const evidence = deadEvidenceFor(project, decl, name, live);
+    printDeadEvidence(name, decl, evidence);
+    const h = hitOf(decl, `dead-${evidence.verdict.toLowerCase()}`);
+    h.text = `${name}  —  ${evidence.verdict}  —  ${h.text}`;
+    hits.push(h);
+  }
+  console.log(
+    'dead is a CANDIDATE lens — an evidence-ladder verdict for ONE symbol (production refs / test-only refs / namespace-swallowed consumption / the @public marker / a vendored-file home / raw comment mentions). "Unwired ≠ worthless" (constitution §1): the verdict is a human\'s, never a delete signal.',
+  );
+  emit(hits, flags, `dead ${name} (${decls.length} declaration(s))`);
+}
+
 // ── respell: a domain `contract/` shape STRUCTURALLY identical to an @orb/contracts shape ───────
 // The gate (`contract-derives-not-respells`) catches a re-spell that kept the OWNER'S NAME. This lens
 // catches the one that renamed it — the shape a syntactic reader cannot see, because nothing about
@@ -3450,10 +3722,38 @@ function cmdColumns(project: Project, arg: string, flags: Flags): void {
   const flagged = flaggable.filter((c) => !isColumnExempt(c.column.decl));
   const exempt = flaggable.length - flagged.length;
   const ordered = COLUMN_CLASS_ORDER.flatMap((klass) => flagged.filter((c) => c.klass === klass)).map(columnHit);
+  if (flags.all) {
+    printColumnsPerTable(tables, flagged);
+  }
   console.log(
     `columns is a CANDIDATE lens. READS are the union of two arms — language-service \`<table>.<col>\` query references PLUS a row-shape scan for \`<row>.<col>\` reads (needed because \`$inferSelect\` is a mapped type: a read through a declared row alias is INVISIBLE to reference resolution). The row-shape arm is deliberately OVER-inclusive, so a read count can be generous — which is the safe direction. WRITES are STRUCTURAL for the same mapped-type reason, so a table with a whole-row/spread writer marks every column \`write?\`, never "unwritten". A \`raw?\` annotation means the column's SQL name appears in some raw \`sql\` template — NOT attributable to a table in v1, so read those before calling it rot. A \`created_at\`/\`updated_at\` with a schema DEFAULT that nothing reads back is classed \`provenance\`, counted in the table above and NEVER listed as a hit — an audit stamp is not the RV-11 class. Keep one deliberately with \`// @column-ok: <reason>\` on the column property.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
   );
   emit(ordered, flags, `columns ${arg === "" ? "(all tables)" : arg}`);
+}
+
+/** `columns --all`: per-table sectioning — every table's flagged columns listed, or a one-line "healthy"
+ *  collapse for a table with none. `columns` bare already audits every table but flattens the result into
+ *  one class-ordered list; this answers "which TABLES need a look" instead of forty manual per-table runs. */
+function printColumnsPerTable(tables: readonly TableDef[], flagged: readonly ColumnCandidate[]): void {
+  const byTable = new Map<string, ColumnCandidate[]>();
+  for (const c of flagged) {
+    byTable.set(c.column.tableVar, [...(byTable.get(c.column.tableVar) ?? []), c]);
+  }
+  let withFindings = 0;
+  for (const table of tables) {
+    const rows = byTable.get(table.varName) ?? [];
+    if (rows.length === 0) {
+      console.log(`  ${table.sqlName} (${table.varName}): healthy — 0 of ${table.columns.length} column(s) flagged`);
+      continue;
+    }
+    withFindings += 1;
+    console.log(`  ${table.sqlName} (${table.varName}): ${rows.length} of ${table.columns.length} column(s) flagged`);
+    for (const c of rows) {
+      const h = columnHit(c);
+      console.log(`    ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+    }
+  }
+  console.log(`columns --all: swept ${tables.length} table(s), ${withFindings} carrying a finding.`);
 }
 
 // ── regkeys: registry rows whose KEY LITERAL is dispatched nowhere (INFORMATIONAL — owner-ruled) ───────
@@ -3686,21 +3986,50 @@ function cmdRegKeys(project: Project, arg: string, flags: Flags): void {
   // index is a workspace-wide substrate pass, deliberately not counted as the candidate corpus).
   scanCorpus(project, { scope: registries.map((r) => r.filePath), label: "path:registry-files" });
   const index = spellingIndex(project);
-  const hits: Hit[] = [];
-  for (const registry of registries) {
-    for (const row of registry.rows) {
-      if (dispatchSitesOf(row.key, registry.filePath, index).length > 0) {
-        continue;
-      }
-      const h = hitOf(row.node, "regkey-undispatched");
-      h.text = `${registry.name}["${row.key}"]  —  the key is spelled in NO non-test file outside this table`;
-      hits.push(h);
-    }
+  const byRegistry = new Map(registries.map((r) => [r, regKeyHitsFor(r, index)] as const));
+  if (flags.all) {
+    printRegistriesPerTable(registries, byRegistry);
   }
   console.log(
     `regkeys is a HEURISTIC, INFORMATIONAL lens — it NEVER gates and has no exemption marker (owner ruling). Registry dispatch is legitimately dynamic: a key that arrives from the DB, a URL segment, a template literal, or an \`Object.keys(REGISTRY)\` iteration is a LIVE row that looks dead here. Read the call sites before acting on any line below. (${registries.length} registry/registries, ${registries.reduce((n, r) => n + r.rows.length, 0)} row(s) examined; a registry = an exported const with ${REGISTRY_ROW_FLOOR}+ rows carrying a \`Record<…>\` annotation or a SCREAMING_SNAKE name, in either shape: an OBJECT literal keyed by property name, or an ARRAY literal of \`{ ${REGISTRY_ROW_ID_KEYS.join("|")}: "<key>" }\` rows.)`,
   );
+  const hits = registries.flatMap((r) => byRegistry.get(r) ?? []);
   emit(hits, flags, `regkeys ${arg === "" ? "(all registries)" : arg}`);
+}
+
+/** ONE registry's undispatched rows — split off the main loop so `--all`'s per-registry breakdown and the
+ *  default flat hit list are computed from the SAME per-registry call, never two independent walks. */
+function regKeyHitsFor(registry: RegistryDef, index: ReadonlyMap<string, Set<string>>): Hit[] {
+  const hits: Hit[] = [];
+  for (const row of registry.rows) {
+    if (dispatchSitesOf(row.key, registry.filePath, index).length > 0) {
+      continue;
+    }
+    const h = hitOf(row.node, "regkey-undispatched");
+    h.text = `${registry.name}["${row.key}"]  —  the key is spelled in NO non-test file outside this table`;
+    hits.push(h);
+  }
+  return hits;
+}
+
+/** `regkeys --all`: per-registry sectioning, the same shape as `columns --all` — a registry with
+ *  undispatched rows gets its full list, a clean one collapses to one line, so a sweep names which
+ *  TABLES need a look instead of forty manual per-registry runs. */
+function printRegistriesPerTable(registries: readonly RegistryDef[], byRegistry: ReadonlyMap<RegistryDef, Hit[]>): void {
+  let withFindings = 0;
+  for (const registry of registries) {
+    const hits = byRegistry.get(registry) ?? [];
+    if (hits.length === 0) {
+      console.log(`  ${registry.name} (${relPath(registry.filePath)}): healthy — 0 of ${registry.rows.length} row(s) undispatched`);
+      continue;
+    }
+    withFindings += 1;
+    console.log(`  ${registry.name} (${relPath(registry.filePath)}): ${hits.length} of ${registry.rows.length} row(s) undispatched`);
+    for (const h of hits) {
+      console.log(`    ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+    }
+  }
+  console.log(`regkeys --all: swept ${registries.length} registry/registries, ${withFindings} carrying a finding.`);
 }
 
 // ── chains: declarations whose ONLY life originates inside OTHER DEAD declarations ─────────────────────
@@ -4483,6 +4812,79 @@ function cmdApiSurface(project: Project, arg: string, flags: Flags): void {
   emit(hits, flags, `apisurface ${scope.label}${flags.public ? "" : " (INTERNAL/TEST-ONLY/UNUSED — pass --public for PUBLIC)"}`);
 }
 
+// ── rot: the five rot collectors over ONE package, ONE project load + ONE liveness build ────────────
+// Auditing a package with orphans + testonly + chains + typeonly-alive + swallowed today costs FIVE
+// separate ~40s project loads — each verb bootstraps its own typed workspace. This composite runs the
+// resolution ONCE and calls the EXACT collector function the standalone verb calls for every section —
+// never a re-derived copy — so behavior parity with the individual verbs is structural, not promised in
+// prose. `buildLiveness({ edges: true })` is built ONCE and shared by all five: the edge flag changes
+// nothing about the liveness SETS (pinned by "ast liveness edge map (parallel + opt-in)" in the self-test),
+// only whether the `chains`-only `consumers` map gets populated — so building it on is free for the other
+// four. Each verb's OWN bucketed/stale-marker narration (star-suppression, declared test seams, the
+// union-source bucket, `@…-ok:` staleness) is that verb's business and is deliberately NOT reproduced
+// here — run the verb directly for that detail; `rot` exists to answer "which sections need a look".
+
+export function rotOrphanHits(project: Project, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
+  return collectOrphanCandidates(project, live, inScope)
+    .filter((c) => !c.starSuppressed)
+    .map((c) => candidateHit(c, "orphan-export"));
+}
+
+export function rotTestOnlyHits(project: Project, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
+  const hits: Hit[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (inScope(fp) && !TEST_FILE_RE.test(fp)) {
+      hits.push(...scanTestOnly(sf, live, "hit"));
+    }
+  }
+  return hits;
+}
+
+export function rotChainHits(project: Project, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
+  return collectChainAudit(project, live, inScope).candidates.map(chainHit);
+}
+
+export function rotTypeOnlyHits(project: Project, inScope: (fp: string) => boolean): Hit[] {
+  return collectTypeOnlyCandidates(project, inScope)
+    .filter((c) => !(isTypeOnlyExempt(c.decl) || c.unionSource))
+    .map((c) => typeOnlyHit(c));
+}
+
+export function rotSwallowedHits(project: Project, live: Liveness, inScope: (fp: string) => boolean): Hit[] {
+  return collectSwallowedCandidates(project, live, inScope)
+    .filter((c) => !isSwallowedExempt(c.decl))
+    .map(swallowedHit);
+}
+
+/** One package's five sections, printed and emitted in turn — `emit`'s per-call `noteMatches` accumulates
+ *  into the ONE combined epilogue `finishRun` prints at the end of `main`, so five sectioned RESULT lines
+ *  still resolve to one audited scan count. */
+function cmdRot(project: Project, arg: string, flags: Flags): void {
+  const scope = resolveScope(project, arg, "rot");
+  const inScope = corpusPredicate(
+    scanCorpus(project, {
+      scope: scope.prefix,
+      label: `path:${scope.prefix}`,
+      skip: [SKIP_TEST_FILES, { reason: "out-of-scope", test: (fp) => !PACKAGE_SRC_RE.test(fp) }],
+    }),
+  );
+  const live = buildLiveness(project, { edges: true });
+  console.log(
+    `rot ${scope.label}: ONE project load + ONE liveness build, five CANDIDATE-lens sections below — orphans / testonly / chains / typeonly-alive / swallowed (each section calls the SAME collector its standalone verb calls; run \`pnpm ast <verb> ${scope.label}\` for that section's exemption-marker grammar and bucketed narration). Trades five ~40s loads for one.`,
+  );
+  const sections: readonly (readonly [string, Hit[]])[] = [
+    ["orphans", rotOrphanHits(project, live, inScope)],
+    ["testonly", rotTestOnlyHits(project, live, inScope)],
+    ["chains", rotChainHits(project, live, inScope)],
+    ["typeonly-alive", rotTypeOnlyHits(project, inScope)],
+    ["swallowed", rotSwallowedHits(project, live, inScope)],
+  ];
+  for (const [name, hits] of sections) {
+    emit(hits, flags, `rot ${scope.label} :: ${name}`);
+  }
+}
+
 const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => void> = {
   refs: cmdRefs,
   callers: cmdCallers,
@@ -4490,6 +4892,8 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
   exports: cmdExports,
   jsx: cmdJsx,
   ident: cmdIdent,
+  literal: cmdLiteral,
+  dead: cmdDead,
   orphans: cmdOrphans,
   testonly: cmdTestOnly,
   prodonly: cmdProdOnly,
@@ -4505,6 +4909,7 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
   chains: cmdChains,
   stringy: cmdStringy,
   apisurface: cmdApiSurface,
+  rot: cmdRot,
 };
 
 // depcruise pass-throughs — the module-graph layer (the same config + rules the gates run), in
@@ -4540,6 +4945,7 @@ function runDepcruise(mode: string, pattern: string): void {
 // liveness keys on (file, name) — bare-name matching over-reports same-file use and misses collisions.
 const TYPED_VERBS = new Set([
   "refs",
+  "dead",
   "cycles",
   "orphans",
   "testonly",
@@ -4553,14 +4959,20 @@ const TYPED_VERBS = new Set([
   "chains",
   "stringy",
   "apisurface",
+  "rot",
 ]);
+
+// Verbs that load the TYPED file set (searchGlobs) WITHOUT the type graph — a purely syntactic walk (no
+// language-service resolution) over the wide corpus. `literal` is the only member: a value-change battery
+// needs "which code/tests pin this literal" over tests+fixtures+scripts, at the cheap syntactic load.
+const WIDE_SYNTACTIC_VERBS = new Set(["literal"]);
 
 // Verbs whose scope arg is OPTIONAL (default to the whole surface) — run bare, arg defaults to "".
 const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "typeonly-alive", "columns", "regkeys", "chains", "stringy", "apisurface"]);
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 const USAGE = [
-  `usage: pnpm ast <${VERB_LIST}> <arg> [--in substr] [--files] [--public] [--json] [--max n]`,
+  `usage: pnpm ast <${VERB_LIST}> <arg> [--in substr] [--files] [--public] [--all] [--json] [--max n]`,
   "",
   "Symbol-aware workspace search (ts-morph). Prefer this over grep for CODE questions:",
   "it follows aliases/re-exports and ignores comments + string contents.",
@@ -4571,6 +4983,8 @@ const USAGE = [
   "  pnpm ast exports preset/lib        exported symbols of a file or dir",
   "  pnpm ast jsx ListRow               JSX usages of a component",
   "  pnpm ast ident probeMode           raw identifier occurrences (fast; comments/strings excluded)",
+  "  pnpm ast literal chatDeleted       STRING-LITERAL text only (never idents/comments) — the coupled-fixture sweep",
+  "  pnpm ast dead legacyHelper         evidence-ladder verdict for ONE symbol (prod/test refs, swallowed, @public, …)",
   "  pnpm ast orphans server            exports reached by NOBODY (prod or test) — resolution-based rot",
   "  pnpm ast testonly server           exports reached ONLY from tests — resolution-based rot",
   "  pnpm ast prodonly server           FILES no production entry can reach (the knip unused-files lens)",
@@ -4586,6 +5000,7 @@ const USAGE = [
   "  pnpm ast chains server             WHOLE dead chains: declarations alive only via other DEAD declarations",
   "  pnpm ast stringy kit               type aliases that RESOLVE to bare `string` (no narrowing, no brand)",
   "  pnpm ast apisurface contracts      exports by package boundary: PUBLIC (cross-pkg) / INTERNAL / UNUSED",
+  "  pnpm ast rot server                orphans+testonly+chains+typeonly-alive+swallowed over ONE package, ONE load",
   "  pnpm ast flow chat/engine          module graph: X's direct edges both ways (depcruise, text)",
   "  pnpm ast reaches agent-sdk         every module that can transitively reach X (depcruise)",
   "",
@@ -4598,10 +5013,12 @@ const USAGE = [
   "  status: complete = all matches shown · partial = the list was capped (raise --max) · error = NOT a",
   "  verdict. `--json` carries the same fields as an additive `meta` object (no existing key changes).",
   "  scanned=0 prints `SCOPE ENTERED NOTHING` and exits 2 — nothing was searched, so nothing could be found.",
-  "  TWO CORPORA, and the epilogue names yours: syntactic verbs load packages/*/src + tests +",
-  "  scripts/check/gates; the TYPED verbs (refs/cycles/orphans/testonly/prodonly/unwired/clientgap/swallowed/",
-  "  respell/typeonly-alive/columns/chains/stringy/apisurface) also load scripts/**, packages/*/*.ts, *.mts",
-  "  and playwright/**. So `ident X --in scripts/dev` scans ZERO files — it now says so instead of `no results`.",
+  "  THREE CORPORA, and the epilogue names yours: syntactic verbs load packages/*/src + tests +",
+  "  scripts/check/gates; the TYPED verbs (refs/dead/cycles/orphans/testonly/prodonly/unwired/clientgap/",
+  "  swallowed/respell/typeonly-alive/columns/chains/stringy/apisurface/rot) also load scripts/**,",
+  "  packages/*/*.ts, *.mts and playwright/** — WITH the type graph. `literal` loads the SAME wide file set",
+  "  WITHOUT the type graph (a syntactic text match needs no language service), at the cheap load.",
+  "  So `ident X --in scripts/dev` scans ZERO files — it now says so instead of `no results`.",
   "  (`pnpm --filter <pkg>` scopes the BUILD, never this lens: use the scope arg or --in, and read scope=.)",
   "",
   "Scope arg (orphans/testonly/prodonly): a package NAME (kit|contracts|db|server|client|ui) OR a path",
@@ -4720,10 +5137,42 @@ const USAGE = [
   "  Default lists INTERNAL + TEST-ONLY + UNUSED (the actionable arms); `--public` adds the PUBLIC rows.",
   "  Optional scope (a package name / path); bare = every package, grouped in a per-package count table.",
   "",
+  "literal (WIDE-CORPUS search, run on demand) = string-LITERAL text ONLY — the exact complement of `ident`",
+  "  (which never looks inside a string). Matches `value` as a substring of a StringLiteral /",
+  "  NoSubstitutionTemplateLiteral's full text, and every STATIC chunk of a TemplateExpression (the text",
+  "  between interpolation holes — an interpolated hole is never text, so it never matches). Runs over",
+  "  the WIDE corpus (tests + fixtures + scripts, no type graph): the coupled-fixture sweep a value-",
+  "  changing merge needs — 'which code/tests pin this literal' as one receipted command instead of a",
+  "  noisy `rg` that also matches comments and identifiers.",
+  "",
+  "dead (CANDIDATE lens, run on demand) = a composite evidence-ladder verdict for ONE symbol, resolved",
+  "  once (the same substrate `refs` uses) and laid out as a table: production references (count + up to 3",
+  "  sites) · test-only references · namespace-swallowed consumption (the `swallowed` collector, scoped to",
+  "  this declaration) · the `@public`-family marker · a vendored-file home (informational — `/vendor/` or",
+  "  a header comment saying so) · raw COMMENT-TEXT mentions (informational — the one arm here that",
+  "  deliberately reads comments). Ends with ONE verdict, evidence-priority order: ALIVE (≥1 prod ref) ·",
+  "  SWALLOWED-ONLY (may be load-bearing THROUGH the swallowing API) · TAGGED-KEEP (a `@public` marker) ·",
+  '  TEST-ANCHORED (reached only from tests) · CANDIDATE (nothing reaches it). "Unwired ≠ worthless"',
+  "  (constitution §1) — the verdict is a human's, never a delete signal. A name with several declarations",
+  "  (a collision) is classified once per declaration.",
+  "",
+  "rot (CANDIDATE lens, run on demand) = the five rot collectors — orphans / testonly / chains /",
+  "  typeonly-alive / swallowed — over ONE package, with ONE project load + ONE liveness build instead of",
+  "  five separate ~40s loads. Each section calls the EXACT collector function its standalone verb calls",
+  "  (never a re-derived copy), so behavior parity is structural. Bucketed/stale-marker narration (star-",
+  "  suppression, declared test seams, the union-source bucket, `@…-ok:` staleness) is each standalone",
+  "  verb's own business and is NOT reproduced here — run the verb directly for that detail. Required arg",
+  "  = a package name / path (no bare form).",
+  "",
   "Flags: --in <substr> path filter · --files per-file counts only (cheapest output) ·",
   "       --public (apisurface) also list PUBLIC rows, not just the actionable arms ·",
+  "       --all (columns/regkeys) per-table/per-registry sectioning over EVERY table/registry — full",
+  "       findings for one that has any, one collapsed line for a clean one, instead of forty manual",
+  "       per-table/per-registry runs ·",
   "       --max <n> raw-line cap (default 60; big result sets auto-collapse to per-file counts) ·",
-  "       --json machine output. Syntactic verbs load in ~10s; refs/cycles/orphans/testonly/prodonly/typeonly-alive/columns/apisurface resolve types.",
+  "       --json machine output (repeated once per section for rot). Syntactic verbs load in ~10s;",
+  "       refs/dead/cycles/orphans/testonly/prodonly/typeonly-alive/columns/apisurface/rot resolve types;",
+  "       literal loads the wide corpus without resolving types.",
 ].join("\n");
 
 function main(): void {
@@ -4750,10 +5199,19 @@ function main(): void {
     return;
   }
   const typed = TYPED_VERBS.has(verb);
+  const wide = WIDE_SYNTACTIC_VERBS.has(verb);
   const flags = parseFlags(flagTokens);
-  beginRun(verb, typed ? CORPUS_TYPED : CORPUS_SYNTACTIC, flags);
-  run(loadProject(typed), effectiveArg, flags);
+  beginRun(verb, corpusOf(typed, wide), flags);
+  run(loadProject(typed, wide), effectiveArg, flags);
   finishRun();
+}
+
+/** Which corpus label a run's epilogue carries — the three arms `loadProject` can produce. */
+function corpusOf(typed: boolean, wide: boolean): string {
+  if (typed) {
+    return CORPUS_TYPED;
+  }
+  return wide ? CORPUS_WIDE_SYNTACTIC : CORPUS_SYNTACTIC;
 }
 
 // Run only as the CLI entrypoint — importing this module (the self-test drives the pure enumeration
@@ -4778,5 +5236,5 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
 // unwired/clientgap lenses diff, drivable over an in-memory ts-morph project — AND for the push-tier
 // orphan-export ratchet (scripts/verify/orphan-export-ratchet.ts), which judges the SAME candidate set
 // this file's `orphans` verb prints (one definition of "orphan", never a parallel one).
-export type { Liveness };
+export type { Hit, Liveness };
 export { buildLiveness, collectClientConsumed, collectServerProcedures, isUnwiredExempt };
