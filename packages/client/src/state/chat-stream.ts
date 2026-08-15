@@ -383,7 +383,10 @@ export function isLiveTurnPhase(phase: TurnSlot["phase"]): boolean {
   return phase === "pending" || phase === "streaming" || phase === "stopping";
 }
 
-/** Transient (render-free) subscription to one chat's slot — the smooth-text pacer's feed. */
+/** Transient (render-free) subscription to one chat's slot. NOT the smooth-text pacer's feed — the pacer
+ *  (`@orb/ui` useSmoothText) is prop/render-fed and never subscribes here; today's only consumers are the
+ *  chat-stream test suites, which use this as their live observation seam. A future render-free consumer
+ *  (a DOM-direct streaming path) would enter here. */
 export function subscribeTurnSlot(chatId: ChatId, listener: (slot: TurnSlot) => void): () => void {
   return useChatStreamStore.subscribe((s) => s.turns[chatId] ?? IDLE_TURN, listener);
 }

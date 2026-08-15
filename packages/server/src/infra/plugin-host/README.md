@@ -65,8 +65,10 @@ No design premise was disproved — but the "process RSS stable" clause (03 §4)
    imprecise — a frozen test clock (or a wall-clock jump) must NEVER be able to disable the DoS kill, so the
    interrupt must NOT use the guest seam (and monotonic beats `Date.now`, which also satisfies `no-raw-clock`).
 4. **The interrupt does NOT preempt a blocking HOST call** — only guest bytecode. Every host function
-   therefore self-bounds via `boundHostFn` (a real-time deadline race + result-size cap). An unbounded host
-   fn cannot be written by omission because it is the ONLY constructor. Proven by the hanging-fn test.
+   therefore self-bounds with a real-time deadline race + result-size cap: the live port's constructor is
+   the membrane's `attachAsync` (object-marshalling, pending-set drain), which every wired host fn goes
+   through; `boundHostFn` is the standalone string-only sibling of the same discipline. An unbounded host
+   fn cannot be written by omission. Proven by the hanging-fn test.
 5. **Async bridge = sync variant + deferred promise + host-side pump.** A host fn returning a promise
    creates `ctx.newPromise()`, resolves it from host async work, and pumps `executePendingJobs()` on settle;
    the caller `await ctx.resolvePromise(handle)`. Rejections MUST be minted as GUEST Error objects
