@@ -65,6 +65,7 @@ export {
 } from "./log.ts";
 export { sanitizeAnthropicOutputSchema } from "./output-schema.ts";
 export { consumeTurnStream } from "./runner.ts";
+export type { SessionEntryWriter } from "./session/index.ts";
 export { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
 export { disciplineOptions, dynamicContextOptions, firewallBase, TERMINAL_MCP_NAMESPACE } from "./translate.ts";
 export { assertInitFrameShape, classifyTerminalReason } from "./verify.ts";
@@ -75,6 +76,8 @@ export interface AgentSdkBackendDeps {
   readonly now: () => number;
   readonly query?: AgentSdkDeps["query"];
   readonly sessionStore?: AgentSdkDeps["sessionStore"];
+  /** D8 `session_entries` write-path injection (issue #71) — see `AgentSdkDeps.sessionWriter`. */
+  readonly sessionWriter?: AgentSdkDeps["sessionWriter"];
   /** The shared outbound-image normalize seam (MA-10 summarize vision); absent ⇒ the label-only passthrough. */
   readonly normalizeImageBytes?: AgentSdkDeps["normalizeImageBytes"];
   /** Tests inject a hermetic no-op so discovery/turn tests never hit the live OAuth endpoint. */
@@ -86,11 +89,12 @@ export interface AgentSdkBackendDeps {
 }
 
 export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBackend {
-  const sessions = new SessionCache(deps.sessionStore);
+  const sessions = new SessionCache(deps.sessionStore, deps.sessionWriter);
   const resolved: AgentSdkDeps = {
     now: deps.now,
     query: deps.query ?? query,
     sessionStore: sessions.store,
+    ...(deps.sessionWriter !== undefined ? { sessionWriter: deps.sessionWriter } : {}),
     normalizeImageBytes: deps.normalizeImageBytes ?? passthroughImageNormalizer,
     refreshHostSubToken: deps.refreshHostSubToken ?? ((): Promise<boolean> => ensureFreshHostSubToken({ now: deps.now })),
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),

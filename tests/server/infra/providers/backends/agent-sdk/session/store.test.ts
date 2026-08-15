@@ -7,12 +7,14 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { SessionEntryWriter } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { buildSeedFrames, InMemorySessionStore, SessionCache, seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/session";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat-store");
 const SESSION_ID = "33333333-3333-4333-8333-333333333333";
+const HEX64_RE = /^[0-9a-f]{64}$/;
 
 // The SDK SessionStoreEntry + SessionKey types, derived WITHOUT importing the sealed SDK (mirror runner.test).
 type Entry = Parameters<InMemorySessionStore["append"]>[1][number];
@@ -497,5 +499,117 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
     expect(next.disposition).toBe("reseeded");
     const rows = await cache.store.load({ projectKey: "any", sessionId: next.sessionId ?? "" });
     expect(rows).toHaveLength(shrunkTail.length);
+  });
+});
+
+// The D8 write-path injection seam (issue #71): SessionCache calls the injected SessionEntryWriter at
+// exactly the content-mutating decisions — `insert` on a brand-new lineage (seeded/forked), `update` on an
+// in-place rewrite (reseeded) — and NEVER on a resume/re-adopt/cleared/fresh (no content changed, nothing
+// to persist). A real db-backed writer (mint id, seq, isPrimary) is covered by the entry/compose
+// session-entries.int.test.ts producer test; this pins the CALLER contract with a stub.
+function stubWriter(): SessionEntryWriter & { readonly insert: ReturnType<typeof vi.fn>; readonly update: ReturnType<typeof vi.fn> } {
+  return { insert: vi.fn().mockResolvedValue(undefined), update: vi.fn().mockResolvedValue(undefined) };
+}
+
+describe("SessionCache — the injected SessionEntryWriter (D8, issue #71)", () => {
+  const seed = [
+    { role: "user" as const, content: "hello" },
+    { role: "assistant" as const, content: "hi there" },
+  ];
+
+  test("a cold seed calls writer.insert once with the chatId/sdkSessionId/seededThroughSeq/canonHash", async () => {
+    const writer = stubWriter();
+    const cache = new SessionCache(new InMemorySessionStore(), writer);
+    const decision = await cache.ensureSeededSession(CHAT_ID, seed);
+
+    expect(writer.insert).toHaveBeenCalledTimes(1);
+    expect(writer.update).not.toHaveBeenCalled();
+    const [entry] = writer.insert.mock.calls[0] as [{ chatId: string; sdkSessionId: string; seededThroughSeq: number; canonHash: string }];
+    expect(entry.chatId).toBe(CHAT_ID);
+    expect(entry.sdkSessionId).toBe(decision.sessionId);
+    expect(entry.seededThroughSeq).toBe(seed.length);
+    expect(entry.canonHash).toMatch(HEX64_RE);
+  });
+
+  test("a RESUMED (unchanged) seed calls neither insert nor update (nothing to persist)", async () => {
+    const writer = stubWriter();
+    const cache = new SessionCache(new InMemorySessionStore(), writer);
+    await cache.ensureSeededSession(CHAT_ID, seed);
+    writer.insert.mockClear();
+    writer.update.mockClear();
+
+    const second = await cache.ensureSeededSession(CHAT_ID, seed);
+    expect(second.disposition).toBe("resumed");
+    expect(writer.insert).not.toHaveBeenCalled();
+    expect(writer.update).not.toHaveBeenCalled();
+  });
+
+  test("a FORK calls writer.insert again with the NEW sdkSessionId (a distinct lineage row)", async () => {
+    const writer = stubWriter();
+    const cache = new SessionCache(new InMemorySessionStore(), writer);
+    const first = await cache.ensureSeededSession(CHAT_ID, seed);
+    await cache.store.append({ projectKey: "sdk-cwd-key", sessionId: first.sessionId ?? "" }, [
+      { type: "user", uuid: "sdk-u1", message: { role: "user", content: "prompt" } },
+      { type: "assistant", uuid: "sdk-a1", message: { role: "assistant", content: [{ type: "text", text: "rejected reply" }] } },
+    ]);
+    writer.insert.mockClear();
+
+    const swipeSeed = [...seed, { role: "user" as const, content: "prompt" }];
+    const next = await cache.ensureSeededSession(CHAT_ID, swipeSeed);
+
+    expect(next.disposition).toBe("forked");
+    expect(writer.insert).toHaveBeenCalledTimes(1);
+    const [entry] = writer.insert.mock.calls[0] as [{ sdkSessionId: string }];
+    expect(entry.sdkSessionId).toBe(next.sessionId);
+    expect(entry.sdkSessionId).not.toBe(first.sessionId);
+  });
+
+  test("a RESEED (in-place, no shared prefix) calls writer.update with the SAME sdkSessionId, never insert", async () => {
+    const writer = stubWriter();
+    const cache = new SessionCache(new InMemorySessionStore(), writer);
+    const first = await cache.ensureSeededSession(CHAT_ID, seed);
+    writer.insert.mockClear();
+
+    const edited = [
+      { role: "user" as const, content: "hello EDITED" },
+      { role: "assistant" as const, content: "hi there" },
+    ];
+    const next = await cache.ensureSeededSession(CHAT_ID, edited);
+
+    expect(next.disposition).toBe("reseeded");
+    expect(next.sessionId).toBe(first.sessionId);
+    expect(writer.insert).not.toHaveBeenCalled();
+    expect(writer.update).toHaveBeenCalledTimes(1);
+    const [entry] = writer.update.mock.calls[0] as [{ sdkSessionId: string; seededThroughSeq: number }];
+    expect(entry.sdkSessionId).toBe(first.sessionId);
+    expect(entry.seededThroughSeq).toBe(edited.length);
+  });
+
+  test("an EMPTY seed (`cleared`) never touches the writer", async () => {
+    const writer = stubWriter();
+    const cache = new SessionCache(new InMemorySessionStore(), writer);
+    await cache.ensureSeededSession(CHAT_ID, seed);
+    writer.insert.mockClear();
+
+    const cleared = await cache.ensureSeededSession(CHAT_ID, []);
+    expect(cleared.disposition).toBe("cleared");
+    expect(writer.insert).not.toHaveBeenCalled();
+    expect(writer.update).not.toHaveBeenCalled();
+  });
+
+  test("a writer failure is BEST-EFFORT — the turn's decision still returns correctly (never rethrown)", async () => {
+    const writer = stubWriter();
+    writer.insert.mockRejectedValue(new Error("db unavailable"));
+    const cache = new SessionCache(new InMemorySessionStore(), writer);
+
+    const decision = await cache.ensureSeededSession(CHAT_ID, seed);
+    expect(decision.disposition).toBe("seeded");
+    expect(decision.sessionId).not.toBeNull();
+  });
+
+  test("no writer injected (undefined) is a silent no-op — the cache works exactly as before", async () => {
+    const cache = new SessionCache();
+    const decision = await cache.ensureSeededSession(CHAT_ID, seed);
+    expect(decision.disposition).toBe("seeded");
   });
 });

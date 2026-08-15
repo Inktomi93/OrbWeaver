@@ -4,8 +4,9 @@
 
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId } from "@orb/kit/ids";
+import { getLog } from "#foundation/observability";
 import type { SeedTurn } from "./frames.ts";
-import { buildSeedFrames, isBranchDivergence, seedSessionId, sessionContainsSeedPrefix, sessionMatchesSeed, toSeedTurns } from "./frames.ts";
+import { buildSeedFrames, canonHashOf, isBranchDivergence, seedSessionId, sessionContainsSeedPrefix, sessionMatchesSeed, toSeedTurns } from "./frames.ts";
 
 // "" is internal-only for the main transcript's subpath — never handed back to the SDK, where "" is invalid.
 const MAIN_TRANSCRIPT_SUBPATH = "";
@@ -50,6 +51,51 @@ export interface SeededSessionDecision {
   // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   readonly sessionId: string | null;
   readonly disposition: "resumed" | "forked" | "reseeded" | "seeded" | "readopted" | "fresh" | "cleared";
+}
+
+/**
+ * The D8 write-path injection seam: `session_entries` persistence (`packages/db/src/schema/sdk-session.ts`)
+ * as two ops, kept SDK-free/db-free here (the sealed-executor invariant — infra never imports `@orb/db`
+ * directly; the compose root builds these over `db.insert`/`db.update` and injects them). `insert` covers a
+ * BRAND NEW sdk-session lineage entry (dispositions `seeded`/`forked` — a new `sdkSessionId` was minted);
+ * `update` covers an in-place content rewrite of an EXISTING entry (disposition `reseeded` — the SAME
+ * `sdkSessionId`, changed content). Absent ⇒ no persistence (the in-memory cache alone still works — a
+ * durable row is an optimization per Tier-3b-Providers.md Esoteric §3, not a correctness need).
+ */
+export interface SessionEntryWriter {
+  readonly insert: (entry: {
+    readonly chatId: ChatId;
+    readonly sdkSessionId: string;
+    readonly seededThroughSeq: number;
+    readonly canonHash: string;
+  }) => Promise<void>;
+  readonly update: (entry: { readonly sdkSessionId: string; readonly seededThroughSeq: number; readonly canonHash: string }) => Promise<void>;
+}
+
+/** Best-effort INSERT: a `session_entries` write failure never takes down a chat turn (the in-memory
+ *  cache is the correctness path; the row is an observability/reap-substrate optimization). */
+async function persistInsert(writer: SessionEntryWriter | undefined, entry: Parameters<SessionEntryWriter["insert"]>[0]): Promise<void> {
+  if (writer === undefined) {
+    return;
+  }
+  try {
+    await writer.insert(entry);
+  } catch (err) {
+    getLog().warn({ err, op: "insert", sdkSessionId: entry.sdkSessionId }, "agent-sdk: session_entries persist failed (best-effort, cache unaffected)");
+  }
+}
+
+/** Best-effort UPDATE counterpart of {@link persistInsert} (the `reseeded` disposition — same
+ *  `sdkSessionId`, rewritten content). */
+async function persistUpdate(writer: SessionEntryWriter | undefined, entry: Parameters<SessionEntryWriter["update"]>[0]): Promise<void> {
+  if (writer === undefined) {
+    return;
+  }
+  try {
+    await writer.update(entry);
+  } catch (err) {
+    getLog().warn({ err, op: "update", sdkSessionId: entry.sdkSessionId }, "agent-sdk: session_entries persist failed (best-effort, cache unaffected)");
+  }
 }
 
 /**
@@ -134,9 +180,11 @@ const INTERNAL_PROJECT_KEY = "orbweaver";
 export class SessionCache {
   readonly store: SessionStore;
   private readonly byChat = new Map<string, string>();
+  private readonly writer: SessionEntryWriter | undefined;
 
-  constructor(store: SessionStore = new InMemorySessionStore()) {
+  constructor(store: SessionStore = new InMemorySessionStore(), writer?: SessionEntryWriter) {
     this.store = store;
+    this.writer = writer;
   }
 
   resolveResumeId(chatId: ChatId): string | undefined {
@@ -181,6 +229,7 @@ export class SessionCache {
       // lineage buys nothing here, so the cheapest rewrite (same id, changed suffix) wins.
       if (canReplace(this.store)) {
         await this.store.replace({ projectKey: INTERNAL_PROJECT_KEY, sessionId: recorded }, buildSeedFrames(turns, recorded));
+        await persistUpdate(this.writer, { sdkSessionId: recorded, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
         return { sessionId: recorded, disposition: "reseeded" };
       }
     }
@@ -215,6 +264,7 @@ export class SessionCache {
       if (rows.length === 0) {
         await this.store.append({ projectKey: INTERNAL_PROJECT_KEY, sessionId }, buildSeedFrames(turns, sessionId));
         this.byChat.set(chatId, sessionId);
+        await persistInsert(this.writer, { chatId, sdkSessionId: sessionId, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
         return { sessionId, disposition: seededAs };
       }
       if (sessionMatchesSeed(rows, turns)) {

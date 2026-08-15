@@ -7,6 +7,7 @@
 
 export {
   buildSeedFrames,
+  canonHashOf,
   GREETING_USER_STUB,
   isBranchDivergence,
   type SeedTurn,
@@ -20,4 +21,5 @@ export {
   type ReplaceableSessionStore,
   type SeededSessionDecision,
   SessionCache,
+  type SessionEntryWriter,
 } from "./store.ts";
