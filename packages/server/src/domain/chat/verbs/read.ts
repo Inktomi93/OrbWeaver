@@ -146,7 +146,7 @@ import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisi
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { presentHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -408,12 +408,15 @@ async function resolvePreviewInputs(
   const explicitPreset = opts.presetOverride;
   const gmPreset = explicitPreset !== undefined || ctx.rpg === null ? null : await ctx.rpg.resolvePresetOverride(chatId);
   const presetOverride = explicitPreset ?? gmPreset ?? undefined;
+  // A preview is an HONESTY INSTRUMENT (see the file doc above) — it must not overstate what a live turn would
+  // actually resolve, so the enabled axis narrows this exactly like `verbs/turn.ts`'s `loadRoom` (2026-08-15).
+  const previewPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, roster);
   const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
     model: connection.model,
     anchorPersonaId,
-    presentHumanUserIds: presentHumanUserIdsOf(roster),
+    presentHumanUserIds: previewPresentHumanUserIds,
     // The host's own persona drives a preview's `{{user}}` — the preview already resolves everything else
     // under the host. When the host holds NO chat persona the arm is `none` ⇒ the chat ANCHOR: the
     // chat-invariant identity, deterministic, and the host's own room-level choice. It used to omit the key
@@ -756,6 +759,9 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
       throw new ChatNotFoundError(chatId);
     }
     const visibility = resolveCardVisibility(membership.role, configuredCardVisibility(membership.chat));
+    // Same enabled-axis narrowing as `resolvePreviewInputs` above — a member card render is also an honesty
+    // instrument about who the room would actually resolve a persona for.
+    const memberCardPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, roster);
     const [tags, lore, avatarHash, anchorPersona] = await Promise.all([
       ctx.resolveCharacterTags({ ownerId: hostUserId, characterId }),
       loadCharacterCardLore(ctx.db, { characterId, ownerId: hostUserId }),
@@ -764,7 +770,7 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
         chatId,
         hostUserId,
         anchorPersonaId: membership.chat.anchorPersonaId,
-        presentHumanUserIds: presentHumanUserIdsOf(roster),
+        presentHumanUserIds: memberCardPresentHumanUserIds,
       }),
     ]);
     // PURE projection — fields above the effective level become null HERE, server-side (never sent over the

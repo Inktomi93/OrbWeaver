@@ -71,7 +71,7 @@ import { requireHost, requireParticipant } from "../guard.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadChatInjections, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
-import { presentHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 import { resolveChoiceVariables } from "../substrate/variables.ts";
 
@@ -173,19 +173,22 @@ function createArchive(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimCh
 }
 
 /** `setChatAnchorPersona` — host-only manual re-pin of the anchor. `personaId: null` clears the pin. A
- *  non-null target must be owned by a present human participant of this room — checked via
- *  `ctx.verifyPersonaOwned` against each present human's `userId`. */
+ *  non-null target must be owned by a present AND ENABLED human participant of this room — checked via
+ *  `ctx.verifyPersonaOwned` against each present-and-enabled human's `userId`. */
 function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setChatAnchorPersona"] {
   return async ({ principal, chatId, personaId }: SetChatAnchorPersonaParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     if (personaId !== null) {
       const roster = await loadRoster(ctx.db, chatId);
-      // The SAME consent set the resolver gates its persona read on (`presentHumanUserIdsOf`) — one home, so
-      // a pin this verb permits is a pin the assemble can actually resolve.
-      const presentHumanIds = presentHumanUserIdsOf(roster);
+      // The SAME consent set the resolver gates its persona read on (`presentAndEnabledHumanUserIdsOf`) — one
+      // home, so a pin this verb permits is a pin the assemble can actually resolve (2026-08-15: this used to
+      // call the presence-only `presentHumanUserIdsOf`, which let a host pin — and a live turn silently refuse
+      // — a DISABLED member's persona; the enabled axis reintroduced the exact silently-dead-pin bug the
+      // presence axis was widened to fix).
+      const presentHumanIds = await presentAndEnabledHumanUserIdsOf(ctx, roster);
       const ownership = await Promise.all(presentHumanIds.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })));
       if (!ownership.some((owned) => owned)) {
-        throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the anchor persona must be owned by a present human participant`);
+        throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the anchor persona must be owned by a present, enabled human participant`);
       }
     }
     await claimChat(chatId);

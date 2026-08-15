@@ -22,13 +22,13 @@ import type { MacroFreezeRecord } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
-import type { MessageId, MessageVariantId } from "@orb/kit/ids";
+import type { Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit.ts";
 import { scenario, tape } from "../../../../support/chat/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedMessage } from "../_support.ts";
+import { seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 /** The FOREIGN-half fake the edit bundle needs — DEFAULT config only (the `edit.int.test` stub). */
 const foreignInputsStub: Parameters<typeof createEdit>[1]["resolveForeignInputs"] = () =>
@@ -153,4 +153,32 @@ test("THE WINDOW GATE: while the greeting window is still OPEN, selection does N
   // And the first user turn still bakes it — the gate DEFERS the freeze, it does not skip one.
   await scn.send("hello");
   expect((await readProvenance(scn.db, alternateId)).content).toBe("Alt greeting, you rolled 1");
+});
+
+test("a DISABLED member drops from the greeting re-bake's foreign-input consent set (#73 second-commit fix — must agree with the live-turn/runOnEdit narrowing)", async () => {
+  const scn = await scenario.chat(tape().reply("ok"), { characters: ["aria"] });
+  const member = await seedUser(scn.db, castId<Handle>("member"));
+  await seedParticipant(scn.db, { chatId: scn.chatId, key: "m", userId: member, role: "member" });
+  const greeting = await seedMessage(scn.db, scn.chatId, 1, {
+    role: "assistant",
+    characterId: scn.chars[0] ?? null,
+    content: "Selected greeting, you rolled {{roll::1d1}}",
+  });
+  const alternateId = await seedAlternate(scn.db, greeting.messageId, "Alt greeting, you rolled {{roll::1d1}}");
+  await scn.send("hello"); // closes the window
+
+  let presentHumanUserIds: readonly UserId[] = [];
+  const observingForeignInputs: Parameters<typeof createEdit>[1]["resolveForeignInputs"] = (args) => {
+    presentHumanUserIds = args.presentHumanUserIds;
+    return Promise.resolve({ promptConfig: DEFAULT_PROMPT_CONFIG, personas: { anchor: null, active: null }, scanDepth: 6, injectionTokenBudget: 0 });
+  };
+  const edit = createEdit(
+    { ...scn.ctx, resolveUserEnabled: (userId) => Promise.resolve(userId !== member) },
+    { emit: () => Promise.resolve(), resolveForeignInputs: observingForeignInputs, claimChat: (): Promise<void> => Promise.resolve(), prng: () => 0.5 },
+  );
+
+  await edit.selectVariant({ principal: scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId });
+
+  expect(presentHumanUserIds).toContain(scn.host);
+  expect(presentHumanUserIds).not.toContain(member);
 });

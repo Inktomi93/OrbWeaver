@@ -76,7 +76,7 @@ import {
   setVariantContentStatement,
 } from "../persistence/canon-write.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
-import { classifyParticipant, isBackingUserEnabled } from "../persistence/participant.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import {
   loadCanonHistory,
   loadChatRow,
@@ -92,7 +92,7 @@ import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { presentHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
 
@@ -254,13 +254,9 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   const online = await Promise.all(humanPersonas.map((h) => ctx.readPresence(h.userId).then((p) => p.online)));
   const personaIds = humanPersonas.filter((_h, i) => online[i] === true).map((h) => h.personaId);
   // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
-  // disabled-account containment gate (owner-ruled 2026-08-15): a disabled human's backing `users` row drops
-  // their persona from the round the same way a departed member's already does — presence alone used to be
-  // the whole consent test, which let an admin-disabled account keep informing generation through a persona
-  // it can no longer act through.
-  const rawPresentHumanUserIds = presentHumanUserIdsOf(roster);
-  const humanEnabled = await Promise.all(rawPresentHumanUserIds.map((userId) => ctx.resolveUserEnabled(userId)));
-  const presentHumanUserIds = rawPresentHumanUserIds.filter((_userId, i) => isBackingUserEnabled("human", humanEnabled[i] ?? false));
+  // disabled-account containment gate (owner-ruled 2026-08-15) — see `presentAndEnabledHumanUserIdsOf`'s own
+  // header for why every consumer routes through the ONE async narrowing rather than re-deriving it.
+  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, roster);
 
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
     ref: { kind: "character", characterId: r.characterId },

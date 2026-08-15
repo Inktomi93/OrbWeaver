@@ -1641,6 +1641,36 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(prompt).not.toContain("the first human who happened to join");
   });
 
+  test("a DISABLED member drops from the preview's foreign-input consent set — an honesty-instrument preview must not overstate what a live turn would resolve (#73 second-commit fix)", async () => {
+    const host = await seedUser(db, castId<Handle>("preview_host"));
+    const chatId = await seedRoom("preview_disabled", host);
+    const member = await seedUser(db, castId<Handle>("preview_member"));
+    await seedParticipant(db, { chatId, key: "preview_member", userId: member, role: "member" });
+
+    let presentHumanUserIds: readonly UserId[] = [];
+    const ctx = makeChatContext(db, { resolveUserEnabled: (userId) => Promise.resolve(userId !== member) });
+    const { previewAssembly } = createRead(
+      ctx,
+      makeDeps({
+        resolveForeignInputs: (args) => {
+          presentHumanUserIds = args.presentHumanUserIds;
+          return Promise.resolve({
+            promptConfig: DEFAULT_PROMPT_CONFIG,
+            personas: { anchor: null, active: null },
+            globalRegexScripts: [],
+            scanDepth: 6,
+            injectionTokenBudget: 0,
+          });
+        },
+      }),
+    );
+
+    await previewAssembly({ principal: principal(host), chatId });
+
+    expect(presentHumanUserIds).toContain(host);
+    expect(presentHumanUserIds).not.toContain(member);
+  });
+
   test("getActivePresetConfig returns the resolved PromptConfig", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
@@ -2716,6 +2746,38 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     const bytes = JSON.stringify(view);
     expect(bytes).not.toContain("SECRET");
     expect(bytes).not.toContain("hidden lore");
+  });
+
+  test("a DISABLED member drops from getMemberCard's anchor-persona foreign-input consent set (#73 second-commit fix)", async () => {
+    const { host, member, chatId } = await seedCardRoom("mc_disabled", "sheet");
+    let presentHumanUserIds: readonly UserId[] = [];
+    const ctx = makeChatContext(db, {
+      getCard: ({ characterId }) => Promise.resolve(characterId === cardChar ? macroCard : null),
+      resolveCharacterTags: () => Promise.resolve(["fantasy", "rogue"]),
+      resolveAssetHash: () => Promise.resolve(null),
+      resolveUserEnabled: (userId) => Promise.resolve(userId !== member),
+    });
+    const deps: Parameters<typeof createRead>[1] = {
+      loadParticipantViews,
+      resolveConnection: () => Promise.resolve(makeResolvedConnection()),
+      checkSendAvailability: () => Promise.resolve({ available: true }),
+      resolveForeignInputs: (args) => {
+        presentHumanUserIds = args.presentHumanUserIds;
+        return Promise.resolve({
+          promptConfig: DEFAULT_PROMPT_CONFIG,
+          personas: { anchor: anchorPersona, active: anchorPersona },
+          globalRegexScripts: [],
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        });
+      },
+    };
+    const { getMemberCard } = createRead(ctx, deps);
+
+    await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+
+    expect(presentHumanUserIds).toContain(host);
+    expect(presentHumanUserIds).not.toContain(member);
   });
 
   test("at `sheet+lore` the character's rendered lore appears; the prompt internals stay NULL", async () => {
