@@ -1,7 +1,7 @@
 ---
 kind: review
-status: delivered
-updated: 2026-08-03
+status: active
+updated: 2026-08-02
 ---
 
 # Stickler design review — HOST HANDOFF × CHARACTER OWNERSHIP

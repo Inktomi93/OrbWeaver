@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-08
+---
+
 > **2026-08-08 — RECORD.** Renderer + hint design now lives in
 > [refinery-schema-renderer.md](../../design/refinery-schema-renderer.md) (its §3-§5 supersede
 > §4.7's renderer sketch; its §9.1 supersedes the bare {kind:"custom",schemaId} run-provenance

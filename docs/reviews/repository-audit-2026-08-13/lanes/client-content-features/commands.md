@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipt
 
 Snapshot input: `MANIFEST-ALL.json`, lane `client-content-features`; 133 assigned paths.

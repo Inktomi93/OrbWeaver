@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipts — client-chat-components
 
 Working-tree basis: snapshot `c93253a3f907fb7fd93d411c511a98ed378505db`; reconciliation at 2026-08-14T05:29:00Z found all 126 owned paths byte-, line-, and SHA-256-identical to the assignment (0 dirty owned paths).

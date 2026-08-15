@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-03
+---
+
 # side-eye — the combined nightly pass (2026-08-03)
 
 **Verdict: SHIP WITH FIXES.** Nothing here is unshippable, but the Configuration workspace —

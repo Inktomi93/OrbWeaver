@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-08
+---
+
 > **2026-08-08 — RECORD.** The live R3/SF program authority is
 > [refinery-schema-renderer.md](../../design/refinery-schema-renderer.md). Superseded here: the
 > §5.1 rewrite-payload sketch (no clear arm — see authority §15); gap-3 apply-as-copy timing

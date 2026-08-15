@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Snapshot policy and coordinator correction
 
 This audit runs while the repository owner is committing and editing the same checkout. It is therefore a

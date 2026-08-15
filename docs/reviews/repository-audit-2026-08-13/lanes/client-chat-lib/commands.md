@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Client chat-lib command receipts
 
 - 2026-08-13T23:09:xx-06:00 — pre-read reconciliation: `awk` assignment parser + `wc -l/-c` + `sha256sum` over every `OWNED` path. Exit 0, 0.7s. Scope: 86 assigned files. Result: 86 files, 6,368 lines, 334,882 bytes; zero hash/line/byte mismatches.

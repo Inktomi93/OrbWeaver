@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Binary-assets command receipt
 
 All commands ran from the repository root. Durations are wall-clock values returned by the command runner.

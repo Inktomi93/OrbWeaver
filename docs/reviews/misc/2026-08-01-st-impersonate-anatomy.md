@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-07-31
+---
+
 # SillyTavern impersonate — full anatomy (reference recon, 2026-08-01)
 
 **Source:** local checkout `~/inktomi-stack/SillyTavern` @ `380e31e8` (current dev tip). Scouted

@@ -1,5 +1,5 @@
 ---
-kind: receipt
+kind: review
 status: active
 updated: 2026-08-09
 ---

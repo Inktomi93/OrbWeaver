@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-02
+---
+
 # Registry map — first pass (2026-08-03, scout census; gaps marked)
 
 > The repo's registries: where dynamic dispatch/contribution is table-driven, how each table is

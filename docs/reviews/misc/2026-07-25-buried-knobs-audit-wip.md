@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-07-31
+---
+
 # Buried-knobs audit — working ledger (WIP, consolidation pending)
 
 > Owner charge: "find anywhere we're putting things in code that should be a surfaced setting or

@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-01
+---
+
 # Guided Generations fidelity/parity audit — 2026-07-25 (stickler, owner-ordered)
 
 Sources triangulated this session:

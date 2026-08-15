@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-02
+---
+
 # Stickler design review — THE CLIENT TIER: file-structure truth, the channel map, movability
 
 **Date:** 2026-08-03 (session ran 2026-08-02 late) · **Scope:** design review, no diff — the owner's three

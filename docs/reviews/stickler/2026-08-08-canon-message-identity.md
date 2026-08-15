@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-07
+---
+
 # Canon message identity — design investigation (stickler, 2026-08-08)
 
 > **Charge:** adjudicate + design the pre-shape MESSAGE IDENTITY model — the storage/contract shape that

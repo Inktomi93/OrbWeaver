@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Orbweaver repository audit — cold interim synthesis
 
 Date: 2026-08-13 MDT  

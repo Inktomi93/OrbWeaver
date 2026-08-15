@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Agent-tooling command receipts
 
 All commands ran in `/home/inktomi/inktomi-stack/development/orbweaver`. No production, test, gate, law, assignment, or sibling-lane file was modified.

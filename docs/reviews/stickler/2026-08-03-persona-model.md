@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-02
+---
+
 # THE PERSONA MODEL — design review (actor-state grade)
 
 ```

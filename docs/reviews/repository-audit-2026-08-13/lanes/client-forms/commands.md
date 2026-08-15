@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Client forms command ledger
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` on 2026-08-14 MDT.

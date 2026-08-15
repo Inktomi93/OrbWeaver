@@ -1,7 +1,7 @@
 ---
 kind: review
-status: executed
-updated: 2026-08-03
+status: active
+updated: 2026-08-02
 ---
 
 # Export-rot dispositions (lane CLEAN)

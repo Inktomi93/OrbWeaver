@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Parked-document finding dispositions
 
 Documentation-Law classifies `docs/history/**` as resolved archeology and `docs/architecture/proposed/**` as parked sets whose `INDEX.md` is the status authority. Re-derived status claims therefore remain historical/reference prose; only broken local Markdown routes are repaired.

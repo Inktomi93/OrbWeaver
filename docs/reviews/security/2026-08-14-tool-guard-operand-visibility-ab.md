@@ -1,9 +1,7 @@
 ---
-kind: security-review
-status: landed (code merged with this doc)
-owner-review: REQUIRED (the A–K decision agenda below)
+kind: review
+status: active
 updated: 2026-08-14
-scope: tool-guard operand visibility — bash -c operands, $( ) substitutions, realpath self-identity, pipe-rewrite comment tail, quoted rm targets/flags, path-prefixed rm, escaped quotes in a substitution; corpus A/B receipts
 ---
 
 # tool-guard: quoted-command visibility — corpus A/B

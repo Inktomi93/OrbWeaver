@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-01
+---
+
 # Zod leverage audit — 2026-08-02 (stickler, repo-wide, zod 4.4.3)
 
 Owner charge (verbatim): "see what all [zod] has got in the latest and make sure we are using zod to

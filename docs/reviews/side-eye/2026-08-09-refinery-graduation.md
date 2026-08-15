@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-09
+---
+
 # side-eye — REFINERY graduation review (2026-08-09, pre-polish)
 
 **VERDICT: DO NOT SHIP (as-is).** Architecture underneath is genuinely good (schema-driven renderer

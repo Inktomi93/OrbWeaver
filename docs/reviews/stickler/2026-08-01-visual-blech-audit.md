@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-07-31
+---
+
 # Visual blech audit — list panes, character detail, context-panel meta tabs vs the RPG bar
 
 - kind: stickler review (visual/design special brief, owner-directed)

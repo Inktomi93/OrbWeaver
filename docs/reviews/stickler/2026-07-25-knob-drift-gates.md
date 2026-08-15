@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-01
+---
+
 # Knob-drift enforcement design — gate review (2026-07-25)
 
 Owner-ruled gate-design pass over the completed buried-knobs audit (`docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md`).

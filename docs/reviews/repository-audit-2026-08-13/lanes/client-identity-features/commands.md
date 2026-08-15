@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipts
 
 Working-tree basis: `c93253a3f907fb7fd93d411c511a98ed378505db`; the 181 assigned paths were clean before the read barrier.

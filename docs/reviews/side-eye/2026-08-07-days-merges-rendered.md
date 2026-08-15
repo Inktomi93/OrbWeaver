@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-07
+---
+
 # side-eye — the day's rendered merges (2026-08-07)
 
 > **Provenance note.** The lane's tool-guard refused its heredoc writes into the worktree, so this

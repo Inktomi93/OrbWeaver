@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-02
+---
+
 # 2026-08-03 — THE REGEX MODEL (stickler design review)
 
 > **Charge (owner, near-verbatim):** "we do regex in a LOT of places, lots of consumers, it's

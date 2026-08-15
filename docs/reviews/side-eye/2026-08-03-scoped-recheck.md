@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-02
+---
+
 # side-eye SCOPED RE-CHECK — FX fix-round · macro pill · home reservation · NEW regex surfaces
 
 **Target:** main @ `0c4c3243` · **Stage:** `pnpm snap --isolated` (frozen worktree `0c4c3243bda0` → :5273/:8888).

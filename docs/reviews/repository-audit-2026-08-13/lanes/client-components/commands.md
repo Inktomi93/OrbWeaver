@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Client shared-components audit command log
 
 Formal rolling assignment: `assignment.txt` at snapshot

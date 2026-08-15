@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # client-lib command receipts
 
 All commands ran from the repository root. Commands were read-only except the normal test runners' generated caches/results.

@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipt — client-preset-refinery
 
 All commands ran from /home/inktomi/inktomi-stack/development/orbweaver on 2026-08-13.

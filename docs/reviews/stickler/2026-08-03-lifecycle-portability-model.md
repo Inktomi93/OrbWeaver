@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-02
+---
+
 # 2026-08-03 — THE LIFECYCLE + PORTABILITY MODEL (stickler design review)
 
 > **Charge (owner, near-verbatim):** "variable CRUD and import/export riding the seams of its

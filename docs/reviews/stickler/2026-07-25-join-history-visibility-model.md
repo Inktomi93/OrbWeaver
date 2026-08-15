@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-07-31
+---
+
 # Chat read-visibility — the design ruling (joinHistoryVisibility cluster)
 
 Frontier-tier DESIGN RULING, branch `retro-burn-down`, 2026-07-25. Read-only session (two lanes

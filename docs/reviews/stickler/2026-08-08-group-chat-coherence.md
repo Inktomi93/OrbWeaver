@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-08
+---
+
 # Group-chat design-coherence review — 2026-08-08
 
 Charge (owner): the group-chat subsystem "feels crunchy" — bless the decomposition or name the real

@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-03
+---
+
 # side-eye RE-VERIFY — preset program + shell fixes (desktop + mobile)
 
 **Target:** main @ `f3c0ef20` · **Stage:** `pnpm snap --isolated` (frozen worktree `f3c0ef20f9c8` → :5273/:8888).

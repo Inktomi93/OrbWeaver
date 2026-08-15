@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-02
+---
+
 # Stickler design review — the ROLE/AUTHORITY model (vocabularies · chokepoints · the agents future)
 
 **Charge (owner, near-verbatim):** "role is kinda messy and will get worse when we add agents and

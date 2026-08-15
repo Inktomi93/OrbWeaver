@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-02
+---
+
 # Stickler design review — F-8: the MULTI-OWNER COLLECTION-CONTRIBUTION primitive
 
 **Date:** 2026-08-03 · **Charge:** design the one primitive by which MULTIPLE features contribute
