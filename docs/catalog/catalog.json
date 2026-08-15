@@ -2095,7 +2095,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "936352db7df9c8e05cc6f1d10994f951b8a0766f9baf1eac0e93bb785e854956",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md:1 (full read; historical header/provenance evaluated)",
@@ -2447,7 +2447,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "1438bac048005dbaa1ed428e98a82938d4fae4daf6b8708c665bde992a293186",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/assets-maintenance.md:1 (full read; historical header/provenance evaluated)",
@@ -2482,7 +2482,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "051757433757e9c67790c9f1b756e8b63c729b4392ac990844d6fe11dc4635b8",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/buddy-observer-reaction-engine.md:1 (full read; historical header/provenance evaluated)",
@@ -2622,7 +2622,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "6e1d36eed103c566d4f353bba64ca38e62213f898a0a175a2652becdf4bdb1ea",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/client-tooling-setup.md:1 (full read; historical header/provenance evaluated)",
@@ -2657,7 +2657,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "8a2db7ee25dcc3c477bbf5cd6663b95046166c4765bf97a33fcdc4829a7c94b5",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/comfyui-control-integration-spec.md:1 (full read; historical header/provenance evaluated)",
@@ -2727,7 +2727,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "f26a3b3fe5aee15a82dd00e3a5aa821cb044fe6fcdccd86af8dc24f4c012264f",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/core-laws-archaeology-record.md:1 (full read; historical header/provenance evaluated)",
@@ -2762,7 +2762,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "e8745c4bd482f72e7f28e14da716b5d9e88b20ed464ca678a97aca4d60d3641e",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/derive-modernization-audit.md:1 (full read; historical header/provenance evaluated)",
@@ -2797,7 +2797,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "63c2f43027bd1b3baa3562cf05f902a00bc80f219e573fb8b7421a8511053c52",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/design-enforcement.md:1 (full read; historical header/provenance evaluated)",
@@ -2937,7 +2937,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "265aa609a00ea8281e9c91faa84a6df03fff951dd8f913069cf1fbf63bf9cf85",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/export-import-portability.md:1 (full read; historical header/provenance evaluated)",
@@ -2972,7 +2972,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "98f38cb464b10f5c2de3777c57911b790dbd2842e542af49a0ada21a57a1ddab",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/gallery-design.md:1 (full read; historical header/provenance evaluated)",
@@ -3007,7 +3007,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "bab94cf89a10eae69848836db25a49f2d8e91545a05782d8639463230d34c5c1",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/gallery.md:1 (full read; historical header/provenance evaluated)",
@@ -3112,7 +3112,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "a4bff96d5e94e9fbbe6be6e0134d6d3b2bfeb573b196c0b541af4a028239921b",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/neo-orb-parity-audit.md:1 (full read; historical header/provenance evaluated)",
@@ -3147,7 +3147,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "7ee63035b3eeeaf526d8bc7c35aa5d4139cf0c58729fc8458ad78921a6c75f8e",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/neo-test-steal-list.md:1 (full read; historical header/provenance evaluated)",
@@ -3217,7 +3217,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "55c621e83f2840bd648ea05fa8c5a8e59c8b15a26ca58a74cfbd0bbbe13cd6f5",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/preset-form-mapper-elimination.md:1 (full read; historical header/provenance evaluated)",
@@ -3252,7 +3252,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "8b87727b8030e1cbed5a1c23ad30abefce0280a09e1a37286a757a0236b8bfa1",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/prompt-manager.md:1 (full read; historical header/provenance evaluated)",
@@ -3287,7 +3287,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "50a5efd60ea01f853378fd34726c559e84abc0c0e64ea250afb512a00b6f5183",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/rpg-console-commit-mini-spec.md:1 (full read; historical header/provenance evaluated)",
@@ -3357,7 +3357,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "70dc64f0a083b98fe6b5b6b97725a889684883cebc29d5181e2a008374dd126c",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/shell-chrome-unification.md:1 (full read; historical header/provenance evaluated)",
@@ -3427,7 +3427,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "9d5cfc04bce1aac340cea6a325b2004504fd639005458b41d5b3957a3e2d15ec",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/spine-testing-archaeology-record.md:1 (full read; historical header/provenance evaluated)",
@@ -3568,7 +3568,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4c309a1e2ee309ecb236234f4eb60adfeb8ac06a202cafcae0921173b6aff023",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/tag-pending-review.md:1 (full read; historical header/provenance evaluated)",
@@ -3603,7 +3603,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "23bf13c627e43edbc482cf89f6ece7aa2454463a262f12c23808985cc98f367a",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/test-quality-review.md:1 (full read; historical header/provenance evaluated)",
@@ -3638,7 +3638,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "401f930a47dadd22d0b0a1908d47e715622a3fd33719ba5b78e1bf2e388f6f35",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/test-support-dry-punchlist.md:1 (full read; historical header/provenance evaluated)",
@@ -3673,7 +3673,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "45aa3e212b708a3c89c7afbd542ffd59e06a1988e6587b24a0ecb26035b67919",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/themes-design.md:1 (full read; historical header/provenance evaluated)",
@@ -3918,7 +3918,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "ab0df633db16b1801dc171c516239b6a1eb4654ca20b837d2bc3e365f465de8d",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/ui-polish-punchlist.md:1 (full read; historical header/provenance evaluated)",
@@ -4023,7 +4023,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "ef7045051715bab4b9dca8bd00ebf5bc4a7788754e612957b7614d15c9ef926e",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/ux-flow-revamp.md:1 (full read; historical header/provenance evaluated)",
@@ -4058,7 +4058,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "6c7dc1d3fa395f2a7c4ca568308da4d434f7093dc268665ef93c549a5db72be7",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/history/workloads-deferred-designs.md:1 (full read; historical header/provenance evaluated)",
@@ -6165,7 +6165,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4d96abec603dc6e47ff74e4597542074389149010a70c3238c882a972a1f5ea4",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/architecture/proposed/connections/CONNECTIONS-BUILD-SPEC.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -10232,7 +10232,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "82e394e183b575ad8d0ff6b27ad271fa2f466dc155390ceb4be86e4d048f30a4",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/barrel-star-reexport-residue.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -10267,7 +10267,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "a4b39ae9943cb314d80bf059b40a9f7c4f191943688b90c7eb236ff7490c98f3",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/client-smalls-lane.md:1",
@@ -10402,7 +10402,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "83ef2862df248519475c761650cef39bfd774838993c24a57d5faef33a555588",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/chat-creation-draft-mode-replacement.md:1 (design; proposed)",
@@ -10618,7 +10618,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "f287a9a5fdb8439c93f4c47bcebb591f4fa0ca6f1011d0d5d7bd996846278c16",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/context-panel-fidelity-findings.md:1 (design; unheaded)",
@@ -10869,7 +10869,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "48c4db461a586e01aa0f47ca27f2dacb30e092094c617530c583e6a692f38d41",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/draft-trust-render-policy-seam.md:1 (design; unheaded)",
@@ -10974,7 +10974,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "5f38012edd9dfe8daf98fe6524be19c485fc83c2a34acfa3062c72ed45c26cff",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/gate-ignore-mention-fence.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -11144,7 +11144,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "f4ed81ea064b68dea7cda996748e7b3a0b7073635a84201de0489dafc28cd398",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/login-loading-screen.md:1 (design; unheaded)",
@@ -11179,7 +11179,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "b89b9f4f3c38c24cf2eee7d96a67e6b889489326e04125c5dcf68b3f6cf78b69",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/mocks/README.md:1 (design; unheaded)",
@@ -11214,7 +11214,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4ebe3d86a1ca3c07ec4e26a7486a7f8c5fb822efd0892e9bc39b947a93d3462e",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/mocks/crunchy-cluster-redesign/DESIGN.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -11249,7 +11249,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "5e5be8f7ac8f26a4df19701bd3756ad81356688e36ddd0d247779f972b540873",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/mocks/panel-redesign/DESIGN.md:1 (design; unheaded)",
@@ -11284,7 +11284,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "112aa941bb48ccc94ebcdfb312c31b646425c7caf0db684e7ca5cc5030905a58",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/node-26-adoption-program.md:1 (design; proposed)",
@@ -11319,7 +11319,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "f80939226b575d32b983f68ad76f8bad2dbe3620a9fc62a0bf5e39a466a54bb9",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/node-26-w4-residual-burndown.md:1 (design; landed)",
@@ -11454,7 +11454,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4825a2693fa609577203ed8281653ac368e5e4cc405af264678b2da68d0ce45e",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/openrouter-provider-findings.md:1 (design; unheaded)",
@@ -11539,7 +11539,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "2f0b26c19f5e6907f985cc205a9268c4f50f0e3499c8daf9a419cec098c35573",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/parity-plus-program-spec.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -11724,7 +11724,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "d52842f01c25eb0ed9d951b9e5edd646c5334d59cadd773d4c1af183387c3087",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/parked-options-tag-contract.md:1 (design-options; draft)",
@@ -11809,7 +11809,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "bb8860d7938ba645ada9cb16a2b74419f6cda31ea63e22c0a7d1e60a87b1bf72",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/preset-surface-redesign.md:1 (spec; closed (BUILT — see D121))",
@@ -11894,7 +11894,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "687141d115d83498a0208f5bc341d0c1e970b86aaa283c52931fbe78dca05354",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/prose-1-populate-census.md:1 (design; unheaded)",
@@ -11929,7 +11929,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "88fb7b1b2829b1d0cb5949aa96f578b1068550ae20e88e2d05b5928c4ca1ba32",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/prose-1-rpg-extraction-followon.md:1 (design; unheaded)",
@@ -11964,7 +11964,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "f278658d2680b4c658af065f485d71a636d1f573c54eff0ce4b09da423a32a8f",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/prose-1-spec.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -11999,7 +11999,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "476e8552ba87443da2ab9655355d79133115babc2f438415ef8ec137a40a3fa3",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/refinery-og-extension-feedback.md:1 (design; unheaded)",
@@ -12119,7 +12119,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "59e00ed22a8396bfc6d98ca0ecb71ed71beea8035e39f25942812082210918ec",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/refinery-schema-renderer.md:1 (design; proposed)",
@@ -12204,7 +12204,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4761f81a8ae16b3dc78f5167316e5a7d9d20fdf31574383724ddc51deb2fd5dc",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/rpg-rewind-stuck-state.md:1 (design; unheaded)",
@@ -12474,7 +12474,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "c448a01e53d4070127fe88770fa14081b2e1d7b2e7153aed5eed29570abccfa4",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/templating-fork-rows-53-73.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -12555,7 +12555,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "86f8c943dbd6806e40606ed5cddc53de430f685861cc4821ad0f565184cdc756",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/design/tsx-shedding-migration-spec.md:1 (design; landed)",
@@ -14627,7 +14627,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "fcdb13fcbef21f9b417df00a6d98c95a74bf81eef2e35d1ae228517c231602be",
-        "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+        "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/orbweaver-card-debug-handoff.md:1",
@@ -14734,7 +14734,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md:1-233 full read against frozen foundation",
@@ -14768,7 +14768,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md:1-54 full read against frozen foundation",
@@ -14851,7 +14851,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "4ed722c4fa1ef9724039fd31512b50ecbb6f8b31654a251584f78266b67d3b70",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/misc/2026-08-03-export-rot-dispositions.md:1-261 full read against frozen foundation",
@@ -14885,7 +14885,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/misc/2026-08-03-registry-map.md:1-77 full read against frozen foundation",
@@ -15051,7 +15051,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md:1-76 full read against frozen foundation",
@@ -15424,7 +15424,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4a6e2e81146352550d0011ad0f3c08f0fdc6981ae986f52913e31accba184bf3",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/FINAL-VERIFICATION.md:1-84 full read; SHA-256 matches frozen manifest",
@@ -15458,7 +15458,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "dffb483d60bd219a5393537c89506ae55bbfd18ae3dcff045cfd4a1a48b0b3d8",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/INTERIM-SYNTHESIS-2026-08-13.md:1-170 full read; SHA-256 matches frozen manifest",
@@ -15492,7 +15492,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "cd77649e43a2c3155a44be78b70eb5d607dd0e7d3d6e1650cdd6ee611da97ef3",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/PORTFOLIO-QA.md:1-140 full read; SHA-256 matches frozen manifest",
@@ -15696,7 +15696,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "fd4a86a40976dbb7b41f4d1491c70acbe7f85e2c96872ec98f110db0bd4544f5",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/SNAPSHOT-POLICY.md:1-21 full read; SHA-256 matches frozen manifest",
@@ -15730,7 +15730,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "3666b7db8b58558ddb0ef579b35762e2a5c8ac87d89b13a989f72fe799a7e49b",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS-HANDOFF.md:1-72 full read; SHA-256 matches frozen manifest",
@@ -15764,7 +15764,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "e5a4678272d036d4cff9c71808bfe237af6c3a7b53e6f682b71ced26397c228c",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/SYNTHESIS-TEMPLATE.md:1-39 full read; SHA-256 matches frozen manifest",
@@ -15900,7 +15900,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "28f0638189146b6aaf50942edb96cb421a16d689fe8b9121d2e5a6b69bbc64ab",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/doc-cleanup/parked-dispositions.md:1-41 full read; SHA-256 matches frozen manifest",
@@ -15968,7 +15968,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "209f8c1787a233bd740f7a3cf9f8cb332090a88dc216f7e51d13d88cdbb65cb2",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/agent-tooling/commands.md:1-29 full read; SHA-256 matches frozen manifest",
@@ -16002,7 +16002,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "b542100231e18de97d1cd31b9f491415a66c22e9776c16bfa74950a6eb55e79f",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/agent-tooling/report.md:1-69 full read; SHA-256 matches frozen manifest",
@@ -16036,7 +16036,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "651e1b278956a4cf50413219add453886c8b3c28e8f5502f8dbcb075e39ce68d",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/binary-assets/commands.md:1-33 full read; SHA-256 matches frozen manifest",
@@ -16070,7 +16070,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "7ce0ee1e518ac8e5d3645a371e464d2b4255c1c506c44676f1875635acf3f325",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/binary-assets/report.md:1-90 full read; SHA-256 matches frozen manifest",
@@ -16104,7 +16104,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "a105ca6ef4efc3f8dd377805d00494b47d63cd8b5ba43d10bd36da4a93bd01d0",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-chat-components/commands.md:1-20 full read; SHA-256 matches frozen manifest",
@@ -16138,7 +16138,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "6f8293ad5e86bf112591f20aaf3683938cbdfa11de9e5ad568a686f83ec88b7a",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-chat-components/report.md:1-76 full read; SHA-256 matches frozen manifest",
@@ -16172,7 +16172,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "792ad2f0df5a7739b82027cfdfc1eb87a5ca5fdf3b3ac3f0088a6a8c0af60e7e",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-chat-lib/commands.md:1-16 full read; SHA-256 matches frozen manifest",
@@ -16206,7 +16206,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "a54297fd8693cbe59dea776109ee0d7833b417ce0d5ba8037fb9d80f4790d61d",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-chat-lib/report.md:1-57 full read; SHA-256 matches frozen manifest",
@@ -16240,7 +16240,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "f0b2ffb10b1686aa96ffaf2c188824f397258ae62cf1aae405d3115d72c32a63",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-chat-runtime/commands.md:1-25 full read; SHA-256 matches frozen manifest",
@@ -16274,7 +16274,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "c83512221824ce6261f073ee20607f63555a1703b2913929cea305f17c7169a2",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-chat-runtime/report.md:1-60 full read; SHA-256 matches frozen manifest",
@@ -16308,7 +16308,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "9073aee431dda5763e76cfd5d6e60382bf386f870ebab3c4cebabcb2ed9fb7fb",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-components/commands.md:1-19 full read; SHA-256 matches frozen manifest",
@@ -16342,7 +16342,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "dfe0fd142c029f598edb3ccaba3373ed9c7de39f78f6130d8028d46a6508c83f",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-components/report.md:1-70 full read; SHA-256 matches frozen manifest",
@@ -16376,7 +16376,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "8de0048f4e0552cb5f9f3e1383ad4563476888bc66977d2f00216c91ca5df202",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-content-features/commands.md:1-25 full read; SHA-256 matches frozen manifest",
@@ -16410,7 +16410,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "906b2da344e9d9320a370b21bd9623ec697b0d76554632d35df10a02090fbc24",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-content-features/report.md:1-75 full read; SHA-256 matches frozen manifest",
@@ -16444,7 +16444,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "cfb2e16c7f5f57bf37a209d7ffe220568267c6ac5512f083654445c47e734f80",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-data/commands.md:1-20 full read; SHA-256 matches frozen manifest",
@@ -16478,7 +16478,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "7d253159cc3f984291f64b6054f67053fbf6a50ac6f23fab071be581854b4008",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-data/report.md:1-59 full read; SHA-256 matches frozen manifest",
@@ -16512,7 +16512,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "87210799deb7a969b5960a70aa0d5d891842017a36f130cdf38a70d6e38cc66f",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-forms/commands.md:1-19 full read; SHA-256 matches frozen manifest",
@@ -16546,7 +16546,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "8d4899d0f859974c1246e3eaa02e14a90477fc8933eae3050f868b5fd1355d0a",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-forms/report.md:1-70 full read; SHA-256 matches frozen manifest",
@@ -16580,7 +16580,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "2dc47247ba9cd4694dab3753812e568b2c31ff8f6574fc6973acab0cfd38873f",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-identity-features/commands.md:1-90 full read; SHA-256 matches frozen manifest",
@@ -16614,7 +16614,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "884af11de195dfd55a5ca7e2f5788ca01efeab45ba3d0ae4fdb056f9eb53cd10",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-identity-features/report.md:1-76 full read; SHA-256 matches frozen manifest",
@@ -16648,7 +16648,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "595b68a6fc3b4576ffefdeeabbe6d7a8470cef3ed1d7dc6c77294508daf45a62",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-lib/commands.md:1-20 full read; SHA-256 matches frozen manifest",
@@ -16682,7 +16682,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "3594ba789b945c8cdcf3ce9e4eaeba23fbda642b67e2dbedb1e27897de0fc0f4",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-lib/report.md:1-73 full read; SHA-256 matches frozen manifest",
@@ -16716,7 +16716,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "19d9eb8c7f1be75a45555f0230479e6110489e1cace244cfd5cfcb85a17fce34",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-preset-refinery/commands.md:1-27 full read; SHA-256 matches frozen manifest",
@@ -16750,7 +16750,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "8c2d272a37ca31ce2206b3e4837308552e6dbb61569eb56c4d6dc05d717e3493",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-preset-refinery/report.md:1-103 full read; SHA-256 matches frozen manifest",
@@ -16784,7 +16784,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "ce2ef8224358240c4bc6392acecfffc8cff62f819542c320508bfcb965bfa416",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-rpg-settings/commands.md:1-40 full read; SHA-256 matches frozen manifest",
@@ -16818,7 +16818,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "76922d6705117ee738b4a80406ed14e8c587ba732ae3f23d4b691e910a704706",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-rpg-settings/report.md:1-67 full read; SHA-256 matches frozen manifest",
@@ -16852,7 +16852,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "d9790d60d84408ea9082a1aa1a46df442e3e411f863cc74d9d2e25d5641d9e60",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-shell-features/commands.md:1-60 full read; SHA-256 matches frozen manifest",
@@ -16886,7 +16886,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "56de06c918496880df9b5a0c3cec98d899e573bb08a256e8e214cdc968d1928f",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-shell-features/report.md:1-93 full read; SHA-256 matches frozen manifest",
@@ -16920,7 +16920,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "4da5af7ecb4cbc5774dab787cc83a284fc96672d609ec0f10bf7c8f77b11a7a3",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-shell/commands.md:1-40 full read; SHA-256 matches frozen manifest",
@@ -16954,7 +16954,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4de614d950059a4567fda3ea59b4981afb3a2a7230240d218a9f257e301409b1",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-shell/report.md:1-76 full read; SHA-256 matches frozen manifest",
@@ -16988,7 +16988,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "e715a9848b09c67621967560ca76759b5f1d49fa08b7e538e61b93f8e5a2f498",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-state/commands.md:1-27 full read; SHA-256 matches frozen manifest",
@@ -17022,7 +17022,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "c53825c5c8a17bc22c47246c4c4f368f481b2bbec5b4b0a98763d10add72ce72",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/client-state/report.md:1-140 full read; SHA-256 matches frozen manifest",
@@ -17056,7 +17056,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "692b2a20e1903658e3f14a2311c1258ec972d6bda5ee9522e7a63c6f33c7e32b",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/codemods/commands.md:1-18 full read; SHA-256 matches frozen manifest",
@@ -17090,7 +17090,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "667c241f37a7e3c4d1579970718925fc02ad2b425b0c7773ede54441a49e0f0e",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/codemods/report.md:1-76 full read; SHA-256 matches frozen manifest",
@@ -17124,7 +17124,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "c32532cceebcf7181612cfd71c0fbf5072a2fc121845af271c91cee92cce675a",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/dependency-lock/commands.md:1-35 full read; SHA-256 matches frozen manifest",
@@ -17158,7 +17158,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "e959a130faa3994c1392891849c85e6873146d2de10f4d9e205fa533e8cdb179",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/dependency-lock/report.md:1-97 full read; SHA-256 matches frozen manifest",
@@ -17192,7 +17192,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "92609abce09d76dbe8651444b50ed78c4276675e456546b8b205c021f603677d",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/developer-runtime/commands.md:1-33 full read; SHA-256 matches frozen manifest",
@@ -17226,7 +17226,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "0ea9536ba9afa0ea5eb00986fe5e6209d37dba8677a5c02731b047219e7e7143",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/developer-runtime/report.md:1-99 full read; SHA-256 matches frozen manifest",
@@ -17260,7 +17260,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "6d3e28ebcec3b65210a9c5c44f1e2a96cf37af68055d216cdac791977a35c9f8",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-architecture-history-a-m/commands.md:1-24 full read; SHA-256 matches frozen manifest",
@@ -17294,7 +17294,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "0d6a87569e22c89e825a85aa4bf181af2f2fd491c917c00f22bf72dbf216bc48",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-architecture-history-a-m/report.md:1-103 full read; SHA-256 matches frozen manifest",
@@ -17328,7 +17328,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "31c555a3b674fc5609a4382db001deb376dbcf442cf0dcf9c0ba0510f38aab7b",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-architecture-history-n-z/commands.md:1-30 full read; SHA-256 matches frozen manifest",
@@ -17362,7 +17362,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "ede9f62a2fb53fd177fceb825e0be6259057b04a8d6d11f586b0b97146e27bc4",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-architecture-history-n-z/report.md:1-115 full read; SHA-256 matches frozen manifest",
@@ -17396,7 +17396,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "ba124f691895f4791acd1903e8b95940d62b88777aa1be400309423c4275ccd1",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-core-law/commands.md:1-23 full read; SHA-256 matches frozen manifest",
@@ -17430,7 +17430,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "560bb4ad0683cf3b75c23b62389c6d01361745947604cca8a1d72a9e7659d46a",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-core-law/report.md:1-114 full read; SHA-256 matches frozen manifest",
@@ -17464,7 +17464,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "2a065650d06904ea88a9847e4e351253c4f063566e7419eda820f89847be7ad5",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-core-spines/commands.md:1-23 full read; SHA-256 matches frozen manifest",
@@ -17498,7 +17498,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "b7d8263dd360600090618b571ab019027d4ca017c2294248dffc7dbc2419ccf1",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-core-spines/report.md:1-85 full read; SHA-256 matches frozen manifest",
@@ -17532,7 +17532,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "cecf762cff22cb981292229068fda585fd2d33a6c1e28a853ce147afde63c314",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-core-ui/commands.md:1-26 full read; SHA-256 matches frozen manifest",
@@ -17566,7 +17566,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "b6a66d2647a47fd3704c668a2e6b4b927a9bf4c63bd8049758dca2b403b36bfc",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-core-ui/report.md:1-102 full read; SHA-256 matches frozen manifest",
@@ -17600,7 +17600,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "2616673f81c7964596e717a68d67845e86ec292ea7e3e774d625d68f2f703749",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-current/commands.md:1-31 full read; SHA-256 matches frozen manifest",
@@ -17634,7 +17634,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "ea35e9703da9508d7da0cd59b71d6b05a57e4e61b8c969df9ccf54ce3400af64",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-current/report.md:1-100 full read; SHA-256 matches frozen manifest",
@@ -17668,7 +17668,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "b2b4818e3bb56a1e8234a0a75058183f55498cef5fd956c7d8c6e444b3a997f6",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-a-f/commands.md:1-131 full read; SHA-256 matches frozen manifest",
@@ -17702,7 +17702,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "3ba7c2a4c14d3b07f57d8deddca9e17263c76f47f1bb18c4eb427a3e772d007c",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-a-f/report.md:1-138 full read; SHA-256 matches frozen manifest",
@@ -17736,7 +17736,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "98433d56bcfce152f98c51e15c566beedd0de8279b8dbe193eac7b4532e66c82",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-g-m/commands.md:1-21 full read; SHA-256 matches frozen manifest",
@@ -17770,7 +17770,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "a7019231a409c6bce032a420980e3efda56d998d59d423e1225a97732a04f740",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-g-m/report.md:1-128 full read; SHA-256 matches frozen manifest",
@@ -17804,7 +17804,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "ab101d2a58848c0d16ea02bed73fedb56bcbb054fd3f05a64706b28ad14ef531",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-mocks-other/commands.md:1-20 full read; SHA-256 matches frozen manifest",
@@ -17838,7 +17838,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "67535c08914c9cacd3f199c76dc898e3766f38e9a5aafbf6ec0a507ee2040642",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-mocks-other/report.md:1-86 full read; SHA-256 matches frozen manifest",
@@ -17872,7 +17872,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "caf2bf8cac8956e56ac04d6640e338495f2c8017b192e74ba69e0267029da26b",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-mocks-panel/commands.md:1-31 full read; SHA-256 matches frozen manifest",
@@ -17906,7 +17906,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "0c2029bfe26d1251eb2e5dba1007e382390ecb615fc0411b91deffa3d45a5b21",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-mocks-panel/report.md:1-111 full read; SHA-256 matches frozen manifest",
@@ -17940,7 +17940,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "858722eb908d77ad1f4dd2ad079e81495d1277c4ed021d17231e74c4fcdf8907",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-n-s/commands.md:1-29 full read; SHA-256 matches frozen manifest",
@@ -17974,7 +17974,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "c7852e3f8443272b25e2c2b5b3b2dac1ac0a259de26b9957c584138462a7f6a5",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-n-s/report.md:1-95 full read; SHA-256 matches frozen manifest",
@@ -18008,7 +18008,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "5274075a04f8ec7899788ca5490c7f2485d4bbf4befbd7a6b837a0cde9bb51c3",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-t-z/commands.md:1-34 full read; SHA-256 matches frozen manifest",
@@ -18042,7 +18042,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "872be97fff0d74462ce474c49cb71cda123a7eeaa33512c070022bf51c3f5310",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-design-t-z/report.md:1-92 full read; SHA-256 matches frozen manifest",
@@ -18076,7 +18076,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "2454283582087d921c128268b495777a3280de687baa0cc6738404bd1d40a4a2",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-history-a-m/commands.md:1-24 full read; SHA-256 matches frozen manifest",
@@ -18110,7 +18110,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "485eb25811a9552d11424e982e705f1e791dfc8d6d9024b05b34dfcd903b8ac8",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-history-a-m/report.md:1-89 full read; SHA-256 matches frozen manifest",
@@ -18144,7 +18144,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "689016dd0b563fe7836b0af24a8c43110a1180998747f710301f9eba6e747e0b",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-history-n-z/commands.md:1-68 full read; SHA-256 matches frozen manifest",
@@ -18178,7 +18178,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4569b63a10b051f255b6097f7ea96b3e4c89e3141eb02a42248b2a6945b08acf",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-history-n-z/report.md:1-99 full read; SHA-256 matches frozen manifest",
@@ -18212,7 +18212,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "1f7c35ba2872de53aa1aa3c1f2f9f2aa5c8e69cbb74a5e33bc0ecdab173bdc00",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-proposed-a-m/commands.md:1-21 full read; SHA-256 matches frozen manifest",
@@ -18246,7 +18246,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "179294762988663c8886c0e41c50919c75970559021fb08a86bf01d7266f8661",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-proposed-a-m/report.md:1-108 full read; SHA-256 matches frozen manifest",
@@ -18280,7 +18280,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "b5e37b2d18090929389fedda493f50ec99bd0cb02ed38bbed52127b76493d590",
-        "verifiedCommit": "8f536747a7d3e3d6e2da84176face600d2a4ddc5",
+        "verifiedCommit": "ec0aa2df587539b28eecc1e9633b37744cce89e2",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-proposed-n-z/commands.md:1-24 full read; SHA-256 matches frozen manifest",
@@ -18314,7 +18314,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "05aaf13777c5b884dfc3c69455a4bd0d18b573d57be0592b8be52e10ac86eb51",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-proposed-n-z/report.md:1-86 full read; SHA-256 matches frozen manifest",
@@ -18348,7 +18348,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "5657deed07457ab1d6dfc3491471ac659cc3bf80023dd43c85816350c1dfa053",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-a-m/commands.md:1-21 full read; SHA-256 matches frozen manifest",
@@ -18382,7 +18382,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "7581876887c9d90759013158cbabd5a80da39ceb99173420f499071b8da345e8",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-a-m/report.md:1-100 full read; SHA-256 matches frozen manifest",
@@ -18416,7 +18416,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "1fec8d8a71027817dde600e64eb6d78c6d98e0f6944b645027cf48bf20bfcae4",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-n-z/commands.md:1-12 full read; SHA-256 matches frozen manifest",
@@ -18450,7 +18450,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4e04baa5ddcd96f4a1d6abada72f11ff87ff1fa3490cd1c247b372bb946e8334",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-reviews-n-z/report.md:1-72 full read; SHA-256 matches frozen manifest",
@@ -18484,7 +18484,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "90677123235c45a590a27742bb0ad661a5d3a3b90f0efd9ed50884723e43378f",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-a-m/commands.md:1-21 full read; SHA-256 matches frozen manifest",
@@ -18518,7 +18518,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "7be9c6e383c62103a518cfaba6843afe43db7b97b257ccffefc953710995794a",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-a-m/report.md:1-93 full read; SHA-256 matches frozen manifest",
@@ -18552,7 +18552,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "d2f07dccfa299b701057b183c9cd52c89f7bd735b07cd870d2141bcb4105d903",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/commands.md:1-20 full read; SHA-256 matches frozen manifest",
@@ -18586,7 +18586,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "778fa58f5fbdc85139d4c28df010b92d50a210331b923cd26470d2949a963b96",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-n-z/report.md:1-74 full read; SHA-256 matches frozen manifest",
@@ -18620,7 +18620,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "6402cae41874f1a220d609aea97eccaaf41a46a70e84345811bc05b0b98f4ce2",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-rest/commands.md:1-21 full read; SHA-256 matches frozen manifest",
@@ -18654,7 +18654,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4b6bd6984c53d8f8710261ace99a326e6fbc0fecc19c176bcd8c5c51404581ea",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-baseui-rest/report.md:1-94 full read; SHA-256 matches frozen manifest",
@@ -18688,7 +18688,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "d0b39746068f93a221ab4a1fe6b8ee651eb9edd000669f1a7904fd50d1033904",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-guide/commands.md:1-17 full read; SHA-256 matches frozen manifest",
@@ -18722,7 +18722,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "3ad2d256ec8b806520d971f2e445a0a2457c2a5c97cc93589e3372988983eba6",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-guide/report.md:1-93 full read; SHA-256 matches frozen manifest",
@@ -18756,7 +18756,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "7af2f91a611b5e7251b6097480bcb8bb3b16dbf6fe59b6ff1b2391eddb3d18bd",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-rest/commands.md:1-54 full read; SHA-256 matches frozen manifest",
@@ -18790,7 +18790,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "caaf30b9fcf88f3273d5919384347988712e33ad0fd3941b0f238e4bbd16cb24",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/docs-vendor-vite-rest/report.md:1-57 full read; SHA-256 matches frozen manifest",
@@ -18824,7 +18824,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "c8d8765adb1f6da75085af97f7d8dd4f8d53575bc10840d6c1e1d540facc7831",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-a-h/commands.md:1-17 full read; SHA-256 matches frozen manifest",
@@ -18858,7 +18858,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "bf86a5f3c8466137e4507171d5dcc1fc2dc42f3b2396cd74cca52eb2a0ab334b",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-a-h/report.md:1-99 full read; SHA-256 matches frozen manifest",
@@ -18892,7 +18892,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "99f991aed9a5c956ac7eaf3ea7241c01354178ac44b9991b576935f49eb7bde7",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-i-p/commands.md:1-20 full read; SHA-256 matches frozen manifest",
@@ -18926,7 +18926,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "c0a4470bb7ab316935be69bc15d9d65eb7d53a30866fadc678b27209208e03d5",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-i-p/report.md:1-66 full read; SHA-256 matches frozen manifest",
@@ -18960,7 +18960,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "7ac0e72cf04d4d98c24a2f45f398ee712ba8286ac78747f11fa5af81ff85a0b0",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-q-z/commands.md:1-17 full read; SHA-256 matches frozen manifest",
@@ -18994,7 +18994,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "4f262cf1e4ffc4253bf50650029d12b93b1aad3de985e5d63b86fad99e51383b",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/gates-q-z/report.md:1-55 full read; SHA-256 matches frozen manifest",
@@ -19028,7 +19028,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "d6423c8353f5af6d2319a070d3c63769a9494ba06c73c171c6efcc6c85e0d30a",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/integration-tests/commands.md:1-77 full read; SHA-256 matches frozen manifest",
@@ -19062,7 +19062,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "f3537c83fa36708e88ef9686546840d5f7752e7fc251a2789d258357e2ab2b4d",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/integration-tests/report.md:1-109 full read; SHA-256 matches frozen manifest",
@@ -19096,7 +19096,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "fb9306a95622f3e74b9787d97bec08efc39d44c875cff57952487943fb66206d",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-contracts/commands.md:1-18 full read; SHA-256 matches frozen manifest",
@@ -19130,7 +19130,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "7df5cddd2a6092a0440a695570be637c260b46e7d100938129665721dd746feb",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-contracts/report.md:1-72 full read; SHA-256 matches frozen manifest",
@@ -19164,7 +19164,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "281dde00883cd4b6ed2b9b81a4293049add62906237d499d577c37f7c209cb74",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-db/commands.md:1-63 full read; SHA-256 matches frozen manifest",
@@ -19198,7 +19198,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "55f2a361babf1fcdd9c2e23f1c37507199de9d61969e8aa2aee844f71539f428",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-db/report.md:1-99 full read; SHA-256 matches frozen manifest",
@@ -19232,7 +19232,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "38cad93d4cf43abdf417b7636ee0b68a4d6353cef026551122b43c7546ce5962",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-kit/commands.md:1-21 full read; SHA-256 matches frozen manifest",
@@ -19266,7 +19266,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "c496d3cdb25c998732e34724375d9e7bdad85623dd11ef44500fce7a76d3c949",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/lower-kit/report.md:1-78 full read; SHA-256 matches frozen manifest",
@@ -19300,7 +19300,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "3faf5be48a445090a9df1cc56130a6d866eb1a4009fa9cb02d42f9a74f4f7901",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/platform-tooling/commands.md:1-18 full read; SHA-256 matches frozen manifest",
@@ -19334,7 +19334,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "ea5ed3000dc70884111c87da4cf7e6f66e84c123effad28ab7bb9bbffe4f19b1",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/platform-tooling/report.md:1-70 full read; SHA-256 matches frozen manifest",
@@ -19368,7 +19368,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "439d4e6af64308c1a20e56956cffc9e10d55cf5efe0bb86b65e94c7562279bd6",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/probes-provider-rpg/commands.md:1-30 full read; SHA-256 matches frozen manifest",
@@ -19402,7 +19402,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "a99ed6a1603094bf90fd07afd5673d69c7ed565b0884a6a430a5a147acc6c0f9",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/probes-provider-rpg/report.md:1-95 full read; SHA-256 matches frozen manifest",
@@ -19436,7 +19436,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "04e7594252bd104527b4f3d077622e22668874cee395f3dd35d4b73de1ee582a",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/probes-runtime/commands.md:1-18 full read; SHA-256 matches frozen manifest",
@@ -19470,7 +19470,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "7d862970731b3c15f0ac2c56b4998fc5d394894ee0d3de74693cf8f66b2d2ff5",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/probes-runtime/report.md:1-81 full read; SHA-256 matches frozen manifest",
@@ -19504,7 +19504,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "e86821ad758c20fd83f916eb1870fe8009c939285906f4d1c6dcfa8e7c639cfa",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/root-config/commands.md:1-22 full read; SHA-256 matches frozen manifest",
@@ -19538,7 +19538,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "f28668b3bf396b53fe099b87c028f0ad73328a67777910a25e6c972db07a8f51",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/root-config/report.md:1-87 full read; SHA-256 matches frozen manifest",
@@ -19572,7 +19572,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "17db713d0da76d1d8cea7ab7dce32f7021e0e4caa5456f20ca0b25a77dad7e32",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/scripts-misc/commands.md:1-38 full read; SHA-256 matches frozen manifest",
@@ -19606,7 +19606,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "15d4c378494d258a34a8de9641431ef99608ef68b72df9e17e00a80c9429b186",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/scripts-misc/report.md:1-83 full read; SHA-256 matches frozen manifest",
@@ -19640,7 +19640,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "6421e8c64a0d64cc6c859c5779f55430036912db1f90cac4b97c0c37e8de2dc6",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-assembly/commands.md:1-47 full read; SHA-256 matches frozen manifest",
@@ -19674,7 +19674,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "97503fa20b80bb92284bd6452c09c8cb2d6e814a6d1ea03526cecf06ee7f232a",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-assembly/report.md:1-80 full read; SHA-256 matches frozen manifest",
@@ -19708,7 +19708,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "40ac9bbb9bfb8214d86d82047e2fc7746839d9d42fc5eb806cc38563798f8135",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-core/commands.md:1-36 full read; SHA-256 matches frozen manifest",
@@ -19742,7 +19742,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "f36b3600bfe23c7d83bdad6230279638f0c5e77c0ed8c49b35793c7acb884031",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-core/report.md:1-78 full read; SHA-256 matches frozen manifest",
@@ -19776,7 +19776,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "3dfc536db1d40cf75c534f35616f3c19cbc15a8bec370927358ef2cec5ae337d",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-verbs/commands.md:1-20 full read; SHA-256 matches frozen manifest",
@@ -19810,7 +19810,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "7d1fc0d1b58cc23e44461c5f867c5a1332cf1f0ef2b8def24b052fed1dbc0601",
-        "verifiedCommit": "c8d8bc8a0a31dd7c1d993f831bc42efc133386bc",
+        "verifiedCommit": "55ed87769884a968e66c14c6c4c1d65757705c8a",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-chat-verbs/report.md:1-78 full read; SHA-256 matches frozen manifest",
@@ -19844,7 +19844,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "c59576ded85af4577ab38b9962fa27974ed2dd9fdc97b34c72ae409afdd52f5d",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-content-domains/commands.md:1-24 full read; SHA-256 matches frozen manifest",
@@ -19878,7 +19878,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "2fe07a6dd419eb6c8845fd50fa162eff24edea3e526df7863c044fbd6a3b1432",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-content-domains/report.md:1-75 full read; SHA-256 matches frozen manifest",
@@ -19912,7 +19912,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "14834fbe9ba1a3b73956f0892ce540329fb536bfa2039f1fcee3b23bc773e6af",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-control-domains/commands.md:1-22 full read; SHA-256 matches frozen manifest",
@@ -19946,7 +19946,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "0494f28921a347a65a1051c900b35d40ee1b927f7c2880e439ac0df67ab46dea",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-control-domains/report.md:1-72 full read; SHA-256 matches frozen manifest",
@@ -19980,7 +19980,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "737aae5ff5526041f972a5d5d8f9ff5a4c31160915d885048dfe29c300ebe8f6",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-discovery-automation/commands.md:1-16 full read; SHA-256 matches frozen manifest",
@@ -20014,7 +20014,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "9afe5978d26587dc0c504d031948547717d667e75102f55c81ac54c118dce722",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-discovery-automation/report.md:1-50 full read; SHA-256 matches frozen manifest",
@@ -20048,7 +20048,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "bf60fc8ec8cf17e47c620001c912a34d22b9f386c2c629fd6dc586f2b2d8df05",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-entry-boot/commands.md:1-17 full read; SHA-256 matches frozen manifest",
@@ -20082,7 +20082,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "8efc87f9d68884624272f280c370679fb541fc7698c7a33b701ab69e909e33b4",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-entry-boot/report.md:1-94 full read; SHA-256 matches frozen manifest",
@@ -20116,7 +20116,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "25bbec3d9227a9785542ed5694ef3cd327a163a41125dd8bcaf73d6c8c88b05e",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-entry-compose/commands.md:1-23 full read; SHA-256 matches frozen manifest",
@@ -20150,7 +20150,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "e455756b48f32a5f715ac3e525688f2b02e1a013db1de3ecd39dfeb4fd5adecc",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-entry-compose/report.md:1-59 full read; SHA-256 matches frozen manifest",
@@ -20184,7 +20184,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "2e48b6fdadc610dbdfe6428c6db5365d7a1a6694b80c6504cc6a5a1d55e5625e",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-entry-edge/commands.md:1-15 full read; SHA-256 matches frozen manifest",
@@ -20218,7 +20218,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "df7c920cb3880dd7fc1405a4effcfbf77e7045470bdc98e23d018b523a709467",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-entry-edge/report.md:1-71 full read; SHA-256 matches frozen manifest",
@@ -20252,7 +20252,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "a2e8b1216dfc8d8a437598760c86596a80d1bd265baa54cd81f1af5ebdc33c7e",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-foundation/commands.md:1-67 full read; SHA-256 matches frozen manifest",
@@ -20286,7 +20286,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "1278a18aa96d6b4defba280c321fa2f150dc161f25d21af1894651e9c04877f6",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-foundation/report.md:1-89 full read; SHA-256 matches frozen manifest",
@@ -20320,7 +20320,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "0f5efab9fdc60839d4b63a6e723f850587477a473ccfcbc402d8c91992f9ac4f",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-identity-domains/commands.md:1-46 full read; SHA-256 matches frozen manifest",
@@ -20354,7 +20354,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "3fd8299120cb15b981657f181d88ff9958f06175a8c83c7900252eda1ec5b8f3",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-identity-domains/report.md:1-81 full read; SHA-256 matches frozen manifest",
@@ -20388,7 +20388,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "0ffe344c1c0ab41e23d6c4b902a95a949a9d6269f16adbcb42bbb584dfacf4ac",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-infra/commands.md:1-59 full read; SHA-256 matches frozen manifest",
@@ -20422,7 +20422,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "8cb432250b83d3fd3de7a4bacce67649bbcbba6ce22d66be58ddab3c357d6991",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-infra/report.md:1-76 full read; SHA-256 matches frozen manifest",
@@ -20456,7 +20456,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "ad445bd4f292f0f20922512b2f78df982f41aa73b2100b1e3209aa7f3c4c56da",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-providers-backends/commands.md:1-37 full read; SHA-256 matches frozen manifest",
@@ -20490,7 +20490,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "853355b4ada1195e49b0f8d7a6de782615a5a40ff62507c1643e2682cd1fa08e",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-providers-backends/report.md:1-82 full read; SHA-256 matches frozen manifest",
@@ -20524,7 +20524,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "170bbd57d5ccd943ec2864cd2163fee541d9005e9fb0411ec896899f216431fa",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-providers-runtime/commands.md:1-35 full read; SHA-256 matches frozen manifest",
@@ -20558,7 +20558,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "2c277a3c0b18465594d6f6b71da440b67e071a38d9401fdaae4158676454631a",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-providers-runtime/report.md:1-100 full read; SHA-256 matches frozen manifest",
@@ -20592,7 +20592,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "085a89d3e60edeee2f0329852f8bb8d3924224b206e778232ca67ad7bd92ed7e",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-rpg/commands.md:1-32 full read; SHA-256 matches frozen manifest",
@@ -20626,7 +20626,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "c63c6cce6803e31daee9bbbca5eeccad1e79e1a621b77234b894c595dfd16960",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-rpg/report.md:1-83 full read; SHA-256 matches frozen manifest",
@@ -20660,7 +20660,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "65f5f1de4b4723dfd950deecd1df6d5885c8d4b5506303af64b1330df492e31c",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-search-refinery/commands.md:1-46 full read; SHA-256 matches frozen manifest",
@@ -20694,7 +20694,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "7e360c24fa21fe101eabbcacf4be9a00e8fcb55e985bb05f081cec541e85a275",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-search-refinery/report.md:1-78 full read; SHA-256 matches frozen manifest",
@@ -20728,7 +20728,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "f5dcfcfbbe94cb46fc2cbba86854de816e1668199d87bd9d49c89f26f5043d06",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-transport-kit/commands.md:1-83 full read; SHA-256 matches frozen manifest",
@@ -20762,7 +20762,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "abb525684781e5264db0523c0343e4f30b5df99bd4e5aa69a222cce2658a6377",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-transport-kit/report.md:1-70 full read; SHA-256 matches frozen manifest",
@@ -20796,7 +20796,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "c64f327c8ba27f9a37493142273a2438299014e5834ef4ce09fabea4ae8f9f93",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-world-workloads/commands.md:1-31 full read; SHA-256 matches frozen manifest",
@@ -20830,7 +20830,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "b069d70b5ca08bede4225f2eda886bcb0facf06319705e8e3069bb9a4a534dcd",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/server-world-workloads/report.md:1-79 full read; SHA-256 matches frozen manifest",
@@ -20864,7 +20864,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "c79666f9d5f1471d99cbf767fff18e946b161c167811687e4c3e0147d38f7d78",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/ui-content/commands.md:1-37 full read; SHA-256 matches frozen manifest",
@@ -20898,7 +20898,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "a65e43a1f788fccbdbffb9a2b87ffe6da4a5be6e0e4a45716cb2e078dc1bcdde",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/ui-content/report.md:1-116 full read; SHA-256 matches frozen manifest",
@@ -20932,7 +20932,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "c9205a04add130c46203de017ca63e2f322c5b382c38e28139a40c45ed49d114",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/ui-primitives-a-i/commands.md:1-20 full read; SHA-256 matches frozen manifest",
@@ -20966,7 +20966,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "6644988712a49fab2d08a258ba215ae5232ad0c03f62dfb6d21eeb40ecf81434",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/ui-primitives-a-i/report.md:1-68 full read; SHA-256 matches frozen manifest",
@@ -21000,7 +21000,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "815da5ea5e41d20029d6ce39fbe58e815331c2132150815de472d77338d32ee9",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/ui-primitives-j-r/commands.md:1-14 full read; SHA-256 matches frozen manifest",
@@ -21034,7 +21034,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "d6a2bd27b80ed5c17684a7ff61c846a8ed7a48897474555202d7f52c59527a61",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/ui-primitives-j-r/report.md:1-56 full read; SHA-256 matches frozen manifest",
@@ -21068,7 +21068,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "ca74a3919bc6e19fde117140992a5a815ed3393e566c60e82e44260ff215b703",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/ui-primitives-s-z/commands.md:1-15 full read; SHA-256 matches frozen manifest",
@@ -21102,7 +21102,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "a31844e9295591cfd583dd9d6997f81c31379ac26c262f1810d5225e58747e6c",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/ui-primitives-s-z/report.md:1-69 full read; SHA-256 matches frozen manifest",
@@ -21136,7 +21136,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "c6fc3f21a575bc8cc09195a3ac516e2eb8f30b8099e8320bc4ecf27b8dc225fe",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/ui-rendering/commands.md:1-21 full read; SHA-256 matches frozen manifest",
@@ -21170,7 +21170,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "cd9da00d544de0f2ccbe5ea254e5150f8115ff92d2d83017536ec90a4c8eefab",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/ui-rendering/report.md:1-78 full read; SHA-256 matches frozen manifest",
@@ -21204,7 +21204,7 @@
         "authority": "generated",
         "fullRead": true,
         "verifiedSha256": "74257bd9813a69177700e13182f6c5e15a9ff6ee5f3039263483fbfaabb8d157",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/verification-harness/commands.md:1-15 full read; SHA-256 matches frozen manifest",
@@ -21238,7 +21238,7 @@
         "authority": "historical",
         "fullRead": true,
         "verifiedSha256": "7ee341ee4956549ad71434acc87899088cfda055cbf2591516a19fc378afb245",
-        "verifiedCommit": "d25194444d01bdbd4bbfe89542c35c82b50a0d20",
+        "verifiedCommit": "a14eb972b3f3123d7333a8d1bf74ae541f3c03fe",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/repository-audit-2026-08-13/lanes/verification-harness/report.md:1-66 full read; SHA-256 matches frozen manifest",
@@ -21272,7 +21272,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/security/2026-08-07-fork-host-plane-strip.md:1-195 full read against frozen foundation",
@@ -21306,7 +21306,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md:1-283 full read against frozen foundation",
@@ -21340,7 +21340,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/security/2026-08-08-containerize-surface-review.md:1-195 full read against frozen foundation",
@@ -21374,7 +21374,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/security/2026-08-08-refinery-r0-security-pass.md:1-414 full read against frozen foundation",
@@ -21408,7 +21408,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md:1-201 full read against frozen foundation",
@@ -21585,7 +21585,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md:1-308 full read against frozen foundation",
@@ -21619,7 +21619,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/side-eye/2026-08-03-combined-nightly.md:1-311 full read against frozen foundation",
@@ -21653,7 +21653,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md:1-493 full read against frozen foundation",
@@ -21687,7 +21687,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/side-eye/2026-08-03-scoped-recheck.md:1-413 full read against frozen foundation",
@@ -21721,7 +21721,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/side-eye/2026-08-07-days-merges-rendered.md:1-321 full read against frozen foundation",
@@ -21755,7 +21755,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/side-eye/2026-08-09-refinery-graduation.md:1-103 full read against frozen foundation",
@@ -21789,7 +21789,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md:1-265 full read against frozen foundation",
@@ -21823,7 +21823,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-07-25-join-history-visibility-model.md:1-434 full read against frozen foundation",
@@ -21857,7 +21857,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-07-25-knob-drift-gates.md:1-485 full read against frozen foundation",
@@ -21891,7 +21891,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-01-visual-blech-audit.md:1-276 full read against frozen foundation",
@@ -21925,7 +21925,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-02-zod-leverage-audit.md:1-412 full read against frozen foundation",
@@ -21959,7 +21959,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-03-client-architecture.md:1-361 full read against frozen foundation",
@@ -21993,7 +21993,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-03-collection-contribution.md:1-427 full read against frozen foundation",
@@ -22027,7 +22027,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-03-handoff-card-ownership.md:1-340 full read against frozen foundation",
@@ -22061,7 +22061,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md:1-428 full read against frozen foundation",
@@ -22095,7 +22095,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-03-persona-model.md:1-465 full read against frozen foundation",
@@ -22129,7 +22129,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-03-regex-model.md:1-515 full read against frozen foundation",
@@ -22163,7 +22163,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-03-role-authority-model.md:1-512 full read against frozen foundation",
@@ -22197,7 +22197,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-08-canon-message-identity.md:1-931 full read against frozen foundation",
@@ -22231,7 +22231,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md:1-500 full read against frozen foundation",
@@ -22265,7 +22265,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-08-card-refinery-port-study.md:1-467 full read against frozen foundation",
@@ -22299,7 +22299,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
-        "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+        "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
         "verifiedAt": "2026-08-15",
         "evidence": [
           "docs/reviews/stickler/2026-08-08-group-chat-coherence.md:1-470 full read against frozen foundation",

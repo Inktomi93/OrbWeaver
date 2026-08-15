@@ -53,7 +53,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "82e394e183b575ad8d0ff6b27ad271fa2f466dc155390ceb4be86e4d048f30a4",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/barrel-star-reexport-residue.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -69,7 +69,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "a4b39ae9943cb314d80bf059b40a9f7c4f191943688b90c7eb236ff7490c98f3",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/client-smalls-lane.md:1",
@@ -85,7 +85,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "fcdb13fcbef21f9b417df00a6d98c95a74bf81eef2e35d1ae228517c231602be",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/orbweaver-card-debug-handoff.md:1",

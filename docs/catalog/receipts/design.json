@@ -72,7 +72,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "83ef2862df248519475c761650cef39bfd774838993c24a57d5faef33a555588",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/chat-creation-draft-mode-replacement.md:1 (design; proposed)",
@@ -193,7 +193,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "f287a9a5fdb8439c93f4c47bcebb591f4fa0ca6f1011d0d5d7bd996846278c16",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/context-panel-fidelity-findings.md:1 (design; unheaded)",
@@ -330,7 +330,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "48c4db461a586e01aa0f47ca27f2dacb30e092094c617530c583e6a692f38d41",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/draft-trust-render-policy-seam.md:1 (design; unheaded)",
@@ -378,7 +378,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "5f38012edd9dfe8daf98fe6524be19c485fc83c2a34acfa3062c72ed45c26cff",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/gate-ignore-mention-fence.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -472,7 +472,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "f4ed81ea064b68dea7cda996748e7b3a0b7073635a84201de0489dafc28cd398",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/login-loading-screen.md:1 (design; unheaded)",
@@ -488,7 +488,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "b89b9f4f3c38c24cf2eee7d96a67e6b889489326e04125c5dcf68b3f6cf78b69",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/mocks/README.md:1 (design; unheaded)",
@@ -504,7 +504,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "4ebe3d86a1ca3c07ec4e26a7486a7f8c5fb822efd0892e9bc39b947a93d3462e",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/mocks/crunchy-cluster-redesign/DESIGN.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -520,7 +520,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "5e5be8f7ac8f26a4df19701bd3756ad81356688e36ddd0d247779f972b540873",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/mocks/panel-redesign/DESIGN.md:1 (design; unheaded)",
@@ -536,7 +536,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "112aa941bb48ccc94ebcdfb312c31b646425c7caf0db684e7ca5cc5030905a58",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/node-26-adoption-program.md:1 (design; proposed)",
@@ -552,7 +552,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "f80939226b575d32b983f68ad76f8bad2dbe3620a9fc62a0bf5e39a466a54bb9",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/node-26-w4-residual-burndown.md:1 (design; landed)",
@@ -630,7 +630,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "4825a2693fa609577203ed8281653ac368e5e4cc405af264678b2da68d0ce45e",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/openrouter-provider-findings.md:1 (design; unheaded)",
@@ -677,7 +677,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "2f0b26c19f5e6907f985cc205a9268c4f50f0e3499c8daf9a419cec098c35573",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/parity-plus-program-spec.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -786,7 +786,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "d52842f01c25eb0ed9d951b9e5edd646c5334d59cadd773d4c1af183387c3087",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/parked-options-tag-contract.md:1 (design-options; draft)",
@@ -833,7 +833,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "bb8860d7938ba645ada9cb16a2b74419f6cda31ea63e22c0a7d1e60a87b1bf72",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/preset-surface-redesign.md:1 (spec; closed (BUILT \u2014 see D121))",
@@ -880,7 +880,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "687141d115d83498a0208f5bc341d0c1e970b86aaa283c52931fbe78dca05354",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/prose-1-populate-census.md:1 (design; unheaded)",
@@ -896,7 +896,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "88fb7b1b2829b1d0cb5949aa96f578b1068550ae20e88e2d05b5928c4ca1ba32",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/prose-1-rpg-extraction-followon.md:1 (design; unheaded)",
@@ -912,7 +912,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "f278658d2680b4c658af065f485d71a636d1f573c54eff0ce4b09da423a32a8f",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/prose-1-spec.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -928,7 +928,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "476e8552ba87443da2ab9655355d79133115babc2f438415ef8ec137a40a3fa3",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/refinery-og-extension-feedback.md:1 (design; unheaded)",
@@ -991,7 +991,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "59e00ed22a8396bfc6d98ca0ecb71ed71beea8035e39f25942812082210918ec",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/refinery-schema-renderer.md:1 (design; proposed)",
@@ -1038,7 +1038,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "4761f81a8ae16b3dc78f5167316e5a7d9d20fdf31574383724ddc51deb2fd5dc",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/rpg-rewind-stuck-state.md:1 (design; unheaded)",
@@ -1194,7 +1194,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "c448a01e53d4070127fe88770fa14081b2e1d7b2e7153aed5eed29570abccfa4",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/templating-fork-rows-53-73.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -1237,7 +1237,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "86f8c943dbd6806e40606ed5cddc53de430f685861cc4821ad0f565184cdc756",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/tsx-shedding-migration-spec.md:1 (design; landed)",

@@ -1498,7 +1498,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "4d96abec603dc6e47ff74e4597542074389149010a70c3238c882a972a1f5ea4",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/proposed/connections/CONNECTIONS-BUILD-SPEC.md:1 (full read; lifecycle/frontmatter evaluated)",

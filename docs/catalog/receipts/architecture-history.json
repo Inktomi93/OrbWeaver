@@ -170,7 +170,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "936352db7df9c8e05cc6f1d10994f951b8a0766f9baf1eac0e93bb785e854956",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md:1 (full read; historical header/provenance evaluated)",
@@ -330,7 +330,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "1438bac048005dbaa1ed428e98a82938d4fae4daf6b8708c665bde992a293186",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/assets-maintenance.md:1 (full read; historical header/provenance evaluated)",
@@ -346,7 +346,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "051757433757e9c67790c9f1b756e8b63c729b4392ac990844d6fe11dc4635b8",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/buddy-observer-reaction-engine.md:1 (full read; historical header/provenance evaluated)",
@@ -410,7 +410,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "6e1d36eed103c566d4f353bba64ca38e62213f898a0a175a2652becdf4bdb1ea",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/client-tooling-setup.md:1 (full read; historical header/provenance evaluated)",
@@ -426,7 +426,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "8a2db7ee25dcc3c477bbf5cd6663b95046166c4765bf97a33fcdc4829a7c94b5",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/comfyui-control-integration-spec.md:1 (full read; historical header/provenance evaluated)",
@@ -458,7 +458,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "f26a3b3fe5aee15a82dd00e3a5aa821cb044fe6fcdccd86af8dc24f4c012264f",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/core-laws-archaeology-record.md:1 (full read; historical header/provenance evaluated)",
@@ -474,7 +474,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "e8745c4bd482f72e7f28e14da716b5d9e88b20ed464ca678a97aca4d60d3641e",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/derive-modernization-audit.md:1 (full read; historical header/provenance evaluated)",
@@ -490,7 +490,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "63c2f43027bd1b3baa3562cf05f902a00bc80f219e573fb8b7421a8511053c52",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/design-enforcement.md:1 (full read; historical header/provenance evaluated)",
@@ -554,7 +554,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "265aa609a00ea8281e9c91faa84a6df03fff951dd8f913069cf1fbf63bf9cf85",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/export-import-portability.md:1 (full read; historical header/provenance evaluated)",
@@ -570,7 +570,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "98f38cb464b10f5c2de3777c57911b790dbd2842e542af49a0ada21a57a1ddab",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/gallery-design.md:1 (full read; historical header/provenance evaluated)",
@@ -586,7 +586,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "bab94cf89a10eae69848836db25a49f2d8e91545a05782d8639463230d34c5c1",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/gallery.md:1 (full read; historical header/provenance evaluated)",
@@ -634,7 +634,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "a4bff96d5e94e9fbbe6be6e0134d6d3b2bfeb573b196c0b541af4a028239921b",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/neo-orb-parity-audit.md:1 (full read; historical header/provenance evaluated)",
@@ -650,7 +650,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "7ee63035b3eeeaf526d8bc7c35aa5d4139cf0c58729fc8458ad78921a6c75f8e",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/neo-test-steal-list.md:1 (full read; historical header/provenance evaluated)",
@@ -682,7 +682,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "55c621e83f2840bd648ea05fa8c5a8e59c8b15a26ca58a74cfbd0bbbe13cd6f5",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/preset-form-mapper-elimination.md:1 (full read; historical header/provenance evaluated)",
@@ -698,7 +698,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "8b87727b8030e1cbed5a1c23ad30abefce0280a09e1a37286a757a0236b8bfa1",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/prompt-manager.md:1 (full read; historical header/provenance evaluated)",
@@ -714,7 +714,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "50a5efd60ea01f853378fd34726c559e84abc0c0e64ea250afb512a00b6f5183",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/rpg-console-commit-mini-spec.md:1 (full read; historical header/provenance evaluated)",
@@ -746,7 +746,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "70dc64f0a083b98fe6b5b6b97725a889684883cebc29d5181e2a008374dd126c",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/shell-chrome-unification.md:1 (full read; historical header/provenance evaluated)",
@@ -778,7 +778,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "9d5cfc04bce1aac340cea6a325b2004504fd639005458b41d5b3957a3e2d15ec",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/spine-testing-archaeology-record.md:1 (full read; historical header/provenance evaluated)",
@@ -842,7 +842,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "4c309a1e2ee309ecb236234f4eb60adfeb8ac06a202cafcae0921173b6aff023",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/tag-pending-review.md:1 (full read; historical header/provenance evaluated)",
@@ -858,7 +858,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "23bf13c627e43edbc482cf89f6ece7aa2454463a262f12c23808985cc98f367a",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/test-quality-review.md:1 (full read; historical header/provenance evaluated)",
@@ -874,7 +874,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "401f930a47dadd22d0b0a1908d47e715622a3fd33719ba5b78e1bf2e388f6f35",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/test-support-dry-punchlist.md:1 (full read; historical header/provenance evaluated)",
@@ -890,7 +890,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "45aa3e212b708a3c89c7afbd542ffd59e06a1988e6587b24a0ecb26035b67919",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/themes-design.md:1 (full read; historical header/provenance evaluated)",
@@ -1002,7 +1002,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "ab0df633db16b1801dc171c516239b6a1eb4654ca20b837d2bc3e365f465de8d",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/ui-polish-punchlist.md:1 (full read; historical header/provenance evaluated)",
@@ -1050,7 +1050,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "ef7045051715bab4b9dca8bd00ebf5bc4a7788754e612957b7614d15c9ef926e",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/ux-flow-revamp.md:1 (full read; historical header/provenance evaluated)",
@@ -1066,7 +1066,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "6c7dc1d3fa395f2a7c4ca568308da4d434f7093dc268665ef93c549a5db72be7",
-      "verifiedCommit": "ce04668b1f2185eca0cb46181c2f685badfa551b",
+      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/workloads-deferred-designs.md:1 (full read; historical header/provenance evaluated)",
