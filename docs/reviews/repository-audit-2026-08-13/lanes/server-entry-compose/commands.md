@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Server-entry-compose command receipts
 
 Working tree snapshot checked at `2026-08-13T23:16:53-06:00`: all 45 owned hashes, 12,998 lines, and 755,693 bytes matched `assignment.txt`; `git status --short -- <owned paths>` returned no paths. Reconciliation was repeated before reporting (see final command below).

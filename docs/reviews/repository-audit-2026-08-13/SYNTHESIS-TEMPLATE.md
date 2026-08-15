@@ -1,7 +1,7 @@
 ---
-kind: template
+kind: review
 status: active
-updated: 2026-08-13
+updated: 2026-08-14
 ---
 
 # Cold synthesis protocol

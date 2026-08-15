@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipts
 
 Snapshot assignment: `41e18afe74afa570b67a3e670a1a38863c486a00`; current `HEAD` at close: `189f2c71e76e16f947f6de7dd35634d7bffc9c0c`.

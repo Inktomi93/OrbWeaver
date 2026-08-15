@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command record
 
 Working-tree audit against the assignment snapshot. No source, test, configuration, formatting, staging, or commit actions were performed.

@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipts — server-content-domains
 
 Snapshot baseline: `e777c47e5860a105c114e061dcf98bcab1baa952`; the working tree is dirty outside this lane. Recomputed hashes reconcile: **0 / 216 owned files drifted** from `assignment.txt`.

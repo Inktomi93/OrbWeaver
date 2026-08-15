@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Server-entry-edge audit report
 
 ## Lane identity

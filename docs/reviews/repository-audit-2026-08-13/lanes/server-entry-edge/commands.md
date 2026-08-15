@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipt — server-entry-edge
 
 - 2026-08-14T05:25:04Z — parsed `assignment.txt`; 57 owned paths, 13,572 lines, 663,006 bytes. For every owned path, compared `wc -l`, `wc -c`, and `sha256sum` to its assignment row: zero mismatches; `git diff --name-only -- <owned paths>` and untracked check: zero owned drift.

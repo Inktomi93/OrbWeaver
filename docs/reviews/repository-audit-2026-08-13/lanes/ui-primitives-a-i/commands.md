@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # UI primitives A–I — command receipts
 
 - `sha256sum` reconciliation against `assignment.txt`: 124/124 owned paths matched the frozen snapshot; 0 dirty paths.

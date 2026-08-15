@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipt — server-control-domains
 
 Snapshot: `e777c47e5860a105c114e061dcf98bcab1baa952`; all 269 owned files matched the assignment hashes.

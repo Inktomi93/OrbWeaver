@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # UI-rendering lane command receipts
 
 | Command | Duration | Exit | Result / scope |

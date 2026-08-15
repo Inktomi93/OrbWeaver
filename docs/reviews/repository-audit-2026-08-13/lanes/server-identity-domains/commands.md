@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipt
 
 All commands ran against working-tree bytes on 2026-08-13. The lane did not modify source, tests, configuration, gates, or any sibling lane artifact.

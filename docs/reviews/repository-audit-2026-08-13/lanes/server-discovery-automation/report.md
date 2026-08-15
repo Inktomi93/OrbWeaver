@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Server discovery, automation, and embeddings audit
 
 ## Coverage

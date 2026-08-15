@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Server boot entry and mirrored tests — lane report
 
 ## Lane identity

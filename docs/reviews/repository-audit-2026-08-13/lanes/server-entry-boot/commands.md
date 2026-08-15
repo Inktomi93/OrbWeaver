@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Commands — server-entry-boot
 
 Scope: the 30 paths in `assignment.txt`; source, data fixtures, and their paired tests only. Timestamps MDT.

@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command log — server-providers-backends
 
 Snapshot: `e777c47e5860a105c114e061dcf98bcab1baa952`. All commands ran from the repository root on 2026-08-13 MDT.

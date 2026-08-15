@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipt — server-providers-runtime
 
 Working directory: `/home/inktomi/inktomi-stack/development/orbweaver`. All commands below used the current working tree.

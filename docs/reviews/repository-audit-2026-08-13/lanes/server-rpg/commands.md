@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # server-rpg command log
 
 Snapshot: `e777c47e5860a105c114e061dcf98bcab1baa952`. Commands ran against working-tree bytes on 2026-08-13.

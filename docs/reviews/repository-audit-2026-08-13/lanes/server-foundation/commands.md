@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Server-foundation command receipt
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` on the audit working tree. Durations are wall-clock values returned by the command runner. `timeout 300` is the ceiling applied to typed AST and test commands; no command reached it.

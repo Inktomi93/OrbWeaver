@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Server search/refinery audit command log
 
 Snapshot: `e777c47e5860a105c114e061dcf98bcab1baa952`; audit work used current working-tree bytes. The final receipt reconciliation found `0` owned-path hash/size/line drifts. No owned path was dirty in `git diff --name-only`.

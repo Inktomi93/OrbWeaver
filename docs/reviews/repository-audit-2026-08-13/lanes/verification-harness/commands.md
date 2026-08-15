@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command record
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` at commit `e777c47e5860a105c114e061dcf98bcab1baa952`. No command was escalated. No baseline, snapshot, source, harness, configuration, or test file was changed by this lane.

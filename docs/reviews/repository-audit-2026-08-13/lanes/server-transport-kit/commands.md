@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Server transport-kit audit command receipt
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` on 2026-08-13 MDT. Scope was only the 131 `OWNED` rows in this lane's `assignment.txt`; shared prerequisites were read but not assessed. The worktree already had untracked audit/control artifacts; no assigned source or test path was dirty at the initial snapshot check.
