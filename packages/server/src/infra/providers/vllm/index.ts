@@ -33,7 +33,6 @@ export {
   detectGpu,
   fetchEngineCapacity,
   fetchEngineMaxModelLen,
-  fetchGenMaxModelLen,
   fleetCapacitySnapshot,
   resolveEngineDeploymentFacts,
   VLLM_ENGINES,

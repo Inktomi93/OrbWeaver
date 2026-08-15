@@ -52,7 +52,7 @@ export {
   WAKE_READY_TIMEOUT_MS,
   writeHold,
 } from "./fleet-control.ts";
-export { fetchEngineMaxModelLen, fetchGenMaxModelLen } from "./gen-window.ts";
+export { fetchEngineMaxModelLen } from "./gen-window.ts";
 export { countGpus, detectGpu } from "./gpu.ts";
 export { sniffMime, toDataUri } from "./image.ts";
 export { findOrphanedFamily, makeCwdMarker, parsePsRows, reapOrphanedFamily } from "./reaper.ts";

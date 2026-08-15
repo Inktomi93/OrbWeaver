@@ -19,9 +19,9 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useUploadAsset } from "#data";
+import { useInvalidation, useUploadAsset, useUploadCaps } from "#data";
 import type { AppFormInstance } from "#forms";
-import { notify } from "#lib";
+import { notify, oversizeUploadMessage } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
@@ -119,11 +119,20 @@ export function CharacterHeroBand({
 function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; readonly trpc: Trpc }): ReactElement {
   const invalidation = useInvalidation();
   const upload = useUploadAsset();
+  const uploadCaps = useUploadCaps();
   const update = useUpdateCharacter({ trpc, invalidation });
   const [previewHash, setPreviewHash] = useState<string | null>(detail.avatarHash);
   const [confirming, setConfirming] = useState(false);
 
   const onFile = async (file: File): Promise<void> => {
+    // `FileTrigger` (unlike `FileDropzone`) carries no size ceiling of its own — pre-check against the
+    // served route cap (`UploadCaps.assetUpload`) before the multipart POST, same pattern as the
+    // `.image`/`.databankUpload` FileDropzone consumers (census #72 item 1).
+    const oversize = oversizeUploadMessage(file, uploadCaps.assetUpload);
+    if (oversize !== undefined) {
+      notify.error(oversize);
+      return;
+    }
     try {
       const stored = await upload(file, "avatar");
       update.mutate({ characterId: detail.id, input: { avatarAssetId: stored.assetId } });

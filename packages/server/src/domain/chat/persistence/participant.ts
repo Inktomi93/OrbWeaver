@@ -66,9 +66,10 @@ export function isPresent(p: { readonly leftSeq: number | null }): boolean {
 }
 
 /** Present and not muted. A `disabled` participant still contributes cards/WI but is never
- *  arbiter-selected + is excluded from `{{groupNotMuted}}`. */
+ *  arbiter-selected + is excluded from `{{groupNotMuted}}`. Reuses {@link isPresent} — one home for
+ *  the presence half of the rule (census #72 item 3: this used to re-spell `leftSeq === null` inline). */
 export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly disabled: boolean }): boolean {
-  return p.leftSeq === null && !p.disabled;
+  return isPresent(p) && !p.disabled;
 }
 
 /** The PRINCIPAL kill-switch arm of the present-and-contributing predicate (D60; agent-principal-design/02
