@@ -48,8 +48,11 @@ export const sessionEntries = sqliteTable(
     // Per-chat monotonic lineage ordinal — the ordering axis. A reseed APPENDS the next ordinal (a new
     // deterministic seed); the highest `seq` is the live lineage head. UNIQUE per chat.
     seq: integer("seq").notNull(),
-    // The canon `messages.seq` this seed covered THROUGH — the staleness horizon (canon advanced past it
-    // ⇒ resume from the tail / reseed). Mirrors the portable `chats.compactedAtSeq` checkpoint semantics.
+    // Intended as the canon `messages.seq` this seed covered THROUGH — the staleness horizon (canon
+    // advanced past it ⇒ resume from the tail / reseed), mirroring `chats.compactedAtSeq`. THE CURRENT
+    // WRITER STORES THE SEEDED-TURN COUNT INSTEAD: the backend seam (`AgentSeedTurn`) carries no true
+    // canon seq, so a reader wanting the real horizon must first extend that seam (writer:
+    // entry/compose/session-entries.ts). No live reader exists; the value is internally consistent.
     seededThroughSeq: integer("seeded_through_seq").notNull(),
     // A hash of the canon prefix the seed was built from — the staleness GATE (D25 "detected vs canon,
     // not a flag"): re-hash the live canon and compare; a mismatch ⇒ canon diverged ⇒ reseed. Mirrors the

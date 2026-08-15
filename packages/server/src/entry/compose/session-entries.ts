@@ -33,6 +33,8 @@ export function createSessionEntryWriter(db: Db): SessionEntryWriter {
         chatId: entry.chatId,
         sdkSessionId: entry.sdkSessionId,
         seq,
+        // Today this is the SEEDED-TURN COUNT, not a true canon `messages.seq` — the backend seam
+        // (`AgentSeedTurn`) carries no seq; extend that seam before pointing a horizon reader here.
         seededThroughSeq: entry.seededThroughSeq,
         canonHash: entry.canonHash,
         isPrimary: seq === 0,
