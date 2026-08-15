@@ -405,19 +405,15 @@ const GIT_PUSH_FORCE = /\bgit\s+push\b[^\n;|]*(?:\s--force(?:-with-lease)?\b|\s-
 // `"/tmp/scratch"` stays sanctioned in quotes while `"packages/server/src"` does not. The head shrinking to
 // the command word only ever GROWS the tail, and the verdict is `targets.some(unsafe)`.
 const RM_HEAD = /^\s*(?:\S*\/)?rm(?=\s|$)/;
-// A recursive/force flag as `rm`'s own getopt sees it — quoted or not, short or long, EITHER CASE.
-// Recognised on the RAW token so the quoted spelling both ENGAGES the rule and stays OUT of the target
-// list: counting `"-rf"` as a path would make `rm "-rf" /tmp/scratch` ask, a false positive on the
-// sanctioned sweep, and a guard that blocks the right way of doing a job gets routed around. That
-// exclusion is the one direction in which this rule can move a command looser (a token that was never a
-// target reaching rm as a flag) — corpus movers: 0.
-// The vocabulary was lowercase-SHORT-only until the leg-5 follow-up (2026-08-14, A/B item K): `-R` is GNU
-// rm's documented recursive spelling and `--recursive --force` is the long form of `-rf`, so both deleted
-// the identical tree while carrying nothing this token recognised — the rule simply did not engage. 0
-// movers across 123,462 corpus commands, i.e. the vocabulary gap cost nothing to close and bought two
-// identical-deletion spellings. Note the remaining asymmetry, deliberate because it is what was MEASURED:
-// long `--dir` engages, short `-d` does not (it has no r/f) — `-d` only unlinks an EMPTY directory, so it
-// is the least urgent of the family.
+// An rm flag as `rm`'s own getopt sees it — quoted or not, short or long, EITHER CASE. Two tokens with
+// two jobs, split by owner ruling (#51): the RECURSIVE token GATES the rule — only a flag that actually
+// recurses (`-r`/`-R`, alone or folded into a cluster like `-rf`, or `--recursive`) makes an `rm` this
+// rule's business; plain `rm -f <path>` force-unlinks ONE path and is not a recursive delete. The broader
+// FLAG token still classifies tokens for the TARGET split below, so a quoted "-f"/"--force"/"--dir" can
+// never be mistaken for a path (counting `"-rf"` as a path would make `rm "-rf" /tmp/scratch` ask — a
+// false positive on the sanctioned sweep, and a guard that blocks the right way of doing a job gets
+// routed around). Both are recognised on the RAW token so quoted spellings engage/classify identically.
+const RM_RECURSIVE_TOKEN = /^(['"]?)(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\1$/;
 const RM_FLAG_TOKEN = /^(['"]?)(?:-[a-zA-Z]*[rRfF][a-zA-Z]*|--(?:recursive|force|dir))\1$/;
 // `.claude/worktrees/` added 2026-08-13: lane worktrees are disposable by construction and the standing
 // law now requires sweeping them by hand (teardown does not fire on agent completion — probed live). Asking
@@ -899,10 +895,10 @@ function collectStageWarns(command, blank, clauses, contexts) {
           .slice(stage.start + rm[0].length, stage.end)
           .split(/\s+/)
           .filter((t) => t.length > 0);
-        // An `rm` carrying no `-r`/`-f` at all is not this rule (`rm one-file.txt` never asked and must not
-        // start): the flags are searched across ALL tokens rather than required adjacent to the head, since
-        // `rm packages/x -rf` is the same deletion.
-        if (tokens.some((t) => RM_FLAG_TOKEN.test(t))) {
+        // An `rm` carrying no RECURSIVE flag is not this rule (`rm one-file.txt` and `rm -f one-file.txt`
+        // unlink a single named path — owner ruling #51): the flags are searched across ALL tokens rather
+        // than required adjacent to the head, since `rm packages/x -rf` is the same deletion.
+        if (tokens.some((t) => RM_RECURSIVE_TOKEN.test(t))) {
           const targets = tokens.filter((t) => !t.startsWith("-") && !RM_FLAG_TOKEN.test(t));
           // The map is built lazily — an `rm` head is rare, and this is the only rule that needs it.
           const vars = targets.length > 0 ? assignedVars(command, blank, clauses, stage.start) : null;

@@ -144,7 +144,15 @@ const ROWS: Row[] = [
   // quoted rm target. ----
   ["ask", "rm-rf-unsafe", 'rm -rf "packages/server/src"'],
   ["ask", "rm-rf-unsafe", "rm -rf 'packages/kit'"], // single quotes are the same blind span
-  ["ask", "rm-rf-unsafe", 'rm -f "packages/server/src/index.ts"'],
+  // Owner ruling #51 (2026-08-15): plain `rm -f` force-unlinks ONE named path and is NOT the
+  // recursive-delete rule — only an actual recursive flag engages it. Corpus A/B: 59 movers, all
+  // ask→pass, zero recursive rows moved. The quoted-target and cluster/split/long spellings stay asks.
+  ["pass", null, 'rm -f "packages/server/src/index.ts"'],
+  ["ask", "rm-rf-unsafe", "rm -fr packages/server/src"],
+  ["ask", "rm-rf-unsafe", "rm -f -r packages/server/src"],
+  ["ask", "rm-rf-unsafe", "rm -R packages/server/src"],
+  ["ask", "rm-rf-unsafe", "rm --recursive --force packages/server/src"],
+  ["ask", "rm-rf-unsafe", "rm packages/server/src -rf"],
   ["ask", "rm-rf-unsafe", 'rm -r -f "packages/server/src"'], // the flags-as-separate-words spelling
   // the mixed case, both ways round: today the unquoted target is what saves the first row, and the second
   // row is the one that mattered — a quoted UNSAFE target hiding beside a safe unquoted one passed clean
