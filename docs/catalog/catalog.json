@@ -3,8 +3,8 @@
   "stats": {
     "pending": 0,
     "missingFrontmatter": 213,
-    "invalidFrontmatter": 34,
-    "malformedFrontmatter": 1
+    "invalidFrontmatter": 33,
+    "malformedFrontmatter": 0
   },
   "documents": [
     {
@@ -53,37 +53,27 @@
       "path": "docs/Qwen_Offline_Investigation.md",
       "lane": "root-operational",
       "issue": 8,
-      "lines": 737,
-      "bytes": 82211,
-      "sha256": "71c2c4bb8fa3b77747b5c2ffe8b69d3f90f4ff168d011fc9ab83486aedaaad54",
+      "lines": 734,
+      "bytes": 81964,
+      "sha256": "47a8b149d1bcfa783a5fa9d4833e2afbdd1ee4ae128bd08ea673a1f4d789649c",
       "frontmatter": {
         "present": true,
-        "malformed": true,
+        "malformed": false,
         "fields": {
-          "name": "qwen-offline-investigation",
-          "description": "Read-only recon over the workspace — durable orchestrator context, agent briefing, findings index",
-          "metadata": ""
+          "kind": "research",
+          "status": "draft",
+          "updated": "2026-08-14"
         },
-        "errors": [
-          "docs/Qwen_Offline_Investigation.md:5: nested frontmatter is not allowed",
-          "docs/Qwen_Offline_Investigation.md:6: nested frontmatter is not allowed",
-          "docs/Qwen_Offline_Investigation.md:7: nested frontmatter is not allowed",
-          "docs/Qwen_Offline_Investigation.md: missing frontmatter key kind",
-          "docs/Qwen_Offline_Investigation.md: missing frontmatter key status",
-          "docs/Qwen_Offline_Investigation.md: missing frontmatter key updated",
-          "docs/Qwen_Offline_Investigation.md: unsupported frontmatter key name",
-          "docs/Qwen_Offline_Investigation.md: unsupported frontmatter key description",
-          "docs/Qwen_Offline_Investigation.md: unsupported frontmatter key metadata"
-        ]
+        "errors": []
       },
       "receipt": {
         "path": "docs/Qwen_Offline_Investigation.md",
-        "assignedSha256": "71c2c4bb8fa3b77747b5c2ffe8b69d3f90f4ff168d011fc9ab83486aedaaad54",
+        "assignedSha256": "47a8b149d1bcfa783a5fa9d4833e2afbdd1ee4ae128bd08ea673a1f4d789649c",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "71c2c4bb8fa3b77747b5c2ffe8b69d3f90f4ff168d011fc9ab83486aedaaad54",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+        "verifiedSha256": "47a8b149d1bcfa783a5fa9d4833e2afbdd1ee4ae128bd08ea673a1f4d789649c",
+        "verifiedCommit": "f99105bec7875a9fcfbb8bbfacade9e5f24098b3",
         "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/Qwen_Offline_Investigation.md:1",

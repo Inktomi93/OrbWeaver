@@ -218,7 +218,6 @@
       "docs/reviews/stickler/2026-08-08-group-chat-coherence.md"
     ],
     "invalidFrontmatter": [
-      "docs/Qwen_Offline_Investigation.md",
       "docs/architecture/history/assets-maintenance.md",
       "docs/architecture/history/buddy-observer-reaction-engine.md",
       "docs/architecture/history/client-tooling-setup.md",
@@ -253,6 +252,6 @@
       "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md",
       "docs/reviews/stickler/2026-08-03-handoff-card-ownership.md"
     ],
-    "malformedFrontmatter": ["docs/Qwen_Offline_Investigation.md"]
+    "malformedFrontmatter": []
   }
 }
