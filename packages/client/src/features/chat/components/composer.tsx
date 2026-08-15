@@ -350,6 +350,13 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
           highlightIndex={slashHighlight}
           onPick={pickCommand}
         />
+        {/* The strip's APPEARANCE, announced (the macro-textarea status-line pattern): with `aria-expanded`
+            invalid on a `textbox`, `aria-controls` alone is a relationship, not an event — this polite count
+            is what tells a non-sighted user that typing `/` surfaced offers. Always mounted so the text
+            CHANGE announces (a region inserted together with its content is not reliably announced). */}
+        <span aria-live="polite" className="sr-only" data-slot="composer-slash-status">
+          {stripOpen ? `${String(slashMatches.length)} slash commands` : ""}
+        </span>
         {hasAttachments ? (
           <Row gap="field" align="center" data-slot="composer-attachments" className="mx-auto w-full max-w-(--width-shell-content) flex-wrap">
             {attachments.map((attachment, index) => (
