@@ -1,5 +1,5 @@
 // @orb/contracts/rpg/actor — THE actor: its reference, its IDENTITY half, and its per-actor VOLATILE state
-// (rpg-design/05 §2.6 + the actor-state review §5 R2). Wallet + inventory are FIRST-CLASS on EVERY actor
+// (the actor-state review R2). Wallet + inventory are FIRST-CLASS on EVERY actor
 // (character AND cast NPC), present in lite (owner-CONFIRMED at ratification). `wallet` is a STORED
 // named-amount array, NOT legacy's derived currency-item total — lite has no loot engine to mint currency
 // items, so a derived wallet would be a permanently-empty dead doorway; full's loot engine later CREDITS the
@@ -115,7 +115,7 @@ const rpgConditionSchema = z.object({
   turnsLeft: z.number().int().min(1).nullable(),
 });
 
-/** A present character's RELATIONSHIP (parity-plus §2.1) — a first-class field on the actor's IDENTITY half,
+/** A present character's RELATIONSHIP — a first-class field on the actor's IDENTITY half,
  *  NOT a `customFields` entry. `kind` rides the closed vocab (§2.3 constrains it to the six tokens at the token
  *  level); `label` is the free gloss used ONLY when `kind === "custom"` (empty otherwise). The default reading
  *  is the NPC's stance toward the PLAYER. Swipe-consistent by construction (it rides the snapshot's actor

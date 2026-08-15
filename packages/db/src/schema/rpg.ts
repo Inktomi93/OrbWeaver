@@ -1,7 +1,7 @@
-// schema/rpg — the RPG lite substrate's 5-table floor (producer: domain/rpg; rpg-design/05 §4.2). Born
+// schema/rpg — the RPG lite substrate's 5-table floor (producer: domain/rpg). Born
 // WHOLE: the full-mode shape ships as data/nullable columns from day one so full-mode arrival ADDS
 // siblings (7 tables, nullable columns, tool defs) and renames/re-types/migrates NOTHING lite shipped
-// (the graft-map invariant, §C). This is the W0 schema floor; the domain/rpg producer lands in W1 (until
+// (the graft-map invariant, §C). This is the schema floor; the domain/rpg producer lands later (until
 // then this file rides the BASELINE_RIDER_PRODUCERS entry in the db-structure gate).
 //
 // D23-CLEAN: NO `ownerId` ANYWHERE. Authority derives through the chat FK chain — `rpg_games.chatId →

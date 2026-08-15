@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/snapshot — the swipe-volatile plane's shapes (rpg-design/05 §2.4-2.5). Quests fold
+// @orb/contracts/rpg/snapshot — the swipe-volatile plane's shapes. Quests fold
 // INTO the snapshot (a `quests` array — clone-forward like inventory/cast) so mutable quest state is
 // swipe-consistent by the same machinery inventory already uses (resolution ladder, staging read-through,
 // locks, clone-forward); a quest table would need event-sourcing along the variant chain for per-swipe

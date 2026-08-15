@@ -1,11 +1,11 @@
-// kit/macro/content — the M1 scoped-block body normalizer (parity-plus §12A.1, ST's trimContent shape
+// kit/macro/content — the scoped-block body normalizer (ST's trimContent shape
 // adopted). A universal block's resolved body is trimmed + indentation-DEDENTED before it becomes the
 // macro's last unnamed argument, so an author can indent a multiline body to the macro's column without
-// the indentation leaking into the value; the `#` PRESERVE_WHITESPACE flag (§12A.4) bypasses this whole
+// the indentation leaking into the value; the `#` PRESERVE_WHITESPACE flag bypasses this whole
 // helper (the evaluator passes the body verbatim). Pure string→string — no ctx, no registry.
 
 // Neutralize `{{`/`}}` in untrusted text so it can't be mistaken for a macro by ANY downstream pass.
-// Homed HERE (not kit/guided, its original home) because the M5 user-macro handler (user-macros.ts)
+// Homed HERE (not kit/guided, its original home) because the user-macro handler (user-macros.ts)
 // splices untrusted arg/input values into an author template and needs exactly this defense — guided
 // re-exports it, so every existing `@orb/kit/guided` consumer is unchanged (one home, D51 posture).
 //

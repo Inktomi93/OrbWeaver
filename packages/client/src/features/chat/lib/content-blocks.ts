@@ -23,7 +23,7 @@ export interface ToContentBlocksOptions extends ContentSpansToBlocksOptions {
 }
 
 /** Project a stored/authored message body into the typed render-block sequence (§12.4). Pure. This is the
- *  READING-SURFACE plane of the parity-plus §3 visibility registry: hidden-class tags and unknown
+ *  READING-SURFACE plane of the content-class visibility registry: hidden-class tags and unknown
  *  command-shaped directives project to NO block (the client defense-in-depth arm — the server member-strip
  *  is the trust boundary); `:::card`/`:::choices` fences project to their render blocks. `options.cardTrust`
  *  is the row's resolved render trust (§4.3 — the caller maps `render-trust`'s verdict; default tierB). */

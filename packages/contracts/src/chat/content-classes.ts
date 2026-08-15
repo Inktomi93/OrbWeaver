@@ -1,4 +1,4 @@
-// @orb/contracts/chat/content-classes — the CONTENT-CLASS VISIBILITY REGISTRY (parity-plus §3.1): two
+// @orb/contracts/chat/content-classes — the CONTENT-CLASS VISIBILITY REGISTRY: two
 // orthogonal planes per embedded content class — reading-surface `{show|hide}` (does the human reader SEE
 // it?) × wire `{full|stub|drop}` (what does the MODEL receive on subsequent turns?). ONE open registry, one
 // row per class; the two projection seams are TOTAL over it (render: `contentSpansToBlocks` / the client
@@ -34,7 +34,7 @@ export interface ContentClassPolicy {
  *  transcript forever and rides as a short `[image: alt]` marker, never as a model-visible image part (the
  *  gate is `isUserAttachment` in the chat engine's pipeline); `hidden` hide/full — `<lie>`/`<ofilter>`: the reader never sees it, the model
  *  MUST remember its own lie/the true event; `card` show/stub — the reader keeps the rich card forever,
- *  the model gets `[card: title]` not the multi-KB blob (M2 keep-last-X excepts the newest X); `choices`
+ *  the model gets `[card: title]` not the multi-KB blob (keep-last-X excepts the newest X); `choices`
  *  show/drop — buttons for the reader, but the CYOA fence is STRIPPED from the model wire on later turns
  *  (the user's pick already became a real user turn — unselected options must not pile up in context);
  *  `unknown-directive`

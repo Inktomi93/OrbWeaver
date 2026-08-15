@@ -1,7 +1,7 @@
-// @orb/contracts/rpg/extraction — the STRUCTURED-OUTPUT extraction schema (rpg-design/05 §4.6 + the
-// delivery-model amendment §4.9 change-log). ONE `z.object` the structured extraction turn carries; the model
+// @orb/contracts/rpg/extraction — the STRUCTURED-OUTPUT extraction schema. ONE `z.object` the structured
+// extraction turn carries; the model
 // fills the WHOLE state delta at once (no user-facing prose, so structured output is the natural fit — never
-// the §4.6 prose-parser fork).
+// a prose-parser fork).
 //
 // HOW IT REACHES THE WIRE, per backend (corrected 2026-08-03 — the header said `output_config.format`
 // unconditionally, which has been false on the OpenRouter path since 2026-08-02):

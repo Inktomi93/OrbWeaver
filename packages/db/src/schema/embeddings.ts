@@ -298,13 +298,13 @@ export const chatDigestSpeakers = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// document_chunks — the 5th primary vector table (producer FK: databank `documents`; databank-design/02
-// §2). Structurally identical to chat_segments: re-chunk/re-embed regenerates it from
+// document_chunks — the 5th primary vector table (producer FK: databank `documents`).
+// Structurally identical to chat_segments: re-chunk/re-embed regenerates it from
 // `documents.extractedText`; a document delete CASCADEs it away. NO ownerId (D20 — scope derives via
 // `documents.ownerId`). The write path (an `embeddings.store` lens arm) + the search read arm land with
 // DB2 proper; the table is born into the baseline now (the vector-scope-derived gate enforces the
 // chokepoint from birth). `charStart`/`charEnd` are the non-overlap span offsets into extractedText
-// (source highlighting + lossless-coverage assertions — databank-design/02 §2.1).
+// (source highlighting + lossless-coverage assertions).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const documentChunks = sqliteTable(

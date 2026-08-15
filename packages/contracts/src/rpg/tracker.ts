@@ -25,7 +25,7 @@ import type { RpgTrackerCarrierClass } from "./enums.ts";
 import { RPG_TRACKER_CARRIER_CLASSES, RPG_TRACKER_SHAPES, RPG_TRACKER_SUBJECTS, RPG_TRACKER_WRITES } from "./enums.ts";
 
 /** The steering-HINT cap — a short prose gloss. ONE home for every host-authored gloss in the game (the
- *  tracker `hint`, the M1 custom-relationship hints, the R4c custom-journal-type hints); homed HERE because
+ *  tracker `hint`, the custom-relationship hints, the R4c custom-journal-type hints); homed HERE because
  *  the tracker hint is the load-bearing one (R4b: the gloss is what makes a tracked value steer at all) and
  *  because `config.ts` imports THIS module, not the other way round. */
 export const RPG_HINT_MAX = 120;

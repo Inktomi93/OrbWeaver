@@ -1,5 +1,5 @@
 // RELATIONSHIP BADGE — the five known kinds get a distinct token color + icon; `custom` = a neutral label
-// chip (parity-plus §2.1/§2.5). TEXT is the accessible datum (the tracker-kit a11y model): the badge carries
+// chip. TEXT is the accessible datum (the tracker-kit a11y model): the badge carries
 // a visible label, the color + icon are decoration. A NEUTRAL default renders nothing (no steering signal to
 // badge). Extracted from tracker-blocks.tsx (component-size cap) — the badge sits ON the name line of BOTH
 // the Scene cast card AND the Status roster card (the §6 relationship re-home — one anatomy, two homes).

@@ -3,7 +3,7 @@
 // (the `{text}|{image,url}` wire shape, gated by `ModelCapability.input.vision`); the Phase-6 client RENDER
 // path projects the SAME spans → `MessageContentBlock[]` (D44). Pure + deterministic — no markdown dep, no I/O.
 //
-// THE ENCODING (D45-amend + the parity-plus §3 span grammar): a message body is `string` (D26 one content
+// THE ENCODING (D45-amend + the span grammar): a message body is `string` (D26 one content
 // home). Embedded structured spans:
 //   • an image is `![alt](target)` where `target` is `asset:<assetId>` or `http(s)://…` (gated at resolve).
 //   • a HIDDEN-class tag is a self-closing `<name key="value" …/>` whose name is in the OPEN `HIDDEN_TAGS`

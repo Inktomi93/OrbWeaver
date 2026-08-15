@@ -1,5 +1,5 @@
 // @orb/contracts/rpg/ambient — ambient (location · date · time-of-day · weather) as DATA with the
-// full-engine's STORAGE shape, born nullable (rpg-design/05 §2.7). Lite WRITES these; full's time/weather
+// full-engine's STORAGE shape, born nullable. Lite WRITES these; full's time/weather
 // ENGINE later writes the SAME fields — no column re-type at graft. `clock` is the engine's `{day,hour,
 // minute}` struct (nullable, born null — a born "day 1 · morning" is a phantom fact one banner-render from
 // steering wrong, the §8 nullable-honesty argument); lite writes it through a LABEL vocabulary

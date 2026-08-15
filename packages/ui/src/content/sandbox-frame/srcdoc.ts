@@ -17,7 +17,7 @@ import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR } from
  * routed arm's twin is the CSP `sandbox` directive in `@orb/kit/card-frame` (both flip together).
  *
  * SECURITY-GATED: `allow-scripts` enablement + its tierB trust review is owned by a security-executor
- * pass before merge (parity-plus §4.2 / §10 flag #1). The ratified target posture is the artifact
+ * pass before merge. The ratified target posture is the artifact
  * sandbox — `SANDBOX_ATTR = "allow-scripts"` (NEVER paired with `allow-same-origin`: that combo lets the
  * frame read the app origin) plus `script-src 'unsafe-inline'` added to the kit CSP builder (still no
  * `connect-src`, so a script can compute/animate but never phone home). Until that pass clears, scripts

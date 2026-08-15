@@ -46,8 +46,7 @@ export type UpdateBookInput = z.infer<typeof updateBookSchema>;
  *  LEFT IT — the hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer
  *  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). `span`
  *  is the transcript window that produced the entry (display + re-run idempotency). Generic on purpose — the
- *  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee
- *  (chat-crew-design/02 §7, /03 §1; CC-D). */
+ *  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee. */
 export const loreEntryProvenanceSchema = z.object({
   contentHash: z.string(),
   span: z.object({ fromSeq: z.number().int().nonnegative(), toSeq: z.number().int().nonnegative() }).optional(),
@@ -202,18 +201,18 @@ export interface BulkImportLorebookResult {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// upsertEntries — the SHARED machine-writer bulk op (D58 satellite; chat-crew-design/02 §7, /03 §1). The ONE
+// upsertEntries — the SHARED machine-writer bulk op (D58 satellite). The ONE
 // home for hand-edit-safe lore upkeep: the D46 automation writer injects it today (the chat agents keeper and
 // rpg lorebook upkeep were the other two intended consumers before the 2026-07-25 purge — the rebuild wires
 // them here too, never a fork of the fence-strip/compare copy). The op upserts by (bookId,
 // title) — a re-run REPLACES its own prior entry for the same title — and NEVER overwrites a human-curated
 // entry (the stored `metadata.provenance.contentHash` vs the current content is the guard). Caller policy (caps,
 // merge-mode, span-stamped names, mark advance) stays with the caller; the SKIP semantics live here so every
-// consumer inherits them (CC-D).
+// consumer inherits them.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** One entry a machine writer upserts. `title` is the upsert key within the book; `keys` drive the keyword
- *  match (a keeper entry is keyed, not constant — chat-crew-design/03 §1). `span` is stamped into the entry's
+ *  match (a keeper entry is keyed, not constant). `span` is stamped into the entry's
  *  `metadata.provenance.span`. */
 export interface UpsertLoreEntryInput {
   readonly title: string;
@@ -238,7 +237,7 @@ export interface LoreEntryIndexRow {
 }
 
 /** One CONSTANT ("always"-scope) lorebook entry attached to a chat — the lean title+content a producer reads
- *  as pre-play canon (rpg-design/06 §4: "only constant entries exist pre-play"). Room-public prompt content
+ *  as pre-play canon (only constant entries exist pre-play). Room-public prompt content
  *  (membership is the caller's gate, mirroring `listChatBooks`), so no owner/economics fields. */
 export interface LoreConstantCanonRow {
   readonly title: string;

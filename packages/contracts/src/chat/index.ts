@@ -10,7 +10,7 @@
 //   • roster.ts         — the unified-roster wire (D16/D22/D80): roster/seat/invite/render-policy/history-floor
 //   • content-blocks.ts — the D44 §12.4 render blocks + `contentSpansToBlocks`
 //   • card-frame.ts     — the trust-gated card-frame doorway wire (mint request/response + the route)
-//   • content-classes.ts — the parity-plus §3 content-class visibility registry (`CONTENT_CLASS_POLICY`)
+//   • content-classes.ts — the content-class visibility registry (`CONTENT_CLASS_POLICY`)
 //   • listing.ts        — the `listChats` KEYSET cursor (`chatListCursorSchema`)
 //   • bulk-import.ts    — the chat-owned bulk-import op shapes (D34)
 //   • prose.ts          — the PROSE-1 app-tier slot table (the side-generation prompts' shipped defaults)

@@ -43,7 +43,7 @@ export const messageContentBlockSchema = z.discriminatedUnion("kind", [
     html: z.string(),
     css: z.string().optional(),
     trust: cardTrustSchema,
-    /** The `:::card title="…"` label (parity-plus §3.2b) — the expand-affordance/lightbox label. Absent on
+    /** The `:::card title="…"` label — the expand-affordance/lightbox label. Absent on
      *  a title-less card and on the pre-grammar born-compliant arm (additive, version-tolerant). */
     title: z.string().optional(),
     /** How the card was recognized (§4.8 provenance): `fence` = an explicit `:::card`; `lenient` = the
@@ -51,8 +51,8 @@ export const messageContentBlockSchema = z.discriminatedUnion("kind", [
      *  absent on the pre-grammar born-compliant arm (additive, version-tolerant). */
     origin: z.enum(["fence", "lenient"]).optional(),
   }),
-  /** The parity-plus §5.2 CYOA choice set — the model's `:::choices` fence projected for the reading
-   *  surface. P2 ships the block (rendered as an ordinary list); the P5 wave upgrades the client arm to
+  /** The CYOA choice set — the model's `:::choices` fence projected for the reading
+   *  surface. The block ships rendered as an ordinary list; a later client arm upgrades it to
    *  clickable send-affordances without touching this contract. */
   z.object({
     kind: z.literal("choices"),

@@ -19,7 +19,7 @@ const CHOICES_FENCE_NAME = "choices" satisfies (typeof DIRECTIVE_FENCE_NAMES)[nu
 // this leaf owns only the side-effect-free transformation: template + person + untrusted input +
 // macro context → resolved string.
 
-// The ZWSP macro-re-injection defense — RE-HOMED to `#macro` (content.ts) so the M5 user-macro
+// The ZWSP macro-re-injection defense — RE-HOMED to `#macro` (content.ts) so the user-macro
 // handler can use it without a kit-internal cycle (guided already imports #macro; macro cannot import
 // guided). Re-exported here so every existing `@orb/kit/guided` consumer keeps its import unchanged.
 // The current engine doesn't re-parse handler return values, but `evaluateString` IS called on
@@ -73,24 +73,24 @@ export function composeRewriteSteer(fragments: readonly string[], freeText: stri
   return `${pieces.map((p) => p.replace(TRAILING_PERIOD, "")).join(". ")}.`;
 }
 
-// ── Game one-shot steers (parity-plus P5 — the wand's Plot submenu + the "Offer choices" one-shot) ──
+// ── Game one-shot steers (the wand's Plot submenu + the "Offer choices" one-shot) ──
 //
 // SYSTEM-authored steering templates the composer wand fires by KIND (never by text): the client sends
 // `guided.gameSteer = <kind>` (enum-validated at the wire, `guidedSteerSchema`), and the chat assembly
 // resolves the TEMPLATE below through the normal macro engine — so the rpg data macros ({{rpgSceneState}}
 // / {{rpgQuests}} / {{random}}) resolve against the game turn's gather feed. This is the owner-ruled
-// wand-homing shape: the steers live HERE (guided-actions land), read live rpg state through the P6
+// wand-homing shape: the steers live HERE (guided-actions land), read live rpg state through the
 // macro/CEL projection, and carry ZERO rpg-contract coupling (macro NAMES only). The templates ride the
 // TRUSTED template side (never the neutralized `{{input}}` splice — a user cannot smuggle macros: the
 // wire carries only the enum kind). Kit-homed per the axis-home rule (ui-consumed tuple: the wand renders
 // the submenu from the tuple; contracts derives the wire enum; the server reads the templates).
 
-/** The plot-progression steer kinds (parity-plus §6.2 + the act-advance arm) — the wand's Plot submenu
+/** The plot-progression steer kinds (the act-advance arm) — the wand's Plot submenu
  *  renders from this tuple; graft #R4: a new steer is a tuple member + a def, the fire path is byte-stable. */
 export const RPG_PLOT_STEER_KINDS = ["natural", "randomized", "twist", "escalate", "deescalate", "advance"] as const;
 export type RpgPlotSteerKind = (typeof RPG_PLOT_STEER_KINDS)[number];
 
-/** Every wand-firable one-shot game steer: the plot kinds + the M5 "Offer choices" CYOA one-shot (same
+/** Every wand-firable one-shot game steer: the plot kinds + the "Offer choices" CYOA one-shot (same
  *  guided fire path, its own wand item). The wire enum (`guidedSteerSchema.gameSteer`) derives from this. */
 export const GUIDED_GAME_STEER_KINDS = [...RPG_PLOT_STEER_KINDS, "choices"] as const;
 export type GuidedGameSteerKind = (typeof GUIDED_GAME_STEER_KINDS)[number];

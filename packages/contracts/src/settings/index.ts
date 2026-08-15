@@ -564,7 +564,7 @@ const memorySchema = z
   })
   .prefault({});
 
-// The per-user databank tuning (databank-design/08 §4) — the chunk params ingest uses (chunkText) + the
+// The per-user databank tuning — the chunk params ingest uses (chunkText) + the
 // retrieval params gather passes to search.documents (k/minScore/rerank) + the `{{databank}}` slot token
 // budget. `chunk`/`retrieval` REUSE the `#databank` shapes (derive, never re-spell — a drift fails tsc here);
 // `slotTokenBudget` was the chat-side DATABANK_SLOT_TOKEN_BUDGET=4096 constant, absorbed so an admin/user can

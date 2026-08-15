@@ -30,8 +30,8 @@ const IMPORT_DECOMPRESSED_MIB = 10_240; // 10 GiB
  *  of the two wins); non-image kinds keep this route cap. */
 export const ASSET_UPLOAD_MAX_BYTES = ASSET_UPLOAD_MIB * BYTES_PER_MIB;
 
-/** A single databank source document (txt/md/pdf/html). The design's LEAN 20 MB upload cap
- *  (databank-design/02 §6); also the store's `maxBytes` belt on the CAS write. */
+/** A single databank source document (txt/md/pdf/html). The LEAN 20 MB upload cap;
+ *  also the store's `maxBytes` belt on the CAS write. */
 export const DATABANK_UPLOAD_MAX_BYTES = DATABANK_UPLOAD_MIB * BYTES_PER_MIB;
 
 // ── The import family (a portability bundle / bare card → /api/import + the bundle runner) ─────────────

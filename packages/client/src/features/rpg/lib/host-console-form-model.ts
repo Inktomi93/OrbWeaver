@@ -1,5 +1,5 @@
 // The GM-console SCALAR form model (panel-redesign DESIGN.md §4 "Game" — the host-admin console). The
-// autosave form owns the flat scalar knobs (steering note · delivery model · the deception toggles · the M4
+// autosave form owns the flat scalar knobs (steering note · delivery model · the deception toggles · the
 // reveal-eye offer · the prompt-budget + extraction-depth NUMBERS — every one of them stored and wired
 // server-side with no editor until this wave, the D107 dead-switch class); the
 // array/record sub-editors (cast-field schemas, relationship hints, orb-pinning) call `updateConfig` with
@@ -40,7 +40,7 @@ export interface HostConsoleFormValues {
   readonly plotProgression: boolean;
   /** The #9 ambient-date mode — narrated (freeform date string) | structured (day counter). */
   readonly dateMode: RpgDateMode;
-  /** The P4 immersive-card knobs (parity-plus §9 #7 + M3) — both were stored, wired through the reminder
+  /** The immersive-card knobs — both were stored, wired through the reminder
    *  and the §4.8 lenient wrap, and had NO editor: a host who did not want HTML cards had no switch to
    *  reach (the D107 dead-switch class, owner dogfood 2026-07-31). `immersiveHtml` gates the TEACHING ask;
    *  `immersiveHtmlInteractive` picks the interactive-vs-static variant of that ask (meaningless with the
@@ -48,9 +48,9 @@ export interface HostConsoleFormValues {
    *  already-emitted card always renders, so a toggle-off never breaks stored content. */
   readonly immersiveHtml: boolean;
   readonly immersiveHtmlInteractive: boolean;
-  /** M4 — is the host offered the reveal eye at all? Off = the host runs PURE hidden (no peek even for
+  /** Is the host offered the reveal eye at all? Off = the host runs PURE hidden (no peek even for
    *  themselves). Never touches the member strip or the wire: a member reads no hidden bytes either way, and
-   *  the model always remembers what it hid. Stored + read by `revealHidden` since P3, editor-less until now. */
+   *  the model always remembers what it hid. Stored + read by `revealHidden` since launch, editor-less until now. */
   readonly hiddenContentReveal: boolean;
   /** The numeric knobs — `null` = the box is empty (Base UI's controlled shape), which the wire mapping resolves
    *  to the contract default the field's placeholder advertises. */

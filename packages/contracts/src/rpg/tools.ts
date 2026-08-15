@@ -1,5 +1,5 @@
-// @orb/contracts/rpg/tools — the tool-name vocabulary + the D48 tool ARG schemas' contract homes
-// (rpg-design/05 §4.5). Args are PROJECTION-CLEAN: EVERY entity reference is a NAME/label the server
+// @orb/contracts/rpg/tools — the tool-name vocabulary + the D48 tool ARG schemas' contract homes.
+// Args are PROJECTION-CLEAN: EVERY entity reference is a NAME/label the server
 // alias-resolves, top-level `z.object` always, and customFields ride an ARRAY-of-pairs shape (the D79
 // `additionalProperties:false` regime — a bare record projects an open `additionalProperties`).
 //
@@ -68,7 +68,7 @@ const trackerSetSchema = z.object({
   items: z.array(z.string()).optional(),
 });
 
-// A present-cast RELATIONSHIP write (parity-plus §2.1) — `kind` rides the closed vocab (ENUM-constrained at the
+// A present-cast RELATIONSHIP write — `kind` rides the closed vocab (ENUM-constrained at the
 // token level, §2.3); `label` is meaningful only for `kind:"custom"`. Authored strict-style within the object
 // (kind required); `label` optional-omit keeps the derive-server-side arm (§10.1 — omission is plausible for a
 // non-custom kind). The whole `relationship` field is optional on the patch (MA-4: omit = keep the current stance).

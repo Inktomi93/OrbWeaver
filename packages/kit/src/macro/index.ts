@@ -59,10 +59,10 @@ export type {
   TextNode,
   VarOp,
 } from "./types.ts";
-// MACRO_FLAG_DEFS: the ONE reserved-flags vocabulary (§12A.4) — the parser derives from it, the macro
+// MACRO_FLAG_DEFS: the ONE reserved-flags vocabulary — the parser derives from it, the macro
 // browser documents from it.
 export { MACRO_ARG_TYPES, MACRO_CATEGORIES, MACRO_FLAG_DEFS } from "./types.ts";
-// WAVE MU (M5 + #24): preset/game-authored user macros as first-class registry entries + the typed
+// The #24 typed-input fold: preset/game-authored user macros as first-class registry entries + the typed
 // choice-block input vocabulary and its pure values-bag resolution (random-pick draws freeze-at-commit).
 export {
   type RegisterUserMacrosOptions,

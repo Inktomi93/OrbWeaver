@@ -1,7 +1,7 @@
 // The GM console's SCALAR autosave form (extracted from rpg-game-tab.tsx for the component-size cap):
 // Play style (CYOA switch + the compose|send segmented choice-click knob + plot steering) → Immersive
-// cards (the P4 teaching gate + its interactivity sub-toggle + the M2 keep-last-X wire knob) → Hidden
-// channels (the two teaching gates + the M4 host reveal-eye offer) → Prompt budget (the reminder's
+// cards (the teaching gate + its interactivity sub-toggle + the keep-last-X wire knob) → Hidden
+// channels (the two teaching gates + the host reveal-eye offer) → Prompt budget (the reminder's
 // recent-beats slice) → Steering note →
 // Delivery model (the mock's SEGMENTED mode toggle with its honest consequence line — never a resting
 // dropdown, DESIGN §12.4.1) → Extraction depth (the §1.3 evidence trio). Everything autosaves (D66 A4). The
@@ -170,7 +170,7 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
             </form.AppField>
           </Stack>
 
-          {/* IMMERSIVE CARDS (P4, parity-plus §9 #7 + M3) — both knobs shipped stored + wired and NEITHER had
+          {/* IMMERSIVE CARDS — both knobs shipped stored + wired and NEITHER had
               an editor: a host who did not want HTML in their prompt had no switch (owner dogfood 2026-07-31,
               the D107 dead-switch class). The pair is a DEPENDENCY, so it reads as one: the sub-toggle sits
               under its parent and goes DISABLED (not hidden) when the teaching is off — an interactivity ask
@@ -202,7 +202,7 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                 </form.AppField>
               )}
             </form.AppField>
-            {/* M2 — the card WIRE knob (§3.5), applicability-shown with its teaching parent: how many of the
+            {/* The card WIRE knob, applicability-shown with its teaching parent: how many of the
                 newest cards ride the prompt in full before older ones collapse to their `[card: title]` stub.
                 The RENDER is untouched either way — this is prompt budget, not visibility. */}
             <form.AppField name="immersiveHtml">
@@ -235,7 +235,7 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                 <field.SwitchField label="Omniscience" hint="Teach the <ofilter> channel — the model can note events the party can't perceive." />
               )}
             </form.AppField>
-            {/* M4 — the host's own REVEAL EYE. Stored + read by `revealHidden` since P3 with no way to reach it
+            {/* The host's own REVEAL EYE. Stored + read by `revealHidden` since launch with no way to reach it
                 (the D107 dead-switch class). It governs ONLY the host's peek: a member never reads hidden bytes
                 either way, and the model always remembers what it hid — so the copy must not imply otherwise. */}
             <form.AppField name="hiddenContentReveal">

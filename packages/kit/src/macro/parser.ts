@@ -1,5 +1,5 @@
-// kit/macro/parser — the hand-rolled `{{…}}` scanner (parity-plus §12A.parser: LINEAR extensions of a
-// depth-aware scan, never a parser framework). The MG grammar (§12A.1 + §12A.4, FINAL at launch):
+// kit/macro/parser — the hand-rolled `{{…}}` scanner (LINEAR extensions of a
+// depth-aware scan, never a parser framework). The MG grammar (FINAL at launch):
 //   • flags sit BETWEEN `{{` and the identifier as a flag RUN (`{{<flags><name>::args}}`), parsed into a
 //     `flags` object on the node from the ONE `MACRO_FLAG_DEFS` vocabulary (types.ts);
 //   • ANY macro may take a body — `{{name::args}}content{{/name}}` opens a scoped block for any name; the
@@ -154,7 +154,7 @@ interface FlagRun {
   pos: number;
 }
 
-// Consume the flag run between `{{` and the identifier (§12A.4). A repeated char just re-sets its key
+// Consume the flag run between `{{` and the identifier. A repeated char just re-sets its key
 // (idempotent — `{{##name}}` carries one preserveWhitespace, its raw stays byte-exact regardless).
 function readFlagRun(text: string, from: number): FlagRun {
   let flags: FlagRun["flags"];
@@ -451,7 +451,7 @@ function closeBlock(stack: StackFrame[], close: FlatClose): void {
   parent.children.push(blockNode);
 }
 
-// Universal block pairing (§12A.1): EVERY macro tag is a candidate open; a matching `{{/name}}` in scope
+// Universal block pairing: EVERY macro tag is a candidate open; a matching `{{/name}}` in scope
 // makes it a MacroBlockNode, EOF (or an enclosing close) makes it the inline call it always was.
 function buildBlocks(flatAst: FlatNode[]): MacroAST {
   const root: MacroAST = [];

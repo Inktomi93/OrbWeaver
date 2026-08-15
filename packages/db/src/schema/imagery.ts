@@ -1,10 +1,10 @@
 // schema/imagery — the hosted image-generation PROVENANCE index (producer: domain/imagery; D49 item 1).
 // ONE row per generated image: the durable record of what each `kind:"generated"` asset IS (prompt, mode,
-// model, cost, the card-identity it depicted). Born WHOLE (imagery-design/03 §4.1) even though the P5 chat
+// model, cost, the card-identity it depicted). Born WHOLE even though the P5 chat
 // caller populates only the free-mode fields — the Phase-7 orchestrator (extract/caption/reuse/edit) fills
 // the rest with NO migration (the reserved columns are nullable / defaulted).
 //
-// TWO forces make this a real table, not asset metadata (imagery-design/03 §4.2):
+// TWO forces make this a real table, not asset metadata:
 //   • GC safety — a generated asset's only OTHER pointer is a markdown ref inside message content (invisible
 //     to the assets ref-registry); `asset_id` is a REAL FK the registry can carry, so mark-sweep never reaps
 //     a live in-chat image. `ON DELETE CASCADE`: the provenance is subordinate to the asset, never reverse.

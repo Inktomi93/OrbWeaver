@@ -43,7 +43,7 @@ export const ID_PREFIX = {
   pendingTurn: "pending_turn",
   // EPHEMERAL — the per-turn identity minted once at `executeTurn` (never persisted, no table). Threads the
   // tool-exec frame ↔ the turn-end hooks so a turn-scoped consumer (rpg's staging accumulator) correlates
-  // mid-turn tool writes to its commit/abort flush under lock-free concurrency (rpg-design/05 §2).
+  // mid-turn tool writes to its commit/abort flush under lock-free concurrency.
   chatTurn: "chat_turn",
   characterEmbedding: "character_embedding",
   chatDigest: "chat_digest",
@@ -79,7 +79,7 @@ export const ID_PREFIX = {
   refineryRun: "refinery_run",
   // A user-authored custom payload schema (refinery R3 / SF0 — docs/design/refinery-r3-build-plan.md §1).
   refinerySchema: "refinery_schema",
-  // RPG lite substrate (rpg-design/05 §4.1). Quest ids are PLAIN strings minted inside the snapshot
+  // RPG lite substrate. Quest ids are PLAIN strings minted inside the snapshot
   // blob (no table, no FK — a TypeID brand buys nothing there; the objective-id precedent), so no
   // `rpgQuest` prefix. Full ADDS its own prefixes (npc/clock/map/session/encounter/scene/pendingCheck).
   rpgGame: "rpg_game",
@@ -182,7 +182,7 @@ export type RefinerySessionId = TypeIdOf<"refinery_session">;
 export type RefineryRunId = TypeIdOf<"refinery_run">;
 export type RefinerySchemaId = TypeIdOf<"refinery_schema">;
 
-// --- RPG (lite substrate — the 5-table floor, rpg-design/05 §4.1) ------------
+// --- RPG (lite substrate — the 5-table floor) ------------
 export type RpgGameId = TypeIdOf<"rpg_game">;
 export type RpgSnapshotId = TypeIdOf<"rpg_snapshot">;
 export type RpgSheetId = TypeIdOf<"rpg_sheet">;

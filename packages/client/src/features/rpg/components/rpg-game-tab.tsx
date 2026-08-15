@@ -242,7 +242,7 @@ function AddTracker({ onAdd }: { readonly onAdd: (label: string, shape: RpgTrack
   );
 }
 
-/** The relationship-hint editor — a `custom-label → steering gloss` record (M1; the hint glosses CUSTOM
+/** The relationship-hint editor — a `custom-label → steering gloss` record (the hint glosses CUSTOM
  *  labels, per the contract). Whole-record replace on commit. */
 function RelationshipHintsEditor({ chatId, config }: { readonly chatId: ChatId; readonly config: RpgConfigView }): ReactElement {
   const trpc = useTRPC();

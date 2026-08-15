@@ -1,5 +1,5 @@
-// @orb/contracts/rpg/bus — the feature-root rpg bus event union + its producer-coverage belt (rpg-design/05
-// §4.9). A cross-boundary TYPE only; the RUNTIME (the live replay-less singleton) is `domain/rpg/bus.ts`, the
+// @orb/contracts/rpg/bus — the feature-root rpg bus event union + its producer-coverage belt.
+// A cross-boundary TYPE only; the RUNTIME (the live replay-less singleton) is `domain/rpg/bus.ts`, the
 // transport is the `rpg.stream` subscription, and the consumer belt is the client `EVENT_INVALIDATIONS` total
 // map (`data/invalidation.ts`). The bus is LIVE-ONLY, self-healing — it MIRRORS the per-user
 // `user-events-bus.ts` (NOT the durable chat bus): nothing durable rides it (queries re-fetch), a subscriber

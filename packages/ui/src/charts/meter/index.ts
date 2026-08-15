@@ -1,5 +1,5 @@
 /**
- * `@orb/ui/meter` — the ONE home for 1-D magnitude display (D52/D58; rpg-design/11 §2):
+ * `@orb/ui/meter` — the ONE home for 1-D magnitude display (D52/D58):
  * `<Meter kind="linear"|"arc"|"bipolar">` + `<SegmentedClock>` + the decorative tracker pair
  * (`<TrackBar>`/`<RingGauge>`) + the stacked composition rail (`<SegmentBar>`) + the panel-redesign
  * satellites (`<CoinFigure>` — the honest max-less wallet disc; `<Waystone>` — the rpg band's signature

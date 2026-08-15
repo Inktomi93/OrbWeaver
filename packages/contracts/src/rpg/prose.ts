@@ -82,7 +82,7 @@ export const RPG_PROSE_SLOTS = {
     requiredMacros: [],
     requiredTokens: [":::card"],
     title: "Card teach — interactive ask",
-    fires: "Every game turn, when `features.immersiveHtml` + `immersiveHtmlInteractive` are on (the M3 variant).",
+    fires: "Every game turn, when `features.immersiveHtml` + `immersiveHtmlInteractive` are on (the interactive variant).",
   },
   "rpg.card.askStatic": {
     id: "rpg.card.askStatic",
