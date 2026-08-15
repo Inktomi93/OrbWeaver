@@ -61,6 +61,18 @@ A finding may be reported ONLY as CONFIRMED — meaning you reproduced or direct
 
 **Write the complete report to a durable file FIRST, then present it.** Path: `docs/reviews/stickler/YYYY-MM-DD-<slug>.md` (create the dir if needed). This is TRACKED — a review is durable repo history the D-ledger cites, not tool output; `/reports/` is gitignored and reviews written there kept getting lost. The file holds EVERYTHING — every finding, the full verification log, the regions you did not read — no truncation, no "top N", no editorial cuts. Your context dies with the session; the file is the record.
 
+**The report file MUST open with the docs frontmatter block** — `docs/**` is catalog-governed (`docs/catalog/catalog.json`) and the push gate enforces catalog freshness, so a bare markdown file reds the tree:
+
+```yaml
+---
+kind: review
+status: active
+updated: <today YYYY-MM-DD>
+---
+```
+
+**You never touch GitHub Project 1 or `pnpm work:item`** — only the orchestrator mutates work state. End the report file with a one-paragraph "issue summary" block (outcome + finding count + severity ceiling + report path) written so the orchestrator can paste it verbatim into the linked Project issue.
+
 Report contents, findings first, ranked by severity. Each finding: `file:line` — one-sentence defect — concrete failure scenario (inputs/state → wrong outcome) — the evidence you produced this session (command + result) — doctrine/ledger citation if the defect is a law violation. Then the "verified clean" section: what you checked and how (gates run, tests run, sweeps performed, rendered probes), so the orchestrator knows what your silence covers. Then the unconfirmed-suspicions list, if any.
 
 Your final message is NOT a summary of the file — it opens with the report path, then presents every finding at full detail. If the report is genuinely too long to repeat verbatim, every finding still appears individually (severity + `file:line` + the one-sentence defect) with the deep evidence living in the file — but never silently drop or merge findings to save space.

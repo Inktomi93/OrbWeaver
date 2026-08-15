@@ -133,6 +133,13 @@ re-verify-your-premise-first, and that a correct refusal is a SUCCESS · the WHY
 trap that ever bit was one no brief mentioned. **Any memory lesson the lane needs must be restated in the
 brief; it cannot read your memory.**
 
+A lane that CREATES or EDITS anything under `docs/**` owes two more lines: the frontmatter block
+(`kind`/`status`/`updated` — the catalog gate reds a bare markdown file) and a scoped `pnpm check:docs`
+in its floor — lefthook enforces catalog freshness, dangling references, and D-citation integrity at
+push, so a doc written without them is debt the orchestrator inherits at the train gate. Review-writing
+roles (stickler) end their report with an issue-summary paragraph; the ORCHESTRATOR pastes it into the
+linked Project issue — no lane touches `work:item`.
+
 ## Merge / load discipline (minted 2026-08-02, hardened 2026-08-13)
 
 - **Cap concurrent GATE-HEAVY lanes at \~3, stagger dispatches by minutes.** 5+ synchronize their
