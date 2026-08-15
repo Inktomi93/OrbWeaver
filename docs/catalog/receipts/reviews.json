@@ -5,13 +5,13 @@
   "entries": [
     {
       "path": "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md",
-      "assignedSha256": "90824878da1beeb1813698e2b886cc46f8d28c6a6ea3cd0f261c2b5e1a2fdf4f",
+      "assignedSha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "90824878da1beeb1813698e2b886cc46f8d28c6a6ea3cd0f261c2b5e1a2fdf4f",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "f87782748d33db41165861814a69695290eb4bec05a78eb534edddc356c9a2e9",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md:1-233 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -20,13 +20,13 @@
     },
     {
       "path": "docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md",
-      "assignedSha256": "5b784134c66c75492fbef9cf95f41e4cd8c7e7bc9551d732006d82dfddcf73bd",
+      "assignedSha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "5b784134c66c75492fbef9cf95f41e4cd8c7e7bc9551d732006d82dfddcf73bd",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "b898908d489ed678b7dd446a5b0a63817e14d07d12d1f5651fe562d27ec471e1",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md:1-54 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -65,13 +65,13 @@
     },
     {
       "path": "docs/reviews/misc/2026-08-03-export-rot-dispositions.md",
-      "assignedSha256": "a13cbc126a14be0bafb27b64f27c4c33ea51f2b04ec65a1cfadb9c716a8069ea",
+      "assignedSha256": "4ed722c4fa1ef9724039fd31512b50ecbb6f8b31654a251584f78266b67d3b70",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "a13cbc126a14be0bafb27b64f27c4c33ea51f2b04ec65a1cfadb9c716a8069ea",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "4ed722c4fa1ef9724039fd31512b50ecbb6f8b31654a251584f78266b67d3b70",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/misc/2026-08-03-export-rot-dispositions.md:1-261 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -80,13 +80,13 @@
     },
     {
       "path": "docs/reviews/misc/2026-08-03-registry-map.md",
-      "assignedSha256": "792859b20707c9fdae6b8b5a68f13ebe9955d5f805f7024a44da0e5f64c3e8e4",
+      "assignedSha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "792859b20707c9fdae6b8b5a68f13ebe9955d5f805f7024a44da0e5f64c3e8e4",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "2fafdf253861f13cec3a39852a6b93a1cd2423be86682c3e7e622398af3892c1",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/misc/2026-08-03-registry-map.md:1-77 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -170,13 +170,13 @@
     },
     {
       "path": "docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md",
-      "assignedSha256": "77161df9294ad0bd617006068b9c6db6a83af29426c0672f32ca446dc550f2af",
+      "assignedSha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "77161df9294ad0bd617006068b9c6db6a83af29426c0672f32ca446dc550f2af",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "63cb4f37ce31e0192699e42b66dae4c5f58559b981fae912507ca0376639a4e9",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md:1-76 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -391,13 +391,13 @@
     },
     {
       "path": "docs/reviews/security/2026-08-07-fork-host-plane-strip.md",
-      "assignedSha256": "7c28c84867e73f7559a22ae5a44d64690189a677fa93467eb17eea8be0106307",
+      "assignedSha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "7c28c84867e73f7559a22ae5a44d64690189a677fa93467eb17eea8be0106307",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "680414378417746c24e41af2af1cf2e38cfa9d3c7f91459b906301dddde0bcd7",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/security/2026-08-07-fork-host-plane-strip.md:1-195 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -406,13 +406,13 @@
     },
     {
       "path": "docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md",
-      "assignedSha256": "667392ad57f464e2fba129c8a2b60066bace8c3a922bc60780a0b5c47d98990a",
+      "assignedSha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "667392ad57f464e2fba129c8a2b60066bace8c3a922bc60780a0b5c47d98990a",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "fd5faf3b7e81f428a864d63c487db308f19b97f7b4ca4f800dd5bd4a2f1c4e66",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md:1-283 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -421,13 +421,13 @@
     },
     {
       "path": "docs/reviews/security/2026-08-08-containerize-surface-review.md",
-      "assignedSha256": "8891f977cd482334c547010c414e699e73f57b79d4c999cb69f4329f1eff1e37",
+      "assignedSha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "8891f977cd482334c547010c414e699e73f57b79d4c999cb69f4329f1eff1e37",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "fa58aed709cd0baeba672456d40ad45e8f4e4c4aaef5a61b5a460397b931d415",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/security/2026-08-08-containerize-surface-review.md:1-195 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -436,13 +436,13 @@
     },
     {
       "path": "docs/reviews/security/2026-08-08-refinery-r0-security-pass.md",
-      "assignedSha256": "27457834e63ac5c5f7a7e89379d6071c5d0856b9a22b9ddae64b1b0a508882e0",
+      "assignedSha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "27457834e63ac5c5f7a7e89379d6071c5d0856b9a22b9ddae64b1b0a508882e0",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "0797c5d85cdb911a1985a18757bf808076bdbcaf7c3a0c0c545708bad9acdab3",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/security/2026-08-08-refinery-r0-security-pass.md:1-414 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -451,13 +451,13 @@
     },
     {
       "path": "docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md",
-      "assignedSha256": "d882a33bfd5610553baaeb6364fc0ae9d834dfeb06aee3fa70036b741a3ca0bc",
+      "assignedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "d882a33bfd5610553baaeb6364fc0ae9d834dfeb06aee3fa70036b741a3ca0bc",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "7b4f6b9d0b9bf77901f24f6ec331355f3dd43935a4fec6eae7278ccfca0c8ac4",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md:1-201 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -552,13 +552,13 @@
     },
     {
       "path": "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md",
-      "assignedSha256": "63494355515ae9aaf127d6dddc99c10a4e549f33b60289ba3d7fa0bc95437eae",
+      "assignedSha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "63494355515ae9aaf127d6dddc99c10a4e549f33b60289ba3d7fa0bc95437eae",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "130fd9032e8da80ff8d2177acb3267c4a85891302f7d52e889983425ccce5e45",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md:1-308 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -567,13 +567,13 @@
     },
     {
       "path": "docs/reviews/side-eye/2026-08-03-combined-nightly.md",
-      "assignedSha256": "548283cc552d78a8ef40f48a6a6c3fc2795117db98f383e518a91ceb7dec0eaf",
+      "assignedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "548283cc552d78a8ef40f48a6a6c3fc2795117db98f383e518a91ceb7dec0eaf",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "c7bfa83de7f8d120ac2b6cfbc8f669578407e48f5cfbae7c4eb6eb88acb7687b",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/side-eye/2026-08-03-combined-nightly.md:1-311 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -582,13 +582,13 @@
     },
     {
       "path": "docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md",
-      "assignedSha256": "481e420dc3200ba51c87183cdad442d990e839c26f3044f8a3ebe8f00159196e",
+      "assignedSha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "481e420dc3200ba51c87183cdad442d990e839c26f3044f8a3ebe8f00159196e",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "881e44b4abc7370f418d32536cd25da9cce088e29927d4d5044c4199377c0e88",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md:1-493 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -597,13 +597,13 @@
     },
     {
       "path": "docs/reviews/side-eye/2026-08-03-scoped-recheck.md",
-      "assignedSha256": "4f7009567ee82e03bf62317c231fa82d37d8a3c36cf84315fdef1a491bd4e3e8",
+      "assignedSha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "4f7009567ee82e03bf62317c231fa82d37d8a3c36cf84315fdef1a491bd4e3e8",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "247efaa2e6e604ab3cfee30902c4e539bdbf6e0d74524dffdbf0101056b410e2",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/side-eye/2026-08-03-scoped-recheck.md:1-413 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -612,13 +612,13 @@
     },
     {
       "path": "docs/reviews/side-eye/2026-08-07-days-merges-rendered.md",
-      "assignedSha256": "593e02d686f74642b8fc6e5c86d63d07eea0f7f7f5ac10d10f0fe4631e52e167",
+      "assignedSha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "593e02d686f74642b8fc6e5c86d63d07eea0f7f7f5ac10d10f0fe4631e52e167",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "48f10f09d688a24808dc87838426b788ccc4a149c88ec261315caa8461ceff49",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/side-eye/2026-08-07-days-merges-rendered.md:1-321 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -627,13 +627,13 @@
     },
     {
       "path": "docs/reviews/side-eye/2026-08-09-refinery-graduation.md",
-      "assignedSha256": "6864815660e11e28bb84c059eef4b7e660f4f76f5fddf8dcec7e7fcbb1726f1c",
+      "assignedSha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "6864815660e11e28bb84c059eef4b7e660f4f76f5fddf8dcec7e7fcbb1726f1c",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "b467a0930b440b131b5304a200e678277b899f558cf763e9356909a20ecb4e79",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/side-eye/2026-08-09-refinery-graduation.md:1-103 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -642,13 +642,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
-      "assignedSha256": "20385df287c901475e92dc179a1660321713e830dc94757a2be2f27481a9835e",
+      "assignedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "20385df287c901475e92dc179a1660321713e830dc94757a2be2f27481a9835e",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md:1-265 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -657,13 +657,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-07-25-join-history-visibility-model.md",
-      "assignedSha256": "b6f0ae82e68502fdaf78b658ce25b483795a6a6ad14bd842a3156fc784762fba",
+      "assignedSha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "b6f0ae82e68502fdaf78b658ce25b483795a6a6ad14bd842a3156fc784762fba",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "ab57bcb3a49fe35c466edc9a26b7a5f2ba471cd1bda7abf2c0d4cfd56c2bbed4",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-07-25-join-history-visibility-model.md:1-434 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -672,13 +672,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-07-25-knob-drift-gates.md",
-      "assignedSha256": "71d422210c7ec940fe8846fda19840aef027ec5271b0f9e69566fd9c59e83f70",
+      "assignedSha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "71d422210c7ec940fe8846fda19840aef027ec5271b0f9e69566fd9c59e83f70",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "64b564ca4b03d94d70c03cb241c7f74c981d96885457db4e42646a2f6df834d5",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-07-25-knob-drift-gates.md:1-485 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -687,13 +687,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-01-visual-blech-audit.md",
-      "assignedSha256": "2ef77682b7560099f81eb4bc61344e9e3d5dcb5b5a3036973427eae256d06cc3",
+      "assignedSha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "2ef77682b7560099f81eb4bc61344e9e3d5dcb5b5a3036973427eae256d06cc3",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "76499a718b846e128dbce23b72d6fb6372ea576b7ee0c2fc38484bd17c92c9f0",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-01-visual-blech-audit.md:1-276 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -702,13 +702,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-02-zod-leverage-audit.md",
-      "assignedSha256": "09a9bcc87918381c1b47f88fd3d7e81bc2584d99d99d73c3b53004d00de69647",
+      "assignedSha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "09a9bcc87918381c1b47f88fd3d7e81bc2584d99d99d73c3b53004d00de69647",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "65e7001d6cacb27a5426daeee66748c98091af3c2dde0593ad30423a4d17f7ea",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-02-zod-leverage-audit.md:1-412 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -717,13 +717,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-03-client-architecture.md",
-      "assignedSha256": "aa0c8bc91a19179b88199bbc8c471b9ca547c5476a8c8f854b73ab8013c15c07",
+      "assignedSha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "aa0c8bc91a19179b88199bbc8c471b9ca547c5476a8c8f854b73ab8013c15c07",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "8340cf62e151881a1ec88a10be5928e2bd1f874fe9dd785c95ecb3b4eef61b16",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-03-client-architecture.md:1-361 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -732,13 +732,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-03-collection-contribution.md",
-      "assignedSha256": "ba6be44352b2bc2f530143859b5588e946b57bd08f3c1c87ed0f490112a76d42",
+      "assignedSha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "ba6be44352b2bc2f530143859b5588e946b57bd08f3c1c87ed0f490112a76d42",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "57816a694a66921fc666e4c660e9ee10aafcd1c655b611c1878ca8a4e04cff7b",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-03-collection-contribution.md:1-427 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -747,13 +747,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-03-handoff-card-ownership.md",
-      "assignedSha256": "194582b8232dc9e0a21d7b13632fbbf04b68455711daa38cdf04c0e206618d50",
+      "assignedSha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "194582b8232dc9e0a21d7b13632fbbf04b68455711daa38cdf04c0e206618d50",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "ac6fb7dce00e3092d51dd88bcb79495d6f806e4bb06a289f70702793a94203ce",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-03-handoff-card-ownership.md:1-340 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -762,13 +762,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md",
-      "assignedSha256": "b9f537a96f92bf61f3d4dc09e0497ecb472c2b44a8b4436d9ac8d58c51c8bb6f",
+      "assignedSha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "b9f537a96f92bf61f3d4dc09e0497ecb472c2b44a8b4436d9ac8d58c51c8bb6f",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "e818b5bd07e8eb2c863bcc61c5e558bf15ecf8960f75f3e88bb42d708e9b9e3d",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md:1-428 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -777,13 +777,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-03-persona-model.md",
-      "assignedSha256": "5b15278f3ca02fe36e200d94b870e27d80a4a6982a131a19d2ec29a33a7aae51",
+      "assignedSha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "5b15278f3ca02fe36e200d94b870e27d80a4a6982a131a19d2ec29a33a7aae51",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "d967fb61577e67e5285c7c2ee2c8f93f77b608014487d7e104d020a17e0d117f",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-03-persona-model.md:1-465 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -792,13 +792,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-03-regex-model.md",
-      "assignedSha256": "8999586548c9e892d8b38cfe1a5b0f389089709116a0b34761abe302596cbc70",
+      "assignedSha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "8999586548c9e892d8b38cfe1a5b0f389089709116a0b34761abe302596cbc70",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "3cf321713f31f06ba895ea2f06db8b7bb3b30896bc772e06212b44bd4c194871",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-03-regex-model.md:1-515 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -807,13 +807,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-03-role-authority-model.md",
-      "assignedSha256": "13143db5cbaaf5e6f8e54bd04b9af32ed8238da47ad665eea911126f48149148",
+      "assignedSha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "13143db5cbaaf5e6f8e54bd04b9af32ed8238da47ad665eea911126f48149148",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "d61fc4923fdf820f58e249c997524d64e5dbc914963e2f2944d0bd4dc667ffc8",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-03-role-authority-model.md:1-512 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -822,13 +822,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-08-canon-message-identity.md",
-      "assignedSha256": "bcdf24e377c6e677f01b9294fce97a39d6abd1f15185acbc7e8526426f399b5b",
+      "assignedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "bcdf24e377c6e677f01b9294fce97a39d6abd1f15185acbc7e8526426f399b5b",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "cdb8f2796ba2348e77d8b710aec0fc7921e2fd42cc24557a916e59484f48567e",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-08-canon-message-identity.md:1-931 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -837,13 +837,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md",
-      "assignedSha256": "e7dd848217e25aabdcba3ca407e31017706e8a1842a1ca8cfdbc85ca121c0e71",
+      "assignedSha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "e7dd848217e25aabdcba3ca407e31017706e8a1842a1ca8cfdbc85ca121c0e71",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "fd424f5a43e6400e1fb803787f487dec0828b8d1e2bd6b189983f2b6cdc2cdd5",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md:1-500 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -852,13 +852,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-08-card-refinery-port-study.md",
-      "assignedSha256": "e065c3c794e6ea877f6006d2f0688b028d769bf0231f25b5c1961c2b01835ab3",
+      "assignedSha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "e065c3c794e6ea877f6006d2f0688b028d769bf0231f25b5c1961c2b01835ab3",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "88014d3b2863b5f8c7e45bbe547211dcd9bc2b7ac37c6c0db280c4b452253cfa",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-08-card-refinery-port-study.md:1-467 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
@@ -867,13 +867,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-08-group-chat-coherence.md",
-      "assignedSha256": "673ed9d6e6b3b3dc99c52cef7ff2d0fbb27e4e0f356b7f018e3e0e56ffa17a05",
+      "assignedSha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "673ed9d6e6b3b3dc99c52cef7ff2d0fbb27e4e0f356b7f018e3e0e56ffa17a05",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "c11791626d092c4ac548f154001f43248f02ed2fc801d837bf2d35938e08ec94",
+      "verifiedCommit": "3d4623b2f299c8b4468243d4b9db7ff997d44866",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/stickler/2026-08-08-group-chat-coherence.md:1-470 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
