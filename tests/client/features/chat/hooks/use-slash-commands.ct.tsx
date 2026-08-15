@@ -112,9 +112,11 @@ test("ArrowDown/Up cycle the highlight over the offers while focus STAYS in the 
   // A bare "/" offers every command in registry order: [spy, locked]. Focus the textarea for real.
   await textarea.click();
   await textarea.fill("/");
-  // Open combobox: the textarea advertises expansion + the listbox it controls, and (until an arrow) no
-  // active descendant — the passive-open state.
-  await expect(textarea).toHaveAttribute("aria-expanded", "true");
+  // Open: the textarea stays a `textbox` — `aria-expanded` is INVALID for that role (the macro-textarea
+  // doctrine), so the popup's appearance is announced by the polite status line while `aria-controls`
+  // names the listbox; (until an arrow) no active descendant — the passive-open state.
+  await expect(textarea).not.toHaveAttribute("aria-expanded", ANY_NONEMPTY);
+  await expect(component.locator('[data-slot="composer-slash-status"]')).toHaveText("2 slash commands");
   await expect(textarea).toHaveAttribute("aria-controls", SLASH_LISTBOX_ID);
   await expect(textarea).not.toHaveAttribute("aria-activedescendant", ANY_NONEMPTY);
   await expect(component.getByRole("listbox", { name: "Slash commands" })).toBeVisible();
@@ -203,9 +205,11 @@ test("when the strip is CLOSED, ArrowUp/Down are NOT hijacked (multiline caret m
   const textarea = component.getByLabel("Message", { exact: true });
 
   // A plain multi-line message — no completion strip is open (the draft is not a command-in-progress).
+  // The textarea never carries `aria-expanded` at all now (invalid on `textbox`); closed = no aria-controls.
   await textarea.click();
   await textarea.fill("line one\nline two");
-  await expect(textarea).not.toHaveAttribute("aria-expanded", "true");
+  await expect(textarea).not.toHaveAttribute("aria-expanded", ANY_NONEMPTY);
+  await expect(textarea).not.toHaveAttribute("aria-controls", ANY_NONEMPTY);
 
   // Put the caret at the very end, then ArrowUp: the composer must NOT preventDefault, so the browser moves
   // the caret up a line. We assert the native move happened by reading selectionStart before/after.
