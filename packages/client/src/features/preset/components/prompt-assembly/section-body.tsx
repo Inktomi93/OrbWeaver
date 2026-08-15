@@ -27,7 +27,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { goToCollection } from "#state";
-import { isTemplatedMarker } from "../../lib/assembly-model.ts";
+import { isPlainMarkerSection, isTemplatedMarkerSection } from "../../lib/assembly-model.ts";
 import { PresetMacroSuggestions } from "../preset-macro-suggestions.tsx";
 import { CARRIER_ATTRIBUTION, MARKER_COPY } from "./marker-copy.ts";
 
@@ -57,7 +57,7 @@ export function SectionBody({ form, section, index }: SectionBodyProps): ReactEl
       </PresetMacroSuggestions>
     );
   }
-  if (isTemplatedMarker(section.marker)) {
+  if (isTemplatedMarkerSection(section)) {
     return <TemplatedMarkerBody form={form} index={index} section={section} />;
   }
   return <CarrierBody form={form} section={section} />;
@@ -66,13 +66,15 @@ export function SectionBody({ form, section, index }: SectionBodyProps): ReactEl
 /** A templated marker's FRAMING template — one textarea, ghosting the factory default. The two
  *  empty-default markers (`main_prompt`/`post_history`) ghost their explainer instead of bare nothing. */
 function TemplatedMarkerBody({ form, section, index }: SectionBodyProps): ReactElement | null {
-  if (section.type !== "marker" || !isTemplatedMarker(section.marker)) {
+  if (!isTemplatedMarkerSection(section)) {
     return null;
   }
   const marker = section.marker;
   const factoryDefault = DEFAULT_MARKER_TEMPLATES[marker];
   const copy = MARKER_COPY[marker];
-  const template = "template" in section ? section.template : undefined;
+  // `section` is TYPED as `TemplatedMarkerSection` now (the predicate above narrowed it) — `.template`
+  // reads directly; the old `"template" in section` runtime probe is no longer needed to prove it exists.
+  const template = section.template;
   const name = `sections[${index}].template` as const;
   return (
     <Stack gap="field">
@@ -148,7 +150,7 @@ function TemplateNoteDetail({ detail }: { readonly detail: { readonly label: str
  *  section, because the Configuration roster's groups start collapsed: a bare section switch would land a
  *  reader who asked for world info on a closed door. */
 function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly section: PromptSection }): ReactElement | null {
-  if (section.type !== "marker" || isTemplatedMarker(section.marker)) {
+  if (!isPlainMarkerSection(section)) {
     return null;
   }
   const attribution = CARRIER_ATTRIBUTION[section.marker];

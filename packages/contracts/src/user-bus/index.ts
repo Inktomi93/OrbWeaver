@@ -30,7 +30,7 @@
 //     fans to the roster, never to one user), so this member covers the OWNER's library, not the room's view.
 //   • `identityChanged` is the staleness design's D5 gap (docs/design/staleness-and-session-freshness.md
 //     §2.3.4/§4.4.3, W7b): the viewer's OWN identity — `sessions.me`'s userId/handle/globalRole plus the two
-//     reads `use-viewer.ts` composes — was in ZERO invalidation rows, so an `admin.setRole` grant (or an SSO
+//     reads a composed viewer read derives it from (`settings.getUserSettings` + `persona.list`) — was in ZERO invalidation rows, so an `admin.setRole` grant (or an SSO
 //     login-time handle rename / role re-derive on another device) reached a live client only on a full page
 //     reload. It is the one member whose subject is the SUBSCRIBER rather than a thing they own, which is why
 //     it carries NO id: the channel key IS the affected user, so a `userId` hint would restate the address.

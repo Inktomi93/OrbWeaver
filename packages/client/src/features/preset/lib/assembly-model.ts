@@ -25,6 +25,39 @@ export function sectionKind(section: PromptSection): SectionKind {
   return isTemplatedMarker(section.marker) ? "templatedMarker" : "plainMarker";
 }
 
+// TYPE-PREDICATE NARROWING (#73, owner-ruled 2026-08-15). ADDITIVE — `sectionKind`/`SectionKind` above
+// stay for the 2 call sites that only need a label/branch string (`sectionGlyphIcon`/`headerCopy`,
+// never reading marker-only fields afterward). `sectionKind` RETURNS a classification string; it does
+// NOT narrow `section`'s TYPE for the caller (control-flow narrowing only tracks a function declared
+// `x is T`), so 3 component-prop-boundary sites (`section-drill-in.tsx` `OverrideLocks`,
+// `prompt-readout.tsx` `SelectedSectionAttribution`, `section-body.tsx`
+// `TemplatedMarkerBody`/`CarrierBody`) re-derive the same guard by hand because a `section: PromptSection`
+// prop crosses a JSX boundary with no narrowing to inherit. These predicates give those 3 sites a real
+// TS `section is X` guard to narrow their PROP TYPE at, so a future 4th marker sub-kind that needs
+// updating here fails `tsc` at every narrowed call site instead of silently landing in only 2 of 3 `if`s
+// (Spine-TypeScript-and-Patterns.md §"String-union dispatch discipline").
+export type LiteralSection = Extract<PromptSection, { type: "literal" }>;
+export type MarkerSection = Extract<PromptSection, { type: "marker" }>;
+export type TemplatedMarkerSection = MarkerSection & { readonly marker: keyof typeof DEFAULT_MARKER_TEMPLATES };
+export type PlainMarkerSection = MarkerSection & { readonly marker: Exclude<MarkerType, keyof typeof DEFAULT_MARKER_TEMPLATES> };
+
+/** Narrows to the templated-marker arm — same test as `isTemplatedMarker`, applied to the whole section
+ *  so a caller crossing a component-prop boundary keeps the narrowing (`section.template`/`.marker` read
+ *  safely afterward). */
+export function isTemplatedMarkerSection(section: PromptSection): section is TemplatedMarkerSection {
+  return section.type === "marker" && isTemplatedMarker(section.marker);
+}
+
+/** Narrows to the plain-marker arm (a pure carrier — no `template`/override fields). */
+export function isPlainMarkerSection(section: PromptSection): section is PlainMarkerSection {
+  return section.type === "marker" && !isTemplatedMarker(section.marker);
+}
+
+/** Narrows to the literal arm. */
+export function isLiteralSection(section: PromptSection): section is LiteralSection {
+  return section.type === "literal";
+}
+
 /** The glyph icon for a section — the MARKER'S OWN glyph (`MARKER_COPY.glyph`), and Pencil for a literal
  *  (the author's own text). Per-marker, not per-kind (side-eye F-17): a kind glyph rendered nine of the
  *  twelve default rows as the same sparkle, so the rack's loudest column carried almost no information.

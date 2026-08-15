@@ -39,7 +39,7 @@ import type { ReactElement } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useTRPC } from "#data";
 import { selectPresetSection } from "#state";
-import { isTemplatedMarker, sectionKind } from "../../lib/assembly-model.ts";
+import { isPlainMarkerSection, sectionKind } from "../../lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count.ts";
 import { AssemblyPreview } from "../prompt-assembly/assembly-preview.tsx";
 import { deriveZones } from "../prompt-assembly/derive-zones.ts";
@@ -284,7 +284,7 @@ function BudgetBar({
  *  one target, one pair). Chat-free facts only; a templated section's substance is its own template, which
  *  the bar above already priced. */
 function SelectedSectionAttribution({ section }: { readonly section: PromptSection }): ReactElement | null {
-  if (section.type !== "marker" || isTemplatedMarker(section.marker)) {
+  if (!isPlainMarkerSection(section)) {
     return null;
   }
   return (

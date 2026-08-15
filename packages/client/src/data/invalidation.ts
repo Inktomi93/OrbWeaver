@@ -40,8 +40,9 @@ export interface Invalidation {
   /** Gap-heal — on user-bus RE-connect, blanket-invalidate every filter the user map covers. Never on the
    *  first connect of a page load: that mount's own reads ARE the fresh state (`use-user-bus.ts`). */
   readonly invalidateAllUserRoots: () => void;
-  /** The IDENTITY reads — `sessions.me` plus the two composites `use-viewer.ts` derives the viewer from.
-   *  Called by the session-recovery ladder's resume rung, which has NO event to route: a tab that just
+  /** The IDENTITY reads — `sessions.me` plus the two reads (`settings.getUserSettings`/`persona.list`)
+   *  a composed viewer read would derive from. Called by the session-recovery ladder's resume rung,
+   *  which has NO event to route: a tab that just
    *  re-authenticated may be a different principal (or the same one with a changed role), and the probe that
    *  discovered it is an `/api/auth/me` fetch, not a bus tick. The SERVER-announced half of the same three
    *  reads rides the `identityChanged` member (W7b) — one filter helper, two entry points. */
@@ -345,10 +346,12 @@ function allRpgGameFilters(trpc: Trpc, chatId: ChatId): readonly InvalidateFilte
   ];
 }
 
-/** The viewer triple (`use-viewer.ts`): the server identity plus the two reads its `currentPersona`
- *  derivation composes. TWO callers share this ONE spelling — the `identityChanged` row above (the
- *  cross-device driver; W7b retired this docblock's old "the map has NO identity member" note) and
- *  `invalidateIdentity()` below, the recovery ladder's rung that fires with no event at all. */
+/** The viewer triple: the server identity (`sessions.me`) plus the two reads a composed
+ *  current-persona derivation would need (`settings.getUserSettings`/`persona.list`; the retired
+ *  `use-viewer.ts`, #73, composed exactly these three — this filter set outlives the hook because the
+ *  three reads are each independently live). TWO callers share this ONE spelling — the `identityChanged`
+ *  row above (the cross-device driver; W7b retired this docblock's old "the map has NO identity member"
+ *  note) and `invalidateIdentity()` below, the recovery ladder's rung that fires with no event at all. */
 function identityFilters(trpc: Trpc): readonly InvalidateFilter[] {
   return [trpc.sessions.me.pathFilter(), trpc.settings.getUserSettings.pathFilter(), trpc.persona.list.pathFilter()];
 }

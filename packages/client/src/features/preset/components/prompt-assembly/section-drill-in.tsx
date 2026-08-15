@@ -55,7 +55,7 @@ import {
   headerCopy,
   isPivotSection,
   isStructuralSection,
-  isTemplatedMarker,
+  isTemplatedMarkerSection,
   OVERRIDABLE_MARKERS,
   sectionGlyphIcon,
   supportsArrangement,
@@ -345,9 +345,13 @@ function TriggerFields({ form, section, index }: ClusterProps): ReactElement {
  *  set carries no such key, so the block never rendered for ANY real preset (verified live on the Main
  *  prompt row). `templatedMarkerSection` is the union arm that DECLARES them, and it is spelled exactly
  *  `type === "marker" && isTemplatedMarker(marker)`; the `in` test survives only where it belongs, as the
- *  narrowing that lets the already-set VALUES be read. */
+ *  narrowing that lets the already-set VALUES be read. Now spelled through `isTemplatedMarkerSection`
+ *  (#73) — the SAME `type === "marker" && isTemplatedMarker(marker)` test, wrapped as a real
+ *  `section is TemplatedMarkerSection` type predicate so this guard is one shared, type-checked
+ *  contract instead of a hand-derived boolean; the O-12 fix (the schema arm, never the runtime `in`
+ *  key, gates the block) is byte-identical. */
 function OverrideLocks({ form, section, index }: ClusterProps): ReactElement | null {
-  if (!(section.type === "marker" && isTemplatedMarker(section.marker))) {
+  if (!isTemplatedMarkerSection(section)) {
     return null;
   }
   const always = OVERRIDABLE_MARKERS.includes(section.marker);

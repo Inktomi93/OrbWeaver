@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-14
+updated: 2026-08-15
 ---
 
 # Client Architecture Lockdown
@@ -683,7 +683,9 @@ Ordered so every step lands gate-green and unlocks the next; one commit per step
 - [x] **M5 — confirm/row adoption (built 2026-07-14).** Migrated 6 raw `AlertDialog` sites (the 5 named + `character-history-tab`'s RestoreConfirm) onto `ConfirmDialog`, extended with `cancelLabel?`/optional `description?`/`trigger?: ReactNode` (replacing unused `triggerLabel`)/`forceRender?` (nested-in-Dialog confirms). Wired G7 (dep-cruiser, hard) + built G6 (ratchet, `.map()` + `renderItem`/`renderRow` arms; baseline zero).
 - [x] **M6 — settings de-god (DONE 2026-07-15).** M6.1 (`d6f3d6c5`): thin host — pane registry replaces the
   if-ladder; homes RULED (§5 rules 5+6, §8): tuple → `shell-store.ts`, Def + `SettingsViewerView` projection +
-  Context/Provider → `state/settings-pane-registry*`, `when` fed by the host from `useViewer()`; G4 built.
+  Context/Provider → `state/settings-pane-registry*`, `when` fed by the host from its own non-suspense
+  `sessions.me` read (never `useViewer()` — that hook was minted 2026-07-09, after M6.1, and retired
+  unwired #73: every candidate consumer needed a narrower read than its composed shape); G4 built.
   M6.2 (`8a51b2c6`): the de-god moves — extract shared cross-boundary primitives to their tier FIRST
   (settingsAnchorId→#state, SettingSwitchRow→components/, scrollBehavior→@orb/ui/lib), then move panes out per
   owner (personas→persona, admin→user-admin, connections→credentials, workloads+backup→workloads; 3 `.gitkeep`

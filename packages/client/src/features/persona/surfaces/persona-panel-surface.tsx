@@ -67,7 +67,9 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
   const [expandedId, setExpandedId] = useState<PersonaId | null>(null);
   const currentId = settings.config.seeds.currentPersonaId;
   const defaultId = settings.config.seeds.defaultPersonaId;
-  // Mirrors useViewer.currentPersona: current-pointer -> default-pointer -> first owned -> null.
+  // current-pointer -> default-pointer -> first owned -> null (the same resolution order the retired
+  // `useViewer.currentPersona` composed onto sessions.me — #73: no consumer wanted that composed shape,
+  // so this surface keeps reading `persona.list` + `settings` directly rather than through it).
   const current = personas.find((persona) => persona.id === currentId) ?? personas.find((persona) => persona.id === defaultId) ?? personas[0] ?? null;
 
   const setCurrent = (personaId: PersonaId): void => {

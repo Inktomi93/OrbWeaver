@@ -1,6 +1,6 @@
 // auth/ front door — the only entry into the auth slice. Consumers: the /login route, the router's
 // protected-route beforeLoad guards, and app-root.tsx. Cross-feature "who am I" reads ride
-// trpc.sessions.me (data/use-viewer.ts), never this slice.
+// trpc.sessions.me directly, never this slice.
 
 export { useAuthConfig } from "#data";
 export { LoginShellAnchor } from "./anchors/login-shell-anchor.tsx";

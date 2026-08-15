@@ -38,16 +38,30 @@ import {
   totalTokenCount,
 } from "../lib/character-card-form-model.ts";
 import { revealChatsProjection, useStartChatWithCharacter } from "../lib/character-chat-intents.ts";
+import { characterDraftStore } from "../lib/character-draft-store.ts";
 import { clearCharacterForm, publishCharacterForm } from "../lib/character-editor-bridge.ts";
 
 // The character-card session boundary (D78 L2). Module-scope so both the boundary and its keyed Session
 // have stable identities; the boundary owns the entity key, so a character switch remounts the form
-// (and the body's local drill-in/greeting state) — no consumer `key` to place wrong. NO `draft` mirror:
-// on autosave the confirmed server row IS the mirror (the persona/appearance precedent, obligation-5).
+// (and the body's local drill-in/greeting state) — no consumer `key` to place wrong.
+//
+// DRAFT MIRROR WIRED (#73, owner-ruled 2026-08-15, CRITICAL tier — 8 free-text prose fields + a
+// greetings array). This AMENDS the obligation-5 doctrine's premise for this surface specifically
+// (`UI-Primitives-and-Reuse.md` §13.4: "on an AUTOSAVE form the server row IS the crash mirror… a
+// confirmed save lands within the debounce window"): the factory's own teardown-flush comment
+// (`create-autosave-entity-form.tsx` §"NOT covered here, deliberately") states the premise does NOT
+// hold for a page reload/tab close — the debounce window dies with the document, unflushed, and long
+// authored prose is exactly the content this dossier (`reports/tooling-drive/dossier-client.md` family
+// 2) flags as the highest crash-loss editor in the app. The obligation-5 OMISSION stands as written
+// law for the general autosave case (`persona`/`appearance`, still short-field/low-loss); this is the
+// owner's named exception, not a reversal of the doctrine.
 /** The hero wants her CENSUS, not her rows — the smallest page the server serves still carries it. */
 const COUNT_ONLY_PAGE = 1;
 
-const CharacterForm = createAutosaveEntityForm<CharacterCardFormValues>({ defaultValues: DEFAULT_CHARACTER_CARD_FORM });
+const CharacterForm = createAutosaveEntityForm<CharacterCardFormValues>({
+  defaultValues: DEFAULT_CHARACTER_CARD_FORM,
+  draft: characterDraftStore,
+});
 
 export interface CharacterEditorSurfaceProps {
   readonly characterId: CharacterId;

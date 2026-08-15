@@ -68,6 +68,7 @@ import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
 import { useResetPreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { resolvedForLabel } from "../lib/effective-knobs.ts";
+import { presetDraftStore } from "../lib/preset-draft-store.ts";
 import { seedConfig, validatePresetProse } from "../lib/preset-editor-model.ts";
 import type { PresetEditorView } from "../lib/preset-nav.ts";
 import { openSectionInPrompt, PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
@@ -79,8 +80,14 @@ const RESET_LABEL = "Reset to starter arrangement";
 // The session-boundary autosave form (D78 §1). Module-scope so both the Boundary and its inner Session have
 // stable identities (never a per-render factory call). Entity identity, the teardown flush, and reseed live
 // INSIDE it — a consumer cannot mount it any way except keyed by `entityId`.
+//
+// DRAFT MIRROR WIRED (#73, owner-ruled 2026-08-15, HIGH tier — a multi-section prompt-assembly config
+// carrying full free-text literal/templated-marker bodies, comparable in loss-severity to the
+// character card). Same owner exception to the obligation-5 doctrine's autosave-omits-draft default
+// as the character editor — see that surface's header for the full citation.
 const PresetForm = createAutosaveEntityForm<PromptConfig>({
   defaultValues: DEFAULT_PROMPT_CONFIG,
+  draft: presetDraftStore,
   // THE ONE VALIDATOR ON THIS FORM, and it REFUSES a write rather than advising — `validatePresetProse`'s
   // header carries the why. `onDynamic` is the slot `revalidateLogic()` drives (the factory sets it).
   options: {

@@ -6,7 +6,7 @@
 //     minting the `Principal`, so the fields are request-fresh with ZERO extra DB round-trip (the same
 //     "gate on plain `Principal` fields, no db round-trip" posture `../trpc.ts` states). The `ViewerView`
 //     SHAPE homes in `#domain/sessions`; this router only projects into it. Many client surfaces dedupe on
-//     this one query (`data/use-viewer.ts`) instead of smearing viewer info onto every per-chat read.
+//     this one query (the shared tRPC/Query cache) instead of smearing viewer info onto every per-chat read.
 //
 // The per-user entity-changed live stream used to live here as `streamUserEvents`. It FOLDED into the
 // multiplexed socket at SSE-1 S1: it is now the `user` ROOM (`transport/trpc/stream/sources/user.ts`), which

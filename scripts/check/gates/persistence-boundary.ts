@@ -67,6 +67,18 @@ const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
     "the per-source Recent-models MRU in the connections model picker — 'what I recently picked on THIS " +
     "machine' is a convenience affordance, never synced routing truth (the actual selection persists " +
     "server-side via the routing autosave form; CONNECTIONS-BUILD-SPEC §3 / §12.1)",
+  "character-card":
+    "the character-card editor's crash-survival draft (#73, CRITICAL tier) — an in-progress edit to " +
+    "long free-text prose is THIS device's unsaved keystrokes, never a synced preference; it is CACHE " +
+    "over the confirmed server row (baseline-hash-gated, cleared on save), not settled state",
+  "preset-config":
+    "the preset editor's crash-survival draft (#73, HIGH tier) — an in-progress multi-section prompt " +
+    "edit is THIS device's unsaved keystrokes, never a synced preference; CACHE over the confirmed " +
+    "server row (baseline-hash-gated, cleared on save), not settled state",
+  "world-info-entry":
+    "the lorebook entry editor's crash-survival draft (#73, HIGH tier) — an in-progress entry edit is " +
+    "THIS device's unsaved keystrokes, never a synced preference; CACHE over the confirmed server row " +
+    "(baseline-hash-gated, cleared on save), not settled state",
 };
 
 // THE ONE REASON, carrying BOTH source arms by token. The REGISTRY arm's own message folded in here when it

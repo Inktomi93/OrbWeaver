@@ -75,5 +75,3 @@ export { useSettingsViewerView } from "./use-settings-viewer-view.ts";
 export type { UseStartChatResult } from "./use-start-chat.ts";
 export { useStartChat } from "./use-start-chat.ts";
 export { useUploadAsset } from "./use-upload-asset.ts";
-export type { Viewer, ViewerPersona } from "./use-viewer.ts";
-export { useViewer } from "./use-viewer.ts";

@@ -2,9 +2,9 @@
 // applied to settings: ONE co-located definition per pane, assembled at the door (main.tsx). Homed here
 // (not features/settings) because it binds SETTINGS_CATEGORY_IDS (state-owned, §5 rule 5) to the render
 // shape — the `section-registry.ts`/`modal-registry.ts` precedent. `SettingsViewerView` is the state-owned
-// PROJECTION a Def's `when` consumes (§5 rule 6) — state cannot import `#data`'s `Viewer`
+// PROJECTION a Def's `when` consumes (§5 rule 6) — state cannot import a `#data`-owned identity type
 // (`client-state-below-data` has zero type-only exemption), so the settings HOST computes this narrow
-// shape from its own `useViewer()`/session read and supplies it at nav/search/pane-filter time.
+// shape from its own non-suspense `sessions.me` read and supplies it at nav/search/pane-filter time.
 
 import type { AppSettings, UserSettings, UserSettingsSection } from "@orb/contracts/settings";
 import type { LucideIcon } from "@orb/ui/icons";
