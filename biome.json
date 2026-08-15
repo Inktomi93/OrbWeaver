@@ -137,21 +137,40 @@
           "options": {
             "paths": {
               "tailwind-variants": {
-                "importNames": ["cn", "cnMerge", "tv"],
+                "importNames": [
+                  "cn",
+                  "cnMerge",
+                  "tv"
+                ],
                 "message": "These three read tailwind-variants' MODULE-LEVEL twMerge config, which only a called tv() factory writes \u2014 so they merge with an UNCONFIGURED tailwind-merge until some unrelated module happens to load, silently dropping our custom --text-*/--leading-*/--tracking-* classes. Import cn/tv from @orb/ui/lib (packages/ui/src/lib/class-merge.ts owns the ONE config). createTV is deliberately NOT banned \u2014 class-merge.ts is its one caller."
               }
             },
             "patterns": [
               {
-                "group": ["@base-ui-components/react", "@base-ui-components/react/**"],
+                "group": [
+                  "@base-ui-components/react",
+                  "@base-ui-components/react/**"
+                ],
                 "message": "Dead rc-era package. Use @base-ui/react (D42)."
               },
               {
-                "group": ["@dnd-kit/core", "@dnd-kit/core/**", "@dnd-kit/sortable", "@dnd-kit/sortable/**", "@dnd-kit/utilities", "@dnd-kit/utilities/**"],
+                "group": [
+                  "@dnd-kit/core",
+                  "@dnd-kit/core/**",
+                  "@dnd-kit/sortable",
+                  "@dnd-kit/sortable/**",
+                  "@dnd-kit/utilities",
+                  "@dnd-kit/utilities/**"
+                ],
                 "message": "Dead legacy dnd-kit stack. Use @dnd-kit/react + @dnd-kit/helpers (ui-package-design \u00a73, work-order item 15)."
               },
               {
-                "group": ["dotenv", "dotenv/**", "dotenv-expand", "dotenv-expand/**"],
+                "group": [
+                  "dotenv",
+                  "dotenv/**",
+                  "dotenv-expand",
+                  "dotenv-expand/**"
+                ],
                 "message": "dotenv was killed 2026-08-03 (node-26 adoption program \u00a73) and is no longer installed. node:util's parseEnv IS the platform .env parser; foundation/env/index.ts owns the ONE loader (and the override merge process.loadEnvFile() cannot express). Nothing else reads a .env."
               }
             ]
@@ -235,7 +254,9 @@
           "level": "error",
           "options": {
             "requireAscii": true,
-            "filenameCases": ["kebab-case"]
+            "filenameCases": [
+              "kebab-case"
+            ]
           }
         },
         "noRestrictedTypes": {
@@ -424,7 +445,10 @@
       "plugins": []
     },
     {
-      "includes": ["packages/client/src/features/app-shell/surfaces/shell.css", "packages/client/src/styles/globals.css"],
+      "includes": [
+        "packages/client/src/features/app-shell/surfaces/shell.css",
+        "packages/client/src/styles/globals.css"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -434,7 +458,9 @@
       }
     },
     {
-      "includes": ["packages/*/src/**/index.ts"],
+      "includes": [
+        "packages/*/src/**/index.ts"
+      ],
       "linter": {
         "rules": {
           "performance": {
@@ -445,7 +471,9 @@
       }
     },
     {
-      "includes": ["packages/client/src/forms/use-app-form.ts"],
+      "includes": [
+        "packages/client/src/forms/use-app-form.ts"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -455,7 +483,9 @@
       }
     },
     {
-      "includes": ["packages/server/src/foundation/env/**"],
+      "includes": [
+        "packages/server/src/foundation/env/**"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -466,7 +496,9 @@
       }
     },
     {
-      "includes": ["packages/server/src/domain/sessions/substrate/role-policy.ts"],
+      "includes": [
+        "packages/server/src/domain/sessions/substrate/role-policy.ts"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -476,7 +508,9 @@
       }
     },
     {
-      "includes": ["scripts/codemods/codemod-kit.ts"],
+      "includes": [
+        "scripts/codemods/codemod-kit.ts"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -486,7 +520,9 @@
       }
     },
     {
-      "includes": ["packages/client/**"],
+      "includes": [
+        "packages/client/**"
+      ],
       "linter": {
         "rules": {
           "correctness": {
@@ -496,7 +532,11 @@
             "noConsole": {
               "level": "error",
               "options": {
-                "allow": ["info", "warn", "error"]
+                "allow": [
+                  "info",
+                  "warn",
+                  "error"
+                ]
               }
             }
           }
@@ -504,7 +544,9 @@
       }
     },
     {
-      "includes": ["packages/db/src/schema/**"],
+      "includes": [
+        "packages/db/src/schema/**"
+      ],
       "linter": {
         "rules": {
           "performance": {
@@ -532,7 +574,9 @@
       }
     },
     {
-      "includes": ["eslint.config.js"],
+      "includes": [
+        "eslint.config.js"
+      ],
       "linter": {
         "rules": {
           "correctness": {
@@ -542,7 +586,9 @@
       }
     },
     {
-      "includes": ["packages/client/src/features/app-shell/components/section-content.tsx"],
+      "includes": [
+        "packages/client/src/features/app-shell/components/section-content.tsx"
+      ],
       "linter": {
         "rules": {
           "correctness": {
@@ -577,7 +623,9 @@
       }
     },
     {
-      "includes": ["scripts/**"],
+      "includes": [
+        "scripts/**"
+      ],
       "linter": {
         "rules": {
           "suspicious": {
@@ -592,7 +640,9 @@
       }
     },
     {
-      "includes": ["scripts/seed/**"],
+      "includes": [
+        "scripts/seed/**"
+      ],
       "linter": {
         "rules": {
           "suspicious": {
@@ -610,7 +660,9 @@
       }
     },
     {
-      "includes": ["packages/client/src/lib/create-registry-context.tsx"],
+      "includes": [
+        "packages/client/src/lib/create-registry-context.tsx"
+      ],
       "linter": {
         "rules": {
           "nursery": {
@@ -623,7 +675,10 @@
       }
     },
     {
-      "includes": ["packages/client/src/state/create-drill-selection-store.ts", "packages/client/src/state/create-kinded-selection-store.ts"],
+      "includes": [
+        "packages/client/src/state/create-drill-selection-store.ts",
+        "packages/client/src/state/create-kinded-selection-store.ts"
+      ],
       "linter": {
         "rules": {
           "nursery": {
@@ -633,7 +688,9 @@
       }
     },
     {
-      "includes": ["packages/client/src/forms/create-autosave-entity-form.tsx"],
+      "includes": [
+        "packages/client/src/forms/create-autosave-entity-form.tsx"
+      ],
       "linter": {
         "rules": {
           "nursery": {
@@ -643,7 +700,9 @@
       }
     },
     {
-      "includes": ["tests/**"],
+      "includes": [
+        "tests/**"
+      ],
       "linter": {
         "rules": {
           "suspicious": {
@@ -671,7 +730,9 @@
       }
     },
     {
-      "includes": ["scripts/probes/st-goldens/**"],
+      "includes": [
+        "scripts/probes/st-goldens/**"
+      ],
       "linter": {
         "rules": {
           "complexity": {
@@ -711,6 +772,14 @@
             "useAwaitThenable": "off"
           }
         }
+      }
+    },
+    {
+      "includes": [
+        "docs/catalog/catalog.json"
+      ],
+      "files": {
+        "maxSize": 4194304
       }
     }
   ],
