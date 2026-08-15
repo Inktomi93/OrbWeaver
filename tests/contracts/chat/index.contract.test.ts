@@ -64,7 +64,7 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
 // arbitrarily. `DurableChatBusEvent` is what the db CHECK derives from, so a drift here is a row shape the
 // schema would reject at runtime.
 test("LIVE_ONLY_CHAT_EVENT_TYPES partitions the union — durable ∪ live-only = every member, ∩ = ∅", () => {
-  expect([...LIVE_ONLY_CHAT_EVENT_TYPES]).toEqual(["roomEntityChanged"]);
+  expect([...LIVE_ONLY_CHAT_EVENT_TYPES]).toEqual(["roomEntityChanged", "chatDeleted"]);
   const all = Object.keys(CHAT_BUS_EVENT_TYPES);
   const liveOnly = new Set<string>(LIVE_ONLY_CHAT_EVENT_TYPES);
   // Every live-only member is a REAL union member (a typo'd tuple entry would silently narrow nothing).
