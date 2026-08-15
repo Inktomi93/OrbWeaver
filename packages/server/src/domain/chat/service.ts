@@ -12,6 +12,7 @@ import { generateDigests } from "./memory/build/digests.ts";
 import { generateSegments } from "./memory/build/segments.ts";
 import { loadWitnessHorizons } from "./memory/persistence/queries.ts";
 import { recallMemory } from "./memory/recall/recall.ts";
+import { classifyParticipant } from "./persistence/participant.ts";
 import { loadRoster } from "./persistence/roster.ts";
 import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/participant-name.ts";
 import { hostUserIdOf } from "./substrate/roster-host.ts";
@@ -40,7 +41,7 @@ function resolveSeatDisplayName(
     readonly card: { name: string } | null;
   },
 ): string {
-  if (r.kind === "human") {
+  if (classifyParticipant(r)?.kind === "human") {
     return resolved.publics?.displayName ?? resolved.publics?.handle ?? REMOVED_MEMBER_LABEL;
   }
   return resolved.card !== null ? resolved.card.name : REMOVED_CHARACTER_LABEL;
@@ -85,7 +86,8 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
       rows.map(async (r): Promise<ParticipantView> => {
         // ONE character read per seat: the card name/avatar + render policy + theme/background overrides.
         const deco = await ctx.resolveSeatDeco({ ownerId: hostUserId, characterId: r.characterId });
-        const publics = r.kind === "human" && r.userId !== null ? await ctx.resolveUserPublics(r.userId, r.activePersonaId) : null;
+        const actor = classifyParticipant(r);
+        const publics = actor?.kind === "human" ? await ctx.resolveUserPublics(actor.userId, r.activePersonaId) : null;
         const displayName = resolveSeatDisplayName(r, { publics, card: deco.card });
 
         const avatarAssetId: AssetId | null = publics?.avatarAssetId ?? deco.card?.avatarAssetId ?? null;

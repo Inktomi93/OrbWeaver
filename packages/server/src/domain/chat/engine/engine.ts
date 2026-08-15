@@ -58,6 +58,7 @@ import {
 } from "../persistence/canon-write.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
 import { refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import {
   loadCanonHistory,
   loadCanonStatRows,
@@ -1502,7 +1503,10 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
             macroNames,
           });
           const roster = await loadRoster(ctx.db, prep.chatId);
-          const chars = roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
+          const chars = roster.flatMap((r) => {
+            const actor = classifyParticipant(r);
+            return actor?.kind === "character" ? [actor.characterId] : [];
+          });
 
           // Group-as-character scope (only for groups): the single synthetic bucket, keyed by the real
           // minted synthetic-character row id, never the fabricated `__group__` handle string.

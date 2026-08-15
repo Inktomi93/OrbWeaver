@@ -68,6 +68,7 @@ import type { ReapResult, VariablesResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import type { ChatInjectionView, UserMacroPicksView, VariablePicksView } from "../contract/views.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import { loadChatInjections, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { presentHumanUserIdsOf } from "../substrate/roster-humans.ts";
@@ -211,7 +212,14 @@ function createDelete(ctx: ChatContext, emitLive: EmitChatEventLive, abortTurns:
     // Enumerate present human members before the FK cascade drops the roster — each must have the
     // deleted chat drop from their live list, so they ride `extraUserIds`.
     const roster = await loadRoster(ctx.db, chatId);
-    const members = [...new Set(roster.flatMap((r) => (r.kind === "human" && r.userId !== null ? [r.userId] : [])))];
+    const members = [
+      ...new Set(
+        roster.flatMap((r) => {
+          const actor = classifyParticipant(r);
+          return actor?.kind === "human" ? [actor.userId] : [];
+        }),
+      ),
+    ];
     abortTurns(chatId);
     const removed = await ctx.db.delete(chats).where(eq(chats.id, chatId)).returning({ id: chats.id });
     if (removed.length > 0) {

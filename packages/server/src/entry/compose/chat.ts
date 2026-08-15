@@ -966,6 +966,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).
     resolveHandle: (handle) => input.resolveHandle(handle),
+    // The disabled-account containment gate (owner-ruled 2026-08-15): read fresh per call (no caching), the
+    // SAME raw-read discipline `resolveUserPublics` above already uses — a gone userId (should never happen,
+    // FK-enforced) fails closed to `false` rather than throwing into roster assembly.
+    resolveUserEnabled: async (userId) => {
+      const rows = await db.select({ enabled: users.enabled }).from(users).where(eq(users.id, userId)).limit(1);
+      return rows[0]?.enabled ?? false;
+    },
 
     // A solo-character founding with exactly ONE character_personas connection auto-anchors that persona;
     // 0 or 2+ connections (ambiguity) or a group founding falls through to the default seed.

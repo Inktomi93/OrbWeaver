@@ -34,6 +34,7 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import { characterSeatedInAnotherChat, loadRoster } from "../persistence/roster.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { canonMessageDelta, chatCreatedDelta, newCharacterDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
@@ -143,7 +144,10 @@ export function createClaimChat(ctx: ChatContext): ClaimChatOp {
     // A hostless room (an archived orphan / a racing delete) has nobody to attribute economics to, so the
     // replay is skipped — but the visibility flip still lands: the row is claimed either way.
     if (hostUserId !== null) {
-      const characterIds = roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
+      const characterIds = roster.flatMap((r) => {
+        const actor = classifyParticipant(r);
+        return actor?.kind === "character" ? [actor.characterId] : [];
+      });
       const stmts: BatchStmt[] = [];
       await pushClaimStatsDeltas(ctx, stmts, { chatId, ownerId: hostUserId, characterIds, createdAt: row.createdAt, now });
       if (stmts.length > 0) {

@@ -135,6 +135,9 @@ function harness(
     onForeignInputs?: (args: { readonly presentHumanUserIds: readonly UserId[] }) => void;
     /** Override server-derived presence (default = everyone online; a cast-gating test marks a member away). */
     readPresence?: ChatContext["readPresence"];
+    /** Override the disabled-account gate (default = everyone enabled; the containment test disables a
+     *  member). */
+    resolveUserEnabled?: ChatContext["resolveUserEnabled"];
     /** Override the resolved connection's credential `source` (default `vllm`; the drain drop-path pins
      *  `max-pro-sub` so the engine's consent belt refuses a by-proxy deferred turn). */
     connectionSource?: string;
@@ -198,6 +201,7 @@ function harness(
       return Promise.resolve();
     },
     ...(over.readPresence !== undefined ? { readPresence: over.readPresence } : {}),
+    ...(over.resolveUserEnabled !== undefined ? { resolveUserEnabled: over.resolveUserEnabled } : {}),
     ...(over.summarize !== undefined ? { summarize: over.summarize } : {}),
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
   });
@@ -628,6 +632,38 @@ describe("send — presence cast-gating (PD-70)", () => {
 
     expect(wire).toContain("HOST-POV-LORE");
     expect(wire).toContain("MEMBER-POV-LORE");
+  });
+
+  test("a DISABLED human's persona drops from the round's foreign-input consent set (owner-ruled 2026-08-15 containment gate)", async () => {
+    const room = await seedTwoHumanRoom();
+    let presentHumanUserIds: readonly UserId[] = [];
+    const h = harness(db, room.names, {
+      onForeignInputs: (args) => {
+        presentHumanUserIds = args.presentHumanUserIds;
+      },
+      // The member's backing `users` row got admin-disabled — the host's did not.
+      resolveUserEnabled: (userId) => Promise.resolve(userId !== room.member),
+    });
+
+    await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
+
+    expect(presentHumanUserIds).toContain(room.host);
+    expect(presentHumanUserIds).not.toContain(room.member);
+  });
+
+  test("when both humans are enabled, both remain in the foreign-input consent set (no drop)", async () => {
+    const room = await seedTwoHumanRoom();
+    let presentHumanUserIds: readonly UserId[] = [];
+    const h = harness(db, room.names, {
+      onForeignInputs: (args) => {
+        presentHumanUserIds = args.presentHumanUserIds;
+      },
+    });
+
+    await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
+
+    expect(presentHumanUserIds).toContain(room.host);
+    expect(presentHumanUserIds).toContain(room.member);
   });
 });
 

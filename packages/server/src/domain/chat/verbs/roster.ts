@@ -63,6 +63,7 @@ import { restampChatCharacterStatement } from "../persistence/canon-write.ts";
 import {
   acceptHostHandoffSwapStatements,
   assertForcedCharacterMember,
+  classifyParticipant,
   insertParticipants,
   markParticipantLeftStatement,
   markUserLeft,
@@ -526,7 +527,10 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     }
     // Present-seat floor: return the live seat instead of minting a duplicate row. `loadRoster` is present-only
     // (`leftSeq IS NULL`), so a previously-left character re-adds a fresh row (era-per-row, F8) as before.
-    const existing = (await loadRoster(ctx.db, chatId)).find((p) => p.kind === "character" && p.characterId === characterId);
+    const existing = (await loadRoster(ctx.db, chatId)).find((p) => {
+      const actor = classifyParticipant(p);
+      return actor?.kind === "character" && actor.characterId === characterId;
+    });
     if (existing !== undefined) {
       return characterParticipantView(existing, card, ctx.resolveAssetHash);
     }
@@ -587,7 +591,10 @@ function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent, cl
     await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
     // Present-only roster (`leftSeq IS NULL`); an already-left / never-present character has no seat → no-op.
-    const seat = (await loadRoster(ctx.db, chatId)).find((p) => p.kind === "character" && p.characterId === characterId);
+    const seat = (await loadRoster(ctx.db, chatId)).find((p) => {
+      const actor = classifyParticipant(p);
+      return actor?.kind === "character" && actor.characterId === characterId;
+    });
     if (seat === undefined) {
       return;
     }
@@ -722,7 +729,10 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
 function createSetMemberHistoryVisibility(ctx: ChatContext, emit: EmitChatEvent): ChatService["setMemberHistoryVisibility"] {
   return async ({ principal, chatId, userId, visibility }: SetMemberHistoryVisibilityParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
-    const target = (await loadRoster(ctx.db, chatId)).find((p) => p.kind === "human" && p.userId === userId);
+    const target = (await loadRoster(ctx.db, chatId)).find((p) => {
+      const actor = classifyParticipant(p);
+      return actor?.kind === "human" && actor.userId === userId;
+    });
     if (target === undefined) {
       throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: ${userId} is not a present human member`);
     }
@@ -770,9 +780,10 @@ async function resolveDroppedCharacterSeatIds(
   newOwnerUserId: UserId,
   roster: readonly (typeof chatParticipants.$inferSelect)[],
 ): Promise<ChatParticipantId[]> {
-  const characterSeats = roster.flatMap((p) =>
-    p.kind === "character" && p.characterId !== null && p.leftSeq === null ? [{ id: p.id, characterId: p.characterId }] : [],
-  );
+  const characterSeats = roster.flatMap((p) => {
+    const actor = classifyParticipant(p);
+    return actor?.kind === "character" && p.leftSeq === null ? [{ id: p.id, characterId: actor.characterId }] : [];
+  });
   const cards = await Promise.all(characterSeats.map((s) => ctx.getCard({ ownerId: newOwnerUserId, characterId: s.characterId })));
   return characterSeats.flatMap((s, i) => (cards[i] === null ? [s.id] : []));
 }

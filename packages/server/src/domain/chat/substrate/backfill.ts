@@ -39,6 +39,7 @@ import {
 import { generateSegments } from "../memory/build/segments.ts";
 import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
 import { hostUserIdOf } from "./roster-host.ts";
@@ -77,7 +78,10 @@ async function loadCastAndHost(
   macroNames: RowMacroNameContext;
 }> {
   const roster = await loadRoster(ctx.db, chatId);
-  const cast = roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
+  const cast = roster.flatMap((r) => {
+    const actor = classifyParticipant(r);
+    return actor?.kind === "character" ? [actor.characterId] : [];
+  });
   const hostUserId = hostUserIdOf(roster);
   const macroNames: RowMacroNameContext = buildCastNameContext(await loadChatCastProducer(ctx.db, { participants: roster }));
   return { cast, hostUserId, macroNames };
@@ -448,7 +452,7 @@ export async function backfillGroupCharacters(
     }
     // biome-ignore lint/performance/noAwaitInLoops: sequential by design — the mint writes must not race each other (idempotence is per-chat, checked-then-minted).
     const roster = await loadRoster(ctx.db, chatId);
-    const cast = roster.filter((r) => r.kind === "character" && r.characterId !== null);
+    const cast = roster.filter((r) => classifyParticipant(r)?.kind === "character");
     const hostUserId = hostUserIdOf(roster);
     if (cast.length <= 1 || hostUserId === null) {
       continue; // solo/empty rooms need no group character; a hostless room has no funding owner

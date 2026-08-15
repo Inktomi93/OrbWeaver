@@ -4,6 +4,7 @@ import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import {
   assertForcedCharacterMember,
+  classifyParticipant,
   isArbiterEligible,
   isBackingUserEnabled,
   isPresent,
@@ -43,6 +44,43 @@ describe("parseParticipant — the kind shape", () => {
     const characterId = castId<CharacterId>("character_a");
     expect(() => parseParticipant({ kind: "human", userId, characterId })).toThrow();
     expect(() => parseParticipant({ kind: "human", userId: null, characterId: null })).toThrow();
+  });
+});
+
+// The non-throwing twin (2026-08-15 one-home consolidation): every 29-site call site routes through this
+// instead of `parseParticipant` — silent-skip semantics on a corrupt row, never a throw into a `.filter`/
+// `.flatMap`/`.find` roster read.
+describe("classifyParticipant — the non-throwing twin", () => {
+  test("classifies a human (userId XOR characterId)", () => {
+    const userId = castId<UserId>("user_a");
+    expect(classifyParticipant({ kind: "human", userId, characterId: null })).toStrictEqual({
+      kind: "human",
+      userId,
+    });
+  });
+
+  test("classifies a character", () => {
+    const characterId = castId<CharacterId>("character_a");
+    expect(classifyParticipant({ kind: "character", userId: null, characterId })).toStrictEqual({
+      kind: "character",
+      characterId,
+    });
+  });
+
+  test("returns null (never throws) on a corrupt row that breaks the human/character XOR", () => {
+    const userId = castId<UserId>("user_a");
+    const characterId = castId<CharacterId>("character_a");
+    expect(classifyParticipant({ kind: "human", userId, characterId })).toBeNull();
+    expect(classifyParticipant({ kind: "human", userId: null, characterId: null })).toBeNull();
+    expect(classifyParticipant({ kind: "character", userId, characterId: null })).toBeNull();
+    expect(classifyParticipant({ kind: "character", userId: null, characterId: null })).toBeNull();
+  });
+
+  // parseParticipant DELEGATES to classifyParticipant — one enforcement mechanism, two exports.
+  test("parseParticipant throws exactly where classifyParticipant returns null", () => {
+    const corrupt = { kind: "human" as const, userId: castId<UserId>("user_a"), characterId: castId<CharacterId>("character_a") };
+    expect(classifyParticipant(corrupt)).toBeNull();
+    expect(() => parseParticipant(corrupt)).toThrow();
   });
 });
 
