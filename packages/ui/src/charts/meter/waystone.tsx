@@ -1,4 +1,4 @@
-// Waystone — the rpg panel's SIGNATURE composite (panel-redesign DESIGN.md §2/§12), rebuilt as a LAYERED
+// Waystone — the rpg panel's SIGNATURE composite, rebuilt as a LAYERED
 // LIVING CLOCK (owner RV-10 + the mid-flight upgrade: it is the focal element, so it gets the full system).
 //
 // THE LAYER STACK (each an independently animated, composited layer; recipe per cell in `waystone-treatment`):

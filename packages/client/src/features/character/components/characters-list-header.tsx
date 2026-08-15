@@ -1,4 +1,4 @@
-// The Characters LIST chrome-band header — BOTH modes of the modal pane (list-pane-projection §3.4, D9),
+// The Characters LIST chrome-band header — BOTH modes of the modal pane (D9),
 // and the close of the A1/N2 gap: characters passed no `listHeader` at all, so its title + create lived in
 // the in-surface toolbar while every other section had migrated to the band.
 //

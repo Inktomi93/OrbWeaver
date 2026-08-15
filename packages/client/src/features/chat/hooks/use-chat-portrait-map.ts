@@ -1,4 +1,4 @@
-// The chat-row SEAT map (F7 + list-pane-projection D3) — one non-blocking `character.list` page folded
+// The chat-row SEAT map (F7 + D3) — one non-blocking `character.list` page folded
 // into a characterId → {name, avatarHash} lookup the rows resolve their `participantCharacterIds` against.
 // The NAME rides along because a multi-seat room paints an `AvatarStack`, and each stacked avatar needs its
 // own initials fallback + accessible label.

@@ -27,7 +27,7 @@ export interface ChatRowPortrait {
   readonly hash: string | null;
 }
 
-/** The row's LEADING slot source (visual-blech audit F7 + list-pane-projection D3): the chat's character
+/** The row's LEADING slot source (visual-blech audit F7 + D3): the chat's character
  *  seats resolved against the character list, IN SEAT ORDER. A single seat paints one portrait; two or more
  *  paint an `AvatarStack`, because a shared room must read SHARED at rest — the differentiator between a
  *  1:1 and a group is exactly who else is in it.

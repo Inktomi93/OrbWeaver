@@ -5,7 +5,7 @@
 // focuses it. The block is behavior-agnostic — the provider owns the branch. Buttons disable while a turn
 // is in flight (the existing send-in-flight state) and in a provider-less mount (a CT story / read-only
 // preview) — same surface, inert affordance, with the hover reason naming the unlock (owner: "when it's
-// disabled on hover tell why"). Info-blue voice per the panel-redesign choice grammar (border-info) —
+// disabled on hover tell why"). Info-blue voice per the choice grammar (border-info) —
 // theme tokens only, never hex.
 
 import { Button } from "@orb/ui/button";

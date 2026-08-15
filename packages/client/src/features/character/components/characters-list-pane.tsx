@@ -1,4 +1,4 @@
-// The MODAL Characters LIST pane (list-pane-projection Arm A, §3.1) — one slot, two roles:
+// The MODAL Characters LIST pane (Arm A) — one slot, two roles:
 //
 //   no selection → the PICKER (today's library, unchanged);
 //   a character  → HER HISTORY (the identity row + the door-injected chats projection).

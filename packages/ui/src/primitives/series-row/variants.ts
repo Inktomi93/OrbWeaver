@@ -1,6 +1,6 @@
 import { tv } from "#lib";
 
-// The data-series line skin (panel-redesign preview.html `.prow`): swatch · label/detail · trailing value.
+// The data-series line skin (mirrors the mock's `.prow`): swatch · label/detail · trailing value.
 // ONE vertical rhythm (`py-field` — instrument density): no `density` prop, because layout-context props are
 // gate-banned (`no-layout-context-props`) — the container model + the `data-density` attribute own that axis.
 export const seriesRowVariants = tv({

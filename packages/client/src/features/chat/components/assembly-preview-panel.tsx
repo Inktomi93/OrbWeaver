@@ -1,4 +1,4 @@
-// The assembly preview (task #28; REBUILT to the panel-redesign mock under D-4) — the CONTEXT panel's Preview
+// The assembly preview (task #28; REBUILT to the redesigned mock under D-4) — the CONTEXT panel's Preview
 // tab. Read-only: what the model will see on the NEXT turn, as an INSTRUMENT rather than a text dump:
 //   1. the stacked CONTEXT-BUDGET bar (`AssemblyBudgetPreview` — server-computed, `Σ sources === total`);
 //   2. one row per SOURCE (System · Cards · World info · Steering · Game state · History), swatch-keyed to its
@@ -84,7 +84,7 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
 // ── The budget bar ──────────────────────────────────────────────────────────────────────────────────
 
 /** The categorical ramp step each source keeps — fixed by SOURCE (not by row position), so a source that
- *  drops out of one chat (no game, no lore) never re-colours the others. Mirrors the panel-redesign mock's
+ *  drops out of one chat (no game, no lore) never re-colours the others. Mirrors the mock's
  *  swatch assignment exactly. */
 const SOURCE_COLOR: Record<AssemblySource, SeriesColor> = {
   ["system"]: 6,

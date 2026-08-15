@@ -1,5 +1,5 @@
 // ChatsWithCharacterPane — the CHAT-owned body of the character screen's LIST projection
-// (list-pane-projection Arm A, §3.2). Chat owns chat-row anatomy and the `listChats` consumer, so the rows
+// (Arm A). Chat owns chat-row anatomy and the `listChats` consumer, so the rows
 // are rendered HERE and the CHARACTER section hosts them: the pane is exported on chat's front door and
 // threaded into `makeCharactersSection` at the composition root (`main.tsx`). Neither feature imports the
 // other — `client-features-no-cross` stays satisfied by construction.

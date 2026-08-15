@@ -1,4 +1,4 @@
-// The consolidated "This chat" CONTEXT tab body (panel-redesign) — everything a host bends for THIS chat,
+// The consolidated "This chat" CONTEXT tab body — everything a host bends for THIS chat,
 // in ONE tab whose body is grouped sections (`Section` primitive, real h3 headings).
 //
 // THE PANE IS INSTRUMENT TIER, SO THE SECTIONS SPEAK IN THE KICKER VOICE (density-pass-spec §2.3/§3.1 —
@@ -48,7 +48,7 @@ import { ToolRecurseControl } from "./tool-recurse-control.tsx";
 // The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).
 const GROUP_SECTION_SKELETON_ROWS = 4;
 
-// A section-heading with an at-a-glance kicker-count chip (panel-redesign) — the label plus a small soft
+// A section-heading with an at-a-glance kicker-count chip — the label plus a small soft
 // badge when the count is non-zero (a "0" chip is noise). Rendered as the Section's `heading` ReactNode, so
 // its content lands INSIDE the <h3>; the count rides the heading's accessible name ("Injections 3"). Only
 // phrasing content here (a Badge is an inline span) — never a Row/div, which is illegal inside a heading.

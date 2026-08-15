@@ -192,7 +192,7 @@ const configCollections = createContributorRegistry<CollectionContribution>("con
 const sections = createRegistry("sections", SECTION_IDS, {
   home: makeHomeSection(homeTiles),
   chats: makeChatsSection({ contextTabs: chatContextContributors, contextRegions: chatContextRegions, surfaces: chatSurfaceContributors, toolRenderers }),
-  // The characters LIST pane is MODAL (list-pane-projection Arm A): its projection half is chat-owned row
+  // The characters LIST pane is MODAL (Arm A): its projection half is chat-owned row
   // anatomy over the `chat.listChats` cache, threaded in HERE — the one legal channel for chat UI inside
   // the characters section (the `makeChatsSection` contributor precedent; a direct import is dep-cruiser RED).
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),

@@ -7,7 +7,7 @@
 // the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where Save used to be.
 //
 // Hero chat affordances: "New chat" always starts a fresh thread with this character; "N chats ›" points at
-// the LIST pane, which — with her selected — already IS her chats (list-pane-projection Arm A / D8). Both
+// the LIST pane, which — with her selected — already IS her chats (Arm A / D8). Both
 // ride the ONE home for those intents (`lib/character-chat-intents.ts`), shared with the LIST band.
 
 import type { CharacterId } from "@orb/kit/ids";
@@ -131,7 +131,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
 
   const surfaceRef = useRef<HTMLDivElement>(null);
   // Stand down when the selection came from the LIST PICKER: that pick swaps the pane beside this editor
-  // into her chats, and the pane the user just transformed owns the focus (list-pane-projection §3.7 — the
+  // into her chats, and the pane the user just transformed owns the focus (the
   // decision lives on the selection intent, so neither surface has to win a mount-effect race). Every other
   // entry (deep link, agent nav, a fresh create) keeps this editor's own behavior.
   useFocusOnMount(surfaceRef, !listProjectionOwnsFocus(data.id));

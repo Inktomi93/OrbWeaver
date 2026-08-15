@@ -140,7 +140,7 @@ export interface CharacterLibrarySurfaceProps {
   readonly ariaLabel?: string;
   /** The character whose row should reclaim keyboard focus when the library (re)mounts — the modal pane's
    *  ← Back return target, so backing out of her chats projection lands focus on the row it came from, not
-   *  `<body>` (list-pane-projection §3.7; the facet-editor back-focus precedent). `null` = no restore (the
+   *  `<body>` (the facet-editor back-focus precedent). `null` = no restore (the
    *  initial mount, where stealing focus would jump the tab order past the rail nav). */
   readonly focusCharacterId?: CharacterId | null;
 }
@@ -292,7 +292,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
         <Text role="status" voice="gloss">
           {resultCountLabel(items.length, collection.totalCount)}
         </Text>
-        {/* The favorites strip is the shared `FaceStrip` composite now (list-pane-projection §11.2) — the
+        {/* The favorites strip is the shared `FaceStrip` composite now — the
           private avatar-in-Button copy it used to carry is retired, not duplicated. Portraits only: the
           names are already the rows' titles right below. */}
         <FaceStrip items={favorites} label="Favorite characters" onSelect={openEditor} selectedId={selectedId} verb="Open" />

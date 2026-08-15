@@ -7,7 +7,7 @@
 // seam gap). The composition root assembles this into the section registry (main.tsx); AppShell consumes
 // it via `useSectionRegistry`.
 //
-// The SECOND door param is the chats PROJECTION body (list-pane-projection §3.2): chat-owned chat-row
+// The SECOND door param is the chats PROJECTION body: chat-owned chat-row
 // anatomy, hosted by this section's LIST pane. Same posture as the contributor registry — character never
 // imports chat, chat never imports character, and `client-features-no-cross` keeps enforcing it.
 
@@ -40,7 +40,7 @@ export function makeCharactersSection(
       title: "Characters",
       description: "Your cast lives here — browse the list, then open someone to see their card.",
     },
-    // The MODAL pane (list-pane-projection Arm A): the picker while nothing is selected, HER CHATS the
+    // The MODAL pane (Arm A): the picker while nothing is selected, HER CHATS the
     // moment a character is — the same slot, swapping on the section's own drill selection.
     list: () => (
       <CharacterLibraryAnchor>

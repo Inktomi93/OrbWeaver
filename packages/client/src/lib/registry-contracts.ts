@@ -270,7 +270,7 @@ export interface RefineryContextState {
   readonly characterId: CharacterId;
 }
 
-/** The Characters LIST-pane PROJECTION view (list-pane-projection §3.2, the O5 published shape) — what the
+/** The Characters LIST-pane PROJECTION view (the O5 published shape) — what the
  *  CHARACTER section hands the CHAT-owned projection body through the `makeCharactersSection` door param,
  *  so the pane can render chat-row anatomy over the `chat.listChats` cache without either feature importing
  *  the other (`client-features-no-cross`). Deliberately minimal: the row-click destination is chat's own

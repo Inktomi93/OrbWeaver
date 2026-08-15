@@ -1,4 +1,4 @@
-// CoinFigure — the HONEST wallet disc (panel-redesign DESIGN.md §2/§8.1): a max-less QUANTITY must never
+// CoinFigure — the HONEST wallet disc: a max-less QUANTITY must never
 // wear an arc (a gauge shape over an unbounded number is a lie of shape), so the wallet renders as a COIN —
 // a filled disc with the amount inside, label + amount text beneath. The ONE new sibling in the RingGauge
 // orb family (charts/meter — svg-legal data-viz, §13.7). Same a11y model as its siblings: the `<svg>` is

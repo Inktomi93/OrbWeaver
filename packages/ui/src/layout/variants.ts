@@ -89,7 +89,7 @@ export const gridVariants = tv({
       // Dense compact tiles (the OSRS stat-cell / attribute grid, Context-Panel-Program §3.2): a narrow
       // min so the CONTEXT panel tiles stat cells 2-up at the 17rem floor, 3-up when it has room.
       tile: "grid-cols-[repeat(auto-fit,minmax(min(5rem,100%),1fr))]",
-      // Item-cell density (panel-redesign §5 — the pack grid). The 3.5rem SQUARE this used to be tiled 5-up
+      // Item-cell density (the pack grid). The 3.5rem SQUARE this used to be tiled 5-up
       // but carried only a 20px glyph inside a 59px card: mostly empty box, with the item's location
       // truncated to "belt p…" and the ×N a lost corner digit (owner dogfood, 2026-07-31). An 8.5rem min
       // tiles 2-up at the 320px mobile column and 3-up in the 480px docked CONTEXT panel, at a card SHORTER
