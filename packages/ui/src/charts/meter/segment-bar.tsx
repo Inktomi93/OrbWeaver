@@ -1,4 +1,4 @@
-// SegmentBar — the STACKED composition bar (panel-redesign preview.html: the context-budget bar). One rail
+// SegmentBar — the STACKED composition bar (the context-budget bar). One rail
 // whose width is partitioned between N categorical series, each tinted by a `--color-track-N` ramp step. The
 // TrackBar's sibling: TrackBar answers "how full is ONE magnitude", SegmentBar answers "how is ONE whole
 // DIVIDED" — the legitimate categorical use of the ramp (data series, not decoration).

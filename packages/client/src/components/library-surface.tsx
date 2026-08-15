@@ -7,7 +7,7 @@
 // died when activation became the row's own toggle (redesign §9/D1). A pane-scoped block above the search is
 // exactly the chrome a mixed-kind config list can't keep, so the slot goes with it rather than waiting.
 //
-// The in-pane micro-caps TITLE + actions row this used to carry is GONE (list-pane-projection L4): both
+// The in-pane micro-caps TITLE + actions row this used to carry is GONE (L4): both
 // consumers now supply a `listHeader` and their title/create live in the `.shell-panel-header` band, like
 // every other section's (D66 A1/A2). The A1/N2 migration this file once deferred to "a separate lane" IS
 // that lane.

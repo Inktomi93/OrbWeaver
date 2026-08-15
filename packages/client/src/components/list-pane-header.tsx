@@ -1,4 +1,4 @@
-// ListPaneHeader — the client-shared LIST chrome-band cluster (list-pane-projection §11.2, D12). The content
+// ListPaneHeader — the client-shared LIST chrome-band cluster (D12). The content
 // a section definition's `listHeader` slot feeds into `.shell-panel-header`: an optional back affordance, the
 // micro-caps section title (optionally `TITLE · <accent>` for a scoped/entity mode), a live mono count, and
 // the panel's ONE primary action (D66 A2).

@@ -1,4 +1,4 @@
-// The chats-pane FACES curation (list-pane-projection Arm B, §5.2): which characters get a face at the top
+// The chats-pane FACES curation (Arm B): which characters get a face at the top
 // of the chats list, and in what order.
 //
 // RESUME-RECENCY, capped: walk the chats newest-first (the server's own `listChats` order) and take each

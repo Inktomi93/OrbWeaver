@@ -1,4 +1,4 @@
-// RowToggleAction — the client-shared row STATE TOGGLE (list-pane-projection §11.2/§12, D12). The one
+// RowToggleAction — the client-shared row STATE TOGGLE (D12). The one
 // element that is BOTH the marker and the affordance: a real pressable carrying `aria-pressed`, so the row
 // never renders a passive glyph beside a separate control that sets it.
 //

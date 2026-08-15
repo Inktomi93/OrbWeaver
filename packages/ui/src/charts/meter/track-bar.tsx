@@ -28,7 +28,7 @@ export interface TrackBarProps {
    * @defaultValue "ramp"
    */
   accent?: "ramp" | "info" | "warning";
-  /** A host-picked CSS color LITERAL (the panel-redesign free-hex ruling) that overrides the ramp step.
+  /** A host-picked CSS color LITERAL (the free-hex ruling) that overrides the ramp step.
    *  Applied as inline data only when it passes `isSafeColor` (an unsafe value falls back to the ramp);
    *  the fill is aria-hidden decoration, so a non-theme hex is accepted by design. Danger still wins. */
   customColor?: string;

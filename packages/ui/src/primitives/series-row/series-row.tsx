@@ -1,5 +1,5 @@
 // SeriesRow — one data-series line: colour swatch · label (+ optional detail) · value. The TEXT twin of a
-// stacked/segmented chart's segment (panel-redesign preview.html's `.prow`): the swatch keys the row to its
+// stacked/segmented chart's segment (mirrors the mock's `.prow`): the swatch keys the row to its
 // segment, and the row carries the accessible datum the (aria-hidden) bar deliberately does not.
 //
 // PHRASING CONTENT ONLY — every part is a `<span>`, so the whole row is legal INSIDE an interactive parent

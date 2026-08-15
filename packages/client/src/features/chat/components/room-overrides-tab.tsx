@@ -2,7 +2,7 @@
 // OWN mutation, referenced by settings-context-tab.tsx's sections instead of re-deriving the mutation.
 // `RoomOverridesTab` is the Field-overrides section (the four-field autosave form); `ChatBackgroundSection`
 // is the Background section (the per-chat decorative background source). Split apart so each is its own
-// labeled Section in the consolidated tab (panel-redesign). `.catch` swallows the overrides autosave
+// labeled Section in the consolidated tab. `.catch` swallows the overrides autosave
 // rejection so a failed write doesn't leak an unhandled page error — the mutation's own errorToast surfaces it.
 
 import type { RoomOverrides } from "@orb/contracts/chat";

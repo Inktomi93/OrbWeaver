@@ -12,13 +12,13 @@ import type { SectionSelection } from "./section-registry.ts";
 // The facet id is a card-content-local string (not a `@orb/kit/ids` entity id).
 const characterSelection = createDrillSelectionStore<CharacterId, string>("character-selection", { secondary: true });
 
-// The selection is now a PANE SWAP too (list-pane-projection Arm A — the LIST slot flips picker ⇄ her
+// The selection is now a PANE SWAP too (Arm A — the LIST slot flips picker ⇄ her
 // chats), which is a section-internal structural transition: it rides the hand-rolled View Transition seam,
 // the ONE legal wrapper (the router's VT cannot fire on a reducer change at a constant URL). The state→lib
 // import is the landed pattern (`active-chat-store.ts`); the drill FACTORY stays untouched, so every other
 // section keeps today's behavior. `prefers-reduced-motion` removes the transition inside the wrapper.
 
-// THE FOCUS OWNER OF A SELECTION (list-pane-projection §3.7 — the P1 focus race). One selection mounts TWO
+// THE FOCUS OWNER OF A SELECTION (the P1 focus race). One selection mounts TWO
 // focus-managing surfaces at once: the LIST projection (the pane that just swapped) and the CONTENT editor
 // (`useFocusOnMount`). Which one wins must be a DECISION, not effect-order roulette — so the INTENT that
 // wrote the selection carries it: a pick made FROM THE LIST PICKER lands focus in the projection (the pane

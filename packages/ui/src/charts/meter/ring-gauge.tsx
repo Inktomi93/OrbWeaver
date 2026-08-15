@@ -37,7 +37,7 @@ export interface RingGaugeProps {
   showCaption?: boolean;
   /** Short caption label when `showCaption` (the compact orb tag, e.g. "HP"); falls back to `label`. */
   captionLabel?: string;
-  /** A host-picked CSS color LITERAL (the panel-redesign free-hex ruling) that overrides the ramp step.
+  /** A host-picked CSS color LITERAL (the free-hex ruling) that overrides the ramp step.
    *  Applied as inline data only when it passes `isSafeColor` (unsafe ⇒ ramp fallback); the arc is
    *  aria-hidden decoration, so a non-theme hex is accepted by design. Danger still wins. */
   customColor?: string;

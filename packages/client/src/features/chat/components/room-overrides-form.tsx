@@ -8,7 +8,7 @@
 // section beside this one already owns — both landed as the identical `in_chat` at-depth splice, so a
 // system injection at depth 4 IS the author's note. These three fields are section-TEXT overrides only.
 //
-// COLLAPSE-UNTIL-NEEDED (panel-redesign): the default per-chat state is zero overrides, so each field is a
+// COLLAPSE-UNTIL-NEEDED: the default per-chat state is zero overrides, so each field is a
 // COMPACT collapse row (`Collapsible`) — muted "inheriting" when empty — rather than a wall of empty
 // textareas. Clicking a row expands it into its editor; a SET field carries an ember left-edge accent + a
 // one-line snippet + a Clear affordance so an override is legible at a glance while collapsed.

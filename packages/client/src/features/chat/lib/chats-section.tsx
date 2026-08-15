@@ -60,10 +60,10 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
     body: (s) => <CommittedMembersTab {...toMembersTabProps(s)} />,
   },
   // Overrides + Injections + Group + Background + Tool-use consolidated into ONE "This chat" tab
-  // (panel-redesign; the former "Appearance overrides" tab and the separate "Injections" meta-tab merged).
+  // (the former "Appearance overrides" tab and the separate "Injections" meta-tab merged).
   // Always visible (Field overrides + Injections show for everyone); the former Group tab's host+group-chat
   // gate + the Tool-use host gate + the Background host gate live at SECTION granularity inside the body —
-  // the §8.1 permission-omit, now per-section so the strip drops slots without dropping controls.
+  // the permission-omit, now per-section so the strip drops slots without dropping controls.
   {
     id: "settings",
     label: "This chat",

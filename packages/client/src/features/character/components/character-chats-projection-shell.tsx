@@ -1,4 +1,4 @@
-// The CHARACTER-owned frame around the injected chats projection (list-pane-projection §3.2/§3.4): the
+// The CHARACTER-owned frame around the injected chats projection: the
 // pinned identity row (face → history → play) and the pane container the swap focuses. The ROWS are chat's
 // (`ChatsWithCharacterPane`, threaded in at the door); everything here is character identity, read off the
 // same `character.get` cache the editor beside it already holds.

@@ -1,4 +1,4 @@
-// The ONE home for the character screen's two chat INTENTS (list-pane-projection §3.4/§3.8). Both used to
+// The ONE home for the character screen's two chat INTENTS. Both used to
 // live inline in the editor hero; the LIST band now fires the same "New chat" and the hero's "N chats ›"
 // points at the pane instead of jumping sections, so they are shared writers rather than two hero closures.
 //

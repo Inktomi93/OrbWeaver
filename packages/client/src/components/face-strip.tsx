@@ -1,4 +1,4 @@
-// FaceStrip — the client-shared horizontal strip of clickable FACES (list-pane-projection §11.2, D12): a
+// FaceStrip — the client-shared horizontal strip of clickable FACES (D12): a
 // dense row of character portraits pinned at a LIST pane's top, where tapping a face scopes the pane below
 // it. Two features render this anatomy and change together (the character library's favorites strip and the
 // chats pane's Arm B faces strip), which is the R2 bar for a tier-2 composite.
