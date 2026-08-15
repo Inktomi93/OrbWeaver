@@ -62,6 +62,9 @@ export interface BackendRegistryDeps {
 
   readonly query?: AgentSdkBackendDeps["query"];
   readonly sessionStore?: AgentSdkBackendDeps["sessionStore"];
+  /** D8 `session_entries` write-path injection (issue #71) — the compose root's `db.insert`/`db.update`
+   *  op over the `session_entries` table; absent ⇒ no persistence (the dev/test default). */
+  readonly sessionWriter?: AgentSdkBackendDeps["sessionWriter"];
   /** Live getter for the agent-sdk summarize worker count (Q6 — agentSdkConcurrency.summarize). Absent ⇒ floor. */
   readonly agentSdkSummarizeConcurrency?: AgentSdkBackendDeps["summarizeConcurrency"];
   /** Live getter for the vLLM chat surface's per-request presence-penalty default (item 7 — engineLaunch
@@ -103,6 +106,7 @@ function agentSdkDeps(deps: BackendRegistryDeps): AgentSdkBackendDeps {
     now: deps.now,
     ...(deps.query !== undefined ? { query: deps.query } : {}),
     ...(deps.sessionStore !== undefined ? { sessionStore: deps.sessionStore } : {}),
+    ...(deps.sessionWriter !== undefined ? { sessionWriter: deps.sessionWriter } : {}),
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     ...(deps.imageToPng !== undefined ? { normalizeImageBytes: createImageNormalizer(deps.imageToPng) } : {}),
     ...(deps.agentSdkSummarizeConcurrency !== undefined ? { summarizeConcurrency: deps.agentSdkSummarizeConcurrency } : {}),
@@ -152,7 +156,7 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
   return { backends: registry, vllmEngine, matteModel: createLocalLightMatte(localLightCache) };
 }
 
-export type { AgentToolResult, AgentToolSpec } from "./backends/agent-sdk/index.ts";
+export type { AgentToolResult, AgentToolSpec, SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 export { createAgentToolServer, fetchAgentSdkModels } from "./backends/agent-sdk/index.ts";
 export {
   DEFAULT_EMBED_MODEL,

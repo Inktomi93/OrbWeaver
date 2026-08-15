@@ -102,6 +102,7 @@ import { bindRoleClientsForUser } from "./role-clients.ts";
 import type { RpgComposeResult } from "./rpg.ts";
 import { buildRpg } from "./rpg.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
+import { createSessionEntryWriter } from "./session-entries.ts";
 import { buildSideGenParams } from "./side-gen-params.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
@@ -314,6 +315,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
     ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }) } : {}),
+    // D8 `session_entries` write path (issue #71) — the sealed agent-sdk backend never touches @orb/db
+    // itself; this is the compose-root op it persists a lineage entry through.
+    sessionWriter: createSessionEntryWriter(db),
     vllmDisabled: deps.vllmDisabled,
     ...(deps.vllmManages !== undefined ? { vllmManages: deps.vllmManages } : {}),
     vllmConcurrency: {

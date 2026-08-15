@@ -5,7 +5,7 @@ import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatDeltaEvent, ChatEvent, ContextUsage, WireCaptureSink } from "../../contract/index.ts";
 import type { NormalizeImageBytes } from "../kit/index.ts";
-import type { SeededSessionDecision } from "./session/index.ts";
+import type { SeededSessionDecision, SessionEntryWriter } from "./session/index.ts";
 
 /** Subset of SDK `Options` the firewall base (`disciplineOptions`) pins; spread into `query` options. */
 export interface DisciplineOptions {
@@ -23,6 +23,9 @@ export interface AgentSdkDeps {
   readonly now: () => number;
   readonly query: typeof query;
   readonly sessionStore: SessionStore;
+  /** D8 `session_entries` write-path injection (issue #71) — best-effort persist of the sdk-session
+   *  lineage; absent ⇒ no persistence (the in-memory cache alone still resumes correctly). */
+  readonly sessionWriter?: SessionEntryWriter | undefined;
   /** The shared outbound-image seam (MA-10): a summarize item's images ride the SDK streaming-input prompt as
    *  Anthropic content blocks. Bytes normalize (GIF → first-frame PNG) before base64; absent-injection ⇒ the
    *  label-only passthrough (no decode). */
