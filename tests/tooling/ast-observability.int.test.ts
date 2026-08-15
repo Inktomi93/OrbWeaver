@@ -257,3 +257,39 @@ test(
   },
   SPAWN_TIMEOUT_MS,
 );
+
+// ── the two live blind-spot repros, pinned on the REAL TREE (2026-08-14) ────────────────────────────────
+// `rot ui` is the TYPED arm (loads the full ui-package type graph) — slower than every other row in this
+// file, so it gets its own longer spawn timeout.
+const ROT_UI_TIMEOUT_MS = 180_000;
+
+test(
+  "rot ui no longer flags CodeEditor test-only — its lazy `.then((m) => m.CodeEditor)` consumers now count",
+  () => {
+    // Live repro (regex-editor-fields.tsx, theme-editor.tsx): `lazy(() =>
+    // import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })))`. `resolveModule` only
+    // follows relative specifiers, so this package-aliased dynamic import never reached `markModuleAlive`
+    // before the fix — `dead CodeEditor` (language-service `findReferences`) already saw the real
+    // consumers; `rot ui` did not.
+    const run = runAst(["rot", "ui"]);
+    expect(run.status).toBe(0);
+    expect(run.stdout).not.toContain("CodeEditor");
+    expect(run.epilogue["status"]).toMatch(EPILOGUE_STATUS_OK_RE);
+  },
+  ROT_UI_TIMEOUT_MS,
+);
+
+test(
+  "regkeys MOTION_BUDGETS no longer flags the same-file dot-access rows",
+  () => {
+    // Live repro (packages/client/src/lib/motion-flaggers.ts): `MOTION_BUDGETS.frameGapMs` /
+    // `.cssScanIntervalMs` / `.spaceScanCap`, all read from functions defined LATER in the SAME file the
+    // table is declared in — `dispatchSitesOf` unconditionally excludes the registry's own file, so this
+    // was invisible to the lens before the qualified-access fix.
+    const run = runAst(["regkeys", "MOTION_BUDGETS"]);
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain("RESULT ast regkeys MOTION_BUDGETS: no results");
+    expect(run.epilogue["matches"]).toBe("0");
+  },
+  SPAWN_TIMEOUT_MS,
+);
