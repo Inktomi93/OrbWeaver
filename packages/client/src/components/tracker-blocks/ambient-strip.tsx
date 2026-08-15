@@ -1,8 +1,8 @@
 // AMBIENT STRIP (tracker block #6 — extracted from tracker-blocks.tsx for the component-size cap):
-// location · date · time-of-day · weather as ONE composed card of label·value pairs (panel-redesign
-// DESIGN.md §4 "Scene" — the NOW-window ambient card, editable in place). Values are DISPLAY-AT-REST
-// (§12.4.1 — static text; input on click via TrackerValue); Time AND Weather are closed vocabularies, so
-// both are click-to-edit PICKERS (Tier-0 §12.3 — never free text, never a RESTING dropdown). Weather's
+// location · date · time-of-day · weather as ONE composed card of label·value pairs ("Scene" —
+// the NOW-window ambient card, editable in place). Values are DISPLAY-AT-REST
+// (static text; input on click via TrackerValue); Time AND Weather are closed vocabularies, so
+// both are click-to-edit PICKERS (Tier-0 — never free text, never a RESTING dropdown). Weather's
 // picker edits the eight-state `weather.type`; the model's free flavor `label` is band text, not a field.
 //
 // A CLOSED VOCAB STILL NEEDS A CLEAR (2026-08-07). The two free-text fields could always be emptied — a
@@ -36,7 +36,7 @@ export interface AmbientStripProps {
    *  [merge-clear] vocabulary), which is how a closed-vocab field is unset without minting a vocabulary
    *  member for "nothing"; a string is a set. */
   readonly onEditField?: (field: "location" | "date" | "timeOfDay" | "weather", next: string | null) => void;
-  /** Optional per-field lock indicator (§12.3 the-lock-consequence-is-visible) — the feature supplies a
+  /** Optional per-field lock indicator (the-lock-consequence-is-visible) — the feature supplies a
    *  render (the pin + Release) for a field whose hand-edit auto-stamped a lock; `undefined` ⇒ no pin. The
    *  field→lock-path mapping is domain knowledge, so it lives in the caller (this shared block is agnostic). */
   readonly lockSlot?: (field: "location" | "date" | "timeOfDay" | "weather") => ReactNode;
@@ -61,7 +61,7 @@ const AMBIENT_VOCAB: Readonly<Record<AmbientField, { readonly vocab: readonly st
   weather: { vocab: RPG_WEATHER_TYPES, groupLabel: "Weather" },
 };
 
-/** The closed-vocab click-to-edit (§12.3 Tier-0 — a closed vocab is a PICKER, never free text, and never a
+/** The closed-vocab click-to-edit (Tier-0 — a closed vocab is a PICKER, never free text, and never a
  *  RESTING dropdown): static value at rest; click reveals the vocabulary; a pick commits + closes, Escape
  *  closes without commit. An off-vocab value is unconstructable here — which is the whole point for both
  *  axes that use it (`TIME_OF_DAY`, `RPG_WEATHER_TYPES`). */
@@ -207,7 +207,7 @@ function AmbientFieldControl({
   }
   const closed = AMBIENT_VOCAB[fieldKey];
   if (closed !== null) {
-    // Tier-0 (§12.3): a closed vocab (the six `TIME_OF_DAY` labels · the eight weather states) is a
+    // Tier-0: a closed vocab (the six `TIME_OF_DAY` labels · the eight weather states) is a
     // click-to-edit PICKER, never a free-text field and never a resting dropdown.
     return (
       <AmbientVocabPicker
@@ -233,7 +233,7 @@ function AmbientFieldControl({
   );
 }
 
-/** The scene's where/when strip (mode-agnostic scene DATA — §3.2). Hand-editable; empty fields omit. */
+/** The scene's where/when strip (mode-agnostic scene DATA). Hand-editable; empty fields omit. */
 export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, lockSlot }: AmbientStripProps): ReactElement {
   const values: Readonly<Record<AmbientField, string | undefined>> = { location, date, timeOfDay, weather };
   return (

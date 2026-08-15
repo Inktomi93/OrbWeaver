@@ -17,7 +17,7 @@ import { z } from "zod";
 import { isPlainObject } from "#guards";
 
 /** The ONE annotation keyword the lift ACCEPTS-AND-IGNOREs on any node: the refinery's render-hint
- *  channel (`docs/design/refinery-schema-renderer.md` §4.2). Hints are DISPLAY metadata a stored schema
+ *  channel. Hints are DISPLAY metadata a stored schema
  *  carries for the client renderer — they must never reach zod (so `projectJsonSchema` can never emit
  *  them onto a wire) and must never make a hinted schema refuse. Golden proof beside the lift tests:
  *  `lift(hinted) ≡ lift(stripOrbUi(hinted))`. Validating hint CONTENT is the refinery save belt's job

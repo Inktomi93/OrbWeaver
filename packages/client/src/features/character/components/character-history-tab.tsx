@@ -1,7 +1,7 @@
-// The CONTEXT History tab (FINAL-Character §7) — the `character_snapshots` browse log (D28: a log that
+// The CONTEXT History tab — the `character_snapshots` browse log (D28: a log that
 // gates nothing). Reverse-chron `{label, createdAt}` rows + a "Snapshot now" button + per-row Restore
-// behind an AlertDialog confirm (restore auto-snapshots current state first, so it's reversible — §7).
-// SHIP label/timestamp + restore ONLY this round: the optional §12 FIX #3 `getSnapshot` diff-read is a
+// behind an AlertDialog confirm (restore auto-snapshots current state first, so it's reversible).
+// SHIP label/timestamp + restore ONLY this round: the optional `getSnapshot` diff-read is a
 // deliberate DEFERRAL (no backend change implied), so there is no compare-before-restore here.
 
 import type { CharacterId } from "@orb/kit/ids";

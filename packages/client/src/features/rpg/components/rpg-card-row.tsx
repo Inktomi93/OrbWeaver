@@ -1,5 +1,5 @@
 // RpgCardRow — the ONE archived-card LIST row, shared by the card projection's two homes (the Scene "Cards"
-// archive and the Journal chronicle/Cards scope; panel-redesign DESIGN.md §6 "chrome designed once, used in
+// archive and the Journal chronicle/Cards scope; "chrome designed once, used in
 // three homes"). The row IS the immersive card's title BAR minus its body — the same anatomy the transcript
 // card wears when collapsed (✦ title · provenance · turn ref · open affordance), so a card reads the same
 // wherever it is met. Bordered and compact (an instrument row, never a padded card-in-a-card).
@@ -18,7 +18,7 @@ export interface RpgCardRowProps {
   readonly onOpen: (key: string) => void;
 }
 
-/** One archived card as a row: the ✦ chrome voice + title, the `auto` provenance marker for a §4.8 lenient
+/** One archived card as a row: the ✦ chrome voice + title, the `auto` provenance marker for a lenient
  *  wrap, the origin turn ref, and the expand glyph that names the row's one action. */
 export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
   const label = cardLabel(card.title);

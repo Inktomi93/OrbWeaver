@@ -49,7 +49,7 @@ function AttributeRow({
           display={attr.label}
           onEdit={(next): void => {
             const trimmed = next.trim();
-            // Tier-2 refusal (§12.3): a blank label never sends (the key stays — a rename is a rename).
+            // Tier-2 refusal: a blank label never sends (the key stays — a rename is a rename).
             if (trimmed !== "") {
               onCommit({ ...attr, label: trimmed });
             }
@@ -74,7 +74,7 @@ function AttributeRow({
   );
 }
 
-/** The profile's value RANGE — the band every attribute value is clamped into on commit (§12.3 Tier-1).
+/** The profile's value RANGE — the band every attribute value is clamped into on commit (Tier-1).
  *  Kept ordered by construction (a max below the min is unrepresentable), so no sheet can be handed an
  *  impossible band. */
 function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; readonly onCommit: (next: RpgStatProfile) => void }): ReactElement {

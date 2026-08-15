@@ -1,11 +1,11 @@
-// RpgFieldLock — the manual-edit-wins LOCK indicator + Release affordance (panel-redesign DESIGN.md §12.3
-// "the lock consequence is visible"): a hand edit auto-stamps `fieldLocks[path]` (editSnapshot writes it,
+// RpgFieldLock — the manual-edit-wins LOCK indicator + Release affordance ("the lock consequence is
+// visible"): a hand edit auto-stamps `fieldLocks[path]` (editSnapshot writes it,
 // tools honor it), so the panel renders a small neutral pin glyph on the locked field with the explanatory
 // title, and a Release action that clears the lock path — "let the model write it again". Without this,
 // every hand edit silently creates a "why won't the model update this anymore?" mystery.
 //
 // Release rides the SAME editSnapshot verb (an empty patch + `releaseLocks:[path]`) — a lock is snapshot
-// METADATA, not a state leaf, so it clears via the lock-DELTA, not a [merge-clear] null (§12.3). Host-only:
+// METADATA, not a state leaf, so it clears via the lock-DELTA, not a [merge-clear] null. Host-only:
 // the caller renders this only when it already owns the edit affordance (a member never mounts it).
 
 import { Button } from "@orb/ui/button";

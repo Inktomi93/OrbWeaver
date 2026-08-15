@@ -4,7 +4,7 @@
 // submitted on Enter, most did not; some refused a blank name with a disabled button, some sent it. ONE row
 // so the create gesture reads identically on every plane.
 //
-// The grammar (panel-redesign DESIGN.md §12.3/§12.4.1): a CREATION draft is NOT a datum at rest, so this is a
+// The grammar: a CREATION draft is NOT a datum at rest, so this is a
 // plain `Input` (never the display-at-rest `TrackerValue`); a blank draft is Tier-2 refusal — nothing sends
 // and every action is disabled; Enter in the field fires the FIRST action (the primary), which is why
 // `actions` is a non-empty tuple rather than an array. A `refusal` (the ≤12-attribute cap) is STATED under
@@ -46,7 +46,7 @@ export interface AddRowProps {
   readonly trailing?: ReactNode;
   /** A create is in flight — the actions disable (the checkpoint mint). @defaultValue false */
   readonly pending?: boolean;
-  /** A stated refusal (Tier-2, §12.3): the row disables and says why. */
+  /** A stated refusal (Tier-2): the row disables and says why. */
   readonly refusal?: string;
 }
 

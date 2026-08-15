@@ -1,4 +1,4 @@
-// The Scene "CHOICE ON THE TABLE" block (panel-redesign DESIGN.md §4 "Scene" + §6 P5 — CYOA's
+// The Scene "CHOICE ON THE TABLE" block ("Scene" — CYOA's
 // MOMENT-scale home; campaign scale is Quests' act rail; never both in one place). It ECHOES the
 // transcript's LIVE `:::choices` fence — the newest message, when it is an assistant turn carrying a
 // parseable choice set (a later user reply settles the choice; the echo disappears). The wand/transcript
@@ -6,7 +6,7 @@
 // the game's `cyoaChoiceBehavior` knob (`send` fires the pick as the user turn via `chat.send` directly,
 // a cross-feature ride on the other domain's tRPC procedure directly, never its client (lockdown §12 —
 // see this file's own `trpc.chat.listMessages` read below, the live precedent); `compose` seeds the composer draft +
-// focuses it via the shared #state channel). Info-blue voice (§3 — the story asking YOU), tokens only.
+// focuses it via the shared #state channel). Info-blue voice (the story asking YOU), tokens only.
 //
 // Cross-domain read rides `trpc.chat.listMessages` DIRECTLY (lockdown §12 — the transcript surface shares
 // this exact cache key, so this is a cache read; the P4 card archive is the precedent). Buttons disable

@@ -1,4 +1,4 @@
-// The MODEL-AUTHORED-STRING → GLYPH resolver (panel-redesign DESIGN.md §12.5) — ONE home for every
+// The MODEL-AUTHORED-STRING → GLYPH resolver — ONE home for every
 // "what icon does this free string get" decision: inventory items and condition chips, plus the CLOSED-vocab
 // Records (relationship kinds, tracker shapes) that are exhaustive mapped types, never the resolver. (WEATHER
 // used to bin here — it doesn't anymore: `weather.type` is a closed enum bound at the extraction wire, so
@@ -46,7 +46,7 @@ import {
 const NON_TOKEN_RE = /[^a-z0-9\s-]/g;
 const TOKEN_SPLIT_RE = /[\s-]+/;
 
-/** The item-NAME keyword map (§12.5.1) — the fantasy floor, most-specific (longest) token wins. */
+/** The item-NAME keyword map — the fantasy floor, most-specific (longest) token wins. */
 const ITEM_NAME_GLYPHS: Readonly<Record<string, LucideIcon>> = {
   key: KeyRound,
   keys: KeyRound,
@@ -119,7 +119,7 @@ const ITEM_NAME_GLYPHS: Readonly<Record<string, LucideIcon>> = {
   skull: Skull,
 };
 
-/** The item-TYPE taxonomy map (§12.5.2) — the second chance when the name missed. */
+/** The item-TYPE taxonomy map — the second chance when the name missed. */
 const ITEM_TYPE_GLYPHS: Readonly<Record<string, LucideIcon>> = {
   weapon: Sword,
   consumable: FlaskConical,
@@ -157,7 +157,7 @@ function tokensOf(raw: string): readonly string[] {
     .filter((t) => t.length > 0);
 }
 
-/** Longest matching keyword wins (most-specific rule, §12.5.1); `undefined` when nothing matches. */
+/** Longest matching keyword wins (most-specific rule); `undefined` when nothing matches. */
 function matchTokens(map: Readonly<Record<string, LucideIcon>>, raw: string): LucideIcon | undefined {
   let best: LucideIcon | undefined;
   let bestLen = 0;
@@ -215,7 +215,7 @@ export function resolveConditionGlyph(name: string): LucideIcon {
   return matchTokens(CONDITION_GLYPHS, name) ?? Activity;
 }
 
-// ─── The CLOSED vocabs — exhaustive mapped Records, never the resolver (§12.5.5) ─────────────────
+// ─── The CLOSED vocabs — exhaustive mapped Records, never the resolver ─────────────────
 
 /** Relationship kind → glyph (a new kind fails tsc here — the exhaustive-Record discipline). */
 export const RELATIONSHIP_GLYPHS: Readonly<Record<RpgRelationshipKind, LucideIcon>> = {

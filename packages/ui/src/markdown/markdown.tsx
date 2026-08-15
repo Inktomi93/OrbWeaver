@@ -87,7 +87,7 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
  * fade — the `allowedTags` schema merge is identity-gated on the default rehype pipeline).
  * Streamdown runs rehype-sanitize + rehype-harden by default under both policies. A pathologically
  * large input falls back to a plain `<pre>`. Streaming input additionally passes the seal-owned M1
- * tail-hold pre-pass (`tail-hold.ts`, docs/design/streaming-shape-churn.md) before Streamdown parses it.
+ * tail-hold pre-pass (`tail-hold.ts`) before Streamdown parses it.
  */
 export function Markdown({ trust, mode, children, className, colorQuotes = false }: MarkdownProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
@@ -116,7 +116,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   ]);
   const revealProp = reveal ? { rehypePlugins: revealPlugins } : {};
 
-  // M1 tail-hold (docs/design/streaming-shape-churn.md §2/§3 arm 1, tail-hold.ts): streaming only, and a
+  // M1 tail-hold (tail-hold.ts, arm 1): streaming only, and a
   // pure PREFIX of the input — the still-undecidable trailing construct (a lone pipe row, a bare list
   // marker, a setext-underline candidate) is withheld for one commit so the tail paints as the block it
   // already is instead of flipping type under the reader. Runs before the repair layer; remend still sees

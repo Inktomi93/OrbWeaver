@@ -22,7 +22,7 @@ type ApplyWire = inferOutput<Trpc["refinery"]["applyFields"]>;
 export interface ApplyOutcomeProps {
   readonly applied: ApplyWire["applied"];
   readonly dropped: ApplyWire["dropped"];
-  /** The §16.2 rollback-point line: the snapshot label when one was taken, null on the zero-write arm. */
+  /** The rollback-point line: the snapshot label when one was taken, null on the zero-write arm. */
   readonly snapshotLabel: string | null;
   /** The branch-off arm's outcome names the COPY instead of the live card. */
   readonly copyName?: string | undefined;

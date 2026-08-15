@@ -1,10 +1,10 @@
-// The INVENTORY tab (panel-redesign DESIGN.md §4 "Inventory" — the PACK): the member-selector pill row
-// (§12.1.3 — the ONE scope-selector primitive Sheet uses; self default) + the pinned currency line above
-// the OSRS item grid. The pinned line is the PARTY TOTAL derivation (§12.2 — no purse entity exists; totals
+// The INVENTORY tab ("Inventory" — the PACK): the member-selector pill row
+// (the ONE scope-selector primitive Sheet uses; self default) + the pinned currency line above
+// the OSRS item grid. The pinned line is the PARTY TOTAL derivation (no purse entity exists; totals
 // SUM per-actor wallets, "party total — N carried by <viewer>"), the Sheet chip and band coin being the
-// other two zoom levels of the same number. Grid = `cols="cell"` (§5 — container-driven: 2-up at the 320px
+// other two zoom levels of the same number. Grid = `cols="cell"` (container-driven: 2-up at the 320px
 // mobile column, 3-up in the 480px docked panel). Cells: resolved glyph (#37 — the host-picked `item.icon`
-// seal name wins, else the §12.5 keyword resolver; aria-hidden, the NAME is the datum), the NAME, the ×N
+// seal name wins, else the keyword resolver; aria-hidden, the NAME is the datum), the NAME, the ×N
 // read, and the item LOCATION (#37a — the data was already stored), and quest-bound = the accent dot. There
 // is NO ghost socket and no fake 28-slot pack (side-eye 08-01 killed the dashed one: an empty box with no
 // word and no click is not an affordance); the host's `AddRow` below the grid is the one growth home. No
@@ -14,7 +14,7 @@
 // row per item (glyph · name · ×qty · location · description) for the read-it-all posture.
 // #37c — the ICON PICKER (host): clicking a cell's glyph opens a popover of `ITEM_ICON_CHOICES`; the pick
 // writes `item.icon` through `editSnapshot` (a hand-cosmetic write — the model can't touch `icon`, so no
-// lock is stamped). The "last change" provenance line stays the client-side ephemeral diff (§12.2.8).
+// lock is stamped). The "last change" provenance line stays the client-side ephemeral diff.
 //
 // RV-5 — HAND AUTHORING (host, `canEditShared`): the pack had no add/edit at all, and `location` (which the
 // schema stores and the extraction guidance asks the model for) was display-only. The shared `AddRow` mints an
@@ -50,7 +50,7 @@ function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): Rpg
   return actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === viewerUserId) ?? actors[0];
 }
 
-/** Party totals per currency name, summed across every PARTY actor's wallet (§12.2 — a purse is a SUM).
+/** Party totals per currency name, summed across every PARTY actor's wallet (a purse is a SUM).
  *  Cast NPCs are excluded on purpose: `tracker.actors` carries them since R2 (which is how their pack finally
  *  became reachable at all), but an NPC's coin is hers, not the party's — summing it would make the pinned
  *  total lie the moment the story hands a stranger a bribe. */
@@ -71,7 +71,7 @@ export interface RpgInventoryTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The Inventory tab — the member-selector pill row (§12.1.3, self default) + the pinned party-purse
+/** The Inventory tab — the member-selector pill row (self default) + the pinned party-purse
  *  line + the glyph item grid (or the #37b list view) + one ghost socket. */
 export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   const trpc = useTRPC();
@@ -90,7 +90,7 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   // their pack became visible at all) but their coin is theirs, not the party's — the same exclusion
   // `partyTotals` makes, read back at the note that would otherwise contradict it.
   const isPartyActor = actor !== undefined && actor.actorRef.kind !== "cast";
-  // The ephemeral "last change" line (§12.2.8) — a client-side diff, no TurnRef, cleared on reload.
+  // The ephemeral "last change" line — a client-side diff, no TurnRef, cleared on reload.
   const lastChange = useInventoryDiff(items);
 
   const edit = state.canEditShared && actor !== undefined ? buildPackEdit(state, actor, patchActor) : undefined;
@@ -159,7 +159,7 @@ function PackSection({
         )}
       </Row>
       {items.length === 0 ? (
-        // No dead end (§4.3 rule 1): an empty pack still offers the host the first item.
+        // No dead end: an empty pack still offers the host the first item.
         <Text>Empty pack — {edit === undefined ? "the story fills it." : "the story fills it, or add the first thing below."}</Text>
       ) : (
         <PackBody view={view} items={items} {...(edit === undefined ? {} : { edit })} />
@@ -176,7 +176,7 @@ function PackSection({
   );
 }
 
-/** The §12.2.8 ephemeral "last change" microline (client-side diff; null = nothing). */
+/** The ephemeral "last change" microline (client-side diff; null = nothing). */
 function LastChangeLine({ lastChange }: { readonly lastChange: string | null }): ReactElement | null {
   if (lastChange === null) {
     return null;

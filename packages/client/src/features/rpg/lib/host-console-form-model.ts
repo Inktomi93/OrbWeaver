@@ -1,9 +1,9 @@
-// The GM-console SCALAR form model (panel-redesign DESIGN.md §4 "Game" — the host-admin console). The
+// The GM-console SCALAR form model — the "Game" tab's host-admin console. The
 // autosave form owns the flat scalar knobs (steering note · delivery model · the deception toggles · the
 // reveal-eye offer · the prompt-budget + extraction-depth NUMBERS — every one of them stored and wired
 // server-side with no editor until this wave, the D107 dead-switch class); the
 // array/record sub-editors (cast-field schemas, relationship hints, orb-pinning) call `updateConfig` with
-// path-scoped patches directly (§12.3 Tier-3 — one path per commit), NOT through this form. Keeping the
+// path-scoped patches directly (Tier-3: one path per commit), NOT through this form. Keeping the
 // two apart is deliberate: a flat form can't express a growable schema array, and a whole-object autosave
 // of the array knobs would fight the per-row edits.
 //
@@ -41,7 +41,7 @@ export interface HostConsoleFormValues {
   /** The #9 ambient-date mode — narrated (freeform date string) | structured (day counter). */
   readonly dateMode: RpgDateMode;
   /** The immersive-card knobs — both were stored, wired through the reminder
-   *  and the §4.8 lenient wrap, and had NO editor: a host who did not want HTML cards had no switch to
+   *  and a lenient wrap, and had NO editor: a host who did not want HTML cards had no switch to
    *  reach (the D107 dead-switch class, owner dogfood 2026-07-31). `immersiveHtml` gates the TEACHING ask;
    *  `immersiveHtmlInteractive` picks the interactive-vs-static variant of that ask (meaningless with the
    *  teaching off — the surface disables it rather than hiding it). Neither touches the RENDER: an
@@ -56,7 +56,7 @@ export interface HostConsoleFormValues {
    *  to the contract default the field's placeholder advertises. */
   readonly recentBeatsKeepLast: number | null;
   readonly cardKeepLastX: number | null;
-  /** The §1.3 extraction-DEPTH trio — how much of the turn's own story the state round reads as evidence, the
+  /** The extraction-DEPTH trio — how much of the turn's own story the state round reads as evidence, the
    *  `window` arm's token budget, and how often a beat forces a full plane re-emission. */
   readonly extractionContext: RpgExtractionContext;
   readonly extractionWindowTokens: number | null;

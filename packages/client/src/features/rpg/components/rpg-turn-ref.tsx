@@ -1,6 +1,6 @@
-// RpgTurnRef — the ONE TurnRef chip (panel-redesign DESIGN.md §12.1.4): a mono, muted reference to the
+// RpgTurnRef — the ONE TurnRef chip: a mono, muted reference to the
 // origin message/turn a datum came from (the veiled ledger's lie origin; later the inventory last-change,
-// quest wrap, journal artifact, choice echo — wherever the data really carries a message ref, §12.1.4 "only
+// quest wrap, journal artifact, choice echo — wherever the data really carries a message ref, "only
 // where the data really carries a ref"). It renders ONLY the short ref token — the design's "click scrolls
 // the transcript to the origin message" is DEFERRED: rpg cannot import chat, and no cross-feature
 // transcript-scroll seam exists yet (it would ride the §12 state commons when chat exposes one). So v1 is

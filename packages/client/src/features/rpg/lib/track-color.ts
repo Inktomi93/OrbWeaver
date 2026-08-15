@@ -1,12 +1,12 @@
-// The categorical track-ramp color picker (Context-Panel-Program §4.8) — trackers are user-defined data
-// and need STABLE categorical color by definition order, never color-alone meaning. Maps an ordinal index to
-// one of the 6 `--color-track-N` steps (`TrackColor`), wrapping past the ramp. One home so every takeover
-// meter/orb colors the same tracker the same way.
+// The categorical track-ramp color picker — trackers are user-defined data and need STABLE categorical
+// color by definition order, never color-alone meaning. Maps an ordinal index to one of the 6
+// `--color-track-N` steps (`TrackColor`), wrapping past the ramp. One home so every takeover meter/orb
+// colors the same tracker the same way.
 //
-// Panel-redesign additions (DESIGN.md §12.1.2 + the owner free-hex ruling): `resolveTrackerColor` is the ONE
-// `def.color ?? trackColor(ordinal)` derivation feeding the GM swatch, the band orb, and every bar. A stored
-// color must pass the strict hex/OKLCH grammar (`RPG_TRACKER_COLOR_RE`); anything else heals to the ordinal
-// ramp (a non-color string never reaches a style attribute).
+// The owner free-hex ruling: `resolveTrackerColor` is the ONE `def.color ?? trackColor(ordinal)`
+// derivation feeding the GM swatch, the band orb, and every bar. A stored color must pass the strict
+// hex/OKLCH grammar (`RPG_TRACKER_COLOR_RE`); anything else heals to the ordinal ramp (a non-color string
+// never reaches a style attribute).
 
 import { RPG_TRACKER_COLOR_RE } from "@orb/contracts/rpg";
 import type { TrackColor } from "@orb/ui/meter";
@@ -37,7 +37,7 @@ interface CustomTrackColor {
  *  (the type-HOME rule); keeping it local is the correct placement. */
 type ResolvedTrackColor = RampTrackColor | CustomTrackColor;
 
-/** THE `def.color ?? trackColor(ordinal)` resolution (§12.1.2) — one home for every consumer. A stored
+/** THE `def.color ?? trackColor(ordinal)` resolution — one home for every consumer. A stored
  *  color that fails the strict grammar (impossible via the write gate, defensive at the read seam) heals
  *  to the ordinal ramp, never a raw style value. */
 export function resolveTrackerColor(color: string | null | undefined, ordinal: number): ResolvedTrackColor {

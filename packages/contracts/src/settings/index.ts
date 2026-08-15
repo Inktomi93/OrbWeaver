@@ -648,7 +648,7 @@ const chatSchema = z
     // lands. Off ⇒ the trace stays open after the answer (the reader closes it), which the SillyTavern
     // reasoning setting also exposes. When ON, the collapse is SNAP (no fold) so the answer prose paints at
     // its final position in one commit rather than being flung up the trace's height
-    // (`streaming-shape-churn.md` §8; the 350–677px prose fling). Live-ghost only — a committed row already
+    // (the measured 350–677px prose fling). Live-ghost only — a committed row already
     // mounts collapsed + host-expandable.
     reasoningAutoCollapse: z.boolean().catch(true).default(true),
   })

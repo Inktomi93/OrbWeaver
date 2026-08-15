@@ -1,11 +1,11 @@
-// The refinery CONTEXT tabs — Runs · Setup · Versions (delta 2 arm A, ruled; schema-renderer §6.3/§16.3).
+// The refinery CONTEXT tabs — Runs · Setup · Versions (delta 2 arm A, ruled).
 // CONTEXT carries the session's CROSS-RUN dimension — never the current payload (the anti-echo law):
 //   · RUNS — the append-only ledger: stage pill · round · verdict chip · the economics line (model,
 //     tokens, wall time — `durationMs`/`sourceRunId` are why the columns exist) + the strippedKeys warn
 //     line; every row carries its ACTIONS (View · Use for apply · Judge again) — no dead readouts.
 //   · SETUP — what is IN FORCE (anchor · stage modes · payload schema chip · guidance · fit) — each row
 //     with its action; it links out to edit, it never becomes a second settings surface.
-//   · VERSIONS — the D28 snapshot walk (§16.2): label-classified rows (Refinery / Manual / Pre-restore)
+//   · VERSIONS — the D28 snapshot walk: label-classified rows (Refinery / Manual / Pre-restore)
 //     + Compare (DiffView vs the live card) + the existing `restore` verb (itself reversible).
 
 import type { RefinerySchemaStage, RefineryStage, RenderHintTone } from "@orb/contracts/refinery";
@@ -40,7 +40,7 @@ const VERDICT_TONE: Record<string, RenderHintTone> = {
 };
 const MS_PER_SECOND = 1000;
 
-/** The §6.2 label convention's prefixes — the version walk's classifier. */
+/** The label convention's prefixes — the version walk's classifier. */
 const REFINERY_SNAPSHOT_PREFIX = "auto: before refinery apply";
 const PRE_RESTORE_PREFIX = "auto: before restore";
 
@@ -64,7 +64,7 @@ export interface RunsTabProps {
   readonly runs: readonly RunView[];
   readonly viewedRunId: string | null;
   readonly onView: (run: RunView) => void;
-  /** Arm a rewrite run for the NEXT apply/analyze (§16.1 operate-back) — null clears back to latest. */
+  /** Arm a rewrite run for the NEXT apply/analyze (operate-back) — null clears back to latest. */
   readonly armedRewriteId: string | null;
   readonly onArmRewrite: (runId: string | null) => void;
   readonly onRunScore: () => void;
@@ -273,7 +273,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
   const snapshots = useQuery(trpc.character.listSnapshots.queryOptions({ characterId: state.characterId }));
   const restore = useRestoreCharacterSnapshot({ trpc, invalidation });
   const [compareId, setCompareId] = useState<SnapshotRow["id"] | null>(null);
-  // The LIST stays trimmed; the blob is fetched per selected snapshot (§16.2's paginate-the-list,
+  // The LIST stays trimmed; the blob is fetched per selected snapshot (the paginate-the-list,
   // fetch-content-per-pair posture — the `getSnapshot` read).
   const comparing = useGatedQuery(compareId, (snapshotId) => trpc.character.getSnapshot.queryOptions({ characterId: state.characterId, snapshotId }));
   const snapshotNow = useSnapshotCharacterNow({ trpc, invalidation });

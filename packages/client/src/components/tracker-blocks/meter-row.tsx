@@ -1,4 +1,4 @@
-// METER ROW — the tracker kit's block 1 (Context-Panel-Program §3.2): `label · value/max` text over a 6px
+// METER ROW — the tracker kit's block 1: `label · value/max` text over a 6px
 // decorative rail, editable in place. Its own module under the component-size cap (the cast-card-slots /
 // ambient-strip precedent): the row is five coupled pieces — the label cluster, the read-only datum, the
 // editable value cell, its `/max` half, and the track — and nothing outside this file composes any of them.
@@ -36,7 +36,7 @@ export interface MeterRowProps {
   readonly subject?: string;
   /** Which `--color-track-N` fills the bar (categorical, by definition order). @defaultValue 1 */
   readonly color?: TrackColor;
-  /** A host-picked color LITERAL (panel-redesign free-hex ruling) overriding the ramp — passed through
+  /** A host-picked color LITERAL (the owner free-hex ruling) overriding the ramp — passed through
    *  to the decorative `TrackBar` (safe-color-gated there); the value text stays tokened. */
   readonly customColor?: string;
   /** An optional leading glyph before the label (aria-hidden decoration — the label text stays the datum;
@@ -46,7 +46,7 @@ export interface MeterRowProps {
   readonly dangerBelow?: number;
   /** Commit a new numeric value — present ⇒ editable-in-place; absent ⇒ read-only. */
   readonly onEditValue?: (next: number) => void;
-  /** Commit a new MAX — present ⇒ the `/max` is editable (the caller owns the value-drag tell, §12.3). */
+  /** Commit a new MAX — present ⇒ the `/max` is editable (the caller owns the value-drag tell). */
   readonly onEditMax?: (next: number) => void;
   /** What the MAX edit actually writes, when "Click to edit" understates it (per-carrier ceilings: the
    *  caller states this-character-vs-default semantics here; it rides the rest button's `title`).
@@ -55,10 +55,10 @@ export interface MeterRowProps {
   /** The label's hover `title` — the host-authored HINT rides here instead of an inline microline (owner
    *  ruling 08-01: the same hint echoed under every carrier's row is noise; hover reveals it on demand). */
   readonly labelTitle?: string;
-  /** A transient consequence microline under the row (§12.3 clamp-and-tell — "Vitality 24 → 20, max
+  /** A transient consequence microline under the row (clamp-and-tell — "Vitality 24 → 20, max
    *  lowered"). The caller owns its lifecycle (shows it after a drag, clears it). */
   readonly note?: ReactNode;
-  /** Render the value TEXT in warning tone (§12.3 — an overfull `34/30` reads in warning, never hidden). */
+  /** Render the value TEXT in warning tone (an overfull `34/30` reads in warning, never hidden). */
   readonly valueWarning?: boolean;
 }
 

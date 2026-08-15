@@ -1,5 +1,5 @@
 // The HUD's BAND body — resolves the takeover panel state and renders the scene banner + pool orbs. It is
-// mounted by the HUD's own band (`rpg-hud.tsx`), at the TOP of the pane the rpg feature claims (HUD-1 §3.1):
+// mounted by the HUD's own band (`rpg-hud.tsx`), at the TOP of the pane the rpg feature claims:
 // pre-HUD this rode the shell's chrome band through a contributor slot rpg did not own; that channel is
 // deleted, and the band now belongs to the composition that draws it. Homed as its own component because it
 // calls a hook (`useRpgContextState`) and must therefore BE a component (rules-of-hooks). `null` from the
@@ -20,7 +20,7 @@ export interface RpgHeaderBandProps {
   readonly chatId: ChatId;
 }
 
-/** The band's HOST-ONLY veiled count (panel-redesign §2 "the cues row" / §6 P3): the crown-gold standing
+/** The band's HOST-ONLY veiled count ("the cues row"): the crown-gold standing
  *  indicator over the SAME `rpg.revealHidden` read the Status Veiled ledger tails (one cache entry, two
  *  lenses), and the DOORWAY to Status → Veiled (`revealContextPanel`). Renders NOTHING at zero standing
  *  lies (the honest empty plane) — and never mounts for a member (the caller gates on `isHost`;
@@ -68,7 +68,7 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
   if (state === null) {
     return null;
   }
-  // Level moved OFF the band (panel-redesign: Sheet's identity line owns it — one number, three zoom
+  // Level moved OFF the band (Sheet's identity line owns it — one number, three zoom
   // levels; the band carries the waystone + orbs + coin, its text lines the datum).
   return (
     <RpgTakeoverHeader
@@ -80,7 +80,7 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
       delivery={state.game.effectiveDelivery}
       dateMode={state.game.publicConfig.dateMode}
       freshnessPending={turnLive}
-      // The host-only veiled count on the cues row (§2/§6 P3) — PERMISSION-omit for a member.
+      // The host-only veiled count on the cues row — PERMISSION-omit for a member.
       veiledCue={state.isHost ? <RpgVeiledCue chatId={chatId} /> : null}
     />
   );

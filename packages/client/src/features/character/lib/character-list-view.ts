@@ -1,4 +1,4 @@
-// Pure view helpers for the character LIST (FINAL-Character §4.3/§4.4) — the categorized group-by-tag fold
+// Pure view helpers for the character LIST — the categorized group-by-tag fold
 // and the resume-or-new target map. All pure + structural (they take the minimal row/chat shape, not the
 // full tRPC types) so they unit-test without a data layer. The surface composes them in RENDER (§5.1
 // render-only reader taxonomy — no effect keyed on selection/prefs).

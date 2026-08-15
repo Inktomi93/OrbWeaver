@@ -179,7 +179,7 @@ function copyRefusal(data: ApplyAsCopyResult): string | null {
   return data.character === null && data.dropped.length > 0 ? "No copy was made — every accepted rewrite was dropped." : null;
 }
 
-/** The BRANCH-OFF terminal act (schema-renderer §17): the reviewed accepts land on a NEW character; the
+/** The BRANCH-OFF terminal act: the reviewed accepts land on a NEW character; the
  *  live card is untouched. The fresh character rides the user bus (`duplicate`/`update` both emit
  *  `charactersChanged`), so only the refinery half is named here. */
 export const useApplyRefineryAsCopy = createEntityMutation<inferInput<Trpc["refinery"]["applyAsCopy"]>, ApplyAsCopyResult>({

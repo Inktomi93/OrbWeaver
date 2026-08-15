@@ -1,4 +1,4 @@
-// DoorwayLine — the ONE cross-reference primitive (panel-redesign DESIGN.md §12.1.5): a muted sentence +
+// DoorwayLine — the ONE cross-reference primitive: a muted sentence +
 // an optional action, used by every APPLICABILITY/authoring cross-reference ("Define attributes in Game →",
 // the veiled-count doorway, the graduation pointer). One anatomy so a doorway always reads the same;
 // feature-homed (every current consumer is rpg — hoists to the shared tier when a 2nd feature needs it,

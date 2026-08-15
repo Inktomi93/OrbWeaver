@@ -1,11 +1,11 @@
-// The QUESTS tab (panel-redesign DESIGN.md §4 "Quests" — live in lite AND full, the owner correction):
-// the quest plane's HOME (Scene's Goals is a filtered echo of the SAME rows — §12.1.8, one datum two
+// The QUESTS tab ("Quests" — live in lite AND full, the owner correction):
+// the quest plane's HOME (Scene's Goals is a filtered echo of the SAME rows — one datum two
 // lenses). ACTIVE quests render as clock-ring cards — the `SegmentedClock`'s segments ARE the objectives
 // (D58; never a decorative dial; a 0/1-objective quest shows only the `n/m`-less checklist) — with the
 // objective checklist beneath; DONE quests dim + strike with a wrap line (no TurnRef — the plane carries
-// no completion ref yet, §12.2 "wrapped at t28" change); FAILED quests strike in the destructive tone
-// (the §12.2 missing-state addition). The act rail (I·II·III) has NO data plane — demoted to P5, ships
-// nothing (§12.2.6; no client-invented acts, ever).
+// no completion ref yet, the "wrapped at t28" change); FAILED quests strike in the destructive tone
+// (the missing-state addition). The act rail (I·II·III) has NO data plane — demoted to P5, ships
+// nothing (no client-invented acts, ever).
 //
 // EDIT-in-place (host, `canEditShared`): quest name inline (upsertQuest), objective completion via a
 // checkbox (whole-objectives-array replace — the authoring wire shape). Text is the datum everywhere;
@@ -13,11 +13,11 @@
 // is a per-card host action behind a ConfirmDialog — offered on SETTLED cards too (clearing the archive is
 // exactly when a host wants it), which is why it sits outside the `dim` read-only gate.
 //
-// P5 — the ACT RAIL (the plot spine, DESIGN §4 "ACT II — THE BONE KEY ●I ─ ◉II ─ ○III"): renders the
+// P5 — the ACT RAIL (the plot spine, "ACT II — THE BONE KEY ●I ─ ◉II ─ ○III"): renders the
 // snapshot-resident `tracker.plot` plane (clone-forward like quests — swipe-consistent), current act
 // embered (text-highlight), past acts settled, future acts muted. TEXT is the datum (the "ACT II — title"
 // line); the dot row is aria-hidden decoration (the tracker-kit a11y model). Null plot ⇒ NOTHING renders
-// (no client-invented acts, ever — §12.2.6).
+// (no client-invented acts, ever).
 
 import type { RpgQuestView } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
@@ -223,7 +223,7 @@ export interface RpgQuestsTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The host "New quest" affordance (§12.4 flow — no dead ends): the shared `AddRow` (RV-8) firing
+/** The host "New quest" affordance (no dead ends): the shared `AddRow` (RV-8) firing
  *  `upsertQuest` with NO `questId` (⇒ create). Tier-2 refusal + Enter-to-commit come with the primitive. */
 function NewQuest({ onCreate }: { readonly onCreate: (name: string) => void }): ReactElement {
   return <AddRow ariaLabel="New quest name" placeholder="Start a quest…" actions={[{ key: "quest", label: "New quest", icon: Plus, onAdd: onCreate }]} />;
@@ -239,7 +239,7 @@ function buildQuestEdit(
   return {
     onEditName: (quest, next): void => {
       const trimmed = next.trim();
-      // Tier-2 refusal (§12.3): an empty quest name is never sent — the plane requires min(1).
+      // Tier-2 refusal: an empty quest name is never sent — the plane requires min(1).
       if (trimmed !== "") {
         upsertQuest.mutate({ chatId, questId: quest.id, name: trimmed });
       }
@@ -297,7 +297,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
   const rail = tracker.plot === null ? null : <RpgActRail plot={tracker.plot} {...(plotEdit === undefined ? {} : { edit: plotEdit })} />;
 
   if (tracker.quests.length === 0) {
-    // No dead end (§4.3 rule 1): the empty state offers the create affordance to a host, teaches a member.
+    // No dead end: the empty state offers the create affordance to a host, teaches a member.
     return (
       <Stack gap="section" data-slot="rpg-quests-tab">
         {rail}

@@ -1,4 +1,4 @@
-// The refinery WALK state (R3 — schema-renderer §16.1's view-back/operate-back): which run CONTENT is
+// The refinery WALK state (R3 — the view-back/operate-back arms): which run CONTENT is
 // viewing (null = the live "latest per stage" read) and which rewrite run is ARMED for the next
 // apply/analyze (null = latest). Client-EPHEMERAL and shared across two panes (the CONTEXT Runs tab's
 // actions drive CONTENT's viewer), so it lives in the state commons (channel row 1) — walking is free,
@@ -11,7 +11,7 @@ import { createGatedStore } from "./create-gated-store.ts";
 interface RefineryViewState {
   /** The run id CONTENT's viewer is pinned to; null = the latest of the active stage. */
   readonly viewedRunId: string | null;
-  /** The §16.1 operate-back arm: the rewrite run the NEXT apply/analyze targets; null = latest. */
+  /** The operate-back arm: the rewrite run the NEXT apply/analyze targets; null = latest. */
   readonly armedRewriteRunId: string | null;
 }
 

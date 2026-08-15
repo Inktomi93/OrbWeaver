@@ -1,11 +1,11 @@
 // The CAST CARD and its header slots (both extracted from tracker-blocks.tsx under the component-size cap —
 // the card followed its slots here rather than splitting one unit across two files: it is nothing but their
 // arrangement, and no other component composes them). The slots: the
-// relationship slot (a display-at-rest badge whose CLICK opens the closed 6-token kind PICKER — Tier-0
-// §12.3, but never a RESTING dropdown per DESIGN §12.4.1) and the mood slot (display-at-rest,
+// relationship slot (a display-at-rest badge whose CLICK opens the closed 6-token kind PICKER — Tier-0,
+// but never a RESTING dropdown) and the mood slot (display-at-rest,
 // input-on-click via TrackerValue) and the GUIDE lines (RV-11 — the standing appearance/outfit/thoughts the
 // story writes every beat, which reached no reader at all until the panel and the steering reminder grew one).
-// All three are editable-in-place by default per the kit doctrine (§3.2).
+// All three are editable-in-place by default per the kit doctrine.
 
 import type { RpgCastGuideField, RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
 import { RPG_CAST_GUIDE_FIELDS, RPG_RELATIONSHIP_KINDS } from "@orb/contracts/rpg";
@@ -34,7 +34,7 @@ interface CastRelationshipProps {
  *  silent on neutral. Off-vocab kinds are unconstructable (Tier-0). */
 function CastRelationship({ name, relationship, onEditRelationshipKind, relationshipGlyph }: CastRelationshipProps): ReactElement | null {
   const kind = relationship?.kind ?? "neutral";
-  // Controlled so a PICK closes the popover in the same gesture (commit-and-close, §12.4.1).
+  // Controlled so a PICK closes the popover in the same gesture (commit-and-close).
   const [open, setOpen] = useState(false);
   if (onEditRelationshipKind !== undefined) {
     const badge = relationship !== undefined && kind !== "neutral" ? <RelationshipBadge relationship={relationship} /> : null;
@@ -110,7 +110,7 @@ interface CastGuidesProps {
   readonly appearance?: string;
   readonly outfit?: string;
   readonly thoughts?: string;
-  /** Commit one guide (free text) — present ⇒ each SHOWN guide is editable-in-place (§3.2). It cannot seed an
+  /** Commit one guide (free text) — present ⇒ each SHOWN guide is editable-in-place. It cannot seed an
    *  unwritten guide: these are prose the story authors, and three empty labelled rows on every cast card
    *  would cost more than the seeding is worth. */
   readonly onEditGuide?: (field: RpgCastGuideField, next: string) => void;
@@ -219,15 +219,15 @@ export interface CastCardProps {
   /** Commit one guide by field — present ⇒ the shown guide lines are editable; absent ⇒ read-only. */
   readonly onEditGuide?: (field: RpgCastGuideField, next: string) => void;
   readonly fields?: readonly CastField[];
-  /** The cast member's relationship stance (§2.1) — badged in the header row; a neutral default shows nothing. */
+  /** The cast member's relationship stance — badged in the header row; a neutral default shows nothing. */
   readonly relationship?: RpgRelationship;
   /** Meter blocks for numeric per-NPC trackers (rendered above the text-field chips). */
   readonly meters?: ReactNode;
   /** Commit a field value by field name — present ⇒ its chips are editable; absent ⇒ read-only. */
   readonly onEditField?: (fieldName: string, next: string) => void;
-  /** Commit a new mood (free text) — present ⇒ the mood is editable-in-place (§3.2). */
+  /** Commit a new mood (free text) — present ⇒ the mood is editable-in-place. */
   readonly onEditMood?: (next: string) => void;
-  /** Commit a new relationship KIND (the closed 6-token vocab — a PICKER, Tier-0 §12.3; off-vocab is
+  /** Commit a new relationship KIND (the closed 6-token vocab — a PICKER, Tier-0; off-vocab is
    *  unconstructable). Present ⇒ the badge becomes a compact kind picker. */
   readonly onEditRelationshipKind?: (next: RpgRelationshipKind) => void;
   /** An optional leading relationship glyph (aria-hidden decoration) shown beside the picker in EDIT mode —

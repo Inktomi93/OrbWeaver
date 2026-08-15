@@ -1,7 +1,7 @@
 // The ONE transcript→card projection ("chrome designed once,
 // used in three homes"): tokenize the visible transcript's SELECTED-variant bodies and collect the
 // immersive-card spans. Shared by the Scene "Cards" archive (newest-first title list) and the Journal
-// chronicle (cards archived into the day they were born — the §4 "Journal" rule), so both lenses read the
+// chronicle (cards archived into the day they were born — the "Journal" rule), so both lenses read the
 // SAME projection of the same cache entry (`trpc.chat.listMessages` — lockdown §12 direct read).
 
 import type { ParticipantView } from "@orb/contracts/chat";
@@ -15,7 +15,7 @@ import { resolveRowRenderPolicy } from "#lib";
  *  the origin MESSAGE's wall time; Journal's day-grouping key). */
 export interface ArchivedCard {
   readonly key: string;
-  /** The origin message — the row's TurnRef anchor (§12.1.4 "only where the data really carries a ref"). */
+  /** The origin message — the row's TurnRef anchor ("only where the data really carries a ref"). */
   readonly messageId: MessageId;
   readonly title: string | null;
   readonly html: string;

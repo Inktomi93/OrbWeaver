@@ -4,7 +4,7 @@
 // Dialog/AlertDialog is fine (the persona-panel-row / character-create-actions precedent). The Tag action's
 // `bulkAddCardTag` takes a `tagName`, so the entry doubles as attach-existing or create-and-attach. Delete
 // is a hard, undo-less server verb (`bulk-remove`) → it is gated behind an AlertDialog confirm stating the
-// count (§13.8 R4 / FINAL-Character §11.1 — destructive confirms are the one legal INTERRUPT modal).
+// count (§13.8 R4 — destructive confirms are the one legal INTERRUPT modal).
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
