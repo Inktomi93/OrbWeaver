@@ -40,7 +40,7 @@ interface HumanSeat {
  *  precedent) instead of being copied or resurrected. Deliberately NOT online-filtered like the turn's
  *  `personaIds`: an OFFLINE member is still a member, and the anchor's owner is routinely offline (presence
  *  gates which persona BOOKS join the world-info pool, never whose identity the room may render). PURE. */
-export function presentHumanUserIdsOf(roster: readonly HumanSeat[]): readonly UserId[] {
+function presentHumanUserIdsOf(roster: readonly HumanSeat[]): readonly UserId[] {
   return [
     ...new Set(
       roster.flatMap((seat) => {

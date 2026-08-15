@@ -12,11 +12,7 @@
       "verifiedSha256": "1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f",
       "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
       "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/Mission.md:1",
-        "git log --oneline -5 -- docs",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
-      ],
+      "evidence": ["docs/Mission.md:1", "git log --oneline -5 -- docs", "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"],
       "claims": [
         {
           "claim": "Durable truth is in Git.",
@@ -71,11 +67,7 @@
       "verifiedSha256": "a4b39ae9943cb314d80bf059b40a9f7c4f191943688b90c7eb236ff7490c98f3",
       "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
       "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/client-smalls-lane.md:1",
-        "git log --oneline -5 -- docs",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
-      ],
+      "evidence": ["docs/client-smalls-lane.md:1", "git log --oneline -5 -- docs", "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"],
       "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
     },
     {
