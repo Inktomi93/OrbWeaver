@@ -144,6 +144,8 @@ export interface PreflightParams extends RefineryActorParams {
 
 // ── the custom-schema library (R3/SF — the NL design §4.4's verbs) ─────────────────────────────────────
 
+// @nearpair-ok: near-matches `@orb/contracts/refinery::RefinerySchemaDocument` by design — the verb params
+// WRAP the document shape with the resolved `principal` (one-home rule).
 export interface CreateSchemaParams extends RefineryActorParams {
   readonly name: string;
   readonly description: string;
