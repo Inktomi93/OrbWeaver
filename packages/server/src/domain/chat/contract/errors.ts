@@ -74,11 +74,6 @@ export const CHAT_OP_CODES = {
    *  The WRITE-side belt for the runaway-cascade guard: automation's dispatch gate already refuses an event at
    *  depth ≥ cap, so this bites only a mis-behaving non-dispatch caller (the plugin membrane) — fail-closed. */
   cascadeDepthExceeded: "cascade_depth_exceeded",
-  /** A multi-human / membership surface was reached while the deployment is in `single-user` AUTH_MODE
-   *  (the capability gate). The DOMAIN-side (LAYER-2) discriminator — transport's LAYER-1 belt
-   *  (`multiHumanProcedure`, PD-106) refuses the documented procedures as a leak-free NOT_FOUND. */
-  singleUserMode: "single_user_mode",
-
   /** #67 — `send` was given an `attachmentAssetIds` id the actor does not OWN (a foreign / gone asset). The
    *  caller IS a present member (the send gate passed), so this is a coded validation refusal, not a
    *  NOT_FOUND collapse — and it leaks nothing about another owner's asset (per-user D21 scope). */

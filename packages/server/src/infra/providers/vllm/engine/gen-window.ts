@@ -42,8 +42,3 @@ export async function fetchEngineMaxModelLen(engine: VllmEngine, signal?: AbortS
   }
   return null;
 }
-
-/** Back-compat alias — the gen engine's window (the fit-ceiling consumer). Prefer `fetchEngineMaxModelLen`. */
-export function fetchGenMaxModelLen(signal?: AbortSignal): Promise<number | null> {
-  return fetchEngineMaxModelLen("gen", signal);
-}

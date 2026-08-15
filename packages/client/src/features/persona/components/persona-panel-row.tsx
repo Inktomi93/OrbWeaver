@@ -20,8 +20,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, FINE_INERT_UNTIL_HOVER, ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset } from "#data";
-import { cn, downloadTextFile, notify } from "#lib";
+import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset, useUploadCaps } from "#data";
+import { cn, downloadTextFile, notify, oversizeUploadMessage } from "#lib";
 import { useUpdatePersona } from "../hooks/use-persona-mutations.ts";
 import { PersonaEditor } from "./persona-editor.tsx";
 import { PersonaRowNameColumn } from "./persona-row-name-column.tsx";
@@ -55,12 +55,21 @@ export function PersonaPanelRow({
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation });
   const upload = useUploadAsset();
+  const uploadCaps = useUploadCaps();
   // The EDITOR's own Delete button routes through this confirm; the kebab's destructive item owns its own
   // (RowActionsMenu). ONE copy string, so the two confirms can't drift.
   const [deleteOpen, setDeleteOpen] = useState(false);
   const avatarSrc = persona.avatarHash === null ? {} : { src: blobUrl(persona.avatarHash) };
 
   const onAvatarFile = async (file: File): Promise<void> => {
+    // `FileTrigger` (unlike `FileDropzone`) carries no size ceiling of its own — pre-check against the
+    // served route cap (`UploadCaps.assetUpload`) before the multipart POST, same pattern as the
+    // `.image`/`.databankUpload` FileDropzone consumers (census #72 item 1).
+    const oversize = oversizeUploadMessage(file, uploadCaps.assetUpload);
+    if (oversize !== undefined) {
+      notify.error(oversize);
+      return;
+    }
     try {
       const stored = await upload(file, "avatar");
       update.mutate({ personaId: persona.id, input: { avatarAssetId: stored.assetId } });
