@@ -1,34 +1,6 @@
-// work-item — the Project 1 operator CLI (show/list/create + the lifecycle verbs and their guards).
-//
-// DESIGN (2026-08-14 quota rebuild — wire protocol replaced, guard semantics preserved byte-for-byte):
-// • Cost model: the GraphQL primary budget prices a query at connection-requests/100 (min 1). The old
-//   implementation paid `gh project item-list --limit 1000` on EVERY command (twice on first touch),
-//   plus one `gh project item-edit` process per field — ~35 operator commands exhausted the whole
-//   5,000-point/hour budget and froze board operations for ~48 minutes.
-// • Item resolution is TARGETED: one WorkItemContext query walks repository→issue→projectItems and
-//   returns issue state, comments, blockedBy, and the item's fieldValues in one ~1-point request.
-//   Nothing but `list` ever enumerates the project, and `list` paginates 100/page requesting only the
-//   fields it prints (a manual cursor loop — `gh api graphql --paginate` emits one JSON doc per page).
-// • The project id and field/option ids are STABLE: they load once into
-//   .claude/cache/work-item-project.json (dir override: WORK_ITEM_CACHE_DIR) and SELF-HEAL — a missing
-//   field/option name or an id-resolution error drops the cache, refetches once, and retries the
-//   idempotent write; a second miss is a real error.
-// • Mutations BATCH: one aliased WorkItemFields request carries every non-Status change
-//   (update/clearProjectV2ItemFieldValue), then Status commits ALONE in a WorkItemStatus request.
-//   Status stays the transition's commit marker: GraphQL executes root mutation fields serially but a
-//   sibling's failure does not stop later fields, so batching Status into the same request could
-//   commit it past a failed field write and break the rerun promise. Writes are idempotent and
-//   skip-if-equal, so an interrupted command remains safe to rerun from its source state.
-// • Rate-limit failures CLASSIFY: a GraphQL failure matching a limit signature probes the free REST
-//   rate_limit endpoint and exits 2 with the reset timestamp — never a raw GraphQL stack.
-// • Typed variables: -F for Int (issue numbers — #59), -f for String/ID. Field lookups stay
-//   case-insensitive by NAME (#60: live vocabularies differ in key case). Field kinds dispatch on
-//   __typename, which matches the old `gh project field-list` type strings exactly.
-// Guards (LAW): claim needs Ready+unblocked+Kind/Priority/Area/Review; set refuses lifecycle fields;
-// done only from Verify (or rerun on Done) with byte-matched --evidence, posts the verification
-// comment exactly once, closes the issue; needs-owner refuses terminal dispositions; unblock promotes
-// to Ready when the last blocker clears; closed items are immutable except done.
-// Exit contract: 0 clean · 2 tool error · 3 misuse.
+// work-item — the Project 1 operator CLI: show/list/create plus the lifecycle verbs and their guards,
+// resolving each issue via a targeted GraphQL walk with self-healing cached project/field ids.
+// Lifecycle law: .claude/rules/orchestration.md §Work control quick path. Exit: 0 clean · 2 tool · 3 misuse.
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -42,8 +14,15 @@ const REPOSITORY = `${PROJECT_OWNER}/${REPO_NAME}`;
 const PROJECT_NUMBER = 1;
 const ISSUE_RE = /^\d+$/u;
 const ISSUE_URL_RE = /\/issues\/(\d+)$/u;
-const RATE_LIMIT_RE = /rate limit|RATE_LIMITED/iu;
-const STALE_CONTEXT_RE = /could not resolve|no field named|no option named/iu;
+// Primary exhaustion (RATE_LIMITED type / remaining=0) reports the reset timestamp; secondary limits
+// (403/429 with a "secondary rate limit" message per GitHub's REST-API troubleshooting docs) never honor
+// that timestamp — GitHub does not expose Retry-After through `gh`'s text output, so the operator
+// instruction is the documented fallback backoff (wait ≥1 minute, then exponential backoff on repeats).
+const SECONDARY_RATE_LIMIT_RE = /secondary rate limit/iu;
+const PRIMARY_RATE_LIMIT_RE = /rate limit|RATE_LIMITED/iu;
+// "does not belong to" is GitHub's live wording for a stale cached single-select OPTION id
+// (updateProjectV2ItemFieldValue rejects an option id that no longer belongs to its field).
+const STALE_CONTEXT_RE = /could not resolve|no field named|no option named|does not belong to/iu;
 const EXIT_TOOL = 2;
 const EXIT_MISUSE = 3;
 const CREATE_OPTION_COUNT = 4;
@@ -217,7 +196,12 @@ function graphqlResetTime(): string {
 
 function ghFailure(error: unknown, args: readonly string[]): Error {
   const detail = `${execOutput(error, "stderr")}\n${execOutput(error, "stdout")}`.trim();
-  if (args[0] === "api" && args[1] === "graphql" && RATE_LIMIT_RE.test(detail)) {
+  if (args[0] === "api" && args[1] === "graphql" && SECONDARY_RATE_LIMIT_RE.test(detail)) {
+    return new Error(
+      "GitHub GraphQL secondary rate limit hit; GitHub does not expose Retry-After through this tool, so back off per its documented guidance — wait at least one minute, then retry with exponential backoff if it fails again. Rerun this exact command after backing off.",
+    );
+  }
+  if (args[0] === "api" && args[1] === "graphql" && PRIMARY_RATE_LIMIT_RE.test(detail)) {
     return new Error(`GitHub GraphQL rate limit exhausted; it resets at ${graphqlResetTime()}. Rerun this exact command after the reset.`);
   }
   if (detail !== "") {
