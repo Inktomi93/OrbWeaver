@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-14
+---
+
 # THE CRUNCHY-CLUSTER REDESIGN — extraction depth · the wand · fork-clones-the-game · the sweep
 
 > Design deliverable, 2026-07-28. MAX-effort investigation, DESIGN ONLY — no source touched. A builder

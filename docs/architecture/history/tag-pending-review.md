@@ -1,7 +1,7 @@
 ---
-kind: spec
-status: shipped
-updated: 2026-07-03
+kind: history
+status: superseded
+updated: 2026-07-12
 ---
 
 # Proposed: tag pending-review read surface (the Accept/Reject flow's server half)

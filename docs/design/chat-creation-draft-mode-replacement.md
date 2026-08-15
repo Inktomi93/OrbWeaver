@@ -1,6 +1,6 @@
 ---
 kind: design
-status: proposed
+status: archived
 updated: 2026-08-14
 ---
 

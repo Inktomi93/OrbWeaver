@@ -1,3 +1,9 @@
+---
+kind: history
+status: superseded
+updated: 2026-07-13
+---
+
 # Core-Laws-and-Precedents — planning-era archaeology record
 
 > Frozen 2026-07-13, extracted from Core-Laws-and-Precedents.md. The 2026-06-25/26 greenfield planning + reconciliation body of that doc (its §1–§6). The STANDING rulings these produced live in `../core/Core-Path-Registry.md` (the D-ledger), the `Spine-*`/`Tier-*`/`Knowledge-Cluster` docs, and the built code + its file headers; this file is the how-we-got-here record only, not live law.

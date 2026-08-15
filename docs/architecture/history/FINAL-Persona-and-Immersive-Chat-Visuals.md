@@ -1,3 +1,9 @@
+---
+kind: history
+status: superseded
+updated: 2026-08-08
+---
+
 # FINAL — Persona system (SHIPPED) + Immersive chat visuals (Phase 3–4 spec)
 
 ```

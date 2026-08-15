@@ -1,7 +1,7 @@
 ---
-kind: spec
-status: shipped
-updated: 2026-07-10
+kind: history
+status: superseded
+updated: 2026-07-16
 ---
 
 # Proposed: the buddy `observer/` reaction engine + live bus (PD-45 / PD-64)

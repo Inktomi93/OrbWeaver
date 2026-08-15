@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-14
+---
+
 # The templating fork — PROSE-1 census rows 53-73 (REWRITE\_TOGGLES / GREETING\_TRANSFORMS)
 
 **Status:** RULED **ARM B** (owner, 2026-08-09) and **BUILT** in the same pass. What landed, against §4's

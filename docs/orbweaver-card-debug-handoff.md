@@ -1,3 +1,9 @@
+---
+kind: handoff
+status: superseded
+updated: 2026-08-14
+---
+
 # Orbweaver — immersive-card debugging handoff
 
 > **SUPERSEDED WHOLE (2026-08-14, owner-ruled at the Codex doc-audit).** Every open item below has

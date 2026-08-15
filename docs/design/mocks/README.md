@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-14
+---
+
 # docs/design/mocks — frozen design drawings
 
 Design references, not product code. Nothing here is built, bundled, or served: the `.html` files are

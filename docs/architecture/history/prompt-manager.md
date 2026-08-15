@@ -1,3 +1,9 @@
+---
+kind: history
+status: superseded
+updated: 2026-07-13
+---
+
 # THE ASSEMBLY — canonical build spec (the orbweaver prompt manager)
 
 STATUS: build-ready. Consolidated from five refinement rounds; the design decisions here are FINAL —

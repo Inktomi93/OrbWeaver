@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-08
+---
+
 # Refinery — the OG extension's community feedback, mapped to orb (2026-08-08)
 
 > **Source:** the owner's Discord release thread for SillyTavern-CharacterTools → SillyTavern-CardRefinery

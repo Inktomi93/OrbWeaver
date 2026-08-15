@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-08
+---
+
 # PROSE-1 — the populate round's own prose (post-census enumeration)
 
 **Status:** BUILT 2026-08-08 — rows 1-7 landed as the `rpg.populate.*` cohort (7 `RPG_PROSE_SLOTS` rows +

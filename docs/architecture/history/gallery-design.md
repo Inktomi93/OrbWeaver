@@ -1,7 +1,7 @@
 ---
-kind: spec
-status: implemented
-updated: 2026-07-11
+kind: history
+status: superseded
+updated: 2026-08-14
 ---
 
 # Gallery & Media Surfaces — the build design

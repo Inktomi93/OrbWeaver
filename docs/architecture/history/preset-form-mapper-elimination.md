@@ -1,7 +1,7 @@
 ---
-kind: spec
-status: done
-updated: 2026-07-12
+kind: history
+status: superseded
+updated: 2026-07-13
 ---
 
 # Eliminate `PresetFormValues` + the flat-form mapper (client preset editor) — BUILT

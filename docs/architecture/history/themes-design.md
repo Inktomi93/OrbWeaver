@@ -1,6 +1,6 @@
 ---
-kind: spec
-status: implemented
+kind: history
+status: superseded
 updated: 2026-07-09
 ---
 

@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-08
+---
+
 # OpenRouter chat-completions backend — measured findings & fixes
 
 **Status:** findings 1–4 APPLIED (2026-07-31); **5 APPLIED (2026-08-08 — role-switch depth + the

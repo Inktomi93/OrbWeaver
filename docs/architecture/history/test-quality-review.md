@@ -1,3 +1,9 @@
+---
+kind: history
+status: superseded
+updated: 2026-07-10
+---
+
 # Test-quality fleet review — 2026-07-09
 
 > **RETIRED to history/ 2026-07-10 — WORK DONE.** The six-reviewer fleet review + the full-coverage

@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-09
+---
+
 # DRAFT-TRUST render-policy seam — decision brief
 
 > Scout-reconstructed 2026-08-09 (lane #51, receipts verified in-lane). The standing board item

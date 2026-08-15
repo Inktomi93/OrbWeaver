@@ -1,6 +1,6 @@
 ---
 kind: design
-status: landed
+status: archived
 updated: 2026-08-07
 ---
 

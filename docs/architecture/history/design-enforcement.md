@@ -1,7 +1,7 @@
 ---
 kind: history
-status: as-built
-updated: 2026-07-11
+status: superseded
+updated: 2026-07-12
 ---
 
 > **AS-BUILT (2026-07-11).** This program is fully realized: rulings P1–P6 landed in D62 core law

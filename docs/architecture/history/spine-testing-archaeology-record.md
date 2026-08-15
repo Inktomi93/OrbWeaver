@@ -1,3 +1,9 @@
+---
+kind: history
+status: superseded
+updated: 2026-07-13
+---
+
 # Spine-Testing doctrinal lineage — frozen 2026-07-13
 
 > **Frozen 2026-07-13, extracted from `core/Spine-Testing.md`.** The neo-tavern provenance and dated

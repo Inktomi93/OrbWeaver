@@ -1,7 +1,7 @@
 ---
-kind: spec
-status: shipped
-updated: 2026-07-11
+kind: history
+status: superseded
+updated: 2026-07-12
 ---
 
 # Export / Import — the uniform portability subsystem (master)

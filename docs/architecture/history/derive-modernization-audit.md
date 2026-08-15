@@ -1,6 +1,6 @@
 ---
 kind: history
-status: shipped
+status: superseded
 updated: 2026-07-16
 ---
 

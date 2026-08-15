@@ -1,3 +1,9 @@
+---
+kind: review
+status: complete
+updated: 2026-08-07
+---
+
 # CLIENT-SMALLS lane — two client landings (2026-08-07)
 
 Two bounded, scout-confirmed-OPEN items. Durable notes so the homes + premise corrections survive the

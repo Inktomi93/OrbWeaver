@@ -1,3 +1,9 @@
+---
+kind: history
+status: superseded
+updated: 2026-07-10
+---
+
 # Test-tree DRY punchlist — jscpd sweep 2026-07-09
 
 > **RETIRED to history/ 2026-07-10 — WORK DONE.** The jscpd DRY sweep + its Wave-1 support-adoption

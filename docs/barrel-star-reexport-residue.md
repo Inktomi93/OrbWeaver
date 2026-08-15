@@ -1,3 +1,9 @@
+---
+kind: review
+status: complete
+updated: 2026-08-14
+---
+
 # Barrel root-fix — what landed, what is sanctioned, and the amputation worklist
 
 Lane record for the BARREL ROOT-FIX row (`docs/history/retro-workboard-2026-08-14.md`). The refactor itself is a

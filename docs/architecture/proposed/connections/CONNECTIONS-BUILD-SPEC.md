@@ -1,3 +1,9 @@
+---
+kind: spec
+status: complete
+updated: 2026-07-13
+---
+
 # Connections "Roles & Keys" — BUILD SPEC (cold-read executable)
 
 STATUS: verified design, ready to build. This is the CONSOLIDATION of a refinement round that was

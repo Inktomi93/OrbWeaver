@@ -1,7 +1,7 @@
 ---
 kind: design
-status: proposed
-updated: 2026-08-03
+status: archived
+updated: 2026-08-07
 ---
 
 # Node 21 → 26 maximal-adoption program

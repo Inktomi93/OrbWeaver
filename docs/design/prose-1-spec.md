@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-14
+---
+
 # PROSE-1 — model-facing prose becomes host-editable data
 
 **Status:** SPEC — not built, not approved. Owner ruling (`617c40c27:docs/retro-workboard.md:384-394`): *"prose shouldn't live in the code."* This document is the blueprint.

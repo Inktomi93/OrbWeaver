@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-07-31
+---
+
 # The RPG Context Panel — redesign rationale
 
 Design deliverable, 2026-07-27. Gallery: `index.html` (open that one file). Mockups are standalone

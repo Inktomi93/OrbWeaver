@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-08
+---
+
 # PROSE-1 — the rpg EXTRACTION seam (follow-on to the reminder-seam lane)
 
 > **✅ LANDED 2026-08-08 (the EXTRACTION-SEAM lane).** Everything below is now HISTORY except where it is

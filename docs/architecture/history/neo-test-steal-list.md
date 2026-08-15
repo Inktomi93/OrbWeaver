@@ -1,3 +1,9 @@
+---
+kind: history
+status: superseded
+updated: 2026-07-10
+---
+
 # Neo-tavern test steal list — 2026-07-09
 
 > **RETIRED to history/ 2026-07-10 — MOSTLY CONSUMED.** The neo-tavern corpus mining is done; the

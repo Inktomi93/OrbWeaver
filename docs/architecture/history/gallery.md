@@ -1,7 +1,7 @@
 ---
-kind: spec
-status: implemented
-updated: 2026-07-11
+kind: history
+status: superseded
+updated: 2026-07-12
 ---
 
 # Orbweaver — `gallery` (media surfaces)

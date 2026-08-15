@@ -1,7 +1,7 @@
 ---
 kind: design
-status: proposed
-updated: 2026-08-08
+status: archived
+updated: 2026-08-09
 ---
 
 # Refinery R3 — the schema-driven result renderer (crowning-feature design workshop)

@@ -1,9 +1,7 @@
 ---
-kind: design-options
-status: draft
-updated: 2026-08-08
-scope: tag-experience taste calls (4) + guidedActions.prompt contract cap (1)
-mode: investigate-only — no code touched
+kind: design
+status: parked
+updated: 2026-08-09
 ---
 
 # Parked options: tag taste-calls + the guided-prompt contract cap

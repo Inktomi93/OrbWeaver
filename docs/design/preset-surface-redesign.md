@@ -1,6 +1,6 @@
 ---
-kind: spec
-status: closed (BUILT — see D121)
+kind: design
+status: archived
 updated: 2026-08-03
 ---
 

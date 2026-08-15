@@ -1,7 +1,7 @@
 ---
-kind: spec
-status: realized
-updated: 2026-07-20
+kind: history
+status: superseded
+updated: 2026-07-24
 ---
 
 # ComfyUI-Control Integration — driving the owner's `orbgen` kit from orbweaver's imagery arm

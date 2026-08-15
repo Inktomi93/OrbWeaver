@@ -1,3 +1,9 @@
+---
+kind: history
+status: superseded
+updated: 2026-07-24
+---
+
 # RPG-CONSOLE-COMMIT — the human-GM out-of-turn commit model (mini-spec)
 
 > **Status: REALIZED + GRADUATED 2026-07-19 (D101) — code is the doc; frozen historical record.** The

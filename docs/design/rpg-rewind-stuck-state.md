@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-14
+---
+
 # RPG-LITE REWIND/SWIPE — "state stuck" — diagnosis + game plan
 
 > **Status: DIAGNOSED AND FIXED (arm A).** The mechanism below was confirmed deterministically at the

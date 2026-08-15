@@ -1,3 +1,9 @@
+---
+kind: history
+status: superseded
+updated: 2026-07-13
+---
+
 # Neo-Tavern → Orbweaver Parity Audit Protocol & Log
 
 **Context:** The goal is to ensure 100% feature and behavioral parity with `neo-tavern` when migrating domains into `orbweaver`. However, Orbweaver's rigorous architecture (strict boundaries, exhaustiveness, one-way flow, zero shortcuts) MUST NOT BE COMPROMISED. We don't port bad patterns; we port *capabilities*.

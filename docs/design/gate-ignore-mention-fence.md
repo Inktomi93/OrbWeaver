@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-14
+---
+
 # The `@orb-gate-ignore` mention fence — closing the scripts/ inventory gap
 
 > Design record (2026-08-08, FORGE lane). Supersedes the 2026-08-08 board ruling "gate-ignore scanRoot:

@@ -1,7 +1,7 @@
 ---
-kind: spec
-status: shipped
-updated: 2026-07-10
+kind: history
+status: superseded
+updated: 2026-07-12
 ---
 
 # Assets — the maintenance/DR wave (PD-26 + PD-84): backfill · GC · reap · fsck · rebuild

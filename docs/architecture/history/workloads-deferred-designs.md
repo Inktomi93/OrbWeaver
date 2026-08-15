@@ -1,7 +1,7 @@
 ---
-kind: spec
-status: shipped
-updated: 2026-07-03
+kind: history
+status: superseded
+updated: 2026-07-31
 ---
 
 # Proposed: workloads — deferred designs (per-user authz, DAG scheduler, kind collapse)

@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-07-31
+---
+
 # Context-panel meta-tabs + model picker — fidelity findings (the "is it getting dirty" audit)
 
 **Status:** findings, none fixed · **Date:** 2026-07-30 · **Scope:** chat context-panel meta tabs

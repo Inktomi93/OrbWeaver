@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-14
+---
+
 # PARITY-PLUS — the seven-feature "make it first-class and better" program spec
 
 > **Deliverable of the max-effort DESIGN pass commissioned 2026-07-27** (owner greenlight, verbatim:

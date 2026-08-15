@@ -1,3 +1,9 @@
+---
+kind: design
+status: archived
+updated: 2026-08-09
+---
+
 # Login + loading screen — the web-weave design + brand pack (BUILT — see §9)
 
 Status: **BUILT (2026-08-09, brand direction A owner-ruled).** §9 is the as-built record — the homing
