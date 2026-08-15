@@ -70,12 +70,21 @@ function tokenCount(message: MessageView): number | null {
  *  grammar name for that is `gloss` — the quiet second line — and the mono family is the P5 ruling this
  *  row keeps: these are machine facts about the row, never the reply you came to read (which is why they
  *  are NOT the `datum` voice, despite being numbers). */
-function metadatum(slot: string, text: string): ReactElement {
+function metadatum(slot: string, text: string, title?: string): ReactElement {
   return (
-    <Text as="span" voice="gloss" className="font-mono" data-slot={slot}>
+    <Text as="span" voice="gloss" className="font-mono" data-slot={slot} {...(title === undefined ? {} : { title })}>
       {text}
     </Text>
   );
+}
+
+/** Local engines may identify a model by its absolute on-disk path. Keep that exact identity in the
+ *  message record/title, but do not dump the host's directory tree into the conversation surface. */
+function modelLabel(model: string): string {
+  if (!model.startsWith("/")) {
+    return model;
+  }
+  return model.split("/").filter(Boolean).at(-1) ?? model;
 }
 
 /** The opt-in per-message metadata row. Renders nothing when every gated datum is absent (a draft
@@ -86,7 +95,8 @@ export function MessageMetadataRow({ message, visibility }: MessageMetadataRowPr
   const items: ReactElement[] = [];
 
   if (visibility.showModelIcon && message.model !== null) {
-    items.push(<Fragment key="model">{metadatum("message-metadata-model", message.model)}</Fragment>);
+    const label = modelLabel(message.model);
+    items.push(<Fragment key="model">{metadatum("message-metadata-model", label, label === message.model ? undefined : message.model)}</Fragment>);
   }
   if (visibility.showTokenCount && tokens !== null) {
     items.push(<Fragment key="tokens">{metadatum("message-metadata-tokens", `${tokens} tok`)}</Fragment>);

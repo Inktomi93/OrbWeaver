@@ -17,9 +17,9 @@ import { IS_DEV } from "./dev-flag.ts";
 import type { MotionFlagRecord } from "./motion-flaggers.ts";
 import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "./motion-flaggers.ts";
 import type { AnimationRecord, MotionSnapshot } from "./motion-stats.ts";
-import { activeAnimations, installMotionObservers, motionSnapshot } from "./motion-stats.ts";
+import { __resetMotionStats, activeAnimations, installMotionObservers, motionSnapshot } from "./motion-stats.ts";
 import { perfMeasureFromLoad, recentMeasures } from "./perf-marks.ts";
-import { renderHeatmap } from "./render-stats.ts";
+import { __resetRenderStats, renderHeatmap } from "./render-stats.ts";
 
 const READY_ATTR = "data-app-ready";
 // The grace before the first "no initial reads at all" check. An app that never fetches is ready here.
@@ -179,6 +179,8 @@ interface OrbDebugHandle {
   /** Clear the flag ring + its per-offender dedupe. Call between the STEPS of a driven flow: without
    *  it, step 1's offenders suppress the identical ones in step 2 and the later steps read clean. */
   readonly resetFlags: () => void;
+  /** Clear checkpoint-scoped flags, motion, and render evidence without disturbing app/query state. */
+  readonly resetEvidence: () => void;
   /** One-call overview for a quick `preview_eval("__orb.snap()")`. */
   readonly snap: () => Record<string, unknown>;
   /** Dev-only SPA-navigation actions (see OrbNavHandle) — reach any surface without a click chain. */
@@ -271,6 +273,11 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
     // Raised motion defects, by channel — a zero here is the only cheap "the surface is clean" read.
     flags: flagCounts(),
   });
+  const resetEvidence = (): void => {
+    __resetMotionFlags();
+    __resetMotionStats();
+    __resetRenderStats();
+  };
   globalThis.__orb = {
     ready,
     isReady,
@@ -283,12 +290,13 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
     animations: activeAnimations,
     flags: motionFlags,
     resetFlags: __resetMotionFlags,
+    resetEvidence,
     snap,
     nav,
     seed,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetFlags() · .shell() · .nav.section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence() · .shell() · .nav.section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

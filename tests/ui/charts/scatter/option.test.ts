@@ -32,6 +32,8 @@ test("each series takes its palette stop by index; points encode [x, y, id]", ()
   expect(series[1]?.itemStyle.color).toBe(COLORS.palette[1]);
   expect(series[0]?.data[0]?.value).toEqual([1, 2, "c1"]);
   expect(series[0]?.data[0]?.name).toBe("Alice");
+  expect(option.grid).toMatchObject({ outerBoundsMode: "same", outerBoundsContain: "axisLabel" });
+  expect(option.grid).not.toHaveProperty("containLabel");
 });
 
 test("the palette wraps past its length rather than dropping a series color", () => {

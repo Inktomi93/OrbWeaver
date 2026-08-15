@@ -12,7 +12,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { MotionFlaggersCssTrailingStory, MotionFlaggersSpaceStory } from "./_ct-stories.tsx";
+import { MotionFlaggersCssTrailingStory, MotionFlaggersExternalDevtoolsStory, MotionFlaggersSlowInputStory, MotionFlaggersSpaceStory } from "./_ct-stories.tsx";
 
 /** Collect every `[space]` console line the flagger emits. Attached BEFORE mount so nothing is missed. */
 function captureSpaceLines(page: Page): string[] {
@@ -40,6 +40,16 @@ test("an unreserved <img> (no dims, no aspect-ratio) is flagged [space]", async 
   expect(line).toContain("no reserved box");
 });
 
+test("the app observer ignores injected TanStack Devtools media", async ({ mount, page }) => {
+  const lines = captureSpaceLines(page);
+  const component = await mount(<MotionFlaggersExternalDevtoolsStory />);
+
+  await component.getByRole("button", { name: "inject devtools" }).click();
+  await expect(component.getByTestId("devtool-scan-complete")).toBeVisible();
+
+  expect(lines.filter((line) => line.includes("tsd-main-panel"))).toEqual([]);
+});
+
 /** Collect every `[css]` console line the flagger emits. */
 function captureCssLines(page: Page): string[] {
   const lines: string[] = [];
@@ -61,4 +71,17 @@ test("a single mutation INSIDE the throttle window is still scanned — trailing
   await expect.poll(() => lines.length, { intervals: [500, 1000, 2000, 2000], timeout: 20_000 }).toBeGreaterThan(0);
 
   expect(lines.join("\n")).toContain("orb-ct-dead-class-marker");
+});
+
+test("one slow physical interaction emits one [input] warning, not its entire DOM event family", async ({ mount, page }) => {
+  const lines: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("[input]")) {
+      lines.push(message.text());
+    }
+  });
+  const component = await mount(<MotionFlaggersSlowInputStory />);
+
+  await component.locator("button").click({ force: true });
+  await expect.poll(() => lines.length, { timeout: 5000 }).toBe(1);
 });

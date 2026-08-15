@@ -4,6 +4,7 @@
 // can't resolve. The gradient runs `background` → `series` (chart-1), a single-hue sequential ramp that
 // retints with a custom theme.
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
+import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/echarts-setup.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface HeatmapMatrix {
@@ -36,7 +37,7 @@ export function buildHeatmapOption(matrix: HeatmapMatrix, colors: ChartColors): 
   const data = matrix.rows.flatMap((_row, rowIndex) => matrix.cols.map((_col, colIndex) => [colIndex, rowIndex, matrix.values[rowIndex]?.[colIndex] ?? 0]));
 
   return {
-    grid: { left: 8, right: 8, top: 8, bottom: 40, containLabel: true },
+    grid: { left: 8, right: 8, top: 8, bottom: 40, ...AXIS_LABEL_OUTER_BOUNDS },
     tooltip: { trigger: "item" },
     xAxis: {
       type: "category",

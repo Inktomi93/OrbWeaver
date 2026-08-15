@@ -17,6 +17,8 @@ Read app state in ONE eval instead of scraping the DOM. Installed from `main.tsx
 | `__orb.renders()` | the render heatmap: per-surface `{ id, count, mounts, updates, totalMs, avgMs, maxMs }`, hottest-first |
 | `__orb.motion()` | LoAF ring + jank numbers: `{ loafs: { startTime, duration, blockingDuration, styleAndLayoutStart, scripts }[], cls, worstBlocking, worstShift }` — `styleAndLayoutStart>0` = style/layout ran in-frame (jank tell) |
 | `__orb.animations()` | active animations: `{ id?, target, properties, compositorClean }[]` — `compositorClean:false` (animating a non-transform/opacity/filter prop) = per-frame-layout jank risk |
+| `__orb.flags()` | motion flagger records for the current evidence window |
+| `__orb.resetEvidence()` | clear flags, motion/CLS, and render-heatmap evidence before a driven checkpoint without resetting app state |
 | `__orb.shell()` | DOM-derived shell state: active section, panel modes, `chatOpen` |
 | `__orb.nav` | dev-only SPA-navigation ACTIONS — see below |
 | `__orb.ready` / `.isReady()` | a promise / bool for "hydrated + initial reads settled" |
@@ -57,7 +59,8 @@ it instead of network-idle, which hangs on the never-idle SSE connection:
 
 - Playwright: `await page.waitForSelector("html[data-app-ready]")`
 - snap: waits on it by DEFAULT (graceful — a page that never sets it falls through)
-- A 3s self-fallback means it never hangs.
+- A 3s grace settles a genuine no-read boot; a 20s ceiling marks the flag `degraded` when reads never
+  drain, so a waiter cannot hang or mistake a timeout for a clean settle.
 
 ## Console channels
 

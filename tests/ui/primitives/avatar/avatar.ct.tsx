@@ -17,6 +17,8 @@ test("renders the image when it loads", async ({ mount, page }) => {
   );
 
   await expect(page.locator('[data-slot="avatar-image"]')).toBeVisible();
+  await expect(page.locator('[data-slot="avatar-image"]')).toHaveAttribute("width", "1");
+  await expect(page.locator('[data-slot="avatar-image"]')).toHaveAttribute("height", "1");
   await expect(page.locator('[data-slot="avatar-fallback"]')).toBeHidden();
 });
 

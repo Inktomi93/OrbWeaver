@@ -11,6 +11,9 @@ import { CanvasRenderer } from "echarts/renderers";
 export type { EChartsOption as OrbChartOption } from "echarts";
 export type { ECharts as OrbEChartsInstance } from "echarts/core";
 
+/** ECharts 6 replacement for deprecated `grid.containLabel:true`: keep axis labels inside the authored grid bounds. */
+export const AXIS_LABEL_OUTER_BOUNDS = { outerBoundsMode: "same", outerBoundsContain: "axisLabel" } as const;
+
 registerModules([
   BarChart,
   LineChart,

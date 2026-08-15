@@ -93,3 +93,13 @@ test("an UNEXPECTED shift (past the input window) counts toward CLS and is tagge
   const motion = await readMotion(page);
   expect(motion.cls).toBeGreaterThan(0);
 });
+
+test("the checkpoint reset clears accumulated shifts without reinstalling the observer", async ({ mount, page }) => {
+  const component = await mount(<MotionShiftFlaggerStory />);
+
+  await component.getByRole("button", { name: "shift now" }).click();
+  await expect.poll(async () => (await readMotion(page)).observedCls).toBeGreaterThan(0);
+  await component.getByRole("button", { name: "reset evidence" }).click();
+
+  await expect.poll(async () => await readMotion(page)).toMatchObject({ cls: 0, observedCls: 0, shifts: [] });
+});

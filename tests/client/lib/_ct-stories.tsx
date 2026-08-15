@@ -25,8 +25,9 @@ import { useEffect, useState } from "react";
 import { installAppReadySignal } from "../../../packages/client/src/lib/agent-bridge.ts";
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
+import { installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
 import { installMotionFlaggers } from "../../../packages/client/src/lib/motion-flaggers.ts";
-import { installMotionObservers, motionSnapshot } from "../../../packages/client/src/lib/motion-stats.ts";
+import { __resetMotionStats, installMotionObservers, motionSnapshot } from "../../../packages/client/src/lib/motion-stats.ts";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
 // test (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.
@@ -126,6 +127,9 @@ export function MotionShiftFlaggerStory(): ReactElement {
       >
         shift later
       </button>
+      <button type="button" onClick={__resetMotionStats}>
+        reset evidence
+      </button>
       {/* The spacer IS the shift: 0 → 200px pushes everything after it down the page. */}
       <div style={{ height: pushed ? 200 : 0 }} />
       <div data-testid="cls-victim" style={{ height: 300, background: "#ccc" }}>
@@ -167,6 +171,35 @@ export function MotionFlaggersSpaceStory(): ReactElement {
   );
 }
 
+/** An injected TanStack-devtools subtree with the same unreserved image shape as the app defect story.
+ *  The dev observer must ignore it: auditing the auditor buries first-party findings in vendor noise. */
+export function MotionFlaggersExternalDevtoolsStory(): ReactElement {
+  const [show, setShow] = useState(false);
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    installMotionFlaggers();
+  }, []);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={(): void => {
+          setShow(true);
+          setTimeout(() => setDone(true), 2600);
+        }}
+      >
+        inject devtools
+      </button>
+      {show ? (
+        <div data-testid="tsd-main-panel">
+          <img src="/__ct_blocked_devtool__.png" alt="" />
+        </div>
+      ) : null}
+      {done ? <div data-testid="devtool-scan-complete">scan complete</div> : null}
+    </div>
+  );
+}
+
 /** The `[css]` trailing-edge stage: adds a single dead class ONCE (no second mutation follows), so the
  *  only way the flagger can ever see it is a TRAILING scan scheduled for when the throttle window
  *  clears — a dropping throttle would leave this silent forever. */
@@ -182,6 +215,35 @@ export function MotionFlaggersCssTrailingStory(): ReactElement {
       </button>
       {/* A class no stylesheet defines — the dead-token shape `[css]` exists to catch. */}
       <div className={deadClassOn ? "orb-ct-dead-class-marker" : undefined}>content</div>
+    </div>
+  );
+}
+
+/** One deliberately slow click. Event Timing emits a family of DOM entries for it; the tracer should
+ *  collapse that family to one actionable `[input]` warning. */
+const SLOW_INPUT_WORK_ITERATIONS = 300_000_000;
+
+export function MotionFlaggersSlowInputStory(): ReactElement {
+  const [turns, setTurns] = useState(0);
+  useEffect(() => {
+    installLongTaskTracer();
+  }, []);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={(): void => {
+          let spins = 0;
+          // A fixed workload makes the real browser interaction slow without consulting an ambient
+          // clock. The Event Timing observer still measures browser time; the fixture stays deterministic.
+          for (let index = 0; index < SLOW_INPUT_WORK_ITERATIONS; index += 1) {
+            spins = Math.imul(spins + index, 16_777_619);
+          }
+          setTurns(spins);
+        }}
+      >
+        slow input {turns}
+      </button>
     </div>
   );
 }

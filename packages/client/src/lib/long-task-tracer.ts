@@ -39,6 +39,65 @@ interface LoafEntry extends PerformanceEntry {
   readonly scripts?: readonly LoafScript[];
 }
 
+interface EventTimingEntry extends PerformanceEntry {
+  readonly name: string;
+  readonly target?: Node | null;
+  readonly interactionId?: number;
+}
+
+// Event Timing emits the whole DOM event family for one physical action (pointerover/enter/down,
+// mouseover/down, click…). They share an interaction id and the same duration. One warning per family is
+// actionable; twenty identical warnings make the console unusable. Entries without an interaction id are
+// retained only for the discrete events that can independently represent user work.
+const UNGROUPED_INPUT_EVENTS = new Set(["beforeinput", "change", "click", "input", "keydown", "submit", "touchend"]);
+const SEEN_INTERACTION_CAP = 512;
+const ACTIVATION_EVENT_PRIORITY = 3;
+const EDITING_EVENT_PRIORITY = 2;
+const FALLBACK_EVENT_PRIORITY = 1;
+
+function eventPriority(name: string): number {
+  if (name === "click" || name === "submit") {
+    return ACTIVATION_EVENT_PRIORITY;
+  }
+  if (name === "keydown" || name === "input" || name === "beforeinput") {
+    return EDITING_EVENT_PRIORITY;
+  }
+  return FALLBACK_EVENT_PRIORITY;
+}
+
+function collectInteractionEntry(entry: EventTimingEntry, grouped: Map<number, EventTimingEntry>, ungrouped: EventTimingEntry[], seen: Set<number>): void {
+  const interactionId = entry.interactionId ?? 0;
+  if (interactionId <= 0) {
+    if (UNGROUPED_INPUT_EVENTS.has(entry.name)) {
+      ungrouped.push(entry);
+    }
+    return;
+  }
+  if (!seen.has(interactionId)) {
+    const prior = grouped.get(interactionId);
+    if (prior === undefined || eventPriority(entry.name) > eventPriority(prior.name)) {
+      grouped.set(interactionId, entry);
+    }
+  }
+}
+
+function selectInteractionEntries(entries: readonly PerformanceEntry[], seen: Set<number>): EventTimingEntry[] {
+  const grouped = new Map<number, EventTimingEntry>();
+  const ungrouped: EventTimingEntry[] = [];
+  for (const raw of entries) {
+    if (raw.duration >= MOTION_BUDGETS.interactionMs) {
+      collectInteractionEntry(raw as EventTimingEntry, grouped, ungrouped, seen);
+    }
+  }
+  if (seen.size + grouped.size > SEEN_INTERACTION_CAP) {
+    seen.clear();
+  }
+  for (const interactionId of grouped.keys()) {
+    seen.add(interactionId);
+  }
+  return [...grouped.values(), ...ungrouped];
+}
+
 /** Basename of a source URL — the full dev URL (vite hashes, absolute paths) is noise in a log line. */
 function basename(url: string): string {
   try {
@@ -129,18 +188,11 @@ export function installLongTaskTracer(): void {
   }
 
   if (supported.includes("event")) {
+    const seenInteractions = new Set<number>();
     const ev = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        if (entry.duration < MOTION_BUDGETS.interactionMs) {
-          continue;
-        }
-        // PerformanceEventTiming, narrowed structurally: lib.dom types mixed-observer entries as base PerformanceEntry.
-        const timing = entry as PerformanceEntry & {
-          readonly name: string;
-          readonly target?: Node | null;
-        };
+      for (const timing of selectInteractionEntries(list.getEntries(), seenInteractions)) {
         console.warn(
-          `%c${logClock()} [input]%c slow ${timing.name} ${Math.round(entry.duration)}ms (budget ${MOTION_BUDGETS.interactionMs}ms) · ${describeTarget(
+          `%c${logClock()} [input]%c slow ${timing.name} ${Math.round(timing.duration)}ms (budget ${MOTION_BUDGETS.interactionMs}ms) · ${describeTarget(
             timing.target ?? null,
           )} · route ${route()}`,
           PERF_STYLE,

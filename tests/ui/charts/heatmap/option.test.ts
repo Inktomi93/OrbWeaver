@@ -55,4 +55,6 @@ test("row 0 stays at the top — the category y-axis is inverted", () => {
   const yAxis = option.yAxis as { data: string[]; inverse: boolean };
   expect(yAxis.data).toEqual(["Sun", "Mon"]);
   expect(yAxis.inverse).toBe(true);
+  expect(option.grid).toMatchObject({ outerBoundsMode: "same", outerBoundsContain: "axisLabel" });
+  expect(option.grid).not.toHaveProperty("containLabel");
 });

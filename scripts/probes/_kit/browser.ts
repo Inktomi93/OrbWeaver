@@ -62,6 +62,10 @@ export type ProbeLaunchOptions = {
    *  cookie when given a `url` (even `secure:true` alongside it) — "Invalid cookie fields", verified
    *  empirically. `domain`+`path`+`secure:true` (no `url`) is the combination that actually lands it. */
   readonly cookieDomain?: string;
+  /** Record a Playwright trace; the caller saves it on failure or discards it on success. */
+  readonly trace?: boolean;
+  /** Prefix for per-context full HAR files. The caller removes green-run files after context close. */
+  readonly harPathPrefix?: string;
 };
 
 export type CapturedRequest = {
@@ -73,14 +77,23 @@ export type CapturedRequest = {
   type: string;
 };
 
+export type CapturedConsole = {
+  readonly type: string;
+  readonly text: string;
+  readonly location: { readonly url: string; readonly line: number; readonly column: number } | null;
+  readonly line: string;
+};
+
 /** One isolated browser context's captured state + pages — `--contexts N` opens N of these (own cookies/
  *  localStorage each); the single-context default path is `contexts[0]`. */
 export type ProbeContext = {
   readonly context: BrowserContext;
   readonly pages: readonly Page[];
   readonly consoleLines: string[];
+  readonly consoleMessages: CapturedConsole[];
   readonly pageErrors: string[];
   readonly requests: Map<string, CapturedRequest>;
+  readonly harPath: string | null;
 };
 
 export type ProbeSession = {
@@ -93,6 +106,8 @@ export type ProbeSession = {
   readonly pages: readonly Page[];
   /** `[type] text (url:line:col)` — source location tagged on error/warning only. */
   readonly consoleLines: string[];
+  /** Structured console entries for verdicts/manifests; consoleLines remains the human report. */
+  readonly consoleMessages: CapturedConsole[];
   /** `Name: message\nstack` blocks from pageerror. */
   readonly pageErrors: string[];
   /** Keyed by URL; status/failed filled in as responses land. */
@@ -105,6 +120,7 @@ export type ProbeSession = {
 type PageCapture = {
   readonly media: { colorScheme?: "light" | "dark"; reducedMotion?: "reduce" };
   readonly consoleLines: string[];
+  readonly consoleMessages: CapturedConsole[];
   readonly pageErrors: string[];
   readonly requests: Map<string, CapturedRequest>;
 };
@@ -112,7 +128,7 @@ type PageCapture = {
 /** Wire console/pageerror/request capture + media emulation onto one page — shared by every context so
  *  `--pages` (tabs within a context) and `--contexts` (isolated contexts) both get identical capture. */
 function wirePage(page: Page, capture: PageCapture): Promise<void> {
-  const { media, consoleLines, pageErrors, requests } = capture;
+  const { media, consoleLines, consoleMessages, pageErrors, requests } = capture;
   const apply = async (): Promise<void> => {
     if (media.colorScheme !== undefined || media.reducedMotion !== undefined) {
       await page.emulateMedia(media);
@@ -122,7 +138,14 @@ function wirePage(page: Page, capture: PageCapture): Promise<void> {
     const t = m.type();
     const loc = m.location();
     const where = (t === "error" || t === "warning") && loc.url ? ` (${loc.url}:${loc.lineNumber}:${loc.columnNumber})` : "";
-    consoleLines.push(`[${t}] ${m.text()}${where}`);
+    const line = `[${t}] ${m.text()}${where}`;
+    consoleLines.push(line);
+    consoleMessages.push({
+      type: t,
+      text: m.text(),
+      location: loc.url ? { url: loc.url, line: loc.lineNumber, column: loc.columnNumber } : null,
+      line,
+    });
   });
   page.on("pageerror", (e: Error) => {
     pageErrors.push(`${e.name}: ${e.message}\n${e.stack ?? ""}`);
@@ -151,22 +174,30 @@ function wirePage(page: Page, capture: PageCapture): Promise<void> {
   return apply();
 }
 
-/** One context's full setup: create it, seed localStorage + (optionally) a session cookie, open its
- *  `pages` tabs with capture wired. Cookie seeding happens BEFORE any page opens (Playwright's
- *  `addCookies` is context-level and doesn't need a page) — so the very first navigation is already
- *  authenticated, no login-form drive needed in-page. */
-async function buildContext(
-  browser: Browser,
-  opts: ProbeLaunchOptions,
-  deviceDescriptor: (typeof devices)[string] | null,
-  sessionCookie: string | null,
-): Promise<ProbeContext> {
+type BuildContextArgs = {
+  readonly browser: Browser;
+  readonly opts: ProbeLaunchOptions;
+  readonly deviceDescriptor: (typeof devices)[string] | null;
+  readonly sessionCookie: string | null;
+  readonly contextIndex: number;
+};
+
+async function openRecordedContext(args: BuildContextArgs): Promise<{ readonly context: BrowserContext; readonly harPath: string | null }> {
+  const { browser, opts, deviceDescriptor, contextIndex } = args;
   const sizing = deviceDescriptor ?? { viewport: opts.viewport };
+  const harPath = opts.harPathPrefix === undefined ? null : `${opts.harPathPrefix}${(opts.contexts ?? 1) > 1 ? `-u${contextIndex}` : ""}.har`;
   const context = await browser.newContext({
     ...sizing,
     ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
+    ...(harPath === null ? {} : { recordHar: { path: harPath, content: "omit" as const, mode: "full" as const } }),
   });
+  if (opts.trace === true) {
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+  }
+  return { context, harPath };
+}
 
+async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, sessionCookie: string | null): Promise<void> {
   if (opts.localStorage.length > 0) {
     const seedScript = `(() => {
       try {
@@ -187,8 +218,19 @@ async function buildContext(
       await context.addCookies([{ name: (pair ?? "").slice(0, eq), value: (pair ?? "").slice(eq + 1), domain: opts.cookieDomain, path: "/", secure: true }]);
     }
   }
+}
+
+/** One context's full setup: create it, seed localStorage + (optionally) a session cookie, open its
+ *  `pages` tabs with capture wired. Cookie seeding happens BEFORE any page opens (Playwright's
+ *  `addCookies` is context-level and doesn't need a page) — so the very first navigation is already
+ *  authenticated, no login-form drive needed in-page. */
+async function buildContext(args: BuildContextArgs): Promise<ProbeContext> {
+  const { opts, sessionCookie } = args;
+  const { context, harPath } = await openRecordedContext(args);
+  await seedContext(context, opts, sessionCookie);
 
   const consoleLines: string[] = [];
+  const consoleMessages: CapturedConsole[] = [];
   const pageErrors: string[] = [];
   const requests = new Map<string, CapturedRequest>();
   const media: { colorScheme?: "light" | "dark"; reducedMotion?: "reduce" } = {};
@@ -199,7 +241,7 @@ async function buildContext(
     media.reducedMotion = "reduce";
   }
 
-  const capture: PageCapture = { media, consoleLines, pageErrors, requests };
+  const capture: PageCapture = { media, consoleLines, consoleMessages, pageErrors, requests };
   const pageCount = Math.max(1, opts.pages ?? 1);
   const pages: Page[] = [];
   for (let i = 0; i < pageCount; i += 1) {
@@ -209,7 +251,7 @@ async function buildContext(
     pages.push(page);
   }
 
-  return { context, pages, consoleLines, pageErrors, requests };
+  return { context, pages, consoleLines, consoleMessages, pageErrors, requests, harPath };
 }
 
 export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<ProbeSession> {
@@ -231,7 +273,7 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   const contexts: ProbeContext[] = [];
   for (let i = 0; i < contextCount; i += 1) {
     // biome-ignore lint/performance/noAwaitInLoops: contexts open SEQUENTIALLY — same discipline as the per-context page loop; N is tiny (typically ≤4).
-    const built = await buildContext(browser, opts, deviceDescriptor, cookies[i] ?? null);
+    const built = await buildContext({ browser, opts, deviceDescriptor, sessionCookie: cookies[i] ?? null, contextIndex: i });
     contexts.push(built);
   }
   const first = contexts[0] as ProbeContext;
@@ -242,6 +284,7 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
     page: first.pages[0] as Page,
     pages: first.pages,
     consoleLines: first.consoleLines,
+    consoleMessages: first.consoleMessages,
     pageErrors: first.pageErrors,
     requests: first.requests,
     contexts,

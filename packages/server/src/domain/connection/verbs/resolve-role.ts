@@ -53,18 +53,29 @@ const DEFAULT_LOCAL_SOURCE: CredentialSource = "vllm";
 const DEFAULT_AGENT_SOURCE: CredentialSource = "max-pro-sub";
 const DEFAULT_IMAGE_SOURCE: CredentialSource = "openrouter";
 
+/** The coherent protocol for an explicit chat source with no pinned protocol (the UI's “Auto”). */
+function defaultChatApiForSource(source: CredentialSource): ChatApi {
+  return source === "max-pro-sub" ? "agent-sdk" : DEFAULT_CHAT_API;
+}
+
 /** Exhaustive over `RoutingRoleKey`; `agentOverride` fields beat the role default. */
 const ROLE_SELECTORS: {
   readonly [K in ResolveRoleParams["role"]]: (roleDefaults: RoleDefaults, override: RouteOverride | undefined, isOwner: boolean) => RouteSelection;
 } = {
   // The unconfigured chat default is owner-conditional: owner falls back to max-pro-sub (agent-sdk),
   // everyone else to local vllm (max-pro-sub is owner-only and would throw for a non-owner).
-  chat: (rd, ov, isOwner) => ({
-    api: ov?.api ?? rd.chat?.api ?? (isOwner ? "agent-sdk" : DEFAULT_CHAT_API),
-    source: ov?.source ?? rd.chat?.source ?? (isOwner ? DEFAULT_AGENT_SOURCE : DEFAULT_LOCAL_SOURCE),
-    model: ov?.model ?? rd.chat?.model ?? null,
-    chatModel: true,
-  }),
+  chat: (rd, ov, isOwner) => {
+    const source = ov?.source ?? rd.chat?.source ?? (isOwner ? DEFAULT_AGENT_SOURCE : DEFAULT_LOCAL_SOURCE);
+    return {
+      // `api` and `source` are one selection. “Auto” means derive a protocol for the selected source,
+      // not independently apply the owner's unconfigured agent-sdk default: that produced the live
+      // `{source:"vllm", api:"agent-sdk"}` pair and made every local turn fail coherence resolution.
+      api: ov?.api ?? rd.chat?.api ?? defaultChatApiForSource(source),
+      source,
+      model: ov?.model ?? rd.chat?.model ?? null,
+      chatModel: true,
+    };
+  },
 
   embed: (rd, ov) => ({
     api: DEFAULT_CHAT_API,

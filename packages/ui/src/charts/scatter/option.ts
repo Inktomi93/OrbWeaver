@@ -7,6 +7,7 @@
 // `onPointClick` (that click→id resolution is why this primitive exists: raw SVG scatters can't be made
 // interactive under the feature belt).
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
+import { AXIS_LABEL_OUTER_BOUNDS } from "../chart/echarts-setup.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface ScatterPoint {
@@ -48,7 +49,7 @@ export function pointId(data: unknown): string | null {
 // wraps (rare here; the corpus map caps genres at the ramp length upstream).
 export function buildScatterOption(series: readonly ScatterSeries[], colors: ChartColors): OrbChartOption {
   return {
-    grid: { left: 8, right: 8, top: 8, bottom: 8, containLabel: true },
+    grid: { left: 8, right: 8, top: 8, bottom: 8, ...AXIS_LABEL_OUTER_BOUNDS },
     tooltip: {
       trigger: "item",
       // params.value is `[x, y, id]`; params.name is the point label (set per-datum below).
