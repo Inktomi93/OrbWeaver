@@ -450,7 +450,7 @@ mid-investigation resume can tell a scoping failure from a genuine dead end.
 | 33 | `TooltipHandle` — dead UI handle alias | Same pattern | `packages/ui/src/primitives/tooltip/handle.ts:7` | Dead if no component refs the type | \[V] |
 | 34 | TEST-ONLY: ClipKind cluster + isChatBusEventType | Core contract shapes only used by stories | `packages/contracts/src/memory/index.ts:15-30`, `packages/contracts/src/chat/bus.ts:339` | Wrong boundary if another package needs them | \[C] |
 | 35 | TEST-ONLY: `TEMPLATE_DEF_BY_ID` | Preset template lookup map | `packages/contracts/src/preset/index.ts:1810` | Missed if preset consumer needs it by name | \[C] |
-| 36 | TEST-ONLY: `useViewer` | Fundamental viewer hook, only story-tested | `packages/client/src/data/use-viewer.ts:23` | Dead ref if a component adds it late | \[C] |
+| 36 | TEST-ONLY: `useViewer` | Fundamental viewer hook, only story-tested | `packages/client/src/data/use-viewer.ts` (retired 2026-08-15) | Dead ref if a component adds it late | \[C] |
 | 37 | TEST-ONLY: `useDeleteRefinerySession` | Live mutation hook, story coverage only | `packages/client/src/features/refinery/hooks/use-refinery-mutations.ts:130` | Dead until refinery session delete wires it | \[C] |
 | 38 | TEST-ONLY: `create*Handle` factories (3) | Handle factories only tested, prod uses types | `packages/ui/src/primitives/alert-dialog/handle.ts:4`, `dialog/handle.ts:5`, `drawer/handle.ts:4` | Dead if prod callers use the type alias | \[C] |
 | 39 | TEST-ONLY: `createCaller` | Standard tRPC caller factory | `packages/server/src/transport/trpc/router.ts:100` | Dead if integration tests are the only callers | \[C] |

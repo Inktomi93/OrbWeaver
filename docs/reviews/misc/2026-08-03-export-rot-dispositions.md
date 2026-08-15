@@ -249,7 +249,7 @@ comment uses. A word-boundary literal sweep ran AFTER every rename and caught:
 | `sectionKind` | `client/src/features/preset/lib/assembly-model.ts:21` | testonly per the lens, but it is a PURE model helper, not a test seam — its header claims *"the one home for the per-section type classification the rack + inspector both branch on"* and neither surface imports it. Renaming it `__…ForTest` would be a lie; deleting it is a design call. Same F8 "lying comment" defect class |
 | `guidedFooterState` | `client/src/features/preset/lib/assembly-model.ts:198` | same class; additionally CITED as landed law by `contracts/src/preset/index.ts:706` and `features/preset/lib/template-rows.ts:93`, and its shape is generalized by `features/chat/lib/prose-settings-model.ts:51` — so the concept is live even though the function is not called |
 | `addSpanEvent` | `server/src/foundation/observability/tracing.ts:362` | orphan, single-commit (`8b8e5714`), NOT in the brief. Observability seam — deleting a tracing affordance is an owner call |
-| `useViewer` | `client/src/data/use-viewer.ts:23` | testonly, not in the brief |
+| `useViewer` | `client/src/data/use-viewer.ts` (retired 2026-08-15 — dossier-round supersession; git history) | testonly, not in the brief |
 | `createEntityDraftStore` | `client/src/state/create-entity-draft-store.ts:98` | testonly, not in the brief — and memory `[[entity-draft-store-dual-consumers]]` says two consumers share this store; the lens result needs a second look before anyone acts |
 | `useListDocked` | `client/src/state/shell-store.ts:377` | testonly, not in the brief |
 | `permitsHost`, `SessionToken` | `server/.../auth/decide.ts:67`, `kit/src/ids/index.ts:97` | explicitly the sibling security lane's |
