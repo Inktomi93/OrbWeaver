@@ -1105,7 +1105,17 @@ function scriptBodyVerdict(command, blank, clauses, ctx) {
     }
     return worst;
   } catch (err) {
-    return { decision: "defer", rule: "script-scan-error", contexts: [], error: String(err) };
+    // FAIL CLOSED, LEGIBLY (owner ruling #50): a scan failure must never become allow, and a bare
+    // defer stalls the lane with NOTHING on screen to act on. Surface an ask that names the failure —
+    // recoverable by the operator (fix the file / confirm the command), never a silent stall. The
+    // error still lands in the decision log for the repair loop.
+    return {
+      decision: "ask",
+      rule: "script-scan-error",
+      contexts: [],
+      error: String(err),
+      reason: `tool-guard could not READ a script this command runs (${String(err).slice(0, 160)}). Nothing else rejected the command — the guard is asking because it could not see the script body, not because a rule fired. If the path/permissions are right, confirm to proceed; recurring sightings of this message are a guard bug to report.`,
+    };
   }
 }
 
