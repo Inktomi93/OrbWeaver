@@ -13,7 +13,7 @@
 // THE FIRST FRAME IS WARM. `StartChatResult.chat` is a full `ChatDetail` — byte-identical to what
 // `chat.getChat` serves — so the response SEEDS that read's cache key and the room paints its roster, title
 // and carried theme with ZERO extra round-trips. (Not the factory's `echo` arm: that seeds a key with the
-// whole mutation DATA, and this response wraps the row alongside `opening`/`openingFailure`.) Cache surgery
+// whole mutation DATA, and this response wraps the row alongside `opening`.) Cache surgery
 // is legal here and only here (`client-cache-surgery-only-in-data`).
 
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
