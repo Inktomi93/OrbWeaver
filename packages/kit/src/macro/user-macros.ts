@@ -1,4 +1,4 @@
-// kit/macro/user-macros — WAVE MU (M5, parity-plus §12A.5 + the #24 typed-input fold): preset/game-
+// kit/macro/user-macros — the #24 typed-input fold: preset/game-
 // authored TEMPLATE macros as FIRST-CLASS registry entries, plus the typed choice-block INPUT vocabulary
 // (single-select / boolean-toggle / multi-select+separator / random-pick-from-pool) and its pure
 // resolution against an injected VALUES bag.
@@ -187,7 +187,7 @@ export function resolveUserMacroInputs(
 // ── registration ─────────────────────────────────────────────────────────────────────────────────
 
 export interface RegisterUserMacrosOptions {
-  /** Source attribution (§12A.5) — stamped onto each macro's metadata for the browser. */
+  /** Source attribution — stamped onto each macro's metadata for the browser. */
   readonly source: MacroSourceRef;
   /** Pre-resolved input bindings keyed by MACRO name then INPUT name (`resolveUserMacroInputs` output —
    *  the server threading resolves once per turn with the frozen draws). A macro/input with no entry
@@ -202,7 +202,7 @@ export interface RejectedUserMacro {
 
 export interface UserMacroRegistration {
   readonly registered: readonly string[];
-  /** Refused definitions — the boot/config-error posture (§12A.5): a name may NEVER shadow a builtin
+  /** Refused definitions — the boot/config-error posture: a name may NEVER shadow a builtin
    *  (or an earlier registration); the surface that owns the defs renders these as authoring errors. */
   readonly rejected: readonly RejectedUserMacro[];
 }
@@ -323,7 +323,7 @@ function propagateVolatility(defs: readonly UserMacroDef[], refs: Map<string, Se
 
 /** Register preset/game-authored macros onto `registry` (a PER-RENDER composition the caller builds —
  *  never the process-wide singleton). A name colliding with an EXISTING registration (builtin or an
- *  earlier def — first wins) or failing MACRO_NAME_RE is REFUSED, never silently shadowed (§12A.5).
+ *  earlier def — first wins) or failing MACRO_NAME_RE is REFUSED, never silently shadowed.
  *  Each accepted macro gets full DX metadata (category `user`, its declared args, `source`, `strict`)
  *  and a DERIVED volatile flag (random-pick input or a body reaching a volatile name). */
 export function registerUserMacros(registry: MacroRegistry, defs: readonly UserMacroDef[], opts: RegisterUserMacrosOptions): UserMacroRegistration {

@@ -1,7 +1,7 @@
 // @orb/kit/chunk/split — the recursive separator-hierarchy splitter (internal to the chunk engine).
 // Pure, deterministic, total. Produces absolute `[start, end)` spans that PARTITION the input losslessly
 // (concatenating `text.slice(start, end)` in order reproduces the input byte-for-byte). Overlap lives only
-// on the caller-assembled `content`, never in these spans (databank-design/03 §2).
+// on the caller-assembled `content`, never in these spans.
 //
 // The hierarchy (coarsest → finest) preserves the strongest available semantic boundary at every size
 // violation, degrading to a hard per-char split ("") as the last resort. A part longer than `size` recurses

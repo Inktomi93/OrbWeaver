@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/sheet — the per-actor IDENTITY sheet (rpg-design/05 §4.3). `attributes` is a record
+// @orb/contracts/rpg/sheet — the per-actor IDENTITY sheet. `attributes` is a record
 // over the profile's attribute vocabulary; a sheet read treats a MISSING key as absent (lite renders
 // nothing; full backfills at `center` when ITS seeding lands — the mutability rule, §2.3). Sheets live in
 // `rpg_sheets` (the no-party-system ruling: NOT a membership shadow — keyed by durable actor identity,
@@ -23,7 +23,7 @@ export const rpgSheetSchema = z.object({
   className: z.string().default(""),
   attributes: z.record(z.string(), z.number().int()).default({}),
   flavor: z.string().default(""),
-  // `level` (parity-plus §2.6) — a HAND-ONLY progression dial the host/player owns. Born null (nullable-honesty:
+  // `level` — a HAND-ONLY progression dial the host/player owns. Born null (nullable-honesty:
   // the panel renders nothing, never a phantom "Level 0"). It is IDENTITY (like className), NOT a beat-driven
   // fact — so it is ABSENT from the extraction schema + every tool arg (unwritable BY PLAY, proven by test): a
   // model bumping "level" off a vibe is the progression-inflation footgun the no-`update_stats` posture exists

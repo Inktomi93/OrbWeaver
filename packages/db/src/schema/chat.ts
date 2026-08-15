@@ -101,8 +101,8 @@ import { users } from "./users.ts";
 // Natural-arbitration sampling weight (0–1); the born default for a new participant.
 const DEFAULT_TALKATIVENESS = 0.5;
 
-// The standalone (out-of-turn) runtime-variable delta batch shape (`StandaloneVariableDelta`,
-// automation-design/03 §1.1) is one-homed in `@orb/contracts/chat` — the `$type` below imports it; typed
+// The standalone (out-of-turn) runtime-variable delta batch shape (`StandaloneVariableDelta`)
+// is one-homed in `@orb/contracts/chat` — the `$type` below imports it; typed
 // JSON, parsed at the `@orb/db/kit` read seam (`standaloneVariableDeltaSchema`), never cast.
 
 export const chats = sqliteTable(
@@ -179,7 +179,7 @@ export const chats = sqliteTable(
     // select / delete / fork); NOT authored directly. Distinct from `variableValues` (the config-plane store) —
     // the assembly env seed overlays THIS over the resolved config picks. Typed JSON; nullable (nothing folded yet).
     runtimeVariables: text("runtime_variables", { mode: "json" }).$type<Record<string, string>>(),
-    // The standalone (out-of-turn) runtime-variable delta log (automation-design/03 §1.1) — an
+    // The standalone (out-of-turn) runtime-variable delta log — an
     // `applyVariableOps` call with no turn in flight appends a seq-stamped batch here; every runtime-cache
     // fold reads it alongside the per-variant message deltas. Nullable JSON (no standalone delta yet).
     standaloneVariableDeltas: text("standalone_variable_deltas", { mode: "json" }).$type<readonly StandaloneVariableDelta[]>(),
@@ -287,7 +287,7 @@ export const messages = sqliteTable(
       .references((): AnySQLiteColumn => messageVariants.id, { onDelete: "set null" }),
     // When true, the slot is held out of the assembled prompt (a hidden message).
     excludedFromPrompt: integer("excluded_from_prompt", { mode: "boolean" }).notNull().default(false),
-    // ── Turn origin (automation-design/03 §4) — the automation cascade guard's depth source. TURN-PATH state
+    // ── Turn origin — the automation cascade guard's depth source. TURN-PATH state
     // stamped on the reply SLOT the turn produced, NEVER a bus-event field (the D19/D50 allowlist forbids
     // attribution on the frozen public bus). A human turn is born `'human'`/0 (these defaults — every existing
     // writer: user-send, engine assistant commit, impersonate, greeting seed, fork/edit copy, ST import); an

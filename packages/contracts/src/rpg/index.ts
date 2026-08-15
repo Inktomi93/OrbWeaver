@@ -1,4 +1,4 @@
-// @orb/contracts/rpg — the front-door for the RPG lite substrate wire contracts (rpg-design/05 §4.1). The
+// @orb/contracts/rpg — the front-door for the RPG lite substrate wire contracts. The
 // shapes are split across sibling modules by concern (D15's directory-module law: internals flat, this
 // index re-exports, consumer-invisible):
 //   • enums.ts    — the string-union tuples (mode/status/quest/journal/checkpoint/widget), CHECK-derived in db

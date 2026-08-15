@@ -303,7 +303,7 @@ type RpgBusFilterMap = {
 
 const RPG_BUS_FILTERS: RpgBusFilterMap = {
   // The game row itself changed (create/config/knob/mode) — the takeover mode read + the host editor refetch.
-  // `revealHidden` rides along: the M4 knob (`config.features.hiddenContentReveal`) makes the verb return the
+  // `revealHidden` rides along: the reveal-eye knob (`config.features.hiddenContentReveal`) makes the verb return the
   // EMPTY reveal, so flipping it must empty/refill the host's veiled surfaces immediately.
   gameChanged: (e, trpc) => [
     trpc.rpg.getGame.queryFilter({ chatId: e.chatId }),

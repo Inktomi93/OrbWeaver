@@ -6,7 +6,7 @@
 // DB1 adds the wire surface with no db-column consumer: the chunk-param twin (pinned to `@orb/kit/chunk`'s
 // ChunkParams by `satisfies` — drift fails tsc HERE, not at a call site), the retrieval/settings blobs, and
 // the client-facing DocumentView. `extractedText` is deliberately NOT on DocumentView (list payloads would
-// haul megabytes — a dedicated `get` with `includeText` returns it, databank-design/02 §4).
+// haul megabytes — a dedicated `get` with `includeText` returns it).
 
 import type { ChunkParams } from "@orb/kit/chunk";
 import type { DocumentId } from "@orb/kit/ids";
@@ -46,8 +46,8 @@ export const documentIdSchema = typeIdSchema(ID_PREFIX.document);
 export const DATABANK_LIST_DEFAULT_LIMIT = 100;
 
 // ── the ingest PHASE axis (a WIRE lens as of 2026-08-14) ──────────────────────────────────────────────────
-// The phase a document's ingest is in. It is DERIVED, never stamped — there is no status column
-// (databank-design/02 §1.2): `empty` = extracted to nothing · `indexing` = canon but no chunks yet ·
+// The phase a document's ingest is in. It is DERIVED, never stamped — there is no status column:
+// `empty` = extracted to nothing · `indexing` = canon but no chunks yet ·
 // `embedding` = chunks exist that are not all embedded · `ready` = every chunk embedded · `stalled` = an
 // in-flight phase whose `updatedAt` stopped moving ({@link STALE_INGEST_MS}).
 //
@@ -142,11 +142,11 @@ export type ChunkParamsPin = ChunkParamsWire extends ChunkParams ? (ChunkParams 
 const _chunkParamsHolds: ChunkParamsPin = true;
 void _chunkParamsHolds;
 
-// ── retrieval settings (the user-setting blob; databank-design/08 §4 Q2) ─────────────────────────────────
+// ── retrieval settings (the user-setting blob) ────────────────────────────────────────────────────────────
 export const databankRetrievalSettingsSchema = z.object({
   k: z.number().int().min(1).max(RETRIEVAL_K_MAX).default(RETRIEVAL_K_DEFAULT), // ST chunk_count_db
   minScore: z.number().min(0).max(1).default(MIN_SCORE_DEFAULT), // ST score_threshold
-  rerank: z.boolean().default(false), // LEAN default off (databank-design/05 §3.5)
+  rerank: z.boolean().default(false), // LEAN default off
 });
 export type DatabankRetrievalSettings = z.infer<typeof databankRetrievalSettingsSchema>;
 
@@ -175,8 +175,8 @@ export const documentViewSchema = z.object({
 export type DocumentView = z.infer<typeof documentViewSchema>;
 
 // ── host per-document visibility override (D85 — the membership-widened chat scope's governance knob) ─────
-// The chat-scope retrieval union widened from host-only to every present member's ATTACHED documents (D85,
-// databank-design/05 §3.2). Widening is default-ON; the HOST retains an optional per-DOCUMENT override to
+// The chat-scope retrieval union widened from host-only to every present member's ATTACHED documents (D85).
+// Widening is default-ON; the HOST retains an optional per-DOCUMENT override to
 // EXCLUDE a specific document (a member's, or the room's) from the shared retrieval set — governable, not
 // all-or-nothing. Home: a fault-isolated `chats.metadata` sub-blob (the `roomOverrides` precedent), WRITTEN
 // by the host-gated `chat.setChatDocumentVisibility` verb and READ by `databank/persistence/scope.ts`. The

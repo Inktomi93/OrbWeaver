@@ -253,7 +253,7 @@ export interface ChatMetadata {
    *  verb; READ client-side (getChat carries it), applied at the app-root background layer in a TRUE-SOLO room.
    *  Schema is theme's (`ThemeBackground`) — the providerRouting/databankVisibility precedent. */
   background?: ThemeBackground;
-  /** The OPAQUE rpg sync pointer (rpg-design/05 §2.1) — mode-free `{gameId}`, written ONCE by `createGame`
+  /** The OPAQUE rpg sync pointer — mode-free `{gameId}`, written ONCE by `createGame`
    *  through the `setRpgPointer` chat op, stored BLIND (chat never dereferences it). The truth is `rpg_games`;
    *  this is a SYNC SIGNAL so the client's takeover gate is a read off data it already holds. A corrupt blob
    *  heals to absent at the parser (`.catch(undefined)`). Schema is rpg's (`ChatRpgPointer`) — the

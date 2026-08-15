@@ -1,4 +1,4 @@
-// The GM console's `custom label → steering gloss` RECORD editor — one block, two def planes: the M1
+// The GM console's `custom label → steering gloss` RECORD editor — one block, two def planes: the
 // relationship hints and the R4c journal-type hints. They are the same concept twice (a host-defined label that
 // only steers as precisely as the host glosses it — the R4b measurement is why the unification calls a hint
 // editor non-negotiable on every def plane), so they get the same gesture, cap and counter rather than two

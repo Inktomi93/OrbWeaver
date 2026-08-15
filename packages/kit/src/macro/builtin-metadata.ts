@@ -69,7 +69,7 @@ export const BUILTIN_MACRO_METADATA = {
   compact_summary: meta("compact_summary", "system", "The staged compact conversation summary."),
   memory: meta("memory", "system", "The staged long-term memory recall."),
   databank: meta("databank", "system", "The staged databank retrieval, or empty when nothing retrieved."),
-  // ── rpg (data-fed; empty outside a game — rpg-design/06 §1) ──
+  // ── rpg (data-fed; empty outside a game) ──
   rpgworld: meta("rpgWorld", "system", "The RPG world overview + genre/setting/tone/difficulty frame (empty outside a game)."),
   rpgsecrets: meta("rpgSecrets", "system", "The GM-only story arc + plot twists + hidden clocks (empty outside a game)."),
   rpgcontinuity: meta("rpgContinuity", "system", "The RPG session summaries + latest carryover detail (empty outside a game)."),
@@ -137,7 +137,7 @@ export const BUILTIN_MACRO_METADATA = {
     ],
     variadic: true,
   }),
-  // The M3 LIST spec in action: a {{pick}} of nothing is an authoring mistake — min 1 makes it an
+  // The LIST spec in action: a {{pick}} of nothing is an authoring mistake — min 1 makes it an
   // author-time diagnostic (the render still degrades to "" per the fail-open posture).
   pick: meta("pick", "random", "Picks one of the given options under the injected PRNG.", {
     args: [{ name: "option", type: "string", optional: true }],

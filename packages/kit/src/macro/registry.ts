@@ -525,7 +525,7 @@ function registerVolatileMacros(registry: SimpleMacroRegistry): void {
   reg("roll", rollHandler);
 }
 
-/** The 8 rpg* data-fed macros (rpg-design/06 §1): `[registered lowercase name, RpgGatherMacros value key]`.
+/** The 8 rpg* data-fed macros: `[registered lowercase name, RpgGatherMacros value key]`.
  *  The value key is the camelCase field the game turn's GATHER stages on `ctx.rpgMacros`; the registry looks up
  *  the lowercased name. Kept here (kit) as the registration list — rpg (above kit) supplies the values. */
 const RPG_DATA_MACROS: readonly (readonly [name: string, key: string])[] = [
@@ -537,7 +537,7 @@ const RPG_DATA_MACROS: readonly (readonly [name: string, key: string])[] = [
   ["rpgmap", "rpgMap"],
   ["rpgperception", "rpgPerception"],
   ["rpgmorale", "rpgMorale"],
-  // parity-plus P6 (§12.2) — the lite-plane additions the gather populates from the tracker view.
+  // The lite-plane additions the gather populates from the tracker view.
   ["rpgquests", "rpgQuests"],
   ["rpgdelta", "rpgDelta"],
 ];
@@ -673,10 +673,10 @@ export function createDefaultRegistry(): MacroRegistry {
     },
   );
 
-  // The 8 rpg* data-fed macros (rpg-design/06 §1) — a game turn's GATHER stages `ctx.rpgMacros`; each reads its
+  // The 8 rpg* data-fed macros — a game turn's GATHER stages `ctx.rpgMacros`; each reads its
   // value or "". Registered here (the databank/memory precedent) so a preset referencing `{{rpgSceneState}}` in
   // a NON-game chat resolves empty, never an unknown-macro error.
-  // Volatile (parity-plus §12.3): the rpg planes move per turn as state advances, so a preset placing
+  // Volatile: the rpg planes move per turn as state advances, so a preset placing
   // `{{rpgSceneState}}` in a cached prefix is correctly flagged a cache-buster by `volatileNames()`. They are a
   // READ mirror (never a write) — the freeze pass (`createVolatileOnlyRegistry`) does NOT register them, so a
   // stored composer body re-emits `{{rpg*}}` verbatim (never baked), exactly like `{{expr}}`.

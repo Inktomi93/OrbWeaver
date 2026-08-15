@@ -116,7 +116,7 @@ function rowMarkers({
   }
   return (
     <>
-      {/* The GAME marker (rpg-design/05 §2.1 — `metadata.rpg` presence): the quiet twin of the star,
+      {/* The GAME marker (`metadata.rpg` presence): the quiet twin of the star,
           labelled so the datum is TEXT for a screen reader, muted so it reads as a mark, not an action. */}
       {chat.isGame ? <Icon className="text-muted-foreground" icon={Swords} label="Game chat" size="sm" /> : null}
       {/* COARSE KEEPS THE MARKER (side-eye 2026-08-07 finding 6): the star TOGGLE collapses into the kebab

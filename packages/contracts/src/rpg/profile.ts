@@ -1,9 +1,9 @@
-// @orb/contracts/rpg/profile — the `statProfile` as DATA (rpg-design/05 §2.3). The SHAPE is the
+// @orb/contracts/rpg/profile — the `statProfile` as DATA. The SHAPE is the
 // compatibility promise: lite never computes a modifier (no lite code path reads
 // `modifier`/`skillGoverning`/`perceptionAttribute`/`resolution`), but every field ships, populated and
 // validated, because full's check engine consumes the profile AS-IS on arrival — zero re-shape at graft.
 //
-// Home: `config.statProfile` inside the games config blob (§2.3 — no separate profile table until a
+// Home: `config.statProfile` inside the games config blob (no separate profile table until a
 // cross-game library exists). `RpgSheet.attributes` is a record over this profile's attribute vocabulary.
 //
 // The three PACKAGED profiles (`freeform`/`d20`/`special`) ship as contract data constants — pure

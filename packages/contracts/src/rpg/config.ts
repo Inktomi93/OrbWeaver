@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/config — the `rpg_games.config` JSON blob (rpg-design/05 §4.1). Holds the
+// @orb/contracts/rpg/config — the `rpg_games.config` JSON blob. Holds the
 // `statProfile` (§2.3 — no separate profile table until a cross-game library exists) + the lite dials.
 // Full's dials (`genres`/`tones`/`setting`/`difficulty`/`rating`/`language`/`playerGoals`/`gm`/
 // `houseRules`/`imagery`/`assist`) graft as ADDITIVE defaulted fields — a JSON-column additive lift
@@ -20,26 +20,26 @@ export const RPG_STEERING_NOTE_MAX = 500;
  *  budget/cache. `0` = keep none (the reminder drops the "Recent beats" block); the durable log is untouched. */
 export const RPG_RECENT_BEATS_KEEP_DEFAULT = 8;
 
-/** The immersive-card keep-last-X default (M2, §3.5): `0` = every stored card collapses to its `[card: title]`
+/** The immersive-card keep-last-X default: `0` = every stored card collapses to its `[card: title]`
  *  stub on the wire — the cache-stable, budget-honest posture. Named so the host editor can state the effective
  *  default in its empty state instead of re-spelling the literal. */
 export const RPG_CARD_KEEP_LAST_DEFAULT = 0;
 
-/** The per-game FEATURE knobs (parity-plus §9 — the create-time options + advanced config). Additive defaulted
+/** The per-game FEATURE knobs (the create-time options + advanced config). Additive defaulted
  *  fields on the JSON blob, self-healing at the parse seam (no version stamp — rpg tables carry no versioned
  *  column).
- *  `relationshipHints` maps a custom relationship `label` → a steering gloss (M1: a bare custom label steers as
+ *  `relationshipHints` maps a custom relationship `label` → a steering gloss (a bare custom label steers as
  *  precisely as the five built-ins when the host glosses it; the hint is a property of the VOCAB, one home, not
  *  duplicated per cast row).
  *
- *  P3 hidden-channel knobs (§3.3/§3.6): `deception` teaches `<lie …/>`, `omniscience` teaches `<ofilter …/>` —
+ *  The hidden-channel knobs (§3.3/§3.6): `deception` teaches `<lie …/>`, `omniscience` teaches `<ofilter …/>` —
  *  both default OFF (opt-in mechanics). EITHER on = the game is DECEPTION-ACTIVE, which (a) composes the teaching
  *  block into the reminder and (b) flips the REASONING channel HOST-ONLY for members (a deceptive model can spill
- *  a lie's truth in the thinking channel — the whole-channel host-only gate is the clean threat boundary, §3.6).
- *  `hiddenContentReveal` (M4, default ON) governs whether the HOST is offered the reveal eye at all — off = the
+ *  a lie's truth in the thinking channel — the whole-channel host-only gate is the clean threat boundary).
+ *  `hiddenContentReveal` (default ON) governs whether the HOST is offered the reveal eye at all — off = the
  *  host runs PURE hidden (no peek even for themselves); it NEVER changes the member-strip (a member never reads
  *  hidden bytes regardless) nor the wire (the model always remembers). `recentBeatsKeepLast` caps the reminder's
- *  Recent-beats slice (the P3 fold — the durable log stays append-only). */
+ *  Recent-beats slice (the durable log stays append-only). */
 export const rpgGameFeaturesSchema = z.object({
   relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).default({}),
   // R4c (owner go, 2026-07-31) — the JOURNAL-TYPE gloss map, the exact sibling of `relationshipHints`: a
@@ -51,33 +51,33 @@ export const rpgGameFeaturesSchema = z.object({
   omniscience: z.boolean().default(false),
   hiddenContentReveal: z.boolean().default(true),
   recentBeatsKeepLast: z.number().int().min(0).default(RPG_RECENT_BEATS_KEEP_DEFAULT),
-  // Feature 7 — immersive HTML cards (parity-plus §4/§9 #7). `immersiveHtml` gates the TEACHING ask + the
+  // Feature 7 — immersive HTML cards. `immersiveHtml` gates the TEACHING ask + the
   // §4.8 lenient wrap only — an emitted `:::card` ALWAYS renders (the render is toggle-independent, so a
   // stored card never breaks on a later toggle-off). Default on: the sandbox is the wall.
   immersiveHtml: z.boolean().default(true),
-  // M3 — governs whether the teaching ASKS for interactivity (animations/scripts), never the render: a card
+  // Governs whether the teaching ASKS for interactivity (animations/scripts), never the render: a card
   // the model emits renders in the same sandbox regardless (§4.2 — the toggle shapes the PROMPT).
   immersiveHtmlInteractive: z.boolean().default(true),
-  // M2 — the X most-recent cards ride the wire FULL; older cards collapse to the `[card: title]` stub.
-  // 0 (default) = immediate total collapse (the cache-stable, budget-honest posture — §3.5).
+  // The X most-recent cards ride the wire FULL; older cards collapse to the `[card: title]` stub.
+  // 0 (default) = immediate total collapse (the cache-stable, budget-honest posture).
   cardKeepLastX: z.number().int().min(0).default(RPG_CARD_KEEP_LAST_DEFAULT),
-  // P5 — CYOA as a first-class MODE (§5.4): ON composes the choices-fence teaching into the reminder so the
+  // CYOA as a first-class MODE (§5.4): ON composes the choices-fence teaching into the reminder so the
   // model ends turns with a clickable choice set. Default OFF (a strong play-style many tables don't want);
   // the wand's one-shot "Offer choices" covers the this-turn-only ask regardless of the knob. The render is
   // toggle-independent — an emitted fence always renders as buttons (never a stored-content break).
   cyoa: z.boolean().default(false),
-  // P5 — what a CYOA choice CLICK does (§5.4). `compose` (default) drops the option text into the composer
+  // What a CYOA choice CLICK does (§5.4). `compose` (default) drops the option text into the composer
   // draft + focuses it (append flavor, then send); `send` fires the option as the user turn immediately.
   // Toggle-independent render — the buttons always show; this only branches the client click handler.
   cyoaChoiceBehavior: z.enum(RPG_CYOA_CHOICE_BEHAVIORS).default("compose"),
-  // P5 — plot progression (§6.4): gates the wand's Plot submenu (steer entries) for this game. Default ON
+  // Plot progression (§6.4): gates the wand's Plot submenu (steer entries) for this game. Default ON
   // (fires only on click — no always-on prompt cost; broadly useful for un-sticking a scene). The submenu is
   // ABSENT when off, never a disabled twin (applicability, [no-separate-reduced-modes]).
   plotProgression: z.boolean().default(true),
 });
 export type RpgGameFeatures = z.infer<typeof rpgGameFeaturesSchema>;
 
-/** Is a game's config DECEPTION-ACTIVE (parity-plus §3.6)? True when either hidden channel is on — the ONE
+/** Is a game's config DECEPTION-ACTIVE? True when either hidden channel is on — the ONE
  *  predicate that (a) gates the teaching-block composition and (b) drives the member reasoning-host-only strip.
  *  Homed here so the injected chat op (`resolveReasoningHostOnly`) and the reminder assembler agree on ONE
  *  definition — a drift between "teach deception" and "strip reasoning" would leak the thinking channel. */
@@ -219,13 +219,13 @@ export const rpgGameConfigSchema = z.object({
   // view + write door carry it; the cadence CONSUMPTION at `stageStateRound` lands with the reconcile lane.
   reconcileEveryBeats: z.number().int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).default(RPG_RECONCILE_EVERY_BEATS_DEFAULT),
   dateMode: z.enum(RPG_DATE_MODES).default("narrated"),
-  // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + the P4 card options) — additive,
+  // The feature knobs (relationship/journal hints + the hidden-channel + card options) — additive,
   // self-healing at the parse seam (a pre-feature blob absent from a stored config parses to the
   // all-defaults features via the sub-schema, so the knobs heal in without a version stamp). The function
   // default parses `{}` through the sub-schema so EVERY inner default fills (a bare `{}` object literal
   // wouldn't satisfy the fully-required output type).
   features: rpgGameFeaturesSchema.default(() => rpgGameFeaturesSchema.parse({})),
-  // WAVE MU (§12A.5 M5, owner ruling #20): GAME-authored user macros — the game half of the two-home
+  // GAME-authored user macros (owner ruling #20) — the game half of the two-home
   // definition rule (preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
   // Additive defaulted — a pre-MU blob self-heals to [] at the parse seam. Registered with source
   // `{kind:"game", id:<chatId>}` by the macro-feed threading (kit `registerUserMacros`).

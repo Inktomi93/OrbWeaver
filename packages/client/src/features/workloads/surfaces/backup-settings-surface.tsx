@@ -7,7 +7,7 @@
 // no QueryBoundary is needed here.
 //
 // This IS the permanent, discoverable "Backup & Restore / Import from SillyTavern" entry — the sole
-// import/export surface (the first-run onboarding card that once routed here was deleted at M1.cutover).
+// import/export surface (the first-run onboarding card that once routed here was deleted at cutover).
 
 import { Container, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";

@@ -75,7 +75,7 @@ export function createMacroContext(options: ProcessMacroOptions, registry: Macro
     __budget: budget,
     evaluateString: (str: string) => guard(() => evaluateMacros(parseMacros(str), registry, ctx)),
     evaluateAST: (astNode: MacroAST) => guard(() => evaluateMacros(astNode, registry, ctx)),
-    // The M2 lazy-contract handle (§12A.2): delegates to the guarded seams above, so it threads the
+    // The lazy-contract handle: delegates to the guarded seams above, so it threads the
     // SAME budget/PRNG/opLog as eager resolution — a lazy handler's late draws land in document order,
     // byte-identical to the eager path. `trim: true` = the resolveContent body treatment (trimContent).
     resolve: (content, opts) => {

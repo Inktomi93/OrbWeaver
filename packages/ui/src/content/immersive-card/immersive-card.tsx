@@ -77,8 +77,8 @@ function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, he
 }
 
 /**
- * `<ImmersiveCard>` — the tierB card LIFECYCLE chrome (parity-plus §4.7): the inline sandbox with a header
- * band, a COLLAPSE disclosure down to the bare title bar (the §4.7 "formed-collapsed" state — RV-1: a card
+ * `<ImmersiveCard>` — the tierB card LIFECYCLE chrome: the inline sandbox with a header
+ * band, a COLLAPSE disclosure down to the bare title bar (the "formed-collapsed" state — RV-1: a card
  * a reader is done with stops eating the transcript), a VIEW-RAW toggle (the exact stored source in a code
  * view — the in-lore "read the code the character wrote" arm and the lenient-wrap safety valve), and an
  * EXPAND affordance (a dialog lightbox at full shell size, labelled by the card title). The security

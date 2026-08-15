@@ -1,10 +1,10 @@
 // schema/databank — the databank source-document canon + its scope junctions (producer:
-// domain/databank, D49 #5; specced in databank-design/02 §1 + §3). Tables born WHOLE into the
+// domain/databank, D49 #5). Tables born WHOLE into the
 // `0000_baseline` (pre-launch squash rule): documents · global_documents · character_documents ·
 // chat_documents. The 5th vector table `document_chunks` is the DERIVED layer and lives with the other
 // vector tables in `schema/embeddings.ts` (the vector-substrate home + the D20 chokepoint).
 //
-// THE LOAD-BEARING DECISIONS (databank-design/02):
+// THE LOAD-BEARING DECISIONS:
 //   • `documents` is TOP-LEVEL OWNED CANON (D23 KEEP): `ownerId` STAMPED, CASCADE. `extractedText` IS
 //     the canon (binary → text, re-runnable); `sourceAssetId` (the original bytes in the per-user CAS,
 //     D21) is SET NULL — NULL for origin 'text' (nothing to re-extract).
@@ -65,7 +65,7 @@ export const documents = sqliteTable(
     mime: text("mime").notNull(),
     // 'upload'|'web'|'youtube'|'wiki'|'text' — derives DOC_ORIGINS (no re-spell).
     origin: text("origin", { enum: DOC_ORIGINS }).notNull(),
-    // Scrape provenance; NULL for upload/text (databank-design/02 §1.1).
+    // Scrape provenance; NULL for upload/text.
     sourceUrl: text("source_url"),
     // THE CANON (binary → text, re-runnable).
     extractedText: text("extracted_text").notNull(),
@@ -78,7 +78,7 @@ export const documents = sqliteTable(
     extractorVersion: text("extractor_version").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     // Bumped by rename + re-extract (a doc whose canon can be rewritten in place needs a visible write
-    // timestamp; createdAt alone lies after the first re-extract — databank-design/02 §1.1).
+    // timestamp; createdAt alone lies after the first re-extract).
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [

@@ -24,12 +24,12 @@ const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
  *  calls) references, homed HERE so the wire ceiling and the backstop never drift. */
 export const NOTIFICATIONS_LIST_MAX_LIMIT = 100;
 
-/** The `automation-notice` rendered-message cap (automation-design/03 §1.5). A capped string is the argued,
+/** The `automation-notice` rendered-message cap. A capped string is the argued,
  *  closed exception to the ids-only habit — it stays credential-unrepresentable (a host-authored template
  *  rendered server-side over room state every recipient can already read). */
 export const AUTOMATION_NOTICE_MESSAGE_MAX = 200;
 
-/** Who a `post_notification`/plugin `notify` can address (automation-design/03 §1.5, plugin-design/01 §2):
+/** Who a `post_notification`/plugin `notify` can address:
  *  the installer/host, or every present human member of the chat. Resolved DOMAIN-side, never client-asserted. */
 export const NOTIFICATION_RECIPIENTS = ["host", "all_members"] as const;
 export type NotificationRecipient = (typeof NOTIFICATION_RECIPIENTS)[number];
@@ -70,8 +70,8 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
     chatId: chatIdSchema,
     reason: z.enum(["consent", "chat-gone"]),
   }),
-  // An automation `post_notification` arm firing (automation-design/03 §1.5, §AC-C) OR a plugin `notify`
-  // (plugin-design/01 §2 — the SAME durable path, participants only). The one member that carries a rendered
+  // An automation `post_notification` arm firing (§AC-C) OR a plugin `notify`
+  // (the SAME durable path, participants only). The one member that carries a rendered
   // `message` — a host-authored/plugin-authored template rendered server-side over room state (a rule that only
   // says "fired" is useless); still closed + secret-unrepresentable (a capped string, not a handle). `source`
   // is a discriminated union (rule vs plugin — NOT a synthetic rule id: a plugin notice has no rule), whose id
@@ -88,8 +88,8 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
     ]),
     message: z.string().max(AUTOMATION_NOTICE_MESSAGE_MAX),
   }),
-  // A resident plugin the crash policy AUTO-DISABLED after the consecutive-crash threshold (plugin-design/03
-  // §4 "the owner is notified"). Delivered to the plugin's installing OWNER (a human — an agent has no
+  // A resident plugin the crash policy AUTO-DISABLED after the consecutive-crash threshold (the owner is
+  // notified). Delivered to the plugin's installing OWNER (a human — an agent has no
   // inbox). Ids only: `pluginId` deep-links the owner's plugin-management surface where `lastError` /
   // `consecutiveCrashes` already live (no free error string on the wire — the detail is read there, never
   // smuggled through the durable payload). NOT chat-scoped (a plugin is owner-installed, not room-bound).

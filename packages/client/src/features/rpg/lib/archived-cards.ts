@@ -1,4 +1,4 @@
-// The ONE transcript→card projection (parity-plus §4.7; panel-redesign §6 P4 — "chrome designed once,
+// The ONE transcript→card projection ("chrome designed once,
 // used in three homes"): tokenize the visible transcript's SELECTED-variant bodies and collect the
 // immersive-card spans. Shared by the Scene "Cards" archive (newest-first title list) and the Journal
 // chronicle (cards archived into the day they were born — the §4 "Journal" rule), so both lenses read the

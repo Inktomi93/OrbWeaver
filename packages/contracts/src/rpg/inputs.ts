@@ -55,7 +55,7 @@ export const rpgUpdateConfigInputSchema = z.object({
       // owns the set authoritatively, exactly as the retired `castFields`/`pinnedOrbs` writes did). Every axis
       // (subject/shape/write/appliesTo/max/hint/color/icon/sort/pinned/locked) rides the DERIVED def schema.
       trackers: z.array(rpgTrackerDefSchema).optional(),
-      // The per-custom-kind relationship hints (M1) + the R4c custom-journal-type hints. Omit keeps; a passed
+      // The per-custom-kind relationship hints + the R4c custom-journal-type hints. Omit keeps; a passed
       // record REPLACES it.
       relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).optional(),
       journalTypeHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).optional(),
@@ -66,7 +66,7 @@ export const rpgUpdateConfigInputSchema = z.object({
       omniscience: z.boolean().optional(),
       hiddenContentReveal: z.boolean().optional(),
       recentBeatsKeepLast: z.number().int().min(0).optional(),
-      // The P4 card knobs (parity-plus §9 #7 + M2/M3) — omit keeps; a passed value replaces.
+      // The card knobs (teaching gate, interactivity ask, keep-last-X wire) — omit keeps; a passed value replaces.
       immersiveHtml: z.boolean().optional(),
       immersiveHtmlInteractive: z.boolean().optional(),
       cardKeepLastX: z.number().int().min(0).optional(),

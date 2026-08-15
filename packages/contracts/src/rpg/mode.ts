@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/mode — the `mode` axis and its exhaustive `MODE_POLICY` record (rpg-design/05 §2.2).
+// @orb/contracts/rpg/mode — the `mode` axis and its exhaustive `MODE_POLICY` record.
 // Both rows are DATA from day one: a new mode member fails `tsc` (the mapped-type `Record`), a new axis
 // fails `tsc` at EVERY arm. Verb guards read the record via ONE `requireModeCapability(game, axis)` — never
 // `if (mode === …)` in a verb body (§5.5 discipline).

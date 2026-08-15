@@ -80,7 +80,7 @@ export const varOpSchema = z.discriminatedUnion("op", [
  *  selected-variant chain (`foldVarOps`) into `chats.runtime_variables` (D46 runtime plane). */
 export const variableDeltaSchema = z.array(varOpSchema);
 
-/** One standalone (out-of-turn) delta batch (`chats.standalone_variable_deltas`, automation-design/03 §1.1) —
+/** One standalone (out-of-turn) delta batch (`chats.standalone_variable_deltas`) —
  *  a seq-stamped `applyVariableOps` write made with no turn in flight. Parsed at the read seam; folded into
  *  `chats.runtime_variables` interleaved with the message-variant deltas by `seq`. */
 export const standaloneVariableDeltaSchema = z.object({ seq: z.number(), delta: variableDeltaSchema });

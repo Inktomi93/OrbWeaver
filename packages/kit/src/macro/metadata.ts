@@ -1,4 +1,4 @@
-// kit/macro/metadata — the macro-DX parity layer FUNCTIONS (automation-design/02 §5): arg validation
+// kit/macro/metadata — the macro-DX parity layer FUNCTIONS: arg validation
 // (strict/lenient) + the autocomplete query API. The metadata TYPE surface + MACRO_CATEGORIES live in
 // types.ts (with the other macro types) so the registry can reference them without an import cycle; this
 // file imports DOWN from types.ts only. Pure + isomorphic — the client bundles the same registry for
@@ -43,7 +43,7 @@ function coercesTo(value: string, type: MacroArgDef["type"]): boolean {
 
 /** Extra call-shape context for {@link checkMacroArgs}. `contentArgs` = how many trailing args are a
  *  scoped-block BODY delivered as content-as-last-arg (0 inline, 1 universal-block) — block capability
- *  is UNIVERSAL (M1, deliberately undeclared per-macro), so the body slot must never trip too-many. */
+ *  is UNIVERSAL (deliberately undeclared per-macro), so the body slot must never trip too-many. */
 export interface CheckMacroArgsOptions {
   readonly contentArgs?: number;
 }
@@ -57,7 +57,7 @@ function checkArity(metadata: MacroMetadata, count: number, contentArgs: number)
     return out;
   }
   if (metadata.variadic) {
-    // The LIST spec (§12A.3) bounds a variadic macro's TOTAL arg count; the content slot is exempt.
+    // The LIST spec bounds a variadic macro's TOTAL arg count; the content slot is exempt.
     const min = metadata.list?.min;
     const max = metadata.list?.max;
     const counted = count - contentArgs;
@@ -75,7 +75,7 @@ function checkArity(metadata: MacroMetadata, count: number, contentArgs: number)
   return out;
 }
 
-/** The M3 runtime-enforcement core (§12A.3): check a macro call's DELIVERED args against its declared
+/** The runtime-enforcement core: check a macro call's DELIVERED args against its declared
  *  contract and return the typed violations (arity, list bounds, per-arg type). Pure function of its
  *  inputs — the evaluator and validateMacroArgs both derive from THIS so the runtime posture and the
  *  authoring diagnostics can never disagree. An arg still containing `{{` (a lazy-delivered raw arg or
@@ -104,7 +104,7 @@ export function checkMacroArgs(metadata: MacroMetadata, args: readonly string[],
   return out;
 }
 
-/** Pad a call's delivered args with the declared optional-suffix `default`s (M3: the metadata IS the
+/** Pad a call's delivered args with the declared optional-suffix `default`s (the metadata IS the
  *  runtime contract — a declared default reaches the handler, not just the browser copy). Padding stops
  *  at the first missing-default def (defaults form a contiguous run) and never touches a call that
  *  already supplied the position. Returns `args` unchanged (same reference) when nothing pads. */

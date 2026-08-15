@@ -1931,7 +1931,7 @@ export const choiceBlockValuesSchema = z.record(z.string().max(MAX_NAME_LENGTH),
 export type ChoiceBlockValues = z.infer<typeof choiceBlockValuesSchema>;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// User macros (WAVE MU — parity-plus §12A.5 M5 + the #24 typed-input fold). The DEFINITION home is
+// User macros (the #24 typed-input fold). The DEFINITION home is
 // preset/game CONFIG (owner ruling #20 — never a global runtime): `promptConfig.userMacros` here and
 // `rpg_games.config.userMacros` (contracts/rpg/config.ts imports THIS schema — one shape, two homes).
 // The vocabulary (kinds/arg-types/name shape) derives from `@orb/kit/macro` — the engine half
@@ -2044,7 +2044,7 @@ export const promptConfigSchema = z.object({
   // strips the retired key at the parse seam — no lift, no schema bump; the owner re-attaches by hand
   // (BACKREST-MANUAL, the ruled NO-LEGACY carryover posture).
   variables: z.array(choiceBlockSchema).max(MAX_VARIABLES).default([]),
-  // WAVE MU (§12A.5 M5): preset-authored user macros — additive defaulted (a pre-MU blob parses; no
+  // Preset-authored user macros — additive defaulted (a pre-MU blob parses; no
   // version bump needed, the `variables`/`guidedActions` precedent).
   userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),
   customParameters: customParametersSchema.optional(),

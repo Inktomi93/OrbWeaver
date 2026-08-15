@@ -10,7 +10,7 @@
 //   information (the steady state IS ready) while eating the title down to an ellipsis. Ready is now the
 //   ABSENCE of a chip. The derived phase itself is unchanged — only this render predicate is new.
 //
-// The ingest phase is DERIVED, never stamped: there is no `status` column (databank-design/02 §1.2) — the
+// The ingest phase is DERIVED, never stamped: there is no `status` column — the
 // chunk/embed counts ARE the truth, so the surface can never show a phase the data does not support.
 
 import type { BankHealthView, DocOrigin, DocumentView, IngestPhase } from "@orb/contracts/databank";

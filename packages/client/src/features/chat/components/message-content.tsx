@@ -61,8 +61,8 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "html-card":
       return <CardBlock key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
-    // The parity-plus §5.2-5.3 choice set — clickable send-affordances: a click sends the option as the
-    // user's next turn through the room's choice-send capability (P5; provider-less mounts render the
+    // The CYOA choice set — clickable send-affordances: a click sends the option as the
+    // user's next turn through the room's choice-send capability (provider-less mounts render the
     // same buttons disabled). The block contract is untouched.
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "choices":

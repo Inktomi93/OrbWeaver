@@ -1,6 +1,6 @@
 // @orb/contracts/chat/bus — the chat stream delta + the room-public `ChatBusEvent` union, the provider-send
-// content-part shape (D45), the domain warning-code taxonomy (D41), the turn-origin/initiator vocabulary
-// (automation-design/03 §4), and the D50 synchronous PromptTransform seam.
+// content-part shape (D45), the domain warning-code taxonomy (D41), the turn-origin/initiator vocabulary,
+// and the D50 synchronous PromptTransform seam.
 //
 // LAWS honored here:
 //   • Turn identity (D19): no bus event carries a caller id — turn attribution rides the turn path
@@ -75,11 +75,11 @@ export const CHAT_WARNING_CODES = [
   // request-builder gate, mirror of tools_unsupported).
   "structured_output_unsupported",
   // A registered `PromptTransform` (automation `transform_draft` / a plugin) threw or blew its 250 ms deadline
-  // → the draft passed through UNCHANGED (automation-design/04 §6; D53 — a broken transform never eats a turn).
+  // → the draft passed through UNCHANGED (D53 — a broken transform never eats a turn).
   // Emitted from the registry's apply pass so a host sees a misbehaving rule/plugin without losing the reply.
   "prompt_transform_skipped",
   // An image generation dropped its edit/avatar-reference input because the resolved image model lacks
-  // `input.imageEdit` (imagery-design/03 §2 — the domain B3 gate drops-with-warning, or the runner belt strips
+  // `input.imageEdit` (the domain B3 gate drops-with-warning, or the runner belt strips
   // a stale-capability edit). Emitted from `chat.generateImage`, mapping `GeneratedPicture.warnings` onto the
   // one chat `warning` surface so the user sees "generated without the avatar reference (model can't edit)".
   "image_edit_dropped",
@@ -141,7 +141,7 @@ export const TURN_LOCKED_OP_CODE = "locked" as const;
 /** @public twin: TURN_LOCKED_OP_CODE — type twin of the live constant (cross-package PUBLIC). */
 export type TurnLockedOpCode = typeof TURN_LOCKED_OP_CODE;
 
-// ── Turn origin — who/what started a turn + its cascade depth (automation-design/03 §4) ──
+// ── Turn origin — who/what started a turn + its cascade depth ──
 // TURN-PATH STATE, never a bus-event field: the D19/D50 allowlist forbids attribution on the public bus, so
 // this rides the committed reply SLOT (`messages.initiator`/`.automationDepth`) and is read back by the ONE
 // narrow `getTurnOrigin` op — the automation cascade guard's depth source. Human turns are born
@@ -153,7 +153,7 @@ export type TurnLockedOpCode = typeof TURN_LOCKED_OP_CODE;
 export const TURN_INITIATORS = ["human", "automation", "plugin"] as const;
 export type TurnInitiator = (typeof TURN_INITIATORS)[number];
 
-/** The hard cascade-depth cap (automation-design/03 §4) — nothing fires at `automationDepth >= cap`, opt-in or
+/** The hard cascade-depth cap — nothing fires at `automationDepth >= cap`, opt-in or
  *  not, and a `requestTurn` may not stamp a reply DEEPER than it. ONE home for the magic bound: the automation
  *  dispatch gate reads it (the READ side) and chat's `requestTurn` self-refuses `> cap` (the WRITE-side belt for
  *  the plugin path, which has no dispatch gate above it). Homed in `contracts/chat` beside `TurnOrigin` because
@@ -302,7 +302,7 @@ export type ChatBusEvent =
       targetMessageId: MessageId | null;
     }
   | { type: "turnCompleted"; chatId: ChatId; intent: TurnIntent; messageId: MessageId | null }
-  // An aborted turn commits NO reply slot, so its cascade depth (automation-design/03 §4) cannot be read back
+  // An aborted turn commits NO reply slot, so its cascade depth cannot be read back
   // through `getTurnOrigin` (there is no message to read). It therefore rides HERE as a plain scalar so the
   // automation fact-resolver can gate the cascade: an aborted automation turn (depth ≥ 1) must NOT re-trigger
   // non-opted `turnAborted` rules — a "retry on failure" rule at depth 0 self-loops otherwise. This is turn-

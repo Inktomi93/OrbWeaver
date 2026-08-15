@@ -40,14 +40,14 @@ function flagString(flags: MacroFlags | undefined): string {
 
 // Re-emit an unrecognized inline/block-open macro as TYPED. `raw` is the original source span —
 // reconstructing from parsed args normalized `{{x:one,two}}` → `{{x::one::two}}`, changing
-// passthrough bytes (review V10-10); the raw path also carries the flag run verbatim (§12A.4).
+// passthrough bytes (review V10-10); the raw path also carries the flag run verbatim.
 // Fallback reconstruction only for hand-built AST nodes that lack `raw`.
 function reconstruct(name: string, args: string[], raw: string | undefined, flags: MacroFlags | undefined): string {
   const argSuffix = args.length > 0 ? `::${args.join("::")}` : "";
   return raw ?? `{{${flagString(flags)}${name}${argSuffix}}}`;
 }
 
-// The per-call arg-resolution mode (M2, §12A.2): the `!` (IMMEDIATE) / `?` (DELAYED) flags override the
+// The per-call arg-resolution mode: the `!` (IMMEDIATE) / `?` (DELAYED) flags override the
 // handler's declared `delayArgResolution` default. A conflicting `{{!?…}}` run resolves IMMEDIATE —
 // eager delivery is safe for every handler, while a lazy delivery to a lazy-unaware handler passes raw
 // bytes through. A lazy delivery hands the handler its RAW args; the handler resolves what it needs via
@@ -65,14 +65,14 @@ function lazyArgs(node: MacroCallNode | MacroBlockNode, registry: MacroRegistry)
 
 // One recognized call's delivered-arg shape, bundled for checkArgs (parameter-count discipline).
 // `contentArgs` = how many trailing args are a scoped-block BODY (0 inline, 1 universal-block) — block
-// capability is universal (M1), so the body slot must never trip the too-many arity check.
+// capability is universal, so the body slot must never trip the too-many arity check.
 interface DeliveredCall {
   readonly node: MacroCallNode | MacroBlockNode;
   readonly args: string[];
   readonly contentArgs: number;
 }
 
-// M3 runtime enforcement (§12A.3): check the DELIVERED args against the macro's declared contract, push
+// Runtime enforcement: check the DELIVERED args against the macro's declared contract, push
 // diagnostics to the optional sink, and — under strict (ctx.strictArgs OR the metadata's per-macro
 // `strict`) — signal "render empty" when there's a violation. STRICT-AUTHOR / LENIENT-RENDER (the D2
 // posture): a violation never throws — lenient renders best-effort, strict degrades to "" (the author
@@ -96,7 +96,7 @@ function checkArgs(ctx: MacroContext, meta: MacroMetadata | undefined, call: Del
 // A recognized INLINE call: deliver args per the call's eager/lazy mode, pad declared defaults, enforce
 // the typed-arg contract, invoke. Strict-mode violation → render "" (the editors hold new authorship to
 // the bar); lenient → diagnostics recorded, best-effort render proceeds. The still-reserved flags
-// (`~`/`>`, and `#` on an inline call) are parse-and-carry NO-OPS (§12A.4) — the call evaluates as if
+// (`~`/`>`, and `#` on an inline call) are parse-and-carry NO-OPS — the call evaluates as if
 // unflagged.
 function evalKnownCall(handler: MacroHandler, node: MacroCallNode, registry: MacroRegistry, ctx: MacroContext): string {
   const delivered = lazyArgs(node, registry) ? [...node.args] : node.args.map((arg) => resolveArg(arg, ctx));
@@ -146,7 +146,7 @@ function evalMacroNode(node: MacroCallNode, registry: MacroRegistry, ctx: MacroC
   return reconstruct(node.name, node.args, node.raw, node.flags);
 }
 
-// A recognized macro in scoped-block form. Two delivery modes (§12A.1):
+// A recognized macro in scoped-block form. Two delivery modes:
 //   • `blockChildren` registrations (`if`, the trim/case-fold family) receive the RAW body AST and
 //     control resolution themselves (branch-picking, whole-body transforms) — the `!`/`?` flags flip
 //     only the ARG axis, never this body delivery (an eager-forced `{{!if}}` still branch-picks);

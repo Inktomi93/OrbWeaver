@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/views — the READ-view projections the CP client consumes (rpg-design/05 §4.8). Data
+// @orb/contracts/rpg/views — the READ-view projections the CP client consumes. Data
 // contract only (the CP spec owns the components). Minted NOW as the mode-discriminated homes full's GM
 // arms extend: `RpgGameView` is the member arm today; full's `RpgGmView` grafts as a SIBLING arm (never
 // widening the member type). The panel is swipe-consistent BY CONSTRUCTION — every tab reads the SAME
@@ -56,9 +56,9 @@ export interface RpgGameView {
    *  not "Live". Member-safe for the same reason `extractionMode` is — it governs the whole room's freshness. */
   readonly effectiveDelivery: RpgEffectiveDelivery;
   /** The member-safe config slice — the `statProfile` (for attribute labels) minus the host-only note.
-   *  `immersiveHtml` (parity-plus §4.8/§9 #7) lets the reading surface gate the lenient naked-HTML wrap +
+   *  `immersiveHtml` lets the reading surface gate the lenient naked-HTML wrap +
    *  the card-archive section per game (member-safe — a play-style option, never a secret). */
-  /** `cyoa`/`cyoaChoiceBehavior`/`plotProgression` (parity-plus P5 §5.4/§6.4) gate the composer wand's game
+  /** `cyoa`/`cyoaChoiceBehavior`/`plotProgression` (§5.4/§6.4) gate the composer wand's game
    *  affordances (the Plot submenu + the choices mode) and shape the choice-CLICK behavior — member-safe
    *  play-style options, never secrets. `cyoaChoiceBehavior` drives the reading-surface click handler
    *  (`compose` = draft the composer; `send` = fire the turn), so it rides the MEMBER slice. */
@@ -221,7 +221,7 @@ export interface RpgConfigView {
   /** THE TRACKERS (the tracked-field unification) — the host's whole tracker set, the single surface that
    *  replaced the Sheet-tab pool defs, the Game-tab cast fields, and the band-pin section. */
   readonly trackers: RpgGameConfig["trackers"];
-  /** The per-custom-kind steering hints — relationship kinds (M1) + R4c custom journal types. */
+  /** The per-custom-kind steering hints — relationship kinds + R4c custom journal types. */
   readonly relationshipHints: RpgGameConfig["features"]["relationshipHints"];
   readonly journalTypeHints: RpgGameConfig["features"]["journalTypeHints"];
   /** WAVE MU (owner ruling #20's game half) — the GAME's authored user macros, the host editor's list. Written
@@ -232,25 +232,25 @@ export interface RpgConfigView {
    *  macro whose name is in this set SHADOWS the preset def at turn time (`shadowPresetUserMacros`), and the
    *  editor says so rather than letting the host discover it in a prompt. */
   readonly presetMacroNames: readonly string[];
-  /** The P3 hidden-channel knobs (§3.3/§3.6) surfaced to the host editor: `deception`/`omniscience` gate the
-   *  teaching + the member reasoning-strip; `hiddenContentReveal` (M4) governs the host's reveal eye;
-   *  `recentBeatsKeepLast` bounds the reminder's Recent-beats slice (the P3 fold). */
+  /** The hidden-channel knobs (§3.3/§3.6) surfaced to the host editor: `deception`/`omniscience` gate the
+   *  teaching + the member reasoning-strip; `hiddenContentReveal` governs the host's reveal eye;
+   *  `recentBeatsKeepLast` bounds the reminder's Recent-beats slice. */
   readonly deception: boolean;
   readonly omniscience: boolean;
   readonly hiddenContentReveal: boolean;
   readonly recentBeatsKeepLast: number;
-  /** The P4 card knobs (parity-plus §9 #7 + M2/M3) — teaching gate, interactivity ASK, keep-last-X wire. */
+  /** The card knobs — teaching gate, interactivity ASK, keep-last-X wire. */
   readonly immersiveHtml: boolean;
   readonly immersiveHtmlInteractive: boolean;
   readonly cardKeepLastX: number;
-  /** The P5 play-style knobs (§5.4/§6.4) — CYOA standing mode, the choice-CLICK behavior (`compose`/`send`),
+  /** The play-style knobs (§5.4/§6.4) — CYOA standing mode, the choice-CLICK behavior (`compose`/`send`),
    *  and the wand Plot submenu gate. */
   readonly cyoa: boolean;
   readonly cyoaChoiceBehavior: RpgGameConfig["features"]["cyoaChoiceBehavior"];
   readonly plotProgression: boolean;
 }
 
-/** ONE parsed hidden span from a stored assistant body (parity-plus §3.6 host-reveal). `tag` is the
+/** ONE parsed hidden span from a stored assistant body (host-reveal). `tag` is the
  *  `HIDDEN_TAGS` registrant (`lie`/`ofilter`); `fields` is the tag's declared attrs projected in registry order
  *  (`character/type/truth/reason` for a lie; `event/reason` for an ofilter) so the reveal panel renders labelled
  *  fields without re-deriving the field set. A missing attr projects `""` (the model omitted it). */

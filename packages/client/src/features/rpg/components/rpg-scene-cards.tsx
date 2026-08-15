@@ -1,4 +1,4 @@
-// The P4 CARD ARCHIVE (parity-plus §4.7) — the Scene tab's "Cards" section: every immersive card in the
+// The CARD ARCHIVE — the Scene tab's "Cards" section: every immersive card in the
 // visible transcript, newest first, as a title list that opens the full sandboxed card in a lightbox dialog.
 // Extracted from rpg-scene-tab.tsx (the tab outgrew the component-size cap). The transcript keeps the inline
 // render; this is the "find that letter again" record surface. Absent entirely when the game's immersiveHtml
