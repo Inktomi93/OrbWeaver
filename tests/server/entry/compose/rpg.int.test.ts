@@ -62,6 +62,7 @@ const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_compose_1");
  *  + consent ON so the flush's F2 gate passes and the round runs. `over` pins the F1 consent/source cases. */
 function tc(api: ChatApi, over: Partial<RpgTurnContext> = {}): RpgTurnContext {
   return {
+    kind: "send",
     connection: makeResolvedConnection({
       api,
       model: castId<ModelId>("fake-chat-model"),
@@ -260,6 +261,8 @@ function buildCannedRpgWithText(args: {
   /** The tool calls the fake model answers a CHEAP tool round with (`ChatResult.toolCalls`) — the third
    *  delivery vehicle's canned output, so one harness can drive all three (EXT-4a's equal-drop pin). */
   readonly cannedToolCalls?: readonly { readonly name: string; readonly arguments: string }[];
+  /** Optional second-pass answer when the round narrows its tools to Inventory + no_changes. */
+  readonly inventoryAuditToolCalls?: readonly { readonly name: string; readonly arguments: string }[];
   /** Make the `structured` role REJECT — the provider-refusal arm (RESYNC-OR: an OpenRouter 400 on the
    *  structured request is what the host actually hit, and the round must report it, not swallow it). */
   readonly structuredThrows?: Error;
@@ -335,10 +338,16 @@ function buildCannedRpgWithText(args: {
               // `reply` (the extraction), `toolCalls` (a cheap tool round) and `usage`/`finishReason`/`durationApiMs`
               // (the round's §10.1a economics line) are read; the rest of the ~18-field ChatResult is inert, so a
               // full construction would be noise.
+              const inventoryAudit =
+                args.inventoryAuditToolCalls !== undefined &&
+                "tools" in req &&
+                req.tools?.some((tool) => tool.name === "update_inventory") === true &&
+                req.tools.every((tool) => tool.name === "update_inventory" || tool.name === "no_changes");
+              const toolCalls = inventoryAudit ? args.inventoryAuditToolCalls : cannedToolCalls;
               // FABRICATION-OK: minimal ChatResult double — only the fields the arms actually read; the others never run.
               return Promise.resolve({
                 reply: cannedText,
-                ...(cannedToolCalls === undefined ? {} : { toolCalls: cannedToolCalls }),
+                ...(toolCalls === undefined ? {} : { toolCalls }),
                 usage: {
                   model: "fake-chat-model",
                   tokensIn: 1200,
@@ -407,6 +416,70 @@ test("CHEAP turn (tool-round arm) — a wire that CAN carry tools rides them, ne
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the obsidian tower");
   expect(view.recentBeats).toContain("arrived at the tower");
+});
+
+test("CHEAP turn repairs a named existing item's omitted move with one inventory-only audit", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "cheap-inventory-audit");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy,
+    cannedText: "{}",
+    cannedToolCalls: [{ name: "update_scene", arguments: JSON.stringify({ recentEvent: "Mira pocketed the small brass key" }) }],
+    inventoryAuditToolCalls: [
+      {
+        name: "update_inventory",
+        arguments: JSON.stringify({ targetRef: "Mira", update: [{ name: "Small brass key", location: "front hoodie pocket" }] }),
+      },
+    ],
+  });
+
+  const { gameId } = await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const base = await seedMessage(db, chatId, 1, { role: "assistant", content: "Mira eyes the key." });
+  const state: RpgSnapshotState = {
+    ...defaultSnapshotState(),
+    actorState: [
+      {
+        actorRef: { kind: "cast", castKey: "mira" },
+        identity: { name: "Mira", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+        volatile: {
+          trackerValues: {},
+          conditions: [],
+          inventory: [{ id: "item_brass_key", name: "Small brass key", description: "a worn key", quantity: 1, location: "table", type: "key" }],
+          wallet: [],
+          status: "",
+        },
+      },
+    ],
+  };
+  const written = await writeStagedSnapshot(db, state, {
+    id: castId("rpg_snapshot_inventory_audit"),
+    gameId,
+    messageId: base.messageId,
+    variantId: base.variantId,
+    now: FROZEN_AT,
+  });
+  expect(written.ok).toBe(true);
+  await commitSnapshotForVariant(db, base.variantId);
+
+  const turn = await seedMessage(db, chatId, 2, { role: "assistant", content: "Mira slips the small brass key into her hoodie pocket." });
+  await rpgCompose.chatOps.onTurnCompleted(
+    chatId,
+    turn.messageId,
+    turn.variantId,
+    TURN,
+    tc("chat-completions", { transcript: transcript([{ speaker: "Narrator", text: "Mira slips the small brass key into her hoodie pocket." }]) }),
+  );
+
+  expect(spy.chatTurns).toHaveLength(2);
+  expect(spy.wireTools[1]?.map((tool) => tool.name)).toEqual(["update_inventory", "no_changes"]);
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.actors.find((actor) => actor.name === "Mira")?.volatile?.inventory).toEqual([
+    expect.objectContaining({ name: "Small brass key", location: "front hoodie pocket" }),
+  ]);
 });
 
 // ── WIRE-SINK: the state round's request is READABLE at /api/_debug/wire/captures?chatId= ────────────────
@@ -1541,9 +1614,9 @@ test("TOOLCALLS arm A: a QUIET beat records nothing (no empty disclosure on ever
   expect(await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId })).toEqual([]);
 });
 
-test("TOOLCALLS arm A: a NON-folded (cheap) turn records nothing — the round's calls are not the turn's", async ({ app, db }) => {
-  // A dedicated post-commit round makes its OWN model call; those calls are not a description of the turn the
-  // user watched, so they must not appear on that turn's row.
+test("TOOLCALLS arm A: a NON-folded (cheap) turn records the round that changed its state", async ({ app, db }) => {
+  // A dedicated post-commit round makes its OWN model call, but its calls are still the only durable answer to
+  // what changed this visible turn's RPG state after the trace ring rolls over.
   const { chatId, hostId } = await seedHostGameChat(db, "toolcalls-cheap");
   const rpgCompose = buildCannedRpgWithText({
     app,
@@ -1559,10 +1632,13 @@ test("TOOLCALLS arm A: a NON-folded (cheap) turn records nothing — the round's
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
-  // The state DID land (the round ran) — but no per-turn record exists.
+  // The state and its producing call land on the same visible variant.
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the tower");
-  expect(await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId })).toEqual([]);
+  const recorded = await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId });
+  expect(recorded).toHaveLength(1);
+  expect(recorded[0]).toMatchObject({ messageId, variantId });
+  expect(recorded[0]?.calls.map((call) => [call.name, call.verdict])).toEqual([["update_scene", "applied"]]);
 });
 
 test("R-OBS: an UNTRACED game is byte-identical — the same turn lands the same state with no sink wired", async ({ app, db }) => {
@@ -1721,8 +1797,7 @@ test("D112 (3): the STRUCTURED arm names the same strips — incl. a whole plane
   expect((line?.[0] as { strippedKeys?: string[] }).strippedKeys).toEqual(["trackerDeltas", "party.0.mana"]);
 });
 
-test("R1 degrade: ZERO tool calls is a QUIET beat, not an error — its own log line, no snapshot, no model call", async ({ app, db }) => {
-  const infoSpy = vi.spyOn(logger, "info");
+test("R1 degrade: ZERO terminal tool calls trigger the required fallback round instead of silently losing state", async ({ app, db }) => {
   const warnSpy = vi.spyOn(logger, "warn");
   const { chatId, hostId } = await seedHostGameChat(db, "r1-quiet");
   const spy = emptySpy();
@@ -1733,11 +1808,13 @@ test("R1 degrade: ZERO tool calls is a QUIET beat, not an error — its own log 
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, foldedTurn([]));
 
-  expect(spy.summarizeModels).toEqual([]); // a quiet beat NEVER triggers a rescue round
-  // Its OWN event — never `unparseable` (a parse failure) and never `empty` (a mis-target signal).
-  expect(infoSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.folded.quiet")).toBe(true);
+  expect(spy.summarizeModels).toEqual([]);
+  expect(spy.chatTurns).toHaveLength(1); // no terminal call is ambiguous, so the required round gets one chance
+  const path = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.path");
+  expect(path?.[0]).toMatchObject({ mode: "folded", path: "tool-round", fallbackReason: "no-terminal-calls" });
+  // The fallback produced nothing: name the empty extraction, but never misreport it as a parse failure.
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable")).toBe(false);
-  expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(false);
+  expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(true);
 });
 
 test("R1 degrade: a GHOST actor in a folded call is dropped (no cast mint) + logged, like the round's", async ({ app, db }) => {
@@ -2746,7 +2823,7 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
 const POPULATE_SYSTEM_BYTES = `You are reading a role-play character's CARD and the story's OPENING scene to fill in what that character starts the game with. This runs ONCE, before the character has played: you are establishing their sheet and the gear, coin, and goals they walked in with — not reacting to any beat. Output ONE JSON object.
 
 IDENTITY — sheet.title is this character's TITLE or class as the card presents them ("Warden of House Vane", "hedge-witch"), short and in the card's own voice; sheet.level is their starting level as a whole number — 1 unless the card explicitly establishes a veteran standing.
-INVENTORY — inventory: items gained or lost (add/remove) and currency (walletDeltas — named currencies, e.g. gold). INFER what a character has on them from what the story showed — recording an item the story established (a key pocketed three turns ago) is NOT inventing.
+INVENTORY — inventory: items gained, changed, or lost (add/update/remove) and currency (walletDeltas — named currencies, e.g. gold). Compare every existing item in CURRENT TRACKED STATE with the latest beat: if its description, quantity, or carrying location changed, update it even when Scene or Journal also mentions the change. INFER what a character has on them from what the story showed — recording an item the story established (a key pocketed three turns ago) is NOT inventing.
 QUESTS — quests: a new or advancing quest (name + action create/update/complete/fail, with objectives). To mark an objective DONE, name its text in completeObjectives — do NOT restate the objective list to report progress. Send objectives only to CHANGE the list itself (adding a newly-revealed step); the lines you repeat keep the progress already recorded against them. Reconcile a quest the story resolved (mark it complete/fail) even if a later beat stopped mentioning it.
 Record ONLY what the character card and the opening scene actually establish or plainly imply — the gear they are described carrying, the coin their station implies, the goals their background already gives them. If the card says nothing about a plane, leave it empty. Do NOT invent adventuring loot, quest chains, or a purse the character has no reason to carry.`;
 
@@ -2848,7 +2925,7 @@ test("PROSE-1 POPULATE: a GM-preset override reaches every one of the round's SE
   expect(system).not.toContain("Do NOT invent adventuring loot");
   // The two born-state PLANE fragments still ship their defaults in the same composition — an edit to the
   // round's own framing is surgical, not a fork of the whole prompt.
-  expect(system).toContain("INVENTORY — inventory: items gained or lost");
+  expect(system).toContain("INVENTORY — inventory: items gained, changed, or lost");
 
   // The user turn: every block re-framed, and each PRE-SUBSTITUTION token still carries its per-call value.
   expect(spy.userPrompts[0]).toBe(

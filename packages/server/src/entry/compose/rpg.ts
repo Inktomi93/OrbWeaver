@@ -66,7 +66,7 @@ import type { StructuredOutputShape } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import { errorMessage } from "@orb/kit/error-message";
-import type { CharacterHandle, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
@@ -117,6 +117,7 @@ import { minter } from "./minter.ts";
 /** The structured-output schema NAME the structured extraction passes as `responseFormat.name` (OpenAI
  *  `json_schema.name`; Anthropic tool name). One home — no scattered magic string. */
 const EXTRACTION_SCHEMA_NAME = "rpg_state_extraction";
+const INVENTORY_NAME_WHITESPACE = /\s+/u;
 
 /** THE STRICT-SHAPE ARMS (D126) — one builder per `StructuredOutputShape`, selected at RUNTIME off the
  *  AppSettings tier (`EffectiveAppConfig.structuredOutputShape`, admin-editable in Settings › Admin ›
@@ -875,13 +876,19 @@ function logStrippedKeys(args: {
  *  finishReason) plus the cost the `ChatUsage` carries, emitted from the round's own vehicle so the event
  *  name says which one billed. Metadata only — never prompt/reply/extraction text. The FAILURE arm is
  *  already named by `rpg.toolround.failed` (a throw has no usage to report). */
-function logToolRoundUsage(args: { readonly chatId: ChatId; readonly api: string; readonly result: ChatResult }): void {
+function logToolRoundUsage(args: {
+  readonly chatId: ChatId;
+  readonly api: string;
+  readonly pass: "primary" | "inventory-audit" | "resync";
+  readonly result: ChatResult;
+}): void {
   const { usage } = args.result;
   logger.info(
     {
       event: "rpg.toolround.usage",
       chatId: args.chatId,
       api: args.api,
+      pass: args.pass,
       model: usage.model,
       tokensIn: usage.tokensIn,
       tokensOut: usage.tokensOut,
@@ -1012,6 +1019,63 @@ function buildToolRoundWireTools(
   return tools;
 }
 
+/** A cheap round normally gets one shot. A measured hosted-model failure skipped Inventory twice even though
+ *  the latest beat named an existing key at a new location, while writing the same fact into Scene + Journal.
+ *  Do not double every round: the narrow completeness pass fires only when (a) the first pass omitted the
+ *  inventory tool, (b) inventory already exists, and (c) the latest committed beat names one of those items.
+ *  The second model sees only update_inventory + no_changes, so it can either repair the proven ambiguity or
+ *  decline it without repeating another plane. */
+function needsInventoryAudit(baseState: RpgSnapshotState, transcript: readonly RpgTurnTranscriptMessage[], calls: readonly RpgToolCall[]): boolean {
+  if (calls.some((call) => call.name === "update_inventory")) {
+    return false;
+  }
+  const latestBeat = transcript.at(-1)?.content.toLocaleLowerCase() ?? "";
+  if (latestBeat.length === 0) {
+    return false;
+  }
+  return baseState.actorState.some((actor) =>
+    actor.volatile.inventory.some((item) => {
+      const name = item.name.trim().toLocaleLowerCase();
+      if (name.length === 0) {
+        return false;
+      }
+      if (latestBeat.includes(name)) {
+        return true;
+      }
+      const words = name.split(INVENTORY_NAME_WHITESPACE);
+      return words.length > 1 && latestBeat.includes(words.slice(-2).join(" "));
+    }),
+  );
+}
+
+type ToolRoundRequest = Extract<Parameters<ProviderExecutor["runChatTurn"]>[0], { readonly api: "chat-completions" | "responses" }>;
+
+/** Run the selective inventory pass without making the primary round own a second provider-error branch. */
+async function runInventoryAudit(args: {
+  readonly deps: RpgComposeDeps;
+  readonly chatId: ChatId;
+  readonly request: ToolRoundRequest;
+  readonly prose: ProseOverrides;
+  readonly tools: ToolRoundRequest["tools"];
+  readonly turnId: ChatTurnId;
+}): Promise<readonly RpgToolCall[]> {
+  const { chatId } = args;
+  try {
+    const audit = await args.deps.executor.runChatTurn({
+      ...args.request,
+      systemPrompt: { static: resolveProseText("rpg.extract.plane.inventory", args.prose), dynamic: "" },
+      tools: args.tools,
+    });
+    logToolRoundUsage({ chatId, api: args.request.api, pass: "inventory-audit", result: audit });
+    const calls = audit.toolCalls ?? [];
+    args.deps.trace?.({ phase: "tool", chatId, turnId: args.turnId, vehicle: "cheap inventory audit", calls: recordToolCalls(calls) });
+    return calls;
+  } catch (err) {
+    logger.warn({ event: "rpg.inventory-audit.failed", chatId, model: args.request.model, api: args.request.api, err }, "rpg inventory audit failed");
+    return [];
+  }
+}
+
 /** Build the cheap-mode `runToolRound` op — the parallel-tool-call state round (the sibling of
  *  `runExtraction`). Rides the CHARACTER turn's ALREADY-RESOLVED connection + consent verdict
  *  (`input.turnConnection` — stickler F1: no re-resolve, no force-stamped consent); the vehicle is wire tools +
@@ -1026,7 +1090,7 @@ function buildToolRoundWireTools(
 function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
   const extract = buildRunExtraction(deps);
   return async (input) => {
-    const { chatId, baseState, turnConnection, reconcile, signal } = input;
+    const { chatId, turnId, baseState, turnConnection, reconcile, signal } = input;
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
     // agent-sdk has no wire tools[]; the shared-plane proof lets it ride the SAME structured extraction (which
@@ -1043,30 +1107,40 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     // The turn's CAPTURED prose view — see `buildRunExtraction`'s note (no live re-resolve post-commit).
     const prose = turnConnection.prose;
     const inputs: PromptInputs = { config, refs, playerDisplayName, reconcile, prose };
+    const history = [
+      {
+        role: "user" as const,
+        content: [{ type: "text" as const, text: buildExtractionUserPrompt(turnConnection.transcript, baseState, config, prose) }],
+      },
+    ];
+    const wireTools = buildToolRoundWireTools(refs, config, prose);
+    const request = {
+      api: conn.api,
+      chatId,
+      model: conn.model,
+      credential: conn.credential,
+      capability: conn.capability,
+      params: {},
+      systemPrompt: { static: toolRoundSystem(inputs), dynamic: "" },
+      history,
+      tools: wireTools,
+      toolChoice: { mode: "required" as const },
+      ownerConsented: turnConnection.ownerConsented,
+      signal,
+    } satisfies ToolRoundRequest;
     let calls: readonly RpgToolCall[];
     try {
       const result = await deps.executor.runChatTurn({
-        api: conn.api,
+        ...request,
         // The wire-capture correlation key (see `ExtractCtx.chatId`). Without it this round — the ONE vehicle
         // that carries the state tools on its own request — records ANONYMOUSLY, so
         // `/api/_debug/wire/captures?chatId=` shows the character turns and nothing of the round that actually
         // wrote the state. Measured on the live spill before this landed.
-        chatId,
-        model: conn.model,
-        credential: conn.credential,
-        capability: conn.capability,
-        params: {},
-        systemPrompt: { static: toolRoundSystem(inputs), dynamic: "" },
-        history: [{ role: "user", content: [{ type: "text", text: buildExtractionUserPrompt(turnConnection.transcript, baseState, config, prose) }] }],
-        tools: buildToolRoundWireTools(refs, config, prose),
-        toolChoice: { mode: "required" },
         // The character turn's enforced consent verdict, inherited (never force-stamped `true` — F1). Non-sub
         // backends ignore it; a max-pro-sub round only ever runs because the character turn already consented.
-        ownerConsented: turnConnection.ownerConsented,
-        signal,
       });
       // The round's economics record — §10.1a's claim, made true on the vehicle that had no emitter.
-      logToolRoundUsage({ chatId, api: conn.api, result });
+      logToolRoundUsage({ chatId, api: conn.api, pass: "primary", result });
       calls = result.toolCalls ?? [];
     } catch (err) {
       // A CANCEL is not a FAILURE — read the signal, never the error's shape (see the structured arm's twin).
@@ -1077,6 +1151,11 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
       logger.warn({ event: "rpg.toolround.failed", chatId, model: conn.model, api: conn.api, err }, "rpg cheap tool round failed");
       return empty;
     }
+    deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "cheap tool round", calls: recordToolCalls(calls) });
+    if (needsInventoryAudit(baseState, turnConnection.transcript, calls)) {
+      const auditTools = wireTools.filter((tool) => tool.name === "update_inventory" || tool.name === RPG_NO_CHANGES_TOOL);
+      calls = [...calls, ...(await runInventoryAudit({ deps, chatId, request, prose, tools: auditTools, turnId }))];
+    }
     // Fold the parallel tool calls → an RpgExtraction → the SAME state delta the structured arm produces (`no_changes`
     // and any unknown tool contribute nothing — the quiet-turn no-op). A call the fold threw away is NAMED, the
     // same way the folded arm names its drops (EXT-4a: equal drop semantics means equal VISIBILITY too — the
@@ -1086,7 +1165,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
-    return delta;
+    return { ...delta, recordedToolCalls: recordToolCalls(calls) };
   };
 }
 
@@ -1148,9 +1227,8 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
     // A malformed arg NEVER fails the turn (the narrative is already committed) — `toolCallsToExtraction` drops
     // it, and this names what was dropped so the loss is diagnosable instead of silent (D109-7 totality).
     logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls: toolCalls, vehicle: "folded extraction" });
-    // ZERO calls is a legitimate no-change beat, NOT a failure: with `tool_choice:"auto"` a quiet beat is the
-    // model correctly declining to write. It gets its OWN event so it can never be confused with a parse
-    // failure or a dead fold, and it returns before the ref resolve (nothing to constrain, nothing to apply).
+    // Defensive direct-call arm. The normal flush reroutes an empty terminal array to the required tool round;
+    // an explicit `no_changes` call is how a folded quiet beat avoids that fallback.
     if (toolCalls.length === 0) {
       logger.info({ event: "rpg.extraction.folded.quiet", chatId, model: conn.model, api: conn.api }, "rpg folded turn recorded no state change (quiet beat)");
       return { statePatch: {}, journal: [] };
@@ -1251,7 +1329,7 @@ async function resyncViaToolRound(
       // turn verdict, because no turn is running.
       ownerConsented: true,
     });
-    logToolRoundUsage({ chatId, api: conn.api, result });
+    logToolRoundUsage({ chatId, api: conn.api, pass: "resync", result });
     calls = result.toolCalls ?? [];
   } catch (err) {
     logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync tool round failed");

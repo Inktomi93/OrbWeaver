@@ -14,7 +14,7 @@ import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
-import type { CharacterId, ChatId, MessageId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, vi } from "vitest";
@@ -80,6 +80,10 @@ const TRACKED_KEYS = [
   // `turnCompleted` that trails the same commit. It was in zero rows (the previewAssembly class — the count
   // froze at panel mount).
   "revealHidden",
+  // A selected swipe chooses the RPG snapshot + journal lineage without writing an RPG row, so these reads
+  // are driven by the chat bus's variantSelected event.
+  "rpgTrackerView",
+  "rpgJournal",
   // The injections manager's own read of `chat_injections` (`chat.listChatInjections`). Every injection write
   // emits the `chatUpdated` catch-all (verbs/chat-lifecycle.ts), but only the writing tab reconciled — the
   // `getGroupConfig` case, one proc over.
@@ -128,7 +132,7 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   messageCommitted: CANON_BODY_WRITE_READS,
   messageEdited: CHAT_READS,
   messageHidden: CHAT_READS,
-  variantSelected: CHAT_READS,
+  variantSelected: [...CHAT_READS, "rpgTrackerView", "rpgJournal"],
   messagesDeleted: CHAT_READS,
   messagesReordered: CHAT_READS,
   reasoningEdited: CHAT_READS,
@@ -202,6 +206,8 @@ describe("invalidation — the bus half (invalidate)", () => {
         previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
         getShapeTrace: trpc.chat.getShapeTrace.queryKey({ chatId: CHAT_ID }),
         revealHidden: trpc.rpg.revealHidden.queryKey({ chatId: CHAT_ID }),
+        rpgTrackerView: trpc.rpg.getTrackerView.queryKey({ chatId: CHAT_ID }),
+        rpgJournal: trpc.rpg.listJournal.queryKey({ chatId: CHAT_ID, limit: 50 }),
         listChatInjections: trpc.chat.listChatInjections.queryKey({ chatId: CHAT_ID }),
         getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
       };
@@ -503,6 +509,8 @@ const RPG_EVENTS: Record<RpgBusEvent["type"], RpgBusEvent> = {
   sheetChanged: { type: "sheetChanged", chatId: CHAT_ID, sheetId: castId<RpgSheetId>("rpg_sheet_invalidationtest") },
   questChanged: { type: "questChanged", chatId: CHAT_ID },
   journalChanged: { type: "journalChanged", chatId: CHAT_ID },
+  stateRoundStarted: { type: "stateRoundStarted", chatId: CHAT_ID, turnId: castId<ChatTurnId>("chat_turn_invalidation_start") },
+  stateRoundSettled: { type: "stateRoundSettled", chatId: CHAT_ID, turnId: castId<ChatTurnId>("chat_turn_invalidation_settle") },
   turnToolCallsRecorded: { type: "turnToolCallsRecorded", chatId: CHAT_ID },
 };
 
@@ -516,6 +524,8 @@ const RPG_EXPECTED: Record<RpgBusEvent["type"], readonly RpgTrackedKey[]> = {
   sheetChanged: ["tracker"],
   questChanged: ["tracker"],
   journalChanged: ["journal"],
+  stateRoundStarted: [],
+  stateRoundSettled: [],
   // TOOLCALLS-INVISIBLE arm A — its OWN driver, not `snapshotPatched`'s: a turn whose calls all dropped
   // writes a record and NO snapshot, and that is exactly the turn the disclosure exists for.
   turnToolCallsRecorded: ["turnToolCalls"],

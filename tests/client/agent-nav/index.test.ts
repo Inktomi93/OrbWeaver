@@ -78,6 +78,10 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
     modalSlots: ["theme", "settings", "account", "command", "newChat", "you", "addDocument", "reauth"],
     settingsCategories: ["personas", "appearance", "workloads", "backup", "chat-behavior", "connections", "automation", "admin"],
     contextTabs: ["runs", "setup"],
+    contextTabNames: [
+      { id: "runs", label: "runs" },
+      { id: "setup", label: "setup" },
+    ],
     contextTabsPublished: true,
     chatPositions: ["first", "latest"],
   });
@@ -146,8 +150,24 @@ test("contextTab() REVEALS the panel on a tab the mounted surface published; ref
   spy.mockClear();
   const rejected = nav.contextTab("stpu");
   expect(rejected.ok).toBe(false);
-  expect(rejected.ok ? "" : rejected.reason).toContain("runs, setup, versions");
+  expect(rejected.ok ? "" : rejected.reason).toContain("runs (runs), setup (setup), versions (versions)");
   expect(spy).not.toHaveBeenCalled();
+});
+
+test("contextTab() accepts the unique visible label and dispatches its stable id", () => {
+  const spy = vi.spyOn(state, "revealContextPanel").mockImplementation((): void => undefined);
+  state.publishContextTabs([
+    { id: "settings", label: "This chat" },
+    { id: "rpg.game", label: "Game" },
+  ]);
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  expect(nav.contextTab("game")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("rpg.game");
+
+  spy.mockClear();
+  expect(nav.contextTab(" This chat ")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("settings");
 });
 
 test("contextTab() best-effort reveals when NO tabbed context surface is mounted (nothing to validate against)", () => {

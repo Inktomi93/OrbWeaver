@@ -117,6 +117,8 @@ export interface OrbNavCapabilities {
   readonly modalSlots: readonly string[];
   readonly settingsCategories: readonly string[];
   readonly contextTabs: readonly string[];
+  /** Stable id paired with the exact visible label accepted by `contextTab`. */
+  readonly contextTabNames: ReadonlyArray<{ readonly id: string; readonly label: string }>;
   readonly contextTabsPublished: boolean;
   readonly chatPositions: readonly string[];
 }
@@ -136,6 +138,24 @@ export interface OrbSeedHandle {
   readonly richGame: (profile?: SeedProfile) => Promise<{ readonly chatId: ChatId }>;
 }
 
+/** Authoritative RPG state for the active chat, read through the same tRPC procedures as the UI. */
+interface OrbRpgSnapshot {
+  readonly chatId: ChatId | null;
+  readonly game: unknown;
+  readonly tracker: unknown;
+  readonly journal: readonly unknown[];
+  readonly turnToolCalls: readonly unknown[];
+}
+
+export type OrbRpgReader = () => Promise<OrbRpgSnapshot>;
+
+export interface OrbAgentHandles {
+  readonly nav: OrbNavHandle;
+  readonly seed: OrbSeedHandle;
+  readonly rpg: OrbRpgReader;
+  readonly durableLocalUserId: () => string | null;
+}
+
 /** Dev-only SPA-navigation bridge: drive the app's client-state navigation (rail section, modals,
  *  settings category, context tab, open chat) through the SAME store actions the real UI calls — the app
  *  has only `/` + `/login` as URL routes, so this is how a harness reaches every surface without a click
@@ -150,9 +170,9 @@ export interface OrbNavHandle {
   readonly openModal: (slot: string) => NavResult;
   /** Open the settings modal at a category (validated against SETTINGS_CATEGORY_IDS). */
   readonly openSettings: (category: string) => NavResult;
-  /** Reveal the active content's context panel on a named tab. Refuses an empty name, and — when a tabbed
-   *  context surface is mounted — a name outside its published tab ids (a typo, not a tab). Otherwise it
-   *  opens the panel AND sets the tab, so the switch is visible rather than a silently-ignored request. */
+  /** Reveal the active content's context panel by stable id OR unique visible label. Refuses an empty name,
+   *  ambiguity, and — when a tabbed context surface is mounted — an unknown name. Otherwise it opens the
+   *  panel AND sets the stable id, so the switch is visible rather than a silently-ignored request. */
   readonly contextTab: (name: string) => NavResult;
   /** Switch to the Chats section + make an existing chat active by chat id OR exact display title, OR the
    *  positional sentinels `"first"`/`"latest"` (the list's TOP row — `listChats` is newest-updated-first, so
@@ -201,6 +221,8 @@ interface OrbDebugHandle {
   readonly nav: OrbNavHandle;
   /** Dev-only rpg game seeder (see OrbSeedHandle) — spin up a fully-populated game in one call. */
   readonly seed: OrbSeedHandle;
+  /** Active-game state, journal, and recorded folded calls through the production read APIs. */
+  readonly rpg: OrbRpgReader;
   /** The durable-local namespace's bound identity (`state/durable-local.ts`) — `null` before the viewer
    *  read binds it (the pre-adoption legacy world). The lens a test or this bridge asserts the
    *  per-user localStorage scoping through, without reaching into `localStorage` by hand. */
@@ -246,12 +268,13 @@ function flagCounts(): Record<string, number> {
   return counts;
 }
 
-export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHandle, seed: OrbSeedHandle, durableLocalUserId: () => string | null): void {
+export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAgentHandles): void {
   if (!IS_DEV) {
     return;
   }
   installMotionObservers();
   installMotionFlaggers();
+  const { nav, seed, rpg, durableLocalUserId } = handles;
   const isReady = (): boolean => document.documentElement.hasAttribute(READY_ATTR);
   const shell = (): ShellSnapshot => ({
     section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
@@ -315,10 +338,11 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
     snap,
     nav,
     seed,
+    rpg,
     durableLocalUserId,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .rpg() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

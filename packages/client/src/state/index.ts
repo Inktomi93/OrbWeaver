@@ -6,6 +6,8 @@
 
 export type { NewChatIntent } from "./active-chat-store.ts";
 export {
+  __migrateActiveChatForTest,
+  activeChatId,
   chatDeletedFromList,
   chatSectionSelection,
   clearNewChatIntent,
@@ -220,6 +222,7 @@ export {
   useRegexBulkActive,
   useRegexBulkSelectedIds,
 } from "./regex-bulk-store.ts";
+export { applyRpgRoundEvent, clearRpgRounds, readRpgRoundPendingForTest, useRpgRoundPending } from "./rpg-round-store.ts";
 export { useListDocked, useSectionListIsScreen } from "./section-list-projection.ts";
 export type {
   RailEntry,
@@ -273,10 +276,12 @@ export type { ModalSlotId, SectionId, SettingsCategoryId } from "./shell-store.t
 export {
   closeModal,
   getAvailableContextTabIds,
+  getAvailableContextTabs,
   MODAL_SLOT_IDS,
   openModal,
   openSettingsTo,
   publishContextTabIds,
+  publishContextTabs,
   revealContextPanel,
   revealContextPanelBesideContent,
   SECTION_IDS,

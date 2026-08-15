@@ -105,6 +105,8 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
     case "wiEntryDetached":
     // biome-ignore lint/suspicious/noUnnecessaryConditions: see the WiBusEvent note above.
     case "wiEntryScopeChanged":
+      deps.invalidate(event);
+      return;
     // The room is GONE. Both halves fire: the list/detail reads go stale, AND a device with this room OPEN
     // has to leave it — a cached transcript for a deleted chat is the one state the reader can neither act
     // on nor get out of.

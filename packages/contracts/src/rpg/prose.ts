@@ -399,11 +399,13 @@ For example, a three-line sign is enough:
   "rpg.extract.plane.inventory": {
     id: "rpg.extract.plane.inventory",
     home: "preset",
-    version: 1,
+    version: 3,
     text:
-      "INVENTORY — inventory: items gained or lost (add/remove) and currency (walletDeltas — named currencies, " +
-      "e.g. gold). INFER what a character has on them from what the story showed — recording an item the story " +
-      "established (a key pocketed three turns ago) is NOT inventing.",
+      "INVENTORY — inventory: items gained, changed, or lost (add/update/remove) and currency (walletDeltas — named currencies, " +
+      "e.g. gold). Compare every existing item in CURRENT TRACKED STATE with the latest beat: if its description, " +
+      "quantity, or carrying location changed, update it even when Scene or Journal also mentions the change. " +
+      "INFER what a character has on them from what the story showed — recording an item the story established " +
+      "(a key pocketed three turns ago) is NOT inventing.",
     macros: "none",
     requiredMacros: [],
     requiredTokens: [],
@@ -483,13 +485,13 @@ For example, a three-line sign is enough:
   "rpg.extract.stateTrackingGuide": {
     id: "rpg.extract.stateTrackingGuide",
     home: "preset",
-    version: 1,
+    version: 2,
     text:
       "BE THOROUGH — the panel should reflect the FULL richness of what you narrated. Each turn record ALL that " +
       "changed: any on-screen character (mood on every demeanor shift, appearance + outfit when described, thoughts " +
       "for implied inner state, relationship when it forms or turns, their tracked values as they move); the scene " +
       "(location/timeOfDay/weather on change, the plot act summary); bodies (hp, tracked resources, conditions " +
-      "gained AND ended, a status line); items (add with description + location, remove when used, wallet for coin); " +
+      "gained AND ended, a status line); items (add new items or update existing ones with description + location, remove when used, wallet for coin); " +
       "quests (with objectives); and a journal entry for the beat. Sparse tracking makes the panel feel dead.",
     macros: "none",
     requiredMacros: [],
@@ -554,11 +556,14 @@ For example, a three-line sign is enough:
   "rpg.extract.tool.updateInventory": {
     id: "rpg.extract.tool.updateInventory",
     home: "preset",
-    version: 1,
+    version: 3,
     text:
       "Items and coin on an actor. add: new items — ALWAYS give a `description` and a `location` (where it's " +
-      "carried: 'belt pouch', 'sheathed'), plus quantity. remove: items used/lost/given away. walletDeltas: coin " +
-      "gained/spent (negative=spent). EXAMPLE — gifted an oil vial, paid 20 gold: `{targetRef:'player', " +
+      "carried: 'belt pouch', 'sheathed'), plus quantity. update: existing items whose description, quantity, or " +
+      "carrying location changed. remove: items used/lost/given away. walletDeltas: coin " +
+      "gained/spent (negative=spent). EXAMPLE — an existing key moves from a pocket onto a necklace: " +
+      "`{targetRef:'Hikari', update:[{name:'Small brass key', description:'key hanging on a silver chain', " +
+      "location:'silver chain around her neck'}]}`. EXAMPLE — gifted an oil vial, paid 20 gold: `{targetRef:'player', " +
       "add:[{name:'Vial of Sanctified Oil', description:'warded holy oil, faintly glowing', quantity:1, " +
       "location:'belt pouch'}], walletDeltas:[{name:'gold', delta:-20}]}`.",
     macros: "none",
@@ -644,8 +649,8 @@ For example, a three-line sign is enough:
   "rpg.extract.tool.noChanges": {
     id: "rpg.extract.tool.noChanges",
     home: "preset",
-    version: 1,
-    text: "Call ONLY when the latest beat changed NOTHING trackable. Do NOT use this to avoid filling fields — if anything in the fiction moved, record it.",
+    version: 2,
+    text: "Every turn MUST emit at least one state-bookkeeping tool call. Call this ONLY when the latest beat changed NOTHING trackable. Do NOT use this to avoid filling fields — if anything in the fiction moved, record it.",
     macros: "none",
     requiredMacros: [],
     requiredTokens: [],
@@ -674,12 +679,13 @@ For example, a three-line sign is enough:
   "rpg.extract.toolRoundHeader": {
     id: "rpg.extract.toolRoundHeader",
     home: "preset",
-    version: 1,
+    version: 2,
     text:
       "You maintain the tracked game state. Read the RECENT STORY + current state + the latest story beat, then " +
       "call a SEPARATE tool for EACH plane the beat changed. Check every plane independently:\n" +
       "• Did anyone's HP, pools, conditions, or status change? → update_party (one call PER affected actor)\n" +
-      "• Did items or currency move? → update_inventory\n" +
+      "• Did any existing item's description, quantity, owner, or carrying location change—or did items or currency move? " +
+      "Compare CURRENT TRACKED STATE item-by-item, then call update_inventory. A Scene or Journal mention does NOT update Inventory.\n" +
       "• Did the location, time, weather, or present cast change? → update_scene\n" +
       "• Did a game-wide tracker change? → set_tracker\n" +
       "• Did a quest start, advance, complete, or fail? → upsert_quest\n" +

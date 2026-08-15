@@ -28,6 +28,7 @@ import type {
   RpgFoldFallbackReason,
   RpgGameView,
   RpgJournalEntryView,
+  RpgRecordedToolCall,
   RpgRevealView,
   RpgSnapshotState,
   RpgToolCall,
@@ -564,6 +565,10 @@ interface RpgStateRoundInput {
 export interface RpgStateDelta {
   readonly statePatch: Record<string, unknown>;
   readonly journal: readonly StagedJournalEntry[];
+  /** The wire calls that produced this delta, when the delivery vehicle had them. The flush persists this
+   *  projection only after the round survives cancellation, so cheap post-commit rounds are as inspectable as
+   *  folded character turns without letting an aborted round leave an observability ghost. */
+  readonly recordedToolCalls?: readonly RpgRecordedToolCall[];
 }
 
 /** The id mints the verbs use (injected for determinism — a test supplies stable ids, no ambient `crypto`;
@@ -687,9 +692,10 @@ interface FoldBuildFailedInfo {
 
 /** The resolved state-round PATH for one flush (R1 observability). `path` is what actually ran; `mode` is what
  *  the host's knob asked for. They differ exactly when a `folded` game could not fold, and `fallbackReason` names
- *  WHICH of the two causes it was: `no-terminal-channel` (the wire carries no terminal tools at all — a
+ *  WHICH cause it was: `no-terminal-channel` (the wire carries no terminal tools at all — a
  *  tools-incapable model, or a mount the backend could not build) or `local-engine-fold-guard` (the wire CAN carry them but
- *  silences the prose when they ride, so the mount was deliberately withheld — D112 as amended).
+ *  silences the prose when they ride, so the mount was deliberately withheld — D112 as amended), or
+ *  `no-terminal-calls` (the model ignored the mounted bookkeeping tools).
  *  Non-exported: reachable only through `RpgContext.onStateRoundPath`'s signature — no consumer names it (knip). */
 /** The cause vocabulary moved to `@orb/contracts/rpg` (EFF-3): the panel's freshness surface reads the SAME
  *  reasons off `RpgGameView.effectiveDelivery`, so the words home once, below both consumers. */

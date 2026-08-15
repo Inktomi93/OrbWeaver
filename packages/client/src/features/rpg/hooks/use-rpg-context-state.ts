@@ -18,6 +18,7 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { useTRPC } from "#data";
+import { useRpgRoundPending } from "#state";
 
 /** The resolved takeover panel state the game tabs + header render. `null` (from the hook) ⇒ this chat is
  *  not a game (the tab's `when` hides it). `viewerUserId`/`isHost` are derived from the SAME `chat.getChat`
@@ -30,6 +31,9 @@ export interface RpgPanelState {
   readonly isHost: boolean;
   readonly game: RpgGameView;
   readonly tracker: RpgTrackerView;
+  /** The cached tracker is being replaced after a bus or swipe invalidation. The old value may still render
+   *  during that fetch, so freshness UI must not call it current until the replacement lands. */
+  readonly trackerRefreshing: boolean;
   /** Shared-plane HAND edits (snapshot/quest/widget) are enabled for a host — INDEPENDENT of
    *  `trackersReadOnly` (D108 manual-steering, owner-confirmed 2026-07-28): `trackersReadOnly` gates the
    *  MODEL-write path ONLY; when the model can't write trackers the host hand-edits every plane (the pill
@@ -43,6 +47,7 @@ export interface RpgPanelState {
  *  rpg reads. Suspends only once a game is confirmed present. */
 export function useRpgContextState(chatId: ChatId): RpgPanelState | null {
   const trpc = useTRPC();
+  const roundPending = useRpgRoundPending(chatId);
   // The chat detail read — the cross-domain source of the rpg pointer AND the viewer identity (cache-first;
   // chat already holds this query). Always present (the panel is inside a committed chat), so single-element.
   const [chatQuery] = useSuspenseQueries({
@@ -79,6 +84,7 @@ export function useRpgContextState(chatId: ChatId): RpgPanelState | null {
     isHost,
     game,
     tracker,
+    trackerRefreshing: roundPending || trackerQuery.isFetching,
     // D108: hand edits are NOT gated by trackersReadOnly (that gates the MODEL write path only) — a host
     // hand-edits the shared plane whether or not the model can write it.
     canEditShared: isHost,

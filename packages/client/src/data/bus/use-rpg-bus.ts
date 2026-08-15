@@ -37,6 +37,7 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { notify } from "#lib";
+import { applyRpgRoundEvent, clearRpgRounds } from "#state";
 import { useTRPC } from "../trpc.ts";
 import { useGatedQuery } from "../use-gated-query.ts";
 import { useBusRoom } from "./use-bus-room.ts";
@@ -66,10 +67,12 @@ export function useRpgBus(chatId: ChatId | null, deps: RpgBusDeps): void {
   const ref: Extract<StreamRoomRef, { channel: "rpg" }> | null = chatId === null || !isGame ? null : { channel: "rpg", chatId };
   useBusRoom<"rpg">(ref, {
     onEvent: (frame) => {
+      applyRpgRoundEvent(frame.event);
       deps.invalidateRpg(frame.event);
     },
     onSocketLive: () => {
       if (chatId !== null) {
+        clearRpgRounds(chatId);
         deps.gapHealRpg(chatId);
       }
     },

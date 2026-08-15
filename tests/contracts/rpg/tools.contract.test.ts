@@ -73,6 +73,14 @@ test("update_inventory carries walletDeltas (the stored wallet writer)", () => {
   expect(parsed.walletDeltas).toEqual([{ name: "gold", delta: 25 }]);
 });
 
+test("update_inventory can patch an existing item's carrying details", () => {
+  const parsed = updateInventoryArgsSchema.parse({
+    targetRef: "Hikari",
+    update: [{ name: "small brass key", description: "hanging from a silver chain", location: "around her neck" }],
+  });
+  expect(parsed.update).toEqual([{ name: "small brass key", description: "hanging from a silver chain", location: "around her neck" }]);
+});
+
 test("update_scene's presentUpsert carries display fields only — tracked values are update_party's arm", () => {
   const parsed = updateSceneArgsSchema.parse({
     timeOfDay: "evening",

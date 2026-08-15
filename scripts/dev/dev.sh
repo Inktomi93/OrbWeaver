@@ -45,8 +45,10 @@ bash "$REPO/scripts/dev/engines.sh" start || echo "dev: engines:start reported a
 # pretty pipe so SERVER_PID is NODE ITSELF (killable in cleanup), not pino-pretty;
 # pino-pretty exits on its own when the pipe closes. Explicit bin paths so this
 # works whether invoked via `pnpm dev` or by hand — `node` is the platform binary, so no $BIN
-# prefix (and no loader). `--watch-preserve-output` keeps the pino-pretty scrollback across a
-# restart; `--watch-kill-signal` (default SIGTERM) is the escape if a restart ever needs SIGINT.
+# prefix (and no loader). Explicit workspace watch roots keep Node out of imported `node_modules`: tooling
+# legitimately touches installed package files, and recursive dependency watching was restarting the server
+# mid-turn and erasing its in-memory wire/RPG flight recorders. `--watch-preserve-output` keeps the
+# pino-pretty scrollback across a restart; `--watch-kill-signal` (default SIGTERM) is the escape if needed.
 # We then wait on the server so
 # its exit (or a signal) drives the trap.
 #
@@ -56,7 +58,12 @@ bash "$REPO/scripts/dev/engines.sh" start || echo "dev: engines:start reported a
 # pino-pretty opts make it usable, not a firehose: drop pid/hostname, local-time
 # stamps, and --singleLine so each log (with its bound requestId/userId) is ONE
 # scannable line instead of an exploded object. Prod (`pnpm start`) stays raw JSON.
-node --watch --watch-preserve-output "$REPO/packages/server/src/entry/index.ts" \
+node --watch --watch-preserve-output \
+  --watch-path="$REPO/packages/server/src" \
+  --watch-path="$REPO/packages/contracts/src" \
+  --watch-path="$REPO/packages/db/src" \
+  --watch-path="$REPO/packages/kit/src" \
+  "$REPO/packages/server/src/entry/index.ts" \
   > >("$BIN/pino-pretty" --config "$REPO/scripts/dev/pino-pretty.json") &
 SERVER_PID=$!
 wait "$SERVER_PID"

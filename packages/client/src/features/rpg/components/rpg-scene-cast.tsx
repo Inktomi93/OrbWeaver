@@ -139,7 +139,7 @@ export function SceneCast({
 }): ReactElement {
   if (cast.length === 0) {
     // The honest empty-cast doorway: the scene fills from the story; nothing to author by hand here.
-    return <RpgDoorwayLine>No one on stage yet — the story brings them in.</RpgDoorwayLine>;
+    return <RpgDoorwayLine>No NPCs on stage yet — the story brings them in.</RpgDoorwayLine>;
   }
 
   return (

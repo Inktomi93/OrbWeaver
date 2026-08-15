@@ -486,8 +486,13 @@ function snapshotInsertFrom(
   };
 }
 
-/** The Option-A turn flush: write the turn's accumulated effective state as a NEW snapshot keyed to the
- *  COMMITTED assistant variant, born `committed=0` (the next user send's `onUserCommit` locks it in). The
+/** The Option-A turn flush: write the turn's accumulated effective state keyed to the selected assistant
+ *  variant. A new variant inserts a snapshot born `committed=0` (the next user send's `onUserCommit` locks it
+ *  in). Continue extends a variant in place, so an existing row is replaced in place while preserving its id
+ *  and committed bit; inserting a second row would violate the one-snapshot-per-variant invariant and leave
+ *  the panel stuck on the pre-continuation state.
+ *
+ *  The
  *  state arrives locks-honored (the accumulator applied `applyLockedPatch` at stage time); `fieldLocks`
  *  carry forward on the state (tools never author locks — only `editSnapshot` does, W1b).
  *
@@ -504,6 +509,33 @@ export async function writeStagedSnapshot(db: Db, state: RpgSnapshotState, targe
   if (!parsed.success) {
     // The full field-path + reason (e.g. `actorState.0.pools.0.max: expected >= 1`) — the drop's WHY.
     return { ok: false, reason: parsed.error.message };
+  }
+  const existing = await findSnapshotByVariant(db, target.variantId);
+  if (existing !== undefined) {
+    const next = snapshotInsertFrom(state, { fieldLocks: state.fieldLocks, committed: existing.committed, arm: turnArmKeys(target) }, target);
+    const rows = await db
+      .update(rpgSnapshots)
+      .set({
+        clock: next.clock,
+        calendarDate: next.calendarDate,
+        location: next.location,
+        weather: next.weather,
+        presentCharacters: next.presentCharacters,
+        recentEvents: next.recentEvents,
+        actorState: next.actorState,
+        trackerValues: next.trackerValues,
+        quests: next.quests,
+        plot: next.plot,
+        fieldLocks: next.fieldLocks,
+        createdAt: next.createdAt,
+      })
+      .where(eq(rpgSnapshots.variantId, target.variantId))
+      .returning();
+    const row = rows[0];
+    if (row === undefined) {
+      throw new Error("writeStagedSnapshot: existing variant disappeared during replacement");
+    }
+    return { ok: true, row: parseSnapshotRow(row) };
   }
   const row = await insertSnapshot(db, snapshotInsertFrom(state, { fieldLocks: state.fieldLocks, committed: UNCOMMITTED, arm: turnArmKeys(target) }, target));
   return { ok: true, row };

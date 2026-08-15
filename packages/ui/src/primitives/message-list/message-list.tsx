@@ -150,7 +150,7 @@ export function MessageList<T>({
   const reducedMotion = usePrefersReducedMotion();
   // Follow-the-tail intent, moved ONLY by an external scroll (never by virtual-core's own drift).
   const stickToBottomRef = useRef(true);
-  const viewportNodeRef = useRef<HTMLDivElement | null>(null);
+  const viewportNodeRef = useRef<HTMLOListElement | null>(null);
   // Last scrollTop virtual-core wrote via `scrollToFn`, used to tell its own drift from an external scroll.
   const programmaticTopRef = useRef<number | null>(null);
   // pin-prompt mode: tail-follow is OFF (the prompt pin replaces it); everything below keys off this.
@@ -185,7 +185,7 @@ export function MessageList<T>({
   const followTailAppend: boolean | "smooth" = reducedMotion || followTail ? true : "smooth";
   const followOnAppend: boolean | "smooth" = pinMode ? false : followTailAppend;
 
-  const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
+  const virtualizer = useVirtualizer<HTMLDivElement, HTMLLIElement>({
     count: items.length,
     getScrollElement: () => scrollRef.current,
     estimateSize,
@@ -319,7 +319,7 @@ export function MessageList<T>({
   // Stable ref (virtualizer identity is stable) so React runs it only on real mount/unmount — an
   // inline arrow would thrash virtual-core's container registration every render.
   const setViewportRef = useCallback(
-    (node: HTMLDivElement | null): void => {
+    (node: HTMLOListElement | null): void => {
       viewportNodeRef.current = node;
       virtualizer.containerRef(node);
     },
@@ -420,10 +420,10 @@ export function MessageList<T>({
       className={cn("relative overflow-auto overscroll-contain", className)}
       data-slot="message-list-scroll"
     >
-      <div ref={setViewportRef} className="relative w-full" data-slot="message-list-viewport">
+      {/* The live log contains a real list. Semantic list rows make the virtual position metadata valid. */}
+      <ol ref={setViewportRef} className="relative m-0 w-full list-none p-0" data-slot="message-list-viewport">
         {virtualizer.getVirtualItems().map((virtualItem) => (
-          // biome-ignore lint/a11y/useAriaPropsSupportedByRole: virtualized off-screen metadata
-          <div
+          <li
             key={virtualItem.key}
             ref={virtualizer.measureElement}
             data-index={virtualItem.index}
@@ -433,9 +433,9 @@ export function MessageList<T>({
             aria-posinset={virtualItem.index + 1}
           >
             {renderItem(itemAt(virtualItem.index), virtualItem.index)}
-          </div>
+          </li>
         ))}
-      </div>
+      </ol>
     </div>
   );
 }

@@ -28,6 +28,7 @@ interface Harness {
   readonly deps: ChatBusDeps;
   readonly invalidate: ReturnType<typeof vi.fn<(event: ChatBusEvent) => void>>;
   readonly onWarning: ReturnType<typeof vi.fn<(code: ChatWarningCode, chatId: ChatId) => void>>;
+  readonly onChatDeleted: ReturnType<typeof vi.fn<(chatId: ChatId) => void>>;
   readonly beginTurn: ReturnType<typeof vi.fn<typeof chatStream.beginTurn>>;
   readonly appendDelta: ReturnType<typeof vi.fn<typeof chatStream.appendDelta>>;
   readonly completeTurn: ReturnType<typeof vi.fn<typeof chatStream.completeTurn>>;
@@ -54,6 +55,7 @@ function harness(chatIds: readonly ChatId[]): Harness {
   const markCommitted = vi.fn(chatStream.markCommitted);
   const invalidate = vi.fn((_event: ChatBusEvent): void => undefined);
   const onWarning = vi.fn((_code: ChatWarningCode, _chatId: ChatId): void => undefined);
+  const onChatDeleted = vi.fn((_chatId: ChatId): void => undefined);
   const deps: ChatBusDeps = {
     stream: {
       beginTurn,
@@ -69,11 +71,13 @@ function harness(chatIds: readonly ChatId[]): Harness {
     },
     invalidate,
     onWarning,
+    onChatDeleted,
   };
   return {
     deps,
     invalidate,
     onWarning,
+    onChatDeleted,
     beginTurn,
     appendDelta,
     completeTurn,
@@ -451,6 +455,7 @@ describe("applyChatBusEvent — canon/lifecycle events (invalidate-only)", () =>
       expect(h.completeTurn).not.toHaveBeenCalled();
       expect(h.abortTurn).not.toHaveBeenCalled();
       expect(h.onWarning).not.toHaveBeenCalled();
+      expect(h.onChatDeleted.mock.calls).toEqual(type === "chatDeleted" ? [[chatId]] : []);
       // No slot was ever created for this chat (idle stays untracked — `slotOf` never fired).
       expect(h.slotOf(chatId)).toBeUndefined();
       h.unsub();

@@ -33,8 +33,9 @@ import { createRoot } from "react-dom/client";
 import { TRPCProvider } from "#data";
 import { BootVeil } from "#features/app-shell";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createToastNotify } from "#lib";
-import { activeDurableLocalUserId } from "#state";
+import { activeChatId, activeDurableLocalUserId } from "#state";
 import { buildAgentNav } from "./agent-nav/index.ts";
+import { buildAgentRpg } from "./agent-rpg/index.ts";
 import { buildAgentSeed } from "./agent-seed/index.ts";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge.ts";
@@ -131,4 +132,9 @@ createRoot(rootEl).render(
 
 // Installed after render so the query cache exists and the readiness check observes the initial reads.
 installAppReadySignal(queryClient);
-installAgentDebugHandle(queryClient, buildAgentNav(trpcProxy, queryClient), buildAgentSeed(trpcClient), activeDurableLocalUserId);
+installAgentDebugHandle(queryClient, {
+  nav: buildAgentNav(trpcProxy, queryClient),
+  seed: buildAgentSeed(trpcClient),
+  rpg: buildAgentRpg(trpcClient, activeChatId),
+  durableLocalUserId: activeDurableLocalUserId,
+});

@@ -24,7 +24,7 @@
 // render. The block never throws, never drops whole (the DEFENSIVE arm — never a parallel healing home).
 
 import { PROSE_SLOTS, resolveProse } from "@orb/contracts/prose";
-import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
+import type { RpgInventoryItem, RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { clockTimeOfDay, rpgWeatherText, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
 import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta.ts";
 
@@ -212,24 +212,38 @@ const conditionsRenderer: PlaneDiffRenderer<ActorState> = {
     }),
 };
 
-/** Inventory — added / removed / qty change per actor (`+Rope`, `-Torch`, `potions ×2→×1`), matched by name. */
+function inventoryItemChanges(name: string, was: RpgInventoryItem, item: RpgInventoryItem): string[] {
+  const out: string[] = [];
+  if (was.quantity !== item.quantity) {
+    out.push(`${name} ${item.name} ×${was.quantity}→×${item.quantity}`);
+  }
+  if (was.location !== item.location) {
+    out.push(`${name} ${item.name} moved: ${was.location || "unspecified"} → ${item.location || "unspecified"}`);
+  }
+  if (was.description !== item.description) {
+    out.push(`${name} ${item.name} description → ${item.description || "unspecified"}`);
+  }
+  return out;
+}
+
+/** Inventory — added / removed / quantity / carrying-detail changes per actor, matched by name. */
 const inventoryRenderer: PlaneDiffRenderer<ActorState> = {
   plane: "inventory",
   select: (s) => s.actorState,
   render: (prev, cur, ctx) =>
     perActor(cur, prev, ctx, (name, p, c) => {
-      const prevQty = new Map((p?.volatile.inventory ?? []).map((x) => [x.name, x.quantity]));
+      const previous = new Map((p?.volatile.inventory ?? []).map((item) => [item.name, item]));
       const out: string[] = [];
       for (const item of c.volatile.inventory) {
-        const was = prevQty.get(item.name);
+        const was = previous.get(item.name);
         if (was === undefined) {
           out.push(`+${item.name} (${name})`);
-        } else if (was !== item.quantity) {
-          out.push(`${name} ${item.name} ×${was}→×${item.quantity}`);
+        } else {
+          out.push(...inventoryItemChanges(name, was, item));
         }
-        prevQty.delete(item.name);
+        previous.delete(item.name);
       }
-      for (const [gone] of prevQty) {
+      for (const [gone] of previous) {
         out.push(`-${gone} (${name})`);
       }
       return out;

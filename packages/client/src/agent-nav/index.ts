@@ -17,6 +17,7 @@ import type { ModalSlotId, SectionId, SettingsCategoryId } from "#state";
 import {
   closeModal,
   getAvailableContextTabIds,
+  getAvailableContextTabs,
   MODAL_SLOT_IDS,
   openModal,
   openSettingsTo,
@@ -92,6 +93,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
         modalSlots: [...MODAL_SLOT_IDS],
         settingsCategories: [...SETTINGS_CATEGORY_IDS],
         contextTabs,
+        contextTabNames: [...getAvailableContextTabs()],
         contextTabsPublished: contextTabs.length > 0,
         chatPositions: [...CHAT_POSITION_IDS],
       };
@@ -121,7 +123,8 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       return OK;
     },
     contextTab(name: string): NavResult {
-      if (name === "") {
+      const requested = name.trim();
+      if (requested === "") {
         return { ok: false, reason: "context tab name is empty" };
       }
       // The context tab is a cross-surface OPAQUE request, but the mounted surface publishes its tab ids
@@ -130,15 +133,25 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       // arms above, instead of writing the request and reporting a false `ok` (the 2026-08-09 + 2026-08-14
       // drives both hit this: `{ok:true}` with the tab never switching). When the set is EMPTY the panel is
       // closed / single-kind, so there is nothing to validate against — best-effort dispatch stands.
-      const available = getAvailableContextTabIds();
-      if (available.length > 0 && !available.includes(name)) {
-        return { ok: false, reason: `unknown context tab "${name}" — the mounted context surface offers: ${available.join(", ")}` };
+      const available = getAvailableContextTabs();
+      const exactId = available.find((tab) => tab.id === requested);
+      const normalized = requested.toLocaleLowerCase();
+      const byLabel = available.filter((tab) => tab.label.toLocaleLowerCase() === normalized);
+      if (exactId === undefined && byLabel.length > 1) {
+        return { ok: false, reason: `ambiguous context tab label "${requested}" matches: ${byLabel.map((tab) => tab.id).join(", ")}` };
+      }
+      const resolved = exactId?.id ?? byLabel[0]?.id;
+      if (available.length > 0 && resolved === undefined) {
+        return {
+          ok: false,
+          reason: `unknown context tab "${requested}" — the mounted context surface offers: ${available.map((tab) => `${tab.id} (${tab.label})`).join(", ")}`,
+        };
       }
       // COMPOSE the reveal, never a bare request (the `openChatIn` precedent: an arm that cannot take effect
       // must open what it needs). `setContextTab` alone left a collapsed panel unmounted, so the stored tab
       // was read by nothing — `revealContextPanel` opens the panel AND sets the tab, so the switch is visible.
       markAgentNavigation();
-      revealContextPanel(name);
+      revealContextPanel(resolved ?? requested);
       return OK;
     },
     async openChat(idOrTitle: string): Promise<NavResult> {

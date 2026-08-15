@@ -31,7 +31,7 @@
 // it never rolls back a write that already landed. `flushTurn` below states the reasoning.
 
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
-import type { RpgExtractionMode, RpgFoldFallbackReason } from "@orb/contracts/rpg";
+import type { RpgExtractionMode, RpgFoldFallbackReason, RpgRecordedToolCall } from "@orb/contracts/rpg";
 import { recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat/index.ts";
@@ -40,7 +40,7 @@ import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/servic
 import { insertJournalEntry } from "../persistence/journal.ts";
 import { findMessageSeq, writeStagedSnapshot } from "../persistence/snapshots.ts";
 import { recordTurnToolCalls } from "../persistence/turn-tool-calls.ts";
-import { foldTurnWriteIntoHandHead, snapshotStateBeforeSlot } from "../snapshot-edit.ts";
+import { currentSnapshotState, foldTurnWriteIntoHandHead, snapshotStateBeforeSlot } from "../snapshot-edit.ts";
 import { deriveTrackersReadOnly } from "../substrate/readonly-axis.ts";
 import { isReconcileBeat } from "./reconcile-cadence.ts";
 
@@ -65,11 +65,17 @@ interface CompletedTurn {
 // `runRound` is the mode's injected op (`RpgRunToolRound`) or the folded turn's own fold — they share this
 // exact signature (`RpgStateRoundInput` → delta), so one param type covers both. `turn.turnConnection`
 // (the character turn's already-resolved route + consent verdict) is threaded straight through to the round.
-async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, runRound: RpgRunToolRound): Promise<void> {
-  // The state as of the slot BEFORE this turn (VER-1a — the base EXCLUDES this turn's own slot, so a reroll
-  // never re-applies onto its own rejected sibling). The gather resolved the SAME reader for the turn's
-  // reminder (VER-1b), so what the model was told and what its writes land on are one state.
-  const baseState = await snapshotStateBeforeSlot(ctx, game, turn.messageId);
+async function stageStateRound(
+  ctx: RpgContext,
+  game: RpgGameRow,
+  turn: CompletedTurn,
+  runRound: RpgRunToolRound,
+): Promise<readonly RpgRecordedToolCall[] | undefined> {
+  // A continuation's canon and reminder INCLUDE the selected slot, and its variant is extended in place. Its
+  // delta therefore rebases on the current head. Every other turn creates a new variant and must exclude its
+  // own slot (VER-1a), especially a swipe whose rejected sibling already has consequences. This mirrors the
+  // gather's `regenSlotMessageId` fork so what the model was told and what its writes land on stay identical.
+  const baseState = turn.turnConnection.kind === "continue" ? await currentSnapshotState(ctx, game) : await snapshotStateBeforeSlot(ctx, game, turn.messageId);
   const reconcile = await isReconcileBeat(ctx.db, game);
   const delta = await runRound({
     chatId: game.chatId,
@@ -84,7 +90,7 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
   });
   const hasStatePatch = Object.keys(delta.statePatch).length > 0;
   if (!hasStatePatch && delta.journal.length === 0) {
-    return; // nothing extracted — do not stage (and thus do not write) an unchanged snapshot
+    return delta.recordedToolCalls; // no state write, but a dropped/no_changes call still belongs in the trail
   }
   ctx.staging.ensure(turn.turnId, baseState);
   if (hasStatePatch) {
@@ -93,6 +99,7 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
   for (const entry of delta.journal) {
     ctx.staging.stageJournal(turn.turnId, entry);
   }
+  return delta.recordedToolCalls;
 }
 
 /** Re-READ a signal's LIVE abort flag. Deliberately a call, not a bare `signal.aborted`: the checker models
@@ -122,10 +129,10 @@ const POST_COMMIT_PATH: Readonly<Record<RpgExtractionMode, "tool-round">> = {
 
 /** THE DELIVERY FORK (R1). `folded` mode takes the character turn's OWN co-emitted tool calls and folds them
  *  with ZERO further model calls; every other mode — and a `folded` turn whose connection could not carry
- *  terminal tools at all, or whose wire would go MUTE if they rode (`terminalToolCalls === null`: a
+ *  terminal tools at all, whose wire would go MUTE if they rode (`terminalToolCalls === null`: a
  *  tools-incapable model, an unbuildable mount, or the fold-guarded local engine) — runs its dedicated post-commit
- *  round exactly as before. An EMPTY call array is NOT a fallback: the fold ran and the model recorded nothing,
- *  which is a legitimate quiet beat the fold op logs as such.
+ *  round exactly as before. An EMPTY call array also falls back: a quiet folded beat must explicitly emit
+ *  `no_changes`, otherwise zero calls is indistinguishable from a model that ignored its bookkeeping tools.
  *
  *  The resolution is ANNOUNCED on every flush (`onStateRoundPath`) — a fork that resolves silently would let a
  *  folded game quietly pay the second call forever with nothing in the trail to say so. */
@@ -135,23 +142,27 @@ const POST_COMMIT_PATH: Readonly<Record<RpgExtractionMode, "tool-round">> = {
  *  all; a wire that SILENCES prose under tool attachment was deliberately never mounted (D112's fold guard, gated
  *  PRE-commit at the gather off the same capability fact). Same round, same delta — different diagnosis. */
 function foldFallbackReason(turn: CompletedTurn, mode: RpgExtractionMode, calls: readonly unknown[] | null): RpgFoldFallbackReason | null {
-  if (mode !== "folded" || calls !== null) {
+  if (mode !== "folded") {
     return null;
+  }
+  if (calls !== null) {
+    return calls.length === 0 ? "no-terminal-calls" : null;
   }
   return coEmitsProseWithTools(turn.turnConnection.connection.capability) ? "no-terminal-channel" : "local-engine-fold-guard";
 }
 
 function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, mode: RpgExtractionMode): RpgRunToolRound {
   const calls = mode === "folded" ? turn.turnConnection.terminalToolCalls : null;
+  const shouldRound = calls === null || calls.length === 0;
   ctx.onStateRoundPath({
     chatId: game.chatId,
     gameId: game.id,
     turnId: turn.turnId,
     mode,
-    path: calls === null ? POST_COMMIT_PATH[mode] : "folded",
+    path: shouldRound ? POST_COMMIT_PATH[mode] : "folded",
     fallbackReason: foldFallbackReason(turn, mode, calls),
   });
-  if (calls === null) {
+  if (shouldRound) {
     return POST_COMMIT_ROUND[mode](ctx);
   }
   return (input): ReturnType<RpgRunToolRound> => ctx.foldTurnToolCalls({ ...input, toolCalls: calls });
@@ -266,17 +277,14 @@ async function foldIntoShadowingHandRow(
  *  a structurally-impossible write. The verdict is derived from the SAME connection the round would use (the
  *  character turn's `turnConnection`, F1) — never a re-resolve of the host's global default. The header law
  *  ("a game whose model has no writer capability never reaches here", compose/rpg.ts) is now ENFORCED here. */
-export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGameRow["config"]["extractionMode"], turn: CompletedTurn): Promise<void> {
-  if (deriveTrackersReadOnly(mode, turn.turnConnection.connection.capability)) {
-    return; // manual-steering: the resolved connection has no write path for this mode — no round, no failing call
-  }
+async function flushWritableTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGameRow["config"]["extractionMode"], turn: CompletedTurn): Promise<void> {
   // CANCELLED BEFORE WE EVEN START (the caller pressed Stop while an earlier speaker's round was still queued):
   // no reads, no round, no spend. Byte-identical to a non-writing turn.
   if (isCancelled(turn.signal)) {
     ctx.onStateRoundCancelled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, discardedStagedWrites: false });
     return;
   }
-  await stageStateRound(ctx, game, turn, resolveStateRound(ctx, game, turn, mode));
+  const roundCalls = await stageStateRound(ctx, game, turn, resolveStateRound(ctx, game, turn, mode));
   // THE WRITE BOUNDARY, RE-READ: REFUSE TO WRITE, NEVER ROLL
   // BACK. A round that was cancelled while in flight discards whatever it staged and writes nothing — so a
   // cancelled round is byte-identical to a non-writing turn, the same errors-as-data invariant a failed
@@ -298,7 +306,7 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
   // is precisely the turn a user most needs to see — "it called update_scene and the schema refused it" is
   // the answer to "why did nothing happen", while a record gated on a successful write would show only the
   // turns that already worked.
-  await recordFoldedTurnCalls(ctx, game, turn);
+  await recordTurnCalls(ctx, game, turn, roundCalls);
   const flush = ctx.staging.take(turn.turnId);
   if (flush === undefined) {
     return; // nothing staged — a byte-identical non-writing turn
@@ -306,16 +314,33 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
   await writeFlush(ctx, game, flush, turn);
 }
 
-/** Record this turn's folded tool calls, keyed to the committed variant. A NON-folded turn (every other
- *  vehicle) has no co-emitted calls and records nothing — the dedicated round's calls are its own model call's,
- *  not a description of the turn the user watched. A folded turn that called NOTHING also records nothing: a
- *  quiet beat has no story, and an empty row would render an empty disclosure on every quiet turn.
+/** Keep the live panel pending for the whole post-commit vehicle, including its quiet/cancel/failure arms.
+ *  The narrative turn finishes before this async flush, so chat's streaming phase alone cannot represent the
+ *  gap. `finally` is load-bearing: every started lifecycle gets its matching settle even when a provider or
+ *  write boundary throws, and the turn id lets concurrent rounds settle independently. */
+export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGameRow["config"]["extractionMode"], turn: CompletedTurn): Promise<void> {
+  if (deriveTrackersReadOnly(mode, turn.turnConnection.connection.capability)) {
+    return; // manual-steering: the resolved connection has no write path for this mode — no round, no failing call
+  }
+  ctx.emitBus({ type: "stateRoundStarted", chatId: game.chatId, turnId: turn.turnId });
+  try {
+    await flushWritableTurn(ctx, game, mode, turn);
+  } finally {
+    ctx.emitBus({ type: "stateRoundSettled", chatId: game.chatId, turnId: turn.turnId });
+  }
+}
+
+/** Record the state vehicle's calls, keyed to the committed variant. A folded turn contributes the calls it
+ *  co-emitted with prose; a cheap/fallback round contributes the calls returned with its delta. The latter is
+ *  a separate model request, but it is still what changed this visible turn's RPG state — omitting it made the
+ *  durable inspector lie by absence after the in-memory trace ring rolled over. A vehicle that called NOTHING
+ *  records nothing, so a quiet beat still has no empty disclosure.
  *
  *  The projection is `contracts/rpg`'s `recordToolCalls` — the SAME one the compose warn and the R-OBS ring
  *  read, so the row, the log and the trace cannot disagree about what was lost. */
-async function recordFoldedTurnCalls(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn): Promise<void> {
-  const calls = turn.turnConnection.terminalToolCalls;
-  if (calls === null || calls.length === 0) {
+async function recordTurnCalls(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, roundCalls: readonly RpgRecordedToolCall[] | undefined): Promise<void> {
+  const calls = roundCalls ?? (turn.turnConnection.terminalToolCalls === null ? undefined : recordToolCalls(turn.turnConnection.terminalToolCalls));
+  if (calls === undefined || calls.length === 0) {
     return;
   }
   await recordTurnToolCalls(ctx.db, {
@@ -323,7 +348,7 @@ async function recordFoldedTurnCalls(ctx: RpgContext, game: RpgGameRow, turn: Co
     gameId: game.id,
     messageId: turn.messageId,
     variantId: turn.variantId,
-    calls: recordToolCalls(calls),
+    calls,
     createdAt: ctx.now(),
   });
   // AFTER the durable write, like every other emit here. Its own event rather than `snapshotPatched`: a turn

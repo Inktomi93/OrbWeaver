@@ -1,5 +1,5 @@
 // The takeover's STATE-FRESHNESS indicator (Context-Panel-Program §4.5 — the 2026-07-27 owner ruling:
-// a post-commit round's one-beat lag is ACCEPTED as long as an indicator surfaces it — visibility doctrine
+// a post-commit round's transient lag is ACCEPTED as long as an indicator surfaces it — visibility doctrine
 // applied to freshness; nothing silently pretends the tracker is live when it isn't). A pure, calm hint —
 // TEXT is the datum (the tracker-kit a11y model: the animated pulse is aria-hidden, the accessible content
 // is the label), never a banner.
@@ -7,15 +7,15 @@
 // EFF-3 CLOSES D112 (4)'s KNOWN GAP. This surface used to key on the game's `extractionMode` — the KNOB — and
 // so it claimed "Live" for every `folded` game, including the ones that cannot fold (a wire that goes mute when
 // tools ride it — the local-engine fold guard; a wire with no terminal channel at all). Those rooms were running
-// the post-commit round a beat behind while the pill said the state was current. It now reads
+// the post-commit round behind while the pill said the state was current. It now reads
 // `RpgGameView.effectiveDelivery` — what the room's connection ACTUALLY does with the knob, derived server-side
 // off the same capability resolve the gather gates its pre-commit mount on. The three honest arms:
 //   • folded     — the character turn co-emitted its own state, so by the time the reply exists the state is in
 //     hand and the flush is a DB write ⇒ a minimal "Live" affordance (never a fake lag label — the owner
 //     ruling's explicit floor). `pending` is ignored here: there is no extraction window to wait on.
 //   • tool-round — a dedicated post-commit model call writes this beat's state AFTER the character turn commits,
-//     so for ~1-3s the panel still shows the PREVIOUS beat. Idle ⇒ "As of last beat"; a live turn opens that
-//     window ⇒ the transient "Updating…". `fallbackReason` decides only the TITLE: a host who picked the
+//     so briefly the panel still shows the previous recorded state. Idle ⇒ "Last recorded beat"; a live turn
+//     or tracker refetch opens that window ⇒ "Updating…". `fallbackReason` decides only the TITLE: a host who picked the
 //     two-call arm gets the plain explanation, a folded game that was downgraded gets told WHY.
 //   • none       — the connection has no model write path at all, so no vehicle runs and neither label is true.
 //     This renders NOTHING: the band's Read-only pill is the honest word there, and a freshness claim beside it
@@ -49,6 +49,7 @@ const LIVE_AT_COMMIT: Readonly<Record<RpgDeliveryPath, boolean>> = { folded: tru
 const ROUNDING_REASON: Readonly<Record<RpgFoldFallbackReason, string>> = {
   "local-engine-fold-guard": "This room's model goes silent when it's asked to record state inside the reply, so a second pass does it after the turn instead.",
   "no-terminal-channel": "This room's model can't record state inside the reply, so a second pass does it after the turn instead.",
+  "no-terminal-calls": "The reply skipped its state bookkeeping, so a second pass records the beat instead.",
 };
 const HOST_CHOSE_ROUNDING = "A dedicated pass records each beat's state after the turn commits — the delivery model you picked.";
 
@@ -83,12 +84,13 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
       </Badge>
     );
   }
-  // A post-commit round, idle — the panel reflects the last completed beat (the accepted one-beat lag, surfaced).
+  // Idle means only that no write/refetch is in flight. "Last recorded" stays honest if a provider pass failed:
+  // the panel is the most recently persisted state, which is not necessarily the latest narrative beat.
   return (
-    <Badge tone="soft" size="sm" data-slot="rpg-freshness" title={`Trackers update one beat behind. ${why}`}>
+    <Badge tone="soft" size="sm" data-slot="rpg-freshness" title={`Showing the latest game state successfully recorded. ${why}`}>
       <Icon icon={History} size="xs" />
       <Text as="span" voice="gloss" className="text-inherit">
-        As of last beat
+        Last recorded beat
       </Text>
     </Badge>
   );

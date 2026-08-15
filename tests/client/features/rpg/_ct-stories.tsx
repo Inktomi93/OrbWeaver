@@ -192,9 +192,9 @@ export function RpgTakeoverFloorStory(): ReactElement {
 // The freshness indicator in isolation — a pure component (no providers/network), so every honest state mounts
 // directly. This proves the label datum + a11y model per state without driving a live turn over SSE. Since EFF-3
 // the input is the room's EFFECTIVE delivery, not the raw knob — the arm that used to lie ("folded" on a wire
-// that cannot fold, showing "Live" while rounding a beat behind) is the `RpgFreshnessGuardedStory` below.
+// that cannot fold, showing "Live" while its fallback round was pending) is the `RpgFreshnessGuardedStory` below.
 
-/** The host picked the two-call arm, idle — the accepted one-beat lag surfaced ("As of last beat"). */
+/** The host picked the two-call arm, idle — the last successfully recorded state is named honestly. */
 export function RpgFreshnessCheapIdleStory(): ReactElement {
   return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null }} pending={false} />;
 }
@@ -211,7 +211,7 @@ export function RpgFreshnessFoldedStory(): ReactElement {
   return <RpgFreshnessIndicator delivery={{ path: "folded", fallbackReason: null }} pending={false} />;
 }
 
-/** THE EFF-3 ARM: a `folded` game on a wire that goes mute under tool attachment. It rounds a beat behind, and
+/** THE EFF-3 ARM: a `folded` game on a wire that goes mute under tool attachment. It uses a fallback round, and
  *  before EFF-3 this exact room rendered "Live" (D112 (4)'s KNOWN GAP). The label is the lag; the title carries
  *  the reason. `pending` true proves the fallback arm still opens the honest transient. */
 export function RpgFreshnessGuardedStory(): ReactElement {

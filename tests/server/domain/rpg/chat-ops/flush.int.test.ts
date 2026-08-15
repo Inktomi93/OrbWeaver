@@ -18,7 +18,7 @@ import { resolveModelCapability } from "../../../../../packages/server/src/domai
 import type { RpgRosterActor } from "../../../../../packages/server/src/domain/rpg/index.ts";
 import { rpgToolDefinitions } from "../../../../../packages/server/src/domain/rpg/index.ts";
 import { listJournalByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
-import { findSnapshotByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { findSnapshotByVariant, listSnapshots } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { defaultSnapshotState } from "../../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRosterRefIndex, extractionToStateDelta } from "../../../../../packages/server/src/domain/rpg/tools/apply.ts";
 import type { ToolExecutionContext } from "../../../../../packages/server/src/domain/tool-use/index.ts";
@@ -52,8 +52,37 @@ test("cheap mode: the dedicated TOOL ROUND is called, its delta is staged + flus
   expect(snap?.location).toBe("the cave mouth");
   expect(snap?.committed).toBe(0); // born uncommitted — the next user send locks it in
   expect(snap?.gameId).toBe(gameId);
-  // §4.9: the flush emitted `snapshotPatched` (no journal ⇒ no `journalChanged`).
-  expect(h.fakes.busEvents).toEqual([{ type: "snapshotPatched", chatId, snapshotId: snap?.id }]);
+  // The lifecycle brackets the durable plane event so the panel stays pending until the write lands.
+  expect(h.fakes.busEvents).toEqual([
+    { type: "stateRoundStarted", chatId, turnId: TURN },
+    { type: "snapshotPatched", chatId, snapshotId: snap?.id },
+    { type: "stateRoundSettled", chatId, turnId: TURN },
+  ]);
+});
+
+test("continue replaces its variant snapshot from the current head instead of inserting or rebasing before the slot", async () => {
+  const db = await freshDb();
+  const { chatId, gameId, h } = await seedLiteGame(db, {
+    toolRoundDelta: { statePatch: { location: "the kitchen", recentEvents: ["tea was served"] }, journal: [] },
+  });
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+  const before = await findSnapshotByVariant(db, variantId);
+  expect(before?.location).toBe("the kitchen");
+
+  // Continue extends this SAME variant. Its delta is based on the state the continuation prompt saw (the
+  // current head), so an omitted location must carry forward. The write must replace the one keyed row rather
+  // than collide with the partial unique index by attempting a second insert.
+  h.fakes.toolRoundDelta = { statePatch: { recentEvents: ["tea was served", "Mira pocketed the key"] }, journal: [] };
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>("chat_turn_continue"), turnConnection({ kind: "continue" }));
+
+  const after = await findSnapshotByVariant(db, variantId);
+  expect(after?.id).toBe(before?.id);
+  expect(after?.location).toBe("the kitchen");
+  expect(after?.recentEvents).toEqual(["tea was served", "Mira pocketed the key"]);
+  expect(await listSnapshots(db, gameId)).toHaveLength(1);
 });
 
 test("F2 (readonly gate): a turn connection without the mode's writer capability fires NO round and writes nothing", async () => {
@@ -102,8 +131,10 @@ test("the post-commit round's JOURNAL entries flush stamped with the committed v
   expect(entries[0]?.sourceMessageId).toBe(messageId);
   // §4.9: a state+journal flush emits BOTH `snapshotPatched` and `journalChanged`.
   expect(h.fakes.busEvents).toEqual([
+    { type: "stateRoundStarted", chatId, turnId: TURN },
     { type: "snapshotPatched", chatId, snapshotId: snap?.id },
     { type: "journalChanged", chatId },
+    { type: "stateRoundSettled", chatId, turnId: TURN },
   ]);
 });
 
@@ -117,8 +148,11 @@ test("a turn that staged nothing writes NO snapshot (byte-identical non-writing 
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
 
   expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
-  // A non-writing turn emits nothing (no snapshot, no journal).
-  expect(h.fakes.busEvents).toEqual([]);
+  // No durable plane event, but the live lifecycle still closes cleanly.
+  expect(h.fakes.busEvents).toEqual([
+    { type: "stateRoundStarted", chatId, turnId: TURN },
+    { type: "stateRoundSettled", chatId, turnId: TURN },
+  ]);
 });
 
 test("F1: a negative pool delta on a fresh pool flushes a CONTRACT-VALID row (getTrackerView does not throw)", async () => {
@@ -425,31 +459,50 @@ test("R1 folded: the turn's OWN tool calls are folded — ZERO post-commit model
   // staged-nothing return, so a turn whose calls all dropped still announces one — TOOLCALLS-INVISIBLE arm A),
   // then the snapshot.
   expect(h.fakes.busEvents).toEqual([
+    { type: "stateRoundStarted", chatId, turnId: TURN },
     { type: "turnToolCallsRecorded", chatId },
     { type: "snapshotPatched", chatId, snapshotId: snap?.id },
+    { type: "stateRoundSettled", chatId, turnId: TURN },
   ]);
   // The resolution is named, with no fallback (the knob got what it asked for).
   expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "folded", fallbackReason: null }]);
 });
 
-test("R1 folded: ZERO tool calls is a clean no-change beat — the fold runs, no round, no snapshot", async () => {
+test("R1 folded FALLBACK: zero terminal calls reruns the required tool round", async () => {
   const db = await freshDb();
-  // The fold fake returns the empty delta (what the real op returns on a quiet beat).
-  const { chatId, h } = await seedLiteGame(db);
+  const toolRoundDelta = { statePatch: { location: "the kitchen table" }, journal: [] };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   h.fakes.busEvents.length = 0;
 
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: [] }));
 
-  // An EMPTY array is NOT a fallback: the fold ran (with nothing), so no post-commit call is paid to re-ask.
-  expect(h.fakes.foldCalls).toHaveLength(1);
-  expect(h.fakes.foldCalls[0]?.toolCalls).toEqual([]);
+  expect(h.fakes.foldCalls).toHaveLength(0);
+  expect(h.fakes.toolRoundCalls).toEqual([{ chatId, messageId, variantId, reconcile: false }]);
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "no-terminal-calls" }]);
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the kitchen table");
+});
+
+test("R1 folded: explicit no_changes is a clean no-change beat — no round and no snapshot", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db);
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  const noChanges = [{ toolCallId: "quiet", name: "no_changes", arguments: "{}" }];
+  h.fakes.busEvents.length = 0;
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: noChanges }));
+
+  expect(h.fakes.foldCalls[0]?.toolCalls).toEqual(noChanges);
   expect(h.fakes.toolRoundCalls).toHaveLength(0);
-  expect(h.fakes.stateRoundPaths[0]?.path).toBe("folded");
-  // Nothing staged ⇒ the byte-identical non-writing turn (no redundant clone-forward snapshot, no emit).
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "folded", fallbackReason: null }]);
   expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
-  expect(h.fakes.busEvents).toEqual([]);
+  expect(h.fakes.busEvents).toEqual([
+    { type: "stateRoundStarted", chatId, turnId: TURN },
+    { type: "turnToolCallsRecorded", chatId },
+    { type: "stateRoundSettled", chatId, turnId: TURN },
+  ]);
 });
 
 test("R1 folded FALLBACK: a null terminal channel runs cheap's tool round and NAMES the fallback", async () => {
@@ -635,7 +688,10 @@ test("MID-ROUND cancel: the running round's own signal fires and the flush write
   //    even though the round handed back a delta that would have written all three.
   expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
   expect(await listJournalByVariant(db, variantId)).toEqual([]);
-  expect(h.fakes.busEvents).toEqual([]);
+  expect(h.fakes.busEvents).toEqual([
+    { type: "stateRoundStarted", chatId, turnId: TURN },
+    { type: "stateRoundSettled", chatId, turnId: TURN },
+  ]);
   // 3. and the discard is VISIBLE — a correct cancel that vanished silently would be the same blind spot the
   //    `onFlushDropped` backstop exists to close. `discardedStagedWrites` says a finished extraction was thrown
   //    away (the expensive case), and it is NOT filed as a contract-invalid drop: a cancel is not a corruption.

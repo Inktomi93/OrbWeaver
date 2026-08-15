@@ -171,6 +171,7 @@ export function handTarget(opts: { gameId: RpgGameId; chatId: ChatId; key: strin
  *  source + `ownerConsented:false` to pin the F1 consent inheritance). */
 export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnContext {
   return {
+    kind: "send",
     connection: makeResolvedConnection({
       capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
     }),

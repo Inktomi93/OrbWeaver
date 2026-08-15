@@ -5,7 +5,7 @@
 // (the tracker-kit a11y model: text is the datum) + that the FOLDED path ignores `pending` (no "Updating…").
 //
 // EFF-3: the component now keys on the room's EFFECTIVE delivery, not the `extractionMode` knob. The two tests
-// that exist BECAUSE of that change are the guarded arm (a `folded` game that cannot fold reads the lag label,
+// that exist BECAUSE of that change are the guarded arm (a `folded` game that cannot fold reads the recorded-state label,
 // not "Live" — D112 (4)'s KNOWN GAP was exactly this pill lying) and the no-write-path arm (nothing delivers
 // state, so the pill renders nothing rather than a freshness claim beside the Read-only pill).
 
@@ -23,9 +23,9 @@ import {
 const HOST_CHOSE_RE = /the delivery model you picked/u;
 const GUARD_REASON_RE = /goes silent when it's asked to record state inside the reply/u;
 
-test("post-commit round + idle: surfaces the accepted one-beat lag ('As of last beat')", async ({ mount }) => {
+test("post-commit round + idle: names the last successfully recorded beat", async ({ mount }) => {
   const component = await mount(<RpgFreshnessCheapIdleStory />);
-  await expect(component.getByText("As of last beat")).toBeVisible();
+  await expect(component.getByText("Last recorded beat")).toBeVisible();
   // Not the transient, and never the folded-mode label.
   await expect(component.getByText("Updating…")).toHaveCount(0);
   await expect(component.getByText("Live")).toHaveCount(0);
@@ -36,7 +36,7 @@ test("post-commit round + idle: surfaces the accepted one-beat lag ('As of last 
 test("post-commit round + pending: the round's window shows the transient 'Updating…' (pulse aria-hidden), never a false 'Live'", async ({ mount }) => {
   const component = await mount(<RpgFreshnessCheapStory />);
   await expect(component.getByText("Updating…")).toBeVisible();
-  await expect(component.getByText("As of last beat")).toHaveCount(0);
+  await expect(component.getByText("Last recorded beat")).toHaveCount(0);
   await expect(component.getByText("Live")).toHaveCount(0);
   // The decorative pulse mark carries no accessible name — the label IS the datum (the pill root carries the
   // `rpg-freshness` slot; the pulse glyph is its aria-hidden descendant).
@@ -47,13 +47,13 @@ test("post-commit round + pending: the round's window shows the transient 'Updat
 test("folded: a minimal 'Live' affordance — no fake lag label", async ({ mount }) => {
   const component = await mount(<RpgFreshnessFoldedStory />);
   await expect(component.getByText("Live")).toBeVisible();
-  await expect(component.getByText("As of last beat")).toHaveCount(0);
+  await expect(component.getByText("Last recorded beat")).toHaveCount(0);
   await expect(component.getByText("Updating…")).toHaveCount(0);
 });
 
 test("EFF-3: a folded game that CANNOT fold reads the lag label with the reason — never 'Live'", async ({ mount }) => {
   const component = await mount(<RpgFreshnessGuardedStory />);
-  await expect(component.getByText("As of last beat")).toBeVisible();
+  await expect(component.getByText("Last recorded beat")).toBeVisible();
   // The lie this arm exists to kill.
   await expect(component.getByText("Live")).toHaveCount(0);
   // …and the WHY is carried, not just the lag: the local-engine guard's own explanation, not the
@@ -66,7 +66,7 @@ test("no model write path: the pill renders NOTHING (the Read-only pill is the h
   const component = await mount(<RpgFreshnessNoneStory />);
   await expect(component).toHaveAttribute("data-testid", "freshness-slot");
   await expect(component.locator('[data-slot="rpg-freshness"]')).toHaveCount(0);
-  await expect(component.getByText("As of last beat")).toHaveCount(0);
+  await expect(component.getByText("Last recorded beat")).toHaveCount(0);
   await expect(component.getByText("Live")).toHaveCount(0);
   await expect(component.getByText("Updating…")).toHaveCount(0);
 });

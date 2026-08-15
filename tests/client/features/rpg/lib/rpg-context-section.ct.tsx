@@ -401,8 +401,8 @@ test("a tab body renders real tracker data (Status: roster row + pool meters + c
   await expect(component.getByText("steady rain on the shutters", { exact: false })).toBeVisible();
   await expect(component.getByText("Vitality 24/30")).toBeVisible();
   // The freshness indicator rides the same band — the getGame stub defaults `cheap` with no live turn,
-  // so the accepted one-beat-lag label is surfaced (the honest freshness posture, in real panel geometry).
-  await expect(component.getByText("As of last beat")).toBeVisible();
+  // so the last successfully recorded state is surfaced in real panel geometry.
+  await expect(component.getByText("Last recorded beat")).toBeVisible();
   // The roster row: name + className + the pool MeterRow value text + the condition chip.
   await expect(component.getByText("Mara")).toBeVisible();
   await expect(component.getByText("Warden")).toBeVisible();
@@ -536,7 +536,7 @@ test("RV-11: the Scene cast card shows the standing guides, omits the unwritten 
 
   // The host may correct what the story wrote: since R2 a guide is an OP on her actor row (an identity write),
   // so the receipt is the patchActor payload — ONE datum, addressed to her, naming no sibling plane.
-  await card.getByRole("button", { name: "Sera appearance" }).click();
+  await card.getByRole("button", { name: "Sera appearance: tall, silver-haired, a burn scar down one forearm" }).click();
   const field = component.getByRole("textbox", { name: "Sera appearance" });
   await field.fill("shaven-headed, a fresh scar");
   await field.blur();

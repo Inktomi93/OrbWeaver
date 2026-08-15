@@ -27,7 +27,9 @@ test("each face is a named button; the selected one announces aria-current", asy
   // The other face is present and NOT current — state is on exactly one.
   await expect(component.getByRole("button", { name: `Open ${SERA.name}`, exact: true })).not.toHaveAttribute("aria-current", "true");
   // The strip IS the mount root, so assert on it directly (a descendant query would never reach it).
-  await expect(component).toHaveAttribute("role", "list");
+  await expect.poll(() => component.evaluate((root) => root.tagName)).toBe("UL");
+  await expect(component).toHaveRole("list");
+  await expect(component.getByRole("listitem")).toHaveCount(2);
   await expect(component).toHaveAttribute("aria-label", "Recent characters");
 });
 
@@ -104,7 +106,7 @@ test("a kicker prints a micro-caps group label above the faces (and is omitted b
   const order = await labelled.evaluate((root) => {
     const nodes = [...root.querySelectorAll("*")];
     const at = (el: Element | null): number => (el === null ? -1 : nodes.indexOf(el));
-    return { kicker: at(root.querySelector("p, span")), list: at(root.querySelector('[role="list"]')) };
+    return { kicker: at(root.querySelector("p, span")), list: at(root.querySelector("ul")) };
   });
   expect(order.kicker).toBeLessThan(order.list);
 });

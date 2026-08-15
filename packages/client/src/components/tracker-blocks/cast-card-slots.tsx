@@ -46,7 +46,7 @@ function CastRelationship({ name, relationship, onEditRelationshipKind, relation
               type="button"
               intent="ghost"
               size="inline"
-              aria-label={`${name} relationship`}
+              aria-label={`${name} relationship: ${kind}`}
               title="Click to edit"
               // rounded-full + zero padding when a badge shows: the trigger's hover highlight must hug the
               // pill EXACTLY — padding around it reads as a mismatched halo (owner reports ×2, 08-01). The
@@ -138,6 +138,7 @@ function CastGuides({ name, appearance, outfit, thoughts, onEditGuide }: CastGui
           ) : (
             <TrackerValue
               ariaLabel={`${name} ${field}`}
+              restAriaLabel={`${name} ${field}: ${text}`}
               display={text}
               tone="muted"
               onEdit={(next): void => onEditGuide(field, next)}
@@ -161,6 +162,7 @@ interface CastMoodProps {
 /** The mood slot — display-at-rest with the inline editor on click (TrackerValue owns the grammar);
  *  read-only shows the plain line (omitted when absent). */
 function CastMood({ name, mood, onEditMood }: CastMoodProps): ReactElement | null {
+  const moodLabel = mood?.trim() ?? "";
   if (onEditMood !== undefined) {
     // flex-1 (basis-0) + min-w-0: the mood is model-authored free text with no length contract — it takes
     // only the LEFTOVER header width and wraps inside it. A shrinkable auto-basis box instead put the
@@ -173,6 +175,7 @@ function CastMood({ name, mood, onEditMood }: CastMoodProps): ReactElement | nul
         </Text>
         <TrackerValue
           ariaLabel={`${name} mood`}
+          restAriaLabel={`${name} mood: ${moodLabel === "" ? "—" : moodLabel}`}
           display={mood ?? ""}
           placeholder="—"
           onEdit={onEditMood}

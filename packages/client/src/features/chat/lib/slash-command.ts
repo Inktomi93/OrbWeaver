@@ -49,11 +49,11 @@ export function resolveSlashHighlight(
   return { command, activeOptionId: command === undefined ? undefined : slashOptionId(command.id) };
 }
 
-/** The textarea's editable-combobox ARIA for the completion strip: while OPEN it advertises expansion + the
- *  listbox it controls; CLOSED it drops `aria-controls` so no dangling relation is announced. One place, so
- *  the composer's JSX stays free of the open/closed ternary (its cognitive-complexity budget). */
-export function slashComboboxAria(open: boolean): { readonly "aria-expanded": boolean; readonly "aria-controls": string | undefined } {
-  return { "aria-expanded": open, "aria-controls": open ? SLASH_LISTBOX_ID : undefined };
+/** The textarea's relation to the completion list. A multiline textarea remains a `textbox`; assigning it
+ *  `aria-expanded` is invalid for that role. The live region announces the popup, while `aria-controls` and
+ *  `aria-activedescendant` preserve the navigable relationship only while offers exist. */
+export function slashCompletionAria(open: boolean): { readonly "aria-controls": string | undefined } {
+  return { "aria-controls": open ? SLASH_LISTBOX_ID : undefined };
 }
 
 /** The subset of a keydown the strip's combobox logic reads — decoupled from React's synthetic event so the
