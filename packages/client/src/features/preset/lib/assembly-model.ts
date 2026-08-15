@@ -36,8 +36,7 @@ export function sectionKind(section: PromptSection): SectionKind {
 // TS `section is X` guard to narrow their PROP TYPE at, so a future 4th marker sub-kind that needs
 // updating here fails `tsc` at every narrowed call site instead of silently landing in only 2 of 3 `if`s
 // (Spine-TypeScript-and-Patterns.md §"String-union dispatch discipline").
-export type LiteralSection = Extract<PromptSection, { type: "literal" }>;
-export type MarkerSection = Extract<PromptSection, { type: "marker" }>;
+type MarkerSection = Extract<PromptSection, { type: "marker" }>;
 export type TemplatedMarkerSection = MarkerSection & { readonly marker: keyof typeof DEFAULT_MARKER_TEMPLATES };
 export type PlainMarkerSection = MarkerSection & { readonly marker: Exclude<MarkerType, keyof typeof DEFAULT_MARKER_TEMPLATES> };
 
@@ -53,10 +52,6 @@ export function isPlainMarkerSection(section: PromptSection): section is PlainMa
   return section.type === "marker" && !isTemplatedMarker(section.marker);
 }
 
-/** Narrows to the literal arm. */
-export function isLiteralSection(section: PromptSection): section is LiteralSection {
-  return section.type === "literal";
-}
 
 /** The glyph icon for a section — the MARKER'S OWN glyph (`MARKER_COPY.glyph`), and Pencil for a literal
  *  (the author's own text). Per-marker, not per-kind (side-eye F-17): a kind glyph rendered nine of the
