@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Commands and tool receipts
 
 Working-tree basis: current assigned bytes were rehashed against `assignment.txt`; 110/110 matched, and `git status --short -- <owned paths>` returned no assigned paths.

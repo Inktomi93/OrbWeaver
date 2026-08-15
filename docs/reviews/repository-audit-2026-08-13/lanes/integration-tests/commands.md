@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command log — integration-tests
 
 All commands ran from the repository root on the working tree. Commands that produced a non-zero result: none. `reports/` is generated and excluded from the audit assignment.

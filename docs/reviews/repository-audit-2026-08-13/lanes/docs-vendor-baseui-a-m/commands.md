@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command log — docs-vendor-baseui-a-m
 
 Working-tree basis: `de133f16c45c0a3dcf6194fbee5c7804b72f8104`; the lane assignment was staged at `41e18afe74afa570b67a3e670a1a38863c486a00`.

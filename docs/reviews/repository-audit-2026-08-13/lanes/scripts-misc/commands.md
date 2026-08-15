@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # scripts-misc command receipts
 
 Working-tree basis: assignment snapshot `41e18afe74afa570b67a3e670a1a38863c486a00`; audit execution at `7dda4ecb19d8bfedef10e1649cd7dddba7d89676`. The six owned hashes and all nine shared hashes equal `assignment.txt`; the assignment is a valid rolling-snapshot receipt despite the newer commit.

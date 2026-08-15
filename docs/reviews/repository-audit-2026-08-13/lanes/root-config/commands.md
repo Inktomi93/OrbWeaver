@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Commands — root-config
 
 Working-tree commit at audit start: `2215f8d32703c3b0cb787a8faeedd991d4fb8fdc`.

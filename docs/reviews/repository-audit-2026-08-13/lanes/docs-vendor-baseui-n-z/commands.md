@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipts
 
 Working-tree snapshot at lane start: `906d7aa125130e1c4691a7097c6725d8d31d113d`; dispatch snapshot in `assignment.txt`: `41e18afe74afa570b67a3e670a1a38863c486a00`.

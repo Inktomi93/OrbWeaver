@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Commands — server-chat-verbs
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` against the working tree.

@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # lower-db command receipt
 
 All commands ran in `/home/inktomi/inktomi-stack/development/orbweaver` against the current dirty working tree at `e777c47e5860a105c114e061dcf98bcab1baa952`. No command was intended to modify product, test, configuration, or audit-lane files. The harness command below did write its normal ignored `reports/test-report.json` output before timing out; this lane did not modify or remove it.

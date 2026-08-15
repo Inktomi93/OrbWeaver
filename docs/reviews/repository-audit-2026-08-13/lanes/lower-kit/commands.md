@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipt — lower-kit
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` against the current dirty working tree. No command intentionally modified product, test, configuration, or sibling-lane files.

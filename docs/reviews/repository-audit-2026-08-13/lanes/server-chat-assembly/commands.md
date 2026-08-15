@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipts — server-chat-assembly
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` against current working-tree bytes.

@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # platform-tooling command receipt
 
 All commands ran from the repository root on 2026-08-14. Assignment snapshot: `41e18afe74afa570b67a3e670a1a38863c486a00`; current HEAD at start: `906d7aa125130e1c4691a7097c6725d8d31d113d`. The working tree contains pre-existing untracked audit artifacts; none of the 22 assigned paths was dirty and all current hashes match the assignment.

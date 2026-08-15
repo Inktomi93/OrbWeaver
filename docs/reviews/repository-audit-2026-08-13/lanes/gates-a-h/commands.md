@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipts — gates-a-h
 
 Working-tree basis: current bytes. The 61 owned rows matched `assignment.txt` exactly: 17,895 text lines, 871,889 bytes, and all SHA-256 values. `README.md` is a shared prerequisite and intentionally drifted from its assigned hash: assigned `82036ce740936cdeffaecc9a67bb4f953f4b5ebbd64daac0b63b205504a22afd`, current `738833fde2717dfb3bd6cd1f8bc436a327ca2dc773787a93752480516ced062b` (the final synthesis-reader line).

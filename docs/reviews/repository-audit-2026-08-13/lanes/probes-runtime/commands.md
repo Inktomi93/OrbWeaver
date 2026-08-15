@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # probes-runtime command receipts
 
 All commands ran from `/home/inktomi/inktomi-stack/development/orbweaver` against the lane snapshot content (all 53 assignment hashes matched when the receipt was made).

@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Lane report — docs-reviews-a-m
 
 ## Lane identity

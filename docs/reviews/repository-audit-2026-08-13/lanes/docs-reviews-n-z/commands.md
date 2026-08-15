@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Command receipts
 
 - Full-read barrier: streamed all 30 owned review documents and all 9 assigned shared prerequisites through `sed -n '1,$p'`; current byte receipts are in `read-receipt.tsv`.

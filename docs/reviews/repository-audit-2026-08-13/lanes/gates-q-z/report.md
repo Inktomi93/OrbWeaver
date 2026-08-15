@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # Q–Z structural gates audit
 
 ## Coverage and method

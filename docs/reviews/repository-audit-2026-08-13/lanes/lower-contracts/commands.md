@@ -1,3 +1,9 @@
+---
+kind: review
+status: active
+updated: 2026-08-14
+---
+
 # lower-contracts command receipt
 
 All commands used the current dirty working tree at `e777c47e5860a105c114e061dcf98bcab1baa952`.
