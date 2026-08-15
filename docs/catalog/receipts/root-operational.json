@@ -36,9 +36,9 @@
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "47a8b149d1bcfa783a5fa9d4833e2afbdd1ee4ae128bd08ea673a1f4d789649c",
-      "verifiedCommit": "4c0eba498485c2ccc8f7a0ed149624797d5629a8",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "d6fd2acdf31c065758f3e83d8d70cc36d9fb696e997abe380db9f8e9b4e9654d",
+      "verifiedCommit": "1f8d727c1417c732fa45eac0b54e424bfec8f6a9",
+      "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/Qwen_Offline_Investigation.md:1",
         "git log --oneline -5 -- docs",

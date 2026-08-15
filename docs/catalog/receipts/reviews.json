@@ -69,8 +69,8 @@
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "4ed722c4fa1ef9724039fd31512b50ecbb6f8b31654a251584f78266b67d3b70",
-      "verifiedCommit": "22f4991ac11396b135fa1d59db7d15e479f60808",
+      "verifiedSha256": "4632147557e604c5b07a8f4efbea580641c76e04af2ace95f035f6603eaa8488",
+      "verifiedCommit": "1f8d727c1417c732fa45eac0b54e424bfec8f6a9",
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/reviews/misc/2026-08-03-export-rot-dispositions.md:1-261 full read against frozen foundation",
