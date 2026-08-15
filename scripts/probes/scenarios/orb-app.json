@@ -1,0 +1,31 @@
+{
+  "name": "orb-app",
+  "defaults": ["--summary", "--map", "--expect-visible", "body", "--expect-no-overflow", "html", "--eval", "window.__orb?.snap()"],
+  "checkpoints": [
+    { "name": "home", "args": ["/", "--goto", "home"] },
+    { "name": "chats", "args": ["/", "--goto", "chats"] },
+    { "name": "characters", "args": ["/", "--goto", "characters"] },
+    { "name": "corpus", "args": ["/", "--goto", "corpus"] },
+    { "name": "config", "args": ["/", "--goto", "config"] },
+    { "name": "databank", "args": ["/", "--goto", "databank"] },
+    { "name": "presets", "args": ["/", "--goto", "presets"] },
+    { "name": "refinery", "args": ["/", "--goto", "refinery"] },
+    { "name": "analytics", "args": ["/", "--goto", "analytics"] },
+    { "name": "settings-personas", "args": ["/", "--goto", "settings:personas"] },
+    { "name": "settings-appearance", "args": ["/", "--goto", "settings:appearance"] },
+    { "name": "settings-workloads", "args": ["/", "--goto", "settings:workloads"] },
+    { "name": "settings-backup", "args": ["/", "--goto", "settings:backup"] },
+    { "name": "settings-chat-behavior", "args": ["/", "--goto", "settings:chat-behavior"] },
+    { "name": "settings-connections", "args": ["/", "--goto", "settings:connections"] },
+    { "name": "settings-automation", "args": ["/", "--goto", "settings:automation"] },
+    { "name": "settings-admin", "args": ["/", "--goto", "settings:admin"] },
+    { "name": "modal-theme", "args": ["/", "--goto", "modal:theme"] },
+    { "name": "modal-settings", "args": ["/", "--goto", "modal:settings"] },
+    { "name": "modal-account", "args": ["/", "--goto", "modal:account"] },
+    { "name": "modal-command", "args": ["/", "--goto", "modal:command"] },
+    { "name": "modal-new-chat", "args": ["/", "--goto", "modal:newChat"] },
+    { "name": "modal-you", "args": ["/", "--goto", "modal:you"] },
+    { "name": "modal-add-document", "args": ["/", "--goto", "modal:addDocument"] },
+    { "name": "modal-reauth", "args": ["/", "--goto", "modal:reauth"] }
+  ]
+}

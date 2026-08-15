@@ -55,6 +55,15 @@ const MUTED_STYLE = "color:#888";
 
 // A long session must not grow the ring unbounded.
 const FLAG_RING_CAP = 128;
+const RUNNING_LABEL_CAP = 8;
+// TanStack's injected development panel owns its own CSS/motion and is not an Orbweaver surface. Letting
+// it into the pack makes app audits mostly report the auditor (font/padding/scrollbar transitions and its
+// logo image), drowning the first-party offender list this bridge exists to produce.
+const EXTERNAL_DEVTOOLS_SELECTOR = '[data-testid^="tsd-"], [aria-label="Open TanStack Devtools"]';
+
+function isExternalDevtoolsElement(el: Element): boolean {
+  return el.closest(EXTERNAL_DEVTOOLS_SELECTOR) !== null;
+}
 
 /** One raised flag, as `__orb.flags()` returns it: which channel, what happened, who did it. */
 export interface MotionFlagRecord {
@@ -129,6 +138,9 @@ function raise({ tag, key, offender, detail, overBudget }: RaiseArgs): void {
 /** Classify every animation currently attached to `el` and flag the dirty ones. Runs at animation START
  *  (see the header): a 130ms transition is over before any sampler could see it. */
 function flagDirtyAnimationsOn(el: Element): void {
+  if (isExternalDevtoolsElement(el)) {
+    return;
+  }
   for (const anim of el.getAnimations()) {
     const props = animatedProperties(anim.effect);
     // A zero-property effect carries nothing to judge (a CSS animation whose keyframes the engine has
@@ -165,22 +177,33 @@ function installAnimationFlagger(): void {
 
 /** true while any animation is actually running (not merely attached — a finished/paused one is not a
  *  window we care about, and `getAnimations()` keeps finished CSS transitions briefly). */
-function animationsRunning(): boolean {
-  return document.getAnimations().some((a) => a.playState === "running");
+function animationTarget(animation: Animation): Element | null {
+  const effect = animation.effect;
+  const target = effect instanceof KeyframeEffect ? effect.target : null;
+  return target instanceof Element ? target : null;
+}
+
+function runningAnimations(): Animation[] {
+  return document.getAnimations().filter((animation) => {
+    const target = animationTarget(animation);
+    return animation.playState === "running" && target !== null && !isExternalDevtoolsElement(target);
+  });
 }
 
 /** The label set of what is animating right now — a dropped frame is only actionable if it names the
  *  motion it stuttered. */
-function runningLabels(): string {
+function runningLabels(animations: readonly Animation[]): string {
   const labels = new Set<string>();
-  for (const anim of document.getAnimations()) {
-    const effect = anim.effect;
-    const el = effect instanceof KeyframeEffect ? effect.target : null;
-    if (anim.playState === "running" && el !== null) {
+  for (const anim of animations) {
+    const el = animationTarget(anim);
+    if (el !== null) {
       labels.add(surfaceLabelOf(el));
     }
   }
-  return labels.size === 0 ? "(no animated element)" : [...labels].join(" · ");
+  const entries = [...labels];
+  const visible = entries.slice(0, RUNNING_LABEL_CAP);
+  const remaining = entries.length - visible.length;
+  return entries.length === 0 ? "(no animated element)" : `${visible.join(" · ")}${remaining > 0 ? ` · +${remaining} more` : ""}`;
 }
 
 let dropLoopActive = false;
@@ -196,8 +219,10 @@ function runDropLoop(): void {
   const tick = (now: number): void => {
     const gap = now - last;
     last = now;
+    // One animation-tree walk per frame. Dev instrumentation must not create the jank it reports.
+    const running = runningAnimations();
     if (gap > MOTION_BUDGETS.frameGapMs) {
-      const who = runningLabels();
+      const who = runningLabels(running);
       raise({
         tag: "drop",
         key: who,
@@ -206,7 +231,7 @@ function runDropLoop(): void {
         overBudget: true,
       });
     }
-    if (animationsRunning()) {
+    if (running.length > 0) {
       requestAnimationFrame(tick);
       return;
     }
@@ -226,7 +251,7 @@ function installFrameDropFlagger(): void {
 // Marker-only classes that legitimately ship no rules (kept VERBATIM from snap.ts's scan so the live
 // flagger and the probe agree about what "dead" means — two definitions would produce two bug reports).
 const CSS_MARKER_PREFIXES = ["group/", "peer/", "lucide", "TanStack", "tsqd-"];
-const CSS_MARKER_EXACT = new Set(["group", "peer"]);
+const CSS_MARKER_EXACT = new Set(["echarts-for-react", "group", "peer"]);
 // A class selector's token, un-escaped: a literal dot then a run of escaped-char-or-ident-char.
 const CLASS_TOKEN_RE = /\.((?:\\.|[A-Za-z0-9_-])+)/gu;
 const CLASS_ESCAPE_RE = /\\(.)/gu;
@@ -275,6 +300,9 @@ function definedClassTokens(): ReadonlySet<string> {
 function scanDeadClasses(): void {
   const defined = definedClassTokens();
   for (const el of document.querySelectorAll("*")) {
+    if (isExternalDevtoolsElement(el)) {
+      continue;
+    }
     for (const token of el.classList) {
       if (!(defined.has(token) || isMarkerClass(token))) {
         raise({
@@ -369,7 +397,7 @@ function hasReservedBox(el: Element): boolean {
 function scanUnreservedSpace(): void {
   const nodes = [...document.querySelectorAll(REPLACED_SELECTOR)].slice(0, MOTION_BUDGETS.spaceScanCap);
   for (const el of nodes) {
-    if (hasReservedBox(el)) {
+    if (isExternalDevtoolsElement(el) || hasReservedBox(el)) {
       continue;
     }
     const tag = el.tagName.toLowerCase();

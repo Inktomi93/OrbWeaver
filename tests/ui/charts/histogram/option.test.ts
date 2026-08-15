@@ -47,6 +47,8 @@ test("axis chrome carries the resolved line + muted-label colors, never a token 
   expect(xAxis.axisLabel.color).toBe(COLORS.axisLabelMuted);
   expect(yAxis.splitLine.lineStyle.color).toBe(COLORS.axisLine);
   expect(yAxis.axisLabel.color).toBe(COLORS.axisLabelMuted);
+  expect(option.grid).toMatchObject({ outerBoundsMode: "same", outerBoundsContain: "axisLabel" });
+  expect(option.grid).not.toHaveProperty("containLabel");
 });
 
 test("bucket order becomes the x-axis category order", () => {

@@ -60,3 +60,8 @@ export function renderHeatmap(): ReadonlyArray<{
     }))
     .sort((a, b) => b.totalMs - a.totalMs);
 }
+
+/** Clear the profiler evidence between driven checkpoints while leaving the mounted profilers intact. */
+export function __resetRenderStats(): void {
+  renderStats.clear();
+}

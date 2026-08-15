@@ -32,7 +32,15 @@ export function Avatar(props: AvatarProps): ReactElement {
   return (
     <BaseAvatar.Root className={slots.root({ className })} data-slot="avatar-root" {...rest}>
       {src === undefined ? null : (
-        <BaseAvatar.Image alt={alt} className={slots.image()} data-slot="avatar-image" onLoadingStatusChange={onLoadingStatusChange} src={src} />
+        <BaseAvatar.Image
+          alt={alt}
+          className={slots.image()}
+          data-slot="avatar-image"
+          height={1}
+          onLoadingStatusChange={onLoadingStatusChange}
+          src={src}
+          width={1}
+        />
       )}
       {/* Decorative visual stand-in for a missing image — aria-hidden so its letters never leak into an accessible name. */}
       <BaseAvatar.Fallback className={slots.fallback()} data-slot="avatar-fallback" delay={fallbackDelay} aria-hidden={true}>

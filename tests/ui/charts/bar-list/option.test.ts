@@ -37,6 +37,8 @@ test("chrome slots carry the resolved colors through, never a token literal", ()
   expect(series[0]?.itemStyle.color).toBe(COLORS.series);
   expect(series[0]?.label.color).toBe(COLORS.axisLabelMuted);
   expect(yAxis.axisLabel.color).toBe(COLORS.axisLabel);
+  expect(option.grid).toMatchObject({ outerBoundsMode: "same", outerBoundsContain: "axisLabel" });
+  expect(option.grid).not.toHaveProperty("containLabel");
 });
 
 test("array order is the rank — item 0 is the first category (top row)", () => {

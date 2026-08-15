@@ -55,6 +55,28 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     expect(conn.credential.source).toBe("max-pro-sub");
   });
 
+  test("the OWNER's explicit vLLM source with protocol Auto resolves chat-completions", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { source: "vllm" } });
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("owner_1"), "owner") });
+
+    expect(conn.api).toBe("chat-completions");
+    expect(conn.credential.source).toBe("vllm");
+  });
+
+  test("the OWNER's explicit max-pro-sub source with protocol Auto resolves agent-sdk", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { source: "max-pro-sub" } });
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("owner_1"), "owner") });
+
+    expect(conn.api).toBe("agent-sdk");
+    expect(conn.credential.source).toBe("max-pro-sub");
+  });
+
   test("an agent-sdk chat roleDefault heals the model to the curated id + the curated capability", async () => {
     const h = makeConnHarness(await freshDb());
     h.setRoleDefaults({

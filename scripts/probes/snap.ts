@@ -77,7 +77,8 @@
  *   pnpm snap / --eval 'document.title'    # run raw JS in-page (repeatable, argv order);
  *                                          # result is JSON-printed, capped ~2000 chars (a cap
  *                                          # is announced by a loud [TRUNCATED n/N] first line);
- *                                          # an in-page throw prints EVAL ERROR, doesn't abort.
+ *                                          # an in-page throw prints EVAL ERROR, continues capture,
+ *                                          # and makes the final RESULT/exit non-zero.
  *                                          # A function LITERAL is auto-invoked — `async()=>{…}`
  *                                          # / `()=>{…}` run and return their result (no more
  *                                          # silent-undefined from an un-called async arrow).
@@ -163,7 +164,8 @@
  *   packages/client/src/lib/probe-mode.ts) + inject CSS killing all animations/
  *   transitions/carets harness-side.
  *   ffmpeg: NOT in the dev container until a Dockerfile rebuild — --diff then prints a
- *   skipped-with-reason line and stays green (skip ≠ fail). FFMPEG_BIN env overrides.
+ *   skipped-with-reason line and exits non-zero (a requested comparison produced no evidence).
+ *   FFMPEG_BIN env overrides.
  *
  *   SPA NAVIGATION — the app has only 2 URL routes (/, /login); every surface is CLIENT STATE. Instead of
  *   click-chaining to a section, drive the app's dev nav bridge (window.__orb.nav) directly. These run
@@ -192,7 +194,8 @@
  *   observe PAGE 0 over time: every tick a screenshot (<out>-t<elapsed>.png) AND, if --eval exprs were
  *   given, a re-run of them labeled with elapsed ms. Watch a streaming turn reflow between speakers or
  *   catch a transient state (a raw speaker-tag prefix mid-stream) without eyeballing MCP shots one call at
- *   a time. RESULT gains watch=N-ticks; the tick artifacts + eval lines print under --- WATCH ---.
+ *   a time. RESULT gains watch=N-ticks + watch-fails=N; the tick artifacts + eval lines print under
+ *   --- WATCH ---. Any failed tick screenshot/eval makes the final exit non-zero.
  *   pnpm snap / --open-chat <id> --watch 5000 --every 500 --eval 'document.querySelectorAll("[role=article]").length'
  *
  *   MULTI-PAGE — `--pages <N>` opens N tabs in ONE browser context (shared auth/localStorage), all on the
@@ -222,7 +225,8 @@
  *   docstring); `--contexts N` assigns them in that order. Target a context with the SAME `@<idx>` suffix
  *   --pages uses (unsuffixed = context 0); shots suffix `-u<idx>` (distinct from --pages' `-p<idx>`, so
  *   the two never collide); RESULT gains contexts=N + users=<handles>. Combining `--contexts` with
- *   `--pages` is refused (an unexercised combination, not silently under-tested).
+ *   `--pages` is refused (an unexercised combination, not silently under-tested). Context mode also
+ *   refuses --watch/--baseline/--diff until those operations have explicit per-context semantics.
  *   pnpm snap / --contexts 2 --eval@0 '__orb.snap()' --eval@1 '__orb.snap()'
  *                                          # context 0 = owner, context 1 = member (roster order)
  *   pnpm snap / --as member --eval '__orb.snap()'
@@ -287,7 +291,7 @@
  */
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { copyFile } from "node:fs/promises";
+import { copyFile, readFile, unlink, writeFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -295,7 +299,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
 import { artifactDir, routeSlug } from "./_kit/artifacts.ts";
-import type { CapturedRequest, LocalStorageSeed, ProbeSession } from "./_kit/browser.ts";
+import type { CapturedConsole, CapturedRequest, LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "./_kit/browser.ts";
 import { buildUrl, DEFAULT_BASE, DEFAULT_DEBUG_TOKEN, launchProbeSession, settle } from "./_kit/browser.ts";
 import { resolveFfmpeg } from "./_kit/ffmpeg.ts";
 import type { FixtureTarget } from "./_kit/fixture.ts";
@@ -316,6 +320,8 @@ const DIFF_SSIM_THRESHOLD = 0.98;
 // (--aria <selector> / --aria-depth N) so the text path never blows the budget
 // it exists to save.
 const ARIA_MAX_LINES = 400;
+// Human output is a triage view; --json is the lossless console record.
+const CONSOLE_REPORT_CAP = 200;
 // Cap on DEADCSS/EMPTYCSS lines echoed (the counts always print in full).
 const CSS_FINDINGS_CAP = 15;
 // --eval result cap: a runaway selector/object dump shouldn't blow the report budget the
@@ -377,6 +383,7 @@ const SHOT_BASE = { animations: "disabled", caret: "hide", scale: "css" } as con
 const CROP_RE = /^(?<w>\d+)x(?<h>\d+)(?:\+(?<x>\d+)\+(?<y>\d+))?$/u;
 const PNG_EXT_RE = /\.png$/u;
 const SSIM_ALL_RE = /All:(?<all>[\d.]+)/u;
+const HTTP_URL_RE = /^https?:\/\//u;
 const METHOD_PAD = 4;
 const TYPE_PAD = 8;
 // localStorage keys the harness seeds. App counterpart for probe-mode:
@@ -415,8 +422,33 @@ type NavAction =
 // A per-page eval/contrast keeps its argv-order expr/selector plus the target page.
 type PagedExpr = { expr: string; page: number };
 type PagedSelector = { selector: string; page: number };
+type Assertion =
+  | { kind: "visible"; selector: string; page: number }
+  | { kind: "text"; selector: string; expected: string; page: number }
+  | { kind: "count"; selector: string; expected: number; page: number }
+  | { kind: "url"; expected: string; page: number }
+  | { kind: "overflow"; selector: string; page: number }
+  | { kind: "focus"; selector: string; page: number };
 
-type Args = {
+export type Args = {
+  /** Print the operator cookbook and exit without touching a browser or stage. */
+  help: boolean;
+  /** Parse/validation failures collected without side effects; any entry is CLI misuse. */
+  errors: string[];
+  /** JSON scenario file: checkpoint args execute sequentially in one browser lifetime. */
+  scenario: string | null;
+  /** Run the bounded desktop/mobile × light/dark × normal/reduced-motion matrix. */
+  matrix: boolean;
+  /** Write a structured manifest beside the PNG artifacts. */
+  json: boolean;
+  /** Print one compact line per scenario checkpoint; --json remains the lossless evidence. */
+  summary: boolean;
+  /** Save a Playwright trace when the run fails. */
+  failureEvidence: boolean;
+  /** Console errors always fail; this also promotes warnings to failures. */
+  strictConsole: boolean;
+  /** Include React Activity/inert/hidden DOM in dead-CSS scans. Default is rendered DOM only. */
+  includeHidden: boolean;
   route: string;
   vnc: boolean;
   waitSelector: string | null;
@@ -461,7 +493,7 @@ type Args = {
    *  the __orb nav bridge are skipped (a static file has neither). Refused with --isolated/--contexts. */
   file: string | null;
   /** Timed observation series after nav+steps settle: total window (ms). 0 = disabled (single-shot).
-   *  Every tick screenshots (`<out>-t<elapsed>.png`) and re-runs --eval exprs, labeled by elapsed ms. */
+   *  Every tick re-runs --eval exprs and, when shots are enabled, captures `<out>-t<elapsed>.png`. */
   watchMs: number;
   /** --watch tick interval (ms). Default 1000. */
   watchEveryMs: number;
@@ -514,6 +546,8 @@ type Args = {
   /** Force PIXEL-SAMPLE for every --contrast target (even ones the css walk could resolve) — verify a
    *  css-resolve number against the real composite, or sample when you already know a layer paints behind. */
   contrastPixel: boolean;
+  /** First-class post-settle assertions; selector assertions target visible/rendered matches by default. */
+  assertions: Assertion[];
   /** Emit a selector map (role · accessible name · best stable selector) of interactive/
    *  labeled elements within `mapSelector` — "how do I reach this" instead of grepping source. */
   map: boolean;
@@ -588,6 +622,33 @@ function mapFlag(args: Args, rest: string[], page: number): void {
 }
 
 const FLAG_HANDLERS: Record<string, FlagHandler> = {
+  "--help": (a) => {
+    a.help = true;
+  },
+  "-h": (a) => {
+    a.help = true;
+  },
+  "--scenario": (a, rest) => {
+    a.scenario = rest.shift() ?? null;
+  },
+  "--matrix": (a) => {
+    a.matrix = true;
+  },
+  "--json": (a) => {
+    a.json = true;
+  },
+  "--summary": (a) => {
+    a.summary = true;
+  },
+  "--no-failure-evidence": (a) => {
+    a.failureEvidence = false;
+  },
+  "--strict-console": (a) => {
+    a.strictConsole = true;
+  },
+  "--include-hidden": (a) => {
+    a.includeHidden = true;
+  },
   "--vnc": (a) => {
     a.vnc = true;
   },
@@ -776,6 +837,26 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--contrast-pixel": (a) => {
     a.contrastPixel = true;
   },
+  "--expect-visible": (a, rest, page) => {
+    a.assertions.push({ kind: "visible", selector: rest.shift() ?? "", page });
+  },
+  "--expect-text": (a, rest, page) => {
+    const value = splitLastEq(rest.shift() ?? "");
+    a.assertions.push({ kind: "text", selector: value.head, expected: value.tail, page });
+  },
+  "--expect-count": (a, rest, page) => {
+    const value = splitLastEq(rest.shift() ?? "");
+    a.assertions.push({ kind: "count", selector: value.head, expected: Number(value.tail), page });
+  },
+  "--expect-url": (a, rest, page) => {
+    a.assertions.push({ kind: "url", expected: rest.shift() ?? "", page });
+  },
+  "--expect-no-overflow": (a, rest, page) => {
+    a.assertions.push({ kind: "overflow", selector: consumeOptionalSelector(rest) ?? "html", page });
+  },
+  "--expect-focus": (a, rest, page) => {
+    a.assertions.push({ kind: "focus", selector: rest.shift() ?? "", page });
+  },
   "--map": (a, rest, page) => {
     mapFlag(a, rest, page);
   },
@@ -802,8 +883,307 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
 };
 
-function parseArgs(argv: string[]): Args {
+const REQUIRED_VALUE_FLAGS = new Set([
+  "--scenario",
+  "--wait",
+  "--sse",
+  "--base",
+  "--debug-token",
+  "--click",
+  "--jsclick",
+  "--press",
+  "--hover",
+  "--ls",
+  "--fill",
+  "--key",
+  "--wait-for",
+  "--goto",
+  "--open-chat",
+  "--open-character",
+  "--context-tab",
+  "--pages",
+  "--contexts",
+  "--as",
+  "--fixture-server",
+  "--fixture-base",
+  "--file",
+  "--watch",
+  "--every",
+  "--aria-depth",
+  "--shot-of",
+  "--mask",
+  "--crop",
+  "--out",
+  "--viewport",
+  "--eval",
+  "--contrast",
+  "--expect-visible",
+  "--expect-text",
+  "--expect-count",
+  "--expect-url",
+  "--expect-focus",
+  "--ref",
+]);
+
+const OPTIONAL_SELECTOR_FLAGS = new Set(["--aria", "--text", "--map", "--expect-no-overflow"]);
+
+const PAGE_TARGET_FLAGS = new Set([
+  "--click",
+  "--jsclick",
+  "--press",
+  "--hover",
+  "--fill",
+  "--key",
+  "--wait-for",
+  "--goto",
+  "--open-chat",
+  "--open-character",
+  "--context-tab",
+  "--aria",
+  "--text",
+  "--eval",
+  "--contrast",
+  "--expect-visible",
+  "--expect-text",
+  "--expect-count",
+  "--expect-url",
+  "--expect-no-overflow",
+  "--expect-focus",
+  "--map",
+]);
+
+const SNAP_HELP = `snap — one browser run, many pieces of UI evidence
+
+Usage:
+  pnpm snap [route] [flags]
+  pnpm snap --file <html> [flags]
+
+Cheap evidence:
+  --text [selector]       ARIA tree, no primary screenshot
+  --map [selector]        interactive roles, names, and selectors
+  --eval <expression>     in-page JSON result (repeatable)
+  --contrast <selector>   rendered WCAG contrast check (repeatable)
+
+Assertions and reports:
+  --expect-visible <selector>       require a rendered, visible element
+  --expect-text <selector=text>     require rendered text to contain a value
+  --expect-count <selector=N>       require N rendered matches
+  --expect-url <url-or-path>        require the final URL
+  --expect-no-overflow [selector]   require scroll bounds to fit client bounds
+  --expect-focus <selector>         require the active element to match
+  --json                            write a machine-readable run manifest
+  --summary                         compact scenario output; pair with --json for full evidence
+  --strict-console                  make console warnings red (errors are always red)
+  --include-hidden                  include Activity/hidden DOM in map, CSS, and counts
+
+Interaction:
+  --click <selector>      --fill <selector=value>  --key <selector=Key>
+  --hover <selector>      --wait-for <selector>    --goto <target>
+  --open-chat <id|title|latest>     --open-character <id>     --context-tab <tab>
+  --watch <totalMs> [--every <ms>]  poll evals and optional screenshots over time
+  Add @N to a page-targeted flag with --pages N, for example --click@1.
+
+Pixels:
+  --no-shot               skip the primary PNG
+  --shot-of <selector>    capture one element
+  --crop <WxH+X+Y>        capture a bounded region
+  --baseline | --diff     save or compare a visual baseline (mutually exclusive)
+
+Sessions:
+  --pages <N>             shared-context tabs
+  --contexts <N>          isolated fixture users (no watch/baseline/diff)
+  --as <handle>           one named fixture user
+  --isolated | --dirty    warm isolated stage from HEAD or working tree
+  --scenario <json>       sequential checkpoints in one browser lifetime
+  --matrix                desktop/mobile × light/dark × motion/reduced motion
+
+Failure evidence:
+  Red runs retain a Playwright trace under reports/traces/. Use
+  --no-failure-evidence only when the trace cost is explicitly unwanted.
+
+Run pnpm snap --help from the repository for this contract; the source header contains the full cookbook.`;
+
+function validateInteger(raw: string, flag: string, min: number, errors: string[]): void {
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < min) {
+    errors.push(`${flag} expects an integer >= ${min}, got ${JSON.stringify(raw)}`);
+  }
+}
+
+function validateNumericFlag(flag: string, raw: string, errors: string[]): void {
+  if (flag === "--pages" || flag === "--contexts" || flag === "--every" || flag === "--aria-depth") {
+    validateInteger(raw, flag, 1, errors);
+    return;
+  }
+  if (flag === "--watch" || flag === "--sse") {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      errors.push(`${flag} expects a non-negative number, got ${JSON.stringify(raw)}`);
+    }
+  }
+}
+
+function validateEvidenceFlagValue(flag: string, raw: string, errors: string[]): void {
+  if (flag === "--viewport" && parseViewport(raw) === null) {
+    errors.push(`--viewport expects positive WxH, got ${JSON.stringify(raw)}`);
+  }
+  if (flag === "--crop" && !CROP_RE.test(raw)) {
+    errors.push(`--crop expects WxH or WxH+X+Y, got ${JSON.stringify(raw)}`);
+  }
+  if (flag === "--ls" && splitFirstEq(raw) === null) {
+    errors.push(`--ls expects key=value with a non-empty key, got ${JSON.stringify(raw)}`);
+  }
+}
+
+function validatePairFlagValue(flag: string, raw: string, errors: string[]): void {
+  const split = splitLastEq(raw);
+  if (flag === "--fill" && (!raw.includes("=") || split.head === "")) {
+    errors.push(`--fill expects selector=value with a non-empty selector, got ${JSON.stringify(raw)}`);
+  }
+  if (flag === "--key" && split.head === "") {
+    errors.push(`--key expects a non-empty selector, got ${JSON.stringify(raw)}`);
+  }
+  if (flag === "--expect-text" && (!raw.includes("=") || split.head === "")) {
+    errors.push(`--expect-text expects selector=text, got ${JSON.stringify(raw)}`);
+  }
+  if (flag === "--expect-count" && (!raw.includes("=") || split.head === "" || !Number.isInteger(Number(split.tail)) || Number(split.tail) < 0)) {
+    errors.push(`--expect-count expects selector=nonNegativeInteger, got ${JSON.stringify(raw)}`);
+  }
+}
+
+function validateFlagValue(flag: string, raw: string, errors: string[]): void {
+  if (raw === "" && flag !== "--debug-token") {
+    errors.push(`${flag} requires a non-empty value`);
+    return;
+  }
+  validateNumericFlag(flag, raw, errors);
+  validateEvidenceFlagValue(flag, raw, errors);
+  validatePairFlagValue(flag, raw, errors);
+}
+
+function consumeRequiredArg(argv: readonly string[], index: number, flag: string, errors: string[]): number {
+  const value = argv[index + 1];
+  if (value === undefined || value.startsWith("--")) {
+    errors.push(`${flag} requires a value`);
+    return 0;
+  }
+  validateFlagValue(flag, value, errors);
+  return 1;
+}
+
+function consumesOptionalSelector(argv: readonly string[], index: number): boolean {
+  const value = argv[index + 1];
+  return value !== undefined && !value.startsWith("-") && !value.startsWith("/");
+}
+
+type ArgvScan = { readonly errors: string[]; routeCount: number; fileMode: boolean };
+
+function scanArgvToken(argv: readonly string[], index: number, scan: ArgvScan): number {
+  const token = argv[index] as string;
+  const { flag } = splitPageSuffix(token);
+  if (FLAG_HANDLERS[flag] === undefined) {
+    scan.routeCount += token.startsWith("-") ? 0 : 1;
+    if (token.startsWith("-")) {
+      scan.errors.push(`unknown flag ${token}`);
+    }
+    return 0;
+  }
+  scan.fileMode = scan.fileMode || flag === "--file";
+  if (token !== flag && !PAGE_TARGET_FLAGS.has(flag)) {
+    scan.errors.push(`${flag} does not accept a @<page> suffix`);
+  }
+  if (REQUIRED_VALUE_FLAGS.has(flag)) {
+    return consumeRequiredArg(argv, index, flag, scan.errors);
+  }
+  return OPTIONAL_SELECTOR_FLAGS.has(flag) && consumesOptionalSelector(argv, index) ? 1 : 0;
+}
+
+function scanArgv(argv: readonly string[]): string[] {
+  const scan: ArgvScan = { errors: [], routeCount: 0, fileMode: false };
+  for (let index = 0; index < argv.length; index += 1) {
+    index += scanArgvToken(argv, index, scan);
+  }
+  const { errors, routeCount } = scan;
+  if (routeCount > 1) {
+    errors.push(`expected at most one route, got ${routeCount}`);
+  }
+  if (scan.fileMode && routeCount > 0) {
+    errors.push("--file and a positional route are mutually exclusive");
+  }
+  return errors;
+}
+
+function targetedPages(args: Args): number[] {
+  return [
+    ...args.steps.map((step) => step.page),
+    ...args.navActions.map((action) => action.page),
+    ...args.eval.map((entry) => entry.page),
+    ...args.contrast.map((entry) => entry.page),
+    ...args.assertions.map((assertion) => assertion.page),
+    ...(args.aria ? [args.ariaPage] : []),
+    ...(args.map ? [args.mapPage] : []),
+  ];
+}
+
+function validatePageTargets(args: Args, contextsMode: boolean): string[] {
+  const targetCount = contextsMode ? args.contexts : args.pages;
+  const errors: string[] = [];
+  for (const page of targetedPages(args)) {
+    if (page >= targetCount) {
+      errors.push(`page target @${page} is out of range for ${contextsMode ? "contexts" : "pages"}=${targetCount}`);
+    }
+  }
+  return errors;
+}
+
+type ValidationPair = readonly [boolean, string];
+
+function sessionValidationPairs(args: Args, contextsMode: boolean): ValidationPair[] {
+  return [
+    [args.baseline && args.diff, "--baseline and --diff are mutually exclusive"],
+    [args.contexts > 1 && args.pages > 1, "--contexts and --pages cannot both be greater than 1"],
+    [args.contexts > 1 && args.as !== null, "--as cannot be combined with --contexts greater than 1"],
+    [contextsMode && args.isolated, "--contexts/--as use the fixture stack and cannot be combined with --isolated/--dirty/--ref"],
+    [contextsMode && (args.watchMs > 0 || args.baseline || args.diff), "--contexts/--as do not support --watch, --baseline, or --diff"],
+    [args.stageDown && args.stageStatus, "--stage-down and --stage-status are mutually exclusive"],
+    [
+      args.matrix && (args.pages > 1 || contextsMode || args.watchMs > 0 || args.baseline || args.diff),
+      "--matrix does not combine with --pages/--contexts/--as/--watch/--baseline/--diff",
+    ],
+  ];
+}
+
+function evidenceValidationPairs(args: Args, producesShot: boolean): ValidationPair[] {
+  return [
+    [args.crop !== null && !producesShot, "--crop requires a screenshot; drop --no-shot/--text or request --shot-of/baseline/diff"],
+    [args.crop !== null && args.shotOf !== null, "--crop and --shot-of are mutually exclusive"],
+    [args.mask.length > 0 && !producesShot, "--mask requires a screenshot; drop --no-shot/--text"],
+    [args.fullPage && !producesShot, "--full requires a screenshot; drop --no-shot/--text"],
+    [args.fullPage && args.shotOf !== null, "--full and --shot-of are mutually exclusive"],
+    [(args.ariaDepth !== null || args.ariaBoxes) && !args.aria, "--aria-depth/--aria-boxes require --aria or --text"],
+    [args.contrastPixel && args.contrast.length === 0, "--contrast-pixel requires at least one --contrast selector"],
+  ];
+}
+
+function validateParsedArgs(args: Args): string[] {
+  const contextsMode = args.contexts > 1 || args.as !== null;
+  const producesShot = args.shotOf !== null || args.shot || args.baseline || args.diff;
+  const invalidModes = [...sessionValidationPairs(args, contextsMode), ...evidenceValidationPairs(args, producesShot)];
+  return [...validatePageTargets(args, contextsMode), ...invalidModes.filter(([invalid]) => invalid).map(([, message]) => message)];
+}
+
+export function parseSnapArgs(argv: string[]): Args {
+  const errors = scanArgv(argv);
   const args: Args = {
+    help: false,
+    errors,
+    scenario: null,
+    matrix: false,
+    json: false,
+    summary: false,
+    failureEvidence: true,
+    strictConsole: false,
+    includeHidden: false,
     route: "/",
     vnc: false,
     waitSelector: null,
@@ -843,6 +1223,7 @@ function parseArgs(argv: string[]): Args {
     eval: [],
     contrast: [],
     contrastPixel: false,
+    assertions: [],
     map: false,
     mapSelector: "body",
     mapPage: 0,
@@ -864,13 +1245,12 @@ function parseArgs(argv: string[]): Args {
     if (handler !== undefined) {
       handler(args, rest, page);
     } else if (tok.startsWith("--")) {
-      // Unlike neo (silent), a typo'd flag gets a line — agents can't eyeball a
-      // missing drawer the way a human watching VNC would.
-      print(`UNKNOWN FLAG ${tok} (ignored)`);
+      // scanArgv already recorded it; parsing remains side-effect free for tests/importers.
     } else {
       args.route = tok;
     }
   }
+  args.errors.push(...validateParsedArgs(args));
   return args;
 }
 
@@ -886,10 +1266,13 @@ type CaptureOutcome = {
   deadCss: Array<{ token: string; count: number }>;
   emptyCss: string[];
   ariaText: string | null;
+  ariaError: string | null;
   evalResults: EvalOutcome[];
   contrastResults: ContrastOutcome[];
   mapResult: MapEntry[] | null;
   mapError: string | null;
+  assertions: AssertionOutcome[];
+  perf: PerfEvidence | null;
 };
 
 /** Did the app reach a SETTLED state? `settled` = the flag went up on a real query-cache idle; `degraded` =
@@ -1086,21 +1469,25 @@ async function settlePage(page: Page, opts: Args): Promise<void> {
   }
 }
 
-async function captureAria(page: Page, opts: Args): Promise<string> {
+type AriaOutcome = { readonly text: string | null; readonly error: string | null };
+
+async function captureAria(page: Page, opts: Args): Promise<AriaOutcome> {
   try {
+    const root = page.locator(opts.ariaSelector).first();
+    await root.waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS });
     const ariaOpts: { depth?: number; boxes?: boolean } = { boxes: opts.ariaBoxes };
     if (opts.ariaDepth !== null) {
       ariaOpts.depth = opts.ariaDepth;
     }
-    return await page.locator(opts.ariaSelector).first().ariaSnapshot(ariaOpts);
+    return { text: await root.ariaSnapshot(ariaOpts), error: null };
   } catch (e) {
-    return `ARIA capture failed for "${opts.ariaSelector}": ${errorMessage(e)}`;
+    return { text: null, error: `ARIA capture failed for "${opts.ariaSelector}": ${errorMessage(e)}` };
   }
 }
 
 // ── --eval: arbitrary in-page JS ────────────────────────────────────────────
 
-type EvalOutcome = { expr: string; text: string };
+type EvalOutcome = { expr: string; text: string; failed: boolean };
 
 // A bare function LITERAL passed to page.evaluate(string) evaluates to the FUNCTION, never invokes it
 // — so `async () => {…}` silently returns undefined (the worst failure mode). Detect a function literal
@@ -1129,6 +1516,7 @@ async function captureEvals(page: Page, exprs: readonly string[]): Promise<EvalO
   const results: EvalOutcome[] = [];
   for (const expr of exprs) {
     let text: string;
+    let failed = false;
     try {
       // biome-ignore lint/performance/noAwaitInLoops: evals are argv-ordered and independent — sequential to keep report order matching argv, same discipline as runSteps.
       const value: unknown = await page.evaluate(wrapEvalExpr(expr));
@@ -1139,12 +1527,134 @@ async function captureEvals(page: Page, exprs: readonly string[]): Promise<EvalO
         text = `[TRUNCATED ${EVAL_RESULT_CAP}/${text.length} chars]\n${text.slice(0, EVAL_RESULT_CAP)}`;
       }
     } catch (e) {
+      failed = true;
       const msg = errorMessage(e);
       text = isContextChurn(msg) ? `EVAL ERROR: ${msg}\n${CHURN_LINE}` : `EVAL ERROR: ${msg}`;
     }
-    results.push({ expr, text });
+    results.push({ expr, text, failed });
   }
   return results;
+}
+
+type AssertionOutcome = { readonly line: string; readonly failed: boolean };
+
+async function visibleLocators(locator: Locator, includeHidden: boolean): Promise<Locator[]> {
+  const count = await locator.count();
+  const candidates = Array.from({ length: count }, (_, index) => locator.nth(index));
+  if (includeHidden) {
+    return candidates;
+  }
+  const visible = await Promise.all(candidates.map((candidate) => candidate.isVisible()));
+  return candidates.filter((_, index) => visible[index]);
+}
+
+function urlMatches(actual: string, expected: string): boolean {
+  if (HTTP_URL_RE.test(expected)) {
+    return actual === expected;
+  }
+  const url = new URL(actual);
+  return `${url.pathname}${url.search}${url.hash}` === expected;
+}
+
+function assertUrl(page: Page, assertion: Extract<Assertion, { kind: "url" }>): AssertionOutcome {
+  const actual = page.url();
+  const pass = urlMatches(actual, assertion.expected);
+  return { line: `ASSERT url ${JSON.stringify(assertion.expected)}: ${pass ? "PASS" : `FAIL actual=${JSON.stringify(actual)}`}`, failed: !pass };
+}
+
+function assertCount(assertion: Extract<Assertion, { kind: "count" }>, candidates: readonly Locator[], includeHidden: boolean): AssertionOutcome {
+  const pass = candidates.length === assertion.expected;
+  const scope = includeHidden ? "all DOM" : "rendered";
+  return {
+    line: `ASSERT count ${assertion.selector}: ${pass ? "PASS" : "FAIL"} actual=${candidates.length} expected=${assertion.expected} scope=${scope}`,
+    failed: !pass,
+  };
+}
+
+async function runMatchedAssertion(
+  assertion: Exclude<Assertion, { kind: "url" | "visible" }>,
+  candidates: readonly Locator[],
+  includeHidden: boolean,
+): Promise<AssertionOutcome> {
+  if (assertion.kind === "count") {
+    return assertCount(assertion, candidates, includeHidden);
+  }
+  const first = candidates[0];
+  if (first === undefined) {
+    return { line: `ASSERT ${assertion.kind} ${assertion.selector}: FAIL no ${includeHidden ? "attached" : "rendered"} match`, failed: true };
+  }
+  if (assertion.kind === "text") {
+    const actual = (await first.textContent()) ?? "";
+    const pass = actual.includes(assertion.expected);
+    return {
+      line: `ASSERT text ${assertion.selector}: ${pass ? "PASS" : `FAIL expected=${JSON.stringify(assertion.expected)} actual=${JSON.stringify(actual)}`}`,
+      failed: !pass,
+    };
+  }
+  if (assertion.kind === "focus") {
+    const pass = await first.evaluate((element) => (element as unknown as { matches: (selector: string) => boolean }).matches(":focus"));
+    return { line: `ASSERT focus ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, failed: !pass };
+  }
+  const overflow = await first.evaluate((element) => {
+    const box = element as unknown as { scrollWidth: number; clientWidth: number; scrollHeight: number; clientHeight: number };
+    return { x: box.scrollWidth - box.clientWidth, y: box.scrollHeight - box.clientHeight };
+  });
+  const pass = overflow.x <= 1 && overflow.y <= 1;
+  return {
+    line: `ASSERT no-overflow ${assertion.selector}: ${pass ? "PASS" : "FAIL"} overflow=${overflow.x}x${overflow.y}`,
+    failed: !pass,
+  };
+}
+
+async function runAssertion(page: Page, assertion: Assertion, includeHidden: boolean): Promise<AssertionOutcome> {
+  if (assertion.kind === "url") {
+    return assertUrl(page, assertion);
+  }
+  const locator = page.locator(assertion.selector);
+  if (assertion.kind === "visible") {
+    const pass = await locator
+      .first()
+      .isVisible()
+      .catch(() => false);
+    return { line: `ASSERT visible ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, failed: !pass };
+  }
+  return await runMatchedAssertion(assertion, await visibleLocators(locator, includeHidden), includeHidden);
+}
+
+async function runAssertions(page: Page, assertions: readonly Assertion[], includeHidden: boolean): Promise<AssertionOutcome[]> {
+  const outcomes: AssertionOutcome[] = [];
+  for (const assertion of assertions) {
+    try {
+      // biome-ignore lint/performance/noAwaitInLoops: assertions preserve argv order and may read focus/state established by the preceding assertion target.
+      outcomes.push(await runAssertion(page, assertion, includeHidden));
+    } catch (error) {
+      outcomes.push({ line: `ASSERT ${assertion.kind}: ERROR ${errorMessage(error)}`, failed: true });
+    }
+  }
+  return outcomes;
+}
+
+type PerfEvidence = {
+  readonly navigation: { readonly domContentLoadedMs: number; readonly loadMs: number; readonly responseMs: number } | null;
+  readonly orb: unknown;
+};
+
+async function capturePerfEvidence(page: Page): Promise<PerfEvidence | null> {
+  try {
+    return (await page.evaluate(`(() => {
+      const nav = performance.getEntriesByType("navigation")[0];
+      return {
+        navigation: nav ? {
+          domContentLoadedMs: Math.round(nav.domContentLoadedEventEnd),
+          loadMs: Math.round(nav.loadEventEnd),
+          responseMs: Math.round(nav.responseEnd),
+        } : null,
+        orb: window.__orb ? window.__orb.snap() : null,
+      };
+    })()`)) as PerfEvidence;
+  } catch {
+    return null;
+  }
 }
 
 // ── --contrast: WCAG AA text/background contrast of the first selector match ─
@@ -1262,6 +1772,7 @@ function buildContrastScript(selector: string): string {
       } else if (tag === "PROGRESS") role = "progressbar";
     }
     var hasText = (el.textContent || "").replace(/\\s+/g, " ").trim().length > 0;
+    var inactive = el.matches(":disabled,[aria-disabled='true']") || el.closest("[inert]") !== null;
     // ANCESTOR opacity dims the FOREGROUND (blind-spot round 2): a message-actions row at opacity-40
     // paints the whole subtree — the icon's glyph included — at 0.4 over its backdrop, but style.color
     // still reads the UN-dimmed rgb (a ~11:1 false PASS where the eye sees ~2.6:1). CSS opacity groups
@@ -1285,6 +1796,7 @@ function buildContrastScript(selector: string): string {
       fontWeight: fontWeight,
       backdrop: resolveBackdrop(el),
       hasText: hasText,
+      inactive: inactive,
       role: role,
       tag: tag,
       foregroundOpacity: foregroundOpacity,
@@ -1302,6 +1814,7 @@ type ContrastFacts = {
   // pixel-samples the composite instead of trusting a fabricated baseline.
   backdrop: { kind: "flat"; color: string } | { kind: "transparent" } | { kind: "indeterminate" };
   hasText: boolean;
+  inactive: boolean;
   role: string;
   tag: string;
   /** Product of `opacity` over the element + ancestors — <1 means the foreground is painted dimmed and
@@ -1419,6 +1932,11 @@ async function checkContrast(page: Page, selector: string, forcePixel: boolean, 
   if (facts === null) {
     return { line: `CONTRAST ${selector}: NOT FOUND`, failed: true };
   }
+  // WCAG contrast criteria exempt inactive controls. Reporting their deliberate dimming as a defect
+  // trains reviewers to ignore the instrument, so state the exemption and leave the run green.
+  if (facts.inactive) {
+    return { line: `CONTRAST ${selector}: SKIPPED  inactive control (WCAG contrast exemption)`, failed: false };
+  }
   // (2) Control-track roles: text-vs-page contrast is meaningless here — the two STATES are the signal,
   // and WCAG 1.4.11 governs the state boundary (a separate measurement). Skip with a reason rather than
   // emit the bogus 1.71:1 text-math FAIL reviewers had to learn to ignore.
@@ -1476,7 +1994,7 @@ async function captureContrasts(page: Page, selectors: readonly string[], forceP
 // design-audit-checks.ts to own.
 const MAP_INTERACTIVE_SELECTOR = "a,button,[role],input,select,textarea,[tabindex],[aria-label]";
 
-function buildMapScript(selector: string): string {
+function buildMapScript(selector: string, includeHidden: boolean): string {
   return `(() => {
     var root = document.querySelector(${JSON.stringify(selector)});
     if (!root) return null;
@@ -1485,13 +2003,15 @@ function buildMapScript(selector: string): string {
     var INPUT_ROLES = { checkbox: "checkbox", radio: "radio", button: "button", submit: "button", range: "slider", search: "searchbox" };
 
     function isVisible(el) {
+      if (${JSON.stringify(includeHidden)}) return true;
+      if (typeof el.checkVisibility === "function" && !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true })) return false;
       var style = getComputedStyle(el);
       if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
       var rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return false;
       var cur = el;
       while (cur && cur !== document.body) {
-        if (cur.getAttribute("aria-hidden") === "true") return false;
+        if (cur.hidden || cur.inert || cur.getAttribute("aria-hidden") === "true") return false;
         cur = cur.parentElement;
       }
       return true;
@@ -1593,9 +2113,9 @@ function buildMapScript(selector: string): string {
 
 type MapEntry = { role: string; name: string; selector: string };
 
-async function captureMap(page: Page, selector: string): Promise<{ entries: MapEntry[] | null; error: string | null }> {
+async function captureMap(page: Page, selector: string, includeHidden: boolean): Promise<{ entries: MapEntry[] | null; error: string | null }> {
   try {
-    const result = (await page.evaluate(buildMapScript(selector))) as MapEntry[] | null;
+    const result = (await page.evaluate(buildMapScript(selector, includeHidden))) as MapEntry[] | null;
     if (result === null) {
       return { entries: null, error: `no element matches "${selector}"` };
     }
@@ -1622,12 +2142,39 @@ function contextOut(out: string, contextIndex: number, totalContexts: number): s
 // flat argv list drives N tabs. On single-page (totalPages 1) every filter is a no-op and the flow is
 // byte-identical to the original. `unit` picks the shot suffix: "p" (--pages, the default) or "u"
 // (--contexts) — the two modes are mutually exclusive so only one is ever requested per run.
-type PagePlan = ShotPlan & { pageIndex: number; totalPages: number; unit?: "p" | "u" };
+type PagePlan = ShotPlan & { pageIndex: number; totalPages: number; unit?: "p" | "u"; navigatePage?: boolean };
 
 // Extracted (not inlined) purely to keep `capture`'s cognitive-complexity count under the gate — the
 // suffix decision itself is trivial.
 function planOut(plan: PagePlan, pageIndex: number, totalPages: number): string {
   return plan.unit === "u" ? contextOut(plan.out, pageIndex, totalPages) : pageOut(plan.out, pageIndex, totalPages);
+}
+
+async function captureEvidence(page: Page, opts: Args, outcome: CaptureOutcome, pageIndex: number): Promise<void> {
+  if (opts.deadCss) {
+    const scan = await scanDeadCss(page, opts.includeHidden);
+    outcome.deadCss = scan.dead;
+    outcome.emptyCss = scan.empty;
+  }
+  if (opts.aria && opts.ariaPage === pageIndex) {
+    const aria = await captureAria(page, opts);
+    outcome.ariaText = aria.text;
+    outcome.ariaError = aria.error;
+  }
+  const pageEvals = opts.eval.filter((entry) => entry.page === pageIndex).map((entry) => entry.expr);
+  outcome.evalResults = pageEvals.length > 0 ? await captureEvals(page, pageEvals) : [];
+  const pageContrasts = opts.contrast.filter((entry) => entry.page === pageIndex).map((entry) => entry.selector);
+  if (pageContrasts.length > 0) {
+    outcome.contrastResults = await captureContrasts(page, pageContrasts, opts.contrastPixel, page.viewportSize() ?? opts.viewport);
+  }
+  if (opts.map && opts.mapPage === pageIndex) {
+    const mapped = await captureMap(page, opts.mapSelector, opts.includeHidden);
+    outcome.mapResult = mapped.entries;
+    outcome.mapError = mapped.error;
+  }
+  const pageAssertions = opts.assertions.filter((entry) => entry.page === pageIndex);
+  outcome.assertions = pageAssertions.length > 0 ? await runAssertions(page, pageAssertions, opts.includeHidden) : [];
+  outcome.perf = await capturePerfEvidence(page);
 }
 
 async function capture(page: Page, opts: Args, plan: PagePlan): Promise<CaptureOutcome> {
@@ -1640,46 +2187,25 @@ async function capture(page: Page, opts: Args, plan: PagePlan): Promise<CaptureO
     deadCss: [],
     emptyCss: [],
     ariaText: null,
+    ariaError: null,
     evalResults: [],
     contrastResults: [],
     mapResult: null,
     mapError: null,
+    assertions: [],
+    perf: null,
   };
   const forThisPage = <T extends { page: number }>(items: readonly T[]): T[] => items.filter((i) => i.page === pageIndex);
   const out = planOut(plan, pageIndex, totalPages);
   // Volatile-region masks (pink overlay) shared by the main shot, --shot-of, and crop.
   const mask = opts.mask.map((s) => page.locator(s));
   try {
-    outcome.navError = await navigate(page, opts, plan.url);
+    outcome.navError = plan.navigatePage === false ? null : await navigate(page, opts, plan.url);
     // SPA nav (dev bridge) runs BEFORE the regular steps so `--goto presets --map` maps the presets surface.
     outcome.navFailures = await runNavActions(page, forThisPage(opts.navActions));
     outcome.stepFailures = await runSteps(page, forThisPage(opts.steps));
     await settlePage(page, opts);
-    // Dead-CSS is a whole-DOM scan, run per page (multi-tab may sit on different surfaces).
-    if (opts.deadCss) {
-      const scan = await scanDeadCss(page);
-      outcome.deadCss = scan.dead;
-      outcome.emptyCss = scan.empty;
-    }
-    if (opts.aria && opts.ariaPage === pageIndex) {
-      outcome.ariaText = await captureAria(page, opts);
-    }
-    const pageEvals = forThisPage(opts.eval).map((e) => e.expr);
-    if (pageEvals.length > 0) {
-      outcome.evalResults = await captureEvals(page, pageEvals);
-    }
-    const pageContrasts = forThisPage(opts.contrast).map((c) => c.selector);
-    if (pageContrasts.length > 0) {
-      // The REAL rendered viewport (a --mobile device carries its own, not opts.viewport) — the pixel-sample
-      // clip clamps against it, so read it off the page rather than the requested desktop default.
-      const vp = page.viewportSize() ?? opts.viewport;
-      outcome.contrastResults = await captureContrasts(page, pageContrasts, opts.contrastPixel, vp);
-    }
-    if (opts.map && opts.mapPage === pageIndex) {
-      const mapped = await captureMap(page, opts.mapSelector);
-      outcome.mapResult = mapped.entries;
-      outcome.mapError = mapped.error;
-    }
+    await captureEvidence(page, opts, outcome, pageIndex);
     if (plan.produceShot) {
       await captureShot(page, opts, out, mask);
     }
@@ -1745,7 +2271,7 @@ async function captureShot(page: Page, opts: Args, out: string, mask: Locator[])
 //      block (style.length === 0). Canonical case: v3 var syntax `w-[--foo]`
 //      compiling under v4 to `width: --foo` (bare ident, no var()). Mode 1
 //      can't see it because the SELECTOR exists.
-async function scanDeadCss(page: Page): Promise<{ dead: Array<{ token: string; count: number }>; empty: string[] }> {
+async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{ dead: Array<{ token: string; count: number }>; empty: string[] }> {
   // NOTE: the body ships as a STRING — tsx (esbuild keepNames) decorates
   // function expressions with a __name helper that doesn't exist inside the
   // browser context; a serialized IIFE evaluates untransformed. (Also the root
@@ -1753,6 +2279,12 @@ async function scanDeadCss(page: Page): Promise<{ dead: Array<{ token: string; c
   return (await page.evaluate(`(() => {
     const used = new Map();
     for (const el of document.querySelectorAll("*")) {
+      if (!${JSON.stringify(includeHidden)}) {
+        const visible = typeof el.checkVisibility === "function"
+          ? el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true })
+          : el.getClientRects().length > 0;
+        if (!visible || el.closest('[hidden],[inert],[aria-hidden="true"]')) continue;
+      }
       for (const t of el.classList) used.set(t, (used.get(t) ?? 0) + 1);
     }
     const defined = new Set();
@@ -1829,6 +2361,7 @@ type ReportCtx = ShotPlan & { failed: CapturedRequest[]; totalPages: number; lab
 type SessionCounts = {
   readonly requests: ReadonlyMap<string, CapturedRequest>;
   readonly consoleLines: readonly string[];
+  readonly consoleMessages: readonly CapturedConsole[];
   readonly pageErrors: readonly string[];
 };
 
@@ -1848,11 +2381,18 @@ function printSummary(session: SessionCounts, outcome: CaptureOutcome, opts: Arg
     print(`NAV ERROR    ${outcome.navError}`);
   }
   print(`requests     ${session.requests.size} (${ctx.failed.length} failed/4xx-5xx)`);
-  print(`console      ${session.consoleLines.length} message(s)`);
+  const consoleErrors = session.consoleMessages.filter((entry) => entry.type === "error").length;
+  const consoleWarnings = session.consoleMessages.filter((entry) => entry.type === "warning").length;
+  print(`console      ${session.consoleLines.length} message(s) (${consoleErrors} error, ${consoleWarnings} warning)`);
   print(`page errors  ${session.pageErrors.length}`);
 }
 
-function printAriaBlock(opts: Args, ariaText: string | null): void {
+function printAriaBlock(opts: Args, ariaText: string | null, ariaError: string | null): void {
+  if (ariaError !== null) {
+    print(`\n--- ARIA (${opts.ariaSelector}) ---`);
+    print(`  ${ariaError}`);
+    return;
+  }
   if (ariaText === null) {
     return;
   }
@@ -1910,6 +2450,36 @@ function printMapBlock(opts: Args, entries: MapEntry[] | null, error: string | n
   print("  NOTE: a virtualized/composite row often needs --jsclick (raw click); role= locators flake.");
 }
 
+function printAssertionBlock(assertions: readonly AssertionOutcome[]): void {
+  if (assertions.length === 0) {
+    return;
+  }
+  print(`\n--- ASSERTIONS (${assertions.length}) ---`);
+  for (const assertion of assertions) {
+    print(`  ${assertion.line}`);
+  }
+}
+
+/** Bound terminal noise without hiding the evidence that decides a run. Errors win, then warnings, then
+ *  the newest informational tail; the JSON manifest remains the lossless record. */
+export function selectConsoleMessagesForReport(
+  messages: readonly CapturedConsole[],
+  cap = CONSOLE_REPORT_CAP,
+): { readonly messages: readonly CapturedConsole[]; readonly omitted: number } {
+  if (messages.length <= cap) {
+    return { messages, omitted: 0 };
+  }
+  const indexed = messages.map((message, index) => ({ message, index }));
+  const errors = indexed.filter(({ message }) => message.type === "error");
+  const warnings = indexed.filter(({ message }) => message.type === "warning");
+  const ordinary = indexed.filter(({ message }) => message.type !== "error" && message.type !== "warning");
+  const selected = errors.slice(-cap);
+  selected.push(...warnings.slice(-Math.max(0, cap - selected.length)));
+  selected.push(...ordinary.slice(-Math.max(0, cap - selected.length)));
+  selected.sort((left, right) => left.index - right.index);
+  return { messages: selected.map(({ message }) => message), omitted: messages.length - selected.length };
+}
+
 function printCaptureLog(session: SessionCounts, failed: CapturedRequest[]): void {
   if (failed.length > 0) {
     print("\n--- failed requests ---");
@@ -1918,9 +2488,13 @@ function printCaptureLog(session: SessionCounts, failed: CapturedRequest[]): voi
     }
   }
   if (session.consoleLines.length > 0) {
+    const selected = selectConsoleMessagesForReport(session.consoleMessages);
     print("\n--- console ---");
-    for (const m of session.consoleLines) {
-      print(`  ${m}`);
+    if (selected.omitted > 0) {
+      print(`  … ${selected.omitted} message(s) omitted — errors/warnings prioritized; use --json for the complete structured log`);
+    }
+    for (const message of selected.messages) {
+      print(`  ${message.line}`);
     }
   }
   if (session.pageErrors.length > 0) {
@@ -1976,8 +2550,8 @@ function printCropNote(opts: Args, ctx: ReportCtx): void {
 }
 
 // ── Baseline / diff (probe-mode visual regression, ffmpeg SSIM) ─────────────
-// skip ≠ fail: NO-BASELINE and SKIPPED-NO-FFMPEG report in the RESULT line but
-// never redden the exit — only a real SSIM comparison below threshold does.
+// A requested comparison is evidence: missing ffmpeg or a missing baseline is a failed comparison,
+// not a green skip. Agents must never infer visual parity from a run that compared nothing.
 
 type DiffOutcome = { diffPairs: ResultPair[]; ssimFailed: boolean };
 
@@ -2016,11 +2590,11 @@ async function runBaselineOrDiff(opts: Args, out: string, name: string): Promise
   const ffmpeg = resolveFfmpeg();
   if (ffmpeg === null) {
     print("DIFF         skipped — ffmpeg not found (set FFMPEG_BIN or rebuild the dev container); SSIM unavailable");
-    return { diffPairs: [["diff", "SKIPPED-NO-FFMPEG"]], ssimFailed: false };
+    return { diffPairs: [["diff", "SKIPPED-NO-FFMPEG"]], ssimFailed: true };
   }
   if (!existsSync(baselinePath)) {
     print(`DIFF         no baseline at ${baselinePath} — run with --baseline first`);
-    return { diffPairs: [["diff", "NO-BASELINE"]], ssimFailed: false };
+    return { diffPairs: [["diff", "NO-BASELINE"]], ssimFailed: true };
   }
   return compareSsim(ffmpeg, out, baselinePath);
 }
@@ -2045,7 +2619,7 @@ function buildSeeds(opts: Args): LocalStorageSeed[] {
 // eyeballing MCP screenshots one call at a time. Every tick: a screenshot (`<out>-t<elapsed>.png`) and,
 // if --eval exprs were given, re-run them labeled with elapsed ms. Runs on PAGE 0's evals only (the
 // series is a single-surface time-lapse). Returns the tick count + the artifact/eval lines to report.
-type WatchTick = { elapsedMs: number; shot: string; evals: EvalOutcome[] };
+type WatchTick = { elapsedMs: number; shot: string | null; shotError: string | null; evals: EvalOutcome[] };
 
 async function runWatchSeries(page: Page, opts: Args, out: string): Promise<WatchTick[]> {
   const ticks: WatchTick[] = [];
@@ -2053,11 +2627,12 @@ async function runWatchSeries(page: Page, opts: Args, out: string): Promise<Watc
   const start = Date.now();
   let elapsed = 0;
   while (elapsed <= opts.watchMs) {
-    const shotPath = out.replace(PNG_EXT_RE, `-t${elapsed}.png`);
-    // biome-ignore lint/performance/noAwaitInLoops: the series is INHERENTLY sequential — each tick observes the surface at a distinct wall-clock moment (shot + evals + the inter-tick wait); parallelizing would collapse the timeline the flag exists to capture.
-    await page.screenshot({ path: shotPath, ...SHOT_BASE }).catch(() => undefined);
+    const shotPath = shouldProduceShot(opts) ? out.replace(PNG_EXT_RE, `-t${elapsed}.png`) : null;
+    // `--no-shot --watch` is the cheap state-series path: repeat evals without minting dozens of images.
+    // biome-ignore lint/performance/noAwaitInLoops: the series is INHERENTLY sequential — each tick observes the surface at a distinct wall-clock moment.
+    const shotError = shotPath === null ? null : await page.screenshot({ path: shotPath, ...SHOT_BASE }).then(() => null, errorMessage);
     const evals = page0Evals.length > 0 ? await captureEvals(page, page0Evals) : [];
-    ticks.push({ elapsedMs: elapsed, shot: shotPath, evals });
+    ticks.push({ elapsedMs: elapsed, shot: shotPath, shotError, evals });
     if (elapsed >= opts.watchMs) {
       break;
     }
@@ -2072,8 +2647,21 @@ function printWatchBlock(ticks: readonly WatchTick[]): void {
     return;
   }
   print(`\n--- WATCH (${ticks.length} tick(s)) ---`);
+  let previousEvalSignature: string | null = null;
+  let omitted = 0;
   for (const t of ticks) {
-    print(`  t+${t.elapsedMs}ms  →  ${t.shot}`);
+    const evalSignature = JSON.stringify(t.evals.map((entry) => ({ text: entry.text, failed: entry.failed })));
+    const unchangedEvalOnly = t.shot === null && t.shotError === null && previousEvalSignature === evalSignature;
+    previousEvalSignature = evalSignature;
+    if (unchangedEvalOnly) {
+      omitted += 1;
+      continue;
+    }
+    if (omitted > 0) {
+      print(`  … ${omitted} unchanged tick(s) omitted`);
+      omitted = 0;
+    }
+    print(`  t+${t.elapsedMs}ms  →  ${t.shot ?? "(no shot — --no-shot)"}${t.shotError === null ? "" : `  FAILED: ${t.shotError}`}`);
     t.evals.forEach((e, i) => {
       const label = e.expr.length > EVAL_LABEL_CAP ? `${e.expr.slice(0, EVAL_LABEL_CAP)}…` : e.expr;
       // Collapse a multi-line eval result to keep the series scannable; the single-shot --eval block
@@ -2081,6 +2669,9 @@ function printWatchBlock(ticks: readonly WatchTick[]): void {
       const oneLine = e.text.replace(/\s+/g, " ").slice(0, EVAL_LABEL_CAP);
       print(`    eval[${i}] (${label}): ${oneLine}`);
     });
+  }
+  if (omitted > 0) {
+    print(`  … ${omitted} unchanged tick(s) omitted`);
   }
 }
 
@@ -2092,10 +2683,11 @@ function printPageReport(session: SessionCounts, outcome: CaptureOutcome, opts: 
     print(`\n========== ${ctx.label ?? "PAGE"} ${outcome.pageIndex} ==========`);
   }
   printSummary(session, outcome, opts, ctx);
-  printAriaBlock(opts, outcome.ariaText);
+  printAriaBlock(opts, outcome.ariaText, outcome.ariaError);
   printEvalBlock(outcome.evalResults);
   printContrastBlock(outcome.contrastResults);
   printMapBlock(opts, outcome.mapResult, outcome.mapError);
+  printAssertionBlock(outcome.assertions);
   printCssFindings(outcome);
 }
 
@@ -2120,14 +2712,278 @@ function snapDestination(opts: Args): { readonly url: string; readonly name: str
   return { url: buildUrl(opts.base, opts.route), name: opts.out ?? routeSlug(opts.route) };
 }
 
-async function snap(opts: Args): Promise<number> {
-  const { url, name } = snapDestination(opts);
-  const out = join(await artifactDir("snaps"), `${name}.png`);
-  // Whether we write a PNG. --no-shot/--text suppress it, but --baseline/--diff
-  // need pixels to compare, and --shot-of is itself a shot — so those force it on.
-  const produceShot = opts.shotOf !== null || opts.shot || opts.baseline || opts.diff;
-  const totalPages = opts.pages;
+type ScenarioCheckpoint = { readonly name: string; readonly args: readonly string[] };
+type ScenarioSpec = { readonly name: string; readonly defaults: readonly string[]; readonly checkpoints: readonly ScenarioCheckpoint[] };
 
+function stringArray(value: unknown): readonly string[] | null {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string") ? value : null;
+}
+
+function scenarioCheckpoint(value: unknown, index: number): ScenarioCheckpoint {
+  if (typeof value !== "object" || value === null) {
+    throw new Error(`scenario checkpoint ${index} must be an object`);
+  }
+  const record = value as Record<string, unknown>;
+  const args = stringArray(record["args"]);
+  if (typeof record["name"] !== "string" || record["name"].trim() === "" || args === null) {
+    throw new Error(`scenario checkpoint ${index} requires a non-empty name and string[] args`);
+  }
+  return { name: record["name"], args };
+}
+
+export function parseScenarioSpec(source: string, fallbackName: string): ScenarioSpec {
+  const value = JSON.parse(source) as unknown;
+  if (typeof value !== "object" || value === null) {
+    throw new Error("scenario root must be an object");
+  }
+  const record = value as Record<string, unknown>;
+  const defaults = record["defaults"] === undefined ? [] : stringArray(record["defaults"]);
+  if (defaults === null) {
+    throw new Error("scenario defaults must be a string[]");
+  }
+  if (!Array.isArray(record["checkpoints"]) || record["checkpoints"].length === 0) {
+    throw new Error("scenario requires at least one checkpoint");
+  }
+  const checkpoints = record["checkpoints"].map(scenarioCheckpoint);
+  const name = typeof record["name"] === "string" && record["name"].trim() !== "" ? record["name"] : fallbackName;
+  return { name: routeSlug(name), defaults, checkpoints };
+}
+
+function inheritScenarioSession(globalArgs: Args, checkpoint: Args, name: string): Args {
+  return {
+    ...checkpoint,
+    base: globalArgs.base,
+    vnc: globalArgs.vnc,
+    debugToken: globalArgs.debugToken,
+    failureEvidence: globalArgs.failureEvidence,
+    strictConsole: globalArgs.strictConsole,
+    includeHidden: globalArgs.includeHidden || checkpoint.includeHidden,
+    json: globalArgs.json,
+    summary: globalArgs.summary || checkpoint.summary,
+    viewport: globalArgs.viewport,
+    device: globalArgs.device,
+    colorScheme: globalArgs.colorScheme,
+    reducedMotion: globalArgs.reducedMotion,
+    probe: globalArgs.probe,
+    localStorage: [...globalArgs.localStorage, ...checkpoint.localStorage],
+    out: checkpoint.out ?? name,
+  };
+}
+
+function scenarioCheckpointArgs(globalArgs: Args, spec: ScenarioSpec): Args[] {
+  return spec.checkpoints.map((checkpoint) => {
+    const args = parseSnapArgs([...spec.defaults, ...checkpoint.args]);
+    const inherited = inheritScenarioSession(globalArgs, args, `${spec.name}-${routeSlug(checkpoint.name)}`);
+    inherited.errors.push(
+      ...[
+        [inherited.pages > 1 || inherited.contexts > 1 || inherited.as !== null, "scenario checkpoints do not support --pages/--contexts/--as"],
+        [inherited.watchMs > 0 || inherited.baseline || inherited.diff, "scenario checkpoints do not support --watch/--baseline/--diff"],
+        [inherited.scenario !== null || inherited.matrix, "scenario checkpoints cannot nest --scenario/--matrix"],
+        [
+          inherited.isolated || inherited.stageDown || inherited.stageStatus,
+          "scenario checkpoint args cannot manage stages; put stage flags on the outer command",
+        ],
+      ]
+        .filter(([invalid]) => invalid)
+        .map(([, message]) => `${checkpoint.name}: ${message}`),
+    );
+    return inherited;
+  });
+}
+
+function scenarioErrors(checkpoints: readonly Args[]): string[] {
+  const errors = checkpoints.flatMap((checkpoint) => {
+    const fileRefusal = refuseFileMode(checkpoint);
+    return fileRefusal === null ? checkpoint.errors : [...checkpoint.errors, fileRefusal];
+  });
+  const firstSeeds = JSON.stringify(checkpoints[0]?.localStorage ?? []);
+  if (checkpoints.some((checkpoint) => JSON.stringify(checkpoint.localStorage) !== firstSeeds)) {
+    errors.push("scenario checkpoints must use identical --ls seeds because they share one browser lifetime");
+  }
+  return errors;
+}
+
+type PreparedScenario = { readonly spec: ScenarioSpec; readonly checkpoints: readonly Args[] };
+
+async function prepareScenario(opts: Args, path: string): Promise<PreparedScenario> {
+  const loaded = await loadScenario(path);
+  const spec = opts.out === null ? loaded : { ...loaded, name: routeSlug(opts.out) };
+  return { spec, checkpoints: scenarioCheckpointArgs(opts, spec) };
+}
+
+type EvidenceFailureCounts = {
+  readonly aria: number;
+  readonly map: number;
+  readonly eval: number;
+};
+
+type ConsoleFailureCounts = { readonly errors: number; readonly warnings: number };
+
+function consoleFailureCounts(messages: readonly CapturedConsole[], strict: boolean): ConsoleFailureCounts {
+  const errors = messages.filter((entry) => entry.type === "error").length;
+  const warnings = strict ? messages.filter((entry) => entry.type === "warning").length : 0;
+  return { errors, warnings };
+}
+
+async function finishFailureTraces(session: ProbeSession, failed: boolean, name: string): Promise<string[]> {
+  const traces = await artifactDir("traces");
+  const paths = await Promise.all(
+    session.contexts.map(async ({ context }, index): Promise<string | null> => {
+      const tracePath = join(traces, `${name}${session.contexts.length > 1 ? `-u${index}` : ""}.zip`);
+      if (failed) {
+        await context.tracing.stop({ path: tracePath });
+        return tracePath;
+      }
+      await context.tracing.stop();
+      return null;
+    }),
+  );
+  return paths.filter((path): path is string => path !== null);
+}
+
+type FailureArtifacts = { readonly traces: readonly string[]; readonly hars: readonly string[] };
+
+async function finishSession(session: ProbeSession, failed: boolean, name: string, enabled: boolean): Promise<FailureArtifacts> {
+  const traces = enabled ? await finishFailureTraces(session, failed, name) : [];
+  await Promise.all(session.contexts.map(({ context }) => context.close()));
+  await session.browser.close();
+  const recordedHars = session.contexts.flatMap(({ harPath }) => (harPath === null ? [] : [harPath]));
+  if (failed) {
+    return { traces, hars: recordedHars };
+  }
+  await Promise.all(recordedHars.map(async (path) => (existsSync(path) ? await unlink(path) : undefined)));
+  return { traces, hars: [] };
+}
+
+type SnapManifest = {
+  readonly schemaVersion: 1;
+  readonly status: "pass" | "fail";
+  readonly target: { readonly url: string; readonly name: string };
+  readonly environment: { readonly viewport: Viewport; readonly device: string | null; readonly colorScheme: string | null; readonly reducedMotion: boolean };
+  readonly failures: SnapFailureSummary;
+  readonly traces: readonly string[];
+  readonly hars: readonly string[];
+  readonly console: readonly CapturedConsole[];
+  readonly pageErrors: readonly string[];
+  readonly failedRequests: CapturedRequest[];
+  readonly captures: readonly CaptureOutcome[];
+  /** Watch-only timeline. Present when --watch ran; ticks remain durable even when terminal output dedupes them. */
+  readonly watch?: {
+    readonly totalMs: number;
+    readonly intervalMs: number;
+    readonly ticks: readonly WatchTick[];
+  };
+  /** Scenario-only attribution. `captures[index]` and `scenario.checkpoints[index]` describe one checkpoint. */
+  readonly scenario?: {
+    readonly checkpoints: ReadonlyArray<{
+      readonly name: string;
+      /** Null when this checkpoint deliberately ran with --no-shot. */
+      readonly screenshot: string | null;
+      readonly console: readonly CapturedConsole[];
+      readonly pageErrors: readonly string[];
+    }>;
+  };
+};
+
+async function writeManifest(name: string, manifest: SnapManifest): Promise<string> {
+  const path = join(await artifactDir("snaps"), `${name}.json`);
+  await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return path;
+}
+
+function evidenceFailureCounts(outcomes: readonly CaptureOutcome[]): EvidenceFailureCounts {
+  return {
+    aria: outcomes.filter((outcome) => outcome.ariaError !== null).length,
+    map: outcomes.filter((outcome) => outcome.mapError !== null).length,
+    eval: outcomes.reduce((count, outcome) => count + outcome.evalResults.filter((entry) => entry.failed).length, 0),
+  };
+}
+
+export type SnapFailureSummary = {
+  readonly navigation: number;
+  readonly navActions: number;
+  readonly pageErrors: number;
+  readonly failedRequests: number;
+  readonly steps: number;
+  readonly contrast: number;
+  readonly aria: number;
+  readonly map: number;
+  readonly eval: number;
+  readonly watch: number;
+  readonly diff: number;
+  readonly assertions: number;
+  readonly consoleErrors: number;
+  readonly consoleWarnings: number;
+};
+
+export function hasSnapFailure(summary: SnapFailureSummary): boolean {
+  return Object.values(summary).some((count) => count > 0);
+}
+
+type OutcomeTotals = {
+  readonly navigation: number;
+  readonly navActions: number;
+  readonly steps: number;
+  readonly contrast: number;
+  readonly assertions: number;
+  readonly deadCss: number;
+  readonly emptyCss: number;
+  readonly evals: number;
+  readonly ariaSeen: boolean;
+  readonly mapped: CaptureOutcome | undefined;
+};
+
+function outcomeTotals(outcomes: readonly CaptureOutcome[]): OutcomeTotals {
+  return {
+    navigation: outcomes.filter((outcome) => outcome.navError !== null).length,
+    navActions: outcomes.reduce((count, outcome) => count + outcome.navFailures, 0),
+    steps: outcomes.reduce((count, outcome) => count + outcome.stepFailures, 0),
+    contrast: outcomes.reduce((count, outcome) => count + outcome.contrastResults.filter((entry) => entry.failed).length, 0),
+    assertions: outcomes.reduce((count, outcome) => count + outcome.assertions.filter((entry) => entry.failed).length, 0),
+    deadCss: outcomes.reduce((count, outcome) => count + outcome.deadCss.length, 0),
+    emptyCss: outcomes.reduce((count, outcome) => count + outcome.emptyCss.length, 0),
+    evals: outcomes.reduce((count, outcome) => count + outcome.evalResults.length, 0),
+    ariaSeen: outcomes.some((outcome) => outcome.ariaText !== null),
+    mapped: outcomes.find((outcome) => outcome.mapResult !== null || outcome.mapError !== null),
+  };
+}
+
+type FailureSummaryInput = {
+  readonly outcomes: readonly CaptureOutcome[];
+  readonly pageErrors: number;
+  readonly failedRequests: number;
+  readonly consoleMessages: readonly CapturedConsole[];
+  readonly strictConsole: boolean;
+  readonly watch?: number;
+  readonly diff?: number;
+};
+
+function buildFailureSummary(input: FailureSummaryInput): SnapFailureSummary {
+  const totals = outcomeTotals(input.outcomes);
+  const evidence = evidenceFailureCounts(input.outcomes);
+  const console = consoleFailureCounts(input.consoleMessages, input.strictConsole);
+  return {
+    navigation: totals.navigation,
+    navActions: totals.navActions,
+    pageErrors: input.pageErrors,
+    failedRequests: input.failedRequests,
+    steps: totals.steps,
+    contrast: totals.contrast,
+    aria: evidence.aria,
+    map: evidence.map,
+    eval: evidence.eval,
+    watch: input.watch ?? 0,
+    diff: input.diff ?? 0,
+    assertions: totals.assertions,
+    consoleErrors: console.errors,
+    consoleWarnings: console.warnings,
+  };
+}
+
+type LaunchExtras = Partial<Pick<ProbeLaunchOptions, "pages" | "contexts" | "contextCookies" | "cookieDomain">>;
+
+async function launchSnapSession(opts: Args, name: string, extras: LaunchExtras = {}): Promise<ProbeSession> {
+  const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
   const session = await launchProbeSession({
     headless: !opts.vnc,
     viewport: opts.viewport,
@@ -2135,24 +2991,49 @@ async function snap(opts: Args): Promise<number> {
     reducedMotion: opts.reducedMotion || opts.probe,
     localStorage: buildSeeds(opts),
     device: opts.device,
-    pages: totalPages,
+    trace: opts.failureEvidence,
+    ...(traceDir === null ? {} : { harPathPrefix: join(traceDir, name) }),
+    ...extras,
   });
   if (opts.probe) {
-    await session.context.addInitScript({ content: PROBE_CSS_SCRIPT });
+    await Promise.all(session.contexts.map(({ context }) => context.addInitScript({ content: PROBE_CSS_SCRIPT })));
   }
+  return session;
+}
+
+function shouldProduceShot(opts: Args): boolean {
+  return opts.shotOf !== null || opts.shot || opts.baseline || opts.diff;
+}
+
+async function capturePages(session: ProbeSession, opts: Args, plan: ShotPlan): Promise<CaptureOutcome[]> {
+  const outcomes: CaptureOutcome[] = [];
+  for (let index = 0; index < opts.pages; index += 1) {
+    const page = session.pages[index] as Page;
+    // biome-ignore lint/performance/noAwaitInLoops: pages are driven sequentially so later tabs observe earlier-tab actions.
+    outcomes.push(await capture(page, opts, { ...plan, pageIndex: index, totalPages: opts.pages }));
+  }
+  return outcomes;
+}
+
+type ManifestInput = Omit<SnapManifest, "schemaVersion">;
+
+async function writeManifestIfRequested(opts: Args, name: string, input: ManifestInput): Promise<string | null> {
+  return opts.json ? await writeManifest(name, { schemaVersion: 1, ...input }) : null;
+}
+
+async function snap(opts: Args): Promise<number> {
+  const { url, name } = snapDestination(opts);
+  const out = join(await artifactDir("snaps"), `${name}.png`);
+  // Whether we write a PNG. --no-shot/--text suppress it, but --baseline/--diff
+  // need pixels to compare, and --shot-of is itself a shot — so those force it on.
+  const produceShot = shouldProduceShot(opts);
+  const totalPages = opts.pages;
+  const session = await launchSnapSession(opts, name, { pages: totalPages });
 
   const plan: ShotPlan = { url, out, produceShot };
-  // Capture every page in argv/index order (they share one context, so page 0's send is visible to page 1).
-  const outcomes: CaptureOutcome[] = [];
-  for (let i = 0; i < totalPages; i += 1) {
-    const page = session.pages[i] as Page;
-    // biome-ignore lint/performance/noAwaitInLoops: pages capture SEQUENTIALLY — a --pages review drives page 0 (a send) then reads the passive page; interleaving would race the observation.
-    outcomes.push(await capture(page, opts, { ...plan, pageIndex: i, totalPages }));
-  }
+  const outcomes = await capturePages(session, opts, plan);
   // --watch: a timed series on PAGE 0 after everything settled (a streaming turn reflow, transient states).
   const watchTicks = opts.watchMs > 0 ? await runWatchSeries(session.pages[0] as Page, opts, pageOut(out, 0, totalPages)) : [];
-  await session.browser.close();
-
   const failed = [...session.requests.values()].filter((r) => r.failed !== null || (r.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
   for (const outcome of outcomes) {
     const ctx: ReportCtx = { ...plan, out: pageOut(out, outcome.pageIndex, totalPages), failed, totalPages };
@@ -2164,35 +3045,298 @@ async function snap(opts: Args): Promise<number> {
   // Baseline/diff compares PAGE 0's shot (the canonical surface); multi-page baselines aren't a use case yet.
   const { diffPairs, ssimFailed } = await runBaselineOrDiff(opts, pageOut(out, 0, totalPages), name);
 
-  const contrastFails = outcomes.reduce((n, o) => n + o.contrastResults.filter((c) => c.failed).length, 0);
-  const navFailures = outcomes.reduce((n, o) => n + o.navFailures, 0);
-  const stepFailures = outcomes.reduce((n, o) => n + o.stepFailures, 0);
-  const anyNavError = outcomes.some((o) => o.navError !== null);
-  const deadCssTotal = outcomes.reduce((n, o) => n + o.deadCss.length, 0);
-  const emptyCssTotal = outcomes.reduce((n, o) => n + o.emptyCss.length, 0);
-  const mappedOutcome = outcomes.find((o) => o.mapResult !== null || o.mapError !== null);
-  const ariaSeen = outcomes.some((o) => o.ariaText !== null);
-  const evalsTotal = outcomes.reduce((n, o) => n + o.evalResults.length, 0);
+  const totals = outcomeTotals(outcomes);
+  const evidenceFailures = evidenceFailureCounts(outcomes);
+  const watchFailures =
+    watchTicks.filter((tick) => tick.shotError !== null).length +
+    watchTicks.reduce((count, tick) => count + tick.evals.filter((entry) => entry.failed).length, 0);
   // Exit non-zero if anything observably went wrong, so `snap` is CI-usable.
-  const red = anyNavError || navFailures > 0 || session.pageErrors.length > 0 || failed.length > 0 || stepFailures > 0 || contrastFails > 0 || ssimFailed;
+  const failureSummary = buildFailureSummary({
+    outcomes,
+    pageErrors: session.pageErrors.length,
+    failedRequests: failed.length,
+    consoleMessages: session.consoleMessages,
+    strictConsole: opts.strictConsole,
+    watch: watchFailures,
+    diff: Number(ssimFailed),
+  });
+  const red = hasSnapFailure(failureSummary);
+  const artifacts = await finishSession(session, red, name, opts.failureEvidence);
+  const manifestPath = await writeManifestIfRequested(opts, name, {
+    status: red ? "fail" : "pass",
+    target: { url, name },
+    environment: {
+      viewport: opts.viewport,
+      device: opts.device,
+      colorScheme: opts.colorScheme,
+      reducedMotion: opts.reducedMotion || opts.probe,
+    },
+    failures: failureSummary,
+    traces: artifacts.traces,
+    hars: artifacts.hars,
+    console: session.consoleMessages,
+    pageErrors: session.pageErrors,
+    failedRequests: failed,
+    captures: outcomes,
+    ...(watchTicks.length === 0 ? {} : { watch: { totalMs: opts.watchMs, intervalMs: opts.watchEveryMs, ticks: watchTicks } }),
+  });
   printResult("snap", [
     ["out", produceShot ? pageOut(out, 0, totalPages) : "(none)"],
     ["pages", totalPages],
     ["watch", watchTicks.length],
-    ["aria", ariaSeen ? "yes" : "no"],
-    ["map", opts.map ? String((mappedOutcome?.mapResult ?? []).length) : "no"],
-    ["evals", evalsTotal],
-    ["contrast-fails", contrastFails],
-    ["nav", anyNavError ? "ERROR" : "OK"],
-    ["nav-actions-failed", navFailures],
-    ["steps-failed", stepFailures],
+    ["watch-fails", watchFailures],
+    ["aria", totals.ariaSeen ? "yes" : "no"],
+    ["aria-fails", evidenceFailures.aria],
+    ["map", opts.map ? String((totals.mapped?.mapResult ?? []).length) : "no"],
+    ["map-fails", evidenceFailures.map],
+    ["evals", totals.evals],
+    ["eval-fails", evidenceFailures.eval],
+    ["contrast-fails", totals.contrast],
+    ["assertion-fails", totals.assertions],
+    ["console-errors", failureSummary.consoleErrors],
+    ["console-warnings", session.consoleMessages.filter((entry) => entry.type === "warning").length],
+    ["trace", artifacts.traces[0] ?? "none"],
+    ["har", artifacts.hars[0] ?? "none"],
+    ["json", manifestPath ?? "none"],
+    ["nav", totals.navigation > 0 ? "ERROR" : "OK"],
+    ["nav-actions-failed", totals.navActions],
+    ["steps-failed", totals.steps],
     ["page-errors", session.pageErrors.length],
     ["failed-req", failed.length],
-    ["deadcss", deadCssTotal],
-    ["emptycss", emptyCssTotal],
+    ["deadcss", totals.deadCss],
+    ["emptycss", totals.emptyCss],
     ...diffPairs,
   ]);
   return red ? 1 : 0;
+}
+
+async function loadScenario(pathArg: string): Promise<ScenarioSpec> {
+  const path = isAbsolute(pathArg) ? pathArg : resolve(process.cwd(), pathArg);
+  const source = await readFile(path, "utf8");
+  return parseScenarioSpec(source, basename(path, extname(path)));
+}
+
+function scenarioFailureSummary(
+  outcomes: readonly CaptureOutcome[],
+  session: ProbeSession,
+  failedRequests: readonly CapturedRequest[],
+  strictConsole: boolean,
+): SnapFailureSummary {
+  const evidence = evidenceFailureCounts(outcomes);
+  const consoleFailures = consoleFailureCounts(session.consoleMessages, strictConsole);
+  return {
+    navigation: outcomes.filter((outcome) => outcome.navError !== null).length,
+    navActions: outcomes.reduce((count, outcome) => count + outcome.navFailures, 0),
+    pageErrors: session.pageErrors.length,
+    failedRequests: failedRequests.length,
+    steps: outcomes.reduce((count, outcome) => count + outcome.stepFailures, 0),
+    contrast: outcomes.reduce((count, outcome) => count + outcome.contrastResults.filter((entry) => entry.failed).length, 0),
+    aria: evidence.aria,
+    map: evidence.map,
+    eval: evidence.eval,
+    watch: 0,
+    diff: 0,
+    assertions: outcomes.reduce((count, outcome) => count + outcome.assertions.filter((entry) => entry.failed).length, 0),
+    consoleErrors: consoleFailures.errors,
+    consoleWarnings: consoleFailures.warnings,
+  };
+}
+
+type ScenarioEvidenceRange = {
+  readonly consoleStart: number;
+  readonly consoleEnd: number;
+  readonly pageErrorStart: number;
+  readonly pageErrorEnd: number;
+};
+
+async function resetScenarioEvidence(page: Page): Promise<void> {
+  await page.evaluate(() => globalThis.__orb?.resetEvidence());
+}
+
+async function captureScenarioCheckpoints(
+  session: ProbeSession,
+  checkpoints: readonly Args[],
+): Promise<{ outcomes: CaptureOutcome[]; plans: ShotPlan[]; evidenceRanges: ScenarioEvidenceRange[] }> {
+  const outcomes: CaptureOutcome[] = [];
+  const plans: ShotPlan[] = [];
+  const evidenceRanges: ScenarioEvidenceRange[] = [];
+  const snapsDir = await artifactDir("snaps");
+  let priorUrl: string | null = null;
+  for (const checkpoint of checkpoints) {
+    const destination = snapDestination(checkpoint);
+    const plan: ShotPlan = { url: destination.url, out: join(snapsDir, `${destination.name}.png`), produceShot: shouldProduceShot(checkpoint) };
+    plans.push(plan);
+    const keepLivePage = HTTP_URL_RE.test(plan.url) && plan.url === priorUrl;
+    const consoleStart = session.consoleMessages.length;
+    const pageErrorStart = session.pageErrors.length;
+    if (keepLivePage) {
+      // biome-ignore lint/performance/noAwaitInLoops: each checkpoint owns a distinct evidence window.
+      await resetScenarioEvidence(session.page);
+    }
+    outcomes.push(await capture(session.page, checkpoint, { ...plan, pageIndex: 0, totalPages: 1, navigatePage: !keepLivePage }));
+    evidenceRanges.push({
+      consoleStart,
+      consoleEnd: session.consoleMessages.length,
+      pageErrorStart,
+      pageErrorEnd: session.pageErrors.length,
+    });
+    priorUrl = plan.url;
+  }
+  return { outcomes, plans, evidenceRanges };
+}
+
+type ScenarioReportArgs = {
+  readonly spec: ScenarioSpec;
+  readonly session: ProbeSession;
+  readonly checkpoints: readonly Args[];
+  readonly outcomes: readonly CaptureOutcome[];
+  readonly plans: readonly ShotPlan[];
+  readonly evidenceRanges: readonly ScenarioEvidenceRange[];
+  readonly failedRequests: CapturedRequest[];
+};
+
+function printScenarioReports(args: ScenarioReportArgs): void {
+  const { spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests } = args;
+  for (let index = 0; index < outcomes.length; index += 1) {
+    const plan = plans[index] as ShotPlan;
+    const range = evidenceRanges[index] as ScenarioEvidenceRange;
+    const checkpointMessages = session.consoleMessages.slice(range.consoleStart, range.consoleEnd);
+    const checkpointSession: SessionCounts = {
+      requests: session.requests,
+      consoleLines: checkpointMessages.map((message) => message.line),
+      consoleMessages: checkpointMessages,
+      pageErrors: session.pageErrors.slice(range.pageErrorStart, range.pageErrorEnd),
+    };
+    if (checkpoints[index]?.summary) {
+      const outcome = outcomes[index] as CaptureOutcome;
+      const failedAssertions = outcome.assertions.filter((entry) => entry.failed).length;
+      const errors = checkpointMessages.filter((message) => message.type === "error").length;
+      const warnings = checkpointMessages.filter((message) => message.type === "warning").length;
+      const failed = outcome.navError !== null || outcome.navFailures > 0 || outcome.stepFailures > 0 || failedAssertions > 0 || errors > 0;
+      print(
+        `CHECKPOINT ${spec.checkpoints[index]?.name ?? index} ${failed ? "FAIL" : "PASS"} ` +
+          `shot=${plan.produceShot ? plan.out : "(none)"} nav=${outcome.navFailures} steps=${outcome.stepFailures} assertions=${failedAssertions} ` +
+          `console=${errors}e/${warnings}w page-errors=${checkpointSession.pageErrors.length}`,
+      );
+      continue;
+    }
+    print(`\n========== CHECKPOINT ${spec.checkpoints[index]?.name ?? index} ==========`);
+    printPageReport(checkpointSession, outcomes[index] as CaptureOutcome, checkpoints[index] as Args, { ...plan, failed: [], totalPages: 1 });
+  }
+  if (failedRequests.length > 0) {
+    print(`\n${failedRequests.length} failed request(s) occurred across the scenario; the aggregate log follows.`);
+  }
+  printCaptureLog(session, failedRequests);
+}
+
+async function snapScenario(opts: Args): Promise<number> {
+  const scenarioPath = opts.scenario;
+  if (scenarioPath === null) {
+    return 2;
+  }
+  let prepared: PreparedScenario;
+  try {
+    prepared = await prepareScenario(opts, scenarioPath);
+  } catch (error) {
+    print(`SCENARIO ERROR: ${errorMessage(error)}`);
+    return 2;
+  }
+  const { spec, checkpoints } = prepared;
+  const errors = scenarioErrors(checkpoints);
+  if (errors.length > 0) {
+    for (const error of errors) {
+      print(`SCENARIO ARG ERROR: ${error}`);
+    }
+    return 2;
+  }
+  const first = checkpoints[0] as Args;
+  const session = await launchSnapSession(first, spec.name);
+  const { outcomes, plans, evidenceRanges } = await captureScenarioCheckpoints(session, checkpoints);
+  const failedRequests = [...session.requests.values()].filter((request) => request.failed !== null || (request.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
+  const failureSummary = scenarioFailureSummary(outcomes, session, failedRequests, opts.strictConsole);
+  const red = hasSnapFailure(failureSummary);
+  const artifacts = await finishSession(session, red, spec.name, opts.failureEvidence);
+  printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests });
+  const manifestPath = await writeManifestIfRequested(opts, spec.name, {
+    status: red ? "fail" : "pass",
+    target: { url: scenarioPath, name: spec.name },
+    environment: {
+      viewport: first.viewport,
+      device: first.device,
+      colorScheme: first.colorScheme,
+      reducedMotion: first.reducedMotion || first.probe,
+    },
+    failures: failureSummary,
+    traces: artifacts.traces,
+    hars: artifacts.hars,
+    console: session.consoleMessages,
+    pageErrors: session.pageErrors,
+    failedRequests,
+    captures: outcomes,
+    scenario: {
+      checkpoints: evidenceRanges.map((range, index) => ({
+        name: spec.checkpoints[index]?.name ?? String(index),
+        screenshot: (plans[index] as ShotPlan).produceShot ? (plans[index] as ShotPlan).out : null,
+        console: session.consoleMessages.slice(range.consoleStart, range.consoleEnd),
+        pageErrors: session.pageErrors.slice(range.pageErrorStart, range.pageErrorEnd),
+      })),
+    },
+  });
+  printResult("snap-scenario", [
+    ["name", spec.name],
+    ["checkpoints", outcomes.length],
+    ["assertion-fails", failureSummary.assertions],
+    ["console-errors", failureSummary.consoleErrors],
+    ["console-warnings", session.consoleMessages.filter((entry) => entry.type === "warning").length],
+    ["trace", artifacts.traces[0] ?? "none"],
+    ["har", artifacts.hars[0] ?? "none"],
+    ["json", manifestPath ?? "none"],
+  ]);
+  return red ? 1 : 0;
+}
+
+type MatrixVariant = {
+  readonly id: string;
+  readonly device: string | null;
+  readonly viewport: Viewport;
+  readonly colorScheme: "light" | "dark";
+  readonly reducedMotion: boolean;
+};
+
+const MATRIX_VARIANTS: readonly MatrixVariant[] = [
+  { id: "desktop-light-motion", device: null, viewport: DEFAULT_VIEWPORT, colorScheme: "light", reducedMotion: false },
+  { id: "desktop-light-reduced", device: null, viewport: DEFAULT_VIEWPORT, colorScheme: "light", reducedMotion: true },
+  { id: "desktop-dark-motion", device: null, viewport: DEFAULT_VIEWPORT, colorScheme: "dark", reducedMotion: false },
+  { id: "desktop-dark-reduced", device: null, viewport: DEFAULT_VIEWPORT, colorScheme: "dark", reducedMotion: true },
+  { id: "mobile-light-motion", device: MOBILE_DEVICE, viewport: DEFAULT_VIEWPORT, colorScheme: "light", reducedMotion: false },
+  { id: "mobile-light-reduced", device: MOBILE_DEVICE, viewport: DEFAULT_VIEWPORT, colorScheme: "light", reducedMotion: true },
+  { id: "mobile-dark-motion", device: MOBILE_DEVICE, viewport: DEFAULT_VIEWPORT, colorScheme: "dark", reducedMotion: false },
+  { id: "mobile-dark-reduced", device: MOBILE_DEVICE, viewport: DEFAULT_VIEWPORT, colorScheme: "dark", reducedMotion: true },
+];
+
+async function snapMatrix(opts: Args): Promise<number> {
+  const baseName = opts.out ?? (opts.scenario === null ? routeSlug(opts.route) : routeSlug(basename(opts.scenario, extname(opts.scenario))));
+  let failures = 0;
+  for (const variant of MATRIX_VARIANTS) {
+    const runArgs: Args = {
+      ...opts,
+      matrix: false,
+      out: `${baseName}-${variant.id}`,
+      device: variant.device,
+      viewport: variant.viewport,
+      colorScheme: variant.colorScheme,
+      reducedMotion: variant.reducedMotion,
+    };
+    print(`\n========== MATRIX ${variant.id} ==========`);
+    // biome-ignore lint/performance/noAwaitInLoops: variants are sequential to cap local Chromium/resource pressure.
+    const code = runArgs.scenario === null ? await snap(runArgs) : await snapScenario(runArgs);
+    failures += Number(code !== 0);
+  }
+  printResult("snap-matrix", [
+    ["variants", MATRIX_VARIANTS.length],
+    ["failed", failures],
+  ]);
+  return failures > 0 ? 1 : 0;
 }
 
 // ── --contexts N: N isolated, differently-authenticated browser contexts ────────────────────────────
@@ -2243,14 +3387,36 @@ function reportOneContext(args: ContextReportArgs, i: number): { readonly failed
   print(`\nuser         ${users[i]?.handle} (context ${i})`);
   printPageReport(ctxSession, outcome, opts, ctx);
   printCaptureLog(ctxSession, failed);
+  printCropNote(opts, ctx);
   return { failedReq: failed.length, pageErrors: ctxSession.pageErrors.length };
+}
+
+async function captureContexts(session: ProbeSession, opts: Args, plan: ShotPlan, totalContexts: number): Promise<CaptureOutcome[]> {
+  const outcomes: CaptureOutcome[] = [];
+  for (let index = 0; index < totalContexts; index += 1) {
+    const page = session.contexts[index]?.pages[0] as Page;
+    // biome-ignore lint/performance/noAwaitInLoops: contexts are driven sequentially so later users observe earlier-user actions.
+    outcomes.push(await capture(page, opts, { ...plan, pageIndex: index, totalPages: totalContexts, unit: "u" }));
+  }
+  return outcomes;
+}
+
+function reportContexts(args: ContextReportArgs): { readonly failedRequests: number; readonly pageErrors: number } {
+  let pageErrors = 0;
+  let failedRequests = 0;
+  for (let index = 0; index < args.totalContexts; index += 1) {
+    const totals = reportOneContext(args, index);
+    failedRequests += totals.failedReq;
+    pageErrors += totals.pageErrors;
+  }
+  return { failedRequests, pageErrors };
 }
 
 async function snapContexts(opts: Args, users: readonly FixtureUser[], target: FixtureTarget): Promise<number> {
   const url = buildUrl(opts.base, opts.route);
   const name = opts.out ?? routeSlug(opts.route);
   const out = join(await artifactDir("snaps"), `${name}.png`);
-  const produceShot = opts.shotOf !== null || opts.shot || opts.baseline || opts.diff;
+  const produceShot = shouldProduceShot(opts);
   const totalContexts = users.length;
 
   const cookies = await loginAllFixtureUsers(users, target);
@@ -2258,65 +3424,71 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[], target: F
     return 1;
   }
 
-  const session = await launchProbeSession({
-    headless: !opts.vnc,
-    viewport: opts.viewport,
-    colorScheme: opts.colorScheme,
-    reducedMotion: opts.reducedMotion || opts.probe,
-    localStorage: buildSeeds(opts),
-    device: opts.device,
+  const session = await launchSnapSession(opts, name, {
     contexts: totalContexts,
     contextCookies: cookies,
     cookieDomain: new URL(opts.base).hostname,
   });
-  if (opts.probe) {
-    for (const c of session.contexts) {
-      // biome-ignore lint/performance/noAwaitInLoops: N contexts (≤4), each needs its OWN init script — sequential, not a bottleneck.
-      await c.context.addInitScript({ content: PROBE_CSS_SCRIPT });
-    }
-  }
 
   const plan: ShotPlan = { url, out, produceShot };
-  const outcomes: CaptureOutcome[] = [];
-  for (let i = 0; i < totalContexts; i += 1) {
-    const page = session.contexts[i]?.pages[0] as Page;
-    // biome-ignore lint/performance/noAwaitInLoops: contexts capture SEQUENTIALLY — same discipline as the --pages loop (argv/index order, one user's turn observed before the next).
-    outcomes.push(await capture(page, opts, { ...plan, pageIndex: i, totalPages: totalContexts, unit: "u" }));
-  }
-  await session.browser.close();
-
-  let anyPageErrors = 0;
-  let anyFailedReq = 0;
+  const outcomes = await captureContexts(session, opts, plan, totalContexts);
   const reportArgs: ContextReportArgs = { opts, session, outcomes, users, plan, out, totalContexts };
-  for (let i = 0; i < totalContexts; i += 1) {
-    const totals = reportOneContext(reportArgs, i);
-    anyFailedReq += totals.failedReq;
-    anyPageErrors += totals.pageErrors;
-  }
-
-  const contrastFails = outcomes.reduce((n, o) => n + o.contrastResults.filter((c) => c.failed).length, 0);
-  const navFailures = outcomes.reduce((n, o) => n + o.navFailures, 0);
-  const stepFailures = outcomes.reduce((n, o) => n + o.stepFailures, 0);
-  const anyNavError = outcomes.some((o) => o.navError !== null);
-  const deadCssTotal = outcomes.reduce((n, o) => n + o.deadCss.length, 0);
-  const emptyCssTotal = outcomes.reduce((n, o) => n + o.emptyCss.length, 0);
-  const ariaSeen = outcomes.some((o) => o.ariaText !== null);
-  const evalsTotal = outcomes.reduce((n, o) => n + o.evalResults.length, 0);
-  const red = anyNavError || navFailures > 0 || anyPageErrors > 0 || anyFailedReq > 0 || stepFailures > 0 || contrastFails > 0;
+  const reportTotals = reportContexts(reportArgs);
+  const totals = outcomeTotals(outcomes);
+  const evidenceFailures = evidenceFailureCounts(outcomes);
+  const allConsole = session.contexts.flatMap((context) => context.consoleMessages);
+  const failureSummary = buildFailureSummary({
+    outcomes,
+    pageErrors: reportTotals.pageErrors,
+    failedRequests: reportTotals.failedRequests,
+    consoleMessages: allConsole,
+    strictConsole: opts.strictConsole,
+  });
+  const red = hasSnapFailure(failureSummary);
+  const artifacts = await finishSession(session, red, name, opts.failureEvidence);
+  const manifestPath = await writeManifestIfRequested(opts, name, {
+    status: red ? "fail" : "pass",
+    target: { url, name },
+    environment: {
+      viewport: opts.viewport,
+      device: opts.device,
+      colorScheme: opts.colorScheme,
+      reducedMotion: opts.reducedMotion || opts.probe,
+    },
+    failures: failureSummary,
+    traces: artifacts.traces,
+    hars: artifacts.hars,
+    console: allConsole,
+    pageErrors: session.contexts.flatMap((context) => context.pageErrors),
+    failedRequests: session.contexts.flatMap((context) =>
+      [...context.requests.values()].filter((request) => request.failed !== null || (request.status ?? 0) >= HTTP_ERROR_STATUS_MIN),
+    ),
+    captures: outcomes,
+  });
   printResult("snap", [
     ["out", produceShot ? contextOut(out, 0, totalContexts) : "(none)"],
     ["contexts", totalContexts],
     ["users", users.map((u) => u.handle).join(",")],
-    ["aria", ariaSeen ? "yes" : "no"],
-    ["evals", evalsTotal],
-    ["contrast-fails", contrastFails],
-    ["nav", anyNavError ? "ERROR" : "OK"],
-    ["nav-actions-failed", navFailures],
-    ["steps-failed", stepFailures],
-    ["page-errors", anyPageErrors],
-    ["failed-req", anyFailedReq],
-    ["deadcss", deadCssTotal],
-    ["emptycss", emptyCssTotal],
+    ["aria", totals.ariaSeen ? "yes" : "no"],
+    ["aria-fails", evidenceFailures.aria],
+    ["map", opts.map ? String(outcomes.find((outcome) => outcome.mapResult !== null)?.mapResult?.length ?? 0) : "no"],
+    ["map-fails", evidenceFailures.map],
+    ["evals", totals.evals],
+    ["eval-fails", evidenceFailures.eval],
+    ["contrast-fails", totals.contrast],
+    ["assertion-fails", totals.assertions],
+    ["console-errors", failureSummary.consoleErrors],
+    ["console-warnings", allConsole.filter((entry) => entry.type === "warning").length],
+    ["trace", artifacts.traces[0] ?? "none"],
+    ["har", artifacts.hars[0] ?? "none"],
+    ["json", manifestPath ?? "none"],
+    ["nav", totals.navigation > 0 ? "ERROR" : "OK"],
+    ["nav-actions-failed", totals.navActions],
+    ["steps-failed", totals.steps],
+    ["page-errors", reportTotals.pageErrors],
+    ["failed-req", reportTotals.failedRequests],
+    ["deadcss", totals.deadCss],
+    ["emptycss", totals.emptyCss],
   ]);
   return red ? 1 : 0;
 }
@@ -2375,12 +3547,7 @@ function refuseFileMode(opts: Args): string | null {
   return null;
 }
 
-async function main(opts: Args): Promise<number> {
-  const fileRefusal = refuseFileMode(opts);
-  if (fileRefusal !== null) {
-    print(fileRefusal);
-    return 1;
-  }
+function configureStage(opts: Args): number | null {
   if (opts.stageStatus) {
     print(stageStatus());
     return 0;
@@ -2400,6 +3567,16 @@ async function main(opts: Args): Promise<number> {
       return 1;
     }
   }
+  return null;
+}
+
+async function runResolvedMode(opts: Args): Promise<number> {
+  if (opts.matrix) {
+    return await snapMatrix(opts);
+  }
+  if (opts.scenario !== null) {
+    return await snapScenario(opts);
+  }
   // ONE resolve of the fixture's origins (flag > env > the offset-pair defaults), threaded into BOTH the
   // health probe and the login door / browser base — see _kit/fixture.ts's PORTS note.
   const fixtureTarget = resolveFixtureTarget({ serverUrl: opts.fixtureServer, baseUrl: opts.fixtureBase });
@@ -2414,5 +3591,39 @@ async function main(opts: Args): Promise<number> {
   return await snap(opts);
 }
 
-const cliArgs = parseArgs(process.argv.slice(2));
-void main(cliArgs).then((code) => process.exit(code));
+async function main(opts: Args): Promise<number> {
+  const cliExit = printCliPreamble(opts);
+  if (cliExit !== null) {
+    return cliExit;
+  }
+  const fileRefusal = refuseFileMode(opts);
+  if (fileRefusal !== null) {
+    print(fileRefusal);
+    return 1;
+  }
+  const stageExit = configureStage(opts);
+  if (stageExit !== null) {
+    return stageExit;
+  }
+  return await runResolvedMode(opts);
+}
+
+function printCliPreamble(opts: Args): number | null {
+  if (opts.errors.length > 0) {
+    for (const error of opts.errors) {
+      print(`ARG ERROR    ${error}`);
+    }
+    print("Run pnpm snap --help for supported flags and combinations.");
+    return 2;
+  }
+  if (opts.help) {
+    print(SNAP_HELP);
+    return 0;
+  }
+  return null;
+}
+
+const cliEntry = process.argv[1];
+if (cliEntry !== undefined && import.meta.url === pathToFileURL(cliEntry).href) {
+  process.exitCode = await main(parseSnapArgs(process.argv.slice(2)));
+}

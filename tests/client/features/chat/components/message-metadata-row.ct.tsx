@@ -34,6 +34,15 @@ test("model toggle on + a model present: only the model datum shows, no separato
   await expect(component.locator(ROW)).not.toContainText(SEP);
 });
 
+test("an absolute local model path renders only its basename while retaining the exact identity as a title", async ({ mount }) => {
+  const model = "/media/models/quantized/Qwen3.6-27B-W8A8";
+  const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showModelIcon: true }} message={{ model }} />);
+  const datum = component.locator('[data-slot="message-metadata-model"]');
+
+  await expect(datum).toHaveText("Qwen3.6-27B-W8A8");
+  await expect(datum).toHaveAttribute("title", model);
+});
+
 test("token toggle on but the datum ABSENT (null tokens): stays empty — presence gates, not just the toggle", async ({ mount }) => {
   const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showTokenCount: true }} message={{ tokensOut: null, tokensIn: null }} />);
   await expect(component.locator('[data-slot="message-metadata-tokens"]')).toHaveCount(0);

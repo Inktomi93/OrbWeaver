@@ -224,6 +224,16 @@ export function motionSnapshot(): MotionSnapshot {
   };
 }
 
+/** Clear the evidence accumulated by the motion observers without reinstalling them. A driven probe calls
+ *  this immediately before each checkpoint so one surface cannot inherit another surface's LoAF/CLS debt. */
+export function __resetMotionStats(): void {
+  loafRing.length = 0;
+  shiftRing.length = 0;
+  clsTotal = 0;
+  observedClsTotal = 0;
+  worstShift = 0;
+}
+
 // Attributes an animated Element to the nearest stable surface marker — testid > slot > aria-label >
 // role > landmark tag — walking up the ancestor chain.
 const LANDMARK_TAGS = new Set(["MAIN", "NAV", "ASIDE", "HEADER", "FOOTER", "DIALOG", "SECTION"]);
