@@ -63,6 +63,8 @@ lefthook-local.yml
 
 # --- Claude Code: share the project hook (settings.json), keep personal overrides local ---
 .claude/settings.local.json
+# work-item CLI project-context cache (scripts/github/work-item.ts) — derived, refetchable
+.claude/cache/
 
 # --- editor / OS ---
 .DS_Store

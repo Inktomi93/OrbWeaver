@@ -24,6 +24,7 @@ const KIND_FIELD = "Kind";
 const AREA_FIELD = "Area";
 const REVIEW_FIELD = "Review";
 const CREATED_ISSUE = 12;
+const FAKE_RESET_EPOCH = 1_786_764_000;
 const defineTest = test;
 
 interface FakeIssue {
@@ -51,8 +52,13 @@ interface FakeState {
   readonly issues: Record<string, FakeIssue> & { readonly "11": FakeIssue };
   readonly calls: string[][];
   failProject?: boolean;
+  cacheDir?: string;
+  listPageSize?: number;
+  rateLimitAfter?: number;
 }
 
+// The fake gh speaks the CLI's quota-sane wire protocol: named GraphQL operations dispatched on the
+// operation name inside `query=`, typed variables read from -f/-F pairs, and the REST rate_limit probe.
 const fakeGh = String.raw`#!/usr/bin/env node
 const { readFileSync, writeFileSync } = require("node:fs");
 const statePath = process.env.WORK_ITEM_FAKE_GH_STATE;
@@ -60,52 +66,113 @@ const state = JSON.parse(readFileSync(statePath, "utf8"));
 const args = process.argv.slice(2);
 state.calls.push(args);
 const save = () => writeFileSync(statePath, JSON.stringify(state));
+const text = (payload) => { save(); process.stdout.write(JSON.stringify(payload)); };
+const fail = (message) => { save(); process.stderr.write("GraphQL: " + message + "\n"); process.exit(1); };
 const value = (prefix) => {
   const index = args.indexOf(prefix);
   return index === -1 ? args.find((arg) => arg.startsWith(prefix))?.slice(prefix.length) : args[index + 1];
 };
-const hasTypedField = (name) => args.some((arg, index) => args[index - 1] === "-F" && arg.startsWith(name + "="));
+let query = "";
+const variables = {};
+for (let index = 0; index < args.length; index += 1) {
+  if (args[index] !== "-f" && args[index] !== "-F") continue;
+  const pair = args[index + 1] ?? "";
+  const eq = pair.indexOf("=");
+  const key = pair.slice(0, eq);
+  const raw = pair.slice(eq + 1);
+  if (key === "query") query = raw;
+  else variables[key] = args[index] === "-F" ? Number(raw) : raw;
+}
 const issueNumber = () => Number(args.find((arg) => /^\d+$/.test(arg)));
 const issue = () => state.issues[String(issueNumber())];
-const text = (payload) => { save(); process.stdout.write(JSON.stringify(payload)); };
-if (args[0] === "issue" && args[1] === "view") {
-  const current = issue();
-  text({ id: current.id, number: current.number, url: current.url, state: current.state, comments: current.comments.map((body) => ({ body })) });
-} else if (args[0] === "project" && args[1] === "view") {
-  if (state.failProject) throw new Error("Injected Project failure");
-  text({ id: "project-1" });
-} else if (args[0] === "project" && args[1] === "field-list") {
-  text({ fields: state.fields });
-} else if (args[0] === "project" && args[1] === "item-list") {
-  text({ items: state.items });
+const fieldValueNodes = (item) =>
+  Object.entries(item)
+    .filter(([key, val]) => key !== "id" && typeof val === "string")
+    .map(([key, val]) => {
+      const field = state.fields.find((candidate) => candidate.name === key);
+      return field && field.type === "ProjectV2SingleSelectField" ? { name: val, field: { name: key } } : { text: val, field: { name: key } };
+    });
+const itemNode = (item) => ({ id: item.id, project: { id: "project-1", number: 1 }, fieldValues: { nodes: fieldValueNodes(item) } });
+if (args[0] === "api" && args[1] === "rate_limit") {
+  text({ resources: { graphql: { remaining: 0, reset: ${FAKE_RESET_EPOCH} } } });
+} else if (args[0] === "api" && args[1] === "graphql") {
+  if (typeof state.rateLimitAfter === "number" && state.calls.filter((call) => call[0] === "api" && call[1] === "graphql").length > state.rateLimitAfter) {
+    fail("API rate limit exceeded for user ID 999. (RATE_LIMITED)");
+  }
+  if (query.includes("WorkItemProject")) {
+    if (state.failProject) fail("Injected Project failure");
+    text({ data: { user: { projectV2: { id: "project-1", fields: { nodes: state.fields.map((field) => ({ __typename: field.type, id: field.id, name: field.name, options: field.options })) } } } } });
+  } else if (query.includes("WorkItemContext") || query.includes("WorkItemBlockers") || query.includes("WorkItemIssueId")) {
+    if (typeof variables.number !== "number" || Number.isNaN(variables.number)) fail('Variable "$number" of type "Int!" used in position expecting type "Int".');
+    const target = state.issues[String(variables.number)];
+    text({ data: { repository: { issue: {
+      id: target.id,
+      number: target.number,
+      url: target.url,
+      state: target.state,
+      blockedBy: { nodes: target.blockers.map((number) => ({ number })) },
+      comments: { nodes: target.comments.map((body) => ({ body })) },
+      projectItems: { nodes: state.items.filter((item) => item.content.number === target.number).map(itemNode) },
+    } } } });
+  } else if (query.includes("WorkItemList")) {
+    if (variables.project !== "project-1") {
+      text({ data: { node: null } });
+    } else {
+      const pageSize = state.listPageSize ?? 100;
+      const start = variables.cursor === undefined ? 0 : Number(variables.cursor);
+      const nodes = state.items.slice(start, start + pageSize).map((item) => ({ content: item.content, fieldValues: { nodes: fieldValueNodes(item) } }));
+      text({ data: { node: { items: { pageInfo: { hasNextPage: start + pageSize < state.items.length, endCursor: String(start + pageSize) }, nodes } } } });
+    }
+  } else if (query.includes("WorkItemAdd")) {
+    if (variables.project !== "project-1") fail("Could not resolve to a node with the global id of '" + variables.project + "'");
+    const target = Object.values(state.issues).find((candidate) => candidate.id === variables.content);
+    if (!target) fail("Could not resolve to a node with the global id of '" + variables.content + "'");
+    let current = state.items.find((candidate) => candidate.content.number === target.number);
+    if (!current) {
+      current = { id: "item-" + target.number, content: { number: target.number, url: target.url } };
+      state.items.push(current);
+    }
+    text({ data: { addProjectV2ItemById: { item: { id: current.id } } } });
+  } else if (query.includes("WorkItemFields") || query.includes("WorkItemStatus")) {
+    if (variables.project !== "project-1") fail("Could not resolve to a node with the global id of '" + variables.project + "'");
+    const item = state.items.find((candidate) => candidate.id === variables.item);
+    if (!item) fail("Could not resolve to a node with the global id of '" + variables.item + "'");
+    const operations = [...query.matchAll(/(updateProjectV2ItemFieldValue|clearProjectV2ItemFieldValue)\(input: \{ projectId: \$project, itemId: \$item, fieldId: \$(\w+)(?:, value: \{ (text|singleSelectOptionId): \$(\w+) \})? \}\)/g)];
+    if (operations.length === 0) throw new Error("Unparsable field mutation: " + query);
+    for (const [, kind, fieldVariable, valueKind, valueVariable] of operations) {
+      const field = state.fields.find((candidate) => candidate.id === variables[fieldVariable]);
+      if (!field) fail("Could not resolve to a node with the global id of '" + variables[fieldVariable] + "'");
+      if (kind === "clearProjectV2ItemFieldValue") { delete item[field.name]; continue; }
+      const raw = variables[valueVariable];
+      if (valueKind === "singleSelectOptionId") {
+        const option = (field.options ?? []).find((candidate) => candidate.id === raw);
+        if (!option) fail("The single select option does not belong to field '" + field.name + "'");
+        item[field.name] = option.name;
+      } else {
+        item[field.name] = raw;
+      }
+    }
+    text({ data: {} });
+  } else if (query.includes("WorkItemDependency")) {
+    const target = state.issues[String(variables.issueId).replace("issue-", "")];
+    const blocker = Number(String(variables.blockingIssueId).replace("issue-", ""));
+    if (query.includes("removeBlockedBy")) {
+      const index = target.blockers.indexOf(blocker);
+      if (index === -1) throw new Error("blocker relation is already absent");
+      target.blockers.splice(index, 1);
+    }
+    if (query.includes("addBlockedBy")) {
+      if (target.blockers.includes(blocker)) throw new Error("blocker relation already exists");
+      target.blockers.push(blocker);
+    }
+    text({ data: {} });
+  } else { throw new Error("Unhandled graphql query: " + query); }
 } else if (args[0] === "issue" && args[1] === "create") {
   const number = ${CREATED_ISSUE};
   const url = "https://example.test/issues/" + number;
   state.issues[String(number)] = { id: "issue-" + number, number, url, state: "OPEN", blockers: [], comments: [] };
   save();
   process.stdout.write(url);
-} else if (args[0] === "project" && args[1] === "item-add") {
-  const url = value("--url");
-  const target = Object.values(state.issues).find((candidate) => candidate.url === url);
-  if (!target) throw new Error("Project item content was not found");
-  let current = state.items.find((candidate) => candidate.content.number === target.number);
-  if (!current) {
-    current = { id: "item-" + target.number, content: { number: target.number, url: target.url } };
-    state.items.push(current);
-  }
-  text(current);
-} else if (args[0] === "project" && args[1] === "item-edit") {
-  const current = state.items.find((candidate) => candidate.id === value("--id"));
-  const field = state.fields.find((candidate) => candidate.id === value("--field-id"));
-  if (args.includes("--clear")) {
-    delete current[field.name];
-    text({});
-    return;
-  }
-  const option = field.options?.find((candidate) => candidate.id === value("--single-select-option-id"));
-  const next = option?.name ?? value("--text");
-  current[field.name] = next;
-  text({});
 } else if (args[0] === "issue" && args[1] === "comment") {
   issue().comments.push(value("--body"));
   text({});
@@ -114,26 +181,6 @@ if (args[0] === "issue" && args[1] === "view") {
   text({});
 } else if (args[0] === "issue" && args[1] === "edit") {
   text({});
-} else if (args[0] === "api") {
-  const query = value("query=");
-  if (query.includes("blockedBy")) {
-    if (!hasTypedField("number")) throw new Error('Variable "$number" of type "Int!" used in position expecting type "Int".');
-    const target = state.issues[value("number=")];
-    text({ data: { repository: { issue: { blockedBy: { nodes: target.blockers.map((number) => ({ number })) } } } } });
-    return;
-  }
-  const target = state.issues[value("issueId=").replace("issue-", "")];
-  const blocker = Number(value("blockingIssueId=").replace("issue-", ""));
-  if (query.includes("removeBlockedBy")) {
-    const index = target.blockers.indexOf(blocker);
-    if (index === -1) throw new Error("blocker relation is already absent");
-    target.blockers.splice(index, 1);
-  }
-  if (query.includes("addBlockedBy")) {
-    if (target.blockers.includes(blocker)) throw new Error("blocker relation already exists");
-    target.blockers.push(blocker);
-  }
-  text({ data: {} });
 } else { throw new Error("Unhandled gh invocation: " + args.join(" ")); }
 `;
 
@@ -202,6 +249,7 @@ function drive(state: FakeState, ...args: string[]): { readonly status: number |
       [
         `PATH=${directory}:${ORIGINAL_PATH}`,
         `WORK_ITEM_FAKE_GH_STATE=${statePath}`,
+        `WORK_ITEM_CACHE_DIR=${state.cacheDir ?? join(directory, "cache")}`,
         process.execPath,
         "node_modules/tsx/dist/cli.mjs",
         "scripts/github/work-item.ts",
@@ -263,6 +311,22 @@ function setRequiredMetadata(state: FakeState, issue: number): void {
   item[REVIEW_FIELD] = "Technical";
 }
 
+function graphqlCalls(state: FakeState): readonly (readonly string[])[] {
+  return state.calls.filter((call) => call[0] === "api" && call[1] === "graphql");
+}
+
+function queryOf(call: readonly string[]): string {
+  return call.find((arg) => arg.startsWith("query="))?.slice("query=".length) ?? "";
+}
+
+function operationCalls(state: FakeState, operation: string): readonly (readonly string[])[] {
+  return graphqlCalls(state).filter((call) => queryOf(call).includes(operation));
+}
+
+function mutationCalls(state: FakeState): readonly (readonly string[])[] {
+  return graphqlCalls(state).filter((call) => queryOf(call).startsWith("mutation"));
+}
+
 defineTest("claim requires a lane and produces the mutation intent", () => {
   expect(parseWorkCommand(["claim", "11", "--lane", "docs-catalog"])).toEqual({ kind: "claim", issue: 11, lane: "docs-catalog" });
   expect(() => parseWorkCommand(["claim", "11"])).toThrow("--lane requires a value");
@@ -304,7 +368,7 @@ defineTest("list returns a stable filtered Project snapshot without mutation", (
   const listed = JSON.parse(result.stdout) as { readonly items: readonly { readonly issue: number; readonly status: string }[] };
   expect(listed.items).toHaveLength(1);
   expect(listed.items[0]).toEqual(expect.objectContaining({ issue: 8, status: "Ready" }));
-  expect(state.calls.filter((args) => args[0] === "project" && args[1] === "item-edit")).toHaveLength(0);
+  expect(mutationCalls(state)).toHaveLength(0);
 });
 
 defineTest(
@@ -335,7 +399,7 @@ defineTest(
         expect(createCall).toEqual(expect.arrayContaining(itemCase.labels.flatMap((label) => ["--label", label])));
         setRequiredMetadata(state, CREATED_ISSUE);
         expect(drive(state, "ready", String(CREATED_ISSUE)).status).toBe(0);
-        expect(state.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(1);
+        expect(operationCalls(state, "WorkItemAdd")).toHaveLength(1);
       });
     }
   },
@@ -405,10 +469,10 @@ defineTest("review gates verification and rejects blocked work", () => {
   expect(review.stderr).toContain("cannot enter Review while blocked");
 });
 
-defineTest("set compares flattened field names case-insensitively", () => {
+defineTest("set compares field names case-insensitively before writing", () => {
   const state = createState("Running");
   expect(drive(state, "set", "11", "priority", "High").status).toBe(0);
-  expect(state.calls.some((args) => args[0] === "project" && args[1] === "item-edit")).toBe(false);
+  expect(mutationCalls(state)).toHaveLength(0);
 });
 
 defineTest("ready accepts live ingress and resume statuses but not review", () => {
@@ -475,7 +539,7 @@ defineTest("needs-owner routes raw decision ingress and refuses terminal disposi
   expect(result.status).toBe(TOOL_ERROR_EXIT);
   expect(result.stderr).toContain("terminal Disposition cannot enter Needs owner");
   expect(fieldValue(terminal, DISPOSITION_FIELD)).toBe("Killed");
-  expect(terminal.calls.some((args) => args[0] === "project" && args[1] === "item-edit")).toBe(false);
+  expect(mutationCalls(terminal)).toHaveLength(0);
 });
 
 defineTest("ready initializes raw and statusless Project ingress without duplicate items", () => {
@@ -489,10 +553,10 @@ defineTest("ready initializes raw and statusless Project ingress without duplica
   expect(rawIssue.items).toHaveLength(1);
   expect(fieldValue(rawIssue, STATUS_FIELD)).toBe("Ready");
   expect(fieldValue(rawIssue, DISPOSITION_FIELD)).toBe("Action");
-  expect(rawIssue.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(1);
-  expect(rawIssue.calls.filter((args) => args.includes("--single-select-option-id") && args.includes("triage"))).toHaveLength(1);
+  expect(operationCalls(rawIssue, "WorkItemAdd")).toHaveLength(1);
+  expect(rawIssue.calls.filter((call) => call.includes("v0=triage"))).toHaveLength(1);
   expect(drive(rawIssue, "ready", "11").status).toBe(0);
-  expect(rawIssue.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(1);
+  expect(operationCalls(rawIssue, "WorkItemAdd")).toHaveLength(1);
 
   const statusless = createState("Triage");
   delete statusless.items[0]?.[STATUS_FIELD];
@@ -500,8 +564,8 @@ defineTest("ready initializes raw and statusless Project ingress without duplica
   expect(statusless.items).toHaveLength(1);
   expect(fieldValue(statusless, STATUS_FIELD)).toBe("Ready");
   expect(fieldValue(statusless, DISPOSITION_FIELD)).toBe("Action");
-  expect(statusless.calls.filter((args) => args[0] === "project" && args[1] === "item-add")).toHaveLength(0);
-  expect(statusless.calls.filter((args) => args.includes("--single-select-option-id") && args.includes("triage"))).toHaveLength(1);
+  expect(operationCalls(statusless, "WorkItemAdd")).toHaveLength(0);
+  expect(statusless.calls.filter((call) => call.includes("v0=triage"))).toHaveLength(1);
 });
 
 defineTest("ready and unblock clear parked metadata before becoming Ready", () => {
@@ -566,7 +630,7 @@ defineTest("closed work items refuse lifecycle mutations", () => {
   const result = drive(state, "review", "11");
   expect(result.status).toBe(TOOL_ERROR_EXIT);
   expect(result.stderr).toContain("cannot change a closed work item");
-  expect(state.calls.some((args) => args[0] === "project")).toBe(false);
+  expect(mutationCalls(state)).toHaveLength(0);
 });
 
 defineTest("block and unblock retries reconcile without repeating relations", () => {
@@ -603,4 +667,101 @@ defineTest("set cannot write lifecycle-controlled fields", () => {
   const result = drive(createState("Triage"), "set", "11", "Status", "Done");
   expect(result.status).toBe(MISUSE_EXIT);
   expect(result.stderr).toContain("set cannot modify lifecycle-controlled field Status");
+});
+
+defineTest("transitions batch field writes into one aliased request and commit Status last in its own request", () => {
+  const state = createState("Running");
+  const item = state.items[0];
+  if (item !== undefined) {
+    item["Lane"] = "active-lane";
+    item[WAKE_CONDITION_FIELD] = "await owner";
+    item[DISPOSITION_FIELD] = "Action";
+  }
+  expect(drive(state, "needs-owner", "11").status).toBe(0);
+  const mutations = mutationCalls(state);
+  expect(mutations).toHaveLength(2);
+  const batch = queryOf(mutations[0] ?? []);
+  expect(batch).toContain("WorkItemFields");
+  // Review + Disposition set, Lane + Wake condition cleared — four aliased operations, one request.
+  expect(batch.match(/ProjectV2ItemFieldValue/gu) ?? []).toHaveLength(4);
+  expect(queryOf(mutations[1] ?? [])).toContain("WorkItemStatus");
+});
+
+defineTest("lifecycle commands resolve the item through the issue and never enumerate the project", () => {
+  const state = createState("Ready");
+  expect(drive(state, "claim", "11", "--lane", "quota-lane").status).toBe(0);
+  expect(state.calls.some((call) => call[0] === "project")).toBe(false);
+  expect(operationCalls(state, "WorkItemList")).toHaveLength(0);
+  // context + cold project-context fetch + Lane batch + Status — the whole claim in four requests.
+  expect(graphqlCalls(state)).toHaveLength(4);
+  expect(state.calls.some((call) => call[0] === "issue" && call[1] === "edit")).toBe(true);
+});
+
+defineTest("project context caches across invocations and self-heals a stale cache", () => {
+  const cacheDir = mkdtempSync(join(tmpdir(), "work-item-cache-"));
+  try {
+    const state = createState("Ready");
+    state.cacheDir = cacheDir;
+    expect(drive(state, "claim", "11", "--lane", "warm-lane").status).toBe(0);
+    expect(operationCalls(state, "WorkItemProject")).toHaveLength(1);
+    expect(drive(state, "review", "11").status).toBe(0);
+    // Cumulative count is still one: the second invocation ran entirely on the cached context.
+    expect(operationCalls(state, "WorkItemProject")).toHaveLength(1);
+
+    const cachePath = join(cacheDir, "work-item-project.json");
+    const cached = JSON.parse(readFileSync(cachePath, "utf8")) as { readonly fields: readonly { readonly id: string }[] };
+    writeFileSync(cachePath, JSON.stringify({ ...cached, fields: cached.fields.map((field) => ({ ...field, id: `stale-${field.id}` })) }));
+    expect(drive(state, "verify", "11", "--evidence", "receipt-1").status).toBe(0);
+    expect(operationCalls(state, "WorkItemProject")).toHaveLength(2);
+    expect(fieldValue(state, EVIDENCE_FIELD)).toBe("receipt-1");
+    const healed = JSON.parse(readFileSync(cachePath, "utf8")) as { readonly fields: readonly { readonly id: string }[] };
+    expect(healed.fields[0]?.id).not.toContain("stale-");
+  } finally {
+    rmSync(cacheDir, { force: true, recursive: true });
+  }
+});
+
+defineTest("rate-limit exhaustion exits 2 with the reset timestamp instead of a raw failure", () => {
+  const state = createState("Running");
+  state.rateLimitAfter = 0;
+  const result = drive(state, "review", "11");
+  expect(result.status).toBe(TOOL_ERROR_EXIT);
+  expect(result.stderr).toContain("GitHub GraphQL rate limit exhausted");
+  expect(result.stderr).toContain(new Date(FAKE_RESET_EPOCH * 1000).toISOString());
+  expect(state.calls.some((call) => call[0] === "api" && call[1] === "rate_limit")).toBe(true);
+});
+
+defineTest("list paginates with cursors until the last page", () => {
+  const state = createState("Running");
+  state.items.push({
+    id: "item-8",
+    content: { number: 8, url: "https://example.test/issues/8" },
+    [STATUS_FIELD]: "Ready",
+    [DISPOSITION_FIELD]: "Action",
+  });
+  state.listPageSize = 1;
+  const result = drive(state, "list");
+  expect(result.status).toBe(0);
+  const listed = JSON.parse(result.stdout) as { readonly items: readonly { readonly issue: number }[] };
+  expect(listed.items.map((row) => row.issue)).toEqual([8, 11]);
+  expect(operationCalls(state, "WorkItemList")).toHaveLength(2);
+  const second = operationCalls(state, "WorkItemList")[1];
+  expect(second ?? []).toEqual(expect.arrayContaining(["-f", "cursor=1"]));
+  expect(mutationCalls(state)).toHaveLength(0);
+});
+
+defineTest("show prints the targeted item without enumerating the project", () => {
+  const state = createState("Running");
+  const result = drive(state, "show", "11");
+  expect(result.status).toBe(0);
+  const shown = JSON.parse(result.stdout) as Record<string, unknown>;
+  expect(shown["id"]).toBe("item-11");
+  expect(shown["content"]).toEqual({ number: 11, url: "https://example.test/issues/11" });
+  expect(shown["Status"]).toBe("Running");
+  expect(operationCalls(state, "WorkItemList")).toHaveLength(0);
+  expect(graphqlCalls(state)).toHaveLength(1);
+
+  const absent = drive(createState("Running"), "show", "7");
+  expect(absent.status).toBe(TOOL_ERROR_EXIT);
+  expect(absent.stderr).toContain("#7 is not in Project 1");
 });
