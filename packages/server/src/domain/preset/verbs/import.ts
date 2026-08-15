@@ -56,7 +56,7 @@ export function createImport(ctx: PresetContext): ImportPreset {
       );
       ctx.emitUserEvent(ownerId, { type: "presetsChanged", presetId: existingId });
       getLog().info({ userId: ownerId, presetId: existingId }, "preset: imported (merged)");
-      return { ok: true, created: false };
+      return { ok: true, created: false, presetId: existingId };
     }
 
     const presetId = ctx.newPresetId();
@@ -85,6 +85,6 @@ export function createImport(ctx: PresetContext): ImportPreset {
     );
     ctx.emitUserEvent(ownerId, { type: "presetsChanged", presetId });
     getLog().info({ userId: ownerId, presetId }, "preset: imported (created)");
-    return { ok: true, created: true };
+    return { ok: true, created: true, presetId };
   };
 }

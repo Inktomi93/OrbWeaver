@@ -136,6 +136,23 @@ export interface ParsedNotePlacement {
   readonly interval: number | null;
 }
 
+/** One `chat_metadata.script_injects` entry — an STscript `/inject`-saved prompt injection, in ST's OWN
+ *  vocabulary (untranslated, the {@link ParsedNotePlacement} rule: `position`/`role` are the SAME
+ *  `extension_prompt_types`/`extension_prompt_roles` enums the author's note records — SOURCE-PINNED,
+ *  SillyTavern `public/scripts/slash-commands.js` `/inject` → `chat_metadata.script_injects[id]`).
+ *  `scan` (include in world-info scans) and `filter` (a closure source string) have NO orb seat — the
+ *  import mapper documents both drops; the corpus records `scan:true` once and `filter:null` on all rows.
+ *  BUILD-SIDE: not emitted — orb's injections table does not remember which door a row entered by, and the
+ *  export's one prose seat is the note (writing these twice would give one fact two spellings). */
+export interface ParsedScriptInject {
+  /** The ST inject id (the `script_injects` object key) — provenance for the report, never an orb id. */
+  readonly key: string;
+  readonly value: string;
+  readonly position: number | null;
+  readonly depth: number | null;
+  readonly role: number | null;
+}
+
 /** One parsed/serializable ST chat. `createDate` is the FILENAME date first (survives ST re-save/migration),
  *  then the header `create_date`, then null. `parentRef` is the normalized `chat_metadata.main_chat` (the
  *  branch edge; falls back to the filename lineage). `bucket` is the memory-backfill gate (PD-78).
@@ -169,6 +186,10 @@ export interface ParsedChat {
    *  Null when the chat records none. BUILD-SIDE: not emitted — orb's single seat (`chats.anchorPersonaId`)
    *  already exports as the header `user_name`, and writing it twice would give one fact two spellings. */
   readonly pinnedPersonaName: string | null;
+  /** ST's `/inject`-saved per-chat injections (`chat_metadata.script_injects`), each with non-empty text —
+   *  5 of 1,097 corpus chats carry one. Empty list when the chat records none (never null — the mapper
+   *  concatenates it after the note without a second absent-spelling). */
+  readonly scriptInjects: readonly ParsedScriptInject[];
   readonly bucket: ChatBucket;
   readonly sourceMetadata: Record<string, unknown> | null;
   readonly messages: readonly ParsedChatMessage[];
@@ -458,6 +479,33 @@ function parseChatVariables(meta: Record<string, unknown> | null): Record<string
     }
   }
   return Object.keys(out).length > 0 ? out : null;
+}
+
+/** ST's `chat_metadata.script_injects` → the typed inject list ({@link ParsedScriptInject}). Only entries
+ *  with non-empty TEXT survive (an inject is its text; a text-less entry mints nothing — the same rule the
+ *  note follows). The knob fields reuse the note's tolerant number read, so a foreign non-numeric knob
+ *  degrades to null (⇒ the mapper's house fallback) instead of dropping the inject. */
+function parseScriptInjects(meta: Record<string, unknown> | null): ParsedScriptInject[] {
+  const raw = asObj(meta?.["script_injects"]);
+  if (raw === null) {
+    return [];
+  }
+  const out: ParsedScriptInject[] = [];
+  for (const [key, entry] of Object.entries(raw)) {
+    const obj = asObj(entry);
+    const value = obj === null ? null : nullIfEmpty(str(obj["value"]));
+    if (obj === null || value === null) {
+      continue;
+    }
+    out.push({
+      key,
+      value,
+      position: parseNoteKnob(obj["position"]),
+      depth: parseNoteKnob(obj["depth"]),
+      role: parseNoteKnob(obj["role"]),
+    });
+  }
+  return out;
 }
 
 /** The `chat_metadata` key carrying the chat-bound persona pick, as a NAME — see
@@ -803,6 +851,7 @@ export function parseChatJsonl(
     notePrompt: nullIfEmpty(str(meta?.["note_prompt"])),
     notePlacement: parseNotePlacement(meta),
     variables: parseChatVariables(meta),
+    scriptInjects: parseScriptInjects(meta),
     pinnedPersonaName: nullIfEmpty(str(meta?.[ST_PINNED_PERSONA_KEY])),
     bucket: classifyChat(messages),
     sourceMetadata: meta,

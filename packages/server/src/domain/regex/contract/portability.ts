@@ -20,7 +20,7 @@
 
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import type { CharacterId, RegexScriptId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 
 /** The DI bundle every portability op closes over (assembled at the entry composition root). */
 export interface RegexPortabilityContext {
@@ -49,6 +49,28 @@ export interface ImportCardScriptsResult {
 }
 
 export type ImportCardScripts = (args: ImportCardScriptsArgs) => Promise<ImportCardScriptsResult>;
+
+/** The PRESET lift — the card lift's twin for ST's preset-scoped scripts (`extensions.regex_scripts` in an
+ *  `OpenAI Settings/*.json` / the live `oai_settings`, written by ST's presetManager extension-field path).
+ *  Same planner, same dedup rule, `preset_regex_scripts` junction; no carried-reference channel exists on
+ *  the ST preset wire, so the by-value payload always content-dedups. */
+export interface ImportPresetScriptsArgs {
+  readonly ownerId: UserId;
+  readonly presetId: PresetId;
+  readonly scripts: readonly RegexScriptCard[];
+}
+
+export type ImportPresetScripts = (args: ImportPresetScriptsArgs) => Promise<ImportCardScriptsResult>;
+
+/** The GLOBAL lift — ST's `extension_settings.regex` array ("run on every chat") onto the owner's library +
+ *  the `global_regex_scripts` attachment (orb's identical semantic: "applies to every chat you host").
+ *  Same planner, `carried: []`; re-running a profile import re-asserts the attachments and mints nothing. */
+interface ImportGlobalScriptsArgs {
+  readonly ownerId: UserId;
+  readonly scripts: readonly RegexScriptCard[];
+}
+
+export type ImportGlobalScripts = (args: ImportGlobalScriptsArgs) => Promise<ImportCardScriptsResult>;
 
 /** The card RE-EMBED: the character's attached library rows projected back onto the ST card-wire shape,
  *  in junction `position` order, PLUS the reference list the same-install re-import re-links by. */

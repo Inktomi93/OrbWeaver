@@ -96,23 +96,32 @@ async function attachCarriedContent(
   ctx: ImportContext,
   characterId: CharacterId,
   carried: CarriedContent,
-): Promise<{ readonly attachedBooksLinked: number; readonly attachedBooksSkipped: number }> {
+): Promise<{
+  readonly attachedBooksLinked: number;
+  readonly attachedBooksSkipped: number;
+  readonly regexScriptsLifted: number;
+  readonly regexScriptsReused: number;
+}> {
   const { linked: attachedBooksLinked, skipped: attachedBooksSkipped } = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
 
   if (ctx.importLorebook !== undefined && carried.book !== null && attachedBooksLinked === 0) {
     await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book: carried.book });
   }
 
+  let regexScriptsLifted = 0;
+  let regexScriptsReused = 0;
   if (ctx.importCardScripts !== undefined && (carried.regexScripts.length > 0 || carried.attachedRegexScripts.length > 0)) {
-    await ctx.importCardScripts({
+    const lift = await ctx.importCardScripts({
       ownerId: ctx.ownerId,
       characterId,
       scripts: carried.regexScripts,
       carried: carried.attachedRegexScripts,
     });
+    regexScriptsLifted = lift.created;
+    regexScriptsReused = lift.reused;
   }
 
-  return { attachedBooksLinked, attachedBooksSkipped };
+  return { attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused };
 }
 
 export function createImportCharacter(ctx: ImportContext): ImportService["importCharacter"] {
@@ -136,7 +145,15 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
 
     const existing = await ctx.findByImportHash({ ownerId: ctx.ownerId, importHash });
     if (existing !== null) {
-      return { characterId: existing, created: false, importHash, attachedBooksLinked: 0, attachedBooksSkipped: 0 };
+      return {
+        characterId: existing,
+        created: false,
+        importHash,
+        attachedBooksLinked: 0,
+        attachedBooksSkipped: 0,
+        regexScriptsLifted: 0,
+        regexScriptsReused: 0,
+      };
     }
 
     // Content-addressed store: a byte-identical re-import resolves to the same asset id.
@@ -154,13 +171,13 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     const created = true;
     await attachCardTags(ctx, characterId, tags);
 
-    const { attachedBooksLinked, attachedBooksSkipped } = await attachCarriedContent(ctx, characterId, {
+    const { attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused } = await attachCarriedContent(ctx, characterId, {
       book,
       attachedBooks,
       regexScripts: characterCard.regexScripts ?? [],
       attachedRegexScripts,
     });
 
-    return { characterId, created, importHash, attachedBooksLinked, attachedBooksSkipped };
+    return { characterId, created, importHash, attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused };
   };
 }

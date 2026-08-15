@@ -12,7 +12,7 @@ import type { BulkImportChatInput, BulkImportInjectionInput, BulkImportMessageIn
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { msToWallClock } from "@orb/kit/time";
-import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement } from "#kit/serde/chat";
+import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement, ParsedScriptInject } from "#kit/serde/chat";
 import { ST_DEFAULT_WALL_CLOCK_ZONE } from "#kit/serde/chat";
 import type { CollectedChat, GroupChatInputDeps, ImportUnresolvedPinnedPersona } from "../contract/views.ts";
 
@@ -157,6 +157,27 @@ function importedNoteInjection(notePrompt: string | null, placement: ParsedNoteP
   };
 }
 
+/** ST's `/inject`-saved `chat_metadata.script_injects` → one `chat_injections` row each, through the SAME
+ *  position/role conversion the note rides (they are the same ST enums — the serde's source pins). The
+ *  house register is the same fallback for an unrecorded/unmappable knob. TWO ST fields have no orb seat
+ *  and are dropped, recorded here: `scan` (include the text in world-info keyword scans — orb's injections
+ *  do not feed WI scanning; 1 corpus row records `true`) and `filter` (an STscript closure source string —
+ *  orb has no STscript executor; null on every corpus row). Order: after the note, in ST's own key order —
+ *  `order: null` (unordered within their position band, like the note). */
+function importedScriptInjections(injects: readonly ParsedScriptInject[], createdAt: number): BulkImportInjectionInput[] {
+  return injects.map((inject): BulkImportInjectionInput => {
+    const position = (inject.position === null ? undefined : ST_NOTE_POSITIONS[inject.position]) ?? HOUSE_NOTE_POSITION;
+    return {
+      position,
+      depth: noteDepthFor(position, inject.depth),
+      role: (inject.role === null ? undefined : ST_NOTE_ROLES[inject.role]) ?? HOUSE_NOTE_ROLE,
+      content: inject.value,
+      order: null,
+      createdAt,
+    };
+  });
+}
+
 // ── The imported chat's DISPLAY TITLE ────────────────────────────────────────────────────────────────────
 //
 // ST's filename IS its chat name, and it is a machine token: "Emily Singleton - 2025-5-7 @22h 52m 11s
@@ -265,6 +286,8 @@ function chatShell(
   const updatedAt = sendDates.length > 0 ? Math.max(...sendDates) : created;
   const chatPersonaId = resolveAnchorPersona(pc, deps.personaByUserName);
   const note = importedNoteInjection(pc.notePrompt, pc.notePlacement, created);
+  // The note first, then the `/inject` rows in ST's own key order — ONE prose door for both ST channels.
+  const injections = [...(note === null ? [] : [note]), ...importedScriptInjections(pc.scriptInjects, created)];
 
   return {
     title: importedChatTitle(displayName, created, deps.wallClockZone ?? ST_DEFAULT_WALL_CLOCK_ZONE) ?? ci.importedFrom.replace(JSONL_EXT, ""),
@@ -274,9 +297,9 @@ function chatShell(
     createdAt: created,
     updatedAt,
     parentRef: pc.parentRef,
-    // The ONE prose door. Omitted (not an empty list) when the chat carries no note, so a note-less ST
-    // transcript lands byte-identically to what it landed before the conversion existed.
-    ...(note === null ? {} : { injections: [note] }),
+    // The ONE prose door. Omitted (not an empty list) when the chat carries no prose, so a note-less,
+    // inject-less ST transcript lands byte-identically to what it landed before the conversion existed.
+    ...(injections.length === 0 ? {} : { injections }),
     // ST's `{{setvar}}` store → orb's config-plane picks bag. The assembly env seed OVERLAYS the runtime
     // fold over the resolved config picks and `resolveChoiceVariables` orphan-PRESERVES a stored key no
     // preset declares, so an imported variable is readable by `{{getvar}}` on the very first turn. The

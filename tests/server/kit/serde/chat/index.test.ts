@@ -174,6 +174,28 @@ describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
     // No knob at all ⇒ null, which is what tells the mapper to use orb's house register.
     expect(parseChatJsonl(`${header()}\n${line()}`, { fileName: "n.jsonl", charDirName: "A" })?.notePlacement).toBeNull();
   });
+
+  test("chat_metadata.script_injects parses to typed injects — ST's own numeric vocabulary, text-less entries dropped", () => {
+    // The corpus shape verbatim (5 of 1,097 chats): {value, position, depth, scan, role, filter}.
+    const meta = {
+      script_injects: {
+        clothes: { value: "[Relevant Informations for portraying characters clothes]", position: 1, depth: 1, scan: true, role: 2, filter: null },
+        empty: { value: "", position: 0, depth: 4, scan: false, role: 0, filter: null },
+        junk: "not an object",
+      },
+    };
+    const parsed = parseChatJsonl(`${header({ chat_metadata: meta })}\n${line()}`, { fileName: "i.jsonl", charDirName: "Aria" });
+    // UNTRANSLATED here by design (the notePlacement rule): position/role are ST's extension_prompt enums,
+    // and the import mapper owns the conversion. `scan`/`filter` have no orb seat and are not carried.
+    expect(parsed?.scriptInjects).toEqual([
+      { key: "clothes", value: "[Relevant Informations for portraying characters clothes]", position: 1, depth: 1, role: 2 },
+    ]);
+    // Absent/empty block ⇒ the empty list (never null — the mapper concatenates after the note).
+    expect(parseChatJsonl(`${header()}\n${line()}`, { fileName: "i.jsonl", charDirName: "A" })?.scriptInjects).toEqual([]);
+    expect(parseChatJsonl(`${header({ chat_metadata: { script_injects: {} } })}\n${line()}`, { fileName: "i.jsonl", charDirName: "A" })?.scriptInjects).toEqual(
+      [],
+    );
+  });
 });
 
 describe("parseChatJsonl", () => {
@@ -365,6 +387,7 @@ function pchat(messages: readonly ParsedChatMessage[], over: Partial<ParsedChat>
     notePlacement: null,
     variables: null,
     pinnedPersonaName: null,
+    scriptInjects: [],
     bucket: "real_conversation",
     sourceMetadata: null,
     messages,

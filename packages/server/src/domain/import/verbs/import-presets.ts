@@ -7,6 +7,7 @@
 // import a clean no-op. Restating either here would be the banned parallel path — the same reason the chat
 // wave delegates to `bulkImportChats` rather than touching @orb/db.
 
+import type { PresetId } from "@orb/kit/ids";
 import type { ImportContext } from "../context.ts";
 import type { ImportPresetsResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
@@ -17,8 +18,35 @@ const ENC = new TextEncoder();
 
 /** One preset's lossiness note — emitted for EVERY imported preset, empty `fields` included, so the operator
  *  can tell "this landed whole" apart from "this was never looked at". */
-function noteFor(p: CollectedPreset): ImportPresetNote {
-  return { name: p.parsed.name, sourceFile: p.sourceFile, fields: p.parsed.unmapped };
+function noteFor(p: CollectedPreset, scripts: { readonly created: number; readonly reused: number }): ImportPresetNote {
+  return { name: p.parsed.name, sourceFile: p.sourceFile, fields: p.parsed.unmapped, scriptsLifted: scripts.created, scriptsReused: scripts.reused };
+}
+
+const NO_SCRIPTS = { created: 0, reused: 0 } as const;
+
+/** Lift one imported preset's OWN regex scripts (ST presetManager extension field), attached to exactly the
+ *  row the import op wrote. An unwired lift op or an outcome missing its row id is a RECORDED skip
+ *  (per-preset isolation preserved), never a silent drop — the pre-lane state was precisely this plane
+ *  vanishing without a report line. */
+async function liftPresetScripts(args: {
+  readonly ctx: ImportContext;
+  readonly p: CollectedPreset;
+  readonly presetId: PresetId | undefined;
+  readonly skippedPresets: ImportSkippedCard[];
+}): Promise<{ readonly created: number; readonly reused: number }> {
+  const { ctx, p, presetId, skippedPresets } = args;
+  const profile = requireProfile(ctx);
+  if (p.parsed.regexScripts.length === 0) {
+    return NO_SCRIPTS;
+  }
+  if (profile.importPresetScripts === undefined || presetId === undefined) {
+    skippedPresets.push({
+      file: p.sourceFile,
+      reason: `${p.parsed.regexScripts.length} preset regex script(s) not lifted (the preset imported; the script lift is not wired into this composition)`,
+    });
+    return NO_SCRIPTS;
+  }
+  return await profile.importPresetScripts({ ownerId: ctx.ownerId, presetId, scripts: p.parsed.regexScripts });
 }
 
 export function createImportPresets(ctx: ImportContext): Pick<ImportService, "importPresets"> {
@@ -52,7 +80,8 @@ export function createImportPresets(ctx: ImportContext): Pick<ImportService, "im
       if (outcome.created === true) {
         presetsCreated += 1;
       }
-      notes.push(noteFor(p));
+      const scripts = await liftPresetScripts({ ctx, p, presetId: outcome.presetId, skippedPresets });
+      notes.push(noteFor(p, scripts));
     }
     return { presetsImported, presetsCreated, skippedPresets, notes };
   }

@@ -2801,12 +2801,16 @@ const ST_CONTINUE_POSTFIX: Record<string, ContinuePostfix> = {
 // Top-level ST fields with no neo home — reported (when present + meaningful) so the user knows.
 const DROPPABLE_FIELDS: readonly StDroppedField[] = [
   { field: "group_nudge_prompt", reason: "group nudge is room-owned, not preset-owned" },
-  { field: "new_chat_prompt", reason: "no new-chat injection slot" },
-  // Reason CORRECTED 2026-08-08: it read "no group chats", which was already stale post-rooms and became
-  // flatly false when the ST profile importer started building group rooms from `groups/`. The DROP stays —
-  // like its `new_chat_prompt` sibling, this is a history-START boundary string and orb has no injection slot
-  // for one. (The `group_nudge_prompt` row got this same repair earlier; this sibling was missed then.)
-  { field: "new_group_chat_prompt", reason: "no new-group-chat injection slot" },
+  // `new_chat_prompt` is NOT here any more (2026-08-15 re-judgment): its orb seat EXISTS now —
+  // `formatStrings.newChatMarker`, the history-START boundary the assembler reads
+  // (`assembly/context.ts` newChatMarkerCandidate / G9) — so `collectFormatStrings` maps it.
+  // The GROUP variant stays dropped with the truthful reason: ST fires it only in group chats, and orb's
+  // one boundary key is ROOM-AGNOSTIC — landing a group-only string on it would inject group framing into
+  // every SOLO chat, a different behavior than the author recorded, not a translation.
+  {
+    field: "new_group_chat_prompt",
+    reason: "orb's one history-START boundary (newChatMarker) is room-agnostic and maps from new_chat_prompt; a group-only boundary has no conditional seat",
+  },
   { field: "new_example_chat_prompt", reason: "no example-chat injection slot" },
   { field: "bias_preset_selected", reason: "no logit-bias presets" },
   { field: "assistant_prefill", reason: "response prefill unsupported across providers" },
@@ -2871,9 +2875,11 @@ function collectDroppableFields(rawObj: Record<string, unknown>): StDroppedField
 }
 
 /** Map ST's prompt-string slots onto the preset's `formatStrings`. `impersonation_prompt` →
- *  `impersonateNudge` (previously dropped) and `continue_nudge_prompt` → `continueNudge`; a blank/absent slot
- *  is omitted so the assembler falls back to `DEFAULT_FORMAT_STRINGS`. Bounds each to the schema max so a
- *  hostile import can't smuggle an oversized nudge. */
+ *  `impersonateNudge` (previously dropped), `continue_nudge_prompt` → `continueNudge`, and
+ *  `new_chat_prompt` → `newChatMarker` (the history-START boundary the assembler reads — mapped since the
+ *  2026-08-15 re-judgment; the seat postdates the old "no new-chat injection slot" drop row). A blank/absent
+ *  slot is omitted so the assembler falls back to `DEFAULT_FORMAT_STRINGS`. Bounds each to the schema max
+ *  so a hostile import can't smuggle an oversized nudge. */
 function collectFormatStrings(rawObj: Record<string, unknown>): PromptConfig["formatStrings"] {
   const out: Record<string, string> = {};
   const take = (key: string, slot: string): void => {
@@ -2884,6 +2890,7 @@ function collectFormatStrings(rawObj: Record<string, unknown>): PromptConfig["fo
   };
   take("continue_nudge_prompt", "continueNudge");
   take("impersonation_prompt", "impersonateNudge");
+  take("new_chat_prompt", "newChatMarker");
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -2960,9 +2967,11 @@ const DROPPABLE_POWER_USER_FIELDS: readonly StDroppedField[] = [
   { field: "tokenizer", reason: "the ST tokenizer set is reaffirmed OUT (D49) — orb counts through the provider" },
   { field: "custom_stopping_strings_macro", reason: "macro substitution INSIDE stop strings — orb's stop list is literal (the strings themselves DO import)" },
   { field: "auto_continue", reason: "ST's auto-continue-until-length loop — no orb counterpart" },
-  { field: "context", reason: "text-completion context template — needs an ST→orb template mapper (separate epic)" },
-  { field: "instruct", reason: "text-completion instruct template — needs an ST→orb template mapper (separate epic)" },
-  { field: "sysprompt", reason: "system-prompt template — needs an ST→orb template mapper (separate epic)" },
+  // BY DESIGN, not deferred (owner ruling, reaffirmed 2026-08-15: "we are never running text-complete") —
+  // these three are text-completion prompt-format state, and orb has no text-completion mode to spend them in.
+  { field: "context", reason: "text-completion context template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
+  { field: "instruct", reason: "text-completion instruct template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
+  { field: "sysprompt", reason: "text-completion system-prompt template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
 ];
 
 /** A `power_user` value worth reporting as dropped: a non-empty string, a `true`, a non-zero number, or a

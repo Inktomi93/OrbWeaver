@@ -14,6 +14,16 @@ export interface ImportedCharacterRef {
   readonly characterId: CharacterId;
 }
 
+/** The orphan-dir placeholder mint's outcome. `created:false` ⇒ a prior run's mint (the synthetic
+ *  dir-keyed importHash matched) — the chats still import against it, idempotently. `name` is what the
+ *  evidence yielded (the majority non-sentinel header name, else the humanized dir name) — the report
+ *  prints it so the owner can find every husk and flesh it out. */
+export interface ImportOrphanCharacterResult {
+  readonly characterId: CharacterId;
+  readonly created: boolean;
+  readonly name: string;
+}
+
 /** created:false means an existing character already carried this importHash — nothing was written.
  *  PD-144: `attachedBooksLinked`/`attachedBooksSkipped` report the carried book-reference re-link — skipped
  *  counts references whose id had no book the importer owns on this install (absent/foreign), reported so a
@@ -24,6 +34,11 @@ export interface ImportCharacterResult {
   readonly importHash: string;
   readonly attachedBooksLinked: number;
   readonly attachedBooksSkipped: number;
+  /** The card's regex-script lift (D121-E), the `attachedBooks*` precedent: fresh library rows minted from
+   *  the by-value payload / candidates attached to existing rows instead of cloned. Both 0 for a script-less
+   *  card, a dedup match (`created:false`), and an unwired lift op. */
+  readonly regexScriptsLifted: number;
+  readonly regexScriptsReused: number;
 }
 
 /** backfillEnqueued: whether the run enqueued a memory-backfill (only when ≥1 real_conversation chat was written).

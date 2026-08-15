@@ -12,7 +12,7 @@
 
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import { characterRegexScripts, globalRegexScripts, regexScripts } from "@orb/db";
+import { characterRegexScripts, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
 import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
@@ -23,11 +23,13 @@ import {
   createExportRegexScript,
   createExportRegexScripts,
   createImportCardScripts,
+  createImportGlobalScripts,
+  createImportPresetScripts,
   createImportRegexScript,
 } from "../../../../../packages/server/src/domain/regex/persistence/portability-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { behavior, makeHarness, principal, seedCharacter, seedScript, seedUser } from "../_support.ts";
+import { behavior, makeHarness, principal, seedCharacter, seedPreset, seedScript, seedUser } from "../_support.ts";
 
 const FROZEN = 1_700_000_000_000;
 
@@ -143,6 +145,69 @@ describe("card LIFT", () => {
     expect(await db.select().from(regexScripts)).toHaveLength(1);
     // Both characters point at the ONE row — which is exactly what makes the resolver's dedup meaningful.
     expect(await db.select().from(characterRegexScripts)).toHaveLength(2);
+  });
+});
+
+// ── the ST-profile lifts (the silent-gap sweep, 2026-08-15) — the card lift's two twins ─────────────────
+// PRESET: ST's presetManager stores the regex extension's preset-scoped scripts ON the preset
+// (`extensions.regex_scripts` — 15 real scripts on the corpus's Marinara preset, previously ignored with no
+// report line). GLOBAL: `extension_settings.regex` ("run on every chat") = orb's `global_regex_scripts`.
+
+describe("PRESET lift", () => {
+  test("mints rows and attaches them to the preset in file order; a re-run dedups to zero new rows", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const presetId = await seedPreset(db, owner);
+    const lift = createImportPresetScripts(ctxOf(db, "p"));
+
+    const first = await lift({ ownerId: owner, presetId, scripts: [cardScript("st-1", "first", "a"), cardScript("st-2", "second", "b")] });
+    expect(first).toEqual({ created: 2, reused: 0 });
+    const attached = await db.select().from(presetRegexScripts).where(eq(presetRegexScripts.presetId, presetId));
+    expect(attached.sort((a, b) => a.position - b.position).map((r) => r.position)).toEqual([0, 1]);
+
+    // The idempotent re-run: content-dedup attaches the existing rows, mints nothing, duplicates nothing.
+    const again = await createImportPresetScripts(ctxOf(db, "q"))({
+      ownerId: owner,
+      presetId,
+      scripts: [cardScript("st-1", "first", "a"), cardScript("st-2", "second", "b")],
+    });
+    expect(again).toEqual({ created: 0, reused: 2 });
+    expect(await db.select().from(regexScripts)).toHaveLength(2);
+    expect(await db.select().from(presetRegexScripts).where(eq(presetRegexScripts.presetId, presetId))).toHaveLength(2);
+  });
+
+  test("a preset script content-dedups against a library row a CARD lift already minted (one library, every scope)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const characterId = await seedCharacter(db, owner);
+    const presetId = await seedPreset(db, owner);
+
+    await createImportCardScripts(ctxOf(db, "c"))({ ownerId: owner, characterId, scripts: [cardScript("st-1", "shared", "a")], carried: [] });
+    const result = await createImportPresetScripts(ctxOf(db, "p"))({ ownerId: owner, presetId, scripts: [cardScript("st-9", "shared", "a")] });
+
+    expect(result).toEqual({ created: 0, reused: 1 });
+    const rows = await db.select().from(regexScripts);
+    expect(rows).toHaveLength(1);
+    // ONE row, attached at BOTH scopes — the D121-E library property the embed-by-value shape could not have.
+    expect(await db.select().from(characterRegexScripts)).toHaveLength(1);
+    expect(await db.select().from(presetRegexScripts)).toHaveLength(1);
+  });
+});
+
+describe("GLOBAL lift", () => {
+  test("mints rows with the global attachment; a re-run re-asserts the attachment and mints nothing", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const lift = createImportGlobalScripts(ctxOf(db, "g"));
+
+    const first = await lift({ ownerId: owner, scripts: [cardScript("st-1", "everywhere", "a")] });
+    expect(first).toEqual({ created: 1, reused: 0 });
+    expect(await db.select().from(globalRegexScripts)).toHaveLength(1);
+
+    const again = await createImportGlobalScripts(ctxOf(db, "h"))({ ownerId: owner, scripts: [cardScript("st-1", "everywhere", "a")] });
+    expect(again).toEqual({ created: 0, reused: 1 });
+    expect(await db.select().from(regexScripts)).toHaveLength(1);
+    expect(await db.select().from(globalRegexScripts)).toHaveLength(1);
   });
 });
 

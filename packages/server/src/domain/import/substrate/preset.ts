@@ -22,6 +22,8 @@
 // SillyTavern's, which is the one thing a whole-profile import must never do.
 
 import { buildPresetFile, importStChatCompletionPreset } from "@orb/contracts/preset";
+import type { RegexScriptCard } from "@orb/contracts/regex";
+import { regexScriptCardSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
 import type { ParsedStPreset } from "../contract/views.ts";
 import { ST_POWER_USER_KEY } from "./appearance.ts";
@@ -44,6 +46,40 @@ export function stPresetName(stem: string): string {
  *  blob imports rather than being dropped, under a name that can never merge onto a file preset. */
 export const ST_ACTIVE_PRESET_NAME = `${FAMILY_LABEL} (active)`;
 
+/** ST's presetManager stores EXTENSION FIELDS on the preset itself under `extensions` — the regex
+ *  extension's preset-scoped scripts ride `extensions.regex_scripts` (SillyTavern
+ *  `extensions/regex/engine.js:126` — `readPresetExtensionField({ path: 'regex_scripts' })`). Each candidate
+ *  parses through the ONE ST card-wire schema (the numeric-placement/`scriptName` dialect included); an
+ *  invalid candidate joins the preset's `unmapped` note rather than dropping silently — the exact silence
+ *  this parser existed to end (measured: 15 real scripts on the corpus's Marinara preset, ignored). Any
+ *  OTHER `extensions.*` key is reported unmapped by name (nothing under this key is ever silent again). */
+function parsePresetExtensions(raw: Record<string, unknown>): {
+  readonly regexScripts: RegexScriptCard[];
+  readonly dropped: { field: string; reason: string }[];
+} {
+  const regexScripts: RegexScriptCard[] = [];
+  const dropped: { field: string; reason: string }[] = [];
+  const ext = raw["extensions"];
+  if (!isPlainObject(ext)) {
+    return { regexScripts, dropped };
+  }
+  const { regex_scripts: rawScripts, ...residue } = ext;
+  if (Array.isArray(rawScripts)) {
+    for (const [i, candidate] of rawScripts.entries()) {
+      const parsed = regexScriptCardSchema.safeParse(candidate);
+      if (parsed.success) {
+        regexScripts.push(parsed.data);
+      } else {
+        dropped.push({ field: `extensions.regex_scripts[${i}]`, reason: "not a recognizable regex script (malformed — dropped)" });
+      }
+    }
+  }
+  for (const key of Object.keys(residue)) {
+    dropped.push({ field: `extensions.${key}`, reason: "preset-scoped extension state — no orb seat" });
+  }
+  return { regexScripts, dropped };
+}
+
 /** Map an already-JSON-parsed ST chat-completion preset → the portable orb file + its unmapped-field list, or
  *  null when the object is not a recognizable chat-completion preset. Never throws (the shared mapper DOES
  *  throw on a non-preset, which is contained here).
@@ -58,7 +94,8 @@ export function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown
   }
   try {
     const result = importStChatCompletionPreset(raw, powerUser);
-    return { name, file: buildPresetFile(name, result.config), unmapped: result.dropped };
+    const { regexScripts, dropped } = parsePresetExtensions(raw);
+    return { name, file: buildPresetFile(name, result.config), unmapped: [...result.dropped, ...dropped], regexScripts };
   } catch {
     return null;
   }

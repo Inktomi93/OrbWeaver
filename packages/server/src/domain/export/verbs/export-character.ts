@@ -155,6 +155,8 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
         source: parseStringArrayColumn(charRow.source),
         creationDate: charRow.creationDate,
         modificationDate: charRow.modificationDate,
+        // The LIVE star, not the imported byte — the serde re-emits it as ST's `extensions.fav`.
+        starred: charRow.starred,
         tags: acceptedTags,
         extensions: parseRecord(charRow.extensions),
         residualData: parseRecord(charRow.residualData),

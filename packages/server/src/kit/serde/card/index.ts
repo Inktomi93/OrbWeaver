@@ -79,6 +79,7 @@ interface RawCard {
   extensions?: {
     depth_prompt?: unknown;
     regex_scripts?: unknown;
+    fav?: unknown;
     [key: string]: unknown;
   } | null;
   // V2-era cards put `regex_scripts` at the data root (no extensions wrapper); V3 nests it under
@@ -175,14 +176,14 @@ function parseRegexScripts(data: RawCard): RegexScriptCard[] {
   return out;
 }
 
-/** `data.extensions` MINUS the fields promoted to typed columns (`depth_prompt`, `regex_scripts`) — only
- *  genuinely-unknown vendor extras. Null when nothing is left (the §7.3 lossiness fix: no `raw` blob). */
+/** `data.extensions` MINUS the fields promoted to typed columns (`depth_prompt`, `regex_scripts`, `fav`) —
+ *  only genuinely-unknown vendor extras. Null when nothing is left (the §7.3 lossiness fix: no `raw` blob). */
 function residualExtensions(data: RawCard): Record<string, unknown> | null {
   const ext = data.extensions;
   if (ext === undefined || ext === null || typeof ext !== "object" || Array.isArray(ext)) {
     return null;
   }
-  const { depth_prompt: _dp, regex_scripts: _rs, ...rest } = ext;
+  const { depth_prompt: _dp, regex_scripts: _rs, fav: _fav, ...rest } = ext;
   return Object.keys(rest).length > 0 ? rest : null;
 }
 
@@ -295,6 +296,9 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
     source: Array.isArray(data.source) ? strArray(data.source) : null,
     creationDate: typeof data.creation_date === "number" && Number.isFinite(data.creation_date) ? data.creation_date : null,
     modificationDate: typeof data.modification_date === "number" && Number.isFinite(data.modification_date) ? data.modification_date : null,
+    // ST's favorite flag → `characters.starred` (strict `true` only — ST writes booleans; a foreign
+    // truthy string is not a star). Promoted out of the residue like `depth_prompt`/`regex_scripts`.
+    starred: data.extensions?.fav === true,
     regexScripts: parseRegexScripts(data),
     extensions: residualExtensions(data),
     residualData: residualData(data),
@@ -366,6 +370,9 @@ export interface ExportCardFields {
   readonly source: string[] | null;
   readonly creationDate: number | null;
   readonly modificationDate: number | null;
+  /** The LIVE `characters.starred` — emitted as ST's `extensions.fav`, so a star toggled in orb exports
+   *  truthfully instead of replaying the imported byte (the residue drops the key on import). */
+  readonly starred: boolean;
   readonly tags: string[];
   readonly extensions: Record<string, unknown> | null;
   readonly residualData?: Record<string, unknown> | null;
@@ -654,12 +661,14 @@ function v3Promotions(fields: ExportCardFields): Record<string, unknown> {
 
 export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[]): CharacterCardV3 {
   // biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
-  const { depth_prompt: _staleDepthPrompt, regex_scripts: _staleRegexScripts, ...baseExtensions } = fields.extensions ?? {};
+  const { depth_prompt: _staleDepthPrompt, regex_scripts: _staleRegexScripts, fav: _staleFav, ...baseExtensions } = fields.extensions ?? {};
   const extensions: Record<string, unknown> = {
     ...baseExtensions,
     // Emitted through the ST-polarity projector: our `enabled` PLUS ST's `disabled`, so a card exported
     // from here means the same thing in SillyTavern as it does on re-import (contracts/regex).
     regex_scripts: fields.regexScripts.map(toRegexScriptCardWire),
+    // ST's favorite flag, from the LIVE row (always written — ST itself always writes the key).
+    fav: fields.starred,
     ...(fields.depthPrompt ? { depth_prompt: fields.depthPrompt } : {}),
   };
   const data: Record<string, unknown> = {

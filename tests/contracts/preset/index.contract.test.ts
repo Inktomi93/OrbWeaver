@@ -669,13 +669,23 @@ test("importStChatCompletionPreset: group_nudge_prompt still drops, with the cor
   expect(drop?.reason).toBe("group nudge is room-owned, not preset-owned");
 });
 
-test("importStChatCompletionPreset: new_group_chat_prompt still drops, with the corrected boundary-slot reason", () => {
-  // Same repair as `group_nudge_prompt` above, applied to the sibling that was missed then: the old reason
-  // "no group chats" was stale post-rooms and became flatly FALSE once the ST profile importer began building
-  // group rooms out of `groups/`. The drop itself stays — orb has no new-chat/new-group-chat injection slot.
+test("importStChatCompletionPreset: new_chat_prompt maps onto formatStrings.newChatMarker (2026-08-15 re-judgment)", () => {
+  // The seat postdates the old "no new-chat injection slot" drop row: `newChatMarker` is the history-START
+  // boundary the assembler actually reads (`assembly/context.ts` newChatMarkerCandidate / G9).
+  const result = importStChatCompletionPreset(stBlob({ new_chat_prompt: "[Start a new Chat]" }));
+  expect(result.config.formatStrings?.newChatMarker).toBe("[Start a new Chat]");
+  expect(result.dropped.some((d) => d.field === "new_chat_prompt")).toBe(false);
+});
+
+test("importStChatCompletionPreset: new_group_chat_prompt still drops — orb's ONE boundary is room-agnostic", () => {
+  // ST fires this string only in GROUP chats; orb's `newChatMarker` fires in every room. Mapping a
+  // group-only boundary onto the room-agnostic key would inject group framing into every SOLO chat —
+  // a behavior change, not a translation — so the drop stays, with the truthful reason.
   const result = importStChatCompletionPreset(stBlob({ new_group_chat_prompt: "a fresh group scene" }));
   const drop = result.dropped.find((d) => d.field === "new_group_chat_prompt");
-  expect(drop?.reason).toBe("no new-group-chat injection slot");
+  expect(drop?.reason).toBe(
+    "orb's one history-START boundary (newChatMarker) is room-agnostic and maps from new_chat_prompt; a group-only boundary has no conditional seat",
+  );
 });
 
 test("importStChatCompletionPreset: impersonation_prompt maps onto formatStrings.impersonateNudge (no longer dropped)", () => {

@@ -15,6 +15,9 @@ export type {
   ImportCardScripts,
   ImportCardScriptsArgs,
   ImportCardScriptsResult,
+  ImportGlobalScripts,
+  ImportPresetScripts,
+  ImportPresetScriptsArgs,
   ImportRegexScript,
   RegexPortabilityContext,
 } from "./contract/portability.ts";
@@ -27,6 +30,8 @@ export {
   createExportCardScripts,
   createExportRegexScripts,
   createImportCardScripts,
+  createImportGlobalScripts,
+  createImportPresetScripts,
   createImportRegexScript,
 } from "./persistence/portability-write.ts";
 export { createResolveRegexSources } from "./persistence/resolve-sources.ts";

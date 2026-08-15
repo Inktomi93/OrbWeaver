@@ -4,6 +4,7 @@
 
 import type { ChatMetadata } from "@orb/contracts/chat";
 import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
+import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, PersonaId } from "@orb/kit/ids";
@@ -63,6 +64,10 @@ export interface CollectedCard {
    *  seat fallback for pre-group-era transcript lines that carry no `original_avatar` filename; the handle is
    *  NOT a substitute (it is slugified AND collision-suffixed, so it no longer matches what a line says). */
   readonly cardName: string;
+  /** The card's `extensions.world` NAME-LINK — the lorebook NAME ST binds as this character's primary book
+   *  (35 of 313 corpus cards). The driver attaches it by exact name AFTER the character + standalone-world
+   *  waves (role `primary`, demoted when an embedded book claimed the seat); a dangling name is reported. */
+  readonly worldName: string | null;
   readonly chats: CollectedChat[];
 }
 
@@ -86,6 +91,10 @@ export interface ParsedStPreset {
   readonly file: PresetFile;
   /** ST fields present with a meaningful value that orb has no seat for (the shared mapper's `dropped` list). */
   readonly unmapped: readonly StDroppedField[];
+  /** The preset's OWN regex scripts (ST presetManager extension field `extensions.regex_scripts`) — lifted
+   *  into the library + `preset_regex_scripts` AFTER the preset row exists (the verb owns the sequencing).
+   *  Not part of the orb preset FILE: scripts are owner-library rows, never embedded config (D121-E). */
+  readonly regexScripts: readonly RegexScriptCard[];
 }
 
 /** One parsed ST group definition. `memberFiles`/`disabledMemberFiles` are CARD FILENAMES (the collect-time
@@ -214,7 +223,25 @@ export interface CollectResult {
    *  card/avatar filename (ST's `tag_map[character.avatar]`) — the driver attaches these to the matching
    *  imported character by filename. */
   readonly tagsByEntityKey: ReadonlyMap<string, readonly string[]>;
+  /** ST's GLOBAL regex scripts (`extension_settings.regex` — "run on every chat"), parsed through the ONE
+   *  ST card-wire schema. The driver lifts them into the library + `global_regex_scripts` (orb's identical
+   *  semantic). ZERO on the real corpus — the count line is what keeps this plane loud. */
+  readonly globalRegexScripts: readonly RegexScriptCard[];
+  /** `extension_settings.regex` entries the schema refused — counted for the report, never silent. */
+  readonly malformedGlobalRegexScripts: number;
+  /** ST's per-character EXTRA lorebook bindings (`world_info_settings.world_info.charLore`): card filename
+   *  STEM → book NAMES. The driver attaches them role `auxiliary` after the standalone-world wave. */
+  readonly extraBooksByCardStem: ReadonlyMap<string, readonly string[]>;
+  /** Files under `user/files/` — ST's Data Bank plane (orb counterpart: `domain/databank`). COUNTED so the
+   *  report names the plane; the write wave is a named follow-up (the plane is empty on the real corpus). */
+  readonly databankFileCount: number;
+  /** Files under `user/images/` (incl. per-character gallery subdirs — orb counterpart: the assets gallery
+   *  verbs). COUNTED for the report; same follow-up posture as `databankFileCount`. */
+  readonly galleryImageCount: number;
   readonly orphanChatDirs: string[];
+  /** The orphan dirs' TRANSCRIPTS, with their evidence (the original dir name + the parsed headers) — the
+   *  mint-a-placeholder wave's input. Before 2026-08-15 the chats were counted, named, and thrown away. */
+  readonly orphanBundles: { readonly dirName: string; readonly handle: CharacterHandle; readonly chats: CollectedChat[] }[];
   readonly unreadableCards: string[];
   /** A `worlds/*.json` that did not parse as an ST world-info file (recorded, never silent). */
   readonly unreadableWorlds: string[];
@@ -257,6 +284,10 @@ export interface ImportPresetNote {
   readonly name: string;
   readonly sourceFile: string;
   readonly fields: readonly { readonly field: string; readonly reason: string }[];
+  /** The preset's carried regex scripts, LIFTED into the library + attached to this preset (fresh rows). */
+  readonly scriptsLifted: number;
+  /** Carried scripts that content-matched an existing library row and were attached rather than cloned. */
+  readonly scriptsReused: number;
 }
 
 /** One imported ST theme's honest lossiness note — the same shape (and the same "present even when empty"
@@ -348,6 +379,37 @@ export interface ImportReport {
   /** Chats whose ST chat-bound persona pick named a persona this install does not have (solo + group waves
    *  merged). The chats imported; only the pin did not travel. */
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
+  // ── the regex + world-link + user-plane accounting (the silent-gap sweep, 2026-08-15): every one of these
+  // planes used to vanish without a report line — the counts render even at zero so "read and empty" is
+  // distinguishable from "never looked at". ──
+  /** GLOBAL regex scripts found in `extension_settings.regex` (both write-time outcomes below are 0 on a
+   *  dryRun and when the lift op is unwired — `globalRegexSkippedReason` then says why). */
+  readonly globalRegexScriptsFound: number;
+  readonly globalRegexScriptsLifted: number;
+  readonly globalRegexScriptsReused: number;
+  /** `extension_settings.regex` entries the ST card-wire schema refused. */
+  readonly malformedGlobalRegexScripts: number;
+  /** Why found global scripts did not lift (unwired op / dryRun), or null when they lifted (or none exist). */
+  readonly globalRegexSkippedReason: string | null;
+  /** The CARD lift halves (D121-E — `data.extensions.regex_scripts`), summed across the bundle wave. */
+  readonly cardRegexScriptsLifted: number;
+  readonly cardRegexScriptsReused: number;
+  /** Card `extensions.world` + charLore book NAME-LINKS attached to imported characters. */
+  readonly worldLinksAttached: number;
+  /** Name-links that resolved NO owned book — `character` is the card's display name, `book` the dangling
+   *  name (never near-matched; the §5.7 unresolved-pin posture). */
+  readonly worldLinksMissing: readonly { readonly character: string; readonly book: string }[];
+  /** Why real name-links did not attach (unwired op / dryRun), or null when they attached (or none exist). */
+  readonly worldLinksSkippedReason: string | null;
+  /** Files found under the ST Data Bank plane (`user/files/`) — named follow-up when non-zero. */
+  readonly databankFileCount: number;
+  /** Files found under the ST character-gallery plane (`user/images/`) — named follow-up when non-zero. */
+  readonly galleryImageCount: number;
+  /** Orphan chat dirs IMPORTED via a minted placeholder character (name from the dir's own evidence; the
+   *  mint is tagged `orphan import` so the owner can find every husk). Empty on a dryRun. */
+  readonly orphanImports: readonly { readonly dir: string; readonly characterName: string; readonly created: boolean; readonly chatsImported: number }[];
+  /** Orphan dirs whose mint or chat write FAILED, with the reason (per-orphan isolation — never silent). */
+  readonly orphanSkipped: readonly { readonly dir: string; readonly reason: string }[];
 }
 
 /** ONE bundle-shaped chat file: `filename` is `<character-handle>/<leaf>.jsonl` (the directory IS the

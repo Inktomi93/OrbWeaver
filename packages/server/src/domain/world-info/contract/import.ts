@@ -3,7 +3,7 @@
 // only db + clock + id minters, no audit/user-bus/chat guards (a bulk migration writes silently).
 
 import type { AttachedBookRef } from "@orb/contracts/character";
-import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
+import type { BulkImportLorebookInput, BulkImportLorebookResult, WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 
@@ -79,3 +79,19 @@ export type LinkCarriedBooks = (args: {
   readonly characterId: CharacterId;
   readonly refs: readonly AttachedBookRef[];
 }) => Promise<LinkCarriedBooksResult>;
+
+// ── the ST NAME-LINK attach (card `extensions.world` + `world_info.charLore` extra books) ──────────
+
+/** Attach the owner's EXISTING books to a character BY EXACT NAME — the ST name-link: a card's
+ *  `extensions.world` names its primary lorebook and `world_info.charLore[].extraBooks` name auxiliaries,
+ *  and both vocabularies are book NAMES (ids do not survive a cross-box move). Resolution uses the SAME
+ *  owner-scoped (ownerId, name) key `ImportStandaloneLorebook` dedups on — exact match, newest-wins, never
+ *  fuzzy (a dangling name is returned in `missing` for the report, the §5.7 unresolved-pin posture).
+ *  `role` is the DESIRED role; a `primary` request DEMOTES to auxiliary when the character already holds a
+ *  primary (the at-most-one-primary invariant — an embedded `character_book` import wins the seat). */
+export type AttachOwnedBooksByName = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly names: readonly string[];
+  readonly role: WorldBookRole;
+}) => Promise<{ readonly linked: number; readonly missing: readonly string[] }>;

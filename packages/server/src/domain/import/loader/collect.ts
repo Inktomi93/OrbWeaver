@@ -6,6 +6,8 @@
 // /worlds/*.json, /OpenAI Settings/*.json (chat-completion presets), /groups/*.json + /group chats/*.jsonl.
 // Cards and chat dirs pair by slugifyHandle. Every non-happy path is recorded in CollectResult, never silent.
 
+import type { RegexScriptCard } from "@orb/contracts/regex";
+import { regexScriptCardSchema } from "@orb/contracts/regex";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
@@ -46,6 +48,9 @@ const SPEC_WRAPPER = /^main-(.+)-spec-v\d+$/;
 interface Group {
   card?: CollectedCard;
   chats: CollectedChat[];
+  /** The ORIGINAL chats/ directory name (first writer wins) — the orphan wave's provenance + name-fallback
+   *  signal; the slugified handle key loses the author's own casing/underscores ("Bonnie_Cow"). */
+  dirName?: string;
 }
 
 interface CollectState {
@@ -154,7 +159,11 @@ async function collectCards(fs: ImportFsPort, profileDir: string, state: Collect
       continue;
     }
     const handle = disambiguate(state, slugifyHandle(stem), ent.name);
-    group(state, handle).card = { handle, cardBytes: bytes, filename: ent.name, cardName: parsed.card.name, chats: [] };
+    // The card's `extensions.world` NAME-LINK (a lorebook NAME, not an id — 35 of 313 corpus cards carry
+    // one). It stays in the extensions residue too (lossless); this copy is the driver's attach key.
+    const worldRaw = parsed.card.extensions?.["world"];
+    const worldName = typeof worldRaw === "string" && worldRaw.trim().length > 0 ? worldRaw : null;
+    group(state, handle).card = { handle, cardBytes: bytes, filename: ent.name, cardName: parsed.card.name, worldName, chats: [] };
   }
 }
 
@@ -171,6 +180,7 @@ async function collectChatsForDir(args: {
     return;
   }
   const dirPath = fs.join(chatsDir, dirName);
+  group(state, handle).dirName ??= dirName;
   for (const fileEnt of await listDir(fs, dirPath)) {
     if (fileEnt.kind !== "file" || !JSONL_EXT.test(fileEnt.name)) {
       continue;
@@ -426,6 +436,109 @@ async function collectAppearance(fs: ImportFsPort, profileDir: string): Promise<
   }
 }
 
+/** Object-descent helper for the settings.json side-reads below: `descend(x, "a", "b")` = `x.a.b` when every
+ *  hop is a plain object, else null — the tolerant read these best-effort collectors share. */
+function descend(raw: unknown, ...keys: string[]): unknown {
+  let cur: unknown = raw;
+  for (const key of keys) {
+    if (typeof cur !== "object" || cur === null) {
+      return null;
+    }
+    cur = (cur as Record<string, unknown>)[key];
+  }
+  return cur;
+}
+
+/** Best-effort settings.json read shared by the two side-collectors below (tags/personas already own their
+ *  copies of this posture): null on a missing/corrupt file, never a throw. */
+async function readSettingsJson(fs: ImportFsPort, profileDir: string): Promise<unknown> {
+  try {
+    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return null;
+  }
+}
+
+/** ST's GLOBAL regex scripts — `extension_settings.regex`, the regex extension's "run on every chat" list
+ *  (orb's identical semantic is the `global_regex_scripts` attachment). Each candidate parses through the
+ *  ONE ST card-wire schema; a malformed one is COUNTED (the report prints it), never silent. A
+ *  missing/corrupt settings.json yields zeroes — the same best-effort posture as tags/personas. */
+async function collectGlobalRegexScripts(fs: ImportFsPort, profileDir: string): Promise<{ scripts: RegexScriptCard[]; malformed: number }> {
+  const list = descend(await readSettingsJson(fs, profileDir), "extension_settings", "regex");
+  const scripts: RegexScriptCard[] = [];
+  let malformed = 0;
+  for (const candidate of Array.isArray(list) ? list : []) {
+    const parsed = regexScriptCardSchema.safeParse(candidate);
+    if (parsed.success) {
+      scripts.push(parsed.data);
+    } else {
+      malformed += 1;
+    }
+  }
+  return { scripts, malformed };
+}
+
+/** One charLore entry's (stem, books) pair, or null when it carries no usable binding. */
+function charLoreBinding(entry: unknown): { stem: string; books: string[] } | null {
+  if (typeof entry !== "object" || entry === null) {
+    return null;
+  }
+  const e = entry as Record<string, unknown>;
+  const stem = typeof e["name"] === "string" ? e["name"].trim() : "";
+  const books = Array.isArray(e["extraBooks"]) ? e["extraBooks"].filter((b): b is string => typeof b === "string" && b.trim().length > 0) : [];
+  return stem.length > 0 && books.length > 0 ? { stem, books } : null;
+}
+
+/** ST's per-character EXTRA lorebook bindings — `world_info_settings.world_info.charLore`, each
+ *  `{ name: <card filename stem>, extraBooks: <book NAMES> }` (SillyTavern `world-info.js` keys the entry
+ *  by `getCharaFilename`, the avatar filename sans extension). Book names resolve at the driver against
+ *  the owner's imported/standing library; the card's own `extensions.world` is the PRIMARY channel and
+ *  rides `CollectedCard.worldName`. A missing/corrupt settings.json yields an empty map. */
+async function collectCharLore(fs: ImportFsPort, profileDir: string): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  const charLore = descend(await readSettingsJson(fs, profileDir), "world_info_settings", "world_info", "charLore");
+  for (const entry of Array.isArray(charLore) ? charLore : []) {
+    const binding = charLoreBinding(entry);
+    if (binding !== null) {
+      out.set(binding.stem, binding.books);
+    }
+  }
+  return out;
+}
+
+/** Count the ST Data Bank + character-gallery planes so the report can NAME them with counts — these were
+ *  fully silent before (buried under the `user/` "misc user files" line). `user/files/` holds Data Bank
+ *  attachment bytes (orb counterpart: `domain/databank`); `user/images/<character>/` holds the per-character
+ *  gallery (orb counterpart: the assets gallery verbs). BOTH are EMPTY on the real corpus, so the write
+ *  waves are a named follow-up — this count line is what guarantees a future profile that carries data can
+ *  never again lose it silently. */
+async function countUserPlanes(fs: ImportFsPort, profileDir: string): Promise<{ databankFiles: number; galleryImages: number }> {
+  let databankFiles = 0;
+  for (const ent of await listDir(fs, fs.join(profileDir, "user", "files"))) {
+    if (ent.kind === "file") {
+      databankFiles += 1;
+    }
+  }
+  let galleryImages = 0;
+  const imagesDir = fs.join(profileDir, "user", "images");
+  for (const ent of await listDir(fs, imagesDir)) {
+    if (ent.kind === "file") {
+      galleryImages += 1;
+      continue;
+    }
+    if (ent.kind !== "directory") {
+      continue;
+    }
+    for (const sub of await listDir(fs, fs.join(imagesDir, ent.name))) {
+      if (sub.kind === "file") {
+        galleryImages += 1;
+      }
+    }
+  }
+  return { databankFiles, galleryImages };
+}
+
 // Best-effort: the ST library-tag assignments (`settings.tags` + `tag_map`) resolved to per-entity tag names.
 // A missing/corrupt settings.json yields an empty map. The driver attaches these to each imported character
 // by matching the card filename against the map key (ST's `tag_map[character.avatar]`).
@@ -514,14 +627,22 @@ export async function collectBundlesFromDir(
   const personas = await collectPersonas(fs, profileDir);
   const tagsByEntityKey = await collectTags(fs, profileDir);
   const appearance = await collectAppearance(fs, profileDir);
+  const globalRegex = await collectGlobalRegexScripts(fs, profileDir);
+  const extraBooksByCardStem = await collectCharLore(fs, profileDir);
+  const userPlanes = await countUserPlanes(fs, profileDir);
 
   const bundles: CollectedCard[] = [];
   const orphanChatDirs: string[] = [];
+  const orphanBundles: CollectResult["orphanBundles"] = [];
   for (const [handle, g] of state.byHandle) {
     if (g.card !== undefined) {
       bundles.push({ ...g.card, chats: g.chats });
     } else if (g.chats.length > 0) {
       orphanChatDirs.push(handle);
+      // The orphan wave's input: the transcripts WITH their evidence (dir name + parsed headers) — before
+      // 2026-08-15 these chats were counted, named in the report, and then thrown away. The map key IS the
+      // collect-time handle (the same castId seam `collectChatsForDir` minted it through).
+      orphanBundles.push({ dirName: g.dirName ?? handle, handle: castId<CharacterHandle>(handle), chats: g.chats });
     }
   }
 
@@ -535,7 +656,13 @@ export async function collectBundlesFromDir(
     appearance,
     groups: state.groups,
     tagsByEntityKey,
+    globalRegexScripts: globalRegex.scripts,
+    malformedGlobalRegexScripts: globalRegex.malformed,
+    extraBooksByCardStem,
+    databankFileCount: userPlanes.databankFiles,
+    galleryImageCount: userPlanes.galleryImages,
     orphanChatDirs,
+    orphanBundles,
     unreadableCards: state.unreadableCards,
     unreadableWorlds: state.unreadableWorlds,
     unreadablePresets: state.unreadablePresets,

@@ -30,6 +30,7 @@ import type { Dirent } from "node:fs";
 import { readdir as readdirFs, readFile as readFileFs, stat as statFs } from "node:fs/promises";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
+import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
@@ -43,6 +44,7 @@ import type {
   CollectedPreset,
   CollectedTheme,
   CollectedWorld,
+  CollectResult,
   ImportFsPort,
   ImportPersonaInput,
   ImportPresetNote,
@@ -56,8 +58,9 @@ import type {
 import { collectBundlesFromDir, createImportService, importFileHash } from "#domain/import";
 import type { BulkImportPersonas } from "#domain/persona";
 import type { ImportPreset } from "#domain/preset";
+import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "#domain/regex";
 import type { ImportedAppearance, ImportedAppearanceOutcome, SettingsImportOutcome } from "#domain/settings";
-import type { ImportStandaloneLorebook } from "#domain/world-info";
+import type { AttachOwnedBooksByName, ImportStandaloneLorebook } from "#domain/world-info";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context.ts";
 import { buildImportContext } from "./build-import-context.ts";
 
@@ -96,6 +99,19 @@ export interface ProfileDirImportDeps {
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
   readonly linkCarriedBooks?: ImportWorldInfoPort["linkCarriedBooks"];
+  /** D121-E: the regex card LIFT. The composition ALWAYS supplied this (`portability-runner.ts`'s shared
+   *  `profileImport` slice) but the field was never declared here, so the driver silently dropped it and
+   *  every profile-dir card's scripts no-opped at `importCharacter`'s optional-op guard — the upload door
+   *  wired it, the bulk path did not. Optional on the `importLorebook` precedent (test compositions). */
+  readonly importCardScripts?: ImportCardScripts;
+  /** The GLOBAL regex lift (`extension_settings.regex` → library + `global_regex_scripts`). Optional on the
+   *  same precedent; found-but-unlifted scripts are REPORTED with the reason, never silent. */
+  readonly importGlobalScripts?: ImportGlobalScripts;
+  /** The preset-scoped regex lift, threaded to the presets verb through the profile ops. Same optionality. */
+  readonly importPresetScripts?: ImportPresetScripts;
+  /** The ST NAME-LINK attach (card `extensions.world` primary + charLore auxiliaries → the owner's books,
+   *  by exact name). Optional on the same precedent; dangling names are REPORTED per character. */
+  readonly attachBooksByName?: AttachOwnedBooksByName;
   /** The UNATTACHED owner-library book write — the standalone `worlds/*.json` land through this (no character
    *  attach). Imported BEFORE characters so a future name-link (`extensions.world`) can resolve them. */
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
@@ -159,6 +175,15 @@ interface Collected extends CollectRecords {
   readonly groups: CollectedGroup[];
   /** ST library-tag assignments merged across every profile dir: card/avatar filename → tag names. */
   readonly tagsByEntityKey: ReadonlyMap<string, readonly string[]>;
+  /** The orphan dirs' transcripts + evidence, concatenated across profile dirs (the mint wave's input). */
+  readonly orphanBundles: CollectResult["orphanBundles"];
+  /** GLOBAL regex scripts, concatenated across profile dirs (the lift content-dedups repeats). */
+  readonly globalRegexScripts: RegexScriptCard[];
+  readonly malformedGlobalRegexScripts: number;
+  /** charLore extra-book bindings, unioned across profile dirs (card filename STEM → book names). */
+  readonly extraBooksByCardStem: Map<string, string[]>;
+  readonly databankFileCount: number;
+  readonly galleryImageCount: number;
   /** examined-but-not-imported records (unreadable cards/worlds, oversized/orphan chats, skip-listed characters). */
   readonly skipped: number;
 }
@@ -214,6 +239,14 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
   let appearance: Record<string, unknown> = {};
   // card/avatar filename → tag names, unioned across dirs (a filename can recur across profiles).
   const tagsByEntityKey = new Map<string, string[]>();
+  const orphanBundles: CollectResult["orphanBundles"] = [];
+  // Global regex scripts CONCAT across dirs (the lift content-dedups repeats); charLore bindings union
+  // through the same mergeTags rule (a card filename stem can recur across profiles).
+  const globalRegexScripts: RegexScriptCard[] = [];
+  let malformedGlobalRegexScripts = 0;
+  const extraBooksByCardStem = new Map<string, string[]>();
+  let databankFileCount = 0;
+  let galleryImageCount = 0;
   const r: CollectRecords = {
     unreadableCards: [],
     unreadableWorlds: [],
@@ -248,6 +281,12 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
       appearance = result.appearance;
     }
     mergeTags(tagsByEntityKey, result.tagsByEntityKey);
+    orphanBundles.push(...result.orphanBundles);
+    globalRegexScripts.push(...result.globalRegexScripts);
+    malformedGlobalRegexScripts += result.malformedGlobalRegexScripts;
+    mergeTags(extraBooksByCardStem, result.extraBooksByCardStem);
+    databankFileCount += result.databankFileCount;
+    galleryImageCount += result.galleryImageCount;
     mergeRecords(r, result);
   }
   const skipped =
@@ -261,7 +300,25 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     r.skippedChats.length +
     r.skippedCharacters.length +
     r.orphanChatDirs.length;
-  return { bundles, personas, worlds, presets, themes, backgrounds, appearance, groups, tagsByEntityKey, skipped, ...r };
+  return {
+    bundles,
+    personas,
+    worlds,
+    presets,
+    themes,
+    backgrounds,
+    appearance,
+    groups,
+    tagsByEntityKey,
+    orphanBundles,
+    globalRegexScripts,
+    malformedGlobalRegexScripts,
+    extraBooksByCardStem,
+    databankFileCount,
+    galleryImageCount,
+    skipped,
+    ...r,
+  };
 }
 
 /** scanned = every examined ST entity: happy-path bundles + personas + worlds + presets + groups (and their
@@ -411,6 +468,20 @@ interface WaveOutcomes {
   /** §5.7, MERGED across the solo bundle loop and the group wave — one report line per chat whose ST
    *  chat-bound persona pick named nobody here, wherever the transcript came from. */
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
+  /** The GLOBAL regex wave (found counts ride `collected`; these are the write-time outcomes). */
+  readonly globalRegexScriptsLifted: number;
+  readonly globalRegexScriptsReused: number;
+  readonly globalRegexSkippedReason: string | null;
+  /** The CARD lift halves (D121-E), summed across the bundle wave. */
+  readonly cardRegexScriptsLifted: number;
+  readonly cardRegexScriptsReused: number;
+  /** The world NAME-LINK wave (card `extensions.world` + charLore) — attaches + the dangling names. */
+  readonly worldLinksAttached: number;
+  readonly worldLinksMissing: readonly { readonly character: string; readonly book: string }[];
+  readonly worldLinksSkippedReason: string | null;
+  /** The ORPHAN wave: dirs imported via a minted placeholder + the per-orphan failures. */
+  readonly orphanImports: readonly { readonly dir: string; readonly characterName: string; readonly created: boolean; readonly chatsImported: number }[];
+  readonly orphanSkipped: readonly { readonly dir: string; readonly reason: string }[];
 }
 
 const NO_WAVES: WaveOutcomes = {
@@ -430,6 +501,16 @@ const NO_WAVES: WaveOutcomes = {
   skippedGroups: [],
   skippedGroupMembers: [],
   unresolvedPinnedPersonas: [],
+  globalRegexScriptsLifted: 0,
+  globalRegexScriptsReused: 0,
+  globalRegexSkippedReason: null,
+  cardRegexScriptsLifted: 0,
+  cardRegexScriptsReused: 0,
+  worldLinksAttached: 0,
+  worldLinksMissing: [],
+  worldLinksSkippedReason: null,
+  orphanImports: [],
+  orphanSkipped: [],
 };
 
 interface ReportArgs {
@@ -461,7 +542,137 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves }: Report
     skippedCharacters: collected.skippedCharacters,
     unhandled: [...new Set(collected.unhandled)],
     unhandledSettings: [...new Set(collected.unhandledSettings)],
+    // The silent-gap sweep's counts: the FOUND halves are collect-time facts (real on a dryRun too); the
+    // lifted/attached halves ride `waves` above and are zero on a dryRun, like every other write outcome.
+    globalRegexScriptsFound: collected.globalRegexScripts.length,
+    malformedGlobalRegexScripts: collected.malformedGlobalRegexScripts,
+    databankFileCount: collected.databankFileCount,
+    galleryImageCount: collected.galleryImageCount,
   };
+}
+
+/** The ST card PNG extension, stripped to recover the stem `charLore` keys by (ST's `getCharaFilename`). */
+const CARD_PNG_EXT = /\.png$/i;
+
+/** The GLOBAL regex lift, one call — isolated so the op arrives as a NARROWED parameter (the same shape
+ *  `attachWorldLinksFor` receives `attach` in; awaiting the optional property inline trips biome's
+ *  thenable lens even though the op's contract returns a Promise). */
+function liftGlobalScripts(lift: ImportGlobalScripts, ownerId: UserId, scripts: readonly RegexScriptCard[]): ReturnType<ImportGlobalScripts> {
+  return lift({ ownerId, scripts });
+}
+
+/** One character's world name-links, attached through the injected world-info op. `primary` is the card's
+ *  own `extensions.world`; `extras` are the profile's `charLore` bindings for this card. Missing names come
+ *  back per character for the report. */
+async function attachWorldLinksFor(args: {
+  readonly attach: AttachOwnedBooksByName;
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly bundle: CollectedCard;
+  readonly extras: readonly string[];
+}): Promise<{ readonly attached: number; readonly missing: { character: string; book: string }[] }> {
+  const { attach, ownerId, characterId, bundle, extras } = args;
+  const missing: { character: string; book: string }[] = [];
+  let attached = 0;
+  if (bundle.worldName !== null) {
+    const res = await attach({ ownerId, characterId, names: [bundle.worldName], role: "primary" });
+    attached += res.linked;
+    missing.push(...res.missing.map((book) => ({ character: bundle.cardName, book })));
+  }
+  if (extras.length > 0) {
+    const res = await attach({ ownerId, characterId, names: extras, role: "auxiliary" });
+    attached += res.linked;
+    missing.push(...res.missing.map((book) => ({ character: bundle.cardName, book })));
+  }
+  return { attached, missing };
+}
+
+/** The world NAME-LINK wave over every imported bundle (see the call site's ordering comment). A bundle
+ *  whose card was skipped has no character to attach to — its links skip with it (the card's own skip row
+ *  already tells the story). An UNWIRED attach op with real links to make is a recorded reason. */
+async function attachCollectedWorldLinks(
+  deps: ProfileDirImportDeps,
+  collected: Collected,
+  characterIdByCardFilename: ReadonlyMap<string, CharacterId>,
+): Promise<{ readonly attached: number; readonly missing: { character: string; book: string }[]; readonly skippedReason: string | null }> {
+  const attach = deps.attachBooksByName;
+  const missing: { character: string; book: string }[] = [];
+  let attached = 0;
+  let anyLinks = false;
+  for (const bundle of collected.bundles) {
+    if (deps.signal.aborted) {
+      break;
+    }
+    const extras = collected.extraBooksByCardStem.get(bundle.filename.replace(CARD_PNG_EXT, "")) ?? [];
+    if (bundle.worldName === null && extras.length === 0) {
+      continue;
+    }
+    anyLinks = true;
+    const characterId = characterIdByCardFilename.get(bundle.filename);
+    if (attach === undefined || characterId === undefined) {
+      continue;
+    }
+    // biome-ignore lint/performance/noAwaitInLoops: a handful of name-link attaches during the one-time bulk import, isolated per character.
+    const result = await attachWorldLinksFor({ attach, ownerId: deps.principal.userId, characterId, bundle, extras });
+    attached += result.attached;
+    missing.push(...result.missing);
+  }
+  const skippedReason = attach === undefined && anyLinks ? "world name-link attach is not wired into this composition" : null;
+  return { attached, missing, skippedReason };
+}
+
+/** The library tag every orphan-dir mint wears (manual/accepted, the library-tag posture) — the owner's
+ *  one-filter handle on every husk that needs fleshing out. */
+const ORPHAN_IMPORT_TAG = "orphan import";
+
+/** The ORPHAN wave: mint a placeholder per orphan dir (the verb owns the evidence rule + idempotency),
+ *  import its transcripts through the ORDINARY chats verb, tag the mint. PER-ORPHAN ISOLATION — one bad
+ *  dir is one skip row, never an aborted wave (the card wave's rule). */
+async function importOrphanBundles(
+  deps: ProfileDirImportDeps,
+  service: ReturnType<typeof createImportService>,
+  orphans: Collected["orphanBundles"],
+): Promise<{
+  readonly changed: number;
+  readonly orphanImports: { dir: string; characterName: string; created: boolean; chatsImported: number }[];
+  readonly orphanSkipped: { dir: string; reason: string }[];
+  readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
+}> {
+  let changed = 0;
+  const orphanImports: { dir: string; characterName: string; created: boolean; chatsImported: number }[] = [];
+  const orphanSkipped: { dir: string; reason: string }[] = [];
+  const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
+  for (const orphan of orphans) {
+    if (deps.signal.aborted) {
+      break;
+    }
+    try {
+      // biome-ignore lint/performance/noAwaitInLoops: orphan dirs import sequentially during the one-time bulk import — one idempotent mint + one chat write each, isolated per dir.
+      const mint = await service.importOrphanCharacter({
+        dirName: orphan.dirName,
+        handle: orphan.handle,
+        headerNames: orphan.chats.map((c) => c.parsed.characterName),
+      });
+      if (mint.created) {
+        changed += 1;
+        await deps.attachCardTag({
+          ownerId: deps.principal.userId,
+          characterId: mint.characterId,
+          tagName: ORPHAN_IMPORT_TAG,
+          source: "manual",
+          status: "accepted",
+        });
+      }
+      const chatResult = await service.importChats({ characterId: mint.characterId, chats: orphan.chats });
+      changed += chatResult.chatsImported;
+      unresolvedPins.push(...chatResult.unresolvedPinnedPersonas);
+      orphanImports.push({ dir: orphan.dirName, characterName: mint.name, created: mint.created, chatsImported: chatResult.chatsImported });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      orphanSkipped.push({ dir: orphan.dirName, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
+    }
+  }
+  return { changed, orphanImports, orphanSkipped, unresolvedPins };
 }
 
 /** Import one collected card bundle: the character (idempotent by importHash) then its chats. Returns the
@@ -470,18 +681,26 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves }: Report
 async function importOneBundle(
   service: ReturnType<typeof createImportService>,
   bundle: CollectedCard,
-): Promise<{ readonly changed: number; readonly characterId: CharacterId; readonly unresolvedPins: readonly ImportUnresolvedPinnedPersona[] }> {
+): Promise<{
+  readonly changed: number;
+  readonly characterId: CharacterId;
+  readonly unresolvedPins: readonly ImportUnresolvedPinnedPersona[];
+  /** The card's regex-script lift counts (D121-E) — summed into the report's card-lift accounting. */
+  readonly scriptsLifted: number;
+  readonly scriptsReused: number;
+}> {
   let changed = 0;
   const cardResult = await service.importCharacter({ card: { bytes: bundle.cardBytes, filename: bundle.filename } });
   if (cardResult.created) {
     changed += 1;
   }
+  const scripts = { scriptsLifted: cardResult.regexScriptsLifted, scriptsReused: cardResult.regexScriptsReused };
   if (bundle.chats.length === 0) {
-    return { changed, characterId: cardResult.characterId, unresolvedPins: [] };
+    return { changed, characterId: cardResult.characterId, unresolvedPins: [], ...scripts };
   }
   const chatResult = await service.importChats({ characterId: cardResult.characterId, chats: bundle.chats });
   changed += chatResult.chatsImported;
-  return { changed, characterId: cardResult.characterId, unresolvedPins: chatResult.unresolvedPinnedPersonas };
+  return { changed, characterId: cardResult.characterId, unresolvedPins: chatResult.unresolvedPinnedPersonas, ...scripts };
 }
 
 /** Attach the ST library tags for a just-imported character (`tag_map[card filename]` → resolve-or-create by
@@ -512,12 +731,17 @@ async function importCollectedBundles(
   readonly characterNameByCardFilename: Map<string, string>;
   /** §5.7 — the solo wave's half of the unresolved chat-bound persona picks. */
   readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
+  /** The card-lift halves of the regex accounting, summed across every imported card. */
+  readonly cardScriptsLifted: number;
+  readonly cardScriptsReused: number;
 }> {
   let changed = 0;
   const skippedCards: ImportSkippedCard[] = [];
   const characterIdByCardFilename = new Map<string, CharacterId>();
   const characterNameByCardFilename = new Map<string, string>();
   const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
+  let cardScriptsLifted = 0;
+  let cardScriptsReused = 0;
   for (const bundle of bundles) {
     if (deps.signal.aborted) {
       break;
@@ -527,6 +751,8 @@ async function importCollectedBundles(
       const result = await importOneBundle(service, bundle);
       changed += result.changed;
       unresolvedPins.push(...result.unresolvedPins);
+      cardScriptsLifted += result.scriptsLifted;
+      cardScriptsReused += result.scriptsReused;
       characterIdByCardFilename.set(bundle.filename, result.characterId);
       characterNameByCardFilename.set(bundle.filename, bundle.cardName);
       const tagNames = tagsByEntityKey.get(bundle.filename);
@@ -540,7 +766,37 @@ async function importCollectedBundles(
       skippedCards.push({ file: bundle.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
     }
   }
-  return { changed, skippedCards, characterIdByCardFilename, characterNameByCardFilename, unresolvedPins };
+  return { changed, skippedCards, characterIdByCardFilename, characterNameByCardFilename, unresolvedPins, cardScriptsLifted, cardScriptsReused };
+}
+
+/** Assemble the run's ImportContext. Post-import embedding is enqueued ONCE at the very end of the whole
+ *  import (gated on `changed > 0`) — NOT per character. Reasons: (1) the per-(kind, owner) admission lock
+ *  makes a per-entity enqueue collide, and an unhandled conflict aborts the import mid-loop (the "only 2 of
+ *  hundreds imported" bug); (2) the embed passes (characters then chats) must run AFTER the whole import,
+ *  never while it is still writing. So the per-chat `enqueueBackfill` the importChats verb calls is a NO-OP
+ *  here — the driver owns the one enqueue. */
+function contextFor(deps: ProfileDirImportDeps, store: ImportAssetPort["store"]): ReturnType<typeof buildImportContext> {
+  return buildImportContext({
+    principal: deps.principal,
+    character: deps.character,
+    storeAvatar: store,
+    attachCardTag: deps.attachCardTag,
+    ...(deps.importLorebook !== undefined ? { importLorebook: deps.importLorebook } : {}),
+    ...(deps.linkCarriedBooks !== undefined ? { linkCarriedBooks: deps.linkCarriedBooks } : {}),
+    ...(deps.importCardScripts !== undefined ? { importCardScripts: deps.importCardScripts } : {}),
+    profile: {
+      now: deps.now,
+      stWallClockZone: stWallClockZone(deps),
+      personaByUserName: new Map(),
+      bulkImportChats: deps.bulkImportChats,
+      bulkImportPersonas: deps.bulkImportPersonas,
+      enqueueBackfill: (): Promise<void> => Promise.resolve(),
+      reconcileStats: deps.reconcileImportStats,
+      ...(deps.importPreset !== undefined ? { importPreset: deps.importPreset } : {}),
+      ...(deps.importTheme !== undefined ? { importTheme: deps.importTheme } : {}),
+      ...(deps.importPresetScripts !== undefined ? { importPresetScripts: deps.importPresetScripts } : {}),
+    },
+  });
 }
 
 /**
@@ -557,31 +813,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
 
   // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store (PD-94).
   const store: ImportAssetPort["store"] = (params) => deps.storeAvatar({ ...params, maxBytes: ASSET_UPLOAD_MAX_BYTES });
-  // Post-import embedding is enqueued ONCE at the very end of the whole import (below, gated on `changed > 0`)
-  // — NOT per character. Reasons: (1) the per-(kind, owner) admission lock makes a per-entity enqueue collide,
-  // and an unhandled conflict aborts the import mid-loop (the "only 2 of hundreds imported" bug); (2) the embed
-  // passes (characters then chats) must run AFTER the whole import, never while it is still writing. So the
-  // per-chat `enqueueBackfill` the importChats verb calls is a NO-OP here — the driver owns the one enqueue.
-  const ctx = buildImportContext({
-    principal: deps.principal,
-    character: deps.character,
-    storeAvatar: store,
-    attachCardTag: deps.attachCardTag,
-    ...(deps.importLorebook !== undefined ? { importLorebook: deps.importLorebook } : {}),
-    ...(deps.linkCarriedBooks !== undefined ? { linkCarriedBooks: deps.linkCarriedBooks } : {}),
-    profile: {
-      now: deps.now,
-      stWallClockZone: stWallClockZone(deps),
-      personaByUserName: new Map(),
-      bulkImportChats: deps.bulkImportChats,
-      bulkImportPersonas: deps.bulkImportPersonas,
-      enqueueBackfill: (): Promise<void> => Promise.resolve(),
-      reconcileStats: deps.reconcileImportStats,
-      ...(deps.importPreset !== undefined ? { importPreset: deps.importPreset } : {}),
-      ...(deps.importTheme !== undefined ? { importTheme: deps.importTheme } : {}),
-    },
-  });
-  const service = createImportService(ctx);
+  const service = createImportService(contextFor(deps, store));
 
   let changed = 0;
 
@@ -616,6 +848,23 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   const themeResult = await service.importThemes({ themes: collected.themes });
   changed += themeResult.themesCreated;
 
+  // ST GLOBAL regex scripts (`extension_settings.regex`) → the library + `global_regex_scripts` (orb's
+  // identical "runs on every chat you host" semantic). Independent of every other plane. Found-but-unwired
+  // is a RECORDED reason, never silence — this exact plane vanished without a line before this wave existed.
+  let globalRegexScriptsLifted = 0;
+  let globalRegexScriptsReused = 0;
+  let globalRegexSkippedReason: string | null = null;
+  if (collected.globalRegexScripts.length > 0) {
+    if (deps.importGlobalScripts !== undefined) {
+      const lift = await liftGlobalScripts(deps.importGlobalScripts, deps.principal.userId, collected.globalRegexScripts);
+      globalRegexScriptsLifted = lift.created;
+      globalRegexScriptsReused = lift.reused;
+      changed += lift.created;
+    } else {
+      globalRegexSkippedReason = "global regex-script import is not wired into this composition";
+    }
+  }
+
   // ST BACKGROUNDS — CAS-stored, then appended to `appearance.backgroundLibrary` together with the
   // `power_user` ergonomics patch in ONE serialized settings write (the array append needs a
   // read-modify-write that must sit INSIDE the per-user serializer). A re-run stores byte-identical blobs
@@ -632,6 +881,19 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
 
   const bundleResult = await importCollectedBundles(deps, service, collected.bundles, collected.tagsByEntityKey);
   changed += bundleResult.changed;
+
+  // The ST world NAME-LINKS, strictly AFTER both the standalone-world wave (the books the names resolve
+  // against) and the character wave (the characters they attach to): a card's `extensions.world` names its
+  // PRIMARY book (demoted by the attach op when the embedded `character_book` already took the seat) and
+  // `charLore` names per-character EXTRA books (`auxiliary`). Exact-name resolution only; a dangling name
+  // is a report row, never a near-match.
+  const worldLinks = await attachCollectedWorldLinks(deps, collected, bundleResult.characterIdByCardFilename);
+
+  // The ORPHAN wave — transcripts whose card is absent get a minted placeholder (evidence-only, tagged
+  // `orphan import`) and then ride the ORDINARY chats verb. Runs after the card wave so a same-slug card
+  // character can never be shadowed by a mint.
+  const orphanResult = await importOrphanBundles(deps, service, collected.orphanBundles);
+  changed += orphanResult.changed;
 
   // ST GROUPS strictly AFTER the character wave: a group's members are card FILENAMES, and the filename →
   // characterId map only exists once every card has been imported (or matched). A member card that is not in
@@ -672,8 +934,18 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       groupChatsImported: groupResult.groupChatsImported,
       skippedGroups: groupResult.skippedGroups,
       skippedGroupMembers: groupResult.skippedMembers,
-      // Both waves' unresolved chat-bound persona picks in ST's own order: solo bundles, then group rooms.
-      unresolvedPinnedPersonas: [...bundleResult.unresolvedPins, ...groupResult.unresolvedPinnedPersonas],
+      // Every wave's unresolved chat-bound persona picks, in run order: solo bundles, group rooms, orphans.
+      unresolvedPinnedPersonas: [...bundleResult.unresolvedPins, ...groupResult.unresolvedPinnedPersonas, ...orphanResult.unresolvedPins],
+      globalRegexScriptsLifted,
+      globalRegexScriptsReused,
+      globalRegexSkippedReason,
+      cardRegexScriptsLifted: bundleResult.cardScriptsLifted,
+      cardRegexScriptsReused: bundleResult.cardScriptsReused,
+      worldLinksAttached: worldLinks.attached,
+      worldLinksMissing: worldLinks.missing,
+      worldLinksSkippedReason: worldLinks.skippedReason,
+      orphanImports: orphanResult.orphanImports,
+      orphanSkipped: orphanResult.orphanSkipped,
     },
   });
 }

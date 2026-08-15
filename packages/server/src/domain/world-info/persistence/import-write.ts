@@ -14,8 +14,8 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
-import { and, desc, eq } from "drizzle-orm";
-import type { BulkImportLorebook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import.ts";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import type { AttachOwnedBooksByName, BulkImportLorebook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import.ts";
 
 /** The FK would fail-closed anyway, but the explicit check gives a typed DomainNotFoundError. */
 async function assertOwnedCharacter(db: Db, ownerId: UserId, characterId: CharacterId): Promise<void> {
@@ -106,6 +106,57 @@ export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImpor
     ];
     await db.batch(batchMany(stmts));
     return { worldBookId: bookId, entryCount: book.entries.length, replaced: false };
+  };
+}
+
+/**
+ * The ST NAME-LINK attach (`AttachOwnedBooksByName` — see the contract's doc for the semantics). Resolution
+ * is `findBookByName` — the SAME owner-scoped (ownerId, name)/newest-wins key the standalone import dedups
+ * on, so a name links exactly the book that import would have merged onto. A `primary` request demotes to
+ * `auxiliary` when the character already holds a primary (at-most-one-primary is a verb-layer invariant —
+ * the embedded `character_book` import above claims the seat first in the profile-import ordering).
+ * onConflictDoNothing keeps a re-import idempotent (PK `(characterId, worldBookId)`).
+ */
+export function createAttachOwnedBooksByName(ctx: WorldInfoImportContext): AttachOwnedBooksByName {
+  return async ({ ownerId, characterId, names, role }) => {
+    const { db } = ctx;
+    if (names.length === 0) {
+      return { linked: 0, missing: [] };
+    }
+    await assertOwnedCharacter(db, ownerId, characterId);
+    const primaryFree = role === "primary" && (await findPrimaryBookId(db, characterId)) === null;
+
+    // ONE owner-scoped resolve for the whole name list; newest-wins per name (the `findBookByName` rule,
+    // batched). Ordered ASC so the LAST write per name in the fold is the newest row.
+    const candidates = await db
+      .select({ id: worldBooks.id, name: worldBooks.name })
+      .from(worldBooks)
+      .where(and(eq(worldBooks.ownerId, ownerId), inArray(worldBooks.name, [...names])))
+      .orderBy(asc(worldBooks.createdAt));
+    // @orb-gate-ignore persistence-no-in-memory-state: query-local newest-wins fold for the batch resolve
+    const newestByName = new Map<string, WorldBookId>();
+    for (const row of candidates) {
+      newestByName.set(row.name, row.id);
+    }
+
+    const at = ctx.now();
+    const missing: string[] = [];
+    const attachRows: (typeof characterBooks.$inferInsert)[] = [];
+    let primarySeatOpen = primaryFree;
+    for (const name of names) {
+      const bookId = newestByName.get(name);
+      if (bookId === undefined) {
+        missing.push(name);
+        continue;
+      }
+      // Only the FIRST RESOLVED name can take the primary seat — one attach call carries one desired role.
+      attachRows.push({ characterId, worldBookId: bookId, role: primarySeatOpen ? "primary" : "auxiliary", createdAt: at });
+      primarySeatOpen = false;
+    }
+    if (attachRows.length > 0) {
+      await db.insert(characterBooks).values(attachRows).onConflictDoNothing();
+    }
+    return { linked: attachRows.length, missing };
   };
 }
 
