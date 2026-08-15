@@ -1,31 +1,30 @@
 // `startChat` (chat.md Part I `verbs/start-chat.ts`) — proves against a real libSQL db: the room is minted with
 // the caller as `host` + the founding characters as members (D28 live-identity roster — `chat_participants`
 // references the live `characters` row), the opening seeds per the resolved `OpeningPolicy` (first-message =
-// the primary's greeting VERBATIM; greet-all = every founding character; none = nothing; generate = delegated
-// to the turn engine as a `kind:"opening"` run), and `chatCreated` (+ a `messageCommitted` per seeded greeting)
-// fires. Reached through the BUNDLE `createStartChat(ctx, deps)`.
+// the primary's greeting VERBATIM; greet-all = every founding character; none = nothing), and `chatCreated`
+// (+ a `messageCommitted` per seeded greeting) fires. Reached through the BUNDLE `createStartChat(ctx, deps)`.
+//
+// R2 (chat-creation-draft-mode-replacement.md §4.4) retired the creation-time draft carry
+// (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided + the `generate` opening arm and its
+// `openingFailure` degrade) — `StartChatParams` carries CREATION-INTENT inputs only now, and this suite's
+// coverage retired with it. Group config/roster tuning/greeting edits are proved against the real room by
+// their own post-create verbs (`setGroupConfig`/`setSeatKnobs`/`editMessage`/`setSeededGreeting`).
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, GroupConfig } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, personas } from "@orb/db";
-import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
-import { beforeEach, describe, vi } from "vitest";
-import type { TurnEngine, TurnOutcome, TurnPrep } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { beforeEach, describe } from "vitest";
 import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
-import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support.ts";
 
@@ -78,36 +77,8 @@ function cardWith(name: string, greeting: string): CharacterCard {
   };
 }
 
-/** A throwing engine/connection/assemble stub for the verbatim + none paths (they never delegate). */
-const notReached = (): never => {
-  throw new Error("dep not reached in this path");
-};
-
-function makeDeps(
-  over: {
-    readonly engine?: Pick<TurnEngine, "runTurn">;
-    readonly resolveConnection?: () => Promise<ResolvedConnection>;
-    readonly creatorGroupDefaults?: GroupConfig;
-  } = {},
-): Parameters<typeof createStartChat>[1] {
-  return {
-    emit,
-    // The REAL claim chokepoint (R0) — startChat mints a husk and only the `generate` opening arm claims it,
-    // so a stub here would hide exactly the behavior this suite covers.
-    claimChat: createClaimChat(makeChatContext(db)),
-    loadParticipantViews,
-    engine: over.engine ?? { runTurn: notReached },
-    resolveConnection: over.resolveConnection ?? notReached,
-    resolveCreatorGroupDefaults: () => Promise.resolve(over.creatorGroupDefaults ?? DEFAULT_GROUP_CONFIG),
-    resolveForeignInputs: () =>
-      Promise.resolve({
-        promptConfig: DEFAULT_PROMPT_CONFIG,
-        personas: { anchor: null, active: null },
-        globalRegexScripts: [],
-        scanDepth: 6,
-        injectionTokenBudget: 0,
-      }),
-  };
+function makeDeps(): Parameters<typeof createStartChat>[1] {
+  return { emit, loadParticipantViews };
 }
 
 describe("startChat — #40 draft-time game birth (startAsGame)", () => {
@@ -291,117 +262,6 @@ describe("startChat — lazy room creation + opening", () => {
     expect(emitted).toEqual([{ type: "chatCreated", chatId: chat.id }]);
     const rows = await db.select().from(messages).where(eq(messages.chatId, chat.id));
     expect(rows).toHaveLength(0);
-  });
-
-  test("generate: delegates the opening to the turn engine (kind:'opening') and returns its outcome", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const engineOutcome: TurnOutcome = { messages: [], aborted: false };
-    const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.resolve(engineOutcome));
-    const ctx = makeChatContext(db, {
-      getCard: () => Promise.resolve(cardWith("Aria", "ignored")),
-    });
-
-    const deps = makeDeps({
-      engine: { runTurn },
-      resolveConnection: () => Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
-    });
-    const { startChat } = createStartChat(ctx, deps);
-    const { chat, opening } = await startChat({
-      principal: principal(host),
-      characterIds: [aria],
-      opening: "generate",
-    });
-
-    expect(opening).toBe(engineOutcome);
-    expect(runTurn).toHaveBeenCalledTimes(1);
-    const prep = runTurn.mock.calls[0]?.[0];
-    expect(prep?.kind).toBe("opening");
-    expect(prep?.speakerCharacterId).toBe(aria);
-    // The creator IS the host of a brand-new room (the D19 triple collapses to the caller).
-    expect(prep?.runAsUserId).toBe(host);
-    expect(prep?.triggeredBy).toBe(host);
-    // PD-63: the opening turn prompt is the RESOLVED guided `opening` template ({{char}} live), not a
-    // neutral nudge (chat.md §6 — the action whose resolved template IS the turn prompt).
-    expect(prep?.appendUserTurn).toContain("greet me as Aria would");
-    // No verbatim greeting was seeded on the generate path.
-    const rows = await db.select().from(messages).where(eq(messages.chatId, chat.id));
-    expect(rows).toHaveLength(0);
-  });
-
-  test("guided: the composer wand's degenerate 'Guide the opening' steer reaches the generated opening's turn prompt", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const engineOutcome: TurnOutcome = { messages: [], aborted: false };
-    const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.resolve(engineOutcome));
-    const ctx = makeChatContext(db, {
-      getCard: () => Promise.resolve(cardWith("Aria", "ignored")),
-    });
-    const deps = makeDeps({
-      engine: { runTurn },
-      resolveConnection: () => Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
-    });
-    const { startChat } = createStartChat(ctx, deps);
-
-    await startChat({
-      principal: principal(host),
-      characterIds: [aria],
-      opening: "generate",
-      guided: { action: "opening", input: "start in the middle of a chase" },
-    });
-
-    // The default `opening` template splices {{input}} onto the resolved prompt — a draft chat has no
-    // committed turn to steer, so the wand's typed guidance rides this founding turn instead.
-    const prep = runTurn.mock.calls[0]?.[0];
-    expect(prep?.appendUserTurn).toContain("start in the middle of a chase");
-  });
-
-  // START-1 — the `generate` opening is the one step that runs AFTER the atomic creation batch, so it is
-  // DEGRADED-NOT-BROKEN (the forkChat game-clone posture): rejecting the verb orphaned a REAL committed chat
-  // behind the draft UI under a "couldn't start the chat" toast, and the retry minted a second room.
-  test("generate: an engine FAILURE never fails the verb — the room commits and the failure returns as data", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    // The dead-engine shape: a NON-domain throw (a provider fault), whose message is framework text.
-    const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:8000")));
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "ignored")) });
-    const deps = makeDeps({
-      engine: { runTurn },
-      resolveConnection: () => Promise.resolve(makeResolvedConnection()),
-    });
-    const { startChat } = createStartChat(ctx, deps);
-
-    const { chat, opening, openingFailure } = await startChat({
-      principal: principal(host),
-      characterIds: [aria],
-      opening: "generate",
-    });
-
-    expect(opening).toBeNull();
-    // A non-DomainError message is framework text (and a credential-echo risk) — it never rides back to the
-    // user; the client supplies its own copy for a null reason.
-    expect(openingFailure).toEqual({ reason: null });
-    // The room is REAL and fully rostered — the whole point: the client can navigate into it.
-    const [row] = await db.select({ id: chats.id }).from(chats).where(eq(chats.id, chat.id));
-    expect(row?.id).toBe(chat.id);
-    expect(await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chat.id))).toHaveLength(2);
-    expect(emitted).toEqual([{ type: "chatCreated", chatId: chat.id }]);
-  });
-
-  test("generate: a DomainError failure rides its CURATED message back as the reason", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.reject(new DomainUnavailableError("The model is overloaded — try again.")));
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "ignored")) });
-    const deps = makeDeps({
-      engine: { runTurn },
-      resolveConnection: () => Promise.resolve(makeResolvedConnection()),
-    });
-    const { startChat } = createStartChat(ctx, deps);
-
-    const { openingFailure } = await startChat({ principal: principal(host), characterIds: [aria], opening: "generate" });
-
-    expect(openingFailure).toEqual({ reason: "The model is overloaded — try again." });
   });
 
   test("atomic: the chat row + the full roster commit together", async () => {
@@ -649,131 +509,12 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
   });
 });
 
-// THE DRAFT CARRY (J2/J3): a new chat is fully editable pre-send; the first send hands its draft-config
-// state to `startChat`. Each carry-param is optional — absent ⇒ the byte-identical plain-new-chat paths
-// asserted above; these prove the carried edits land at creation.
-describe("startChat — the draft carry (pre-send edits persisted at creation)", () => {
-  test("seedGreetings persists the chosen/edited opening text over the card's greeting[0]", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const ctx = makeChatContext(db, {
-      getCard: () => Promise.resolve(cardWith("Aria", "the card's primary greeting")),
-    });
-    const { startChat } = createStartChat(ctx, makeDeps());
-    const { opening } = await startChat({
-      principal: principal(host),
-      characterIds: [aria],
-      seedGreetings: { [aria]: "the draft's chosen opening" },
-    });
-    // The verbatim seed is the DRAFT text, not the card's greeting[0].
-    expect(opening?.messages.map((m) => m.content)).toEqual(["the draft's chosen opening"]);
-  });
-
-  test("a whitespace-only seedGreetings seeds NO opening row (the empty-greeting gotcha)", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const ctx = makeChatContext(db, {
-      getCard: () => Promise.resolve(cardWith("Aria", "card greeting")),
-    });
-    const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat, opening } = await startChat({
-      principal: principal(host),
-      characterIds: [aria],
-      seedGreetings: { [aria]: "   " },
-    });
-    // No seeded row ⇒ the opening outcome carries no messages (null, like the `none` path).
-    expect(opening?.messages ?? []).toHaveLength(0);
-    const rows = await db.select().from(messages).where(eq(messages.chatId, chat.id));
-    expect(rows).toHaveLength(0);
-  });
-
-  test("rosterOverrides applies mute + talkativeness to the founding rows (deviating only)", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const borg = await seedCharacter(db, host, "borg");
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("C", "")) });
-    const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({
-      principal: principal(host),
-      characterIds: [aria, borg],
-      opening: "none",
-      rosterOverrides: { [aria]: { disabled: true, talkativeness: 0.9 } },
-    });
-    const ariaRow = chat.participants.find((p) => p.characterId === aria);
-    const borgRow = chat.participants.find((p) => p.characterId === borg);
-    expect(ariaRow?.disabled).toBe(true);
-    expect(ariaRow?.talkativeness).toBe(0.9);
-    // The untouched member keeps the column defaults (byte-identical to a plain new chat).
-    expect(borgRow?.disabled).toBe(false);
-    expect(borgRow?.talkativeness).toBe(0.5);
-  });
-
-  test("groupConfig + roomOverrides persist (parsed/fully-defaulted) into the chat metadata", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
-    const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({
-      principal: principal(host),
-      characterIds: [aria],
-      opening: "none",
-      groupConfig: { output: "narrator", policy: "natural" },
-      roomOverrides: { scenario: "a rainy alley" },
-    });
-    expect(chat.group.output).toBe("narrator");
-    expect(chat.group.policy).toBe("natural");
-    // Parsed through `groupConfigSchema` (like `setGroupConfig`) → the omitted fields carry their defaults.
-    expect(chat.group.speakerTags).toBe(true);
-    expect(chat.roomOverrides.scenario).toBe("a rainy alley");
-  });
-
-  test("groupDefaults seed: a creator with CUSTOM groupDefaults + no draft ⇒ the new chat carries them", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
-    const custom: GroupConfig = groupConfigSchema.parse({ output: "narrator", policy: "list", speakerTags: false });
-    const { startChat } = createStartChat(ctx, makeDeps({ creatorGroupDefaults: custom }));
-
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
-    expect(chat.group).toEqual(custom);
-    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
-    expect(row?.metadata?.group).toEqual(custom);
-  });
-
-  test("groupDefaults seed: an EXPLICIT draft wins over the creator's custom groupDefaults", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
-    const custom: GroupConfig = groupConfigSchema.parse({ output: "narrator", policy: "list", speakerTags: false });
-    const { startChat } = createStartChat(ctx, makeDeps({ creatorGroupDefaults: custom }));
-
-    const { chat } = await startChat({
-      principal: principal(host),
-      characterIds: [aria],
-      opening: "none",
-      groupConfig: { output: "per-speaker", policy: "natural" },
-    });
-    expect(chat.group.output).toBe("per-speaker");
-    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
-    expect(row?.metadata?.group?.output).toBe("per-speaker");
-  });
-
-  test("groupDefaults seed: a creator on DEFAULT settings + no draft ⇒ no group sub-blob written (byte-identical to today)", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
-    // makeDeps defaults resolveCreatorGroupDefaults to DEFAULT_GROUP_CONFIG.
-    const { startChat } = createStartChat(ctx, makeDeps());
-
-    // No opening/draft/roomOverrides at all → the creation blob is fully absent → metadata null (the
-    // all-absent contract), so a creator on defaults writes NOTHING new.
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
-    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
-    expect(row?.metadata).toBeNull();
-    // The read side still resolves the canonical default (the ?? fallback is untouched).
-    expect(chat.group).toEqual(DEFAULT_GROUP_CONFIG);
-  });
-
+// R2 retired the creation-time draft carry (seedGreetings/rosterOverrides/groupConfig/roomOverrides —
+// chat-creation-draft-mode-replacement.md §4.4): those config edits are POST-CREATE writes now
+// (`setGroupConfig`/`setSeatKnobs`/`setRoomOverrides`, proved in their own verb suites). `injections`
+// is the one founding-shape param that survives — pre-authored injections are part of what the room is
+// FOUNDED with, not a post-create tuning knob, so it stays a creation-time input.
+describe("startChat — founding injections (creation-time only)", () => {
   test("injections seed founding chat_injections rows in the same creation batch", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");

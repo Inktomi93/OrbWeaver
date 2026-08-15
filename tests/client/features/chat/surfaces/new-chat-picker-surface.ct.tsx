@@ -124,7 +124,7 @@ const PREVIEW_FIT_STUB = {
  *  its empty canon, and the fit preview. */
 const CREATED_ROOM_ROUTES = {
   "character.list": { items: [ARIA, BOLT], nextCursor: null, totalCount: 2 },
-  "chat.startChat": { chat: CREATED_CHAT_DETAIL, opening: null, openingFailure: null },
+  "chat.startChat": { chat: CREATED_CHAT_DETAIL, opening: null },
   "chat.getChat": CREATED_CHAT_DETAIL,
   "chat.listMessages": (): unknown => makeMessagesPage([]),
   "chat.previewContextFit": (): unknown => PREVIEW_FIT_STUB,

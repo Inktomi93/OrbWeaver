@@ -1249,3 +1249,39 @@ describe("chat.getGroupConfig / chat.setGroupConfig — the group-config wire-th
     expect(result).toEqual(DEFAULT_GROUP_CONFIG);
   });
 });
+
+// R2 (chat-creation-draft-mode-replacement.md §4.4) retired the creation-time draft carry: `startChat`'s
+// wire schema carries CREATION-INTENT inputs only. `opening` EXCLUDES `"generate"` — a creation-fused
+// generated opening is unreachable now (post-creation `chat.generate` is the only way to guide an
+// opening), and the removed carry fields (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided)
+// are unknown keys `z.object` silently strips, so the RIGHT proof for THEM is `StartChatParams` no longer
+// typing them (tsc refuses — proved in `tests/server/domain/chat/verbs/start-chat.int.test.ts`); `opening`
+// is a real wire VALUE, so its exclusion is a genuine runtime BAD_REQUEST this router owns.
+describe("chat.startChat — CREATION-INTENT inputs only (R2)", () => {
+  test('opening:"generate" is refused at the boundary; the verb never runs', async () => {
+    const startChat = vi.fn<ChatService["startChat"]>();
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { startChat } } });
+
+    await expect(
+      caller(ctx).chat.startChat({
+        characterIds: [castId<CharacterId>("character_aria")],
+        // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — "generate" is a creation-fused turn, retired by R2.
+        opening: "generate" as any,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(startChat).not.toHaveBeenCalled();
+  });
+
+  test("a well-formed creation body still passes the boundary and reaches the verb", async () => {
+    const startChat = vi.fn<ChatService["startChat"]>(async () => ({ chat: { id: CHAT } }) as unknown as Awaited<ReturnType<ChatService["startChat"]>>);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { startChat } } });
+
+    await caller(ctx).chat.startChat({ characterIds: [castId<CharacterId>("character_aria")], opening: "greet-all" });
+
+    expect(startChat).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      characterIds: [castId<CharacterId>("character_aria")],
+      opening: "greet-all",
+    });
+  });
+});

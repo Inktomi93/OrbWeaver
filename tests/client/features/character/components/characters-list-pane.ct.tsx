@@ -107,7 +107,7 @@ function routeAll(page: Parameters<typeof routeTrpc>[0], chats: readonly ChatSum
     "character.get": () => AZARAEL_DETAIL,
     "character.update": () => AZARAEL_DETAIL,
     "chat.listChats": chatListResponder(chats),
-    "chat.startChat": { chat: CREATED_CHAT, opening: null, openingFailure: null },
+    "chat.startChat": { chat: CREATED_CHAT, opening: null },
     "settings.getUserSettings": () => SETTINGS,
   });
 }

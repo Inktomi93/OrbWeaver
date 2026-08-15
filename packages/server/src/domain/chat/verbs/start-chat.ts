@@ -7,14 +7,14 @@
 // live card only to seed the opening assistant message.
 //
 // Opening policies: `none` seeds nothing; `first-message` seeds the primary character's greeting verbatim
-// at seq 1; `greet-all` seeds every founding character's greeting verbatim (seq 1..N, skipping empties);
-// `generate` delegates to the turn engine as a single `kind:"opening"` runTurn. Absent policy resolves by
-// roster size (1 ⇒ first-message, >1 ⇒ greet-all, 0 ⇒ none).
-//
-// The `generate` opening is the ONE part of this verb that is NOT atomic with the room — it runs after the
-// creation batch commits, so it is DEGRADED-NOT-BROKEN: its failure comes back as `openingFailure` DATA and
-// the verb still succeeds (START-1, `runOpeningOrDegrade`). Rejecting instead orphaned a real committed chat
-// behind the draft UI and invited the retry that minted a second one.
+// at seq 1; `greet-all` seeds every founding character's greeting verbatim (seq 1..N, skipping empties).
+// Absent policy resolves by roster size (1 ⇒ first-message, >1 ⇒ greet-all, 0 ⇒ none). `generate` is NOT a
+// creation-time arm (the wire schema excludes it, `transport/trpc/routers/chat.ts`'s `startChatSchema`) —
+// "guide the opening" is an ordinary post-creation `chat.generate` action against the real room now
+// (chat-creation-draft-mode-replacement.md §4.4/R2 retired the fused generated-opening +
+// `openingFailure` degrade apparatus (START-1) along with the rest of the creation-time draft carry:
+// R1 made every client caller create the real room before mounting, so a creation-fused generation and
+// its "the room committed but the opening failed" DATA outcome were unreachable product surface).
 //
 // FLAG[greeting-macro]: the verbatim greeting is seeded raw at seed time. Identity macros
 // (`{{char}}`/`{{user}}`/`{{persona}}`) stay raw/per-view, resolved at read against the character +
@@ -26,57 +26,41 @@
 // synthesized per-subscription at the participant stream-attach (transport/trpc/routers/chat.ts's
 // `chatEventStream`, PD-134): a local per-viewer yield, never published on the bus, never logged to
 // `chat_events`. This verb deliberately stays silent on it (the marker guarding against a stray emit here).
+//
+// R0 §4.2: `startChat` mints a HUSK (`chats.startedAt IS NULL`) and never claims it — creation alone is
+// never "real activity". The founding roster/greeting/injections are all part of the FOUNDING shape, not
+// a claim; the first claim comes from whatever the caller does NEXT (a send, a generated opening, an
+// explicit host config write — `verbs/claim-chat.ts`).
 
-import type { DurableChatBusEvent, GroupConfig, GroupConfigInput, MessageView, OpeningPolicy, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, groupConfigSchema, roomOverridesSchema } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { DurableChatBusEvent, MessageView, OpeningPolicy, ParticipantView } from "@orb/contracts/chat";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
-import { errorMessage } from "@orb/kit/error-message";
-import { DomainError, DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import { getLog } from "#foundation/observability";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
-import type { ClaimChatOp, ResolveCreatorGroupDefaultsOp } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
-import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
-import type { GuidedSteer, StartChatParams } from "../contract/params.ts";
-import type { OpeningFailure, StartChatResult, TurnEngine, TurnOutcome } from "../contract/results.ts";
+import type { StartChatParams } from "../contract/params.ts";
+import type { StartChatResult, TurnOutcome } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { buildInitialRosterRows } from "../persistence/roster.ts";
-import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
-import { resolveGuidedActionText } from "../substrate/assembly-access.ts";
 import { NO_HISTORY_FLOOR } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
- *  returned `ChatDetail` roster; the engine + the two assemble resolvers back the `generate` opening only. */
+ *  returned `ChatDetail` roster. */
 interface StartChatDeps {
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
-  /** The `generate` opening runs a single persisted `kind:"opening"` turn — start-chat never DRAFTS (the
-   *  non-persisting `generateText` is a verb-level composer-fill path), so it needs the `runTurn` slice only. */
-  readonly engine: Pick<TurnEngine, "runTurn">;
-  readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
-  /** The foreign half of the assemble ctx (preset/persona/settings) for the `generate` opening only. */
-  readonly resolveForeignInputs: ResolveForeignInputsOp;
-  /** The creator's per-user default GroupConfig — seeds a new chat's `metadata.group` when the caller supplies
-   *  no `groupConfig` draft AND the creator customized their default (the FOREIGN-inputs seam). */
-  readonly resolveCreatorGroupDefaults: ResolveCreatorGroupDefaultsOp;
-  /** The husk→real transition (R0). `startChat` mints a HUSK and never claims it -- except on the ONE
-   *  arm that is itself real activity: a `generate` opening, claimed BEFORE the engine runs (the ordering
-   *  invariant -- the engine's own commit pushes that row's delta, so a claim after it double-counts). */
-  readonly claimChat: ClaimChatOp;
 }
 
 type StartChatVerbs = Pick<ChatService, "startChat">;
 
 /** Resolve the effective opening policy: the explicit param, else by roster size. */
-function resolveOpeningPolicy(opening: OpeningPolicy | undefined, charCount: number): OpeningPolicy {
+function resolveOpeningPolicy(opening: Exclude<OpeningPolicy, "generate"> | undefined, charCount: number): Exclude<OpeningPolicy, "generate"> {
   if (opening !== undefined) {
     return opening;
   }
@@ -86,37 +70,10 @@ function resolveOpeningPolicy(opening: OpeningPolicy | undefined, charCount: num
   return charCount === 1 ? "first-message" : "greet-all";
 }
 
-/** Resolve the `metadata.group` sub-blob for a new chat: an explicit caller `groupConfig` draft WINS (parsed
- *  → fully-defaulted, byte-identical to `setGroupConfig`); absent, the creator's `settings.groupDefaults` seeds
- *  it — but ONLY when it deviates from `DEFAULT_GROUP_CONFIG` (a user on defaults writes NOTHING, so a plain
- *  chat keeps `metadata === null` exactly as today; the read side's `?? DEFAULT_GROUP_CONFIG` covers the absent
- *  case identically). Explicit \> settings \> absent — the FOREIGN-inputs precedence. */
-function resolveCreationGroup(groupConfig: GroupConfigInput | undefined, creatorDefaults: GroupConfig): GroupConfig | undefined {
-  if (groupConfig !== undefined) {
-    return groupConfigSchema.parse(groupConfig);
-  }
-  const isDefault = JSON.stringify(creatorDefaults) === JSON.stringify(DEFAULT_GROUP_CONFIG);
-  return isDefault ? undefined : creatorDefaults;
-}
-
-/** Compose the creation `metadata` blob from the pre-send draft config. Group config + room overrides
- *  route through the same schemas the `setGroupConfig`/`setRoomOverrides` verbs use, so a draft-carried
- *  config is byte-identical to what those verbs would persist. `group` is pre-resolved (draft or the
- *  creator's seeded default; see {@link resolveCreationGroup}). All-absent ⇒ `null`. */
-function buildCreationMetadata(args: {
-  readonly opening: OpeningPolicy | undefined;
-  readonly group: GroupConfig | undefined;
-  readonly roomOverrides: RoomOverrides | undefined;
-}): (typeof chats.$inferInsert)["metadata"] {
-  const { opening, group, roomOverrides } = args;
-  if (opening === undefined && group === undefined && roomOverrides === undefined) {
-    return null;
-  }
-  return {
-    ...(opening === undefined ? {} : { opening }),
-    ...(group === undefined ? {} : { group }),
-    ...(roomOverrides === undefined ? {} : { roomOverrides: roomOverridesSchema.parse(roomOverrides) }),
-  };
+/** Compose the creation `metadata` blob — just the resolved `opening` label now (group config + room
+ *  overrides are post-create-only writes; `setGroupConfig`/`setRoomOverrides` own them). Absent ⇒ `null`. */
+function buildCreationMetadata(opening: OpeningPolicy | undefined): (typeof chats.$inferInsert)["metadata"] {
+  return opening === undefined ? null : { opening };
 }
 
 /** The founding characters whose greeting is seeded verbatim for `policy`. */
@@ -151,115 +108,14 @@ async function loadGreetings(
   ctx: ChatContext,
   hostUserId: UserId,
   characterIds: readonly CharacterId[],
-  seedGreetings: Readonly<Record<CharacterId, string>> | undefined,
 ): Promise<{ characterId: CharacterId; text: string }[]> {
   const cards = await Promise.all(characterIds.map((characterId) => ctx.getCard({ ownerId: hostUserId, characterId })));
-  return characterIds.map((characterId, i) => ({
-    characterId,
-    // The draft's swiped/edited opening wins; else the card's primary greeting.
-    text: seedGreetings?.[characterId] ?? cards[i]?.greetings[0]?.text ?? "",
-  }));
+  return characterIds.map((characterId, i) => ({ characterId, text: cards[i]?.greetings[0]?.text ?? "" }));
 }
 
-/** The `generate` opening — delegate a single `kind:"opening"` turn to the engine. Builds the assemble
- *  ctx through the substrate bridge, then runs the primary character's opening turn (no user row; the
- *  opening instruction rides `appendUserTurn`). */
-async function runGeneratedOpening(
-  ctx: ChatContext,
-  deps: StartChatDeps,
-  args: {
-    readonly chatId: ChatId;
-    readonly hostUserId: UserId;
-    readonly characterIds: readonly CharacterId[];
-    readonly anchorPersonaId: PersonaId | null;
-    /** The composer wand's "Guide the opening" steer — its `input` fills the `opening` action's `{{input}}`. */
-    readonly guided?: GuidedSteer | undefined;
-  },
-): Promise<TurnOutcome> {
-  const { chatId, hostUserId } = args;
-  const connection = await deps.resolveConnection({ runAsUserId: hostUserId, chatId });
-  const personaIds = args.anchorPersonaId !== null ? [args.anchorPersonaId] : [];
-  const foreign = await deps.resolveForeignInputs({
-    chatId,
-    runAsUserId: hostUserId,
-    model: connection.model,
-    anchorPersonaId: args.anchorPersonaId,
-    // A just-founded room's ONLY human seat is the founding host (`buildInitialRosterRows`), so the persona
-    // consent set is exactly them — and the anchor the seed chain just resolved is theirs by construction.
-    presentHumanUserIds: [hostUserId],
-    // The greeting/opening seed is not a human's turn — nobody is speaking yet — so `{{user}}` binds to the
-    // chat ANCHOR, which is the identity the founding chain just chose for this room. Byte-identical to the
-    // retired absent arm (its `personaIds[0]` was this same anchor id, the only entry in the list).
-    trigger: { kind: "none" },
-  });
-  const assembleContext = await gatherAssembleContext(
-    ctx,
-    {
-      chatId,
-      runAsUserId: hostUserId,
-      model: connection.model,
-      castCharacterIds: args.characterIds,
-      personaIds,
-    },
-    foreign,
-  );
-  // The opening action's resolved template IS the turn prompt, delivered on `appendUserTurn`.
-  const openingPrompt = resolveGuidedActionText(assembleContext, {
-    action: "opening",
-    input: args.guided?.input ?? "",
-    model: connection.model,
-    chatId,
-  });
-  return await deps.engine.runTurn({
-    chatId,
-    assembleContext,
-    connection,
-    triggeredBy: hostUserId,
-    runAsUserId: hostUserId,
-    kind: "opening",
-    intent: {},
-    // PD-146: a generated opening honors the host's custom stop strings too (all-off ⇒ byte-identical).
-    extraStopSequences: foreign.chatBehavior?.customStoppingStrings,
-    memoryConfig: foreign.memoryConfig,
-    speakerCharacterId: args.characterIds[0] ?? null,
-    appendUserTurn: openingPrompt,
-  });
-}
-
-/** The `generate` opening is DEGRADED-NOT-BROKEN (START-1 — the `forkChat` game-clone posture). The chat +
- *  roster ALREADY COMMITTED atomically by the time the engine runs, so letting the engine's failure reject the
- *  whole verb was a lie with teeth: the caller saw "couldn't start the chat", stayed on the draft UI, and
- *  retried — minting a SECOND room, while the first sat orphaned in the chat list. Log it and hand the failure
- *  back as DATA so the caller can enter the room it really created and say what actually failed. Only a
- *  `DomainError`'s CURATED message rides back to the user (see {@link OpeningFailure}); a provider/link fault's
- *  message is framework text, so it degrades to `reason: null`. */
-async function runOpeningOrDegrade(
-  ctx: ChatContext,
-  deps: StartChatDeps,
-  args: Parameters<typeof runGeneratedOpening>[2],
-): Promise<{ readonly outcome: TurnOutcome | null; readonly failure: OpeningFailure | null }> {
-  // The generated opening IS real activity, so it CLAIMS the room (R0 F4(a)) — here rather than at the verb
-  // body's call site, which keeps the claim on the ONE arm that earns it without adding a branch to the
-  // already-dense verb. BEFORE the engine runs, per the ordering invariant: the engine's own commit pushes
-  // the opening row's delta, so a claim placed after it would count that row twice (claim-chat.ts header).
-  // A FAILED opening still leaves the room CLAIMED and visible — the caller gets a real, empty room it can
-  // retry in, which is precisely the START-1 orphan this degrade posture exists to make survivable.
-  await deps.claimChat(args.chatId);
-  try {
-    return { outcome: await runGeneratedOpening(ctx, deps, args), failure: null };
-  } catch (err) {
-    getLog().warn(
-      { event: "chat.start.opening_generation_failed", err, chatId: args.chatId },
-      "chat: the generated opening failed — the room ships without one",
-    );
-    return { outcome: null, failure: { reason: err instanceof DomainError ? errorMessage(err) : null } };
-  }
-}
-
-/** `startChat` — mint the room: the caller as `host`, the founding characters as members, then open per
- *  the resolved `OpeningPolicy`. The chat row + roster (+ verbatim greeting canon) commit in one atomic
- *  batch; a `generate` opening runs the engine after the room exists (it needs the committed roster) and is
- *  DEGRADED-NOT-BROKEN on failure ({@link runOpeningOrDegrade}). */
+/** `startChat` — mint the room: the caller as `host`, the founding characters as members, then seed the
+ *  opening per the resolved `OpeningPolicy`. The chat row + roster (+ verbatim greeting canon) commit in
+ *  one atomic batch. */
 function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService["startChat"] {
   return async ({
     principal,
@@ -267,13 +123,8 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     anchorPersonaId,
     title,
     opening,
-    seedGreetings,
-    rosterOverrides,
-    groupConfig,
-    roomOverrides,
     injections,
     temporary,
-    guided,
     startAsGame,
   }: StartChatParams): Promise<StartChatResult> => {
     const now = ctx.now();
@@ -295,28 +146,14 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       joinSeq: 0,
       now,
       host: { participantId: ctx.newParticipantId(), userId: hostUserId, activePersonaId: anchor },
-      // Pre-send roster tuning applied to the founding rows — deviating fields only.
-      characters: characterIds.map((characterId) => {
-        const ov = rosterOverrides?.[characterId];
-        return {
-          participantId: ctx.newParticipantId(),
-          characterId,
-          ...(ov?.disabled === undefined ? {} : { disabled: ov.disabled }),
-          ...(ov?.talkativeness === undefined ? {} : { talkativeness: ov.talkativeness }),
-        };
-      }),
+      characters: characterIds.map((characterId) => ({ participantId: ctx.newParticipantId(), characterId })),
     });
 
     const targets = greetTargets(policy, characterIds);
-    const greetings = targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets, seedGreetings) : [];
+    const greetings = targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets) : [];
     // A founding room has no canon, so its greetings land at seq 1..N (`substrate/greeting-seed` — shared with
     // the roster verb's F6 in-window join greeting, which appends at the live canon head instead).
     const seed = buildGreetingSeed(ctx, { chatId, now, startSeq: 0, greetings });
-
-    // Seed metadata.group from the creator's settings when they supplied no draft (explicit draft wins; a
-    // creator on default settings writes nothing → metadata stays null exactly as today).
-    const creatorGroupDefaults = await deps.resolveCreatorGroupDefaults(hostUserId);
-    const group = resolveCreationGroup(groupConfig, creatorGroupDefaults);
 
     // One atomic creation batch: the chat row, the roster, and any verbatim greeting canon — all or none.
     const stmts: BatchStmt[] = [
@@ -327,7 +164,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
           anchorPersonaId: anchor,
           // Born ephemeral — hidden from listChats, reap-eligible past the TTL.
           temporary: temporary === true,
-          metadata: buildCreationMetadata({ opening, group, roomOverrides }),
+          metadata: buildCreationMetadata(opening),
           createdAt: now,
           updatedAt: now,
         }),
@@ -372,17 +209,6 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       await deps.emit({ type: "messageCommitted", chatId, messageId: view.id, view });
     }
 
-    const { outcome: openingOutcome, failure: openingFailure } =
-      policy === "generate"
-        ? await runOpeningOrDegrade(ctx, deps, {
-            chatId,
-            hostUserId,
-            characterIds,
-            anchorPersonaId: anchor,
-            guided,
-          })
-        : { outcome: seedOutcome(seed.views), failure: null };
-
     const chatRow = await loadChatRow(ctx.db, chatId);
     if (chatRow === undefined) {
       throw new ChatNotFoundError(chatId);
@@ -399,8 +225,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
         // pre-membership canon in a room this call just created).
         viewerHistoryFloorSeq: NO_HISTORY_FLOOR,
       }),
-      opening: openingOutcome,
-      openingFailure,
+      opening: seedOutcome(seed.views),
     };
   };
 }
@@ -411,7 +236,7 @@ function seedOutcome(views: readonly MessageView[]): TurnOutcome | null {
 }
 
 /** The start-chat verb bundle. `deps` carries the chat bus `emit` + the `loadParticipantViews` roster
- *  resolver (always) and the engine + assemble resolvers (the `generate` opening only). */
+ *  resolver. */
 export function createStartChat(ctx: ChatContext, deps: StartChatDeps): StartChatVerbs {
   return {
     startChat: createStartChatVerb(ctx, deps),

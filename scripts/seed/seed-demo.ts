@@ -371,9 +371,18 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
       characterIds: groupCharIds,
       opening: "greet-all",
       title: GROUP_CHAT_TITLE,
-      groupConfig: { output: "per-speaker", autoMode: false, allowSelfResponses: false },
-      rosterOverrides: groupCharIds[0] !== undefined ? { [groupCharIds[0]]: { talkativeness: 0.8 } } : undefined,
     });
+    // Group config + per-seat roster tuning are POST-CREATE writes now (R2 retired the creation-time
+    // draft carry) — apply them against the real room the same way the group-config/roster panels do.
+    await services.chat.setGroupConfig({
+      principal: owner,
+      chatId: group.chat.id,
+      config: { output: "per-speaker", autoMode: false, allowSelfResponses: false },
+    });
+    const firstSeat = group.chat.participants.find((p) => p.characterId === groupCharIds[0]);
+    if (firstSeat !== undefined) {
+      await services.chat.setSeatKnobs({ principal: owner, chatId: group.chat.id, participantId: firstSeat.id, patch: { talkativeness: 0.8 } });
+    }
     const invite = await services.chat.createInvite({ principal: owner, chatId: group.chat.id, input: { invitedHandle: castId<Handle>(SECOND_HUMAN_HANDLE) } });
     await services.chat.acceptInvite({ principal: second, inviteId: invite.invite.id });
     await tryTurn(() => services.chat.send({ principal: owner, chatId: group.chat.id, content: "Everyone here? Let's plan the next splice." }), log, "group");
