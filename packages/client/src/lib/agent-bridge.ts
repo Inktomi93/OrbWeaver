@@ -201,6 +201,10 @@ interface OrbDebugHandle {
   readonly nav: OrbNavHandle;
   /** Dev-only rpg game seeder (see OrbSeedHandle) — spin up a fully-populated game in one call. */
   readonly seed: OrbSeedHandle;
+  /** The durable-local namespace's bound identity (`state/durable-local.ts`) — `null` before the viewer
+   *  read binds it (the pre-adoption legacy world). The lens a test or this bridge asserts the
+   *  per-user localStorage scoping through, without reaching into `localStorage` by hand. */
+  readonly durableLocalUserId: () => string | null;
 }
 
 declare global {
@@ -242,7 +246,7 @@ function flagCounts(): Record<string, number> {
   return counts;
 }
 
-export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHandle, seed: OrbSeedHandle): void {
+export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHandle, seed: OrbSeedHandle, durableLocalUserId: () => string | null): void {
   if (!IS_DEV) {
     return;
   }
@@ -311,9 +315,10 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
     snap,
     nav,
     seed,
+    durableLocalUserId,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence() · .shell() · .nav.capabilities/section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

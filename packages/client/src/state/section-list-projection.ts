@@ -35,16 +35,22 @@ export function useSectionListIsScreen(section: SectionId): boolean {
  *  `useShellLayout` (client-features-no-cross bars a feature from importing the app-shell hook, so this tier
  *  is the ONLY legal way for a feature to ask).
  *
- *  LIVENESS (swept 2026-08-01): ZERO feature consumers today. Its one caller was the chat landing's
- *  `showRecents` — "when the Chats LIST is docked it already IS the recents finder, so don't duplicate it" —
- *  and H2 (`3f54a4d3`) retired the landing's recents entirely (home tiles own them now). KEPT, not deleted:
- *  the superseded thing was that ONE de-duplication, not this projection. It is the seam's only sanctioned
- *  answer to "is my list pane visible", and the alternative — a feature recomposing it from
- *  `usePanelOverride` + the viewport reads — is exactly the hand-copied mirror that produced the M10 bug.
+ *  LIVENESS (swept 2026-08-01, reconfirmed in the #73 wiring-sprint census): ZERO feature consumers today.
+ *  Its one caller was the chat landing's `showRecents` — "when the Chats LIST is docked it already IS the
+ *  recents finder, so don't duplicate it" — and H2 (`3f54a4d3`) retired the landing's recents entirely
+ *  (home tiles own them now). KEPT, not deleted: the superseded thing was that ONE de-duplication, not
+ *  this projection. It is the seam's only sanctioned answer to "is my list pane visible", and the
+ *  alternative — a feature recomposing it from `usePanelOverride` + the viewport reads — is exactly the
+ *  hand-copied mirror that produced the M10 bug.
  *
  *  Since the mobile ONE-SHELL rule the answer also depends on the section's own selection seam (a
  *  list-bearing section with nothing open IS docked on a phone — it is the screen), which is why it reads
- *  the registry through the projection above rather than re-deriving anything. */
+ *  the registry through the projection above rather than re-deriving anything.
+ *
+ *  @public future: ANY section body needing "is my list pane docked right now" (the M10 bug's own class —
+ *  a hand-copied `usePanelOverride`+viewport mirror instead of this call). No prod consumer since the
+ *  landing-recents retirement; kept as the pit-of-success seam so the next such feature reaches for this
+ *  instead of re-deriving it. */
 export function useListDocked(section: SectionId, ownDefault: PanelMode): boolean {
   const isFocus = useFocusMode();
   const isMobile = useMobileViewport();

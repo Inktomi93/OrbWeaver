@@ -2,9 +2,15 @@
 // resolveRowAttribution/resolveMessageRenderContext consume, built once per roster change and read by
 // every row, never re-resolved from body text. The macro-name producer is NOT built here;
 // @orb/contracts/chat's own builders do that job directly (see message-list-surface.tsx).
+//
+// SUPERSEDED (wiring sprint #73): `resolveViewerActivePersonaId` — the client-side "first present human
+// seat's activePersonaId" proxy — was removed. The server now computes the identical answer and ships it
+// on `ChatDetail.viewerActivePersonaId` (domain/chat/substrate/chat-detail.ts:62, `viewer?.activePersonaId
+// ?? null`), read live at message-list-surface.tsx (`chatDetail.viewerActivePersonaId`). Re-deriving it
+// client-side from the roster array was residue from before that field shipped.
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId } from "@orb/kit/ids";
 
 // Omit, not a same-key intersection — a known TS assignability footgun that gets harder to prove as
 // ParticipantView grows optional fields, silently losing the .filter narrow.
@@ -28,17 +34,6 @@ export function buildParticipantsById(participants: readonly ParticipantView[]):
     }
   }
   return byId;
-}
-
-// No client auth/session concept exists yet; this is the first present human seat's activePersonaId,
-// the correct proxy pre-multi-human. Null when no human participant is present.
-export function resolveViewerActivePersonaId(participants: readonly ParticipantView[]): PersonaId | null {
-  for (const participant of participants) {
-    if (participant.kind === "human") {
-      return participant.activePersonaId;
-    }
-  }
-  return null;
 }
 
 // leftSeq === null is the present-and-contributing predicate — a kicked/left human keeps a historical

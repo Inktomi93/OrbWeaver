@@ -1,24 +1,22 @@
 // Unit: the roster/viewer helpers (features/chat/lib/roster) — the pure wire-array→Map/id step the
 // surface runs once per roster change. Pins: only `kind === "character"` participants (with a
 // non-null `characterId`) land in the roster map (mirrors `attribution.ts`/`message-render-context.ts`'s
-// identical discriminant); `resolveViewerActivePersonaId` proxies "the viewing participant" as the
-// first present `human` seat (no client auth/session concept exists yet — Chat-Macro-Resolution.md §4).
+// identical discriminant). `resolveViewerActivePersonaId` was removed (wiring sprint #73) — superseded by
+// the server-computed `ChatDetail.viewerActivePersonaId` (see roster.ts's header).
 
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {
   buildParticipantsById,
   castSectionVisible,
   membersTabJustified,
   resolveHumanParticipants,
-  resolveViewerActivePersonaId,
 } from "../../../../../packages/client/src/features/chat/lib/roster.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 
 const ALICE_ID = castId<CharacterId>("char_alice_roster");
 const BOB_ID = castId<CharacterId>("char_bob_roster");
-const NATE_PERSONA_ID = castId<PersonaId>("persona_nate_roster");
 
 test("buildParticipantsById keys character participants by their characterId", () => {
   const alice = makeParticipant({ characterId: ALICE_ID, displayName: "Alice" });
@@ -46,34 +44,6 @@ test("buildParticipantsById excludes a character-kind row with a null characterI
 
 test("buildParticipantsById returns an empty map for an empty roster", () => {
   expect(buildParticipantsById([]).size).toBe(0);
-});
-
-test("resolveViewerActivePersonaId returns the first human participant's activePersonaId", () => {
-  const human = makeParticipant({
-    kind: "human",
-    characterId: null,
-    activePersonaId: NATE_PERSONA_ID,
-  });
-  expect(resolveViewerActivePersonaId([human])).toBe(NATE_PERSONA_ID);
-});
-
-test("resolveViewerActivePersonaId skips character/agent/observer participants", () => {
-  const alice = makeParticipant({ characterId: ALICE_ID });
-  const human = makeParticipant({
-    kind: "human",
-    characterId: null,
-    activePersonaId: NATE_PERSONA_ID,
-  });
-  expect(resolveViewerActivePersonaId([alice, human])).toBe(NATE_PERSONA_ID);
-});
-
-test("resolveViewerActivePersonaId returns null when no human participant is present", () => {
-  const alice = makeParticipant({ characterId: ALICE_ID });
-  expect(resolveViewerActivePersonaId([alice])).toBeNull();
-});
-
-test("resolveViewerActivePersonaId returns null for an empty roster", () => {
-  expect(resolveViewerActivePersonaId([])).toBeNull();
 });
 
 test("resolveHumanParticipants keeps only PRESENT human seats (characters + departed humans excluded)", () => {
