@@ -139,6 +139,24 @@ html[data-shadow] [data-slot="message-bubble"] {
     0 1px 2px var(--color-scrim);
 }
 
+/* THE READING MEASURE (#97, side-eye aesthetic shakedown 2026-08-16). The transcript ran at
+ * `max-width: none` — measured 98ch at 1280px with both panels closed, and ~200ch on a 2560 monitor,
+ * against the house 65-75ch law that `document` mode (max-w-prose) and the Configuration teaching copy
+ * (max-w-(--width-content-col)) already honour. Homed here, in the styles tier, rather than as a class on
+ * the two content columns: `message-row` and `ghost-message-row` BOTH stamp this slot and their measures
+ * must not be allowed to drift (a ghost that reflows at commit is a visible jump), and this is already the
+ * seam that owns reading typography for the slot below.
+ *
+ * It caps the CONTENT COLUMN, never the transcript REGION: `--width-shell-content` (the user's
+ * chatWidthPct dial, app-shell.tsx) still owns how wide the thread and composer run, so the density law
+ * and the row anatomy are untouched — only the line length is bounded. The `* --reading-body-scale`
+ * multiply re-applies the user's reading-size scale, because the token's `ch` resolves against the
+ * column's own (unscaled) font while the prose below is scaled by that var — without it a reader at
+ * scale 1.5 would get a 50ch column. */
+[data-slot="message-content-column"] {
+  max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
+}
+
 /* Reading typography — line-height/letter-spacing/paragraph-spacing/scale. Spacing/sizing only. */
 [data-slot="message-bubble"] {
   font-size: calc(var(--text-body) * var(--reading-body-scale, 1));

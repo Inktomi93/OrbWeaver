@@ -121,6 +121,7 @@ export const TOKENS = {
   "reading.line-height": { cssVar: "--reading-line-height", value: "1.55" },
   "reading.letter-spacing": { cssVar: "--reading-letter-spacing", value: "0em" },
   "reading.paragraph-spacing": { cssVar: "--reading-paragraph-spacing", value: "0.75rem" },
+  "reading.measure": { cssVar: "--reading-measure", value: "75ch" },
   "fade.edge-stop": { cssVar: "--fade-edge-stop", value: "10%" },
   "border-width.hairline": { cssVar: "--border-width-hairline", value: "1.25px" },
   "font.sans": { cssVar: "--font-sans", value: "Geist, ui-sans-serif, system-ui, sans-serif" },
