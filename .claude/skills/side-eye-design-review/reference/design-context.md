@@ -52,18 +52,25 @@
 - **Trust tiers for user content:** untrusted card HTML/CSS is contained by browser physics
   (sandboxed iframe, CSP), never string-munging (`UI-Theming-and-Content.md` §12).
 
-## Product context (PRODUCT.md-equivalent) — OWNER INPUT, UNSET
+## Product context (PRODUCT.md-equivalent) — OWNER-RATIFIED 2026-08-16
 
-Impeccable's `PRODUCT.md` carries audience, brand voice, and anti-references. That content is
-**owner-voice and has not been authored** — nothing here may invent it. This section is the
-explicit door: when the owner answers the questionnaire below, the answers land HERE (this file,
-this section) and reviews may then cite them. Until then, reviews judge against the law above and
-say "owner product-voice: unset" rather than guessing.
+Provenance: drafted from the prior product context (neo-tavern `docs/PRODUCT.md`, the same product's
+earlier impeccable init) + `docs/Mission.md`, neo-era deltas corrected (Base UI not shadcn; the
+theme set is Hearth/Mocha/Light + imported owner themes under D71, not Hearth/Catppuccin/Loom).
+Owner approved all five verbatim ("yes to all"). Reviews may cite these as owner product-voice.
 
-Owner questionnaire (short, answer in place):
-
-1. **Audience:** who is this for besides you — and who is it explicitly NOT for?
-2. **Voice:** three words the UI copy should sound like; three it must never sound like.
-3. **Anti-references:** 2–3 products whose look/feel this app must NOT drift toward.
-4. **References:** 2–3 products/surfaces whose craft you'd accept as a compliment.
-5. **The one feeling** a first-time user should have in the first 30 seconds.
+1. **Audience.** The owner-operator: self-hosts for themselves plus a few invited users, lives in
+   it for hours-long sessions, desktop-first, fluent in SillyTavern's vocabulary (drawers,
+   lorebooks, swipes, presets). Information density is a feature. Explicitly NOT for: drive-by
+   casual users needing onboarding hand-holding; not a hosted mass-market SaaS.
+2. **Voice.** Copy should sound: **warm, direct, craftsmanlike**. Copy must never sound:
+   **corporate, cutesy, hype** — no emoji-laden copy, no wizard hand-holding, no marketing speak.
+3. **Anti-references (hard nevers).** The default-shadcn/Vercel-clone sameness (the unthemed
+   template look, whatever the component library underneath); AI-slop gradient/glass SaaS;
+   chunky low-density enterprise SaaS with whitespace-as-luxury; legacy-ST styling — density yes,
+   2014 rough edges no.
+4. **References (craft compliments).** SillyTavern for density-as-respect; Obsidian for
+   owner-tooled depth; a well-crafted game journal UI (Baldur's Gate 3 class) for the immersive
+   rpg surfaces.
+5. **The one feeling (first 30 seconds).** "Someone built this room for themselves and lives in
+   it" — warm, dense, everything within reach. The default theme is named Hearth for a reason.

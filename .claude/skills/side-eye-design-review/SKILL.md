@@ -8,8 +8,9 @@ description: "The UX / usability / visual-design / accessibility review laws —
 Distilled from the `impeccable` design language (pbakaus/impeccable, Apache-2.0), Nielsen/NN-g
 heuristics, and the Orbweaver constitution. A checklist you APPLY. When a finding breaks one of
 these, name the rule. Companion reference files in this skill dir: `reference/design-context.md`
-(the DESIGN.md-equivalent map to our generated/ratified design truth + the unset owner product-voice
-door) and `reference/impeccable-adoption.md` (the 59-rule detector triage + attribution).
+(the DESIGN.md-equivalent map to our generated/ratified design truth + the OWNER-RATIFIED product
+voice — audience/voice/anti-references/references/the-one-feeling, citable in reviews since
+2026-08-16) and `reference/impeccable-adoption.md` (the 59-rule detector triage + attribution).
 
 ## §0 Our laws (repo-specific — check these first; where we actually fail)
 
