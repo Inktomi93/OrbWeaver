@@ -16,7 +16,9 @@
 // there is no document to ask.
 //
 // It lives beside `skeleton-rows.tsx` rather than inside it only because a module that exports a component
-// may export nothing else (`useComponentExportOnlyModules`). The arithmetic is the INVERSE of that file's
+// may export nothing else but LITERAL constants (`useComponentExportOnlyModules` with
+// `allowConstantExport: true` — `export const X = 4` passes beside a component; a derived
+// `export const X = LIMIT + 1` is RED, and this module is all derived arithmetic). The arithmetic is the INVERSE of that file's
 // own layout — `padding="block"` top+bottom, N rows of `h-control-lg`, N−1 `gap="row"` gaps — so the two
 // change together or the skeleton stops fitting its box.
 
