@@ -281,11 +281,12 @@ test("every non-built-in row carries its own edit stamp — the F5 scent that te
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
   // The two forks differ by their stamp — 5 min vs 40 min ago — and the first also carries its LINEAGE
   // (`forkedFrom` = the built-in, whose name the surface resolves from the list it already has).
-  await expect(component.getByText("generation · forked from Default · edited 5m ago", { exact: true })).toBeVisible();
+  // The stamp is the COMPACT relative form (#99, 2026-08-16 — presets joined the chat list's "9d" idiom).
+  await expect(component.getByText("generation · forked from Default · edited 5m", { exact: true })).toBeVisible();
   // The second's source is a PACKAGED template, absent from the list: the lineage is OMITTED, never guessed.
-  await expect(component.getByText("generation · edited 40m ago", { exact: true })).toBeVisible();
+  await expect(component.getByText("generation · edited 40m", { exact: true })).toBeVisible();
   // The KIND leads every subtitle (crunch-list item 6) — the ordinary `generation` included.
-  await expect(component.getByText("roleplay · edited 5m ago", { exact: true })).toBeVisible();
+  await expect(component.getByText("roleplay · edited 5m", { exact: true })).toBeVisible();
   // The built-in keeps its own marker instead of a stamp (its updatedAt is the seed's, not the user's edit).
   // (located by exact ROLE name — the row BODY button, never the "Activate Default for generation" toggle
   // beside it.)

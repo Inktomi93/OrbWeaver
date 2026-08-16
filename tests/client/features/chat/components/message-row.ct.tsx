@@ -557,12 +557,25 @@ const LONG_BODY = "Line one is fairly long.\n\nLine two.\n\nLine three.\n\nLine 
 // rollup entry from the tests/ root; the golden bucket numbers stand in, cross-checked by the runtime.
 const ALICE_HUE_BUCKET = 5;
 const BOB_HUE_BUCKET = 4;
-const CONSTANT_ALT_BUCKET = 2; // the pre-fix shared color (hashed `alt=""`)
 async function bgOf(locator: Locator): Promise<readonly [number, number, number]> {
   return parseOklch(await locator.evaluate((el) => getComputedStyle(el).backgroundColor));
 }
-async function chartHue(locator: Locator, bucket: number): Promise<readonly [number, number, number]> {
-  return parseOklch(await cssVar(locator, `--color-chart-${bucket}`));
+// #103 (owner-ruled 2026-08-16, from decision #100): fallback identity paints IN-BAND — derived at
+// computed-value time from the active theme's own `--color-primary` (hue held; lightness/chroma stepped
+// per hash bucket — `@orb/ui/avatar` hue.ts is the one home). The old chart-ramp equality is therefore
+// the WRONG assertion: a CT pins BAND MEMBERSHIP (rendered hue within the derivation's tolerance of the
+// scope's primary) plus the entity's deterministic BUCKET (`data-hue` on the Avatar fallback), and the
+// one-entity-one-hue equality between co-rendered surfaces. Tone distinctness across buckets is pinned
+// by the palette × step matrix in tests/ui/tokens/index.test.ts, not re-proven per surface here.
+const IN_BAND_HUE_TOLERANCE_DEG = 12;
+function hueDeltaDeg(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+async function expectInBand(locator: Locator): Promise<void> {
+  const [, , bgHue] = await bgOf(locator);
+  const [, , primaryHue] = parseOklch(await cssVar(locator, "--color-primary"));
+  expect(hueDeltaDeg(bgHue, primaryHue)).toBeLessThanOrEqual(IN_BAND_HUE_TOLERANCE_DEG);
 }
 
 test("bubble: a no-avatar character's chip top-aligns with the name row + paints its DETERMINISTIC per-entity hue (not the constant bucket)", async ({
@@ -582,8 +595,8 @@ test("bubble: a no-avatar character's chip top-aligns with the name row + paints
   expect(avatarBox?.width).toBeGreaterThan(0);
   expect(avatarBox?.height).toBeGreaterThan(0);
   const fallback = avatar.locator(FALLBACK);
-  expect(await bgOf(fallback)).toEqual(await chartHue(fallback, ALICE_HUE_BUCKET));
-  expect(await bgOf(fallback)).not.toEqual(await chartHue(fallback, CONSTANT_ALT_BUCKET));
+  await expect(fallback).toHaveAttribute("data-hue", String(ALICE_HUE_BUCKET));
+  await expectInBand(fallback);
 });
 
 test("bubble: a different no-avatar character resolves a DISTINCT hue (per-entity, not one shared color)", async ({ mount }) => {
@@ -591,8 +604,8 @@ test("bubble: a different no-avatar character resolves a DISTINCT hue (per-entit
   // (every imageless speaker was the same teal `alt=""` bucket) is gone.
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={BOB_ID} participants={[bob()]} />);
   const fallback = component.locator(`${AVATAR} ${FALLBACK}`);
-  expect(await bgOf(fallback)).toEqual(await chartHue(fallback, BOB_HUE_BUCKET));
-  expect(await bgOf(fallback)).not.toEqual(await chartHue(fallback, ALICE_HUE_BUCKET));
+  await expect(fallback).toHaveAttribute("data-hue", String(BOB_HUE_BUCKET));
+  await expectInBand(fallback);
 });
 
 test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initial, SAME feather padding as with-image, aligned to the bled edge", async ({
@@ -617,7 +630,7 @@ test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initia
   // The tile's field is the entity's deterministic hue — the SAME color the row's chip paints (one
   // entity, one hue everywhere).
   const chip = component.locator(`${AVATAR} ${FALLBACK}`);
-  expect(await bgOf(tile)).toEqual(await chartHue(tile, ALICE_HUE_BUCKET));
+  await expectInBand(tile);
   expect(await bgOf(tile)).toEqual(await bgOf(chip));
   // Placement: the tile hugs the bubble's bled (right) edge, no broken overflow.
   const tileBox = await tile.boundingBox();
@@ -642,7 +655,7 @@ test("whisper (no avatar): the FALLBACK band renders at the SAME 3:1 geometry (h
   // A hue FIELD, not a banner <img> (the with-image band's `?v=banner` URL must be absent here).
   const bgImage = await band.evaluate((el) => getComputedStyle(el).backgroundImage);
   expect(bgImage).not.toContain("?v=banner");
-  expect(await bgOf(band)).toEqual(await chartHue(band, ALICE_HUE_BUCKET));
+  await expectInBand(band);
 });
 
 test("ripple (no avatar): the welded VN portrait falls back to the hue tile at the SAME portrait geometry (sticky, portrait width), no broken image", async ({
@@ -659,7 +672,8 @@ test("ripple (no avatar): the welded VN portrait falls back to the hue tile at t
   await expect(avatar).toHaveCSS("position", "sticky");
   const fallback = avatar.locator(FALLBACK);
   await expect(fallback).toContainText("A");
-  expect(await bgOf(fallback)).toEqual(await chartHue(fallback, ALICE_HUE_BUCKET));
+  await expect(fallback).toHaveAttribute("data-hue", String(ALICE_HUE_BUCKET));
+  await expectInBand(fallback);
 });
 
 // ── Reading scrim over a background photo (side-eye live P1, 2026-07-09) ───────────────────────────
