@@ -3,6 +3,7 @@
 // the title label, the lenient-origin marker, the raw-source toggle showing the EXACT stored bytes, and
 // the expand lightbox labelled by the title.
 
+import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
 import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { expect, test } from "@playwright/experimental-ct-react";
 
@@ -81,11 +82,11 @@ test("expand opens the lightbox dialog labelled by the title, with its own sandb
 });
 
 // ── The ROUTED delivery, end to end in a real browser ────────────────────────────────────────────────
-// `frameSrc` threads to `SandboxFrame.src` (the `/api/card-frame/<id>` mint) — the other 14 sandbox-frame
-// tests pin the ATTRIBUTE-level contract (src/no-srcdoc, sandbox="", CSP is the response's own); this
-// pins that a real navigation to that URL actually PAINTS content inside the sandboxed frame, which
-// attribute assertions alone cannot prove (a routed src could 404 or be blocked by the CSP and every
-// attribute assertion above would still pass).
+// `frameSrc` threads to `SandboxFrame.src` (the `/api/card-frame/<id>` mint) — the sandbox-frame suite pins
+// the ATTRIBUTE-level contract (src/no-srcdoc, the per-delivery sandbox grant, the height channel, CSP is
+// the response's own); this pins that a real navigation to that URL actually PAINTS content inside the
+// sandboxed frame, which attribute assertions alone cannot prove (a routed src could 404 or be blocked by
+// the CSP and every attribute assertion above would still pass).
 
 test("the ROUTED delivery: a real navigation to frameSrc renders the served page inside the sandboxed iframe", async ({ mount, page }) => {
   const routedUrl = "/api/card-frame/0123456789abcdef0123456789abcdef";
@@ -102,10 +103,10 @@ test("the ROUTED delivery: a real navigation to frameSrc renders the served page
   const frame = cmp.locator('iframe[data-slot="sandbox-frame"]');
   await expect(frame).toHaveCount(1);
   await expect(frame).toHaveAttribute("src", routedUrl);
-  const sandbox = await frame.getAttribute("sandbox");
-  expect(sandbox).not.toBeNull();
-  expect(sandbox).not.toContain("allow-scripts");
-  expect(sandbox).not.toContain("allow-same-origin");
+  // The routed arm's grant since the 2026-08-16 tier-B pass (#91): EXACTLY `allow-scripts` — the whole
+  // attribute value, so a widened grant reds here — and never `allow-same-origin`. What that buys is the
+  // one hash-pinned height script; card-authored scripts stay refused (sandbox-frame.ct.tsx proves both).
+  await expect(frame).toHaveAttribute("sandbox", "allow-scripts");
   // srcdoc would win over src per the HTML spec if both were emitted — prove the routed arm never does.
   await expect.poll(() => frame.getAttribute("srcdoc")).toBeNull();
 
@@ -117,4 +118,32 @@ test("the ROUTED delivery: a real navigation to frameSrc renders the served page
     throw new Error("routed iframe has no content frame — navigation never completed");
   }
   await expect(contentFrame.locator("p")).toHaveText("routed card body");
+});
+
+// #91 THROUGH THE REAL CHROME. `sandbox-frame.ct.tsx` proves the height channel on a bare frame; this
+// proves the card's own chrome does not fight it — the collapsible panel, the `rounded-none border-0`
+// className override and the `heightPx` ImmersiveCard passes must all yield to the measured size, or the
+// 195px void survives inside exactly the component the defect was reported against.
+
+test("#91: a SHORT routed card shrinks the frame inside the card chrome — no void under the content", async ({ mount, page }) => {
+  const routedUrl = "/api/card-frame/0123456789abcdef0123456789abcdef";
+  await page.route(routedUrl, async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document"),
+      },
+      body: buildCardFrameDocument({
+        html: '<div style="height:110px">a short in-world note</div>',
+        css: undefined,
+        themeTokens: undefined,
+        fontFamily: undefined,
+      }),
+    });
+  });
+
+  const cmp = await mount(<ImmersiveCard html={HTML} title="Short note" origin="fence" frameSrc={routedUrl} />);
+  const frame = cmp.locator('iframe[data-slot="sandbox-frame"]');
+  await expect.poll(async () => (await frame.boundingBox())?.height ?? 0).toBe(110);
 });

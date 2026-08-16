@@ -1,7 +1,7 @@
 // The ONE card mount site (D44 §12.2). Two renderers call it — the settled row
 // (`message-content.tsx`) and the STREAMING ghost row (`ghost-message-row.tsx`, once a card's fence has
 // closed) — and they must not become two spellings of one sandbox posture: a copy would let the ghost's
-// iframe drift off `SANDBOX_ATTR`, off the frame CSP, or onto a different tier. Sharing this file makes the
+// iframe drift off `CARD_FRAME_SANDBOX`, off the frame CSP, or onto a different tier. Sharing this file makes the
 // two arms byte-identical by construction rather than by review.
 //
 // The TIER is never derived here. `render-trust.ts` is the one trust authority (it resolves BOTH the

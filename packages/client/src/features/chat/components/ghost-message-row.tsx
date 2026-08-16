@@ -5,7 +5,9 @@
 //
 // ── THE GHOST'S CARD POSTURE (2026-08-14 security review; the §4.5 granularity fix) ───────────────────
 // A card whose fence has CLOSED mid-stream mounts the REAL card here, through the shared `CardBlock` —
-// the same component, the same `SandboxFrame`, the same `SANDBOX_ATTR`/frame CSP the settled row uses.
+// the same component, the same `SandboxFrame`, the same `CARD_FRAME_SANDBOX`/frame CSP the settled row
+// uses. The ghost has no routed mint yet, so it renders the SRCDOC FLOOR: strictly the tighter arm
+// (sandbox `""`, script-dead, the app's CSP inherited on top of its own).
 // Holding the chip until the whole message settled was the defect (owner dogfood: "they won't render
 // fully until the message is done ... even when the html is done being written"); a closed fence's bytes
 // are provably immutable under append (`@orb/kit/content`'s ghost-scan note states the proof), so this
