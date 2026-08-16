@@ -210,12 +210,19 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       // read of the one row, which no page ceiling can hide), and the name arm is a SERVER SEARCH — a
       // `.find()` over one recency page made "no character matches" mean "not in the first N", which is
       // the wrong one of those for a bridge to say.
-      const byId = await queryClient.fetchQuery(trpc.character.get.queryOptions({ characterId: idOrName as CharacterId })).catch(() => null);
-      if (byId !== null) {
-        markAgentNavigation();
-        setActiveSection("characters");
-        selectCharacter(byId.id);
-        return OK;
+      //
+      // The id arm is PREFIX-GATED like `resolveDirectChatId`: probing `character.get` with a display
+      // name 404s and react-query retries it — six console errors per name-based nav, reddening every
+      // harness run that uses this bridge. Prefix routing decides id-vs-name; the tRPC boundary still
+      // validates the complete TypeID, and an invalid id falls through to the honest name arm.
+      if (idOrName.startsWith(`${ID_PREFIX.character}_`)) {
+        const byId = await queryClient.fetchQuery(trpc.character.get.queryOptions({ characterId: idOrName as CharacterId })).catch(() => null);
+        if (byId !== null) {
+          markAgentNavigation();
+          setActiveSection("characters");
+          selectCharacter(byId.id);
+          return OK;
+        }
       }
       const page = await queryClient.fetchQuery(trpc.character.list.queryOptions({ limit: CHARACTER_NAV_PAGE_LIMIT, search: idOrName })).catch(() => null);
       if (page === null) {
