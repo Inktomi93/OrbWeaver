@@ -19,7 +19,7 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { RpgActorOp, RpgActorRef, RpgActorView } from "@orb/contracts/rpg";
-import { resolveTrackerMaxOverride, rpgActorLockBase, trackerNumber } from "@orb/contracts/rpg";
+import { resolveTrackerMaxOverride, rpgActorVolatileLockBase, trackerNumber } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Icon } from "@orb/ui/icons";
@@ -71,7 +71,12 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
       return;
     }
     const ref = actor.actorRef;
-    const base = rpgActorLockBase(ref);
+    // The VOLATILE base — every `sub` these callbacks take (`.status`, `.conditions`, `.trackerValues.<key>`)
+    // is a volatile field, and the server has stamped them under `…<actorKey>.volatile.<field>` since R2
+    // moved the fields under it (`rpgActorVolatileLockBase`, whose header says the segment is a real path
+    // segment, not a naming choice). Reading them off the bare actor base matched nothing, so no per-actor
+    // pin has rendered since — the affordance existed and could never fire.
+    const base = rpgActorVolatileLockBase(ref);
     return {
       onEditTracker: (key, next): void => patch(ref, { op: "setTracker", key, value: { value: Math.max(0, next) } }),
       onEditTrackerText: (key, next): void => {

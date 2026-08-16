@@ -79,6 +79,11 @@ export function PackIconPickerStory({ width = 430 }: { readonly width?: number }
           onPatchItem: (): void => undefined,
           onRemoveItem: (): void => undefined,
           onAddItem: (): void => undefined,
+          // #78 — this story is about the icon picker's touch geometry, so nothing is pinned here. The pinned
+          // arm is driven through the REAL tab in `rpg-context-section.ct.tsx` (off `getTrackerView`'s
+          // `lockedPaths`), which is where the path derivation is the thing under test.
+          itemLocks: (): readonly string[] => [],
+          onReleaseItem: (): void => undefined,
         }}
       />
     </div>

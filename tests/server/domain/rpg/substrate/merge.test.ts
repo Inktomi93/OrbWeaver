@@ -188,6 +188,58 @@ describe("lock-honoring (manual-edit-wins)", () => {
     expect(wallet.find((w) => w.name === "silver")?.amount).toBe(9); // took the patch
   });
 
+  test("#78: an item FIELD lock pins that field alone — the item's other fields, its siblings and the array stay the story's", () => {
+    // The grammar the hand door now MINTS for a pack edit (`…inventory.<id>.<field>`). Nothing here is new
+    // engine work — the keyed-element walk already deep-merges a correlated pair — but this is the shape the
+    // pin means, so it is pinned: one claimed field held, everything around it still writable.
+    const packOf = (items: readonly unknown[]): Record<string, unknown> => {
+      const row = actorWithWallet("mari", 10, 5);
+      return { actorState: [{ ...row, volatile: { ...row.volatile, inventory: items } }] };
+    };
+    const key = { id: "itm-key", name: "Bone key", description: "", quantity: 1, location: "", type: "" };
+    const rope = { id: "itm-rope", name: "Rope", description: "", quantity: 1, location: "", type: "" };
+    const out = applyLockedPatchTracked(
+      packOf([key, rope]),
+      packOf([
+        { ...key, name: "a rusted key", location: "belt pouch" },
+        { ...rope, quantity: 4 },
+        { id: "itm-new", name: "Torch", description: "", quantity: 1, location: "", type: "" },
+      ]),
+      { "actorState.cast:mari.volatile.inventory.itm-key.name": true },
+    );
+    const pack = (out.state["actorState"] as { volatile: { inventory: { id: string; name: string; location: string; quantity: number }[] } }[])[0]?.volatile
+      .inventory;
+    expect(pack?.find((it) => it.id === "itm-key")?.name).toBe("Bone key"); // pinned
+    expect(pack?.find((it) => it.id === "itm-key")?.location).toBe("belt pouch"); // the same item's unclaimed field
+    expect(pack?.find((it) => it.id === "itm-rope")?.quantity).toBe(4); // a sibling item
+    expect(pack?.map((it) => it.id)).toContain("itm-new"); // and the array still grows
+    expect(out.suppressed).toEqual(["actorState.cast:mari.volatile.inventory.itm-key.name"]);
+  });
+
+  test("#78: a LEGACY plane-wide pack lock still drops the whole inventory patch (stored locks are never rewritten)", () => {
+    // Snapshots written before the granularity change carry `…volatile.inventory`. No migration touches stored
+    // `fieldLocks` (the dev corpus is the owner's), so the READ side must keep honoring the coarse path exactly
+    // as written — the prefix rule does it, and the panel keeps the section Release that lets a host drop it.
+    const packOf = (items: readonly unknown[]): Record<string, unknown> => {
+      const row = actorWithWallet("mari", 10, 5);
+      return { actorState: [{ ...row, volatile: { ...row.volatile, inventory: items } }] };
+    };
+    const key = { id: "itm-key", name: "Bone key", description: "", quantity: 1, location: "", type: "" };
+    const out = applyLockedPatchTracked(
+      packOf([key]),
+      packOf([
+        { ...key, location: "belt pouch" },
+        { id: "itm-new", name: "Torch" },
+      ]),
+      {
+        "actorState.cast:mari.volatile.inventory": true,
+      },
+    );
+    const pack = (out.state["actorState"] as { volatile: { inventory: { id: string; location: string }[] } }[])[0]?.volatile.inventory;
+    expect(pack).toEqual([key]); // nothing landed: not the field, not the new item
+    expect(out.suppressed).toEqual(["actorState.cast:mari.volatile.inventory"]);
+  });
+
   test("keyed-element locks generalize — an inventory item lock (inventory.<id>) survives removal too", () => {
     // Proves the registry is generic, not a quests-only hack: inventory (key `id`) rides the same grammar.
     const base = {

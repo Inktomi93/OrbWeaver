@@ -79,7 +79,8 @@ test("an op naming a datum the actor does not carry REFUSES with a reason naming
 });
 
 test("each op earns ONE fine lock path under its HALF's base, de-duplicated in first-touch order", () => {
-  const out = apply(seeded(), [
+  const base = seeded();
+  const out = apply(base, [
     { op: "setStatus", status: "calm" },
     { op: "setTracker", key: "trust", value: { value: 1 } },
     { op: "addCondition", condition: { name: "Burning" } },
@@ -98,11 +99,53 @@ test("each op earns ONE fine lock path under its HALF's base, de-duplicated in f
     // The two condition ops share ONE plane-level pin — the panel's Release affordance for this plane is the
     // section, so a per-element lock here would be a pin the host can see but cannot release.
     "actorState.cast:mira.volatile.conditions",
-    "actorState.cast:mira.volatile.inventory",
+    // …and INVENTORY is the plane that grew that per-element affordance (#78), so its pin is per ITEM, per
+    // CLAIMED field. `{ name: "Rope" }` claims the name and nothing else: the story keeps quantity/location.
+    `actorState.cast:mira.volatile.inventory.${out.ok ? out.actor.volatile.inventory[1]?.id : ""}.name`,
     "actorState.cast:mira.volatile.wallet.gold",
     "actorState.cast:mira.identity.mood",
     "actorState.cast:mira.identity.relationship",
   ]);
+  expect(out.ok && out.lockReleases).toEqual([]);
+});
+
+// ── #78: the pack's pins are per ITEM, per CLAIMED FIELD, and a drop hands them back ───────────────────────
+
+test("#78: an inventory op pins ONLY the fields the hand authored, addressed at the item it touched", () => {
+  const added = apply(emptyActorEntry(MIRA), [{ op: "addItem", item: { name: "Rope", location: "pack" } }]);
+  const addedId = (added.ok && added.actor.volatile.inventory[0]?.id) || "";
+  // `quantity`/`description`/`type` came from the SERVER's defaults, not from the hand — unpinned by design,
+  // so a story that counts the coils or says where they ended up still lands.
+  expect(added.ok && added.lockPaths).toEqual([
+    `actorState.cast:mira.volatile.inventory.${addedId}.name`,
+    `actorState.cast:mira.volatile.inventory.${addedId}.location`,
+  ]);
+
+  const patched = apply(seeded(), [{ op: "patchItem", id: "itm-key", patch: { quantity: 3 } }]);
+  expect(patched.ok && patched.lockPaths).toEqual(["actorState.cast:mira.volatile.inventory.itm-key.quantity"]);
+});
+
+test("#78: a REMOVAL pins nothing and releases the dropped item's prefix (the symmetric grammar)", () => {
+  const out = apply(seeded(), [{ op: "removeItem", id: "itm-key" }]);
+  expect(out.ok && out.lockPaths).toEqual([]);
+  expect(out.ok && out.lockReleases).toEqual(["actorState.cast:mira.volatile.inventory.itm-key"]);
+});
+
+test("#78: an add-then-drop batch releases the pin it just stamped (the verb applies `clear` after `lock`)", () => {
+  // A PINNED mint, so the batch's second op can name the id its first op will produce (a real caller reads it
+  // off the panel a beat later; here the point is the pair of lists the applier hands the verb).
+  const id = "item_batch";
+  const out = applyActorOps(
+    emptyActorEntry(MIRA),
+    [
+      { op: "addItem", item: { name: "Rope" } },
+      { op: "removeItem", id },
+    ],
+    () => id,
+  );
+  expect(out.ok && out.actor.volatile.inventory).toEqual([]);
+  expect(out.ok && out.lockPaths).toEqual([`actorState.cast:mira.volatile.inventory.${id}.name`]);
+  expect(out.ok && out.lockReleases).toEqual([`actorState.cast:mira.volatile.inventory.${id}`]);
 });
 
 // ── R2: the identity half ─────────────────────────────────────────────────────────────────────────────────

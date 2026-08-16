@@ -104,6 +104,10 @@ interface KeyedPlane {
  *  existed precisely because the old name-addressed `pools[]` array could not express one. */
 const KEYED_ARRAYS: Readonly<Record<string, KeyedPlane>> = {
   quests: { keyOf: propKey("id"), omissionRemoves: true },
+  // `inventory`'s per-element pins stopped being hypothetical with #78: the pack's hand door now MINTS
+  // `…inventory.<id>.<field>` for the fields a host claimed, so the sub-field walk below is the live path for
+  // every manual pack edit — and the element-lock removal defense is what keeps a hand-added item from being
+  // deleted by a story that simply never mentions it.
   inventory: { keyOf: propKey("id"), omissionRemoves: true },
   // `presentCharacters` is NOT here since R2: it is a flat array of `actorRefKey` STRINGS (the presence plane),
   // which has no elements to correlate and no per-element lock to honor — an unkeyed array wholesale-replaces,

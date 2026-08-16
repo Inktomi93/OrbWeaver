@@ -1663,6 +1663,69 @@ test("clicking a GRID tile edits that item in place — the same click-to-edit g
   await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBe(2);
 });
 
+// ── #78: THE PACK'S LOCK IS VISIBLE, PER ITEM, AND RELEASABLE ────────────────────────────────────────────
+// A hand add pins the fields it claimed ON THE ITEM (`…volatile.inventory.<id>.<field>`), and the panel showed
+// NOTHING for it: no chip, no hint, no release. The host could not see that the story had been fenced off the
+// item, let alone hand it back. (The section pin it did render read `actorState.<key>.inventory` — a path with
+// no `volatile` segment, which the server has never written, so it could not fire either.)
+const MARA_PACK_BASE = "actorState.character:character_ct_mara.volatile.inventory.item_ct_key";
+
+test("#78: a hand-pinned ITEM carries its own pin and ONE click releases it — the pack itself stays the story's", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, {
+    tracker: { ...(richTracker() as Record<string, unknown>), lockedPaths: [`${MARA_PACK_BASE}.name`, `${MARA_PACK_BASE}.quantity`] },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  // The SECTION pin is absent: an item pin is not a plane pin, and claiming otherwise would offer a Release
+  // that hands back more than the host ever took.
+  await expect(component.getByRole("button", { name: "Release the pack to the model" })).toHaveCount(0);
+  // The GRID tile — the default lens — SHOWS the state (the tile is itself the editor's trigger, so the
+  // release control lives one tap in, beside the item's other gestures).
+  await expect(component.locator('[data-slot="rpg-pack-cell"]').filter({ hasText: "Bone key" })).toContainText("Pinned");
+
+  // The pixels, banked beside the pack-grid shot the density CT takes: a rendered claim owes a rendered
+  // receipt, and the whole defect was that a fenced-off pack looked exactly like a free one.
+  await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: "reports/snaps/pack-item-pin.png" });
+
+  // …and the tile's own editor — the popover the tile already opens for every other per-item gesture —
+  // carries the Release, so the grid lens is not a dead end for a host who never switches lenses.
+  await component.getByRole("button", { name: "Edit Bone key" }).click();
+  const tileEditor = page.locator('[data-slot="rpg-pack-tile-editor"]');
+  await expect(tileEditor.getByRole("button", { name: "Release Bone key to the model" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // The LIST lens is the edit lens, and there the pin is the one-tap Release, named by whose it is.
+  await component.getByRole("button", { name: "Show as a list" }).click();
+  const pin = component.locator('[data-slot="rpg-pack-row"]').getByRole("button", { name: "Release Bone key to the model" });
+  await expect(pin).toBeVisible();
+  await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: "reports/snaps/pack-item-pin-list.png" });
+  await pin.click();
+
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // ONESHOT-OK: settled by the poll. Releasing the ITEM hands back EVERY pin it carries — a per-field residue
+  // would leave a pin the panel no longer renders and the host can never reach.
+  expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ patch: {}, releaseLocks: [`${MARA_PACK_BASE}.name`, `${MARA_PACK_BASE}.quantity`] });
+});
+
+test("#78: a LEGACY plane-wide pack lock still renders its section Release (no snapshot is rewritten to fix it)", async ({ mount, page }) => {
+  // Snapshots written before the granularity change carry `…volatile.inventory` — the whole plane. Stored
+  // locks are never migrated (the dev corpus is the owner's), so the READ side keeps honoring the old path and
+  // the section keeps the affordance that lets a host let it go.
+  const trpc = await stubTakeover(page, {
+    tracker: { ...(richTracker() as Record<string, unknown>), lockedPaths: ["actorState.character:character_ct_mara.volatile.inventory"] },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  const pin = component.getByRole("button", { name: "Release the pack to the model" });
+  await expect(pin).toBeVisible();
+  await pin.click();
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // ONESHOT-OK: the poll above settled the recorder — the call IS recorded, so this reads a frozen payload.
+  expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ releaseLocks: ["actorState.character:character_ct_mara.volatile.inventory"] });
+});
+
 // The P4 card knobs were STORED, wired into the reminder + the §4.8 lenient wrap, and had NO editor —
 // the D107 dead-switch class (owner dogfood 2026-07-31: "we are missing the toggle to enable/disable the
 // interactive html part of the prompt"). The stub game carries both OFF.

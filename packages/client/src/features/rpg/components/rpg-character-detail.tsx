@@ -18,7 +18,7 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { RpgActorView, RpgStatProfile } from "@orb/contracts/rpg";
-import { rpgActorLockBase } from "@orb/contracts/rpg";
+import { rpgActorVolatileLockBase } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -303,7 +303,11 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
   const canEditSheet = (isHost || ownRow) && actor.actorRef.kind !== "cast";
   const profile: RpgStatProfile = state.game.publicConfig.statProfile;
   const carriesNone = actor.trackers.length === 0;
-  const lockBase = rpgActorLockBase(actor.actorRef);
+  // The VOLATILE base: the wallet is a volatile plane and the server pins it at
+  // `…<actorKey>.volatile.wallet.<name>` (R2 moved the fields under that segment, and the merge walks the
+  // stored JSON — a path without it pins and matches NOTHING). Read off the bare actor base, the purse chip's
+  // pin could never fire and its Release would have cleared a key no snapshot holds.
+  const lockBase = rpgActorVolatileLockBase(actor.actorRef);
   // The two write doors, resolved ONCE and PERMISSION-omitted where the viewer may not use them: the sheet
   // planes ride `patchSheet` (host any actor / a member their own), the wallet rides `editSnapshot`.
   const sheetWrites = canEditSheet

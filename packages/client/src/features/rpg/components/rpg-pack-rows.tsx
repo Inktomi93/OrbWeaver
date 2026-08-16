@@ -28,6 +28,7 @@ import type { ReactElement } from "react";
 import { ConfirmDialog, PICKER_GAP_AT_COARSE, TrackerValue } from "#components";
 import { cn } from "#lib";
 import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
+import { RpgFieldLock } from "./rpg-field-lock.tsx";
 
 /** The quest-bound tell - the model-written item `type` naming the quest taxonomy. */
 const QUEST_TYPE_RE = /quest/i;
@@ -99,8 +100,11 @@ function tileTitle(item: RpgInventoryItem): string {
 // the width the item's own words need, and the card is only as tall as those words.
 const TILE_CLASS = "relative w-full min-w-0 items-center gap-field rounded-control border border-border bg-card px-row py-field text-left";
 
-/** The tile's INK — the glyph · the name (wrapped) · ×N · where it's kept. Shared by both arms. */
-function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElement {
+/** The tile's INK — the glyph · the name (wrapped) · ×N · the PINNED tell · where it's kept. Shared by both
+ *  arms. `pinned` is the #78 affordance's grid half: the tile is itself a Button (the editor's trigger), so it
+ *  cannot nest the Release control — it states the fact in TEXT (never colour or a hover string alone: the
+ *  tracker-kit a11y model says the text is the datum) and the editor one tap in carries the gesture. */
+function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem; readonly pinned?: boolean }): ReactElement {
   return (
     <>
       {QUEST_TYPE_RE.test(item.type) ? (
@@ -124,6 +128,15 @@ function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElemen
           {item.quantity > 1 ? (
             <Text as="span" voice="gloss" className="shrink-0 tabular-nums">
               ×{item.quantity}
+            </Text>
+          ) : null}
+          {/* #78 — the hand-pin TELL. Without it the host had no way to know the story had been fenced off
+              this item (the trap fired silently, and the pack simply stopped tracking). */}
+          {pinned ? (
+            // `pr-block` keeps the word clear of the quest-bound dot, which is absolutely positioned in this
+            // same top-right corner — abutting, the two read as one token ("Pinned●") instead of two facts.
+            <Text as="span" voice="gloss" className="shrink-0 pr-block" title={PINNED_TITLE}>
+              Pinned
             </Text>
           ) : null}
         </Row>
@@ -161,6 +174,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
       </Row>
     );
   }
+  const pinned = edit.itemLocks(item.id).length > 0;
   return (
     <Popover>
       <PopoverTrigger
@@ -174,9 +188,9 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
             className={`whitespace-normal ${TILE_CLASS}`}
             aria-label={`Edit ${item.name}`}
             data-slot="rpg-pack-cell"
-            title={tileTitle(item)}
+            title={pinned ? `${tileTitle(item)} — ${PINNED_TITLE}` : tileTitle(item)}
           >
-            <PackCellInk item={item} />
+            <PackCellInk item={item} pinned={pinned} />
           </Button>
         }
       />
@@ -193,7 +207,18 @@ export interface PackEdit {
   readonly onPatchItem: (itemId: string, patch: Partial<RpgInventoryItem>) => void;
   readonly onRemoveItem: (itemId: string) => void;
   readonly onAddItem: (name: string) => void;
+  /** The hand pins THIS item carries (#78 — `…inventory.<id>.<field>`), in stored order; empty ⇒ the story
+   *  still owns every field of it. The panel renders the tell from this list and hands the WHOLE list back on
+   *  Release: a per-field residue would leave a pin no lens renders and no gesture can reach. */
+  readonly itemLocks: (itemId: string) => readonly string[];
+  /** Release every pin this item carries — "let the story write it again" (rides `editSnapshot`, the one lock
+   *  author: an empty patch + `releaseLocks`). */
+  readonly onReleaseItem: (itemId: string) => void;
 }
+
+/** The pinned tile's hover/title sentence — the grid tile states the FACT, and the tile's own editor (one tap,
+ *  the same popover every other per-item gesture lives in) carries the Release. */
+const PINNED_TITLE = "Pinned by hand — the story won't change this. Open the item to release it.";
 
 /** A row's NAME — the host's rename field, else the plain label. */
 function ItemName({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
@@ -305,6 +330,7 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
         <ItemGlyph item={item} onPickIcon={(icon: string): void => edit.onPickIcon(item.id, icon)} />
         <ItemName item={item} edit={edit} />
         <ItemQuantity item={item} edit={edit} />
+        <ItemLockPin item={item} edit={edit} />
       </Row>
       <ItemProseLine item={item} value={item.location} field="location" placeholder="where it's kept…" edit={edit} />
       <ItemProseLine item={item} value={item.description} field="description" placeholder="what it is…" edit={edit} />
@@ -326,8 +352,19 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
   );
 }
 
-/** One LIST row (#37b) — glyph · name · ×qty · location · description. For a host this row IS the editor
- *  (RV-5): every datum is click-to-edit in place and the row carries a confirmed delete. */
+/** THE ITEM'S HAND-PIN + its one-tap Release (#78) — rendered only where the item actually carries pins, and
+ *  only for a host (the `PackEdit` arm; a member never mounts a control they cannot use). It names the ITEM,
+ *  because a pack of eight otherwise offers eight buttons all called "Release" (the side-eye 08-01 rule), and
+ *  it hands back every pin the item carries in one gesture. */
+function ItemLockPin({ item, edit }: { readonly item: RpgInventoryItem; readonly edit: PackEdit }): ReactElement | null {
+  if (edit.itemLocks(item.id).length === 0) {
+    return null;
+  }
+  return <RpgFieldLock field={item.name} onRelease={(): void => edit.onReleaseItem(item.id)} />;
+}
+
+/** One LIST row (#37b) — glyph · name · ×qty · the hand pin · location · description. For a host this row IS
+ *  the editor (RV-5): every datum is click-to-edit in place and the row carries a confirmed delete. */
 function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
   return (
     <Row gap="field" align="center" className="rounded-base border border-border bg-card px-block py-row" data-slot="rpg-pack-row">
@@ -336,6 +373,9 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
         <Row gap="field" align="baseline" className="min-w-0">
           <ItemName item={item} {...(edit === undefined ? {} : { edit })} />
           <ItemQuantity item={item} {...(edit === undefined ? {} : { edit })} />
+          {/* The LIST lens is the EDIT lens, and it is not a Button itself — so here the pin IS the Release,
+              one tap, exactly as every other pinned datum in the panel offers it. */}
+          {edit === undefined ? null : <ItemLockPin item={item} edit={edit} />}
         </Row>
         {/* #37a/RV-5 — WHERE it is kept. Stored since day one, asked of the model in the extraction guidance,
             and until now unreachable from the product. */}

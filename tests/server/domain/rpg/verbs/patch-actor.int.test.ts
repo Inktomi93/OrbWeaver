@@ -96,14 +96,82 @@ test("each op stamps its OWN fine lock path — never the coarse `actorState` pl
     ],
   });
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
+  const itemId = (snap?.actorState ?? [])[0]?.volatile.inventory[0]?.id ?? "";
   expect(snap?.fieldLocks).toStrictEqual({
     "actorState.cast:mira.volatile.trackerValues.trust": true,
     "actorState.cast:mira.volatile.status": true,
     "actorState.cast:mira.volatile.wallet.gold": true,
     "actorState.cast:mira.volatile.conditions": true,
-    "actorState.cast:mira.volatile.inventory": true,
+    // The pack's pin is finer still since #78 — the ITEM the add touched, and only the field it claimed.
+    [`actorState.cast:mira.volatile.inventory.${itemId}.name`]: true,
   });
   expect(snap?.fieldLocks?.["actorState"]).toBeUndefined();
+});
+
+// ── #78: THE PACK'S PIN IS ITEM-GRANULAR ──────────────────────────────────────────────────────────────────
+// A hand add used to stamp the whole plane (`…volatile.inventory`), which fenced the model out of the ENTIRE
+// pack from that click on: every later `update_inventory` for the actor was dropped, silently. Measured live
+// (#78, 2026-08-15): two host adds, then a PERFECT model update — the `location` of the very item the host had
+// added — folded away. The pin now lands on the fields the hand actually CLAIMED, on the item it touched.
+
+/** The pack's minted ids, in stored order (the hand never names an item's identity — the server mints it). */
+async function packIds(game: RpgGameRow, chatId: ChatId): Promise<readonly string[]> {
+  return ((await miraRow(game, chatId))?.volatile.inventory ?? []).map((item) => item.id);
+}
+
+test("#78: a hand ADD pins ONLY the fields it claimed, on the item it added — never the whole pack", async () => {
+  const { chatId, game, service } = await seedGame();
+  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "addItem", item: { name: "Bone key", location: "belt pouch" } }] });
+
+  const [itemId] = await packIds(game, chatId);
+  const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
+  // `name` + `location` were authored by the hand; `quantity`/`description`/`type` were SERVER DEFAULTS, not
+  // claims — the story may still write them. And the plane path itself is absent: that is the whole fix.
+  expect(snap?.fieldLocks).toStrictEqual({
+    [`actorState.cast:mira.volatile.inventory.${itemId}.name`]: true,
+    [`actorState.cast:mira.volatile.inventory.${itemId}.location`]: true,
+  });
+  expect(snap?.fieldLocks?.["actorState.cast:mira.volatile.inventory"]).toBeUndefined();
+});
+
+test("#78: a hand PATCH pins the patched fields of THAT item — a sibling item earns no pin at all", async () => {
+  const { chatId, game, service } = await seedGame();
+  await service.patchActor({
+    principal: HOST,
+    chatId,
+    targetRef: MIRA,
+    ops: [
+      { op: "addItem", item: { name: "Bone key" } },
+      { op: "addItem", item: { name: "Rope" } },
+    ],
+    autoLock: false,
+  });
+  const [keyId, ropeId] = await packIds(game, chatId);
+  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "patchItem", id: keyId ?? "", patch: { quantity: 3 } }] });
+
+  const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
+  expect(snap?.fieldLocks).toStrictEqual({ [`actorState.cast:mira.volatile.inventory.${keyId}.quantity`]: true });
+  expect(JSON.stringify(snap?.fieldLocks)).not.toContain(String(ropeId));
+});
+
+test("#78: dropping an item RELEASES its pins — a removed element leaves no ghost lock (the symmetric grammar)", async () => {
+  const { chatId, game, service } = await seedGame();
+  await service.patchActor({
+    principal: HOST,
+    chatId,
+    targetRef: MIRA,
+    ops: [
+      { op: "addItem", item: { name: "Bone key" } },
+      { op: "addItem", item: { name: "Rope" } },
+    ],
+  });
+  const [keyId, ropeId] = await packIds(game, chatId);
+  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "removeItem", id: keyId ?? "" }] });
+
+  const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
+  // The dropped item's pins are gone; the surviving item keeps its own (the `deleteQuest`/`dismissActor`
+  // precedent — a pin the panel can no longer render is a pin the host can never release).
+  expect(snap?.fieldLocks).toStrictEqual({ [`actorState.cast:mira.volatile.inventory.${ropeId}.name`]: true });
 });
 
 test("`autoLock:false` stamps NOTHING — the model-unreachable field (an item icon) pins no story write", async () => {
