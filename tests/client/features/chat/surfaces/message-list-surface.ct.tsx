@@ -27,7 +27,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { MessageListStoppingStory, MessageListSurfaceStory } from "../_ct-stories.tsx";
+import { MessageListStoppingStory, MessageListSurfaceStory, MessageListTabWalkStory } from "../_ct-stories.tsx";
 import { MessageListEdgeFadeStory } from "../_edge-fade-stories.tsx";
 import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
@@ -735,4 +735,167 @@ test("EDGE FADE CONTROL: the same probe DOES see the dissolve where the fade is 
 
   // Green pulls far away from the cream card's blue channel long before it reaches the backdrop.
   expect(pixel.b).toBeLessThan(CARD_RGB.b - 24);
+});
+
+// ── #107: the transcript's cost to a keyboard reader ──────────────────────────────────────────────
+// The defect this pins: BEFORE the roving mode, every message contributed its whole action cluster to
+// the document tab order (measured live: ~7 stops per message — Edit / Fork / More / View raw / Expand
+// card / Collapse card / the card iframe), so reaching the composer cost O(thread length) Tabs — 32 of
+// them on a real room without arriving. The contract is not "few stops"; it is that the number does not
+// MOVE when the thread grows, which is why this is one assertion across two thread lengths and not a
+// magic-number check.
+
+/** N canon rows, alternating user/assistant so every row renders the editable action cluster. */
+function walkThread(count: number): ReturnType<typeof makeMessageView>[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeMessageView({
+      id: castId<MessageId>(`msg_walk_${i}`),
+      role: i % 2 === 0 ? "user" : "assistant",
+      content: `Walk row ${i}`,
+      seq: i + 1,
+    }),
+  );
+}
+
+/** Tabs from `walk-start` until `walk-end` holds focus, and returns how many presses that took.
+ *  Returns `cap` when the walk never arrives — a number, so the assertion reads as a comparison rather
+ *  than a timeout. */
+async function tabsToReachEnd(page: Page, cap: number): Promise<number> {
+  await page.getByTestId("walk-start").focus();
+  for (let pressed = 1; pressed <= cap; pressed += 1) {
+    // biome-ignore lint/performance/noAwaitInLoops: a Tab WALK is sequential by definition — each press's landing decides whether the next one happens; there is no parallel form of this measurement.
+    await page.keyboard.press("Tab");
+    // biome-ignore lint/performance/noAwaitInLoops: same walk — the landing has to be read before the next press.
+    const arrived = await page.getByTestId("walk-end").evaluate((el) => el === document.activeElement);
+    if (arrived) {
+      return pressed;
+    }
+  }
+  return cap;
+}
+
+const TAB_WALK_CAP = 60;
+
+test("TAB BUDGET: the transcript costs the same number of Tab presses at 3 messages and at 15", async ({ mount, page }) => {
+  const shortThread = walkThread(3);
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(shortThread) });
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
+
+  const shortMount = await mount(<MessageListTabWalkStory />);
+  await expect(shortMount.getByText("Walk row 2")).toBeVisible();
+  const shortWalk = await tabsToReachEnd(page, TAB_WALK_CAP);
+  expect(shortWalk).toBeLessThan(TAB_WALK_CAP);
+  await shortMount.unmount();
+
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(15)) });
+  const longMount = await mount(<MessageListTabWalkStory />);
+  await expect(longMount.getByText("Walk row 14")).toBeVisible();
+  const longWalk = await tabsToReachEnd(page, TAB_WALK_CAP);
+
+  expect(longWalk).toBe(shortWalk);
+});
+
+test("ROVING: arrows move the tab stop between rows, and Escape hands focus back from a row's controls", async ({ mount, page }) => {
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(6)) });
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
+  const component = await mount(<MessageListTabWalkStory />);
+  await expect(component.getByText("Walk row 5")).toBeVisible();
+
+  const activeRow = component.locator('[data-slot="message-list-row"][data-active]');
+  const rowFour = component.locator('[data-slot="message-list-row"][data-index="4"]');
+  const rowFourFocused = async (): Promise<boolean> => await rowFour.evaluate((el) => el === document.activeElement);
+
+  // The single stop lands on the TAIL row (where a bottom-anchored reader is looking).
+  await page.getByTestId("walk-start").focus();
+  await page.keyboard.press("Tab");
+  await expect(activeRow).toHaveAttribute("data-index", "5");
+
+  // ArrowUp walks the stop up a row and takes focus with it.
+  await page.keyboard.press("ArrowUp");
+  await expect(activeRow).toHaveAttribute("data-index", "4");
+  await expect.poll(rowFourFocused).toBe(true);
+
+  // Tab enters that row's own controls (auto-entry restored them to the tab order) …
+  await page.keyboard.press("Tab");
+  await expect(page.locator(":focus")).toHaveAttribute("aria-label", "Edit message");
+
+  // … and Escape hands focus back to the row, which is the documented exit gesture.
+  await page.keyboard.press("Escape");
+  await expect.poll(rowFourFocused).toBe(true);
+});
+
+test("ROVING: the edit-in-place path survives suppression — reached by MOUSE, then Tabbed through by keyboard", async ({ mount, page }) => {
+  // The failure mode a naive suppression would ship: a reader clicks Edit (pointer focus still works on a
+  // tabindex=-1 control), lands in the textarea, and then cannot Tab to Save because the row was never
+  // "entered". Auto-entry on focusin is what prevents it, and this is the case that proves it.
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(walkThread(4)) });
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
+  const component = await mount(<MessageListTabWalkStory />);
+  await expect(component.getByText("Walk row 3")).toBeVisible();
+
+  // The cluster rests hidden + pointer-events-none (`messageActionsRevealClass`), so a real pointer
+  // reaches it only over the row — hover first, exactly as a mouse user does.
+  await component.locator('[data-slot="message-row"]').last().hover();
+  await component.getByRole("button", { name: "Edit message" }).last().click();
+  const textarea = component.getByRole("textbox", { name: "Edit message" });
+  await expect(textarea).toBeVisible();
+  await textarea.focus();
+
+  await page.keyboard.press("Tab");
+  await expect(page.locator(":focus")).toHaveAttribute("aria-label", "Cancel edit");
+  await page.keyboard.press("Tab");
+  await expect(page.locator(":focus")).toHaveAttribute("aria-label", "Save edit");
+});
+
+// ── #113: sticky speaker attribution inside a turn taller than the screen ─────────────────────────
+// In a group room a long reply scrolls its own name row off the top and the reader loses the speaker.
+// The verdict is the VIRTUALIZER'S measurement of this row against the scrollport, not a content-length
+// proxy — which is why the control below (a short row in the same mount shape) must come out bare.
+
+const NAME_ROW = '[data-slot="message-name-row"]';
+const STUCK_NAME_ROW = '[data-slot="message-name-row"][data-sticky]';
+const LIST_SCROLLER = '[data-slot="message-list-scroll"]';
+
+/** Prose long enough to exceed the story's 480px box several times over at the 75ch measure. */
+const TALL_BODY = "Sabine turns the lamp down and keeps talking, and the paragraph does not stop. ".repeat(90);
+
+test("#113 a turn taller than the scrollport pins its speaker row to the top of the viewport while the body scrolls under it", async ({ mount, page }) => {
+  // `kind: "narrator"` gives the row a REAL resolved speaker name against this file's empty roster stub,
+  // so the assertion is about what the reader can still SEE, not merely about a container element.
+  const tall = makeMessageView({ id: castId<MessageId>("msg_tall"), role: "assistant", kind: "narrator", content: TALL_BODY, seq: 1 });
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([tall]) });
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
+  const component = await mount(<MessageListSurfaceStory />);
+
+  const scroller = component.locator(LIST_SCROLLER);
+  await expect(component.locator(STUCK_NAME_ROW)).toHaveCount(1);
+  await expect(component.locator(STUCK_NAME_ROW)).toHaveCSS("position", "sticky");
+  await expect(component.locator(STUCK_NAME_ROW).getByText("Narrator")).toBeVisible();
+
+  // Deep inside the turn, the attribution is STILL on screen and pinned to the scrollport's top edge.
+  await scroller.evaluate((el: HTMLElement) => {
+    el.scrollTop = 900;
+  });
+  const offsetFromTop = await scroller.evaluate((el: HTMLElement) => {
+    const name = el.querySelector('[data-slot="message-name-row"][data-sticky]');
+    if (name === null) {
+      return Number.NaN;
+    }
+    return name.getBoundingClientRect().top - el.getBoundingClientRect().top;
+  });
+  // Within the scroller's own top padding (py-block) of the edge — i.e. stuck, not scrolled away.
+  expect(offsetFromTop).toBeGreaterThanOrEqual(0);
+  expect(offsetFromTop).toBeLessThan(24);
+  await expect(component.locator(STUCK_NAME_ROW).getByText("Narrator")).toBeVisible();
+});
+
+test("#113 CONTROL: a short turn is left alone — no sticky, no chip, no measured height change", async ({ mount, page }) => {
+  const shortRow = makeMessageView({ id: castId<MessageId>("msg_short"), role: "assistant", content: "Two words.", seq: 1 });
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([shortRow]) });
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
+  const component = await mount(<MessageListSurfaceStory />);
+
+  await expect(component.locator(NAME_ROW)).toHaveCount(1);
+  await expect(component.locator(STUCK_NAME_ROW)).toHaveCount(0);
+  await expect(component.locator(NAME_ROW)).toHaveCSS("position", "static");
 });

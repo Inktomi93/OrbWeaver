@@ -1,12 +1,16 @@
 import type { ScrollMode } from "@orb/kit/scroll-mode";
 import type { Range } from "@tanstack/react-virtual";
-import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
-import { useCallback, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { GapToken } from "#lib";
-import { assertBoundedScrollHeight, cn, gapPxFor, usePrefersReducedMotion } from "#lib";
+import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE, gapPxFor, usePrefersReducedMotion } from "#lib";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
+import type { MessageListRowMeta } from "./list-window.ts";
+import { composeRangeExtractor, updateEdgeFades } from "./list-window.ts";
 import { pinSpacerActive } from "./pin-spacer.ts";
+import type { MessageListRowNavigation } from "./row-roving.ts";
+import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 
 // Chat rows are tall and expensive Markdown trees. Two rows covers a fast scroll gesture without parsing
 // multiple offscreen viewports of multi-kilobyte messages during cold room entry.
@@ -17,44 +21,6 @@ const DEFAULT_SCROLL_END_THRESHOLD_PX = 80;
 
 // Tolerance for matching virtual-core's own last scrollTop write vs. a genuine external scroll.
 const PROGRAMMATIC_SCROLL_EPSILON_PX = 2;
-
-// An edge fades only when more than this many px of content lie beyond it — sub-pixel rounding must
-// not flicker the fade on an unscrolled list.
-const EDGE_FADE_EPSILON_PX = 1;
-
-/** Edge-fade state for the styles-tier mask (`client/styles/globals.css` keys on these attributes):
- *  an edge dissolves ONLY while content is actually scrolled past it, so a short thread never renders
- *  its first/last rows half-faded against nothing. */
-function updateEdgeFades(el: HTMLElement): void {
-  el.toggleAttribute("data-fade-top", el.scrollTop > EDGE_FADE_EPSILON_PX);
-  el.toggleAttribute("data-fade-bottom", el.scrollHeight - el.scrollTop - el.clientHeight > EDGE_FADE_EPSILON_PX);
-}
-
-// Merges keepMounted's forced indices into rangeExtractor's base range; sorted ascending because
-// virtual-core requires ascending indices from its range extractors.
-function composeRangeExtractor<T>(
-  items: readonly T[],
-  keepMounted: ((item: T) => boolean) | undefined,
-  rangeExtractor: ((range: Range) => number[]) | undefined,
-): ((range: Range) => number[]) | undefined {
-  if (keepMounted === undefined) {
-    return rangeExtractor;
-  }
-  const forced: number[] = [];
-  for (const [index, item] of items.entries()) {
-    if (keepMounted(item)) {
-      forced.push(index);
-    }
-  }
-  const base = rangeExtractor ?? defaultRangeExtractor;
-  return (range: Range): number[] => {
-    const union = new Set<number>(base(range));
-    for (const index of forced) {
-      union.add(index);
-    }
-    return Array.from(union).sort((a, b) => a - b);
-  };
-}
 
 export interface MessageListHandle {
   /** Whether the viewport is currently pinned to the tail. */
@@ -115,7 +81,15 @@ export interface MessageListProps<T> {
    * live (e.g. an `<Activity>`-hidden pane, whose collapse would otherwise wipe measured heights).
    */
   readonly useCachedMeasurements?: boolean;
-  readonly renderItem: (item: T, index: number) => ReactNode;
+  /**
+   * `"none"` (default) leaves every row's controls in the document tab order — right for a short,
+   * bounded log. `"roving"` makes the WHOLE list one tab stop (see `row-roving.ts` for the why and the
+   * mechanism): exactly one row is tabbable, ArrowUp/ArrowDown/Home/End move that row, Escape returns
+   * focus from a row's controls to the row itself, and a non-focused row's controls are held out of the
+   * sequential order. Mandatory for any log whose length is unbounded.
+   */
+  readonly rowNavigation?: MessageListRowNavigation;
+  readonly renderItem: (item: T, index: number, meta: MessageListRowMeta) => ReactNode;
   /** Caller-owned sizing/skin for the scroll container — the bounded height comes from here. */
   readonly className?: string;
   /** Escape hatch to the real scroll DOM node, e.g. for an external scroll-restoration hook. */
@@ -141,6 +115,7 @@ export function MessageList<T>({
   rangeExtractor,
   keepMounted,
   useCachedMeasurements = false,
+  rowNavigation = "none",
   renderItem,
   className,
   scrollContainerRef,
@@ -178,7 +153,19 @@ export function MessageList<T>({
     return item;
   };
 
-  const composedRangeExtractor = composeRangeExtractor(items, keepMounted, rangeExtractor);
+  const roving = rowNavigation === "roving";
+  // The scrollport height, for `MessageListRowMeta.exceedsViewport`. State (not a ref) because a row's
+  // rendered output depends on it; written only when the container actually resizes.
+  const [scrollportHeightPx, setScrollportHeightPx] = useState(0);
+  // The roving hook must run BEFORE the virtualizer (its `activeIndex` feeds the range extractor, which is
+  // a virtualizer option), but it needs to SCROLL through the virtualizer — so the call is late-bound
+  // through a ref written in an effect below, never during render.
+  const scrollToIndexRef = useRef<(index: number) => void>(() => undefined);
+  const scrollToIndex = useCallback((index: number): void => scrollToIndexRef.current(index), []);
+  // The ONE tabbable row's index (-1 when the mode is off) — see row-roving.ts for the whole technique.
+  const activeIndex = useRowRoving({ enabled: roving, getItemKey, items, scrollToIndex, viewportRef: viewportNodeRef });
+
+  const composedRangeExtractor = composeRangeExtractor(items, keepMounted, rangeExtractor, activeIndex);
 
   // pin-prompt never auto-follows an append (the pin owns placement); otherwise today's behavior
   // (instant when tail-follow is on — see the scrollToFn note below — else virtual-core's smooth).
@@ -378,12 +365,16 @@ export function MessageList<T>({
       return;
     }
     updateEdgeFades(el);
+    setScrollportHeightPx((prev) => (prev === el.clientHeight ? prev : el.clientHeight));
     const viewport = viewportNodeRef.current;
     if (viewport === null || typeof ResizeObserver === "undefined") {
       return;
     }
     const observer = new ResizeObserver(() => {
       updateEdgeFades(el);
+      // The `exceedsViewport` denominator. Guarded on equality: a row growing changes the OL's height,
+      // not the scrollport's, so a streaming turn never re-renders the list through this path.
+      setScrollportHeightPx((prev) => (prev === el.clientHeight ? prev : el.clientHeight));
       // pin-prompt: once the reply below the pinned prompt fills a viewport, the spacer has done its job
       // (the prompt now sits at the top against real content) — collapse it so there is no trailing void.
       const pinnedIndex = pinnedIndexRef.current;
@@ -403,6 +394,11 @@ export function MessageList<T>({
     return (): void => observer.disconnect();
   }, [virtualizer]);
 
+  // Late-bind the roving hook's scroll (declared above the virtualizer, used below it).
+  useEffect((): void => {
+    scrollToIndexRef.current = (index: number): void => virtualizer.scrollToIndex(index, { align: "auto", behavior: "auto" });
+  }, [virtualizer]);
+
   return (
     <div
       ref={(node): void => {
@@ -420,19 +416,25 @@ export function MessageList<T>({
       className={cn("relative overflow-auto overscroll-contain", className)}
       data-slot="message-list-scroll"
     >
-      {/* The live log contains a real list. Semantic list rows make the virtual position metadata valid. */}
+      {/* The live log contains a real list. Semantic list rows make the virtual position metadata valid.
+          The list keeps `role="log"` + `aria-live` and does NOT become a `feed` or a `grid`: `feed` has no
+          live region (the streaming ghost needs one) and `grid` promises tabular two-axis navigation this
+          surface does not have. Roving tabindex is a focus-order technique, not a role. */}
       <ol ref={setViewportRef} className="relative m-0 w-full list-none p-0" data-slot="message-list-viewport">
         {virtualizer.getVirtualItems().map((virtualItem) => (
           <li
             key={virtualItem.key}
             ref={virtualizer.measureElement}
             data-index={virtualItem.index}
-            data-slot="message-list-row"
-            className="absolute inset-x-0"
+            data-slot={MESSAGE_LIST_ROW_SLOT}
+            className={cn("absolute inset-x-0", roving && FOCUS_RING_OUTLINE)}
             aria-setsize={items.length}
             aria-posinset={virtualItem.index + 1}
+            {...(roving ? { tabIndex: virtualItem.index === activeIndex ? 0 : -1, "data-active": virtualItem.index === activeIndex ? "" : undefined } : {})}
           >
-            {renderItem(itemAt(virtualItem.index), virtualItem.index)}
+            {renderItem(itemAt(virtualItem.index), virtualItem.index, {
+              exceedsViewport: scrollportHeightPx > 0 && virtualizer.itemSizeCache.has(virtualItem.key) && virtualItem.size > scrollportHeightPx,
+            })}
           </li>
         ))}
       </ol>

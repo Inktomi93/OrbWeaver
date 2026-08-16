@@ -26,7 +26,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
-import { timeLib } from "#lib";
+import { cn, timeLib } from "#lib";
 import { genDurationLabel } from "../lib/gen-duration.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 
@@ -44,6 +44,10 @@ export interface MessageMetadataVisibility {
 export interface MessageMetadataRowProps {
   readonly message: MessageView;
   readonly visibility: MessageMetadataVisibility;
+  /** #106 — the wallpaper legibility backing the ROW owns (`BG_PHOTO_CHROME_SCRIM`), threaded rather
+   *  than imported here so the one home for the row's backings stays `message-row-backing.ts` and this
+   *  component keeps knowing nothing about the shell's wallpaper flag. */
+  readonly backingClass?: string | undefined;
 }
 
 /** The message timestamp as quiet inline micro-mono text (D66 P5) — rendered beside the speaker name in
@@ -90,7 +94,7 @@ function modelLabel(model: string): string {
 /** The opt-in per-message metadata row. Renders nothing when every gated datum is absent (a draft
  *  greeting row, or every toggle off) — never an empty `<Row>` shell. Timestamps are handled by
  *  `MessageTimestamp` in the name row, not here. */
-export function MessageMetadataRow({ message, visibility }: MessageMetadataRowProps): ReactElement | null {
+export function MessageMetadataRow({ message, visibility, backingClass }: MessageMetadataRowProps): ReactElement | null {
   const tokens = tokenCount(message);
   const items: ReactElement[] = [];
 
@@ -122,7 +126,7 @@ export function MessageMetadataRow({ message, visibility }: MessageMetadataRowPr
     return null;
   }
   return (
-    <Row gap="field" align="center" data-slot="message-metadata-row" className="flex-wrap">
+    <Row gap="field" align="center" data-slot="message-metadata-row" className={cn("flex-wrap", backingClass)}>
       {items.map((item, index) => (
         <Fragment key={item.key}>
           {index > 0 ? (

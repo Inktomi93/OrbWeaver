@@ -21,6 +21,7 @@ import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { isNarratorVoiced, resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
+import { BG_PHOTO_CHROME_SCRIM } from "../lib/message-row-backing.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
@@ -30,7 +31,7 @@ import {
   renderRowActions,
   renderRowAvatar,
   renderRowBubble,
-  renderRowIdentity,
+  renderRowNameRow,
   renderRowReasoning,
   renderRowSwipe,
   resolveRowContent,
@@ -48,6 +49,10 @@ export interface MessageRowProps {
   readonly showInChatAvatars?: boolean | undefined;
   /** True only for the tail assistant message (the swipe-eligible row). */
   readonly showSwipes?: boolean;
+  /** #113 — the virtualizer MEASURED this row as taller than the scrollport, so the reader can be deep
+   *  inside the turn with the speaker's name scrolled off. Pins the name row to the top of the scrollport
+   *  and gives it a backing chip. Absent/false ⇒ byte-identical to before (no sticky, no chip). */
+  readonly stickyAttribution?: boolean | undefined;
   readonly participants?: ReadonlyMap<CharacterId, ParticipantView> | undefined;
   /** The per-chat macro-name producer — one source for both the attribution badge and `{{char}}`/`{{user}}`. */
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
@@ -139,6 +144,7 @@ export function MessageRow({
   avatarRing = "none",
   showInChatAvatars = true,
   showSwipes = false,
+  stickyAttribution = false,
   participants,
   characterNamesById,
   personaNamesById,
@@ -276,17 +282,14 @@ export function MessageRow({
         <Row align="start" className="@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6" gap="row" data-slot="message-row-body">
           {leadingAvatar}
           <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
-            <Row justify="between" align="center" gap="field" data-slot="message-name-row" className={skin.chromeBacking}>
-              {renderRowIdentity({ attribution, message, showTimestamp: metadataVisibility.showTimestamps })}
-              {renderRowActions({
-                editing,
-                selecting,
-                message,
-                onChatForked,
-                messageActions,
-                viewerIsHost,
-              })}
-            </Row>
+            {renderRowNameRow({
+              attribution,
+              message,
+              showTimestamp: metadataVisibility.showTimestamps,
+              chromeBacking: skin.chromeBacking,
+              stickyAttribution,
+              actions: renderRowActions({ editing, selecting, message, onChatForked, messageActions, viewerIsHost }),
+            })}
             {renderRowBubble({
               role,
               message,
@@ -303,10 +306,18 @@ export function MessageRow({
               narratorVoiced,
             })}
             {editing ? null : <MessageToolCalls records={message.toolCalls} renderers={toolRenderers} />}
-            {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} />}
+            {/* #106 — the two chrome bands BELOW the bubble. Unlike the name row they are outside any
+                bubble fill in EVERY mode, so their scrim is mode-independent (the skin's `chromeBacking`
+                is not consulted here). Both self-gate on `data-has-bg-image`: no wallpaper, no chip. */}
+            {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} backingClass={BG_PHOTO_CHROME_SCRIM} />}
             {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
+            {/* `empty:hidden` on the footer is LOAD-BEARING, caught on a live drive: a contribution can be
+                REGISTERED and still render nothing (TurnToolCallsDisclosure returns null for a turn with no
+                records), so `footerContributions.length > 0` does not mean anything paints. Before the
+                scrim that left an invisible empty box; with it, every ordinary reply grew a full-width
+                chrome bar under the bubble. No CT saw it — a rendered drive did. */}
             {footerContributions.length === 0 ? null : (
-              <Stack gap="field" data-slot="message-footer">
+              <Stack gap="field" data-slot="message-footer" className={cn("empty:hidden", BG_PHOTO_CHROME_SCRIM)}>
                 {footerContributions.map((c) => (
                   <Fragment key={c.id}>{c.body({ message })}</Fragment>
                 ))}
