@@ -2,9 +2,8 @@
 // self-owned settings section renders instead of a bare `<AutosaveStatus>`.
 //
 // S3: status is REPORTED by the section and RENDERED once by the host; RETRY stays local. A decomposed pane
-// stacks N sections; N stacked footers is smear, and no footer at all regresses the honest "Saved · Synced
-// across your devices." affordance. So this component covers BOTH arms and a section body never branches on
-// hosting:
+// stacks N sections; N stacked footers is smear, and no footer at all leaves a write with no readout. So
+// this component covers BOTH arms and a section body never branches on hosting:
 //   HOSTED   — report into the transient store (the shell renders the ONE aggregate footer) and render
 //              inline ONLY in `error`, so the failing section is locatable at its own anchor with its own
 //              retry (D41: surface the failure where it happened; the aggregate never retries). `blocked`
@@ -29,19 +28,14 @@ export interface SectionSaveStatusProps {
   readonly state: SaveLifecycleState;
   /** Re-run the pending save — the section's OWN retry (an autosave session's `retrySave`). */
   readonly onRetry: () => void;
-  /** The `saved`-state reassurance line, rendered only in the degraded (unhosted) arm — the hosted arm's
-   *  reassurance is the shell's one aggregate footer. */
-  readonly caption?: string | undefined;
 }
 
 /** The section-level save readout: reports always, renders per §3's two arms. */
-export function SectionSaveStatus({ id, state, onRetry, caption }: SectionSaveStatusProps): ReactElement | null {
+export function SectionSaveStatus({ id, state, onRetry }: SectionSaveStatusProps): ReactElement | null {
   const hosted = useSaveStatusHosted();
   useReportSaveStatus(id, state);
   if (hosted && state !== "error") {
     return null;
   }
-  // Conditional spread, not `caption={caption}` — `AutosaveStatus.caption` is a genuinely absent-or-string
-  // prop under exactOptionalPropertyTypes.
-  return <AutosaveStatus state={state} onRetry={onRetry} {...(caption === undefined ? {} : { caption })} />;
+  return <AutosaveStatus state={state} onRetry={onRetry} />;
 }

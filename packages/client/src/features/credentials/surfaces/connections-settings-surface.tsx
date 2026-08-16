@@ -155,8 +155,9 @@ function ModelRolesBody({ session, persisted, isOwner, customCredentialId }: Mod
             now, D78 §6). Which rows are drafts, and what a turn resolves meanwhile, is disclosed per row
             (RowSyncDisclosure).
             THROUGH THE SEAM, not a bare `<AutosaveStatus>` (side-eye 2026-08-06 P2): every other settings
-            pane says "Saved · Synced across your devices." once, bottom-left, in the shell's aggregate
-            footer, and this one said a bare "Saved" top-right — two homes and two wordings for one fact.
+            pane says "Saved" once, bottom-left, in the shell's aggregate footer, and this one said its own
+            "Saved" top-right — two homes for one fact. (The footer's line carried a trailing "· Synced
+            across your devices." until #104 killed it: a self-hosted single-user box syncs to nothing.)
             `SectionSaveStatus` REPORTS into the aggregate and renders inline only on `error`, so the failure
             still surfaces where it happened (D41). */}
         <SectionSaveStatus id={CONNECTIONS_SUBCATEGORY_IDS.roles} state={saveState} onRetry={retrySave} />

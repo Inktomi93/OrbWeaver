@@ -24,6 +24,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { openNewChatPicker, selectChatFromList, setActiveSection } from "#state";
+import { useChatPortraitMap } from "../hooks/use-chat-portrait-map.ts";
+import { chatPortraits } from "../lib/chat-summary-row.ts";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
 
 /** How many recents this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
@@ -38,6 +40,14 @@ function openRecent(chatId: ChatId): void {
 export function HomeRecentsTileBody(): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
+  // ONE ENTITY, ONE FACE (#99 item 2). This tile rendered the SAME rows as the chats pane while omitting
+  // `portraits`, so a 1:1 room with Kohaku showed Kohaku's portrait in the pane and a hue-seeded monogram
+  // here — three surfaces' worth of "three treatments for one entity" traced to one missing prop, not to
+  // three avatar components (there is exactly one). `useChatPortraitMap` is the SAME non-blocking read the
+  // two chats panes already share (same query key ⇒ same cache entry, no second fetch): portraits are
+  // decoration, so a slow or failed character read leaves the rows on their initials blob rather than
+  // blocking home's tile.
+  const characterById = useChatPortraitMap();
   const recents = page.items;
 
   if (recents.length === 0) {
@@ -63,7 +73,7 @@ export function HomeRecentsTileBody(): ReactElement {
     <Stack aria-label="Recent chats" gap="row" role="list">
       {recents.map((chat) => (
         <Row key={chat.id} role="listitem">
-          <ChatSummaryRow chat={chat} onSelect={openRecent} />
+          <ChatSummaryRow chat={chat} onSelect={openRecent} portraits={chatPortraits(chat.participantCharacterIds, characterById)} />
         </Row>
       ))}
     </Stack>

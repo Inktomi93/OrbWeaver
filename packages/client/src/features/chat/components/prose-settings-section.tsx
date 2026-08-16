@@ -150,7 +150,7 @@ function ProseBody({ sectionId, session, stored, onKeepMine }: ProseBodyProps): 
             <ProseCard key={id} form={form} id={id} onKeepMine={onKeepMine} stored={stored[id]} />
           ))}
         </Grid>
-        <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} caption="Synced across your devices." />
+        <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
       </Stack>
     </Section>
   );

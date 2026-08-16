@@ -26,7 +26,8 @@ export const worldInfoCollection: CollectionContribution = {
   label: "World Info",
   icon: BookOpen,
   order: 30,
-  blurb: "Keyword-triggered lore your characters draw on — a book fires where you attach it.",
+  // #104 item 3 (em-dash diet): "and" is what the sentence means, so it says it.
+  blurb: "Keyword-triggered lore your characters draw on, and a book fires where you attach it.",
   emptyText: "No books yet.",
   useCount: useWorldInfoCount,
   useMemberTitle: useWorldInfoMemberTitle,

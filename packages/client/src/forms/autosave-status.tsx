@@ -1,5 +1,12 @@
 // The ONE live autosave status affordance (north-star §7 / D66 A4): "Saved / Saving… / Not saved / Save
-// failed — Retry", rendered where an editor's Save button used to be. Fed by createAutosaveEntityForm's exposed
+// failed — Retry", rendered where an editor's Save button used to be.
+//
+// THE `caption` PROP IS GONE (#104 item 2, owner-ruled 2026-08-16). D78 §6 gave `saved` an optional
+// reassurance line, and in practice every one of its 15 call sites passed the same string — "Synced across
+// your devices." — which is a SaaS promise a self-hosted single-user box does not make. With the line
+// killed the prop had zero production consumers, so it went with it rather than staying as a dead
+// affordance. "Saved" is the whole true statement; a future arm that needs a second clause should state
+// what it actually knows, not re-open a general slot. Fed by createAutosaveEntityForm's exposed
 // `saveState` + `retrySave` — never a per-surface hand-roll. The character editor is the first consumer;
 // presets + the settings panes adopt it next.
 // Compose-only: @orb/ui primitives, no raw intrinsics.
@@ -20,16 +27,10 @@ export interface AutosaveStatusProps {
   readonly state: AutosaveSaveState;
   /** Re-run the pending save — wire to the factory's `retrySave`. */
   readonly onRetry: () => void;
-  /**
-   * A reassurance line rendered ONLY in the `saved` state (D78 §6): the settings panes' "Synced across
-   * your devices." / system-pane explainer moves HERE, replacing a sibling `Text`. Rendered inside the
-   * status structurally so "Save failed — Retry · <caption>" is unrepresentable.
-   */
-  readonly caption?: string;
 }
 
 /** The shared live-save readout. On `error` the retry is a real affordance (a ghost button), never text. */
-export function AutosaveStatus({ state, onRetry, caption }: AutosaveStatusProps): ReactElement {
+export function AutosaveStatus({ state, onRetry }: AutosaveStatusProps): ReactElement {
   if (state === "error") {
     // A failed WRITE is urgent — assertive so a screen reader interrupts and announces it (role="alert"
     // = an implicit aria-live="assertive" live region; the retry stays a real focusable affordance).
@@ -55,14 +56,6 @@ export function AutosaveStatus({ state, onRetry, caption }: AutosaveStatusProps)
           Not saved
         </Text>
         <Text voice="gloss">Fix the highlighted field to save.</Text>
-      </Row>
-    );
-  }
-  if (state === "saved" && caption !== undefined) {
-    return (
-      <Row gap="field" align="center" data-slot="autosave-status" role="status" aria-live="polite">
-        <Text voice="gloss">Saved</Text>
-        <Text voice="gloss">{caption}</Text>
       </Row>
     );
   }

@@ -189,6 +189,17 @@ export const COIN_DISC_RING = {
   6: "color-mix(in oklab, var(--color-track-6) 40%, transparent)",
 } as const;
 
+/** THE EMPTY PURSE (#99 item 6 — "the null state should look null"). A wallet at zero or in the red wore the
+ *  same ramp-tinted disc as a full hoard, so the panel's most confident-looking figure was a value with
+ *  nothing in it. A non-positive amount takes the NEUTRAL trio instead: the same three recipes, mixed off the
+ *  muted foreground rather than a track step, so the coin still reads as a coin and stops reading as a prize.
+ *  The three keys mirror `COIN_DISC_FILL`/`_STROKE`/`_RING` at the same weights — one anatomy, two moods. */
+export const COIN_DISC_EMPTY = {
+  fill: "color-mix(in oklab, var(--color-muted-foreground) 12%, var(--color-sidebar))",
+  stroke: "color-mix(in oklab, var(--color-muted-foreground) 45%, transparent)",
+  ring: "color-mix(in oklab, var(--color-muted-foreground) 25%, transparent)",
+} as const;
+
 export const waystoneVariants = tv({
   slots: {
     // The stone block; the dial track circle strokes `currentColor` off the muted tone (the empty-ring

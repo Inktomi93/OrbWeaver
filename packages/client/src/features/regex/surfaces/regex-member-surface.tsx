@@ -71,7 +71,7 @@ function RegexMemberEditorBody({ row, session }: { readonly row: RegexScriptRow;
       <Stack className="max-w-prose outline-none" data-slot="regex-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
         <Row align="center" gap="field" justify="between">
           <Heading level={2}>{regexScriptTitle(row)}</Heading>
-          <AutosaveStatus caption="Synced across your devices." onRetry={session.retrySave} state={session.saveState} />
+          <AutosaveStatus onRetry={session.retrySave} state={session.saveState} />
         </Row>
 
         <RegexEditorFields form={session.form} scriptId={row.id} />

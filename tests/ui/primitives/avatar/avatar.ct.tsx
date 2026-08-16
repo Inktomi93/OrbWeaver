@@ -154,3 +154,98 @@ test("hueSeed defaults to alt — a missing seed still colors the fallback stabl
   const bgs = await page.locator(FALLBACK).evaluateAll(readBackgrounds);
   expect(bgs[0]).toBe(bgs[1]);
 });
+
+// ── issue 103: the monogram sits inside the ACTIVE THEME's band, under every shipped palette ────────────────
+//
+// The defect this pins: the fallback used to fill from `--color-chart-1..5`, a CATEGORICAL ramp chosen for
+// mutual distinguishability and therefore spread across the wheel and identical under every palette — so a
+// Mocha (blue) or Light (amber) app painted purple/green/salmon/teal/olive monograms that belonged to no
+// theme, which the mobile audit called the loudest thing on the screen. It now derives from the palette's
+// own `--color-primary`, so the assertion is on the HUE ANGLE, measured in the browser off the resolved
+// paint (never off the source): every bucket must land within a few degrees of the theme's own accent.
+//
+// The seed palettes are `[data-theme]` blocks in ui's generated theme.css, so a wrapper carrying the attr
+// is the whole switch — and the fill resolves on the FALLBACK element, which is what makes it track a
+// scoped override at all (the reason this is an inline relative-color expression, not a :root token).
+const IN_BAND_DEGREES = 12;
+// One seed PER BUCKET (djb2 mod 5 → 1..5, in that order), so the sweep measures all five steps rather
+// than whichever subset five arbitrary names happen to hash onto. The `data-hue` datum below is what
+// makes this pairing checkable instead of a comment nobody re-derives.
+const HUE_SEEDS = ["The Cartographer", "Inkfell", "Wren Calloway", "Sabine Veyra", "Saria Vex"] as const;
+
+/** A computed `rgb` triple (Chrome serializes background-color that way) → its hue angle in degrees, or null for a grey. */
+function hueOfRgb(value: string): number | null {
+  const nums =
+    value
+      .match(/[\d.]+/gu)
+      ?.slice(0, 3)
+      .map(Number) ?? [];
+  const [r = 0, g = 0, b = 0] = nums.map((n) => n / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const span = max - min;
+  if (span === 0) {
+    return null;
+  }
+  let h = 0;
+  if (max === r) {
+    h = ((g - b) / span) % 6;
+  } else if (max === g) {
+    h = (b - r) / span + 2;
+  } else {
+    h = (r - g) / span + 4;
+  }
+  return (h * 60 + 360) % 360;
+}
+
+/** Smallest absolute separation between two hue angles, across the 0/360 seam. */
+function hueGap(a: number, b: number): number {
+  const raw = Math.abs(a - b) % 360;
+  return raw > 180 ? 360 - raw : raw;
+}
+
+for (const theme of ["hearth", "mocha", "light"] as const) {
+  test(`issue 103: every monogram hue sits in ${theme}'s own band (derived from --color-primary, not the chart ramp)`, async ({ mount, page }) => {
+    await mount(
+      // `hearth` has no [data-theme] block — it IS the base @theme — so the attribute is simply absent
+      // there and the wrapper reads the root palette, which is the real product shape.
+      <div {...(theme === "hearth" ? {} : { "data-theme": theme })} data-slot="theme-probe">
+        {HUE_SEEDS.map((seed) => (
+          <Avatar hueSeed={seed} key={seed}>
+            AB
+          </Avatar>
+        ))}
+      </div>,
+    );
+    const probe = page.locator('[data-slot="theme-probe"]');
+    // The palette's own accent, resolved in the SAME scope the avatars paint in.
+    const primary = await probe.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-primary"));
+    const primaryHue = await probe.evaluate((el, value) => {
+      const probeEl = el.ownerDocument.createElement("span");
+      probeEl.style.color = value;
+      el.append(probeEl);
+      const resolved = getComputedStyle(probeEl).color;
+      probeEl.remove();
+      return resolved;
+    }, primary);
+    const bgs = await page.locator(FALLBACK).evaluateAll(readBackgrounds);
+    expect(bgs).toHaveLength(HUE_SEEDS.length);
+    const accent = hueOfRgb(primaryHue);
+    expect(accent, `${theme}'s --color-primary must resolve to a chromatic color`).not.toBeNull();
+    // An ACHROMATIC fallback is a failure, not a pass: `hueOfRgb` returns null for a grey, and a monogram
+    // with no fill at all (the shape a neutered/unscanned background utility produces) must not read as
+    // "in band" by having no hue to be out of band with. 180° is the maximum possible gap.
+    const gaps = bgs.map((bg) => {
+      const hue = hueOfRgb(bg);
+      return hue === null ? 180 : hueGap(hue, accent ?? 0);
+    });
+    expect(Math.max(...gaps), `${theme}: hue gaps ${gaps.map((g) => g.toFixed(1)).join(", ")}° from the accent`).toBeLessThanOrEqual(IN_BAND_DEGREES);
+    // …and they are still five DISTINCT tones inside that band (the ruling's other half).
+    expect(new Set(bgs).size).toBe(HUE_SEEDS.length);
+    // FIXTURE GUARD, deliberately LAST: the seeds above cover every bucket exactly once, so a rehash of
+    // the djb2 mixer fails here rather than silently shrinking the sweep. It reads the new `data-hue`
+    // datum, so it runs AFTER the assertions that measure only rendered paint.
+    const buckets = await page.locator(FALLBACK).evaluateAll((els) => els.map((el) => el.getAttribute("data-hue")));
+    expect(buckets).toEqual(["1", "2", "3", "4", "5"]);
+  });
+}

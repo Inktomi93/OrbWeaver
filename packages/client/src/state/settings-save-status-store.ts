@@ -1,8 +1,8 @@
 // The settings save-status seam's transient store (SET-SEAMS §3, S3) — "status is REPORTED by the section
 // and RENDERED once by the host; RETRY stays local".
 //
-// A decomposed pane stacks N self-owned sections; N stacked "Saved · Synced across your devices." footers
-// is visual smear, and deleting them regresses the one honest sync affordance. So each section REPORTS its
+// A decomposed pane stacks N self-owned sections; N stacked "Saved" footers is visual smear, and deleting
+// them outright leaves a write with no readout at all. So each section REPORTS its
 // save lifecycle here (four enum values per section id — never a callback, never a session) and the shell
 // renders ONE aggregate footer: error > blocked > saving > saved. The aggregate is READ-ONLY: retry belongs to the
 // session that owns the edit (D41 — surface the failure where it happened; a broadcast retry would need
@@ -24,7 +24,7 @@ import { createGatedStore } from "./create-gated-store.ts";
 /** `blocked` = the form is INVALID, so the save driver is holding the write on purpose (never a failure —
  *  nothing was attempted). It exists because "Saved" over a withheld write is the one status that is
  *  actively false: the over-cap prose refusal held the write while both editors' `[role=status]` still read
- *  "Saved · Synced across your devices." (side-eye PROSE-LIMIT P2). The BADGE/field error is the reason; the
+ *  "Saved" (side-eye PROSE-LIMIT P2). The BADGE/field error is the reason; the
  *  status line is the STATE, and it is also the live-region announcement a screen-reader user gets. */
 export const SAVE_LIFECYCLE_STATES = ["saved", "saving", "blocked", "error"] as const;
 export type SaveLifecycleState = (typeof SAVE_LIFECYCLE_STATES)[number];

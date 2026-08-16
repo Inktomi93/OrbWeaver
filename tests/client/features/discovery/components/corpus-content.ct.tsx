@@ -75,7 +75,7 @@ test("first run: the analysis sections collapse into ONE state that names the jo
   await expect(component.getByRole("heading", { name: "Coverage" })).toBeVisible();
 
   // The ONE state: the condition, the two jobs by their picker labels, and a live door.
-  await expect(component.getByText("Nothing analysed yet")).toBeVisible();
+  await expect(component.getByText("Nothing analyzed yet")).toBeVisible();
   await expect(component.getByText("Run Distill characters and Compute themes to fill this in.")).toBeVisible();
   await expect(component.getByRole("button", { name: "Run a job…" })).toBeVisible();
 
@@ -97,7 +97,7 @@ test("once the jobs have run, the analysis sections are back and the collapsed s
   await expect(component.getByRole("heading", { name: "Themes", exact: true })).toBeVisible();
   await expect(component.getByText("The long road")).toBeVisible();
   // The control for the assertion above: the collapse is CONDITIONAL, not a removal.
-  await expect(component.getByText("Nothing analysed yet")).toHaveCount(0);
+  await expect(component.getByText("Nothing analyzed yet")).toHaveCount(0);
 });
 
 test("clickable insight collections expose named lists with real listitem children", async ({ mount, page }) => {

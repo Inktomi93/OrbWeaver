@@ -123,7 +123,7 @@ function WorkloadsTuningBody({ sectionId, session }: { readonly sectionId: strin
               )}
             </form.AppField>
             <Row gap="field" align="center">
-              <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} caption="Synced across your devices." />
+              <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
             </Row>
           </Stack>
         </Container>

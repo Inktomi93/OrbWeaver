@@ -5,7 +5,8 @@
 // fails `pnpm test`.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TOKENS } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
+import { AVATAR_HUE_STEPS } from "../../../packages/ui/src/primitives/avatar/hue.ts";
 import { generateArtifacts } from "../../../packages/ui/tokens.build.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -89,12 +90,10 @@ test("the load-bearing token names exist (scrim · chart ramp · the D44 §12.1 
   }
 });
 
-// The AA guard for the Avatar deterministic fallback hue (D62): the ONE foreground
-// (`--color-primary-foreground`) must clear WCAG AA (≥4.5:1, small text) against ALL FIVE chart hues
-// it pairs with — a hard ship-gate. A token-VALUE invariant (reads only TOKENS, browser-independent),
-// so it lives with the other token invariants. Math: oklch → linear sRGB (Björn Ottosson's OKLab
-// matrix) → relative luminance → the WCAG contrast ratio. Any hue regressing below 4.5 (a token
-// retune) goes red before a low-contrast avatar can ship.
+// The colour math shared by the token-VALUE invariants below (browser-independent — it reads only TOKENS
+// and the generated seed value-sets, so it lives with the other token invariants):
+// oklch → linear sRGB (Björn Ottosson's OKLab matrix) → relative luminance → the WCAG contrast ratio.
+// Its main consumer is the avatar fallback-hue AA matrix at the foot of this file.
 const AA_SMALL_TEXT = 4.5;
 const OKLCH_RE = /oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)/u;
 
@@ -168,16 +167,69 @@ function relLuminance([L, C, hDeg]: readonly [number, number, number]): number {
   return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
 }
 
-function contrast(fg: string, bg: string): number {
-  const lf = relLuminance(parseOklch(fg));
-  const lb = relLuminance(parseOklch(bg));
+/** WCAG contrast between two OKLCH triples. Takes PARSED triples, not strings: the avatar guard below
+ *  measures DERIVED fills that never exist as a literal anywhere (see `derivedAvatarFill`). */
+function contrast(fg: readonly [number, number, number], bg: readonly [number, number, number]): number {
+  const lf = relLuminance(fg);
+  const lb = relLuminance(bg);
   const [hi, lo] = lf > lb ? [lf, lb] : [lb, lf];
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const HUE_TOKENS = ["color.chart-1", "color.chart-2", "color.chart-3", "color.chart-4", "color.chart-5"] as const;
+// THE AVATAR FALLBACK-HUE AA GUARD, RETARGETED (#103, 2026-08-16). It used to sweep `color.chart-1..5`,
+// which is the wrong subject twice over now: the monogram no longer paints from the chart ramp (it derives
+// from the ACTIVE THEME's `--color-primary` per `avatarFallbackHueColor`), and a base-only ramp could not
+// have answered the question a MULTI-PALETTE app actually asks. The guard is now the full matrix — every
+// palette × every hue step — asserted against THAT palette's own `primary-foreground`, which is the pairing
+// the component ships. The chart ramp keeps its own classification test; it is charts' concern again.
+//
+// `AVATAR_HUE_STEPS` is imported from the component's ONE home, so a retuned step is measured here rather
+// than re-spelled: this test cannot go stale against the derivation it guards.
+const AVATAR_PALETTES: ReadonlyArray<{ readonly name: string; readonly primary: string; readonly foreground: string }> = [
+  // Hearth IS the base @theme block (no value-set file) — the seeds re-value the same two paths.
+  { name: "hearth", primary: TOKENS["color.primary"].value, foreground: TOKENS["color.primary-foreground"].value },
+  ...Object.entries(SEED_THEME_VALUE_SETS).map(([name, set]) => ({
+    name,
+    primary: set.vars["--color-primary"],
+    foreground: set.vars["--color-primary-foreground"],
+  })),
+];
 
-test.each(HUE_TOKENS)("%s clears AA (≥4.5:1) against --color-primary-foreground (the avatar fallback-hue guard)", (hue) => {
-  const ratio = contrast(TOKENS["color.primary-foreground"].value, TOKENS[hue].value);
-  expect(ratio, `${hue} vs primary-foreground = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
+/** One derived monogram fill, as the browser would resolve `oklch(from <primary> calc(l+Δ) calc(c*k) h)` —
+ *  the CSS channel keywords clamp, so the arithmetic does too. */
+function derivedAvatarFill(primary: string, step: { readonly l: number; readonly c: number }): readonly [number, number, number] {
+  const [L, C, H] = parseOklch(primary);
+  return [Math.max(0, Math.min(1, L + step.l)), Math.max(0, C * step.c), H];
+}
+
+const AVATAR_HUE_MATRIX = AVATAR_PALETTES.flatMap((palette) =>
+  Object.entries(AVATAR_HUE_STEPS).map(([bucket, step]) => ({ palette: palette.name, bucket, primary: palette.primary, foreground: palette.foreground, step })),
+);
+
+test.each(AVATAR_HUE_MATRIX)("avatar hue $bucket clears AA (≥4.5:1) against $palette's own primary-foreground", ({
+  primary,
+  foreground,
+  step,
+  palette,
+  bucket,
+}) => {
+  const ratio = contrast(parseOklch(foreground), derivedAvatarFill(primary, step));
+  expect(ratio, `${palette} hue ${bucket} vs primary-foreground = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
+});
+
+// …and the steps must stay TELLABLE APART (the ruling's other half: differentiation by lightness/chroma
+// within the band). Adjacent-in-lightness buckets that collapse to the same tone are a silent regression a
+// contrast guard cannot see, so the spread is asserted directly: no two of the five may resolve to the same
+// (L, C) pair on any palette, and the extremes must span at least a real step of lightness.
+// The span the AA envelope leaves room for: the window is darken-only (see AVATAR_HUE_STEPS) because a
+// light palette's near-white ink caps lightening, so 0.085 is the whole budget and this floor sits just
+// under it — a retune that collapses the ramp toward one tone goes red, one that keeps it does not.
+const MIN_LIGHTNESS_SPAN = 0.08;
+
+test.each(AVATAR_PALETTES)("$name's five avatar hues stay mutually distinct (lightness × chroma spread)", ({ primary }) => {
+  const fills = Object.values(AVATAR_HUE_STEPS).map((step) => derivedAvatarFill(primary, step));
+  const keys = new Set(fills.map(([L, C]) => `${L.toFixed(4)}/${C.toFixed(4)}`));
+  expect(keys.size, "two hue steps resolve to the same tone").toBe(fills.length);
+  const lightnesses = fills.map(([L]) => L);
+  expect(Math.max(...lightnesses) - Math.min(...lightnesses)).toBeGreaterThanOrEqual(MIN_LIGHTNESS_SPAN);
 });
