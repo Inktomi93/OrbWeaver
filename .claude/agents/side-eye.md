@@ -136,7 +136,14 @@ for the interactive checks the probes can't script (below). The stack must be up
 reports a nav error, run `pnpm stack start` first. **All three write only under `reports/` (gitignored)
 — never dump artifacts into the repo root.**
 
-- **`pnpm design-audit <route> [--click <sel>] [--fail-on P0|P1|P2|P3]`** — the defect scanner,
+- **`pnpm design-audit <route> [--goto|--open-chat|--open-character|--context-tab|--click …] [--mobile]
+  [--fail-on P0|P1|P2|P3]`** — the defect scanner. **It gained snap's nav flags and a strict CLI on
+  2026-08-16**: before that it had ONE `--click` and silently IGNORED unknown flags, so it could
+  structurally only ever audit home and a typo'd invocation scanned the landing page and called it
+  clean. Nav flags + clicks run in ONE argv-ordered queue; an unknown flag is exit 2; a nav/click that
+  fails reds the run (`nav=ACTIONS-FAILED`) because the findings then describe some other surface.
+  **`--mobile` is required for any tap-target claim** — the floor is pointer-conditional, so a bare
+  `--viewport 430x932` still renders `pointer: fine` and judges everything against 24px instead of 44px.
   ~40 deterministic rules in two ORIGIN-TAGGED families (each finding carries `origin`):
   `orbweaver` (contrast/text-over-art, distorted images, tap targets, ARIA names/landmarks,
   tabindex, z-index, nested cards, gradient text, img-hover) and `impeccable` (adapted from
@@ -216,9 +223,13 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
     environmental blip is distinguished from an app failure in the report.
   - **`--goto <section|settings:<cat>|modal:<slot>>` / `--open-chat <id|title|latest|current>` /
     `--context-tab <name>`** = SPA NAVIGATION (the app has 2 URL routes; everything is client state).
-    One flag replaces a brittle click-chain; unknown targets refuse LOUDLY (exit 1). Nav flags and
-    steps execute in ONE queue in true argv order — a mid-chain `--context-tab` runs exactly where it
-    is written. `--open-chat latest` opens the chat list's top row without needing an id;
+    One flag replaces a brittle click-chain; unknown targets refuse LOUDLY (exit 1, and the RESULT line
+    reads `nav=ACTIONS-FAILED` — it printed `nav=OK` beside `nav-actions-failed=1` until 2026-08-16).
+    Nav flags, steps AND `--eval` execute in ONE queue in true argv order — a mid-chain `--context-tab`
+    or `--eval` runs exactly where it is written (`--eval` joined the queue 2026-08-16; before that every
+    eval ran after every step, so an eval written first reported the state AFTER the whole chain).
+    The pure captures (`--map`/`--aria`/`--contrast`/`--expect-*`) still observe the settled surface
+    afterwards. `--open-chat latest` opens the chat list's top row without needing an id;
     `--open-chat current` resolves the session's ACTIVE room via the bridge with no list query
     (the right sentinel for "the room I just created/drove in this same browser session"; refuses
     loudly on the landing surface).
@@ -239,9 +250,16 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
   - **`--contexts 2`** / **`--as member`** = isolated per-user contexts against the multi-user
     FIXTURE stack (host-vs-member views); refuses loudly if the fixture isn't up — never boots it.
   - `--ls key=json` seeds localStorage pre-nav (zustand-persisted prefs); `--probe` freezes
-    relative-time labels + animations for deterministic shots; `--idle` settles on network-quiet;
-    `--crop WxH+X+Y`; `--mask <sel>` pink-boxes volatile regions for `--diff`.
-  - **`--contrast` honesty details**: control-TRACK roles (switch/slider/progressbar) are SKIPPED
+    relative-time labels + animations for deterministic shots — **and therefore VOIDS every motion/CLS
+    number in that run** (it kills the FLIP animations that make track changes CLS-free, manufacturing
+    layout-shift findings); such a run prints `PROBE-NEUTERED-MOTION` and stamps
+    `motion=PROBE-NEUTERED-MOTION` on RESULT. Take motion/CLS receipts WITHOUT `--probe`. `--idle`
+    settles on network-quiet; `--crop WxH+X+Y` (its path is on the RESULT line as `crop=`, so it is not
+    a no-op); `--mask <sel>` pink-boxes volatile regions for `--diff`.
+  - **`--contrast` honesty details**: it measures the first IN-VIEWPORT match, not the first DOM match,
+    and refuses a verdict (`OFF-SCREEN … NO VERDICT`, red) when every match is off screen — before that
+    it lied BOTH ways off recycled virtualized rows (a `2.44:1 FAIL` on a dimmed off-screen node; a
+    `17.14:1 PASS` for near-white on white). Control-TRACK roles (switch/slider/progressbar) are SKIPPED
     by design (two-state signal, not track-vs-page — don't report the skip as a gap); empty inputs
     measure ::placeholder; ancestor opacity dims the reading (`dimmed α0.40` tag); each line names
     its method (`css-resolve` vs `pixel-sample`) and `--contrast-pixel` forces the pixel path when
@@ -295,13 +313,17 @@ chrome-devtools calls; past ~8 you are doing it wrong — stop, and re-route the
 flow covered nearly everything — that audit is why this budget exists; snap has since gained `--goto`/
 `--open-chat` navigation, `--watch` stream series, `--pages` multi-tab, `--mobile`, and now first-class
 `--expect-*` assertions, `--scenario` multi-checkpoint flows, the `--matrix` sweep, `--json` manifests,
-and default-on failure traces, closing every gap that review found.) Use it ONLY for the one
-thing snap can't script: a live, STATEFUL keyboard walk where each step depends on where focus just
-landed (`press_key` Tab-through + `evaluate_script` reading `document.activeElement` per stop), or a
-`performance_start_trace`. **Why the REAL keyboard walk is mandatory for focus:** Chromium does NOT
-promote a scripted `.focus()` to `:focus-visible`, so `snap --eval el.focus()` can't verify a focus
-ring — only a real `press_key` Tab traversal can (a static shot LIES: the active-rail "no keyboard
-focus" P0 looked fine until a real Tab exposed the glow overwriting the ring). **And chrome-devtools
+and default-on failure traces, closing every gap that review found.) Use it ONLY for a
+`performance_start_trace`. **THE KEYBOARD WALK IS A SNAP CALL AS OF 2026-08-16 — this line used to send
+you to MCP for it and that is no longer true.** `--key Tab` (BARE, no `=`) presses the page keyboard
+without changing focus, so N of them walk N stops inside a Base UI focus trap, and `--eval` now runs in
+the SAME argv-ordered queue, so one call reads `document.activeElement` at every stop:
+`snap / --goto settings:appearance --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Escape`.
+(`--key 'selector=Key'` is the OTHER form — it re-focuses the selector before each press, which is why
+"Tab never advances focus" was believed. End a dialog walk on Escape, never Enter.) What remains true:
+Chromium does NOT promote a scripted `.focus()` to `:focus-visible`, so `snap --eval el.focus()` still
+can't verify a focus ring — a real Tab traversal can, and snap now performs one (`fv=true` at every
+stop of the measured settings walk). **And chrome-devtools
 can HANG the session** — if it stalls, kill it, fall back to `snap`, and leave no stray browser. **Everything else is a `snap` Bash call now** — contrast (`--contrast`), any
 computed value or `__orb` (`--eval`), selectors (`--map`), the a11y tree (`--aria`), element shots
 (`--shot-of`). If you catch yourself opening `evaluate_script` to compute a ratio or read a style,
@@ -370,7 +392,13 @@ means the detectors found nothing; only your driven, screenshotted pass can say 
   asserting scrollTop/geometry (you and a fix lane independently filed the identical false negative).
 - **The design-audit probe's haul needs human triage**: one run produced 30 findings, ALL false
   positives (Base UI 1×1 spans, devtools chrome, computed left-rules) while missing every real P1 on
-  the page. Treat its output as candidate leads, never as findings.
+  the page. Treat its output as candidate leads, never as findings. **`nested-card` was the worst
+  offender — 26/26 false on home as recently as 2026-08-16** (border+radius+bg INTERACTIVE controls
+  inside a card, which chrome-diet CD1 explicitly sanctions); the walker now excludes interactive
+  islands and pill geometry (home: 26 → 0), but treat any `nested-card` row in an OLDER report as
+  unproven. `tap-target` was the second (box math instead of effective hit area: 10 of 13 false; the
+  walker now probes `elementFromPoint` and skips off-viewport hosts). And selectors in pre-fix reports
+  are frequently unlocatable — fifteen findings once shared one `button.group:nth-of-type(1)`.
 
 ## Code-recon evidence standards (apply to your DOM + AST probes too)
 Read the "Code recon — evidence standards" section of `.claude/agent-doctrine.md` and apply it to every structural claim you make: `-l ts` ≠ `-l tsx` (run both), `$X.foo`/`$X?.foo`/`$X["foo"]` are three node kinds, `ast-grep` exit 1 = no-match OR couldn't-search (print `scannedFileCount` before any "it's not there"), a partial read locates but never concludes, and every claim carries its `path:line` receipt. A rendered "it's fine" needs a measured receipt exactly as a structural "it's absent" needs a scanned-count.

@@ -24,23 +24,39 @@
  *   pnpm stack start                                   # once; design-audit is then a fast loop
  *   pnpm design-audit /                                # audit the home route
  *   pnpm design-audit /chats/abc --click "[data-testid=drawer-toggle]"
- *                                                       # reveal a surface before auditing
- *   pnpm design-audit / --wait 800                     # settle ms after the click (default 500)
+ *                                                       # reveal a surface before auditing (repeatable)
+ *   pnpm design-audit / --wait 800                     # settle ms after the last action (default 500)
  *   pnpm design-audit / --out home                     # reports/design-audit/home.json
  *   pnpm design-audit / --viewport 1920x1080           # default 1280x800
+ *   pnpm design-audit / --mobile                       # iPhone 14 Pro Max: 430x932, DPR3, TOUCH +
+ *                                                       # pointer:coarse. THE TAP-TARGET FLOOR IS
+ *                                                       # POINTER-CONDITIONAL — a bare `--viewport
+ *                                                       # 430x932` still renders a FINE pointer and
+ *                                                       # judges every control against the 24px AA
+ *                                                       # minimum instead of the 44px touch one.
  *   pnpm design-audit / --fail-on P2                   # exit non-zero at P2+ (default P1)
  *
- * Exit 0 if clean (no finding at/above --fail-on); non-zero otherwise (or on a nav error — an audit
- * that never loaded the page has nothing to say).
+ * SPA NAVIGATION — same dev nav bridge (window.__orb.nav) snap drives, same ONE argv-ordered queue:
+ * --goto / --open-chat / --open-character / --context-tab / --click, executed exactly as written. The
+ * scanner was `--click <one selector>` only until 2026-08-16, which meant it could STRUCTURALLY only
+ * ever audit home (a chat room needs 2+ hops) — every "the deterministic scan is clean" claim about any
+ * other surface was a claim about a surface it never reached.
+ *   pnpm design-audit / --goto settings:appearance     # audit the settings dialog
+ *   pnpm design-audit / --open-chat latest --mobile    # audit a chat room at the real mobile floor
+ *
+ * Exit 0 if clean (no finding at/above --fail-on); 1 on findings or a nav error (an audit that never
+ * loaded the page has nothing to say); 2 on CLI MISUSE — an unknown flag is a hard error, never an
+ * ignored line, because a typo'd flag silently scans the wrong surface and reports it clean.
  */
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
 import { artifactDir, routeSlug } from "./_kit/artifacts.ts";
 import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
 import type { Viewport } from "./_kit/flags.ts";
-import { parseViewport } from "./_kit/flags.ts";
+import { parseGotoTarget, parseViewport } from "./_kit/flags.ts";
 import { print, printResult } from "./_kit/result.ts";
 import type { Finding, RawSamples, Severity } from "./design-audit-checks.ts";
 import { checkScriptErrors, collectFindings, isAtOrAboveSeverity, isValidSeverity } from "./design-audit-checks.ts";
@@ -53,22 +69,52 @@ const NAV_TIMEOUT_MS = 15_000;
 const WAIT_SELECTOR_TIMEOUT_MS = 10_000;
 const CLICK_TIMEOUT_MS = 5000;
 const MESSAGE_COL_WIDTH = 88;
+// Same descriptor snap's --mobile uses — full touch + mobile UA + DPR3 + pointer:coarse, not a narrow
+// viewport. The tap-target rule reads `(pointer: coarse)` in-page, so this flag is what makes the 44px
+// floor apply at all.
+const MOBILE_DEVICE = "iPhone 14 Pro Max";
+const EXIT_MISUSE = 2;
+
+/** One pre-audit action, in argv order: a DOM click or a dev-bridge navigation. */
+type AuditAction = { kind: "click"; selector: string } | { kind: "nav"; method: NavMethod; target: string };
+
+type NavMethod = "goto" | "open-chat" | "open-character" | "context-tab";
 
 type Args = {
   route: string;
   base: string;
-  click: string | null;
+  actions: AuditAction[];
   waitMs: number;
   out: string | null;
   viewport: Viewport;
+  /** A Playwright device descriptor name (--mobile), or null for the raw desktop viewport. */
+  device: string | null;
   failOn: Severity;
+  /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
+  errors: string[];
 };
 
 type FlagHandler = (args: Args, rest: string[]) => void;
 
+function pushNav(args: Args, method: NavMethod, rest: string[]): void {
+  args.actions.push({ kind: "nav", method, target: rest.shift() ?? "" });
+}
+
 const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--click": (a, rest) => {
-    a.click = rest.shift() ?? null;
+    a.actions.push({ kind: "click", selector: rest.shift() ?? "" });
+  },
+  "--goto": (a, rest) => {
+    pushNav(a, "goto", rest);
+  },
+  "--open-chat": (a, rest) => {
+    pushNav(a, "open-chat", rest);
+  },
+  "--open-character": (a, rest) => {
+    pushNav(a, "open-character", rest);
+  },
+  "--context-tab": (a, rest) => {
+    pushNav(a, "context-tab", rest);
   },
   "--wait": (a, rest) => {
     a.waitMs = Number(rest.shift() ?? String(DEFAULT_WAIT_MS));
@@ -80,27 +126,109 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
     a.base = rest.shift() ?? DEFAULT_BASE;
   },
   "--viewport": (a, rest) => {
-    a.viewport = parseViewport(rest.shift() ?? "") ?? a.viewport;
+    const raw = rest.shift() ?? "";
+    const parsed = parseViewport(raw);
+    if (parsed === null) {
+      a.errors.push(`--viewport expects positive WxH, got ${JSON.stringify(raw)}`);
+      return;
+    }
+    a.viewport = parsed;
+    a.device = null;
+  },
+  "--mobile": (a) => {
+    a.device = MOBILE_DEVICE;
+  },
+  "--desktop": (a) => {
+    a.viewport = DEFAULT_VIEWPORT;
+    a.device = null;
   },
   "--fail-on": (a, rest) => {
     const raw = (rest.shift() ?? "").toUpperCase();
     if (isValidSeverity(raw)) {
       a.failOn = raw;
     } else {
-      print(`UNKNOWN --fail-on VALUE ${raw} (keeping ${a.failOn})`);
+      a.errors.push(`--fail-on expects P0|P1|P2|P3, got ${JSON.stringify(raw)}`);
     }
   },
 };
 
-function parseArgs(argv: string[]): Args {
+const REQUIRED_VALUE_FLAGS = new Set([
+  "--click",
+  "--goto",
+  "--open-chat",
+  "--open-character",
+  "--context-tab",
+  "--wait",
+  "--out",
+  "--base",
+  "--viewport",
+  "--fail-on",
+]);
+
+const DESIGN_AUDIT_HELP = `design-audit — the deterministic UI defect scan
+
+Usage:
+  pnpm design-audit [route] [flags]
+
+Surface (ONE argv-ordered queue — write the chain the way it should happen):
+  --click <selector>        --goto <section|settings:cat|modal:slot>
+  --open-chat <id|title|latest|current>   --open-character <id|name>
+  --context-tab <tab>       --wait <ms>   settle after the last action (default ${DEFAULT_WAIT_MS})
+
+Environment:
+  --viewport <WxH>          default 1280x800
+  --mobile                  iPhone 14 Pro Max — touch + pointer:coarse (the 44px tap floor)
+  --desktop                 explicit 1280x800
+
+Verdict:
+  --fail-on <P0|P1|P2|P3>   exit 1 at this severity or worse (default ${DEFAULT_FAIL_ON})
+  --out <name>              reports/design-audit/<name>.json
+
+Exit: 0 clean · 1 findings or nav error · 2 CLI misuse.`;
+
+/** Argv is scanned for misuse BEFORE anything runs. An unknown flag used to print
+ *  `UNKNOWN FLAG --goto (ignored)` and exit 0 — so a typo'd audit scanned home, reported clean, and the
+ *  caller believed it had scanned the surface they named. Mirrors snap's strict-CLI posture. */
+function scanArgv(argv: readonly string[]): string[] {
+  const errors: string[] = [];
+  let routeCount = 0;
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index] as string;
+    if (FLAG_HANDLERS[token] === undefined) {
+      if (token.startsWith("-")) {
+        errors.push(`unknown flag ${token}`);
+      } else {
+        routeCount += 1;
+      }
+      continue;
+    }
+    if (!REQUIRED_VALUE_FLAGS.has(token)) {
+      continue;
+    }
+    const value = argv[index + 1];
+    if (value === undefined || value.startsWith("--")) {
+      errors.push(`${token} requires a value`);
+      continue;
+    }
+    index += 1;
+  }
+  if (routeCount > 1) {
+    errors.push(`expected at most one route, got ${routeCount}`);
+  }
+  return errors;
+}
+
+export function parseAuditArgs(argv: string[]): Args {
   const args: Args = {
     route: "/",
     base: DEFAULT_BASE,
-    click: null,
+    actions: [],
     waitMs: DEFAULT_WAIT_MS,
     out: null,
     viewport: DEFAULT_VIEWPORT,
+    device: null,
     failOn: DEFAULT_FAIL_ON,
+    errors: scanArgv(argv),
   };
   const rest = [...argv];
   while (rest.length > 0) {
@@ -108,9 +236,7 @@ function parseArgs(argv: string[]): Args {
     const handler = FLAG_HANDLERS[tok];
     if (handler !== undefined) {
       handler(args, rest);
-    } else if (tok.startsWith("--")) {
-      print(`UNKNOWN FLAG ${tok} (ignored)`);
-    } else {
+    } else if (!tok.startsWith("-")) {
       args.route = tok;
     }
   }
@@ -119,9 +245,54 @@ function parseArgs(argv: string[]): Args {
 
 // ── Orchestration ────────────────────────────────────────────────────────────
 
-type CaptureOutcome = { navError: string | null; clickFailed: boolean; samples: RawSamples | null };
+type CaptureOutcome = { navError: string | null; actionsFailed: number; samples: RawSamples | null };
 
-async function navigateAndReveal(page: Awaited<ReturnType<typeof launchProbeSession>>["page"], opts: Args, url: string): Promise<CaptureOutcome> {
+type AuditPage = Awaited<ReturnType<typeof launchProbeSession>>["page"];
+
+// The bridge methods the app exposes (packages/client agent-bridge) — same set snap drives. `--goto`'s
+// target is namespaced (`settings:<cat>` / `modal:<slot>` / a bare section id) and decoded here.
+const NAV_BRIDGE_METHOD: Record<Exclude<NavMethod, "goto">, string> = {
+  "open-chat": "openChat",
+  "open-character": "openCharacter",
+  "context-tab": "contextTab",
+};
+
+function buildNavScript(action: Extract<AuditAction, { kind: "nav" }>): string {
+  const goto = action.method === "goto" ? parseGotoTarget(action.target) : null;
+  const method = goto === null ? NAV_BRIDGE_METHOD[action.method as Exclude<NavMethod, "goto">] : goto.method;
+  const arg = JSON.stringify(goto === null ? action.target : goto.arg);
+  return `(async () => {
+    const nav = window.__orb && window.__orb.nav;
+    if (!nav) return { ok: false, reason: "__orb.nav unavailable (not a dev build?)" };
+    return await nav.${method}(${arg});
+  })()`;
+}
+
+/** One action + its settle. Returns 1 on failure (printed, and the audit's verdict reddens) — a scan of
+ *  the WRONG surface is worse than no scan, so an action that didn't land is never silent. */
+async function driveAction(page: AuditPage, action: AuditAction, waitMs: number): Promise<number> {
+  try {
+    if (action.kind === "click") {
+      const loc = page.locator(action.selector).first();
+      await loc.waitFor({ state: "visible", timeout: CLICK_TIMEOUT_MS });
+      await loc.click({ timeout: CLICK_TIMEOUT_MS });
+    } else {
+      await page.locator("html[data-app-ready]").waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS });
+      const result = (await page.evaluate(buildNavScript(action))) as { ok: boolean; reason?: string };
+      if (!result.ok) {
+        print(`NAV FAILED    ${action.method} ${action.target}: ${result.reason ?? "rejected"}`);
+        return 1;
+      }
+    }
+  } catch (e) {
+    print(`ACTION FAILED ${action.kind === "click" ? `click ${action.selector}` : `${action.method} ${action.target}`}: ${errorMessage(e)}`);
+    return 1;
+  }
+  await settle(page, waitMs);
+  return 0;
+}
+
+async function navigateAndReveal(page: AuditPage, opts: Args, url: string): Promise<CaptureOutcome> {
   const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
   let navError: string | null = null;
   if (!resp) {
@@ -134,27 +305,21 @@ async function navigateAndReveal(page: Awaited<ReturnType<typeof launchProbeSess
     .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
     .catch(() => undefined);
 
-  let clickFailed = false;
-  if (opts.click !== null) {
-    try {
-      const loc = page.locator(opts.click).first();
-      await loc.waitFor({ state: "visible", timeout: CLICK_TIMEOUT_MS });
-      await loc.click({ timeout: CLICK_TIMEOUT_MS });
-    } catch (e) {
-      clickFailed = true;
-      print(`CLICK FAILED  ${opts.click}: ${errorMessage(e)}`);
-    }
+  let actionsFailed = 0;
+  for (const action of opts.actions) {
+    // biome-ignore lint/performance/noAwaitInLoops: the queue is SEQUENTIAL by contract — each action may produce the surface the next one targets (the reason it exists).
+    actionsFailed += await driveAction(page, action, opts.waitMs);
   }
   await settle(page, opts.waitMs);
 
   if (navError !== null) {
-    return { navError, clickFailed, samples: null };
+    return { navError, actionsFailed, samples: null };
   }
   try {
     const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples;
-    return { navError, clickFailed, samples };
+    return { navError, actionsFailed, samples };
   } catch (e) {
-    return { navError: `sample collection threw: ${errorMessage(e)}`, clickFailed, samples: null };
+    return { navError: `sample collection threw: ${errorMessage(e)}`, actionsFailed, samples: null };
   }
 }
 
@@ -173,6 +338,15 @@ const RULE_COL = 21;
 const SELECTOR_MAX_LEN = 38;
 const SELECTOR_COL = 39;
 
+/** `nav=` covers both failure classes: a page that never loaded, and a nav/click action that never
+ *  landed (which means the findings below describe some OTHER surface). */
+function navVerdict(navError: string | null, actionsFailed: number): string {
+  if (navError !== null) {
+    return "ERROR";
+  }
+  return actionsFailed > 0 ? "ACTIONS-FAILED" : "OK";
+}
+
 function printFindingsTable(findings: readonly Finding[]): void {
   if (findings.length === 0) {
     print("no findings — clean");
@@ -190,7 +364,15 @@ function printFindingsTable(findings: readonly Finding[]): void {
 }
 
 async function main(): Promise<number> {
-  const opts = parseArgs(process.argv.slice(2));
+  const opts = parseAuditArgs(process.argv.slice(2));
+  if (opts.errors.length > 0) {
+    for (const message of opts.errors) {
+      print(`ARG ERROR    ${message}`);
+    }
+    print("");
+    print(DESIGN_AUDIT_HELP);
+    return EXIT_MISUSE;
+  }
   const url = buildUrl(opts.base, opts.route);
   const name = opts.out ?? routeSlug(opts.route);
   const outPath = join(await artifactDir("design-audit"), `${name}.json`);
@@ -198,12 +380,13 @@ async function main(): Promise<number> {
   const session = await launchProbeSession({
     headless: true,
     viewport: opts.viewport,
+    device: opts.device,
     colorScheme: null,
     reducedMotion: false,
     localStorage: [],
   });
 
-  const { navError, clickFailed, samples } = await navigateAndReveal(session.page, opts, url);
+  const { navError, actionsFailed, samples } = await navigateAndReveal(session.page, opts, url);
   await session.browser.close();
 
   // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe
@@ -211,7 +394,9 @@ async function main(): Promise<number> {
   const findings = samples === null ? [] : collectFindings(samples);
   findings.push(...checkScriptErrors(session.pageErrors));
   const counts = countBySeverity(findings);
-  const failed = navError !== null || findings.some((f) => isAtOrAboveSeverity(f.severity, opts.failOn));
+  // An action that failed means the scan happened on the WRONG surface — that is a red run, not a clean
+  // one, for exactly the reason the strict CLI exists.
+  const failed = navError !== null || actionsFailed > 0 || findings.some((f) => isAtOrAboveSeverity(f.severity, opts.failOn));
 
   await writeFile(
     outPath,
@@ -220,6 +405,9 @@ async function main(): Promise<number> {
         route: opts.route,
         url,
         viewport: opts.viewport,
+        device: opts.device,
+        actions: opts.actions,
+        actionsFailed,
         failOn: opts.failOn,
         navError,
         findings,
@@ -245,17 +433,24 @@ async function main(): Promise<number> {
     ["p2", counts.P2],
     ["p3", counts.P3],
     ["fail-on", opts.failOn],
-    ["click-failed", clickFailed ? "yes" : "no"],
-    ["nav", navError === null ? "OK" : "ERROR"],
+    ["actions", opts.actions.length],
+    ["actions-failed", actionsFailed],
+    ["pointer", opts.device === null ? "fine" : "coarse"],
+    ["nav", navVerdict(navError, actionsFailed)],
     ["out", outPath],
   ]);
   return failed ? 1 : 0;
 }
 
-void main().then(
-  (code) => process.exit(code),
-  (err: unknown) => {
-    print(`design-audit failed: ${errorMessage(err)}`);
-    process.exit(1);
-  },
-);
+// Entry guard (same shape snap.ts uses): the CLI runs only when this file IS the invoked script, so
+// tests/tooling/design-audit.test.ts can import parseAuditArgs without booting a browser.
+const cliEntry = process.argv[1];
+if (cliEntry !== undefined && import.meta.url === pathToFileURL(cliEntry).href) {
+  void main().then(
+    (code) => process.exit(code),
+    (err: unknown) => {
+      print(`design-audit failed: ${errorMessage(err)}`);
+      process.exit(1);
+    },
+  );
+}

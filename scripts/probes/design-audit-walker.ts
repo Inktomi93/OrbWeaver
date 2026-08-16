@@ -48,11 +48,14 @@ export const COLLECT_SAMPLES_JS = `(async () => {
   var QUALITY_TEXT_TAGS = { p: 1, li: 1, td: 1, th: 1, dd: 1, blockquote: 1, figcaption: 1 };
   var GENERIC_FONTS = { "sans-serif": 1, serif: 1, monospace: 1, cursive: 1, fantasy: 1, "system-ui": 1, "ui-sans-serif": 1, "ui-serif": 1, "ui-monospace": 1, "ui-rounded": 1, emoji: 1, math: 1, fangsong: 1 };
 
-  function describe(el) {
-    if (!el) return "unknown";
-    if (el.id) return "#" + el.id;
-    var testId = el.getAttribute && el.getAttribute("data-testid");
-    if (testId) return "[data-testid=" + testId + "]";
+  // A finding nobody can LOCATE is not a finding. The old describe() emitted a single
+  // tag.class:nth-of-type(n) step, and nth-of-type counts only among an element's own siblings — so
+  // fifteen buttons under fifteen different parents all reported the identical
+  // button.group:nth-of-type(1) in one audit and none of them could be found. Build a PATH up to the
+  // nearest stable anchor (id / data-testid / data-slot / body) instead.
+  // (NB: this whole module body is a template LITERAL — no backticks, no dollar-brace, ever.)
+  var DESCRIBE_MAX_STEPS = 6;
+  function localStep(el) {
     var tag = el.tagName ? el.tagName.toLowerCase() : "node";
     var cls = el.classList && el.classList.length > 0 ? "." + el.classList[0] : "";
     var idx = 0;
@@ -62,6 +65,37 @@ export const COLLECT_SAMPLES_JS = `(async () => {
       sib = sib.previousElementSibling;
     }
     return tag + cls + ":nth-of-type(" + idx + ")";
+  }
+  function anchorOf(el) {
+    if (!el.getAttribute) return null;
+    if (el.id) return "#" + el.id;
+    var testId = el.getAttribute("data-testid");
+    if (testId) return "[data-testid=" + testId + "]";
+    var slot = el.getAttribute("data-slot");
+    if (slot) return "[data-slot=" + slot + "]";
+    return null;
+  }
+  function describe(el) {
+    if (!el) return "unknown";
+    var own = anchorOf(el);
+    if (own) return own;
+    var parts = [];
+    var node = el;
+    var steps = 0;
+    while (node && node.nodeType === 1 && steps < DESCRIBE_MAX_STEPS) {
+      if (node !== el) {
+        var anchor = anchorOf(node);
+        if (anchor) {
+          parts.unshift(anchor);
+          break;
+        }
+      }
+      parts.unshift(localStep(node));
+      if (node.tagName === "BODY") break;
+      node = node.parentElement;
+      steps += 1;
+    }
+    return parts.join(" > ");
   }
 
   function isVisible(el) {
@@ -306,6 +340,37 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     var inner = el.querySelector("img[alt]");
     return inner ? inner.getAttribute("alt") : null;
   };
+  // THE HIT AREA IS NOT THE BOX (2026-08-16 — 10 of 13 "sub-target" findings in one audit were this).
+  // @orb/ui Button's size="inline"/size="glyph-*" variants carry a pointer-conditional touch-target
+  // ::after (packages/ui/src/primitives/button/variants.ts:16-20, :76-82), so a 25x15 border box can own
+  // a 45x45 hit area. Probe what the COMPOSITOR says: sample points on the ring the ::after would cover
+  // and ask elementFromPoint whether this control still owns them. The measured extent is what WCAG
+  // 2.5.5/2.5.8 are about — "target size", not "border-box size".
+  var HIT_PROBE_RADII = [11, 16, 22]; // half-extents probed outward: 22 → a 44px target
+  function ownsPoint(el, x, y) {
+    if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
+    var hit = document.elementFromPoint(x, y);
+    return hit !== null && (hit === el || el.contains(hit) || hit.contains(el));
+  }
+  // Grow outward from the centre while the control still answers on all four cardinal offsets. Returns
+  // the effective half-extent in px (>= the box's own, never less).
+  function effectiveHalfExtent(el, rect) {
+    var cx = rect.left + rect.width / 2;
+    var cy = rect.top + rect.height / 2;
+    if (!ownsPoint(el, cx, cy)) return Math.min(rect.width, rect.height) / 2; // occluded centre: trust the box
+    var best = Math.min(rect.width, rect.height) / 2;
+    for (var hp = 0; hp < HIT_PROBE_RADII.length; hp += 1) {
+      var r = HIT_PROBE_RADII[hp];
+      if (r <= best) continue;
+      if (ownsPoint(el, cx - r, cy) && ownsPoint(el, cx + r, cy) && ownsPoint(el, cx, cy - r) && ownsPoint(el, cx, cy + r)) best = r;
+    }
+    return best;
+  }
+  // A control whose HOST sits outside the visual viewport is a phantom (2026-08-16: an off-canvas detail
+  // panel at x=431 on a 430px viewport supplied a whole census of "failures" nobody could touch).
+  function inVisualViewport(rect) {
+    return rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth;
+  }
   for (var m2 = 0; m2 < interactiveEls.length; m2 += 1) {
     var iel = interactiveEls[m2];
     if (!isVisible(iel) || isDevChrome(iel)) continue;
@@ -315,7 +380,16 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     if (iel.closest("[aria-hidden='true']")) continue;
     var irect = iel.getBoundingClientRect();
     if (Math.min(irect.width, irect.height) <= 2) continue;
-    tapTargets.push({ selector: describe(iel), width: irect.width, height: irect.height });
+    if (inVisualViewport(irect)) {
+      var half = effectiveHalfExtent(iel, irect);
+      // Report the EFFECTIVE extent as the measured size; the box only ever raises it, never lowers it.
+      var effective = Math.max(Math.min(irect.width, irect.height), half * 2);
+      tapTargets.push({
+        selector: describe(iel),
+        width: Math.max(irect.width, effective),
+        height: Math.max(irect.height, effective),
+      });
+    }
     accessibleNames.push({
       selector: describe(iel),
       tag: iel.tagName.toLowerCase(),
@@ -370,9 +444,28 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     var hasBg = bg !== null && bg.a > 0.05;
     return (hasShadow || hasBorder) && (radius > 0 || hasBg);
   }
+  // AN INTERACTIVE ISLAND IS NOT A NESTED CARD (2026-08-16 — 26/26 findings on home were this shape).
+  // Chrome-diet CD1 SANCTIONS border+radius+bg on interactive islands and elevated surfaces
+  // (.claude/skills/side-eye-design-review/reference/design-context.md:38; the density spec's own words:
+  // "a grid cell IS an interactive island", docs/design/density-pass-spec.md:134). So a button/link/
+  // input/[role=button] carrying a border and a radius inside a card is the house style, not a defect.
+  // The rule keeps its real target: a decorative CARD PANEL nested inside another card panel.
+  var INTERACTIVE_ISLAND_SELECTOR = "a,button,input,select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=option],[role=tab],[role=switch],[role=checkbox],[role=radio]";
+  function isInteractiveIsland(el) {
+    if (el.matches(INTERACTIVE_ISLAND_SELECTOR)) return true;
+    // A wrapper whose whole job is to host one control (the label+control field shell) rides along.
+    return el.closest(INTERACTIVE_ISLAND_SELECTOR) !== null;
+  }
   function isExcludedCardContext(el) {
     var s = getComputedStyle(el);
     if (s.position === "absolute" || s.position === "fixed") return true;
+    if (isInteractiveIsland(el)) return true;
+    // A PILL is a chip, not a panel. Fully-rounded geometry (radius >= half the short side) is the
+    // badge/avatar/tag shape — the rule's real target is a bordered PANEL nested in a bordered panel,
+    // and a "Dormant" status pill inside a card is house vocabulary, not a card-in-card.
+    var pillRect = el.getBoundingClientRect();
+    var pillRadius = Number.parseFloat(s.borderTopLeftRadius) || 0;
+    if (pillRadius >= Math.min(pillRect.width, pillRect.height) / 2) return true;
     var role = el.getAttribute("role") || "";
     if (EXCLUDE_CARD_CONTEXT_RE.test(el.className || "") || EXCLUDE_CARD_CONTEXT_RE.test(role)) return true;
     var text = (el.textContent || "").trim();

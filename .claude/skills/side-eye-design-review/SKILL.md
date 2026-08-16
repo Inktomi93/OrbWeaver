@@ -232,16 +232,46 @@ Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a 
 - **`snap --eval` AUTO-INVOKES a function literal** — pass a BARE arrow `'()=>{…; return x}'` WITHOUT a
   trailing `()`. Writing `'(()=>{…})()'` double-invokes → `EVAL ERROR: … is not a function`. A plain
   expression (`'document.title'`, `'__orb.motion()'`, `'getComputedStyle(...).x'`) needs no wrapping.
-- **`:focus-visible` needs a REAL keyboard Tab** — Chromium does NOT promote scripted `.focus()` to
-  `:focus-visible`, so `--eval el.focus()` can't verify a focus ring. Drive a real `Tab`/`Shift+Tab`
-  traversal via chrome-devtools MCP `press_key` and read the computed `box-shadow` there. (This is how the
-  active-rail "no visible keyboard focus" P0 was found — a static shot looked fine; only real Tab exposed
-  the glow overwriting the ring.)
-- **`design-audit` tap-target / aria-name findings are frequently FALSE POSITIVES** — Base UI mints
-  hidden 1×1 native inputs (`aria-hidden`, `tabindex=-1`) for Select/Slider, and Switch roots carry their
-  name via `aria-labelledby` (not textContent). VERIFY each with `--aria` (the real accessible name) /
-  `--map` before reporting; never forward the raw count. Only a genuinely VISIBLE, keyboard-reachable
-  sub-44px target (or a truly nameless control) is real. (Last full pass: 52 such findings, all false.)
+- **The KEYBOARD WALK is a `snap` call now — no MCP hop** (corrected 2026-08-16; the old text sent you to
+  chrome-devtools and the version before that claimed Tab was dead). Two true facts:
+  - Chromium does NOT promote a scripted `.focus()` to `:focus-visible`, so `--eval el.focus()` still
+    cannot verify a focus ring. That part was always right.
+  - `--key` has TWO forms, and only one walks. **`--key Tab`** (bare, no `=`) presses the page keyboard
+    WITHOUT changing focus — N of them walk N stops, inside a Base UI focus trap included.
+    `--key 'selector=Key'` FOCUSES the selector first and then presses, so five of THAT form re-anchor
+    five times and never move: that is the whole reason "Tab never advances focus" was believed.
+  - `--eval` is in the same argv-ordered queue as the keys, so ONE call reads focus at every stop:
+    ```
+    pnpm snap / --no-shot --goto settings:appearance \
+      --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Escape
+    #  FOCUS='(()=>{const a=document.activeElement;return a.tagName+" | "+(a.getAttribute("aria-label")||a.textContent.trim().slice(0,40))+" | fv="+a.matches(":focus-visible")})()'
+    ```
+    Measured settings order: Close → Search settings → the 16 category buttons → the pane's controls,
+    `:focus-visible` true at every stop. **End a dialog walk on `--key Escape`, never Enter** — focus
+    starts on Close and Enter dismisses (and in an editor, Enter SAVES).
+- **`design-audit` tap-target / aria-name findings are frequently FALSE POSITIVES** — three measured
+  classes, all now handled by the walker but worth knowing when you read an older report:
+  1. Base UI mints hidden 1×1 native inputs (`aria-hidden`, `tabindex=-1`) for Select/Slider, and Switch
+     roots carry their name via `aria-labelledby` (not textContent).
+  2. **The box is not the hit area.** `@orb/ui` Button's `size="inline"` / `size="glyph-*"` variants carry
+     a pointer-conditional touch-target `::after` (`packages/ui/src/primitives/button/variants.ts:16-20,
+     :76-82`), so a 25×15 border box can own a 45×45 hit area. Probe with `elementFromPoint` at the
+     centre AND at edge offsets — does the control still own the point? — never `getBoundingClientRect`.
+     Box math minted 10 of 13 "sub-target" findings in one audit.
+  3. **Off-viewport hosts are phantoms.** One census measured a detail panel sitting off-canvas at x=431
+     on a 430px viewport. Check the host is on screen before you measure anything inside it.
+  VERIFY each with `--aria` (the real accessible name) / `--map` before reporting; never forward the raw
+  count. (An early full pass: 52 such findings, all false.)
+- **`nested-card` was the noisiest rule on the tree** — 26/26 false positives on home as recently as
+  2026-08-16, all of them border+radius+bg INTERACTIVE controls inside a card, which chrome-diet CD1
+  explicitly sanctions ("border+radius+bg only on interactive islands / elevated surfaces"). The walker
+  now excludes interactive islands and pill geometry (home: 26 → 0). If you are reading a report from
+  before that fix, treat every `nested-card` row as unproven until you have located it — and note the
+  selectors in those reports are frequently UNLOCATABLE (fifteen findings once shared the identical
+  `button.group:nth-of-type(1)`; the walker emits ancestor PATHS now).
+- **A tab strip's semantics depend on WHICH tablist you are in.** An admin-rail tab correctly reads
+  unselected while the CONTENT tablist carries the selection. Follow `aria-controls` / `aria-labelledby`
+  back-references to identify the tablist before declaring tab semantics broken.
 - **chrome-devtools MCP can HANG a browser session** — if it stalls, fall back to `pnpm snap` (its own
   headless browser) and don't leave a stray session; kill it and re-drive via snap.
 - **chrome-devtools `take_snapshot` FLATTENS structure** — verified 2026-07-25: a chat room with 12
@@ -251,12 +281,30 @@ Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a 
 
 ### The appearance EFFECT axes (2026-07 additions — know they EXIST, don't slop-flag them, verify each)
 
+**WHERE THE HANDLES ACTUALLY LIVE (re-derived against the live DOM 2026-08-16 — this list named three
+root attributes and two of them were wrong; a reviewer who greps the root for them concludes the axes
+are unbuilt):**
+
+| Handle | Where | Present when |
+| - | - | - |
+| `data-theme` | `<html>` — e.g. `data-theme="hearth"` | always |
+| `data-blur-panels` · `data-blur-composer` · `data-blur-modals` | `<html>`, valueless | per enabled blur surface |
+| `data-shadow` · `data-justify-body-text` · `data-theme-colorization` | `<html>`, valueless | when the setting is on |
+| `data-texture` | `<html>` | ONLY when `surfaceTexture !== "none"` — it is REMOVED at the default, so its absence is the default, not a missing feature (`use-appearance-root-effects.ts:74-78`) |
+| `data-app-ready` | `<html>` | after the initial reads settle |
+| `--font-scale` · `--blur-strength` · `--reading-line-height` · `--reading-letter-spacing` · `--reading-paragraph-spacing` · `--reading-name-scale` · `--reading-body-scale` | `<html>` inline `style` | always |
+| **`data-elevation`** · `data-density` · `data-list-mode` · `data-context-mode` · `data-focus-mode` · `data-reduced-motion` · `data-has-bg-image` | **`.shell-grid`, NOT the root** (`app-shell.tsx:255-261`) | always (`data-has-bg-image` only with a background image) |
+
+Read them with `snap --eval '[...document.documentElement.attributes].map(a=>a.name+"="+a.value)'` and
+`snap --eval '[...document.querySelector(".shell-grid").attributes].map(a=>a.name+"="+a.value)'` — never
+from memory, and never assume a handle is on the root.
+
 New user-tunable, token/accent-driven effects. Check they render right AND aren't mistaken for AI-slop
-(they're intentional + rationed). Toggle an axis via `snap --eval 'document.documentElement.dataset.
-texture="grain"'` (etc.) or the Appearance settings pane; then verify:
-- **`elevation: flat | ramp | glow`** (root `data-elevation`) — `glow` = layered shadows + inner
+(they're intentional + rationed). Toggle an axis via the Appearance settings pane, or by writing the
+attribute at its REAL host; then verify:
+- **`elevation: flat | ramp | glow`** (`.shell-grid[data-elevation]`) — `glow` = layered shadows + inner
   top-highlight on panels/cards. All three values must switch cleanly (no cascade residue when reverting).
-- **`surfaceTexture: none | grain`** (root `data-texture`) — opt-in SVG-noise dusting (soft-light ~0.04)
+- **`surfaceTexture: none | grain`** (root `data-texture`, absent at `none`) — opt-in SVG-noise dusting (soft-light ~0.04)
   on chrome/cards ONLY, NEVER message prose (reading-surface rule); must `display:none` under
   `prefers-contrast: high`.
 - **`--shadow-glow`** — the rationed Ember accent glow on selected/active (media-grid `data-selected`,
@@ -277,6 +325,14 @@ texture="grain"'` (etc.) or the Appearance settings pane; then verify:
 Smoothness is a **receipt**, not a vibe — the eye can't reliably tell 60fps from 45fps, and a headless
 review sees no motion at all. When reviewing anything animated (entry/exit transitions, hover motion,
 drawer/panel slides, scroll, immersive chat modes), read the numbers instead of guessing:
+
+> **CLS / motion receipts are taken WITHOUT `--probe`. Full stop.** `--probe` injects
+> `*{animation:none!important;transition:none!important}` from DOMContentLoaded (`snap.ts` PROBE_CSS_SCRIPT)
+> — which kills the FLIP animations whose whole job is to make a track change CLS-free
+> (`shell.css @keyframes shell-list-push-in`, stamped by `use-list-track-flip.ts`). Under `--probe` the
+> harness MANUFACTURES layout-shift findings; a 0.2295 theme-scope shift was filed off exactly this on
+> 2026-08-16. snap now prints `PROBE-NEUTERED-MOTION` and stamps `motion=PROBE-NEUTERED-MOTION` on the
+> RESULT line for every `--probe` run — if you see it, the motion numbers in that run are void.
 
 - **Read `__orb.motion()` and `__orb.animations()`** (via your `evaluate_script` tool over
   chrome-devtools MCP, or `pnpm snap <route> --eval '__orb.motion()' --eval '__orb.animations()'` — a
@@ -392,8 +448,16 @@ geography; a surface inventing its own geography is a finding, not a style choic
 [ RAIL | LIST | CONTENT | CONTEXT ]
 ```
 
-- **RAIL** (left, ~56px icon column) — WHICH facet. Seven sections is the CEILING (Chats · Characters ·
-  Corpus | World Info · Presets · Refinery | Analytics), then Theme/Settings/Identity at the foot.
+- **RAIL** (left, ~56px icon column) — WHICH facet. **NINE sections is the CEILING**, and nine is the
+  current count — the rail is FULL, not under-filled. Law: `UI-Architecture-and-Layout.md:190` — *"NINE
+  sections (D121 amended D62 P6's seven — Presets stays in the rail, Connections lives in Settings per
+  D66; `config` … was added at the config rail's R1 and `worldInfo` LEFT at R2 … `databank` … was added
+  by DATABANK S1 under owner ruling D-0/Arm A)"*. The live tuple is the truth:
+  `SECTION_IDS = ["home","chats","characters","corpus","config","databank","presets","refinery","analytics"]`
+  (`packages/client/src/state/shell-store.ts:44`), then Theme/Settings/Identity at the foot.
+  **This entry said "seven is the CEILING" until 2026-08-16 and nearly minted a false structural P1
+  against a rail that is exactly at its sanctioned size.** Counting nine icons is not a finding; a TENTH
+  section, or a section not in that tuple, is.
   Facets of ONE world, not separate servers — cross-section jumps route through store actions.
 - **LIST** — FINDING. The section's collection: header band → search → rows. Collapsible side panel,
   per-section defaults.
@@ -409,7 +473,7 @@ geography; a surface inventing its own geography is a finding, not a style choic
    account, ⌘K). **Settings IS a modal** — not a section, not a pane. Section content NEVER lives in
    a modal; it's a CONTEXT tab or a CONTENT state.
 3. **Nothing replaces the three main panes.** A feature that mints its own frame, hijacks the pane
-   geometry, adds rail sections past seven, or full-screens over the shell is the EXACT abuse class
+   geometry, adds rail sections past the sanctioned NINE, or full-screens over the shell is the EXACT abuse class
    the rollback burned down (main-era rpg/hubs grew the shell 7→10 sections + bespoke modals). Flag
    any new geography on sight — the shell is invariant; sections swap what FILLS the panes.
 4. One `primary` action per region at rest · chrome quiet/content loud (accent ≤10% of viewport) ·
