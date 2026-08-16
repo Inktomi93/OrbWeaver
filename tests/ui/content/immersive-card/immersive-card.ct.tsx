@@ -81,11 +81,11 @@ test("expand opens the lightbox dialog labelled by the title, with its own sandb
 });
 
 // ── The ROUTED delivery, end to end in a real browser ────────────────────────────────────────────────
-// `frameSrc` threads to `SandboxFrame.src` (the `/api/card-frame/<id>` mint) — the other 14 sandbox-frame
-// tests pin the ATTRIBUTE-level contract (src/no-srcdoc, sandbox="", CSP is the response's own); this
-// pins that a real navigation to that URL actually PAINTS content inside the sandboxed frame, which
-// attribute assertions alone cannot prove (a routed src could 404 or be blocked by the CSP and every
-// attribute assertion above would still pass).
+// `frameSrc` threads to `SandboxFrame.src` (the `/api/card-frame/<id>` mint) — the sandbox-frame suite pins
+// the ATTRIBUTE-level contract (src/no-srcdoc, the per-delivery sandbox grant, the height channel, CSP is
+// the response's own); this pins that a real navigation to that URL actually PAINTS content inside the
+// sandboxed frame, which attribute assertions alone cannot prove (a routed src could 404 or be blocked by
+// the CSP and every attribute assertion above would still pass).
 
 test("the ROUTED delivery: a real navigation to frameSrc renders the served page inside the sandboxed iframe", async ({ mount, page }) => {
   const routedUrl = "/api/card-frame/0123456789abcdef0123456789abcdef";
@@ -102,10 +102,10 @@ test("the ROUTED delivery: a real navigation to frameSrc renders the served page
   const frame = cmp.locator('iframe[data-slot="sandbox-frame"]');
   await expect(frame).toHaveCount(1);
   await expect(frame).toHaveAttribute("src", routedUrl);
-  const sandbox = await frame.getAttribute("sandbox");
-  expect(sandbox).not.toBeNull();
-  expect(sandbox).not.toContain("allow-scripts");
-  expect(sandbox).not.toContain("allow-same-origin");
+  // The routed arm's grant since the 2026-08-16 tier-B pass (#91): EXACTLY `allow-scripts` — the whole
+  // attribute value, so a widened grant reds here — and never `allow-same-origin`. What that buys is the
+  // one hash-pinned height script; card-authored scripts stay refused (sandbox-frame.ct.tsx proves both).
+  await expect(frame).toHaveAttribute("sandbox", "allow-scripts");
   // srcdoc would win over src per the HTML spec if both were emitted — prove the routed arm never does.
   await expect.poll(() => frame.getAttribute("srcdoc")).toBeNull();
 

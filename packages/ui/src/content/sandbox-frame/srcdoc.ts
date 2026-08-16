@@ -8,22 +8,15 @@
 // `<meta>` by spec). It is what renders when no routed handle is available: a story/CT mount, a mint that
 // has not resolved yet, an offline or failed mint. Delivering the floor is always safe; delivering nothing
 // would be a blank card.
+//
+// THE SANDBOX ATTRIBUTE MOVED (2026-08-16 tier-B pass, #91): the grant is per-DELIVERY now and lives with
+// its CSP twin as `CARD_FRAME_SANDBOX` in `@orb/kit/card-frame` — `meta: ""` (this arm: every restriction
+// on, script-dead, so it keeps the caller's fixed height and never self-measures) vs
+// `document: "allow-scripts"` (the routed arm, paired with a one-hash `script-src`). Two constants in two
+// packages that a comment asked a reviewer to keep in sync are now one value indexed by arm. Read that
+// record for the review; nothing about the grant is decided here either.
 
 import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
-
-/**
- * NO `allow-same-origin` (null origin — no cookies/localStorage/DOM access), NO `allow-scripts`
- * (doored, not walled), no `allow-popups`/`allow-forms`. Owned in this ONE place for the ATTRIBUTE; the
- * routed arm's twin is the CSP `sandbox` directive in `@orb/kit/card-frame` (both flip together).
- *
- * SECURITY-GATED: `allow-scripts` enablement + its tierB trust review is owned by a security-executor
- * pass before merge. The ratified target posture is the artifact
- * sandbox — `SANDBOX_ATTR = "allow-scripts"` (NEVER paired with `allow-same-origin`: that combo lets the
- * frame read the app origin) plus `script-src 'unsafe-inline'` added to the kit CSP builder (still no
- * `connect-src`, so a script can compute/animate but never phone home). Until that pass clears, scripts
- * stay OFF (the safe default) — the flip is this one constant + kit's `SANDBOX_VALUE` + the one directive.
- */
-export const SANDBOX_ATTR = "";
 
 /** Assembles the full sandboxed document for the `srcdoc` arm — the kit document plus the kit `meta` policy.
  *  `allowExternalMedia` is the only variable part reachable here (`data:` is not expressible on this arm —

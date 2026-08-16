@@ -1,9 +1,18 @@
-import { clampCardFrameFontFamily, clampCardFrameThemeTokens } from "@orb/kit/card-frame";
+import { CARD_FRAME_SANDBOX, clampCardFrameFontFamily, clampCardFrameThemeTokens, foldCardFrameHeight } from "@orb/kit/card-frame";
 import type { CSSProperties, ReactElement } from "react";
-import { buildSrcDoc, SANDBOX_ATTR } from "./srcdoc.ts";
+import { useEffect, useRef, useState } from "react";
+import { buildSrcDoc } from "./srcdoc.ts";
 
-// With scripts OFF the frame cannot postMessage its scrollHeight, so height is caller-controlled, not self-measured.
+// The PRE-MEASUREMENT height, and the only height the srcdoc floor ever has (that arm is script-dead, so it
+// cannot report its own size). On the routed arm this is what paints until the frame's one hash-pinned
+// script answers — a floor for the first frame, not the final size.
 const DEFAULT_HEIGHT_PX = 320;
+
+// An iframe is a focusable landmark in the tab order, so its `title` IS its accessible name — an empty one
+// announces as an unnamed frame. The single production caller (`ImmersiveCard`) always passes the card's
+// own title (falling back to its own untitled label), so this constant is the LIBRARY floor for a caller
+// that hands us an empty string, not a second naming policy.
+const UNNAMED_FRAME_TITLE = "Embedded card";
 
 export interface SandboxFrameProps {
   /** The untrusted HTML — handed to a sandboxed realm, NEVER sanitized into the main DOM. */
@@ -25,9 +34,15 @@ export interface SandboxFrameProps {
    *  wider than the app document. The two are never combined — `srcdoc` wins over `src` in the HTML spec, so
    *  emitting both would silently render the floor while claiming the door. */
   readonly src?: string;
+  /** The frame's ACCESSIBLE NAME (an iframe is focusable, and `title` is what a screen reader announces).
+   *  Callers pass the card's own title; an empty string falls back to a generic label rather than shipping
+   *  an unnamed frame into the tab order. */
   readonly title: string;
   /** While false, a skeleton renders instead of the frame — a half-rendered flash is worse than a code fence. */
   readonly complete?: boolean;
+  /** The PRE-MEASUREMENT height. On the routed arm the frame's own hash-pinned script reports its content
+   *  height and that wins (clamped + grow-only, `@orb/kit/card-frame`); on the script-dead srcdoc floor this
+   *  is the final height. Not a minimum: the whole point of #91 is that a short card measures BELOW it. */
   readonly heightPx?: number;
   /** Fill the parent instead of the fixed `heightPx` — the expanded/lightbox arm (the parent owns height). */
   readonly fill?: boolean;
@@ -36,15 +51,19 @@ export interface SandboxFrameProps {
 
 /**
  * Renders untrusted self-contained HTML/CSS inside a sandboxed iframe. The iframe IS the security
- * boundary: `sandbox=""` gives it a null origin with no scripts and no same-origin, and a per-frame
- * CSP blocks any fetch/exfil. Interactivity is doored not walled — a trusted card later flips
- * `allow-scripts`, a one-attribute change here.
+ * boundary: no `allow-same-origin` on either delivery (null origin — no cookies, no storage, no reach into
+ * the app's DOM) and a per-frame CSP that names no `connect-src`, so a card can never fetch or phone home.
  *
- * TWO DELIVERIES, one policy engine (`@orb/kit/card-frame`): `src` (routed — the response carries its own
- * CSP, including the `sandbox` directive that keeps a DIRECT navigation opaque-origin) or `srcdoc` (the
- * floor — inherits ours). The `sandbox=""` attribute is applied on BOTH: on the routed arm it is redundant
- * with the response's `sandbox` directive, and that redundancy is deliberate belt-and-suspenders (a
- * mis-wired route that lost its header must not become a same-origin frame).
+ * TWO DELIVERIES, one policy engine (`@orb/kit/card-frame`), and the sandbox grant is now PER DELIVERY
+ * (`CARD_FRAME_SANDBOX`, which owns the review): `src` (routed — the response carries its own CSP,
+ * including the `sandbox` directive that keeps a DIRECT navigation opaque-origin, plus the one-hash
+ * `script-src` that lets OUR height script run and refuses every card-authored one) or `srcdoc` (the floor
+ * — inherits ours, sandbox `""`, script-dead). Applying the attribute on the routed arm as well as the
+ * response's `sandbox` directive is deliberate belt-and-suspenders: a mis-wired route that lost its header
+ * must not become a same-origin frame. Card interactivity (`'unsafe-inline'`) is still NOT granted.
+ *
+ * HEIGHT: caller-controlled until the routed frame measures itself. The message is untrusted input from a
+ * hostile document and is treated as such — see the listener below.
  */
 export function SandboxFrame({
   html,
@@ -59,7 +78,41 @@ export function SandboxFrame({
   fill = false,
   className,
 }: SandboxFrameProps): ReactElement {
-  const style: CSSProperties | undefined = fill ? undefined : { height: `${heightPx}px` };
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
+  // render instead of by a cascading `setState` — the same shape `useCardFrameSrc` uses for its handle.
+  const [measured, setMeasured] = useState<{ readonly delivery: string; readonly px: number } | undefined>(undefined);
+  const deliveryKey = src ?? "srcdoc-floor";
+
+  // The frame's self-reported height crosses a TRUST BOUNDARY: the document that sends it renders
+  // model-authored markup. Two independent checks, neither of which trusts the message's contents:
+  //   1. SENDER — `event.source` must be this frame's own window. Origin cannot do this job: every
+  //      sandboxed document (ours, another card's, an ad iframe) reports `event.origin === "null"`, so an
+  //      origin check would accept any opaque frame on the page. Window identity names exactly one sender.
+  //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and refuses a shrink (kit, tested).
+  // Listener registration follows the delivery, because a re-mint replaces the frame's window.
+  useEffect(() => {
+    if (fill) {
+      return;
+    }
+    const onMessage = (event: MessageEvent): void => {
+      if (event.source === null || event.source !== frameRef.current?.contentWindow) {
+        return;
+      }
+      setMeasured((current) => {
+        const px = foldCardFrameHeight(current?.delivery === deliveryKey ? current.px : undefined, event.data);
+        return px === undefined ? current : { delivery: deliveryKey, px };
+      });
+    };
+    window.addEventListener("message", onMessage);
+    return (): void => {
+      window.removeEventListener("message", onMessage);
+    };
+  }, [fill, deliveryKey]);
+
+  // `fill` = the lightbox arm, where the PARENT owns height and a self-report must not participate.
+  const appliedPx = (measured?.delivery === deliveryKey ? measured.px : undefined) ?? heightPx;
+  const style: CSSProperties | undefined = fill ? undefined : { height: `${appliedPx}px` };
 
   if (!complete) {
     return (
@@ -89,10 +142,11 @@ export function SandboxFrame({
       // element leaves the frame parked at about:blank forever (an opaque sandboxed blank paints WHITE, so
       // every routed card rendered as a white void). Keying by delivery mounts a fresh element whose `src`
       // is present at insertion, which navigates. srcdoc-arm content changes stay in-place diffs (reliable).
-      key={src ?? "srcdoc-floor"}
-      sandbox={SANDBOX_ATTR}
+      key={deliveryKey}
+      ref={frameRef}
+      sandbox={CARD_FRAME_SANDBOX[src === undefined ? "meta" : "document"]}
       {...delivery}
-      title={title}
+      title={title === "" ? UNNAMED_FRAME_TITLE : title}
       loading="lazy"
       referrerPolicy="no-referrer"
       className={className ?? "w-full rounded-base border border-border bg-card"}
