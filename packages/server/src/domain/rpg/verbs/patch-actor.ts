@@ -51,7 +51,14 @@ export function createPatchActor(ctx: RpgContext): Pick<RpgService, "patchActor"
       // `autoLock:false` — a write to a field the MODEL CANNOT REACH (an item's host-picked `icon`) pins
       // nothing: there is no story write to stop, and a lock there is only a pin the host must release.
       const lock = params.autoLock === false ? [] : applied.lockPaths;
-      return { ok: true, state: { ...head.state, actorState }, locks: { lock } };
+      // The removal half of the symmetric grammar (#78): a dropped element's pins go with it. The applier is
+      // pure, so it named PREFIXES; the expansion needs the stored locks, which only this side holds. The
+      // batch's OWN pins are searched too — `[addItem, removeItem]` in one call must not leave the add's pin
+      // behind (the delta applies `lock` before `clear`, so the release still wins).
+      const clear = [...Object.keys(head.locks ?? {}), ...lock].filter((path) =>
+        applied.lockReleases.some((prefix) => path === prefix || path.startsWith(`${prefix}.`)),
+      );
+      return { ok: true, state: { ...head.state, actorState }, locks: { lock, clear } };
     });
     if (!written.ok) {
       return { ok: false, reason: written.reason };

@@ -60,11 +60,17 @@ export type ResyncResult = { readonly ok: true; readonly rebuilt: boolean } | { 
  *      arm is an INFO line (a round that honestly found nothing is not an error). */
 export type PopulateResult = { readonly ok: true; readonly populated: boolean } | { readonly ok: false; readonly reason: string };
 
-/** What the PURE actor-op applier returns (`substrate/actor-ops.ts`): the next row + the FINE lock paths its
- *  ops earned, or an errors-as-data refusal (an op naming an item/condition the actor does not carry). Homed
- *  here because a domain type has no home in the substrate that produces it (substrate-not-a-type-home). */
+/** What the PURE actor-op applier returns (`substrate/actor-ops.ts`): the next row, the FINE lock paths its
+ *  ops earned and the pin PREFIXES its removals give back, or an errors-as-data refusal (an op naming an
+ *  item/condition the actor does not carry). Homed here because a domain type has no home in the substrate
+ *  that produces it (substrate-not-a-type-home).
+ *
+ *  `lockReleases` are PREFIXES, not paths: a removed element's own path plus everything under it. The applier
+ *  is pure and never sees the stored locks, so the VERB expands each prefix against the head's own
+ *  `fieldLocks` — the identical expansion `verbs/dismiss-actor.ts` performs for a whole actor. Without it a
+ *  dropped item leaves pins the panel can no longer render and the host can never release (#78). */
 export type ApplyActorOpsResult =
-  | { readonly ok: true; readonly actor: RpgActorEntry; readonly lockPaths: readonly string[] }
+  | { readonly ok: true; readonly actor: RpgActorEntry; readonly lockPaths: readonly string[]; readonly lockReleases: readonly string[] }
   | { readonly ok: false; readonly reason: string };
 
 /** What one lock-honoring merge produced AND what its locks cost (rule 3): the merged state plus the dotted

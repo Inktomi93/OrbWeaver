@@ -68,10 +68,17 @@ const OP_FIELD: Readonly<Record<VolatileOpName, RpgActorOpField>> = {
 /** The FINE sub-segment an op appends under its field, or `""` for a plane-level pin.
  *
  *  RECORD-KEYED planes pin per element (`trackerValues.<key>`, `wallet.<name>`) because the panel renders a
- *  per-element pin + Release for them. The two ARRAY planes (`conditions`, `inventory`) stay PLANE-level even
- *  though the merge engine keys their elements: the panel's Release affordance for them is the section pin
- *  (`the conditions` / `the pack`), so a per-element lock would be a pin the host can SEE stopping the story
- *  and CANNOT release — a trap. Per-element pins here follow the per-element Release UI, not the reverse. */
+ *  per-element pin + Release for them. `conditions` stays PLANE-level even though the merge engine keys its
+ *  elements: the panel's Release affordance for that plane is the section pin (`the conditions`), so a
+ *  per-element lock there would be a pin the host can SEE stopping the story and CANNOT release — a trap.
+ *  Per-element pins follow the per-element Release UI, not the reverse.
+ *
+ *  `inventory` LEFT this rule the day the pack grew that UI (#78, owner ruling 2026-08-16), and it had to: the
+ *  plane-level pin meant ONE hand-added item fenced the model out of the WHOLE pack forever — measured live, a
+ *  perfect model update (the `location` of the very item the host had added) was folded away in silence, which
+ *  turns seeding your pack by hand into permanently disabling inventory tracking. Its pins are minted per ITEM,
+ *  per CLAIMED FIELD by {@link inventoryLockPaths}, and the Pack renders a per-item chip + Release for exactly
+ *  those paths — so the rule above is satisfied, not overruled. */
 function lockSub(op: RpgActorOp): string {
   if (op.op === "setTracker") {
     return `.${op.key}`;
@@ -82,18 +89,52 @@ function lockSub(op: RpgActorOp): string {
   return "";
 }
 
-/** The lock path one op stamps — `actorState.<actorKey>.volatile.<field>[.<element>]` for a volatile write,
- *  `actorState.<actorKey>.identity.<field>` for an identity one (the ONE grammar, shared with the panel's pin
- *  reader through the two exported lock bases). The `volatile`/`identity` segment is not decoration: the merge
- *  walks the stored JSON, so a path that skipped it would pin nothing. */
-function lockPathFor(ref: RpgActorRef, op: RpgActorOp): string {
+/** The item FIELDS a hand inventory op CLAIMED — the keys it actually authored, never the server's defaults.
+ *  An `addItem` naming only `{name}` claims the name: the story is still free to write the quantity it
+ *  observes, the description it invents and the place it says the thing ended up. That is the whole point of
+ *  the granularity — the hand pins what the hand said, and nothing else. */
+function claimedItemFields(op: Extract<RpgActorOp, { op: "addItem" | "patchItem" }>): readonly string[] {
+  const authored = op.op === "addItem" ? op.item : op.patch;
+  return Object.entries(authored)
+    .filter(([, value]) => value !== undefined)
+    .map(([field]) => field);
+}
+
+/** The pins one INVENTORY op earns, under the keyed-element grammar the merge engine already speaks
+ *  (`…inventory.<itemId>.<field>` — `substrate/merge.ts`'s KEYED-ARRAY lock rules, no new vocabulary).
+ *  `removeItem` earns none: it RELEASES instead (see {@link ApplyActorOpsResult.lockReleases}). */
+function inventoryLockPaths(ref: RpgActorRef, op: Extract<RpgActorOp, { op: "addItem" | "patchItem" }>, itemId: string): readonly string[] {
+  const base = `${rpgActorVolatileLockBase(ref)}.${OP_FIELD[op.op]}.${itemId}`;
+  return claimedItemFields(op).map((field) => `${base}.${field}`);
+}
+
+/** The lock paths one op stamps — `actorState.<actorKey>.volatile.<field>[.<element>[.<field>]]` for a volatile
+ *  write, `actorState.<actorKey>.identity.<field>` for an identity one (the ONE grammar, shared with the
+ *  panel's pin reader through the two exported lock bases). The `volatile`/`identity` segment is not
+ *  decoration: the merge walks the stored JSON, so a path that skipped it would pin nothing. Most ops earn
+ *  exactly one path; an inventory write earns one per field it claimed. */
+function lockPathsFor(ref: RpgActorRef, op: RpgActorOp, itemId: string | undefined): readonly string[] {
   if (op.op === "setRelationship") {
-    return `${rpgActorIdentityLockBase(ref)}.relationship`;
+    return [`${rpgActorIdentityLockBase(ref)}.relationship`];
   }
   if (op.op === "setIdentityText") {
-    return `${rpgActorIdentityLockBase(ref)}.${op.field}`;
+    return [`${rpgActorIdentityLockBase(ref)}.${op.field}`];
   }
-  return `${rpgActorVolatileLockBase(ref)}.${OP_FIELD[op.op]}${lockSub(op)}`;
+  if (op.op === "removeItem") {
+    return []; // a removal releases; it never pins (the `deleteQuest`/`dismissActor` symmetric grammar)
+  }
+  if ((op.op === "addItem" || op.op === "patchItem") && itemId !== undefined) {
+    return inventoryLockPaths(ref, op, itemId);
+  }
+  return [`${rpgActorVolatileLockBase(ref)}.${OP_FIELD[op.op]}${lockSub(op)}`];
+}
+
+/** The lock-path PREFIX a removal op releases (its element's own path and everything under it), or `undefined`
+ *  when the op removes nothing. The verb expands it against the head's stored locks — a removed element must
+ *  leave no ghost lock behind, or the host keeps a pin the panel can no longer render and can never release
+ *  (`verbs/dismiss-actor.ts` does the identical expansion for a whole actor). */
+function lockReleaseFor(ref: RpgActorRef, op: RpgActorOp): string | undefined {
+  return op.op === "removeItem" ? `${rpgActorVolatileLockBase(ref)}.${OP_FIELD[op.op]}.${op.id}` : undefined;
 }
 
 /** An omitted datum KEEPS the current one; an explicit `null` is a real VALUE (a cleared ceiling, an unset
@@ -120,6 +161,21 @@ function writeTracker(
 /** One op arm, narrowed off the string union (see `applyOne`'s header for why the cast is there). */
 type Op<K extends RpgActorOp["op"]> = Extract<RpgActorOp, { op: K }>;
 
+/** What ONE volatile op produced: the next volatile half, plus the KEYED ELEMENT it touched when the op
+ *  addresses one (an inventory write). The id is carried OUT of the applier rather than re-derived by the lock
+ *  code, because an `addItem`'s id is minted inside the write — a second derivation could name an element the
+ *  write never produced, which is the one way an item pin could point at nothing. */
+interface VolatileWrite {
+  readonly volatile: RpgActorVolatile;
+  readonly itemId?: string;
+}
+
+/** The same, lifted to the ROW (identity ops touch no keyed element, so they carry no id). */
+interface AppliedOp {
+  readonly entry: RpgActorEntry;
+  readonly itemId?: string;
+}
+
 /** The CONDITIONS arm. `addCondition` is a NAME-keyed upsert (the model applier's own semantics — re-adding a
  *  standing condition re-authors it instead of minting a duplicate chip); `removeCondition` REFUSES a name the
  *  actor does not carry (a stale panel click deserves a sentence, not a silent no-op). */
@@ -138,12 +194,14 @@ function applyConditionOp(actor: RpgActorVolatile, op: Op<"addCondition"> | Op<"
 }
 
 /** The INVENTORY arm. `addItem` mints the id SERVER-side (injected mint — determinism), exactly as the model's
- *  `update_inventory` add arm does: a hand caller never names an item's identity. `patchItem`/`removeItem`
- *  REFUSE an id the actor does not carry. */
-function applyItemOp(actor: RpgActorVolatile, op: Op<"addItem"> | Op<"patchItem"> | Op<"removeItem">, mintItemId: () => string): RpgActorVolatile | null {
+ *  `update_inventory` add arm does: a hand caller never names an item's identity. It hands that id BACK on the
+ *  {@link VolatileWrite} instead of keeping it private, so the pin the caller stamps and the element this write
+ *  produced can never name different items. `patchItem`/`removeItem` REFUSE an id the actor does not carry. */
+function applyItemOp(actor: RpgActorVolatile, op: Op<"addItem"> | Op<"patchItem"> | Op<"removeItem">, mintItemId: () => string): VolatileWrite | null {
   if (op.op === "addItem") {
+    const itemId = mintItemId();
     const item: RpgInventoryItem = {
-      id: mintItemId(),
+      id: itemId,
       name: op.item.name,
       description: op.item.description ?? "",
       quantity: op.item.quantity ?? 1,
@@ -151,13 +209,13 @@ function applyItemOp(actor: RpgActorVolatile, op: Op<"addItem"> | Op<"patchItem"
       type: op.item.type ?? "",
       ...(op.item.icon === undefined ? {} : { icon: op.item.icon }),
     };
-    return { ...actor, inventory: [...actor.inventory, item] };
+    return { volatile: { ...actor, inventory: [...actor.inventory, item] }, itemId };
   }
   if (!actor.inventory.some((it) => it.id === op.id)) {
     return null;
   }
   if (op.op === "removeItem") {
-    return { ...actor, inventory: actor.inventory.filter((it) => it.id !== op.id) };
+    return { volatile: { ...actor, inventory: actor.inventory.filter((it) => it.id !== op.id) }, itemId: op.id };
   }
   const patch = op.patch;
   const patched = (it: RpgInventoryItem): RpgInventoryItem => ({
@@ -169,7 +227,7 @@ function applyItemOp(actor: RpgActorVolatile, op: Op<"addItem"> | Op<"patchItem"
     type: keep(patch.type, it.type),
     ...(patch.icon === undefined ? {} : { icon: patch.icon }),
   });
-  return { ...actor, inventory: actor.inventory.map((it) => (it.id === op.id ? patched(it) : it)) };
+  return { volatile: { ...actor, inventory: actor.inventory.map((it) => (it.id === op.id ? patched(it) : it)) }, itemId: op.id };
 }
 
 /** The WALLET arm — an UPSERT: the purse slot a hand sets into existence is the same gesture as editing it
@@ -190,24 +248,26 @@ function applyWalletOp(actor: RpgActorVolatile, op: Op<"setWalletAmount">): RpgA
  *  `switch (op.op)` reads every case as unreachable. Switching on the bare string union keeps `default: never`
  *  as the exhaustiveness pin (a new op arm fails `tsc`) with NO suppression; the per-arm `as Op<…>` cast is the
  *  price of narrowing off the string rather than the object, sound by construction. */
-function applyVolatileOp(actor: RpgActorVolatile, op: Extract<RpgActorOp, { op: VolatileOpName }>, mintItemId: () => string): RpgActorVolatile | null {
+function applyVolatileOp(actor: RpgActorVolatile, op: Extract<RpgActorOp, { op: VolatileOpName }>, mintItemId: () => string): VolatileWrite | null {
   const kind: VolatileOpName = op.op;
   switch (kind) {
     case "setStatus":
-      return { ...actor, status: (op as Op<"setStatus">).status };
+      return { volatile: { ...actor, status: (op as Op<"setStatus">).status } };
     case "setTracker": {
       const set = op as Op<"setTracker">;
-      return { ...actor, trackerValues: writeTracker(actor.trackerValues, set.key, set.value) };
+      return { volatile: { ...actor, trackerValues: writeTracker(actor.trackerValues, set.key, set.value) } };
     }
     case "addCondition":
-    case "removeCondition":
-      return applyConditionOp(actor, op as Op<"addCondition"> | Op<"removeCondition">);
+    case "removeCondition": {
+      const written = applyConditionOp(actor, op as Op<"addCondition"> | Op<"removeCondition">);
+      return written === null ? null : { volatile: written };
+    }
     case "addItem":
     case "patchItem":
     case "removeItem":
       return applyItemOp(actor, op as Op<"addItem"> | Op<"patchItem"> | Op<"removeItem">, mintItemId);
     case "setWalletAmount":
-      return applyWalletOp(actor, op as Op<"setWalletAmount">);
+      return { volatile: applyWalletOp(actor, op as Op<"setWalletAmount">) };
     default:
       return assertNever(kind);
   }
@@ -260,27 +320,44 @@ function missingReason(op: RpgActorOp): string {
 
 /** The volatile arm lifted back onto the ROW (which half an op writes is a detail of the op, never of the
  *  caller — {@link applyActorOps} sees one shape). */
-function nextEntry(entry: RpgActorEntry, op: Extract<RpgActorOp, { op: VolatileOpName }>, mintItemId: () => string): RpgActorEntry | null {
-  const volatile = applyVolatileOp(entry.volatile, op, mintItemId);
-  return volatile === null ? null : { ...entry, volatile };
+function nextEntry(entry: RpgActorEntry, op: Extract<RpgActorOp, { op: VolatileOpName }>, mintItemId: () => string): AppliedOp | null {
+  const written = applyVolatileOp(entry.volatile, op, mintItemId);
+  if (written === null) {
+    return null;
+  }
+  const next = { ...entry, volatile: written.volatile };
+  return written.itemId === undefined ? { entry: next } : { entry: next, itemId: written.itemId };
+}
+
+/** The identity arm in the same shape (no keyed element — an identity field is addressed by its own name). */
+function nextIdentityEntry(entry: RpgActorEntry, op: Extract<RpgActorOp, { op: IdentityOpName }>): AppliedOp | null {
+  const next = applyIdentityOp(entry, op);
+  return next === null ? null : { entry: next };
 }
 
 /** Apply the hand's ops IN ORDER to one actor's ROW (identity half + volatile half). Total: every op either
  *  produces a next row or refuses as DATA (nothing partial is returned — the verb writes all of it or none of
- *  it). The lock paths are the FINE per-op pins, de-duplicated in first-touch order. */
+ *  it). The lock paths are the FINE per-op pins, de-duplicated in first-touch order; an op that REMOVES a keyed
+ *  element contributes a release prefix instead, so the pins its element carried leave with it. */
 export function applyActorOps(base: RpgActorEntry, ops: readonly RpgActorOp[], mintItemId: () => string): ApplyActorOpsResult {
   let entry = base;
   const lockPaths: string[] = [];
+  const lockReleases: string[] = [];
   for (const op of ops) {
-    const next = isIdentityOp(op) ? applyIdentityOp(entry, op) : nextEntry(entry, op, mintItemId);
-    if (next === null) {
+    const applied = isIdentityOp(op) ? nextIdentityEntry(entry, op) : nextEntry(entry, op, mintItemId);
+    if (applied === null) {
       return { ok: false, reason: missingReason(op) };
     }
-    entry = next;
-    const path = lockPathFor(entry.actorRef, op);
-    if (!lockPaths.includes(path)) {
-      lockPaths.push(path);
+    entry = applied.entry;
+    for (const path of lockPathsFor(entry.actorRef, op, applied.itemId)) {
+      if (!lockPaths.includes(path)) {
+        lockPaths.push(path);
+      }
+    }
+    const release = lockReleaseFor(entry.actorRef, op);
+    if (release !== undefined && !lockReleases.includes(release)) {
+      lockReleases.push(release);
     }
   }
-  return { ok: true, actor: entry, lockPaths };
+  return { ok: true, actor: entry, lockPaths, lockReleases };
 }

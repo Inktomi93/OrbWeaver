@@ -21,12 +21,22 @@
 // item (a name is required — no "Item 3" orphans), and the LIST view is the EDIT view: name · quantity ·
 // location · description are click-to-edit in place, with a confirmed delete. The GRID authors the SAME
 // field set from a tile popover (owner dogfood, 2026-07-31 — the same components, the same `PackEdit`
-// callbacks, so one plane still keeps one authoring home). Every hand write stamps the actor's
-// `…inventory` lock path (#10 — the same grammar the conditions plane uses: the model writes this plane, so a
-// hand edit pins it, visibly, with a Release on the section).
+// callbacks, so one plane still keeps one authoring home).
+//
+// #78 — THE PIN IS PER ITEM, AND IT IS VISIBLE. A hand write used to stamp the actor's whole `…inventory`
+// plane, which fenced the model out of the ENTIRE pack from the first manual add: measured live, a perfect
+// model update (the `location` of the very item the host had added) was folded away, so seeding your pack by
+// hand permanently disabled inventory tracking for that actor. The server now pins the ITEM the hand touched,
+// on the FIELDS it claimed (`…volatile.inventory.<id>.<field>`), and this panel is the other half of that
+// ruling: each pinned item carries its own chip — the list lens's one-tap Release, the grid tile's "Pinned"
+// tell plus the Release inside the tile editor it already opens — so the fence is legible and reversible
+// where it was silent and permanent. The SECTION pin survives for LEGACY plane-wide locks only (stored
+// `fieldLocks` are never rewritten), which is also the bug it hid: it was read at
+// `actorState.<key>.inventory`, a path missing the `volatile` segment the server has always written, so it
+// could never fire and the plane trap had no affordance at all.
 
 import type { RpgActorOp, RpgActorView, RpgInventoryItem, RpgTrackerView } from "@orb/contracts/rpg";
-import { rpgActorLockBase } from "@orb/contracts/rpg";
+import { rpgActorVolatileLockBase } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Coins, Icon, LayoutGrid, List, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -93,10 +103,14 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   // The ephemeral "last change" line — a client-side diff, no TurnRef, cleared on reload.
   const lastChange = useInventoryDiff(items);
 
-  const edit = state.canEditShared && actor !== undefined ? buildPackEdit(state, actor, patchActor) : undefined;
-  // The #10 hand-lock pin for the pack plane: present only when the host pinned it by editing (the same
-  // grammar the conditions plane uses — a hand edit stops the story writing here until it is released).
-  const lockPath = actor === undefined ? null : `${rpgActorLockBase(actor.actorRef)}.inventory`;
+  const edit = state.canEditShared && actor !== undefined ? buildPackEdit(state, actor, patchActor, editSnapshot) : undefined;
+  // The LEGACY plane-wide pack pin. Nothing MINTS this coarse path any more (#78 — a hand edit pins the ITEM
+  // it touched), but a snapshot written before that ruling carries one and stored `fieldLocks` are never
+  // rewritten, so the READ side keeps honoring it exactly as written — and a pin with no Release is a trap,
+  // so the section keeps the affordance that lets a host hand the whole pack back. The `volatile` segment is
+  // a REAL path segment: the merge walks the stored JSON, so the path without it matched nothing at all and
+  // this pin never rendered for anyone.
+  const lockPath = actor === undefined ? null : `${rpgActorVolatileLockBase(actor.actorRef)}.inventory`;
   const release =
     edit === undefined || lockPath === null || !state.tracker.lockedPaths.includes(lockPath)
       ? undefined
@@ -191,12 +205,30 @@ function LastChangeLine({ lastChange }: { readonly lastChange: string | null }):
 /** Build the host's pack writers (RV-5 + #37c) — every one is a `patchActor` OP on the actor's pack (R1: the
  *  panel names the gesture, the server applies it to the true head and derives the lock path). The ICON pick
  *  rides `autoLock:false` — the model cannot write `icon`, so there is no story write to stop and a pin there
- *  would only be one the host has to release; the DATA ops (add/patch/remove) stamp the actor's `…inventory`
- *  path, so the pin + Release on the Pack section says the story stopped owning this plane. */
-function buildPackEdit(state: RpgPanelState, actor: RpgActorView, patchActor: ReturnType<typeof usePatchActor>): PackEdit {
+ *  would only be one the host has to release; the DATA ops (add/patch/remove) stamp the ITEM's own claimed
+ *  fields (#78), which is what the per-item chip + Release below reads back and hands away.
+ *
+ *  THE RELEASE RIDES `editSnapshot`, not a verb of its own: a lock is snapshot METADATA and `editSnapshot` is
+ *  its ONE author (W1b), so an empty patch + `releaseLocks` is the whole gesture — the same call the ambient
+ *  and tracker pins already make. */
+function buildPackEdit(
+  state: RpgPanelState,
+  actor: RpgActorView,
+  patchActor: ReturnType<typeof usePatchActor>,
+  editSnapshot: ReturnType<typeof useEditSnapshot>,
+): PackEdit {
   const write = (op: RpgActorOp, autoLock = true): void =>
     patchActor.mutate({ chatId: state.chatId, targetRef: actor.actorRef, ops: [op], ...(autoLock ? {} : { autoLock: false }) });
+  // The item's pin PREFIX — its element path under the pack plane. Every stored lock at or below it belongs
+  // to this item (`…inventory.<id>` itself, or a per-field `…<id>.<field>`), and Release hands back all of
+  // them: a residue would be a pin no lens renders and no gesture can reach.
+  const itemLocks = (itemId: string): readonly string[] => {
+    const prefix = `${rpgActorVolatileLockBase(actor.actorRef)}.inventory.${itemId}`;
+    return state.tracker.lockedPaths.filter((path) => path === prefix || path.startsWith(`${prefix}.`));
+  };
   return {
+    itemLocks,
+    onReleaseItem: (itemId): void => editSnapshot.mutate({ chatId: state.chatId, patch: {}, releaseLocks: [...itemLocks(itemId)] }),
     onPickIcon: (id, icon): void => write({ op: "patchItem", id, patch: { icon } }, false),
     onPatchItem: (id, patch): void => write({ op: "patchItem", id, patch }),
     onRemoveItem: (id): void => write({ op: "removeItem", id }),

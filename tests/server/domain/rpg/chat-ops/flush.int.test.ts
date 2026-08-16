@@ -765,6 +765,114 @@ test("LOCK TRAIL (fold): a hand edit landing MID-FLIGHT suppresses the replay �
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// #78 — THE PACK'S PIN IS ITEM-GRANULAR, AT BOTH SUPPRESSION SITES
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// A hand add used to pin the whole `…volatile.inventory` plane, so one manual item permanently fenced the model
+// out of the entire pack (measured live: a PERFECT model update — the `location` of the very item the host had
+// added — folded away, and the record said `applied`). The pin is now per-item, per-claimed-field, which means
+// BOTH of these must hold in one turn: the model's write to an UNCLAIMED field of the pinned item lands, its
+// write to a CLAIMED one is dropped AND named on the record, and an item the model ADDS is never blocked.
+// Both collectors get a case (the accumulator and the fold), per the two-sites rule that #77 minted.
+
+const HOST_P = principal(castId<Handle>("host"));
+const MIRA = { kind: "cast", castKey: "mira" } as const;
+
+/** The pack the projection carries for `cast:mira` (the panel's own read). */
+async function miraPack(
+  h: Awaited<ReturnType<typeof seedLiteGame>>["h"],
+  chatId: ChatId,
+): Promise<readonly { readonly id: string; readonly name: string; readonly location: string }[]> {
+  const view = await h.service.getTrackerView({ principal: HOST_P, chatId });
+  const mira = view.actors.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mira");
+  return mira?.volatile?.inventory ?? [];
+}
+
+/** A whole-pack model patch for mira, the way the appliers compose one (the plane authored entire). */
+function packPatch(items: readonly Record<string, unknown>[]): Record<string, unknown> {
+  return { actorState: [{ actorRef: MIRA, volatile: { inventory: items } }] };
+}
+
+/** A complete inventory element (the F1 write boundary parses the merged state, so a NEW element is total). */
+function item(id: string, name: string, over: Record<string, unknown> = {}): Record<string, unknown> {
+  return { id, name, description: "", quantity: 1, location: "", type: "", ...over };
+}
+
+test("#78 (accumulator): a hand-added item pins its CLAIMED fields only — the story still writes its location and adds items", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { foldedDelta: { statePatch: {}, journal: [] } });
+  await h.service.updateConfig({ principal: HOST_P, chatId, extractionMode: "folded" });
+
+  // Beat 1: the host seeds the pack by hand — the gesture that used to disable inventory tracking for good.
+  const first = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, first.messageId, first.variantId, castId<ChatTurnId>("chat_turn_pack_1"), turnConnection({ terminalToolCalls: [] }));
+  expect(await h.service.patchActor({ principal: HOST_P, chatId, targetRef: MIRA, ops: [{ op: "addItem", item: { name: "Bone key" } }] })).toEqual({
+    ok: true,
+  });
+  const [seeded] = await miraPack(h, chatId);
+  const keyId = seeded?.id ?? "";
+
+  // Beat 2: the story renames that item (a CLAIMED field), gives it a location (unclaimed) and adds one of
+  // its own — the whole plane, composed from the base, exactly as `applyInventoryPatch` authors it.
+  h.fakes.foldedDelta = {
+    statePatch: packPatch([item(keyId, "a rusted key", { location: "belt pouch" }), item("item_story_rope", "Rope", { quantity: 2 })]),
+    journal: [],
+  };
+  const { messageId, variantId } = await seedMessage(db, chatId, 2, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: FOLDED_CALLS }));
+
+  const pack = await miraPack(h, chatId);
+  const key = pack.find((it) => it.id === keyId);
+  expect(key?.name).toBe("Bone key"); // the hand's claim held
+  expect(key?.location).toBe("belt pouch"); // …and the story still wrote the field the hand never claimed
+  expect(pack.map((it) => it.name).sort()).toEqual(["Bone key", "Rope"]); // …and its own item landed
+  // The record names the ONE path the pin ate — at the item, not at the plane.
+  const calls = await recordedCalls(db, variantId);
+  expect(calls[0]?.verdict).not.toBe("applied");
+  expect(calls[0]?.issues.join(" · ")).toContain(`inventory.${keyId}.name`);
+});
+
+test("#78 (fold): a hand item edit landing MID-FLIGHT pins that field alone — the round's other pack writes survive", async () => {
+  const db = await freshDb();
+  const toolRoundDelta = {
+    statePatch: {},
+    journal: [],
+    recordedToolCalls: [{ name: "update_inventory", args: "{}", verdict: "applied" as const, issues: [] }],
+  };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await pinExtractionMode(h, chatId, "cheap");
+
+  // The story's own item, present before the turn — `autoLock:false` so the hand seeding it pins nothing.
+  await h.service.patchActor({ principal: HOST_P, chatId, targetRef: MIRA, ops: [{ op: "addItem", item: { name: "Bone key" } }], autoLock: false });
+  const keyId = (await miraPack(h, chatId))[0]?.id ?? "";
+  h.fakes.toolRoundDelta = {
+    ...toolRoundDelta,
+    statePatch: packPatch([item(keyId, "a rusted key", { location: "belt pouch" }), item("item_story_rope", "Rope")]),
+  };
+
+  const { messageId, variantId } = await seedMessage(db, chatId, 2000, { role: "assistant" });
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls);
+  // The host renames the item WHILE the round runs — a hand row at this beat, pinning that ONE field.
+  expect(
+    await h.service.patchActor({ principal: HOST_P, chatId, targetRef: MIRA, ops: [{ op: "patchItem", id: keyId, patch: { name: "Bone key" } }] }),
+  ).toEqual({ ok: true });
+  releaseRound();
+  await flush;
+
+  const pack = await miraPack(h, chatId);
+  expect(pack.find((it) => it.id === keyId)?.name).toBe("Bone key"); // the human's field
+  expect(pack.find((it) => it.id === keyId)?.location).toBe("belt pouch"); // the round's, on the same item
+  expect(pack.map((it) => it.name).sort()).toEqual(["Bone key", "Rope"]);
+  const calls = await recordedCalls(db, variantId);
+  expect(calls[0]?.verdict).not.toBe("applied");
+  expect(calls[0]?.issues.join(" · ")).toContain(`inventory.${keyId}.name`);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // CANCELLATION (RPG-SIGNAL) — the state round is abortable, and an aborted round WRITES NOTHING.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // Why the cancel comes through rpg's OWN barrier and not the character turn's AbortSignal: the round is fired
