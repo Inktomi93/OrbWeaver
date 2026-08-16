@@ -38,7 +38,6 @@ import {
   PROVIDER_LABELS,
   projectRoutingForm,
   ROLE_SLOTS_ORDERED,
-  routingFormDrifted,
   toRoutingSection,
 } from "../lib/connections-model.ts";
 import { CONNECTIONS_SUBCATEGORY_IDS } from "../lib/connections-nav.ts";
@@ -149,20 +148,18 @@ function ModelRolesBody({ session, persisted, isOwner, customCredentialId }: Mod
     <Section divider={true} heading="Model roles" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.roles)}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
         <Text voice="gloss">Pick the provider and model for each role. Leave a row on “Default” to let the app choose.</Text>
-        {/* The pane may NOT read "Saved" while it is rendering a draft: a drifted pane whose session is
-            otherwise idle is one armed debounce away from saving, so it reads "Saving…" — the ratified
-            three-state vocabulary, no fourth state minted (D78 §6). Which rows are drafts, and what a turn
-            resolves meanwhile, is disclosed per row (RowSyncDisclosure).
+        {/* The pane's `saveState` already can't read "Saved" while a row is drifted: the factory's `save`
+            echo seeds the persisted read (`persisted` above) from the SAME mutation resolution that
+            re-baselines the session, so `saveState === "saved"` and a drifted row never co-occur here (#85
+            retired the pre-#81 local fold that used to guard for it — `foldSaveState` owns the vocabulary
+            now, D78 §6). Which rows are drafts, and what a turn resolves meanwhile, is disclosed per row
+            (RowSyncDisclosure).
             THROUGH THE SEAM, not a bare `<AutosaveStatus>` (side-eye 2026-08-06 P2): every other settings
             pane says "Saved · Synced across your devices." once, bottom-left, in the shell's aggregate
             footer, and this one said a bare "Saved" top-right — two homes and two wordings for one fact.
             `SectionSaveStatus` REPORTS into the aggregate and renders inline only on `error`, so the failure
             still surfaces where it happened (D41). */}
-        <form.Subscribe selector={(state): boolean => routingFormDrifted(state.values, persisted)}>
-          {(drifted): ReactElement | null => (
-            <SectionSaveStatus id={CONNECTIONS_SUBCATEGORY_IDS.roles} state={drifted && saveState === "saved" ? "saving" : saveState} onRetry={retrySave} />
-          )}
-        </form.Subscribe>
+        <SectionSaveStatus id={CONNECTIONS_SUBCATEGORY_IDS.roles} state={saveState} onRetry={retrySave} />
       </Row>
       <FieldLayout orientation="horizontal">
         <Stack gap="block">

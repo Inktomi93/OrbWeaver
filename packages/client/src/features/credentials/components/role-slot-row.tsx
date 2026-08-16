@@ -89,10 +89,14 @@ function SlotLabel({ slot }: { readonly slot: RoleSlot }): ReactElement {
   );
 }
 
-/** What a DRIFTED row says, by the session's save phase — the one dispatch over `AutosaveSaveState` (a new
- *  member is a `tsc` error here). Keys derive from the label map, so the states have exactly one home. */
-const DRAFT_STATE_BY_SAVE_STATE: Record<AutosaveSaveState, keyof typeof ROLE_ROW_SYNC_LABELS> = {
-  saved: "pending",
+/** What a DRIFTED row says, by the session's save phase — the one dispatch over the three
+ *  `AutosaveSaveState` members a drifted row can actually be caught in (a new member is a `tsc` error
+ *  here). `saved` is excluded: the factory's `save` echo seeds the persisted read from the SAME mutation
+ *  resolution that re-baselines the session, so `saveState === "saved"` and `drifted === true` never
+ *  co-occur in this pane (#85) — `RowSyncDisclosure` below renders nothing for that state instead of
+ *  dispatching into a label no reachable render needs. Keys derive from the label map, so the remaining
+ *  states have exactly one home. */
+const DRAFT_STATE_BY_SAVE_STATE: Record<Exclude<AutosaveSaveState, "saved">, keyof typeof ROLE_ROW_SYNC_LABELS> = {
   saving: "saving",
   // A HELD write (the form is invalid) says the same thing to a drifted ROW as a failed one — "Not saved",
   // and a turn still uses the persisted value. The distinction that matters (retry it vs fix a field) is
@@ -122,8 +126,11 @@ function RowSyncDisclosure({
   return (
     <form.Subscribe selector={(state): boolean => roleRowDrifted(state.values, persisted, role)}>
       {(drifted): ReactElement | null => {
-        if (!drifted) {
-          return null; // the row IS the persisted truth — nothing to disclose
+        if (!drifted || saveState === "saved") {
+          // Not drifted: the row IS the persisted truth — nothing to disclose. Drifted-but-`saved` is the
+          // unreachable combination `DRAFT_STATE_BY_SAVE_STATE` no longer carries (#85) — renders nothing
+          // rather than a fabricated label if the invariant is ever wrong.
+          return null;
         }
         const state = DRAFT_STATE_BY_SAVE_STATE[saveState];
         return (

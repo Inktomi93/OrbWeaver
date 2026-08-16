@@ -136,9 +136,10 @@ test("a drafted row says so and names what a turn still resolves; it reads LIVE 
   // row can no longer be handed `saved` at all. The bit that is gone is queued-vs-in-flight, a ~500ms label
   // nuance; what the chip is FOR — "not applied yet, a turn still uses X" — is unchanged and asserted above,
   // and the row now speaks the same word as the header, which this pane's own header comment names as the
-  // goal ("two homes and two wordings for one fact"). `DRAFT_STATE_BY_SAVE_STATE.saved` → "Unsaved" survives
-  // for the just-landed/echo-pending frame; whether that word is still worth keeping is the credentials
-  // owner's call, not this lane's.
+  // goal ("two homes and two wordings for one fact"). The `pending`/"Unsaved" arm this test pinned as
+  // surviving "for the just-landed/echo-pending frame" was retired in #85: the `save` echo seeds `persisted`
+  // from the SAME mutation resolution that re-baselines the session, so that frame never occurs in this
+  // wired pane — drifted+`saved` is now a `null` render, not a label.
   await expect(page.locator(SYNC_CHIP)).toContainText("Saving…");
   await expect(page.locator(AUTOSAVE_STATUS).first()).toHaveText("Saving…");
 

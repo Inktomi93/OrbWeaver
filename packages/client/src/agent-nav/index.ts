@@ -8,6 +8,7 @@
 // surface's PUBLISHED ids), returning a loud {ok:false} on a bad target instead of a silent no-op.
 
 import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
+import { CHAT_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
@@ -40,7 +41,7 @@ const CHARACTER_NAV_PAGE_LIMIT = CHARACTER_LIST_MAX_LIMIT;
 // How deep `openChat` resolves an id/title. `listChats` is keyset-paged (server ceiling 100), so this is one
 // page, not a walk: a dev bridge resolves what a dev is looking at, and the refusal below states its reach
 // rather than claiming the chat does not exist.
-const CHAT_NAV_PAGE_LIMIT = 100;
+const CHAT_NAV_PAGE_LIMIT = CHAT_LIST_MAX_LIMIT;
 // `openChat` targets that name a POSITION in the LIST instead of a chat: both mean its top row (see the
 // arm's comment — `listChats` is newest-updated-first, so top row === most recent).
 const CHAT_LIST_POSITION_IDS = ["first", "latest"] as const;
