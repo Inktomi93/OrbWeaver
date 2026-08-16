@@ -36,6 +36,10 @@ import { testId } from "#lib";
 
 export interface TeachingStateProps {
   readonly onStart: (characterId: CharacterId) => void;
+  /** The start act is UNAVAILABLE, so the door is inert. Two reasons reach it, and the caller owns which:
+   *  a start is already in flight, or the caller cannot yet decide resume-vs-mint for a pick (the roster
+   *  its resume check reads has not landed — `RefineryStartPane`). Either way pressing would be a no-op or
+   *  a wrong write, and a live-looking control that does neither is the defect the disable exists for. */
   readonly starting: boolean;
 }
 

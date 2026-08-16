@@ -18,13 +18,16 @@
 // asserted: it exists only while a query is in flight, so pinning it passes where the flash is catchable
 // and flakes where it is not.
 
+import type { RefinerySessionId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { makeCharacterDetail } from "../../character/fixtures.ts";
-import { RefineryContentStory } from "../_ct-stories.tsx";
+import { characterListResponder, makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
+import { RefineryContentStory, RefineryStartStory } from "../_ct-stories.tsx";
+import { makeRefinerySessionSummary } from "../fixtures.ts";
 
 // MINTED, never hand-written (the `typeIdSchema` 26-char-suffix rule — a drifted literal dies at a parse
 // seam instead of at an assertion).
@@ -61,9 +64,9 @@ const STAGE_CONFIG = {
   analyze: { kind: "fixed", mode: "full" },
 };
 
-function sessionView(): unknown {
+function sessionView(sessionId: RefinerySessionId = SESSION_ID): unknown {
   return {
-    id: SESSION_ID,
+    id: sessionId,
     characterId: CHARACTER_ID,
     name: "Rev",
     status: "active",
@@ -157,12 +160,116 @@ function ledger(): unknown[] {
 /** The three reads plus the gated card — everything the session pane joins. */
 function baseRoutes(): TrpcRoutes {
   return {
-    "refinery.getSession": sessionView,
+    "refinery.getSession": (): unknown => sessionView(),
     "refinery.listRuns": ledger,
     "refinery.preflight": preflight,
     "character.get": (): unknown => CARD,
   };
 }
+
+// ── THE LANDING PICK: resume-or-mint (#79) ───────────────────────────────────────────────────────────
+// Measured 2026-08-14: picking a character always minted, so ordinary re-entry left 3 duplicate sessions on
+// one card in five minutes while the scored one sat behind a COLLAPSED roster and read as lost work. Both
+// tests drive the REAL door — teaching state → character picker → a row click — and read the verdict off the
+// WIRE (`startSession`'s call count) beside the pane that painted, because "which session am I in" is only
+// visible in the id the surface then asks `getSession` for.
+
+/** A second OPEN session on the same card, older — the one resume must NOT pick. */
+const OLDER_OPEN_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
+/** The newest OPEN session on the card — the resume target. */
+const NEWEST_OPEN_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
+/** A FINISHED session on the card (an apply set `completed`) — resumable is `active` only, so this mints. */
+const COMPLETED_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
+/** The session `startSession` hands back on the mint arm. */
+const MINTED_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
+
+const PICK_A_CHARACTER = /^Pick a character$/;
+
+/** The landing's reads: the roster the resume check consults, plus the library the picker lists. The four
+ *  session-scoped reads answer for WHICHEVER session gets opened, so the id the surface asked for is the
+ *  observable — a fixed-session responder would paint the same pane either way. */
+function landingRoutes(roster: readonly unknown[]): TrpcRoutes {
+  return {
+    "refinery.listSessions": (): readonly unknown[] => roster,
+    "character.list": characterListResponder([makeCharacterSummary({ id: CHARACTER_ID, name: "Zephyrine Vale" })]),
+    "refinery.getSession": (input: unknown): unknown => sessionView((input as { sessionId: RefinerySessionId }).sessionId),
+    "refinery.listRuns": ledger,
+    "refinery.preflight": preflight,
+    "character.get": (): unknown => CARD,
+  };
+}
+
+/** One roster row about THIS card, at a chosen status and freshness. */
+function rosterRow(id: string, status: string, updatedAt: number): unknown {
+  return makeRefinerySessionSummary({ id, characterId: CHARACTER_ID, characterName: "Zephyrine Vale", name: null, status, createdAt: FROZEN_AT, updatedAt });
+}
+
+/** Walk the landing exactly as a user does: wait for the door to go live (which is also the barrier that
+ *  the roster the decision reads has LANDED — an unlanded roster keeps it disabled by design), open the
+ *  picker, pick the card. */
+async function pickZephyrine(page: Page): Promise<void> {
+  const door = page.getByRole("button", { name: PICK_A_CHARACTER });
+  await expect(door).toBeEnabled();
+  await door.click();
+  await page.getByRole("option", { name: "Zephyrine Vale" }).click();
+}
+
+test("picking a character that already has an OPEN session RESUMES the newest one — no duplicate is minted (#79)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...landingRoutes([rosterRow(OLDER_OPEN_SESSION_ID, "active", FROZEN_AT), rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT + 10_000)]),
+    // A mint that WOULD SUCCEED, scripted on purpose. Leaving `startSession` unlisted makes the old
+    // always-mint behaviour fail on a null response instead of on the count below — a red about the stub
+    // rather than about the defect. With the mint working, the only thing separating the two behaviours is
+    // WHICH session the pane opens, which is exactly the claim.
+    "refinery.startSession": (): unknown => sessionView(MINTED_SESSION_ID),
+  });
+  await mount(<RefineryStartStory />);
+  await pickZephyrine(page);
+
+  // A SETTLED session pane — the resume landed the user in real work, not a blank mint. The hero value is
+  // the ledger's latest score, i.e. the pane joined its reads for the session it opened.
+  await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
+  await expect(page.getByTestId("refinery-hero-value")).toHaveText("8.2");
+
+  // THE DEFECT, on the wire: nothing was created.
+  // ONESHOT-OK: the settled pane above IS the barrier. The pick is synchronous — it either mutates or
+  // selects before the surface re-renders — and the pane cannot paint until `getSession` has resolved, so
+  // by the time the hero value settled every call this interaction produces is already recorded.
+  expect(trpc.count("refinery.startSession")).toBe(0);
+  // …and it resumed the NEWEST open session — not the older one on the same card, and not the session the
+  // scripted mint above would have handed back.
+  // ONESHOT-OK: same settled barrier — the recording is closed once the pane painted (see above).
+  expect(trpc.inputs("refinery.getSession")).toContainEqual({ sessionId: NEWEST_OPEN_SESSION_ID });
+  // ONESHOT-OK: same settled barrier.
+  expect(trpc.inputs("refinery.getSession")).not.toContainEqual({ sessionId: OLDER_OPEN_SESSION_ID });
+  // ONESHOT-OK: same settled barrier.
+  expect(trpc.inputs("refinery.getSession")).not.toContainEqual({ sessionId: MINTED_SESSION_ID });
+});
+
+test("picking a character whose only session is FINISHED mints a fresh one and opens it", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    // The roster is NOT empty — it carries a `completed` session on this very card. Resumable is the OPEN
+    // status alone: an applied session is finished work, so picking the card again starts over.
+    ...landingRoutes([rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT + 10_000)]),
+    "refinery.startSession": (): unknown => sessionView(MINTED_SESSION_ID),
+  });
+  await mount(<RefineryStartStory />);
+  await pickZephyrine(page);
+
+  await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
+  await expect(page.getByTestId("refinery-hero-value")).toHaveText("8.2");
+
+  // ONESHOT-OK: the pane above cannot paint until the mint resolved AND `getSession` answered for what it
+  // returned, so the recording is closed at this point (the sibling resume test states the same barrier).
+  expect(trpc.count("refinery.startSession")).toBe(1);
+  // ONESHOT-OK: same settled barrier.
+  expect(trpc.lastInput("refinery.startSession")).toEqual({ characterId: CHARACTER_ID });
+  // The MINTED session is the one that opened — the completed row was never reached for.
+  // ONESHOT-OK: same settled barrier.
+  expect(trpc.inputs("refinery.getSession")).toContainEqual({ sessionId: MINTED_SESSION_ID });
+  // ONESHOT-OK: same settled barrier.
+  expect(trpc.inputs("refinery.getSession")).not.toContainEqual({ sessionId: COMPLETED_SESSION_ID });
+});
 
 test("the session pane JOINS its reads: the card's name, the roster status, the draft line and one scope chip per selected field", async ({ mount, page }) => {
   await routeTrpc(page, baseRoutes());
