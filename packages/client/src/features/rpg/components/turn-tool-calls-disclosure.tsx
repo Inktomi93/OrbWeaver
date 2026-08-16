@@ -24,6 +24,7 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { DISCLOSURE_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { useTurnToolCallsForVariant } from "../hooks/use-turn-tool-calls.ts";
 
 /** The badge intent per verdict — a mapped Record, so a widened verdict axis fails `tsc` here (§5.5) rather
@@ -66,7 +67,12 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
       {/* §13.10 N3 — stable identity FIRST ("Game actions on this turn"), the volatile count suffixed, so
           `getByRole("button", {name: /Game actions on this turn/})` stays findable as the count changes.
           N4: names what activating it DOES for the reader, sentence case, no role noun. */}
-      <CollapsibleTrigger className="w-full">
+      {/* THE COARSE TOUCH FLOOR IS THE TRIGGER'S OWN (side-eye 2026-08-16 #93). `CollapsibleTrigger` is a
+          text-height `inline-flex` line, not a control box, so it carries none of `Button`'s hit-area
+          `::after` arms — MEASURED at 430×740 DPR3 `pointer:coarse` this row was 406×16 and its centre did
+          not resolve to itself under `elementFromPoint`. The floor is a shared `#components` fragment
+          because axis-3 device capability is banned from a feature className. */}
+      <CollapsibleTrigger className={`w-full ${DISCLOSURE_TOUCH_FLOOR_AT_COARSE}`}>
         <Text voice="label">{`Game actions on this turn — ${calls.length}`}</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>

@@ -172,6 +172,46 @@ test("closing a modal returns focus to the control that opened it (finalFocus)",
   await expect(trigger).toBeFocused();
 });
 
+// initialFocus (side-eye 2026-08-16 ARIA rider): Base UI's default initial focus is the popup's first
+// TABBABLE descendant, and this header puts the dismiss button ahead of every one of them — so a shell modal
+// could open with focus sitting on `Close`, where the very first Enter throws it away. `ModalHost` now names
+// the BODY as `initialFocus` (a programmatic-only stop): Tab from there reaches the first real control,
+// Escape still closes, and finalFocus (above) is unchanged.
+//
+// HONEST LABEL — this is a FENCE, not a defect proof, and the demotion is measured: it PASSES against the
+// pre-fix source. The SETTINGS surface (the modal this story opens) already calls `useFocusOnMount` on its
+// own root, so it was WINNING the race against Base UI's default here even before the fix. That race is
+// precisely what the change removes — every modal whose body does NOT self-focus was relying on it. The pin
+// this test does carry is the standing one: whatever else changes, a modal must not open on its dismiss
+// control, and the first Enter must not close it.
+test("a modal opens with focus in its BODY, not on Close — Enter must not immediately dismiss it", async ({ mount, page }) => {
+  const shell = await mount(<AppShellStory />);
+  await shell.getByRole("button", { name: "Settings" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  const close = page.getByRole("button", { name: "Close" });
+  await expect(close).not.toBeFocused();
+  // The focused node is inside the popup and is NOT a tab stop of its own (tabIndex -1) — the standard
+  // "land the reading cursor at the content" target, not a control that swallows the first keypress.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const active = document.activeElement;
+        const popup = document.querySelector('[data-slot="dialog-popup"]');
+        if (!(active instanceof HTMLElement) || popup === null) {
+          return "none";
+        }
+        return popup.contains(active) && active !== popup ? `inside:${active.tabIndex}` : "elsewhere";
+      }),
+    )
+    .toBe("inside:-1");
+
+  // The behavioural claim, not just the attribute one: the first Enter does NOT close the dialog.
+  await page.keyboard.press("Enter");
+  await expect(dialog).toBeVisible();
+});
+
 // ── No-window-scroll invariant (task #14) — registry-driven over the modal registry ──────────────
 // The shell is the window: html/body `overflow: clip` (client globals.css) means the DOCUMENT can never
 // scroll — a modal taller than the viewport scrolls inside its OWN region, never the page. Looping

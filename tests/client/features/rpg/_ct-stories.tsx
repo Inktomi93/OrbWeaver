@@ -194,6 +194,23 @@ export function RpgTakeoverFloorStory(): ReactElement {
   );
 }
 
+/** The SAME takeover at the width a STANDARD 1280px desktop docks to — `clamp(17rem, 30vw, 30rem)`'s 30vw
+ *  arm, 384px. The two existing widths bracket this one without covering it: 272px is below the `xs`
+ *  container step (where the rail wraps to rows of three) and 480px is the clamp's ceiling (where six cells
+ *  have room to spare). 384px is neither, and it is the MOST COMMON mount in the product — the panel a
+ *  1280px window opens. Measured live on 2026-08-16 it was where "Inventory" clipped to "Invento…", so it
+ *  is the width the non-crush pin has to be taken at. */
+export function RpgTakeoverDockedStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <RpgTakeoverHarness width={384} height={900} />
+    </CtDataProviders>
+  );
+}
+
 // The freshness indicator in isolation — a pure component (no providers/network), so every honest state mounts
 // directly. This proves the label datum + a11y model per state without driving a live turn over SSE. Since EFF-3
 // the input is the room's EFFECTIVE delivery, not the raw knob — the arm that used to lie ("folded" on a wire

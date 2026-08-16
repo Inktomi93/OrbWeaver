@@ -23,6 +23,7 @@ export type { ListPaneHeaderBack, ListPaneHeaderProps } from "./list-pane-header
 export { ListPaneHeader } from "./list-pane-header.tsx";
 export {
   CHIP_TOUCH_FLOOR_AT_COARSE,
+  DISCLOSURE_TOUCH_FLOOR_AT_COARSE,
   FINE_INERT_UNTIL_HOVER,
   HIDE_AT_COARSE,
   PICKER_GAP_AT_COARSE,

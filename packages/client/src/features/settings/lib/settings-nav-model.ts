@@ -10,3 +10,11 @@ export const SETTINGS_GROUP_LABELS: Record<SettingsGroup, string> = {
   user: "User",
   app: "App",
 };
+
+/** The DOM id of a group's kicker — the one home for both ends of the nav group's `aria-labelledby` wiring
+ *  (side-eye 2026-08-16 ARIA rider: the kickers were bare paragraphs, so the settings nav announced one
+ *  flat run of rows). Derived from the group id rather than `useId` because the settings nav is a SINGLETON
+ *  surface: a stable, readable id is what a `--aria`/CT receipt can name. */
+export function settingsGroupLabelId(group: SettingsGroup): string {
+  return `settings-nav-group-${group}`;
+}

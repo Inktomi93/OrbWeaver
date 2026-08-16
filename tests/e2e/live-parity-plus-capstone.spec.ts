@@ -210,7 +210,7 @@ test("P4 immersive HTML: a planted :::card renders sandboxed, view-raw shows sou
     await expect(raw).toBeHidden({ timeout: 5000 });
 
     // EXPAND: the lightbox opens at full size, labelled by the card title (§4.7).
-    await card.getByRole("button", { name: "Expand card" }).click();
+    await card.getByRole("button", { name: "Open card fullscreen" }).click();
     await expect(page.locator('[data-slot="immersive-card-lightbox-body"]')).toBeVisible({ timeout: 5000 });
     await page.keyboard.press("Escape");
 

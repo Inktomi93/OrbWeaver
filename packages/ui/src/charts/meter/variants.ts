@@ -103,7 +103,15 @@ export const trackBarVariants = tv({
     // The empty track: a faint neutral rail (the mockup's --track-bg ≈ the input overlay tone). Height
     // rides the `field` spacing intent (0.375rem = the 6px §3.2 bar; the Meter track precedent above).
     // WIDTH is the `width` variant's, not the base's — see below.
-    root: "relative h-field overflow-hidden rounded-full bg-input",
+    //
+    // `pointer-events-none` IS THE A11Y CONTRACT, NOT A TWEAK (side-eye 2026-08-16 #93). The whole part is
+    // `aria-hidden` decoration, and a decoration that is not in the a11y tree must not be in the HIT tree
+    // either. MEASURED at 430×740 DPR3 `pointer:coarse`: `MeterRow` stacks this rail directly UNDER the
+    // value row, and `Button size="inline"`'s ≥44px touch floor rides an OVERFLOWING `::after` — so this
+    // 6px rail, painting later in DOM order with no z-index, ate the bottom of it and `HP value`/`HP max`
+    // resolved a 45×37 effective hit area (`elementFromPoint` at cy+20 returned `div[data-slot=track-bar]`).
+    // Flooring the value would not have fixed it; the occluder had to stop being one. Now 45×45.
+    root: "pointer-events-none relative h-field overflow-hidden rounded-full bg-input",
     // The fill width is data (inline style) — its COLOR is a ramp token; danger swaps to the intent.
     fill: "h-full rounded-full",
   },
@@ -138,10 +146,15 @@ export const trackBarVariants = tv({
 
 /** The stacked composition rail (SegmentBar) — the SAME rail geometry as the TrackBar (one `field`-tall
  *  pill), laid out as a flex row so the segments partition it. Each segment's COLOR is a ramp token
- *  (`TRACK_FILL`); only its width is inline data. */
+ *  (`TRACK_FILL`); only its width is inline data.
+ *
+ *  `pointer-events-none` for the same reason its TrackBar twin carries it: the root is `aria-hidden`, and
+ *  the two roots that are wholly out of the a11y tree are exactly the two that must stay out of the hit
+ *  tree. (RingGauge/CoinFigure hang their `aria-hidden` on the inner `<svg>` and keep a real sr-only datum
+ *  on the root, so they are NOT in this class and are left alone.) */
 export const segmentBarVariants = tv({
   slots: {
-    root: "flex h-field w-full overflow-hidden rounded-full bg-input",
+    root: "pointer-events-none flex h-field w-full overflow-hidden rounded-full bg-input",
     segment: "h-full",
   },
 });

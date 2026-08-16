@@ -57,7 +57,7 @@ test("collapse takes the card down to the title bar (body unmounted) and re-show
 test("the collapse control is keyboard-operable and wears the same chrome box as the expand control", async ({ mount }) => {
   const cmp = await mount(<ImmersiveCard html={HTML} title="Zandik's letter" origin="fence" />);
   const collapse = cmp.getByRole("button", { name: "Collapse card" });
-  const expand = cmp.getByRole("button", { name: "Expand card" });
+  const expand = cmp.getByRole("button", { name: "Open card fullscreen" });
 
   // Uniform header band: the disclosure is the same ghost icon button as the lightbox control beside it
   // (the Collapsible trigger renders THROUGH Button, so its box is the button box, not a text trigger's).
@@ -74,7 +74,7 @@ test("the collapse control is keyboard-operable and wears the same chrome box as
 
 test("expand opens the lightbox dialog labelled by the title, with its own sandboxed frame", async ({ mount, page }) => {
   const cmp = await mount(<ImmersiveCard html={HTML} title="Poster" origin="fence" />);
-  await cmp.getByRole("button", { name: "Expand card" }).click();
+  await cmp.getByRole("button", { name: "Open card fullscreen" }).click();
   const dialog = page.locator('[data-slot="dialog-popup"]');
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('[data-slot="immersive-card-lightbox-header"]')).toContainText("Poster");

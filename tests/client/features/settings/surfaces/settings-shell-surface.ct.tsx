@@ -83,6 +83,45 @@ test("renders the USER + APP group headings and the category rows", async ({ mou
   await expect(component.getByRole("button", { name: "Connections" })).toBeVisible();
 });
 
+// The kicker is the group's NAME, so it has to be wired as one (side-eye 2026-08-16 ARIA rider): "User" and
+// "App" rendered as bare `paragraph:` nodes, so the nav landmark announced one flat run of rows and a reader
+// navigating by structure could not tell where the user tier ended and the app tier began.
+test("each nav tier is a NAMED group, labelled by its own kicker (not a bare paragraph)", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellStory />);
+
+  const nav = component.getByRole("navigation", { name: "Settings sections" });
+  // Exactly the two tiers, each announcing the word that is on screen above it — and the label comes from
+  // the RENDERED kicker via aria-labelledby, so the visible name and the announced one cannot drift.
+  await expect(nav.getByRole("group")).toHaveCount(2);
+  await expect(nav.getByRole("group", { name: "User" })).toBeVisible();
+  await expect(nav.getByRole("group", { name: "App" })).toBeVisible();
+  // The category rows live INSIDE their tier, which is the whole point — a group nobody is in is decoration.
+  await expect(nav.getByRole("group", { name: "App" }).getByRole("button", { name: "Connections" })).toBeVisible();
+});
+
+// The search box must not announce a listbox it has not opened (side-eye 2026-08-16 ARIA rider). cmdk's input
+// hardcodes `aria-expanded="true"` because it assumes its list is always mounted; this surface mounts the list
+// only while there is a query, so on load the combobox claimed to be expanded onto nothing.
+test("the search combobox reports COLLAPSED until a query mounts its list", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellStory />);
+
+  const search = component.getByRole("combobox", { name: "Search settings" });
+  await expect(search).toHaveAttribute("aria-expanded", "false");
+  await expect(component.getByRole("listbox")).toHaveCount(0);
+
+  await search.fill("avatar size");
+  // SETTLED: the listbox is rendered, and only then is the expanded claim true.
+  await expect(component.getByRole("listbox")).toHaveCount(1);
+  await expect(search).toHaveAttribute("aria-expanded", "true");
+
+  // …and it goes back honest when the query is cleared and the list unmounts.
+  await search.fill("");
+  await expect(component.getByRole("listbox")).toHaveCount(0);
+  await expect(search).toHaveAttribute("aria-expanded", "false");
+});
+
 // ONE "you are here" per location (side-eye 2026-08-01): a category row that OWNS sections is a disclosure
 // GROUP — it carries aria-expanded, never aria-current, because its active child already is the current
 // item. Both carrying aria-current announced two current items for one place.
