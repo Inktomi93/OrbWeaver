@@ -9,12 +9,14 @@
 //      renderPolicy off the membership-gated roster
 //   5. the deployment ceiling beats a per-character allow (tighten-only)
 //   6. a non-member selector (the roster read throws) → the safe floor, never an open frame
-//   7. the served document carries `sandbox` + `frame-ancestors 'self'` — the isolation is a property of
-//      the RESPONSE, so a direct top-level navigation is opaque-origin too
+//   7. the served document carries `sandbox allow-scripts` + `frame-ancestors 'self'` — the isolation is a
+//      property of the RESPONSE, so a direct top-level navigation is opaque-origin too — and the ONLY
+//      nameable script source is the hash of our height script (2026-08-16 tier-B pass, #91)
 
 import type { ParticipantView, RenderPolicy } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { CARD_FRAME_HEIGHT_SCRIPT, CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH } from "@orb/kit/card-frame";
 import type { CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CardFrameDeps, PrincipalEnv } from "@orb/server/entry/http";
@@ -194,14 +196,23 @@ describe("card-frame — the served document", () => {
     const h = harness();
     const res = await h.serve(await mintUrl(h));
     const csp = res.headers.get("content-security-policy") ?? "";
-    expect(csp.startsWith("sandbox;")).toBe(true);
+    // `allow-scripts` since the 2026-08-16 tier-B pass (#91) — and NEVER paired with `allow-same-origin`,
+    // which is the combo that would let the frame reach the app origin and shed its own sandbox.
+    expect(csp.startsWith("sandbox allow-scripts;")).toBe(true);
+    expect(csp).not.toContain("allow-same-origin");
     expect(csp).toContain("default-src 'none'");
     expect(csp).toContain("frame-ancestors 'self'");
     expect(csp).toContain("form-action 'none'");
     expect(csp).toContain("base-uri 'none'");
-    // No script source is nameable at all — `default-src 'none'` covers script-src, and nothing widens it.
-    expect(csp).not.toContain("script-src");
-    expect(csp).not.toContain("unsafe-inline'; script");
+    // Exactly ONE script source is nameable: the hash of our height script (`@orb/kit/card-frame` owns the
+    // digest + its recompute test). A card-authored script hashes differently and is refused.
+    const scriptSrc = csp.split("; ").find((directive) => directive.startsWith("script-src "));
+    expect(scriptSrc).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
+    expect(scriptSrc).not.toContain("unsafe");
+    // The served document carries that one script and no other.
+    const body = await res.text();
+    expect(body.split("<script>")).toHaveLength(2);
+    expect(body).toContain(`<script>${CARD_FRAME_HEIGHT_SCRIPT}</script>`);
   });
 
   test("is html, un-sniffable, un-cached, and referrer-free", async () => {
@@ -217,7 +228,7 @@ describe("card-frame — the served document", () => {
   test("the MISS arm is policied too — a 404 frame is never an un-headered document", async () => {
     const res = await harness().serve("/api/card-frame/ffffffffffffffffffffffffffffffff");
     expect(res.status).toBe(404);
-    expect(res.headers.get("content-security-policy") ?? "").toContain("sandbox;");
+    expect(res.headers.get("content-security-policy") ?? "").toContain("sandbox allow-scripts;");
     expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
   });
 
@@ -230,7 +241,10 @@ describe("card-frame — the served document", () => {
     });
     const body = await (await h.serve(url)).text();
     expect(body).toContain("--sandbox-bg: #101014;");
-    expect(body).not.toContain("<script>");
+    // "no script tags" stopped being the assertion when the routed arm gained its one hash-pinned height
+    // script; "no script but OURS" is, and a smuggled one would fail the hash anyway.
+    expect(body.split("<script>")).toHaveLength(2);
+    expect(body).toContain(`<script>${CARD_FRAME_HEIGHT_SCRIPT}</script>`);
     expect(body).not.toContain("alert(1)");
     expect(body).toContain("font-family: sans-serif;");
   });

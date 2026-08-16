@@ -291,7 +291,7 @@ test("§4.5: prose streaming after a closed card never reloads the card's iframe
 test("SECURITY: the ghost's card frame is the srcdoc FLOOR — sandbox='', no routed mint, no external media", async ({ mount }) => {
   // Mounting a card EARLIER must not also widen it. The ghost pins the two axes commit owns: delivery
   // (srcdoc, which additionally inherits the app document's img-src) and the external-media verdict. The
-  // sandbox attribute is the shared `SANDBOX_ATTR` — every restriction on, no scripts, no same-origin.
+  // sandbox attribute is `CARD_FRAME_SANDBOX.meta` — every restriction on, no scripts, no same-origin.
   const component = await mount(<GhostRowScriptedStory chunks={[CARD_OPEN, CARD_BODY, CARD_CLOSE]} cardTier="tierB" />);
   await driveScript(component, 3);
 

@@ -15,11 +15,13 @@
 //   • `'self'` STILL resolves to the app origin inside a sandboxed (opaque-origin) document — Chromium
 //     matches `'self'` against the precursor origin — so same-origin subresources stay expressible.
 //   • the CSP `sandbox` DIRECTIVE makes the opaque origin a property of the RESPONSE, not of the embedder's
-//     `sandbox=` attribute. A direct top-level navigation to the card URL is then ALSO opaque-origin and
-//     script-dead (measured: `window.origin === null`, the inline script never ran). Without it the same
-//     navigation lands model-authored HTML in the app's own origin. It is not expressible in `<meta>`
-//     (the spec ignores `sandbox`/`frame-ancestors`/`report-uri` there), which is the second reason the
-//     routed arm is the primary and srcdoc is the floor.
+//     `sandbox=` attribute. A direct top-level navigation to the card URL is then ALSO opaque-origin
+//     (measured: `window.origin === null`). Without it the same navigation lands model-authored HTML in the
+//     app's own origin. It is not expressible in `<meta>` (the spec ignores
+//     `sandbox`/`frame-ancestors`/`report-uri` there), which is the second reason the routed arm is the
+//     primary and srcdoc is the floor. Since the 2026-08-16 tier-B pass that navigation is no longer
+//     script-DEAD — it runs the one hash-pinned height script (which posts to itself and does nothing) —
+//     but every CARD-authored script stays refused, by hash, in a frame and at top level alike.
 //
 // ── THE COOKIE CEILING (measured in the same probe; corrects a claim that stood in two docs) ──────────────
 // An opaque-origin document's same-origin subresource fetch is `Sec-Fetch-Site: cross-site`, so a
@@ -33,18 +35,101 @@
 import { isPlainObject } from "#guards";
 import { isSafeColor } from "#safe-color";
 
-/** The sandbox directive's value. EMPTY = every restriction on (no scripts, no forms, no popups, no
- *  top-navigation, opaque origin). SECURITY-GATED, and the twin of `@orb/ui`'s `SANDBOX_ATTR`: the ratified
- *  artifact-sandbox flip sets this to `allow-scripts` AND adds `script-src 'unsafe-inline'` below, in ONE
- *  review — never one without the other, and NEVER `allow-same-origin` (that combo lets the frame read us). */
-const SANDBOX_VALUE = "";
-
 /** Where the policy is delivered. `document` = a `Content-Security-Policy` RESPONSE HEADER (the routed arm —
  *  can express `sandbox` + `frame-ancestors`, and is not intersected with the embedder's policy).
  *  `meta` = an in-document `<meta http-equiv>` (the srcdoc floor — those two directives are ignored there,
  *  so emitting them would be dead config that teaches the next reader a lie). */
 export const CARD_FRAME_DELIVERIES = ["document", "meta"] as const;
 export type CardFrameDelivery = (typeof CARD_FRAME_DELIVERIES)[number];
+
+/**
+ * The sandbox grant, PER DELIVERY — the ONE home for both spellings of it: the `iframe sandbox=` ATTRIBUTE
+ * (`@orb/ui` sandbox-frame reads this record) and the CSP `sandbox` DIRECTIVE below. They were two constants
+ * in two packages that a comment asked a reviewer to keep in sync; they are one value indexed by arm now.
+ *
+ * TIER-B TRUST REVIEW, 2026-08-16 (security-executor pass, #91), ARM B — the MINIMAL grant:
+ *   • `document` (routed) = `allow-scripts`, paired in the SAME policy with `script-src` naming ONE hash:
+ *     {@link CARD_FRAME_HEIGHT_SCRIPT}. Our measurement script runs; a card-authored `<script>`, `on*=`
+ *     handler or `javascript:` URL hashes differently and is refused — the card author gains NOTHING. No
+ *     `'unsafe-inline'`, no `'unsafe-hashes'`, no `'unsafe-eval'`, no host source, and still no
+ *     `connect-src`, so the one capability bought is "measure yourself and tell the parent".
+ *   • `meta` (srcdoc floor) = EMPTY, every restriction on. A srcdoc document also inherits the app CSP
+ *     (`script-src 'self'`), so a hash we do not also add to the APP policy could never match there —
+ *     granting the flag would buy nothing and spend a belt. The floor stays script-dead; that arm keeps
+ *     the fixed pre-measurement height and that is the accepted outcome (#91's defect is routed cards).
+ * NEVER `allow-same-origin` on either arm (that combo lets the frame reach into the app origin and lets it
+ * remove its own sandbox). The FULL artifact-sandbox posture — `script-src 'unsafe-inline'`, i.e. running
+ * model-authored card JS, the §12.2 "doored, not walled" trusted-card interactivity — is NOT granted here
+ * and still owes its own security pass.
+ */
+export const CARD_FRAME_SANDBOX = { document: "allow-scripts", meta: "" } as const satisfies Record<CardFrameDelivery, string>;
+
+/**
+ * The ONE script the routed frame is allowed to run: measure the body and post the height to the embedder.
+ * Kept to a single expression with no dependencies because its BYTES are the security boundary — the CSP
+ * hash below is computed over exactly this string, so any edit (even whitespace) must be re-pinned by
+ * `tests/kit/card-frame/index.test.ts`, which recomputes the digest rather than trusting the constant.
+ *
+ * `document.body.scrollHeight`, NOT `documentElement.scrollHeight`: the latter is floored at the VIEWPORT
+ * height, so a short card in a tall frame would measure the frame it is trying to shrink and never report
+ * a smaller number — the exact defect (#91) this channel exists to fix.
+ *
+ * `postMessage(..., "*")` because an opaque-origin document cannot know the embedder's origin to target it
+ * (and could not be trusted with it): the payload is one integer, and the RECEIVER authenticates by window
+ * identity, never by the message. See {@link foldCardFrameHeight}.
+ */
+export const CARD_FRAME_HEIGHT_SCRIPT =
+  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);});addEventListener("load",post);})();';
+
+/** The CSP source expression pinning {@link CARD_FRAME_HEIGHT_SCRIPT} by digest. A literal, because kit is
+ *  isomorphic (no `node:crypto`) and WebCrypto's digest is async — the recompute lives in the unit test,
+ *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships. */
+export const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-X4P6ct+XbYLNF4Q5h+h/1nJEA0TD7k/6cHZe/VxxMI0='";
+
+/** The height channel's clamp. The message is UNTRUSTED input from a document whose body is model-authored,
+ *  so the number it reports is an assertion, not a measurement we made.
+ *  • FLOOR: a card that reports 0 (or a hostile 1) must not collapse to an invisible hairline the reader
+ *    cannot see or hit — one touch target is the smallest thing that still reads as an object.
+ *  • CAP: the failure mode the clamp exists for is unbounded growth. 720px is about the mobile viewport
+ *    #91 measures against; past it an INLINE card owns the whole screen and the reader loses the
+ *    transcript, so taller content scrolls inside the frame (what every card past 320px already did) and the
+ *    lightbox stays the see-it-big path. */
+export const CARD_FRAME_MIN_HEIGHT_PX = 48;
+export const CARD_FRAME_MAX_HEIGHT_PX = 720;
+
+const HEIGHT_KEY = "orbCardFrameHeight";
+
+/**
+ * Fold one `message` payload into the frame's applied height. Returns `current` UNCHANGED for anything that
+ * is not a valid growth — a foreign/garbage payload, a non-finite or non-numeric height, and any report
+ * SMALLER than one already applied.
+ *
+ * The caller still owes the sender check (`event.source === iframe.contentWindow`); this half owns the
+ * payload. Window identity is the only usable authentication: every sandboxed frame's `event.origin` is the
+ * string `"null"`, so origin cannot tell OUR frame from any other opaque sender.
+ *
+ * MONOTONIC after the first report, deliberately: frame height feeds back into content height (`vh` units,
+ * percentage heights, media queries), so a card — hostile or merely fluid — can otherwise drive an endless
+ * measure/resize/measure loop that relayouts the whole transcript. Grow-only bounds that to ONE downward
+ * step per mount, which is exactly the step #91 needs (the void closes on the first measurement); a later
+ * shrink just leaves whitespace inside the frame.
+ */
+export function foldCardFrameHeight(current: number | undefined, data: unknown): number | undefined {
+  if (!isPlainObject(data)) {
+    return current;
+  }
+  const raw = data[HEIGHT_KEY];
+  if (typeof raw !== "number" || !Number.isFinite(raw)) {
+    return current;
+  }
+  // Ceil, not round: a fractional content height rounded DOWN clips its own last device pixel and the frame
+  // grows a scrollbar over one subpixel.
+  const clamped = Math.min(CARD_FRAME_MAX_HEIGHT_PX, Math.max(CARD_FRAME_MIN_HEIGHT_PX, Math.ceil(raw)));
+  if (current !== undefined && clamped <= current) {
+    return current;
+  }
+  return clamped;
+}
 
 /** The card frame's ONE variable axis pair — both decided by the SERVER (a client may select which
  *  character's policy applies, never what that policy IS). Absent/false ⇒ the safe floor. */
@@ -115,10 +200,14 @@ function mediaSources(policy: CardFrameMediaPolicy, delivery: CardFrameDelivery)
 
 /**
  * The card frame's Content-Security-Policy, verbatim. `default-src 'none'` denies everything not named —
- * including `script-src` and `connect-src`, so a card can style itself and can never fetch, phone home, or
- * execute. `form-action`/`base-uri` are named EXPLICITLY because neither falls back to `default-src` (a
- * card `<form action="https://evil">` and a `<base href>` retarget were both expressible under the old
- * policy). `style-src 'unsafe-inline'` is the card's whole point — the sandbox, not a nonce, is the guard.
+ * including `connect-src`, so a card can style itself and can never fetch or phone home. `form-action`/
+ * `base-uri` are named EXPLICITLY because neither falls back to `default-src` (a card
+ * `<form action="https://evil">` and a `<base href>` retarget were both expressible under the old policy).
+ * `style-src 'unsafe-inline'` is the card's whole point — the sandbox, not a nonce, is the guard.
+ *
+ * The DOCUMENT arm additionally names `script-src` with exactly ONE hash ({@link CARD_FRAME_SANDBOX}) — the
+ * only place scripts are nameable at all. The META arm names none, so `default-src 'none'` keeps covering
+ * script-src there.
  */
 export function buildCardFrameCsp(policy: CardFrameMediaPolicy, delivery: CardFrameDelivery): string {
   const media = mediaSources(policy, delivery);
@@ -134,10 +223,12 @@ export function buildCardFrameCsp(policy: CardFrameMediaPolicy, delivery: CardFr
   if (delivery === "meta") {
     return directives.join("; ");
   }
-  // `sandbox` FIRST so a reader sees the isolation before the allowances; `frame-ancestors 'self'` says only
-  // our own origin may embed the card document (and, measured, supersedes any X-Frame-Options on the same
-  // response — so the route owns its framing verdict outright).
-  return [`sandbox ${SANDBOX_VALUE}`.trim(), ...directives, `frame-ancestors 'self'`].join("; ");
+  // `sandbox` FIRST so a reader sees the isolation before the allowances, and the ONE script allowance
+  // immediately after it — the two halves of the tier-B grant read as the pair they are reviewed as.
+  // `frame-ancestors 'self'` says only our own origin may embed the card document (and, measured,
+  // supersedes any X-Frame-Options on the same response — so the route owns its framing verdict outright).
+  const grant = [`sandbox ${CARD_FRAME_SANDBOX.document}`.trim(), `script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`];
+  return [...grant, ...directives, `frame-ancestors 'self'`].join("; ");
 }
 
 function themeVarsBlock(themeTokens: Readonly<Record<string, string>>): string {
@@ -160,6 +251,16 @@ function baseBodyBlock(fontFamily: string | undefined): string {
  * it `undefined` because its policy rides the response header (a `<meta>` copy there would be a second,
  * silently-diverging spelling of the same rule).
  *
+ * `metaCsp` is therefore also the DELIVERY discriminator, and it decides whether the height script is
+ * emitted: absent ⇒ the routed document, whose response policy names the script's hash ⇒ emit it; present ⇒
+ * the srcdoc floor, where the embedder's `script-src 'self'` is intersected in and the hash can never match,
+ * so a script tag there would be dead markup teaching the next reader that the floor measures itself. Same
+ * physics as `data:` on the media directives.
+ *
+ * The script goes in `<head>`, ahead of the card body, so model-authored markup cannot swallow it (an
+ * unclosed `<!--` in the body would) and so the untrusted content has no way to influence the one thing in
+ * the document that is allowed to execute. It measures on DOMContentLoaded, hence never runs before a body.
+ *
  * The clamps run HERE, on every call, regardless of what the caller already did — the server's call is a
  * trust boundary and must not inherit the client's word for it.
  */
@@ -167,11 +268,13 @@ export function buildCardFrameDocument(content: CardFrameContent, metaCsp?: stri
   const themeCss = themeVarsBlock(clampCardFrameThemeTokens(content.themeTokens));
   const baseBody = baseBodyBlock(clampCardFrameFontFamily(content.fontFamily));
   const meta = metaCsp === undefined ? "" : `<meta http-equiv="Content-Security-Policy" content="${metaCsp}">`;
+  const script = metaCsp === undefined ? `<script>${CARD_FRAME_HEIGHT_SCRIPT}</script>` : "";
   return [
     "<!doctype html>",
     '<html><head><meta charset="utf-8">',
     meta,
     `<style>${themeCss} ${baseBody} ${content.css ?? ""}</style>`,
+    script,
     "</head><body>",
     content.html,
     "</body></html>",

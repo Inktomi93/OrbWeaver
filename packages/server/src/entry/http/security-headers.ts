@@ -35,6 +35,15 @@
 //
 // `script-src` is `'self'`-only in prod (zero intentional inline scripts today). If an anti-FOUC inline
 // script ever lands in index.html, use a boot-time hash-allowlist — never `'unsafe-inline'`.
+//
+// DECLINED, 2026-08-16 tier-B card-frame pass (#91) — the card frame's height script is NOT hash-allowed
+// here. That script (`@orb/kit/card-frame`) rides the ROUTED card document's own response policy, which
+// this middleware deliberately steps aside for. The srcdoc FLOOR, by contrast, inherits THIS policy on top
+// of its own, so the floor can only measure itself if the hash is added in both places. It was not, on
+// purpose: this is the app document's policy — the last line of defence for the SPA's own origin — and the
+// floor is the degraded arm (a story/CT mount, an unresolved or failed mint), where a fixed frame height is
+// an acceptable outcome and a widened app `script-src` is not. Re-opening that trade is a security call,
+// not a UI one.
 
 import { CARD_FRAME_ROUTE } from "@orb/contracts/chat";
 import type { MiddlewareHandler } from "hono";
