@@ -116,6 +116,19 @@ a11y → `side-eye`; both if the change spans both.
   the complete cookbook. Lifecycle commands write Status last and accept an identical retry after an
   interrupted or uncertain GitHub response; rerun the operator command instead of repairing fields with
   raw `gh` calls.
+- **Lifecycle hygiene (Codex control-plane review, 2026-08-16 — the four measured misses):**
+  1. **Claim FIRST, always.** The issue exists and is claimed BEFORE the fixing work starts — an issue
+     created seconds after its fixing commit is retrospective paperwork, not tracking (#75 was minted
+     33s after its fix landed; the discovery→file→claim→fix ordering is the contract even mid-dogfood).
+  2. **A ruled decision moves the moment it is ruled.** Owner ruling + any landed arm ⇒ transition out
+     of Needs owner immediately (Running with a lane, or through Review/Verify) — a ruled-and-built
+     issue still showing Needs owner is a lifecycle lie (#76 sat there after b5e48a907 landed).
+  3. **Retire the design artifact when its program closes.** A Done program's design doc flips
+     `status: active` → archived in the SAME breath, and any deferred-work section gets its OWN
+     Project issue (parked with a wake condition if not actionable) — prose-only deferrals are the
+     parallel backlog the Project exists to kill (#74's doc sat active with §7 deferrals untracked).
+  4. **Receipts name LIVE issues.** A catalog receipt's typed claim pointing at a CLOSED issue is
+     semantically stale even when the hashes verify — re-receipt when the referenced issue closes.
 - **Only the orchestrator mutates Project.** Subagents return path/commit/test receipts; the
   orchestrator updates the linked issue. Issues point to durable repo evidence, and durable repo evidence
   never copies Project lifecycle fields.
