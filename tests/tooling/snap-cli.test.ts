@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { SnapFailureSummary } from "../../scripts/probes/snap.ts";
-import { hasSnapFailure, parseScenarioSpec, parseSnapArgs, selectConsoleMessagesForReport } from "../../scripts/probes/snap.ts";
+import { hasSnapFailure, isSandboxTraceNoise, parseScenarioSpec, parseSnapArgs, selectConsoleMessagesForReport } from "../../scripts/probes/snap.ts";
 import { expect, test } from "../support/fixtures.ts";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
@@ -153,6 +153,32 @@ test("terminal console reports preserve failures before spending the remaining c
 
   expect(selected.omitted).toBe(201);
   expect(selected.messages.map((message) => message.line)).toEqual(["[1]", "[2]", "[203]", "[204]"]);
+});
+
+test("sandbox-trace noise is excluded from the error verdict but never from the record", () => {
+  const noise = {
+    type: "error",
+    text: "",
+    location: null,
+    line: "[error] Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set.",
+  };
+  const realError = { type: "error", text: "", location: null, line: "[error] TypeError: boom" };
+  const routedNoise = {
+    type: "error",
+    text: "",
+    location: null,
+    line: "Blocked script execution in 'http://localhost:5173/api/card-frame/abc123' because the document's frame is sandboxed and the 'allow-scripts' permission is not set. (…:18:0)",
+  };
+
+  expect(isSandboxTraceNoise(noise)).toBe(true);
+  expect(isSandboxTraceNoise(routedNoise)).toBe(true);
+  expect(isSandboxTraceNoise(realError)).toBe(false);
+  // A WARNING with the same text is not the tracing signature — the type is part of the match.
+  expect(isSandboxTraceNoise({ ...noise, type: "warning" })).toBe(false);
+  // The lossless report path never drops them: the selector sees all three errors.
+  const selected = selectConsoleMessagesForReport([noise, realError, routedNoise], 10);
+  expect(selected.omitted).toBe(0);
+  expect(selected.messages).toHaveLength(3);
 });
 
 test("snap help exits cleanly without starting Chromium", () => {
