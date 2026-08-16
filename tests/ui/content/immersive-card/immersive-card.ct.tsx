@@ -3,6 +3,7 @@
 // the title label, the lenient-origin marker, the raw-source toggle showing the EXACT stored bytes, and
 // the expand lightbox labelled by the title.
 
+import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
 import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { expect, test } from "@playwright/experimental-ct-react";
 
@@ -117,4 +118,32 @@ test("the ROUTED delivery: a real navigation to frameSrc renders the served page
     throw new Error("routed iframe has no content frame — navigation never completed");
   }
   await expect(contentFrame.locator("p")).toHaveText("routed card body");
+});
+
+// #91 THROUGH THE REAL CHROME. `sandbox-frame.ct.tsx` proves the height channel on a bare frame; this
+// proves the card's own chrome does not fight it — the collapsible panel, the `rounded-none border-0`
+// className override and the `heightPx` ImmersiveCard passes must all yield to the measured size, or the
+// 195px void survives inside exactly the component the defect was reported against.
+
+test("#91: a SHORT routed card shrinks the frame inside the card chrome — no void under the content", async ({ mount, page }) => {
+  const routedUrl = "/api/card-frame/0123456789abcdef0123456789abcdef";
+  await page.route(routedUrl, async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document"),
+      },
+      body: buildCardFrameDocument({
+        html: '<div style="height:110px">a short in-world note</div>',
+        css: undefined,
+        themeTokens: undefined,
+        fontFamily: undefined,
+      }),
+    });
+  });
+
+  const cmp = await mount(<ImmersiveCard html={HTML} title="Short note" origin="fence" frameSrc={routedUrl} />);
+  const frame = cmp.locator('iframe[data-slot="sandbox-frame"]');
+  await expect.poll(async () => (await frame.boundingBox())?.height ?? 0).toBe(110);
 });
