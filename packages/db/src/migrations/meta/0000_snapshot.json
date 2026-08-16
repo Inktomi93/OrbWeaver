@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "94c0a648-034c-4cd8-bf89-a3da0b669704",
+  "id": "7dda23c3-f82f-4402-b073-f44ad82705d9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -4852,7 +4852,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 6
+          "default": 7
         },
         "forked_from": {
           "name": "forked_from",
