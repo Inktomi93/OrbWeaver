@@ -885,7 +885,7 @@ ready <issue> | claim <issue> --lane <lane> | review <issue> | needs-owner <issu
 block <issue> --by <blocker> | unblock <issue> --by <blocker> | park <issue> --wake <condition>
 verify <issue> --evidence <receipt> | done <issue> --evidence <same-receipt>
 
-Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Priority, Area, and Review before Ready. Decisions enter Needs owner. Interrupted transitions are safe to rerun. Use .github/ISSUE_TEMPLATE/*.yml for canonical issue bodies; Project holds mutable lifecycle state.\n`);
+Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Kind, Priority, Area, and Review before Ready. Decisions enter Needs owner. Interrupted transitions are safe to rerun. Use .github/ISSUE_TEMPLATE/*.yml for canonical issue bodies; Project holds mutable lifecycle state.\n`);
 }
 
 function runLifecycle(command: LifecycleCommand): void {
