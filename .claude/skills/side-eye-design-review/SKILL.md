@@ -1,12 +1,15 @@
 ---
 name: side-eye-design-review
-description: "The UX / usability / visual-design / accessibility review laws — the reading-surface rule, contrast/typography/layout/motion rules, the AI-slop antipattern registry, Nielsen's 10 heuristics 0–4 rubric, the cognitive-load checklist (Miller ≤4), the 5 persona walkthroughs (Sam/Riley/Casey/Alex/Jordan), the P0–P3 severity scale, this app's __orb introspection API + probe tooling, the §12 repo map (where CSS/tokens/UI-law docs/features/CTs live; navigation is client state — 2 URL routes only), the §13 mandatory blunt-taste + IA lens (is it ugly · does it flow weird · more than one home for a concept · intuitive cold), and the §14 shell anatomy (TOPBAR + RAIL|LIST|CONTENT|CONTEXT, context follows content, settings is a MODAL, nothing replaces the panes). Preloaded into the side-eye reviewer agent; also usable standalone whenever you critique or audit any UI/UX surface in this repo."
+description: "The UX / usability / visual-design / accessibility review laws — the reading-surface rule, contrast/typography/layout/motion rules, the AI-slop antipattern registry, Nielsen's 10 heuristics 0–4 rubric, the cognitive-load checklist (Miller ≤4), the 5 persona walkthroughs (Sam/Riley/Casey/Alex/Jordan), the P0–P3 severity scale, this app's __orb introspection API + probe tooling, the §12 repo map (where CSS/tokens/UI-law docs/features/CTs live; navigation is client state — 2 URL routes only), the §13 mandatory blunt-taste + IA lens (is it ugly · does it flow weird · more than one home for a concept · intuitive cold), the §14 shell anatomy (TOPBAR + RAIL|LIST|CONTENT|CONTEXT, context follows content, settings is a MODAL, nothing replaces the panes), and the §15 design-verb vocabulary (polish/quieter/bolder/distill/… — the impeccable-adapted 23 verbs bound to our law + instruments, with reference/impeccable-adoption.md and reference/design-context.md as its companions). Preloaded into the side-eye reviewer agent; also usable standalone whenever you critique or audit any UI/UX surface in this repo."
 ---
 
-# side-eye design-review laws (§0–§14)
+# side-eye design-review laws (§0–§15)
 
-Distilled from the `impeccable` design language (pbakaus/impeccable), Nielsen/NN-g heuristics, and the
-Orbweaver constitution. A checklist you APPLY. When a finding breaks one of these, name the rule.
+Distilled from the `impeccable` design language (pbakaus/impeccable, Apache-2.0), Nielsen/NN-g
+heuristics, and the Orbweaver constitution. A checklist you APPLY. When a finding breaks one of
+these, name the rule. Companion reference files in this skill dir: `reference/design-context.md`
+(the DESIGN.md-equivalent map to our generated/ratified design truth + the unset owner product-voice
+door) and `reference/impeccable-adoption.md` (the 59-rule detector triage + attribution).
 
 ## §0 Our laws (repo-specific — check these first; where we actually fail)
 
@@ -93,6 +96,13 @@ indigo/violet SaaS) · `cream-palette` · `nested-cards` · `monotonous-spacing`
 `dark-glow` · `icon-tile-stack` · `italic-serif-display` · `hero-eyebrow-chip` ·
 `repeated-section-kickers` · `numbered-section-markers` (01/02/03) · `em-dash-overuse` ·
 `marketing-buzzword` · `aphoristic-cadence` copy. Match-and-refuse: if you see one, it's a finding.
+Many of these now also fire DETERMINISTICALLY in `pnpm design-audit` (origin-tagged `impeccable`;
+the full adopt/adapt/reject triage incl. the rules that deliberately do NOT run here is
+`reference/impeccable-adoption.md`). Two named divergences from upstream impeccable: the KICKER
+voice (caps micro label + hairline rule as a section name) is RATIFIED law here (density-pass spec
+§2.3, `Section.kicker`) — impeccable's kicker ban does not apply; and hairline-border+soft-shadow
+is the SANCTIONED `--shadow-overlay` elevation recipe, not a tell. Copy-cadence tells (em-dash,
+buzzwords, aphorisms) apply to UI CHROME COPY only — never to model/user prose in the transcript.
 
 ## §7 Nielsen's 10 heuristics — scoring rubric (0–4; honest, most surfaces land 20–32/40)
 
@@ -176,10 +186,16 @@ keyboard walk**):
   `--deadcss`.
   **NAVIGATION (the app is state-navigated, 2 URL routes — these replace click-chains):**
   `--goto <target>` (a section id like `presets`, `settings:<category>`, or `modal:<slot>`; refuses
-  loudly on an unknown target, exit 1) · `--open-chat <idOrExactTitle>` (refuses loudly on an AMBIGUOUS
-  title matching >1 chat — pass the id) · `--open-character <idOrName>` (Characters section + select;
-  same ambiguity refusal) · `--context-tab <name>`.
-  These run BEFORE the step chain, so `--goto presets --map` maps the presets surface in one call.
+  loudly on an unknown target, exit 1) · `--open-chat <id|exactTitle|latest|current>` (refuses loudly
+  on an AMBIGUOUS title matching >1 chat — pass the id; `latest` = the chat list's top row; `current` =
+  the room the app is showing RIGHT NOW via the dev bridge, no list query — the right sentinel for "the
+  room I just created/drove in this same browser session", and it refuses on the landing surface) ·
+  `--open-character <idOrName>` (Characters section + select; same ambiguity refusal) ·
+  `--context-tab <name>`.
+  Nav flags and steps execute in ONE queue in true argv order (27f30e501) — a mid-chain
+  `--context-tab` runs exactly where it is written, so `--goto presets --map` maps the presets
+  surface in one call and `--open-chat current --context-tab rpg.game --text` reads the tab of the
+  room you just opened.
   **OBSERVATION OVER TIME:** `--watch <totalMs> [--every <ms>]` — after nav+steps, screenshot + re-run
   every `--eval` each tick (per-tick PNGs + labeled eval results). THE tool for streaming turns /
   transient states — never eyeball a stream one MCP screenshot at a time.
@@ -201,7 +217,11 @@ keyboard walk**):
   **VIEWPORT TOGGLES:** `--mobile` (real iPhone 14 Pro Max emulation — 430×932, DPR 3, touch +
   `pointer: coarse`, so hover-reveals go always-visible and the rail becomes the bottom tab bar) ·
   `--desktop` (the 1280×800 default, explicit) · last of `--mobile`/`--desktop`/`--wide`/`--viewport` wins.
-- `pnpm perf-meter` (responsiveness + CPU profile) · `pnpm design-audit` (bulk defect scan).
+- `pnpm perf-meter` (responsiveness + CPU profile) · `pnpm design-audit` (the deterministic defect
+  scanner — ~40 rules across two origin-tagged families: the house rules plus the impeccable-adapted
+  set (gradient-decoration tells, type-ramp legibility floors, text overflow, clipped positioned
+  children, script errors, taste tells like icon-tile-stack/gray-on-color); triage table:
+  `reference/impeccable-adoption.md` in this skill dir).
 
 Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a **Bash** call, no MCP.
 
@@ -313,8 +333,9 @@ add members via the cast-bar/roster affordances. For a HEAVY fixture the UI can'
 calls (long transcripts / compaction / virtualization looks), run `tsx scripts/dev/seed-chat.ts
 --messages 120 --characters 3 [--title "…"]` — it writes N deterministic numbered rows through the
 canon-safe bulk seam (restart the stack or seed a fresh DB so the live connection sees it; see the
-script header). Reach a chat by `--open-chat <idOrExactTitle>` (it REFUSES an ambiguous title — pass the
-id) and a character by `--open-character <idOrName>`. The DB on the dev stack is DISPOSABLE. If your
+script header). Reach a chat by `--open-chat <id|exactTitle|latest|current>` (it REFUSES an ambiguous
+title — pass the id; `current` = the room this browser session is showing now) and a character by
+`--open-character <idOrName>`. The DB on the dev stack is DISPOSABLE. If your
 brief handed you fixture ids, trust them before spending calls rediscovering.
 
 **Two-stacks trap:** the dev stack (:5173/:8788) and the `--isolated` snap stage (:5273/:8888) have
@@ -396,3 +417,41 @@ geography; a surface inventing its own geography is a finding, not a style choic
 When judging "does this flow weird" (§13), this anatomy is the baseline: finding happens in LIST,
 doing in CONTENT, artifact config in CONTEXT — a task that bounces the user across regions or parks
 a concept in the wrong region flows weird BY LAW, not just by taste.
+
+## §15 The design-verb vocabulary (adapted from impeccable's 23 commands — Apache-2.0, pbakaus/impeccable; triage + attribution: `reference/impeccable-adoption.md`)
+
+A shared vocabulary so a review can PRESCRIBE in one word and a fix lane knows exactly what that
+means HERE. Each verb is bound to OUR law and OUR instruments — a verb is never a license to invent
+values (tokens only, tiers resolve spacing/radius, the theme pipeline owns color). When a report
+uses one of these verbs, it names the target surfaces and the receipt that will prove the verb
+landed. Design-system facts these verbs bind to: `reference/design-context.md`.
+
+| Verb | Means here | Bound by | Receipt that proves it |
+| - | - | - | - |
+| **critique** | the Track A method — Nielsen §7, cognitive load §8, personas §9, taste §13 | this whole skill | the review itself + screenshots |
+| **audit** | the deterministic scan + measured a11y/perf pass | P0–P3 (§10) | `pnpm design-audit` JSON + `snap --contrast/--aria` + `motion-audit` |
+| **polish** | kill micro-defects: alignment, off-step spacing, inconsistent states | density tier map (island pad/radius are TIER-resolved, never picked) | before/after `--shot-of` + computed padding/radius equal to resolved tokens |
+| **quieter** | reduce intensity: strip unsanctioned glow/gradient/motion, demote competing focal elements to ONE (CD3), accent back under ≤10% of viewport | CD1–CD3 + UX rule 4 (chrome quiet/content loud) | design-audit glow/radial/stripe rules clean + before/after shots |
+| **bolder** | spend the ONE focal slot deliberately (CD3 still holds) — a stronger voice step, the sanctioned accent carriers — never new raw values or a louder palette | tokens-only + CD3 + owner theme (D71) | shots + the focal element named; design-audit still clean |
+| **distill** | remove elements/duplication; read-only groupings lose their boxes (CD1) | §13 IA single-homing; empty states are LOAD-BEARING — never distill them away | element-count delta + shots; the §13 two-homes list emptied |
+| **layout** | fix rhythm/grouping/hierarchy within the tier map's steps | density §3.1 table + §14 shell anatomy | computed gaps equal to resolved spacing tokens |
+| **typeset** | voice discipline: right voice per role (kicker/label/datum/gloss), no off-ramp sizes/faces | the 7-step ramp + 5 voices (density §2.3) | design-audit `off-theme-font`/`text-below-ramp`/`flat-type-hierarchy` clean |
+| **colorize** | apply EXISTING intent/accent tokens where meaning is carried by nothing; a NEW hue is an owner theme decision, not a fix-lane move | D71 owner theme pipeline; tokens only | `--contrast` PASS lines + shots |
+| **animate** | purposeful motion on the 3 tokens + 1 easing; exits paired with entrances; reduced-motion = REMOVE | motion guide (§2 taxonomy, §3 principles) | `__orb.motion()`/`__orb.animations()` compositor-clean + `motion-audit` PASS |
+| **optimize** | kill churn/jank: hot renders, long tasks, dropped frames | perf budgets (§11 thresholds) | `__orb.renders()` deltas + `perf-meter`/`motion-audit` numbers |
+| **adapt** | responsive correctness at REAL mounts: container model, coarse-pointer floors, narrowest-real-host | §0 container rule + the narrowest-mount law | `--mobile`/`--matrix` runs + design-audit at both pointers |
+| **harden** | survive Riley: long strings/emoji/RTL, empty/error/loading states, refresh mid-flow | §5 states law + §9 Riley | seeded stress fixtures + shots of every state |
+| **clarify** | UX copy in UI CHROME: controls name their action, errors name problem + recovery | §13.10 N4 naming law; NEVER model/user prose, NEVER the owner's prose default texts | before/after copy table |
+| **onboard** | design the landing/teaching + empty states that guide to first value | §14 CONTENT law ("nothing selected ⇒ designed landing state") | shots of first-run + empty states |
+| **shape** | plan before code: a mock under `docs/design/mocks/` driven through the same instruments | the mockup-first loop | `snap --file <mock>` + the mock-vs-rendered delta table |
+| **document** | re-derive `reference/design-context.md` from the law sources it maps | that file's "sources outrank this" rule | the updated file, receipts per changed fact |
+| **extract** | promote a repeated shape to a token/primitive via the governed process | UIP §13.7/§13.8; the 3+-and-changing-together bar | the primitive/token delta + its CT |
+| **delight** | rationed personality through the SANCTIONED effect axes (grain/elevation/glow carriers) + motion §3 — never decorative pulse/marquee/confetti | the effect-axes list (§11) + CD3 | shots + the axes' guards verified (reduced-motion/contrast) |
+| **overdrive** | out of register for this Operate-mode shell — OWNER-DIRECTED only; treat an overdrive urge as a fork to escalate, not a move to make | register discipline | n/a — escalation, not execution |
+| **init / product-voice** | the PRODUCT.md-class context (audience, voice, anti-references) is OWNER INPUT and currently UNSET — see the questionnaire door in `reference/design-context.md`; never invent it | owner-sacred | the owner's answers landing in that file |
+| **live** | iterate visually without fighting the dev stack: `snap --dirty`/`--isolated` + the mock loop (impeccable's HMR variant machinery was NOT adopted) | §11 instruments | per-iteration shots |
+| **craft** | deprecated upstream alias for ordinary new work — don't use; say what you mean with the verbs above | — | — |
+
+Prescription grammar: `<verb>: <targets> — <receipt>`. Example: "quieter: the presets header band
+and both list-pane selection bars — receipt: design-audit glow/radial clean + before/after shots at
+the 358px mount." A verb without targets is a vibe; a verb without a receipt is a wish.

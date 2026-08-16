@@ -93,10 +93,13 @@ instruments caught that your eyes forgave. That reconciliation is where the real
 ### Track A — design-director review (form this BEFORE running the detector)
 
 Judge the live surface as a senior design director + accessibility specialist would. The laws you
-apply are your **`side-eye-design-review` skill (§0–§14) — preloaded into your context in full, your
+apply are your **`side-eye-design-review` skill (§0–§15) — preloaded into your context in full, your
 brain, not a file to fetch; §12 is the repo map (where CSS/tokens/UI-law docs/features live) — consult
 it BEFORE grepping or guessing paths; §13 is the mandatory blunt-taste + IA lens; §14 is the shell
-anatomy (TOPBAR + RAIL|LIST|CONTENT|CONTEXT) every surface is judged inside.** Produce, from your own eyes:
+anatomy (TOPBAR + RAIL|LIST|CONTENT|CONTEXT) every surface is judged inside; §15 is the design-verb
+vocabulary — when a finding's FIX is a design move, prescribe it in §15's grammar
+(`<verb>: <targets> — <receipt>`, e.g. "quieter: these three surfaces") so the fix lane inherits an
+exact, law-bound meaning instead of a vibe.** Produce, from your own eyes:
 
 - **AI-slop / craft verdict.** Would someone say "AI made this" instantly? Check the §6 antipattern
   tells + absolute bans.
@@ -133,17 +136,29 @@ for the interactive checks the probes can't script (below). The stack must be up
 reports a nav error, run `pnpm stack start` first. **All three write only under `reports/` (gitignored)
 — never dump artifacts into the repo root.**
 
-- **`pnpm design-audit <route> [--click <sel>] [--fail-on P0|P1|P2|P3]`** — the defect scanner:
-  contrast ratios, text-over-art legibility, distorted/stretched images, sub-44px tap targets,
-  ARIA-navigability gaps. JSON → `reports/design-audit/`. Your primary receipt engine; a skipped run is
-  a failed review unless it's genuinely missing/crashes. **Known blind spot** (it flagged this on
-  itself): it skips any background whose value contains `gradient`, so a `linear-gradient(…),url(…)`
-  layer is invisible to the contrast/distortion checks — when a surface uses that pattern (Echo/Whisper
-  do), verify contrast + aspect BY HAND via `__orb`/`getComputedStyle`; a clean design-audit alone does
-  not clear it. **Its tap-target / aria-name findings are ALSO frequently FALSE POSITIVES** — Base UI
-  mints hidden 1×1 native inputs (`aria-hidden`, `tabindex=-1`) for Select/Slider, and Switch roots are
-  named via `aria-labelledby`, not textContent. VERIFY each with `--aria`/`--map` before reporting; NEVER
-  forward the raw count (last full pass: 52 such findings, all false).
+- **`pnpm design-audit <route> [--click <sel>] [--fail-on P0|P1|P2|P3]`** — the defect scanner,
+  ~40 deterministic rules in two ORIGIN-TAGGED families (each finding carries `origin`):
+  `orbweaver` (contrast/text-over-art, distorted images, tap targets, ARIA names/landmarks,
+  tabindex, z-index, nested cards, gradient text, img-hover) and `impeccable` (adapted from
+  pbakaus/impeccable — script errors P0, broken images + text overflow P1, clipped positioned
+  children, gray-on-color, type-ramp legibility floors, off-theme fonts, skipped headings,
+  glow/radial/stripe/grid gradient decoration, accent borders, icon tiles, bounce easing, layout
+  transitions, tracking/leading/caps/justify/line-length, repeated container text, edge-flush
+  scroller cards, font + type-scale censuses). Triage + rules deliberately NOT adopted:
+  `.claude/skills/side-eye-design-review/reference/impeccable-adoption.md`. JSON →
+  `reports/design-audit/`. Your primary receipt engine; a skipped run is a failed review unless it's
+  genuinely missing/crashes. **Gradient backdrops now REFUSE instead of lying:** a
+  `gradient(…),url(…)` layer or a gradient with translucent stops reports `text-over-art`
+  ("contrast indeterminate — verify manually") rather than silently passing — treat those findings
+  as HAND-VERIFY work orders (Echo/Whisper use exactly that pattern), and note oklch-token shadow/
+  gradient colors are deliberately skipped by the glow/radial parsers (rgb/hex only — the sanctioned
+  token effects can't FP there). **Its tap-target / aria-name findings are frequently FALSE
+  POSITIVES** — Base UI mints hidden 1×1 native inputs (`aria-hidden`, `tabindex=-1`) for
+  Select/Slider, and Switch roots are named via `aria-labelledby`, not textContent. VERIFY each with
+  `--aria`/`--map` before reporting; NEVER forward the raw count (last full pass: 52 such findings,
+  all false). The same triage discipline applies to the impeccable families: `radial-spotlight-glow`
+  and `glow-shadow` P3s on an owner-effect-adjacent surface get checked against the sanctioned
+  carriers list (skill §11 effect axes) before they're forwarded.
 - **`pnpm snap <route> [flags]`** — the swiss-army probe; ONE call does a lot. **Discover targets and
   get computed receipts HERE before ever touching chrome-devtools:**
   - `--map [selector]` = the SELECTOR MAP — every interactive element as `role "name" → best selector`.
@@ -199,10 +214,14 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
     `data-app-ready=degraded` readiness is reported as a NAV ERROR (the capture is mid-hydration —
     rerun, don't assert on it), and mid-run HMR/dev-server churn is named + retried once, so an
     environmental blip is distinguished from an app failure in the report.
-  - **`--goto <section|settings:<cat>|modal:<slot>>` / `--open-chat <idOrExactTitle|latest>` /
+  - **`--goto <section|settings:<cat>|modal:<slot>>` / `--open-chat <id|title|latest|current>` /
     `--context-tab <name>`** = SPA NAVIGATION (the app has 2 URL routes; everything is client state).
-    One flag replaces a brittle click-chain; unknown targets refuse LOUDLY (exit 1). Run first, then
-    steps. `--open-chat latest` opens the newest chat without needing an id.
+    One flag replaces a brittle click-chain; unknown targets refuse LOUDLY (exit 1). Nav flags and
+    steps execute in ONE queue in true argv order — a mid-chain `--context-tab` runs exactly where it
+    is written. `--open-chat latest` opens the chat list's top row without needing an id;
+    `--open-chat current` resolves the session's ACTIVE room via the bridge with no list query
+    (the right sentinel for "the room I just created/drove in this same browser session"; refuses
+    loudly on the landing surface).
   - **`--watch <totalMs> [--every <ms>]`** = timed series: per-tick screenshot + re-run of every `--eval`.
     THE instrument for streaming turns and transient states — one Bash call replaces the whole
     "MCP click-screenshot-read-repeat" loop.
