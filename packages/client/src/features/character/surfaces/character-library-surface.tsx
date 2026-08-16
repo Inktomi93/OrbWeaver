@@ -26,6 +26,7 @@
 // matches nothing at all: a filter you cannot see is a filter you cannot turn off).
 
 import type { CharacterListSort } from "@orb/contracts/character";
+import { CHAT_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -78,7 +79,7 @@ const ESTIMATED_ROW_PX = 80;
 const SKELETON_ROW_COUNT = 6;
 
 /** How deep the resume-or-new map looks back. The server's own page ceiling — one read, no keyset walk. */
-const RESUME_WINDOW = 100;
+const RESUME_WINDOW = CHAT_LIST_MAX_LIMIT;
 
 /** Keystroke→request damper for the server-side search (the chats pane's value). Long enough that typing a
  *  name is one query rather than eight, short enough that the list answers while you are still looking. */
