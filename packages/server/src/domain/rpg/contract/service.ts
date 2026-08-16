@@ -135,7 +135,9 @@ export interface ResolvedSnapshotHead {
  *                    merge to attempt. */
 export type TurnWriteFoldOutcome =
   | { readonly kind: "head"; readonly headId: RpgSnapshotId }
-  | { readonly kind: "folded"; readonly headId: RpgSnapshotId }
+  /** `suppressed` — the dotted paths the HAND HEAD's locks dropped out of the replay (#77): the second of the
+   *  two suppression sites, and the only one that exists on a mid-flight hand edit. The flush records them. */
+  | { readonly kind: "folded"; readonly headId: RpgSnapshotId; readonly suppressed: readonly string[] }
   | { readonly kind: "refused"; readonly headId: RpgSnapshotId; readonly reason: string }
   | { readonly kind: "shadowed"; readonly headId: RpgSnapshotId; readonly reason: string };
 

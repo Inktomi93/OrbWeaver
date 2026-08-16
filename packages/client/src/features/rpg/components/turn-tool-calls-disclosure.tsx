@@ -32,6 +32,9 @@ const VERDICT_INTENT: Record<RpgToolCallVerdict, NonNullable<BadgeProps["intent"
   applied: "success",
   salvaged: "warning",
   dropped: "danger",
+  // A lock drop is the reader's OWN doing, so it is a warning rather than a failure — but it is never
+  // `success`: part of what the model wrote is not in the state, and the line below names which path.
+  overridden: "warning",
 };
 
 /** The verdict said as an OUTCOME, in the reader's terms — not the enum. "dropped" alone reads like a UI
@@ -40,6 +43,9 @@ const VERDICT_LABEL: Record<RpgToolCallVerdict, string> = {
   applied: "recorded",
   salvaged: "partly recorded",
   dropped: "not recorded",
+  // Says whose decision it was, not what the merge did: the host pinned this field, so the honest sentence
+  // is that their edit held — the `issues` line under the badge names the path it held.
+  overridden: "your edit kept",
 };
 
 export interface TurnToolCallsDisclosureProps {

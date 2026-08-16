@@ -12,13 +12,15 @@
 // ref key, not an orphan `cast:<name>` the panel never reads. (The pure applier F1-mint / F2-resolve units live
 // in `tools/apply.test.ts`.)
 
-import type { ChatId, ChatTurnId, Handle, RpgQuestId, UserId } from "@orb/kit/ids";
+import type { RpgRecordedToolCall } from "@orb/contracts/rpg";
+import type { ChatId, ChatTurnId, Handle, MessageVariantId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import type { RpgRosterActor } from "../../../../../packages/server/src/domain/rpg/index.ts";
 import { rpgToolDefinitions } from "../../../../../packages/server/src/domain/rpg/index.ts";
 import { listJournalByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
 import { findSnapshotByVariant, listSnapshots } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { findTurnToolCallsByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/turn-tool-calls.ts";
 import { defaultSnapshotState } from "../../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRosterRefIndex, extractionToStateDelta } from "../../../../../packages/server/src/domain/rpg/tools/apply.ts";
 import type { ToolExecutionContext } from "../../../../../packages/server/src/domain/tool-use/index.ts";
@@ -455,13 +457,15 @@ test("R1 folded: the turn's OWN tool calls are folded — ZERO post-commit model
   const snap = await findSnapshotByVariant(db, variantId);
   expect(snap?.location).toBe("the ford");
   expect(snap?.gameId).toBe(gameId);
-  // A FOLDED turn emits TWO events, in this order: the tool-call record lands first (it is written before the
-  // staged-nothing return, so a turn whose calls all dropped still announces one — TOOLCALLS-INVISIBLE arm A),
-  // then the snapshot.
+  // A FOLDED turn emits TWO events. The snapshot lands FIRST and the tool-call record after it: part of a
+  // call's verdict — what a hand lock suppressed — does not exist until the write + fold have run (#77), so
+  // the row is written once, complete, rather than announced as `applied` and corrected. The record is still
+  // unconditional (a turn whose calls all dropped writes no snapshot and still announces one — the two events
+  // are independent, and the disclosure refetches on its own).
   expect(h.fakes.busEvents).toEqual([
     { type: "stateRoundStarted", chatId, turnId: TURN },
-    { type: "turnToolCallsRecorded", chatId },
     { type: "snapshotPatched", chatId, snapshotId: snap?.id },
+    { type: "turnToolCallsRecorded", chatId },
     { type: "stateRoundSettled", chatId, turnId: TURN },
   ]);
   // The resolution is named, with no fallback (the knob got what it asked for).
@@ -625,6 +629,139 @@ test("R1: a turn whose fold-mount failed lands its state via the fallback round 
   expect(h.fakes.foldBuildFailures).toHaveLength(1);
   expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
   expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "no-terminal-channel" }]);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE LOCK TRAIL (#77) — a hand LOCK that suppresses a turn's write is named on the durable record.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// A hand edit auto-locks what it touched and a later tool write at that path is dropped by `applyLockedPatch`
+// (manual-edit-wins — the lock BEHAVIOR is not under test here and does not change). What the record used to
+// say about that turn was `verdict: "applied", issues: []` — the durable inspector claiming a write landed
+// that no state carries, which is the one thing it exists not to do.
+//
+// TWO SUPPRESSION SITES, and each gets a case, because they are collected by different code and either could
+// rot silently: the ACCUMULATOR (`staging.ts` — the base snapshot already carried the lock when the turn
+// staged; the live-dogfood shape) and the FOLD (`snapshot-edit.ts` — a hand row landed MID-FLIGHT and the
+// replay is arbitrated by ITS locks).
+
+/** The recorded calls the durable per-variant row holds (the shape the disclosure renders). */
+async function recordedCalls(db: Awaited<ReturnType<typeof freshDb>>, variantId: MessageVariantId): Promise<readonly RpgRecordedToolCall[]> {
+  const rows = await findTurnToolCallsByVariant(db, variantId);
+  return rows[0]?.calls ?? [];
+}
+
+test("LOCK TRAIL (accumulator): a hand-locked plane suppresses this turn's write — the record NAMES it, never `applied`", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { foldedDelta: { statePatch: { location: "the ford" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
+
+  // Beat 1: an ordinary turn, then the host hand-edits the location — which AUTO-LOCKS it. This is the live
+  // shape: the lock is stamped in an EARLIER beat, so the next turn's write base already carries it.
+  const first = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, first.messageId, first.variantId, castId<ChatTurnId>("chat_turn_lock_1"), turnConnection({ terminalToolCalls: [] }));
+  expect(await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "the guard post" } })).toEqual({ ok: true });
+
+  // Beat 2: the model writes the very plane the host pinned.
+  const { messageId, variantId } = await seedMessage(db, chatId, 2, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: FOLDED_CALLS }));
+
+  // The lock still WINS (manual-edit-wins is unchanged — #78 owns the granularity question).
+  const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+  expect(view.ambient?.location).toBe("the guard post");
+  // …and the durable record no longer claims the write landed.
+  const calls = await recordedCalls(db, variantId);
+  expect(calls).toHaveLength(1);
+  expect(calls[0]?.name).toBe("update_scene");
+  expect(calls[0]?.verdict).not.toBe("applied");
+  expect(calls[0]?.issues.join(" · ")).toContain("location");
+});
+
+test("LOCK TRAIL: an unlocked turn is byte-identical — verdict `applied`, issues empty", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { foldedDelta: { statePatch: { location: "the ford" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: FOLDED_CALLS }));
+
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
+  expect(await recordedCalls(db, variantId)).toEqual([{ name: "update_scene", args: '{"location":"the ford"}', verdict: "applied", issues: [] }]);
+});
+
+test("the record survives a REFUSED write — the turn a user most needs to see is still disclosed", async () => {
+  const db = await freshDb();
+  // The record moved AFTER the write boundary so a lock suppression can reach it (#77), and this pins the
+  // invariant that move must not cost: a flush the write boundary REFUSES still records what the model called.
+  // That turn — output produced, nothing landed — is exactly the one the disclosure exists for.
+  const { chatId, h } = await seedLiteGame(db, { foldedDelta: { statePatch: { location: "the ford" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
+  h.ctx.staging.ensure(TURN, {
+    ...defaultSnapshotState(),
+    actorState: [
+      {
+        actorRef: { kind: "cast", castKey: "broken" },
+        volatile: { trackerValues: { hp: { value: 1, items: null, max: 0 } }, conditions: [], inventory: [], wallet: [], status: "" },
+      },
+    ],
+  });
+
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: FOLDED_CALLS }));
+
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined(); // the write was refused (canon uncorrupted)
+  expect(h.fakes.flushDrops).toHaveLength(1);
+  expect(await recordedCalls(db, variantId)).toEqual([{ name: "update_scene", args: '{"location":"the ford"}', verdict: "applied", issues: [] }]);
+});
+
+test("LOCK TRAIL: a `no_changes` call is never marked — it authored nothing to suppress", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { foldedDelta: { statePatch: { location: "the ford" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
+  const first = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, first.messageId, first.variantId, castId<ChatTurnId>("chat_turn_quiet_1"), turnConnection({ terminalToolCalls: [] }));
+  await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "the guard post" } });
+
+  const { messageId, variantId } = await seedMessage(db, chatId, 2, { role: "assistant" });
+  const mixed = [...FOLDED_CALLS, { toolCallId: "quiet", name: "no_changes", arguments: "{}" }];
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: mixed }));
+
+  const calls = await recordedCalls(db, variantId);
+  // The writing call carries the trail; the quiet one is left exactly as the schema projection made it.
+  expect(calls[0]?.verdict).not.toBe("applied");
+  expect(calls[1]).toEqual({ name: "no_changes", args: "{}", verdict: "applied", issues: [] });
+});
+
+test("LOCK TRAIL (fold): a hand edit landing MID-FLIGHT suppresses the replay — the record names that too", async () => {
+  const db = await freshDb();
+  // The cheap round's delta carries its own recorded calls (the vehicle that HAS them), and the round is held
+  // in flight so the host's edit lands after the write base was read: the accumulator sees no lock at all, and
+  // the suppression happens only when the fold replays onto the hand head. That is the second collector.
+  const toolRoundDelta = {
+    statePatch: { location: "the ford" },
+    journal: [],
+    recordedToolCalls: [{ name: "update_scene", args: '{"location":"the ford"}', verdict: "applied" as const, issues: [] }],
+  };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls);
+  // The host edits the panel WHILE the round runs — a hand row at this same beat, auto-locking `location`.
+  expect(await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "the guard post" } })).toEqual({ ok: true });
+  releaseRound();
+  await flush;
+
+  // The fold ran and the human kept their field.
+  const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+  expect(view.ambient?.location).toBe("the guard post");
+  const calls = await recordedCalls(db, variantId);
+  expect(calls[0]?.verdict).not.toBe("applied");
+  expect(calls[0]?.issues.join(" · ")).toContain("location");
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════

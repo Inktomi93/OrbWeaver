@@ -25,6 +25,11 @@
 // the auto-locks the edit stamped — the human keeps what they claimed, the turn keeps the rest. Neither writer
 // can erase the other any more; see `foldIntoShadowingHandRow` below and `snapshot-edit.ts`.
 //
+// WHAT A LOCK ATE IS PART OF THE TURN'S RECORD (#77). A pinned path drops this turn's write at either of two
+// merges — the accumulator's (the base already carried the lock) or the fold's (a hand row landed mid-flight) —
+// and the durable tool-call row must say so rather than report `applied` about a write no state carries. Both
+// sites report their drops from `substrate/merge.ts` itself; the flush unions them onto the record below.
+//
 // CANCELLATION: the round is cancelable through `turn.signal`, minted by the flush
 // barrier (see `../flush-barrier.ts` for why the character turn's own signal cannot serve). THE INVARIANT: a
 // CANCELLED ROUND IS BYTE-IDENTICAL TO A NON-WRITING TURN — it refuses to write and discards its staging, and
@@ -32,7 +37,7 @@
 
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { RpgExtractionMode, RpgFoldFallbackReason, RpgRecordedToolCall } from "@orb/contracts/rpg";
-import { recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
+import { markLockSuppressions, recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat/index.ts";
 import type { StagedPatch, StagedTurnFlush } from "../contract/params.ts";
@@ -176,8 +181,11 @@ function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTur
  *  flush is DROPPED — no snapshot, no journal, no bus emits — errors-as-data, mirroring the extraction's
  *  non-conforming empty-delta path — AND the drop is LOGGED with the field-level reason (never silent). The
  *  journal rides the SAME atomic drop: an entry keyed to a snapshot that never landed would be an orphan beat
- *  referencing a state the panel can't resolve. Canon stays uncorrupted by construction. */
-async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFlush, turn: CompletedTurn): Promise<void> {
+ *  referencing a state the panel can't resolve. Canon stays uncorrupted by construction.
+ *
+ *  RETURNS the dotted paths the FOLD's hand locks suppressed (#77) — empty on every arm that folded nothing.
+ *  The caller unions them with the accumulator's own and records the pair on the turn's tool calls. */
+async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFlush, turn: CompletedTurn): Promise<readonly string[]> {
   const snapshotId = ctx.ids.snapshot();
   const written = await writeStagedSnapshot(ctx.db, flush.state, {
     id: snapshotId,
@@ -192,7 +200,7 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
     // fired, produced applicable output, and it vanished — the log names WHICH field the write contract
     // rejected so the mismatch is root-causable from the provider trail, not a dark panel with no signal.
     ctx.onFlushDropped({ chatId: game.chatId, gameId: game.id, variantId: turn.variantId, reason: written.reason });
-    return;
+    return [];
   }
   await Promise.all(
     flush.journal.map((entry) =>
@@ -214,14 +222,15 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
   // HAND-EDIT-VS-FLUSH: a hand row may now OUTRANK the row we just wrote (the host edited the panel during
   // the round's 0.8-2.9s flight). Fold this turn's state into it, locks-honored, BEFORE the emits — so the
   // event names the row the panel will actually resolve. A durable write, hence its place here.
-  const headId = await foldIntoShadowingHandRow(ctx, game, turn, { patches: flush.patches, snapshotId });
+  const fold = await foldIntoShadowingHandRow(ctx, game, turn, { patches: flush.patches, snapshotId });
 
   // The tool/extraction flush wrote a clone-forward snapshot → the whole panel re-resolves (§4.9). A journal
   // flush additionally scopes the paged Journal. Emit AFTER the durable writes commit.
-  ctx.emitBus({ type: "snapshotPatched", chatId: game.chatId, snapshotId: headId });
+  ctx.emitBus({ type: "snapshotPatched", chatId: game.chatId, snapshotId: fold.headId });
   if (flush.journal.length > 0) {
     ctx.emitBus({ type: "journalChanged", chatId: game.chatId });
   }
+  return fold.suppressed;
 }
 
 /** Fold this flush's state into a HAND ROW that shadows it, and return the snapshot id that is now HEAD (the
@@ -235,7 +244,10 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
  *  hand edit stamped (`snapshot-edit.ts::foldTurnWriteIntoHandHead`).
  *
  *  A REFUSED fold is LOGGED, never silent — the same posture as the write-boundary drop above: the turn's state
- *  stays shadowed (the pre-fix outcome), and the reason says so. */
+ *  stays shadowed (the pre-fix outcome), and the reason says so.
+ *
+ *  It also answers WHAT THE HAND'S LOCKS ATE (#77): only the `folded` arm can suppress anything, so every other
+ *  arm returns nothing to say. */
 async function foldIntoShadowingHandRow(
   ctx: RpgContext,
   game: RpgGameRow,
@@ -243,10 +255,11 @@ async function foldIntoShadowingHandRow(
   /** What this flush just wrote — the PATCHES it composed and the row it landed on (grouped: the two travel
    *  together and are meaningless apart). The patches, never the composed state: see the fold's own doc. */
   written: { readonly patches: readonly StagedPatch[]; readonly snapshotId: RpgSnapshotId },
-): Promise<RpgSnapshotId> {
+): Promise<{ readonly headId: RpgSnapshotId; readonly suppressed: readonly string[] }> {
   const seq = await findMessageSeq(ctx.db, turn.messageId);
   if (seq === undefined) {
-    return written.snapshotId; // this turn's slot vanished (a racing delete) — there is no position to fold at
+    // This turn's slot vanished (a racing delete) — there is no position to fold at.
+    return { headId: written.snapshotId, suppressed: [] };
   }
   const outcome = await foldTurnWriteIntoHandHead(ctx, game, written, seq);
   if (outcome.kind === "refused" || outcome.kind === "shadowed") {
@@ -263,7 +276,7 @@ async function foldIntoShadowingHandRow(
   }
   // EVERY arm answers with the row that is actually head — including the two losing ones, where it is NOT the
   // row this flush wrote. Emitting our own id there would point the panel at a row it cannot resolve.
-  return outcome.headId;
+  return { headId: outcome.headId, suppressed: outcome.kind === "folded" ? outcome.suppressed : [] };
 }
 
 /** The turn-completion flush (§2.4-2.5). A `cheap` game runs its DEDICATED post-commit tool round
@@ -301,17 +314,25 @@ async function flushWritableTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGam
     ctx.onStateRoundCancelled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, discardedStagedWrites: staged });
     return;
   }
-  // WHAT THE MODEL DID, recorded BEFORE the staged-nothing return (TOOLCALLS-INVISIBLE, arm A). Deliberately
-  // not inside `writeFlush`: a folded turn whose calls ALL dropped stages nothing and returns below, and that
-  // is precisely the turn a user most needs to see — "it called update_scene and the schema refused it" is
-  // the answer to "why did nothing happen", while a record gated on a successful write would show only the
-  // turns that already worked.
-  await recordTurnCalls(ctx, game, turn, roundCalls);
+  // WHAT THE MODEL DID (TOOLCALLS-INVISIBLE, arm A), recorded on EVERY arm from here down — a folded turn
+  // whose calls all dropped stages nothing, and that is precisely the turn a user most needs to see ("it
+  // called update_scene and the schema refused it" is the answer to "why did nothing happen"). The `finally`
+  // is what keeps that unconditional: a write that REFUSES, a fold that loses, or a throw out of the write
+  // boundary all still leave the calls recorded, exactly as a record written before the write did.
+  //
+  // IT RUNS AFTER THE WRITE because part of the verdict does not exist until then: a hand LOCK suppresses
+  // writes at TWO points — the accumulator's merge (the base already carried the lock) and the fold's replay
+  // onto a mid-flight hand row — and a row written first would have to claim `applied` and be corrected by a
+  // second write, which is the same lie with a shorter life (#77).
   const flush = ctx.staging.take(turn.turnId);
-  if (flush === undefined) {
-    return; // nothing staged — a byte-identical non-writing turn
+  const suppressed: string[] = [...(flush?.suppressedByLocks ?? [])];
+  try {
+    if (flush !== undefined) {
+      suppressed.push(...(await writeFlush(ctx, game, flush, turn)));
+    }
+  } finally {
+    await recordTurnCalls(ctx, game, turn, { roundCalls, suppressed });
   }
-  await writeFlush(ctx, game, flush, turn);
 }
 
 /** Keep the live panel pending for the whole post-commit vehicle, including its quiet/cancel/failure arms.
@@ -337,12 +358,25 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
  *  records nothing, so a quiet beat still has no empty disclosure.
  *
  *  The projection is `contracts/rpg`'s `recordToolCalls` — the SAME one the compose warn and the R-OBS ring
- *  read, so the row, the log and the trace cannot disagree about what was lost. */
-async function recordTurnCalls(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, roundCalls: readonly RpgRecordedToolCall[] | undefined): Promise<void> {
-  const calls = roundCalls ?? (turn.turnConnection.terminalToolCalls === null ? undefined : recordToolCalls(turn.turnConnection.terminalToolCalls));
-  if (calls === undefined || calls.length === 0) {
+ *  read, so the row, the log and the trace cannot disagree about what was lost. `suppressed` adds the ONE
+ *  thing those two cannot know (#77): the paths this turn's writes lost to a hand lock at the merge, unioned
+ *  from both suppression sites and folded onto the calls by `markLockSuppressions` (which owns the rule for
+ *  which calls may carry it). The ring and the warn keep the schema-only projection by design — they fire
+ *  before any state is composed. */
+async function recordTurnCalls(
+  ctx: RpgContext,
+  game: RpgGameRow,
+  turn: CompletedTurn,
+  /** What this turn's vehicle produced, grouped: the round's own recorded calls (absent on a folded turn,
+   *  whose calls ride `turnConnection`) and what the two merges suppressed. They travel together — the record
+   *  is written from exactly this pair and nothing else. */
+  produced: { readonly roundCalls: readonly RpgRecordedToolCall[] | undefined; readonly suppressed: readonly string[] },
+): Promise<void> {
+  const recorded = produced.roundCalls ?? (turn.turnConnection.terminalToolCalls === null ? undefined : recordToolCalls(turn.turnConnection.terminalToolCalls));
+  if (recorded === undefined || recorded.length === 0) {
     return;
   }
+  const calls = markLockSuppressions(recorded, produced.suppressed);
   await recordTurnToolCalls(ctx.db, {
     id: ctx.ids.turnToolCalls(),
     gameId: game.id,

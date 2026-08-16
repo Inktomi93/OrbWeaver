@@ -38,7 +38,7 @@ import type { HandEditLocks, HandEditResult, HandStateHead, HandStateWrite, RpgC
 import { snapshotRowToState } from "./contract/service.ts";
 import { findLatestAssistantSlotSeq, resolveSnapshotBeforeSlot, resolveSnapshotHead, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots.ts";
 import { defaultSnapshotState } from "./substrate/default-state.ts";
-import { applyLockedPatch, rebasePatchOntoHead } from "./substrate/merge.ts";
+import { applyLockedPatch, applyLockedPatchTracked, rebasePatchOntoHead } from "./substrate/merge.ts";
 
 /** The `committed` column's draft value — an UNcommitted TURN row is the only in-place-editable head. */
 const UNCOMMITTED = 0;
@@ -247,6 +247,10 @@ export async function foldTurnWriteIntoHandHead(
     // the boarded REGEN-VS-LATER-FLUSH row, which needs ladder state that does not exist today.
     return { kind: "shadowed", headId: head.row.id, reason: `the ${head.arm} row ${head.row.id} outranks this flush's row at seq ${head.seq}` };
   }
+  // What the HAND HEAD's locks drop out of this replay (#77) — collected at the merge and returned to the
+  // flush, which puts it on the turn's tool-call record. The human keeps their field either way; the trail is
+  // what stops the record from claiming the model's write landed.
+  const suppressed: string[] = [];
   const folded = await writeHandState(ctx, game, (hand) => {
     // Replayed in STAGE ORDER against the hand head's CURRENT locks — the identical composition the accumulator
     // performed over the pre-slot base, differing only in which state it starts from and whose locks arbitrate.
@@ -266,11 +270,17 @@ export async function foldTurnWriteIntoHandHead(
     let state = hand.state as unknown as Record<string, unknown>;
     for (const staged of written.patches) {
       const stagedBase = staged.base as unknown as Record<string, unknown>;
-      state = applyLockedPatch(state, rebasePatchOntoHead(staged.patch, stagedBase, state), hand.locks);
+      const merged = applyLockedPatchTracked(state, rebasePatchOntoHead(staged.patch, stagedBase, state), hand.locks);
+      state = merged.state;
+      for (const path of merged.suppressed) {
+        if (!suppressed.includes(path)) {
+          suppressed.push(path);
+        }
+      }
     }
     return { ok: true, state: state as unknown as RpgSnapshotState };
   });
-  return folded.ok ? { kind: "folded", headId: folded.snapshotId } : { kind: "refused", headId: head.row.id, reason: folded.reason };
+  return folded.ok ? { kind: "folded", headId: folded.snapshotId, suppressed } : { kind: "refused", headId: head.row.id, reason: folded.reason };
 }
 
 /** The current resolved snapshot state (a read the tracker view + the quest verbs project from). For a turnless
