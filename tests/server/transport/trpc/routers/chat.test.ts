@@ -8,7 +8,7 @@
 // subscription left on this router is `impersonateStream` (permanently unfolded, spec §14 decision 2).
 
 import type { CastEntry, ChatBusEvent, MessageView } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
+import { CHAT_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageVariantId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
@@ -68,6 +68,86 @@ const MESSAGE: MessageView = {
 // The empty cast fixture (Chat-Macro-Resolution.md §1 / D137) — this router test only proves the
 // wire-through, not the producer's own resolution (that's `persistence/cast.int.test.ts` + `read.int.test.ts`).
 const EMPTY_CAST: readonly CastEntry[] = [];
+
+// The library page CEILING at the trust boundary (#101). The ruled shape is a REFUSAL, never a trim and never
+// a fallback: `character.list`'s precedent (`CHARACTER_LIST_MAX_LIMIT`) and the `bounded-list-limit` gate both
+// say an over-bound ask is a BAD_REQUEST naming the bound, and the verb's own `Math.min` is only the DoS
+// backstop for internal callers that bypass this schema. The failure shape these arms forbid: a caller asking
+// for MORE quietly receiving LESS (the default page) than one asking for the max.
+describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)", () => {
+  const page = { items: [], nextCursor: null, totalCount: 0 } as const;
+
+  test("the ceiling itself is servable and reaches the verb verbatim (the bound is inclusive)", async () => {
+    const listChats = vi.fn<ChatService["listChats"]>(async () => page);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+
+    await caller(ctx).chat.listChats({ limit: CHAT_LIST_MAX_LIMIT });
+
+    expect(listChats).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: MEMBER }), limit: CHAT_LIST_MAX_LIMIT });
+  });
+
+  test("max + 1 is a BAD_REQUEST at the boundary; the verb never runs", async () => {
+    const listChats = vi.fn<ChatService["listChats"]>(async () => page);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+
+    await expect(caller(ctx).chat.listChats({ limit: CHAT_LIST_MAX_LIMIT + 1 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(listChats).not.toHaveBeenCalled();
+  });
+
+  test("the absurd ask (1000) is refused, NOT silently served as a smaller page", async () => {
+    const listChats = vi.fn<ChatService["listChats"]>(async () => page);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+
+    await expect(caller(ctx).chat.listChats({ limit: 1000 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(listChats).not.toHaveBeenCalled();
+  });
+
+  test("a non-positive page size is refused too (the floor of the same bound)", async () => {
+    const listChats = vi.fn<ChatService["listChats"]>(async () => page);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+
+    await expect(caller(ctx).chat.listChats({ limit: 0 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(listChats).not.toHaveBeenCalled();
+  });
+
+  test("an omitted limit reaches the verb ABSENT — the default page size has ONE home (the verb)", async () => {
+    const listChats = vi.fn<ChatService["listChats"]>(async () => page);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+
+    await caller(ctx).chat.listChats({});
+
+    expect(listChats).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: MEMBER }) });
+    expect(listChats.mock.calls[0]?.[0]).not.toHaveProperty("limit");
+  });
+
+  // The input is deliberately NON-strict, and that tolerance is LOAD-BEARING: tRPC's `infiniteQueryOptions`
+  // sends its own `direction` field alongside our page params (observed on the wire — `{"limit":30,
+  // "direction":"forward"}`), so a `.strict()` here would 400 the live chat-library pager. The COROLLARY is
+  // the trap that produced #101's false symptom: an input whose page params sit under an unknown key (a
+  // superjson-style `{json:{limit:1000}}` envelope aimed at this transformer-less server) is stripped to `{}`
+  // and answered with the DEFAULT page — it reads exactly like "an over-max limit fell back to 50".
+  test("an unknown key is stripped, not refused — `direction` rides through and the known params still land", async () => {
+    const listChats = vi.fn<ChatService["listChats"]>(async () => page);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+
+    // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — `direction` is what tRPC's infinite query actually sends.
+    await caller(ctx).chat.listChats({ limit: 10, direction: "forward" } as any);
+
+    expect(listChats).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: MEMBER }), limit: 10 });
+    expect(listChats.mock.calls[0]?.[0]).not.toHaveProperty("direction");
+  });
+
+  test("a mis-enveloped limit is answered with the DEFAULT page, which is how #101's symptom was measured", async () => {
+    const listChats = vi.fn<ChatService["listChats"]>(async () => page);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+
+    // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — the superjson envelope the #101 probe sent.
+    await caller(ctx).chat.listChats({ json: { limit: 1000 } } as any);
+
+    expect(listChats).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: MEMBER }) });
+    expect(listChats.mock.calls[0]?.[0]).not.toHaveProperty("limit");
+  });
+});
 
 describe("chat.listMessages — the paged canon read (D26), member-gated", () => {
   test("a member pages messages: the parsed cursor/limit reach the verb with the resolved Principal", async () => {
