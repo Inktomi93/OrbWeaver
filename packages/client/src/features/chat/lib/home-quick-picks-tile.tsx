@@ -6,7 +6,7 @@ import { Button } from "@orb/ui/button";
 import { Users } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
 import { setActiveSection } from "#state";
-import { HomeQuickPicksTileBody } from "../components/home-quick-picks-tile-body.tsx";
+import { HomeQuickPicksTileBody, QUICK_PICKS_LIMIT } from "../components/home-quick-picks-tile-body.tsx";
 
 const QUICK_PICKS_TILE_ORDER = 20;
 
@@ -15,6 +15,8 @@ export const chatQuickPicksTile: HomeTileContribution = {
   title: "Start a chat",
   icon: Users,
   order: QUICK_PICKS_TILE_ORDER,
+  // The FIRST-BOOT reservation (#92): the body is `QUICK_PICKS_LIMIT` face rows, so its skeleton is too.
+  skeletonRows: QUICK_PICKS_LIMIT,
   action: (
     <Button intent="ghost" onClick={(): void => setActiveSection("characters")} size="sm">
       All characters →

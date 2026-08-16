@@ -63,6 +63,19 @@ export interface HomeTileContribution {
    *  contract) by the tile's own component, never in a map body. `false` ⇒ render NOTHING (no gap, no
    *  empty card). NOT for gating a BUILD fact — that is the `{dormant}` body arm (H7). */
   readonly useVisible?: () => boolean;
+  /** How many skeleton rows this tile's LOADING box holds on a device that has never seen it settle —
+   *  the FIRST-EVER-boot arm of the F14 reservation (`home-tile-box-store`: from the second boot on, the
+   *  measured box wins and this is only the fill-count fallback).
+   *
+   *  IT IS THE TILE'S OWN PAGE LIMIT, NOT A PIXEL GUESS. The store's header rules out a static reservation
+   *  because the settled box is DATA-dependent — true of a HEIGHT, and the reason this is a ROW COUNT: the
+   *  tile declares the same `limit` its own query asks for (8 recents, 6 quick-picks, 4 documents + the
+   *  health line), and the frame turns that into a box through the live pointer-conditional pitch
+   *  (`skeleton-row-metrics.ts`), so the same declaration is right on a desktop and on a tablet. A tile
+   *  whose body is FIXED (a button + a gloss) declares the rows it is, which is not a guess either.
+   *
+   *  Absent ⇒ the frame's 3-row default, i.e. exactly the behaviour that shipped before. */
+  readonly skeletonRows?: number;
   /** A real body, or the DECLARED-DORMANT arm — the structural twin of `SectionDefinition.content`'s
    *  `{planned}` (lockdown O1): the marker and the body are the SAME field, so building the tile forces
    *  deleting the marker in the same edit. A stale doorway is unrepresentable, not merely detected. */

@@ -17,7 +17,19 @@
 // quick-picks), so it cannot be reserved by a static height without padding short tiles with dead space —
 // the honest reservation is the one this device MEASURED last time: `TileBody` remembers each tile's
 // settled height (`#state` home-tile-box-store, localStorage) and `TileFallback` reserves exactly that
-// while the read is in flight. First-ever boot reserves nothing (there is nothing honest to reserve).
+// while the read is in flight.
+//
+// …AND THE FIRST-EVER BOOT IS NOT "NOTHING TO RESERVE" (#92, measured 2026-08-16). This header used to
+// end "first-ever boot reserves nothing (there is nothing honest to reserve)". That was right about a
+// static HEIGHT and wrong about the tile's own DATA CONTRACT, and it left the whole grid shifting for
+// every device with an empty box memory — a new profile, cleared storage, and every fresh Playwright
+// profile, which is why the harness kept measuring it. Live stack at HEAD 7462c165c, home alone: CLS
+// 0.1338 over the 0.1 budget in 3/3 runs, ONE entry, attributed `chat.recents` growing 233px → 541px and
+// pushing `chat.quickPicks`/`chat.tempChat` down 308px. The IDENTICAL drive with the box memory
+// pre-seeded scored 0.0002 with zero shifts — the mechanism was never broken, only its first-boot arm
+// was empty. So a tile now DECLARES `skeletonRows` (the row count its own query asks for) and the frame
+// turns that into a box through the same live pointer-conditional pitch the measured arm uses. The
+// MEASURED box still wins wherever it exists; the declaration is only what boot one has.
 //
 // The DORMANT arm renders a DOORWAY, not a fake feature: reduced weight, a DASHED frame (the mock's
 // `.tile.dormant`), a muted glyph, the teaser in the gloss voice, a `Dormant` badge, the tracked reason as
@@ -42,6 +54,7 @@ import { QueryBoundary, QueryErrorState, SkeletonRows, skeletonRowCountFor } fro
 import type { DormantDoorway, HomeTileContribution } from "#state";
 import { rememberHomeTileBox, useHomeTileBox } from "#state";
 
+/** The frame's fallback row count for a tile that declares no `skeletonRows` — what shipped before. */
 const TILE_SKELETON_ROWS = 3;
 
 /** The tile's kicker band — icon + title in the `kicker` voice + the ONE trailing slot (an action, or the
@@ -106,9 +119,13 @@ function DormantBody({ tile, doorway }: { readonly tile: HomeTileContribution; r
  *  349px and painted 160px of bars, so 189px of blank sat under three lonely lines for the duration of the
  *  read — the exact 189px the reservation had just stopped SHIFTING, converted into dead space — while the
  *  temp-chat tile reserved 110.89px and had its third bar clipped to a 2.9px hairline. `skeletonRowCountFor`
- *  inverts the skeleton's own layout to fit the box, so `overflow: clip` stops being load-bearing. */
-function TileFallback({ reserved }: { readonly reserved: number | null }): ReactElement {
-  const rows = reserved === null ? TILE_SKELETON_ROWS : skeletonRowCountFor(reserved, TILE_SKELETON_ROWS);
+ *  inverts the skeleton's own layout to fit the box, so `overflow: clip` stops being load-bearing.
+ *
+ *  `declaredRows` is the tile's own first-boot claim (`HomeTileContribution.skeletonRows`). It sizes the
+ *  box when this device has no memory, and stays the fill-count fallback for a box the metrics module
+ *  cannot invert (no document to read the pitch from) — the two arms want the same number. */
+function TileFallback({ declaredRows, reserved }: { readonly declaredRows: number; readonly reserved: number | null }): ReactElement {
+  const rows = reserved === null ? declaredRows : skeletonRowCountFor(reserved, declaredRows);
   return (
     <Stack data-tile-reserved={reserved === null ? undefined : Math.round(reserved)} style={reserved === null ? undefined : reserveStyle(reserved)}>
       <SkeletonRows count={rows} />
@@ -169,7 +186,7 @@ export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): Rea
         />
         {dormant === null ? (
           <QueryBoundary
-            fallback={<TileFallback reserved={reserved} />}
+            fallback={<TileFallback declaredRows={tile.skeletonRows ?? TILE_SKELETON_ROWS} reserved={reserved} />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label={tile.title.toLowerCase()} onRetry={retry} />}
           >
             <TileBody tileId={tile.id}>{typeof tile.body === "function" ? tile.body() : null}</TileBody>

@@ -20,7 +20,9 @@ import type { ReactElement } from "react";
 import { useStartChat, useTRPC } from "#data";
 import { setActiveSection } from "#state";
 
-const QUICK_PICKS_LIMIT = 6;
+/** How many faces this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
+ *  first-boot skeleton reserves (#92). Exported so the reservation cannot drift from the read. */
+export const QUICK_PICKS_LIMIT = 6;
 
 export function HomeQuickPicksTileBody(): ReactElement {
   const trpc = useTRPC();

@@ -6,7 +6,7 @@ import { Button } from "@orb/ui/button";
 import { MessagesSquare } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
 import { setActiveSection } from "#state";
-import { HomeRecentsTileBody } from "../components/home-recents-tile-body.tsx";
+import { HomeRecentsTileBody, RECENTS_LIMIT } from "../components/home-recents-tile-body.tsx";
 
 const RECENTS_TILE_ORDER = 10;
 
@@ -16,6 +16,10 @@ export const chatRecentsTile: HomeTileContribution = {
   icon: MessagesSquare,
   order: RECENTS_TILE_ORDER,
   span: "full",
+  // The FIRST-BOOT reservation (#92): this tile's body is `RECENTS_LIMIT` rows, so its skeleton is too.
+  // It was the app's worst layout shift — a 3-row skeleton settling into eight rows moved every tile
+  // below it 308px. From boot two on, the MEASURED box wins (home-tile-box-store).
+  skeletonRows: RECENTS_LIMIT,
   action: (
     <Button intent="ghost" onClick={(): void => setActiveSection("chats")} size="sm">
       All chats →
