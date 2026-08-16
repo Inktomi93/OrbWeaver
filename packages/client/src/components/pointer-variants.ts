@@ -32,6 +32,16 @@ export const FINE_INERT_UNTIL_HOVER =
  *  tests/client/features/rpg/components/rpg-actor-trackers.ct.tsx. */
 export const CHIP_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
 
+/** A TEXT-HEIGHT DISCLOSURE TRIGGER's coarse touch floor. `CollapsibleTrigger` is `inline-flex` with no
+ *  control box (it is a line of prose that toggles), so unlike `Button`'s `inline`/`glyph-*` arms it carries
+ *  NO hit-area `::after` at all — MEASURED at 430×740 DPR3 `pointer:coarse`, the rpg turn-tool-calls trigger
+ *  was a 406×16 box whose centre `elementFromPoint` could not even resolve to it. A full-bleed row trigger
+ *  has width to spare and only wants HEIGHT, so the floor goes on the trigger's own box (no overflowing
+ *  pseudo to collide with the rows above/below, which is the failure mode the chip floor below documents).
+ *  Fine is untouched — a 16px line in a dense transcript footer. CT:
+ *  tests/client/features/rpg/components/turn-tool-calls-disclosure.ct.tsx. */
+export const DISCLOSURE_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
+
 /** The rpg item-icon picker's coarse gap: `gap-block` (12px) makes the tiled 32px cells' pitch exactly 44 so
  *  each cell's overflowing hit `::after` is not clipped by the wrap gap. Fine keeps the tighter `gap-field`.
  *  CT: tests/client/features/rpg/components/rpg-pack-rows.ct.tsx. */
@@ -41,6 +51,19 @@ export const PICKER_GAP_AT_COARSE = "pointer-coarse:gap-block";
  *  CONTAINER step, not a viewport query); at COARSE it stays ONE row and SCROLLS (`minmax(max-content,1fr)`
  *  tracks + `overflow-x-auto`) — the phone tab-strip idiom, so a phone spends 50px not 105px on the rail. The
  *  ≥44px cell floor itself is TabsTab's own sealed `min-w-touch-target`, not spelled here. CT: the rpg HUD
- *  rail geometry + tests/ui/primitives/tabs/tabs.ct.tsx. */
+ *  rail geometry + tests/ui/primitives/tabs/tabs.ct.tsx.
+ *
+ *  THE FINE ARM HAD A HOLE BETWEEN ITS TWO ANSWERS (side-eye 2026-08-16 #94, MEASURED at a 1280px desktop:
+ *  game rail 383px wide, six `auto-cols-fr` cells at 59px each, "Inventory" caption scrollWidth 48 vs
+ *  clientWidth 47 ⇒ rendered "Invento…"). Below the `xs` container step the row-wrap arm fires and every
+ *  caption is whole; at coarse the `minmax(max-content,1fr)` arm fires and the row scrolls rather than
+ *  clipping. Between them — a FINE pointer at or above `xs`, which is every docked desktop panel, i.e. the
+ *  most common mount in the product — neither fired and the bare `auto-cols-fr` clipped. The fix is not a
+ *  third behaviour: it is the SAME track-sizing function the coarse arm already proves correct, applied to
+ *  the fine range the row-wrap does not cover (`pointer-fine:@xs:`). `minmax(max-content, 1fr)`'s `1fr` max
+ *  keeps the cells equal and the rail full whenever there is slack (unchanged on a wide pane), and its
+ *  `max-content` min refuses to shrink a caption — where six no longer fit the tracks overflow and
+ *  `overflow-x-auto` scrolls them. Degrade to scrolling, never into an ellipsis; the two arms cannot be
+ *  tuned apart because they are now the same declaration. */
 export const RPG_RAIL_WRAP =
-  "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3 pointer-coarse:auto-cols-[minmax(max-content,1fr)] pointer-coarse:overflow-x-auto";
+  "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3 pointer-fine:@xs:auto-cols-[minmax(max-content,1fr)] pointer-fine:@xs:overflow-x-auto pointer-coarse:auto-cols-[minmax(max-content,1fr)] pointer-coarse:overflow-x-auto";

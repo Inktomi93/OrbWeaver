@@ -15,7 +15,8 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories.tsx";
+import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { RpgTakeoverDockedStory, RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories.tsx";
 
 const GAME_ID = "rpg_game_ct_keystone";
 const PERSONA_ID = "persona_ct_keystone";
@@ -23,6 +24,11 @@ const PERSONA_ID = "persona_ct_keystone";
 /** "a `title` with any content at all" — hoisted (a regex literal in a test body is a per-call recompile,
  *  `useTopLevelRegex`) and used with `not.toHaveAttribute`, which also passes when the attribute is absent. */
 const ANY_TITLE = /./;
+
+/** The Vitality meter's two editable cells — the reading and this carrier's ceiling. `subject`-qualified
+ *  names are the `MeterRow` rule (two cast cards must not both offer a button called "Vitality value"), so
+ *  the roster row's pair carries the actor's name and the takeover's does not; this matches both. */
+const VITALITY_CELLS = /^(Mara )?Vitality (value|max)$/;
 
 // A `chat.getChat` stub carrying the rpg POINTER (fires the takeover) + the host gate + the viewer identity.
 // `viewerActivePersonaId` is what the resync control's opt-in restamp stamps TO (null ⇒ nothing to stamp to).
@@ -3134,4 +3140,159 @@ test("a MEMBER sees NO grants editor in the takeover — grants are the host's c
   await expect(detail).toBeVisible();
   // The takeover renders (a member reads the roster) — but the host-only grants editor is absent, not disabled.
   await expect(detail.locator('[data-slot="rpg-tracker-grants"]')).toHaveCount(0);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// side-eye 2026-08-16 (#93/#94) — the DOCKED-PANEL width and the coarse hit tree.
+//
+// Both defects below were invisible to the review that found them, because both were measured with
+// `getBoundingClientRect`. A box is not a hit target here: `Button size="inline"` carries its ≥44px coarse
+// floor on an OVERFLOWING `::after`, so `HP value`'s 27×18 box was never the claim — and the box also could
+// not see that something was PAINTING OVER that pseudo. `elementFromPoint`, walked out from the centre, is
+// the only instrument that states either fact (`support/ct/touch-floor.ts` says why at length).
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The default roster with ONE meter on its actor (Vitality) instead of two — see the hit-tree test below
+ *  for why the second meter makes that test unfalsifiable. Everything else is `trackerView(false)` verbatim. */
+function singleMeterTrackerView(): unknown {
+  const base = trackerView(false) as Record<string, unknown>;
+  const actors = base["actors"] as readonly Record<string, unknown>[];
+  const mara = actors[0] as Record<string, unknown>;
+  return {
+    ...base,
+    actors: [
+      {
+        ...mara,
+        trackers: [VITALITY],
+        volatile: { ...(mara["volatile"] as Record<string, unknown>), trackerValues: { vitality: { value: 24, items: null } } },
+      },
+      ...actors.slice(1),
+    ],
+    trackerDefs: [VITALITY],
+    trackerOrbs: [{ key: "vitality", label: "Vitality", value: 24, max: 30, color: null }],
+  };
+}
+
+test.describe("coarse touch floor — the meter row's value and its ceiling", () => {
+  test.use({ hasTouch: true });
+
+  test("no DECORATION is inside a meter value's touch pseudo — every sample in it lands on a real control", async ({ mount, page }) => {
+    // THE DEFECT, measured live at 430×740 DPR3 `pointer:coarse`: `HP value` and `HP max` resolved a 45×37
+    // effective target on the ONE control a player reaches for mid-session. The value itself was innocent
+    // (its `::after` computed a full 44×44); `MeterRow` stacks the aria-hidden `TrackBar` directly under the
+    // value row, and with no z-index that later-painting 6px rail won the bottom of the pseudo
+    // (`elementFromPoint` at cy+20 returned `div[data-slot=track-bar]`). Decoration that is out of the a11y
+    // tree is now out of the hit tree — the CAUSE, not the symptom: flooring the value changes nothing here.
+    //
+    // WHY THE CLAIM IS "NO DECORATION IN THE PSEUDO" AND NOT "≥44 ON BOTH AXES". A stacked meter list is a
+    // TILED run: neighbours 36px apart CANNOT both own a 44px-tall target, so a raw floor assertion is
+    // unsatisfiable here and a pitch assertion is UNFALSIFIABLE — measured, the old occluded reach (36) and
+    // the pitch (36) were the same number, so a pitch pin passed on the broken source. What separates the two
+    // worlds is WHAT wins the sample: before, a `[data-slot=track-bar]` div; after, only ever this control or
+    // a neighbouring one. That is the law being enforced, and it is the thing that changed.
+    //
+    // AND THE FIXTURE CARRIES ONE METER, NOT TWO, WHICH IS THE WHOLE REASON THIS PIN BITES. With the default
+    // two-meter roster the NEIGHBOURING meter's own pseudo covers the rail's band before the rail can be
+    // sampled, so the occluder is unreachable and the pin passes on the broken source (measured, twice — a
+    // 5-point sweep AND a full per-pixel sweep). One meter leaves the rail as the only thing under the value,
+    // which is the live 430px geometry the defect was found in. The roster is otherwise untouched.
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await stubTakeover(page, { tracker: singleMeterTrackerView() });
+    const component = await mount(<RpgTakeoverStory />);
+    await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+
+    // The rail must actually be RENDERED under the value — without it this test cannot fail for its reason.
+    await expect(component.locator('[data-slot="meter-row"] [data-slot="track-bar"]').first()).toBeVisible();
+
+    const values = component.getByRole("button", { name: VITALITY_CELLS });
+    const count = await values.count();
+    expect(count).toBeGreaterThan(0);
+
+    const floor = await touchFloorPx(page);
+    const stolen = await values.evaluateAll(
+      (els: HTMLElement[], reach: number): readonly string[] =>
+        els
+          .flatMap((el) => {
+            const box = el.getBoundingClientRect();
+            const cx = Math.round(box.left + box.width / 2);
+            const cy = Math.round(box.top + box.height / 2);
+            const half = Math.floor(reach / 2) - 1;
+            // EVERY pixel row of the pseudo's own column, not five samples of it. A 6px rail inside a 44px
+            // target occupies about an eighth of the column, so a coarse sample walks straight past the
+            // occluder — measured: a 5-point sweep passed against the pre-fix source. Every point inside a
+            // control's declared touch target must belong to SOME control; a decoration winning one is the
+            // defect, and the slot name it reports is the diagnosis.
+            const offsets = Array.from({ length: half * 2 + 1 }, (_unused, i) => i - half);
+            return offsets.map((dy) => {
+              const hit = document.elementFromPoint(cx, cy + dy);
+              if (hit === null) {
+                return "";
+              }
+              return hit.closest("button,a,[role=tab],[role=switch]") === null ? (hit.getAttribute("data-slot") ?? hit.tagName.toLowerCase()) : "";
+            });
+          })
+          .filter((slot) => slot !== ""),
+      floor,
+    );
+    expect(stolen).toEqual([]);
+  });
+});
+
+test("side-eye 2026-08-16: at the 384px DOCKED panel no game-rail caption crushes, and the rail scrolls instead", async ({ mount, page }) => {
+  // THE HOLE BETWEEN TWO CORRECT ARMS. The rail's fine-pointer answer to a tight rail is the `@max-xs`
+  // row-wrap; its coarse answer is `minmax(max-content,1fr)` + scroll. Neither covers a FINE pointer AT or
+  // ABOVE `xs` — which is every docked desktop panel. Measured live at 1280px: rail 383px, six `auto-cols-fr`
+  // cells at 59px, "Inventory" scrollWidth 48 vs clientWidth 47 ⇒ "Invento…". The fix applies the SAME track
+  // sizing the coarse arm already proves correct to that fine range, so the rail degrades to scrolling and
+  // never into an ellipsis.
+  //
+  // HONEST LABEL — a FENCE at this width, not the defect proof, and the demotion is measured: it PASSES
+  // against the pre-fix source. The CT harness's font metrics are not the app's (the kit's own warning), so
+  // "Inventory" fits a 59px cell here where it overflowed by 1px live. The DEFECT PROOF is the live
+  // measurement (caption scrollWidth 48 / clientWidth 47 at a 1280px window) and its live re-measurement
+  // after the fix; what this pin buys is that the docked width — the most common mount, and the one width
+  // neither existing rail CT covered — can never regress into a wrap or a clip unnoticed.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverDockedStory />);
+  const list = component.getByRole("tablist", { name: "Game state" });
+  await expect(list.getByRole("tab")).toHaveCount(6);
+
+  // ONE row at this width (the wrap arm is for the narrower FLOOR story) — so this is genuinely the range
+  // neither arm covered, not the row-wrap being re-tested at a new width.
+  const boxes = await Promise.all((await list.getByRole("tab").all()).map((tab) => tab.boundingBox()));
+  expect(new Set(boxes.map((box) => Math.round(box?.y ?? 0))).size).toBe(1);
+
+  // NO caption is truncated — the whole point. `+1` absorbs sub-pixel rounding, exactly as the FLOOR pin does.
+  const clipped = await list.locator('[data-slot="rpg-hud-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+  expect(clipped).toBe(0);
+});
+
+test("side-eye 2026-08-16: the PHASE-lock glyph keeps a gutter off the pane's own edge", async ({ mount, page }) => {
+  // The rail is full-bleed by ruling (§5.2 — it is the pane's floor and reaches its edges), which makes the
+  // LAST cell's inline-end edge the PANE's edge. Measured live at 1280px the Map cell's lock glyph ran
+  // x 1268..1280, ending exactly on the viewport edge — it read as a clipped glyph rather than as a lock.
+  // The gutter is bought INSIDE the cell so the full-bleed ruling stands. Asserted as rendered geometry
+  // against the resolved token, never a hardcoded px.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverDockedStory />);
+  const mapTab = component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Map" });
+  await expect(mapTab).toBeVisible();
+
+  const gutter = await mapTab.evaluate((tab: HTMLElement): number => {
+    const glyph = tab.querySelector("svg:last-of-type");
+    if (glyph === null) {
+      return Number.NaN;
+    }
+    return Math.round(tab.getBoundingClientRect().right - glyph.getBoundingClientRect().right);
+  });
+  const field = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--spacing-field)";
+    document.body.append(probe);
+    const px = probe.getBoundingClientRect().width;
+    probe.remove();
+    return px;
+  });
+  expect(field).toBeGreaterThan(0);
+  expect(gutter).toBeGreaterThanOrEqual(Math.round(field) - 1);
 });

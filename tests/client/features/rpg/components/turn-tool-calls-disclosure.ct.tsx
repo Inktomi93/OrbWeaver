@@ -17,6 +17,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import {
   TurnToolCallsDisclosureStory,
   TurnToolCallsEngagementStory,
@@ -229,4 +230,53 @@ test("a room with NO records renders no disclosure at all (a non-game chat is un
   const component = await mount(<TurnToolCallsDisclosureStory />);
 
   await expect(component.locator("[data-slot=turn-tool-calls]")).toHaveCount(0);
+});
+
+// ── The coarse touch floor (side-eye 2026-08-16 #93) ─────────────────────────────────────────────────
+// `CollapsibleTrigger` is a text-height `inline-flex` line, not a control box, so — unlike `Button`'s
+// `inline`/`glyph-*` arms — it ships NO hit-area `::after` at all. Measured live at 430×740 DPR3
+// `pointer:coarse` this row was 406×16 and its own CENTRE did not resolve to it under `elementFromPoint`.
+// It is the only affordance that reveals why a turn's writes did not land, so on a phone it has to be
+// thumbable. A full-bleed row has width to spare and only wants HEIGHT, hence a floor on the trigger's own
+// box rather than an overflowing pseudo (which is what collides with neighbours in a wrapped run).
+
+test.describe("coarse touch floor", () => {
+  test.use({ hasTouch: true });
+
+  test("the trigger's RENDERED box clears the touch floor — measured against the resolved token, not a literal", async ({ mount, page }) => {
+    // THE BOX, not an `elementFromPoint` sweep: this trigger has no hit pseudo, so its floor IS its box —
+    // and a sweep is the WRONG instrument here anyway. `hitExtent`'s ownership predicate counts an ANCESTOR
+    // as owning the point, and a full-bleed row's ancestors span the whole footer, so a sweep passes on a
+    // 16px trigger (verified: it did, against the pre-fix source). A test that cannot fail is not evidence.
+    // The floor is read off `--spacing-touch-target` because a literal 44 both survives a token retune and
+    // fails a correct fix.
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });
+
+    const component = await mount(<TurnToolCallsDisclosureStory />);
+    const trigger = component.getByRole("button", { name: RE_TRIGGER });
+    await expect(trigger).toBeVisible();
+
+    const floor = await touchFloorPx(page);
+    await expect.poll(() => trigger.evaluate((el: HTMLElement) => Math.round(el.getBoundingClientRect().height))).toBeGreaterThanOrEqual(Math.round(floor));
+    // …and it is the TOKEN that put it there, not a stray height from somewhere else in the cascade.
+    await expect.poll(() => trigger.evaluate((el: HTMLElement) => Math.round(Number.parseFloat(getComputedStyle(el).minHeight)))).toBe(Math.round(floor));
+  });
+});
+
+test("the FINE pointer keeps the transcript's dense line — the floor is COARSE-ONLY", async ({ mount, page }) => {
+  // The density half of the claim, and the reason the floor is spelled as a `pointer-coarse:` FRAGMENT
+  // rather than the bare pointer-conditional token: `min-h-touch-target` alone still resolves to 28px at a
+  // fine pointer, which would grow every folded turn's footer on every desktop. This block has no
+  // `hasTouch`, so it runs at the default FINE pointer — the pin that catches a "fix" that inflates desktop.
+  await expect.poll(() => page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });
+
+  const component = await mount(<TurnToolCallsDisclosureStory />);
+  const trigger = component.getByRole("button", { name: RE_TRIGGER });
+  await expect(trigger).toBeVisible();
+
+  // No min-height at all at fine: the variant's declaration never matches, so the row is its text height.
+  await expect.poll(() => trigger.evaluate((el: HTMLElement) => Math.round(Number.parseFloat(getComputedStyle(el).minHeight) || 0))).toBe(0);
+  await expect.poll(() => trigger.evaluate((el: HTMLElement) => Math.round(el.getBoundingClientRect().height))).toBeLessThan(await touchFloorPx(page));
 });

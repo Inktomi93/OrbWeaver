@@ -33,7 +33,6 @@ import { Command, CommandEmpty, CommandInput, CommandItem, CommandList, CommandS
 import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";
-import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
@@ -52,9 +51,9 @@ import {
   useSettingsSubTarget,
   useSettingsTarget,
 } from "#state";
+import { SettingsNavColumn } from "../components/settings-nav-column.tsx";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder.tsx";
 import { SettingsSaveFooter } from "../components/settings-save-footer.tsx";
-import { SETTINGS_GROUP_LABELS } from "../lib/settings-nav-model.ts";
 import { afterPaint, computeActiveSub, flashAnchor } from "../lib/settings-scroll-spy.ts";
 import type { SettingsSearchEntry } from "../lib/settings-search.ts";
 import { buildSettingsSearchEntries } from "../lib/settings-search.ts";
@@ -64,11 +63,6 @@ import { buildSettingsSearchEntries } from "../lib/settings-search.ts";
  *  through here). */
 function isCategoryId(v: SettingsCategoryId | null): v is SettingsCategoryId {
   return v !== null;
-}
-
-/** The category ids for one group, in the registry's declared order. */
-function categoryIdsForGroup(panes: readonly SettingsPaneDefinition[], group: (typeof SETTINGS_GROUPS)[number]): readonly SettingsPaneDefinition[] {
-  return panes.filter((pane) => pane.group === group);
 }
 
 /** Suppress the scroll-spy for the duration of a programmatic jump so smooth-scroll can't flicker the nav.
@@ -312,7 +306,16 @@ export function SettingsShell(): ReactElement {
         <Stack className="h-full min-h-0" gap="section">
           <Stack role="search" aria-label="Settings search">
             <Command label="Search settings">
-              <CommandInput aria-label="Search settings" onValueChange={setQuery} placeholder="Search settings…" value={query} />
+              {/* `aria-expanded` MUST TRACK THE LIST'S EXISTENCE (side-eye 2026-08-16 ARIA rider). cmdk's
+                  input hardcodes `role=combobox` + `aria-expanded="true"` because it assumes its listbox is
+                  always mounted; this caller mounts `CommandList` only while there is a query, so on load
+                  the box announced itself expanded onto nothing. Stating the truth here (the ONE place that
+                  knows whether the list is rendered) beats mounting an empty listbox to make the lie true. */}
+              {/* `expanded` states whether the LIST below is mounted (side-eye 2026-08-16 ARIA rider). It is
+                  a prop rather than a raw `aria-expanded` because cmdk hardcodes that attribute after
+                  spreading ours — `CommandInput`'s own header carries the mechanism; this call site owns the
+                  only fact it needs, which is whether `hasQuery` put a listbox on screen. */}
+              <CommandInput aria-label="Search settings" expanded={hasQuery} onValueChange={setQuery} placeholder="Search settings…" value={query} />
               {hasQuery ? (
                 <CommandList className="max-h-(--container-cq-sm)">
                   <CommandStatus />
@@ -332,55 +335,18 @@ export function SettingsShell(): ReactElement {
               whole pane instead of splitting a phone's height into two unusable windows. Above it both
               paint and the `@max-md:` arms are inert — the wide split is unchanged. */}
           <Row align="stretch" className="min-h-0 flex-1" gap="section">
-            <Stack
-              role="navigation"
-              aria-label="Settings sections"
-              className={`relative w-(--width-sidebar-sm) min-h-0 shrink-0 overflow-y-auto @max-md:w-full ${pushed ? "@max-md:hidden" : ""}`}
-              gap="section"
-            >
-              {SETTINGS_GROUPS.map((group) => (
-                <Stack key={group} gap="row">
-                  <Text voice="kicker">{SETTINGS_GROUP_LABELS[group]}</Text>
-                  {categoryIdsForGroup(visiblePanes, group).map((pane) => {
-                    const isActive = active === pane.id;
-                    const subs = subcategoriesFor(pane);
-                    return (
-                      <Stack key={pane.id} gap="field">
-                        {/* A pane WITH sections is a disclosure GROUP, not a nav leaf: it expands
-                            (`aria-expanded`) and its children carry the one "you are here" marker. A pane
-                            with no sections IS the leaf, so it keeps `aria-current` itself. Two
-                            `aria-current` rows for one location was the side-eye a11y defect. */}
-                        <ListRow
-                          clickable={true}
-                          leading={<Icon icon={pane.icon} size="sm" />}
-                          onClick={(): void => selectCategory(pane.id)}
-                          title={pane.label}
-                          {...(subs.length > 0 ? { expanded: isActive } : { selected: isActive })}
-                        />
-                        {isActive && subs.length > 0 ? (
-                          <Stack className="ps-(--spacing-section)" gap="field">
-                            {subs.map((sub) => (
-                              // The nav row renders `navLabel` when the section declares one — a name too long
-                              // for the 220px column is ABBREVIATED here, never renamed at its heading. The
-                              // full `label` rides `fullTitle` so hovering recovers it.
-                              <ListRow
-                                key={sub.id}
-                                clickable={true}
-                                {...(erroredSubIds.has(sub.id) ? { meta: SAVE_FAILED_MARKER } : {})}
-                                fullTitle={sub.label}
-                                onClick={(): void => selectSub(pane.id, sub.id)}
-                                selected={activeSub === sub.id}
-                                title={sub.navLabel ?? sub.label}
-                              />
-                            ))}
-                          </Stack>
-                        ) : null}
-                      </Stack>
-                    );
-                  })}
-                </Stack>
-              ))}
-            </Stack>
+            <SettingsNavColumn
+              active={active}
+              activeSub={activeSub}
+              erroredSubIds={erroredSubIds}
+              groups={SETTINGS_GROUPS}
+              onSelectCategory={selectCategory}
+              onSelectSub={selectSub}
+              pushed={pushed}
+              saveFailedMarker={SAVE_FAILED_MARKER}
+              subcategoriesFor={subcategoriesFor}
+              visiblePanes={visiblePanes}
+            />
 
             <Stack className={`min-h-0 flex-1 ${pushed ? "" : "@max-md:hidden"}`} gap="row">
               {/* The pushed detail's way out. Narrow-only (`@md:hidden`), and it names the pane it is

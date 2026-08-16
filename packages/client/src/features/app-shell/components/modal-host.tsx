@@ -9,7 +9,7 @@ import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Drawer, DrawerClose, DrawerPopup, DrawerTitle } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ModalDefinition, ModalSlotId } from "#state";
 import { useModalRegistry } from "#state";
 import { SectionPlaceholder } from "./section-placeholder.tsx";
@@ -81,15 +81,28 @@ function DialogModal({
   readonly onOpenChange: (nextOpen: boolean) => void;
 }): ReactElement {
   const [capturedTrigger] = useState<HTMLElement | null>(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null));
+  const bodyRef = useRef<HTMLDivElement | null>(null);
 
   // Shell modals (full/xl) fill the popup height; content modals size to content but still scroll internally when tall.
   const isShellModal = def.size === "full" || def.size === "xl";
   // exactOptionalPropertyTypes: spread size only when set, never pass an explicit undefined.
   const sizeProp = def.size === undefined ? {} : { size: def.size };
-  const bodyClass = isShellModal ? "relative min-h-0 flex-1 overflow-y-auto" : "relative min-h-0 overflow-y-auto";
+  const bodyClass = isShellModal ? "relative min-h-0 flex-1 overflow-y-auto outline-none" : "relative min-h-0 overflow-y-auto outline-none";
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
-      <DialogPopup {...sizeProp} container={container} finalFocus={(): HTMLElement | boolean => capturedTrigger ?? true}>
+      {/* OPENING FOCUS LANDS IN THE BODY, NOT ON CLOSE (side-eye 2026-08-16 ARIA rider). Base UI's default
+          initial focus is the popup's first TABBABLE descendant, and this header puts the dismiss button
+          ahead of every one of them — so every shell modal opened with focus on `Close` and the first Enter
+          threw the modal away. The body is the content the reader came for, so it takes focus as a
+          programmatic-only stop (`tabIndex={-1}` + `outline-none`: it is not a tab stop and must not paint a
+          ring, exactly like the section surfaces' focus targets); Tab from there reaches the first real
+          control, Escape still closes, and `finalFocus` still returns to the trigger. */}
+      <DialogPopup
+        {...sizeProp}
+        container={container}
+        finalFocus={(): HTMLElement | boolean => capturedTrigger ?? true}
+        initialFocus={(): HTMLElement | boolean => bodyRef.current ?? true}
+      >
         <header className="shell-modal-header shrink-0">
           <DialogTitle>{def.title}</DialogTitle>
           <DialogClose
@@ -100,7 +113,9 @@ function DialogModal({
             }
           />
         </header>
-        <div className={bodyClass}>{body}</div>
+        <div className={bodyClass} ref={bodyRef} tabIndex={-1}>
+          {body}
+        </div>
       </DialogPopup>
     </Dialog>
   );

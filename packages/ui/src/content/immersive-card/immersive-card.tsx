@@ -134,7 +134,12 @@ export function ImmersiveCard({
         {/* View-raw acts on the inline BODY, so it is inapplicable while the card is collapsed to its title
             bar (applicability-omit, never a disabled twin). The lightbox has its own copy. */}
         {open ? rawToggle : null}
-        <Button intent="ghost" size="icon" aria-label="Expand card" title="Expand card" onClick={(): void => setExpanded(true)}>
+        {/* "Open card fullscreen", NOT "Expand card" (side-eye 2026-08-16 ARIA rider). This opens a LIGHTBOX
+            dialog; the control immediately to its right is the accordion disclosure, named "Collapse card".
+            As a pair the two old names read as one expand/collapse toggle, so a reader navigating by name
+            had no way to know one of them leaves the page's flow entirely. The name now states the
+            DESTINATION, which is also what §13.10 N4 asks of a verb name. */}
+        <Button intent="ghost" size="icon" aria-label="Open card fullscreen" title="Open card fullscreen" onClick={(): void => setExpanded(true)}>
           <Icon icon={Expand} size="sm" />
         </Button>
         {/* The disclosure — Base UI owns `aria-expanded`/`aria-controls` + the keyboard; the chrome stays the

@@ -376,7 +376,16 @@ function RpgHudCell({
       <Text as="span" voice="gloss" data-slot="rpg-hud-cell-caption" className="max-w-full truncate text-inherit">
         {tab.label}
       </Text>
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute right-0 top-0 text-muted-foreground" /> : null}
+      {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER, not flush in it (side-eye
+          2026-08-16 #94). The rail is full-bleed by ruling (§5.2 — it is the pane's floor and reaches its
+          edges), so the LAST cell's inline-end edge IS the pane's edge: at a 1280px desktop the Map cell's
+          lock glyph MEASURED at x 1268..1280, ending exactly on the viewport edge with zero gutter, reading
+          as a clipped glyph rather than a lock. The gutter is bought INSIDE the cell so the full-bleed ruling
+          stands and every cell's ornament reads the same. LOGICAL (`end-*`), never `right-*` — an ornament
+          pinned to a physical side flips to the wrong corner in RTL. Spelled as a whole literal at each site
+          (not hoisted to a const) because `ui-size-via-variant` reads these class strings statically, and a
+          template hole would hide the sibling `size-1.5` from its allowlist. */}
+      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute end-field top-field text-muted-foreground" /> : null}
       {locked || isActive ? null : <RpgHudCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -385,12 +394,12 @@ function RpgHudCell({
 function RpgHudCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {
   if (count > 0) {
     return (
-      <Badge intent="primary" size="sm" aria-hidden={true} className="absolute right-0 top-0">
+      <Badge intent="primary" size="sm" aria-hidden={true} className="absolute end-field top-field">
         {count}
       </Badge>
     );
   }
   // The boolean form is the same primitive with no content — a features-tier surface never paints a raw
   // element, so the dot is a childless `Badge` sized down, not a styled `<span>`.
-  return dot ? <Badge intent="primary" size="sm" aria-hidden={true} className="absolute right-0 top-0 size-1.5 rounded-full p-0" /> : null;
+  return dot ? <Badge intent="primary" size="sm" aria-hidden={true} className="absolute end-field top-field size-1.5 rounded-full p-0" /> : null;
 }

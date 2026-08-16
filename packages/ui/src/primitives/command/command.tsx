@@ -10,6 +10,7 @@ import {
   useCommandState,
 } from "cmdk";
 import type { ComponentProps, KeyboardEvent, ReactElement, ReactNode } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { cn, formatResultCount } from "#lib";
 import { Icon, Search } from "#primitives/icons";
 import { commandVariants } from "./variants.ts";
@@ -45,14 +46,58 @@ export function Command({ className, onEscape, onKeyDown, ...rest }: CommandProp
 
 export interface CommandInputProps extends Omit<ComponentProps<typeof BaseCommandInput>, "className"> {
   className?: string;
+  /**
+   * Is a `<CommandList>` actually MOUNTED right now? Pass this from any caller that renders its list
+   * conditionally; omit it when the list is always present (the omni-bar shape), where cmdk is already right.
+   *
+   * WHY IT IS A PROP AND NOT AN ATTRIBUTE THE CALLER SPELLS: cmdk hardcodes a literal `true` for
+   * `aria-expanded`, plus its own list id for `aria-controls`, AFTER spreading the caller's props (verified
+   * in the `cmdk@1.1.1` dist bundle), so a call-site `aria-expanded` is silently discarded. That is a fair
+   * default for cmdk's own always-mounted anatomy and a lie for ours: the settings search announced itself
+   * expanded onto a listbox that does not exist until you type (side-eye 2026-08-16).
+   */
+  expanded?: boolean;
 }
 
 /** The search box. The leading glyph is decorative — accessible name comes from aria-label. */
-export function CommandInput({ className, ...rest }: CommandInputProps): ReactElement {
+export function CommandInput({ className, expanded, ...rest }: CommandInputProps): ReactElement {
+  const inputRef = useRef<HTMLInputElement>(null);
+  // cmdk's own `aria-controls` (its list id), remembered so the EXPANDED arm can put it back. It is stable
+  // per Command root, and it is only ever read from the DOM cmdk itself wrote.
+  const listIdRef = useRef<string | null>(null);
+
+  // NO DEP ARRAY, AND BOTH ARMS ACT — the two halves of one correction, each paid for by a measured failure:
+  //   · no deps, because cmdk re-asserts the attributes on every render, so a correction keyed to `expanded`
+  //     would be undone by the next unrelated re-render;
+  //   · an explicit RESTORE, because React's reconciler compares its own previous vnode, not the DOM. cmdk
+  //     renders the literal `true` every time, so once this effect has written `"false"` React sees no prop
+  //     change and never rewrites the attribute — the box stayed collapsed forever (caught by the CT).
+  // `useLayoutEffect` lands both in the same frame as the commit, so no reader samples the wrong value.
+  // `aria-controls` moves WITH `aria-expanded`: a control pointing at an unmounted id is the same defect.
+  // (The `folder-picker` precedent — a ref + setAttribute is how this package states what the vendor will not.)
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (el === null || expanded === undefined) {
+      return;
+    }
+    const current = el.getAttribute("aria-controls");
+    if (current !== null) {
+      listIdRef.current = current;
+    }
+    el.setAttribute("aria-expanded", expanded ? "true" : "false");
+    if (expanded) {
+      if (listIdRef.current !== null) {
+        el.setAttribute("aria-controls", listIdRef.current);
+      }
+      return;
+    }
+    el.removeAttribute("aria-controls");
+  });
+
   return (
     <div className={slots.inputWrapper()} data-slot="command-input-wrapper">
       <Icon icon={Search} size="sm" />
-      <BaseCommandInput className={cn(slots.input(), className)} data-slot="command-input" {...rest} />
+      <BaseCommandInput className={cn(slots.input(), className)} data-slot="command-input" ref={inputRef} {...rest} />
     </div>
   );
 }

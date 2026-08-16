@@ -325,7 +325,7 @@ test("the VIEW-RAW toggle swaps the sandbox for the exact stored source (and bac
 
 test("the EXPAND affordance opens the lightbox dialog labelled by the card title", async ({ mount, page }) => {
   const component = await mount(<MessageContentSpansStory trust="trusted" content={POSTER_CARD_BODY} />);
-  await component.locator('[data-slot="immersive-card"]').getByRole("button", { name: "Expand card" }).click();
+  await component.locator('[data-slot="immersive-card"]').getByRole("button", { name: "Open card fullscreen" }).click();
   const dialog = page.locator('[data-slot="dialog-popup"]');
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('[data-slot="immersive-card-lightbox-header"]')).toContainText("Poster");
