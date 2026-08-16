@@ -35,6 +35,7 @@ import {
   roleRowDrifted,
   SOURCE_LABELS,
 } from "../lib/connections-model.ts";
+import { agentMirrorLabel, staleIdWarning } from "../lib/role-slot-row-helpers.ts";
 import { ModelPicker } from "./model-picker.tsx";
 import { RoleStatusDot } from "./role-status-dot.tsx";
 import { StaticModelDisplay } from "./static-model-display.tsx";
@@ -352,17 +353,6 @@ function ModelCell({
   );
 }
 
-/** The agent mirror's ghost text — chat's stored model, else its source default, else the app default. */
-function agentMirrorLabel(source: string, model: string): string {
-  if (model !== "") {
-    return model;
-  }
-  if (source !== "") {
-    return `${SOURCE_LABELS[source as CredentialSource]} default`;
-  }
-  return "the app default";
-}
-
 /** The agent row's read-only live mirror of Chat — ghosts chat's effective source + model with a "follows Chat ↑" chip. */
 function AgentMirrorRow({ slot, form }: { readonly slot: RoleSlot; readonly form: ConnectionsForm }): ReactElement {
   return (
@@ -387,18 +377,6 @@ function AgentMirrorRow({ slot, form }: { readonly slot: RoleSlot; readonly form
       </form.Subscribe>
     </Row>
   );
-}
-
-/** The stale-stored-id amber advisory: a non-empty stored model not in the source's catalog. `null` when the id is present / free text is allowed / there's no catalog. */
-function staleIdWarning(
-  value: string,
-  result: { readonly models: readonly { readonly id: string }[]; readonly allowsFreeText: boolean } | undefined,
-): string | null {
-  if (value === "" || result === undefined || result.allowsFreeText || result.models.length === 0) {
-    return null;
-  }
-  const present = result.models.some((entry) => entry.id === value);
-  return present ? null : `“${value}” isn't in the catalog — it falls back to the default at run time.`;
 }
 
 /** The chat slot's extra inline knob: the protocol `api` picker, filtered by the live chat source.
