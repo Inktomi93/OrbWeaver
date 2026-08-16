@@ -84,6 +84,12 @@ export function SandboxFrame({
       : { src };
   return (
     <iframe
+      // A DELIVERY FLIP MUST REMOUNT (measured live 2026-08-15): Chromium does not re-process `src` when
+      // `srcdoc` is removed from an already-committed frame — flipping the floor to the routed arm on ONE
+      // element leaves the frame parked at about:blank forever (an opaque sandboxed blank paints WHITE, so
+      // every routed card rendered as a white void). Keying by delivery mounts a fresh element whose `src`
+      // is present at insertion, which navigates. srcdoc-arm content changes stay in-place diffs (reliable).
+      key={src ?? "srcdoc-floor"}
       sandbox={SANDBOX_ATTR}
       {...delivery}
       title={title}
