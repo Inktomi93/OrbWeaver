@@ -4,7 +4,7 @@
 // tool patch on a locked path is dropped.
 
 import { describe } from "vitest";
-import { applyLockedPatch, rebasePatchOntoHead } from "../../../../../packages/server/src/domain/rpg/substrate/merge.ts";
+import { applyLockedPatch, applyLockedPatchTracked, rebasePatchOntoHead } from "../../../../../packages/server/src/domain/rpg/substrate/merge.ts";
 import { actorWithWallet, expect, quest, questId, test } from "../_support.ts";
 
 describe("the [merge-clear] contract", () => {
@@ -282,5 +282,47 @@ describe("rebasePatchOntoHead — replaying an applier's patch onto a head it wa
     const patch = { trackerValues: { hp: 2 }, location: "chapel", plot: { title: "new" } };
     const head = { trackerValues: {}, location: "", plot: null };
     expect(rebasePatchOntoHead(patch, base, head)).toEqual(patch);
+  });
+});
+
+describe("the suppression report (#77)", () => {
+  test("a lock that DROPPED a real change names the path", () => {
+    const out = applyLockedPatchTracked({ location: "the guard post" }, { location: "the ford" }, { location: true });
+    expect(out.state.location).toBe("the guard post"); // manual-edit-wins is unchanged
+    expect(out.suppressed).toEqual(["location"]);
+  });
+
+  test("a CARRIED locked value is NOT a loss — the appliers compose whole planes, and noise trains the reader to skip", () => {
+    // `update_scene` re-emits every ambient field it was handed, so a locked plane the round never meant to
+    // touch arrives in the patch byte-identical. Reporting that would put a line in every turn's disclosure.
+    const out = applyLockedPatchTracked(
+      { location: "the guard post", weather: null },
+      { location: "the guard post", weather: { type: "rain" } },
+      { location: true },
+    );
+    expect(out.suppressed).toEqual([]);
+    expect(out.state.weather).toEqual({ type: "rain" }); // the unlocked sibling still takes the write
+  });
+
+  test("a SUB-FIELD pin names the deep path, not the plane (the #10 grammar, reported at its own depth)", () => {
+    const base = { actorState: [actorWithWallet("gorak", 100, 30)] };
+    const patch = { actorState: [actorWithWallet("gorak", 5, 30)] };
+    const out = applyLockedPatchTracked(base, patch, { "actorState.cast:gorak.volatile.wallet.gold": true });
+    expect(out.suppressed).toEqual(["actorState.cast:gorak.volatile.wallet.gold"]);
+  });
+
+  test("a pinned element the patch REMOVED is a suppressed write too (the removal defense reports)", () => {
+    const base = { quests: [quest("main"), quest("side")] };
+    const patch = { quests: [quest("main")] }; // the round dropped `side`
+    const out = applyLockedPatchTracked(base, patch, { [`quests.${questId("side")}`]: true });
+    expect((out.state.quests as unknown[]).length).toBe(2); // the pin defeated the removal
+    expect(out.suppressed).toEqual([`quests.${questId("side")}`]);
+  });
+
+  test("no locks at all reports nothing, and the untracked entry point is unchanged", () => {
+    const patch = { location: "the ford" };
+    const tracked = applyLockedPatchTracked({ location: "" }, patch, null);
+    expect(tracked.suppressed).toEqual([]);
+    expect(tracked.state).toEqual(applyLockedPatch({ location: "" }, patch, null));
   });
 });

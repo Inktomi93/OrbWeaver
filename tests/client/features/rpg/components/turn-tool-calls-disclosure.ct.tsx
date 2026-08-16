@@ -6,6 +6,8 @@
 //   • the disclosure is COLLAPSED by default (a transcript must not become a debug dump);
 //   • a DROPPED call says so, with the failing field as VISIBLE TEXT — `SCENE-DROPPED` cost a live session
 //     hours because that reason existed nowhere a human could read it;
+//   • an OVERRIDDEN call — well-formed, applied, then partly eaten by the reader's own hand LOCK — reads as
+//     their edit holding rather than as a success, and NAMES the pinned path (#77);
 //   • APPLICABILITY is keyed to the VARIANT, not the message: swiping to a variant with no record renders
 //     NOTHING (not an empty shell) — the swipe-correctness the variantId keying buys;
 //   • a USER row never mounts it at all (`when` refuses);
@@ -30,9 +32,11 @@ const GAME_ROOM = {
   "chat.getChat": (): { readonly rpg: { readonly gameId: string; readonly engaged: boolean } } => ({ rpg: { gameId: "rpg_game_ct", engaged: true } }),
 };
 
-/** A REAL folded turn's call set, in the shape `recordToolCalls` produces — all three verdicts at once,
+/** A REAL folded turn's call set, in the shape the record projection produces — all FOUR verdicts at once,
  *  because the mixed row is the one a user actually has to read. The `update_scene` drop is the live
- *  `SCENE-DROPPED` payload verbatim (an indoor scene against an all-outdoor weather enum). */
+ *  `SCENE-DROPPED` payload verbatim (an indoor scene against an all-outdoor weather enum); the
+ *  `update_inventory` override is the live #77 shape (a host-added item's plane, auto-locked by the hand door,
+ *  eating the model's later write to it). */
 const RECORDED_TURN = [
   {
     variantId: "mv_ct_folded",
@@ -52,14 +56,21 @@ const RECORDED_TURN = [
         verdict: "dropped" as const,
         issues: ['name: Invalid input: expected string — sent "42"'],
       },
+      {
+        name: "update_inventory",
+        args: '{"targetRef":"Nate","items":[{"name":"Coil of rope","location":"belt"}]}',
+        verdict: "overridden" as const,
+        issues: ["locked actorState.user:u_nate.volatile.inventory — your manual edit holds this value"],
+      },
     ],
   },
 ];
 
 // Regex literals hoisted to module scope (biome `useTopLevelRegex`).
 const RE_TRIGGER = /Game actions on this turn/;
-const RE_COUNT_3 = /3/;
+const RE_COUNT_4 = /4/;
 const RE_EXPECTED_STRING = /Invalid input: expected string/;
+const RE_LOCKED_PATH = /locked actorState\.user:u_nate\.volatile\.inventory/;
 
 test("collapsed by default; opening it names each call and whether it landed", async ({ mount, page }) => {
   await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });
@@ -69,14 +80,14 @@ test("collapsed by default; opening it names each call and whether it landed", a
   // §13.10 N3 — stable identity leads, the volatile count is suffixed, so this name survives a count change.
   const trigger = component.getByRole("button", { name: RE_TRIGGER });
   await expect(trigger).toBeVisible();
-  await expect(trigger).toHaveAccessibleName(RE_COUNT_3);
+  await expect(trigger).toHaveAccessibleName(RE_COUNT_4);
 
   // A transcript row must not open as a debug dump.
   await expect(component.getByText("update_scene")).toHaveCount(0);
 
   await trigger.click();
 
-  await expect(component.locator("[data-slot=turn-tool-call]")).toHaveCount(3);
+  await expect(component.locator("[data-slot=turn-tool-call]")).toHaveCount(4);
   await expect(component.getByText("update_party")).toBeVisible();
   await expect(component.getByText("recorded", { exact: true })).toBeVisible();
 });
@@ -94,6 +105,19 @@ test("a DROPPED call says so, and its reason is VISIBLE TEXT (never a hover-only
   // …and the SALVAGED arm names the field the closed vocabulary could not hold.
   await expect(component.getByText("partly recorded")).toBeVisible();
   await expect(component.getByText("update_scene.weather")).toBeVisible();
+});
+
+test("an OVERRIDDEN call reads as the reader's own edit holding, and NAMES the locked path", async ({ mount, page }) => {
+  // #77: the row used to badge this call `recorded` with no reason line at all — a durable claim that a write
+  // landed which no state carries. The badge must not read as success, and the PATH must be on screen: on a
+  // turn with several calls it is the only thing that says which pin ate which write.
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });
+
+  const component = await mount(<TurnToolCallsDisclosureStory />);
+  await component.getByRole("button", { name: RE_TRIGGER }).click();
+
+  await expect(component.getByText("your edit kept")).toBeVisible();
+  await expect(component.getByText(RE_LOCKED_PATH)).toBeVisible();
 });
 
 test("APPLICABILITY is per-VARIANT: the same slot swiped to an unrecorded variant renders nothing", async ({ mount, page }) => {

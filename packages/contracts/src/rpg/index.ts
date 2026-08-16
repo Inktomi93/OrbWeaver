@@ -151,6 +151,7 @@ export {
   healedJournalTypes,
   malformedToolCallDetails,
   malformedToolCalls,
+  markLockSuppressions,
   RPG_NO_CHANGES_TOOL,
   RPG_TOOL_CALL_VERDICTS,
   RPG_TOOL_ROUND_TOOL_NAMES,

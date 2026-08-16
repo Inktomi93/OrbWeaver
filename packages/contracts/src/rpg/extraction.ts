@@ -900,8 +900,16 @@ export function salvagedToolCallFields(calls: readonly RpgToolCall[]): readonly 
 // ever sees what a turn did. That is what this shape is for.
 
 /** What the fold DID with one call. Declared ONCE as a tuple and DERIVED (§5.5) — a new loss class fails
- *  `tsc` at every reader instead of silently rendering as its neighbour. */
-export const RPG_TOOL_CALL_VERDICTS = ["applied", "salvaged", "dropped"] as const;
+ *  `tsc` at every reader instead of silently rendering as its neighbour.
+ *
+ *  THE FOURTH MEMBER IS A DIFFERENT LAYER OF LOSS. `salvaged`/`dropped` are SCHEMA verdicts: the vocabulary
+ *  could not hold what the model sent. `overridden` is a MERGE verdict: the call was well-formed and applied,
+ *  and then a hand LOCK dropped part of the write it produced (`domain/rpg/substrate/merge.ts` — manual-edit-
+ *  wins). Both are real losses the reader is owed, and the record used to report the second one as `applied`.
+ *  Precedence when a call earns more than one, worst first: `dropped`, then `salvaged`, then `overridden`,
+ *  then `applied` — the badge names the loss the reader must act on first, and `issues` carries EVERY reason
+ *  regardless of which verdict won. */
+export const RPG_TOOL_CALL_VERDICTS = ["applied", "salvaged", "dropped", "overridden"] as const;
 export type RpgToolCallVerdict = (typeof RPG_TOOL_CALL_VERDICTS)[number];
 
 /** ONE model-emitted tool call as the record keeps it: the name, the args VERBATIM, and the fold's verdict.
@@ -933,6 +941,38 @@ export function recordToolCalls(calls: readonly RpgToolCall[]): readonly RpgReco
     return fields.length > 0
       ? { name: call.name, args: call.arguments, verdict: "salvaged", issues: fields }
       : { name: call.name, args: call.arguments, verdict: "applied", issues: [] };
+  });
+}
+
+/** One suppressed path as the disclosure says it. The PATH is the load-bearing half — it is what lets a
+ *  reader of a multi-call turn tell which of their pins ate which write. */
+function lockIssue(path: string): string {
+  return `locked ${path} — your manual edit holds this value`;
+}
+
+/** Mark a turn's recorded calls with the writes a hand LOCK suppressed at the merge (#77).
+ *
+ *  WHY IT IS A SEPARATE PASS over {@link recordToolCalls}: the schema verdicts are knowable the instant the
+ *  calls parse, while a lock drop is only knowable after the state is composed and merged — two different
+ *  moments, one row. The flush composes them at record time so the row is written truthful ONCE, never
+ *  written `applied` and corrected later.
+ *
+ *  ATTRIBUTION IS PER-TURN, NOT PER-CALL, AND THAT LIMIT IS DELIBERATE. A round composes every call of the
+ *  turn into ONE state patch (`extractionToStateDelta`), so a suppressed path belongs to that JOINT patch and
+ *  cannot be pinned on one call without a tool→state-plane map that would drift silently from the appliers.
+ *  Every call that CONTRIBUTED to the patch therefore carries the trail, and the path in the issue text is
+ *  what disambiguates. Calls that contributed NOTHING are left alone: a `dropped` call never reached the
+ *  merge, and `no_changes` authors no state by definition — marking either would be a plain lie. */
+export function markLockSuppressions(calls: readonly RpgRecordedToolCall[], suppressedPaths: readonly string[]): readonly RpgRecordedToolCall[] {
+  if (suppressedPaths.length === 0) {
+    return calls; // the ordinary turn — byte-identical to the schema projection
+  }
+  const issues = suppressedPaths.map(lockIssue);
+  return calls.map((call): RpgRecordedToolCall => {
+    if (call.verdict === "dropped" || call.name === RPG_NO_CHANGES_TOOL) {
+      return call;
+    }
+    return { ...call, verdict: call.verdict === "salvaged" ? "salvaged" : "overridden", issues: [...call.issues, ...issues] };
   });
 }
 

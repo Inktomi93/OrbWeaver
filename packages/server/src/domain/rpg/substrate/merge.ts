@@ -14,6 +14,15 @@
 //      locks; tools HONOR them here. A locked path is skipped ENTIRELY (base value survives), so a
 //      hand-edited field can never be overwritten by a later model tool write.
 //
+//   3. THE SUPPRESSION REPORT (#77) — a dropped write is a LOSS, and the surface that shows a turn's tool
+//      calls must be able to say so instead of reporting `applied` about a write no state carries. This
+//      engine is the ONE place a lock actually drops something, so it is the one place that names it: the
+//      tracked entry point collects the dotted paths it suppressed and every caller (the staging accumulator,
+//      the flush's fold) threads them up rather than re-diffing states to guess. A path is reported only when
+//      the write it prevented would have CHANGED the value: the appliers compose WHOLE planes, so a patch
+//      routinely carries a locked value byte-identically, and reporting that as a loss would make the trail
+//      noise the reader learns to skip.
+//
 // Locks are DOTTED PATHS over the merged object (`location`; `quests.<questId>` per §2.5; `inventory.<id>`).
 // A lock on a prefix path drops any patch at or below it (a lock on `quests` protects every quest).
 //
@@ -132,6 +141,34 @@ function isPathLocked(path: string, locks: RpgFieldLocks | null): boolean {
 // A sentinel the per-key resolver returns to mean "skip this key" (distinct from a real `undefined` leaf).
 const SKIP = Symbol("skip");
 
+/** Where a merge pass records the paths a lock DROPPED. `null` = nobody is listening, so the walk does no
+ *  extra work at all (the hot path: every read-through stage and every hand overlay). */
+type SuppressionSink = string[] | null;
+
+/** The ARBITRATION the whole walk carries: whose locks decide, and where the drops are named. One object
+ *  rather than two threaded params, so the hypothetical "what would this write have done" resolve is spelled
+ *  as one lock-free arbitration ({@link UNARBITRATED}) instead of two arguments that could drift apart. */
+interface MergeArbitration {
+  readonly locks: RpgFieldLocks | null;
+  readonly sink: SuppressionSink;
+}
+
+/** No locks, no listener — the arbitration the suppression report resolves its hypothetical under. */
+const UNARBITRATED: MergeArbitration = { locks: null, sink: null };
+
+/** Record `path` as suppressed when the write the lock prevented would actually have changed the value.
+ *  `would` is the value the merge WOULD have produced with no lock at or below this path — computed by
+ *  re-resolving with `locks: null`, because resolving with the locks in hand returns the base unchanged and
+ *  would report nothing at all. Duplicate paths are collapsed: one lock, one line in the trail. */
+function reportSuppression(sink: SuppressionSink, path: string, baseValue: unknown, would: unknown | typeof SKIP): void {
+  if (sink === null || would === SKIP || deepEqual(would, baseValue)) {
+    return;
+  }
+  if (!sink.includes(path)) {
+    sink.push(path);
+  }
+}
+
 /** Does ANY lock sit at or BELOW `path` (`path` itself, or any `path.<deeper>` key)? The removal defense:
  *  a base element carrying a sub-field lock must survive a tool removal, or the pinned value silently dies
  *  with its element. */
@@ -155,10 +192,10 @@ function mergeKeyedArray(args: {
   baseArr: readonly unknown[];
   patchArr: readonly unknown[];
   plane: KeyedPlane;
-  locks: RpgFieldLocks | null;
+  arb: MergeArbitration;
   fieldPath: string;
 }): unknown[] {
-  const { baseArr, patchArr, plane, locks, fieldPath } = args;
+  const { baseArr, patchArr, plane, arb, fieldPath } = args;
   const keyOf = plane.keyOf;
   const baseById = new Map<string, unknown>();
   for (const el of baseArr) {
@@ -176,14 +213,22 @@ function mergeKeyedArray(args: {
       continue;
     }
     seen.add(id);
-    out.push(resolveKeyedElement(baseById.get(id), el, locks, `${fieldPath}.${id}`));
+    out.push(resolveKeyedElement(baseById.get(id), el, arb, `${fieldPath}.${id}`));
   }
   for (const [id, el] of baseById) {
     if (seen.has(id)) {
       continue;
     }
-    if (!plane.omissionRemoves || hasLockAtOrBelow(`${fieldPath}.${id}`, locks)) {
-      out.push(el); // additive plane, or the patch dropped a locked element — keep it (removal defeated)
+    const elPath = `${fieldPath}.${id}`;
+    if (!plane.omissionRemoves) {
+      out.push(el); // ADDITIVE plane: an unnamed element is ignorance, not a removal — nothing was suppressed
+      continue;
+    }
+    if (hasLockAtOrBelow(elPath, arb.locks)) {
+      // The patch REMOVED a pinned element and the lock re-inserted it. That is a suppressed write like any
+      // other (the element's disappearance was the model's intent), so the trail names it.
+      reportSuppression(arb.sink, elPath, undefined, el);
+      out.push(el);
     }
   }
   return out;
@@ -192,18 +237,22 @@ function mergeKeyedArray(args: {
 /** Resolve ONE correlated keyed element: a whole-element lock pins the base (a locked-but-absent base takes
  *  the patch); a base+patch object pair deep-merges per field under the element path (nested locks bite —
  *  the #10 per-field pin); anything else takes the patch element as-is. */
-function resolveKeyedElement(base: unknown, el: unknown, locks: RpgFieldLocks | null, elPath: string): unknown {
-  if (isPathLocked(elPath, locks)) {
-    return base ?? el;
+function resolveKeyedElement(base: unknown, el: unknown, arb: MergeArbitration, elPath: string): unknown {
+  if (isPathLocked(elPath, arb.locks)) {
+    if (base === undefined) {
+      return el; // locked-but-absent: there is no pinned value to defend, so the patch element lands
+    }
+    reportSuppression(arb.sink, elPath, base, isPlainObject(base) && isPlainObject(el) ? mergeAt(base, el, UNARBITRATED, elPath) : el);
+    return base;
   }
   if (isPlainObject(base) && isPlainObject(el)) {
-    return mergeAt(base, el, locks, elPath);
+    return mergeAt(base, el, arb, elPath);
   }
   return el;
 }
 
 /** Resolve ONE patch value against its base per the [merge-clear] contract (locks handled by the caller). */
-function resolveValue(baseValue: unknown, value: unknown, locks: RpgFieldLocks | null, path: string): unknown | typeof SKIP {
+function resolveValue(baseValue: unknown, value: unknown, arb: MergeArbitration, path: string): unknown | typeof SKIP {
   if (value === undefined) {
     return SKIP; // omit = keep
   }
@@ -213,7 +262,7 @@ function resolveValue(baseValue: unknown, value: unknown, locks: RpgFieldLocks |
   if (Array.isArray(value)) {
     const plane = KEYED_ARRAYS[lastSegment(path)];
     if (plane !== undefined && Array.isArray(baseValue)) {
-      return mergeKeyedArray({ baseArr: baseValue, patchArr: value, plane, locks, fieldPath: path }); // keyed: element-lock grammar
+      return mergeKeyedArray({ baseArr: baseValue, patchArr: value, plane, arb, fieldPath: path }); // keyed: element-lock grammar
     }
     return value; // unkeyed array = wholesale replace
   }
@@ -221,21 +270,25 @@ function resolveValue(baseValue: unknown, value: unknown, locks: RpgFieldLocks |
     if (Object.keys(value).length === 0) {
       return SKIP; // `{}` = no-op (leaf preserved), NOT a reset
     }
-    return isPlainObject(baseValue) ? mergeAt(baseValue, value, locks, path) : value;
+    return isPlainObject(baseValue) ? mergeAt(baseValue, value, arb, path) : value;
   }
   return value; // primitive = replace
 }
 
 /** The [merge-clear] deep merge, lock-honoring. Recurses plain objects, dropping locked paths and applying
- *  the `{}`-noop / `null`-clear contract. `prefix` accumulates the dotted lock path. */
-function mergeAt(base: Record<string, unknown>, patch: Record<string, unknown>, locks: RpgFieldLocks | null, prefix: string): Record<string, unknown> {
+ *  the `{}`-noop / `null`-clear contract. `prefix` accumulates the dotted lock path; `sink` collects what the
+ *  locks dropped (rule 3 above) and is `null` when nobody asked. */
+function mergeAt(base: Record<string, unknown>, patch: Record<string, unknown>, arb: MergeArbitration, prefix: string): Record<string, unknown> {
   const merged: Record<string, unknown> = { ...base };
   for (const [key, value] of Object.entries(patch)) {
     const path = prefix === "" ? key : `${prefix}.${key}`;
-    if (isPathLocked(path, locks)) {
-      continue; // manual-edit-wins: a locked path never yields to a tool write
+    if (isPathLocked(path, arb.locks)) {
+      // manual-edit-wins: a locked path never yields to a tool write. The lock-free resolve is the hypothetical
+      // "what this write wanted" — the sink keeps it only when it differs from what the base already holds.
+      reportSuppression(arb.sink, path, merged[key], resolveValue(merged[key], value, UNARBITRATED, path));
+      continue;
     }
-    const resolved = resolveValue(merged[key], value, locks, path);
+    const resolved = resolveValue(merged[key], value, arb, path);
     if (resolved !== SKIP) {
       merged[key] = resolved;
     }
@@ -247,7 +300,28 @@ function mergeAt(base: Record<string, unknown>, patch: Record<string, unknown>, 
  *  contract. `base`/`patch` are the composed snapshot state as plain JSON (the accumulator's overlay unit);
  *  `fieldLocks` rides on the state. Returns a NEW object (base untouched). */
 export function applyLockedPatch<T extends Record<string, unknown>>(base: T, patch: Record<string, unknown>, fieldLocks: RpgFieldLocks | null): T {
-  return mergeAt(base, patch, fieldLocks, "") as T;
+  return mergeAt(base, patch, { locks: fieldLocks, sink: null }, "") as T;
+}
+
+/** What one lock-honoring merge produced AND what its locks cost (rule 3): the merged state plus the dotted
+ *  paths whose writes the locks dropped. */
+export interface LockedPatchOutcome<T> {
+  readonly state: T;
+  /** Deduplicated, in the order the walk met them. EMPTY when no lock bit — the byte-identical ordinary turn. */
+  readonly suppressed: readonly string[];
+}
+
+/** {@link applyLockedPatch} with the suppression report (#77). The two writers that must answer "what did this
+ *  turn lose to a hand edit" — the staging accumulator and the flush's fold — call THIS one, so the answer is
+ *  observed where the drop happens instead of re-derived from a state diff that cannot tell a lock from a
+ *  model that never wrote. */
+export function applyLockedPatchTracked<T extends Record<string, unknown>>(
+  base: T,
+  patch: Record<string, unknown>,
+  fieldLocks: RpgFieldLocks | null,
+): LockedPatchOutcome<T> {
+  const suppressed: string[] = [];
+  return { state: mergeAt(base, patch, { locks: fieldLocks, sink: suppressed }, "") as T, suppressed };
 }
 
 // ── REBASING A PATCH ONTO A DIFFERENT HEAD (HAND-EDIT-VS-FLUSH) ───────────────────────────────────

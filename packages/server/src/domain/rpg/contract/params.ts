@@ -75,6 +75,10 @@ export interface StagedTurnFlush {
    *  round's delta — each carrying the state it was composed against. Replayed in the same order by the fold,
    *  so the composition is identical to `state`'s. */
   readonly patches: readonly StagedPatch[];
+  /** The dotted paths this turn's writes lost to the base's hand LOCKS while staging (#77) — observed at the
+   *  merge, never re-derived. The flush unions them with the fold's own losses onto the turn's tool-call
+   *  record, so a suppressed write is disclosed instead of reported as `applied`. */
+  readonly suppressedByLocks: readonly string[];
 }
 
 /** ONE staged write, PAIRED WITH THE STATE IT WAS COMPOSED AGAINST — the unit the flush's fold rebases.
