@@ -37,10 +37,36 @@ test("snap parses one multi-page evidence run without losing page targets", () =
 
   expect(args.errors).toEqual([]);
   expect(args.route).toBe("/chats");
-  expect(args.steps).toEqual([{ kind: "click", selector: "[aria-label=Open]", page: 1 }]);
+  expect(args.actions).toEqual([{ type: "step", action: { kind: "click", selector: "[aria-label=Open]", page: 1 } }]);
   expect(args.eval).toEqual([{ expr: "document.title", page: 0 }]);
   expect(args.ariaSelector).toBe("main");
   expect(args.ariaPage).toBe(1);
+});
+
+test("bridge navs and interaction steps land in ONE queue in TRUE argv order", () => {
+  // The live failure this pins: with navs run as a CLASS before the steps, this chain asked the LANDING
+  // page for the rpg.game tab (the room did not exist yet) and the final click then timed out.
+  const args = parseSnapArgs(["/", "--goto", "modal:newChat", "--click", "[data-create]", "--context-tab", "rpg.game", "--click", "D20 adventure"]);
+
+  expect(args.errors).toEqual([]);
+  expect(args.actions).toEqual([
+    { type: "nav", action: { kind: "goto", target: "modal:newChat", page: 0 } },
+    { type: "step", action: { kind: "click", selector: "[data-create]", page: 0 } },
+    { type: "nav", action: { kind: "context-tab", target: "rpg.game", page: 0 } },
+    { type: "step", action: { kind: "click", selector: "D20 adventure", page: 0 } },
+  ]);
+});
+
+test("the @page suffix stamps BOTH queue kinds, and an out-of-range nav target is still refused", () => {
+  const args = parseSnapArgs(["/", "--pages", "2", "--open-chat@1", "current", "--click@0", "main", "--goto@1", "presets"]);
+
+  expect(args.errors).toEqual([]);
+  expect(args.actions.map((entry) => [entry.type, entry.action.page])).toEqual([
+    ["nav", 1],
+    ["step", 0],
+    ["nav", 1],
+  ]);
+  expect(parseSnapArgs(["--open-chat@3", "current"]).errors).toContain("page target @3 is out of range for pages=1");
 });
 
 test("snap rejects unknown flags and multiple routes instead of silently choosing a run", () => {
@@ -188,7 +214,7 @@ test("snap help exits cleanly without starting Chromium", () => {
   expect(result.stdout).toContain("snap — one browser run, many pieces of UI evidence");
   expect(result.stdout).toContain("--contexts <N>");
   expect(result.stdout).toContain("--watch <totalMs>");
-  expect(result.stdout).toContain("--open-chat <id|title|latest>");
+  expect(result.stdout).toContain("--open-chat <id|title|latest|current>");
 });
 
 test("snap CLI exits 2 for misuse before starting Chromium", () => {

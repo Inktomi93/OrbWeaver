@@ -174,12 +174,17 @@ export interface OrbNavHandle {
    *  ambiguity, and — when a tabbed context surface is mounted — an unknown name. Otherwise it opens the
    *  panel AND sets the stable id, so the switch is visible rather than a silently-ignored request. */
   readonly contextTab: (name: string) => NavResult;
-  /** Switch to the Chats section + make an existing chat active by chat id OR exact display title, OR the
-   *  positional sentinels `"first"`/`"latest"` (the list's TOP row — `listChats` is newest-updated-first, so
-   *  both spellings name the most recent chat; a chat actually titled that is reachable by id). Resolves
-   *  against the chat-list query cache (fetching it first if not loaded). Rejects loudly on no match, an
-   *  ambiguous title, or an empty list. The section switch is part of the arm: reporting `ok` for a
-   *  selection nothing on screen reflects is a lie a caller cannot detect. */
+  /** Switch to the Chats section + make an existing chat active by chat id OR exact display title, OR one of
+   *  the sentinels reported by `capabilities().chatPositions`:
+   *    · `"first"`/`"latest"` — the chat LIST's top row (`listChats` is newest-updated-first, so both
+   *      spellings name the most recent LISTED chat). Rejects on an empty list.
+   *    · `"current"` — the ACTIVE room, read off the session's active-chat pointer with no list query in the
+   *      path. Use this, not `latest`, right after creating a room: a fresh room is an unlisted husk until
+   *      the list query refetches, so `latest` would name a different chat. Rejects on the landing surface.
+   *  All three are RESERVED WORDS — a chat actually titled one of them is reachable by its id. The id/title
+   *  arms resolve against the chat-list query cache (fetching it first if not loaded) and reject loudly on
+   *  no match or an ambiguous title. The section switch is part of the arm: reporting `ok` for a selection
+   *  nothing on screen reflects is a lie a caller cannot detect. */
   readonly openChat: (idOrTitleOrPosition: string) => Promise<NavResult>;
   /** Switch to the Characters section + select a character by id OR name — resolves against the character
    *  list query. Rejects loudly on no match OR an ambiguous name. */

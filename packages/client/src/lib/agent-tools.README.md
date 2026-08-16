@@ -45,13 +45,14 @@ refusal, never a silent no-op. ids validate against the canonical tuples (`SECTI
 | `__orb.nav.openModal(slot)` | open a rail modal (`MODAL_SLOT_IDS`) |
 | `__orb.nav.openSettings(category)` | open Settings at a category (`SETTINGS_CATEGORY_IDS`) |
 | `__orb.nav.contextTab(name)` | ask the active surface's context panel to open a named tab |
-| `__orb.nav.openChat(idOrTitle)` | *(async)* switch to the Chats section + make a chat active by chat id OR exact display title OR the positional sentinels `"first"`/`"latest"` (the list's top row = the most-recently-updated chat; a chat literally titled that is reachable by id) — resolves against the chat-list query cache, fetching it if cold. REFUSES (`ok:false`) on an AMBIGUOUS title matching >1 chat (pass the id) or an empty list |
+| `__orb.nav.openChat(idOrTitle)` | *(async)* switch to the Chats section + make a chat active by chat id OR exact display title OR one of the sentinels in `capabilities().chatPositions`: `"first"`/`"latest"` (the LIST's top row = the most-recently-updated LISTED chat) and `"current"` (the ACTIVE room, read off the session pointer with no list query — the one to use right after CREATING a room, since a fresh room is an unlisted husk and `latest` would name a different chat). All three are reserved words: a chat literally titled one of them is reachable by id. The id/title arms resolve against the chat-list query cache, fetching it if cold. REFUSES (`ok:false`) on an AMBIGUOUS title matching >1 chat (pass the id), an empty list, or — for `"current"` — nothing open |
 | `__orb.nav.openCharacter(idOrName)` | *(async)* switch to the Characters section + select a character by id OR name — resolves against `character.list`, same store action a library-row click calls (`selectCharacter`). Same ambiguity refusal on a name matching >1 character |
 | `__orb.nav.closeModal()` | close any open modal |
 
-`pnpm snap` wraps these as `--goto <section|settings:cat|modal:slot>`, `--open-chat <idOrTitle>`,
-`--open-character <idOrName>`, `--context-tab <name>` (run before the regular steps; a `{ok:false}` reddens
-the exit). Add `--checkpoint` to reset `__orb` evidence after readiness and scope console/page-error
+`pnpm snap` wraps these as `--goto <section|settings:cat|modal:slot>`,
+`--open-chat <idOrTitle|first|latest|current>`, `--open-character <idOrName>`, `--context-tab <name>`. They
+are INTERLEAVED with the `--click`/`--fill` steps in TRUE argv order — a nav written mid-chain runs
+mid-chain, against whatever the preceding steps produced — and a `{ok:false}` reddens the exit. Add `--checkpoint` to reset `__orb` evidence after readiness and scope console/page-error
 verdicts to those actions. The JSON keeps the complete boot log under `console` and the interaction-only
 window under `evidence`, so neither phase can contaminate or erase the other.
 

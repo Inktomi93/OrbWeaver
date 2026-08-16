@@ -167,10 +167,14 @@
  *   FFMPEG_BIN env overrides.
  *
  *   SPA NAVIGATION — the app has only 2 URL routes (/, /login); every surface is CLIENT STATE. Instead of
- *   click-chaining to a section, drive the app's dev nav bridge (window.__orb.nav) directly. These run
- *   BEFORE the regular --click/--fill steps (and before captures), so one call reaches AND inspects a
- *   surface. Each FAILS the run loudly (reddens exit, prints NAV FAILED) on a bad id or a missing bridge —
- *   never a silent no-op.
+ *   click-chaining to a section, drive the app's dev nav bridge (window.__orb.nav) directly. Nav flags are
+ *   INTERLEAVED WITH THE STEPS IN TRUE ARGV ORDER (they were class-grouped and run first until 2026-08-15 —
+ *   a mid-chain --context-tab silently ran against the LANDING page before its room existed, and the next
+ *   click timed out). Write the chain the way it should happen and it happens that way; every documented
+ *   example below writes its navs first, and for those the execution is byte-identical to the old order.
+ *   All of them still run BEFORE the captures (--map/--aria/--eval/--contrast/assertions), so one call
+ *   reaches AND inspects a surface. Each FAILS the run loudly (reddens exit, prints NAV FAILED) on a bad
+ *   id or a missing bridge — never a silent no-op.
  *   pnpm snap / --goto presets --map        # switch the rail to a section, then map it — no click chain
  *   pnpm snap / --goto settings:appearance --aria   # open Settings on a category (settings:<category>)
  *   pnpm snap / --goto modal:theme --shot-of '[role=dialog]'   # open a rail modal (modal:<slot>)
@@ -184,6 +188,18 @@
  *                                          # caller stops needing an id/title to reach "the chat I was just
  *                                          # in". Reserved words: a chat literally titled "latest" is
  *                                          # reachable by its id. Refuses on an empty chat list.
+ *   pnpm snap / --open-chat current --text  # SESSION: the room the app is showing RIGHT NOW, read off the
+ *                                          # active-chat pointer with NO list query in the path. Use this,
+ *                                          # never "latest", after CREATING a room in the same chain: a
+ *                                          # fresh room is an unlisted husk until the chat-list query
+ *                                          # refetches, so "latest" names a DIFFERENT chat (2026-08-15: a
+ *                                          # probe message landed in the wrong room that way). Reserved
+ *                                          # word like its siblings; refuses loudly when nothing is open.
+ *   pnpm snap / --goto modal:newChat --click 'role=button[name="Create chat"]' \
+ *               --open-chat current --context-tab rpg.game --text
+ *                                          # MID-CHAIN NAV: the nav flags run where they are WRITTEN, so
+ *                                          # this opens the picker, creates the room, makes the new room
+ *                                          # active, and only then asks THAT room's panel for a tab.
  *   pnpm snap / --open-character Rev --aria # switch to Characters + select a character by id OR name
  *                                          # (resolves against character.list). Same ambiguity refusal:
  *                                          # a name matching >1 character is rejected — pass the id.
@@ -411,13 +427,23 @@ type StepAction =
   | { kind: "waitfor"; selector: string };
 type Step = StepAction & { page: number };
 
-// --goto / --open-chat / --context-tab: SPA navigation via the app's dev nav bridge (window.__orb.nav),
-// run BEFORE the regular steps. `target` is the raw flag value; the kind picks the __orb.nav method.
+// --goto / --open-chat / --open-character / --context-tab: SPA navigation via the app's dev nav bridge
+// (window.__orb.nav). `target` is the raw flag value; the kind picks the __orb.nav method. These are
+// INTERLEAVED with the interaction steps in one argv-ordered queue (see SnapAction) — a nav in the middle
+// of a chain runs where it was written, not before the chain.
 type NavAction =
   | { kind: "goto"; target: string; page: number }
   | { kind: "open-chat"; target: string; page: number }
   | { kind: "open-character"; target: string; page: number }
   | { kind: "context-tab"; target: string; page: number };
+
+/** ONE argv-ordered queue of everything that DRIVES the page before capture: bridge navigations and
+ *  interaction steps, tagged by which they are. A flat command reads as ordered, so it must BE ordered —
+ *  the old shape kept two arrays and ran every nav before every step as a CLASS, which silently reordered
+ *  `--goto modal:newChat --click <create> --context-tab rpg.game` into a context-tab against the landing
+ *  page (2026-08-15, one live chain lost to it). Both members carry `.action.page`, so per-page filtering
+ *  for `--pages @<idx>` reads the same on either. */
+export type SnapAction = { readonly type: "nav"; readonly action: NavAction } | { readonly type: "step"; readonly action: Step };
 
 // A per-page eval/contrast keeps its argv-order expr/selector plus the target page.
 type PagedExpr = { expr: string; page: number };
@@ -463,15 +489,13 @@ export type Args = {
    *  Defaults to env DEBUG_TOKEN if set; `--debug-token …` overrides; empty skips the
    *  seed. The token never leaves the headless context. */
   debugToken: string;
-  /** Pre-shot interaction steps, executed in argv order. Each waits for its selector
-   *  (5s) then acts; failures are REPORTED (and fail the exit code) but don't abort —
-   *  you still get a PNG of wherever the page ended up. A `@<idx>` flag suffix targets a
-   *  --pages tab (`--click@1 …`); unprefixed = page 0. */
-  steps: Step[];
-  /** SPA navigation via the app's dev nav bridge (`__orb.nav`), run BEFORE steps so
-   *  `--goto presets --map` maps the presets surface in one call. Fails the step loudly
-   *  (reddens exit) on a rejected target. Carries a `@<idx>` page suffix like steps. */
-  navActions: NavAction[];
+  /** THE pre-capture drive queue: interaction steps (--click/--fill/--hover/--press/--jsclick/--key/
+   *  --wait-for) and dev-bridge navigations (--goto/--open-chat/--open-character/--context-tab) in ONE
+   *  list, executed in TRUE argv order — a nav written mid-chain runs mid-chain. Each step waits for its
+   *  selector (5s) then acts; each nav waits for app-readiness + the bridge then calls `__orb.nav`.
+   *  Failures are REPORTED (and redden the exit code) but don't abort — you still get a PNG of wherever
+   *  the page ended up. A `@<idx>` flag suffix targets a --pages tab (`--click@1 …`); unprefixed = page 0. */
+  actions: SnapAction[];
   /** How many pages (tabs) to open in ONE shared browser context (shared auth/localStorage).
    *  Default 1 (byte-identical single-page path). Steps/captures target a tab via `@<idx>`. */
   pages: number;
@@ -585,10 +609,19 @@ export type Args = {
 
 // ── Flag dispatch ───────────────────────────────────────────────────────────
 // One handler per flag (Record dispatch, house style) — each consumes what it
-// needs from `rest`. Repeatable flags push; order-sensitive steps land in
-// args.steps in argv order. `page` is the --pages tab index parsed off a `@<idx>`
-// flag suffix (0 when unprefixed / single-page) — steps + per-page captures stamp it.
+// needs from `rest`. Repeatable flags push; every order-sensitive drive flag (step OR
+// bridge nav) lands in the ONE args.actions queue in argv order. `page` is the --pages
+// tab index parsed off a `@<idx>` flag suffix (0 when unprefixed / single-page) —
+// queued actions + per-page captures stamp it.
 type FlagHandler = (args: Args, rest: string[], page: number) => void;
+
+function pushStep(args: Args, step: Step): void {
+  args.actions.push({ type: "step", action: step });
+}
+
+function pushNav(args: Args, action: NavAction): void {
+  args.actions.push({ type: "nav", action });
+}
 // A `@<idx>` suffix on a flag (`--click@1`, `--eval@0`, `--aria@2`) selects a --pages tab — parsed by
 // splitPageSuffix (_kit/flags.ts, unit-tested there).
 
@@ -675,21 +708,21 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
     a.debugToken = rest.shift() ?? "";
   },
   "--click": (a, rest, page) => {
-    a.steps.push({ kind: "click", selector: rest.shift() ?? "", page });
+    pushStep(a, { kind: "click", selector: rest.shift() ?? "", page });
   },
   // In-page el.click() — bypasses Playwright's actionability checks for
   // stubborn targets (icon divs under overlay stacks).
   "--jsclick": (a, rest, page) => {
-    a.steps.push({ kind: "jsclick", selector: rest.shift() ?? "", page });
+    pushStep(a, { kind: "jsclick", selector: rest.shift() ?? "", page });
   },
   // Hover the target's position then FORCE-click — for hover-revealed controls
   // (group-hover kebabs/toolbars stay actionability-invisible) and Radix
   // triggers that want real pointer events but fail visibility checks.
   "--press": (a, rest, page) => {
-    a.steps.push({ kind: "press", selector: rest.shift() ?? "", page });
+    pushStep(a, { kind: "press", selector: rest.shift() ?? "", page });
   },
   "--hover": (a, rest, page) => {
-    a.steps.push({ kind: "hover", selector: rest.shift() ?? "", page });
+    pushStep(a, { kind: "hover", selector: rest.shift() ?? "", page });
   },
   // FIRST '=' splits (localStorage keys never contain '='; JSON values often do).
   "--ls": (a, rest) => {
@@ -701,33 +734,33 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   // --fill "selector=value" — LAST '=' splits (selectors contain '=').
   "--fill": (a, rest, page) => {
     const s = splitLastEq(rest.shift() ?? "");
-    a.steps.push({ kind: "fill", selector: s.head, value: s.tail, page });
+    pushStep(a, { kind: "fill", selector: s.head, value: s.tail, page });
   },
   // --key "selector=KeyName" (LAST '=' splits; default Enter). Pairs with --fill to
   // COMMIT a search box: `--fill 'input=q' --key 'input=Enter'` snaps a results view.
   "--key": (a, rest, page) => {
     const s = splitLastEq(rest.shift() ?? "");
-    a.steps.push({ kind: "key", selector: s.head, key: s.tail === "" ? "Enter" : s.tail, page });
+    pushStep(a, { kind: "key", selector: s.head, key: s.tail === "" ? "Enter" : s.tail, page });
   },
   // A POST-STEP wait (vs the page-load `--wait`): waits for `selector` to ATTACH at
   // this point in the step sequence — for content that appears AFTER an interaction.
   // "attached" not "visible": the visibility check false-negatives on full-bleed-
   // modal / portal content that IS painted — pair with `--shot-of`.
   "--wait-for": (a, rest, page) => {
-    a.steps.push({ kind: "waitfor", selector: rest.shift() ?? "", page });
+    pushStep(a, { kind: "waitfor", selector: rest.shift() ?? "", page });
   },
-  // ── SPA navigation (dev nav bridge __orb.nav) — runs BEFORE the regular steps ──
+  // ── SPA navigation (dev nav bridge __orb.nav) — queued INLINE with the steps, argv order ──
   "--goto": (a, rest, page) => {
-    a.navActions.push({ kind: "goto", target: rest.shift() ?? "", page });
+    pushNav(a, { kind: "goto", target: rest.shift() ?? "", page });
   },
   "--open-chat": (a, rest, page) => {
-    a.navActions.push({ kind: "open-chat", target: rest.shift() ?? "", page });
+    pushNav(a, { kind: "open-chat", target: rest.shift() ?? "", page });
   },
   "--open-character": (a, rest, page) => {
-    a.navActions.push({ kind: "open-character", target: rest.shift() ?? "", page });
+    pushNav(a, { kind: "open-character", target: rest.shift() ?? "", page });
   },
   "--context-tab": (a, rest, page) => {
-    a.navActions.push({ kind: "context-tab", target: rest.shift() ?? "", page });
+    pushNav(a, { kind: "context-tab", target: rest.shift() ?? "", page });
   },
   "--pages": (a, rest) => {
     a.pages = Math.max(1, Number(rest.shift() ?? "1") || 1);
@@ -984,10 +1017,12 @@ Assertions and reports:
   --checkpoint                      reset __orb evidence after readiness; scope console verdicts to actions
   --include-hidden                  include Activity/hidden DOM in map, CSS, and counts
 
-Interaction:
+Interaction (steps and __orb nav flags run in TRUE argv order — a nav written mid-chain runs mid-chain):
   --click <selector>      --fill <selector=value>  --key <selector=Key>
   --hover <selector>      --wait-for <selector>    --goto <target>
-  --open-chat <id|title|latest>     --open-character <id>     --context-tab <tab>
+  --open-chat <id|title|latest|current>   --open-character <id>     --context-tab <tab>
+    latest = the chat list's top row; current = the room open right now (no list query — the one to
+    use after creating a room, since a fresh room is unlisted until the list refetches)
   --watch <totalMs> [--every <ms>]  poll evals and optional screenshots over time
   Add @N to a page-targeted flag with --pages N, for example --click@1.
 
@@ -1123,8 +1158,7 @@ function scanArgv(argv: readonly string[]): string[] {
 
 function targetedPages(args: Args): number[] {
   return [
-    ...args.steps.map((step) => step.page),
-    ...args.navActions.map((action) => action.page),
+    ...args.actions.map((entry) => entry.action.page),
     ...args.eval.map((entry) => entry.page),
     ...args.contrast.map((entry) => entry.page),
     ...args.assertions.map((assertion) => assertion.page),
@@ -1200,8 +1234,7 @@ export function parseSnapArgs(argv: string[]): Args {
     base: DEFAULT_BASE,
     fullPage: false,
     debugToken: DEFAULT_DEBUG_TOKEN,
-    steps: [],
-    navActions: [],
+    actions: [],
     pages: 1,
     contexts: 1,
     as: null,
@@ -1347,7 +1380,7 @@ async function navigate(page: Page, opts: Args, url: string): Promise<string | n
   return navError;
 }
 
-// One step, one wait discipline. Throws on failure; runSteps counts + reports.
+// One step, one wait discipline. Throws on failure; driveStep counts + reports.
 async function runStep(page: Page, step: Step): Promise<void> {
   const loc = page.locator(step.selector).first();
   if (step.kind === "waitfor") {
@@ -1381,40 +1414,39 @@ async function runStep(page: Page, step: Step): Promise<void> {
   }
 }
 
-async function runSteps(page: Page, steps: readonly Step[]): Promise<number> {
-  let failures = 0;
-  for (const step of steps) {
-    try {
-      // biome-ignore lint/performance/noAwaitInLoops: interaction steps are SEQUENTIAL by contract — argv order, each step may reveal the next step's target.
-      await runStep(page, step);
-      await settle(page, STEP_SETTLE_MS);
-    } catch (e) {
-      const msg = errorMessage(e);
-      // Dev-server churn (HMR/restart/5xx) tears down the realm mid-run — say so distinctly and give the
-      // step ONE retry after a settle, rather than reporting an environmental blip as an app failure.
-      if (isContextChurn(msg)) {
-        print(`${CHURN_LINE} — retrying: ${step.kind} ${step.selector}`);
-        try {
-          await settle(page, STEP_SETTLE_MS);
-          await runStep(page, step);
-          continue;
-        } catch (retryErr) {
-          failures += 1;
-          print(`STEP FAILED (after churn retry)  ${step.kind} ${step.selector}: ${errorMessage(retryErr)}`);
-          continue;
-        }
+// One step attempt + its settle. Returns the failure count (0 or 1) and prints its own reason —
+// a failing step never aborts the run, so the caller still gets a PNG of wherever the page ended up.
+async function driveStep(page: Page, step: Step): Promise<number> {
+  try {
+    await runStep(page, step);
+    await settle(page, STEP_SETTLE_MS);
+    return 0;
+  } catch (e) {
+    const msg = errorMessage(e);
+    // Dev-server churn (HMR/restart/5xx) tears down the realm mid-run — say so distinctly and give the
+    // step ONE retry after a settle, rather than reporting an environmental blip as an app failure.
+    if (isContextChurn(msg)) {
+      print(`${CHURN_LINE} — retrying: ${step.kind} ${step.selector}`);
+      try {
+        await settle(page, STEP_SETTLE_MS);
+        await runStep(page, step);
+        return 0;
+      } catch (retryErr) {
+        print(`STEP FAILED (after churn retry)  ${step.kind} ${step.selector}: ${errorMessage(retryErr)}`);
+        return 1;
       }
-      failures += 1;
-      print(`STEP FAILED  ${step.kind} ${step.selector}: ${msg}`);
     }
+    print(`STEP FAILED  ${step.kind} ${step.selector}: ${msg}`);
+    return 1;
   }
-  return failures;
 }
 
 // ── SPA navigation via the app's dev nav bridge (__orb.nav) ──────────────────
-// Each --goto/--open-chat/--context-tab awaits app-readiness + __orb.ready, invokes the matching
-// __orb.nav method IN-PAGE, and FAILS loudly (reddens exit like a STEP FAILED) on {ok:false} or a
-// missing bridge. Runs BEFORE the regular steps so `--goto presets --map` maps the presets surface.
+// Each --goto/--open-chat/--open-character/--context-tab awaits app-readiness + __orb.ready, invokes the
+// matching __orb.nav method IN-PAGE, and FAILS loudly (reddens exit like a STEP FAILED) on {ok:false} or a
+// missing bridge. Runs at its OWN position in the argv-ordered drive queue (driveActions) — write
+// `--goto presets --map` and the presets surface is what gets mapped; write a nav after a --click and it
+// runs after that click, against whatever the click produced.
 // __orb is dev-only (installAgentDebugHandle gates on IS_DEV) — a prod/old build with no bridge fails
 // the action with a clear reason rather than silently no-op'ing.
 const NAV_METHOD: Record<Exclude<NavAction["kind"], "goto">, string> = {
@@ -1439,34 +1471,49 @@ function buildNavScript(action: NavAction): string {
 
 type NavResultShape = { ok: boolean; reason?: string };
 
-// Run one page's nav actions in argv order; returns the failure count (each failure prints + reddens exit).
-async function runNavActions(page: Page, actions: readonly NavAction[]): Promise<number> {
-  let failures = 0;
-  for (const action of actions) {
-    // Every nav action needs the app hydrated AND the bridge installed — wait on both, gracefully bounded.
-    // biome-ignore lint/performance/noAwaitInLoops: nav actions are argv-ordered and each may depend on the prior surface being live (open a modal, then a settings pane) — sequential by contract.
-    await page
-      .locator("html[data-app-ready]")
-      .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
-      .catch(() => undefined);
-    let result: NavResultShape;
-    try {
-      // (Awaits below share the loop's one noAwaitInLoops suppression above — sequential by contract:
-      // the bridge must be ready, then the nav call + its store write must settle before the next action.)
-      await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
-      result = (await page.evaluate(buildNavScript(action))) as NavResultShape;
-    } catch (e) {
-      failures += 1;
-      print(`NAV FAILED  ${action.kind} ${action.target}: ${errorMessage(e)}`);
-      continue;
+// One nav action + its settle. Returns the failure count (0 or 1); each failure prints + reddens exit.
+async function driveNav(page: Page, action: NavAction): Promise<number> {
+  // Every nav action needs the app hydrated AND the bridge installed — wait on both, gracefully bounded.
+  await page
+    .locator("html[data-app-ready]")
+    .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
+    .catch(() => undefined);
+  let result: NavResultShape;
+  try {
+    await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
+    result = (await page.evaluate(buildNavScript(action))) as NavResultShape;
+  } catch (e) {
+    print(`NAV FAILED  ${action.kind} ${action.target}: ${errorMessage(e)}`);
+    return 1;
+  }
+  if (!result.ok) {
+    print(`NAV FAILED  ${action.kind} ${action.target}: ${result.reason ?? "rejected"}`);
+    return 1;
+  }
+  // Let the store write + view transition settle before the next action / the shot.
+  await settle(page, STEP_SETTLE_MS);
+  return 0;
+}
+
+/** Nav and step failures are counted SEPARATELY (they surface as distinct RESULT fields and distinct
+ *  manifest counters) even though the two run from one queue. */
+type DriveFailures = { navFailures: number; stepFailures: number };
+
+// THE drive loop: one page's queued actions — bridge navs and interaction steps alike — in TRUE argv
+// order. Interleaving is the contract, not an implementation detail: a flat command line reads as
+// ordered, so `--goto modal:newChat --click <create> --context-tab rpg.game --click <row>` must open the
+// modal, click create, THEN ask the resulting room for its tab. The old class-grouped shape ran both navs
+// first, so the context-tab hit the landing page and the last click timed out against a room that did not
+// exist yet (2026-08-15). Failures never abort — the capture below still reports where the page ended up.
+async function driveActions(page: Page, actions: readonly SnapAction[]): Promise<DriveFailures> {
+  const failures: DriveFailures = { navFailures: 0, stepFailures: 0 };
+  for (const entry of actions) {
+    if (entry.type === "nav") {
+      // biome-ignore lint/performance/noAwaitInLoops: the drive queue is SEQUENTIAL by contract — argv order, and each action (either arm) may produce the surface the next one targets. This one suppression covers both awaits in the loop body.
+      failures.navFailures += await driveNav(page, entry.action);
+    } else {
+      failures.stepFailures += await driveStep(page, entry.action);
     }
-    if (!result.ok) {
-      failures += 1;
-      print(`NAV FAILED  ${action.kind} ${action.target}: ${result.reason ?? "rejected"}`);
-      continue;
-    }
-    // Let the store write + view transition settle before the next action / the shot.
-    await settle(page, STEP_SETTLE_MS);
   }
   return failures;
 }
@@ -1537,7 +1584,7 @@ async function captureEvals(page: Page, exprs: readonly string[]): Promise<EvalO
     let text: string;
     let failed = false;
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: evals are argv-ordered and independent — sequential to keep report order matching argv, same discipline as runSteps.
+      // biome-ignore lint/performance/noAwaitInLoops: evals are argv-ordered and independent — sequential to keep report order matching argv, same discipline as driveActions.
       const value: unknown = await page.evaluate(wrapEvalExpr(expr));
       text = value === undefined ? "undefined" : JSON.stringify(value, null, 2);
       if (text.length > EVAL_RESULT_CAP) {
@@ -1998,7 +2045,7 @@ async function checkContrast(page: Page, selector: string, forcePixel: boolean, 
 async function captureContrasts(page: Page, selectors: readonly string[], forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome[]> {
   const results: ContrastOutcome[] = [];
   for (const selector of selectors) {
-    // biome-ignore lint/performance/noAwaitInLoops: argv-ordered, independent checks — same discipline as captureEvals/runSteps.
+    // biome-ignore lint/performance/noAwaitInLoops: argv-ordered, independent checks — same discipline as captureEvals/driveActions.
     results.push(await checkContrast(page, selector, forcePixel, viewport));
   }
   return results;
@@ -2268,7 +2315,6 @@ async function capture(page: Page, opts: Args, plan: PagePlan, evidence: Pick<Pr
     perf: null,
     evidenceRange: null,
   };
-  const forThisPage = <T extends { page: number }>(items: readonly T[]): T[] => items.filter((i) => i.page === pageIndex);
   const out = planOut(plan, pageIndex, totalPages);
   // Volatile-region masks (pink overlay) shared by the main shot, --shot-of, and crop.
   const mask = opts.mask.map((s) => page.locator(s));
@@ -2283,9 +2329,13 @@ async function capture(page: Page, opts: Args, plan: PagePlan, evidence: Pick<Pr
         pageErrorEnd: evidence.pageErrors.length,
       };
     }
-    // SPA nav (dev bridge) runs BEFORE the regular steps so `--goto presets --map` maps the presets surface.
-    outcome.navFailures = await runNavActions(page, forThisPage(opts.navActions));
-    outcome.stepFailures = await runSteps(page, forThisPage(opts.steps));
+    // ONE argv-ordered drive queue: bridge navs and interaction steps interleaved exactly as written.
+    const driven = await driveActions(
+      page,
+      opts.actions.filter((entry) => entry.action.page === pageIndex),
+    );
+    outcome.navFailures = driven.navFailures;
+    outcome.stepFailures = driven.stepFailures;
     await settlePage(page, opts);
     await captureEvidence(page, opts, outcome, pageIndex);
     if (plan.produceShot) {
@@ -3781,7 +3831,7 @@ function refuseFileMode(opts: Args): string | null {
   if (opts.contexts > 1 || opts.as !== null) {
     return "FILE REFUSED  --file has no server to authenticate against — drop --contexts/--as (a static mock has no users)";
   }
-  if (opts.navActions.length > 0) {
+  if (opts.actions.some((entry) => entry.type === "nav")) {
     return "FILE REFUSED  --goto/--open-chat/--open-character/--context-tab drive the app's __orb nav bridge; a static file has none — drop them (--click/--fill still work)";
   }
   return null;
