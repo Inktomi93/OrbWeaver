@@ -28,6 +28,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip.ts";
+import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/ct/autosave-status-transcript.ts";
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
@@ -286,6 +287,45 @@ test("PENDING — a FAILED read says nothing until it settles, then states the r
   await expect(component.getByText(CAPABILITY_FAILURE_RE)).toBeVisible();
   await expect(component.getByText(ROUTING_FAULT_MESSAGE, { exact: true })).toBeVisible();
   await expect(gate.locator('[data-slot="skeleton"]')).toHaveCount(0);
+});
+
+// ── THE HEADER MAY NOT SAY "Saved" OVER AN UNCOMMITTED EDIT (side-eye #81 P0) ─────────────────────────
+// The preset editor's twin of the character editor's pin. `AutosaveStatus` was fed the raw driver
+// lifecycle, which starts and stays "saved" until the debounced submit begins — so for the whole ~500ms
+// window the header read "Saved" over a knob that was nowhere but in the box, and a tab closed inside
+// that window loses it silently (the factory's own teardown note: a reload never unmounts React, so no
+// flush runs). The `blocked` and read-only arms of this same lie were already folded at the factory seam;
+// this is the third, and it is folded in the same place for the same reason — but the PIN belongs to the
+// surface the finding was filed against, because a factory-only test cannot prove this header reads it.
+//
+// Max output tokens (not the Quality dial) is the subject deliberately: a Select opens a PORTAL, and the
+// listbox's mutations would land in the transcript while the status still legitimately read "Saved".
+test("#81 P0 — the header reads Saving… the instant a knob is edited, never 'Saved' over the pending write", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "connection.resolveChatCapability": () => CAPABILITY,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "preset.update": () => ({}),
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  // BARRIER: the capability has landed (the knob exists) and the header has settled on its resting state.
+  const knob = component.getByRole("textbox", { name: MAX_OUTPUT_LABEL, exact: true });
+  await expect(knob).toBeVisible();
+  const status = component.getByRole("status");
+  await expect(status).toHaveText("Saved");
+
+  await beginAutosaveStatusTranscript(page);
+  await knob.fill("1234");
+
+  // BARRIER: the debounced save has landed and the header is back to its resting state — the window the
+  // transcript covers is closed, so the array below is final.
+  await expect(status).toHaveText("Saved");
+
+  // THE PIN: on the unfixed tree this reads ["Saved"] — the header never once admitted the pending write.
+  expect(await readAutosaveStatusTranscript(page)).toEqual(["Saving…", "Saved"]);
 });
 
 test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's values into B", async ({ mount, page }) => {

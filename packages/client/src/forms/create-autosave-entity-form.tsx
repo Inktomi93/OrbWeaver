@@ -29,8 +29,9 @@
 import { revalidateLogic } from "@tanstack/react-form";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
-// The TYPE home (the seam law + the session surface) is the `-model.ts` sibling — this JSX module carries
-// the factory and its closure components (`component-size`; the capped-field-model precedent).
+// The NON-JSX HALF (the seam law, the session surface, and the three module-scope pure helpers) is the
+// `-model.ts` sibling — this JSX module carries the factory and its closure components (`component-size`;
+// the capped-field-model precedent).
 import type {
   AutosaveBoundaryImplProps,
   AutosaveBoundaryProps,
@@ -42,24 +43,10 @@ import type {
   AutosaveSaveState,
   AutosaveSession,
 } from "./create-autosave-entity-form-model.ts";
+import { foldSaveState, hasUnsavedEdits, takeDiscard } from "./create-autosave-entity-form-model.ts";
 import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "./entity-form-base.ts";
 import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker.ts";
 import { useAppForm } from "./use-app-form.ts";
-
-/** Structural inequality of live values vs the last-saved baseline (§3) — the ONE unsaved-edit predicate the
- *  save driver, the clean-echo reseed, and the teardown flush share. NEVER `isDefaultValue` (permanently-true
- *  after any edit was the F2 write-back vector). Module-scope so no effect ever takes it as a dependency
- *  (D54: manual memo is banned, so an in-component definition would re-arm every render). */
-function hasUnsavedEdits<TValues extends object>(values: TValues, lastSaved: TValues): boolean {
-  return !formValuesEqual(values, lastSaved);
-}
-
-/** Read-and-clear the Boundary's discard flag — `true` = this teardown was a reseed and skips its flush. */
-function takeDiscard(discardRef: RefObject<boolean>): boolean {
-  const discard = discardRef.current;
-  discardRef.current = false;
-  return discard;
-}
 
 /**
  * The autosave session-boundary factory (D78). Returns a COMPONENT, not a hook: a consumer mounts an
@@ -331,6 +318,9 @@ export function createAutosaveEntityForm<TValues extends object>(
       form.handleSubmit().catch(() => undefined);
     };
 
+    // THE DISPLAYED LIFECYCLE (see `foldSaveState`). Two arms landed here first and the third joined them
+    // for the same reason:
+    //
     // THE HELD-WRITE ARM (side-eye PROSE-LIMIT P2). `attemptSave` and the teardown flush BOTH gate on
     // `form.state.isValid`, so an invalid form is a write the driver is deliberately NOT making — and every
     // status affordance was reading the untouched `saveState`, i.e. "Saved", over text that was not saved and
@@ -355,15 +345,31 @@ export function createAutosaveEntityForm<TValues extends object>(
     // The READ-ONLY arm folds in at the same seam and for the same reason: a declared-read-only mount has
     // no driver at all, so a form that is somehow dirty (a field that forgot its `disabled`) is a write
     // that will never be made — `blocked`, never "Saved" (client-forms-01). `isDirty` is the right
-    // predicate here: it is exactly "this form has been edited", and in the read-only arm no save can
-    // ever clear it.
+    // predicate FOR THAT ARM: it is exactly "this form has been edited", and in the read-only arm no save
+    // can ever clear it. The UNCOMMITTED-EDIT arm (#81 P0) needs the opposite predicate — `hasUnsavedEdits`
+    // against the last-saved baseline, because a save DOES clear it — which is precisely why the two are
+    // separate facts in the fold rather than one "dirty".
+    //
+    // The selector returns the FOLDED STATE, not a boolean: it is a primitive, so `Subscribe` re-renders
+    // the consumer's body only when the DISPLAYED state actually transitions (twice per save cycle), never
+    // per keystroke — the same subscription economy the boolean bought, with the whole verdict computed
+    // where the baseline lives.
     const FormSubscribe = form.Subscribe;
     return (
-      <FormSubscribe<boolean> selector={(state): boolean => state.isValid && !(readOnly && state.isDirty)}>
-        {(writable: boolean): ReactNode =>
+      <FormSubscribe<AutosaveSaveState>
+        selector={(state): AutosaveSaveState =>
+          foldSaveState({
+            driver: saveState,
+            isValid: state.isValid,
+            readOnlyDirty: readOnly && state.isDirty,
+            unsaved: hasUnsavedEdits(state.values, lastSavedRef.current),
+          })
+        }
+      >
+        {(displayed: AutosaveSaveState): ReactNode =>
           children({
             form: form as AutosaveForm<TValues>,
-            saveState: saveState === "error" || writable ? saveState : "blocked",
+            saveState: displayed,
             retrySave,
             reseed,
           })

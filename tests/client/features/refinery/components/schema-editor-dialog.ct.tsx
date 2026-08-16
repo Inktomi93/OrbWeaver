@@ -17,7 +17,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { SchemaEditorStory } from "../_ct-stories.tsx";
+import { SchemaEditorCloseGuardStory, SchemaEditorStory } from "../_ct-stories.tsx";
 
 /** The JSON pane's landed draft always carries the well-known core — the cheapest "the draft arrived"
  *  assertion, hoisted because a regex literal inside a test body is re-compiled per call. */
@@ -200,6 +200,87 @@ test("a belt REFUSAL shows the teaching SENTENCES, not the raw serialized zod is
   await expect(refusal).not.toContainText('"code"');
   await expect(refusal).not.toContainText('"path"');
   await expect(refusal).not.toContainText("[{");
+});
+
+// ── THE WAY OUT (side-eye #81 P1) ─────────────────────────────────────────────────────────────────────
+// This dialog is the app's longest authoring session — a described-in-English rubric, a hand-edited JSON
+// schema, a name, several model round-trips — and it shipped with exactly ONE footer control (Save) and no
+// Cancel at all. Its only exits were the backdrop and Escape, both of which unmount the whole thing and
+// take every pane's `useState`/ref with them: no draft store, no autosave, nothing anywhere. So the one
+// surface in the app where a mis-hit Escape costs the most was the one surface that never asked.
+//
+// Two affordances, one predicate: a real Cancel (the exit a reader can SEE), and a dirty guard on every
+// close request (typed vs the row being edited — a fresh dialog's baseline is empty). A CLEAN dialog still
+// closes instantly on both paths, because a confirm over nothing is the other way to teach people to
+// dismiss confirms without reading them.
+const DISCARD_GUARD = "Discard this schema draft?";
+const CLOSED_MARKER = "the schema editor is closed";
+const KEEP_EDITING = "Keep editing";
+const DISCARD_DRAFT = "Discard draft";
+
+test("#81 P1 — a CLEAN dialog offers Cancel and both Cancel and Escape close it with no guard", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  await mount(<SchemaEditorCloseGuardStory />);
+
+  // The affordance the dialog never had: a way out that is VISIBLE, not a key you have to know.
+  const cancel = page.getByRole("button", { name: "Cancel" });
+  await expect(cancel).toBeVisible();
+
+  // Escape over an untouched dialog is a plain close — nothing typed, nothing to lose, nothing to ask.
+  await page.keyboard.press("Escape");
+  await expect(page.getByText(CLOSED_MARKER)).toBeVisible();
+  await expect(page.getByText(DISCARD_GUARD)).toHaveCount(0);
+});
+
+test("#81 P1 — Escape over a DIRTY draft is GUARDED: the dialog stays, the draft survives, Keep editing returns to it", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  await mount(<SchemaEditorCloseGuardStory />);
+
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(BOUNDED_SCHEMA));
+  await page.getByRole("textbox", { name: "Name" }).fill("cosiness");
+  // BARRIER: a settled render off the draft — the preflight only exists once the JSON parses, so its
+  // presence proves the edit landed in state rather than merely in the box.
+  await expect(page.getByTestId("refinery-schema-preflight")).toBeVisible();
+
+  await page.keyboard.press("Escape");
+
+  // THE PIN: the draft is NOT gone. Pre-fix this closed the dialog and destroyed every pane in silence.
+  await expect(page.getByText(DISCARD_GUARD)).toBeVisible();
+  await expect(page.getByText(CLOSED_MARKER)).toHaveCount(0);
+
+  // Keep editing puts them back where they were, with every byte intact.
+  await page.getByRole("button", { name: KEEP_EDITING }).click();
+  await expect(page.getByText(DISCARD_GUARD)).toHaveCount(0);
+  await expect(page.getByRole("textbox", SCHEMA_PANE)).toHaveValue(DRAFT_LANDED);
+  await expect(page.getByRole("textbox", { name: "Name" })).toHaveValue("cosiness");
+});
+
+test("#81 P1 — Cancel over a DIRTY draft asks too, and its Discard arm really does close", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  await mount(<SchemaEditorCloseGuardStory />);
+
+  await page.getByRole("textbox", { name: "Describe the structure" }).fill("a cosiness rubric");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByText(DISCARD_GUARD)).toBeVisible();
+  await expect(page.getByText(CLOSED_MARKER)).toHaveCount(0);
+
+  // The guard is a QUESTION, not a trap — the destructive arm is a real exit.
+  await page.getByRole("button", { name: DISCARD_DRAFT }).click();
+  await expect(page.getByText(CLOSED_MARKER)).toBeVisible();
+});
+
+test("#81 P1 — an EDIT-EXISTING dialog is clean until the saved row is actually changed", async ({ mount, page }) => {
+  const schemaId = mintTypeId(ID_PREFIX.refinerySchema) as RefinerySchemaId;
+  await routeTrpc(page, {});
+  await mount(<SchemaEditorCloseGuardStory editing={{ id: schemaId, name: "cosiness", description: "how cosy is it", schema: PLAIN_SCHEMA }} />);
+  await expect(page.getByRole("textbox", { name: "Name" })).toHaveValue("cosiness");
+
+  // THE BASELINE IS THE ROW, not emptiness: an editor opened over saved content is full of text it did not
+  // author, and guarding on "is there text" would ask on every no-op open — the fastest way to teach a
+  // reader that this confirm never means anything.
+  await page.keyboard.press("Escape");
+  await expect(page.getByText(CLOSED_MARKER)).toBeVisible();
+  await expect(page.getByText(DISCARD_GUARD)).toHaveCount(0);
 });
 
 test("EDIT-EXISTING opens populated and saves through the UPDATE verb — the branch P1-15 found unreachable", async ({ mount, page }) => {

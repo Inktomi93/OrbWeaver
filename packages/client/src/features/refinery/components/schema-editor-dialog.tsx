@@ -8,17 +8,27 @@
 // The generator's `failed` arm renders the RAW reply into the JSON pane for hand-fixing (the
 // show-the-partial policy — errors-as-data, never a toast that eats the draft).
 //
+// THE WAY OUT IS GUARDED (side-eye #81 P1). Nothing behind this surface persists a draft — no autosave, no
+// EntityDraftStore, four panes of plain `useState`/refs — and it shipped with Save as its only footer
+// control, so its only exits were Escape and the backdrop, both invisible and both silently destructive.
+// There is now a real Cancel, and EVERY close request (press, Escape, backdrop) funnels through
+// `requestClose`, which asks only when the panes actually differ from the row being edited. One predicate,
+// one door: a guard reachable from one exit and missing from another is the same defect with a witness.
+//
 // THE RAW DOOR IS THREE-TIER (2026-08-09): a belt REFUSAL (`RefusalNote`, verbatim, blocks the save), a
 // PREFLIGHT ADVISORY (`PreflightNote` — valid, saves, but here is what a hosted wire will do to it), and
 // the accounting stats. The advisory tier derives every wire claim by running our own `scrubWireSchema`,
 // so it re-implements no vendor law (the design's §1 "client-side re-implementation of provider schema
 // law" ruling stays honoured — see the advisory module's header for the full fork statement).
+//
+// The two READ-ONLY panes (`PreflightNote` + `PreviewCard`) live in `schema-editor-panes.tsx` — the
+// `component-size` split, on this file's own `render-hint-picker` precedent. This module keeps the four
+// panes that AUTHOR, the save press, and the close guard.
 
 import type { RefineryForgeArm, RefinerySchemaStage } from "@orb/contracts/refinery";
-import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS, refinerySchemaAdvisoryOf } from "@orb/contracts/refinery";
-import type { CharacterId, RefinerySchemaId } from "@orb/kit/ids";
+import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS } from "@orb/contracts/refinery";
+import type { RefinerySchemaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
 import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -27,22 +37,14 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { FormDialog } from "#components";
+import { ConfirmDialog, FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
-import {
-  useCreateRefinerySchema,
-  useGenerateRefinerySchema,
-  useRefineRefinerySchema,
-  useTestRefinerySchema,
-  useUpdateRefinerySchema,
-} from "../hooks/use-refinery-schemas.ts";
+import { useCreateRefinerySchema, useGenerateRefinerySchema, useRefineRefinerySchema, useUpdateRefinerySchema } from "../hooks/use-refinery-schemas.ts";
 import { buildRenderPlan } from "../lib/render-plan.ts";
-import { CharacterDoor } from "./character-door.tsx";
-import { PayloadView } from "./payload-view.tsx";
-import { RefineryChip } from "./refinery-chip.tsx";
 import { RefusalNote } from "./refusal-note.tsx";
 import { RenderHintPicker } from "./render-hint-picker.tsx";
+import { PreflightNote, PreviewCard } from "./schema-editor-panes.tsx";
 
 export interface SchemaEditorDialogProps {
   readonly open: boolean;
@@ -73,6 +75,19 @@ function dialogTitleOf(editing: SchemaEditorDialogProps["editing"], stage: Refin
   return editing === null ? `New ${STAGE_WORD[stage]} schema` : `Edit "${editing.name}"`;
 }
 
+/** The three panes' baseline — the saved row, or emptiness when authoring. The JSON pane's baseline is the
+ *  same pretty-print the open seeds it with, so re-serialising cannot register as an edit. */
+function baselineOf(editing: SchemaEditorDialogProps["editing"]): { readonly name: string; readonly description: string; readonly schemaText: string } {
+  return editing === null
+    ? { name: "", description: "", schemaText: "" }
+    : { name: editing.name.trim(), description: editing.description, schemaText: JSON.stringify(editing.schema, null, 2) };
+}
+
+/** The guard's copy. Named because the DIALOG owns the words for a decision about ITS draft, and because
+ *  "Discard draft" must never read as the generic "Confirm" a reader dismisses without looking. */
+const DISCARD_TITLE = "Discard this schema draft?";
+const DISCARD_BODY = "Your description, the JSON schema and the name go with it. Nothing here has been saved yet, and this can't be undone.";
+
 /** The no-preview arm's copy: an empty pane invites, a broken one teaches. */
 function previewEmptyTextOf(schemaText: string): string {
   return schemaText.trim().length === 0 ? "Generate a draft, or paste a schema to preview it." : "That JSON doesn't parse yet — fix it to preview.";
@@ -85,95 +100,6 @@ function parseDraft(text: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
-}
-
-/** The raw door's PREFLIGHT (the third tier — see `@orb/contracts/refinery/schema-advisory`'s header).
- *  Tier 1 is `RefusalNote` below (the belt's verbatim refusal, unchanged); tier 2 is this, and it NEVER
- *  blocks: the Save press does not consult it. It answers the question a valid-but-expensive schema
- *  leaves hanging — "this saves, but what does it cost on a real wire?" — with the accounting the OG
- *  extension put behind a validator, minus the client-side policing that validator also did. */
-function PreflightNote({ schema }: { schema: Record<string, unknown> }): ReactElement {
-  const { stats, advisories } = refinerySchemaAdvisoryOf(schema);
-  return (
-    <Stack data-testid={testId("refinerySchemaPreflight")} gap="tight">
-      <Text data-testid={testId("refinerySchemaStats")} voice="gloss">
-        {stats.properties} fields · {stats.optionalFields} optional · {stats.enums} choice lists · {stats.anyOfBlocks} unions · {stats.maxDepth} levels deep
-      </Text>
-      {/* The advisories need a CLASS above them or they read as a second, longer stats line — measured
-          on the rendered dialog: same voice, same tint, no separation, no way to tell that one is an
-          accounting and the other is a warning. The kicker is the cheapest honest separator, and it
-          names WHERE the warnings apply rather than shouting that they exist. */}
-      {advisories.length === 0 ? null : <Text voice="kicker">On a hosted model</Text>}
-      {advisories.map((advisory) => (
-        <Text
-          data-advisory={advisory.code}
-          data-testid={testId("refinerySchemaAdvisory")}
-          key={`${advisory.code}:${advisory.path}:${advisory.message}`}
-          voice="gloss"
-        >
-          {advisory.message}
-        </Text>
-      ))}
-    </Stack>
-  );
-}
-
-/** The live render preview + the test drill — remounted per draft (`key={schemaText}` at the caller),
- *  so a fresh draft always opens with an empty test payload. */
-function PreviewCard({
-  plan,
-  schema,
-  stage,
-  outerBusy,
-}: {
-  plan: ReturnType<typeof buildRenderPlan>;
-  schema: Record<string, unknown>;
-  stage: RefinerySchemaStage;
-  outerBusy: boolean;
-}): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const testSchema = useTestRefinerySchema({ trpc, invalidation });
-  const [testCharacter, setTestCharacter] = useState<{ readonly id: CharacterId; readonly name: string } | null>(null);
-  const [testPayload, setTestPayload] = useState<Record<string, unknown> | null>(null);
-  const testCharacterId = testCharacter?.id ?? null;
-  return (
-    <Card>
-      <Stack gap="row" padding="block">
-        <Row align="center" gap="field">
-          <Text voice="kicker">Render preview</Text>
-          <RefineryChip tone="info">the same renderer every run uses</RefineryChip>
-        </Row>
-        {/* The test drill's own loading arm (P1-10: "no loading affordance on any model call"). A
-            `testSchema` turn is a real model round-trip; while it runs, the preview keeps painting the
-            LAST settled payload under a shimmer rather than blanking — the same "never goes blank
-            between stages" law the content surface holds itself to. */}
-        <PayloadView payload={testPayload ?? {}} plan={plan} pending={testSchema.isPending} />
-        <Row align="center" gap="field">
-          <CharacterDoor
-            chosenName={testCharacter?.name ?? null}
-            disabled={outerBusy || testSchema.isPending}
-            label="Test the schema on a card"
-            onSelect={(id, name): void => setTestCharacter({ id, name })}
-            placeholder="Pick a card to test on"
-          />
-          <Button
-            aria-busy={testSchema.isPending}
-            disabled={outerBusy || testSchema.isPending || testCharacterId === null}
-            intent="secondary"
-            onClick={(): void => {
-              if (testCharacterId !== null) {
-                testSchema.mutate({ schema, stage, characterId: testCharacterId }, { onSuccess: (payload): void => setTestPayload(payload) });
-              }
-            }}
-            size="sm"
-          >
-            {testSchema.isPending ? "Running…" : "Test on this card"}
-          </Button>
-        </Row>
-      </Stack>
-    </Card>
-  );
 }
 
 interface SaveDeps {
@@ -351,6 +277,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
   const [schemaText, setSchemaText] = useState(editing === null ? "" : JSON.stringify(editing.schema, null, 2));
   const [forgeNote, setForgeNote] = useState<string | null>(null);
   const [arm, setArm] = useState<RefineryForgeArm>(REFINERY_FORGE_ARM_DEFAULT);
+  const [discardOpen, setDiscardOpen] = useState(false);
 
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -371,8 +298,29 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
   }
   const busy = generate.isPending || refine.isPending;
 
+  // THE DIRTY PREDICATE, read at EVENT time only (the name pane is uncontrolled, so a ref read during
+  // render is banned). Compared against the ROW being edited, never against emptiness: an editor opened
+  // over saved content is already full of text nobody just authored, and asking on a no-op open is how a
+  // confirm becomes something readers dismiss reflexively — which would cost a real draft later.
+  function hasUnsavedDraft(): boolean {
+    const baseline = baselineOf(editing);
+    return (nameRef.current?.value.trim() ?? "") !== baseline.name || description !== baseline.description || schemaText !== baseline.schemaText;
+  }
+
+  // EVERY exit routes here — the Cancel press, Escape, and the backdrop all arrive as one close request, so
+  // the guard cannot be reachable from one door and missing from another (#81 P1: the dialog had no Cancel
+  // at all, and its ONLY exits destroyed every pane's state in silence — there is no draft store and no
+  // autosave behind this surface, so an unguarded close is simply data loss).
+  const requestClose = (): void => {
+    if (hasUnsavedDraft()) {
+      setDiscardOpen(true);
+      return;
+    }
+    onOpenChange(false);
+  };
+
   return (
-    <FormDialog onOpenChange={onOpenChange} open={open} size="lg" title={dialogTitleOf(editing, stage)}>
+    <FormDialog onOpenChange={(next): void => (next ? onOpenChange(true) : requestClose())} open={open} size="lg" title={dialogTitleOf(editing, stage)}>
       <Stack gap="row">
         <Text voice="gloss">
           Two ways in, both first-class. Describe what you want in plain English and the designer builds it — the model answers into a fixed grammar, so it
@@ -432,6 +380,13 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
               rows={1}
             />
           </Field>
+          {/* THE VISIBLE WAY OUT (#81 P1). Escape and the backdrop were the only exits this dialog had, and
+              both are invisible: a reader looking at the longest authoring surface in the app could not
+              SEE how to leave it without saving. It rides `requestClose`, so Cancel and Escape are one
+              behaviour rather than two that drift. */}
+          <Button intent="ghost" onClick={requestClose} size="sm" type="button">
+            Cancel
+          </Button>
           <Button
             disabled={busy || schema === null || !nameFilled}
             onClick={(): void => saveDraft(nameRef.current?.value.trim() ?? "", schema, { editing, description, stage, create, update, onSaved, onOpenChange })}
@@ -440,6 +395,20 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
             {editing === null ? "Save schema" : "Save changes"}
           </Button>
         </Row>
+        {/* The guard. `forceRender` because it nests inside an open Dialog, which Base UI would otherwise
+            let suppress this backdrop (the ConfirmDialog prop exists for exactly this). Both arms are named
+            for what they DO — "Keep editing" / "Discard draft" — never Cancel/Confirm over a destructive
+            default: the safe arm has to be the one a reader can pick without parsing the sentence. */}
+        <ConfirmDialog
+          cancelLabel="Keep editing"
+          confirmLabel="Discard draft"
+          description={DISCARD_BODY}
+          forceRender={true}
+          onConfirm={(): void => onOpenChange(false)}
+          onOpenChange={setDiscardOpen}
+          open={discardOpen}
+          title={DISCARD_TITLE}
+        />
       </Stack>
     </FormDialog>
   );

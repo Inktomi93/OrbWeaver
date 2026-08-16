@@ -177,7 +177,13 @@ function SetupRow({ k, v, action, onAction, note }: { k: string; v: string; acti
           {note === undefined ? null : <Text voice="gloss">{note}</Text>}
         </Stack>
         {action !== undefined && onAction !== undefined ? (
-          <Button intent="ghost" onClick={onAction} size="sm">
+          // THE ACCESSIBLE NAME CARRIES THE ROW (side-eye #81 P2). Three of these rows say "Change" and one
+          // says "View", so a screen-reader user tabbing the Setup tab — or anyone reading a list of this
+          // pane's controls out of visual context — met three identically-named buttons that open three
+          // different editors. The name is DERIVED from the two strings the row already has, so a new row
+          // cannot ship an ambiguous one, and it CONTAINS the visible label (WCAG 2.5.3 label-in-name: the
+          // accessible name must start with what the control visibly says, or voice control cannot hit it).
+          <Button aria-label={`${action} ${k}`} intent="ghost" onClick={onAction} size="sm">
             {action}
           </Button>
         ) : null}

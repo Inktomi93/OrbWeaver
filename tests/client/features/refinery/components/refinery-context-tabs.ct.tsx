@@ -105,6 +105,29 @@ function rowChangeButton(page: Page, rowLabel: string): Locator {
   return page.locator('[data-slot="card-root"]').filter({ hasText: rowLabel }).getByRole("button", { name: "Change" });
 }
 
+// ── DISTINCT ACCESSIBLE NAMES (side-eye #81 P2) ───────────────────────────────────────────────────────
+// Three of the Setup rows carry a button whose visible word is "Change" and a fourth says "View". Scoped
+// to their cards they are unambiguous ON SCREEN; read as a list of the pane's controls — which is what a
+// screen-reader rotor, a voice-control target list, and this very CT's own unscoped locator all do — they
+// were three buttons with one name and three destinations. The name derives from the row (`SetupRow`), so
+// the pin is on the WHOLE SET being distinct rather than on any one string.
+test("#81 P2 — every Setup action names the row it acts on, so no two controls share an accessible name", async ({ mount, page }) => {
+  await routeTrpc(page, baseRoutes());
+  await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  await expect(page.getByTestId(testId("refinerySetupTab"))).toBeVisible();
+
+  const actions = page.getByTestId(testId("refinerySetupTab")).getByRole("button");
+  const names = await actions.evaluateAll((nodes: Element[]): string[] =>
+    nodes.map((node) => node.getAttribute("aria-label") ?? node.textContent?.trim() ?? ""),
+  );
+
+  // Every one is distinct — pre-fix this set was ["View", "Change", "Change", "Change"].
+  expect(new Set(names).size).toBe(names.length);
+  // …and each still STARTS with the word it visibly shows (WCAG 2.5.3 label-in-name — a voice-control user
+  // saying "click Change" must still land on one of these, and the row is what disambiguates it).
+  expect(names).toEqual(["View Original card", "Change Scope", "Change Score schema", "Change Analyze schema"]);
+});
+
 test("the Setup tab reaches custom-ANALYZE authoring — a stage the single old door never offered", async ({ mount, page }) => {
   await routeTrpc(page, baseRoutes());
   await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
