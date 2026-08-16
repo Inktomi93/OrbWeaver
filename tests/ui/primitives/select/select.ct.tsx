@@ -234,3 +234,44 @@ test("scrollArrows: the down arrow mounts on an overflowing list", async ({ moun
   // The popup overflows 40 items → the hover-to-scroll down arrow is mounted (mouse input).
   await expect(page.locator('[data-slot="select-scroll-down-arrow"]')).toBeVisible();
 });
+
+// `SelectOption.description` — a per-option gloss, for lists whose options need explaining at the moment
+// of choosing (a legend on the Field is occluded by this very popup). Three things have to hold at once:
+// the gloss PAINTS in the row, it stays OFF the trigger (`Select.Value` mirrors `ItemText`, and the
+// trigger is single-line by convention), and it stays OUT of the option's accessible name while still
+// reaching AT as a description.
+const GLOSSED = [
+  { label: "Alpha", value: "alpha", description: "The first one." },
+  { label: "Beta", value: "beta", description: "The second one." },
+  { label: "Gamma", value: "gamma" },
+] as const;
+
+test("option description: paints in the row, stays off the trigger, and is a description not a name", async ({ mount, page }) => {
+  await mount(<Select aria-label="Glossed" items={GLOSSED} placeholder="Pick one" />);
+  const trigger = page.getByRole("combobox", { name: "Glossed" });
+  await trigger.click();
+
+  // Name unchanged: `exact` only resolves because the gloss is hidden from the accname subtree.
+  const beta = page.getByRole("option", { name: "Beta", exact: true });
+  const gloss = beta.locator('[data-slot="select-item-description"]');
+  await expect(gloss).toHaveText("The second one.");
+  await expect(gloss).toHaveAttribute("aria-hidden", "true");
+  const glossId = await gloss.getAttribute("id");
+  await expect(beta).toHaveAttribute("aria-describedby", glossId ?? "");
+  // Rendered, not merely present, and BELOW the label rather than beside it.
+  const geo = await beta.evaluate((el) => {
+    const label = el.querySelector('[data-slot="select-item-body"] > *:first-child');
+    const desc = el.querySelector('[data-slot="select-item-description"]');
+    const l = label?.getBoundingClientRect();
+    const d = desc?.getBoundingClientRect();
+    return { labelBottom: l?.bottom ?? 0, descTop: d?.top ?? 0, descHeight: d?.height ?? 0 };
+  });
+  expect(geo.descHeight).toBeGreaterThan(0);
+  expect(geo.descTop).toBeGreaterThanOrEqual(geo.labelBottom - 1);
+
+  // An option with no `description` renders no gloss node — the slot is opt-in, not an empty row.
+  await expect(page.getByRole("option", { name: "Gamma", exact: true }).locator('[data-slot="select-item-description"]')).toHaveCount(0);
+
+  await beta.click();
+  await expect(trigger).toHaveText("Beta");
+});

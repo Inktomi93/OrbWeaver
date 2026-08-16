@@ -91,7 +91,10 @@ function MessageStyleBody({ sectionId, session }: { readonly sectionId: string; 
           {(field): ReactElement => (
             <field.SelectField
               label="Chat display"
-              description="Bubble tints each message; flat is full-width; document is a centered manuscript column. Echo, Whisper, Hush, Ripple and Tide are immersive modes — bled portraits, VN sticky art, accent stripes and message trains."
+              // The per-mode legend that used to live here moved INTO the option rows
+              // (`CHAT_STYLE_DESCRIPTIONS`): the popup covers this line the moment the select opens, so
+              // the explanation was invisible at exactly the moment it was needed (side-eye 2026-08-16).
+              description="How every message in the transcript is shaped."
               items={CHAT_STYLE_ITEMS}
             />
           )}

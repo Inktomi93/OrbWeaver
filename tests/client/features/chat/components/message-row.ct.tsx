@@ -14,7 +14,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
-import { MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
+import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
 
 const AI_BUBBLE = /bg-ai-bubble/u;
 const USER_BUBBLE = /bg-user-bubble/u;
@@ -254,6 +254,39 @@ test("showInChatAvatars=false hides the avatar image but KEEPS the speaker name"
   await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
   await expect(component.locator(AVATAR)).toHaveCount(0);
 });
+
+// The GROUP arm of the same promise. The switch's own gloss reads "Hide to show only the speaker's name
+// on each message", so with avatars off a multi-speaker room must still name EVERY turn — the single-row
+// pin above cannot see two consecutive turns running together unattributed, which is what a reader in a
+// group room would actually be hurt by. Runs across the three non-immersive modes because the skin table
+// is where a per-mode chrome suppression would land (`chromeBacking` is already per-mode).
+//
+// HONEST LABEL: this is a FENCE, not a defect proof. It passes against the pre-fix source too — the
+// behaviour was already correct, and side-eye 2026-08-16's "the fallback never renders" was read off a
+// transcript scrolled past the name rows (live receipt in the lane report). It exists so the next
+// avatars-off change cannot quietly take attribution with it.
+for (const chatStyle of ["bubble", "flat", "document"] as const) {
+  test(`group transcript, avatars off, ${chatStyle}: every row still names its own speaker`, async ({ mount }) => {
+    const component = await mount(
+      <GroupTranscriptAttributionStory
+        chatStyle={chatStyle}
+        participants={[alice(), bob()]}
+        persona={{ id: NATE_PERSONA_ID, name: "Alex" }}
+        showInChatAvatars={false}
+      />,
+    );
+    await expect(component.locator(AVATAR)).toHaveCount(0);
+    const names = component.locator(ATTRIBUTION);
+    await expect(names).toHaveCount(3);
+    await expect(names.nth(0)).toHaveText("Alice");
+    await expect(names.nth(1)).toHaveText("Alex");
+    await expect(names.nth(2)).toHaveText("Bob");
+    // Rendered, not merely present: a name row collapsed to 0px is the same defect as a missing one.
+    const box = await names.nth(2).boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThan(0);
+    expect(box?.width ?? 0).toBeGreaterThan(0);
+  });
+}
 
 test("showInChatAvatars=true (default) renders the attribution avatar", async ({ mount }) => {
   const component = await mount(

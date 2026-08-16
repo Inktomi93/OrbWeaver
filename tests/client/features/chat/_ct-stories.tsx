@@ -385,6 +385,60 @@ export function NarratorTranscriptStory({
   );
 }
 
+export interface GroupTranscriptAttributionStoryProps {
+  readonly chatStyle: ThemeChatStyle;
+  /** The seated cast — one assistant row is rendered per character, in roster order. */
+  readonly participants: readonly ParticipantView[];
+  /** The viewer's persona; its row sits between the two character rows, as a real room's would. */
+  readonly persona: PersonaNameStoryEntry;
+  readonly showInChatAvatars: boolean;
+}
+
+/**
+ * A GROUP transcript in ONE mount (the mount-once law): two different characters' turns with the viewer's
+ * turn between them. The question it answers is the one a single-row story structurally cannot — with
+ * avatars off, does EVERY row still say who is speaking, or do consecutive turns run together
+ * unattributed? (side-eye 2026-08-16 read a scrolled screenshot as "the promised name fallback never
+ * renders"; the fallback does render, and this is the fence that keeps it that way across the display
+ * modes a reader actually switches between.)
+ */
+export function GroupTranscriptAttributionStory({ chatStyle, participants, persona, showInChatAvatars }: GroupTranscriptAttributionStoryProps): ReactElement {
+  const seated = participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null);
+  const participantsMap = new Map(seated.map((p) => [p.characterId, p] as const));
+  const { characterNamesById, personaNamesById } = buildCastNameContext([
+    ...seated.map((p): CastEntry => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
+    { kind: "persona", id: persona.id, name: persona.name, description: persona.description ?? "", avatarHash: null },
+  ]);
+  const rowProps = {
+    chatStyle,
+    showInChatAvatars,
+    participants: participantsMap,
+    characterNamesById,
+    personaNamesById,
+    toolRenderers: NO_TOOL_RENDERERS,
+  } as const;
+  const [first, second] = seated;
+  return (
+    <CtDataProviders>
+      <MessageThreadAnchor>
+        {first === undefined ? null : (
+          <MessageRow
+            message={makeMessageView({ role: "assistant", content: "The vault door has not moved in an epoch.", characterId: first.characterId })}
+            {...rowProps}
+          />
+        )}
+        <MessageRow message={makeMessageView({ role: "user", content: "Then we open it.", personaId: persona.id })} {...rowProps} />
+        {second === undefined ? null : (
+          <MessageRow
+            message={makeMessageView({ role: "assistant", content: "You say that as if entropy takes requests.", characterId: second.characterId })}
+            {...rowProps}
+          />
+        )}
+      </MessageThreadAnchor>
+    </CtDataProviders>
+  );
+}
+
 export interface MessageToolCallsStoryProps {
   readonly records: readonly ToolCallRecord[];
   /** Registers a per-tool-name `ToolRenderer` claiming this wire tool name (the specialization seam). */

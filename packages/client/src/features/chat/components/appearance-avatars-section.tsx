@@ -80,18 +80,38 @@ function AvatarsBody({ sectionId, session }: { readonly sectionId: string; reado
         <form.AppField name="showInChatAvatars">
           {(field): ReactElement => <field.SwitchField label="Show avatars in chat" description="Hide to show only the speaker's name on each message." />}
         </form.AppField>
-        <form.AppField name="avatarSize">{(field): ReactElement => <field.SelectField label="Avatar size" items={AVATAR_SIZE_ITEMS} />}</form.AppField>
-        <form.AppField name="avatarShape">{(field): ReactElement => <field.SelectField label="Avatar shape" items={AVATAR_SHAPE_ITEMS} />}</form.AppField>
-        <form.AppField name="avatarAspect">
-          {(field): ReactElement => (
-            <field.SelectField
-              label="Avatar aspect"
-              description="Portrait reserves a taller box — the immersive VN-style modes use it."
-              items={AVATAR_ASPECT_ITEMS}
-            />
+        {/* THE FOUR DEPENDENTS FOLLOW THE MASTER. Size/shape/aspect/ring only describe an avatar that
+            renders, so with `showInChatAvatars` off they were four live controls that changed nothing —
+            a reader set Avatar size to Medium and the transcript did not move (side-eye 2026-08-16).
+            DISABLED rather than hidden: the group keeps its shape, so turning the master back on does not
+            make four rows appear out of nowhere, and the master sits directly above as the explanation.
+            `disabled` reaches `<Field>`'s Base UI `Field.Root`, which is what makes the trigger genuinely
+            non-interactive (`disabled` on the button + `data-disabled`) — never a CSS dim. */}
+        <form.Subscribe selector={(state): boolean => state.values.showInChatAvatars}>
+          {(showAvatars): ReactElement => (
+            <>
+              <form.AppField name="avatarSize">
+                {(field): ReactElement => <field.SelectField label="Avatar size" items={AVATAR_SIZE_ITEMS} disabled={!showAvatars} />}
+              </form.AppField>
+              <form.AppField name="avatarShape">
+                {(field): ReactElement => <field.SelectField label="Avatar shape" items={AVATAR_SHAPE_ITEMS} disabled={!showAvatars} />}
+              </form.AppField>
+              <form.AppField name="avatarAspect">
+                {(field): ReactElement => (
+                  <field.SelectField
+                    label="Avatar aspect"
+                    description="Portrait reserves a taller box — the immersive VN-style modes use it."
+                    items={AVATAR_ASPECT_ITEMS}
+                    disabled={!showAvatars}
+                  />
+                )}
+              </form.AppField>
+              <form.AppField name="avatarRing">
+                {(field): ReactElement => <field.SelectField label="Avatar ring" items={AVATAR_RING_ITEMS} disabled={!showAvatars} />}
+              </form.AppField>
+            </>
           )}
-        </form.AppField>
-        <form.AppField name="avatarRing">{(field): ReactElement => <field.SelectField label="Avatar ring" items={AVATAR_RING_ITEMS} />}</form.AppField>
+        </form.Subscribe>
       </FieldLayout>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} caption="Synced across your devices." />
