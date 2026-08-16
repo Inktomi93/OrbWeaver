@@ -2,7 +2,15 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { SnapFailureSummary } from "../../scripts/probes/snap.ts";
-import { hasSnapFailure, isSandboxTraceNoise, parseScenarioSpec, parseSnapArgs, selectConsoleMessagesForReport } from "../../scripts/probes/snap.ts";
+import {
+  capEvalText,
+  hasSnapFailure,
+  isSandboxTraceNoise,
+  parseScenarioSpec,
+  parseSnapArgs,
+  selectConsoleMessagesForReport,
+  splitTrailingEvals,
+} from "../../scripts/probes/snap.ts";
 import { expect, test } from "../support/fixtures.ts";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
@@ -37,10 +45,66 @@ test("snap parses one multi-page evidence run without losing page targets", () =
 
   expect(args.errors).toEqual([]);
   expect(args.route).toBe("/chats");
-  expect(args.actions).toEqual([{ type: "step", action: { kind: "click", selector: "[aria-label=Open]", page: 1 } }]);
+  // --eval is queued alongside the step AND kept in args.eval (the --watch series re-runs that list).
+  expect(args.actions).toEqual([
+    { type: "step", action: { kind: "click", selector: "[aria-label=Open]", page: 1 } },
+    { type: "eval", action: { expr: "document.title", page: 0 } },
+  ]);
   expect(args.eval).toEqual([{ expr: "document.title", page: 0 }]);
   expect(args.ariaSelector).toBe("main");
   expect(args.ariaPage).toBe(1);
+});
+
+test("--eval joins the ONE queue, so an eval written before a step observes the PRE-step state", () => {
+  // The live defect this pins: evals ran in a phase AFTER every step, so `--eval A --click X --eval B`
+  // reported A's POST-click state and a sequence walk cost one snap invocation per step.
+  const args = parseSnapArgs(["/", "--eval", "before", "--click", "[data-x]", "--key", "Tab", "--eval", "after"]);
+
+  expect(args.errors).toEqual([]);
+  expect(args.actions.map((entry) => entry.type)).toEqual(["eval", "step", "step", "eval"]);
+
+  // The split the capture phase runs on: everything up to the LAST drive action is driven in argv order;
+  // only the trailing evals stay behind to observe the settled surface.
+  const split = splitTrailingEvals(args.actions);
+  expect(split.drive.map((entry) => entry.type)).toEqual(["eval", "step", "step"]);
+  expect(split.trailingEvals).toEqual(["after"]);
+});
+
+test("a queue with no steps is ENTIRELY trailing — the plain `snap / --eval x` path is unchanged", () => {
+  const args = parseSnapArgs(["/", "--eval", "a", "--eval", "b"]);
+
+  const split = splitTrailingEvals(args.actions);
+  expect(split.drive).toEqual([]);
+  expect(split.trailingEvals).toEqual(["a", "b"]);
+});
+
+test("--key has two forms: a BARE key walks focus, selector=Key re-anchors on the selector", () => {
+  // Five `--key 'sel=Tab'` presses are not a walk — each re-focuses `sel` first, which is why the
+  // 2026-08-16 audit concluded Tab never advances focus. The bare form is the walk instrument.
+  const args = parseSnapArgs(["/", "--key", "Tab", "--key", "[data-composer]=Enter", "--key", "input="]);
+
+  expect(args.errors).toEqual([]);
+  expect(args.actions.map((entry) => entry.action)).toEqual([
+    { kind: "keyboard", key: "Tab", page: 0 },
+    { kind: "key", selector: "[data-composer]", key: "Enter", page: 0 },
+    // An empty tail still defaults to Enter — the long-standing pair-form behaviour.
+    { kind: "key", selector: "input", key: "Enter", page: 0 },
+  ]);
+  // The pair form still owes a selector; the bare form is a key name, not a selector.
+  expect(parseSnapArgs(["--key", "=Enter"]).errors).toContain('--key expects selector=Key with a non-empty selector (or a bare key name), got "=Enter"');
+});
+
+test("a capped --eval result keeps BOTH ends — a head-only cut ate the cls/worstShift tail", () => {
+  const short = '{"a":1}';
+  expect(capEvalText(short)).toBe(short);
+
+  const big = `HEAD_MARKER${"x".repeat(60_000)}TAIL_MARKER`;
+  const capped = capEvalText(big);
+
+  expect(capped.startsWith("[TRUNCATED 20000/")).toBe(true);
+  expect(capped).toContain("HEAD_MARKER");
+  expect(capped).toContain("TAIL_MARKER");
+  expect(capped).toContain("elided from the MIDDLE");
 });
 
 test("bridge navs and interaction steps land in ONE queue in TRUE argv order", () => {

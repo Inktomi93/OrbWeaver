@@ -37,18 +37,30 @@ Preconditions and geography:
 
 ## §2 The action queue is TRUE ARGV ORDER
 
-- Nav flags (`--goto`/`--open-chat`/`--open-character`/`--context-tab`) and interaction steps
-  (`--click`/`--fill`/`--press`/`--jsclick`/`--key`/`--wait-for`) execute as ONE queue in the
-  exact order written. A mid-chain `--context-tab` runs where it is written — write the chain the
-  way the interaction should happen.
-- All drives run BEFORE the captures (`--map`/`--aria`/`--eval`/`--contrast`/`--expect-*`), so one
-  call reaches AND inspects a surface:
+- Nav flags (`--goto`/`--open-chat`/`--open-character`/`--context-tab`), interaction steps
+  (`--click`/`--fill`/`--press`/`--jsclick`/`--key`/`--wait-for`) **and `--eval`** execute as ONE
+  queue in the exact order written. A mid-chain `--context-tab` runs where it is written — write
+  the chain the way the interaction should happen.
+- The PURE captures (`--map`/`--aria`/`--contrast`/`--expect-*`) are NOT in the queue: they observe
+  the settled surface once, after the queue drains, so one call reaches AND inspects a surface:
 
   ```
   pnpm snap / --goto modal:newChat --click 'text=Blank chat' \
               --open-chat current --context-tab members --text
   ```
 
+- **`--eval` was NOT in the queue until 2026-08-16** — every step ran, then every eval, so
+  `--eval A --click X` reported A's POST-click state and a sequence walk cost one invocation per
+  step. It now runs where it is written; a TRAILING `--eval` (after the last step/nav) still
+  observes the settled surface, so the common `--goto x --eval y` shape is unchanged. If you are
+  reading an old transcript whose evals disagree with its steps, that is why.
+- **`--key` has two forms and only one WALKS.** `--key Tab` (bare, no `=`) presses the page
+  keyboard without changing focus — N of them walk N stops, inside a Base UI focus trap included.
+  `--key 'selector=Key'` FOCUSES the selector and then presses (the COMMIT idiom:
+  `--fill 'input=q' --key 'input=Enter'`), so repeating it re-anchors every time and never walks.
+  Pair the bare form with a queued `--eval` on `document.activeElement` to read the focus order in
+  one call, and **end a dialog walk on `--key Escape`, never Enter** (focus starts on Close; Enter
+  dismisses, and in an editor it SAVES).
 - If you catch yourself splitting one interaction across two snap calls, stop — state does not
   carry between calls (§4). Chain it, or use `--scenario`.
 
@@ -94,6 +106,29 @@ parameterized actions.
   receipt. They match RENDERED elements by default (`--include-hidden` widens).
 - `--eval` auto-invokes a bare function literal — pass `'()=>{…; return x}'` with NO trailing
   `()`; `'(()=>{…})()'` double-invokes and throws. Plain expressions need no wrapping.
+- **An `--eval` result is capped at 20 000 chars and the cap keeps BOTH ENDS** (head + tail, middle
+  elided behind a loud `[TRUNCATED …]` first line). The old 2 000-char head-only cut silently ate
+  the `cls`/`worstShift` tail of `__orb.motion()`, and a capped object read as a complete one.
+- **A probe that PLANTS styles must inject a `<style>` tag with `!important`, never
+  `element.style`.** A React re-render reverts inline style before the capture phase runs (the
+  evals fire in the queue; `--contrast`/`--map` observe afterwards) — three runs were burned on a
+  plant that had already been undone by the time it was measured.
+- **`--contrast` measures the first IN-VIEWPORT match, not the first DOM match**, and refuses a
+  verdict (`OFF-SCREEN … NO VERDICT`, red exit) when every match is off screen. Before that fix it
+  lied in BOTH directions off recycled virtualized rows: a `2.44:1 FAIL` on a `dimmed α0.50`
+  off-screen node, and a `17.14:1 PASS` for near-white text on white measured against a stale
+  backdrop. A line reading `match k/N, first in-viewport` is telling you it skipped some.
+- **`--crop` reports its path** — `crop=<path>` on the RESULT line and a `crop  <path>` report
+  line. It is not a no-op just because the main PNG path is unchanged.
+- **`--probe` VOIDS every motion/CLS number in the run** — it floors all animations/transitions
+  from first paint, which kills the FLIP animations that make track changes CLS-free, so the
+  harness manufactures layout-shift findings. Such a run prints `PROBE-NEUTERED-MOTION` and stamps
+  `motion=PROBE-NEUTERED-MOTION` on the RESULT line. Take motion/CLS receipts WITHOUT `--probe`.
+- **Two scroll containers, two different lists** — `[data-slot=virtual-list-scroll]` is the SIDEBAR
+  chat list (`packages/ui/src/primitives/virtual-list/virtual-list.tsx:158`); the TRANSCRIPT's
+  scroller is `[data-slot=message-list-scroll]`
+  (`packages/ui/src/primitives/message-list/message-list.tsx:421`). A whole virtualizer finding was
+  once minted entirely off confusing the two — name the slot you mean.
 - **`--json` is the lossless record** — the terminal console view caps at 200 messages
   (errors/warnings prioritized); the manifest keeps everything. Cite it whenever the terminal view
   was capped, and prefer it as the durable receipt for a red run.
@@ -108,6 +143,9 @@ parameterized actions.
      `steps-failed`, `assertion-fails`, `contrast-fails`, `eval-fails`, `console-errors`,
      `page-errors`), then the retained Playwright trace under `reports/traces/`. NAV FAILED and
      the `*REFUSED` lines land here — see §9 before retrying anything.
+     **`nav=OK` no longer coexists with `nav-actions-failed>0`**: a run whose page loaded but whose
+     `--goto`/`--open-chat` was rejected reads `nav=ACTIONS-FAILED`, because its captures describe a
+     surface you never reached. (It printed `nav=OK` beside `nav-actions-failed=1` until 2026-08-16.)
   3. **exit 0 = clean.** The last stdout line is always `RESULT <tool> key=value …` — machine-
      parsable; grep `^RESULT`.
 - A `data-app-ready=degraded` readiness is reported as a NAV ERROR: the capture is mid-hydration —
@@ -159,6 +197,11 @@ parameterized actions.
   lost-marker stage is SEEN, with the warning naming the remedy). `--stage-down` tears down, and
   falls back to a marker-less teardown (kill by stage-band port + sweep stage dirs) when a lost
   marker left an ownerless stage.
+- **THE BAND IS ONE FIXED PAIR — there is no per-lane band.** Two lanes cannot each hold a stage. If
+  the band is occupied, find the OWNER in `.cache/snap-stage/active.json` (the marker `--stage-status`
+  reads) before doing anything. Tear a stale stage down with **`pnpm snap --stage-down`** — never by
+  hand-killing pids: the marker-less fallback teardown exists precisely so the tool can reclaim an
+  ownerless stage, and a hand kill leaves the marker lying about a stage that no longer exists.
 - **Band occupied / need your own pair:** `scripts/dev/stack.sh` reads `VITE_PORT` and
   `VITE_API_TARGET` from env — boot a private stack on a free pair and point snap at it with
   `--base http://localhost:<vitePort>`.

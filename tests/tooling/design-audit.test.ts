@@ -5,6 +5,8 @@
 // tests/tooling/trace-render.test.ts's approach to testing a scripts/ tool's pure core.
 // The impeccable-adapted checks (origin "impeccable") each get a firing fixture AND a passing/exempt
 // control — a green that cannot fail is not a fence.
+
+import { parseAuditArgs } from "../../scripts/probes/design-audit.ts";
 import type { AccentBorderInput, Backdrop, IconTileInput, RawSamples, Rgb, TextStyleInput } from "../../scripts/probes/design-audit-checks.ts";
 import {
   checkAccentBorder,
@@ -833,4 +835,37 @@ test("collectFindings fans the impeccable-adapted sample families out too, origi
 
 test("collectFindings on an all-clean bundle (incl. a present main landmark) returns nothing", () => {
   expect(collectFindings(EMPTY_SAMPLES)).toEqual([]);
+});
+
+// ── CLI contract (scripts/probes/design-audit.ts) ────────────────────────────
+// The scanner could reach no surface but home and swallowed unknown flags until 2026-08-16 — a typo'd
+// audit scanned the landing page and reported it clean under the name of the surface you asked for.
+
+test("design-audit queues nav flags and clicks in ONE argv order, so a chat room is reachable", () => {
+  const args = parseAuditArgs(["/", "--goto", "modal:newChat", "--click", "[data-create]", "--open-chat", "current", "--context-tab", "rpg.game"]);
+
+  expect(args.errors).toEqual([]);
+  expect(args.actions).toEqual([
+    { kind: "nav", method: "goto", target: "modal:newChat" },
+    { kind: "click", selector: "[data-create]" },
+    { kind: "nav", method: "open-chat", target: "current" },
+    { kind: "nav", method: "context-tab", target: "rpg.game" },
+  ]);
+});
+
+test("design-audit refuses an unknown flag instead of ignoring it", () => {
+  expect(parseAuditArgs(["/", "--gotoo", "presets"]).errors).toContain("unknown flag --gotoo");
+  expect(parseAuditArgs(["/one", "/two"]).errors).toContain("expected at most one route, got 2");
+  expect(parseAuditArgs(["--goto"]).errors).toContain("--goto requires a value");
+  expect(parseAuditArgs(["--viewport", "wide"]).errors).toContain('--viewport expects positive WxH, got "wide"');
+  expect(parseAuditArgs(["--fail-on", "P9"]).errors).toContain('--fail-on expects P0|P1|P2|P3, got "P9"');
+});
+
+test("--mobile selects a coarse-pointer DEVICE, not a narrow viewport; --viewport/--desktop clear it", () => {
+  // The tap-target floor is pointer-conditional: a bare narrow viewport still renders pointer:fine and
+  // judges every control against 24px instead of the 44px touch minimum (0 of 13 real failures seen).
+  expect(parseAuditArgs(["/", "--mobile"]).device).toBe("iPhone 14 Pro Max");
+  expect(parseAuditArgs(["/", "--mobile", "--viewport", "800x600"]).device).toBeNull();
+  expect(parseAuditArgs(["/", "--mobile", "--desktop"]).device).toBeNull();
+  expect(parseAuditArgs(["/"]).device).toBeNull();
 });

@@ -23,6 +23,17 @@
  *                                          # interact BEFORE the shot: --click/--hover/
  *                                          # --fill (repeatable, executed in argv order);
  *                                          # --out names the PNG (reports/snaps/<out>.png)
+ *   pnpm snap / --key Tab --key Tab --eval 'document.activeElement.outerHTML.slice(0,120)'
+ *                                          # KEYBOARD WALK. `--key <KeyName>` with NO `=` sends the key
+ *                                          # to the page keyboard WITHOUT changing focus, so N of them
+ *                                          # walk N stops — inside a Base UI focus trap included.
+ *                                          # `--key 'selector=KeyName'` is the other form: it FOCUSES
+ *                                          # the selector first, then presses (use it to COMMIT a field:
+ *                                          # `--fill 'input=q' --key 'input=Enter'`). Five of THAT form
+ *                                          # is not a walk — it re-anchors on the selector every time,
+ *                                          # which is why "Tab never advances focus" was the 2026-08-16
+ *                                          # reading. Pair the walk with a queued --eval to read
+ *                                          # document.activeElement at each stop.
  *   pnpm snap / --press "[data-testid=recent-chats-row-kebab]"
  *                                          # hover-then-FORCED-click for hover-revealed
  *                                          # targets (group-hover kebabs, toolbars) and
@@ -53,7 +64,9 @@
  *   pnpm snap / --desktop                  # explicit alias for the default 1280x800 (symmetric scripts)
  *                                          # --mobile/--desktop/--wide/--viewport share ONE slot: last wins.
  *   pnpm snap / --crop 360x500+920+0       # ALSO write <out>-crop.png (native
- *                                          # Playwright clip, WxH+X+Y — no ffmpeg)
+ *                                          # Playwright clip, WxH+X+Y — no ffmpeg). The RESULT line
+ *                                          # carries `crop=<path>` (or the IGNORED reason), so a crop
+ *                                          # never reads as a no-op to a caller who greps RESULT.
  *   pnpm snap / --no-deadcss               # skip the dead-class scan (ON by default:
  *                                          # every DOM class token is checked against
  *                                          # the compiled CSSOM; a utility Tailwind
@@ -71,12 +84,18 @@
  *     FRESH against the settled surface right before you target it — never reuse a name from an earlier,
  *     pre-settle map.
  *
- *   INTROSPECTION — the "stop dropping to the MCP browser" escape hatches. Run post-settle
- *   (after any --click/--fill/--wait-for steps), so a caller gets computed values / arbitrary
- *   DOM facts in the SAME Bash call that drove the interaction.
+ *   INTROSPECTION — the "stop dropping to the MCP browser" escape hatches. `--eval` rides the SAME
+ *   argv-ordered drive queue as the steps and nav flags (see SPA NAVIGATION below), so an eval written
+ *   BETWEEN two steps observes the state between them; an eval written after the last step observes the
+ *   SETTLED surface, exactly as it always did. (Until 2026-08-16 every eval ran in a phase AFTER every
+ *   step, so `--eval A --click X` reported A's POST-click state — sequence-walking then cost one
+ *   invocation per step.) The pure captures — --map/--aria/--contrast/--expect-* — are NOT queued: they
+ *   observe the settled surface once, after the queue drains.
  *   pnpm snap / --eval 'document.title'    # run raw JS in-page (repeatable, argv order);
- *                                          # result is JSON-printed, capped ~2000 chars (a cap
- *                                          # is announced by a loud [TRUNCATED n/N] first line);
+ *                                          # result is JSON-printed, capped ~20000 chars, and a cap
+ *                                          # keeps BOTH ENDS (head + tail, middle elided) behind a loud
+ *                                          # [TRUNCATED …] first line — a head-only cut used to eat the
+ *                                          # `cls`/`worstShift` tail of __orb.motion();
  *                                          # an in-page throw prints EVAL ERROR, continues capture,
  *                                          # and makes the final RESULT/exit non-zero.
  *                                          # A function LITERAL is auto-invoked — `async()=>{…}`
@@ -85,8 +104,14 @@
  *                                          # An already-invoked arrow IIFE `(()=>{…})()` is left
  *                                          # alone; it is never mistaken for a bare function and
  *                                          # double-invoked.
- *   pnpm snap / --contrast 'label.field'   # WCAG AA contrast of the FIRST match's text/icon color
- *                                          # vs its resolved backdrop (repeatable). Each line states
+ *   pnpm snap / --contrast 'label.field'   # WCAG AA contrast of the first IN-VIEWPORT match's text/icon
+ *                                          # color (NOT the first DOM match — in a virtualized transcript
+ *                                          # that is routinely a recycled off-screen mid-fade node, and
+ *                                          # measuring it manufactured two P0s. Matches that are all
+ *                                          # off-viewport report OFF-SCREEN / NO VERDICT and redden the
+ *                                          # exit rather than emitting PASS or FAIL; a skipped-to match
+ *                                          # is named on the line as `match k/N, first in-viewport`.)
+ *                                          # Measured against its resolved backdrop (repeatable). Each line states
  *                                          # its METHOD honestly: `css-resolve` (an opaque ancestor bg,
  *                                          # cheap) or `pixel-sample`. TRANSLUCENT backdrops (glass,
  *                                          # color-mix at <1 alpha) over an opaque ancestor are
@@ -162,19 +187,29 @@
  *   --probe = seed orb:probe-mode (freezes relative-time labels app-side —
  *   packages/client/src/lib/probe-mode.ts) + inject CSS killing all animations/
  *   transitions/carets harness-side.
+ *   --probe IS INCOMPATIBLE WITH ANY MOTION/CLS READING and says so: the injected
+ *   `*{animation:none!important;transition:none!important}` kills the FLIP animations that make track
+ *   changes CLS-free, so the harness MANUFACTURES layout-shift findings. Every --probe run prints
+ *   PROBE-NEUTERED-MOTION and stamps `motion=PROBE-NEUTERED-MOTION` on the RESULT line. Take
+ *   motion/CLS receipts WITHOUT --probe, full stop.
  *   ffmpeg: NOT in the dev container until a Dockerfile rebuild — --diff then prints a
  *   skipped-with-reason line and exits non-zero (a requested comparison produced no evidence).
  *   FFMPEG_BIN env overrides.
  *
  *   SPA NAVIGATION — the app has only 2 URL routes (/, /login); every surface is CLIENT STATE. Instead of
- *   click-chaining to a section, drive the app's dev nav bridge (window.__orb.nav) directly. Nav flags are
- *   INTERLEAVED WITH THE STEPS IN TRUE ARGV ORDER (they were class-grouped and run first until 2026-08-15 —
- *   a mid-chain --context-tab silently ran against the LANDING page before its room existed, and the next
- *   click timed out). Write the chain the way it should happen and it happens that way; every documented
- *   example below writes its navs first, and for those the execution is byte-identical to the old order.
- *   All of them still run BEFORE the captures (--map/--aria/--eval/--contrast/assertions), so one call
- *   reaches AND inspects a surface. Each FAILS the run loudly (reddens exit, prints NAV FAILED) on a bad
- *   id or a missing bridge — never a silent no-op.
+ *   click-chaining to a section, drive the app's dev nav bridge (window.__orb.nav) directly.
+ *
+ *   THE ONE QUEUE — every ACTION-BEARING flag (nav flags · --click/--jsclick/--press/--hover/--fill/
+ *   --key/--wait-for · --eval) executes in TRUE ARGV ORDER from a single queue. The navs were
+ *   class-grouped and run first until 2026-08-15 (a mid-chain --context-tab silently ran against the
+ *   LANDING page before its room existed, and the next click timed out); --eval joined the queue on
+ *   2026-08-16 (before that, ALL steps ran, then ALL evals, so `--eval A --click X` reported A's
+ *   post-click state). Write the chain the way it should happen and it happens that way.
+ *   The PURE captures — --map/--aria/--contrast/--expect-* — are deliberately NOT in the queue: they
+ *   observe the settled surface once, after the queue drains, so one call reaches AND inspects a surface.
+ *   A trailing --eval (one written after the last step/nav) is likewise a settled-surface observer.
+ *   Each nav FAILS the run loudly (reddens exit, prints NAV FAILED, and the RESULT line reads
+ *   `nav=ACTIONS-FAILED`) on a bad id or a missing bridge — never a silent no-op.
  *   pnpm snap / --goto presets --map        # switch the rail to a section, then map it — no click chain
  *   pnpm snap / --goto settings:appearance --aria   # open Settings on a category (settings:<category>)
  *   pnpm snap / --goto modal:theme --shot-of '[role=dialog]'   # open a rail modal (modal:<slot>)
@@ -340,9 +375,14 @@ const MAP_NAME_MAX_LENGTH = 80;
 const CONSOLE_REPORT_CAP = 200;
 // Cap on DEADCSS/EMPTYCSS lines echoed (the counts always print in full).
 const CSS_FINDINGS_CAP = 15;
-// --eval result cap: a runaway selector/object dump shouldn't blow the report budget the
-// text path exists to save. Truncation is noted inline, never silent.
-const EVAL_RESULT_CAP = 2000;
+// --eval result cap: a runaway selector/object dump shouldn't blow the report budget the text path
+// exists to save. Truncation is noted inline, never silent. Raised 2000 → 20000 on 2026-08-16: at 2000
+// a routine `__orb.motion()` lost its TAIL, which is exactly where `cls`/`worstShift` live — a reviewer
+// read a capped object as a complete one and the missing keys looked like absent instrumentation.
+const EVAL_RESULT_CAP = 20_000;
+// …and past the cap we keep BOTH ENDS, not the head. A JSON object's last keys are as load-bearing as
+// its first; a head-only cut is the specific shape that ate `cls`.
+const EVAL_TRUNCATION_TAIL_FRAC = 0.4;
 // --eval block header: the expr itself, truncated so a long one-liner doesn't wrap the report.
 const EVAL_LABEL_CAP = 80;
 const BOLD_WEIGHT = 700;
@@ -424,6 +464,11 @@ type StepAction =
   | { kind: "hover"; selector: string }
   | { kind: "fill"; selector: string; value: string }
   | { kind: "key"; selector: string; key: string }
+  // A BARE key (`--key Tab`) — dispatched to the page keyboard with NO focus change, which is what
+  // makes a Tab WALK possible. The `selector=Key` arm above re-FOCUSES its selector before every press,
+  // so N of them land N times on the same neighbour instead of walking (2026-08-16: the settings
+  // dialog's tab order was unmeasurable, and the audit concluded "Tab never advances focus").
+  | { kind: "keyboard"; key: string }
   | { kind: "waitfor"; selector: string };
 type Step = StepAction & { page: number };
 
@@ -437,13 +482,19 @@ type NavAction =
   | { kind: "open-character"; target: string; page: number }
   | { kind: "context-tab"; target: string; page: number };
 
-/** ONE argv-ordered queue of everything that DRIVES the page before capture: bridge navigations and
- *  interaction steps, tagged by which they are. A flat command reads as ordered, so it must BE ordered —
- *  the old shape kept two arrays and ran every nav before every step as a CLASS, which silently reordered
- *  `--goto modal:newChat --click <create> --context-tab rpg.game` into a context-tab against the landing
- *  page (2026-08-15, one live chain lost to it). Both members carry `.action.page`, so per-page filtering
- *  for `--pages @<idx>` reads the same on either. */
-export type SnapAction = { readonly type: "nav"; readonly action: NavAction } | { readonly type: "step"; readonly action: Step };
+/** ONE argv-ordered queue of everything that DRIVES the page before capture: bridge navigations,
+ *  interaction steps, and `--eval` expressions, tagged by which they are. A flat command reads as
+ *  ordered, so it must BE ordered — the old shape kept two arrays and ran every nav before every step as
+ *  a CLASS, which silently reordered `--goto modal:newChat --click <create> --context-tab rpg.game` into
+ *  a context-tab against the landing page (2026-08-15, one live chain lost to it), and `--eval` stayed
+ *  out of the queue entirely until 2026-08-16, so `--eval A --click X` reported A's POST-click state.
+ *  Every member carries `.action.page`, so per-page filtering for `--pages @<idx>` reads the same on all.
+ *  Only the three ACTION-BEARING flag families live here; the pure captures (--map/--aria/--contrast/
+ *  --expect-*) observe the settled surface once, after the queue drains. */
+export type SnapAction =
+  | { readonly type: "nav"; readonly action: NavAction }
+  | { readonly type: "step"; readonly action: Step }
+  | { readonly type: "eval"; readonly action: PagedExpr };
 
 // A per-page eval/contrast keeps its argv-order expr/selector plus the target page.
 type PagedExpr = { expr: string; page: number };
@@ -490,9 +541,10 @@ export type Args = {
    *  seed. The token never leaves the headless context. */
   debugToken: string;
   /** THE pre-capture drive queue: interaction steps (--click/--fill/--hover/--press/--jsclick/--key/
-   *  --wait-for) and dev-bridge navigations (--goto/--open-chat/--open-character/--context-tab) in ONE
-   *  list, executed in TRUE argv order — a nav written mid-chain runs mid-chain. Each step waits for its
-   *  selector (5s) then acts; each nav waits for app-readiness + the bridge then calls `__orb.nav`.
+   *  --wait-for), dev-bridge navigations (--goto/--open-chat/--open-character/--context-tab) AND --eval
+   *  expressions in ONE list, executed in TRUE argv order — anything written mid-chain runs mid-chain.
+   *  Each step waits for its selector (5s) then acts (the bare-key arm presses straight at the page
+   *  keyboard); each nav waits for app-readiness + the bridge then calls `__orb.nav`.
    *  Failures are REPORTED (and redden the exit code) but don't abort — you still get a PNG of wherever
    *  the page ended up. A `@<idx>` flag suffix targets a --pages tab (`--click@1 …`); unprefixed = page 0. */
   actions: SnapAction[];
@@ -622,6 +674,15 @@ function pushStep(args: Args, step: Step): void {
 function pushNav(args: Args, action: NavAction): void {
   args.actions.push({ type: "nav", action });
 }
+
+// --eval lands in BOTH homes on purpose: `args.eval` stays the canonical argv-ordered expr list (page
+// targeting validation + the --watch series re-runs it every tick), while the queue entry carries its
+// POSITION so an eval written mid-chain runs mid-chain. capture() runs each expression exactly once —
+// see its drive/trailing split.
+function pushEval(args: Args, action: PagedExpr): void {
+  args.eval.push(action);
+  args.actions.push({ type: "eval", action });
+}
 // A `@<idx>` suffix on a flag (`--click@1`, `--eval@0`, `--aria@2`) selects a --pages tab — parsed by
 // splitPageSuffix (_kit/flags.ts, unit-tested there).
 
@@ -736,10 +797,19 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
     const s = splitLastEq(rest.shift() ?? "");
     pushStep(a, { kind: "fill", selector: s.head, value: s.tail, page });
   },
-  // --key "selector=KeyName" (LAST '=' splits; default Enter). Pairs with --fill to
-  // COMMIT a search box: `--fill 'input=q' --key 'input=Enter'` snaps a results view.
+  // TWO forms, picked by whether the value carries an '=':
+  //   --key "selector=KeyName"  focus the selector, THEN press — pairs with --fill to COMMIT a search
+  //                             box (`--fill 'input=q' --key 'input=Enter'`).
+  //   --key Tab                 BARE key to the page keyboard, no focus change — the only form that can
+  //                             WALK focus (the pair form re-focuses its selector before every press, so
+  //                             five of them land five times on the same neighbour, never a walk).
   "--key": (a, rest, page) => {
-    const s = splitLastEq(rest.shift() ?? "");
+    const raw = rest.shift() ?? "";
+    if (!raw.includes("=")) {
+      pushStep(a, { kind: "keyboard", key: raw, page });
+      return;
+    }
+    const s = splitLastEq(raw);
     pushStep(a, { kind: "key", selector: s.head, key: s.tail === "" ? "Enter" : s.tail, page });
   },
   // A POST-STEP wait (vs the page-load `--wait`): waits for `selector` to ATTACH at
@@ -865,7 +935,7 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--eval": (a, rest, page) => {
     const expr = rest.shift();
     if (expr) {
-      a.eval.push({ expr, page });
+      pushEval(a, { expr, page });
     }
   },
   "--contrast": (a, rest, page) => {
@@ -1017,8 +1087,10 @@ Assertions and reports:
   --checkpoint                      reset __orb evidence after readiness; scope console verdicts to actions
   --include-hidden                  include Activity/hidden DOM in map, CSS, and counts
 
-Interaction (steps and __orb nav flags run in TRUE argv order — a nav written mid-chain runs mid-chain):
-  --click <selector>      --fill <selector=value>  --key <selector=Key>
+Interaction (steps, __orb nav flags AND --eval run in ONE queue in TRUE argv order — anything written
+mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled surface afterwards):
+  --click <selector>      --fill <selector=value>  --key <selector=Key> | --key <Key>
+                            bare --key Tab walks focus (no re-focus); the selector= form re-anchors
   --hover <selector>      --wait-for <selector>    --goto <target>
   --open-chat <id|title|latest|current>   --open-character <id>     --context-tab <tab>
     latest = the chat list's top row; current = the room open right now (no list query — the one to
@@ -1083,8 +1155,10 @@ function validatePairFlagValue(flag: string, raw: string, errors: string[]): voi
   if (flag === "--fill" && (!raw.includes("=") || split.head === "")) {
     errors.push(`--fill expects selector=value with a non-empty selector, got ${JSON.stringify(raw)}`);
   }
-  if (flag === "--key" && split.head === "") {
-    errors.push(`--key expects a non-empty selector, got ${JSON.stringify(raw)}`);
+  // `--key Tab` (no '=') is the BARE-KEY form — a key name, not a selector. Only the pair form owes a
+  // non-empty selector.
+  if (flag === "--key" && raw.includes("=") && split.head === "") {
+    errors.push(`--key expects selector=Key with a non-empty selector (or a bare key name), got ${JSON.stringify(raw)}`);
   }
   if (flag === "--expect-text" && (!raw.includes("=") || split.head === "")) {
     errors.push(`--expect-text expects selector=text, got ${JSON.stringify(raw)}`);
@@ -1382,6 +1456,12 @@ async function navigate(page: Page, opts: Args, url: string): Promise<string | n
 
 // One step, one wait discipline. Throws on failure; driveStep counts + reports.
 async function runStep(page: Page, step: Step): Promise<void> {
+  if (step.kind === "keyboard") {
+    // NO locator, NO focus call: the key goes to whatever currently holds focus, which is the whole
+    // point — `--key Tab --key Tab` walks two stops instead of pressing Tab twice from the same anchor.
+    await page.keyboard.press(step.key);
+    return;
+  }
   const loc = page.locator(step.selector).first();
   if (step.kind === "waitfor") {
     // "attached" (in-DOM) is robust against the full-bleed-modal visibility
@@ -1414,6 +1494,11 @@ async function runStep(page: Page, step: Step): Promise<void> {
   }
 }
 
+// What a step failure names: every arm but the bare-key one is addressed by a selector.
+function stepLabel(step: Step): string {
+  return step.kind === "keyboard" ? `keyboard ${step.key}` : `${step.kind} ${step.selector}`;
+}
+
 // One step attempt + its settle. Returns the failure count (0 or 1) and prints its own reason —
 // a failing step never aborts the run, so the caller still gets a PNG of wherever the page ended up.
 async function driveStep(page: Page, step: Step): Promise<number> {
@@ -1426,17 +1511,17 @@ async function driveStep(page: Page, step: Step): Promise<number> {
     // Dev-server churn (HMR/restart/5xx) tears down the realm mid-run — say so distinctly and give the
     // step ONE retry after a settle, rather than reporting an environmental blip as an app failure.
     if (isContextChurn(msg)) {
-      print(`${CHURN_LINE} — retrying: ${step.kind} ${step.selector}`);
+      print(`${CHURN_LINE} — retrying: ${stepLabel(step)}`);
       try {
         await settle(page, STEP_SETTLE_MS);
         await runStep(page, step);
         return 0;
       } catch (retryErr) {
-        print(`STEP FAILED (after churn retry)  ${step.kind} ${step.selector}: ${errorMessage(retryErr)}`);
+        print(`STEP FAILED (after churn retry)  ${stepLabel(step)}: ${errorMessage(retryErr)}`);
         return 1;
       }
     }
-    print(`STEP FAILED  ${step.kind} ${step.selector}: ${msg}`);
+    print(`STEP FAILED  ${stepLabel(step)}: ${msg}`);
     return 1;
   }
 }
@@ -1496,8 +1581,9 @@ async function driveNav(page: Page, action: NavAction): Promise<number> {
 }
 
 /** Nav and step failures are counted SEPARATELY (they surface as distinct RESULT fields and distinct
- *  manifest counters) even though the two run from one queue. */
-type DriveFailures = { navFailures: number; stepFailures: number };
+ *  manifest counters) even though the three arms run from one queue. `evalResults` carries the outcomes
+ *  of the INTERLEAVED evals in argv order; trailing evals are appended by the capture phase. */
+type DriveFailures = { navFailures: number; stepFailures: number; evalResults: EvalOutcome[] };
 
 // THE drive loop: one page's queued actions — bridge navs and interaction steps alike — in TRUE argv
 // order. Interleaving is the contract, not an implementation detail: a flat command line reads as
@@ -1506,16 +1592,36 @@ type DriveFailures = { navFailures: number; stepFailures: number };
 // first, so the context-tab hit the landing page and the last click timed out against a room that did not
 // exist yet (2026-08-15). Failures never abort — the capture below still reports where the page ended up.
 async function driveActions(page: Page, actions: readonly SnapAction[]): Promise<DriveFailures> {
-  const failures: DriveFailures = { navFailures: 0, stepFailures: 0 };
+  const failures: DriveFailures = { navFailures: 0, stepFailures: 0, evalResults: [] };
   for (const entry of actions) {
     if (entry.type === "nav") {
-      // biome-ignore lint/performance/noAwaitInLoops: the drive queue is SEQUENTIAL by contract — argv order, and each action (either arm) may produce the surface the next one targets. This one suppression covers both awaits in the loop body.
+      // biome-ignore lint/performance/noAwaitInLoops: the drive queue is SEQUENTIAL by contract — argv order, and each action (any arm) may produce the surface the next one observes. This one suppression covers every await in the loop body.
       failures.navFailures += await driveNav(page, entry.action);
+    } else if (entry.type === "eval") {
+      failures.evalResults.push(...(await captureEvals(page, [entry.action.expr])));
     } else {
       failures.stepFailures += await driveStep(page, entry.action);
     }
   }
   return failures;
+}
+
+/** Split a page's queue at the LAST drive action (step or nav). Everything before it — evals included —
+ *  runs in argv position inside `driveActions`; the evals AFTER it are trailing observers of the settled
+ *  surface and run in the capture phase. A queue with no steps/navs at all is entirely trailing, so the
+ *  plain `snap / --eval x` path is byte-identical to what it always was.
+ *  Exported for the CLI suite: the split IS the interleave contract. */
+export function splitTrailingEvals(actions: readonly SnapAction[]): { drive: SnapAction[]; trailingEvals: string[] } {
+  let lastDrive = -1;
+  for (const [index, entry] of actions.entries()) {
+    if (entry.type !== "eval") {
+      lastDrive = index;
+    }
+  }
+  return {
+    drive: actions.slice(0, lastDrive + 1),
+    trailingEvals: actions.slice(lastDrive + 1).map((entry) => (entry.type === "eval" ? entry.action.expr : "")),
+  };
 }
 
 async function settlePage(page: Page, opts: Args): Promise<void> {
@@ -1578,6 +1684,20 @@ function isContextChurn(message: string): boolean {
 }
 const CHURN_LINE = "[snap] server churned mid-run (HMR/restart?) — step failed for environmental reasons";
 
+/** Cap an --eval result while keeping BOTH ENDS. A head-only cut is what silently ate the `cls`/
+ *  `worstShift` tail of `__orb.motion()`; the middle is the part a reader can most afford to lose, and
+ *  the elision says exactly how much went. Exported for the CLI suite (the cut is a contract, not a
+ *  formatting detail). */
+export function capEvalText(text: string): string {
+  if (text.length <= EVAL_RESULT_CAP) {
+    return text;
+  }
+  const tail = Math.floor(EVAL_RESULT_CAP * EVAL_TRUNCATION_TAIL_FRAC);
+  const head = EVAL_RESULT_CAP - tail;
+  const dropped = text.length - EVAL_RESULT_CAP;
+  return `[TRUNCATED ${EVAL_RESULT_CAP}/${text.length} chars — head ${head} + tail ${tail}, ${dropped} elided from the MIDDLE]\n${text.slice(0, head)}\n… [${dropped} chars elided] …\n${text.slice(-tail)}`;
+}
+
 async function captureEvals(page: Page, exprs: readonly string[]): Promise<EvalOutcome[]> {
   const results: EvalOutcome[] = [];
   for (const expr of exprs) {
@@ -1587,11 +1707,7 @@ async function captureEvals(page: Page, exprs: readonly string[]): Promise<EvalO
       // biome-ignore lint/performance/noAwaitInLoops: evals are argv-ordered and independent — sequential to keep report order matching argv, same discipline as driveActions.
       const value: unknown = await page.evaluate(wrapEvalExpr(expr));
       text = value === undefined ? "undefined" : JSON.stringify(value, null, 2);
-      if (text.length > EVAL_RESULT_CAP) {
-        // Loud, on its OWN first line (a quiet suffix hid mid-array cuts) so a capped result is never
-        // mistaken for the whole thing.
-        text = `[TRUNCATED ${EVAL_RESULT_CAP}/${text.length} chars]\n${text.slice(0, EVAL_RESULT_CAP)}`;
-      }
+      text = capEvalText(text);
     } catch (e) {
       failed = true;
       const msg = errorMessage(e);
@@ -1705,6 +1821,27 @@ type PerfEvidence = {
   readonly orb: unknown;
 };
 
+/** --probe injects `*{animation:none!important;transition:none!important}` from DOMContentLoaded
+ *  (PROBE_CSS_SCRIPT). That is correct for a DETERMINISTIC SHOT and fatal for a MOTION reading: it kills
+ *  the very FLIP animations (shell.css `@keyframes shell-list-push-in`, stamped by use-list-track-flip)
+ *  whose job is to make a track change CLS-free — so the harness MANUFACTURES layout-shift findings
+ *  (a 0.2295 theme-scope shift was filed off exactly this on 2026-08-16). `__orb.motion()` reached
+ *  through --eval is uncatchable from here, so the marker is unconditional under --probe: every
+ *  motion/CLS number in the run is void, and the run says so. Take CLS/motion receipts WITHOUT --probe. */
+const PROBE_MOTION_MARKER = "PROBE-NEUTERED-MOTION";
+
+function printProbeMotionWarning(opts: Args): void {
+  if (opts.probe) {
+    print(`\n!! ${PROBE_MOTION_MARKER} — --probe floors every animation/transition from first paint, so every`);
+    print("   motion / CLS / layout-shift number in this run is an ARTEFACT of the harness, not the app.");
+    print("   Re-take motion receipts without --probe.");
+  }
+}
+
+function motionResultValue(opts: Args): string {
+  return opts.probe ? PROBE_MOTION_MARKER : "live";
+}
+
 async function capturePerfEvidence(page: Page): Promise<PerfEvidence | null> {
   try {
     return (await page.evaluate(`(() => {
@@ -1732,8 +1869,28 @@ async function capturePerfEvidence(page: Page): Promise<PerfEvidence | null> {
 // design-audit-checks.ts's WCAG math, same split as design-audit.ts's walker.
 function buildContrastScript(selector: string): string {
   return `(() => {
-    var el = document.querySelector(${JSON.stringify(selector)});
-    if (!el) return null;
+    // THE FIRST DOM MATCH IS NOT THE ONE THE USER SEES (2026-08-16). In a virtualized transcript the
+    // first match is routinely a recycled, off-viewport, mid-fade node — measuring it produced two
+    // retracted contrast P0s (it even printed "dimmed α0.50" while emitting FAIL). Walk to the first
+    // match that is actually RENDERED IN THE VIEWPORT; if none is, return the off-screen refusal and let
+    // Node decline a verdict rather than measure a node nobody can look at.
+    var all = document.querySelectorAll(${JSON.stringify(selector)});
+    if (all.length === 0) return null;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    function inViewport(node) {
+      var s = getComputedStyle(node);
+      if (s.display === "none" || s.visibility === "hidden") return false;
+      var r = node.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return false;
+      return r.bottom > 0 && r.right > 0 && r.top < vh && r.left < vw;
+    }
+    var el = null;
+    var matchIndex = -1;
+    for (var mi = 0; mi < all.length; mi += 1) {
+      if (inViewport(all[mi])) { el = all[mi]; matchIndex = mi; break; }
+    }
+    if (!el) return { offscreen: true, total: all.length };
     // Tailwind v4 tokens are oklch(); Chromium's getComputedStyle SERIALIZES CSS Color 4
     // functions (oklch/oklab/lab/lch/color()) back verbatim rather than converting to rgb() —
     // so style.color can read "oklch(0.7 0.1 200)". Round-tripping through fillStyle does NOT
@@ -1867,11 +2024,17 @@ function buildContrastScript(selector: string): string {
       tag: tag,
       foregroundOpacity: foregroundOpacity,
       box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+      matchIndex: matchIndex,
+      total: all.length,
     };
   })()`;
 }
 
-type ContrastFacts = {
+/** No match anywhere in the DOM is `null`; matches that ALL sit outside the viewport are this — a
+ *  distinct outcome, because "I can't see it" is not "it fails contrast". */
+type ContrastOffscreen = { offscreen: true; total: number };
+
+type ContrastMeasured = {
   color: string;
   fontSizePx: number;
   fontWeight: number;
@@ -1887,7 +2050,14 @@ type ContrastFacts = {
    *  must be composited at this alpha over the backdrop before measuring. */
   foregroundOpacity: number;
   box: { x: number; y: number; width: number; height: number };
-} | null;
+  /** Which querySelectorAll index actually got measured, and how many matched — a non-zero index means
+   *  earlier matches were skipped as off-viewport, which the report states so nobody assumes "the first
+   *  one". */
+  matchIndex: number;
+  total: number;
+};
+
+type ContrastFacts = ContrastMeasured | ContrastOffscreen | null;
 
 // buildContrastScript's toRgbString ALWAYS emits this exact "rgb(r, g, b)" shape (it composites
 // to a canvas pixel and reads the bytes back itself, sidestepping getComputedStyle's oklch()
@@ -1970,7 +2140,7 @@ async function pixelSampleBackdrop(page: Page, box: Box, viewport: Viewport): Pr
 // opaque ancestor; every transparent/indeterminate resolve (the false-flat blind spot) pixel-samples.
 async function resolveContrastBackdrop(
   page: Page,
-  facts: NonNullable<ContrastFacts>,
+  facts: ContrastMeasured,
   forcePixel: boolean,
   viewport: Viewport,
 ): Promise<{ rgb: Rgb; method: "css-resolve" | "pixel-sample" } | { error: string }> {
@@ -1997,6 +2167,15 @@ async function checkContrast(page: Page, selector: string, forcePixel: boolean, 
   }
   if (facts === null) {
     return { line: `CONTRAST ${selector}: NOT FOUND`, failed: true };
+  }
+  // A requested measurement that produced NO EVIDENCE is red — same posture as a failed pixel sample or
+  // a --diff with no baseline. What it must never do is emit PASS/FAIL: the two retracted P0s of
+  // 2026-08-16 were verdicts on a node that was scrolled out of the transcript.
+  if ("offscreen" in facts) {
+    return {
+      line: `CONTRAST ${selector}: OFF-SCREEN  ${facts.total} match(es), none rendered in the viewport — NO VERDICT (scroll it into view, or target the visible match)`,
+      failed: true,
+    };
   }
   // WCAG contrast criteria exempt inactive controls. Reporting their deliberate dimming as a defect
   // trains reviewers to ignore the instrument, so state the exemption and leave the run green.
@@ -2035,7 +2214,10 @@ async function checkContrast(page: Page, selector: string, forcePixel: boolean, 
   const fontDisplay = `${Math.round(facts.fontSizePx)}px${facts.fontWeight >= BOLD_WEIGHT ? "b" : ""}`;
   const ratio = contrastRatio(fg, backdrop.rgb);
   const pass = ratio >= needRatio;
-  const tail = `(${kindLabel} · font ${fontDisplay} · need ${needRatio.toFixed(1)} · ${backdrop.method}${dimNote})`;
+  // Say WHICH match was measured whenever it wasn't the first — silence there is how "the first DOM
+  // match" got mistaken for "the one on screen".
+  const matchNote = facts.matchIndex > 0 ? ` · match ${facts.matchIndex + 1}/${facts.total}, first in-viewport` : "";
+  const tail = `(${kindLabel} · font ${fontDisplay} · need ${needRatio.toFixed(1)} · ${backdrop.method}${dimNote}${matchNote})`;
   return {
     line: `CONTRAST ${selector}: ${ratio.toFixed(2)}:1  ${pass ? "PASS" : "FAIL"}  ${tail}`,
     failed: !pass,
@@ -2269,7 +2451,12 @@ function planOut(plan: PagePlan, pageIndex: number, totalPages: number): string 
   return plan.unit === "u" ? contextOut(plan.out, pageIndex, totalPages) : pageOut(plan.out, pageIndex, totalPages);
 }
 
-async function captureEvidence(page: Page, opts: Args, outcome: CaptureOutcome, pageIndex: number): Promise<void> {
+/** Which page this evidence pass belongs to, plus the evals the drive queue deliberately LEFT for it
+ *  (the ones written after the last step/nav — they observe the settled surface). */
+type EvidencePass = { readonly pageIndex: number; readonly trailingEvals: readonly string[] };
+
+async function captureEvidence(page: Page, opts: Args, outcome: CaptureOutcome, pass: EvidencePass): Promise<void> {
+  const { pageIndex, trailingEvals } = pass;
   if (opts.deadCss) {
     const scan = await scanDeadCss(page, opts.includeHidden);
     outcome.deadCss = scan.dead;
@@ -2280,8 +2467,12 @@ async function captureEvidence(page: Page, opts: Args, outcome: CaptureOutcome, 
     outcome.ariaText = aria.text;
     outcome.ariaError = aria.error;
   }
-  const pageEvals = opts.eval.filter((entry) => entry.page === pageIndex).map((entry) => entry.expr);
-  outcome.evalResults = pageEvals.length > 0 ? await captureEvals(page, pageEvals) : [];
+  // Evals that come AFTER the last drive action run here — post-settle, exactly as they always did.
+  // The ones written mid-chain already ran at their argv position inside driveActions, and their
+  // outcomes are already in `outcome.evalResults`; appending keeps the report in argv order.
+  if (trailingEvals.length > 0) {
+    outcome.evalResults = [...outcome.evalResults, ...(await captureEvals(page, trailingEvals))];
+  }
   const pageContrasts = opts.contrast.filter((entry) => entry.page === pageIndex).map((entry) => entry.selector);
   if (pageContrasts.length > 0) {
     outcome.contrastResults = await captureContrasts(page, pageContrasts, opts.contrastPixel, page.viewportSize() ?? opts.viewport);
@@ -2329,15 +2520,18 @@ async function capture(page: Page, opts: Args, plan: PagePlan, evidence: Pick<Pr
         pageErrorEnd: evidence.pageErrors.length,
       };
     }
-    // ONE argv-ordered drive queue: bridge navs and interaction steps interleaved exactly as written.
-    const driven = await driveActions(
-      page,
-      opts.actions.filter((entry) => entry.action.page === pageIndex),
-    );
+    // ONE argv-ordered drive queue: bridge navs, interaction steps and --eval expressions interleaved
+    // exactly as written. TRAILING evals (everything after the last step/nav) are split back out and
+    // handed to the capture phase, so the long-standing "an --eval observes the SETTLED surface"
+    // guarantee survives for the common `--goto x --eval y` shape while a mid-chain eval runs mid-chain.
+    const pageActions = opts.actions.filter((entry) => entry.action.page === pageIndex);
+    const split = splitTrailingEvals(pageActions);
+    const driven = await driveActions(page, split.drive);
     outcome.navFailures = driven.navFailures;
     outcome.stepFailures = driven.stepFailures;
+    outcome.evalResults = driven.evalResults;
     await settlePage(page, opts);
-    await captureEvidence(page, opts, outcome, pageIndex);
+    await captureEvidence(page, opts, outcome, { pageIndex, trailingEvals: split.trailingEvals });
     if (plan.produceShot) {
       await captureShot(page, opts, out, mask);
     }
@@ -2726,20 +2920,40 @@ function printCssFindings(outcome: CaptureOutcome): void {
   }
 }
 
-// Crop is captured natively in captureShot (Playwright clip) — just report it.
-function printCropNote(opts: Args, ctx: ReportCtx): void {
+/** Where `--crop` actually landed — the PATH when a crop was written, else why it wasn't. The RESULT
+ *  line carries this too (`crop=…`): a reviewer greps RESULT, and a crop reported only in the body read
+ *  as a no-op (2026-08-16, an audit believed --crop did nothing). One derivation, two printers. */
+function cropOutcome(opts: Args, ctx: ReportCtx): string | null {
   if (opts.crop === null) {
-    return;
+    return null;
   }
   if (!CROP_RE.test(opts.crop)) {
-    print(`crop         IGNORED — expected WxH+X+Y, got "${opts.crop}"`);
-  } else if (!ctx.produceShot) {
-    print("crop         IGNORED — needs a shot (drop --no-shot/--text)");
-  } else if (opts.shotOf !== null) {
-    print("crop         IGNORED — mutually exclusive with --shot-of");
-  } else {
-    print(`crop         ${ctx.out.replace(PNG_EXT_RE, "-crop.png")}`);
+    return `IGNORED — expected WxH+X+Y, got "${opts.crop}"`;
   }
+  if (!ctx.produceShot) {
+    return "IGNORED — needs a shot (drop --no-shot/--text)";
+  }
+  if (opts.shotOf !== null) {
+    return "IGNORED — mutually exclusive with --shot-of";
+  }
+  return ctx.out.replace(PNG_EXT_RE, "-crop.png");
+}
+
+// Crop is captured natively in captureShot (Playwright clip) — just report it.
+function printCropNote(opts: Args, ctx: ReportCtx): void {
+  const outcome = cropOutcome(opts, ctx);
+  if (outcome !== null) {
+    print(`crop         ${outcome}`);
+  }
+}
+
+/** `nav=` on the RESULT line covers BOTH nav classes. It printed OK next to `nav-actions-failed=1` until
+ *  2026-08-16 — a chain whose --goto was rejected read as a clean run of the surface it never reached. */
+function navResultVerdict(navigationErrors: number, navActionFailures: number): string {
+  if (navigationErrors > 0) {
+    return "ERROR";
+  }
+  return navActionFailures > 0 ? "ACTIONS-FAILED" : "OK";
 }
 
 // ── Baseline / diff (probe-mode visual regression, ffmpeg SSIM) ─────────────
@@ -3274,6 +3488,7 @@ async function snap(opts: Args): Promise<number> {
   printCheckpointScope(session, evidenceSession);
   printCaptureLog(evidenceSession, failed);
   printCropNote(opts, { ...plan, failed, totalPages });
+  printProbeMotionWarning(opts);
   // Baseline/diff compares PAGE 0's shot (the canonical surface); multi-page baselines aren't a use case yet.
   const { diffPairs, ssimFailed } = await runBaselineOrDiff(opts, pageOut(out, 0, totalPages), name);
 
@@ -3347,7 +3562,9 @@ async function snap(opts: Args): Promise<number> {
     ["trace", artifacts.traces[0] ?? "none"],
     ["har", artifacts.hars[0] ?? "none"],
     ["json", manifestPath ?? "none"],
-    ["nav", totals.navigation > 0 ? "ERROR" : "OK"],
+    ["crop", cropOutcome(opts, { ...plan, out: pageOut(out, 0, totalPages), failed, totalPages }) ?? "none"],
+    ["motion", motionResultValue(opts)],
+    ["nav", navResultVerdict(totals.navigation, totals.navActions)],
     ["nav-actions-failed", totals.navActions],
     ["steps-failed", totals.steps],
     ["page-errors", evidenceSession.pageErrors.length],
@@ -3661,6 +3878,7 @@ function reportOneContext(args: ContextReportArgs, i: number): { readonly failed
   printCheckpointScope(ctxSession, evidenceSession);
   printCaptureLog(evidenceSession, failed);
   printCropNote(opts, ctx);
+  printProbeMotionWarning(opts);
   return { failedReq: failed.length, pageErrors: evidenceSession.pageErrors.length };
 }
 
@@ -3772,7 +3990,9 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[], target: F
     ["trace", artifacts.traces[0] ?? "none"],
     ["har", artifacts.hars[0] ?? "none"],
     ["json", manifestPath ?? "none"],
-    ["nav", totals.navigation > 0 ? "ERROR" : "OK"],
+    ["crop", cropOutcome(opts, { ...plan, out: contextOut(out, 0, totalContexts), failed: [], totalPages: totalContexts }) ?? "none"],
+    ["motion", motionResultValue(opts)],
+    ["nav", navResultVerdict(totals.navigation, totals.navActions)],
     ["nav-actions-failed", totals.navActions],
     ["steps-failed", totals.steps],
     ["page-errors", reportTotals.pageErrors],
