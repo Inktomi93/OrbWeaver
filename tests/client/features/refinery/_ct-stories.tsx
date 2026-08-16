@@ -46,7 +46,7 @@ import {
   useStartRefinerySession,
   useUpdateRefinerySession,
 } from "@orb/client/features/refinery";
-import { selectRefinerySession, setRefineryViewedRun } from "@orb/client/state";
+import { clearRefinerySelection, selectRefinerySession, setRefineryViewedRun } from "@orb/client/state";
 import type { CharacterCard } from "@orb/contracts/character";
 import type { RefinableField, RefinerySchemaStage, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
@@ -182,6 +182,30 @@ export function RefineryContentStory({ sessionId, viewBackRunId }: RefineryConte
             walk back
           </button>
         )}
+        <RefineryContentSurface />
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
+/**
+ * The REAL `RefineryContentSurface` with NOTHING selected — the LANDING, i.e. the arm `RefineryStartPane`
+ * owns: the teaching state, its character door, and the resume-or-mint decision a pick resolves (#79).
+ *
+ * The selection is CLEARED during the first render pass for the same reason `RefineryContentStory` seeds
+ * one there: an effect would paint one arm and swap on the second commit, and a CT that barriers on a
+ * mid-flight state is the flake the harness law forbids. Clearing rather than trusting the store's initial
+ * value keeps this story independent of whatever a prior mount in the same page left behind.
+ */
+export function RefineryStartStory(): ReactElement {
+  useState((): null => {
+    clearRefinerySelection();
+    setRefineryViewedRun(null);
+    return null;
+  });
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
         <RefineryContentSurface />
       </CtToastSurface>
     </CtAppDataProviders>

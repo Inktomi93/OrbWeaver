@@ -8,6 +8,10 @@
 // the LATEST SETTLED payload of that stage — or the view-back run the ledger pinned — with the running
 // state carried on the stepper cell.
 //
+// THE NO-SELECTION ARM IS ITS OWN MODULE (`components/refinery-start-pane.tsx`): the landing joins a
+// different read set than the pipeline does — the roster, for the #79 resume-or-mint decision a character
+// pick resolves — and this file is at its `component-size` cap.
+//
 // THIS PANE OWNS ITS SCROLL (`h-full min-h-0 overflow-y-auto`) — the house requirement `databank-detail-
 // surface.tsx`'s header states verbatim: the shell's CONTENT region carries NO overflow, so a surface
 // without it "simply has its tail unreachable". It shipped without it and the tail here is the TERMINAL ACT
@@ -17,8 +21,7 @@
 
 import type { RefinerySelection, RefineryStage } from "@orb/contracts/refinery";
 import { isAppendedRewrite } from "@orb/contracts/refinery";
-import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { RefinerySessionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container, Row, Stack } from "@orb/ui/layout";
@@ -29,26 +32,20 @@ import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
-import { selectRefinerySession, setRefineryViewedRun, useRefineryArmedRewriteId, useRefineryViewedRunId, useSelectedRefinerySessionId } from "#state";
+import { setRefineryViewedRun, useRefineryArmedRewriteId, useRefineryViewedRunId, useSelectedRefinerySessionId } from "#state";
 import { ApplyOutcome } from "../components/apply-outcome.tsx";
 import type { OutcomeState } from "../components/apply-row.tsx";
 import { ApplyRow } from "../components/apply-row.tsx";
 import type { ManualTarget } from "../components/manual-rewrite-dialog.tsx";
 import { ManualRewriteDialog } from "../components/manual-rewrite-dialog.tsx";
 import { RefineryChip } from "../components/refinery-chip.tsx";
+import { RefineryStartPane } from "../components/refinery-start-pane.tsx";
 import { RunControlsCard } from "../components/run-controls-card.tsx";
 import { ScopeEditorDialog } from "../components/scope-editor-dialog.tsx";
 import { StagePane } from "../components/stage-pane.tsx";
 import type { StageCell } from "../components/stage-stepper.tsx";
 import { StageStepper } from "../components/stage-stepper.tsx";
-import { TeachingState } from "../components/teaching-state.tsx";
-import {
-  useIterateRefinery,
-  useRunRefineryStage,
-  useStartRefinerySession,
-  useSubmitManualRewrite,
-  useUpdateRefinerySession,
-} from "../hooks/use-refinery-mutations.ts";
+import { useIterateRefinery, useRunRefineryStage, useSubmitManualRewrite, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
 import { scopeChipLabelOf } from "../lib/render-plan.ts";
@@ -65,20 +62,6 @@ export function RefineryContentSurface(): ReactElement {
     <Container className="relative h-full min-h-0 overflow-y-auto outline-none" name="refinery-content" ref={surfaceRef} tabIndex={-1}>
       {sessionId === null ? <RefineryStartPane /> : <RefinerySessionPane key={sessionId} sessionId={sessionId} />}
     </Container>
-  );
-}
-
-function RefineryStartPane(): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const start = useStartRefinerySession({ trpc, invalidation });
-  return (
-    <TeachingState
-      onStart={(characterId: CharacterId): void => {
-        start.mutate({ characterId }, { onSuccess: (session): void => selectRefinerySession(castId<RefinerySessionId>(session.id)) });
-      }}
-      starting={start.isPending}
-    />
   );
 }
 
