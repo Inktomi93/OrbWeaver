@@ -1495,16 +1495,16 @@
       "path": "docs/architecture/core/UI-Theming-and-Content.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 121,
-      "bytes": 22129,
-      "sha256": "4af2d5956457cf69244d7369eca66524d4204f37f1deb2a15bac0df677e11220",
+      "lines": 123,
+      "bytes": 23333,
+      "sha256": "ab3a200b21cefd807f8e03be2a728570cbf93f4b541c2f94669f75075ce9a807",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-14"
+          "updated": "2026-08-16"
         },
         "errors": []
       },
@@ -1514,13 +1514,15 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "4af2d5956457cf69244d7369eca66524d4204f37f1deb2a15bac0df677e11220",
-        "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "ab3a200b21cefd807f8e03be2a728570cbf93f4b541c2f94669f75075ce9a807",
+        "verifiedCommit": "e3efc08baf7601f1be23694babcbb2eeba94bf32",
+        "verifiedAt": "2026-08-16",
         "evidence": [
-          "docs/architecture/core/UI-Theming-and-Content.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
-          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
-          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
+          "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); §12.2 truth-repaired against the tree",
+          "git:e3efc08baf7601f1be23694babcbb2eeba94bf32 contains the exact current document blob",
+          "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings — carried from the 2026-08-14 verification)",
+          "packages/kit/src/card-frame/index.ts:45 the sandbox/CSP engine §12.2 now cites (the grant moved out of srcdoc.ts)",
+          "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:156 browser receipt that a card-authored script is refused by hash"
         ],
         "claims": [
           {
@@ -1531,9 +1533,22 @@
                 "target": "packages/ui/src/markdown/policy.ts:77"
               }
             ]
+          },
+          {
+            "claim": "Tier-B card frames are contained by the per-delivery sandbox grant plus a one-hash script-src, never by string-munging.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/kit/src/card-frame/index.ts:65"
+              },
+              {
+                "kind": "test",
+                "target": "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:156"
+              }
+            ]
           }
         ],
-        "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
+        "summary": "Full-read current current-reference document reverified during the tier-B card-frame pass (#91): §12.2 restated to name @orb/kit/card-frame as the sandbox/CSP home, source-checked (not origin-checked) auto-height, and the routed-only hash-pinned allow-scripts grant; existing typed implementation evidence remains current."
       },
       "receiptCurrent": true
     },
