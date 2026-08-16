@@ -14,6 +14,7 @@ import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } f
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
 import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
 import { gatherAssembleContext } from "../../../../../packages/server/src/domain/chat/substrate/assemble-gather.ts";
 import type { DatabankGatherParams } from "../../../../../packages/server/src/domain/databank/contract/params.ts";
@@ -394,6 +395,30 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
     expect(calls[0]?.k).toBeUndefined();
     expect(calls[0]?.minScore).toBeUndefined();
     expect(calls[0]?.rerank).toBeUndefined();
+  });
+
+  // THE END-TO-END SLOT (issue #80). Every test above stops at `out.databank` — the gather's own output —
+  // and all of them passed on the tree where a live drive retrieved a document and fed the model ZERO of it:
+  // the SHIPPED preset named no slot, so the gathered bytes died between GATHER and BUILD. This one carries
+  // the real gather output through the real `DEFAULT_PROMPT_CONFIG` into the assembled prompt.
+  test("a gathered passage reaches the ASSEMBLED prompt under the shipped default preset", async () => {
+    const { host, chatId, aria } = await seedRoom("db_e2e");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "who runs the ferry?" });
+    const passage = "The ferryman of Kalen's Crossing is named Doryn.";
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      gatherDatabank: () => Promise.resolve({ text: `# Ferry lore\n${passage}` }),
+    });
+
+    const assembleCtx = await gatherAssembleContext(
+      ctx,
+      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "who runs the ferry?" },
+      foreignOf(),
+    );
+    const prompt = assemblePrompt(DEFAULT_PROMPT_CONFIG, assembleCtx);
+
+    expect(`${prompt.static}\n${prompt.dynamic}`).toContain(passage);
+    expect(prompt.trace.databankIncluded).toBe(true);
   });
 });
 

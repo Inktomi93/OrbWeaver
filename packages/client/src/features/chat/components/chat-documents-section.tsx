@@ -17,8 +17,17 @@
 //
 // THE VISIBILITY TOGGLE IS A RETRIEVAL SWITCH, NOT A DELETE (D85). Hiding leaves every junction row
 // intact — every label here says "feed"/"stop feeding", never "remove".
+//
+// THE SLOTLESS-PRESET WARNING (issue #80). Everything this rack says about feeding is conditional on one
+// fact it cannot see from its own read: the running preset must place `{{databank}}` somewhere, or the
+// retrieved passages are gathered, budgeted — and then dropped, with no error anywhere. The shipped default
+// arrangement now carries the slot, but an imported ST preset never will, and an unreferenced slot is a
+// legal no-op by design (databank-design/07 §3), so nothing else in the system can complain. The rack is
+// where the user is standing when the promise is made, so the rack is where it gets qualified.
 
-import type { ChatId, DocumentId } from "@orb/kit/ids";
+import type { PromptConfig } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { ChatId, DocumentId, PresetId } from "@orb/kit/ids";
 import { formatBytes } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -27,7 +36,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { Fragment, useState } from "react";
@@ -35,8 +44,42 @@ import { RowActionsMenu, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hooks/use-chat-document-mutations.ts";
-import { isDetachableFromChat, nextHiddenSet, sourceChips } from "../lib/chat-documents-model.ts";
+import { isDetachableFromChat, nextHiddenSet, placesDatabankSlot, sourceChips } from "../lib/chat-documents-model.ts";
 import { AddChatDocumentDialog } from "./add-chat-document-dialog.tsx";
+
+/** The three states of "does the running arrangement place the slot" — `resolving` is its own value, not a
+ *  collapsed `false`, so the warning never flashes on a preset that turns out to carry the slot, and so a CT
+ *  can barrier on a SETTLED answer instead of racing the two reads. Rendered as a `data-` attribute. */
+const SLOT_STATES = ["resolving", "placed", "missing"] as const;
+type SlotState = (typeof SLOT_STATES)[number];
+
+/**
+ * Does the HOST's running preset write `{{databank}}`?
+ *
+ * The chat has no preset of its own: a turn assembles against the room host's active preset
+ * (`UserSettings.seeds.defaultPresetId`, `null` ⇒ the built-in `DEFAULT_PROMPT_CONFIG` — one home with the
+ * server's `resolvePromptConfigFor`, entry/compose/chat.ts). A stale or unowned id degrades to the built-in
+ * SERVER-side, so an errored read resolves the same way here rather than warning about a preset that will
+ * never run. Both reads are cache-first and already warm on any real session.
+ */
+function useSlotState(): SlotState {
+  const trpc = useTRPC();
+  const settings = useQuery(trpc.settings.getUserSettings.queryOptions());
+  const activePresetId = settings.data?.config.seeds.defaultPresetId ?? null;
+  const preset = useQuery({
+    ...trpc.preset.get.queryOptions({ id: (activePresetId ?? "") as PresetId }),
+    enabled: settings.data !== undefined && activePresetId !== null,
+  });
+
+  if (settings.data === undefined) {
+    return "resolving";
+  }
+  const config: PromptConfig | undefined = activePresetId === null || preset.isError ? DEFAULT_PROMPT_CONFIG : preset.data?.config;
+  if (config === undefined) {
+    return "resolving";
+  }
+  return placesDatabankSlot(config) ? "placed" : "missing";
+}
 
 /** One row of the rack — DERIVED from the read's wire type, never re-spelled (§5.4). */
 type ActiveDocument = inferOutput<Trpc["databank"]["listActiveForChat"]>[number];
@@ -54,6 +97,11 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
   const detach = useDetachDocumentFromChat({ trpc, invalidation });
   const [pickerOpen, setPickerOpen] = useState(false);
   const { data: rows } = useSuspenseQuery(trpc.databank.listActiveForChat.queryOptions({ chatId }));
+  // HOST-ONLY, and that is not a permission dodge: the turn assembles against the HOST's preset (D19), so a
+  // member's own arrangement says nothing true about this room — and the host is the only person who can act
+  // on it. A member with no documents attached has nothing to be warned about either way.
+  const slotState = useSlotState();
+  const warnSlotless = isHost && rows.length > 0 && slotState === "missing";
 
   const setHidden = (id: DocumentId, hide: boolean): void => {
     // The write REPLACES the whole excluded set, so it is derived from every rendered row, not patched.
@@ -61,12 +109,24 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
   };
 
   return (
-    <Stack gap="block">
+    <Stack data-databank-slot={slotState} gap="block">
       <Text voice="gloss">
         {isHost
           ? "Indexed passages from these documents can be pulled into this chat's prompts. Hiding one stops it feeding this room — it stays attached everywhere else."
           : "Indexed passages from these documents can be pulled into this chat's prompts — anyone in the room can contribute their own."}
       </Text>
+
+      {warnSlotless ? (
+        // A WARNING, not an error: nothing has failed and nothing is lost — the documents are attached and
+        // indexed, they simply have nowhere to land in the prompt this preset builds. Stated as the chip word
+        // (the fact, scannable) plus one sentence naming the fix, in the section's own voice.
+        <Row align="center" gap="field">
+          <Badge intent="warning" size="sm" tone="soft">
+            Not reaching the prompt
+          </Badge>
+          <Text voice="gloss">Your preset never places {"{{databank}}"}, so these can't feed a turn. Add the Databank section to it and they will.</Text>
+        </Row>
+      ) : null}
 
       {rows.length === 0 ? (
         // Never render nothing: "nothing feeds this room" is the normal starting state, and a blank block

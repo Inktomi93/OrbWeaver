@@ -171,6 +171,44 @@ describe("assemblePrompt — section walk", () => {
     expect(out.trace.memoryIncluded).toBe(true);
   });
 
+  test("databank marker lands in the DYNAMIC half (retrieval changes every turn — never the cached prefix)", () => {
+    // databank-design/07 §3: the slot is "a reserved macro slot in the DYNAMIC/CACHE-SAFE half, exactly
+    // parallel to {{memory}}" — a static placement would bust the prompt cache on every turn.
+    const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "databank" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ databank: "# Ferry\nThe ferryman is Kalen." }));
+    expect(out.static).toContain("sys");
+    expect(out.dynamic).toContain("The ferryman is Kalen.");
+    expect(out.trace.databankIncluded).toBe(true);
+  });
+
+  // THE SHIPPED ARRANGEMENT, not a hand-built one: issue #80 was not a broken gather — add→index→attach all
+  // worked and the retrieved bytes still reached no prompt, because the built-in preset named no slot for
+  // them. These two pin the DEFAULT config itself, which is what every untouched install actually runs.
+  describe("the built-in default arrangement feeds attached documents (issue #80)", () => {
+    const passage = "The ferryman of Kalen's Crossing is named Doryn.";
+
+    test("an attached document's passage reaches the assembled prompt", () => {
+      const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctxOf({ databank: `# Ferry lore\n${passage}` }));
+      expect(`${out.static}\n${out.dynamic}`).toContain(passage);
+      // The framing rides the marker's own default (databank-design/07 §3 — the wrapper prose belongs to the
+      // section template, never to databank's value).
+      expect(out.dynamic).toContain("Related information:");
+    });
+
+    test("no documents ⇒ byte-identical to a non-databank turn (the DB6 null-op pin, now with the slot placed)", () => {
+      // The op wired-but-empty arm and the op-absent arm must produce the SAME bytes — and neither may leak a
+      // stray "Related information:" header or the literal macro into the prompt.
+      const wiredEmpty = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctxOf({ databank: null }));
+      const absent = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctxOf());
+      expect(wiredEmpty.static).toBe(absent.static);
+      expect(wiredEmpty.dynamic).toBe(absent.dynamic);
+      const all = `${absent.static}\n${absent.dynamic}`;
+      expect(all).not.toContain("Related information");
+      expect(all).not.toContain("{{databank}}");
+      expect(absent.trace.databankIncluded).toBe(false);
+    });
+  });
+
   test("a section AFTER the chat_history pivot is delivered as an after-history injection", () => {
     const config = configOf([
       marker({ marker: "main_prompt", template: "sys" }),

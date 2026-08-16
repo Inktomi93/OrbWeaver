@@ -36,6 +36,9 @@ function quietPrompt(systemPrompt: string): AssembledPrompt {
       matchedKeys: [],
       compactSummaryIncluded: false,
       memoryIncluded: false,
+      // A quiet generation is the bare instruction + one span — no preset walk runs, so no databank section
+      // can have delivered (this is the turn's own truth, not a compiler placation).
+      databankIncluded: false,
       guidedInstructionIncluded: false,
       staticCacheBusters: [],
       chatInjectionsIncluded: 0,

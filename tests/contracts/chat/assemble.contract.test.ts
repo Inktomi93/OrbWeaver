@@ -43,6 +43,7 @@ test("the 8 assemble shapes pin (slim projections; AssembleContext refs PromptCo
     matchedKeys: [],
     compactSummaryIncluded: false,
     memoryIncluded: false,
+    databankIncluded: false,
     guidedInstructionIncluded: false,
     staticCacheBusters: [],
     chatInjectionsIncluded: 0,

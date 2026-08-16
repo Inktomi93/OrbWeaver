@@ -7,10 +7,10 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { ensurePackagedPresets, ensureSystemDefaultPreset, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import { PACKAGED_PRESETS } from "../../../../packages/server/src/domain/preset/contract/packaged.ts";
-import { selectPackagedPreset, selectSystemDefault } from "../../../../packages/server/src/domain/preset/persistence/queries.ts";
+import { readablePreset, selectPackagedPreset, selectSystemDefault } from "../../../../packages/server/src/domain/preset/persistence/queries.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { FROZEN_AT, seedPreset } from "./_support.ts";
+import { FROZEN_AT, seedPreset, seedUser } from "./_support.ts";
 
 const OLDER_VERSION = DEFAULT_PROMPT_CONFIG.schemaVersion - 1;
 const RPG_GM = PACKAGED_PRESETS["rpg-gm"];
@@ -82,5 +82,27 @@ describe("ensurePackagedPresets", () => {
     expect(row?.name).toBe("RPG Game Master");
     expect(row?.schemaVersion).toBe(RPG_GM.config.schemaVersion);
     expect(row?.updatedAt).toBe(FROZEN_AT + 7);
+  });
+});
+
+// THE BLAST-RADIUS PIN of every future schemaVersion bump (minted with v6→v7, issue #80). A bump is how the
+// shipped arrangement reaches an existing install — and the reason that is safe is that BOTH seeders key on
+// `ownerId IS NULL` rows at reserved ids. If a reseed ever widened to owned rows, it would silently overwrite
+// every user's hand-tuned preset on the next boot, with the version bump as the only trace.
+describe("the seeders never touch a USER-OWNED preset", () => {
+  test("an owned row stored at an OLDER version survives both boot seeders byte-identical", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "keeper");
+    const mine = { ...DEFAULT_PROMPT_CONFIG, schemaVersion: OLDER_VERSION, sections: [] };
+    const id = await seedPreset(db, { name: "Mine", ownerId: owner, config: mine, schemaVersion: OLDER_VERSION });
+
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT + 7);
+    await ensurePackagedPresets(db, () => FROZEN_AT + 7);
+
+    const row = await readablePreset(db, owner, id);
+    expect(row?.schemaVersion).toBe(OLDER_VERSION);
+    expect(row?.updatedAt).toBe(FROZEN_AT);
+    // The stored config is untouched — including the empty section list a reseed would have replaced.
+    expect(row?.config).toEqual(mine);
   });
 });

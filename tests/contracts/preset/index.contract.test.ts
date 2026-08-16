@@ -56,6 +56,7 @@ const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
 const SCHEMA_VERSION_V6 = 6;
+const SCHEMA_VERSION_V7 = 7;
 
 /** Code-unit order — the DEFAULT `toSorted()` ordering, spelled explicitly because `useArraySortCompare`
  *  (rightly) refuses a comparator-less sort on an annotated array. Both sides of a set-equality assertion
@@ -267,6 +268,62 @@ test("a stored preset carrying maxBudgetUsd parses forward WITHOUT losing its ot
   expect(parsed.schemaVersion).toBe(PROMPT_CONFIG_SCHEMA_VERSION);
   expect(parsed.params).toEqual({ temperature: SAMPLE_TEMPERATURE, quality: "deep" });
   expect("maxBudgetUsd" in parsed.params).toBe(false);
+});
+
+// v6→v7 (issue #80): the `databank` marker + its default section. STAMP-ONLY — the shipped arrangement
+// gained a section, but a STORED one is an author's document and is never rewritten (the warning chip is
+// what covers a preset that names no slot). The bump exists so the boot seeder reseeds the OWNERLESS rows.
+test("CONFIG_LIFTS v6→v7 stamps the version and rewrites NOTHING of a user-owned config", () => {
+  const liftV6 = CONFIG_LIFTS[SCHEMA_VERSION_V6];
+  if (liftV6 === undefined) {
+    throw new Error("CONFIG_LIFTS[6] is missing");
+  }
+  const stored = {
+    schemaVersion: SCHEMA_VERSION_V6,
+    // A hand-built arrangement that names no databank slot — exactly the config the chip warns about, and
+    // exactly the config a lift must not "helpfully" repair.
+    sections: [{ type: "marker", id: "main", name: "Mine", marker: "main_prompt", role: "system", enabled: true, template: "MY FRAMING" }],
+    params: { temperature: SAMPLE_TEMPERATURE },
+    variables: [{ name: "pov", question: "POV?", options: [{ label: "first", value: "first" }] }],
+    prose: { "preset.guided.opening": { text: "mine", baseVersion: 1 } },
+  };
+  const before = JSON.stringify(stored);
+  const lifted = liftV6(stored);
+
+  expect(lifted["schemaVersion"]).toBe(SCHEMA_VERSION_V7);
+  // Every other key is the SAME VALUE BY REFERENCE — nothing was rebuilt, reordered or defaulted.
+  expect(lifted["sections"]).toBe(stored.sections);
+  expect(lifted["params"]).toBe(stored.params);
+  expect(lifted["variables"]).toBe(stored.variables);
+  expect(lifted["prose"]).toBe(stored.prose);
+  // …and the lift did not mutate the input blob it was handed.
+  expect(JSON.stringify(stored)).toBe(before);
+});
+
+test("a v6 user preset parses forward slotless — the databank section is NOT injected into stored configs", () => {
+  const parsed = parsePromptConfig({
+    schemaVersion: SCHEMA_VERSION_V6,
+    sections: [{ type: "marker", id: "main", name: "Mine", marker: "main_prompt", role: "system", enabled: true, template: "MY FRAMING" }],
+    params: { temperature: SAMPLE_TEMPERATURE },
+    prose: {},
+  });
+  expect(parsed.schemaVersion).toBe(PROMPT_CONFIG_SCHEMA_VERSION);
+  expect(parsed.sections.map((section) => section.id)).toEqual(["main"]);
+});
+
+// The other half of the bump: the SHIPPED arrangement must actually carry the slot, or issue #80 is only
+// half-fixed — the gather retrieves and the prompt still never names the value.
+test("the built-in default arrangement places the databank slot, in the dynamic half after memory", () => {
+  const ids = DEFAULT_PROMPT_CONFIG.sections.map((section) => section.id);
+  expect(ids).toContain("databank");
+  expect(ids.indexOf("databank")).toBe(ids.indexOf("memory") + 1);
+  const databank = DEFAULT_PROMPT_CONFIG.sections.find((section) => section.id === "databank");
+  expect(databank).toMatchObject({ type: "marker", marker: "databank", enabled: true });
+  // The section ships UNSET, so the framing is the marker default (the F-03 rule) — and that default is
+  // where the ST `file_template_db` wrapper prose lives (databank-design/07 §3), never in databank's value.
+  expect(databank).not.toHaveProperty("template");
+  expect(DEFAULT_MARKER_TEMPLATES.databank).toContain("{{databank}}");
+  expect(DEFAULT_MARKER_TEMPLATES.databank).toContain("Related information:");
 });
 
 test("a stored preset carrying a silenced marker parses forward to a disabled, default-templated one", () => {
