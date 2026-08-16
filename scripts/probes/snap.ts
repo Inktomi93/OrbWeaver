@@ -2963,8 +2963,25 @@ type EvidenceFailureCounts = {
 
 type ConsoleFailureCounts = { readonly errors: number; readonly warnings: number };
 
+/** HARNESS-INDUCED console error, not the app's (measured 2026-08-15, three-arm probe): Playwright
+ *  TRACING — snap's default failure-evidence — injects its snapshot script into EVERY frame, and the
+ *  app's script-dead sandboxed card frames (srcdoc floor AND the routed /api/card-frame document) block
+ *  it with exactly this line. Without tracing the error never fires; a real browser never shows it. It is
+ *  therefore excluded from the console-error VERDICT (it false-redded every card-bearing room) but never
+ *  dropped: the report still prints these lines, the JSON manifest keeps them, and the RESULT line counts
+ *  them under `sandbox-trace-noise`. A sandboxed frame the APP scripted would match too — acceptable,
+ *  because scripting a sandboxed frame is barred by the srcdoc.ts security posture and would be its own
+ *  loud defect at review, not something to detect through Chrome's noise line. */
+export const SANDBOX_TRACE_NOISE_RE =
+  /^Blocked script execution in '[^']*' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\./u;
+const CONSOLE_TYPE_PREFIX_RE = /^\[error\]\s*/u;
+
+export function isSandboxTraceNoise(entry: CapturedConsole): boolean {
+  return entry.type === "error" && SANDBOX_TRACE_NOISE_RE.test(entry.line.replace(CONSOLE_TYPE_PREFIX_RE, ""));
+}
+
 function consoleFailureCounts(messages: readonly CapturedConsole[], strict: boolean): ConsoleFailureCounts {
-  const errors = messages.filter((entry) => entry.type === "error").length;
+  const errors = messages.filter((entry) => entry.type === "error" && !isSandboxTraceNoise(entry)).length;
   const warnings = strict ? messages.filter((entry) => entry.type === "warning").length : 0;
   return { errors, warnings };
 }
@@ -3270,6 +3287,7 @@ async function snap(opts: Args): Promise<number> {
     ["contrast-fails", totals.contrast],
     ["assertion-fails", totals.assertions],
     ["console-errors", failureSummary.consoleErrors],
+    ["sandbox-trace-noise", session.consoleMessages.filter(isSandboxTraceNoise).length],
     ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length],
     [
       "boot-console-warnings",
@@ -3398,7 +3416,7 @@ function printScenarioReports(args: ScenarioReportArgs): void {
     const checkpointSession = scenarioCheckpointSession(session, outcome, range);
     if (checkpoints[index]?.summary) {
       const failedAssertions = outcome.assertions.filter((entry) => entry.failed).length;
-      const errors = checkpointSession.consoleMessages.filter((message) => message.type === "error").length;
+      const errors = checkpointSession.consoleMessages.filter((message) => message.type === "error" && !isSandboxTraceNoise(message)).length;
       const warnings = checkpointSession.consoleMessages.filter((message) => message.type === "warning").length;
       const failed =
         outcome.navError !== null ||
