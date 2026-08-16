@@ -68,8 +68,9 @@ Breadth is never a substitute for the named targets' depth.
    A review that reports only measurables has done half its job.
 3c. **MOCK-VS-RENDERED IS AN IMAGE COMPARISON, NEVER A VIBE CHECK.** When a brief names a mock (a
    committed HTML mock, a published artifact, a design spec's drawing), the deliverable is: **both
-   images, shot at the SAME viewport width** (`pnpm snap --file <mock.html> --width N` renders a
-   committed mock through the same instruments as the live route), **plus a per-element DELTA TABLE**.
+   images, shot at the SAME viewport** (`pnpm snap --file <mock.html> --viewport WxH` — NOT `--width`,
+   which is not a flag and now hard-refuses (exit 2) — renders a committed mock through the same
+   instruments as the live route), **plus a per-element DELTA TABLE**.
    Every row names the element and classifies the difference as exactly one of — **RENDERED-WRONG**
    (the build missed the mock; a finding) · **MOCK-STALE-SANCTIONED** (a later ruling overtook the
    drawing; cite the ruling) · **DELIBERATE-WITH-CITE** (the build diverged on purpose; cite the
@@ -147,7 +148,10 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
   get computed receipts HERE before ever touching chrome-devtools:**
   - `--map [selector]` = the SELECTOR MAP — every interactive element as `role "name" → best selector`.
     Run this FIRST on any surface (`--click X --map '[role=dialog]'` maps a revealed one) to learn how
-    to target things. **NEVER grep source for a selector** — map it.
+    to target things. **NEVER grep source for a selector** — map it. Every printed selector is now
+    VALIDATED executable (unique + visible) before it's shown, tagged `[semantic]` or `[dom]` — a high
+    `map-dom-fallbacks` count in RESULT is itself an a11y smell (elements reachable only by DOM path
+    have no stable accessible identity). Rendered-only by default; `--include-hidden` widens.
   - `--contrast <selector>` (repeatable) = the WCAG contrast ratio of that element's text vs its
     effective background (`PASS/FAIL/INDETERMINATE`, oklch-safe). Your contrast receipt; FAILs fold into
     the exit code. Use this instead of hand-rolling `getComputedStyle` contrast math in chrome-dev.
@@ -163,10 +167,42 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
     <sel>` = element-only shot; `--diff`/`--baseline` = SSIM regression; `--dark`/`--light`/
     `--reduced-motion` = media emulation; `--deadcss` (default) reports Tailwind classes that never
     compiled — a free token/reading-surface receipt. Exits non-zero on nav/page error, failed request,
-    step failure, or a `--contrast` FAIL, so it doubles as a gate. `--out <name>` names a shot.
-  - **`--goto <section|settings:<cat>|modal:<slot>>` / `--open-chat <idOrExactTitle>` /
+    step failure, a `--contrast` FAIL, a failed `--expect-*` assertion, an eval/aria/map capture
+    failure, **or any console ERROR** (warnings too under `--strict-console`) — so one call is a full
+    gate. `--out <name>` names a shot.
+  - **`--expect-visible <sel>` / `--expect-text <sel=text>` / `--expect-count <sel=N>` /
+    `--expect-url <path>` / `--expect-no-overflow [sel]` / `--expect-focus <sel>`** = FIRST-CLASS
+    ASSERTIONS, argv-ordered, printed as `ASSERT … PASS/FAIL` lines and folded into the exit code.
+    Match RENDERED/visible elements by default (`--include-hidden` widens to Activity/inert trees —
+    that default kills the hidden-pane double-count false-positive class). `--expect-no-overflow` is
+    your free layout-overflow receipt; `--expect-focus` asserts where focus LANDED after `--key` steps.
+    Prefer these over hand-rolled `--eval` checks: the PASS/FAIL line IS the receipt.
+  - **`--json`** = a machine-readable manifest beside the PNG (`reports/snaps/<name>.json`): status,
+    per-axis failure counts, the LOSSLESS console log (terminal output caps at 200 messages,
+    errors/warnings prioritized), captures, watch ticks. Cite it when the terminal view was capped.
+  - **`--scenario <file.json>`** = SEQUENTIAL CHECKPOINTS in ONE browser lifetime
+    (`{name, defaults, checkpoints:[{name, args}]}`); a checkpoint on the SAME url keeps the live page,
+    so client state carries across checkpoints — THE instrument for multi-step flows (a wizard, a
+    settings walk, open-edit-save-reopen). Each checkpoint gets its own evidence window + report;
+    `--summary` prints one compact `CHECKPOINT <name> PASS/FAIL` line each. No --pages/--contexts/
+    --watch inside checkpoints; identical `--ls` seeds across all.
+  - **`--matrix`** = the bounded 8-variant sweep (desktop/mobile × light/dark × motion/reduced-motion)
+    in ONE command, each variant its own report + `<out>-<variant>.png` — replaces eight hand runs for
+    responsive/theme/motion coverage. Composes with `--scenario`.
+  - **`--checkpoint`** = scope console/page-error VERDICTS to the post-readiness interaction window
+    (boot noise excluded from the verdict, retained in `--json`; the RESULT line splits
+    `boot-console-warnings` out). Use it when a surface's boot chatter isn't the thing under review.
+  - **Failure evidence is DEFAULT-ON**: any red run retains a Playwright trace zip (+ HAR) under
+    `reports/traces/` — cite the trace path in the finding; `--no-failure-evidence` only if asked.
+  - **The CLI is STRICT now**: unknown flags, bad values, and unsupported combinations refuse with
+    `ARG ERROR` + exit 2 (never silently ignored) — `pnpm snap --help` prints the contract. A
+    `data-app-ready=degraded` readiness is reported as a NAV ERROR (the capture is mid-hydration —
+    rerun, don't assert on it), and mid-run HMR/dev-server churn is named + retried once, so an
+    environmental blip is distinguished from an app failure in the report.
+  - **`--goto <section|settings:<cat>|modal:<slot>>` / `--open-chat <idOrExactTitle|latest>` /
     `--context-tab <name>`** = SPA NAVIGATION (the app has 2 URL routes; everything is client state).
-    One flag replaces a brittle click-chain; unknown targets refuse LOUDLY (exit 1). Run first, then steps.
+    One flag replaces a brittle click-chain; unknown targets refuse LOUDLY (exit 1). Run first, then
+    steps. `--open-chat latest` opens the newest chat without needing an id.
   - **`--watch <totalMs> [--every <ms>]`** = timed series: per-tick screenshot + re-run of every `--eval`.
     THE instrument for streaming turns and transient states — one Bash call replaces the whole
     "MCP click-screenshot-read-repeat" loop.
@@ -238,8 +274,9 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
 chrome-devtools calls; past ~8 you are doing it wrong — stop, and re-route the check through `snap`.**
 (A real review burned ~45 MCP calls out of habit before course-correcting to snap and proved the snap
 flow covered nearly everything — that audit is why this budget exists; snap has since gained `--goto`/
-`--open-chat` navigation, `--watch` stream series, `--pages` multi-tab, and `--mobile`, closing every
-gap that review found.) Use it ONLY for the one
+`--open-chat` navigation, `--watch` stream series, `--pages` multi-tab, `--mobile`, and now first-class
+`--expect-*` assertions, `--scenario` multi-checkpoint flows, the `--matrix` sweep, `--json` manifests,
+and default-on failure traces, closing every gap that review found.) Use it ONLY for the one
 thing snap can't script: a live, STATEFUL keyboard walk where each step depends on where focus just
 landed (`press_key` Tab-through + `evaluate_script` reading `document.activeElement` per stop), or a
 `performance_start_trace`. **Why the REAL keyboard walk is mandatory for focus:** Chromium does NOT
