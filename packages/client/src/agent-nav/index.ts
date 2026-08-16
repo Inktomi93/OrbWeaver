@@ -15,6 +15,7 @@ import type { Trpc } from "#data";
 import { deriveChatTitle } from "#lib";
 import type { ModalSlotId, SectionId, SettingsCategoryId } from "#state";
 import {
+  activeChatId,
   closeModal,
   getAvailableContextTabIds,
   getAvailableContextTabs,
@@ -40,10 +41,17 @@ const CHARACTER_NAV_PAGE_LIMIT = CHARACTER_LIST_MAX_LIMIT;
 // page, not a walk: a dev bridge resolves what a dev is looking at, and the refusal below states its reach
 // rather than claiming the chat does not exist.
 const CHAT_NAV_PAGE_LIMIT = 100;
-// `openChat` targets that name a POSITION in the list instead of a chat: both mean its top row (see the
+// `openChat` targets that name a POSITION in the LIST instead of a chat: both mean its top row (see the
 // arm's comment — `listChats` is newest-updated-first, so top row === most recent).
-const CHAT_POSITION_IDS = ["first", "latest"] as const;
-const CHAT_POSITION_SENTINELS = new Set<string>(CHAT_POSITION_IDS);
+const CHAT_LIST_POSITION_IDS = ["first", "latest"] as const;
+const CHAT_LIST_POSITION_SENTINELS = new Set<string>(CHAT_LIST_POSITION_IDS);
+// The SESSION sentinel — the room the shell is showing right now, read off the active-chat pointer and
+// resolved WITHOUT the list. It is not a list position: a just-created room is an unlisted husk, so
+// `latest` resolves a DIFFERENT chat than the one on screen (2026-08-15: a probe message landed in the
+// wrong room because of exactly that). Kept distinct from the list sentinels so the two never share a path.
+const ACTIVE_CHAT_SENTINEL = "current";
+/** The full positional vocabulary `openChat` accepts, as reported by `capabilities().chatPositions`. */
+const CHAT_POSITION_IDS = [...CHAT_LIST_POSITION_IDS, ACTIVE_CHAT_SENTINEL] as const;
 const CHAT_ID_PREFIX = `${ID_PREFIX.chat}_`;
 
 function reject(kind: string, id: string, allowed: readonly string[]): NavResult {
@@ -79,6 +87,64 @@ async function resolveDirectChatId(idOrTitle: string, trpc: Trpc, queryClient: Q
   // caller named an opaque id or a display title; an invalid id simply falls through to the honest miss.
   const chat = await queryClient.fetchQuery(trpc.chat.getChat.queryOptions({ chatId: idOrTitle as ChatId })).catch(() => null);
   return chat?.id ?? null;
+}
+
+/** The `"current"` arm: the room the shell is showing right now, read off the active-chat pointer with NO
+ *  list query in the path. Refuses loudly on the landing surface — "nothing is open" is an answer, opening
+ *  an arbitrary room is not. Re-selecting the already-active chat is idempotent, and the composed
+ *  `setActiveSection("chats")` is the point when the rail has wandered elsewhere. */
+function resolveActiveChat(): NavResult {
+  const active = activeChatId();
+  if (active === null) {
+    return { ok: false, reason: `no chat is open — "${ACTIVE_CHAT_SENTINEL}" resolves the ACTIVE room and the shell is on the landing surface` };
+  }
+  openChatIn(active);
+  return OK;
+}
+
+/** The LIST-resolved arms: the `first`/`latest` positional sentinels and the exact-display-title match,
+ *  both against one keyset page of `listChats`. Split out of `openChat` so the session/id arms above it
+ *  stay list-free and the whole verb stays under the complexity ceiling. */
+async function resolveListedChat(idOrTitle: string, trpc: Trpc, queryClient: QueryClient): Promise<NavResult> {
+  // The list may not be loaded yet (a fresh nav straight to open a chat) — fetch through the SAME
+  // query the chat list uses, so this reads/populates the identical cache entry.
+  const page = await queryClient.fetchQuery(trpc.chat.listChats.queryOptions({ limit: CHAT_NAV_PAGE_LIMIT })).catch(() => null);
+  if (page === null) {
+    return { ok: false, reason: "chat list query failed — cannot resolve the chat" };
+  }
+  const chats = page.items;
+  // POSITIONAL sentinels — "open whatever chat is on top" without first learning an id. `listChats`
+  // returns newest-updated-first and the list surface renders that order unsorted, so the top ROW and
+  // the most-RECENT chat are the same row; both spellings resolve to it (a caller reaching for "latest"
+  // and one reaching for "first" mean the same thing here, and inventing a difference would be a lie).
+  // Reserved words by design: a chat literally titled "first"/"latest" is reachable by its id.
+  if (CHAT_LIST_POSITION_SENTINELS.has(idOrTitle)) {
+    const top = chats[0];
+    if (top === undefined) {
+      return { ok: false, reason: `no chat to open — "${idOrTitle}" resolves against the chat list, which is empty` };
+    }
+    openChatIn(top.id as ChatId);
+    return OK;
+  }
+  // Fall back to an EXACT display-title match (the same derivation the list rows render), so a caller
+  // can name a chat by what they see, not just its opaque id. Titles are NOT unique (the dev DB holds
+  // two "Group UX review — 3 cast" chats) — REFUSE loudly on a multi-match rather than silently picking
+  // one, so the caller disambiguates with the id (its unknown-target sibling's contract).
+  const byTitle = chats.filter((c) => deriveChatTitle(c.title, c.participantNames) === idOrTitle);
+  if (byTitle.length > 1) {
+    return { ok: false, reason: `ambiguous title "${idOrTitle}" matches ${byTitle.length} chats — use the chat id` };
+  }
+  const singleTitle = byTitle[0];
+  if (singleTitle !== undefined) {
+    openChatIn(singleTitle.id as ChatId);
+    return OK;
+  }
+  // The REFUSAL names its own reach: `listChats` is keyset-paged, so a miss means "not in the most
+  // recent N", never "does not exist" — a dev bridge that says the wrong one of those costs an hour.
+  return {
+    ok: false,
+    reason: `no chat matches id-or-title "${idOrTitle}" (searched the ${chats.length} most recent of ${page.totalCount} chat(s))`,
+  };
 }
 
 /** Build the `__orb.nav` handle. Called from the composition root under IS_DEV; `trpc` + `queryClient`
@@ -155,52 +221,25 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       return OK;
     },
     async openChat(idOrTitle: string): Promise<NavResult> {
-      // IDs are not list positions. Resolve them directly so old, hidden-husk, and temporary chats remain
-      // agent-operable; a bounded recent-page scan made a perfectly valid opaque id unreachable.
+      // RESOLUTION ORDER, cheapest and most-specific first — each tier is a strictly narrower claim:
+      //   1. "current" — the SESSION pointer. No query at all. It exists because `latest` resolves against
+      //      LISTED chats, so a room created seconds ago (an unlisted husk until the list refetches) makes
+      //      `latest` name a DIFFERENT chat than the one on screen (2026-08-15: a probe message landed in
+      //      the wrong room). A caller reaching for "the room I am in" must never get a list guess.
+      //   2. an opaque chat id — a direct read, so old/hidden-husk/temporary chats stay agent-operable
+      //      (a bounded recent-page scan made a perfectly valid id unreachable).
+      //   3. the LIST arms — `first`/`latest` and the exact display title.
+      // The sentinels are RESERVED WORDS by design: a chat literally titled "current"/"first"/"latest" is
+      // reachable by its id, exactly as the title arm's ambiguity refusal points a caller at the id.
+      if (idOrTitle === ACTIVE_CHAT_SENTINEL) {
+        return resolveActiveChat();
+      }
       const directId = await resolveDirectChatId(idOrTitle, trpc, queryClient);
       if (directId !== null) {
         openChatIn(directId);
         return OK;
       }
-      // The list may not be loaded yet (a fresh nav straight to open a chat) — fetch through the SAME
-      // query the chat list uses, so this reads/populates the identical cache entry.
-      const page = await queryClient.fetchQuery(trpc.chat.listChats.queryOptions({ limit: CHAT_NAV_PAGE_LIMIT })).catch(() => null);
-      if (page === null) {
-        return { ok: false, reason: "chat list query failed — cannot resolve the chat" };
-      }
-      const chats = page.items;
-      // POSITIONAL sentinels — "open whatever chat is on top" without first learning an id. `listChats`
-      // returns newest-updated-first and the list surface renders that order unsorted, so the top ROW and
-      // the most-RECENT chat are the same row; both spellings resolve to it (a caller reaching for "latest"
-      // and one reaching for "first" mean the same thing here, and inventing a difference would be a lie).
-      // Reserved words by design: a chat literally titled "first"/"latest" is reachable by its id.
-      if (CHAT_POSITION_SENTINELS.has(idOrTitle)) {
-        const top = chats[0];
-        if (top === undefined) {
-          return { ok: false, reason: `no chat to open — "${idOrTitle}" resolves against the chat list, which is empty` };
-        }
-        openChatIn(top.id as ChatId);
-        return OK;
-      }
-      // Fall back to an EXACT display-title match (the same derivation the list rows render), so a caller
-      // can name a chat by what they see, not just its opaque id. Titles are NOT unique (the dev DB holds
-      // two "Group UX review — 3 cast" chats) — REFUSE loudly on a multi-match rather than silently picking
-      // one, so the caller disambiguates with the id (its unknown-target sibling's contract).
-      const byTitle = chats.filter((c) => deriveChatTitle(c.title, c.participantNames) === idOrTitle);
-      if (byTitle.length > 1) {
-        return { ok: false, reason: `ambiguous title "${idOrTitle}" matches ${byTitle.length} chats — use the chat id` };
-      }
-      const singleTitle = byTitle[0];
-      if (singleTitle !== undefined) {
-        openChatIn(singleTitle.id as ChatId);
-        return OK;
-      }
-      // The REFUSAL names its own reach: `listChats` is keyset-paged, so a miss means "not in the most
-      // recent N", never "does not exist" — a dev bridge that says the wrong one of those costs an hour.
-      return {
-        ok: false,
-        reason: `no chat matches id-or-title "${idOrTitle}" (searched the ${chats.length} most recent of ${page.totalCount} chat(s))`,
-      };
+      return await resolveListedChat(idOrTitle, trpc, queryClient);
     },
     async openCharacter(idOrName: string): Promise<NavResult> {
       // The characters-section twin of openChat: switch the rail to Characters + select the character

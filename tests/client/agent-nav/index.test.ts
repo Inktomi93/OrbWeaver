@@ -83,7 +83,7 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
       { id: "setup", label: "setup" },
     ],
     contextTabsPublished: true,
-    chatPositions: ["first", "latest"],
+    chatPositions: ["first", "latest", "current"],
   });
 });
 
@@ -227,6 +227,51 @@ test("openChat('latest') resolves the top of the list without a caller-known id"
 
   expect(result).toEqual({ ok: true });
   expect(selectSpy).toHaveBeenCalledExactlyOnceWith(CHAT_ID);
+});
+
+test("openChat('current') resolves the ACTIVE room even when it is absent from the chat list (the unlisted husk)", async () => {
+  // The defect `current` exists for: a just-created room is a HUSK the list query has not seen, so
+  // "latest" resolves the wrong chat (last night a probe message landed in the owner's room). `current`
+  // reads the active-chat pointer and never consults the list at all.
+  state.selectChat(CHAT_ID);
+  const selectSpy = vi.spyOn(state, "selectChat");
+  const sectionSpy = vi.spyOn(state, "setActiveSection");
+  const trpc = fakeTrpc([{ id: castId<ChatId>("chat_agentnav_b"), title: "Some other chat", participantNames: ["You"] }], []);
+  const nav = buildAgentNav(trpc, new RealQueryClient() as QueryClient);
+
+  const result = await nav.openChat("current");
+
+  expect(result).toEqual({ ok: true });
+  expect(selectSpy).toHaveBeenCalledExactlyOnceWith(CHAT_ID);
+  expect(sectionSpy).toHaveBeenCalledExactlyOnceWith("chats");
+});
+
+test("openChat('current') REFUSES with a named reason when no room is open — no dispatch", async () => {
+  state.goToLanding();
+  const selectSpy = vi.spyOn(state, "selectChat");
+  const nav = buildAgentNav(fakeTrpc([{ id: CHAT_ID, title: "The Weave", participantNames: ["You"] }], []), new RealQueryClient() as QueryClient);
+
+  const result = await nav.openChat("current");
+
+  expect(result.ok).toBe(false);
+  expect(result.ok ? "" : result.reason).toContain("no chat is open");
+  expect(selectSpy).not.toHaveBeenCalled();
+});
+
+test("openChat('current') is a RESERVED word — a chat literally titled \"current\" stays reachable by its id", async () => {
+  const titledCurrent = castId<ChatId>("chat_agentnav_d");
+  state.selectChat(CHAT_ID);
+  const selectSpy = vi.spyOn(state, "selectChat");
+  const trpc = fakeTrpc([{ id: titledCurrent, title: "current", participantNames: ["You"] }], []);
+  const nav = buildAgentNav(trpc, new RealQueryClient() as QueryClient);
+
+  // The sentinel wins over the title — otherwise the reserved word would be ambiguous.
+  expect(await nav.openChat("current")).toEqual({ ok: true });
+  expect(selectSpy).toHaveBeenCalledExactlyOnceWith(CHAT_ID);
+
+  selectSpy.mockClear();
+  expect(await nav.openChat(titledCurrent)).toEqual({ ok: true });
+  expect(selectSpy).toHaveBeenCalledExactlyOnceWith(titledCurrent);
 });
 
 test("openChat() with no id/title match REFUSES loudly, naming its search reach — no dispatch", async () => {
