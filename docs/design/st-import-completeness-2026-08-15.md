@@ -1,7 +1,7 @@
 ---
 kind: design
-status: active
-updated: 2026-08-15
+status: archived
+updated: 2026-08-16
 ---
 
 # ST import completeness — the silent-gap sweep, orphan chats, and the not-mapped re-judgment (import-forge, 2026-08-15)
@@ -259,7 +259,8 @@ single dir is why the 2026-08-15 report saw 7 orphans — the full corpus has 8)
 - **Data Bank + gallery write-waves** — planes are EMPTY in the real corpus (0 files, 0 entries, 0
   images; receipts in §1 rows 10–11). This lane lands the WALK + counts + report lines so the gap can
   never be silent; the write-waves (databank `upload` / assets `add-to-gallery` per file) are a named
-  follow-up for a corpus that actually carries data. Fork sent to the orchestrator with this default.
+  follow-up for a corpus that actually carries data — tracked as [#84](https://github.com/Inktomi93/orbweaver/issues/84)
+  (parked; wakes when a re-staged corpus carries Data Bank/gallery data).
 - **`chat_metadata.persona` (avatar-filename vocabulary, 4 chats)** — already an open follow-up in the
   fidelity audit §5.7; unchanged by this lane.
 - **Message-media CAS (audit §5.3)** — the 167 references DANGLE: `user/images/` is empty on this
