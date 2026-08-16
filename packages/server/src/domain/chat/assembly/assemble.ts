@@ -355,33 +355,35 @@ function renderScenarioMarker(section: TemplatedMarkerSection, env: BuildEnv): s
   return value;
 }
 
-/** The ctx field + trace flag for each server-injected marker (avoids a nested ternary). */
-function serverMarkerValue(marker: "compact_summary" | "memory" | "guided_instruction", ctx: AssembleContext): string | null | undefined {
-  if (marker === "compact_summary") {
-    return ctx.compactSummary;
-  }
-  if (marker === "memory") {
-    return ctx.memory;
-  }
-  return ctx.guidedInstruction;
-}
+/** The markers whose CONTENT the server injects per turn — the preset owns only the framing template. Two
+ *  mapped Records below (§5.5 dispatch discipline) rather than an if/else chain with a fall-through default:
+ *  a new server marker is then a tsc error at BOTH sites, never a section that silently renders empty. */
+const SERVER_MARKERS = ["compact_summary", "memory", "databank", "guided_instruction"] as const satisfies readonly MarkerSection["marker"][];
+type ServerMarker = (typeof SERVER_MARKERS)[number];
 
-function markServerInclude(marker: "compact_summary" | "memory" | "guided_instruction", trace: AssembleTrace): void {
-  if (marker === "compact_summary") {
-    trace.compactSummaryIncluded = true;
-  } else if (marker === "memory") {
-    trace.memoryIncluded = true;
-  } else {
-    trace.guidedInstructionIncluded = true;
-  }
-}
+// Computed keys — the marker vocabulary is snake_case on the wire (the `DEFAULT_MARKER_TEMPLATES` idiom).
+const SERVER_MARKER_VALUE: Record<ServerMarker, (ctx: AssembleContext) => string | null | undefined> = {
+  ["compact_summary"]: (ctx) => ctx.compactSummary,
+  ["memory"]: (ctx) => ctx.memory,
+  ["databank"]: (ctx) => ctx.databank,
+  ["guided_instruction"]: (ctx) => ctx.guidedInstruction,
+};
 
-function renderServerMarker(section: TemplatedMarkerSection, marker: "compact_summary" | "memory" | "guided_instruction", env: BuildEnv): string {
-  const value = serverMarkerValue(marker, env.ctx);
+/** Each server marker's `AssembleTrace` inclusion flag — set only when the marker actually DELIVERED text, so
+ *  the host's diagnostics can tell "no retrieval this turn" from "the preset places no slot" (issue #80). */
+const SERVER_MARKER_FLAG = {
+  ["compact_summary"]: "compactSummaryIncluded",
+  ["memory"]: "memoryIncluded",
+  ["databank"]: "databankIncluded",
+  ["guided_instruction"]: "guidedInstructionIncluded",
+} as const satisfies Record<ServerMarker, keyof AssembleTrace>;
+
+function renderServerMarker(section: TemplatedMarkerSection, marker: ServerMarker, env: BuildEnv): string {
+  const value = SERVER_MARKER_VALUE[marker](env.ctx);
   if (value === null || value === undefined || value.trim().length === 0) {
     return "";
   }
-  markServerInclude(marker, env.trace);
+  env.trace[SERVER_MARKER_FLAG[marker]] = true;
   return renderMacros(templateFor(section, env.ctx), env.ctx, env.ctx.activePersona, { registry: env.registry });
 }
 
@@ -430,6 +432,7 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
         : "";
     case "compact_summary":
     case "memory":
+    case "databank":
     case "guided_instruction":
       return renderServerMarker(section, section.marker, env);
     case "world_info_before":
@@ -464,6 +467,7 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
     case "persona":
     case "compact_summary":
     case "memory":
+    case "databank":
     case "guided_instruction":
       return [templateFor(section, ctx)];
     case "main_prompt":
@@ -565,7 +569,9 @@ function isSectionDynamic(section: PromptSection): boolean {
   if (section.type === "literal") {
     return false;
   }
-  return section.marker === "memory" || section.marker === "guided_instruction" || section.marker === "chat_history";
+  // `databank` joins memory here: retrieval is re-run every turn against the pending message, so its bytes
+  // change turn to turn — in the STATIC half it would bust the cached prefix on every send (databank-design/07 §3).
+  return section.marker === "memory" || section.marker === "databank" || section.marker === "guided_instruction" || section.marker === "chat_history";
 }
 
 /** A section's `in_chat` delivery depth, or null for system-block placement. Precedence: explicit
@@ -598,6 +604,7 @@ function freshTrace(ctx: AssembleContext): AssembleTrace {
     matchedKeys: wi.matchedKeys,
     compactSummaryIncluded: false,
     memoryIncluded: false,
+    databankIncluded: false,
     guidedInstructionIncluded: false,
     staticCacheBusters: [],
     chatInjectionsIncluded: 0,

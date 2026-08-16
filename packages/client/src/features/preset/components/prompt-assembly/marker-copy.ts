@@ -12,7 +12,7 @@
 import type { DEFAULT_MARKER_TEMPLATES, MarkerType } from "@orb/contracts/preset";
 import { NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { LucideIcon } from "@orb/ui/icons";
-import { BookOpen, CircleUser, Drama, History, Library, MapPin, MessagesSquare, Scroll, ScrollText, Sparkles, Zap } from "@orb/ui/icons";
+import { BookOpen, CircleUser, Drama, FileText, History, Library, MapPin, MessagesSquare, Scroll, ScrollText, Sparkles, Zap } from "@orb/ui/icons";
 
 export interface MarkerCopy {
   readonly label: string;
@@ -109,6 +109,17 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
     subtitle: "remembered past events",
     glyph: History,
   },
+  ["databank"]: {
+    label: "Databank",
+    oneLiner: "Passages retrieved from the documents attached to this chat, matched to what was just said.",
+    subtitle: "from attached documents",
+    glyph: FileText,
+    // Retrieval runs every turn but delivers only on a HIT: no attached documents, or nothing above the
+    // relevance floor, and the section renders nothing at all. Cued for the same reason
+    // `guided_instruction` is — a row that reads "always on" while contributing nothing on most turns
+    // misleads exactly the author trying to account for their context.
+    firesCue: "when a document matches",
+  },
   ["compact_summary"]: {
     label: "Summary",
     oneLiner: "The running summary of the conversation so far (from /compact).",
@@ -121,7 +132,7 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
     subtitle: "your steer, wrapped",
     glyph: Zap,
     // The assembler renders this slot ONLY when a guided steer resolved (`assemble.ts` →
-    // `serverMarkerValue`'s `ctx.guidedInstruction`), so on an ordinary turn the row costs nothing and
+    // `SERVER_MARKER_VALUE`'s `ctx.guidedInstruction`), so on an ordinary turn the row costs nothing and
     // contributes nothing. That is the one row where "always on" would misread, hence the cue.
     firesCue: "steered turns",
   },

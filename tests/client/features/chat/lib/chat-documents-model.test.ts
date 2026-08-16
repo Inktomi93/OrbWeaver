@@ -6,6 +6,8 @@
 // host switched off — a room-wide prompt-content change with no error and no visible cause.
 
 import type { DocumentScopeSource, DocumentView } from "@orb/contracts/databank";
+import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { DocumentId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -13,6 +15,7 @@ import {
   attachableDocuments,
   isDetachableFromChat,
   nextHiddenSet,
+  placesDatabankSlot,
   sourceChips,
 } from "../../../../../packages/client/src/features/chat/lib/chat-documents-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -117,5 +120,51 @@ describe("attachableDocuments — the picker offers the bank MINUS what already 
   test("an empty bank offers nothing, and a bank with nothing active offers all of it", () => {
     expect(attachableDocuments([], [A])).toEqual([]);
     expect(attachableDocuments([bankDoc(A, "a")], []).map((d) => d.id)).toEqual([A]);
+  });
+});
+
+// The slotless-preset warning's whole truth condition (issue #80). A false NEGATIVE here re-hides the exact
+// defect the chip exists to name; a false POSITIVE cries wolf on an arrangement that feeds perfectly well.
+describe("placesDatabankSlot — does this arrangement actually write {{databank}}?", () => {
+  const configOf = (sections: PromptSection[]): PromptConfig => ({ ...DEFAULT_PROMPT_CONFIG, sections });
+  const literal = (content: string, enabled = true): PromptSection => ({ type: "literal", id: "lit", name: "Lit", role: "system", content, enabled });
+
+  test("the SHIPPED default places it — the arrangement every untouched install runs", () => {
+    expect(placesDatabankSlot(DEFAULT_PROMPT_CONFIG)).toBe(true);
+  });
+
+  test("a databank marker with NO custom template counts — the factory default is what renders", () => {
+    // The preset editor's reference scan deliberately reads only author-typed text; this predicate must not,
+    // or the shipped arrangement itself would be reported slotless.
+    expect(placesDatabankSlot(configOf([{ type: "marker", id: "db", name: "Databank", marker: "databank", role: "system", enabled: true }]))).toBe(true);
+  });
+
+  test("an imported arrangement that never names the macro does not — the case the chip exists for", () => {
+    expect(
+      placesDatabankSlot(configOf([literal("You are {{char}}."), { type: "marker", id: "m", name: "M", marker: "memory", role: "system", enabled: true }])),
+    ).toBe(false);
+  });
+
+  test("a DISABLED databank section does not count — a switched-off slot feeds exactly nothing", () => {
+    expect(placesDatabankSlot(configOf([{ type: "marker", id: "db", name: "Databank", marker: "databank", role: "system", enabled: false }]))).toBe(false);
+    expect(placesDatabankSlot(configOf([literal("Notes: {{databank}}", false)]))).toBe(false);
+  });
+
+  test("a hand-written reference counts wherever it is, in the casing and spacing the ENGINE accepts", () => {
+    // The registry looks names up lower-cased and the parser tolerates trailing space inside the braces, so
+    // a predicate stricter than the renderer would warn about a preset that demonstrably feeds.
+    expect(placesDatabankSlot(configOf([literal("Sources:\n{{databank}}")]))).toBe(true);
+    expect(placesDatabankSlot(configOf([literal("Sources:\n{{DataBank }}")]))).toBe(true);
+    // A custom template on ANY templated marker is scanned, not just the databank one.
+    expect(
+      placesDatabankSlot(
+        configOf([{ type: "marker", id: "m", name: "M", marker: "memory", role: "system", enabled: true, template: "{{memory}}\n{{databank}}" }]),
+      ),
+    ).toBe(true);
+  });
+
+  test("a near-miss is not a match — {{databanks}} and a bare word are not the slot", () => {
+    expect(placesDatabankSlot(configOf([literal("{{databanks}}")]))).toBe(false);
+    expect(placesDatabankSlot(configOf([literal("Use the databank when relevant.")]))).toBe(false);
   });
 });

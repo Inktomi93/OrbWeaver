@@ -15,6 +15,8 @@
 //
 // Every arm mounts ONCE (`ct-mount-is-once-per-test`).
 
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { DocumentId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -23,6 +25,14 @@ import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatDocumentsSectionStory } from "../_ct-stories.tsx";
 
 const SET_VISIBILITY = "chat.setChatDocumentVisibility";
+const SETTINGS = "settings.getUserSettings";
+const PRESET_GET = "preset.get";
+const SLOT_WARNING = "Not reaching the prompt";
+const ACTIVE_PRESET_ID = "preset_00000000000000000000mine";
+
+/** The host's settings with NO preset picked — `defaultPresetId: null` is the built-in arrangement, exactly
+ *  as the server resolves it (`resolvePromptConfigFor`), so no `preset.get` is issued at all. */
+const SETTINGS_BUILT_IN = { userId: "user_ct_docs", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const DETACH = "databank.detachFromChat";
 const ATTACH = "databank.attachToChat";
 
@@ -61,6 +71,9 @@ function stubRack(page: Page, over: TrpcRoutes = {}): Promise<TrpcRecorder> {
       const items = needle === "" ? bank : bank.filter((doc) => doc.name.toLowerCase().includes(needle));
       return { items, nextCursor: null, totalCount: items.length };
     },
+    // The slot-state reads: the built-in arrangement is active by default, which DOES place `{{databank}}`,
+    // so the warning is absent on every arm that doesn't opt into a slotless preset.
+    [SETTINGS]: () => SETTINGS_BUILT_IN,
     [SET_VISIBILITY]: () => ({ hidden: [] }),
     [DETACH]: () => null,
     [ATTACH]: () => null,
@@ -192,4 +205,73 @@ test("320px: the eye column lands at ONE x on every row, kebab or no kebab", asy
   };
   const target = await xOf(`Stop ${CHAT_DOC.name} feeding this chat`);
   await expect.poll(() => xOf(`Stop ${GLOBAL_DOC.name} feeding this chat`), { intervals: [20, 50, 100, 200] }).toBe(target);
+});
+
+// THE SLOTLESS-PRESET WARNING (issue #80). The rack promises these documents feed the room; that promise is
+// false whenever the running preset never writes `{{databank}}`, and nothing else in the stack can say so
+// (an unreferenced slot is a legal no-op by design). Each arm barriers on the SETTLED `data-databank-slot`
+// state, never on a bare absence — the two reads behind it land after mount, so an un-barriered "no chip"
+// assertion would pass on the un-resolved frame and prove nothing.
+test("host + documents + a preset that never places {{databank}}: the rack says the documents can't feed", async ({ mount, page }) => {
+  await stubRack(page, {
+    [SETTINGS]: () => ({
+      ...SETTINGS_BUILT_IN,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: ACTIVE_PRESET_ID } },
+    }),
+    // An imported-ST-shaped arrangement: a main prompt and nothing else. This is the live 2026-08-15 case —
+    // add → index → attach all worked, and the model still received zero retrieved bytes.
+    [PRESET_GET]: () => ({
+      id: ACTIVE_PRESET_ID,
+      name: "Imported",
+      config: { ...DEFAULT_PROMPT_CONFIG, sections: DEFAULT_PROMPT_CONFIG.sections.filter((section) => section.id !== "databank") },
+    }),
+  });
+  const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
+
+  await expect(component.locator('[data-databank-slot="missing"]')).toBeVisible();
+  await expect(component.getByText(SLOT_WARNING, { exact: true })).toBeVisible();
+  // It names the fix, and it is a WARNING about reach — never an error claiming something failed.
+  await expect(component.getByText("Add the Databank section", { exact: false })).toBeVisible();
+});
+
+test("host + documents + the shipped default preset: no warning — the slot is placed", async ({ mount, page }) => {
+  await stubRack(page);
+  const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
+
+  // BARRIER on the settled answer first: `placed` only renders once both reads resolved, so the absence
+  // below is a verdict rather than a race with the un-resolved frame.
+  await expect(component.locator('[data-databank-slot="placed"]')).toBeVisible();
+  await expect(component.getByText(SLOT_WARNING, { exact: true })).toHaveCount(0);
+});
+
+test("no documents attached: the slotless preset is not worth mentioning yet", async ({ mount, page }) => {
+  await stubRack(page, {
+    "databank.listActiveForChat": () => [],
+    [SETTINGS]: () => ({
+      ...SETTINGS_BUILT_IN,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: ACTIVE_PRESET_ID } },
+    }),
+    [PRESET_GET]: () => ({ id: ACTIVE_PRESET_ID, name: "Imported", config: { ...DEFAULT_PROMPT_CONFIG, sections: [] } }),
+  });
+  const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
+
+  await expect(component.locator('[data-databank-slot="missing"]')).toBeVisible();
+  await expect(component.getByText("No documents feed this chat yet.")).toBeVisible();
+  // Nothing is being dropped, so there is nothing to warn about — the empty state is the whole message.
+  await expect(component.getByText(SLOT_WARNING, { exact: true })).toHaveCount(0);
+});
+
+test("member: no warning even on a slotless preset — it is the HOST's preset that runs, and only they can fix it", async ({ mount, page }) => {
+  await stubRack(page, {
+    "databank.listActiveForChat": () => [{ ...CHAT_DOC }],
+    [SETTINGS]: () => ({
+      ...SETTINGS_BUILT_IN,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: ACTIVE_PRESET_ID } },
+    }),
+    [PRESET_GET]: () => ({ id: ACTIVE_PRESET_ID, name: "Imported", config: { ...DEFAULT_PROMPT_CONFIG, sections: [] } }),
+  });
+  const component = await mount(<ChatDocumentsSectionStory isHost={false} />);
+
+  await expect(component.locator('[data-databank-slot="missing"]')).toBeVisible();
+  await expect(component.getByText(SLOT_WARNING, { exact: true })).toHaveCount(0);
 });

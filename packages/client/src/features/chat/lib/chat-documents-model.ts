@@ -17,6 +17,8 @@
 
 import type { DocumentScopeSource } from "@orb/contracts/databank";
 import { DOCUMENT_SCOPE_SOURCES } from "@orb/contracts/databank";
+import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
+import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import type { DocumentId } from "@orb/kit/ids";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -78,4 +80,53 @@ export function isDetachableFromChat(sources: readonly DocumentScopeSource[]): b
 export function attachableDocuments(bank: readonly BankDocument[], activeIds: readonly DocumentId[]): readonly BankDocument[] {
   const active = new Set(activeIds);
   return bank.filter((document) => !active.has(document.id));
+}
+
+// ── THE SLOTLESS-PRESET WARNING (issue #80) ──────────────────────────────────────────────────────────
+// Attaching a document is only half the promise: the retrieved passages ride the `{{databank}}` macro, and a
+// preset whose arrangement never writes that macro drops them silently — the whole rack above says "feeds
+// this chat" while the model sees nothing. The shipped default now places the slot, but an ST-imported or
+// hand-built arrangement never will, and no server error marks the case (an unreferenced slot is a legal
+// no-op by design, databank-design/07 §3). So the rack SAYS it, where the documents are.
+
+/** One `{{…}}` occurrence, inner text captured — the engine's own display grammar
+ *  (`kit/macro/parser.ts`), so a written `{{databank }}` counts exactly as the engine resolves it.
+ *  Case-insensitive, like the registry's own `name.toLowerCase()` lookup. */
+const MACRO_OCCURRENCE_RE = /\{\{\s*([^{}]+?)\s*\}\}/gi;
+/** A reference's head ends at the first argument/filter separator. */
+const MACRO_HEAD_SPLIT_RE = /[:|\s]/u;
+const DATABANK_MACRO = "databank";
+
+/** The text a section actually CONTRIBUTES — a literal's content, or a templated marker's custom template
+ *  ELSE its factory default. Unlike the preset editor's reference scan (which deliberately reads only what
+ *  the author typed), the factory default counts here: a `databank` marker left untouched is precisely the
+ *  configuration that DOES feed, and calling it slotless would be the warning crying wolf on the shipped
+ *  arrangement. A plain marker carries no template and contributes none. */
+function sectionTemplateText(section: PromptSection): string {
+  if (section.type === "literal") {
+    return section.content;
+  }
+  const custom = "template" in section ? section.template : undefined;
+  if (custom !== undefined && custom !== "") {
+    return custom;
+  }
+  return section.marker in DEFAULT_MARKER_TEMPLATES ? DEFAULT_MARKER_TEMPLATES[section.marker as keyof typeof DEFAULT_MARKER_TEMPLATES] : "";
+}
+
+/** Does this arrangement write `{{databank}}` anywhere a turn would render it? DISABLED sections do not
+ *  count — a switched-off databank section feeds nothing, which is the same lived outcome as no section at
+ *  all, and the chip's job is to state the outcome. */
+export function placesDatabankSlot(config: PromptConfig): boolean {
+  return config.sections.some((section) => {
+    if (!section.enabled) {
+      return false;
+    }
+    for (const match of sectionTemplateText(section).matchAll(MACRO_OCCURRENCE_RE)) {
+      const head = match[1]?.split(MACRO_HEAD_SPLIT_RE)[0];
+      if (head?.toLowerCase() === DATABANK_MACRO) {
+        return true;
+      }
+    }
+    return false;
+  });
 }

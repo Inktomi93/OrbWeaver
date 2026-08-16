@@ -616,6 +616,11 @@ const TEMPLATED_MARKERS = [
   "post_history",
   "persona",
   "memory",
+  // The `{{databank}}` retrieval slot (DB6, databank-design/07 §3) — a TEMPLATED marker "exactly parallel to
+  // {{memory}}": the wrapper prose ("Related information:", ST `file_template_db`) belongs to the SECTION
+  // TEMPLATE around the slot, never to databank's own value, so the framing is a preset-editable default here
+  // and databank supplies only the retrieved chunks.
+  "databank",
   "compact_summary",
   "guided_instruction",
 ] as const satisfies readonly string[];
@@ -1879,6 +1884,10 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   ["persona"]: macro("persona"),
   ["compact_summary"]: `Summary of the conversation so far:\n${macro("compact_summary")}`,
   ["memory"]: `Past events:\n${macro("memory")}`,
+  // ST's `file_template_db` wrapper, per databank-design/07 §3. The section renders NOTHING when retrieval is
+  // empty (the assembler's server-marker arm gates on the value, so this header can never ship alone) — which
+  // is what keeps a bankless turn byte-identical to a pre-slot one.
+  ["databank"]: `Related information:\n${macro("databank")}`,
   ["guided_instruction"]: macro("guided_instruction"),
 };
 
@@ -2013,13 +2022,14 @@ const _valueIsKitValue = (value: z.infer<typeof userMacroInputValueSchema>): Use
 void _valueIsKitValue;
 
 /** Current blob shape. Bump + add a lift below when the shape changes (NO DB migration needed). */
-export const PROMPT_CONFIG_SCHEMA_VERSION = 6;
+export const PROMPT_CONFIG_SCHEMA_VERSION = 7;
 const SCHEMA_VERSION_V1 = 1; // walk floor — a versionless/garbage blob probes as v1
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
 const SCHEMA_VERSION_V6 = 6;
+const SCHEMA_VERSION_V7 = 7;
 
 /** The per-preset format-string overrides. Every key is optional and blank-means-default. NO carrier refine
  *  here on purpose — this schema is also the READ path (`parsePromptConfig` degrades a failed parse to
@@ -2341,6 +2351,15 @@ export const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => R
   // params blob on a parse failure: without this, one stored budget key would take EVERY other knob on that
   // preset down with it. Strip the key, keep the rest.
   5: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V6, params: liftDropMaxBudgetUsd(c["params"]) }),
+  // v6 → v7: the `databank` marker + its DEFAULT_PROMPT_CONFIG section (issue #80). STAMP-ONLY, the v2→v3
+  // precedent: the addition is purely additive to the marker vocabulary, so a stored blob at v6 is already a
+  // valid v7 blob and NOTHING of an author's config is rewritten — a user-owned preset survives this lift
+  // byte-identical but for the version stamp. The bump exists for the SEEDER: `ensureSystemDefaultPreset` /
+  // `ensurePackagedPresets` reseed an ownerless row only when its stored version is below the default's, so
+  // without it an existing install's built-in preset would keep the slotless arrangement forever. A stored
+  // OWNED preset that names no slot is DELIBERATELY left alone — the per-chat Documents warning chip covers
+  // those (an imported ST preset is never silently rewritten), the owner's ruled shape for #80.
+  6: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V7 }),
 };
 
 /** v5→v6: drop the retired `maxBudgetUsd` knob. Non-object params / a blob that never carried it pass
@@ -2479,6 +2498,19 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
       id: "memory",
       name: "Memory",
       marker: "memory",
+      role: "system",
+      enabled: true,
+    },
+    // Attached documents feed OUT OF THE BOX (issue #80). The gather, the budget and the macro all shipped
+    // wired while no built-in arrangement named the slot, so a live drive retrieved a document and the model
+    // saw none of it — every databank surface promised feeding the default preset made impossible. Seated
+    // immediately after `memory` (databank-design/07 §3 "exactly parallel to {{memory}}"; the rpg GM preset's
+    // `continuity` region, rpg-design/09 §d) and DYNAMIC, so per-turn retrieval never busts the cached prefix.
+    {
+      type: "marker",
+      id: "databank",
+      name: "Databank",
+      marker: "databank",
       role: "system",
       enabled: true,
     },

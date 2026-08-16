@@ -100,6 +100,7 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
   const flags: readonly { readonly label: string; readonly on: boolean }[] = [
     { label: "Compact summary", on: trace.compactSummaryIncluded },
     { label: "Memory", on: trace.memoryIncluded },
+    { label: "Databank", on: trace.databankIncluded },
     { label: "Guided instruction", on: trace.guidedInstructionIncluded },
   ];
   const activeFlags = flags.filter((flag) => flag.on);

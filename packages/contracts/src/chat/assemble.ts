@@ -142,6 +142,10 @@ export interface AssembleTrace {
   matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
   compactSummaryIncluded: boolean;
   memoryIncluded: boolean;
+  /** Whether the `{{databank}}` slot actually delivered retrieved document text this turn (DB6). Distinct from
+   *  "documents are attached": a chat with a full bank still reads false when the active preset places no
+   *  databank section, which is exactly the invisible failure issue #80 was. */
+  databankIncluded: boolean;
   guidedInstructionIncluded: boolean;
   /** Volatile macros that landed in the STATIC half — each busts prompt cache every turn. */
   staticCacheBusters: string[];
