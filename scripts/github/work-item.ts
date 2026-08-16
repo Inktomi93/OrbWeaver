@@ -38,6 +38,12 @@ const ISSUE_CLASSES = {
   evidence: { labels: ["kind:finding", "triage"], projectKind: "Evidence", review: undefined, status: "Triage" },
 } as const;
 
+/** Ingress labels mirror PRE-lifecycle state only; a transition out of ingress must clear them or the
+ *  label view lies forever (the Codex control-plane review: Done issues still wore `triage` because
+ *  create added labels that nothing reconciled). `gh issue edit --remove-label` tolerates an absent
+ *  label, so idempotent command reruns stay safe. */
+const INGRESS_LABELS = ["triage", "needs-owner"] as const;
+
 // biome-ignore lint/style/noProcessEnv: WORK_ITEM_CACHE_DIR is the test seam for the project-context cache directory — harness plumbing, not app config.
 const CACHE_DIR = process.env["WORK_ITEM_CACHE_DIR"] ?? join(resolve(dirname(fileURLToPath(import.meta.url)), "..", ".."), ".claude", "cache");
 const CACHE_FILE = join(CACHE_DIR, "work-item-project.json");
@@ -666,13 +672,27 @@ function claim(work: WorkItemContext, command: Extract<WorkCommand, { readonly k
     throw new Error(`work item is already Running in lane ${currentLane}`);
   }
   gh(["issue", "edit", String(work.target.number), "--repo", REPOSITORY, "--add-assignee", "@me"]);
+  // Belt: ready() already reconciled, but a claim rerun after an interrupted ready must not leave
+  // ingress labels behind (idempotent — removing an absent label is a no-op).
+  reconcileIngressLabels(work.target.number);
   transitionStatusLast(work.item, "Running", [{ name: "Lane", value: command.lane }]);
+}
+
+/** Clear stale ingress labels, optionally keeping/adding `needs-owner` (the Needs-owner mirror). Runs
+ *  BEFORE the Status write like claim's assignee edit — gh-side effects first, Status is the commit marker. */
+function reconcileIngressLabels(number: number, keep?: "needs-owner"): void {
+  const remove = INGRESS_LABELS.filter((label) => label !== keep);
+  gh(["issue", "edit", String(number), "--repo", REPOSITORY, ...remove.flatMap((label) => ["--remove-label", label])]);
+  if (keep !== undefined) {
+    gh(["issue", "edit", String(number), "--repo", REPOSITORY, "--add-label", keep]);
+  }
 }
 
 function ready(work: WorkItemContext): void {
   requireStatus(work, ["Triage", "Needs owner", "Blocked", "Parked", "Ready"], "work item must be Triage, Needs owner, Blocked, Parked, or Ready before Ready");
   requireUnblocked(work.target, "work item cannot become Ready while blocked");
   requireReadyMetadata(work, "Ready");
+  reconcileIngressLabels(work.target.number);
   transitionToReady(work.item);
 }
 
@@ -685,6 +705,8 @@ function needsOwner(work: WorkItemContext): void {
   if (TERMINAL_DISPOSITIONS.has(currentValue(work.item, "Disposition")?.toLowerCase() ?? "")) {
     throw new Error("work item with a terminal Disposition cannot enter Needs owner");
   }
+  // The needs-owner label mirrors the ingress state for issues routed here after creation.
+  reconcileIngressLabels(work.target.number, "needs-owner");
   transitionStatusLast(work.item, "Needs owner", [
     { name: "Review", value: "Owner" },
     { name: "Lane" },
