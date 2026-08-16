@@ -48,6 +48,7 @@
 import type { RpgFieldLocks } from "@orb/contracts/rpg";
 import { actorRefKey, rpgActorRefSchema } from "@orb/contracts/rpg";
 import { isPlainObject } from "@orb/kit/guards";
+import type { LockedPatchOutcome } from "../contract/results.ts";
 
 /** Resolve a keyed element's stable lock-segment key, or `undefined` when it has none (unaddressable). */
 type ElementKeyResolver = (element: unknown) => string | undefined;
@@ -301,14 +302,6 @@ function mergeAt(base: Record<string, unknown>, patch: Record<string, unknown>, 
  *  `fieldLocks` rides on the state. Returns a NEW object (base untouched). */
 export function applyLockedPatch<T extends Record<string, unknown>>(base: T, patch: Record<string, unknown>, fieldLocks: RpgFieldLocks | null): T {
   return mergeAt(base, patch, { locks: fieldLocks, sink: null }, "") as T;
-}
-
-/** What one lock-honoring merge produced AND what its locks cost (rule 3): the merged state plus the dotted
- *  paths whose writes the locks dropped. */
-export interface LockedPatchOutcome<T> {
-  readonly state: T;
-  /** Deduplicated, in the order the walk met them. EMPTY when no lock bit — the byte-identical ordinary turn. */
-  readonly suppressed: readonly string[];
 }
 
 /** {@link applyLockedPatch} with the suppression report (#77). The two writers that must answer "what did this
