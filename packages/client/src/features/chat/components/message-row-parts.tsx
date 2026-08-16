@@ -18,6 +18,7 @@ import { cn, renderMessageForDisplay } from "#lib";
 
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
+import { STICKY_ATTRIBUTION_CHROME } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
 import { CompactSummaryPeek } from "./compact-summary-peek.tsx";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
@@ -249,7 +250,7 @@ export function renderRowAvatar(args: {
 // The name-row left cluster (D66 N3): the speaker name (when a roster is threaded) + the quiet inline
 // timestamp beside it. Split out (not inlined in message-row.tsx) so the row body stays under the
 // cognitive-complexity ceiling. Renders nothing when there is neither a name nor a shown timestamp.
-export function renderRowIdentity(args: { readonly attribution: RowAttribution; readonly message: MessageView; readonly showTimestamp: boolean }): ReactNode {
+function renderRowIdentity(args: { readonly attribution: RowAttribution; readonly message: MessageView; readonly showTimestamp: boolean }): ReactNode {
   const { attribution, message, showTimestamp } = args;
   if (attribution.name === null && !showTimestamp) {
     return null;
@@ -262,6 +263,35 @@ export function renderRowIdentity(args: { readonly attribution: RowAttribution; 
         </Row>
       )}
       <MessageTimestamp message={message} show={showTimestamp} />
+    </Row>
+  );
+}
+
+/** The row's chrome row: the identity cluster on the left, the action cluster on the right.
+ *
+ *  Two INDEPENDENT backings can land on it and they stack: `chromeBacking` (the skin's wallpaper-gated
+ *  scrim, no-fill modes only) and `STICKY_ATTRIBUTION_CHROME` (#113 — pin + chip, any mode, only for a row
+ *  the virtualizer measured as taller than the scrollport). Split out of `message-row.tsx` so that row's
+ *  body stays under the cognitive-complexity ceiling. */
+export function renderRowNameRow(args: {
+  readonly attribution: RowAttribution;
+  readonly message: MessageView;
+  readonly showTimestamp: boolean;
+  readonly chromeBacking: string | undefined;
+  readonly stickyAttribution: boolean;
+  readonly actions: ReactNode;
+}): ReactElement {
+  return (
+    <Row
+      justify="between"
+      align="center"
+      gap="field"
+      data-slot="message-name-row"
+      data-sticky={args.stickyAttribution ? "" : undefined}
+      className={cn(args.chromeBacking, args.stickyAttribution && STICKY_ATTRIBUTION_CHROME)}
+    >
+      {renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp })}
+      {args.actions}
     </Row>
   );
 }

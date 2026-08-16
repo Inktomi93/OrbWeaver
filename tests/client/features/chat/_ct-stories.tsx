@@ -217,6 +217,10 @@ export interface MessageRowStoryProps {
   /** The row's DECLARED purpose (`MessageView.kind`, D129) — `narrator` gates the plain-`Name:` speaker-span
    *  split AND the narrator attribution. Omitted ⇒ `standard`, the ordinary row every other story drives. */
   readonly messageKind?: MessageKind;
+  /** #113 — the verdict `MessageListRowMeta.exceedsViewport` carries in production (this row is taller
+   *  than the scrollport). Passed directly here so a CT can assert the sticky treatment across every
+   *  chatStyle without building eight multi-viewport transcripts. */
+  readonly stickyAttribution?: boolean;
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -244,6 +248,7 @@ export function MessageRowStory({
   showLLMReasoningIcon,
   viewerIsHost = false,
   messageKind = "standard",
+  stickyAttribution = false,
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -290,6 +295,7 @@ export function MessageRowStory({
               reasoning,
             })}
             chatStyle={chatStyle}
+            stickyAttribution={stickyAttribution}
             showLLMReasoningIcon={showLLMReasoningIcon}
             metadataVisibility={metadataVisibility}
             avatarSize={avatarSize}
@@ -893,6 +899,26 @@ export function MessageListSurfaceStory(): ReactElement {
     <CtDataProviders>
       <SocketHost>
         <SurfaceHarness />
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+/** #107 TAB-BUDGET harness: the real surface between two sentinel buttons that stand in for "the control
+ *  before the transcript" and "the composer". A CT focuses `walk-start`, presses Tab until `walk-end` has
+ *  focus, and compares the count across thread lengths — which is the whole contract: the transcript's
+ *  cost to a keyboard reader must not scale with the thread. */
+export function MessageListTabWalkStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <button type="button" data-testid="walk-start">
+          before
+        </button>
+        <SurfaceHarness />
+        <button type="button" data-testid="walk-end">
+          after
+        </button>
       </SocketHost>
     </CtDataProviders>
   );

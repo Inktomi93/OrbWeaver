@@ -17,7 +17,7 @@ import { buildCastAvatarMaps, buildCastNameContext, castKey } from "@orb/contrac
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
-import type { MessageListHandle } from "@orb/ui/message-list";
+import type { MessageListHandle, MessageListRowMeta } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
@@ -229,7 +229,11 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // (The noun is COMPACTION, not memory — this is `chats.compactSummary`, not the Memory plane.)
   const contextBoundaryCompactSummary = previewFit.data?.compactSummary ?? null;
 
-  const renderItem = (item: (typeof items)[number]): ReactNode =>
+  // `meta.exceedsViewport` is the virtualizer's OWN measurement of this row against the scrollport — the
+  // only honest answer to "is this turn taller than the reader's screen", which is what decides whether
+  // the speaker attribution has to be sticky (#113). A content-length proxy would be wrong for exactly the
+  // rows that matter (a short body carrying three cards is multi-viewport; a long one-liner is not).
+  const renderItem = (item: (typeof items)[number], _index: number, meta: MessageListRowMeta): ReactNode =>
     item.kind === "ghost" ? (
       <GhostMessageRow
         chatId={chatId}
@@ -254,6 +258,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
       <MessageRow
         message={item.view}
         chatStyle={chatStyle}
+        stickyAttribution={meta.exceedsViewport}
         {...((): { readonly greeting?: ReturnType<typeof resolveGreetingBinding> } => {
           // exactOptionalPropertyTypes: a non-greeting row must OMIT the prop, never pass explicit-undefined.
           const greeting = resolveGreetingBinding({ windowOpen: greetingWindowOpen, message: item.view, alternatesByCharacter: greetingAlternates });
@@ -303,6 +308,10 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         getItemKey={messageItemKey}
         estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
         renderItem={renderItem}
+        // #107: the transcript is UNBOUNDED, so its rows must not each contribute their action cluster to
+        // the document tab order — measured, a keyboard reader paid ~7 Tabs per message and 32 of them
+        // never reached the composer. One tab stop enters the log; arrows walk the rows.
+        rowNavigation="roving"
         scrollContainerRef={jump.scrollContainerRef}
         scrollMode={behaviorPrefs.streamScrollMode}
         gapToken="block"

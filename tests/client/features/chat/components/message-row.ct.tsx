@@ -7,6 +7,7 @@
 // a regression check for that default.
 
 import type { ParticipantView } from "@orb/contracts/chat";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
@@ -1026,4 +1027,81 @@ test("at a desktop-width column the portrait keeps its full size — the step-do
   // The `sm` avatar token is 32px; the narrow step is 24px. Asserting ">= 32" pins that the wide arm is
   // untouched without hardcoding the narrow number on both sides.
   expect(avatarWidth).toBeGreaterThanOrEqual(32);
+});
+
+// ── #113: the sticky attribution holds in EVERY standard mode ─────────────────────────────────────
+// The done-criterion is "all standard modes or a receipted per-mode exemption", so this is driven off
+// the skin table itself: adding a chatStyle without deciding how its name row behaves fails HERE.
+// No exemption is taken — every mode renders the name row as the same sibling above the bubble, so the
+// same pin works for all eight (`ripple` already stickies its portrait beside it; the two coexist).
+
+// Driven off the CONTRACTS tuple `MESSAGE_ROW_SKINS` is itself keyed by (`Record<ThemeChatStyle, …>`) —
+// importing the skin table directly into a spec drags a second copy of the client module graph into the
+// CT bundle and breaks its build; the tuple is the same axis with no such cost.
+for (const chatStyle of THEME_CHAT_STYLES) {
+  test(`#113 ${chatStyle}: a viewport-exceeding row pins its name row and backs it, without changing the row's height`, async ({ mount }) => {
+    const bare = await mount(<MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
+    const bareHeight = await bare.locator(NAME_ROW).evaluate((el: HTMLElement) => el.getBoundingClientRect().height);
+    await expect(bare.locator(NAME_ROW)).toHaveCSS("position", "static");
+    await bare.unmount();
+
+    const stuck = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} stickyAttribution={true} />,
+    );
+    await expect(stuck.locator(NAME_ROW)).toHaveCSS("position", "sticky");
+    await expect(stuck.locator(NAME_ROW)).toHaveCSS("top", "0px");
+    // The chip is unconditional here (not wallpaper-gated) — it backs the row's own prose scrolling under it.
+    await expect.poll(async () => await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
+    // LAYOUT-NEUTRAL: `py-row` is cancelled by `-my-row`, so the virtualizer's measured extent cannot move
+    // when the sticky verdict lands (which happens AFTER measurement — an uncancelled pad would be a CLS).
+    const stuckOuter = await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => {
+      const cs = getComputedStyle(el);
+      return el.getBoundingClientRect().height + Number.parseFloat(cs.marginTop) + Number.parseFloat(cs.marginBottom);
+    });
+    expect(Math.abs(stuckOuter - bareHeight)).toBeLessThan(1);
+  });
+}
+
+// ── #106: the chrome BELOW the bubble gets the wallpaper scrim ────────────────────────────────────
+// The metadata row is a sibling UNDER the bubble box, outside any fill, in EVERY chatStyle — so over a
+// bright wallpaper it rendered pale grey on white (the 2026-07-09 exemption of the "floating chrome" was
+// measured under a DARK wallpaper and did not survive re-measurement). `BG_PHOTO_CHROME_SCRIM` self-gates
+// on the shell's `data-has-bg-image`, so both arms below are the same mount with and without that flag —
+// which is also the planted control: if the assertion could not see the difference, the "no wallpaper"
+// arm would not read transparent.
+
+const BLUR_BACKDROP = /blur/;
+
+async function metadataRowBackground(component: Locator): Promise<string> {
+  return await component.locator(METADATA_ROW).evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor);
+}
+
+test("#106 metadata row: over a background photo it paints a scrim backing, not bare text on the wallpaper", async ({ mount, page }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      metadataVisibility={meta({ showTokenCount: true })}
+    />,
+  );
+  // The shell stamps this on the grid; planting it on <body> is the same ANCESTOR the `in-*` variant reads.
+  await page.evaluate(() => document.body.setAttribute("data-has-bg-image", ""));
+  await expect.poll(async () => await metadataRowBackground(component)).not.toBe(TRANSPARENT);
+  await expect(component.locator(METADATA_ROW)).toHaveCSS("backdrop-filter", BLUR_BACKDROP);
+});
+
+test("#106 CONTROL: with no background photo the same row is byte-identically bare (the scrim is inert)", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      metadataVisibility={meta({ showTokenCount: true })}
+    />,
+  );
+  expect(await metadataRowBackground(component)).toBe(TRANSPARENT);
+  await expect(component.locator(METADATA_ROW)).toHaveCSS("backdrop-filter", "none");
 });
