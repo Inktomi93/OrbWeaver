@@ -22,6 +22,13 @@ export const selectVariants = tv({
     group: "flex flex-col",
     groupLabel: "px-block py-field text-label font-medium leading-label text-muted-foreground select-none",
     item: [ITEM_ROW, "justify-between gap-row"],
+    // An option that carries a `description` stacks label-over-gloss; the column keeps the check
+    // indicator centred against the pair instead of against a single line.
+    itemBody: "flex min-w-0 flex-col",
+    // The SAME spelling `option-strip` uses for its description slot — one look for "the secondary line
+    // of an option row", whichever listbox renders it. Deliberately NOT truncated: a mode's gloss is the
+    // reason to pick it, and the popup already grows past the anchor for a long option.
+    itemDescription: "text-label leading-label text-muted-foreground",
     itemIndicator: "flex shrink-0 text-primary",
     arrow: OVERLAY_ARROW,
     separator: "-mx-field my-field h-px bg-border",

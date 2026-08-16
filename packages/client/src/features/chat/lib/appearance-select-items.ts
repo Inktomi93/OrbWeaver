@@ -19,16 +19,37 @@ const CHAT_STYLE_LABELS: Record<AppearanceSettings["chatStyle"], string> = {
   bubble: "Bubble",
   flat: "Flat",
   document: "Document",
-  echo: "Echo (bled portrait)",
-  whisper: "Whisper (avatar banner)",
-  hush: "Hush (flat + speaker stripe)",
-  ripple: "Ripple (VN sticky portrait)",
-  tide: "Tide (paragraph bubbles)",
+  echo: "Echo",
+  whisper: "Whisper",
+  hush: "Hush",
+  ripple: "Ripple",
+  tide: "Tide",
 };
+
+/** One line per mode, rendered INSIDE its own option row (`SelectOption.description`).
+ *
+ *  These used to be two things, neither of which a reader could use at the moment of choosing: a
+ *  parenthetical crammed into five of the eight LABELS ("Echo (bled portrait)"), and one legend
+ *  paragraph on the field, which the popup covers the instant the select opens (side-eye 2026-08-16).
+ *  A mode's gloss belongs on the row you are about to pick, so the label went back to being the mode's
+ *  NAME and the explanation moved here. A `Record` over the union, so a ninth chatStyle fails tsc here
+ *  until someone writes its line (spine §5.5). */
+const CHAT_STYLE_DESCRIPTIONS: Record<AppearanceSettings["chatStyle"], string> = {
+  bubble: "Each message sits in its own tinted bubble.",
+  flat: "Full-width rows with no bubble, like a script.",
+  document: "One centered manuscript column.",
+  echo: "The speaker's portrait bleeds into the edge of the bubble.",
+  whisper: "A wide banner of the speaker's art sits above the text.",
+  hush: "Flat rows, each marked with the speaker's color stripe.",
+  ripple: "A tall portrait sticks beside the text as you scroll.",
+  tide: "Every paragraph becomes its own small bubble.",
+};
+
 /** The message-row anatomy options — the viewer's own `appearance.chatStyle` setting (never card-forced). */
 export const CHAT_STYLE_ITEMS: SelectItems<string> = THEME_CHAT_STYLES.map((value) => ({
   value,
   label: CHAT_STYLE_LABELS[value],
+  description: CHAT_STYLE_DESCRIPTIONS[value],
 }));
 
 export const AVATAR_SIZE_ITEMS: SelectItems<string> = [

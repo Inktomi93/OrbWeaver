@@ -58,6 +58,31 @@ test("avatar size/shape/aspect/ring each patch their key, and the payload stays 
   expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
+// side-eye 2026-08-16 P2: with `Show avatars in chat` OFF, all four dependent comboboxes reported
+// `disabled: false` and were fully interactive — setting Avatar size to Medium changed nothing a reader
+// could see. The four knobs only describe an avatar that renders, so the master must gate them. Asserted
+// through the RENDERED affordance (Playwright's `toBeDisabled`, then a forced click that must not open a
+// listbox), never through the new prop — a CSS dim would pass a class check and still be clickable.
+const DEPENDENTS = ["Avatar size", "Avatar shape", "Avatar aspect", "Avatar ring"] as const;
+
+test("with the master OFF the four dependent avatar controls are disabled and cannot be opened", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<AppearanceAvatarsSectionStory />);
+  // Default settings ship avatars ON, so the dependents start live — that is the comparand.
+  await expect(page.getByRole("combobox", { name: "Avatar size" })).toBeEnabled();
+
+  await page.getByRole("switch", { name: "Show avatars in chat" }).click();
+  await expect(page.getByRole("switch", { name: "Show avatars in chat" })).toHaveAttribute("aria-checked", "false");
+
+  await Promise.all(DEPENDENTS.map((name) => expect(page.getByRole("combobox", { name })).toBeDisabled()));
+  // Real disabled semantics, not a CSS dim: the trigger is a disabled button, so no popup can exist.
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+
+  // …and turning the master back on restores them (a one-way disable would be its own defect).
+  await page.getByRole("switch", { name: "Show avatars in chat" }).click();
+  await Promise.all(DEPENDENTS.map((name) => expect(page.getByRole("combobox", { name })).toBeEnabled()));
+});
+
 test("the show-avatars switch patches showInChatAvatars, still key-minimal", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<AppearanceAvatarsSectionStory />);

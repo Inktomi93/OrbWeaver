@@ -27,6 +27,18 @@ export interface SelectOption<Value = string> {
   label: string;
   value: Value;
   disabled?: boolean;
+  /**
+   * A one-line gloss rendered UNDER the label inside the option row.
+   *
+   * It sits OUTSIDE `Select.ItemText` on purpose: `Select.Value` mirrors the selected option's
+   * `ItemText` onto the closed trigger, so a gloss folded into that node would paint on the trigger too
+   * and break the app-wide single-line-trigger convention (`value: min-w-0 truncate`).
+   *
+   * The slot exists because a legend living in the Field's `description` is OCCLUDED by the popup the
+   * moment the select opens — the reader cannot see the explanation while making the choice it explains
+   * (side-eye 2026-08-16, the chat-display modes).
+   */
+  description?: string;
 }
 
 /** A labeled group of options — renders a `Select.GroupLabel` above its items. */
@@ -43,10 +55,40 @@ function isGrouped<Value>(items: SelectItems<Value>): items is readonly SelectOp
   return typeof first === "object" && "items" in first;
 }
 
-function renderOption<Value>(option: SelectOption<Value>): ReactElement {
+/**
+ * A glossed option's description is a DESCRIPTION, not part of the name.
+ *
+ * `aria-hidden` on the visible gloss keeps the option's accessible name equal to its label (an
+ * `option` takes its name from its own subtree, so an un-hidden gloss would silently rename every
+ * option to "Label gloss…" and break every `getByRole("option", { name, exact })` in the tree), while
+ * `aria-describedby` — whose target is used even when hidden, per accname §5.2 — hands the SAME text
+ * to assistive tech as the description it is. The repo's own name-quality probe encodes this split:
+ * `tests/support/ct/accessible-names.ts` strips the `aria-describedby` target before checking
+ * WCAG 2.5.3, "a description is not a label".
+ */
+function optionDescriptionId(idPrefix: string, value: unknown): string {
+  return `${idPrefix}-desc-${String(value)}`;
+}
+
+function renderOption<Value>(option: SelectOption<Value>, idPrefix: string): ReactElement {
+  const describedBy = option.description === undefined ? undefined : optionDescriptionId(idPrefix, option.value);
   return (
-    <BaseSelect.Item className={slots.item()} data-slot="select-item" disabled={option.disabled} key={String(option.value)} value={option.value}>
-      <BaseSelect.ItemText>{option.label}</BaseSelect.ItemText>
+    <BaseSelect.Item
+      {...(describedBy === undefined ? {} : { "aria-describedby": describedBy })}
+      className={slots.item()}
+      data-slot="select-item"
+      disabled={option.disabled}
+      key={String(option.value)}
+      value={option.value}
+    >
+      <span className={slots.itemBody()} data-slot="select-item-body">
+        <BaseSelect.ItemText>{option.label}</BaseSelect.ItemText>
+        {option.description === undefined ? null : (
+          <span aria-hidden="true" className={slots.itemDescription()} data-slot="select-item-description" id={describedBy}>
+            {option.description}
+          </span>
+        )}
+      </span>
       <BaseSelect.ItemIndicator className={slots.itemIndicator()} data-slot="select-item-indicator">
         {CHECK_ICON}
       </BaseSelect.ItemIndicator>
@@ -54,27 +96,27 @@ function renderOption<Value>(option: SelectOption<Value>): ReactElement {
   );
 }
 
-function renderGroup<Value>(group: SelectOptionGroup<Value>): ReactElement {
+function renderGroup<Value>(group: SelectOptionGroup<Value>, idPrefix: string): ReactElement {
   return (
     <BaseSelect.Group className={slots.group()} data-slot="select-group" key={group.label}>
       <BaseSelect.GroupLabel className={slots.groupLabel()} data-slot="select-group-label">
         {group.label}
       </BaseSelect.GroupLabel>
-      {group.items.map(renderOption)}
+      {group.items.map((option) => renderOption(option, idPrefix))}
     </BaseSelect.Group>
   );
 }
 
-function renderItems<Value>(items: SelectItems<Value>): ReactNode {
+function renderItems<Value>(items: SelectItems<Value>, idPrefix: string): ReactNode {
   if (isGrouped(items)) {
     // A Separator between adjacent groups, not before the first.
     return items.flatMap((group, index) =>
       index > 0
-        ? [<BaseSelect.Separator className={slots.separator()} data-slot="select-separator" key={`separator-${group.label}`} />, renderGroup(group)]
-        : [renderGroup(group)],
+        ? [<BaseSelect.Separator className={slots.separator()} data-slot="select-separator" key={`separator-${group.label}`} />, renderGroup(group, idPrefix)]
+        : [renderGroup(group, idPrefix)],
     );
   }
-  return items.map(renderOption);
+  return items.map((option) => renderOption(option, idPrefix));
 }
 
 export interface SelectProps<Value = string, Multiple extends boolean = false> extends Omit<SelectRootProps<Value, Multiple>, "items"> {
@@ -155,6 +197,9 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
   // Base UI's Select.Label strips any id we pass, so the association id lives on an inner span instead.
   const generatedLabelId = useId();
   const labelId = hasLabel ? generatedLabelId : undefined;
+  // Per-INSTANCE prefix for glossed options' description ids: two selects on one page can legitimately
+  // share an option value ("flat"), so a value-only id would collide and point both at one description.
+  const optionIdPrefix = useId();
 
   // The visually hidden input Base UI generates for form submission gets flagged by axe-core as an
   // unlabeled interactive element; give it a fallback accessible name.
@@ -213,7 +258,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
                 {CHEVRON_ICON}
               </BaseSelect.ScrollUpArrow>
             ) : null}
-            <BaseSelect.List data-slot="select-list">{renderItems(items)}</BaseSelect.List>
+            <BaseSelect.List data-slot="select-list">{renderItems(items, optionIdPrefix)}</BaseSelect.List>
             {scrollArrows ? (
               <BaseSelect.ScrollDownArrow className={cn(slots.scrollArrow(), "bottom-0")} data-slot="select-scroll-down-arrow">
                 {CHEVRON_ICON}
