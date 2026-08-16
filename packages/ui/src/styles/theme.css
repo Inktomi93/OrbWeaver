@@ -120,6 +120,7 @@
   --reading-line-height: 1.55;
   --reading-letter-spacing: 0em;
   --reading-paragraph-spacing: 0.75rem;
+  --reading-measure: 75ch;
   --fade-edge-stop: 10%;
   --border-width-hairline: 1.25px;
   --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
