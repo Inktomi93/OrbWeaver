@@ -401,8 +401,8 @@
       "sha256": "90d345f03dbda24f04034bdf6102e37588fc6d018b37ff4070eac66bdcd1fed9"
     },
     "rpg.extract.plane.inventory": {
-      "version": 2,
-      "sha256": "23161b4ed05df7d4d8bbbd5d1fcecc82df0fc4f2e8d1e51113d086d483aa2877"
+      "version": 4,
+      "sha256": "2b04c551f948cf229bf0def3e2a8b4bbc547c9654c08e7bfb4477dbdd124586b"
     },
     "rpg.extract.plane.trackers": {
       "version": 1,
@@ -441,8 +441,8 @@
       "sha256": "841fa81ee5043a49bcc6126c8d1481290ce016cd8b6131a3f064231b70703e67"
     },
     "rpg.extract.tool.updateInventory": {
-      "version": 2,
-      "sha256": "7e4113b781ac278e2a9d9a502395e075c1e5ab6117121c5acd43092d406a7092"
+      "version": 3,
+      "sha256": "72743bd66b977201b953ba37669c46bc85be746422ac75e955148199f3f1d699"
     },
     "rpg.extract.tool.updateScene": {
       "version": 1,
@@ -469,8 +469,8 @@
       "sha256": "0fe8960b3cee193e5bb7d0fed64b9f75be8de5385c7d6e7d20377e11b7918140"
     },
     "rpg.extract.toolRoundHeader": {
-      "version": 1,
-      "sha256": "1b99d9bafaa1f630c59775c97a8345185ccfc3059bab71e08ecd916df2680077"
+      "version": 2,
+      "sha256": "e744f0b027065dfbb32bb1f8af6f429520960e0baf32eb98576c622e9981fc0f"
     },
     "rpg.extract.reconcilePass": {
       "version": 1,

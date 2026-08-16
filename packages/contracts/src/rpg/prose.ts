@@ -399,11 +399,13 @@ For example, a three-line sign is enough:
   "rpg.extract.plane.inventory": {
     id: "rpg.extract.plane.inventory",
     home: "preset",
-    version: 3,
+    version: 4,
     text:
       "INVENTORY — inventory: items gained, changed, or lost (add/update/remove) and currency (walletDeltas — named currencies, " +
       "e.g. gold). Compare every existing item in CURRENT TRACKED STATE with the latest beat: if its description, " +
       "quantity, or carrying location changed, update it even when Scene or Journal also mentions the change. " +
+      "A beat where anyone buys, takes, pockets, receives, or stows something ALWAYS calls update_inventory with " +
+      "an add — an EMPTY pack is never a reason to skip; first acquisitions are exactly what add exists for. " +
       "INFER what a character has on them from what the story showed — recording an item the story established " +
       "(a key pocketed three turns ago) is NOT inventing.",
     macros: "none",
