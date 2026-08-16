@@ -13,7 +13,7 @@
  *   pnpm stack start                      # once; snap is then a fast loop
  *   pnpm snap /                           # screenshot the home route
  *   pnpm snap /debug --sse 5              # sit on the route 5s capturing events
- *   pnpm snap / --wait "[data-testid=home-chat-list]"
+ *   pnpm snap / --wait "[data-testid=composer]"
  *   pnpm snap / --full                    # whole scroll, not just viewport
  *   pnpm snap / --vnc                     # headed (when you DO want to look)
  *   pnpm snap /traces --debug-token $T    # seeds orb:debug-token so token-gated
@@ -133,7 +133,7 @@
  *   TEXT PATH — structure as text, ~5–8× cheaper than a PNG and greppable.
  *   Reach for this FIRST; fall to pixels only when something looks off.
  *   pnpm snap / --aria                    # ARIA tree (roles/labels/text) of <body>
- *   pnpm snap / --aria "[data-testid=home-chat-list]"   # scope to a subtree
+ *   pnpm snap / --aria 'aside[aria-label="Chats list"]'   # scope to a subtree
  *   pnpm snap / --aria --aria-depth 4      # cap tree depth on deep routes
  *   pnpm snap / --aria --aria-boxes        # append [box=x,y,w,h] viewport geometry
  *   pnpm snap / --text                     # = --aria --no-shot: structure only, ZERO
@@ -195,7 +195,7 @@
  *                                          # refetches, so "latest" names a DIFFERENT chat (2026-08-15: a
  *                                          # probe message landed in the wrong room that way). Reserved
  *                                          # word like its siblings; refuses loudly when nothing is open.
- *   pnpm snap / --goto modal:newChat --click 'role=button[name="Create chat"]' \
+ *   pnpm snap / --goto modal:newChat --click 'role=option[name="Blank chat"]' \
  *               --open-chat current --context-tab rpg.game --text
  *                                          # MID-CHAIN NAV: the nav flags run where they are WRITTEN, so
  *                                          # this opens the picker, creates the room, makes the new room
@@ -218,7 +218,7 @@
  *   `--aria@1`, `--goto@1 chats`); unprefixed = page 0. Drive one tab and read the passive tab (does it
  *   flash / jump / reflow when the other sends?). Shots suffix `-p<idx>`; the report gets a per-page
  *   section; RESULT gains pages=N.
- *   pnpm snap / --pages 2 --open-chat@0 <id> --open-chat@1 <id> --fill@0 '[data-testid=composer]=hi' \
+ *   pnpm snap / --pages 2 --open-chat@0 <id> --open-chat@1 <id> --fill@0 'role=textbox[name="Message"]=hi' \
  *               --key@0 '[data-testid=composer]=Enter' --eval@1 '__orb.bus().live'
  *
  *   MULTI-USER CONTEXTS — `--contexts <N>` (2..4) opens N ISOLATED browser contexts (own cookies/
