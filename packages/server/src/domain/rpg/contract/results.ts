@@ -67,6 +67,16 @@ export type ApplyActorOpsResult =
   | { readonly ok: true; readonly actor: RpgActorEntry; readonly lockPaths: readonly string[] }
   | { readonly ok: false; readonly reason: string };
 
+/** What one lock-honoring merge produced AND what its locks cost (rule 3): the merged state plus the dotted
+ *  paths whose writes the locks dropped. Homed here because a domain type has no home in the substrate that
+ *  produces it (substrate-not-a-type-home) — `substrate/merge.ts` is the one producer, the staging accumulator
+ *  and the flush fold are the consumers (#77). */
+export interface LockedPatchOutcome<T> {
+  readonly state: T;
+  /** Deduplicated, in the order the walk met them. EMPTY when no lock bit — the byte-identical ordinary turn. */
+  readonly suppressed: readonly string[];
+}
+
 export interface RollDiceResult {
   readonly notation: string;
   readonly rolls: readonly number[];
