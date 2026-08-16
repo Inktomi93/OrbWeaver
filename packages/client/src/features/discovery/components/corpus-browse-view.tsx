@@ -120,7 +120,9 @@ function BrowseRows({
         <Text>No characters match — loosen the filters.</Text>
       </Stack>
     ) : (
-      <CorpusRunJobEmptyState title="No characters distilled yet" description="Run Distill characters to build this catalog." />
+      // The LIST pane names its own emptiness and stands down on the verb (#99 item 1): the CONTENT pane
+      // beside it carries the one "Run a job…" door, and on first run both panes are empty at once.
+      <CorpusRunJobEmptyState title="No characters distilled yet" description="Run Distill characters to build this catalog." offerDoor={false} />
     );
   }
   return (

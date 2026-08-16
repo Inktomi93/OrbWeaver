@@ -21,7 +21,9 @@ export const tagCollection: CollectionContribution = {
   label: "Tags",
   icon: Hash,
   order: 10,
-  blurb: "Colour-coded labels for characters, chats, books, personas and presets.",
+  // en-US, like the rest of the chrome (#104 item 1) — this and corpus's "analyzed" were the only two
+  // en-GB spellings in a user-facing string on the whole tree.
+  blurb: "Color-coded labels for characters, chats, books, personas and presets.",
   emptyText: "No tags yet.",
   useCount: useTagCount,
   useMemberTitle: useTagMemberTitle,

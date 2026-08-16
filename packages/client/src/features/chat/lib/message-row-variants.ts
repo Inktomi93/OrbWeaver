@@ -7,7 +7,7 @@
 import { blobBannerUrl, blobPortraitUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
-import { avatarFallbackHueVar } from "@orb/ui/avatar";
+import { avatarFallbackHueColor } from "@orb/ui/avatar";
 import type { CSSProperties } from "react";
 import { cn, messageBubbleClass } from "#lib";
 import type { RowAttribution } from "./attribution.ts";
@@ -107,7 +107,7 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
       edgeTile: {
         initial: args.initial,
         style: {
-          backgroundColor: avatarFallbackHueVar(args.hueSeed),
+          backgroundColor: avatarFallbackHueColor(args.hueSeed),
           backgroundImage: "linear-gradient(to left, transparent, var(--color-ai-bubble))",
         },
       },
@@ -147,7 +147,7 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
         initial: args.initial,
         style: {
           aspectRatio: "var(--aspect-banner)",
-          backgroundColor: avatarFallbackHueVar(args.hueSeed),
+          backgroundColor: avatarFallbackHueColor(args.hueSeed),
           backgroundImage: "linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather))",
         },
       },

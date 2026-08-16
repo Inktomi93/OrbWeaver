@@ -121,7 +121,7 @@ function SizingBody({ sectionId, session }: { readonly sectionId: string; readon
         </form.AppField>
       </FieldLayout>
       <Row gap="field" align="center">
-        <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} caption="Synced across your devices." />
+        <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
       </Row>
     </Section>
   );

@@ -16,7 +16,7 @@
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { ChevronRight, Icon, Package } from "@orb/ui/icons";
-import { Grid, Row, Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
@@ -38,22 +38,30 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
           paying off the moment you make the first", which is first-run copy this pane was still printing at
           430 tags and 34 scripts. The one-voice deviation stated in the header stands — what changed is only
           that the sentence no longer assumes an empty library. */}
+      {/* #104 item 3 (em-dash diet): the close said the same thing a colon says, on a pane whose three
+          cards each carried a dash of their own. The sentence is unchanged otherwise. */}
       <Text prose={true}>
         Tags label your library. Regex scripts rewrite text on its way in or out. World books hold the lore your characters draw on. Nothing here is required,
-        and nothing here is spent once — build a part, then attach it wherever you need it.
+        and nothing here is spent once: build a part, then attach it wherever you need it.
       </Text>
-      {/* `auto` (16rem), not `cell` (8.5rem): these are LAUNCHER cards with a sentence and a verb, not dense
-          item tiles, and at the cell width the count pushed `REGEX SCRIPTS` onto a second line while its
-          one-word siblings stayed on one (side-eye P3). */}
-      {/* `w-full` (side-eye 2026-08-08 P3): the parent `Stack` is `align="center"`, so a grid with no width
-          of its own shrink-to-fits its auto-fit tracks — measured 473px under a 595px paragraph, giving the
-          same block of copy TWO left edges 61px apart. The Grid takes the `max-w-prose` column the sentence
-          above it already reads in. */}
-      <Grid className="w-full" cols="auto" gap="field">
+      {/* A COLUMN, NOT A GRID (#99 item 7 — "a 2-col grid with a hole"). The `auto` arm is auto-FIT at a
+          16rem min, so inside the `max-w-prose` column this pane reads in it resolves to exactly TWO tracks
+          — and there are THREE collections, so the third card sat alone beside a permanent empty cell. The
+          hole is not a tuning problem: any auto-fit track count that isn't a multiple of the (growing)
+          collection count reproduces it, and narrowing the min to force 3-up re-buys the side-eye P3 defect
+          this comment used to guard against (at `cell` width the count pushed `REGEX SCRIPTS` onto a second
+          line while its one-word siblings stayed on one).
+          These are LAUNCHER cards carrying a sentence each, not dense tiles, so a column is what they
+          actually are: full prose width for the blurb — the one thing the roster band does NOT carry — and
+          no empty cell at any width or collection count. The mock's grid was drawn SOLO, one pane and no
+          roster beside it (the same framing note `CollectionLauncher` records for its own deviation).
+          `w-full` stays load-bearing (side-eye 2026-08-08 P3): the parent `Stack` is `align="center"`, so a
+          child with no width of its own shrink-to-fits and gives the same block of copy two left edges. */}
+      <Stack className="w-full" gap="field">
         {orderCollections(collections).map((collection) => (
           <CollectionLauncher collection={collection} key={collection.id} />
         ))}
-      </Grid>
+      </Stack>
     </Stack>
   );
 }

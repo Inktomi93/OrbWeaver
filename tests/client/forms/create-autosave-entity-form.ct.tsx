@@ -84,27 +84,35 @@ test("CT-4: push and remove array ops autosave via the store driver, no manual f
   await expect(page.getByTestId("array-spy")).toHaveText("2:");
 });
 
-// CT-5 — status lifecycle + caption. A failing save → error + Retry affordance; making it succeed then
-// retrying → saved. The caption renders ONLY in `saved`.
-test("CT-5: status goes error→Retry→saved, caption shows in saved only", async ({ mount, page }) => {
+// CT-5 — status lifecycle. A failing save → error + Retry affordance; making it succeed then retrying →
+// saved. The READOUT is asserted alongside the state enum, because the enum is the story's own testid and
+// the words are what a user actually gets.
+//
+// RETARGETED by #104: this used to assert the `caption` reassurance line ("Synced across your devices.")
+// appearing in `saved` and vanishing in `error`. The owner killed that line — a self-hosted single-user box
+// syncs to nothing — and with zero remaining consumers the `caption` prop went with it, so the assertion
+// now pins the two-word readout the component actually renders. The `error` arm's real invariant survives:
+// in `error` the status is a Retry AFFORDANCE and never a reassuring word.
+test("CT-5: status goes error→Retry→saved, and the readout says so", async ({ mount, page }) => {
   await mount(<BoundaryStatusStory />);
 
+  const status = page.locator('[data-slot="autosave-status"]');
   await expect(page.getByTestId("status-state")).toHaveText("saved");
-  // In `saved`, the caption is present.
-  await expect(page.getByText("Synced across your devices.")).toBeVisible();
+  await expect(status).toHaveText("Saved");
 
   // Type → the driver submits → the save REJECTS → error state + the Retry button.
   await page.getByLabel("Status text").fill("edited offline");
   await expect(page.getByTestId("status-state")).toHaveText("error");
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
-  // In `error`, the caption is NOT rendered (the "Save failed — Retry · caption" line is unrepresentable).
-  await expect(page.getByText("Synced across your devices.")).toHaveCount(0);
+  // In `error` nothing reassuring is on screen — the line is the failure plus its affordance.
+  await expect(status).toContainText("Save failed");
+  await expect(status).not.toContainText("Saved ");
 
-  // Make the save succeed, then hit Retry (submits current values unconditionally) → saved + caption back.
+  // Make the save succeed, then hit Retry (submits current values unconditionally) → saved.
   await page.getByRole("button", { name: "make save succeed" }).click();
   await page.getByRole("button", { name: "Retry" }).click();
   await expect(page.getByTestId("status-state")).toHaveText("saved");
-  await expect(page.getByText("Synced across your devices.")).toBeVisible();
+  await expect(status).toHaveText("Saved");
 });
 
 // CT-6 — clean server-echo (§5, two-device freshness). A fresh serverValues (changed content) while the

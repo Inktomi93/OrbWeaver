@@ -13,8 +13,24 @@
  *
  *  `forkedFromName` is the RESOLVED source name (`PresetSummary.forkedFrom` looked up in the rows the
  *  caller already has), null when the row is not a fork OR when its source is not among them — a packaged
- *  template never is. Null prints NOTHING: no name-matching heuristic ever invents lineage. */
-export function presetRowSubtitle(kind: string, updatedAt: number, formatRelative: (epochMs: number) => string, forkedFromName: string | null): string {
-  const parts = [kind, ...(forkedFromName === null ? [] : [`forked from ${forkedFromName}`]), `edited ${formatRelative(updatedAt)}`];
+ *  template never is. Null prints NOTHING: no name-matching heuristic ever invents lineage.
+ *
+ *  `active` LEADS when set (#99 item 3). The row's active state was carried by a filled dot in the trailing
+ *  cluster and by nothing else in words, while the context panel 400px away said it with an "Active" chip —
+ *  one fact, two vocabularies, and the row's half was a mute glyph. The word goes in the SUBTITLE, which is
+ *  a flexible truncating text column, so the state gains a reading without any element entering or leaving
+ *  the row's layout. See `preset-library-row.tsx`'s O-1 header for why it is emphatically NOT a title-line
+ *  chip: that exact shape was a measured P0 (a reveal-swapped Badge reflowing the title line under a
+ *  stationary pointer, ~85 hover crossings/sec). The dot stays; it is the AFFORDANCE. This is the DATUM. */
+export function presetRowSubtitle(
+  { kind, updatedAt, forkedFromName, active = false }: { kind: string; updatedAt: number; forkedFromName: string | null; active?: boolean },
+  formatRelative: (epochMs: number) => string,
+): string {
+  const parts = [
+    ...(active ? ["Active"] : []),
+    kind,
+    ...(forkedFromName === null ? [] : [`forked from ${forkedFromName}`]),
+    `edited ${formatRelative(updatedAt)}`,
+  ];
   return parts.join(" · ");
 }

@@ -1,11 +1,9 @@
 // The settings shell's ONE aggregate save-status footer (SET-SEAMS §3, S3). Sections REPORT their save
 // lifecycle into the transient status store; this reads the fold (error > blocked > saving > saved) and
-// renders it once below the pane column, so a decomposed pane shows ONE honest "Saved · Synced across your
-// devices." instead of N stacked footers.
+// renders it once below the pane column, so a decomposed pane shows ONE honest "Saved" instead of N stacked footers.
 //
 // `blocked` (a section whose invalid field is HOLDING its write) is a locate arm too, and it is the one this
-// footer was actively lying about: a hosted section renders no inline status, so "Saved · Synced across your
-// devices." was the only thing on screen while an over-cap prose override refused to save.
+// footer was actively lying about: a hosted section renders no inline status, so "Saved" was the only thing on screen while an over-cap prose override refused to save.
 //
 // READ-ONLY by ruling (D41): retry belongs to the session that owns the edit, so on `error` this offers to
 // JUMP to the failing section (which renders its own inline retry at its anchor) — never a retry-all.
@@ -16,8 +14,6 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useAggregateSaveStatus, useBlockedSaveSections, useErroredSaveSections } from "#state";
-
-const SAVED_CAPTION = "Synced across your devices.";
 
 export interface SettingsSaveFooterProps {
   /** Select + scroll to a reporting section by its contribution id (the shell's `jumpToSection`). */
@@ -99,10 +95,13 @@ export function SettingsSaveFooter({ onJumpToSection, canJumpToSection }: Settin
       </LocateRow>
     );
   }
+  // "Saved" alone (#104 item 2, owner-ruled 2026-08-16). The trailing "· Synced across your devices." was
+  // a SaaS promise this box does not make: orbweaver is a self-hosted single-user instance, and the
+  // settings blob is saved to the box you are already looking at. Nothing was "synced", and no other
+  // device exists to sync to. The word "Saved" is the whole true statement.
   return (
     <Row gap="field" align="center" data-slot="settings-save-footer" role="status" aria-live="polite">
       <Text voice="gloss">{aggregate === "saving" ? "Saving…" : "Saved"}</Text>
-      {aggregate === "saving" ? null : <Text voice="gloss">{SAVED_CAPTION}</Text>}
     </Row>
   );
 }

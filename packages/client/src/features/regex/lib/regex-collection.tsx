@@ -19,7 +19,9 @@ export const regexCollection: CollectionContribution = {
   label: "Regex scripts",
   icon: Code,
   order: 20,
-  blurb: "Find/replace that runs on input, output, or both — everywhere, or only where you attach it.",
+  // #104 item 3 (em-dash diet): a semicolon carries the same two-clause shape without a third dash on a
+  // pane that already had two.
+  blurb: "Find/replace that runs on input, output, or both; everywhere, or only where you attach it.",
   emptyText: "No scripts yet.",
   useCount: useRegexCount,
   useMemberTitle: useRegexMemberTitle,

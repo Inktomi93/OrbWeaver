@@ -6,7 +6,11 @@ export const avatarVariants = tv({
   slots: {
     root: "relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-muted align-middle select-none",
     image: "size-full object-cover",
-    fallback: "flex size-full items-center justify-center text-label leading-label font-medium uppercase",
+    // The fallback's FILL is not a variant (#103): it derives from the active theme's own `--color-primary`
+    // per seed, which is a relative-color expression rather than a class — `avatar.tsx` sets it as the one
+    // inline `backgroundColor` (see `hue.ts` for why a token/utility cannot carry it). The INK stays the
+    // theme's own `primary-foreground`, so the pairing the palette already AA-sweeps is the one in use.
+    fallback: "flex size-full items-center justify-center bg-primary text-label leading-label font-medium text-primary-foreground uppercase",
   },
   variants: {
     size: {
@@ -33,14 +37,6 @@ export const avatarVariants = tv({
       accent: {
         root: "shadow-glow ring-2 ring-ring ring-offset-2 ring-offset-background",
       },
-    },
-    // String keys so VariantProps stays string-typed; avatar.tsx computes the hue bucket and always passes it.
-    hue: {
-      "1": { fallback: "bg-chart-1 text-primary-foreground" },
-      "2": { fallback: "bg-chart-2 text-primary-foreground" },
-      "3": { fallback: "bg-chart-3 text-primary-foreground" },
-      "4": { fallback: "bg-chart-4 text-primary-foreground" },
-      "5": { fallback: "bg-chart-5 text-primary-foreground" },
     },
   },
   defaultVariants: {

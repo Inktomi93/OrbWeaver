@@ -30,7 +30,7 @@ const TAG_COUNT = 400;
 const ANY_CREATE_VERB = /^New /;
 /** The two launcher CARDS the launcher tests drive, addressed by their BLURB — the accessible name of an
  *  operable card is its own content, and the blurb is the half the roster band does not carry. */
-const TAGS_LAUNCHER = /Colour-coded labels/;
+const TAGS_LAUNCHER = /Color-coded labels/;
 const WORLD_INFO_LAUNCHER = /Keyword-triggered lore/;
 /** The coarse-pointer tap floor (WCAG 2.5.5 / the house `size-control-md` coarse step). */
 const TOUCH_FLOOR_PX = 44;
@@ -171,9 +171,9 @@ test("no selection renders the host WELCOME with a launcher card per collection"
   const welcome = workspace.locator(WELCOME);
   await expect(welcome.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
   // Each card is drawn from the CONTRACT (label · icon · count · blurb · create), never a host string table.
-  await expect(welcome.getByText("Colour-coded labels for characters, chats, books, personas and presets.")).toBeVisible();
-  await expect(welcome.getByText("Find/replace that runs on input, output, or both — everywhere, or only where you attach it.")).toBeVisible();
-  await expect(welcome.getByText("Keyword-triggered lore your characters draw on — a book fires where you attach it.")).toBeVisible();
+  await expect(welcome.getByText("Color-coded labels for characters, chats, books, personas and presets.")).toBeVisible();
+  await expect(welcome.getByText("Find/replace that runs on input, output, or both; everywhere, or only where you attach it.")).toBeVisible();
+  await expect(welcome.getByText("Keyword-triggered lore your characters draw on, and a book fires where you attach it.")).toBeVisible();
 });
 
 /** One launcher card in the welcome, by its collection id. */
@@ -212,8 +212,8 @@ test("a POPULATED collection's launcher sheds the count + create the roster band
   await expect(launcher(workspace, "tags").getByText(String(TAG_COUNT))).toHaveCount(0);
   // …and the teaching sentence the pane exists for stays, on every card.
   await expect(welcome.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
-  await expect(welcome.getByText("Colour-coded labels for characters, chats, books, personas and presets.")).toBeVisible();
-  await expect(welcome.getByText("Keyword-triggered lore your characters draw on — a book fires where you attach it.")).toBeVisible();
+  await expect(welcome.getByText("Color-coded labels for characters, chats, books, personas and presets.")).toBeVisible();
+  await expect(welcome.getByText("Keyword-triggered lore your characters draw on, and a book fires where you attach it.")).toBeVisible();
 });
 
 // …AND IT IS STILL A CONTROL (side-eye 2026-08-08 P1, the C7 re-check). Shedding the count + create left a

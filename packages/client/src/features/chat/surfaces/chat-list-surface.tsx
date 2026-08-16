@@ -93,7 +93,14 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
           shortcut you arrive for, and burying them under the search box made them read as a filter widget. */}
         <FacesStrip characterFilter={characterFilter} />
         {characterFilter !== null ? <FilterChip filter={characterFilter} /> : null}
-        <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search the weave…" value={query} />
+        {/* ONE SEARCH VOICE (#99 item 2). Every other search box on the app says what it searches —
+            "Search characters…", "Search presets", "Search your documents", "Search characters, scenes,
+            memories…" — and this one said "Search the weave…", a brand phrase that names no noun and does
+            not match its own accessible name. A WCAG 2.5.3 voice-control user could not say what they saw,
+            and a reader could not tell whether it searched chats, characters or the whole library. The
+            weave is the product's word for itself, which is a fine thing for a hero line and the wrong
+            thing on a filter field. */}
+        <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search chats…" value={query} />
         <Stack className="min-h-0 flex-1">
           <ChatListBody
             activeChatId={activeChatId}

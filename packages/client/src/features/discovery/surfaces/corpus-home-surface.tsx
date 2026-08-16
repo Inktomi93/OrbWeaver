@@ -77,14 +77,25 @@ function CorpusHomeBody(): ReactElement {
 
   return (
     <Stack gap="section">
+      {/* COVERAGE SHOWS WHAT IT COVERS (#99 item 7 — the null state should look null). Before the two jobs
+          have ever run, five of these six figures are structurally zero, and the strip rendered them at
+          DISPLAY size directly above "Nothing analyzed yet" — a confident wall of numbers saying, loudly,
+          nothing, immediately above the sentence that already says it. Unanalysed, the strip prints the one
+          figure that IS a real count (the library itself) and lets the empty state below carry the rest.
+          It is not a general hide-zeros rule: once anything has been analysed every figure prints, zero
+          included, because THEN a zero is a measurement. */}
       <Section heading="Coverage">
         <Row gap="block" className="flex-wrap">
           <StatFigure label="Characters" value={home.coverage.characters.toString()} />
-          <StatFigure label="Digests" value={home.coverage.digests.toString()} />
-          <StatFigure label="Segments" value={home.coverage.segments.toString()} />
-          <StatFigure label="Distilled" value={catalog.totalDistilled.toString()} />
-          <StatFigure label="Duplicate characters" value={home.duplicateCounts.characters.toString()} />
-          <StatFigure label="Duplicate chats" value={home.duplicateCounts.chats.toString()} />
+          {analysed ? (
+            <>
+              <StatFigure label="Digests" value={home.coverage.digests.toString()} />
+              <StatFigure label="Segments" value={home.coverage.segments.toString()} />
+              <StatFigure label="Distilled" value={catalog.totalDistilled.toString()} />
+              <StatFigure label="Duplicate characters" value={home.duplicateCounts.characters.toString()} />
+              <StatFigure label="Duplicate chats" value={home.duplicateCounts.chats.toString()} />
+            </>
+          ) : null}
         </Row>
       </Section>
 
@@ -122,7 +133,7 @@ function CorpusHomeBody(): ReactElement {
           </Section>
         </>
       ) : (
-        <CorpusRunJobEmptyState title="Nothing analysed yet" description="Run Distill characters and Compute themes to fill this in." />
+        <CorpusRunJobEmptyState title="Nothing analyzed yet" description="Run Distill characters and Compute themes to fill this in." />
       )}
 
       <Section heading="Forgotten gems">
@@ -137,7 +148,13 @@ function CorpusHomeBody(): ReactElement {
                   onClick={(): void => selectCorpusCharacter(gem.characterId)}
                   leading={<CharacterAvatar id={gem.characterId} name={gem.name} hash={gem.avatarHash} />}
                   title={gem.name}
-                  subtitle={`${gem.messageCount} messages · ${gem.tokensOut.toString()} tokens · last active ${timeLib.formatRelative(gem.lastActiveAt)}`}
+                  // A LIFETIME AGGREGATE, said as one (#99 item 7): the bare "Hikari · 1599 messages" was
+                  // anatomically a chat row, and read as one — the largest real chat on this instance is
+                  // 71 messages, so the number looked like a bug rather than a career total. "in total"
+                  // is the whole fix; the row is per-CHARACTER and now says so.
+                  // The stamp is the COMPACT form, the same column-scan shape the chats list uses (#99
+                  // item 4) — six rows of "last active about three weeks ago" is six wasted clauses.
+                  subtitle={`${gem.messageCount} messages in total · ${gem.tokensOut.toString()} tokens · last active ${timeLib.formatRelativeCompact(gem.lastActiveAt)}`}
                   actions={<Money value={gem.costUsd} />}
                 />
               </Row>
@@ -284,7 +301,15 @@ function ThemeDetailBody({ selection, onDismiss }: { readonly selection: ThemeSe
   );
 }
 
-function Money({ value }: { readonly value: number }): ReactElement {
+/** A spend readout — and NOTHING at zero (#99 item 7). On a local-model instance every row's cost is
+ *  genuinely $0.00, so the column rendered six identical zeros: a data column that never varies is not a
+ *  column, it is decoration that costs the row's whole trailing zone. Absent means "this cost nothing",
+ *  which is what the row is already saying; a real spend still prints, so the column appears exactly when
+ *  it has something to say. */
+function Money({ value }: { readonly value: number }): ReactElement | null {
+  if (value === 0) {
+    return null;
+  }
   return (
     <Text voice="gloss" className="whitespace-nowrap font-mono">
       {money(value)}

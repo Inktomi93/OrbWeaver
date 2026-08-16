@@ -140,7 +140,13 @@ export function PresetLibraryRow({
         : {
             // F5: the row's scent — forks of the same base share a name, so the edit stamp (+ a
             // meaningful kind, + the fork lineage when the source is known) tells the rows apart.
-            subtitle: presetRowSubtitle(preset.kind, preset.updatedAt, timeLib.formatRelative, forkedFromName),
+            // THE STAMP FORM IS COMPACT IN A DENSE LIST (#99 item 4). The chats list settled this already
+            // (`chat-summary-row.tsx`: "in a list this is a column the eye scans, and the long form ate ~7
+            // characters of the title's width on every row"), and a preset row is the same shape — four of
+            // them stacked in a 296px rail, each spending a clause on "about two hours ago" where "2h"
+            // says it. `presetRowSubtitle` takes the formatter, so this is a call-site decision, not a
+            // second derivation.
+            subtitle: presetRowSubtitle({ kind: preset.kind, updatedAt: preset.updatedAt, forkedFromName, active }, timeLib.formatRelativeCompact),
             actions: {
               // §12.2 per-list assignment: DUPLICATE is the measured frequent verb (the fork workflow —
               // nine "Default (edited)" rows are its receipt), so it is the row's ONE inline verb beside the

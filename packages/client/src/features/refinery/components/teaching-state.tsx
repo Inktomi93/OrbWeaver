@@ -53,7 +53,11 @@ interface TeachingStep {
 const STEPS: readonly TeachingStep[] = [
   { glyph: Gauge, name: "Score", detail: "A critique per field, with a 1-10 and what to fix." },
   { glyph: Pencil, name: "Rewrite", detail: "Only the fields you selected, using the score and your guidance." },
-  { glyph: ChartColumn, name: "Analyze", detail: "Compares the rewrite against your ORIGINAL — never the previous rewrite." },
+  // #104 item 4: this shouted ORIGINAL in caps mid-sentence, which is the one place the app raises its
+  // voice at the reader. The distinction it was shouting is real and survives in words: "your original
+  // card" against "the previous rewrite" is the contrast, and the sentence carries it without caps or a
+  // dash. Micro-caps are the `kicker` VOICE's job (a label), never emphasis inside prose.
+  { glyph: ChartColumn, name: "Analyze", detail: "Compares the rewrite against your original card, never against the previous rewrite." },
 ];
 
 export function TeachingState({ onStart, starting }: TeachingStateProps): ReactElement {

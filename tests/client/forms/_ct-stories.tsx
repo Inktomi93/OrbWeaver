@@ -612,7 +612,7 @@ function ArraySpyObserver(): ReactElement {
   return <output data-testid="array-spy">{state.value ?? ""}</output>;
 }
 
-// ---- CT-5 status: fail → error+Retry → success → saved; caption in saved only ---------------------
+// ---- CT-5 status: fail → error+Retry → success → saved -------------------------------------------
 let statusShouldFail = true;
 const useStatusBoundary = createAutosaveEntityForm<BoundaryValues>({
   defaultValues: { text: "" },
@@ -620,7 +620,8 @@ const useStatusBoundary = createAutosaveEntityForm<BoundaryValues>({
   debounceMs: 50,
 });
 
-/** CT-5 status lifecycle + caption: renders AutosaveStatus fed by the session (caption in `saved` only). */
+/** CT-5 status lifecycle: renders AutosaveStatus fed by the session (the `caption` prop was deleted with
+ *  the "Synced across your devices." line — #104; the readout is "Saved" / "Saving…" / the error arm). */
 export function BoundaryStatusStory(): ReactElement {
   return (
     <div>
@@ -630,7 +631,7 @@ export function BoundaryStatusStory(): ReactElement {
         children: (session): ReactElement => (
           <div>
             <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Status text" />}</session.form.AppField>
-            <AutosaveStatus state={session.saveState} onRetry={session.retrySave} caption="Synced across your devices." />
+            <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
             <output data-testid="status-state">{session.saveState}</output>
             <button
               type="button"

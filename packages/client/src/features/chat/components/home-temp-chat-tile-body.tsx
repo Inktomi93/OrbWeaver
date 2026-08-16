@@ -70,12 +70,16 @@ export function HomeTempChatTileBody(): ReactElement {
       {/* ONE gloss, in the user's own terms. The teaching line about the creation-only flag used to ride a
           sample `Badge` beside it — a picture OF a badge, which is not a state and cannot be acted on; the
           real badge shows on the room itself the moment the picker starts it. */}
+      {/* EM-DASH DIET (#104 item 3). Three sentences carried three em-dashes, which turns a warm
+          explanation into a telegram: the punctuation was doing the work the conjunctions should. Same
+          three facts, same voice, no dashes — a room that doesn't stick around, a flag set at birth, and
+          everything else behaving normally. */}
       <Text size="label" tone="muted">
-        A room that never joins your chats list — deleted after{" "}
+        A room that never joins your chats list, deleted after{" "}
         <Text as="span" size="code">
           {ttlHours}h
         </Text>
-        . Marked Temporary from the moment it opens — you can't switch a room later. Turns, canon and the tracker all work normally while it lives.
+        . Marked Temporary from the moment it opens, and you can't switch a room over later. Turns, canon and the tracker all work normally while it lives.
       </Text>
     </Stack>
   );

@@ -156,7 +156,7 @@ function ImageryTemplatesBody({ sectionId, session }: { readonly sectionId: stri
             </Stack>
           ))}
         </Grid>
-        <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} caption="Synced across your devices." />
+        <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
       </Stack>
     </Section>
   );

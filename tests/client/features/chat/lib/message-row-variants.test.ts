@@ -10,7 +10,7 @@ import type { BubbleDecorationArgs } from "../../../../../packages/client/src/fe
 import { MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
 // Deep imports, NOT the @orb/ui barrels: this is a NODE-lane test, and a barrel import drags browser
 // TSX + #lib (which re-exports portal-container's ShadowRoot) into the dom-less typecheck:graph program.
-import { avatarFallbackHueVar } from "../../../../../packages/ui/src/primitives/avatar/hue.ts";
+import { avatarFallbackHueColor } from "../../../../../packages/ui/src/primitives/avatar/hue.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A `bubbleDecoration` argument builder — the two no-image FALLBACK fields (`hueSeed`/`initial`, the
@@ -91,7 +91,7 @@ test("echo's no-image character row paints the first-class FALLBACK tile (owner 
   expect(fallback?.style?.paddingRight).toBe("var(--immersive-echo-feather)");
   expect(fallback?.edgeTile?.initial).toBe("AL");
   // The tile field is the entity's DETERMINISTIC hue (seeded off the id, matching the chip everywhere).
-  expect(fallback?.edgeTile?.style.backgroundColor).toBe(avatarFallbackHueVar("char_alice"));
+  expect(fallback?.edgeTile?.style.backgroundColor).toBe(avatarFallbackHueColor("char_alice"));
   // No portrait <img> in the tile fallback — it's a flat hue field feathered into the bubble.
   expect(fallback?.edgeTile?.style.backgroundImage).not.toContain("?v=portrait");
 });
@@ -122,7 +122,7 @@ test("whisper's no-image character band is the first-class FALLBACK tile (hue fi
   expect(fallback?.style?.borderTopColor).toBe("var(--color-speaker)");
   expect(fallback?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
   expect(fallback?.headerBand?.initial).toBe("AL");
-  expect(fallback?.headerBand?.style.backgroundColor).toBe(avatarFallbackHueVar("char_alice"));
+  expect(fallback?.headerBand?.style.backgroundColor).toBe(avatarFallbackHueColor("char_alice"));
   // A hue FIELD, never a banner <img>.
   expect(fallback?.headerBand?.style.backgroundImage).not.toContain("?v=banner");
 });

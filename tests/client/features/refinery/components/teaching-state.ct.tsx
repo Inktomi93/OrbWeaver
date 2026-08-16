@@ -27,7 +27,7 @@ const EXPECTED_ROW_TEXT = [
   "Rewrite",
   "Only the fields you selected, using the score and your guidance.",
   "Analyze",
-  "Compares the rewrite against your ORIGINAL — never the previous rewrite.",
+  "Compares the rewrite against your original card, never against the previous rewrite.",
 ].join("");
 
 /** The mock's step markers, as the owner ruling names them. */
