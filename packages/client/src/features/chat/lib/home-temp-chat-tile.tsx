@@ -3,7 +3,7 @@
 
 import { Clock } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
-import { HomeTempChatTileBody } from "../components/home-temp-chat-tile-body.tsx";
+import { HomeTempChatTileBody, TEMP_CHAT_SKELETON_ROWS } from "../components/home-temp-chat-tile-body.tsx";
 
 const TEMP_CHAT_TILE_ORDER = 30;
 
@@ -12,5 +12,8 @@ export const chatTempChatTile: HomeTileContribution = {
   title: "Temp chat",
   icon: Clock,
   order: TEMP_CHAT_TILE_ORDER,
+  // The FIRST-BOOT reservation (#92): a fixed two-row body over-reserved by a whole row on the 3-row
+  // default, which pulled the tiles below it UP when the read landed.
+  skeletonRows: TEMP_CHAT_SKELETON_ROWS,
   body: () => <HomeTempChatTileBody />,
 };

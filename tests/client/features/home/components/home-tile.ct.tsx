@@ -9,8 +9,8 @@
 // be remembered) are the unit test's job; this is the pixels.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { HomeTileReserveStory } from "../_ct-stories.tsx";
-import { RESERVED_TILE_PX } from "../_reserve-box.ts";
+import { HomeTileFirstBootStory, HomeTileReserveStory } from "../_ct-stories.tsx";
+import { FIRST_BOOT_SKELETON_ROWS, RESERVED_TILE_PX } from "../_reserve-box.ts";
 
 /** Tolerance for a boundingBox against a reserved min-block-size — sub-pixel layout rounding only. */
 const PX_EPSILON = 1;
@@ -64,6 +64,47 @@ test("the skeleton FILLS the reserved box — no blank tail, no hairline stub", 
   expect(geometry.tail).toBeLessThan(geometry.rowHeight);
   // The 2.9px-hairline defect: a bar that renders at all renders as a bar, not a sliver.
   expect(geometry.lastVisible).toBeGreaterThan(geometry.rowHeight / 2);
+});
+
+// ── The FIRST-EVER-BOOT arm (#92, measured 2026-08-16) ──────────────────────────────────────────────
+// Everything above is the SECOND boot: a box this device already measured. The first boot reserved
+// NOTHING, and that was the whole defect left on the tree — a fresh profile (a new device, cleared
+// storage, and every Playwright profile, which is why the harness kept catching it) painted the frame's
+// 3-row skeleton under every tile, so when the reads landed `chat.recents` grew 233px → 541px and pushed
+// the two tiles under it down 308px: home alone scored CLS 0.1338 against a 0.1 budget in 3/3 live runs.
+// The same drive with the box memory pre-seeded scored 0.0002 — the mechanism was fine, its first-boot
+// arm was empty. A tile now DECLARES the row count its own read renders (`skeletonRows`), so boot one
+// reserves the same geometry boot two remembers.
+//
+// STANDING: this is a FENCE, not the defect proof. The defect was proved at the tier it was reported —
+// `__orb.motion()` over the live drive — because a CT cannot mount a first boot of the REAL tiles
+// without their reads. It guards the frame's half: a declaration that stops reaching the fallback.
+test("a FIRST-boot tile reserves the rows it DECLARES — the tile below it does not move", async ({ mount, page }) => {
+  const home = await mount(<HomeTileFirstBootStory />);
+  const declared = home.locator('[data-home-tile="declared"]');
+  const under = home.locator('[data-home-tile="under"]');
+
+  // No remembered box for this id, so there is no `[data-tile-reserved]` wrapper — the DECLARED row count
+  // is the only thing holding the box open, and it is read off the rendered bars, never a hardcoded pitch.
+  await expect(declared.locator("[aria-busy]")).toBeVisible();
+  await expect(declared.locator("[data-tile-reserved]")).toHaveCount(0);
+  await expect(declared.locator('[data-slot="skeleton"]')).toHaveCount(FIRST_BOOT_SKELETON_ROWS);
+
+  await expect(under).toBeVisible();
+  const beforeTop = (await under.boundingBox())?.y ?? 0;
+
+  await page.getByRole("button", { name: "Settle" }).click();
+  // The settled body is the same skeleton geometry at the same count, so a correct reservation moves
+  // nothing. Under the old 3-row default this lands five rows lower.
+  await expect
+    .poll(
+      async () => {
+        const afterTop = (await under.boundingBox())?.y ?? 0;
+        return Math.abs(afterTop - beforeTop) <= PX_EPSILON;
+      },
+      { intervals: [20, 50, 100] },
+    )
+    .toBe(true);
 });
 
 test("the tile BELOW does not move when the read lands — the +189px push is gone", async ({ mount, page }) => {

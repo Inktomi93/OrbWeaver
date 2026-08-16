@@ -29,6 +29,11 @@ const useReapTemporaryChats = createEntityMutation<void, { readonly reaped: numb
   invalidates: (trpc: Trpc) => [trpc.chat.listChats.pathFilter()],
 });
 
+/** This body is FIXED, not paged: one primary button and one gloss paragraph. So its first-boot skeleton
+ *  is two rows, not the frame's three (#92) — declared here, beside the body it describes, and consumed by
+ *  the contribution's `skeletonRows`. Not a pixel guess: it is the row count this tile IS. */
+export const TEMP_CHAT_SKELETON_ROWS = 2;
+
 /** ONE creation ceremony: the temp tile opens the SAME character picker every other "New chat" opens,
  *  with the creation-only flag preset — it never forks a second launcher that skips the cast pick. The
  *  picker mints the seed (preset ⊕ picks) and moves the rail. */

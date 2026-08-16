@@ -46,8 +46,10 @@ import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { bankHealth, bankHealthLine, documentSubtitle, ingestBadge, ingestPhase, ingestPollInterval, showsPhaseChip } from "../lib/databank-model.ts";
 
 /** How many documents the tile shows. FOUR, not the library's eight: this is a half-span tile carrying a
- *  health line above the rows, and the fifth-newest document is a browse, not a glance. */
-const RECENT_DOCUMENTS_LIMIT = 4;
+ *  health line above the rows, and the fifth-newest document is a browse, not a glance. Exported because
+ *  the contribution's first-boot `skeletonRows` is this count plus the health line (#92) — the reservation
+ *  is derived from the read, never a second number that can drift from it. */
+export const RECENT_DOCUMENTS_LIMIT = 4;
 
 /** Opening a document from home is a CROSS-SECTION navigation: write databank's own selection, then move
  *  the rail (the `#state` module actions — the sanctioned channel; home never wires this). */

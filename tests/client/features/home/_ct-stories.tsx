@@ -3,6 +3,7 @@
 // FAKES and drive the REAL `HomeSurface` — proving order, `useVisible` gating, the dormant arm, and the
 // zero-tile empty state against the shipped grid, not a bespoke double.
 
+import { SkeletonRows } from "@orb/client/data";
 import { automationDormantTile, buddyDormantTile, HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
@@ -13,7 +14,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { use } from "react";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
-import { RESERVED_TILE_PX } from "./_reserve-box.ts";
+import { FIRST_BOOT_SKELETON_ROWS, RESERVED_TILE_PX } from "./_reserve-box.ts";
 
 /** Deliberately declared OUT of `order` — the grid must re-sort them (order asc, then id). */
 const FAKE_TILES: readonly HomeTileContribution[] = [
@@ -140,6 +141,43 @@ export function HomeTileReserveStory(): ReactElement {
         Settle
       </Button>
       <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", RESERVE_TILES)} />
+    </CtDataProviders>
+  );
+}
+
+// ── The FIRST-EVER-BOOT reservation (#92) ────────────────────────────────────────────────────────────
+// The story above is the SECOND boot: a measured box already in the store. This one is the FIRST — no
+// memory for this tile id at all — which is the arm that was still shifting the whole grid (live stack,
+// 3/3 runs: CLS 0.1338, `chat.recents` growing 233px → 541px and pushing the two tiles under it 308px).
+// The tile DECLARES the row count its own read renders, so the loading box and the settled box are the
+// same skeleton geometry and the tile below it never moves.
+
+let releaseFirstBootBody: () => void = (): void => undefined;
+const firstBootBodyReady: Promise<void> = new Promise<void>((resolve) => {
+  releaseFirstBootBody = resolve;
+});
+
+/** Suspends until "Settle", then renders EXACTLY the fallback's own shape at the declared row count — so
+ *  any movement of the tile below is the reservation being wrong, never the story's own geometry. */
+function FirstBootBody(): ReactElement {
+  use(firstBootBodyReady);
+  return <SkeletonRows count={FIRST_BOOT_SKELETON_ROWS} />;
+}
+
+const FIRST_BOOT_TILES: readonly HomeTileContribution[] = [
+  { id: "declared", title: "Declared tile", icon: Clock, order: 10, skeletonRows: FIRST_BOOT_SKELETON_ROWS, span: "full", body: () => <FirstBootBody /> },
+  { id: "under", title: "Under tile", icon: MessagesSquare, order: 20, body: () => <Text>under body</Text> },
+];
+
+/** No remembered box for either id (nothing seeds them) — the first-ever-boot state, on a tile that
+ *  declares its rows. `under` is the tile the +308px push used to move. */
+export function HomeTileFirstBootStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <Button intent="secondary" onClick={releaseFirstBootBody}>
+        Settle
+      </Button>
+      <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", FIRST_BOOT_TILES)} />
     </CtDataProviders>
   );
 }

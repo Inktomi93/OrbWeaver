@@ -25,9 +25,13 @@
 
 import { Database } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
-import { HomeDocumentsTileAction, HomeDocumentsTileBody } from "../components/home-documents-tile-body.tsx";
+import { HomeDocumentsTileAction, HomeDocumentsTileBody, RECENT_DOCUMENTS_LIMIT } from "../components/home-documents-tile-body.tsx";
 
 const DOCUMENTS_TILE_ORDER = 50;
+
+/** The FIRST-BOOT skeleton box (#92): the health line, then `RECENT_DOCUMENTS_LIMIT` document rows —
+ *  derived from the body's own read so the two cannot drift. From boot two on the MEASURED box wins. */
+const DOCUMENTS_SKELETON_ROWS = RECENT_DOCUMENTS_LIMIT + 1;
 
 export const databankDocumentsTile: HomeTileContribution = {
   id: "databank.documents",
@@ -38,6 +42,7 @@ export const databankDocumentsTile: HomeTileContribution = {
   // The section this tile SUBSUMES on home — the jump grid drops its Databank row while this tile is
   // registered (side-eye 2026-08-08 P2-c: two doors to one place, ten pixels apart, one of them richer).
   sectionId: "databank",
+  skeletonRows: DOCUMENTS_SKELETON_ROWS,
   // A COMPONENT, not a static node: it hides itself on an empty bank (P2-b).
   action: <HomeDocumentsTileAction />,
   body: () => <HomeDocumentsTileBody />,

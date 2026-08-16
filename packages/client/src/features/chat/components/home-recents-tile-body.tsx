@@ -26,7 +26,9 @@ import { useTRPC } from "#data";
 import { openNewChatPicker, selectChatFromList, setActiveSection } from "#state";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
 
-const RECENTS_LIMIT = 8;
+/** How many recents this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
+ *  first-boot skeleton reserves (#92). Exported so the reservation cannot drift from the read. */
+export const RECENTS_LIMIT = 8;
 
 function openRecent(chatId: ChatId): void {
   selectChatFromList(chatId);
