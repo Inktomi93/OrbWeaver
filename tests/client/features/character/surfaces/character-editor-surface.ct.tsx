@@ -15,6 +15,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/ct/autosave-status-transcript.ts";
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
@@ -159,6 +160,37 @@ test("§6.5/§7 the header carries the token split + AutosaveStatus, and editing
   // Editing a draft field debounce-persists ONLY the changed key (never a full-object PUT).
   await component.getByRole("textbox", { name: "Name" }).fill("Aria N.");
   await expect.poll(() => updateInput, { intervals: [100, 200, 300, 500] }).toEqual({ characterId: "char_ct_1", input: { name: "Aria N." } });
+});
+
+// ── THE HEADER MAY NOT SAY "Saved" OVER AN UNCOMMITTED EDIT (side-eye #81 P0) ─────────────────────────
+// The test above proves the edit eventually PERSISTS; this one proves the header does not LIE while it is
+// still in the debounce window. `AutosaveStatus` was fed the raw driver lifecycle, which starts and stays
+// "saved" until the debounced submit begins — so for the whole ~500ms window (and forever, if the tab is
+// closed inside it — the factory's own teardown note says a reload never unmounts React) the one line
+// whose entire job is to say whether this character is saved said "Saved" over text that was nowhere but
+// in the box. The fold now lives at the factory seam, which is why this pin lives at the EDITOR: the
+// finding was filed against this surface, and a factory-only test would not prove this surface reads it.
+//
+// The proof is a recorded TRANSCRIPT, not a polled assertion — see the helper's header for why a window
+// defect cannot be pinned by racing it.
+test("#81 P0 — the header reads Saving… the instant the name is edited, never 'Saved' over the pending write", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  // BARRIER: the clean mount has settled on its resting state before anything is recorded.
+  const status = component.getByRole("status");
+  await expect(status).toHaveText("Saved");
+
+  await beginAutosaveStatusTranscript(page);
+  await component.getByRole("textbox", { name: "Name" }).fill("Aria N.");
+
+  // BARRIER: the debounced save has landed and the header is back to its resting state — the window the
+  // transcript covers is closed, so the array below is final.
+  await expect(status).toHaveText("Saved");
+
+  // THE PIN: the first thing the header said after the keystroke was "Saving…", and it settled to "Saved"
+  // only once the write actually landed. On the unfixed tree this reads ["Saved"] — the lie, recorded.
+  expect(await readAutosaveStatusTranscript(page)).toEqual(["Saving…", "Saved"]);
 });
 
 test("§7/D78 — adding an opening persists the structural push via the store driver, then its content autosaves", async ({ mount, page }) => {

@@ -295,6 +295,22 @@ export function SchemaEditorStory({ stage = "score", editing = null }: SchemaEdi
   );
 }
 
+/** The same editor with a REAL owner of its `open` state — the only way a CT can see whether a close
+ *  request was honoured or guarded (#81 P1: the dialog had no Cancel at all, and Esc destroyed the draft
+ *  in silence). The closed arm renders a marker so "it closed" is an assertable rendered fact rather than
+ *  the absence of a portal. */
+export function SchemaEditorCloseGuardStory({ stage = "score", editing = null }: SchemaEditorStoryProps): ReactElement {
+  const [open, setOpen] = useState(true);
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <SchemaEditorDialog editing={editing} onOpenChange={setOpen} onSaved={(): void => undefined} open={open} stage={stage} />
+        {open ? null : <p>the schema editor is closed</p>}
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
 // --- The SETUP context tab (the two schema-verb doors: author-analyze + edit-saved) ---
 
 export interface SetupTabBodyStoryProps {

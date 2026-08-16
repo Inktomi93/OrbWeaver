@@ -127,11 +127,18 @@ test("a drafted row says so and names what a turn still resolves; it reads LIVE 
   // THE PIN: the row immediately admits it is a draft AND names the connection turns still use. The pane
   // header may not read "Saved" while a draft is on screen (the phantom the owner debugged from).
   await expect(page.locator(SYNC_CHIP)).toHaveCount(1);
-  await expect(page.locator(SYNC_CHIP)).toContainText("Unsaved");
   await expect(page.locator(SYNC_CHIP)).toContainText(`a turn still uses OpenRouter · ${LIVE_MODEL}`);
   await expect(page.locator(AUTOSAVE_STATUS).first()).not.toHaveText("Saved");
 
-  // The debounce fires into the HELD mutation: the row escalates to its saving state — still not "Saved".
+  // ONE WORD ACROSS BOTH PHASES, from #81 P0 onward. This block used to read "Unsaved" here and escalate to
+  // "Saving…" once the debounce fired into the held mutation — the row saw the RAW driver lifecycle, whose
+  // `saved` during a queued write is the very lie the factory fold now kills (`foldSaveState`), so a drifted
+  // row can no longer be handed `saved` at all. The bit that is gone is queued-vs-in-flight, a ~500ms label
+  // nuance; what the chip is FOR — "not applied yet, a turn still uses X" — is unchanged and asserted above,
+  // and the row now speaks the same word as the header, which this pane's own header comment names as the
+  // goal ("two homes and two wordings for one fact"). `DRAFT_STATE_BY_SAVE_STATE.saved` → "Unsaved" survives
+  // for the just-landed/echo-pending frame; whether that word is still worth keeping is the credentials
+  // owner's call, not this lane's.
   await expect(page.locator(SYNC_CHIP)).toContainText("Saving…");
   await expect(page.locator(AUTOSAVE_STATUS).first()).toHaveText("Saving…");
 
@@ -164,7 +171,8 @@ test("a landed save retires the disclosure with NO refetch — a persisted selec
 
   await page.getByRole("button", { name: "Chat model" }).click();
   await page.locator(COMMAND_ITEM).filter({ hasText: "GPT-5" }).click();
-  await expect(page.locator(SYNC_CHIP)).toContainText("Unsaved");
+  // The drafted-row barrier (its word is "Saving…" from #81 P0 on — see the block in the test above).
+  await expect(page.locator(SYNC_CHIP)).toContainText("Saving…");
 
   await expect.poll(() => recorder.count("settings.updateUserSettingsSection")).toBe(1);
 
@@ -205,7 +213,8 @@ test("a reload mid-edit shows the persisted connection again — the lost draft 
 
   await page.getByRole("button", { name: "Chat model" }).click();
   await page.locator(COMMAND_ITEM).filter({ hasText: "GPT-5" }).click();
-  await expect(page.locator(SYNC_CHIP)).toContainText("Unsaved");
+  // The drafted-row barrier (its word is "Saving…" from #81 P0 on — see the first test's block).
+  await expect(page.locator(SYNC_CHIP)).toContainText("Saving…");
 
   await page.reload();
   await mount(<ConnectionsSettingsStory />);

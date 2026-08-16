@@ -1,8 +1,14 @@
-// The autosave session-boundary's TYPE home — the session surface, the mint config arms, and the mount
-// props arms of `createAutosaveEntityForm` (D78, autosave-form-doctrine.md §1–§6). Split out of the `.tsx`
-// factory for the `component-size` cap, on the local precedent that a JSX module carries components and its
-// non-JSX half lives beside it (`capped-field-model.ts`, `save-status-seam.ts`). The factory's OVERLOADS —
-// which pair a config arm with its props arm — stay in the `.tsx`; this file is what they are spelled in.
+// The autosave session-boundary's NON-JSX HALF — the session surface, the mint config arms, the mount props
+// arms, and the three module-scope pure helpers of `createAutosaveEntityForm` (D78,
+// autosave-form-doctrine.md §1–§6). Split out of the `.tsx` factory for the `component-size` cap, on the
+// local precedent that a JSX module carries components and its non-JSX half lives beside it
+// (`capped-field-model.ts`, `save-status-seam.ts`). The factory's OVERLOADS — which pair a config arm with
+// its props arm — stay in the `.tsx`; this file is what they are spelled in.
+//
+// The helpers at the bottom (`hasUnsavedEdits` · `foldSaveState` · `takeDiscard`) are exported ONLY for the
+// sibling factory, never through `#forms`: they are the Session's internals, and a consumer that could reach
+// `foldSaveState` could re-derive a status the boundary already hands it — the second truth `AutosaveSession`
+// exists to prevent.
 //
 // THE SEAM LAW lives here (Codex audit client-forms-01, 2026-08-13): the persistence seam is declared at
 // EXACTLY ONE place, and that is a compile fact. Both seams used to be optional and the driver ran
@@ -13,8 +19,9 @@
 // `save` presence selects the props arm instead: no config seam ⇒ the mount must declare `save` OR the
 // explicit `readOnly` arm.
 
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import type { EntityDraftStore, SAVE_LIFECYCLE_STATES } from "#state";
+import { formValuesEqual } from "./entity-form-base.ts";
 import type { AppFormInstance, AppFormOptions } from "./use-app-form.ts";
 
 /** The autosave lifecycle the shared `AutosaveStatus` affordance renders (north-star §7 / D66 A4).
@@ -31,10 +38,13 @@ export type AutosaveForm<TValues extends object> = Omit<AppFormInstance<TValues>
 export interface AutosaveSession<TValues extends object> {
   /** The widened AppForm surface (same as the old factory's), minus `reset` at the type level. */
   readonly form: AutosaveForm<TValues>;
-  /** The live save lifecycle for `AutosaveStatus`, per SESSION (resets on entity switch / reseed). Folds the
-   *  driver's own lifecycle together with form VALIDITY: an invalid form reads `blocked`, because the driver
-   *  is holding that write and a status line saying "Saved" over it is simply false. The declared read-only
-   *  arm folds in at the same seam — a read-only mount that is somehow dirty also reads `blocked`. */
+  /** The DISPLAYED save lifecycle for `AutosaveStatus`, per SESSION (resets on entity switch / reseed). It
+   *  is a FOLD, not the raw driver state (`foldSaveState` at the bottom of this file owns the order): an invalid form
+   *  reads `blocked`, because the driver is holding that write and a status line saying "Saved" over it is
+   *  simply false; a declared read-only mount that is somehow dirty reads `blocked` at the same seam; and a
+   *  form carrying an edit the driver has not written yet reads `saving`, never "Saved" (side-eye #81 P0 —
+   *  the whole debounce window used to claim success over text that lived only in the box). A consumer
+   *  renders this verbatim: there is no per-surface dirty fold to remember, and none to forget. */
   readonly saveState: AutosaveSaveState;
   /** Explicit user retry (the AutosaveStatus affordance) — submits the current values unconditionally. */
   readonly retrySave: () => void;
@@ -121,4 +131,65 @@ export type AutosaveBoundaryPropsSeamRequired<TValues extends object> = Autosave
 export interface AutosaveBoundaryImplProps<TValues extends object> extends AutosaveBoundaryPropsBase<TValues> {
   readonly save?: ((values: TValues) => Promise<unknown>) | undefined;
   readonly readOnly?: boolean | undefined;
+}
+
+/** Structural inequality of live values vs the last-saved baseline (§3) — the ONE unsaved-edit predicate the
+ *  save driver, the clean-echo reseed, and the teardown flush share. NEVER `isDefaultValue` (permanently-true
+ *  after any edit was the F2 write-back vector). Module-scope so no effect ever takes it as a dependency
+ *  (D54: manual memo is banned, so an in-component definition would re-arm every render). */
+export function hasUnsavedEdits<TValues extends object>(values: TValues, lastSaved: TValues): boolean {
+  return !formValuesEqual(values, lastSaved);
+}
+
+/** The facts the displayed lifecycle folds together — one per reason the driver's own `saveState` can be a
+ *  lie about this instant. Module-scope + an interface rather than five positional booleans, because the
+ *  ORDER of the fold is the law (see `foldSaveState`) and a positional call site hides it. */
+interface DisplayedSaveState {
+  /** The driver's own lifecycle — what the last attempted write did. */
+  readonly driver: AutosaveSaveState;
+  /** `form.state.isValid` — false ⇒ the driver is deliberately holding this write. */
+  readonly isValid: boolean;
+  /** A DECLARED read-only mount that is nonetheless dirty — a write that will never be attempted. */
+  readonly readOnlyDirty: boolean;
+  /** `hasUnsavedEdits(values, lastSaved)` — an edit the driver has not yet written (the debounce window). */
+  readonly unsaved: boolean;
+}
+
+/**
+ * THE DISPLAYED LIFECYCLE — the ONE derivation of "what is true about this form's persistence right now",
+ * folded at the seam rather than at each call site (the same ruling as the `blocked` arm below: one
+ * derivation, every autosave surface, no editor able to forget it).
+ *
+ * Order is the law, strongest fact about the WRITE first:
+ *  1. `error` — a save genuinely failed. It owns the retry affordance and outranks everything about what
+ *     is in the box now.
+ *  2. `blocked` — the driver is HOLDING this write (invalid form, or a declared read-only mount that got
+ *     edited). "Not saved", with the reason living on the field.
+ *  3. THE UNCOMMITTED EDIT (side-eye #81 P0) — the form carries text the driver has not written yet, i.e.
+ *     the debounce window. Every editor read "Saved" here, over content that lived nowhere but in the box,
+ *     and a tab closed inside that window loses it in silence (see the teardown note below: a page reload
+ *     never unmounts React, so nothing flushes). It reads "saving": the pane is one armed debounce away
+ *     from the write, which is exactly what "Saving…" means — the ratified three-state vocabulary, no
+ *     fourth state minted (D78 §6), and the same mapping the Connections pane already made by hand.
+ *
+ * `unsaved` is `hasUnsavedEdits` against the SESSION-PRIVATE last-saved baseline, never `form.state.isDirty`
+ * — TanStack's `isDirty` is permanently true after the first edit (the F2 trap this file warns about
+ * throughout), so folding THAT here would pin every editor on "Saving…" forever. The baseline is why this
+ * fold cannot live at a call site: `lastSavedRef` is the Session's own, and a consumer cannot compute it.
+ */
+export function foldSaveState({ driver, isValid, readOnlyDirty, unsaved }: DisplayedSaveState): AutosaveSaveState {
+  if (driver === "error") {
+    return driver;
+  }
+  if (!isValid || readOnlyDirty) {
+    return "blocked";
+  }
+  return driver === "saved" && unsaved ? "saving" : driver;
+}
+
+/** Read-and-clear the Boundary's discard flag — `true` = this teardown was a reseed and skips its flush. */
+export function takeDiscard(discardRef: RefObject<boolean>): boolean {
+  const discard = discardRef.current;
+  discardRef.current = false;
+  return discard;
 }
