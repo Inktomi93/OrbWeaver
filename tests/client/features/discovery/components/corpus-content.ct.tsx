@@ -1,27 +1,88 @@
-// CT: the Corpus CONTENT region's FIRST-RUN state and its inset (side-eye 2026-08-08 P1-2, receipt
-// `reports/snaps/f-corpus-shot.png`).
+// CT: the Corpus CONTENT region — the ANALYSIS-STATE SWAP, the chrome diet, and the region's own inset
+// (program #102 corpus leg, issue #127; mockup A "The Cartographer" + the ruled invitation-focal state).
 //
-// Two defects on one screen, both measured on a library that has never been analysed:
-//   • EIGHT dead-end empty states. Themes / All themes / Keywords / Catalog / Theme drift each printed its
-//     own muted "No … computed yet." line — seven notes stacked down the pane, none of which said what to
-//     DO or offered anywhere to do it. They collapse into ONE state naming the two jobs that fill them,
-//     with the live door to Settings → Jobs.
-//   • ZERO horizontal padding. The shell's CONTENT region has no inset of its own and neither corpus
-//     surface carried one, so body text sat flush at the list divider (x=363) and the trailing money column
-//     was pinned to the viewport edge. The REGION pads now, once, for both surfaces (the Configuration
-//     `config-content-surface` precedent).
+// WHAT THIS FILE PINS, and why each one is here rather than in the unit suite:
+//   • THE SWAP AS RENDERED. `lib/corpus-analysis-state.test.ts` proves the PREDICATE at every boundary;
+//     only a mount can prove that the predicate reaches the DOM — which island exists, which one carries
+//     the focal treatment, and that the other one is still present and merely quiet.
+//   • CD3 BY COUNT. Exactly one `[data-corpus-focal]` element in EVERY phase. Two would mean the surface
+//     has no focal (density-pass-spec.md §3.2), and that is a defect no assertion on either island alone
+//     can see.
+//   • THE FOCAL TREATMENT BY COMPUTED VALUE, against the RESOLVED token — never a class list. An authored
+//     `before:shadow-glow` string stays green through a visual regression; a measured stripe width does not.
+//   • THE PORTRAIT JOIN AND ITS DEGRADATION. `ArchetypeMember` carries no avatarHash, so family faces are
+//     joined against `discovery.portraitAlignment`. One family member is deliberately ABSENT from that
+//     report in every fixture, so the initials fallback is EXERCISED rather than assumed.
+//   • THE ZERO WALL STAYING GONE. The first-run pane used to print a coverage strip of display zeros plus
+//     seven muted "No … computed yet." notes. Both absences are asserted, with the analysed fixture as the
+//     control that the blocks are CONDITIONAL rather than deleted.
+//   • THE REGION'S INSET and the containing-block fence, carried over unchanged from the 2026-08-08 pass.
 //
-// Both assertions are RENDERED facts — a resolved inset and the presence/absence of notes — never class
-// lists, and both barrier on the settled suspense arm (the section headings) before measuring.
+// DETERMINISM: the gem rows print a relative stamp, so the page clock is frozen at FROZEN_AT_MS and every
+// `lastActiveAt` is derived from it. No ambient clock is read anywhere in this file — the `test-determinism`
+// gate patrols the SPELLING, comments included, and it is right to: a commented-out wall-clock read is one
+// paste away from being a live one.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
-import { CorpusContentStory } from "../_ct-stories.tsx";
+import { CorpusContentNarrowStory, CorpusContentStory } from "../_ct-stories.tsx";
 
-/** A library with real characters but nothing analysed — the exact first-run shape. */
+/** The frozen page clock. Every stamp below is derived from it; no test here reads a wall clock. */
+const FROZEN_AT_MS = 1_760_000_000_000;
+const ONE_DAY_MS = 86_400_000;
+const TWO_WEEKS_MS = 14 * ONE_DAY_MS;
+
+/** The three characters in the fixtures' visual families. `ORPHAN` is deliberately missing from
+ *  `portraitAlignment`, which is what exercises the join's initials fallback. */
+const JFC = "character_jfc";
+const ELIAS = "character_elias";
+const ORPHAN = "character_orphan";
+const JFC_HASH = "aaaa1111";
+const ELIAS_HASH = "bbbb2222";
+
+const FAMILIES = [
+  {
+    label: "mixed",
+    genre: null,
+    tone: null,
+    artStyle: null,
+    palette: null,
+    mood: null,
+    size: 2,
+    members: [
+      { characterId: JFC, name: "JFC" },
+      { characterId: ELIAS, name: "Elias Thorn" },
+    ],
+    model: "Qwen/Qwen3-VL-Embedding-2B",
+  },
+  {
+    label: "mixed",
+    genre: null,
+    tone: null,
+    artStyle: null,
+    palette: null,
+    mood: null,
+    size: 1,
+    members: [{ characterId: ORPHAN, name: "Morgatha" }],
+    model: "Qwen/Qwen3-VL-Embedding-2B",
+  },
+];
+
+/** Portraits for TWO of the three members — Morgatha is absent on purpose (see above). */
+const PORTRAITS = {
+  count: 2,
+  mean: 0.3,
+  median: 0.3,
+  characters: [
+    { characterId: JFC, name: "JFC", avatarHash: JFC_HASH, alignment: 0.28, rating: null, artStyle: null },
+    { characterId: ELIAS, name: "Elias Thorn", avatarHash: ELIAS_HASH, alignment: 0.31, rating: null, artStyle: null },
+  ],
+};
+
+/** A library with real characters, a completed VISUAL pass, and NOTHING semantic — the audited first run. */
 const UNANALYSED: TrpcRoutes = {
   "discovery.home": {
     coverage: { characters: 10, digests: 0, segments: 0 },
@@ -30,12 +91,17 @@ const UNANALYSED: TrpcRoutes = {
     duplicateCounts: { characters: 0, chats: 0 },
   },
   "discovery.catalog": { totalDistilled: 0, genres: [], tones: [], topTags: [] },
+  "discovery.visualArchetypes": FAMILIES,
+  "discovery.portraitAlignment": PORTRAITS,
   "discovery.forgottenGems": [],
   "discovery.unusedCharacters": [],
   "discovery.modelRouting": [],
+  "discovery.themes": [],
+  "discovery.topKeywords": [],
+  "discovery.themeDrift": [],
 };
 
-/** …and the same library after the two jobs ran — the control for every absence below. */
+/** …and the same library after both passes ran — the control for every absence below. */
 const ANALYSED: TrpcRoutes = {
   ...UNANALYSED,
   "discovery.home": {
@@ -45,10 +111,38 @@ const ANALYSED: TrpcRoutes = {
     duplicateCounts: { characters: 0, chats: 0 },
   },
   "discovery.catalog": { totalDistilled: 6, genres: [{ value: "fantasy", count: 6 }], tones: [], topTags: [] },
-  "discovery.themes": [],
-  "discovery.topKeywords": [],
-  "discovery.themeDrift": [],
 };
+
+/** THE THIN IN-BETWEEN the ruling calls out: distillation ran, the story-theme pass did not. */
+const THIN: TrpcRoutes = {
+  ...UNANALYSED,
+  "discovery.catalog": { totalDistilled: 3, genres: [], tones: [], topTags: [] },
+};
+
+/** A library with nothing in it at all — not the same thing as an un-analysed one. */
+const EMPTY_LIBRARY: TrpcRoutes = {
+  ...UNANALYSED,
+  "discovery.home": {
+    coverage: { characters: 0, digests: 0, segments: 0 },
+    topSceneThemes: [],
+    topArcThemes: [],
+    duplicateCounts: { characters: 0, chats: 0 },
+  },
+  "discovery.visualArchetypes": [],
+  "discovery.portraitAlignment": { count: 0, mean: 0, median: 0, characters: [] },
+};
+
+const GEMS = [
+  {
+    characterId: "character_quiet",
+    name: "Quiet star",
+    avatarHash: null,
+    messageCount: 42,
+    tokensOut: 1200,
+    lastActiveAt: FROZEN_AT_MS - TWO_WEEKS_MS,
+    costUsd: 0.25,
+  },
+];
 
 const LARGE_UNUSED_LIBRARY = Array.from({ length: 206 }, (_, index) => ({
   characterId: `character_${index.toString().padStart(3, "0")}`,
@@ -56,74 +150,191 @@ const LARGE_UNUSED_LIBRARY = Array.from({ length: 206 }, (_, index) => ({
   avatarHash: null,
 }));
 
-function stub(page: Page, shape: TrpcRoutes): Promise<TrpcRecorder> {
+/** The dead-end note shape the diet deleted. Module scope: a regex rebuilt per call is `useTopLevelRegex`. */
+const COMPUTED_YET_NOTE = /computed yet/;
+/** The dead cost column — `$0.00` on every row of a local-model instance. */
+const MONEY_CELL = /\$\d/;
+
+/** A 1x1 transparent PNG — the smallest thing a CAS blob route can serve. */
+const PIXEL_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+
+async function stub(page: Page, shape: TrpcRoutes): Promise<TrpcRecorder> {
+  // The clock is frozen BEFORE any mount so the gem stamp is a fixed string in every run.
+  await page.clock.setFixedTime(new Date(FROZEN_AT_MS));
+  // THE CAS BLOB ROUTE HAS TO ANSWER, or the join is unobservable: Base UI's Avatar swaps to its initials
+  // fallback when the image ERRORS, so an unstubbed 404 makes a correctly-joined portrait look exactly like
+  // a missing one, and the assertion would pass for the wrong reason.
+  await page.route("**/api/blob/*", async (route) => {
+    const hash = route.request().url().split("/").pop() ?? "";
+    if (hash === JFC_HASH || hash === ELIAS_HASH) {
+      await route.fulfill({ body: PIXEL_PNG, contentType: "image/png", status: 200 });
+      return;
+    }
+    await route.fulfill({ status: 404 });
+  });
   return routeTrpc(page, shape);
 }
 
-/** The dead-end note shape the collapse replaced — "No scene themes computed yet", "No keyword cooccurrence
- *  computed yet", and their siblings. Module scope: a regex rebuilt per call is the `useTopLevelRegex` lint. */
-const COMPUTED_YET_NOTE = /computed yet/;
+/** Resolve a CSS custom property against the live document, so an assertion never hardcodes a px. */
+function resolvedToken(page: Page, token: string): Promise<string> {
+  return page.evaluate((name) => {
+    const probe = document.createElement("div");
+    probe.style.borderInlineStartStyle = "solid";
+    probe.style.borderInlineStartWidth = `var(${name})`;
+    document.body.append(probe);
+    const value = globalThis.getComputedStyle(probe).borderInlineStartWidth;
+    probe.remove();
+    return value;
+  }, token);
+}
 
-/** The five analysis sections that stand down at zero — each rendered its own note, none of them actionable. */
-const ANALYSIS_HEADINGS = ["Themes", "All themes", "Keywords", "Catalog", "Theme drift"] as const;
-
-test("first run: the analysis sections collapse into ONE state that names the jobs and opens the door", async ({ mount, page }) => {
+test("UN-ANALYSED: the invitation holds the focal and the family map renders quiet beneath it", async ({ mount, page }) => {
   await stub(page, UNANALYSED);
   const component = await mount(<CorpusContentStory />);
 
-  // Coverage is REAL data and stays — the pane still says how big the library is.
-  await expect(component.getByRole("heading", { name: "Coverage" })).toBeVisible();
+  // SETTLED: the masthead is the surface's first heading past the suspense arm.
+  await expect(component.getByRole("heading", { level: 1 })).toHaveText("Ten characters, grouped into two visual families.");
 
-  // The ONE state: the condition, the two jobs by their picker labels, and a live door.
-  await expect(component.getByText("Nothing analyzed yet")).toBeVisible();
-  await expect(component.getByText("Run Distill characters and Compute themes to fill this in.")).toBeVisible();
-  await expect(component.getByRole("button", { name: "Run a job…" })).toBeVisible();
+  // CD3: exactly one focal, and it is the invitation.
+  await expect(page.locator("[data-corpus-focal]")).toHaveCount(1);
+  await expect(page.locator('[data-corpus-focal="invitation"]')).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Read your library back to you." })).toBeVisible();
 
-  // …and NOT the seven dead ends it replaced. Each was true and each was a wall.
-  await expect(component.getByText(COMPUTED_YET_NOTE)).toHaveCount(0);
-  await expect(component.getByText("None distilled.")).toHaveCount(0);
-  await expect(component.getByText("No tags distilled.")).toHaveCount(0);
-  await Promise.all(
-    ANALYSIS_HEADINGS.map(async (heading) =>
-      expect(component.getByRole("heading", { name: heading, exact: true }), `${heading} must not render its own zero panel`).toHaveCount(0),
-    ),
-  );
+  // The map is STILL THERE — demoted, not hidden. That is the difference between a state and a fork.
+  await expect(page.locator('[data-corpus-family-map="quiet"]')).toBeVisible();
+  await expect(component.getByRole("heading", { name: "The shape of your library" })).toBeVisible();
+
+  // ONE door on the screen, and it names the two jobs by the picker's own labels.
+  await expect(component.getByRole("button", { name: "Run the understanding pass…" })).toHaveCount(1);
+  await expect(component.getByText("Run Distill characters, then Compute themes", { exact: false })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Run the passes again…" })).toHaveCount(0);
 });
 
-test("once the jobs have run, the analysis sections are back and the collapsed state is gone", async ({ mount, page }) => {
+test("ANALYSED: the map reclaims the focal, the invitation is gone, and the rail keeps the quiet re-run", async ({ mount, page }) => {
   await stub(page, ANALYSED);
   const component = await mount(<CorpusContentStory />);
+  await expect(component.getByRole("heading", { level: 1 })).toHaveText("Ten characters, distilled into one story theme.");
 
-  await expect(component.getByRole("heading", { name: "Themes", exact: true })).toBeVisible();
+  await expect(page.locator("[data-corpus-focal]")).toHaveCount(1);
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+  await expect(page.locator('[data-corpus-focal="invitation"]')).toHaveCount(0);
+  await expect(page.locator('[data-corpus-family-map="quiet"]')).toHaveCount(0);
+
+  await expect(component.getByRole("button", { name: "Run the understanding pass…" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Run the passes again…" })).toBeVisible();
+
+  // The analysis drills are back — the diet is CONDITIONAL, not a removal.
+  await expect(component.getByRole("heading", { name: "Story themes", exact: true })).toBeVisible();
   await expect(component.getByText("The long road")).toBeVisible();
-  // The control for the assertion above: the collapse is CONDITIONAL, not a removal.
+});
+
+test("THE THIN IN-BETWEEN: distilled but no story themes — the map takes the focal, the rail stays honest", async ({ mount, page }) => {
+  await stub(page, THIN);
+  const component = await mount(<CorpusContentStory />);
+  await expect(component.getByRole("heading", { level: 1 })).toHaveText("Ten characters, three cards distilled.");
+
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+  await expect(page.locator("[data-corpus-focal]")).toHaveCount(1);
+
+  // Graceful degradation is not silence: the rail names the pass that has not run, with its real partial.
+  await expect(component.getByText("Story themes & keywords")).toBeVisible();
+  await expect(component.getByText("not run")).toBeVisible();
+  await expect(component.getByText("3 of 10")).toBeVisible();
+  // …and the story-theme BLOCK is simply absent rather than printing its own zero note.
+  await expect(component.getByRole("heading", { name: "Story themes", exact: true })).toHaveCount(0);
+  await expect(component.getByText(COMPUTED_YET_NOTE)).toHaveCount(0);
+});
+
+test("AN EMPTY LIBRARY is not an un-analysed one: no invitation, no focal island, one honest door", async ({ mount, page }) => {
+  await stub(page, EMPTY_LIBRARY);
+  const component = await mount(<CorpusContentStory />);
+
+  await expect(component.getByText("Nothing in your library yet")).toBeVisible();
+  await expect(page.locator("[data-corpus-focal]")).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Go to Characters" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Run the understanding pass…" })).toHaveCount(0);
+});
+
+test("THE FOCAL IS PAINTED, not merely marked: the stripe measures the RESOLVED token", async ({ mount, page }) => {
+  await stub(page, UNANALYSED);
+  const component = await mount(<CorpusContentStory />);
+  await expect(component.getByRole("heading", { name: "Read your library back to you." })).toBeVisible();
+
+  const expected = await resolvedToken(page, "--immersive-stripe-width");
+  const island = page.locator('[data-corpus-focal="invitation"]');
+  const painted = await island.evaluate((el) => {
+    const style = globalThis.getComputedStyle(el);
+    const halo = globalThis.getComputedStyle(el, "::before");
+    return { width: style.borderInlineStartWidth, color: style.borderInlineStartColor, shadow: halo.boxShadow };
+  });
+  expect(painted.width, "the focal island paints the speaker stripe at the resolved token width").toBe(expected);
+  expect(painted.color, "…in a real colour, not the initial transparent").not.toBe("rgba(0, 0, 0, 0)");
+  expect(painted.shadow, "…and the rationed glow rides the sanctioned ::before carrier").not.toBe("none");
+});
+
+test("THE PORTRAIT JOIN: a member the alignment report covers draws its blob; one it misses draws initials", async ({ mount, page }) => {
+  await stub(page, UNANALYSED);
+  const component = await mount(<CorpusContentStory />);
+  await expect(component.getByRole("heading", { name: "The shape of your library" })).toBeVisible();
+
+  // Joined — the real CAS hash reached the <img>.
+  await expect(page.locator(`img[src="/api/blob/${JFC_HASH}"]`)).toHaveCount(1);
+  await expect(page.locator(`img[src="/api/blob/${ELIAS_HASH}"]`)).toHaveCount(1);
+
+  // NOT joined — Morgatha is absent from `portraitAlignment`, so her seat degrades to hue-seeded initials
+  // rather than a broken image or an invented portrait. The plate that names her still renders.
+  await expect(component.getByText("Morgatha", { exact: true })).toBeVisible();
+  const morgathaSeat = page.locator('[data-slot="avatar-stack-item"]', { has: page.locator('text="M"') });
+  await expect(morgathaSeat.locator("img")).toHaveCount(0);
+});
+
+test("THE FAMILY PLATES ARE VISIBLE ISLANDS — the nested fill actually resolves", async ({ mount, page }) => {
+  // `bg-surface-raised` had no other consumer in the app: a token that does not generate a utility renders
+  // a transparent plate inside a same-coloured island, which looks exactly like a working build.
+  await stub(page, ANALYSED);
+  const component = await mount(<CorpusContentStory />);
+  await expect(component.getByRole("heading", { name: "The shape of your library" })).toBeVisible();
+
+  const plate = page.locator('[data-corpus-focal="familyMap"] [data-slot="card-root"][data-nested]').first();
+  const paint = await plate.evaluate((el) => {
+    const own = globalThis.getComputedStyle(el).backgroundColor;
+    const host = el.closest('[data-corpus-focal="familyMap"]');
+    return { own, host: host === null ? "" : globalThis.getComputedStyle(host).backgroundColor };
+  });
+  expect(paint.own, "a plate must paint a real fill").not.toBe("rgba(0, 0, 0, 0)");
+  expect(paint.own, "…and a DIFFERENT one from the island it sits in, or it is not an island").not.toBe(paint.host);
+});
+
+test("THE ZERO WALL IS GONE: no coverage strip, no dead-end notes, no cost column", async ({ mount, page }) => {
+  await stub(page, { ...UNANALYSED, "discovery.forgottenGems": GEMS });
+  const component = await mount(<CorpusContentStory />);
+  await expect(component.getByRole("heading", { level: 1 })).toBeVisible();
+
+  // The display-size coverage strip and its five structural zeros.
+  await expect(component.getByRole("heading", { name: "Coverage" })).toHaveCount(0);
+  // The seven muted dead ends.
+  await expect(component.getByText(COMPUTED_YET_NOTE)).toHaveCount(0);
+  await expect(component.getByText("None distilled.")).toHaveCount(0);
+  await expect(component.getByText("No tags distilled")).toHaveCount(0);
   await expect(component.getByText("Nothing analyzed yet")).toHaveCount(0);
+  // The dead $0.00 column: the gem's trailing magnitude is WORDS, and no money is printed anywhere.
+  await expect(component.getByText(MONEY_CELL)).toHaveCount(0);
+  await expect(component.getByText("1,200 words · 42 exchanges · last opened 2w ago")).toBeVisible();
+  // The lifetime framing is stated ONCE, so the aggregate is not mistaken for one conversation.
+  await expect(component.getByText("Lifetime totals per character", { exact: false })).toBeVisible();
 });
 
 test("clickable insight collections expose named lists with real listitem children", async ({ mount, page }) => {
-  await stub(page, {
-    ...ANALYSED,
-    "discovery.forgottenGems": [
-      {
-        characterId: "character_quiet",
-        name: "Quiet star",
-        avatarHash: null,
-        messageCount: 42,
-        tokensOut: 1200,
-        lastActiveAt: 1_700_000_000_000,
-        costUsd: 0.25,
-      },
-    ],
-  });
+  await stub(page, { ...ANALYSED, "discovery.forgottenGems": GEMS });
   const component = await mount(<CorpusContentStory />);
 
-  const themes = component.getByRole("list", { name: "Scenes themes" });
+  const themes = component.getByRole("list", { name: "Scenes story themes" });
   await expect(themes.getByRole("listitem")).toHaveCount(1);
   await expect(themes.getByRole("button", { name: "The long road" })).toBeVisible();
 
-  const gems = component.getByRole("list", { name: "Forgotten gems" });
+  const gems = component.getByRole("list", { name: "Invested but quiet characters" });
   await expect(gems.getByRole("listitem")).toHaveCount(1);
-  await expect(gems.getByRole("button", { name: "Quiet star" })).toBeVisible();
+  await expect(gems.getByRole("button", { name: "Quiet star", exact: false })).toBeVisible();
 });
 
 test("a large never-played library is windowed instead of mounting every avatar row", async ({ mount, page }) => {
@@ -140,7 +351,8 @@ test("a large never-played library is windowed instead of mounting every avatar 
 test("the CONTENT region insets its own body — no row starts flush at the pane edge", async ({ mount, page }) => {
   await stub(page, ANALYSED);
   const component = await mount(<CorpusContentStory />);
-  await expect(component.getByRole("heading", { name: "Coverage" })).toBeVisible();
+  const masthead = component.getByRole("heading", { level: 1 });
+  await expect(masthead).toBeVisible();
 
   // The RESOLVED token, never a hardcoded px: the region pads on the `section` step.
   const measured = await page.locator('[data-slot="corpus-content"]').evaluate((el) => {
@@ -155,36 +367,37 @@ test("the CONTENT region insets its own body — no row starts flush at the pane
   expect(measured.left).toBe(measured.expected);
   expect(measured.right).toBe(measured.expected);
 
-  // …and the rendered consequence: the first heading's box starts INSIDE the region's own box.
-  const [regionBox, headingBox] = await Promise.all([
-    page.locator('[data-slot="corpus-content"]').boundingBox(),
-    component.getByRole("heading", { name: "Coverage" }).boundingBox(),
-  ]);
+  const [regionBox, headingBox] = await Promise.all([page.locator('[data-slot="corpus-content"]').boundingBox(), masthead.boundingBox()]);
   if (regionBox === null || headingBox === null) {
-    throw new Error("the corpus content region or its first heading did not render a box");
+    throw new Error("the corpus content region or its masthead did not render a box");
   }
   expect(headingBox.x, "the body is inset from the pane's left edge").toBeGreaterThan(regionBox.x);
 });
 
-// THE CONTAINING-BLOCK PIN (phantom-scroll CLASS sweep, 2026-08-14). The corpus CONTENT region owns its scroll axis (`h-full min-h-0 overflow-y-auto overscroll-contain`), and each of its five tabs is its own `flex-1 overflow-y-auto` scroller.
-// An `overflow` scroller only clips — and only absorbs the scrollable overflow of — an absolutely-positioned
-// descendant whose CONTAINING BLOCK is inside it. A `position: static` scroller establishes none, so the
-// `sr-only` boxes Base UI form primitives emit (`position: absolute` — NumberField's bounds announcer,
-// Switch/Checkbox's hidden input, the combobox status line) resolve theirs further up and add their static
-// positions to a POSITIONED ancestor's scrollable area instead. That is the owner's 2026-08-13 "scrolls past
-// the end of its results" defect (fixed once for the settings pane region, swept as a class here), and
-// `relative` on the scroller is the whole fix. `readPhantomScrollers` measures the MECHANISM document-wide —
-// the SYMPTOM needs a positioned scrolling host, which is the settings shell CT's own story.
-// HONEST LABEL: a FENCE, not a defect proof — measured GREEN against the pre-fix source, because this
-// surface's CT story paints read-only content (no Base UI form primitive, so no `sr-only` absolute box
-// exists to escape). The DEFECT PROOFS for this class are the preset-editor and character-editor pins,
-// which red against HEAD. This fence is what stops the class coming back the day a form control lands
-// in this pane — which is exactly how the settings pane acquired it.
+test("AT THE NARROWEST REAL MOUNT nothing overflows the pane and the focal is still one", async ({ mount, page }) => {
+  // A 430px CONTENT pane is the phone shape. The masthead's figure cluster, the invitation's action column
+  // and the family plates all carry shrink-0 clusters; a fixed-width host with visible overflow is what
+  // makes a collision measurable instead of quietly reflowing.
+  await stub(page, { ...UNANALYSED, "discovery.forgottenGems": GEMS });
+  const component = await mount(<CorpusContentNarrowStory />);
+  await expect(component.getByRole("heading", { level: 1 })).toBeVisible();
+
+  await expect(page.locator("[data-corpus-focal]")).toHaveCount(1);
+  const overflow = await page.locator('[data-slot="corpus-content"]').evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow, "the corpus body must not scroll horizontally at a phone-width pane").toBeLessThanOrEqual(0);
+});
+
+// THE CONTAINING-BLOCK PIN (phantom-scroll CLASS sweep, 2026-08-14), carried over unchanged. An `overflow`
+// scroller only absorbs the scrollable overflow of an absolutely-positioned descendant whose CONTAINING
+// BLOCK is inside it; a `position: static` scroller establishes none, so `sr-only` absolute boxes resolve
+// theirs further up and add their static positions to a POSITIONED ancestor's scrollable area.
+// HONEST LABEL: a FENCE, not a defect proof — this surface paints read-only content, so no Base UI form
+// primitive exists here to escape. It is what stops the class coming back the day a form control lands in
+// this pane, which is exactly how the settings pane acquired it.
 test("no absolutely-positioned box escapes the corpus content scroller (the containing-block pin)", async ({ mount, page }) => {
   await stub(page, ANALYSED);
   const component = await mount(<CorpusContentStory />);
-  // SETTLED: Coverage is the region's first real heading past the suspense arm.
-  await expect(component.getByRole("heading", { name: "Coverage" })).toBeVisible();
+  await expect(component.getByRole("heading", { level: 1 })).toBeVisible();
 
   expect(await readPhantomScrollers(page)).toEqual([]);
 });
