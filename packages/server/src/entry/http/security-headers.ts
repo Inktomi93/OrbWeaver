@@ -43,7 +43,9 @@
 // purpose: this is the app document's policy — the last line of defence for the SPA's own origin — and the
 // floor is the degraded arm (a story/CT mount, an unresolved or failed mint), where a fixed frame height is
 // an acceptable outcome and a widened app `script-src` is not. Re-opening that trade is a security call,
-// not a UI one.
+// not a UI one. RE-AFFIRMED at the #111 leg-3 interactive grant: that grant runs card scripts on the ROUTED
+// arm only, precisely because the routed document's policy is its OWN. Nothing about it reaches this file's
+// `script-src`, and the srcdoc floor stays script-dead on both postures.
 
 import { CARD_FRAME_ROUTE } from "@orb/contracts/chat";
 import type { MiddlewareHandler } from "hono";
@@ -96,6 +98,13 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean }): Mi
       imgSrc: opts.dev ? [SELF, BLOB, DATA, ...mediaHosts] : [SELF, BLOB, ...mediaHosts],
       mediaSrc: [SELF, BLOB, ...mediaHosts],
       connectSrc: opts.dev ? [SELF, "ws:", "wss:"] : [SELF], // ws is HMR-only
+      // THE CARD-FRAME NAVIGATION BELT, named rather than inherited (#111 leg 3). Behaviourally identical
+      // to the `default-src 'self'` fallback it replaces — the app frames exactly one thing, its own
+      // `/api/card-frame/<id>` — but the EMBEDDER's policy is what decides where a card frame may navigate,
+      // whoever initiates it (measured: `@orb/kit/card-frame`'s FRAME NAVIGATION block). Leaving that on a
+      // fallback meant any future widening of `default-src` for an unrelated reason would silently hand
+      // model-authored cards an off-origin navigation. Now it takes deleting this line.
+      frameSrc: [SELF],
       fontSrc: [SELF],
       baseUri: [SELF],
       formAction: [SELF],

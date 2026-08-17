@@ -250,6 +250,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   registerCardFrame(app, {
     roster: { listParticipants: (params) => deps.services.chat.listParticipants(params) },
     allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
+    // The deployment half of the html-trust ladder's TOP rung (#111 leg 3). Same live read the roster
+    // resolver uses, applied a second time at the boundary that actually mints the policy.
+    allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
     now: deps.now,
   });
 
@@ -300,6 +303,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // (`entry/compose/chat.ts` resolveSeatDeco) — so a client-side preview and the server's own render
     // policy are derived from one value, never two guesses.
     trustHtml: () => deps.services.settings.getEffectiveConfig().trustHtml,
+    // The ladder's top-rung CEILING — served so the per-character "Interactive" control can say it is inert
+    // deployment-wide instead of offering a capability the mint will refuse.
+    allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
   });
   registerJoin(plain, { multiHumanCapable });
 

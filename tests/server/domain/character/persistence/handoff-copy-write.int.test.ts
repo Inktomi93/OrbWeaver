@@ -76,8 +76,13 @@ test("copies the departing host's card under the recipient, provenance-stamped, 
   // The render/theme POLICY is a property of the card, not of its owner — a card the old host marked
   // `trustHtml` must not silently change posture because it changed hands.
   expect(copy?.trustHtml).toBe(true);
-  // #111 — same rule for the interactive-card opt-in: it rides with the card, not with the owner.
-  expect(copy?.interactiveHtml).toBe(true);
+  // …BUT NOT the interactive-card opt-in. This assertion is the INVERSE of the one leg 1 shipped, and the
+  // flip is the #111 leg-3 security pass's ruling (which the leg-1 comment explicitly deferred to it):
+  // `trustHtml` widens what markup renders and the renderer still sanitizes it, while `interactive` is the
+  // ladder's only rung that EXECUTES model-authored code and carries a WebRTC beacon no CSP can close. A
+  // consent that big does not cross an OWNER BOUNDARY silently — the nominee gets a trusted-but-static copy
+  // and re-opts-in on a card they now own. (`duplicate` still carries it: same owner, no boundary crossed.)
+  expect(copy?.interactiveHtml).toBeNull();
   // The provenance stamp IS the idempotency key (and is why `duplicate`'s provenance-CLEARING is wrong here).
   expect(copy?.importedFrom).toBe(handoffProvenance(CHAT, source));
   expect(copy?.importHash).toBeNull();
