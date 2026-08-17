@@ -64,18 +64,26 @@ export function Slider<Value extends number | readonly number[] = number>(props:
       <BaseSlider.Control className={slots.control()} data-slot="slider-control">
         <BaseSlider.Track className={slots.track()} data-slot="slider-track">
           <BaseSlider.Indicator className={slots.indicator()} data-slot="slider-indicator" />
-          {Array.from({ length: count }, (_unused, index) => (
-            <BaseSlider.Thumb
-              aria-describedby={thumbDescribedBy}
-              aria-label={isRange ? thumbLabels?.[index] : singleAriaLabel}
-              className={slots.thumb()}
-              data-slot="slider-thumb"
-              index={isRange ? index : undefined}
-              // biome-ignore lint/suspicious/noArrayIndexKey: thumbs are a fixed positional set (one per value slot), never reordered.
-              key={index}
-            />
-          ))}
         </BaseSlider.Track>
+        {/* THUMBS ARE SIBLINGS OF THE TRACK, never children of it. The track clips (`overflow-hidden`, so
+            the rail's rounded caps trim the Indicator's square fill); a `size-slider-thumb` (24px) knob
+            nested inside that 6px rail was clipped to a 6px sliver — a flat rectangle where the knob should
+            be, and a hit area 6px tall while its border box still measured a full 24×24 (design-audit
+            `clipped-overflow` ×8 on the appearance pane, #86 lead 2; the box is why a rect-based census
+            never saw it). Base UI positions each thumb `position:absolute` at `insetInlineStart: <pct>` /
+            `top: 50%` against its nearest positioned ancestor — the Control (`relative` in variants.ts),
+            whose content box is exactly the track's box, so the geometry is unchanged. */}
+        {Array.from({ length: count }, (_unused, index) => (
+          <BaseSlider.Thumb
+            aria-describedby={thumbDescribedBy}
+            aria-label={isRange ? thumbLabels?.[index] : singleAriaLabel}
+            className={slots.thumb()}
+            data-slot="slider-thumb"
+            index={isRange ? index : undefined}
+            // biome-ignore lint/suspicious/noArrayIndexKey: thumbs are a fixed positional set (one per value slot), never reordered.
+            key={index}
+          />
+        ))}
       </BaseSlider.Control>
     </BaseSlider.Root>
   );

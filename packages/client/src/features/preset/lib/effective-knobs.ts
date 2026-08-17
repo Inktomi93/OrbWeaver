@@ -11,6 +11,8 @@
 // tRPC-inferred at the call site, never a re-declared contract): the effective view lives in
 // `domain/preset/contract/views.ts`, which the client cannot import across the cake.
 
+import { modelDisplayName } from "@orb/kit/model-name";
+
 /** One resolved knob as the read returns it: the value the wire would carry + which rung produced it. */
 export interface EffectiveKnobRow {
   readonly value: number | string;
@@ -150,9 +152,16 @@ export function provenanceSuffix(provenance: string): string | null {
  *  read as a claim about the PRESET ("this preset is for anthropic/…") rather than a statement about the
  *  numbers beside it (crunch-list O-2). "resolved for" is the readout's verb, and a resolution is exactly
  *  what happened: `preset.resolveEffective` ran against the caller's current chat model. Two hand-typed
- *  spellings of one fact is how that misreading got in; one home is how it stays out. */
+ *  spellings of one fact is how that misreading got in; one home is how it stays out.
+ *
+ *  IT NAMES THE MODEL, IT DOES NOT QUOTE ITS PATH (#115). A self-hosted engine reports a 106-character
+ *  local weights path, and this line printed it verbatim — twice in one panel, ~100px apart, wrapping the
+ *  chip and the gloss. The fix is NEW VOCABULARY, not a dedup: O-2 rules the GRAMMAR ("resolved for X" is a
+ *  statement about the numbers, not a claim about the preset) and that grammar is untouched — only the
+ *  rendering of X changed, to `@orb/kit/model-name`'s display derivation. Callers keep `effective.model`
+ *  and gloss the full identifier where it belongs (a `title`), so nothing is lost. */
 export function resolvedForLabel(model: string): string {
-  return `resolved for ${model}`;
+  return `resolved for ${modelDisplayName(model)}`;
 }
 
 /** The dial's OFF arm, as the deck AND the readout state it (owner ruling O-18). "No quality" is a REAL,

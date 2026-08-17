@@ -11,6 +11,7 @@
 // panels that own a list.
 
 import type { ModelCapability } from "@orb/contracts/connection";
+import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -39,14 +40,21 @@ export interface DatumRowProps {
   readonly value: string;
   /** The terse rung/source suffix, quieter than the value (`2048 default`). */
   readonly suffix?: string | null;
+  /** The UNABBREVIATED datum, when `value` is a derived short form. The `model` row prints
+   *  `@orb/kit/model-name`'s display name and glosses the full identifier here (#115) — a self-hosted
+   *  engine's 106-character weights path wrapped this row onto four lines. Omit it whenever `value` IS the
+   *  whole fact: a `title` that merely repeats the visible text is a screen-reader stutter. */
+  readonly valueTitle?: string | undefined;
 }
 
-export function DatumRow({ label, value, suffix }: DatumRowProps): ReactElement {
+export function DatumRow({ label, value, suffix, valueTitle }: DatumRowProps): ReactElement {
   return (
     <Row align="baseline" gap="row" justify="between">
       <Text voice="label">{label}</Text>
       <Row align="baseline" gap="field">
-        <Text voice="datum">{value}</Text>
+        <Text title={valueTitle} voice="datum">
+          {value}
+        </Text>
         {suffix === undefined || suffix === null ? null : <Text voice="gloss">{suffix}</Text>}
       </Row>
     </Row>
@@ -196,10 +204,21 @@ export function CapabilityCard({
     return null;
   }
   const honored = Object.keys(capability.sampling).map((knob) => knobLabel(knob));
+  const modelName = model === undefined ? undefined : modelDisplayName(model);
   return (
     <Section kicker="Capability">
       <Stack gap="tight">
-        {model === undefined ? null : <DatumRow label="model" value={model} />}
+        {/* The DISPLAY name, with the full identifier on the row's `title` (#115). A self-hosted engine
+            names its model by local weights path — 106 characters here, which wrapped this row onto four
+            lines AND was restated by the `resolved for …` gloss ~100px below. The panel now states the
+            readable name in both places and the raw identifier in neither; it survives on hover, in the
+            DOM, and in Connections, which is the identifier's real home.
+            The `title` is conditional on the derivation having DONE something: a hosted id
+            (`claude-opus-4-8`) derives to itself, and a tooltip that repeats the visible text is a
+            hover-noise and a screen-reader stutter, not a gloss. */}
+        {model === undefined || modelName === undefined ? null : (
+          <DatumRow label="model" value={modelName} valueTitle={modelName === model ? undefined : model} />
+        )}
         <DatumRow
           label="context window"
           suffix={capability.context.windowEstimated === true ? "estimated" : null}

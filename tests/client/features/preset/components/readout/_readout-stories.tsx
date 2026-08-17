@@ -29,9 +29,10 @@ import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { PromptReadout } from "../../../../../../packages/client/src/features/preset/components/readout/prompt-readout.tsx";
-import { EffectiveProfile } from "../../../../../../packages/client/src/features/preset/components/readout/readout-parts.tsx";
+import { CapabilityCard, EffectiveProfile } from "../../../../../../packages/client/src/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "../../../../../../packages/client/src/features/preset/components/readout/transforms-readout.tsx";
 import { CtDataProviders } from "../../../../../support/ct/ct-data-providers.tsx";
+import { makeModelCapability } from "../../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
 const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");
@@ -257,6 +258,41 @@ export function EffectiveProfileSettledStory(): ReactElement {
           error={null}
           onRetry={noRetry}
         />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** A SELF-HOSTED engine's model identifier: a 106-character local weights path (#115). Spelled here AND in
+ *  the CT (a `_ct-stories` module may export only components — playwright-ct rewrites named imports into
+ *  generated component consts, so a shared constant cannot cross this boundary). */
+const LOCAL_WEIGHTS_PATH = "/media/inktomi/Data/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
+
+/** THE #115 PANEL — both places that name the model, in one 380px CONTEXT-panel column, driven by the model
+ *  identifier that broke it. `EffectiveProfile` signs its numbers with `resolved for …`; `CapabilityCard`
+ *  carries the `model` datum row ~100px above it. Before the display derivation the panel printed all 106
+ *  characters TWICE and wrapped the capability row onto four lines. */
+export function LongModelPathReadoutStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <CapabilityCard capability={makeModelCapability()} model={LOCAL_WEIGHTS_PATH} />
+        <EffectiveProfile
+          contextWindow={32_768}
+          effective={{
+            model: LOCAL_WEIGHTS_PATH,
+            knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
+            stale: [],
+            qualityMapping: null,
+          }}
+          error={null}
+          onRetry={noRetry}
+        />
+        {/* The NO-OP arm, in the same mount (playwright-ct allows one `mount` per test): a hosted id is
+            already its own display name, so the row must carry NO gloss. */}
+        <div data-testid="hosted-id-panel">
+          <CapabilityCard capability={makeModelCapability()} model="claude-opus-4-8" />
+        </div>
       </div>
     </CtDataProviders>
   );
