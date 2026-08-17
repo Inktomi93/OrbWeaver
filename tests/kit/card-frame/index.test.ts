@@ -10,6 +10,7 @@ import {
   CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH,
   CARD_FRAME_MAX_HEIGHT_PX,
   CARD_FRAME_MIN_HEIGHT_PX,
+  CARD_FRAME_POSTURES,
   CARD_FRAME_SAFE_FLOOR,
   CARD_FRAME_SANDBOX,
   clampCardFrameFontFamily,
@@ -27,18 +28,18 @@ const doc = (media: string): string => `sandbox allow-scripts; script-src ${CARD
 
 describe("buildCardFrameCsp — the document (routed) arm", () => {
   test("floors to self-only media, and always carries sandbox + frame-ancestors", () => {
-    expect(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document")).toBe(doc("'self'"));
+    expect(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static")).toBe(doc("'self'"));
   });
 
   test("grants data: ONLY on the trust axis and https: ONLY on the external axis", () => {
-    expect(buildCardFrameCsp({ allowExternalMedia: false, allowInlineData: true }, "document")).toBe(doc("'self' data:"));
-    expect(buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: false }, "document")).toBe(doc("'self' https:"));
-    expect(buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: true }, "document")).toBe(doc("'self' data: https:"));
+    expect(buildCardFrameCsp({ allowExternalMedia: false, allowInlineData: true }, "document", "static")).toBe(doc("'self' data:"));
+    expect(buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: false }, "document", "static")).toBe(doc("'self' https:"));
+    expect(buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: true }, "document", "static")).toBe(doc("'self' data: https:"));
   });
 
   test("never emits http: — the app is commonly served over plain-http LAN, so a cleartext subresource is an exfil channel", () => {
-    expect(buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: true }, "document")).not.toContain("http:;");
-    expect(buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: true }, "document")).not.toMatch(PLAIN_HTTP_SCHEME);
+    expect(buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: true }, "document", "static")).not.toContain("http:;");
+    expect(buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: true }, "document", "static")).not.toMatch(PLAIN_HTTP_SCHEME);
   });
 });
 
@@ -72,7 +73,7 @@ describe("the hash-pinned height script", () => {
   });
 
   test("the document policy names the ONE hash and no other script source", () => {
-    const csp = buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document");
+    const csp = buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static");
     // The DIRECTIVE, whole — `style-src 'unsafe-inline'` is a legitimate neighbour, so a whole-policy
     // substring check would read as a pass for the very keyword this asserts against.
     const scriptSrc = csp.split("; ").find((directive) => directive.startsWith("script-src "));
@@ -93,6 +94,46 @@ describe("the hash-pinned height script", () => {
     // swallow the one element in the document that is allowed to execute.
     expect(routed.indexOf("<script>")).toBeLessThan(routed.indexOf("<body>"));
     expect(buildCardFrameDocument(content, "default-src 'none'")).not.toContain("<script>");
+  });
+});
+
+// ── THE POSTURE SEAM (#111 leg 1) ────────────────────────────────────────────────────────────────────────
+// `CardFramePosture` selects which `script-src` a routed document is built with. It is a SELECTION, not a
+// grant: both arms name the one measurement hash today, and the pin below is what makes an accidental
+// widening (or an intentional one that skipped the security pass) red.
+
+describe("the card-frame posture seam", () => {
+  test("both postures are declared, and the interactive arm grants NOTHING over the static one yet", () => {
+    expect([...CARD_FRAME_POSTURES]).toEqual(["static", "interactive"]);
+    const media = { allowExternalMedia: true, allowInlineData: true } as const;
+    expect(buildCardFrameCsp(media, "document", "interactive")).toBe(buildCardFrameCsp(media, "document", "static"));
+  });
+
+  test("the interactive arm names the ONE hash and no card-authored script source", () => {
+    const scriptSrc = buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "interactive")
+      .split("; ")
+      .find((directive) => directive.startsWith("script-src "));
+    expect(scriptSrc).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
+    // The keywords that would turn the posture into a capability. Moving any of them here is the leg-3
+    // security pass's act, and it re-writes this test with its review — it never happens by refactor.
+    for (const keyword of ["unsafe-inline", "unsafe-hashes", "unsafe-eval", "strict-dynamic", "nonce-", "*"]) {
+      expect(scriptSrc).not.toContain(keyword);
+    }
+  });
+
+  test("the SANDBOX does not vary by posture — only script-src is the seam, and same-origin is never nameable", () => {
+    for (const posture of CARD_FRAME_POSTURES) {
+      const csp = buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", posture);
+      expect(csp.startsWith(`sandbox ${CARD_FRAME_SANDBOX.document};`)).toBe(true);
+      expect(csp).not.toContain("allow-same-origin");
+      // Still no exfil channel under either arm.
+      expect(csp).not.toContain("connect-src");
+    }
+  });
+
+  test("the META floor ignores the posture entirely — that arm can never run a script to begin with", () => {
+    expect(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "meta", "interactive")).toBe(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "meta", "static"));
+    expect(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "meta", "interactive")).not.toContain("script-src");
   });
 });
 
@@ -145,14 +186,14 @@ describe("foldCardFrameHeight — the untrusted height message", () => {
 
 describe("buildCardFrameCsp — the meta (srcdoc floor) arm", () => {
   test("omits sandbox + frame-ancestors, which <meta> ignores by spec — a directive that cannot match teaches a lie", () => {
-    const policy = buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: false }, "meta");
+    const policy = buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: false }, "meta", "static");
     expect(policy).toBe(meta("'self' https:"));
     expect(policy).not.toContain("sandbox");
     expect(policy).not.toContain("frame-ancestors");
   });
 
   test("DROPS data: even when granted — a srcdoc document inherits the app CSP, so the directive could never match", () => {
-    expect(buildCardFrameCsp({ allowExternalMedia: false, allowInlineData: true }, "meta")).toBe(meta("'self'"));
+    expect(buildCardFrameCsp({ allowExternalMedia: false, allowInlineData: true }, "meta", "static")).toBe(meta("'self'"));
   });
 });
 

@@ -90,10 +90,12 @@ describe("duplicate", () => {
     await svc.update({
       principal: principal(owner),
       characterId: source.id,
-      input: { trustHtml: true, themeOverride: { accent: "oklch(0.7 0.14 250)" } },
+      input: { trustHtml: true, interactiveHtml: true, themeOverride: { accent: "oklch(0.7 0.14 250)" } },
     });
     const copy = await svc.duplicate({ principal: principal(owner), characterId: source.id });
     expect(copy.trustHtml).toBe(true);
+    // #111 — the interactive-card opt-in is a card property too, so a clone of an opted-in card is opted in.
+    expect(copy.interactiveHtml).toBe(true);
     expect(copy.themeOverride).toEqual({ accent: "oklch(0.7 0.14 250)" });
   });
 

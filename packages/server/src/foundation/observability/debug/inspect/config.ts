@@ -12,8 +12,8 @@
 // undecidable: `trustHtml: null` means "inherit", and the deployment default is what it inherits. Reporting
 // the raw column would reproduce exactly the ambiguity this probe exists to remove.
 
-import type { RenderPolicy } from "@orb/contracts/chat";
-import { resolveRenderPolicy } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy, RenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
+import { rendersTrustedHtml, resolveRenderPolicy } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, chats, personas, presets, rpgGames, settings, userSettings } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
@@ -53,10 +53,12 @@ export interface RpgGameRow {
 /** The render-policy verdict for one character: what the row stores, what the deployment floors it to, and
  *  what actually resolves. `resolved` is what the client reads — the other two explain WHY. */
 export interface RenderPolicyVerdict {
-  /** The character's own tri-state columns (`null` = inherit the deployment tier). */
-  stored: { trustHtml: boolean | null; forbidExternalMedia: boolean | null };
-  /** The deployment tier the override resolves against. Absent when the effective config was not injected. */
-  deployment: RenderPolicy | null;
+  /** The character's own tri-state columns (`null` = inherit the deployment tier — except `interactiveHtml`,
+   *  #111, which has no deployment tier, so `null` there simply means static). */
+  stored: RenderPolicyOverride;
+  /** The deployment tier the override resolves against — the two axes an AppSetting carries. Absent when the
+   *  effective config was not injected. */
+  deployment: DeploymentRenderPolicy | null;
   /** The resolved policy the roster hands the client. Null when `deployment` is unavailable to resolve against. */
   resolved: RenderPolicy | null;
   /** Which card render tier the resolved policy selects — the answer the card investigation actually needs.
@@ -298,12 +300,12 @@ export async function rpgGameForChat(db: Db, chatId: ChatId): Promise<RpgGameRow
 /** Build the render-policy verdict from a character's tri-states + the deployment floor. `deployment` null
  *  (effective config not injected) degrades to stored-only rather than guessing a floor — a WRONG resolved
  *  verdict here is worse than an absent one, since the whole point is to stop inferring this. */
-function renderPolicyVerdict(stored: { trustHtml: boolean | null; forbidExternalMedia: boolean | null }, deployment: RenderPolicy | null): RenderPolicyVerdict {
+function renderPolicyVerdict(stored: RenderPolicyOverride, deployment: DeploymentRenderPolicy | null): RenderPolicyVerdict {
   if (deployment === null) {
     return { stored, deployment: null, resolved: null, cardTier: null };
   }
   const resolved = resolveRenderPolicy(deployment, stored);
-  return { stored, deployment, resolved, cardTier: resolved.trustHtml ? "tierB" : "tierA" };
+  return { stored, deployment, resolved, cardTier: rendersTrustedHtml(resolved.htmlTrust) ? "tierB" : "tierA" };
 }
 
 /** One character's full row + its resolved render policy. `null` when the id does not exist. */
@@ -324,7 +326,7 @@ function renderPolicyVerdict(stored: { trustHtml: boolean | null; forbidExternal
 // driven through the real registrar. The exemption ENDS if the admitted set ever widens below admin: a
 // non-admin per-user principal here makes this a cross-tenant read of arbitrary caller-supplied ids, and
 // then these reads must take an ownerId and filter on it. Turn that suite red before widening anything.
-export async function characterDetailRow(db: Db, characterId: CharacterId, deployment: RenderPolicy | null): Promise<CharacterDetailRow | null> {
+export async function characterDetailRow(db: Db, characterId: CharacterId, deployment: DeploymentRenderPolicy | null): Promise<CharacterDetailRow | null> {
   const rows = await db.select().from(characters).where(eq(characters.id, characterId)).limit(1);
   const r = rows[0];
   if (r === undefined) {
@@ -338,7 +340,7 @@ export async function characterDetailRow(db: Db, characterId: CharacterId, deplo
     starred: r.starred,
     archived: r.archived,
     synthetic: r.synthetic,
-    renderPolicy: renderPolicyVerdict({ trustHtml: r.trustHtml, forbidExternalMedia: r.forbidExternalMedia }, deployment),
+    renderPolicy: renderPolicyVerdict({ trustHtml: r.trustHtml, forbidExternalMedia: r.forbidExternalMedia, interactiveHtml: r.interactiveHtml }, deployment),
     themeOverride: r.themeOverride,
     backgroundOverride: r.backgroundOverride,
     card: {
@@ -384,7 +386,7 @@ export async function characterDetailRow(db: Db, characterId: CharacterId, deplo
  *  tenant is a misreading waiting to happen. */
 export async function characterPolicySweep(
   db: Db,
-  deployment: RenderPolicy | null,
+  deployment: DeploymentRenderPolicy | null,
 ): Promise<{ id: CharacterId; name: string; handle: CharacterHandle; ownerId: UserId; synthetic: boolean; renderPolicy: RenderPolicyVerdict }[]> {
   const rows = await db
     .select({
@@ -395,6 +397,7 @@ export async function characterPolicySweep(
       synthetic: characters.synthetic,
       trustHtml: characters.trustHtml,
       forbidExternalMedia: characters.forbidExternalMedia,
+      interactiveHtml: characters.interactiveHtml,
     })
     .from(characters)
     .orderBy(desc(characters.createdAt));
@@ -404,6 +407,6 @@ export async function characterPolicySweep(
     handle: r.handle,
     ownerId: r.ownerId,
     synthetic: r.synthetic,
-    renderPolicy: renderPolicyVerdict({ trustHtml: r.trustHtml, forbidExternalMedia: r.forbidExternalMedia }, deployment),
+    renderPolicy: renderPolicyVerdict({ trustHtml: r.trustHtml, forbidExternalMedia: r.forbidExternalMedia, interactiveHtml: r.interactiveHtml }, deployment),
   }));
 }

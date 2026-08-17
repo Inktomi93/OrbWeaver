@@ -572,6 +572,7 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar, canoni
     synthetic: row.synthetic,
     forbidExternalMedia: row.forbidExternalMedia,
     trustHtml: row.trustHtml,
+    interactiveHtml: row.interactiveHtml,
     themeOverride: row.themeOverride,
     backgroundOverride: row.backgroundOverride,
     importedFrom: row.importedFrom,

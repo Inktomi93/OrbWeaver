@@ -21,7 +21,7 @@ async function seedCard(
   db: Db,
   ownerId: UserId,
   key: string,
-  over: { readonly avatarAssetId?: AssetId; readonly trustHtml?: boolean; readonly handle?: CharacterHandle } = {},
+  over: { readonly avatarAssetId?: AssetId; readonly trustHtml?: boolean; readonly interactiveHtml?: boolean; readonly handle?: CharacterHandle } = {},
 ): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);
   await db.insert(characters).values({
@@ -33,6 +33,7 @@ async function seedCard(
     contentHash: key,
     tokenSize: 0,
     trustHtml: over.trustHtml ?? false,
+    interactiveHtml: over.interactiveHtml ?? false,
     avatarAssetId: over.avatarAssetId ?? null,
     createdAt: AT,
   });
@@ -64,7 +65,7 @@ test("copies the departing host's card under the recipient, provenance-stamped, 
   const db = await freshDb();
   const oldHost = await seedUser(db, { handle: castId("oldhost") });
   const nominee = await seedUser(db, { handle: castId("nominee") });
-  const source = await seedCard(db, oldHost.id, "aria", { trustHtml: true });
+  const source = await seedCard(db, oldHost.id, "aria", { trustHtml: true, interactiveHtml: true });
 
   const result = await copier(db)({ fromOwnerId: oldHost.id, toOwnerId: nominee.id, chatId: CHAT, characterIds: [source] });
 
@@ -75,6 +76,8 @@ test("copies the departing host's card under the recipient, provenance-stamped, 
   // The render/theme POLICY is a property of the card, not of its owner — a card the old host marked
   // `trustHtml` must not silently change posture because it changed hands.
   expect(copy?.trustHtml).toBe(true);
+  // #111 — same rule for the interactive-card opt-in: it rides with the card, not with the owner.
+  expect(copy?.interactiveHtml).toBe(true);
   // The provenance stamp IS the idempotency key (and is why `duplicate`'s provenance-CLEARING is wrong here).
   expect(copy?.importedFrom).toBe(handoffProvenance(CHAT, source));
   expect(copy?.importHash).toBeNull();

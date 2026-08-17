@@ -169,8 +169,8 @@ describe("resolveSeatDeco — the tighten-only external-media ceiling, composed 
     // No stored AppSettings override ⇒ the born-in-DB floor (forbid) stands, and the card cannot lift it.
     expect(seat?.renderPolicy?.forbidExternalMedia).toBe(true);
     // …while the SAME read still honours the trustHtml escalation — the seam is live, not a blanket deny.
-    expect(seat?.renderPolicy?.trustHtml).toBe(true);
+    expect(seat?.renderPolicy?.htmlTrust).toBe("trusted");
     // The human seat keeps the bare deployment floor.
-    expect(roster.find((p) => p.userId === host)?.renderPolicy).toEqual({ trustHtml: false, forbidExternalMedia: true });
+    expect(roster.find((p) => p.userId === host)?.renderPolicy).toEqual({ htmlTrust: "untrusted", forbidExternalMedia: true });
   });
 });

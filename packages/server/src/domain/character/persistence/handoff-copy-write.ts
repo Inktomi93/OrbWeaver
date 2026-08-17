@@ -101,9 +101,14 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
           tokenSize: cardTokenSize(card),
           // The render/theme policies are properties of the CARD, not of its owner — a card the old host
           // marked `forbidExternalMedia` must not silently relax because it changed hands (`duplicate`
-          // carries them for the same reason).
+          // carries them for the same reason). `interactiveHtml` (#111) rides with them on the same rule —
+          // it is the WEAKER of the two consents (a posture inside the null-origin sandbox, versus
+          // `trustHtml` which renders card HTML in the app's own DOM), so a copy that carried the stronger
+          // one and dropped this would be arbitrary. Whether a script grant should re-ask the new host is
+          // the leg-3 security pass's call, alongside the deployment ceiling it also owns.
           forbidExternalMedia: source.forbidExternalMedia,
           trustHtml: source.trustHtml,
+          interactiveHtml: source.interactiveHtml,
           themeOverride: source.themeOverride,
           backgroundOverride: source.backgroundOverride,
           // The provenance stamp IS the idempotency key (`duplicate` deliberately clears provenance; a

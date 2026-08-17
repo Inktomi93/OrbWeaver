@@ -4,6 +4,13 @@
 // global`; `forbidExternalMedia` is TIGHTEN-ONLY over the deployment ceiling, so while the deployment
 // blocks external media the control renders locked (see the Trust section below).
 //
+// HTML rendering is ONE LADDER control, not two switches (owner ruling 2026-08-16, #111): Untrusted <
+// Render HTML < Interactive, plus Inherit for "no override". It writes the `trust_html` +
+// `interactive_html` pair through the contracts helper, so the incoherent "interactive but untrusted" pair
+// is unwritable here and unrepresentable in the resolved policy. The top rung is honest rather than locked:
+// picking it DOES something today (it selects the interactive card-frame posture and implies render trust),
+// and what it does not do yet — run card-authored scripts — the helper text says out loud.
+//
 // The Theme cluster is also where the two THEME DOORS live — both projections of the ONE card-embeddable
 // partition (`cardEmbeddableSubset`), run in opposite directions:
 //   • `Save as theme…` PROMOTES this card's authored look into the picker library (values COPIED, never
@@ -13,6 +20,8 @@
 // style + Density selects were struck as dead switches — nothing read what they wrote), and the subset
 // projection is what keeps a theme's `density` from riding back in through the inverse door.
 
+import type { HtmlTrustStep } from "@orb/contracts/chat";
+import { HTML_TRUST_STEPS, renderPolicyOverrideForStep, stepFromRenderPolicyOverride } from "@orb/contracts/chat";
 import type { Theme, ThemeBackground, ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
 import { cardEmbeddableSubset, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
@@ -75,6 +84,30 @@ function tristateFlag(value: string): boolean | null {
   return value === "on";
 }
 
+/** The HTML-trust LADDER as one control (#111). `inherit` is the absence of an override, not a rung — it is
+ *  spelled with the same sentinel the sibling tri-state uses, and it clears BOTH stored columns. The rungs
+ *  are ordered weakest-first, matching `HTML_TRUST_STEPS`, so the menu reads as the ladder it is. */
+const INHERIT_STEP = "inherit";
+const HTML_TRUST_LABELS: Record<HtmlTrustStep, string> = {
+  untrusted: "Untrusted",
+  trusted: "Render HTML",
+  interactive: "Interactive",
+};
+const HTML_TRUST_ITEMS: SelectItems<string> = [
+  { value: INHERIT_STEP, label: "Inherit default" },
+  ...HTML_TRUST_STEPS.map((step) => ({ value: step, label: HTML_TRUST_LABELS[step] })),
+];
+
+/** One picked rung → the column pair to persist. `inherit` clears both; every other value goes through the
+ *  contracts helper, which is the ONE home for "what does this step mean in storage" — so Interactive can
+ *  never be written without the render trust it implies. */
+function htmlTrustEdit(value: string): { trustHtml: boolean | null; interactiveHtml: boolean | null } {
+  // Narrowed by MEMBERSHIP, never cast: the Select hands back a string, and anything that is not a rung
+  // (including the inherit sentinel) is the clear.
+  const step = HTML_TRUST_STEPS.find((candidate): boolean => candidate === value);
+  return step === undefined ? { trustHtml: null, interactiveHtml: null } : renderPolicyOverrideForStep(step);
+}
+
 export function CharacterAppearanceTab({ characterId }: CharacterAppearanceTabProps): ReactElement {
   return (
     <QueryBoundary
@@ -96,8 +129,9 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
   // it disabled + explained rather than as a dead switch (D107).
   const externalMediaBlocked = useExternalMediaBlocked();
   const externalMediaLockId = useId();
+  const interactiveLockId = useId();
 
-  const commit = (input: { forbidExternalMedia?: boolean | null; trustHtml?: boolean | null }): void => {
+  const commit = (input: { forbidExternalMedia?: boolean | null; trustHtml?: boolean | null; interactiveHtml?: boolean | null }): void => {
     update.mutate({ characterId, input });
   };
 
@@ -131,16 +165,17 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
             disabled={externalMediaBlocked}
             {...(externalMediaBlocked ? { "aria-describedby": externalMediaLockId } : {})}
           />
+          {/* ONE LADDER, not a second checkbox (owner ruling 2026-08-16, #111): Untrusted < Render HTML <
+              Interactive, in that order, with Inherit as the absence of an override rather than a rung.
+              The write direction is the contracts helper, so this control cannot store the incoherent
+              "interactive but untrusted" pair — the resolver would not be able to represent it either. */}
           {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Select's `label` prop renders the visible, associated label (the rule can't see a custom prop); the bound SelectField carries the same suppression. */}
           <Select
             label="HTML rendering"
-            items={[
-              { value: "inherit", label: "Inherit default" },
-              { value: "on", label: "Trusted" },
-              { value: "off", label: "Untrusted" },
-            ]}
-            value={tristateValue(data.trustHtml)}
-            onValueChange={(value): void => commit({ trustHtml: tristateFlag(String(value)) })}
+            items={HTML_TRUST_ITEMS}
+            value={stepFromRenderPolicyOverride(data) ?? INHERIT_STEP}
+            onValueChange={(value): void => commit(htmlTrustEdit(String(value)))}
+            aria-describedby={interactiveLockId}
           />
         </Row>
         {externalMediaBlocked ? (
@@ -149,6 +184,11 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
             System settings → “Block external media”.
           </Text>
         ) : null}
+        <Text id={interactiveLockId} voice="gloss">
+          HTML rendering is a ladder: Untrusted keeps this character's messages as plain sanitized text, Render HTML lets them use rich HTML and card styling,
+          and Interactive is Render HTML plus cards that run their own scripts. Interactive is safe to pick now and it renders the same as Render HTML today:
+          card scripts stay switched off until the security review lands.
+        </Text>
         <Text size="micro" tone="muted">
           Trust settings apply the instant you change them — no save needed.
         </Text>

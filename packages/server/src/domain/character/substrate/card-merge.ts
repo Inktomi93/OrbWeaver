@@ -82,6 +82,7 @@ export function flagEdits(input: UpdateCharacterInput): {
   archived?: boolean;
   forbidExternalMedia?: boolean | null;
   trustHtml?: boolean | null;
+  interactiveHtml?: boolean | null;
   themeOverride?: ThemeOverride | null;
   backgroundOverride?: ThemeBackground | null;
 } {
@@ -90,6 +91,7 @@ export function flagEdits(input: UpdateCharacterInput): {
     ...(input.archived === undefined ? {} : { archived: input.archived }),
     ...(input.forbidExternalMedia === undefined ? {} : { forbidExternalMedia: input.forbidExternalMedia }),
     ...(input.trustHtml === undefined ? {} : { trustHtml: input.trustHtml }),
+    ...(input.interactiveHtml === undefined ? {} : { interactiveHtml: input.interactiveHtml }),
     ...(input.themeOverride === undefined ? {} : { themeOverride: input.themeOverride }),
     // Canonicalize on persist (BG-C): a non-asset kind carries no asset ref, so a `kind:"none"` payload with a
     // populated `assetId` is emptied here and can never GC-root through the `background_override` JSON live-source.

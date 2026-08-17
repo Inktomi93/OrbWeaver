@@ -410,7 +410,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // D44 §12.0/§12.1/§12.5 + BG-C — ONE seat-decoration read: default to the safe floor (untrusted; external
     // media gated), no theme/background override, no card. Overridable per test.
     resolveSeatDeco: () =>
-      Promise.resolve({ renderPolicy: { trustHtml: false, forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }),
+      Promise.resolve({ renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }),
     resolveImageUrl: notStubbed,
     // Called UNCONDITIONALLY by `loadParticipantViews` on every roster-view build (never opt-in like
     // `resolveImageUrl`) — defaults to "nothing resolves" (mirrors `resolveThemeOverride`'s safe-floor

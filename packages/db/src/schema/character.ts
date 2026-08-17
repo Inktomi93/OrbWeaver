@@ -62,6 +62,17 @@ export const characters = sqliteTable(
     // force untrusted. Same tri-state SHAPE as `forbidExternalMedia`, but it resolves `override ?? global`
     // (a card-level escalation IS the design here — the deployment value is a default, not a ceiling).
     trustHtml: integer("trust_html", { mode: "boolean" }),
+    // The INTERACTIVE-CARD opt-in (#111 leg 1) — the TOP RUNG of the one ordered html-trust ladder
+    // (`contracts/chat::HTML_TRUST_STEPS`: untrusted < trusted < interactive), which the resolver folds out
+    // of THIS column plus `trust_html`. Stored as a second column rather than an enum so the render step
+    // keeps its two-tier `override ?? deployment` semantics unchanged; the LADDER is the presentation +
+    // resolver contract, and nothing but `resolveRenderPolicy` reads this pair. `true` builds this
+    // character's card documents under the `interactive` frame posture (`@orb/kit/card-frame`) and IMPLIES
+    // the render step below it. Nullable like its siblings, two-valued in MEANING today (no deployment tier
+    // ⇒ `null` and `false` both mean "not interactive"); nullable anyway so the leg-3 security pass can add
+    // an app tier — and its "inherit" — with no schema churn. What the top rung does NOT do yet is run
+    // card-authored scripts: both postures serve the same policy until that pass lands.
+    interactiveHtml: integer("interactive_html", { mode: "boolean" }),
     // D44 §12.1/§12.5 — the per-character theme-token OVERRIDE (nullable: null = no override, inherit the
     // global selected theme). Mirrors `trustHtml`'s tri-state-override shape, but the "value" here is a
     // JSON blob, not a boolean. Resolution (`character override > global selected theme > default`) is a

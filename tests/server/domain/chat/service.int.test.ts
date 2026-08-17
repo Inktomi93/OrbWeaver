@@ -80,9 +80,9 @@ function makeService(
     resolveSeatDeco: ({ characterId }) =>
       Promise.resolve(
         characterId === null
-          ? { renderPolicy: { trustHtml: false, forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }
+          ? { renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }
           : {
-              renderPolicy: { trustHtml: true, forbidExternalMedia: false },
+              renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: false },
               themeOverride: { accent: "oklch(0.7 0.14 250)" },
               backgroundOverride: null,
               card: { name: names[characterId] ?? "Unknown", avatarAssetId: null },
@@ -193,8 +193,8 @@ describe("createChatService — assembly", () => {
     expect(charRow?.displayName).toBe("aria"); // resolved via ctx.resolveSeatDeco
     // D44 §12.0 — the RESOLVED render policy is threaded onto each ParticipantView (the client reads it,
     // never re-resolves): the opted-in character carries trusted; the human seat the untrusted floor.
-    expect(charRow?.renderPolicy).toEqual({ trustHtml: true, forbidExternalMedia: false });
-    expect(hostRow?.renderPolicy).toEqual({ trustHtml: false, forbidExternalMedia: true });
+    expect(charRow?.renderPolicy).toEqual({ htmlTrust: "trusted", forbidExternalMedia: false });
+    expect(hostRow?.renderPolicy).toEqual({ htmlTrust: "untrusted", forbidExternalMedia: true });
     // D44 §12.1/§12.5 — the RAW theme override is threaded onto each ParticipantView (unmerged: the
     // client, not chat assembly, resolves `character > global > default` via `<ThemeScope>` nesting).
     expect(charRow?.themeOverride).toEqual({ accent: "oklch(0.7 0.14 250)" });
@@ -209,7 +209,7 @@ describe("createChatService — assembly", () => {
       {},
       {
         resolveSeatDeco: () =>
-          Promise.resolve({ renderPolicy: { trustHtml: false, forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }),
+          Promise.resolve({ renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }),
       },
     );
     const roster = await service.listParticipants({ principal: principal(host), chatId });

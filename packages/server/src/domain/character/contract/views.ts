@@ -24,6 +24,12 @@ export interface CharacterDetail extends CharacterCard {
   readonly forbidExternalMedia: boolean | null;
   /** Tri-state: null = inherit deployment default, true = trusted, false = force untrusted. */
   readonly trustHtml: boolean | null;
+  /** The interactive-card opt-in (#111) — `true` = this card's routed frames are built under the
+   *  `interactive` posture, `null`/`false` = static (no deployment tier inherits here). On the DETAIL only:
+   *  this view is what the editor and the roster's seat decoration pass to `resolveRenderPolicy` as the
+   *  card's `RenderPolicyOverride`, while the library-list summary renders no card content and reads none
+   *  of the three policy columns. */
+  readonly interactiveHtml: boolean | null;
   /** Raw, unmerged theme-token override; null = inherit the user's global theme. */
   readonly themeOverride: ThemeOverride | null;
   /** BG-C — the raw carried card BACKGROUND source (the `themeOverride` twin); null = no card background. */

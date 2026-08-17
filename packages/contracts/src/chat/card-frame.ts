@@ -65,8 +65,14 @@ export const cardFrameMintResponseSchema = z.strictObject({
   url: z.string(),
   expiresInMs: z.number().int().positive(),
   /** What the server ACTUALLY granted, echoed so the client can render an honest "images blocked" affordance
-   *  instead of inferring one from the trust tier it asked with. Never an input. */
-  granted: z.strictObject({ externalMedia: z.boolean(), inlineData: z.boolean() }),
+   *  instead of inferring one from the trust tier it asked with. Never an input.
+   *
+   *  `interactive` is the POSTURE the document was built under (#111 leg 1) — `true` only when the selector's
+   *  character carries the host's interactive opt-in. It is the one externally observable tell that the
+   *  per-card selection is live, because both postures emit identical CSP directives until the leg-3 security
+   *  pass grants card-authored scripts. A client reading `true` today learns "this card was built through the
+   *  interactive arm", NOT "this card can run scripts". */
+  granted: z.strictObject({ externalMedia: z.boolean(), inlineData: z.boolean(), interactive: z.boolean() }),
 });
 /** Type twin of `cardFrameMintResponseSchema`. */
 export type CardFrameMintResponse = z.infer<typeof cardFrameMintResponseSchema>;

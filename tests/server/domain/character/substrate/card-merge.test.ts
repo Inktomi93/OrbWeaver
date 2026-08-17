@@ -46,6 +46,11 @@ describe("flagEdits", () => {
     // D44 §12.0 — the render-trust flag rides the SAME present-only carry (null clears, not dropped).
     expect(flagEdits({ trustHtml: null } as UpdateCharacterInput)).toEqual({ trustHtml: null });
     expect(flagEdits({ trustHtml: true } as UpdateCharacterInput)).toEqual({ trustHtml: true });
+    // #111 — the interactive-card opt-in is the third render-policy column and rides the same carry: an
+    // absent key must not write `null` over a host's opt-in on an unrelated edit.
+    expect(flagEdits({ interactiveHtml: true } satisfies UpdateCharacterInput)).toEqual({ interactiveHtml: true });
+    expect(flagEdits({ interactiveHtml: null } satisfies UpdateCharacterInput)).toEqual({ interactiveHtml: null });
+    expect(flagEdits({ starred: true } satisfies UpdateCharacterInput)).not.toHaveProperty("interactiveHtml");
     // D44 §12.1/§12.5 — the per-character theme override rides the SAME present-only carry.
     expect(flagEdits({ themeOverride: null } as UpdateCharacterInput)).toEqual({
       themeOverride: null,

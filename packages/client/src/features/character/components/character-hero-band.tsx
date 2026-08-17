@@ -4,6 +4,7 @@
 // resolved themeOverride — the theme control itself lives in the CONTEXT Appearance tab.
 
 import { blobUrl } from "@orb/contracts/assets";
+import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
@@ -41,6 +42,9 @@ export interface CharacterHeroDetail {
    *  greeting preview resolves them against the deployment floor (`usePreviewRenderPolicy`). */
   readonly trustHtml: boolean | null;
   readonly forbidExternalMedia: boolean | null;
+  /** The third override column (#111) — carried so this subset still satisfies `RenderPolicyOverride`
+   *  whole; the greeting preview renders no card frame, so nothing here reads the resolved value. */
+  readonly interactiveHtml: boolean | null;
   readonly avatarHash: string | null;
   readonly themeOverride: ThemeOverride | null;
   readonly tags: readonly Pick<TagView, "id" | "name" | "isHiddenOnCard">[];
@@ -100,7 +104,7 @@ export function CharacterHeroBand({
         characterId={detail.id}
         form={form}
         themeOverride={detail.themeOverride}
-        trusted={previewPolicy.trustHtml}
+        trusted={rendersTrustedHtml(previewPolicy.htmlTrust)}
         spoilerBlur={spoilerBlur}
         activeIndex={activeGreetingIndex}
         onActiveIndexChange={onActiveGreetingIndexChange}
