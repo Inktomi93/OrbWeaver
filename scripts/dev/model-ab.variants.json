@@ -19,9 +19,9 @@
     },
     {
       "name": "w8a8-stock-template",
-      "_why": "Same checkpoint, the checkpoint's OWN shipped template — renders the six defect classes live (probe errors here are FINDINGS, not harness failures).",
+      "_why": "Same checkpoint, the checkpoint's OWN shipped template (now preserved as chat_template.stock.jinja since the fixed one was baked into the folder) — renders the six defect classes live (probe errors here are FINDINGS, not harness failures).",
       "model": "/media/inktomi/Data/vllm-models/quantized/Qwen3.8-27B-W8A8-Dynamic-Per-Token",
-      "chatTemplate": "/media/inktomi/Data/vllm-models/quantized/Qwen3.8-27B/chat_template.jinja",
+      "chatTemplate": "/media/inktomi/Data/vllm-models/quantized/Qwen3.8-27B/chat_template.stock.jinja",
       "defaultChatTemplateKwargs": {},
       "extraArgs": []
     },
