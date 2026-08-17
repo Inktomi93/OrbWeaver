@@ -74,7 +74,7 @@ function quantize(value: number, places: number): number {
  * mounted, value changes) was the only one that did.
  *
  * WHO SETS IT: the SURFACE, and only the surface. `RefineryContentSurface` records the run ids its own
- * mutations produced and threads the verdict down (surface → `StagePane` → `PayloadView` → `HeroGauge`), so
+ * mutations produced and threads the verdict down (surface → `PayloadLane` → `PayloadView` → `HeroGauge`), so
  * the flag means "the user watched this run land", which is the fact the guard was previously guessing at.
  * `PayloadView` does NOT infer it — an earlier version of this line said it "sets it from the skeleton it
  * just showed", which was true of a local latch that has since been deleted as production-unreachable
