@@ -1,13 +1,15 @@
-// CT: the LIVE refinery CONTENT workflow, mounted whole (audit `client-preset-refinery-01`). The section
-// mounts `RefineryContentSurface` in its CONTENT slot (`lib/refinery-section.tsx:88`), and until now the
-// composition it performs had ZERO direct behavioral proof: three reads joined (session · runs ·
-// preflight, plus the gated card), the run-selection resolver, the per-rewrite decision sheet, and five
-// write paths. Every component under it had its own CT and every one of those stayed green while the
-// JOIN could break — which is precisely the class this file exists to close.
+// CT: the LIVE refinery CONTENT workflow, mounted whole (audit `client-preset-refinery-01`), at the
+// WORKBENCH composition (program #102, mockup variant C). The section mounts `RefineryContentSurface` in
+// its CONTENT slot (`lib/refinery-section.tsx:83`), and the composition it performs is what this file
+// exists to hold: three reads joined (session · runs · preflight, plus the gated card), the three-lane
+// derivation, the per-rewrite decision sheet, and five write paths. Every component under it has its own
+// CT and every one of those stays green while the JOIN breaks — precisely the class this file closes.
 //
-// THE WALK THROUGH THE PRODUCT, IN ORDER: load (the settled session pane, not a spinner) → view-back (the
-// §16.1 walker pins a superseded run and the pane follows) → a per-block rewrite decision (the ratified
-// Keep/Discard accept grammar, fail-closed) → apply → the terminal itemized outcome.
+// THE WALK THROUGH THE PRODUCT, IN ORDER: load (all three lanes settled at once, not a spinner and not one
+// stage behind a stepper) → view-back (the §16.1 walker pins a superseded run, ONE lane follows it, and the
+// explicit way home returns it) → a per-field rewrite decision (the ratified Keep/Discard accept grammar,
+// fail-closed) → apply → the terminal itemized outcome. Plus the claim the parallel canvas creates: three
+// payloads side by side assert that they belong together, and the surface says so when they do not.
 //
 // THE RESPONDERS ARE INPUT-AWARE, never fixed arrays: `refinery.applyFields` ANSWERS THE ACCEPTS IT WAS
 // SENT. A responder that ignored its input would paint the same outcome whether the surface sent one
@@ -17,12 +19,17 @@
 // Every barrier is a SETTLED rendered state. The loading arm ("Loading the session…") is deliberately NOT
 // asserted: it exists only while a query is in flight, so pinning it passes where the flash is catchable
 // and flakes where it is not.
+//
+// THE CLOCK IS FROZEN on every mount: the masthead's credit line renders an elapsed-since stamp off the
+// session's `createdAt`, and `FROZEN_AT` here IS `tests/support/clock.ts`'s `FROZEN_AT_MS`, so the stamp
+// is a fixed string rather than a value that drifts with the wall clock.
 
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { characterListResponder, makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
@@ -36,8 +43,12 @@ const CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 const SCORE_RUN_SUPERSEDED = mintTypeId(ID_PREFIX.refineryRun);
 const SCORE_RUN_LATEST = mintTypeId(ID_PREFIX.refineryRun);
 const REWRITE_RUN = mintTypeId(ID_PREFIX.refineryRun);
+const ANALYZE_RUN = mintTypeId(ID_PREFIX.refineryRun);
+/** A rewrite that never lands in the ledger — the analyze's `sourceRunId` points here so the DAG edge says
+ *  "this verdict is about a rewrite the canvas is not showing". */
+const ORPHANED_REWRITE = mintTypeId(ID_PREFIX.refineryRun);
 
-const FROZEN_AT = 1_750_000_000_000;
+const FROZEN_AT = FROZEN_AT_MS;
 // PROSE-LENGTH on both sides (over `accept-review`'s 200-char inline-diff threshold) so the description
 // block renders the side-by-side PAIR and the after pane carries the whole rewrite verbatim — an
 // assertable string. Personality stays short on purpose: that block takes the FORK-C inline word diff,
@@ -82,7 +93,8 @@ function sessionView(sessionId: RefinerySessionId = SESSION_ID): unknown {
   };
 }
 
-function scoreRun(id: string, iteration: number, overallScore: number, summary: string): unknown {
+function scoreRun(row: { id: string; iteration: number; overallScore: number; summary: string }): unknown {
+  const { id, iteration, overallScore, summary } = row;
   return {
     id,
     sessionId: SESSION_ID,
@@ -123,6 +135,34 @@ function rewriteRun(): unknown {
   };
 }
 
+/** An analyze whose DAG parent is `sourceRunId` — the rewrite it judged. */
+function analyzeRun(sourceRunId: string): unknown {
+  return {
+    id: ANALYZE_RUN,
+    sessionId: SESSION_ID,
+    iteration: 1,
+    model: "test-analyzer",
+    promptTokens: 2400,
+    outputTokens: 700,
+    durationMs: 12_000,
+    sourceRunId,
+    strippedKeys: [],
+    createdAt: FROZEN_AT + 3,
+    stage: "analyze",
+    payloadConfig: { kind: "fixed", mode: "full" },
+    payload: {
+      verdict: "NEEDS_REFINEMENT",
+      soulScore: 8,
+      soulAssessment: "Still unmistakably Zephyrine.",
+      preserved: ["The ledger she won't close"],
+      lost: [],
+      gained: ["A reason to move"],
+      issues: [],
+      recommendations: ["Re-add the closing line"],
+    },
+  };
+}
+
 function preflight(): unknown {
   return {
     contextTokens: 8000,
@@ -142,19 +182,21 @@ interface ApplyInput {
   readonly accepts: readonly { readonly field: string; readonly greetingIndex?: number }[];
 }
 
-// The affordance names, hoisted (biome `useTopLevelRegex`). The stepper cells are matched loosely because
-// a cell's accessible name carries its numeral and status line too; the review verbs are ANCHORED because
+// The affordance names, hoisted (biome `useTopLevelRegex`). The review verbs are ANCHORED because
 // "Keep description" and "Keep (empties field) description" are different consent acts.
-const STEP_SCORE = /Score/;
-const STEP_REWRITE = /Rewrite/;
 const KEEP_DESCRIPTION = /^Keep description$/;
 const DISCARD_PERSONALITY = /^Discard personality$/;
 const ANY_APPLY_COUNT = /^Apply \d+ kept$/;
+const BACK_TO_LATEST = /^Back to latest$/;
 
-/** The ledger the surface reads, OLDEST FIRST (the wire's order — the surface's `latestOf` map keeps the
- *  last write per stage, so a newest-first fixture would silently invert which score is "latest"). */
+/** The ledger the surface reads, OLDEST FIRST (the wire's order — the lane fold keeps the last write per
+ *  stage, so a newest-first fixture would silently invert which score is "latest"). */
 function ledger(): unknown[] {
-  return [scoreRun(SCORE_RUN_SUPERSEDED, 0, 4.1, "Thin in the middle."), scoreRun(SCORE_RUN_LATEST, 1, 8.2, "Much sharper after the rewrite."), rewriteRun()];
+  return [
+    scoreRun({ id: SCORE_RUN_SUPERSEDED, iteration: 0, overallScore: 4.1, summary: "Thin in the middle." }),
+    scoreRun({ id: SCORE_RUN_LATEST, iteration: 1, overallScore: 8.2, summary: "Much sharper after the rewrite." }),
+    rewriteRun(),
+  ];
 }
 
 /** The three reads plus the gated card — everything the session pane joins. */
@@ -165,6 +207,11 @@ function baseRoutes(): TrpcRoutes {
     "refinery.preflight": preflight,
     "character.get": (): unknown => CARD,
   };
+}
+
+/** Freeze the page clock so the masthead's elapsed-since credit line is a fixed string. */
+async function freeze(page: Page): Promise<void> {
+  await page.clock.setFixedTime(new Date(FROZEN_AT));
 }
 
 // ── THE LANDING PICK: resume-or-mint (#79) ───────────────────────────────────────────────────────────
@@ -215,6 +262,7 @@ async function pickZephyrine(page: Page): Promise<void> {
 }
 
 test("picking a character that already has an OPEN session RESUMES the newest one — no duplicate is minted (#79)", async ({ mount, page }) => {
+  await freeze(page);
   const trpc = await routeTrpc(page, {
     ...landingRoutes([rosterRow(OLDER_OPEN_SESSION_ID, "active", FROZEN_AT), rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT + 10_000)]),
     // A mint that WOULD SUCCEED, scripted on purpose. Leaving `startSession` unlisted makes the old
@@ -247,6 +295,7 @@ test("picking a character that already has an OPEN session RESUMES the newest on
 });
 
 test("picking a character whose only session is FINISHED mints a fresh one and opens it", async ({ mount, page }) => {
+  await freeze(page);
   const trpc = await routeTrpc(page, {
     // The roster is NOT empty — it carries a `completed` session on this very card. Resumable is the OPEN
     // status alone: an applied session is finished work, so picking the card again starts over.
@@ -271,7 +320,11 @@ test("picking a character whose only session is FINISHED mints a fresh one and o
   expect(trpc.inputs("refinery.getSession")).not.toContainEqual({ sessionId: COMPLETED_SESSION_ID });
 });
 
-test("the session pane JOINS its reads: the card's name, the roster status, the draft line and one scope chip per selected field", async ({ mount, page }) => {
+test("the session pane JOINS its reads: the masthead's card name, the roster status, the draft line and one scope chip per selected field", async ({
+  mount,
+  page,
+}) => {
+  await freeze(page);
   await routeTrpc(page, baseRoutes());
   const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
 
@@ -279,49 +332,98 @@ test("the session pane JOINS its reads: the card's name, the roster status, the 
   // (`session.data` and the gated `character.data`).
   await expect(component.getByTestId(testId("refineryContent"))).toBeVisible();
 
-  // Identity comes from the CARD read, status from the SESSION read: one row proving both landed and were
-  // joined, which is the composition no component CT can exercise.
-  await expect(page.getByText("Zephyrine Vale")).toBeVisible();
-  await expect(page.getByText("active")).toBeVisible();
+  // Identity comes from the CARD read, status from the SESSION read: one masthead proving both landed and
+  // were joined, which is the composition no component CT can exercise. The card name is the surface's ONE
+  // opening statement, so it is a real heading, not a label beside the chips.
+  await expect(page.getByRole("heading", { name: "Zephyrine Vale" })).toBeVisible();
+  await expect(page.getByText("active", { exact: true })).toBeVisible();
   await expect(page.getByText("draft — the live card is untouched")).toBeVisible();
 
   // The scope strip is derived from `selection.fields`, in canonical order, one chip each.
   await expect(page.getByText("Description", { exact: true })).toBeVisible();
   await expect(page.getByText("Personality", { exact: true })).toBeVisible();
-
-  // The stepper's per-stage status is projected from the LEDGER — "overall 8.2" is the LATEST score run,
-  // i.e. the last-write-wins fold over an oldest-first wire.
-  await expect(page.getByTestId(testId("refineryStepper"))).toContainText("overall 8.2");
-  // The pane opens on score and paints that same latest run (the count-up settles, so poll the text).
-  await expect(page.getByTestId("refinery-hero-value")).toHaveText("8.2");
-  await expect(page.getByText("Much sharper after the rewrite.")).toBeVisible();
 });
 
-test("the §16.1 WALKER pins a superseded run and the pane follows it — with the chip that says so", async ({ mount, page }) => {
+test("ALL THREE STAGES are on one canvas: the score lane's latest payload, the rewrite island's accept work, and the analyze verdict", async ({
+  mount,
+  page,
+}) => {
+  await freeze(page);
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.listRuns": (): unknown[] => [...ledger(), analyzeRun(REWRITE_RUN)],
+  });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+
+  // Lane 1 — the LATEST score (a last-write-wins fold over an oldest-first wire), with its docked summary.
+  const score = page.locator('[data-lane="score"]');
+  await expect(score.getByTestId("refinery-hero-value")).toHaveText("8.2");
+  await expect(score.getByText("Much sharper after the rewrite.")).toBeVisible();
+
+  // Lane 2 — the rewrite island, with the join of the run payload, the live card and the session's scope
+  // already performed: the open field's pair, and the other field addressable in the queue.
+  const rewrite = page.getByTestId("refinery-rewrite-lane");
+  await expect(rewrite.locator('[data-slot="compare-block-after"]')).toContainText(REWRITTEN_DESCRIPTION);
+  await expect(rewrite.locator('[data-slot="compare-block-before"]')).toContainText(LIVE_DESCRIPTION);
+  await expect(rewrite.getByRole("button", { name: DISCARD_PERSONALITY })).toBeVisible();
+
+  // Lane 3 — the verdict, beside the two payloads it is about, not one stepper press away.
+  const analyze = page.locator('[data-lane="analyze"]');
+  await expect(analyze.getByText("NEEDS_REFINEMENT")).toBeVisible();
+  await expect(analyze.getByText("The ledger she won't close")).toBeVisible();
+});
+
+test("the canvas says when its lanes DISAGREE: a verdict about a rewrite the canvas is not showing is marked, and a matching one is not", async ({
+  mount,
+  page,
+}) => {
+  await freeze(page);
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    // The analyze's DAG parent is a rewrite that is not in the ledger — the engine's own `sourceRunId` edge
+    // is the whole signal; nothing new is asked of the server.
+    "refinery.listRuns": (): unknown[] => [...ledger(), analyzeRun(ORPHANED_REWRITE)],
+  });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+
+  const analyze = page.locator('[data-lane="analyze"]');
+  await expect(analyze.getByText("NEEDS_REFINEMENT")).toBeVisible();
+  await expect(analyze.getByText("judged an earlier rewrite")).toBeVisible();
+  // The score lane is current and says nothing — the note is a STATE, not a permanent slot.
+  await expect(page.locator('[data-lane="score"]').getByText("judged an earlier rewrite")).toHaveCount(0);
+});
+
+test("the §16.1 WALKER pins a superseded run — ONE lane follows it, the others stay live, and the explicit verb returns it", async ({ mount, page }) => {
+  await freeze(page);
   await routeTrpc(page, baseRoutes());
   const component = await mount(<RefineryContentStory sessionId={SESSION_ID} viewBackRunId={SCORE_RUN_SUPERSEDED} />);
 
+  const score = page.locator('[data-lane="score"]');
   // Settle on the LIVE arm first: view-back is a transition between two settled states, and asserting the
   // second without pinning the first would pass on a pane that never moved.
-  await expect(page.getByTestId("refinery-hero-value")).toHaveText("8.2");
+  await expect(score.getByTestId("refinery-hero-value")).toHaveText("8.2");
   await expect(page.getByText("superseded")).toHaveCount(0);
 
   // The door the CONTEXT Runs tab drives (`setRefineryViewedRun`) — a SIBLING pane in production, which is
   // exactly why this surface's own CT has to reach it through the shared state seam.
   await component.getByRole("button", { name: "walk back" }).click();
 
-  await expect(page.getByText("viewing round 0 · superseded")).toBeVisible();
-  await expect(page.getByTestId("refinery-hero-value")).toHaveText("4.1");
-  await expect(page.getByText("Thin in the middle.")).toBeVisible();
+  await expect(score.getByText("viewing round 0 · superseded")).toBeVisible();
+  await expect(score.getByTestId("refinery-hero-value")).toHaveText("4.1");
+  await expect(score.getByText("Thin in the middle.")).toBeVisible();
+  // The pin is per-LANE: the rewrite island beside it is untouched and still shows the live accept work.
+  await expect(page.getByTestId("refinery-rewrite-lane").getByRole("button", { name: DISCARD_PERSONALITY })).toBeVisible();
 
-  // And the walk is REVERSIBLE through the stepper (its `onSelect` clears the pin) — the pane returns to
-  // the live latest rather than stranding the user on an old commit.
-  await page.getByRole("button", { name: STEP_SCORE }).click();
+  // And the walk is REVERSIBLE through an EXPLICIT verb. The stepper used to clear the pin as a side effect
+  // of switching stage; with the stepper gone this is the only way home, so its absence would strand a user
+  // on a superseded run.
+  await score.getByRole("button", { name: BACK_TO_LATEST }).click();
   await expect(page.getByText("superseded")).toHaveCount(0);
-  await expect(page.getByTestId("refinery-hero-value")).toHaveText("8.2");
+  await expect(score.getByTestId("refinery-hero-value")).toHaveText("8.2");
 });
 
-test("a per-block KEEP/DISCARD decision drives the apply: only the kept block is sent, and the terminal outcome itemizes it", async ({ mount, page }) => {
+test("a per-field KEEP/DISCARD decision drives the apply: only the kept field is sent, and the terminal outcome itemizes it", async ({ mount, page }) => {
+  await freeze(page);
   // Recorded as a LIST, not a nullable single: the count is an assertion of its own (one press, one call),
   // and reading `[0]` needs no cast — a `let x: T | null` written only inside a closure stays narrowed to
   // `null` for tsc, which is exactly the pressure that produces a banned `as unknown as` double-cast.
@@ -342,17 +444,13 @@ test("a per-block KEEP/DISCARD decision drives the apply: only the kept block is
     },
   });
   const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
-  await expect(page.getByTestId("refinery-hero-value")).toHaveText("8.2");
+  await expect(page.locator('[data-lane="score"]').getByTestId("refinery-hero-value")).toHaveText("8.2");
 
-  // Walk to the rewrite stage — the accept review only exists there.
-  await page.getByRole("button", { name: STEP_REWRITE }).click();
-  // Both selected fields became reviewable BLOCKS — the join of the rewrite run's payload with the live
-  // card and the session's scope, which is the derivation no component CT performs.
-  await expect(page.locator('[data-slot="compare-block-after"]')).toContainText(REWRITTEN_DESCRIPTION);
-  await expect(page.locator('[data-slot="compare-block-before"]')).toContainText(LIVE_DESCRIPTION);
-  await expect(page.getByRole("button", { name: DISCARD_PERSONALITY })).toBeVisible();
+  // The accept work needs no stage switch — the rewrite island is on the canvas from the first paint.
+  const rewrite = page.getByTestId("refinery-rewrite-lane");
+  await expect(rewrite.locator('[data-slot="compare-block-after"]')).toContainText(REWRITTEN_DESCRIPTION);
 
-  // FAIL-CLOSED: every block opens Undecided, so with nothing decided there is nothing to apply and the
+  // FAIL-CLOSED: every field opens Undecided, so with nothing decided there is nothing to apply and the
   // terminal verb is inert. (Belt 10 — the surface must not offer a press that would write nothing.)
   await expect(page.getByRole("button", { name: ANY_APPLY_COUNT })).toBeDisabled();
 
@@ -363,7 +461,7 @@ test("a per-block KEEP/DISCARD decision drives the apply: only the kept block is
   await expect(page.getByRole("button", { name: "Apply 1 kept" })).toBeEnabled();
   await page.getByRole("button", { name: "Apply 1 kept" }).click();
 
-  // The TERMINAL result replaces the stage pane: the itemization, the reversibility line, and the exit.
+  // The TERMINAL result replaces the three-lane canvas: the itemization, the reversibility line, and the exit.
   await expect(component.getByTestId(testId("refineryApplyOutcome"))).toBeVisible();
   await expect(page.getByText("1 field written.")).toBeVisible();
   await expect(
@@ -372,7 +470,7 @@ test("a per-block KEEP/DISCARD decision drives the apply: only the kept block is
   await expect(page.getByText("replaced")).toBeVisible();
   await expect(page.getByRole("button", { name: "Done" })).toBeVisible();
 
-  // …and the WIRE agrees with the pixels: the discarded block never left the browser. Asserted after the
+  // …and the WIRE agrees with the pixels: the discarded field never left the browser. Asserted after the
   // outcome painted, so this reads a settled recording, not a race.
   expect(applyInputs).toHaveLength(1);
   expect(applyInputs[0]?.accepts).toEqual([{ field: "description" }]);

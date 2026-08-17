@@ -5,14 +5,31 @@
 // story a DIFFERENT React context instance and mounts blank).
 
 export { AcceptReview } from "./components/accept-review.tsx";
+/** @public exported for the CT that carries the lane's RUNNING affordance contract — the indeterminate
+ *  hairline whose reduced-motion arm REMOVES the travelling segment rather than parking it (migrated from
+ *  the deleted stage stepper's CT) — plus the fit-line/verb geometry at a rail width. The lanes receive it
+ *  as a composed node from the surface, so a story has to mount it directly. */
+export type { LaneRunControlProps } from "./components/lane-run-control.tsx";
+export { LaneRunControl } from "./components/lane-run-control.tsx";
+/** @public exported for the CT story that drives the REAL first-run arm (run null + running → a run lands
+ *  with `arrived`) — the composition surface imports it relatively; a story importing it relatively would
+ *  mount against a different React context instance (this door's own header). It replaced `StagePane`
+ *  when the workbench (program #102, mockup C) stopped rendering one stage at a time. */
+export type { PayloadLaneProps } from "./components/payload-lane.tsx";
+export { PayloadLane } from "./components/payload-lane.tsx";
 export { PayloadView } from "./components/payload-view.tsx";
 /** @public exported for the CT that proves the Setup tab reaches BOTH schema verbs the live drive found
  *  UI-unreachable — authoring a custom ANALYZE schema and EDITING a saved one (2026-08-14). `refinerySection`
  *  mounts it relatively in the CONTEXT panel; a story importing it relatively would mount against a different
  *  React context instance (this door's own header). */
 export { SetupTabBody } from "./components/refinery-context-tabs.tsx";
-/** @public exported for the narrow-container CT that proves the fit-line no longer paints through the verb
- *  cluster (side-eye 2026-08-09 P1) — the composition surface imports it relatively. */
+/** @public exported for the CT that drives the REWRITE island's accept anatomy — the focal field, the
+ *  queue, the tally and the running/not-run arms — as the composition surface mounts it. */
+export type { RewriteLaneProps } from "./components/rewrite-lane.tsx";
+export { RewriteLane } from "./components/rewrite-lane.tsx";
+/** @public exported for the narrow-container CT that proves the foot run bar's guidance field and its verb
+ *  cluster never share one line's slack (side-eye 2026-08-09 P1-2) — the composition surface imports it
+ *  relatively. */
 export type { RunControlsCardProps } from "./components/run-controls-card.tsx";
 export { RunControlsCard } from "./components/run-controls-card.tsx";
 export { SchemaEditorDialog } from "./components/schema-editor-dialog.tsx";
@@ -21,13 +38,6 @@ export { SchemaEditorDialog } from "./components/schema-editor-dialog.tsx";
  *  import it relatively, and a story importing it relatively would mount against a different React
  *  context instance (this door's own header). */
 export { ScopeEditorDialog } from "./components/scope-editor-dialog.tsx";
-/** @public exported for the CT story that drives the REAL first-run arm (run null + running → a run lands
- *  with `arrived`) — the composition surface imports it relatively; a story importing it relatively would
- *  mount against a different React context instance (this door's own header). */
-export type { StagePaneProps } from "./components/stage-pane.tsx";
-export { StagePane } from "./components/stage-pane.tsx";
-export type { StageCell } from "./components/stage-stepper.tsx";
-export { StageStepper } from "./components/stage-stepper.tsx";
 export { TeachingState } from "./components/teaching-state.tsx";
 export {
   useApplyRefineryAsCopy,

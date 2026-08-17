@@ -2,6 +2,7 @@
   "testFiles": [
     "tests/client/a11y/accessible-name-quality.suite.ct.tsx",
     "tests/client/agent-nav/index.test.ts",
+    "tests/client/agent-rpg/index.test.ts",
     "tests/client/agent-seed/index.test.ts",
     "tests/client/components/confirm-dialog.ct.tsx",
     "tests/client/components/face-strip-fold.test.ts",
@@ -59,7 +60,6 @@
     "tests/client/data/use-settings-viewer-view.ct.tsx",
     "tests/client/data/use-start-chat.ct.tsx",
     "tests/client/data/use-upload-asset.ct.tsx",
-    "tests/client/data/use-viewer.ct.tsx",
     "tests/client/features/app-shell/components/appearance-background-section.ct.tsx",
     "tests/client/features/app-shell/components/appearance-effects-section.ct.tsx",
     "tests/client/features/app-shell/components/appearance-reading-section.ct.tsx",
@@ -94,6 +94,7 @@
     "tests/client/features/character/components/characters-list-pane.ct.tsx",
     "tests/client/features/character/hooks/use-tag-suggestion-mutations.ct.tsx",
     "tests/client/features/character/lib/character-card-form-model.test.ts",
+    "tests/client/features/character/lib/character-draft-store.test.ts",
     "tests/client/features/character/lib/character-library-lens.test.ts",
     "tests/client/features/character/lib/character-list-view.test.ts",
     "tests/client/features/character/lib/character-theme-form-model.test.ts",
@@ -123,6 +124,7 @@
     "tests/client/features/chat/components/ghost-message-row.ct.tsx",
     "tests/client/features/chat/components/greeting-swipe-strip.ct.tsx",
     "tests/client/features/chat/components/group-config-form.ct.tsx",
+    "tests/client/features/chat/components/home-masthead-body.ct.tsx",
     "tests/client/features/chat/components/home-quick-picks-tile-body.ct.tsx",
     "tests/client/features/chat/components/home-recents-tile-body.ct.tsx",
     "tests/client/features/chat/components/home-temp-chat-tile-body.ct.tsx",
@@ -235,6 +237,7 @@
     "tests/client/features/preset/components/variables-tab.ct.tsx",
     "tests/client/features/preset/lib/assembly-model.test.ts",
     "tests/client/features/preset/lib/capability-panel-model.test.ts",
+    "tests/client/features/preset/lib/preset-draft-store.test.ts",
     "tests/client/features/preset/lib/preset-editor-model.test.ts",
     "tests/client/features/preset/lib/preset-fork-choice.test.ts",
     "tests/client/features/preset/lib/preset-row-view.test.ts",
@@ -243,12 +246,13 @@
     "tests/client/features/preset/surfaces/preset-editor-surface.ct.tsx",
     "tests/client/features/preset/surfaces/preset-library-surface.ct.tsx",
     "tests/client/features/refinery/components/accept-review.ct.tsx",
+    "tests/client/features/refinery/components/lane-run-control.ct.tsx",
     "tests/client/features/refinery/components/payload-view.ct.tsx",
     "tests/client/features/refinery/components/refinery-context-tabs.ct.tsx",
+    "tests/client/features/refinery/components/rewrite-lane.ct.tsx",
     "tests/client/features/refinery/components/run-controls-card.ct.tsx",
     "tests/client/features/refinery/components/schema-editor-dialog.ct.tsx",
     "tests/client/features/refinery/components/scope-editor-dialog.ct.tsx",
-    "tests/client/features/refinery/components/stage-stepper.ct.tsx",
     "tests/client/features/refinery/components/teaching-state.ct.tsx",
     "tests/client/features/refinery/hooks/use-refinery-mutations.ct.tsx",
     "tests/client/features/refinery/lib/render-plan.test.ts",
@@ -310,12 +314,14 @@
     "tests/client/features/world-info/components/world-info-collection-rows.ct.tsx",
     "tests/client/features/world-info/components/world-info-context-body.ct.tsx",
     "tests/client/features/world-info/components/world-info-settings-section.ct.tsx",
+    "tests/client/features/world-info/lib/entry-draft-store.test.ts",
     "tests/client/features/world-info/surfaces/world-info-member-surface.ct.tsx",
     "tests/client/forms/autosave-convergence.suite.test.ts",
     "tests/client/forms/autosave-status.ct.tsx",
     "tests/client/forms/bound-fields/use-bound-field.ct.tsx",
     "tests/client/forms/capped-field-model.test.ts",
     "tests/client/forms/capped-field.ct.tsx",
+    "tests/client/forms/create-autosave-entity-form-model.test.ts",
     "tests/client/forms/create-autosave-entity-form.ct.tsx",
     "tests/client/forms/create-form-handle-bridge.test.ts",
     "tests/client/forms/create-saved-entity-form.ct.tsx",
@@ -337,6 +343,7 @@
     "tests/client/lib/regex-placement-labels.test.ts",
     "tests/client/lib/registry-contracts.test.ts",
     "tests/client/lib/registry.test.ts",
+    "tests/client/lib/render-stats.test.ts",
     "tests/client/lib/render-trust.test.ts",
     "tests/client/lib/row-qualifiers.test.ts",
     "tests/client/lib/session-channel.test.ts",
@@ -344,10 +351,13 @@
     "tests/client/lib/tag-sort.test.ts",
     "tests/client/lib/trpc-devlog.test.ts",
     "tests/client/lib/turn-abort-notice.test.ts",
+    "tests/client/lib/upload-cap-check.test.ts",
+    "tests/client/lib/view-transition.test.ts",
     "tests/client/lib/weave-glyph.ct.tsx",
     "tests/client/routes/app-root.ct.tsx",
     "tests/client/routes/route-pending.ct.tsx",
     "tests/client/state/active-chat-store.ct.tsx",
+    "tests/client/state/active-chat-store.test.ts",
     "tests/client/state/analytics-selection-store.ct.tsx",
     "tests/client/state/assemble-chrome.test.ts",
     "tests/client/state/character-library-store.ct.tsx",
@@ -382,6 +392,7 @@
     "tests/client/state/recent-models-store.test.ts",
     "tests/client/state/refinery-view-store.test.ts",
     "tests/client/state/regex-bulk-store.test.ts",
+    "tests/client/state/rpg-round-store.test.ts",
     "tests/client/state/section-list-projection.ct.tsx",
     "tests/client/state/section-registry-context.ct.tsx",
     "tests/client/state/section-registry-provider.ct.tsx",
@@ -557,6 +568,7 @@
     "tests/kit/macro/user-macros.test.ts",
     "tests/kit/macro/variables.test.ts",
     "tests/kit/message-role/index.test.ts",
+    "tests/kit/model-name/index.test.ts",
     "tests/kit/objects/index.test.ts",
     "tests/kit/persona/index.test.ts",
     "tests/kit/png-card-chunk/index.test.ts",
@@ -938,6 +950,7 @@
     "tests/server/domain/import/verbs/import-chat-file.test.ts",
     "tests/server/domain/import/verbs/import-chats.test.ts",
     "tests/server/domain/import/verbs/import-group-chats.test.ts",
+    "tests/server/domain/import/verbs/import-orphan-character.test.ts",
     "tests/server/domain/import/verbs/import-personas.test.ts",
     "tests/server/domain/import/verbs/import-presets.test.ts",
     "tests/server/domain/import/verbs/import-themes.test.ts",
@@ -1312,6 +1325,7 @@
     "tests/server/entry/compose/room-reach.int.test.ts",
     "tests/server/entry/compose/rpg.int.test.ts",
     "tests/server/entry/compose/services.test.ts",
+    "tests/server/entry/compose/session-entries.int.test.ts",
     "tests/server/entry/debug-gate.suite.test.ts",
     "tests/server/entry/http/auth-meta.test.ts",
     "tests/server/entry/http/auth-routes.int.test.ts",
@@ -1557,6 +1571,7 @@
     "tests/tooling/check-gates.int.test.ts",
     "tests/tooling/codemod-kit.int.test.ts",
     "tests/tooling/dependency-cruiser.int.test.ts",
+    "tests/tooling/design-audit-walker.ct.tsx",
     "tests/tooling/design-audit.test.ts",
     "tests/tooling/diagnostic-legibility.residual.test.ts",
     "tests/tooling/docs-catalog.test.ts",
@@ -1565,12 +1580,15 @@
     "tests/tooling/issue-form-guidance-integrity.test.ts",
     "tests/tooling/migrate-macro-blocks.test.ts",
     "tests/tooling/monotonic-tests.residual.test.ts",
+    "tests/tooling/motion-audit.test.ts",
     "tests/tooling/no-test-fabrication.residual.test.ts",
     "tests/tooling/schema-baseline-parity.int.test.ts",
     "tests/tooling/scoped-run.int.test.ts",
     "tests/tooling/seed-demo.int.test.ts",
     "tests/tooling/single-pass-render.int.test.ts",
     "tests/tooling/smoke.test.ts",
+    "tests/tooling/snap-browser.int.test.ts",
+    "tests/tooling/snap-cli.test.ts",
     "tests/tooling/snap-fixture.test.ts",
     "tests/tooling/snap-flags.test.ts",
     "tests/tooling/snap-stage.test.ts",
@@ -1714,13 +1732,13 @@
   ],
   "deletions": {
     "tests/server/entry/compose/emit-character-updated.int.test.ts": {
-      "why": "retargeted, not dropped: `entry/compose/emit-character-updated.ts` became the `character` row of the entity\u2192room reach table (`entry/compose/room-reach.ts`, the entity\u2192room member-freshness bridge, 2026-08-14), fanning a live-only `roomEntityChanged` instead of a durable `chatUpdated`. Both of its cases survive verbatim in intent in tests/server/entry/compose/room-reach.int.test.ts (present-seat fan incl. the departed/non-seat/other-character isolation, and the seated-nowhere no-op), which additionally covers the persona and world-info kinds. Un-deletes only if a character-specific fan is ever re-homed outside the reach table."
+      "why": "retargeted, not dropped: `entry/compose/emit-character-updated.ts` became the `character` row of the entity→room reach table (`entry/compose/room-reach.ts`, the entity→room member-freshness bridge, 2026-08-14), fanning a live-only `roomEntityChanged` instead of a durable `chatUpdated`. Both of its cases survive verbatim in intent in tests/server/entry/compose/room-reach.int.test.ts (present-seat fan incl. the departed/non-seat/other-character isolation, and the seated-nowhere no-op), which additionally covers the persona and world-info kinds. Un-deletes only if a character-specific fan is ever re-homed outside the reach table."
     },
     "tests/client/features/world-info/surfaces/world-info-library-surface.ct.tsx": {
-      "why": "the World Info RAIL SECTION retired with the config rail's R2 (2026-08-02): the library is a CollectionContribution in the Configuration workspace, so there is no list SURFACE or LIST band to mount. Its coverage moved wholesale \u2014 rows/scent/Global marker/kebab+Export to tests/client/features/world-info/components/world-info-collection-rows.ct.tsx, and the band's count + create + import to the config host's roster CT (tests/client/features/config/surfaces/config-roster-surface.ct.tsx), which mounts the real door array."
+      "why": "the World Info RAIL SECTION retired with the config rail's R2 (2026-08-02): the library is a CollectionContribution in the Configuration workspace, so there is no list SURFACE or LIST band to mount. Its coverage moved wholesale — rows/scent/Global marker/kebab+Export to tests/client/features/world-info/components/world-info-collection-rows.ct.tsx, and the band's count + create + import to the config host's roster CT (tests/client/features/config/surfaces/config-roster-surface.ct.tsx), which mounts the real door array."
     },
     "tests/client/features/world-info/surfaces/world-info-editor-surface.ct.tsx": {
-      "why": "renamed, not deleted: the same editor is the collection's `detail` now, and every assertion it carried (the sortable entry list's keyboard drag \u2192 worldInfo.applyEntryOrder) moved verbatim into tests/client/features/world-info/surfaces/world-info-member-surface.ct.tsx, which additionally pins the GONE arm and the entry drill."
+      "why": "renamed, not deleted: the same editor is the collection's `detail` now, and every assertion it carried (the sortable entry list's keyboard drag → worldInfo.applyEntryOrder) moved verbatim into tests/client/features/world-info/surfaces/world-info-member-surface.ct.tsx, which additionally pins the GONE arm and the entry drill."
     },
     "tests/client/state/world-info-selection-store.ct.tsx": {
       "why": "renamed to tests/client/state/world-entry-selection-store.ct.tsx with its store (R2): the BOOK half of the drill became the config workspace's kinded member selection, already covered by tests/client/state/config-selection-store.ct.tsx (select/switch-kind/clear + the goToCollection deep link) and by the roster CT's routing test. The ENTRY half's select/clear coverage moved verbatim."
@@ -1735,7 +1753,7 @@
       "why": "the fat settings ROW whose controls it measured no longer exists (F-11 moved them into the member editor). The 32px tap-target floor is measured on the controls' NEW home in tag-member-surface.ct.tsx ('every control clears the 32px tap-target floor')."
     },
     "tests/client/features/regex/lib/regex-pane.ct.tsx": {
-      "why": "the regex SETTINGS PANE retired with the config rail's R1 (2026-08-02) \u2014 a script library is workspace anatomy, not a settings pane. Its registration coverage is the config roster CT; the editor coverage is regex-member-surface.ct.tsx."
+      "why": "the regex SETTINGS PANE retired with the config rail's R1 (2026-08-02) — a script library is workspace anatomy, not a settings pane. Its registration coverage is the config roster CT; the editor coverage is regex-member-surface.ct.tsx."
     },
     "tests/client/features/regex/surfaces/regex-settings-surface.ct.tsx": {
       "why": "the pane's list+dialog anatomy became the collection's rows + a MOUNTED member editor at R1. The field set, the autosave write and the delete verb are asserted in tests/client/features/regex/surfaces/regex-member-surface.ct.tsx; the row anatomy (global switch, scent subtitle) in the config roster CT."
@@ -1744,10 +1762,10 @@
       "why": "@orb/ui/setting-row primitive deleted with zero importers after the Base UI 1.7 SettingRow-to-Field migration; its CT and fixtures die with it (label wiring is now Field context, covered by tests/ui/primitives/field/field.ct.tsx)"
     },
     "tests/server/domain/chat/persistence/macro-names.int.test.ts": {
-      "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) \u2014 un-delete only if the per-kind loaders return"
+      "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) — un-delete only if the per-kind loaders return"
     },
     "tests/server/domain/chat/persistence/roster-avatars.int.test.ts": {
-      "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) \u2014 un-delete only if the per-kind loaders return"
+      "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) — un-delete only if the per-kind loaders return"
     },
     "tests/client/lib/chats-with-character.test.ts": {
       "why": "its subject (packages/client/src/lib/chats-with-character.ts) was deleted 2026-08-09 when the chats-with-this-character projection moved SERVER-side (chat.listChats characterId). The predicate no longer exists to unit-test; the behaviour is pinned by tests/server/domain/chat/verbs/read.int.test.ts (the characterId projection arms, incl. departed + double seats). Un-deletes if a client-side chat projection predicate ever returns."
@@ -1759,22 +1777,25 @@
       "why": "its subject (packages/client/src/features/character/lib/filter-characters.ts) was deleted 2026-08-13 when the character library's search moved SERVER-side (character.list search, owner ruling: 'if i search then it should not just search on virtual stuff yeah? same for sort etc'). The client predicate could only ever match the <=150-row window the surface had paged in; the name/handle/pitch/tag-name semantics are pinned by tests/server/domain/character/verbs/list.int.test.ts ('server-side search'). Un-deletes if a client-side character search filter ever returns."
     },
     "tests/client/state/draft-config-store.test.ts": {
-      "why": "the store it covered is DELETED with chat-creation draft mode (chat-creation-draft-mode-replacement.md \u00a74.9, R1): `draft-config-store` held a whole second config model \u2014 greetings, roster overrides, group config, room overrides, injections, startAsGame \u2014 for a room with no server row. A chat row exists from the creation click, so every one of those is now the COMMITTED verb it shadowed, and each of those verbs carries its own coverage (settings-context-tab.ct.tsx, group-config-form, injections-manager, roster mutations)."
+      "why": "the store it covered is DELETED with chat-creation draft mode (chat-creation-draft-mode-replacement.md §4.9, R1): `draft-config-store` held a whole second config model — greetings, roster overrides, group config, room overrides, injections, startAsGame — for a room with no server row. A chat row exists from the creation click, so every one of those is now the COMMITTED verb it shadowed, and each of those verbs carries its own coverage (settings-context-tab.ct.tsx, group-config-form, injections-manager, roster mutations)."
     },
     "tests/client/features/chat/lib/draft-commit.test.ts": {
-      "why": "`draft-commit.ts` is DELETED with draft mode (R1): it resolved a draft's pre-send edits into `chat.startChat`'s nine-field carry, and mirrored the server's anchor-persona chain client-side. Creation carries CREATION INTENT only now (`useStartChat`), and the anchor is resolved once, server-side, where it always belonged \u2014 so there is no carry to unit-test and no mirror to keep in lockstep. The creation path's own coverage is tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx."
+      "why": "`draft-commit.ts` is DELETED with draft mode (R1): it resolved a draft's pre-send edits into `chat.startChat`'s nine-field carry, and mirrored the server's anchor-persona chain client-side. Creation carries CREATION INTENT only now (`useStartChat`), and the anchor is resolved once, server-side, where it always belonged — so there is no carry to unit-test and no mirror to keep in lockstep. The creation path's own coverage is tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx."
     },
     "tests/client/features/chat/components/draft-context-tabs.ct.tsx": {
       "why": "`draft-context-tabs.tsx` is DELETED with draft mode (R1): it rendered draft-config-store-backed twins of the Members / Field-overrides / Injections / Group-behavior tab bodies for a rowless room. The room has a chat row from the creation click, so the COMMITTED bodies serve every phase and their coverage is tests/client/features/chat/components/settings-context-tab.ct.tsx + members-panel.ct.tsx."
     },
     "tests/client/data/use-draft-cast-cards.ct.tsx": {
-      "why": "`use-draft-cast-cards.ts` is DELETED with draft mode (R1): it was a list-first peek over warm `character.list` pages, built to kill the ~2s '? | ? | ? | New chat' placebo window a pre-send room showed while N cold `character.get` reads landed. There is no such window \u2014 `useStartChat` seeds `chat.getChat` from `startChat`'s own response, so the room's first frame is warm off the read it actually uses (tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx drives that path end-to-end)."
+      "why": "`use-draft-cast-cards.ts` is DELETED with draft mode (R1): it was a list-first peek over warm `character.list` pages, built to kill the ~2s '? | ? | ? | New chat' placebo window a pre-send room showed while N cold `character.get` reads landed. There is no such window — `useStartChat` seeds `chat.getChat` from `startChat`'s own response, so the room's first frame is warm off the read it actually uses (tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx drives that path end-to-end)."
     },
     "tests/client/features/chat/lib/turn-abort-notice.test.ts": {
-      "why": "moved, not deleted: the turn-notice mapper re-homed from features/chat/lib to the client #lib tier (owner channel-law ruling 2026-08-14 \u2014 shared machinery lives in the lib tier, never sideways feature internals; the rpg CYOA choice-echo was the one unmapped consumer). The suite moved byte-intact to tests/client/lib/turn-abort-notice.test.ts (the mirror of the new home) and gained nothing/lost nothing. Un-deletes only if the mapper ever re-homes back into a feature."
+      "why": "moved, not deleted: the turn-notice mapper re-homed from features/chat/lib to the client #lib tier (owner channel-law ruling 2026-08-14 — shared machinery lives in the lib tier, never sideways feature internals; the rpg CYOA choice-echo was the one unmapped consumer). The suite moved byte-intact to tests/client/lib/turn-abort-notice.test.ts (the mirror of the new home) and gained nothing/lost nothing. Un-deletes only if the mapper ever re-homes back into a feature."
     },
     "tests/client/data/use-viewer.ct.tsx": {
-      "why": "useViewer retired 2026-08-15 (dossier-round supersession, issue #73) \u2014 all consumers read narrower by architected design; hook + CT story deleted together"
+      "why": "useViewer retired 2026-08-15 (dossier-round supersession, issue #73) — all consumers read narrower by architected design; hook + CT story deleted together"
+    },
+    "tests/client/features/refinery/components/stage-stepper.ct.tsx": {
+      "why": "the STAGE STEPPER was deleted with the refinery workbench rebuild (program #102, the owner-picked mockup variant C): all three stages render on one canvas, so a stage SWITCHER has nothing to switch. Its only non-navigational coverage was the RUNNING affordance — the indeterminate hairline whose reduced-motion contract is that the travelling segment is REMOVED, not parked — and that affordance moved with the surface into the lane band, where the identical pair of assertions (plus the no-call-in-flight/no-hairline arm and its positive control) lives verbatim in tests/client/features/refinery/components/lane-run-control.ct.tsx. The narrow-container no-clip test retargets to the same file's rail-width geometry test; the tint/aria-current cell test died with the cell it measured. Un-deletes only if a stage switcher is ever re-introduced."
     }
   }
 }
