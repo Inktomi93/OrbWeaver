@@ -278,18 +278,19 @@
     },
     {
       "path": "docs/design/density-pass-spec.md",
-      "assignedSha256": "831d0a3c7d236f73e1ff13a5e49c1f4b2645ab36a688a89f35de11bba1748bd6",
+      "assignedSha256": "bd9e51de8e500b8c5b3905ba1840eca4a1215b2ba188dacb26978ed21598451d",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "831d0a3c7d236f73e1ff13a5e49c1f4b2645ab36a688a89f35de11bba1748bd6",
-      "verifiedCommit": "758bafd5a7ee7f56651f3bbc17989117bbeb1af5",
+      "verifiedSha256": "bd9e51de8e500b8c5b3905ba1840eca4a1215b2ba188dacb26978ed21598451d",
+      "verifiedCommit": "57de7e7192d8afc4653537e1770c21954d287fc5",
       "verifiedAt": "2026-08-16",
       "evidence": [
         "docs/design/density-pass-spec.md:1 (spec; approved (owner-ruled 2026-08-01))",
         "git log --oneline -1 -- docs/design/density-pass-spec.md: fb36e52c5 feat(chat,ui): density S6 — the transcript + composer on the tier map, baseline 290 → 244",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "docs/design/density-pass-spec.md §2.3 voice table amended by the #102 home build (758bafd5a, owner-ruled variant C + CD3 re-rule): reading/masthead/focal voices added — orchestrator re-attested full read of the delta 2026-08-16"
+        "docs/design/density-pass-spec.md §2.3 voice table amended by the #102 home build (758bafd5a, owner-ruled variant C + CD3 re-rule): reading/masthead/focal voices added — orchestrator re-attested full read of the delta 2026-08-16",
+        "docs/design/density-pass-spec.md §2.3 back-filled the credit (861de3e58) + hero (2026-08-09) voice rows — stickler #130 F5; full read of the delta re-attested against 57de7e719 (2026-08-16)"
       ],
       "summary": "The density pass — tier map, mechanism, enforcement: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
