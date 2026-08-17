@@ -15,7 +15,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { ConfigWelcomeStory } from "../_ct-stories.tsx";
 
 const WELCOME = '[data-slot="config-welcome"]';
@@ -99,8 +100,10 @@ interface Corpus {
   readonly books?: readonly unknown[];
 }
 
-function stub(page: Page, corpus: Corpus): Promise<unknown> {
-  return routeTrpc(page, {
+/** The route table on its own, so the first-paint tests can swap ONE procedure for a `trpcHold()` without
+ *  re-spelling the other nine. */
+function stubRoutes(corpus: Corpus): TrpcRoutes {
+  return {
     "tag.listTagsWithUsage": () => corpus.tags ?? [],
     "tag.createTag": () => tagRow(TAG_COUNT, 0),
     "regex.listScripts": () => corpus.scripts ?? [],
@@ -111,7 +114,11 @@ function stub(page: Page, corpus: Corpus): Promise<unknown> {
     "worldInfo.listGlobal": () => [],
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
-  });
+  };
+}
+
+function stub(page: Page, corpus: Corpus): Promise<unknown> {
+  return routeTrpc(page, stubRoutes(corpus));
 }
 
 /** SETTLE BARRIER. Every arm below is a verdict on a COUNT, and until the counts land every collection
@@ -320,19 +327,90 @@ test("with EVERYTHING built the rail's band disappears and exactly ONE island is
   expect(first.width, "with no rail to hold, the lead column takes the pane").toBeCloseTo(welcome.width, 0);
 });
 
-// ── NOT PINNED HERE: THE FIRST PAINT (an honest gap, stated rather than faked) ───────────────────────
+// ── THE FIRST PAINT (pinned as of 2026-08-17 — this block used to state it as an honest gap) ─────────
 // A live `snap --isolated` drive against the real corpus reported an unexpected 0.073 CLS —
 // `[data-slot=config-hearth]` moving 541px sideways — because a SETTLING count read as "not built", so
 // the pane painted a rail-only one-column layout and then slid it half the pane when the tag count
-// landed. `UnbuiltLibrary` now renders nothing while a declared count is still undefined, and the live
-// re-drive shows the shift gone (that measurement is the fix's evidence).
+// landed. `UnbuiltLibrary` now renders nothing while a DECLARED count is still undefined.
 //
-// It has NO CT, and the reason is the harness, not the surface: holding a count in the `undefined` state
-// needs a response held open, and `route-trpc.ts` invokes a responder SYNCHRONOUSLY — it never awaits one
-// — so an async responder yields a malformed batch that fails every query rather than suspending it, and
-// the surface under test never mounts. Racing a real response instead would be the passes-isolated /
-// flakes-under-contention shape this repo bans. Giving `routeTrpc` a deferred-responder arm is a
-// shared-harness change every CT suite depends on, so it is the orchestrator's call, not this lane's.
+// The gap this block described was the harness, not the surface: `route-trpc.ts` invoked every responder
+// synchronously, so there was no way to hold a count in the `undefined` state, and racing a real response
+// would have been the passes-isolated / flakes-under-contention shape this repo bans. `trpcHold()` closed
+// it. The hold suspends the whole BATCH it lands in — which here is the truth, not a limitation: the
+// three count queries mount in one tick and land in one HTTP response in production too, so a single hold
+// reproduces the real first paint exactly.
+//
+// Both assertions below are barriers on SETTLED rendered states, never on a flash: "held" is stable until
+// the test releases it, and "released" is the corpus partition the other tests already wait on.
+
+test("a settling count paints NO slot — the in-flight arm is neither column (the 541px slide)", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, { ...stubRoutes({ tags: TAGS }), "tag.listTagsWithUsage": hold });
+  const pane = await mount(<ConfigWelcomeStory />);
+  await hold.requested;
+
+  // The surface IS mounted and painted — the teaching frame does not wait on a count. Without this
+  // barrier the zero-slot claim below would also pass on a blank page, which is the wrong reason.
+  await expect(pane.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
+
+  // THE DEFECT, in one number: pre-fix all three collections read as not-built while their counts were in
+  // flight, so THREE invitations painted across the full pane and then reflowed into a 1.55fr/1ff split
+  // when the counts landed. A settling count is not a verdict, so nothing paints.
+  await expect(pane.locator("[data-collection]"), "a count in flight is not a verdict — no slot, in either column").toHaveCount(0);
+
+  hold.release(TAGS);
+  await settled(pane, 1, 2);
+  // …and the geometry the reader FIRST sees is the settled one, because the slots that could have moved
+  // were never rendered before it: the hero on the surface's left edge, the rail beside it.
+  const welcome = await box(pane.locator(WELCOME));
+  const hero = await box(pane.locator(BUILT));
+  const rail = await box(pane.locator('[data-config-unbuilt="regex"]'));
+  expect(Math.abs(hero.x - welcome.x)).toBeLessThanOrEqual(1);
+  expect(rail.x, "the rail arrives beside the hero — it never occupied the pane first").toBeGreaterThan(hero.x + hero.width);
+});
+
+test("landing the counts shifts NOTHING — the browser's own layout-shift score across the release is zero", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, { ...stubRoutes({ tags: TAGS }), "tag.listTagsWithUsage": hold });
+  const pane = await mount(<ConfigWelcomeStory />);
+  await hold.requested;
+  await expect(pane.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
+
+  // Installed AFTER the held state has painted and WITHOUT `buffered`, so the score covers exactly one
+  // transition: the counts landing. `hadRecentInput` entries are excluded exactly as CLS excludes them
+  // (there is no input here — the filter is what keeps the number comparable to the snap drive's 0.073).
+  //
+  // A live OBSERVER, not `performance.getEntriesByType("layout-shift")`: the timeline query reads empty in
+  // this browser, and the version of this test that used it PASSED against the deliberately-broken source
+  // — a vacuous green. The running total lands on an attribute rather than a `globalThis` stash because
+  // reading a stash back needs an `as unknown as` double cast, which `no-test-fabrication` refuses.
+  const shiftAttr = "ctLayoutShift";
+  await page.evaluate((attr: string) => {
+    // The layout-shift entry fields are not in lib.dom — narrowed structurally, the same way
+    // packages/client/src/lib/motion-stats.ts does it.
+    interface LayoutShiftEntry extends PerformanceEntry {
+      readonly value: number;
+      readonly hadRecentInput: boolean;
+    }
+    let total = 0;
+    document.documentElement.dataset[attr] = "0";
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as LayoutShiftEntry[]) {
+        total += entry.hadRecentInput ? 0 : entry.value;
+      }
+      document.documentElement.dataset[attr] = String(total);
+    }).observe({ type: "layout-shift" });
+  }, shiftAttr);
+
+  hold.release(TAGS);
+  await settled(pane, 1, 2);
+
+  // A shift is only ever scored against content that was ALREADY on screen, so this is the direct
+  // measurement of the reported defect: pre-fix the two rail invitations were on screen and moved half the
+  // pane; now they arrive in place and there is nothing below the hearth for the new rows to push.
+  const shift = await page.evaluate((attr: string) => Number(document.documentElement.dataset[attr] ?? "0"), shiftAttr);
+  expect(shift, "the counts landing must not move a pixel of already-painted content").toBe(0);
+});
 
 // ── THE DOOR ────────────────────────────────────────────────────────────────────────────────────────
 // The island is the control (`Card interactive`), its accessible name is its own content, and it clears
