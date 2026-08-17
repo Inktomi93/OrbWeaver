@@ -123,6 +123,13 @@ export const gridVariants = tv({
       // on MORE cells and leaves the cell alone — the right answer wherever the cell is a picture of a
       // thing rather than a container for text. Same 8.5rem cell as `cell`, so the two agree at the floor.
       cellFixed: "grid-cols-[repeat(auto-fill,8.5rem)]",
+      // `pair`'s LATE-BREATH twin (added 2026-08-16, side-eye #102 F3), for a pair that only makes sense
+      // once the pane is genuinely wide: the two FOOTNOTE blocks at the foot of a `lead` rail, which the
+      // approved shape puts side by side at the same >=100rem step where the rail itself widens. `pair`'s
+      // @md step is far too early here — these blocks live INSIDE the rail track, so a pane-level @md is
+      // reached while the rail is still ~380px and would halve it. Same raw container width as `lead`'s
+      // second step, for the same reason the scale cannot express it (it stops at @7xl / 80rem).
+      pairWide: "grid-cols-1 @min-[100rem]:grid-cols-2",
     },
   },
   defaultVariants: { cols: "auto" },

@@ -34,6 +34,7 @@ import {
   appearanceMessageDetailsSection,
   appearanceMessageStyleSection,
   ChatsWithCharacterPane,
+  chatAlsoOpenTile,
   chatMastheadTile,
   chatMessageHandlingSection,
   chatQuickPicksTile,
@@ -163,13 +164,15 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // The HOME-TILE contributor seam (§6c / home-section-spec §3.2) — the SIXTH contributor registry, and the
 // whole point of the home section: a feature raises a tile, home skims it. Adding "future stuff" to home is
 // ONE co-located file in the OWNING feature plus ONE array member HERE — home is never edited. Canonical
-// `(order, id)` at the door: chat's masthead line is order 0, its recents hero 10, the face shelf 20 and
-// temp chat 30; home's own "Elsewhere in the house" rail is 40; databank's documents tile 50; the dormant
+// `(order, id)` at the door: chat's masthead line is order 0, its recents hero 10, its also-open list 15,
+// the face shelf 20 and temp chat 30; home's own "Elsewhere in the house" rail is 40; databank's tile 50;
+// the dormant
 // doorways 80/90. WHICH COLUMN each lands in is the tile's own `region`, never a list here. Home consumes
 // the registry BLIND through `makeHomeSection`.
 const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
   chatMastheadTile,
   chatRecentsTile,
+  chatAlsoOpenTile,
   chatQuickPicksTile,
   chatTempChatTile,
   databankDocumentsTile,

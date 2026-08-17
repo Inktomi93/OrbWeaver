@@ -10,11 +10,11 @@
 // single focal island (`HomeHearthRoom`) and the rest render as the dense ALSO-OPEN list underneath it,
 // off the SAME page of the SAME query. One read, two weights.
 //
-// Two bands, one tile: the frame's own kicker names the block ("Pick up where you left off"), and the
-// dense list gets a `<Section kicker>` of its own — a body with internal groupings is ordinary
-// composition, and the frame law it must not break is "a tile does not draw its OWN title band", which it
-// does not. The band is DATA-CONDITIONAL: with one room open there is nothing else to be also-open, and a
-// band over an empty list is the kind of chrome this pass exists to delete.
+// ONE BAND, ONE TILE (side-eye 2026-08-16 F6). This body used to draw the also-open list under a
+// `<Section kicker>` of its own, which was "ordinary composition" and also an `h3` inside the region the
+// frame names — a block that is a PEER of home's other six announcing as a child of one of them. The list
+// is its own contribution now (`home-also-open-tile.tsx`), off the SAME query key, so the frame gives it
+// the same h2 + named region every other block gets and the outline is flat. This body is the HERO alone.
 //
 // It ASKS FOR WHAT IT NEEDS (2026-08-09): `limit: RECENTS_LIMIT` rather than the whole membership list
 // sliced to eight. `listChats` is keyset-paged and newest-updated-first, so the first eight rows of page one
@@ -31,14 +31,12 @@ import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { openNewChatPicker, selectChatFromList, setActiveSection } from "#state";
 import { useChatPortraitMap } from "../hooks/use-chat-portrait-map.ts";
 import { chatPortraits } from "../lib/chat-summary-row.ts";
-import { ChatSummaryRow } from "./chat-summary-row.tsx";
 import { HomeHearthRoom } from "./home-hearth-room.tsx";
 
 /** How many recents this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
@@ -62,8 +60,7 @@ export function HomeRecentsTileBody(): ReactElement {
   // blocking home's tile. The HERO rides it too — the one room at focal weight is the last place that
   // should fall back to initials.
   const characterById = useChatPortraitMap();
-  const recents = page.items;
-  const [hearth, ...alsoOpen] = recents;
+  const hearth = page.items[0];
 
   if (hearth === undefined) {
     return (
@@ -81,24 +78,5 @@ export function HomeRecentsTileBody(): ReactElement {
     );
   }
 
-  return (
-    <Stack gap="section">
-      <HomeHearthRoom chat={hearth} onResume={openRecent} portraits={chatPortraits(hearth.participantCharacterIds, characterById)} />
-      {alsoOpen.length === 0 ? null : (
-        <Section kicker="Also open">
-          {/* `role="list"` needs `listitem` CHILDREN or the rows are generic to AT and the list announces
-              empty — the shared row's root is a plain div, so the role rides a layout-primitive wrapper
-              (the `import-report-summary` precedent; a literal <li> would be invalid HTML under a
-              div[role=list]). */}
-          <Stack aria-label="Also open" gap="row" role="list">
-            {alsoOpen.map((chat) => (
-              <Row key={chat.id} role="listitem">
-                <ChatSummaryRow chat={chat} onSelect={openRecent} portraits={chatPortraits(chat.participantCharacterIds, characterById)} />
-              </Row>
-            ))}
-          </Stack>
-        </Section>
-      )}
-    </Stack>
-  );
+  return <HomeHearthRoom chat={hearth} onResume={openRecent} portraits={chatPortraits(hearth.participantCharacterIds, characterById)} />;
 }

@@ -98,7 +98,13 @@ export function HomeQuickPicksTileBody(): ReactElement {
               <Text as="span" className="block truncate text-foreground" voice="label">
                 {character.name}
               </Text>
-              <Text as="span" className="block truncate" voice="gloss">
+              {/* `prose`, NOT the bare gloss (side-eye 2026-08-16 F15). Six of the seven interactive text
+                  nodes below the readable floor on this page were these captions: 10.5px, inside a button,
+                  carrying a whole pitch sentence. `prose` is the sanctioned LENGTH modifier — it lifts the
+                  step to `label` and relaxes the leading and changes nothing else, so the caption is still
+                  unmistakably the gloss voice, just legible at sentence length. (The CONTENT problem, a
+                  corpus where this falls through to a slug, stays #119; this is the floor axis.) */}
+              <Text as="span" className="block truncate" prose={true} voice="gloss">
                 {character.elevatorPitch ?? (tagLine === "" ? character.handle : tagLine)}
               </Text>
             </Button>

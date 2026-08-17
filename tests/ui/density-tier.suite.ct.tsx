@@ -387,6 +387,45 @@ test("VOICE: `masthead` / `focal` / `reading` open the three steps a feature cou
   expect(reading.color).toBe(resolved.prose);
 });
 
+test("VOICE: `credit` is the mock's micro-caps register AT THE LABEL STEP, never the micro step", async ({ mount }) => {
+  // Added by the #102 review (F12 + F15). The hero's cast/age line wanted the mock's mono UPPERCASE
+  // tracked register, which a feature cannot spell (`transform` is an A3-red internal axis) — AND it sits
+  // inside the hero's own button, so the mock's own 10.5px was below the readable floor for interactive
+  // text. `credit` is therefore the register at `label`, and the pin that matters is precisely that it is
+  // NOT `micro`: a "tidy-up" that collapsed it onto the kicker step would reopen F15 silently.
+  const mounted = await mount(
+    <div>
+      <Text data-testid="credit" as="span" voice="credit">
+        Calamity · Morgatha · last turn 1w ago
+      </Text>
+      <Text data-testid="credit-kicker" as="span" voice="kicker">
+        Also open
+      </Text>
+    </div>,
+  );
+
+  const label = await resolveFontSize(mounted, "--text-label");
+  const micro = await resolveFontSize(mounted, "--text-micro");
+  const credit = await mounted.getByTestId("credit").evaluate((el) => {
+    const style = getComputedStyle(el);
+    const probe = el.ownerDocument.createElement("span");
+    probe.style.color = "var(--color-muted-foreground)";
+    el.ownerDocument.body.append(probe);
+    const muted = getComputedStyle(probe).color;
+    probe.remove();
+    return { size: style.fontSize, transform: style.textTransform, family: style.fontFamily, tracking: style.letterSpacing, color: style.color, muted };
+  });
+
+  expect(credit.size).toBe(label);
+  expect(credit.size).not.toBe(micro);
+  expect(credit.transform).toBe("uppercase");
+  expect(credit.family).toContain("Mono");
+  // Tracked like the kicker it shares a register with — caps without tracking is a shout, not a credit.
+  expect(Number.parseFloat(credit.tracking)).toBeGreaterThan(0);
+  // …and MUTED: a credit stands behind the thing it credits.
+  expect(credit.color).toBe(credit.muted);
+});
+
 /** The px a font-size token resolves to in the live document (the `resolveToken` probe, font-size arm). */
 function resolveFontSize(el: Locator, token: string): Promise<string> {
   return el.evaluate((node, name) => {

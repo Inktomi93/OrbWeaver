@@ -143,6 +143,23 @@ export const listRowVariants = tv({
       true: { subtitle: "line-clamp-2 leading-body" },
       false: { subtitle: "truncate" },
     },
+    // THE ROW-TITLE STEP (added 2026-08-16, side-eye #102 F8). `default` is the tier's own step — `body`
+    // at form, `label` at instrument — and stays the answer for every dense list. `promoted` is the
+    // opt-in for a list whose rows ARE the surface's content rather than a directory of it: home's
+    // also-open rooms, which the approved ramp assigns `title` (16px). Without it the six-step ramp had
+    // NO title step in use anywhere on that page, so the rooms and the shelf glosses sat one 2px hair
+    // apart and the block read flat.
+    //
+    // THE CLASS ALONE CANNOT WIN: `tiers.css` sets `font-size` on `[data-surface-tier]
+    // [data-slot="list-row-title"]` UNLAYERED, and an unlayered rule beats every Tailwind utility
+    // regardless of specificity — so inside any `<Surface>` a `text-title` here would silently resolve to
+    // the tier's step. The step therefore ships as a `data-title-step` attribute the tier map reads
+    // (tiers.css), and the class below is only the TIER-LESS arm, for a row rendered outside every
+    // Surface. Pinned by computed value, never by reading either file.
+    titleStep: {
+      default: {},
+      promoted: { title: "text-title leading-title font-semibold" },
+    },
     density: {
       default: { body: "min-h-control-md px-row py-field" },
       compact: { body: "min-h-control-sm px-field py-field" },
@@ -180,5 +197,13 @@ export const listRowVariants = tv({
       class: { root: "cursor-pointer hover:bg-accent active:bg-accent/80" },
     },
   ],
-  defaultVariants: { density: "default", clickable: false, float: false, subtitleWrap: false, subtitlePlacement: "block", rowTint: "body" },
+  defaultVariants: {
+    density: "default",
+    clickable: false,
+    float: false,
+    subtitleWrap: false,
+    subtitlePlacement: "block",
+    rowTint: "body",
+    titleStep: "default",
+  },
 });

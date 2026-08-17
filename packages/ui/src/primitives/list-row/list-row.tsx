@@ -125,6 +125,13 @@ export interface ListRowProps {
   disabled?: boolean;
   /** `compact` tightens the row to the sm control height for dense surfaces. */
   density?: "default" | "compact";
+  /**
+   * The TITLE's type step. `default` (the tier's own — `body` at form, `label` at instrument) is right for
+   * every dense list. `promoted` takes the `title` step for a list whose rows ARE a surface's content
+   * rather than a directory of it — home's also-open rooms, which the approved ramp assigns 16px. See
+   * `variants.ts` for why it travels as a data attribute rather than a class.
+   */
+  titleStep?: "default" | "promoted";
   onClick?: MouseEventHandler<HTMLButtonElement>;
   className?: string;
 }
@@ -173,12 +180,14 @@ function ListRowContent({
   subtitleDecorative,
   meta,
   markers,
+  titleStep,
   ids,
 }: {
   slots: Slots;
   clickable: boolean;
   leading: ReactNode;
   title: string;
+  titleStep: "default" | "promoted";
   fullTitle: string | undefined;
   subtitle: string | undefined;
   subtitleLead: ReactNode;
@@ -225,7 +234,16 @@ function ListRowContent({
       )}
       <span className={slots.content()} data-slot="list-row-content">
         <span className={slots.titleRow()} data-slot="list-row-title-row">
-          <span aria-hidden={clickable ? true : undefined} className={slots.title()} data-slot="list-row-title" title={fullTitle ?? title}>
+          {/* `data-title-step` is READ BY THE TIER MAP (tiers.css), not by a utility: the tier rule that
+              sets this slot's font-size is unlayered and outranks any class the variant could add inside a
+              <Surface>. The variant's class is the tier-less fallback for a row outside every Surface. */}
+          <span
+            aria-hidden={clickable ? true : undefined}
+            className={slots.title()}
+            data-slot="list-row-title"
+            data-title-step={titleStep === "promoted" ? "promoted" : undefined}
+            title={fullTitle ?? title}
+          >
             {title}
           </span>
           {/* INLINE: the scent rides the title line, taking the flexing column so the NAME keeps its floor. */}
@@ -357,10 +375,11 @@ export function ListRow({
   expanded,
   disabled = false,
   density = "default",
+  titleStep = "default",
   onClick,
   className,
 }: ListRowProps): ReactElement {
-  const slots = listRowVariants({ density, clickable, float: actionsFloat, subtitleWrap, subtitlePlacement, rowTint });
+  const slots = listRowVariants({ density, clickable, float: actionsFloat, subtitleWrap, subtitlePlacement, rowTint, titleStep });
   const rootRef = useRef<HTMLDivElement>(null);
   const collapsed = useCollapsedBelow(rootRef, renderActions === undefined ? undefined : collapseBelow);
   const resolvedActions = renderActions !== undefined ? renderActions(collapsed) : actions;
@@ -398,6 +417,7 @@ export function ListRow({
           subtitleLead={subtitleLead}
           subtitleReveal={subtitleReveal}
           title={title}
+          titleStep={titleStep}
         />
       </ListRowBody>
       {resolvedActions === undefined ? null : (

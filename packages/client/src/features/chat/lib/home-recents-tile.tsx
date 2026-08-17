@@ -12,24 +12,25 @@
 // finding under review was "the live conversations are not the loudest thing on home", and a page whose
 // only accent was a throwaway-room button was precisely that complaint.
 //
-// The trailing action stays a GHOST, which is unchanged and now for a stronger reason: the hero is the
-// accent, so nothing else on this block may compete with it.
+// THE TRAILING ACTION MOVED to the "Also open" tile (side-eye 2026-08-16 F13). "All chats →" sat on this
+// band, one line away from the "Chats" pill in the jump rail — two labels for one destination on one row —
+// and the mock puts it on the also-open kicker, which is the band the link is actually about. This block
+// now carries NO trailing affordance at all, which is the stronger reading of the sentence above: the hero
+// is the accent, and it is the only thing on its own band.
 
-import { Button } from "@orb/ui/button";
 import { MessagesSquare } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
-import { setActiveSection } from "#state";
-import { HomeRecentsTileBody, RECENTS_LIMIT } from "../components/home-recents-tile-body.tsx";
+import { HomeRecentsTileBody } from "../components/home-recents-tile-body.tsx";
 
 const RECENTS_TILE_ORDER = 10;
 
-/** The FIRST-BOOT box, in skeleton rows (#92). NOT `RECENTS_LIMIT`: the body is one HERO plus
- *  `RECENTS_LIMIT - 1` dense rows, and the hero is about three rows tall (a 64px cast strip beside a
- *  headline, two clamped prose lines, and a meta line). Eight equal rows under-reserve a hero-plus-seven
- *  body by a hero's worth, which is the shift this declaration exists to stop — it was the app's worst
- *  one (a 3-row skeleton settling into eight rows moved every tile below it 308px). Derived from the
- *  body's own limit so the two cannot drift; from boot two on the MEASURED box wins. */
-const RECENTS_SKELETON_ROWS = RECENTS_LIMIT + 2;
+/** The FIRST-BOOT box, in skeleton rows (#92). The body is the HERO ALONE now that the also-open list is
+ *  its own tile, and the hero is about three rows tall — a 64px cast strip beside a headline, two clamped
+ *  prose lines, and a credit line. It was `RECENTS_LIMIT + 2` when this body rendered the hero AND seven
+ *  rows; leaving it there would reserve ten rows for a three-row block and snap the whole hearth column up
+ *  when the read landed, which is the same defect in the other direction. Re-measure if the hero grows a
+ *  line; do not re-derive it by counting DOM nodes (a skeleton ROW is a bar plus its gap, not a text line). */
+const RECENTS_SKELETON_ROWS = 3;
 
 export const chatRecentsTile: HomeTileContribution = {
   id: "chat.recents",
@@ -40,10 +41,5 @@ export const chatRecentsTile: HomeTileContribution = {
   order: RECENTS_TILE_ORDER,
   region: "hearth",
   skeletonRows: RECENTS_SKELETON_ROWS,
-  action: (
-    <Button intent="ghost" onClick={(): void => setActiveSection("chats")} size="sm">
-      All chats →
-    </Button>
-  ),
   body: () => <HomeRecentsTileBody />,
 };

@@ -26,6 +26,10 @@ const RAIL_LABELS: Record<Exclude<SectionId, "home">, string> = {
 };
 const EXPECTED = SECTION_IDS.filter((id): id is Exclude<SectionId, "home"> => id !== "home").map((id) => RAIL_LABELS[id]);
 
+/** The chats section's own gate-checked `placeholder.description` — the copy that left the COLUMN with the
+ *  pill rail and came back on the pill itself (side-eye 2026-08-16 F10). */
+const CHATS_GLOSS = "Your conversations live here — pick a thread from your chats, or start a new one.";
+
 test("the jump rows ARE the section registry minus home, in registry order", async ({ mount }) => {
   const home = await mount(<HomeSectionJumpStory />);
 
@@ -45,7 +49,7 @@ test("#102: the destinations are a WRAPPING PILL RAIL, and the teaching gloss is
   const home = await mount(<HomeSectionJumpStory />);
 
   const tile = home.locator('[data-home-tile="home.jump"]');
-  await expect(tile.getByText("Your conversations live here — pick a thread from your chats, or start a new one.")).toHaveCount(0);
+  await expect(tile.getByText(CHATS_GLOSS, { exact: true })).toHaveCount(0);
   await expect(tile.locator('[data-slot="list-row-subtitle"]')).toHaveCount(0);
 
   const rail = await tile.getByRole("button", { name: "Chats" }).evaluate((el) => {
@@ -61,6 +65,21 @@ test("#102: the destinations are a WRAPPING PILL RAIL, and the teaching gloss is
   // pill's own height" is the shape claim (a capsule) rather than a brittle 9999.
   expect(rail.radius).toBeGreaterThanOrEqual(rail.height / 2);
   expect(rail.wraps).toBe("wrap");
+});
+
+// ── RED-FIRST (#102 review F10): the insider names are not stranded ─────────────────────────────────
+// "Corpus", "Refinery" and "Configuration" are insider names on the LANDING surface, and the pill rail
+// shipped them with title, aria-label and aria-describedby all null — nothing to hover, nothing announced.
+// The gloss is back in the two channels that cost zero layout, and the VISIBLE word still owns the name
+// (WCAG 2.5.3: an aria-label of the description would break voice control).
+test("#102-F10 every jump pill carries its section's gloss — as a tooltip AND as an accessible description", async ({ mount }) => {
+  const home = await mount(<HomeSectionJumpStory />);
+
+  const chats = home.locator('[data-home-tile="home.jump"]').getByRole("button", { name: "Chats" });
+  await expect(chats).toHaveAttribute("title", CHATS_GLOSS);
+  await expect(chats).toHaveAccessibleDescription(CHATS_GLOSS);
+  // …and the pill's NAME is still the visible word, not the sentence.
+  await expect(chats).toHaveAccessibleName("Chats");
 });
 
 test("no Planned badge survives a graduation — the badge derives from `content`, so it vanished the day refinery shipped", async ({ mount }) => {

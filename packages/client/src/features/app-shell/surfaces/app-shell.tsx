@@ -262,6 +262,27 @@ export function AppShell(): ReactElement {
             style={shellVars}
           >
             <CustomThemeStyle css={theme?.css ?? null} />
+            {/* THE SKIP (side-eye 2026-08-16 F9 — filed against home, fixed here because a skip link after
+                the rail skips nothing). The rail plus the topbar is a FIXED ~15-stop preamble in front of
+                every section's first real control: on home the resume hero — the one thing the landing
+                surface exists to offer — was tab stop 16. None of those stops is droppable (they are the
+                app's whole navigation), so the honest fix is the standard skip posture, exactly as the
+                assembly rack does it one level down: rest-invisible, revealed on focus-visible, costing the
+                pointer user nothing and the keyboard user one press.
+                FIRST IN DOM ORDER inside the grid, which is the whole contract — a skip control that is not
+                the first focusable is a second tab stop, not a skip. It moves focus to the `<main>` scroll
+                container (already `tabIndex={-1}` and already named by the active section) rather than to a
+                control inside it, so the next Tab lands on the section's first real affordance whatever
+                that section is. `absolute` keeps it out of the shell grid's track flow when revealed. */}
+            <Button
+              className="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:start-row focus-visible:top-row focus-visible:z-(--z-overlay)"
+              intent="secondary"
+              onClick={(): void => mainRef.current?.focus()}
+              size="sm"
+              type="button"
+            >
+              Skip to content
+            </Button>
             <RailSlot activeSection={layout.activeSection} show={!layout.mobileViewport} />
 
             <PanelChrome

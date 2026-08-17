@@ -123,6 +123,44 @@ export function HomeRegionStory(): ReactElement {
   return <Story tiles={REGION_TILES} />;
 }
 
+// ── The SPLIT UNDER PRESSURE (#102 review P1-1) ─────────────────────────────────────────────────────
+// The declared 1.55fr/1fr only means anything if the tracks may shrink BELOW their content. A grid track
+// child is `min-width:auto`, so the shipped hearth was floored at the hero's ~743px min-content and
+// rendered 1.92/1 at the 1280px pane — the shelf lost a whole face column and the page grew ~200px. This
+// story reproduces the pressure with a tile whose content simply cannot wrap, which is the general case
+// (a long unbroken title, a wide credit line, a nowrap datum row) rather than one room's cast.
+
+/** Wider than the hearth track's fair share at the story's mount width, and unbreakable. */
+const WIDE_CONTENT_PX = 900;
+
+const PRESSURE_TILES: readonly HomeTileContribution[] = [
+  {
+    id: "lead",
+    title: "Hearth tile",
+    icon: MessagesSquare,
+    order: 10,
+    region: "hearth",
+    body: () => (
+      <Text className="truncate whitespace-nowrap" style={{ minInlineSize: `${WIDE_CONTENT_PX}px` }}>
+        an unbreakable hearth line
+      </Text>
+    ),
+  },
+  { id: "rail", title: "Shelf tile", icon: BrainCircuit, order: 20, region: "shelf", body: () => <Text>shelf body</Text> },
+];
+
+/** A hearth tile whose content is wider than its track's fair share, beside a shelf tile — the shape that
+ *  broke the approved ratio. Mounted WIDE enough for the two-column arm to be live. */
+export function HomeSplitPressureStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ inlineSize: 1160 }}>
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", PRESSURE_TILES)} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 // ── The BOOT-CLS reservation (F14) ──────────────────────────────────────────────────────────────────
 // A tile that is still reading is the state that used to move the whole grid: its 3-row skeleton is not
 // the box its content settles at. The frame reserves the height THIS DEVICE measured last time

@@ -7,7 +7,7 @@ import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { HomeDormantTileStory, HomeEmptyStory, HomeRegionStory, HomeTileOrderStory, HomeTileVisibilityStory } from "../_ct-stories.tsx";
+import { HomeDormantTileStory, HomeEmptyStory, HomeRegionStory, HomeSplitPressureStory, HomeTileOrderStory, HomeTileVisibilityStory } from "../_ct-stories.tsx";
 
 const TEASER_RE = /Your companion/u;
 const REASON_RE = /waiting on: domain\/buddy/u;
@@ -128,6 +128,46 @@ test("#102 REGIONS: masthead above the split, hearth in the LEAD column, an unpl
   expect(unplaced?.x ?? 0).toBe(rail?.x ?? -1);
 });
 
+// ── RED-FIRST (#102 review P1-1): the approved ratio survives CONTENT PRESSURE ──────────────────────
+// The shipped split rendered 1.92/1 at the 1280px pane (742.06/385.94 measured in-page) because a grid
+// TRACK CHILD is `min-width:auto` and the hearth's content floored its track. Asserted on the RESOLVED
+// track template — the only place the defect is visible — against the declared 1.55:1, not a px literal.
+test("RED-FIRST (#102-P1-1): the 1.55fr/1fr split holds even when the hearth's content is wider than its track", async ({ mount }) => {
+  const home = await mount(<HomeSplitPressureStory />);
+
+  const template = await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
+  const tracks = template.trim().split(WHITESPACE_RE).map(Number.parseFloat);
+  expect(tracks).toHaveLength(2);
+  const [lead = 0, rail = 0] = tracks;
+  // 1.55:1 = 1.55. A track floored at its content read 1.92; anything at or under 1.6 is the declared
+  // shape surviving, and the tolerance is what keeps this off a px literal.
+  expect(lead / rail).toBeLessThan(1.6);
+  expect(lead / rail).toBeGreaterThan(1.5);
+});
+
+// ── RED-FIRST (#102 review F3): the rail's SECOND BREATH at a wide pane ─────────────────────────────
+test("RED-FIRST (#102-F3): the rail's two footnote blocks go SIDE BY SIDE at a wide pane, not stacked", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 2000, height: 1200 });
+  const home = await mount(<HomeRegionStory />);
+
+  const foot = home.locator("[data-home-shelf-foot]");
+  const footTemplate = await foot.evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
+  expect(trackCount(footTemplate)).toBe(2);
+
+  // …and it is REAL geometry, not just a template: the doorway band sits beside the last shelf tile.
+  const tile = await home.locator('[data-home-tile="unplaced"]').boundingBox();
+  const doorways = await page.getByRole("region", { name: "Not yet" }).boundingBox();
+  expect(doorways?.x ?? 0).toBeGreaterThan((tile?.x ?? 0) + (tile?.width ?? 0) - 1);
+});
+
+test("#102-F3 the footnote pair STACKS again at the pane width the rail is narrow", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 1200 });
+  const home = await mount(<HomeRegionStory />);
+
+  const template = await home.locator("[data-home-shelf-foot]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
+  expect(trackCount(template)).toBe(1);
+});
+
 test("#102 DOORWAYS are grouped under ONE 'Not yet' band, not framed one by one", async ({ mount, page }) => {
   await mount(<HomeRegionStory />);
 
@@ -138,7 +178,19 @@ test("#102 DOORWAYS are grouped under ONE 'Not yet' band, not framed one by one"
   // …and neither wears a band, a badge or a control of its own (a doorway has no chrome to spend).
   await expect(group.getByText("Dormant")).toHaveCount(0);
   await expect(group.getByRole("button")).toHaveCount(0);
-  await expect(group.getByRole("heading", { level: 2 })).toHaveCount(0);
+  // The band's OWN h2 is the group's name and is the only heading in it — no doorway draws one.
+  await expect(group.getByRole("heading")).toHaveCount(1);
+});
+
+// ── RED-FIRST (#102 review F6): "Not yet" is a PEER block, not a child of the tile above it ─────────
+test("#102-F6 the 'Not yet' band names itself with an h2, level with home's other blocks", async ({ mount, page }) => {
+  await mount(<HomeRegionStory />);
+
+  const group = page.getByRole("region", { name: "Not yet" });
+  await expect(group.getByRole("heading", { level: 2, name: "Not yet" })).toBeVisible();
+  // …and the surface has NO h3 at all: every block on home is a peer (the outline read h1 → h2 → h3 →
+  // h2×4 → h3 before this, so two of seven blocks announced as children of nothing).
+  await expect(page.getByRole("heading", { level: 3 })).toHaveCount(0);
 });
 
 // ── A11y STRUCTURE (side-eye F3/F4) — the frame owns it, so every contributed tile inherits it ──────

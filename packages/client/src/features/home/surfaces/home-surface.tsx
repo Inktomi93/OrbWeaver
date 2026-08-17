@@ -25,6 +25,12 @@
 // nothing is imported and no feature is consulted — and it is what keeps the diet honest: two doorways
 // wearing two bands and two badges is more chrome than the thing they are doorways to.
 //
+// THE RAIL GETS A SECOND BREATH AT >=100rem (side-eye 2026-08-16 F3). The `lead` split already widens the
+// rail there; the shape's other half — the rail's two footnote blocks side by side — was unbuilt, so a
+// 2000px pane bought a taller page instead of more of the house in reach. The pairing is POSITIONAL (the
+// last shelf tile beside the doorway group), because positional is the only thing a host that imports zero
+// features can honestly say, and it is the same presentation license the doorway grouping already takes.
+//
 // ZERO tiles ⇒ ONE designed empty state (never a blank surface). The Weave decoration rides HERE and only
 // here — at most one per screen (section-placeholder.tsx); every other surface keeps the muted sparkle.
 
@@ -75,6 +81,10 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
   // The DEFAULT region (`HomeTileContribution.region` documents why): a tile that declares nothing is a
   // data surface and belongs on the shelf, never promoted into the hearth by omission.
   const shelf = live.filter((tile) => tile.region !== "masthead" && tile.region !== "hearth");
+  // The rail's FOOT — the last shelf tile, which pairs with the doorway group at a wide pane (see the
+  // subgrid below). `slice(-1)` rather than `at(-1)` so the empty-shelf arm needs no null branch in JSX.
+  const shelfFoot = doorways.length === 0 ? [] : shelf.slice(-1);
+  const shelfLead = doorways.length === 0 ? shelf : shelf.slice(0, -1);
 
   return (
     // FORM tier (density-pass-spec.md §3.1): home is a surface you land on and act from, so its islands
@@ -109,25 +119,49 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
               {/* `items-start` (mock `.room{align-items:start}`): grid's default `stretch` would make the
                   shelf column as tall as the hearth and hang its last block in dead space. */}
               <Grid className="items-start" cols="lead" data-home-grid={true} gap="gutter">
-                <Stack gap="section">
+                {/* `min-w-0` IS THE SPLIT (side-eye 2026-08-16 P1-1). A grid TRACK CHILD is `min-width:auto`,
+                    so each track is floored at its content's min-content width — and the hero's own
+                    min-content (a 64px cast strip + a headline + a cast/age line) is ~743px, which silently
+                    overrode the approved `1.55fr/1fr` and rendered 1.92/1 at the 1280px pane (742.06/385.94
+                    measured). The shelf paid for it: its face grid dropped from three fixed cells to two and
+                    the page grew 1374px against 1177px. The declared ratio only means anything on tracks that
+                    are allowed to shrink below their content. */}
+                <Stack className="min-w-0" gap="section">
                   {hearth.map((tile) => (
                     <HomeTile key={tile.id} tile={tile} />
                   ))}
                 </Stack>
-                <Stack data-home-shelf={true} gap="section">
-                  {shelf.map((tile) => (
+                <Stack className="min-w-0" data-home-shelf={true} gap="section">
+                  {shelfLead.map((tile) => (
                     <HomeTile key={tile.id} tile={tile} />
                   ))}
-                  {doorways.length === 0 ? null : (
-                    // ONE band over every declared doorway. `<Section kicker>` is the sanctioned band
-                    // anatomy (caps micro + a hairline to the edge) and it renders a real h3, so the
-                    // group is a named landmark instead of two anonymous dashed rules.
-                    <Section aria-label="Not yet" kicker="Not yet">
-                      {doorways.map((entry) => (
-                        <HomeDoorway doorway={entry.doorway} key={entry.tile.id} tile={entry.tile} />
-                      ))}
-                    </Section>
-                  )}
+                  {/* THE RAIL'S SECOND BREATH (side-eye 2026-08-16 F3). The `lead` split widens the rail at
+                      >=100rem, and that was only half the promise: at a 2000px pane the hearth column
+                      dead-ended around y=750 with the rail's last two blocks stacked beside ~350px of void,
+                      so a wider monitor bought a taller page instead of more of the house in reach. The
+                      shape's answer is to pair the rail's two FOOTNOTE blocks — its last tile and the
+                      doorway group — into a subgrid at exactly that step.
+
+                      WHICH two is POSITIONAL, never named: home reads no feature, so "the tile at the foot
+                      of the shelf" is the only thing it can say, and it is the same presentation license it
+                      already exercises by grouping every doorway under one band. With no doorways to pair
+                      against there is nothing to pair and the tail renders in flow. */}
+                  <Grid className="items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter">
+                    {shelfFoot.map((tile) => (
+                      <HomeTile key={tile.id} tile={tile} />
+                    ))}
+                    {doorways.length === 0 ? null : (
+                      // ONE band over every declared doorway. `<Section kicker>` is the sanctioned band
+                      // anatomy (caps micro + a hairline to the edge), and `level={2}` makes it a PEER of
+                      // home's other blocks in the document outline rather than a child of whichever one
+                      // precedes it (side-eye F6 — it rendered h3 beside six h2s).
+                      <Section aria-label="Not yet" kicker="Not yet" level={2}>
+                        {doorways.map((entry) => (
+                          <HomeDoorway doorway={entry.doorway} key={entry.tile.id} tile={entry.tile} />
+                        ))}
+                      </Section>
+                    )}
+                  </Grid>
                 </Stack>
               </Grid>
             </Stack>

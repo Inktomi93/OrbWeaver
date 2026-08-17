@@ -7,9 +7,10 @@
 // carried each section's gate-checked `placeholder.description` as a two-line teaching gloss, which made
 // the NAVIGATION block the tallest thing in the hearth column: seven sentences of copy competing with
 // the rooms the page exists to get you back into. The mockup's answer, and the owner's pick, is a
-// wrapping row of destinations — a rail you skim, not a directory you read. DELIBERATE LOSS, recorded so
-// the next reader does not "restore" it by accident: the teaching copy is gone from HOME. It still
-// renders on each section's own placeholder, which is where a first-time visitor meets it in context.
+// wrapping row of destinations — a rail you skim, not a directory you read. The teaching copy is gone from
+// the PAGE's column, deliberately; it is NOT gone from the pill (see the gloss note on the Button below —
+// side-eye 2026-08-16 F10 caught the first version, which stranded three insider names with no gloss in
+// any channel at all). It also still renders on each section's own placeholder, in context.
 //
 // A DECLARED-PLANNED section (refinery, lockdown O1) still renders its state honestly: the Planned badge
 // derives from `typeof def.content !== "function"` — the same ONE field that carries the marker — so the
@@ -39,7 +40,17 @@ export function SectionJumpRail({ siblings }: { readonly siblings: readonly Home
         // A jump IS an action on the shell store (this app has ONE route), so the destination is a
         // Button, never an `<a href>` — and `shape="pill"` is the rail's whole register: one of many
         // small things to skim, not a control to operate.
-        <Button intent="secondary" key={def.id} onClick={(): void => setActiveSection(def.id)} shape="pill" size="sm">
+        // A GLOSS RIDES EVERY PILL (side-eye 2026-08-16 F10). Deleting the teaching copy from the rows was
+        // right for the COLUMN and wrong for the words: "Corpus", "Refinery" and "Configuration" are
+        // insider names, and they were left on the LANDING surface with no title, no aria-label and no
+        // description — a first-time visitor had nothing to hover and nothing announced. This restores the
+        // section's own gate-checked `placeholder.description` through the ONE attribute that serves both
+        // channels at zero layout cost: a native `title` is the pointer's tooltip AND — per accname's
+        // last-resort description step — the element's accessible DESCRIPTION. Deliberately not
+        // `aria-label` (it would replace the visible word and break label-in-name / voice control) and
+        // deliberately not `aria-description` (a draft attribute the button role does not support, which
+        // `jsx-a11y/role-supports-aria-props` reds).
+        <Button intent="secondary" key={def.id} onClick={(): void => setActiveSection(def.id)} shape="pill" size="sm" title={def.placeholder.description}>
           <Icon icon={def.rail.icon} size="sm" />
           {def.rail.label}
           {typeof def.content === "function" ? null : (

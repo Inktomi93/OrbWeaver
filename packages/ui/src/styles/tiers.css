@@ -85,6 +85,18 @@
   line-height: var(--orb-tier-row-title-leading);
 }
 
+/* THE PROMOTED ROW TITLE (`<ListRow titleStep="promoted">`, side-eye #102 F8) — the `title` step (16px)
+ * for a list whose rows ARE the surface's content rather than a directory of it (home's also-open rooms,
+ * which the approved ramp assigns 16px; the six-step ramp otherwise had NO title step in use on that
+ * page). It has to be spelled HERE for the same reason the ELEVATED radius opt-in is: the tier rule above
+ * is unlayered, so a `text-title` utility on the same slot would lose to it inside every <Surface>. It is
+ * tier-INDEPENDENT on purpose — "this row is the content" is a statement about the list, not the pane. */
+[data-surface-tier] [data-slot="list-row-title"][data-title-step="promoted"] {
+  font-size: var(--text-title);
+  font-weight: 600;
+  line-height: var(--leading-title);
+}
+
 /* The row's quiet second line + its stamp — the `gloss` voice at instrument, `label` at form. SIZE only:
  * the LINE-HEIGHT stays in the variants because it is the one property the `subtitleWrap` arm has to
  * raise (a clamped two-line gloss at 1.25 is cramped), and a tier rule here would outrank that arm.
