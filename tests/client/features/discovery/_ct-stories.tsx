@@ -68,6 +68,19 @@ export function CorpusContentStory(): ReactElement {
   );
 }
 
+/** The SAME region at the narrowest real host — a phone-width CONTENT pane. Fixed width with the pane's
+ *  own overflow so a shrink-0 cluster or an un-truncated title collides here instead of on someone's phone
+ *  (the 2026-08-08 "measure every row at its narrowest real mount" ruling). */
+export function CorpusContentNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 740, overflow: "visible", width: 430 }}>
+        <CorpusContent />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 const DOSSIER_CHARACTER = castId<CharacterId>("char_aria");
 
 /** The Corpus CONTENT dossier over the real data layer — the ASK panel's provenance badge lives here. */
