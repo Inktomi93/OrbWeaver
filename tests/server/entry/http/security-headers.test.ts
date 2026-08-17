@@ -28,6 +28,17 @@ async function cspFor(dev: boolean, allowExternalMedia = false): Promise<string>
   return (await headersFor(dev, allowExternalMedia)).get("content-security-policy") ?? "";
 }
 
+const WHITESPACE = /\s+/;
+
+/** The source-list tokens of one CSP directive (name dropped), or `[]` if the directive is absent. */
+function directiveTokens(csp: string, name: string): readonly string[] {
+  const directive = csp
+    .split(";")
+    .map((d) => d.trim())
+    .find((d) => d === name || d.startsWith(`${name} `));
+  return directive ? directive.split(WHITESPACE).slice(1) : [];
+}
+
 describe("securityHeaders", () => {
   test("prod CSP: strict script/connect, no data: images, sandboxed-object/frame posture", async () => {
     const csp = await cspFor(false);
@@ -45,6 +56,26 @@ describe("securityHeaders", () => {
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("base-uri 'self'");
     expect(csp).toContain("form-action 'self'");
+  });
+
+  // THE SRCDOC CARD-FLOOR SCRIPT-DEATH INVARIANT — the durable watch-item the #111 interactive-cards
+  // security review named (reports/reviews/interactive-cards-security-2026-08-16.md, CLEAN). The interactive
+  // card's degraded arm (@orb/ui sandbox-frame's `srcdoc` mount — a story/CT mount or a failed/unresolved
+  // mint) has NO document of its own; it inherits AND intersects THIS app-document policy. So it can only
+  // stay script-dead while this prod `script-src` grants no keyword that would let inline/eval/host-loaded
+  // code run: the srcdoc can never out-permit the intersection of the two. `'self'` alone means a srcdoc —
+  // which has no origin to be "self" — can load nothing. Widen this and the floor silently goes script-ALIVE
+  // with nothing else red. Enforcing the header comment's prose boundary (§"`script-src` is `'self'`-only"):
+  // if an anti-FOUC inline script ever lands, it rides a boot-time HASH allowlist, NEVER any of these
+  // keywords. (Dev's HMR loosening is the intentional, dev-only exception, pinned by the dev test below.)
+  test("prod script-src grants no script-execution escape — the srcdoc card-floor's script-death rides this", async () => {
+    const tokens = directiveTokens(await cspFor(false), "script-src");
+    // The EXACT allowed shape today. A future inline need is met with a hash token, not a keyword.
+    expect(tokens).toEqual(["'self'"]);
+    // …and, named so the invariant reads at the assertion: none of the escapes a srcdoc could ride.
+    for (const forbidden of ["'unsafe-inline'", "'unsafe-eval'", "'strict-dynamic'", "*", "https:", "http:"]) {
+      expect(tokens, forbidden).not.toContain(forbidden);
+    }
   });
 
   // #111 leg 3 — THE CARD-FRAME NAVIGATION BELT. The embedder's policy is what decides where a card frame

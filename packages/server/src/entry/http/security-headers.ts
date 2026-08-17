@@ -34,7 +34,13 @@
 // first-party inline `<style>`; the real guard is the strict `script-src`.
 //
 // `script-src` is `'self'`-only in prod (zero intentional inline scripts today). If an anti-FOUC inline
-// script ever lands in index.html, use a boot-time hash-allowlist — never `'unsafe-inline'`.
+// script ever lands in index.html, use a boot-time hash-allowlist — never `'unsafe-inline'`. This is not a
+// prose-only wish: the interactive-card srcdoc FLOOR (@orb/ui sandbox-frame's degraded arm) stays
+// script-DEAD because a srcdoc inherits+intersects THIS policy, so a widening here silently reanimates it.
+// ENFORCED by tests/server/entry/http/security-headers.test.ts ("prod script-src grants no script-execution
+// escape") — the prod `script-src` admits none of `'unsafe-inline'`/`'unsafe-eval'`/`'strict-dynamic'`/a
+// host wildcard. The #111 review named this the one durable watch-item
+// (reports/reviews/interactive-cards-security-2026-08-16.md, CLEAN).
 //
 // DECLINED, 2026-08-16 tier-B card-frame pass (#91) — the card frame's height script is NOT hash-allowed
 // here. That script (`@orb/kit/card-frame`) rides the ROUTED card document's own response policy, which
