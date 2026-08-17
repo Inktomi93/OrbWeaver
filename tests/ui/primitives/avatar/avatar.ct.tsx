@@ -155,7 +155,7 @@ test("hueSeed defaults to alt — a missing seed still colors the fallback stabl
   expect(bgs[0]).toBe(bgs[1]);
 });
 
-// ── issue 103: the monogram sits inside the ACTIVE THEME's band, under every shipped palette ────────────────
+// ── #103: the monogram sits inside the ACTIVE THEME's band, under every shipped palette ────────────────
 //
 // The defect this pins: the fallback used to fill from `--color-chart-1..5`, a CATEGORICAL ramp chosen for
 // mutual distinguishability and therefore spread across the wheel and identical under every palette — so a

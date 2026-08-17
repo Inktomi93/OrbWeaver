@@ -152,6 +152,43 @@ export function MotionShiftFlaggerStory(): ReactElement {
   );
 }
 
+/** The VIRTUALIZED half of the CLS split (issue #109). Same mechanics as MotionShiftFlaggerStory, but the
+ *  whole shift happens INSIDE a `[data-slot="message-list-viewport"]` box — the marker `sourcesAreVirtualized`
+ *  keys on — and the box is fixed-height/overflow-hidden so nothing OUTSIDE it moves (one non-virtualized
+ *  source would flip the record's classification and the story would prove the opposite of its name). The
+ *  growth lands 900ms after the click, past the 500ms input window, so it reaches `cls` at all: an
+ *  input-adjacent shift never enters the total this arm is about. */
+export function MotionVirtualizedShiftStory(): ReactElement {
+  const [pushed, setPushed] = useState(false);
+  useEffect(() => {
+    installMotionObservers();
+    // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
+    const probes = globalThis as unknown as { __motionRead: typeof motionSnapshot | undefined };
+    probes.__motionRead = motionSnapshot;
+    return (): void => {
+      probes.__motionRead = undefined;
+    };
+  }, []);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={(): void => {
+          setTimeout(() => setPushed(true), 900);
+        }}
+      >
+        settle rows later
+      </button>
+      <div data-slot="message-list-viewport" style={{ height: 400, overflow: "hidden" }}>
+        <div style={{ height: pushed ? 200 : 0 }} />
+        <div data-testid="virtual-row" style={{ height: 300 }}>
+          reconciled row
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The `[space]` flagger stage (motion-flaggers.ts task #39/#40 fix): an `<img>` with no width/height
  *  attributes, no aspect-ratio, and a blocked src — the honest "unreserved replaced-element box" shape
  *  the flagger exists to catch. Rendered on a click (not on mount) so the story controls exactly when

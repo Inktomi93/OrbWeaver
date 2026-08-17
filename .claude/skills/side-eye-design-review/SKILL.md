@@ -158,7 +158,7 @@ state in ONE eval — never scrape the DOM.
 | --- | --- |
 | `__orb.snap()` | one-call overview `{ ready, shell, bus, queries, perf, renders }` — start here |
 | `__orb.renders()` | render heatmap `{ id, count, mounts, updates, totalMs, avgMs, maxMs }[]`, hottest-first — **churn is a real UX defect**, flag hot surfaces |
-| `__orb.motion()` | `{ loafs[], cls, worstBlocking, worstShift }` — long-animation-frames (`blockingDuration`, `styleAndLayoutStart>0` = style/layout ran in-frame) + layout instability. **The smoothness receipt — don't eyeball jank** |
+| `__orb.motion()` | `{ loafs[], cls, observedCls, virtualizedCls, nonVirtualizedCls, worstBlocking, worstShift, shifts[] }` — long-animation-frames (`blockingDuration`, `styleAndLayoutStart>0` = style/layout ran in-frame) + layout instability. **The smoothness receipt — don't eyeball jank.** Judge `nonVirtualizedCls`, not `cls` (see §11 motion) |
 | `__orb.animations()` | active animations `{ target, properties, compositorClean }[]` — `compositorClean:false` (animating anything but transform/opacity/filter) = per-frame-layout **jank risk** |
 | `__orb.perf()` | `orb:*` User-Timing measures `{ name, ms }[]` |
 | `__orb.queries()` | TanStack Query cache `{ key, status, fetch, stale, updatedAt }[]` — loading / stale / errored |
@@ -341,18 +341,24 @@ drawer/panel slides, scroll, immersive chat modes), read the numbers instead of 
   - a LoAF with **`styleAndLayoutStart > 0`** in the window — style/layout ran *inside* the frame (a
     forced reflow / a non-compositor animation): the jank signature.
   - **`worstBlocking > 50ms`** — a main-thread block long enough to drop frames / stall input.
-  - **`cls > 0.1`** — layout shifting under the user (content jumping as it loads).
+  - **`nonVirtualizedCls > 0.1`** — layout shifting under the user (content jumping as it loads).
+    **Read the NON-virtualized total, never the raw `cls`** (issue #109, 2026-08-16): the instrument
+    classifies virtual-row reconciliation (`shifts[].virtualized`) and `cls` still includes it, so a long
+    thread scores ~0.26 of pure message-list settling that NO app fix can move. `virtualizedCls` is the
+    share being excluded and `cls` is still printed — cite all three, gate on the third.
   - any animation with **`compositorClean: false`** — it animates a non-`transform`/`opacity`/`filter`
     prop (width/height/top/margin/…), i.e. a per-frame layout pass. Cross-refs §4 ("don't animate
     layout properties"): name the `target` + the offending `properties`.
 - **Deep audit — `pnpm motion-audit <route> [--selector <sel>]`** for the ground-truth **Percent
   Dropped Frames** (CDP trace, 4× CPU throttle so the budget is real). It prints a `PASS/FAIL` against
-  the budget below plus the LoAF/CLS/compositor-clean detail in one Bash call. Note: the dropped-frame %
-  is only fully trustworthy headful (`--vnc`) — headless has no real vsync; LoAF/CLS/blocking are the
-  headless-reliable signals.
+  the budget below plus the LoAF/CLS/compositor-clean detail in one Bash call. Its CLS line prints all
+  three numbers labeled — `raw … · virtualized … · non-virtualized …` — and the RESULT line carries
+  `cls-raw` / `cls-virtualized` / `cls-non-virtualized`; **only the last one is in the verdict**. Note:
+  the dropped-frame % is only fully trustworthy headful (`--vnc`) — headless has no real vsync;
+  LoAF/CLS/blocking are the headless-reliable signals.
 - **Thresholds** (name the number in the finding): frame budget **16.7ms** · LoAF blocking **≤50ms** ·
-  INP **≤200ms** · CLS **≤0.1** · animations must be **compositor-clean**. A breach on a reading/immersive
-  surface is ≥ P1 (jank on the primary experience); polish motion elsewhere is P2–P3.
+  INP **≤200ms** · **non-virtualized** CLS **≤0.1** · animations must be **compositor-clean**. A breach on
+  a reading/immersive surface is ≥ P1 (jank on the primary experience); polish motion elsewhere is P2–P3.
 
 ## §12 Repo map — where things live (stop re-discovering this every review)
 

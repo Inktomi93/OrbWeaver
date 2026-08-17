@@ -23,7 +23,10 @@
  *   • a LoAF in-window with styleAndLayoutStart>0 (style/layout ran inside the frame — a forced reflow /
  *     non-compositor animation) ;
  *   • worst LoAF blockingDuration > 50ms ;
- *   • CLS > 0.1 ;
+ *   • NON-VIRTUALIZED CLS > 0.1 — the verdict excludes shifts motion-stats.ts itself classified as
+ *     virtual-row reconciliation (issue #109, 2026-08-16: a home→chat journey measured ~0.26 of pure
+ *     virtualizer settling, so "under 0.1" was unreachable by any app fix). Nothing is hidden — the
+ *     report and the RESULT line print raw / virtualized / non-virtualized, labeled ;
  *   • any active animation with compositorClean:false.
  *   (dropped-frame % is reported and fails at >5%, but see the headless caveat — it's advisory here.)
  *
@@ -37,6 +40,7 @@
  *          for a trustworthy dropped-frame %) · --no-throttle (skip the 4× CPU throttle)
  */
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import type { ProbeSession } from "./_kit/browser.ts";
@@ -134,9 +138,33 @@ type LoafRecord = {
 type MotionSnapshot = {
   readonly loafs: readonly LoafRecord[];
   readonly cls: number;
+  /** The share of `cls` the in-page instrument classified as virtual-row reconciliation (issue #109).
+   *  OPTIONAL because this type mirrors whatever bundle is being served: `--isolated --ref <old sha>`
+   *  legitimately answers from a page that predates the split. */
+  readonly virtualizedCls?: number;
+  /** `cls` − `virtualizedCls` — the total this probe's budget gates on. Optional for the same reason. */
+  readonly nonVirtualizedCls?: number;
   readonly worstBlocking: number;
   readonly worstShift: number;
 };
+
+/** The three CLS numbers a report must show. Split from `report` so the verdict rule is unit-testable
+ *  (tests/tooling/motion-audit.test.ts) without a browser: a synthetic virtualized shift must move `raw`
+ *  and leave `budgeted` alone. A snapshot from a bridge that predates the split (`undefined` fields) is
+ *  read as "nothing classified virtualized", i.e. the pre-#109 behavior — never as a free pass. */
+export function clsTotals(motion: MotionSnapshot | null): { raw: number; virtualized: number; budgeted: number } {
+  if (motion === null) {
+    return { raw: 0, virtualized: 0, budgeted: 0 };
+  }
+  const virtualized = motion.virtualizedCls ?? 0;
+  return { raw: motion.cls, virtualized, budgeted: motion.nonVirtualizedCls ?? motion.cls - virtualized };
+}
+
+/** THE CLS VERDICT (issue #109): the budget judges the NON-virtualized total only. A shift the in-page
+ *  instrument tagged `virtualized` moves `raw` and must never move this. */
+export function clsOverBudget(motion: MotionSnapshot | null): boolean {
+  return clsTotals(motion).budgeted > CLS_BUDGET;
+}
 type AnimationRecord = {
   readonly target: string;
   readonly properties: readonly string[];
@@ -223,7 +251,7 @@ async function runAudit(page: Page, cdp: Awaited<ReturnType<ProbeSession["contex
 function report(url: string, opts: Args, data: AuditData): number {
   const { motion, animations, frames, pageErrors, stepFailed } = data;
   const worstBlocking = motion === null ? 0 : motion.worstBlocking;
-  const cls = motion === null ? 0 : motion.cls;
+  const cls = clsTotals(motion);
   const layoutInFrame = (motion === null ? [] : motion.loafs).filter((l) => l.styleAndLayoutStart > 0);
   const dirtyAnimations = animations.filter((a) => !a.compositorClean);
 
@@ -231,7 +259,8 @@ function report(url: string, opts: Args, data: AuditData): number {
   print(`window      ${opts.windowMs}ms · cpu-throttle ${opts.throttle ? `${CPU_THROTTLE_RATE}×` : "off"}`);
   print(`headless    ${opts.vnc ? "no (headful — dropped-frame % trustworthy)" : "yes (dropped-frame % ADVISORY — no real vsync)"}`);
   print(`LoAF        ${motion?.loafs.length ?? 0} in ring · worst blockingDuration ${worstBlocking}ms · ${layoutInFrame.length} with style/layout in-frame`);
-  print(`CLS         ${cls}`);
+  // All three, labeled: the raw CWV total, the virtual-row share, and the BUDGETED remainder (#109).
+  print(`CLS         raw ${cls.raw} · virtualized ${cls.virtualized} (expected reconciliation) · non-virtualized ${cls.budgeted}  ← budget ${CLS_BUDGET}`);
   print(`frames      ${frames.dropped}/${frames.total} dropped-smoothness (${frames.pct}%)`);
   print(`animations  ${animations.length} active · ${dirtyAnimations.length} NOT compositor-clean`);
   for (const a of dirtyAnimations) {
@@ -249,14 +278,20 @@ function report(url: string, opts: Args, data: AuditData): number {
   }
 
   const budgetFails =
-    layoutInFrame.length > 0 || worstBlocking > BLOCKING_BUDGET_MS || cls > CLS_BUDGET || dirtyAnimations.length > 0 || frames.pct > DROPPED_FRAME_BUDGET_PCT;
+    layoutInFrame.length > 0 ||
+    worstBlocking > BLOCKING_BUDGET_MS ||
+    clsOverBudget(motion) ||
+    dirtyAnimations.length > 0 ||
+    frames.pct > DROPPED_FRAME_BUDGET_PCT;
   const pass = !(budgetFails || stepFailed || pageErrors.length > 0);
 
   printResult("motion-audit", [
     ["verdict", pass ? "PASS" : "FAIL"],
     ["dropped-frames", `${frames.pct}%`],
     ["worst-blocking", `${worstBlocking}ms`],
-    ["cls", cls],
+    ["cls-raw", cls.raw],
+    ["cls-virtualized", cls.virtualized],
+    ["cls-non-virtualized", cls.budgeted],
     ["loaf-style-in-frame", layoutInFrame.length],
     ["dirty-animations", dirtyAnimations.length],
     ["page-errors", pageErrors.length],
@@ -297,10 +332,15 @@ async function main(): Promise<number> {
   return report(url, opts, withErrors);
 }
 
-void main().then(
-  (code) => process.exit(code),
-  (err: unknown) => {
-    print(`motion-audit failed: ${errorMessage(err)}`);
-    process.exit(1);
-  },
-);
+// CLI entry guard (the snap.ts convention): importing this module for its pure exports — `clsTotals`,
+// `clsOverBudget`, which tests/tooling/motion-audit.test.ts pins — must never launch a browser.
+const cliEntry = process.argv[1];
+if (cliEntry !== undefined && import.meta.url === pathToFileURL(cliEntry).href) {
+  void main().then(
+    (code) => process.exit(code),
+    (err: unknown) => {
+      print(`motion-audit failed: ${errorMessage(err)}`);
+      process.exit(1);
+    },
+  );
+}

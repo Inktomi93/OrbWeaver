@@ -330,10 +330,16 @@
  *                                          # lane's live edits — the crash-loop immunity is preserved).
  *                                          # `--dirty --fresh` forces a full rebuild of the dirty stage.
  *   pnpm snap --stage-down                 # stop the stage stack + remove the worktree/dir (ignores route);
- *                                          # falls back to a marker-less teardown (kill by stage-band port +
- *                                          # sweep stage dirs) when a lost marker left an ownerless stage
- *   pnpm snap --stage-status               # the engines:status-style read, stage edition: marker + stage-band
- *                                          # port owners + worktree dirs (surfaces a lost-marker stage)
+ *                                          # works from ANY checkout (the marker is shared); falls back to a
+ *                                          # marker-less teardown (kill by stage-band port + sweep stage
+ *                                          # dirs) when a lost marker left an ownerless stage
+ *   pnpm snap --stage-status               # the engines:status-style read, stage edition: marker + OWNER
+ *                                          # (checkout · pid · age) + stage-band port owners + this
+ *                                          # checkout's stage dirs (surfaces a lost-marker stage)
+ *   OWNERSHIP IS CROSS-CHECKOUT: the active marker is repo-keyed (<main>/.cache/snap-stage/active.json via
+ *   `git rev-parse --git-common-dir`), so a lane's stage is visible from main and vice versa. Against a LIVE
+ *   stage owned by ANOTHER checkout, --isolated at the SAME commit reuses it read-only; a rebuild, --fresh or
+ *   --dirty REFUSES and names the owner rather than killing a sibling's stack.
  *   First-boot cost: one `git worktree add` (or, for --dirty, an rsync) + `pnpm install` (shared store →
  *   cheap) + a stack boot; the stage then stays WARM across snap calls. A new HEAD sha auto-rebuilds the
  *   commit-pinned stage (the stale one is torn down); --dirty always re-syncs instead. A ref/tree predating
