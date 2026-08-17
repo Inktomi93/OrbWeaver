@@ -558,10 +558,17 @@ For example, a three-line sign is enough:
   "rpg.extract.tool.updateInventory": {
     id: "rpg.extract.tool.updateInventory",
     home: "preset",
-    version: 3,
+    // v4 — the FIRST-ACQUISITION rule, ported from `rpg.extract.plane.inventory` v4 (#118). The plane fragment
+    // reaches only the vehicles that compose an extraction SYSTEM PROMPT; the DEFAULT `folded` mode composes
+    // none, so this description is the fold's ONLY write-surface teaching. Compressed (a description budget is
+    // tighter than a system prompt's): the plane clause's "calls update_inventory with an add" collapses to
+    // "calls add" inside the tool's own description, and "exactly what add exists for" loses the adverb.
+    version: 4,
     text:
       "Items and coin on an actor. add: new items — ALWAYS give a `description` and a `location` (where it's " +
-      "carried: 'belt pouch', 'sheathed'), plus quantity. update: existing items whose description, quantity, or " +
+      "carried: 'belt pouch', 'sheathed'), plus quantity. A beat where anyone buys, takes, pockets, receives, or " +
+      "stows something ALWAYS calls add — an EMPTY pack is never a reason to skip; first acquisitions are what " +
+      "add exists for. update: existing items whose description, quantity, or " +
       "carrying location changed. remove: items used/lost/given away. walletDeltas: coin " +
       "gained/spent (negative=spent). EXAMPLE — an existing key moves from a pocket onto a necklace: " +
       "`{targetRef:'Hikari', update:[{name:'Small brass key', description:'key hanging on a silver chain', " +
