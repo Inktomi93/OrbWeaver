@@ -9,6 +9,7 @@
 // through the rendered sentence (not the new API), so it compiles and fails against the old composition.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatMastheadTileStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
@@ -17,7 +18,10 @@ import { chatListResponder, makeChatSummary } from "../fixtures.ts";
 const LEFT_OFF = /^You left off/u;
 
 test("F1 the masthead reads 'You left off just now', never 'now ago', for a seconds-old room", async ({ mount, page }) => {
-  const recent = makeChatSummary({ id: "chat_recent", title: "The Ashen Spire", participantNames: ["Wren"], lastMessageAt: Date.now() });
+  // Freeze the page clock so the component's "now" and the message time agree deterministically — no
+  // ambient Date.now() (test-determinism gate; Spine-Testing §3). A zero-span read exercises the sub-minute arm.
+  await page.clock.setFixedTime(FROZEN_AT_MS);
+  const recent = makeChatSummary({ id: "chat_recent", title: "The Ashen Spire", participantNames: ["Wren"], lastMessageAt: FROZEN_AT_MS });
   await routeTrpc(page, { "chat.listChats": chatListResponder([recent]) });
 
   const home = await mount(<ChatMastheadTileStory />);

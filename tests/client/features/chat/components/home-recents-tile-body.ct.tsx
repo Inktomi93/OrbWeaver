@@ -9,6 +9,7 @@
 // asserted against the shell STORE, never a rendered echo.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
@@ -348,12 +349,15 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
 // Asserted through the RENDERED stamp text (the credit voice's uppercase is CSS, so the DOM string is
 // what the sentence composes), not the new API — this compiles and fails against the old composition.
 test("F1 a room whose last turn is seconds old reads 'just now', never 'now ago'", async ({ mount, page }) => {
+  // Freeze the page clock so the component's "now" and the message time agree deterministically — no
+  // ambient Date.now() (test-determinism gate; Spine-Testing §3). A zero-span read exercises the sub-minute arm.
+  await page.clock.setFixedTime(FROZEN_AT_MS);
   const recent = makeChatSummary({
     id: "chat_recent",
     title: "The Ashen Spire",
     participantNames: ["Wren"],
     participantCharacterIds: ["char_wren"],
-    lastMessageAt: Date.now(),
+    lastMessageAt: FROZEN_AT_MS,
   });
   await routeTrpc(page, { "chat.listChats": chatListResponder([recent]), "character.list": CHARACTERS });
 
