@@ -1,5 +1,5 @@
 // The Media & trust admin SECTION (SET-SEAMS stage 4) — the deployment-wide content-render gates
-// (forbidExternalMedia, trustHtml) plus the generated-image download cap. Was the System pane's first
+// (forbidExternalMedia, trustHtml, allowInteractiveCards) plus the generated-image download cap. Was the System pane's first
 // group; it is a self-owned settings-SECTION CONTRIBUTION at the `admin` anchor now (§10 Q2 merged the
 // system pane into admin).
 //
@@ -78,8 +78,9 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
   const dirty = bytes !== null && bytes !== resolved.maxImageBytes;
   const forbidOverridden = isOverridden(overrides.forbidExternalMedia);
   const trustOverridden = isOverridden(overrides.trustHtml);
+  const interactiveOverridden = isOverridden(overrides.allowInteractiveCards);
   const capOverridden = isOverridden(overrides.maxImageBytes);
-  const anyOverridden = forbidOverridden || trustOverridden || capOverridden;
+  const anyOverridden = forbidOverridden || trustOverridden || interactiveOverridden || capOverridden;
 
   // Every write names ONLY this section's keys (S1) — the switches write immediately (a toggle IS the
   // override), the cap batches through Save.
@@ -91,7 +92,7 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
   // reset returned so the input VALUE flips alongside the "Using the deployment default" copy.
   const onReset = (): void => {
     save
-      .mutateAsync({ partial: { forbidExternalMedia: null, trustHtml: null, maxImageBytes: null } })
+      .mutateAsync({ partial: { forbidExternalMedia: null, trustHtml: null, allowInteractiveCards: null, maxImageBytes: null } })
       .then((resolvedAfter) => setMaxImageDraft(toMbDraft(resolvedAfter.maxImageBytes)))
       .catch(() => undefined);
   };
@@ -115,6 +116,17 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
           overridden={trustOverridden}
           floorLabel={envFloor(trustOverridden, resolved.trustHtml ? "on" : "off")}
           onSet={(next): void => write({ trustHtml: next })}
+        />
+        {/* The html-trust ladder's TOP rung, deployment half (#111 leg 3). OFF by default and deliberately
+            the loudest hint in this section: it is the only control that exists over the WebRTC beacon the
+            grant opens, which no Content-Security-Policy directive can close. */}
+        <AdminOverrideSwitch
+          label="Let interactive cards run their own scripts"
+          hint="Off by default. When on, a card from a character you marked “Interactive” runs its own JavaScript inside a locked-down frame — no cookies, no storage, no access to the app or to other cards, and no way to fetch anything. It CAN still beacon out over WebRTC, which no browser policy can block, so an interactive card can tell its author you looked at it and can capture anything you type inside the card itself. Leave this off unless you trust the cards you have marked Interactive. Changes reach an open tab on reload."
+          value={resolved.allowInteractiveCards}
+          overridden={interactiveOverridden}
+          floorLabel={envFloor(interactiveOverridden, resolved.allowInteractiveCards ? "on" : "off")}
+          onSet={(next): void => write({ allowInteractiveCards: next })}
         />
         <AdminOverrideField
           label="Max generated-image download (MB)"

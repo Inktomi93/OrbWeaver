@@ -30,6 +30,12 @@ import { env } from "#foundation/env";
 // Born-in-DB floors (no env var; only an admin override moves them).
 const FORBID_EXTERNAL_MEDIA_FLOOR = true;
 const TRUST_HTML_FLOOR = false;
+// The html-trust ladder's TOP rung, deployment half (#111 leg 3 security pass). OFF, and the floor is the
+// ruling rather than a convention: the grant runs model-authored scripts in a viewer's browser, and it
+// opens a WebRTC/STUN beacon no CSP directive can close (`@orb/kit/card-frame` residual R1), so an admin
+// has to turn it on deliberately. Leg 1 also shipped an editor saying the rung was inert, so per-character
+// opt-ins already stored were given under a different representation — default-ON would activate them.
+const ALLOW_INTERACTIVE_CARDS_FLOOR = false;
 const VLLM_EMBED_CONCURRENCY_FLOOR = 4;
 // 8 matches the gen engine's KV ceiling (it logs `Maximum concurrency … 7.52x` at max-model-len; ~8.2x at the
 // 0.6 util). 32 overshot what vLLM actually runs (~3-7 concurrent), so the excess just queued in vLLM's waiting
@@ -135,6 +141,7 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     logLevel: overrides.logLevel ?? env.LOG_LEVEL,
     forbidExternalMedia: overrides.forbidExternalMedia ?? FORBID_EXTERNAL_MEDIA_FLOOR,
     trustHtml: overrides.trustHtml ?? TRUST_HTML_FLOOR,
+    allowInteractiveCards: overrides.allowInteractiveCards ?? ALLOW_INTERACTIVE_CARDS_FLOOR,
     memoryDefaults: overrides.memoryDefaults ?? {},
     memorySummarizer: overrides.memorySummarizer ?? {},
     rateLimits: resolveRateLimits(overrides.rateLimits),

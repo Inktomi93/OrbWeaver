@@ -40,6 +40,12 @@ export interface AuthMetaDeps {
    *  will — a preview that reads the raw override column renders an INHERIT card untrusted on a deployment
    *  that trusts, which is a preview lying about the thing it exists to show. */
   readonly trustHtml: () => boolean;
+  /** The deployment INTERACTIVE-CARD CEILING (`effectiveConfig.allowInteractiveCards`, floor FALSE) — the
+   *  operator's half of the html-trust ladder's top rung (#111 leg 3). Served for the SAME reason
+   *  `forbidExternalMedia` is: the per-character "Interactive" rung is inert deployment-wide while this is
+   *  off, and a control that offers a capability nothing honours is the dead-opt-in defect. Never a
+   *  capability by itself — the frame policy is built server-side from the server's own read. */
+  readonly allowInteractiveCards: () => boolean;
 }
 
 /** Register the public bootstrap routes `GET /api/auth/config` + `GET /api/auth/me` on `app`. */
@@ -61,6 +67,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       multiHumanCapable: deps.multiHumanCapable(),
       forbidExternalMedia: deps.forbidExternalMedia(),
       trustHtml: deps.trustHtml(),
+      allowInteractiveCards: deps.allowInteractiveCards(),
       uploads: resolveUploadCaps({ maxImageBytes: deps.maxImageBytes(), maxDatabankBytes: deps.maxDatabankBytes() }),
     });
   });

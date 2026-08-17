@@ -359,6 +359,10 @@ export const appSettingsSchema = z.object({
   logLevel: logLevelSchema.nullable().optional().catch(undefined),
   forbidExternalMedia: z.boolean().nullable().optional().catch(undefined),
   trustHtml: z.boolean().nullable().optional().catch(undefined),
+  // The deployment CEILING on the html-trust ladder's top rung (#111 leg 3) — "may a card the host opted
+  // in run its own scripts in a viewer's browser". Floor FALSE; an AND with the per-character opt-in, never
+  // a default it can override. See `@orb/contracts/chat::DeploymentRenderPolicy`.
+  allowInteractiveCards: z.boolean().nullable().optional().catch(undefined),
   memoryDefaults: memoryDefaultsSchema.nullable().optional().catch(undefined),
   memorySummarizer: memorySummarizerSchema.nullable().optional().catch(undefined),
   rateLimits: rateLimitsSchema.nullable().optional().catch(undefined),
@@ -1154,6 +1158,7 @@ export interface EffectiveAppConfig {
   logLevel: LogLevel;
   forbidExternalMedia: boolean;
   trustHtml: boolean;
+  allowInteractiveCards: boolean;
   memoryDefaults: MemoryDefaults;
   memorySummarizer: MemorySummarizerConfig;
   rateLimits: ResolvedRateLimits;

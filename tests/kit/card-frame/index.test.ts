@@ -97,27 +97,74 @@ describe("the hash-pinned height script", () => {
   });
 });
 
-// ── THE POSTURE SEAM (#111 leg 1) ────────────────────────────────────────────────────────────────────────
-// `CardFramePosture` selects which `script-src` a routed document is built with. It is a SELECTION, not a
-// grant: both arms name the one measurement hash today, and the pin below is what makes an accidental
-// widening (or an intentional one that skipped the security pass) red.
+// ── THE POSTURE SEAM (#111 legs 1+3) ─────────────────────────────────────────────────────────────────────
+// `CardFramePosture` selects which `script-src` a routed document is built with. Leg 1 made the SELECTION
+// real while both arms named the same hash; the leg-3 security pass (2026-08-16) moved the `interactive`
+// row to `'unsafe-inline'` and nothing else. The "byte-identical postures" pin that guarded the gap is
+// REPLACED below by pins on the exact ruled delta — a stronger statement than the one it retires, because
+// it says both what moved and everything that did not.
 
 describe("the card-frame posture seam", () => {
-  test("both postures are declared, and the interactive arm grants NOTHING over the static one yet", () => {
+  test("the postures differ by EXACTLY the script-src directive — every other byte is identical", () => {
     expect([...CARD_FRAME_POSTURES]).toEqual(["static", "interactive"]);
     const media = { allowExternalMedia: true, allowInlineData: true } as const;
-    expect(buildCardFrameCsp(media, "document", "interactive")).toBe(buildCardFrameCsp(media, "document", "static"));
+    const split = (posture: (typeof CARD_FRAME_POSTURES)[number]): string[] => buildCardFrameCsp(media, "document", posture).split("; ");
+    const staticDirectives = split("static");
+    const interactiveDirectives = split("interactive");
+    // Same directives, same ORDER, one differing entry — so a widening that rides along with the grant
+    // (an added `connect-src`, a dropped `form-action`, a reordered `sandbox`) reds here.
+    expect(interactiveDirectives).toHaveLength(staticDirectives.length);
+    const differing = staticDirectives.filter((directive, index) => directive !== interactiveDirectives[index]);
+    expect(differing).toEqual([`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`]);
   });
 
-  test("the interactive arm names the ONE hash and no card-authored script source", () => {
+  test("THE GRANT: the interactive arm is `script-src 'unsafe-inline'` and REPLACES the hash", () => {
     const scriptSrc = buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "interactive")
       .split("; ")
       .find((directive) => directive.startsWith("script-src "));
-    expect(scriptSrc).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
-    // The keywords that would turn the posture into a capability. Moving any of them here is the leg-3
-    // security pass's act, and it re-writes this test with its review — it never happens by refactor.
-    for (const keyword of ["unsafe-inline", "unsafe-hashes", "unsafe-eval", "strict-dynamic", "nonce-", "*"]) {
+    expect(scriptSrc).toBe("script-src 'unsafe-inline'");
+    // THE HASH MUST NOT RIDE ALONG. Measured 2026-08-16 (Chromium 149): with a hash-source present,
+    // 'unsafe-inline' is IGNORED — "Note that 'unsafe-inline' is ignored if either a hash or nonce value is
+    // present in the source list" — so `script-src 'unsafe-inline' 'sha256-…'` refuses the card's script
+    // and the grant would read live while granting nothing. This is the pin on that whole class.
+    expect(scriptSrc).not.toContain("sha256-");
+    expect(scriptSrc).not.toContain("nonce-");
+    // …and the keywords the grant deliberately did NOT buy. `unsafe-eval` is the one that matters most:
+    // 'unsafe-inline' lets a card ship code, `unsafe-eval` would let it build code at runtime.
+    for (const keyword of ["unsafe-eval", "unsafe-hashes", "strict-dynamic", "http", "*"]) {
       expect(scriptSrc).not.toContain(keyword);
+    }
+  });
+
+  test("the STATIC arm is untouched by the grant — no card-authored script source, on any media policy", () => {
+    for (const media of [CARD_FRAME_SAFE_FLOOR, { allowExternalMedia: true, allowInlineData: true }]) {
+      const scriptSrc = buildCardFrameCsp(media, "document", "static")
+        .split("; ")
+        .find((directive) => directive.startsWith("script-src "));
+      expect(scriptSrc).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
+      for (const keyword of ["unsafe-inline", "unsafe-hashes", "unsafe-eval", "strict-dynamic", "nonce-", "*"]) {
+        expect(scriptSrc).not.toContain(keyword);
+      }
+    }
+  });
+
+  test("NO EXFIL DIRECTIVE OPENS WITH THE GRANT — the deny-by-default base is identical on both arms", () => {
+    for (const posture of CARD_FRAME_POSTURES) {
+      const csp = buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: true }, "document", posture);
+      // `default-src 'none'` is what closes connect-src (fetch/XHR/WebSocket/EventSource/sendBeacon),
+      // frame-src (a nested iframe) and worker-src's own name; naming any of them wider would be the
+      // regression this asserts against. Measured against a real server in the kit header's reach census.
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).not.toContain("connect-src");
+      expect(csp).not.toContain("frame-src");
+      expect(csp).not.toContain("child-src");
+      expect(csp).not.toContain("worker-src");
+      expect(csp).toContain("form-action 'none'");
+      expect(csp).toContain("base-uri 'none'");
+      expect(csp).toContain("frame-ancestors 'self'");
+      // `webrtc 'block'` is NOT emitted: Chromium 149 reports it "Unrecognized", so it would be dead
+      // config. The residual is recorded in the kit header (R1) and answered by the deployment ceiling.
+      expect(csp).not.toContain("webrtc");
     }
   });
 

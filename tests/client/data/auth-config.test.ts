@@ -23,6 +23,7 @@ const CONFIG: AuthConfig = {
   multiHumanCapable: true,
   forbidExternalMedia: true,
   trustHtml: false,
+  allowInteractiveCards: false,
   uploads: DEFAULT_UPLOAD_CAPS,
 };
 
