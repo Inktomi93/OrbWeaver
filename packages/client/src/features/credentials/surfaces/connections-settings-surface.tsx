@@ -8,6 +8,7 @@
 
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { UserCredentialId } from "@orb/kit/ids";
+import { modelDisplayName } from "@orb/kit/model-name";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -214,6 +215,7 @@ function HostClaudeSection(): ReactElement | null {
       .then((next) => setResult(next))
       .catch(() => setResult(null));
   };
+  const modelName = result === null ? null : modelDisplayName(result.model);
 
   return (
     <Section divider={true} heading="Host Claude" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.hostClaude)}>
@@ -228,7 +230,9 @@ function HostClaudeSection(): ReactElement | null {
           <Badge intent={result.ok ? "success" : "danger"} size="sm">
             {result.ok ? "Reachable" : "Unreachable"}
           </Badge>
-          <Text voice="gloss">{result.account?.subscriptionType ?? result.model}</Text>
+          <Text voice="gloss" {...(result.account !== undefined || modelName === result.model ? {} : { title: result.model })}>
+            {result.account?.subscriptionType ?? modelName}
+          </Text>
         </Row>
       )}
     </Section>

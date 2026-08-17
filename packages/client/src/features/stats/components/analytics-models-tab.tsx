@@ -2,6 +2,7 @@
 // generations, tokens, cost, character reach) rendered as a ranked bar-list + per-model detail rows,
 // and owner-scoped `latency` (on-read TTFT/gen percentiles across all models). Read-only analytics.
 
+import { modelDisplayName } from "@orb/kit/model-name";
 import { BarList } from "@orb/ui/bar-list";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -49,18 +50,22 @@ function ModelsBody(): ReactElement {
           <Text voice="gloss">No model usage recorded yet.</Text>
         ) : (
           <Stack gap="row" role="list">
-            {models.map((model) => (
-              <ListRow
-                key={`${model.model}-${model.provider ?? "unknown"}`}
-                title={model.model}
-                subtitle={`${model.provider ?? "unknown"} · ${formatCompact(model.generations)} gens · ${model.charactersUsedWith} characters`}
-                actions={
-                  <Text voice="gloss" className="whitespace-nowrap font-mono">
-                    {formatCompact(model.tokensOut)} tok · {formatUsd(model.costUsd)}
-                  </Text>
-                }
-              />
-            ))}
+            {models.map((model) => {
+              const modelName = modelDisplayName(model.model);
+              return (
+                <ListRow
+                  key={`${model.model}-${model.provider ?? "unknown"}`}
+                  title={modelName}
+                  {...(modelName === model.model ? {} : { fullTitle: model.model })}
+                  subtitle={`${model.provider ?? "unknown"} · ${formatCompact(model.generations)} gens · ${model.charactersUsedWith} characters`}
+                  actions={
+                    <Text voice="gloss" className="whitespace-nowrap font-mono">
+                      {formatCompact(model.tokensOut)} tok · {formatUsd(model.costUsd)}
+                    </Text>
+                  }
+                />
+              );
+            })}
           </Stack>
         )}
       </Section>
