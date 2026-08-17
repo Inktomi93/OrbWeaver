@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-07-13
+updated: 2026-08-17
 ---
 
 # Orbweaver — Enforcement Registry: Deferred + Dropped
@@ -52,12 +52,16 @@ Four sealed primitives were flagged as consumer-less by the derive-modernization
 ruled them intentional pre-builds, not dead code — each carries a greppable `PREBUILT[for:<design-doc>]`
 header naming its consumer. Contract: when the consumer lands, the marker deletes in the same edit
 (the O1 self-cleaning shape); a `PREBUILT` whose cited doc is deleted is a Documentation-Law defect —
-catch it at the next audit of this table.
+catch it at the next audit of this table. **That audit ran on 2026-08-17** — all four rows re-derived
+with `pnpm ast importers` on each barrel (scanned=4924), and TWO had gone stale: `charts/meter` and
+`@orb/ui/diff` both have live production consumers, so their markers were deleted per the contract
+(rows struck through below). `stream/stream-text` and `primitives/status-chip` still have exactly zero
+consumers outside their own CT — those markers are doing their job and STAY.
 
 | Seal | Cited consumer | Header lives at |
 | - | - | - |
-| `@orb/ui/diff` | `refinery` pipeline compare sub-part (D62 §4.1; refinery is a declared-PLANNED section, `client-architecture-lockdown.md` §6a) | `packages/ui/src/diff/diff.tsx` |
-| `charts/meter` (`Meter` only — `SegmentedClock`'s consumer LANDED: the rpg quests tab renders it, so its marker was deleted per the W6 contract, truth-audit 2026-08-03) | rpg HUD widgets (`rpg-design/11-client-ui.md` — resource/pool rows; the module's other parts — TrackBar, RingGauge, waystone — are consumed) | `packages/ui/src/charts/meter/meter.tsx` |
+| ~~`@orb/ui/diff`~~ RETIRED 2026-08-17 — the section it waited for BUILT: refinery's review surfaces render `DiffView` (accept-review\.tsx, context-tabs.tsx), so its marker was deleted per the W6 contract. | was: `refinery` pipeline compare sub-part (D62 §4.1) | was: `packages/ui/src/diff/diff.tsx` |
+| ~~`charts/meter`~~ RETIRED 2026-08-17 — the LAST unconsumed part of the module found a consumer: the refinery payload view renders `Meter` for bounded-number fields, so its marker was deleted per the W6 contract (`SegmentedClock` went the same way on 2026-08-03). The rpg HUD rows it was sealed for are still unbuilt; they now inherit a consumed primitive. | was: rpg HUD widgets (`rpg-design/11-client-ui.md`) | was: `packages/ui/src/charts/meter/meter.tsx` |
 | `stream/stream-text.tsx` | no named feature — sanctioned convenience wrapper over `useSmoothText`+`StreamShimmer` for a future plain-text streaming surface (`ui-package-design.md` §6.3.1) | `packages/ui/src/stream/stream-text.tsx` |
 | `primitives/status-chip` | workloads/automation run-status chips (`automation-design/03-actions.md`; statuses mirror `workloads-deferred-designs.md` run lifecycle) | `packages/ui/src/primitives/status-chip/status-chip.tsx` |
 

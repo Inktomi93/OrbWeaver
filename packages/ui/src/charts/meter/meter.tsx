@@ -1,6 +1,8 @@
-// PREBUILT[for:rpg-design/11-client-ui.md] — no current consumer; sealed for the rpg HUD's
-// resource/pool widgets (bindings table §"HUD widget vocabulary"). Delete this marker (and
-// re-check for consumers) if that plan is ever dropped instead of built.
+// Consumer: the refinery payload view (bounded-number fields — the hero `size="display"` readout and
+// the `showValue` row, payload-view.tsx) — the PREBUILT marker was deleted when it landed
+// (Core-Enforcement-Deferred-Dropped.md §PREBUILT), the same self-cleaning shape SegmentedClock took.
+// The rpg HUD resource/pool widgets it was originally sealed for (rpg-design/11-client-ui.md) are still
+// unbuilt; they inherit a consumed primitive rather than a sealed one.
 // Base UI Meter.Root supplies the a11y shell (role="meter", aria-valuemin/max/now, aria-valuetext)
 // while custom SVG/div geometry (arc/bipolar/milestone) rides as its CHILDREN, not via `render` —
 // Meter.Root always appends a visually-hidden span into `children`, and replacing the root with an

@@ -169,17 +169,17 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
-      "assignedSha256": "ef3a13f00d7f6b925ab4c3becd90f6f8d8550090472cc75a3f8aecf0a8ab8ca2",
+      "assignedSha256": "be4c779fd900733d5df6e2ec8c85aef1ef43dc51084a65473ac294941e6dd9a8",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "ef3a13f00d7f6b925ab4c3becd90f6f8d8550090472cc75a3f8aecf0a8ab8ca2",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "be4c779fd900733d5df6e2ec8c85aef1ef43dc51084a65473ac294941e6dd9a8",
+      "verifiedCommit": "6ec3f22de10b5d2a2acfe5b84edde0c9e0d2187a",
+      "verifiedAt": "2026-08-17",
       "evidence": [
-        "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md:1 (full read; the §PREBUILT table re-derived row by row)",
+        "pnpm ast importers on each sealed barrel (scanned=4924): charts/meter + @orb/ui/diff have live consumers and lost their markers; stream/stream-text + primitives/status-chip have none outside their own CT and keep theirs",
+        "pnpm check:docs + pnpm doc-catalog:check (2026-08-17)"
       ],
       "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
