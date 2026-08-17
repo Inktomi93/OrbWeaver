@@ -115,6 +115,15 @@ Without them the reading step was reachable only through `size="body"` and the t
 all, so a feature's choices were a gate exemption or `gloss` — which is how a room's last spoken line
 ended up set at the same 10.5px as a footnote.
 
+**(AMENDED 2026-08-16 — back-filling two shipped voices the table under-stated: `credit`, added in the
+`#102` polish `861de3e58`, and `hero`, added 2026-08-09 and never tabled)** the closed axis is only law
+if the table names every arm; these two rode in without a row.
+
+| voice | resolves to | means |
+| - | - | - |
+| `hero` | `text-display` + `font-mono` + tabular-nums + semibold + foreground | THE ONE figure a surface exists to produce — a run's overall score, a headline count you opened the surface to read. `masthead`'s tabular twin at the same display step: the mono/tabular face is load-bearing because these numerals COUNT UP on settle and proportional digits jitter, so a SENTENCE at this step takes `masthead` instead. `datum` is the voice for A value; `hero` is the voice for THE value. |
+| `credit` | `text-label` + `font-mono` + caps + `tracking-micro` + medium + muted | a film-credit line — who/what is in the thing and how long ago — under the ONE focal island a surface promotes (home's resume-room hero). Not prose and not a `datum` you compare; it rides the label step, not `gloss`'s micro, because it sits INSIDE an interactive control and must clear the readable floor. `datum` is also mono/label but stays normal-weight, tabular, foreground — `credit` is caps/tracked/muted/medium, a distinct axis. |
+
 Prose voices (`title`, `body`) survive unchanged for CONTENT and form copy. `datum` rides
 `text-label` (13px) rather than a new 11px step: an 11px step is a 4.8% ratio move off `micro`
 (10.5px) — too fine to be a real scale step, and mono + tabular already separates it visually (owner
