@@ -158,10 +158,24 @@ test("the welcome FILLS the content pane — no centred column", async ({ mount,
   expect(welcome.width, "the welcome spans the pane minus the region's own two insets").toBeCloseTo(PANE_PX - inset * 2, 0);
   expect(welcome.width, "and it is nowhere near the old max-w-prose cap").toBeGreaterThan(OLD_CAPPED_WIDTH_PX);
 
-  // …and the teaching line is capped on the PARAGRAPH, not on the page: it is narrower than the surface
-  // that holds it, which is the whole distinction the old cap collapsed.
-  const paragraph = await box(pane.getByText("Tags label your library.", { exact: false }));
-  expect(paragraph.width, "the reading measure caps the line, not the surface").toBeLessThan(welcome.width);
+  // …and the teaching line is capped on the PARAGRAPH, not on the page — the whole distinction the old
+  // `mx-auto max-w-prose` collapsed by capping the SURFACE instead. Pinned against the RESOLVED token, not
+  // merely "narrower than its parent": a line that is narrower by accident would pass the weaker claim,
+  // and the measure is the thing under test.
+  //
+  // (`--reading-measure` is declared in @orb/ui's theme.css, which the CT harness has always loaded, so
+  // this assertion reads the same before and after #114 — that commit restored the CLIENT tier's cap on
+  // the transcript's `message-content-column`, a rule this surface does not use.)
+  // PROBED IN THE PARAGRAPH'S OWN FONT CONTEXT, which is load-bearing: `--reading-measure` is `75ch`, and
+  // `ch` resolves against the ELEMENT's font. Probing it on the content region (16px) instead of on the
+  // capped line (the 15px reading step) reads 686.39px against a correct 643.5px render — a 16/15 ratio
+  // exactly, i.e. the instrument disagreeing with itself, not a defect.
+  const line = pane.getByText("Tags label your library.", { exact: false });
+  const paragraph = await box(line);
+  const measure = await resolvedPx(line, "--reading-measure");
+  expect(measure, "the reading measure resolves in this document").toBeGreaterThan(0);
+  expect(paragraph.width, "the teaching line is capped at the reading measure").toBeCloseTo(measure, 0);
+  expect(measure, "…and the measure caps the LINE, leaving the surface wider").toBeLessThan(welcome.width);
 });
 
 // ── THE RAMP ────────────────────────────────────────────────────────────────────────────────────────
