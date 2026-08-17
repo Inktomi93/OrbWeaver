@@ -984,18 +984,13 @@
    * field: it reads as covering a state, and the CT that "proved" it hand-authored a DOM the shell cannot
    * produce. */
 
-  /* Mobile blur kill-switch — backdrop-filter is too costly on small/low-power devices.
-   * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */
-  html[data-blur-panels] .shell-panel,
-  html[data-blur-composer] [data-slot="composer"],
-  html[data-blur-modals] [data-slot="dialog-popup"],
-  html[data-blur-modals] [data-slot="alert-dialog-popup"],
-  html[data-blur-messages] [data-slot="message-bubble"] {
-    backdrop-filter: none;
-    background-color: revert;
-  }
-  html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
-    backdrop-filter: none;
-    background-color: var(--color-card);
-  }
+  /* NO BLUR KILL-SWITCH HERE ANY MORE (#135). The mobile-perf ruling — backdrop-filter is too costly on
+   * small/low-power devices — used to live in this arm as an override re-declaring the five BLUR_SURFACES
+   * selectors with `backdrop-filter: none`. It never once fired: the client styles tier declares those
+   * same selectors at IDENTICAL specificity and the bundle emits it AFTER this sheet, so the glass always
+   * won on source order. The ruling now lives where it is order-proof — the glass rules in
+   * `packages/client/src/styles/globals.css` are themselves scoped to `@media (width > 48rem)`, the exact
+   * complement of this block's condition, so at this width the declarations are never emitted at all and
+   * every surface keeps its own background. Do not re-add an override here; the two conditions are
+   * sync-enforced by tests/ui/styles/css-structure.suite.test.ts. */
 }

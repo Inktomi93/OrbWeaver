@@ -97,6 +97,33 @@ export function EchoBoundaryStory(): ReactElement {
   );
 }
 
+// ── routeTrpc's DEFERRED responder (`trpcHold`, #136) — the harness arm's own mechanism proof ───────
+// Two reads fired in the SAME commit, which is what makes `httpBatchLink` put them in ONE request: a
+// hold on either therefore holds both, and both must come back correct and index-aligned when it is
+// released. NON-suspense on purpose — a suspending pair could never batch (the first reader suspends
+// before the second one renders), so the batch invariant this exists to prove would not arise at all.
+function BatchedHoldProbe(): ReactElement {
+  const trpc = useTRPC();
+  const held = useQuery(trpc.echo.queryOptions({ message: "ping" }));
+  // Only the COUNT is read: this reader exists to witness that the sibling entry of a held envelope
+  // carried its own responder's data, not the held procedure's and not a null.
+  const sibling = useQuery(trpc.tag.listTags.queryOptions());
+  return (
+    <div>
+      <output data-testid="held-state">{held.isPending ? "pending" : (held.data?.message ?? "none")}</output>
+      <output data-testid="sibling-state">{sibling.isPending ? "pending" : `tags=${sibling.data?.length ?? 0}`}</output>
+    </div>
+  );
+}
+
+export function BatchedHoldStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <BatchedHoldProbe />
+    </CtDataProviders>
+  );
+}
+
 // Bare probe for `useOnlineStatus` — renders the live boolean so the CT can flip the context's
 // network emulation and assert the hook tracks the browser online/offline events end-to-end.
 export function OnlineStatusProbeStory(): ReactElement {

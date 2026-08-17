@@ -684,15 +684,14 @@ test("ripple (no avatar): the welded VN portrait falls back to the hue tile at t
 // variant, so a plain wrapping `<div data-has-bg-image>` around the mount drives the ON case.
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
-// BUILD-TIME SAFELIST (not runtime): the CT's Tailwind content-scan covers `tests/` + `@orb/ui/src`
-// (playwright/index.css `@source`s), NOT `packages/client/src` — so the scrim's ancestor-variant
-// utilities, authored in the client skin (message-row-variants.ts `BG_PHOTO_READING_SCRIM`), aren't
-// emitted for the CT build and the computed-style assertions below would read a missing rule. Naming the
-// exact literals in this comment makes Tailwind's byte-scanner emit them HERE (the real app's client
-// tailwind `@source`s client src, so production generates them natively — this only bridges the harness).
-// The reading scrim (bubble) + the chrome-chip variant utilities (name-row, side-eye P1 follow-up):
-//   in-data-[has-bg-image]:bg-scrim in-data-[has-bg-image]:backdrop-blur-sm
-//   in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row
+// NO BUILD-TIME SAFELIST IS NEEDED HERE, and this is the note that says so rather than a re-added one.
+// The scrim's ancestor-variant utilities are authored in the client skin as WHOLE literals
+// (message-row-backing.ts `BG_PHOTO_READING_SCRIM`/`BG_PHOTO_CHROME_SCRIM`, consumed by
+// message-row-variants.ts), and the CT harness's Tailwind content-scan covers `packages/client/src` —
+// `playwright/index.css` @sources it alongside `@orb/ui/src` and `tests/`, and says why in its own
+// header — so the CT build emits them exactly as the client build does. This comment previously claimed
+// the opposite and carried the literals to bridge a scan gap; the gap does not exist, and the
+// computed-style assertions below were re-run green with the bridge removed (2026-08-17).
 
 for (const style of ["flat", "hush", "document"] as const) {
   test(`${style} over a bg image: the reading text's backdrop is the scrim + blur (computed), never transparent`, async ({ mount }) => {

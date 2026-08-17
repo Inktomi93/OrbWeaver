@@ -50,39 +50,62 @@ body {
 /* Glass (appearance.blurSurfaces) + prose shadow (appearance.shadowEffects). data-blur/data-shadow
  * attrs live on html so they reach portalled content. "messages" gets the denser fill since it sits
  * behind scrolling prose; chrome (panels/composer/modals) gets the lighter fill.
- * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */
-@supports (backdrop-filter: blur(1px)) {
-  html[data-blur-panels] .shell-panel {
-    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-    background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
-  }
-  html[data-blur-composer] [data-slot="composer"] {
-    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-    background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
-  }
-  /* The reading/document content backing upgrades to glass in lock-step with the side panels, so a
-   * frosted look carries through instead of leaving it an opaque slab beside glass panels. */
-  html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
-    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-    background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent);
-  }
-  html[data-blur-modals] [data-slot="dialog-popup"],
-  html[data-blur-modals] [data-slot="alert-dialog-popup"] {
-    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-    background-color: color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent);
-  }
-  /* Per-role bubble base so the glass tints as that bubble, not a generic grey. */
-  html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {
-    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-    background-color: color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), transparent);
-  }
-  html[data-blur-messages] [data-role="assistant"] [data-slot="message-bubble"] {
-    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-    background-color: color-mix(in oklab, var(--color-ai-bubble) var(--blur-fill-dense), transparent);
-  }
-  html[data-blur-messages] [data-role="system"] [data-slot="message-bubble"] {
-    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-    background-color: color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), transparent);
+ * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts
+ *
+ * THE GLASS DOES NOT RUN AT OR BELOW THE SHELL BREAKPOINT (#135) — backdrop-filter is too costly on
+ * small/low-power devices. That mobile-perf ruling is stated HERE, as the glass's own applicability,
+ * because it cannot survive as an override anywhere else: shell.css's mobile arm used to re-declare
+ * these five selectors with `backdrop-filter: none`, at IDENTICAL specificity (at-rules add none), and
+ * the production bundle emits shell.css FIRST and this sheet LAST (measured off a dist bundle — see
+ * playwright/index.css, which reproduces that order). Later-in-source wins, so the glass beat the
+ * kill-switch and the ruling had never once taken effect. Not EMITTING the declarations is the only
+ * form of it that is order-proof.
+ *
+ * The deleted override was also wrong in substance: it paired `backdrop-filter: none` with
+ * `background-color: revert`, and `revert` in the author origin rolls back to the UA default
+ * (transparent) — not to the surface's own fill, which is itself an author declaration. Had it ever
+ * fired, a phone would have rendered message bubbles and panels with NO background at all. Withholding
+ * the glass leaves each surface's own background standing (`.shell-panel`'s --color-sidebar, a bubble's
+ * variant fill, the reading surface's --color-card), which is what "no glass here" is supposed to mean.
+ *
+ * The 48rem literal is duplicated from shell.css's `@media (max-width: 48rem)` because an @media
+ * condition cannot read a custom property (dimension.shell-breakpoint's own token note says so); this
+ * range condition is its exact complement, and the pair is sync-enforced by
+ * tests/ui/styles/css-structure.suite.test.ts. */
+@media (width > 48rem) {
+  @supports (backdrop-filter: blur(1px)) {
+    html[data-blur-panels] .shell-panel {
+      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+      background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
+    }
+    html[data-blur-composer] [data-slot="composer"] {
+      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+      background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
+    }
+    /* The reading/document content backing upgrades to glass in lock-step with the side panels, so a
+     * frosted look carries through instead of leaving it an opaque slab beside glass panels. */
+    html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
+      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+      background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent);
+    }
+    html[data-blur-modals] [data-slot="dialog-popup"],
+    html[data-blur-modals] [data-slot="alert-dialog-popup"] {
+      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+      background-color: color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent);
+    }
+    /* Per-role bubble base so the glass tints as that bubble, not a generic grey. */
+    html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {
+      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+      background-color: color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), transparent);
+    }
+    html[data-blur-messages] [data-role="assistant"] [data-slot="message-bubble"] {
+      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+      background-color: color-mix(in oklab, var(--color-ai-bubble) var(--blur-fill-dense), transparent);
+    }
+    html[data-blur-messages] [data-role="system"] [data-slot="message-bubble"] {
+      backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+      background-color: color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), transparent);
+    }
   }
 }
 

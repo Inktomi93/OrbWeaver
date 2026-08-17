@@ -3,8 +3,8 @@
 // recorder. Copy this file's shape for every client-feature CT.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
-import { DeferredEchoBoundaryStory, EchoBoundaryStory } from "./_ct-stories.tsx";
+import { routeTrpc, trpcError, trpcHold } from "../../support/ct/route-trpc.ts";
+import { BatchedHoldStory, DeferredEchoBoundaryStory, EchoBoundaryStory } from "./_ct-stories.tsx";
 
 test("renders suspended data through the boundary and records the decoded input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -41,6 +41,59 @@ test("offline + pending shows 'Waiting for connection…'; reconnect resumes and
   // Online + settled: the line is gone (it never renders during a normal load either — it is
   // offline-gated, not pending-gated). By text, not role=status — the toast region also carries status.
   await expect(page.getByText("Waiting for connection…")).toHaveCount(0);
+});
+
+// ── routeTrpc's DEFERRED responder (`trpcHold`, #136) ───────────────────────────────────────────────
+// Before it, every responder was invoked synchronously and the batch fulfilled in the same turn, so a
+// CT had no way to hold a query open: the only ways to see a pending arm were to race the response or
+// to cut the network entirely (which is a DIFFERENT state — `networkMode:"online"` PAUSES rather than
+// pends, as the offline test above pins). These two prove the arm at the seam that motivated it.
+
+test("trpcHold parks a query at a STABLE pending render; releasing it settles the same request", async ({ mount, page }) => {
+  const hold = trpcHold();
+  const trpc = await routeTrpc(page, { echo: hold });
+
+  await mount(<DeferredEchoBoundaryStory />);
+  await page.getByRole("button", { name: "load" }).click();
+
+  // The barrier is the hold itself, never a timer: the request is intercepted and parked, so the
+  // fallback is a settled state that stays put for as long as the test wants it.
+  await hold.requested;
+  await expect(page.getByText("loading…")).toBeVisible();
+  await expect.poll(() => trpc.count("echo")).toBe(1);
+
+  hold.release({ message: "pong:ping" });
+
+  await expect(page.getByText("pong:ping")).toBeVisible();
+  // Still ONE call: the parked request answered. A release that re-fetched (or a hold that dropped the
+  // request and let react-query retry) would read 2 here.
+  await expect.poll(() => trpc.count("echo")).toBe(1);
+});
+
+test("a held batch answers its siblings correctly on release — one well-formed, index-aligned envelope", async ({ mount, page }) => {
+  const hold = trpcHold();
+  // Only `length` is read off the sibling (see BatchedHoldProbe), so one plausible row is the whole stub.
+  const trpc = await routeTrpc(page, { echo: hold, "tag.listTags": [{ id: "tag_ct_hold_sibling", name: "sibling" }] });
+
+  await mount(<BatchedHoldStory />);
+  await hold.requested;
+
+  // Same commit ⇒ ONE batched request, so the sibling is held WITH the echo. That is the wire's shape,
+  // not a harness choice: the client is httpBatchLink, deliberately not the stream link (data/trpc.ts),
+  // so a batch has exactly one response and cannot answer three of four entries.
+  await expect(page.getByTestId("held-state")).toHaveText("pending");
+  await expect(page.getByTestId("sibling-state")).toHaveText("pending");
+
+  hold.release({ message: "pong:ping" });
+
+  await expect(page.getByTestId("held-state")).toHaveText("pong:ping");
+  // The envelope survived the hold: the sibling's entry carried its OWN responder's data — a mis-indexed
+  // or truncated batch lands the echo's payload, or `tags=0`, here. (MEASURED for the record, on the
+  // pre-#136 stub with an async responder in this exact story: the SIBLING was unharmed at `tags=1`; the
+  // async entry alone serialized to `{}` and rendered `none`. The old failure was one silently wrong
+  // entry, not a broken batch — which is precisely why nothing caught it.)
+  await expect(page.getByTestId("sibling-state")).toHaveText("tags=1");
+  await expect.poll(() => trpc.count("tag.listTags")).toBe(1);
 });
 
 test("error surface → retry refetches (the reset handshake, not a re-render)", async ({ mount, page }) => {
