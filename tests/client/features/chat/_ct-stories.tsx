@@ -17,6 +17,7 @@ import {
   CommandPaletteSurface,
   Composer,
   chatAlsoOpenTile,
+  chatMastheadTile,
   chatQuickPicksTile,
   chatRecentsTile,
   chatSlashCommands,
@@ -1232,6 +1233,10 @@ export function ChatRecentsPairStory(): ReactElement {
       </div>
     </CtDataProviders>
   );
+}
+
+export function ChatMastheadTileStory(): ReactElement {
+  return <HomeTileStory tile={chatMastheadTile} />;
 }
 
 export function ChatQuickPicksTileStory(): ReactElement {

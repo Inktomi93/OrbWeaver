@@ -107,6 +107,21 @@ test('display: the compact stamp reads "now" for a sub-minute span and for a FUT
   expect(lib.formatRelativeCompact(NOW_MS + 2 * HOUR_MS)).toBe("now");
 });
 
+// The SENTENCE relative-ago form (stickler 2026-08-16 F1): the compact stamp's horizon-less unit ladder
+// with the past tense a prose line needs, and — the whole reason it exists — "just now" at the sub-minute
+// and future edges, so a sentence embedding it never emits the bare "now ago" that "<stamp> ago" produced.
+test('display: the sentence-ago form reads "just now" at the sub-minute/future edge, "<stamp> ago" otherwise', () => {
+  expect(lib.formatRelativeAgo(NOW_MS - 30_000)).toBe("just now");
+  expect(lib.formatRelativeAgo(NOW_MS)).toBe("just now");
+  // Clock skew / an imported timestamp reads present, never a future tense — and never "now ago".
+  expect(lib.formatRelativeAgo(NOW_MS + 2 * HOUR_MS)).toBe("just now");
+  expect(lib.formatRelativeAgo(NOW_MS - 3 * MINUTE_MS)).toBe("3m ago");
+  expect(lib.formatRelativeAgo(NOW_MS - 2 * HOUR_MS)).toBe("2h ago");
+  // No horizon (unlike formatRelative): a two-year-old chat still counts up rather than becoming a date.
+  expect(lib.formatRelativeAgo(NOW_MS - 9 * DAY_MS)).toBe("1w ago");
+  expect(lib.formatRelativeAgo(NOW_MS - 400 * DAY_MS)).toBe("1y ago");
+});
+
 test("display: past the ~7-day horizon relative falls back to the absolute date", () => {
   const nineDaysAgo = NOW_MS - 9 * DAY_MS;
   expect(lib.formatRelative(nineDaysAgo)).toBe(lib.formatDate(nineDaysAgo));

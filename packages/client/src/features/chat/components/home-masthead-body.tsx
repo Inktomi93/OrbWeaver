@@ -13,10 +13,16 @@
 // once — "Aug 2, 2026" here, "1w ago" on the hero, "1w" on the rows — and the cause was not a second
 // formatter: this line always called the client's one `timeLib` seam. It called `formatRelative`, whose
 // kit implementation FALLS BACK to an absolute date past `RELATIVE_HORIZON_DAYS` (7), while both other
-// sites call `formatRelativeCompact`, which has no horizon. The horizon is right for a row that has to
-// stay honest about a two-year-old chat and wrong for the one sentence whose whole job is "how long has
-// it been" — so the masthead takes the compact stamp plus the tense the sentence needs, and the three
-// renderings become one. The kit horizon is deliberately NOT moved: it is correct everywhere else.
+// sites call the horizon-less stamp form. The horizon is right for a row that has to stay honest about a
+// two-year-old chat and wrong for the one sentence whose whole job is "how long has it been" — so the
+// masthead takes the compact stamp plus the tense the sentence needs, and the three renderings become one.
+// The kit horizon is deliberately NOT moved: it is correct everywhere else.
+//
+// …AND THE SENTENCE FORM READS "just now", NOT "now ago" (stickler 2026-08-16 F1). Composing
+// `formatRelativeCompact` — which returns the WORD "now" for a sub-minute or future span — with a literal
+// " ago" rendered "You left off now ago in …" the instant after you sent a message: the most common state
+// this line is seen in. `formatRelativeAgo` is the kit's ONE sentence-ago form ("just now" sub-minute,
+// "<stamp> ago" otherwise, still no horizon), so the tense is the kit's job and this site never spells it.
 //
 // IT IS HONEST AT THE EDGES. `RECENTS_LIMIT` is a page size, not a total, so a user with more rooms than
 // the page holds gets "Eight rooms and more, still warm." rather than a count that quietly lies; a user
@@ -57,7 +63,7 @@ export function HomeMastheadBody(): ReactElement {
       <Text voice="reading">
         {lastRoom === null
           ? "Start a room and this is where you will find your way back into it."
-          : `You left off ${timeLib.formatRelativeCompact(lastRoom.when)} ago in ${lastRoom.title}.`}
+          : `You left off ${timeLib.formatRelativeAgo(lastRoom.when)} in ${lastRoom.title}.`}
       </Text>
     </Stack>
   );

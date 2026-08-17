@@ -149,13 +149,18 @@ export function HomeHearthRoom({
                 the one datum in the line you actually came for. So it is two spans in one described
                 group: the cast shrinks and clips, the stamp keeps its intrinsic width. The middot lives
                 INSIDE the stamp because the accessible-description computation concatenates adjacent
-                inline nodes with no separator (the ListRow `subtitleLead` precedent). */}
+                inline nodes with no separator (the ListRow `subtitleLead` precedent).
+                READS "just now", NOT "NOW AGO" (stickler 2026-08-16 F1): `formatRelativeCompact` returns
+                the WORD "now" for a sub-minute or future span, so composing it with a literal " ago" put
+                "· LAST TURN NOW AGO" on the focal element the instant after a turn — the state the hero is
+                most often seen in. `formatRelativeAgo` is the kit's sentence-ago form ("just now" / "<stamp>
+                ago", no horizon), so the tense lives in the kit and the credit line never spells it. */}
             <Row className="min-w-0 flex-1" gap="row" id={castId}>
               <Text as="span" className="min-w-0 truncate" voice="credit">
                 {cast}
               </Text>
               <Text as="span" className="shrink-0" voice="credit">
-                · last turn {timeLib.formatRelativeCompact(when)} ago
+                · last turn {timeLib.formatRelativeAgo(when)}
               </Text>
             </Row>
             {/* NOT a nested button: the island is the control (see the header). This is its label, and
