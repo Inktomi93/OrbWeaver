@@ -111,6 +111,62 @@ test.describe("the mobile bottom bar", () => {
     // …and the visual hint is still there, so the bar does not read as five unlit tabs in a fifth place.
     await expect(you).toHaveAttribute("data-contains-current", "");
   });
+
+  // #86 lead 3. The bar's labels are the PRIMARY names of primary-nav controls, and they rode `micro`
+  // (10.5px) — the ramp's kicker/gloss step, and under the design-audit interactive-text floor
+  // (`undersized-ui-text` ×4 on the home route at coarse pointer). The ramp has no step between `micro` and
+  // `label`; D5 refused minting an 11px one, so `label` is the assignment. Asserted against the token
+  // RESOLVED IN THIS DOCUMENT, never a px literal: a ramp retune must not red this, and a regression to
+  // `micro` must.
+  test("a tab label rides the LABEL step of the ramp, not the micro one", async ({ mount }) => {
+    const rail = await mount(<RailStory />);
+    const label = rail.locator(".shell-rail-button-label").first();
+    await expect(label).toBeVisible();
+
+    await expect
+      .poll(() =>
+        label.evaluate((el) => {
+          const probe = el.ownerDocument.createElement("div");
+          el.ownerDocument.body.append(probe);
+          const stepPx = (token: string): number => {
+            probe.style.fontSize = `var(${token})`;
+            return Number.parseFloat(globalThis.getComputedStyle(probe).fontSize);
+          };
+          const resolved = Number.parseFloat(globalThis.getComputedStyle(el).fontSize);
+          const verdict = { onLabelStep: resolved === stepPx("--text-label"), aboveMicroStep: resolved > stepPx("--text-micro") };
+          probe.remove();
+          return verdict;
+        }),
+      )
+      .toEqual({ onLabelStep: true, aboveMicroStep: true });
+  });
+
+  // The step-up costs width, and 320px is the narrowest real phone: a label that outgrows its tab either
+  // wraps the 56px bar or spills into its neighbour. Measured, not assumed.
+  test("no tab label outgrows its tab at the narrowest phone", async ({ mount }) => {
+    const rail = await mount(<RailStory />);
+    const labels = rail.locator(".shell-rail-button-label");
+    await expect(labels.first()).toBeVisible();
+    // The pin is the OFFENDER LIST, polled to empty: naming the labels that break makes the failure
+    // message the diagnosis, and an empty list cannot pass by the locator resolving to nothing (the
+    // visibility barrier above already proved the bar rendered).
+    await expect
+      .poll(() =>
+        labels.evaluateAll((elements) =>
+          elements
+            .filter((el) => {
+              const buttonRect = el.closest(".shell-rail-button")?.getBoundingClientRect();
+              const labelRect = el.getBoundingClientRect();
+              // Wider than its tab, or taller than one line — the two ways a bar label breaks.
+              const spills = buttonRect === undefined || labelRect.width > buttonRect.width + 0.5;
+              const wraps = labelRect.height > Number.parseFloat(globalThis.getComputedStyle(el).fontSize) * 1.6;
+              return spills || wraps;
+            })
+            .map((el) => el.textContent ?? ""),
+        ),
+      )
+      .toEqual([]);
+  });
 });
 
 test("a section's OWN tab still claims the page when it is the one you are standing in", async ({ mount }) => {

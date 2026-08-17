@@ -62,7 +62,14 @@ export function RailButton({
             onClick={onClick}
           >
             <Icon icon={icon} size="sm" />
-            <Text as="span" size="micro" className="shell-rail-button-label">
+            {/* `label` (13px), not `micro` (10.5px): this string is the PRIMARY name of a primary-nav
+                control on the phone bar, and `micro` is the ramp's kicker/gloss step — a caps section
+                name or a quiet second line, never a control's own name. 10.5px also sits under the
+                design-audit interactive-text floor (11px, `undersized-ui-text` ×4 on the home route at
+                coarse pointer, issue #86 lead 3), and the ramp has no step between the two (D5 refused an
+                11px step). `size`, not `voice="label"` — voice would pin the ink to `text-foreground` and
+                kill the muted/active/contains-current colour states shell.css owns. */}
+            <Text as="span" size="label" className="shell-rail-button-label">
               {label}
             </Text>
           </Button>

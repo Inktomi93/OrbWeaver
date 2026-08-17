@@ -2,14 +2,19 @@ import { DISABLED_STATE, FOCUS_RING_HAS, tv } from "#lib";
 
 // The slider skin. The control row is h-control-sm so the drag surface meets the ≥44px touch
 // floor (§4b axis 3); the visible track stays h-field. Base UI positions Indicator/Thumb inline.
-// The header row carries the optional Label + Value readout above the control.
+// The header row carries the optional Label + Value readout above the control. The Indicator lives INSIDE
+// the track (it is the fill, and wants the rail's clip); the thumbs are the track's SIBLINGS.
 export const sliderVariants = tv({
   slots: {
     root: `flex w-full flex-col gap-field ${DISABLED_STATE}`,
     header: "flex w-full items-baseline justify-between gap-row",
     label: "text-label font-medium leading-label text-foreground",
     value: "text-label leading-label text-muted-foreground tabular-nums",
-    control: "flex h-control-sm w-full touch-none select-none items-center",
+    // `relative` is LOAD-BEARING, not decoration: the thumbs are siblings of the track (slider.tsx —
+    // inside the CLIPPING track they rendered as 6px slivers), and Base UI positions each thumb
+    // `position:absolute` against its nearest positioned ancestor. The Control's content box is the
+    // track's box, so the thumb lands where it always did — now unclipped.
+    control: "relative flex h-control-sm w-full touch-none select-none items-center",
     // Base UI sets data-invalid on Track (and Control/Thumb) when wrapped in an invalid <Field>
     // (FieldRootState) — the track fill is the visible surface, so it carries the destructive skin.
     track: "relative h-field w-full grow overflow-hidden rounded-full bg-input data-invalid:bg-destructive/20",

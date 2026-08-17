@@ -44,6 +44,36 @@ test("the interactive surface meets the touch floor", async ({ mount }) => {
   expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
 });
 
+// The thumb is a 24px knob; the track is a 6px rail with `overflow: hidden` (the rail's rounded caps
+// clip the Indicator's square fill). Nesting the thumb INSIDE that track clipped it to a 6px sliver —
+// a flat white rectangle instead of a knob, and a hit area 6px tall (design-audit `clipped-overflow`
+// ×8 on the appearance pane, issue #86 lead 2). Asserted through the COMPOSITOR (`elementFromPoint`),
+// not the box: the border box stayed a full 24×24 the whole time it was rendering as a sliver.
+test("the thumb paints and hit-tests over its whole box — the track never clips it", async ({ mount, page }) => {
+  await mount(<Slider defaultValue={50} label="Volume" />);
+  const thumbEl = page.locator(THUMB);
+  const box = await thumbEl.boundingBox();
+  const ownedVertical = await thumbEl.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const owns = (y: number): boolean => {
+      const hit = document.elementFromPoint(cx, y);
+      return hit !== null && (hit === el || el.contains(hit));
+    };
+    let up = 0;
+    let down = 0;
+    while (up < rect.height && owns(cy - up - 1)) {
+      up += 1;
+    }
+    while (down < rect.height && owns(cy + down + 1)) {
+      down += 1;
+    }
+    return up + down + 1;
+  });
+  expect(ownedVertical).toBeGreaterThanOrEqual(Math.round(box?.height ?? 0) - 1);
+});
+
 test("showValue renders the formatted readout", async ({ mount, page }) => {
   await mount(<Slider defaultValue={50} label="Volume" showValue={true} />);
   await expect(page.locator("output")).toHaveText("50");

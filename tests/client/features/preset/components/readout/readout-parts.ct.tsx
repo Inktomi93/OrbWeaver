@@ -36,6 +36,7 @@ import {
   EffectiveProfileSettledStory,
   EffectiveProfileShapeMatchStory,
   EffectiveProfileTransportFailureStory,
+  LongModelPathReadoutStory,
   PresetReadoutParamsBoundStory,
   PresetReadoutRetryStory,
 } from "./_readout-stories.tsx";
@@ -124,6 +125,41 @@ test("FAILED — Retry reaches the caller, so a transient read failure is not a 
   await expect(probe.getByTestId("retry-count")).toHaveText("0");
   await probe.getByRole("button", { name: "Retry" }).click();
   await expect(probe.getByTestId("retry-count")).toHaveText("1");
+});
+
+// ── #115: the panel NAMES the model, it does not quote its path ─────────────────────────────────────────
+// A self-hosted engine identifies its model by local weights path. This one is 106 characters, and the
+// panel printed it TWICE — the capability `model` row and the `resolved for …` gloss ~100px below — with the
+// capability row wrapping onto four lines inside a 380px CONTEXT column. Asserted as a reader meets it:
+// the readable name is visible in both places, the raw path is visible in NEITHER, and it is still
+// recoverable from the row it describes.
+const LOCAL_WEIGHTS_PATH = "/media/inktomi/Data/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
+const LOCAL_WEIGHTS_DISPLAY = "Huihui-ThinkingCap-Qwen3.6-27B-abliterated · W8A8";
+/** The settled panel's own column, so the wrap pin is relative to the mount and names no px of its own. */
+const PANEL_WIDTH_PX = 380;
+/** Two text lines' slack: the pin is "this row is not a paragraph", not an exact leading. */
+const DATUM_ROW_MAX_HEIGHT_PX = 44;
+
+test("a long local model path is NAMED, not quoted — twice-stated becomes twice-derived", async ({ mount }) => {
+  const probe = await mount(<LongModelPathReadoutStory />);
+
+  // Both surfaces state the same readable name — the capability datum and the readout's signature.
+  await expect(probe.getByText(LOCAL_WEIGHTS_DISPLAY, { exact: true })).toBeVisible();
+  await expect(probe.getByText(`resolved for ${LOCAL_WEIGHTS_DISPLAY} · chat role`)).toBeVisible();
+  // THE DEFECT: the raw 106-character path, rendered as visible text, anywhere in the panel.
+  await expect(probe.getByText(LOCAL_WEIGHTS_PATH)).toHaveCount(0);
+  // Nothing is LOST — the full identifier still describes the row it belongs to.
+  await expect(probe.getByText(LOCAL_WEIGHTS_DISPLAY, { exact: true })).toHaveAttribute("title", LOCAL_WEIGHTS_PATH);
+
+  // …and the capability row is a ROW again, not a four-line paragraph inside the column.
+  const modelRow = probe.getByText(LOCAL_WEIGHTS_DISPLAY, { exact: true });
+  const rowBox = await modelRow.boundingBox();
+  expect(rowBox?.width ?? 0).toBeLessThanOrEqual(PANEL_WIDTH_PX);
+  expect(rowBox?.height ?? 0).toBeLessThanOrEqual(DATUM_ROW_MAX_HEIGHT_PX);
+
+  // A hosted id derives to ITSELF, so the gloss must not appear: a tooltip that repeats the text under
+  // the cursor is hover-noise and a screen-reader stutter, not a gloss.
+  await expect(probe.getByTestId("hosted-id-panel").getByText("claude-opus-4-8", { exact: true })).not.toHaveAttribute("title");
 });
 
 test("SETTLED — the funnel's own row renders with its provenance rung and the model it resolved against", async ({ mount }) => {
