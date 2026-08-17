@@ -109,16 +109,47 @@ body {
   }
 }
 
-/* prefers-reduced-transparency: reduce → solid. Wins over the @supports block by source order.
- * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */
+/* prefers-reduced-transparency: reduce → SOLID, delivered by the glass's own FILL KNOB (#137).
+ *
+ * THIS ARM USED TO ANSWER THE GLASS WITH `background-color: revert`, AND SHIPPED THE OPPOSITE OF WHAT IT
+ * PROMISED. `revert` rolls a property back past the ENTIRE author origin — the surface's own fill is an
+ * author declaration too (`.shell-panel { background: var(--color-sidebar) }`, the composer's `bg-card`,
+ * a bubble's role tint), so it resolved to the UA default: transparent. Measured in the CT browser under
+ * emulated `reduce`: alpha 0 on every chrome surface and every bubble. It is the same `revert` mistake
+ * #135 deleted from shell.css's mobile arm, which had never fired; this one fires. The arm is also
+ * width-unscoped, so on a phone — where no glass is emitted at all (#135) — it stripped `.shell-panel`'s
+ * fill for nothing.
+ *
+ * The fix drives `--blur-fill-chrome` / `--blur-fill-dense`, the two percentages the glass recipe mixes
+ * with, to 100%. Those tokens have exactly ONE consumer each (the @supports block above), so this is the
+ * glass's transparency dial and nothing else's. Consequences, all of them the point: every surface stays
+ * tinted as ITSELF (the mix is per-surface) instead of being restored to a token this block would have to
+ * re-spell and keep in sync; `.shell-main`'s reading-surface glass is covered too, which the hand-listed
+ * five-selector arm had silently missed; the result does not depend on source order, because nothing is
+ * overriding anything; and below the breakpoint no glass rule is emitted, so each surface simply keeps
+ * its own fill. `backdrop-filter: none` stays a per-surface override — an opaque fill hides the blur but
+ * the compositor still pays for it, and the preference is a request to stop spending that.
+ *
+ * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts
+ * Rendered pin: tests/client/features/app-shell/surfaces/app-shell.ct.tsx (#137 block — reduce vs
+ * no-preference, desktop + phone + the reading surface). */
 @media (prefers-reduced-transparency: reduce) {
+  :root {
+    --blur-fill-chrome: 100%;
+    --blur-fill-dense: 100%;
+  }
+  /* Every selector below is an exact specificity TIE with its glass counterpart and wins on source
+     order; that order is asserted, not assumed (tests/ui/styles/css-structure.suite.test.ts). The bubble
+     therefore has to carry the ROLE ancestor the glass rules key on (`[data-role="user"] …`) — without
+     it the selector is one attribute short and LOSES, which is why the old arm never killed a bubble's
+     backdrop-filter either, a hole the alpha bug hid. */
   html[data-blur-panels] .shell-panel,
   html[data-blur-composer] [data-slot="composer"],
+  html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main,
   html[data-blur-modals] [data-slot="dialog-popup"],
   html[data-blur-modals] [data-slot="alert-dialog-popup"],
-  html[data-blur-messages] [data-slot="message-bubble"] {
+  html[data-blur-messages] [data-role] [data-slot="message-bubble"] {
     backdrop-filter: none;
-    background-color: revert;
   }
 }
 

@@ -214,6 +214,34 @@ test("blur-surface selectors stay in sync with BLUR_SURFACES across all three ha
   }
 });
 
+// #137: the reduced-transparency arm delivers SOLID by driving the glass's two fill percentages to
+// 100%, and kills the (now invisible, still paid-for) backdrop-filter with selectors that are exact
+// specificity TIES with the glass rules. A tie is decided by source order, so the order is an
+// invariant of the fix, not an accident of how the file happens to read — the arm must stay BELOW the
+// @supports block. Nothing else can see this: both orders parse, and only a rendered assertion under an
+// emulated preference (the app-shell CT's #137 block) catches the flipped one.
+test("client globals.css: the reduced-transparency arm sits BELOW the glass block, and answers it with the fill tokens (never `revert`)", () => {
+  const css = readFileSync(CLIENT_GLOBALS_CSS_PATH, "utf8");
+  const glassIndex = css.indexOf("@supports (backdrop-filter: blur(1px)) {");
+  const reduceIndex = css.indexOf("@media (prefers-reduced-transparency: reduce) {");
+  expect(glassIndex, "the glass @supports block must exist").toBeGreaterThanOrEqual(0);
+  expect(reduceIndex, "the reduced-transparency arm must exist").toBeGreaterThanOrEqual(0);
+  expect(reduceIndex, "the reduced-transparency arm must come AFTER the glass block — its selectors tie on specificity").toBeGreaterThan(glassIndex);
+
+  const reduceBlock = findAnchoredBlock(css, "@media (prefers-reduced-transparency: reduce) {", "client globals.css prefers-reduced-transparency block");
+  // `revert` rolls back the whole AUTHOR origin, including each surface's own fill, so it resolves to the
+  // UA default — transparent. That is the #137 defect verbatim, and #135 deleted the same spelling from
+  // shell.css. It must not come back anywhere in this file.
+  expect(
+    css.replace(COMMENT_RE, "").includes("background-color: revert"),
+    "`background-color: revert` resolves to TRANSPARENT — never use it to undo a fill",
+  ).toBe(false);
+  // The mechanism: the fill percentages go opaque, so every glass rule (including `.shell-main`, which
+  // the old hand-listed arm missed) paints its own tint at full strength.
+  expect(reduceBlock).toContain("--blur-fill-chrome: 100%");
+  expect(reduceBlock).toContain("--blur-fill-dense: 100%");
+});
+
 // The ONE viewport breakpoint, across every site that hand-writes it (#135). `dimension.shell-breakpoint`
 // exists precisely so this assertion can be made — its own $description says an @media condition cannot
 // consume a var(), so the literal must repeat, and "this token exists so a test asserts the CSS literal +
