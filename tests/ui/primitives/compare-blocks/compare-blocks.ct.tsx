@@ -2,11 +2,38 @@
 // single full-text-pair shape (blocks.length === 1) and the multi-field itemized shape (length N);
 // the tint pair is intent-token only (danger/success) plus a non-color glyph + sr-only text so a
 // colorblind reader can still tell the sides apart. Accept/accept-all is controlled.
+//
+// THE SIDE-PAIR TINT IS ASSERTED AGAINST A DOCUMENT-RESOLVED PROBE, not a literal and not the bare token
+// (2026-08-17, program #102). The panes went from a SOLID intent fill to the rationed
+// `border-<intent>/40 bg-<intent>/10` register (CD3 — see the variants header's stated fork), so
+// `toHaveCSS(bg, resolvedTokenColor("color.destructive"))` is exactly the assertion that must now be
+// FALSE. Its replacement resolves the expected value from the SAME document by planting the CSS the
+// utility emits and reading back what the browser computed — §13.7's "never a hardcoded oklch()" holds
+// (the expectation is still token-derived), and the check is self-verifying: if Tailwind's emitted
+// `color-mix` differs from the probe's, this goes red rather than silently agreeing.
+//
+// THE PROBE IS ATTACHED TO THE DOCUMENT BEFORE IT IS READ — `getComputedStyle` on a DETACHED element
+// returns "" for every property, which would make both sides compare equal to "" and invert the whole
+// assertion into a silent pass.
 import type { CompareBlock } from "@orb/ui/compare-blocks";
 import { CompareBlocks } from "@orb/ui/compare-blocks";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 import { AcceptHarness, ReviewHarness } from "./compare-blocks.fixtures.tsx";
+
+/** What the browser computes for `bg-<intent>/10` — resolved in the page, off the live token custom
+ *  property, via a probe element that is IN the document while it is measured. */
+function resolvedTint(page: Page, token: string): Promise<string> {
+  return page.evaluate((cssVar) => {
+    const probe = document.createElement("div");
+    probe.style.backgroundColor = `color-mix(in oklab, var(${cssVar}) 10%, transparent)`;
+    document.body.append(probe);
+    const value = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return value;
+  }, token);
+}
 
 const KEEP_NAME = /^Keep Name$/;
 const DISCARD_CLASS = /^Discard Class$/;
@@ -21,8 +48,13 @@ test("a single block renders one before/after pair with intent-token tints", asy
   await mount(<CompareBlocks blocks={[{ before: "The cat sat.", after: "The cat sat quietly." }]} />);
   const before = page.locator('[data-slot="compare-block-before"]');
   const after = page.locator('[data-slot="compare-block-after"]');
-  await expect(before).toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
-  await expect(after).toHaveCSS("background-color", resolvedTokenColor("color.success"));
+  // The tint each side actually paints, derived from its own intent token in this document.
+  await expect(before).toHaveCSS("background-color", await resolvedTint(page, "--color-destructive"));
+  await expect(after).toHaveCSS("background-color", await resolvedTint(page, "--color-success"));
+  // …and it is a TINT, not the solid intent fill: reverting the variant to `bg-destructive` reds here
+  // (the CD3 accent-fill ration — the variants header states the fork).
+  await expect(before).not.toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
+  await expect(after).not.toHaveCSS("background-color", resolvedTokenColor("color.success"));
   await expect(page.getByText("The cat sat.", { exact: true })).toBeVisible();
   await expect(page.getByText("The cat sat quietly.")).toBeVisible();
   // Non-color signal: the sides carry sr-only text beyond the tint alone.
