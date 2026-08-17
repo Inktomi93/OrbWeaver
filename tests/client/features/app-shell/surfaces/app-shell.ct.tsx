@@ -1193,6 +1193,37 @@ test("elevation alone (glass off) leaves .shell-panel opaque — glass is what f
   await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe(1);
 });
 
+// ── #135: the mobile blur ruling is the GLASS's own applicability, and it is now rendered-true ──────
+// backdrop-filter is too costly on small/low-power devices, so the glass block in the client styles tier
+// is scoped to `@media (width > 48rem)` — the exact complement of shell.css's mobile arm. It used to be an
+// OVERRIDE in shell.css instead, re-declaring the same selectors at the same specificity in the sheet the
+// bundle emits FIRST; the glass won on source order and the ruling had never once taken effect. Only a CT
+// can catch that class: both files parse, both selectors exist, and nothing but the rendered cascade knows
+// which one won. (Pre-#114 this was unprovable here at all — the CT page did not load the client tier.)
+
+test("at a mobile viewport the glass is not emitted: the panel keeps its own OPAQUE fill and no backdrop-filter", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={["panels", "messages"]} />);
+  const panel = shell.getByTestId("panel-probe");
+  await expect.poll(() => backdropFilterOf(panel), { intervals: [20, 50, 100] }).toBe("none");
+  await expect.poll(() => backdropFilterOf(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] }).toBe("none");
+  // FULLY opaque, which is the second half of the fix: the deleted shell.css override paired
+  // `backdrop-filter: none` with `background-color: revert`, and `revert` in the author origin rolls back
+  // to the UA default — transparent — not to `.shell-panel`'s own --color-sidebar. Withholding the glass
+  // leaves that fill standing. alpha 1 here therefore fails on BOTH the old bug (glass painted: <1) and
+  // the override the old code intended (revert: 0).
+  await expect.poll(() => bgAlpha(panel), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("above the shell breakpoint the same fixture DOES get glass — the exclusion is scoped, not a kill", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={["panels", "messages"]} />);
+  const panel = shell.getByTestId("panel-probe");
+  await expect.poll(() => backdropFilterOf(panel), { intervals: [20, 50, 100] }).toContain("blur(");
+  await expect.poll(() => bgAlpha(panel), { intervals: [20, 50, 100] }).toBeLessThan(1);
+  await expect.poll(() => backdropFilterOf(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] }).toContain("blur(");
+});
+
 test("background-image beats elevation: .shell-main goes transparent, .shell-topbar stays opaque", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture elevation="ramp" hasBgImage={true} />);
   // THE BUG: shell.css's un-:where()'d elevation rule for .shell-main used to out-specificity the
