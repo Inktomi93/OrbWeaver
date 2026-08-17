@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-08-14
+updated: 2026-08-16
 ---
 
 # The density pass — tier map, mechanism, enforcement
@@ -100,6 +100,20 @@ glyph: `text-title` + semibold + **no color of its own** (the skin that paints t
 chat transcript's immersive row skins paint a single-letter mark on a header band / echo tile; none of the
 four content voices fits a glyph whose whole job is to be large, and the call-site alternative was spelling
 `size`/`weight` through `className` — a literal-shape dodge the A3 arm structurally cannot see.
+
+**(AMENDED 2026-08-16, program #102 — the owner-picked home variant C)** three more voices, all of which
+exist because the home density pass measured the RENDERED ramp at 16/15/13/10.5 while `--text-display`
+and `--text-headline` sat in `tokens.json` with zero call sites anywhere in the app:
+
+| voice | resolves to | means |
+| - | - | - |
+| `reading` | `text-body` + `--color-prose-body` + body leading | THE CONTENT ITSELF — the prose a user came to read. Every voice above names chrome; this one names the thing the chrome is around. Pair with `max-w-(--reading-measure)`, which caps the PARAGRAPH, never the page. |
+| `masthead` | `text-display` + sans + semibold | a surface's ONE opening statement. `hero`'s prose twin: same step, but `hero` is mono + tabular because it is built for a figure that COUNTS UP, and a sentence in that face reads as a serial. |
+| `focal` | `text-headline` + sans + semibold | the ONE item a surface promotes above its siblings (home's resume-room hero). The TYPE half of the CD3 focal; the other half is a `--color-speaker` stripe plus the rationed `--shadow-glow`. Two of these on one surface means the surface has no focal. |
+
+Without them the reading step was reachable only through `size="body"` and the two display steps not at
+all, so a feature's choices were a gate exemption or `gloss` — which is how a room's last spoken line
+ended up set at the same 10.5px as a footnote.
 
 Prose voices (`title`, `body`) survive unchanged for CONTENT and form copy. `datum` rides
 `text-label` (13px) rather than a new 11px step: an 11px step is a 4.8% ratio move off `micro`

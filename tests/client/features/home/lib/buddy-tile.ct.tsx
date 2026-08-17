@@ -12,12 +12,14 @@ import { HomeRealDoorwaysStory } from "../_ct-stories.tsx";
 const BUDDY_TEASER_RE = /Your companion/u;
 const BUDDY_REASON_RE = /waiting on: domain\/buddy/u;
 
-test("buddy renders as a doorway — teaser, tracked reason, Dormant badge, ZERO controls", async ({ mount }) => {
+test("buddy renders as a doorway — name, teaser, tracked reason, ZERO controls", async ({ mount }) => {
+  // The per-doorway `Dormant` BADGE went with #102: home now collects every declared doorway under one
+  // "Not yet" band, so the group's name says once what a badge per doorway said N times. That band is
+  // pinned in home-surface.ct.tsx; what stays THIS tile's own contract is everything below.
   const home = await mount(<HomeRealDoorwaysStory />);
   const tile = home.locator('[data-home-tile="buddy"]');
 
   await expect(tile.getByText("Buddy", { exact: true })).toBeVisible();
-  await expect(tile.getByText("Dormant")).toBeVisible();
   await expect(tile.getByText(BUDDY_TEASER_RE)).toBeVisible();
   await expect(tile.getByText(BUDDY_REASON_RE)).toBeVisible();
   await expect(tile.getByRole("button")).toHaveCount(0);

@@ -13,7 +13,8 @@ test("automation renders the sanctioned-dormant channel honestly, not an empty p
   const tile = home.locator('[data-home-tile="automation"]');
 
   await expect(tile.getByText("Automation", { exact: true })).toBeVisible();
-  await expect(tile.getByText("Dormant")).toBeVisible();
+  // No per-doorway `Dormant` badge since #102 — the shared "Not yet" band carries it once for the group
+  // (pinned in home-surface.ct.tsx).
   await expect(tile.getByText(AUTOMATION_TEASER_RE)).toBeVisible();
   await expect(tile.getByText(AUTOMATION_REASON_RE)).toBeVisible();
   await expect(tile.getByRole("button")).toHaveCount(0);
