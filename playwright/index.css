@@ -5,11 +5,25 @@
  * the Members panel's `pointer-fine:group-hover/member:flex` reveal) must compile into the CT
  * bundle or the CT renders different pixels than prod (caught 2026-07-13 — the inline-cluster
  * hover reveal was invisible in CT while fine in the app build). */
-@import "@orb/ui/styles/globals.css";
-/* The shell's own CSS carries feature chrome rules a shell-component CT depends on to render prod pixels
+/* LOAD ORDER MIRRORS THE PRODUCTION BUNDLE, and it is load-bearing (#114, 2026-08-16). Measured off a
+ * real `pnpm build` output (packages/client/dist/assets/index-*.css): shell.css lands FIRST (it rides
+ * app-shell.tsx, imported before main.tsx's stylesheet line), then @orb/ui's globals (theme + base +
+ * tailwind utilities, pulled in by the client sheet's own first `@import`), then the client tier's own
+ * rules LAST. shell.css and client globals both declare the BLUR_SURFACES selectors at identical
+ * specificity, so flipping them silently changes which one wins — reproduce prod, don't improve on it.
+ *
+ * The shell's own CSS carries feature chrome rules a shell-component CT depends on to render prod pixels
  * — e.g. the CONTEXT tab strip's `.ctx-tab-strip` @container label-collapse (context-tabs-panel.tsx).
  * Without it a shell-component CT shows a DIFFERENT strip than prod (labels never collapse). */
 @import "../packages/client/src/features/app-shell/surfaces/shell.css";
+/* The CLIENT styles tier — the reading measure (`--reading-measure` cap on
+ * [data-slot="message-content-column"]), reading typography, the glass/grain/colorization surface
+ * treatments, and the transcript edge-fade mask. It `@import`s `@orb/ui/styles/globals.css` itself as its
+ * first line, which is why this file no longer imports @orb/ui directly: a second `@import` of the same
+ * sheet re-emits the whole tailwind layer after shell.css and flips that precedence. Before #114 the
+ * harness loaded only the ui + shell sheets, so every rule in the client tier was structurally invisible
+ * to every CT and a styles-tier regression could not red one. */
+@import "../packages/client/src/styles/globals.css";
 @source "../packages/ui/src";
 @source "../packages/client/src";
 @source "../tests";
