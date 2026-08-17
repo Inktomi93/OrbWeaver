@@ -22,7 +22,10 @@
  *   pnpm snap / --click "[data-shell-toggle=drawer-right]" --out right-drawer
  *                                          # interact BEFORE the shot: --click/--hover/
  *                                          # --fill (repeatable, executed in argv order);
- *                                          # --out names the PNG (reports/snaps/<out>.png)
+ *                                          # --out names the PNG (reports/snaps/<out>.png) — and the
+ *                                          # trace/har/--json manifest, so it is NOT ignored in a
+ *                                          # text-only run; but with --text/--no-shot no image is
+ *                                          # written and snap says so (ARG WARNING, exit unchanged)
  *   pnpm snap / --key Tab --key Tab --eval 'document.activeElement.outerHTML.slice(0,120)'
  *                                          # KEYBOARD WALK. `--key <KeyName>` with NO `=` sends the key
  *                                          # to the page keyboard WITHOUT changing focus, so N of them
@@ -518,6 +521,9 @@ export type Args = {
   help: boolean;
   /** Parse/validation failures collected without side effects; any entry is CLI misuse. */
   errors: string[];
+  /** Combinations that RUN but quietly do less than the argv asked for. Printed as `ARG WARNING` before
+   *  the browser boots; never changes the exit code (an error is what refuses a run). */
+  warnings: string[];
   /** JSON scenario file: checkpoint args execute sequentially in one browser lifetime. */
   scenario: string | null;
   /** Run the bounded desktop/mobile × light/dark × normal/reduced-motion matrix. */
@@ -1294,11 +1300,31 @@ function validateParsedArgs(args: Args): string[] {
   return [...validatePageTargets(args, contextsMode), ...invalidModes.filter(([invalid]) => invalid).map(([, message]) => message)];
 }
 
+/** Combinations that are LEGAL but do less than the argv asked for. A parse error refuses the run; a
+ *  warning runs it and says what it dropped. The one live case: `--out` names the artifact BASE (the
+ *  PNG, the trace/har, the --json manifest), so `--text`/`--no-shot` silently leave nothing named by it
+ *  unless one of those other artifacts was also requested. Measured cost of the silence: a
+ *  `--goto corpus --out corpus-cartographer-merged --text` run reported `out=(none)`, wrote no image and
+ *  exited 0, and the caller lost the capture. It is NOT an error — naming the manifest of a text-only
+ *  run is a real use — so it warns. */
+function parsedArgWarnings(args: Args): string[] {
+  const producesShot = args.shotOf !== null || args.shot || args.baseline || args.diff;
+  if (args.out === null || producesShot) {
+    return [];
+  }
+  const stillNamed = args.json ? " (it still names the --json manifest and any trace/har)" : "";
+  return [
+    `--out "${args.out}" names an artifact base, but --text/--no-shot suppresses the PNG — NO IMAGE WILL BE WRITTEN${stillNamed}. ` +
+      "Drop --text/--no-shot, or add --shot-of <selector>, to capture one.",
+  ];
+}
+
 export function parseSnapArgs(argv: string[]): Args {
   const errors = scanArgv(argv);
   const args: Args = {
     help: false,
     errors,
+    warnings: [],
     scenario: null,
     matrix: false,
     json: false,
@@ -1373,6 +1399,7 @@ export function parseSnapArgs(argv: string[]): Args {
     }
   }
   args.errors.push(...validateParsedArgs(args));
+  args.warnings.push(...parsedArgWarnings(args));
   return args;
 }
 
@@ -2567,7 +2594,62 @@ async function capture(page: Page, opts: Args, plan: PagePlan, evidence: Pick<Pr
 // ── Screenshot capture ──────────────────────────────────────────────────────
 // One place that decides element-shot vs page-shot, applies native stabilization
 // (SHOT_BASE), masks volatile regions, and does the native crop.
+
+/** PAINT-SETTLE (#123). `settlePage` waits a fixed window, and the evidence phase (aria/eval/contrast/
+ *  assertions) then runs for however long IT takes before the PNG is taken — so the primary capture can
+ *  land on a frame that a late repaint has not reached yet: an image that finished decoding, a webfont
+ *  swap, a virtualized list that re-measures after its first read. The artifact then shows a layout the
+ *  run's own text evidence already disagrees with.
+ *
+ *  Hold until two CONSECUTIVE animation frames report the same document geometry, then shoot. Bounded
+ *  twice over — a frame budget and a per-frame timeout — because a surface that never goes quiet (a
+ *  streaming turn, a looping animation) must never block the shot: on a live surface this simply spends
+ *  its budget and captures, which is the pre-#123 behaviour. */
+const PAINT_SETTLE_MAX_FRAMES = 24;
+const PAINT_SETTLE_FRAME_TIMEOUT_MS = 50;
+
+async function waitForPaintSettle(page: Page): Promise<void> {
+  try {
+    await page.evaluate(
+      async ([maxFrames, frameTimeoutMs]: readonly [number, number]) => {
+        const geometry = (): string => {
+          const root = document.documentElement;
+          const body = document.body as HTMLElement | null;
+          return [root.scrollWidth, root.scrollHeight, root.clientWidth, root.clientHeight, body?.scrollHeight ?? 0, body?.childElementCount ?? 0].join(":");
+        };
+        // rAF alone can hang forever on a throttled/background tab (--pages 2+), so every frame wait
+        // carries its own timer and resolves on whichever comes first.
+        const nextFrame = (): Promise<void> =>
+          new Promise((settled) => {
+            const timer = setTimeout(settled, frameTimeoutMs);
+            requestAnimationFrame(() => {
+              clearTimeout(timer);
+              settled();
+            });
+          });
+        const step = async (previous: string, framesLeft: number): Promise<void> => {
+          if (framesLeft <= 0) {
+            return;
+          }
+          await nextFrame();
+          const current = geometry();
+          if (current === previous) {
+            return;
+          }
+          await step(current, framesLeft - 1);
+        };
+        await step(geometry(), maxFrames);
+      },
+      [PAINT_SETTLE_MAX_FRAMES, PAINT_SETTLE_FRAME_TIMEOUT_MS] as const,
+    );
+  } catch {
+    // A settle is an OPTIMISATION of the capture, never a precondition for it: if the page navigated or
+    // the context went away mid-wait, the shot (and the caller's own error reporting) still has to happen.
+    // Swallowing here is the difference between "the PNG is one frame stale" and "there is no PNG".
+  }
+}
 async function captureShot(page: Page, opts: Args, out: string, mask: Locator[]): Promise<void> {
+  await waitForPaintSettle(page);
   if (opts.shotOf !== null) {
     // Just the element — Playwright auto-crops to its bounding box. The
     // no-pixel-math crop: the cheapest pixels that still show the thing.
@@ -4130,6 +4212,11 @@ async function main(opts: Args): Promise<number> {
 }
 
 function printCliPreamble(opts: Args): number | null {
+  // Warnings print FIRST and unconditionally — a run that is about to be refused for an unrelated error,
+  // or that only asked for --help, still owes the caller the note that part of its argv does nothing.
+  for (const warning of opts.warnings) {
+    print(`ARG WARNING  ${warning}`);
+  }
   if (opts.errors.length > 0) {
     for (const error of opts.errors) {
       print(`ARG ERROR    ${error}`);

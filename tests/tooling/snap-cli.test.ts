@@ -186,6 +186,45 @@ test("snap refuses evidence flags whose requested artifacts cannot be produced",
   );
 });
 
+test("--out with a text-only run WARNS instead of silently writing nothing", () => {
+  // The live cost: `--goto corpus --out corpus-cartographer-merged --text` printed `out=(none)`, wrote no
+  // PNG and exited 0, and the caller lost the capture. `--out` is not refused here the way `--crop` is,
+  // because it also names the trace/har/--json manifest — naming a text-only run's manifest is real use.
+  const args = parseSnapArgs(["/", "--goto", "corpus", "--out", "corpus-cartographer-merged", "--text"]);
+
+  expect(args.errors).toEqual([]);
+  expect(args.warnings).toHaveLength(1);
+  expect(args.warnings[0]).toContain('--out "corpus-cartographer-merged"');
+  expect(args.warnings[0]).toContain("NO IMAGE WILL BE WRITTEN");
+  // …and it says so louder when the name IS still carrying something.
+  expect(parseSnapArgs(["/", "--out", "run", "--text", "--json"]).warnings[0]).toContain("--json manifest");
+});
+
+test("--out stays silent whenever the run actually produces pixels", () => {
+  const producingRuns = [
+    ["--out", "x"],
+    // --shot-of is itself a shot, so it survives --no-shot.
+    ["--out", "x", "--shot-of", "main", "--no-shot"],
+    // --baseline needs pixels to compare and forces them back on over --text.
+    ["--out", "x", "--text", "--baseline"],
+  ];
+  for (const producing of producingRuns) {
+    expect(parseSnapArgs(["/", ...producing]).warnings, producing.join(" ")).toEqual([]);
+  }
+  // No --out at all: nothing was asked for, so there is nothing to warn about.
+  expect(parseSnapArgs(["/", "--text"]).warnings).toEqual([]);
+});
+
+test("snap CLI prints the --out warning before booting chromium", () => {
+  // Warnings print ahead of the error/help gates, so this never reaches a browser: the run is refused for
+  // the unrelated page-target error, and the caller STILL learns the --out did nothing.
+  const result = runSnap(["--out", "lost-capture", "--text", "--eval@1", "document.title"]);
+
+  expect(result.status).toBe(2);
+  expect(result.stdout).toContain("ARG WARNING  ");
+  expect(result.stdout).toContain("NO IMAGE WILL BE WRITTEN");
+});
+
 test("every requested evidence failure participates in the final verdict", () => {
   expect(hasSnapFailure(CLEAN_FAILURES)).toBe(false);
   for (const field of ["aria", "map", "eval", "watch", "diff", "assertions", "consoleErrors", "consoleWarnings"] as const) {
