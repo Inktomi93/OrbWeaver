@@ -793,30 +793,45 @@ export interface GhostRowScriptedStoryProps {
   /** The card tier the surface would resolve for this turn (`resolveRowRenderPolicy().cardTier`). Absent ⇒
    *  the ghost's own fail-closed default (`tierA`), which is what a policy-less mount must render. */
   readonly cardTier?: CardTrust;
+  /** #116/#113 — the verdict `MessageListRowMeta.exceedsViewport` carries in production for a live turn that
+   *  has grown past the scrollport. Pins the ghost's name row; absent ⇒ the unpinned arm. */
+  readonly stickyAttribution?: boolean;
+  /** Present ⇒ the ghost mounts inside a bounded SCROLLPORT of this pixel height, so a long stream really
+   *  exceeds the viewport and the sticky pin can be measured against a scroll rather than asserted from a
+   *  computed style alone. Absent ⇒ the unbounded mount every other scripted CT uses. */
+  readonly scrollportHeight?: number;
 }
 
 /** The ghost row driven by an explicit, test-controlled SCRIPT of raw text chunks (rather than the
  *  fixed "Hi " token `GhostRowStory` uses). Live-gated exactly like the production surface, so an ABORT
  *  unmounts the row (and anything it had mounted) rather than leaving it idling. */
-export function GhostRowScriptedStory({ chunks, speakerName, cardTier }: GhostRowScriptedStoryProps): ReactElement {
+export function GhostRowScriptedStory({ chunks, speakerName, cardTier, stickyAttribution, scrollportHeight }: GhostRowScriptedStoryProps): ReactElement {
   const [next, setNext] = useState(0);
   const phase = useTurnPhase(SCRIPTED_CHAT_ID);
   const attribution =
     speakerName === undefined
       ? undefined
       : { name: speakerName, kind: "character" as const, avatarAssetId: null, avatarHash: null, hueSeed: speakerName, tokens: null };
+  const ghost = isLiveTurnPhase(phase) ? (
+    <GhostMessageRow
+      chatId={SCRIPTED_CHAT_ID}
+      chatStyle="bubble"
+      streaming={phase === "streaming"}
+      {...(attribution === undefined ? {} : { attribution })}
+      {...(cardTier === undefined ? {} : { cardTier })}
+      {...(stickyAttribution === undefined ? {} : { stickyAttribution })}
+    />
+  ) : null;
   return (
     <div style={{ width: 360 }}>
       <div data-testid="phase">{phase}</div>
-      {isLiveTurnPhase(phase) ? (
-        <GhostMessageRow
-          chatId={SCRIPTED_CHAT_ID}
-          chatStyle="bubble"
-          streaming={phase === "streaming"}
-          {...(attribution === undefined ? {} : { attribution })}
-          {...(cardTier === undefined ? {} : { cardTier })}
-        />
-      ) : null}
+      {scrollportHeight === undefined ? (
+        ghost
+      ) : (
+        <div data-testid="ghost-scrollport" style={{ height: scrollportHeight, overflowY: "auto" }}>
+          {ghost}
+        </div>
+      )}
       <button
         type="button"
         data-testid="begin"

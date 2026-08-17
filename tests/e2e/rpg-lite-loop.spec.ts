@@ -86,14 +86,16 @@ const ACTOR_TRACKER_DEFS: readonly Record<string, unknown>[] = [
 ];
 
 /** Open the CONTEXT panel on a GAME chat and land on its takeover. A game chat's panel is NOT the shared
- *  "Detail" tablist — the CP-4 bracket renders a "Game" tablist (Status/Sheet/Inventory/Scene), and
- *  `rpg.status` is the `defaultTab` so the Status body lands WITHOUT a click. Idempotent. */
+ *  "Detail" tablist — the CP-4 bracket renders a "Game state" rail (Status/Sheet/Inventory/Scene), and
+ *  `rpg.status` is the `defaultTab` so the Status body lands WITHOUT a click. The rail announces as a
+ *  TOOLBAR, not a tablist (#112 — two rails off one Tabs root cannot both be honest tab groups).
+ *  Idempotent. */
 async function openGamePanel(page: Page): Promise<void> {
   const show = page.getByRole("button", { name: "Show detail panel" });
   if ((await show.count()) > 0) {
     await show.first().click();
   }
-  await expect(page.getByRole("tablist", { name: "Game" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("toolbar", { name: "Game" })).toBeVisible({ timeout: 15_000 });
 }
 
 /** The roster actor ref of the seeded character (the write target for the hand-plane backbone). */

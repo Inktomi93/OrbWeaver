@@ -49,7 +49,7 @@ import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-
 import type { RowAttribution } from "../lib/attribution.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { CardBlock } from "./card-block.tsx";
-import { renderRowAvatar } from "./message-row-parts.tsx";
+import { renderGhostNameRow, renderRowAvatar } from "./message-row-parts.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
 
 // Fallback pace when smooth-streaming is on but the surface passed no explicit cps (matches the contract
@@ -188,6 +188,11 @@ export interface GhostMessageRowProps {
   readonly reasoningAutoCollapse?: boolean | undefined;
   /** True only on the render the ghost genuinely appears; a mid-stream scrollback remount gets false. */
   readonly enterMotion?: boolean;
+  /** #113/#116 — the virtualizer MEASURED this row as taller than the scrollport. The LIVE turn reaches
+   *  that state constantly (a long reply grows past the screen while it streams), which is exactly when the
+   *  reader can no longer see who is speaking. Pins the ghost's name row to the top of the scrollport, the
+   *  same mechanism and the same layout-neutral chip the settled row takes. Absent/false ⇒ no sticky. */
+  readonly stickyAttribution?: boolean | undefined;
 }
 
 export function GhostMessageRow({
@@ -209,6 +214,7 @@ export function GhostMessageRow({
   smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
   reasoningAutoCollapse = true,
   enterMotion = false,
+  stickyAttribution = false,
 }: GhostMessageRowProps): ReactElement {
   const enterClasses = useEnterMotion(enterMotion);
   const rawText = useGhostText(chatId);
@@ -290,6 +296,11 @@ export function GhostMessageRow({
       <Row align="start" gap="row" data-slot="message-row-body" className="w-full">
         {avatarNode}
         <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
+          {/* #116 — the SPEAKER, for the whole generation. Same slot, same frame and same sticky mechanics
+              as the settled row's name row (`renderGhostNameRow`), so a multi-viewport streaming turn pins
+              its attribution exactly the way the committed one does instead of being the one row in the
+              transcript with no speaker on it. */}
+          {renderGhostNameRow({ attribution, chromeBacking: skin.chromeBacking, stickyAttribution })}
           {decoratedBubble}
         </Stack>
       </Row>
