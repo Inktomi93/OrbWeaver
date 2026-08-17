@@ -323,19 +323,19 @@ test("the takeover renders the 5 LIVE game tabs + the locked Map (in the Game st
   // The redesign's top strip (panel-redesign §4) as the tracked-field unification §3 left it: 5 live game
   // tabs — Quests + Journal are LIVE lite tabs (the owner correction), and SHEET IS GONE (the sheet is a
   // STATE of Status now: expanding a roster entry IS the sheet).
-  const gameStrip = component.getByRole("tablist", { name: "Game state" });
-  await Promise.all(["Status", "Inventory", "Scene", "Quests", "Journal"].map((label) => expect(gameStrip.getByRole("tab", { name: label })).toBeVisible()));
-  await expect(gameStrip.getByRole("tab", { name: "Sheet" })).toHaveCount(0);
+  const gameStrip = component.getByRole("toolbar", { name: "Game state" });
+  await Promise.all(["Status", "Inventory", "Scene", "Quests", "Journal"].map((label) => expect(gameStrip.getByRole("button", { name: label })).toBeVisible()));
+  await expect(gameStrip.getByRole("button", { name: "Sheet" })).toHaveCount(0);
   // Map is the ONE PHASE-locked tab: visible, wearing the lock + its reason on `title` (never hidden, and
   // never `aria-disabled` — see the RV-7 CT: it opens onto the body that states when maps arrive).
-  const mapTab = gameStrip.getByRole("tab", { name: "Map" });
+  const mapTab = gameStrip.getByRole("button", { name: "Map" });
   await expect(mapTab).toBeVisible();
   await expect(mapTab).toHaveAttribute("title", "Maps unlock with the map arc");
   // The chat meta set sits in the "Chat" strip below (the bracket's bottom row) — plus the crown GM-console
   // "Game" tab (host-only, `strip:"meta"` — a member never sees it; this stub's viewer IS host).
-  const metaStrip = component.getByRole("tablist", { name: "Chat" });
-  await expect(metaStrip.getByRole("tab", { name: "This chat" })).toBeVisible();
-  await expect(metaStrip.getByRole("tab", { name: "Game" })).toBeVisible();
+  const metaStrip = component.getByRole("toolbar", { name: "Chat" });
+  await expect(metaStrip.getByRole("button", { name: "This chat" })).toBeVisible();
+  await expect(metaStrip.getByRole("button", { name: "Game" })).toBeVisible();
 });
 
 test("the band renders EVERY server-derived orb — no client cap drops a pinned orb", async ({ mount, page }) => {
@@ -353,7 +353,7 @@ test("the band renders EVERY server-derived orb — no client cap drops a pinned
     },
   });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
   // All four orb datums (the visually-hidden `label value/max`) render — including the pinned 4th.
   await Promise.all(["Vitality 24/30", "Resolve 7/10", "Supplies 12/20", "Fatigue 5/8"].map((datum) => expect(component.getByText(datum)).toBeVisible()));
@@ -364,7 +364,7 @@ test("the crown HOST console (Game tab, host) renders getConfigView — scalars,
   const component = await mount(<RpgTakeoverStory />);
 
   // The Game tab lives in the meta strip (host-only crown console).
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   // The crown header + the sections the config read feeds.
   await expect(component.getByText("Host console — host only")).toBeVisible();
@@ -385,7 +385,7 @@ test("the GM console BAND toggle fires updateConfig (host) — the mutation COUN
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   // Band visibility is a control ON THE DEF ROW (the band section is gone — one home). It speaks BAND
   // vocabulary, never "pin" (owner 08-01: "pin" belongs to the hand-lock), and the write is the same
@@ -398,7 +398,7 @@ test("a tab body renders real tracker data (Status: roster row + pool meters + c
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
   // The header scene banner + a pool orb datum (the visually-hidden `label value/max`) — these ride the
   // `.shell-panel-header` BAND above both strips (the W3c header-contributor seam), not the tab body.
@@ -419,7 +419,7 @@ test("an editable pool value fires the patchActor mutation (host, writable) — 
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
   // The pool value is editable DISPLAY-AT-REST (§12.4.1): static text on a button; the inline field
   // appears on click. Reveal it, change it, commit on blur.
@@ -440,7 +440,7 @@ test("read-only trackers: the pill shows BUT the host still hand-edits (D108 —
   await stubTakeover(page, { readOnly: true });
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
   // The honest-arms read-only pill (§4.4; the redesign band's compact label) — the affordance, not a lock.
   await expect(component.getByText("Read-only")).toBeVisible();
@@ -459,7 +459,7 @@ test("a hand-locked field shows the pin; ONE click releases — the mutation fir
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   // The pin (§12.3 — aria-labelled) sits in the ambient strip beside the locked `location` field, and it
   // NAMES that field: the Scene tab renders five of these pins and a reader navigating by name has to be
@@ -482,7 +482,7 @@ test("EDITSNAP-OK: a hand door's errors-as-data REFUSAL surfaces the server's re
   const trpc = await stubTakeover(page, { handDoorRefusal: { ok: false, reason } });
   const component = await mount(<RpgTakeoverNotifyStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
   await component.locator('[data-slot="ambient-strip"]').getByRole("button", { name: "Release the location to the model" }).click();
 
   // The write really was attempted (the refusal is a 200, not a transport failure) …
@@ -495,7 +495,7 @@ test("EDITSNAP-OK: an APPLIED hand write stays silent — `ok:true` is not an oc
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverNotifyStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
   await component.locator('[data-slot="ambient-strip"]').getByRole("button", { name: "Release the location to the model" }).click();
 
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
@@ -510,7 +510,7 @@ test("EDITSNAP-OK: an APPLIED hand write stays silent — `ok:true` is not an oc
 test("Clear time nulls the TIME and keeps the day counter (the clock's two facts move independently)", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   const strip = component.locator('[data-slot="ambient-strip"]');
   // The stub's clock is `day 3 · 21:00`, so the Time field rests on its derived label.
@@ -530,7 +530,7 @@ test("Clear time nulls the TIME and keeps the day counter (the clock's two facts
 test("RV-11: the Scene cast card shows the standing guides, omits the unwritten one, and an edit fires editSnapshot", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   const card = component.locator('[data-slot="cast-card"]');
   // The model-written emoji leads the name — the same written-never-rendered class the guides are in.
@@ -582,7 +582,7 @@ test("editing a cast NPC's tracker sends ONE op naming only that datum (her othe
     },
   });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   // The cast card's meter is editable display-at-rest (§12.4.1) — reveal, retype, commit on blur.
   const card = component.locator('[data-slot="cast-card"]');
@@ -628,7 +628,7 @@ test("R2: an OFFSTAGE cast actor is listed, editable and dismissable — never o
     },
   });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   // Collapsed by default — a memory, not the scene — but the COUNT is on screen without opening it.
   const section = component.locator('[data-slot="rpg-known-characters"]');
@@ -681,7 +681,7 @@ test("R4: an offstage cast actor can be PROMOTED to the roster — two-step, nam
     },
   });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   const section = component.locator('[data-slot="rpg-known-characters"]');
   await section.getByRole("button", { name: "Show known characters" }).click();
@@ -704,7 +704,7 @@ test("the host New-quest affordance fires upsertQuest (create) — the mutation 
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Quests" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Quests" }).click();
 
   // Type a name + blur (TrackerValue commits its draft on blur/Enter, enabling the button) + click New quest
   // → upsertQuest with NO questId (create).
@@ -719,7 +719,7 @@ test("the host quest DELETE fires deleteQuest behind a confirm — the mutation 
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Quests" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Quests" }).click();
 
   // The per-card destructive action names its target; the confirm names the consequence (never a bare click).
   await component.getByRole("button", { name: "Delete quest: Keep the bone key" }).click();
@@ -733,7 +733,7 @@ test("the host New-entry composer fires addJournalEntry with the chosen type and
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
   await component.getByRole("combobox", { name: "Entry type" }).click();
   await page.getByRole("option", { name: "Location" }).click();
@@ -751,7 +751,7 @@ test("a beat row's inline title edit fires editJournalEntry (host) — the mutat
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
   // Display-at-rest (§12.4.1): the title is a button; the inline field appears on click, commits on blur.
   await component.getByRole("button", { name: "Sera's debt title" }).click();
@@ -771,7 +771,7 @@ test("a beat row's inline title edit fires editJournalEntry (host) — the mutat
 test("a beat row's BODY expands in place into a multi-line editor, and blur saves it", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
   // At rest the body is the chronicle's muted line — the trigger, not an input (the instrument posture).
   const bodyTrigger = component.getByRole("button", { name: "Sera's debt entry" });
@@ -801,7 +801,7 @@ test("a beat row's BODY expands in place into a multi-line editor, and blur save
 test("Escape abandons an open beat-body draft — nothing is sent", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
   await component.getByRole("button", { name: "Sera's debt entry" }).click();
   const body = component.getByRole("textbox", { name: "Sera's debt entry" });
@@ -816,7 +816,7 @@ test("a beat row's confirmed delete fires deleteJournalEntry (host) — the muta
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
   await component.getByRole("button", { name: "Delete entry: Sera's debt" }).click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
@@ -828,7 +828,7 @@ test("a MEMBER reads the chronicle with NO authoring affordances (PERMISSION-omi
   await stubTakeover(page, { chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
   // The beats still READ (the list verb is member-read) — the entry text is there…
   await expect(component.getByText("Sera's debt")).toBeVisible();
@@ -856,7 +856,7 @@ test("P5: the ACT RAIL renders the snapshot plot plane (current act embered; nul
   await stubTakeover(page, { tracker });
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Quests" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Quests" }).click();
 
   const rail = component.locator('[data-slot="rpg-act-rail"]');
   await expect(rail).toBeVisible();
@@ -880,7 +880,7 @@ test("a tracker max edit writes THIS CHARACTER's ceiling override (patchActor, n
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
   const maxRest = component.getByRole("button", { name: "Vitality max" });
   await expect(maxRest).toBeVisible();
@@ -914,7 +914,7 @@ test("typing the game DEFAULT back into a character's ceiling CLEARS the overrid
   }));
   const trpc = await stubTakeover(page, { tracker: { ...tracker, actors } });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
   // An overridden ceiling STATES the default it departs from (visible ⇒ reversible).
   await expect(component.getByText("Vitality ceiling 28 — default: 30")).toBeVisible();
@@ -944,7 +944,7 @@ test("a stored ceiling EQUAL to the game default states nothing — the note is 
   }));
   await stubTakeover(page, { tracker: { ...tracker, actors } });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
   // Barrier on the settled bar before asserting the ABSENCE beside it.
   await expect(component.getByRole("button", { name: "Vitality max" }).first()).toBeVisible();
@@ -976,7 +976,7 @@ test("the Scene CHOICE echo renders the transcript's LIVE :::choices (info-blue;
   const trpc = await stubTakeover(page, { game, messages });
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   const echo = component.locator('[data-slot="rpg-choice-echo"]');
   await expect(echo).toBeVisible();
@@ -1012,7 +1012,7 @@ test("RV-2: the Scene CARD ARCHIVE lists the transcript's cards and opens one in
   await stubTakeover(page, { game: cardsGame(), messages: CARD_MESSAGES });
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   const archive = component.locator('[data-slot="rpg-card-archive"]');
   await expect(archive).toContainText("Cards — 1");
@@ -1038,7 +1038,7 @@ test("RV-2: an archived-card row wears the artifact chrome — title, turn ref, 
   await stubTakeover(page, { game: cardsGame(), messages: CARD_MESSAGES });
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   const row = component.locator('[data-slot="rpg-card-row"]');
   await expect(row).toHaveCount(1);
@@ -1051,7 +1051,7 @@ test("RV-2: an archived-card row wears the artifact chrome — title, turn ref, 
   await expect(row.locator("svg")).toHaveCount(1);
 
   // The Journal chronicle renders the SAME row component (one projection, one row).
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
   await expect(component.locator('[data-slot="rpg-card-row"]').first()).toContainText("Zandik's letter");
   await component.locator('[data-slot="rpg-card-row"]').first().click();
   await expect(page.locator('[data-slot="dialog-popup"]')).toBeVisible();
@@ -1078,7 +1078,7 @@ test("RV-2 root cause: unterminated cards (truncated + nested-closer) reach the 
   await stubTakeover(page, { game: cardsGame(), messages: BROKEN_CARD_MESSAGES });
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   const archive = component.locator('[data-slot="rpg-card-archive"]');
   await expect(archive).toContainText("Cards — 3");
@@ -1092,7 +1092,7 @@ test("RV-2 root cause: unterminated cards (truncated + nested-closer) reach the 
 test("RV-2: cards ON with none written renders the honest empty archive; cards OFF omits the section entirely", async ({ mount, page }) => {
   await stubTakeover(page, { game: cardsGame() });
   const withCardsOn = await mount(<RpgTakeoverStory />);
-  await withCardsOn.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await withCardsOn.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
   await expect(withCardsOn.locator('[data-slot="rpg-card-archive"]')).toContainText("No cards yet");
 });
 
@@ -1100,7 +1100,7 @@ test("RV-2: a game with immersiveHtml OFF has no card section at all (applicabil
   // The default stub's game carries `immersiveHtml: false`.
   await stubTakeover(page, { messages: CARD_MESSAGES });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
   await expect(component.locator('[data-slot="rpg-card-archive"]')).toHaveCount(0);
 });
 
@@ -1139,7 +1139,7 @@ test("the Veiled ledger (P3, host) renders the standing lies off rpg.revealHidde
   });
   const component = await mount(<RpgTakeoverStory />);
 
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
   // The ledger section header + the standing lie's character, public claim, and the host-only TRUTH — LIVE
   // off the P3 `rpg.revealHidden` read (the deception plane), not a placeholder.
@@ -1354,7 +1354,7 @@ test("R2: the purse's carried note is coherent with the party-total exclusion �
     },
   });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
   // The PARTY subject: the total is the party's own 50, and no carried note (she carries all of it).
   const purseLine = component.locator('[data-slot="rpg-purse-line"]');
@@ -1373,7 +1373,7 @@ test("R2: the purse's carried note is coherent with the party-total exclusion �
 test("Status: expanding a roster entry TAKES OVER the panel with the character — everything Sheet-the-tab held", async ({ mount, page }) => {
   await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
   // The roster is the list of people; the name IS the door (a named button, not a mystery row).
   await expect(component.locator('[data-slot="rpg-status-tab"]')).toBeVisible();
@@ -1405,7 +1405,7 @@ test("Status: expanding a roster entry TAKES OVER the panel with the character �
 test("Status takeover: a sheet edit fires patchSheet and a tracker edit fires patchActor — the mutation COUNTs", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
   await component.getByRole("button", { name: "Open Mara" }).click();
 
   // An ATTRIBUTE value (the plane that only existed on the dissolved tab) writes through patchSheet.
@@ -1442,7 +1442,7 @@ test.describe("the takeover at mobile width", () => {
   test("expand + return work at 390px, and the breadcrumb meets the coarse touch floor", async ({ mount, page }) => {
     await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
     const component = await mount(<RpgTakeoverStory />);
-    await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+    await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
     await component.getByRole("button", { name: "Open Mara" }).click();
 
     const detail = component.locator('[data-slot="rpg-character-detail"]');
@@ -1464,7 +1464,7 @@ test("RV-7: the locked Map tab opens onto its coming-soon body from BOTH the mou
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  const mapTab = component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Map" });
+  const mapTab = component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Map" });
   // NOT aria-disabled: the lock is a glyph + a reason, not a refusal the tab does not honour.
   await expect(mapTab).not.toHaveAttribute("aria-disabled", "true");
   await expect(mapTab).toHaveAttribute("title", "Maps unlock with the map arc");
@@ -1473,7 +1473,7 @@ test("RV-7: the locked Map tab opens onto its coming-soon body from BOTH the mou
   // readers announce late or not at all. The visible caption stays the name's prefix (WCAG 2.5.3).
   await expect(mapTab).toHaveAttribute("aria-label", "Map — locked");
   // The live cells are unchanged — the suffix is the LOCK's, not every tab's.
-  await expect(component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Scene" })).toHaveAttribute("aria-label", "Scene");
+  await expect(component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Scene" })).toHaveAttribute("aria-label", "Scene");
 
   // MOUSE — a plain click (Playwright would refuse this outright on an aria-disabled control).
   await mapTab.click();
@@ -1485,7 +1485,7 @@ test("RV-7: the locked Map tab opens onto its coming-soon body from BOTH the mou
   await expect(map).not.toContainText("MA-3");
 
   // KEYBOARD — leave and come back with Enter, so the path is proven independently of the click above.
-  await component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Scene" }).click();
   await expect(map).toBeHidden();
   await mapTab.focus();
   await page.keyboard.press("Enter");
@@ -1497,7 +1497,7 @@ test("RV-7: the locked Map tab opens onto its coming-soon body from BOTH the mou
 test("RV-4/RV-12: the GM stat profile adds, renames and GLOSSES attributes — each write fires updateConfig", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   const profile = component.locator('[data-slot="rpg-stat-profile"]');
   // RENAME the stubbed "Strength" (display-at-rest — the field appears on click).
@@ -1529,7 +1529,7 @@ test("RV-4/RV-12: the GM stat profile adds, renames and GLOSSES attributes — e
 test("RV-5: the pack adds an item and edits its LOCATION in place — the patchActor ops + the lock derivation", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
   // ADD (a name is required first — no "Item 3" orphans).
   await component.getByRole("textbox", { name: "New item name" }).fill("Rope");
@@ -1559,7 +1559,7 @@ test("RV-5: the pack adds an item and edits its LOCATION in place — the patchA
 test("a CUSTOM journal entry renders its own label; an entry without one falls back to the type word", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
   const chronicle = component.locator('[data-slot="rpg-journal-tab"]');
   await expect(chronicle).toContainText("prophecy");
@@ -1571,7 +1571,7 @@ test("a CUSTOM journal entry renders its own label; an entry without one falls b
 test("RV-5: a MEMBER reads the pack with no authoring affordances (PERMISSION-omit, never a disabled twin)", async ({ mount, page }) => {
   await stubTakeover(page, { tracker: richTracker(), chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
   await expect(component.locator('[data-slot="rpg-inventory-tab"]')).toContainText("Bone key");
   await expect(component.getByRole("textbox", { name: "New item name" })).toHaveCount(0);
@@ -1584,7 +1584,7 @@ test("RV-5: a MEMBER reads the pack with no authoring affordances (PERMISSION-om
 test("the pack GRID tile carries the ×N and the location, at a density SHORTER than the old square", async ({ mount, page }) => {
   await stubTakeover(page, { tracker: packedTracker() });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
   const cells = component.locator('[data-slot="rpg-pack-cell"]');
   await expect(cells).toHaveCount(PACKED_ITEMS.length);
@@ -1621,7 +1621,7 @@ const BARE_TILE_TEXT_RE = /^Map of the sunken road$/u;
 test("INV-READ: the GRID tile READS the item description as text, and an undescribed item shows no empty slot", async ({ mount, page }) => {
   await stubTakeover(page, { tracker: packedTracker() });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
   const cells = component.locator('[data-slot="rpg-pack-cell"]');
   // POPULATED — the text is IN the tile, not only on its `title` attribute (which `toContainText` cannot see).
@@ -1644,7 +1644,7 @@ test("INV-READ: the GRID tile READS the item description as text, and an undescr
 test("clicking a GRID tile edits that item in place — the same click-to-edit grammar, one write path", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { tracker: packedTracker() });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
   // The tile IS the door (the grid lens no longer sends the host to the list view to author).
   await component.getByRole("button", { name: "Edit Bone key" }).click();
@@ -1681,7 +1681,7 @@ test("#78: a hand-pinned ITEM carries its own pin and ONE click releases it — 
     tracker: { ...(richTracker() as Record<string, unknown>), lockedPaths: [`${MARA_PACK_BASE}.name`, `${MARA_PACK_BASE}.quantity`] },
   });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
   // The SECTION pin is absent: an item pin is not a plane pin, and claiming otherwise would offer a Release
   // that hands back more than the host ever took.
@@ -1722,7 +1722,7 @@ test("#78: a LEGACY plane-wide pack lock still renders its section Release (no s
     tracker: { ...(richTracker() as Record<string, unknown>), lockedPaths: ["actorState.character:character_ct_mara.volatile.inventory"] },
   });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
   const pin = component.getByRole("button", { name: "Release the pack to the model" });
   await expect(pin).toBeVisible();
@@ -1738,7 +1738,7 @@ test("#78: a LEGACY plane-wide pack lock still renders its section Release (no s
 test("the Game tab toggles immersive HTML, and the interactivity sub-toggle is DISABLED (not hidden) while it is off", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   // APPLICABILITY, not absence: the sub-toggle is visible and disabled — an interactivity ask is
   // meaningless with no card ask to make interactive, and the reason has to stay readable.
@@ -1765,7 +1765,7 @@ test("the Game tab toggles immersive HTML, and the interactivity sub-toggle is D
 test("the Game tab adds and glosses a CUSTOM JOURNAL TYPE — each write fires the ONE config door", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   // The stub carries NO journal-type hints — the empty state has to say what an empty map MEANS, not just
   // render nothing (an absent section reads as "unbuilt").
@@ -1797,7 +1797,7 @@ test("the Game tab adds and glosses a CUSTOM JOURNAL TYPE — each write fires t
 test("the Game tab's numeric knobs write through the config door — the reminder slice and the extraction window", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   // The field shows the game's CURRENT value honestly (the stub's 6, not the schema default 8) — and its
   // placeholder still names the default, so a cleared box reads as configured-by-default, not broken.
@@ -1830,7 +1830,7 @@ test("the Game tab's numeric knobs write through the config door — the reminde
 test("a MEMBER's grid tile is a card, not a door (PERMISSION-omit, never a disabled twin)", async ({ mount, page }) => {
   await stubTakeover(page, { tracker: packedTracker(), chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
   // The member READS everything the host does — and has no tile trigger at all.
   await expect(component.locator('[data-slot="rpg-pack-cell"]').filter({ hasText: "Healing potion" })).toContainText("×12");
@@ -1844,7 +1844,7 @@ test("a MEMBER's grid tile is a card, not a door (PERMISSION-omit, never a disab
 test("Status takeover: the born-state button fires populateFromCharacter for THIS character — the mutation COUNT", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
   await component.getByRole("button", { name: "Open Mara" }).click();
 
   const populate = component.locator('[data-slot="rpg-populate-control"]').getByRole("button", { name: "Fill from card" });
@@ -1866,7 +1866,7 @@ test("Status takeover: a connection with no structured writer DISABLES the born-
     tracker: richTracker(),
   });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
   await component.getByRole("button", { name: "Open Mara" }).click();
 
   // Still PRESENT (the affordance is real and the reason is stated) — and refusing, so no call is ever made.
@@ -1884,7 +1884,7 @@ test("Status takeover: a connection with no structured writer DISABLES the born-
 
 /** Open the Status takeover's born-state control on the NOTIFY story (the `rpg-notified` sink) and fire it. */
 async function firePopulate(component: Locator): Promise<void> {
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
   await component.getByRole("button", { name: "Open Mara" }).click();
   await component.locator('[data-slot="rpg-populate-control"]').getByRole("button", { name: "Fill from card" }).click();
 }
@@ -1937,7 +1937,7 @@ function gameMacro(name: string, description = ""): unknown {
 test("WAVE MU: the Game tab lists the game's macros and ADDS one — the WHOLE list rides the config door", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { config: configView([gameMacro("waystone", "how the stone reads")]) });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   // The existing def reads as its CALL form + its own description (the list is the macro's identity).
   const section = component.locator('[data-slot="rpg-game-macros"]');
@@ -1959,7 +1959,7 @@ test("WAVE MU: the Game tab lists the game's macros and ADDS one — the WHOLE l
 test("WAVE MU: a name that collides with the active preset's macro carries the honest 'overrides preset' gloss", async ({ mount, page }) => {
   await stubTakeover(page, { config: configView([gameMacro("tone"), gameMacro("waystone")], ["tone", "narrator"]) });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   // The colliding def states the CONSEQUENCE (the game def is the one that resolves) — the shadow rule is
   // real and invisible everywhere else; the non-colliding sibling stays unglossed (no blanket noise).
@@ -1971,7 +1971,7 @@ test("WAVE MU: a name that collides with the active preset's macro carries the h
 test("WAVE MU: the macro editor COMPLETES against both planes — the game's defs and the preset's names", async ({ mount, page }) => {
   await stubTakeover(page, { config: configView([gameMacro("waystone", "how the stone reads")], ["narrator"]) });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   // Open the existing def's editor (the row title is the edit affordance; the dialog portals to body).
   await component.locator('[data-slot="rpg-game-macros"]').getByText("{{waystone}}").click();
@@ -1994,7 +1994,7 @@ test("WAVE MU: the macro editor COMPLETES against both planes — the game's def
 test("WAVE MU: a shadowed preset name is offered ONCE, as the GAME's definition (the resolver's precedence)", async ({ mount, page }) => {
   await stubTakeover(page, { config: configView([gameMacro("tone", "the game's own tone")], ["tone"]) });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
   await component.locator('[data-slot="rpg-game-macros"]').getByText("{{tone}}").click();
 
   const body = page.getByRole("textbox", { name: "Template" });
@@ -2010,7 +2010,7 @@ test("WAVE MU: a shadowed preset name is offered ONCE, as the GAME's definition 
 test("WAVE MU: with no macros the section says what empty MEANS (never a blank that reads as unbuilt)", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   await expect(component.locator('[data-slot="rpg-game-macros"]')).toContainText("No game macros yet");
 });
@@ -2020,7 +2020,7 @@ test("WAVE MU: a MEMBER never reaches the macro editor — the whole crown conso
   const component = await mount(<RpgTakeoverStory />);
 
   // The console tab itself is omitted for a member (never a disabled twin), so the section cannot be reached.
-  await expect(component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" })).toHaveCount(0);
+  await expect(component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" })).toHaveCount(0);
   await expect(component.locator('[data-slot="rpg-game-macros"]')).toHaveCount(0);
 });
 
@@ -2032,7 +2032,7 @@ test("WAVE MU: a MEMBER never reaches the macro editor — the whole crown conso
 test("HUD-1: the rpg HUD CLAIMS the pane — the shell's band is empty and its generic strip never renders", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await expect(component.getByRole("tablist", { name: "Game state" })).toBeVisible();
+  await expect(component.getByRole("toolbar", { name: "Game state" })).toBeVisible();
 
   // The claimant renders inside the single-writer region host…
   await expect(component.locator("[data-context-region]")).toHaveCount(1);
@@ -2050,7 +2050,7 @@ test("HUD-1 §7.2: a rail cell RENDERS its caption at the real panel width — t
   // into a clipped ~5px sliver while every class-string assertion stayed green (`done ≠ rendered`).
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const inventory = component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Inventory" });
+  const inventory = component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Inventory" });
 
   await expect(inventory).toContainText("Inventory");
   const glyph = inventory.locator("svg");
@@ -2079,9 +2079,9 @@ test("HUD-1 §7.2: a rail cell RENDERS its caption at the real panel width — t
 test("HUD-1 §7.2: only the PHASE-LOCKED cell carries a `title` — a live cell's word is on screen already", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const rail = component.getByRole("tablist", { name: "Game state" });
-  await expect(rail.getByRole("tab", { name: "Inventory" })).not.toHaveAttribute("title", ANY_TITLE);
-  await expect(rail.getByRole("tab", { name: "Map" })).toHaveAttribute("title", "Maps unlock with the map arc");
+  const rail = component.getByRole("toolbar", { name: "Game state" });
+  await expect(rail.getByRole("button", { name: "Inventory" })).not.toHaveAttribute("title", ANY_TITLE);
+  await expect(rail.getByRole("button", { name: "Map" })).toHaveAttribute("title", "Maps unlock with the map arc");
 });
 
 test("HUD-1: the ACTIVE cell's caption takes the cell's accent state colour (the Text primitive must not win)", async ({ mount, page }) => {
@@ -2090,12 +2090,12 @@ test("HUD-1: the ACTIVE cell's caption takes the cell's accent state colour (the
   // against the same token the cell's `data-active:text-primary` resolves to.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const rail = component.getByRole("tablist", { name: "Game state" });
-  await rail.getByRole("tab", { name: "Scene" }).click();
-  await expect(rail.getByRole("tab", { name: "Scene" })).toHaveAttribute("aria-selected", "true");
+  const rail = component.getByRole("toolbar", { name: "Game state" });
+  await rail.getByRole("button", { name: "Scene" }).click();
+  await expect(rail.getByRole("button", { name: "Scene" })).toHaveAttribute("aria-current", "true");
 
-  const activeCaption = rail.getByRole("tab", { name: "Scene" }).getByText("Scene");
-  const restingCaption = rail.getByRole("tab", { name: "Quests" }).getByText("Quests");
+  const activeCaption = rail.getByRole("button", { name: "Scene" }).getByText("Scene");
+  const restingCaption = rail.getByRole("button", { name: "Quests" }).getByText("Quests");
   // Caption and cell are read in ONE evaluate and POLLED: the cell carries a colour transition, so two
   // separate reads land at two different instants of the same interpolation and disagree by a hair even
   // when the wiring is right (H2 widened that transition and this test caught itself on it).
@@ -2116,12 +2116,12 @@ test("HUD-1: the ACTIVE cell's caption takes the cell's accent state colour (the
   expect(active).not.toBe(resting);
 });
 
-test("HUD-1 §3.6 fence 6: the ACTIVE tabpanel is NAMED by its cell — two rails off one root break Base UI's own association", async ({ mount, page }) => {
+test("HUD-1 §3.6 fence 6: the ACTIVE region is NAMED by its cell — two rails off one root break Base UI's own association", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const scene = component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Scene" });
+  const scene = component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Scene" });
   await scene.click();
-  await expect(scene).toHaveAttribute("aria-selected", "true");
+  await expect(scene).toHaveAttribute("aria-current", "true");
 
   const panel = component.locator('[data-slot="tabs-panel"]:visible');
   const labelledBy = await panel.getAttribute("aria-labelledby");
@@ -2129,7 +2129,85 @@ test("HUD-1 §3.6 fence 6: the ACTIVE tabpanel is NAMED by its cell — two rail
   expect(labelledBy).not.toBeNull();
   expect(labelledBy).toBe(cellId);
   // …and the id actually resolves to the cell, so the name is a real one, not a dangling reference.
-  await expect(component.locator(`[id="${labelledBy ?? ""}"]`)).toHaveAttribute("role", "tab");
+  // (#112: the cell is a BUTTON now, not a tab — the rails announce as toolbars, see the HUD's ARIA note.)
+  await expect(component.locator(`[id="${labelledBy ?? ""}"]`)).toHaveAttribute("data-slot", "tabs-tab");
+});
+
+// ── #112: NO RAIL EVER ANNOUNCES AS A CHOOSER WITH NOTHING CHOSEN ─────────────────────────────────────
+// The HUD deals two rails off ONE Tabs root with ONE shared selection (§7.1 puts the viewport between them,
+// so one DOM tablist is ruled out). While both rails were `tablist`s, whichever one did not hold the
+// selection announced as a tab group with ZERO selected tabs — measured in BOTH directions. The rails are
+// named TOOLBARS now and the cells are plain buttons carrying `aria-current`; the quiet rail simply has no
+// current cell, which is the truth.
+//
+// The first assertion is deliberately phrased against the OLD world (it counts tab groups with nothing
+// selected) so it is a real defect proof: it reds on the pre-fix source and can only go green by the rails
+// ceasing to make a claim they cannot keep.
+
+/** Every element that ANNOUNCES as a tab group but holds no selected tab — the #112 defect, counted. */
+function zeroSelectedTabGroups(page: import("@playwright/test").Page): Promise<number> {
+  return page.evaluate(
+    () => Array.from(document.querySelectorAll('[role="tablist"]')).filter((list) => list.querySelector('[role="tab"][aria-selected="true"]') === null).length,
+  );
+}
+
+/** The accessible name of every cell in the HUD that claims to be the current one. */
+function currentCellNames(page: import("@playwright/test").Page): Promise<readonly string[]> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll('[data-slot="rpg-hud-rail"] [aria-current="true"]')).map(
+      (el) => el.getAttribute("aria-label") ?? el.textContent ?? "",
+    ),
+  );
+}
+
+for (const direction of [
+  { rail: "Game state", cell: "Status", other: "Chat" },
+  { rail: "Chat", cell: "This chat", other: "Game state" },
+] as const) {
+  test(`#112 selection in the ${direction.rail} rail: no tab group is left empty, and only that rail has a current cell`, async ({ mount, page }) => {
+    await stubTakeover(page);
+    const component = await mount(<RpgTakeoverReferenceStory />);
+    const owning = component.getByRole("toolbar", { name: direction.rail });
+    const quiet = component.getByRole("toolbar", { name: direction.other });
+    await expect(owning).toBeVisible();
+    await expect(quiet).toBeVisible();
+
+    await owning.getByRole("button", { name: direction.cell }).click();
+    await expect(owning.getByRole("button", { name: direction.cell })).toHaveAttribute("aria-current", "true");
+
+    // THE DEFECT PIN — nothing in the document announces as a chooser with nothing chosen.
+    expect(await zeroSelectedTabGroups(page)).toBe(0);
+    // …and the fact is carried exactly once, by the rail that actually holds the view.
+    expect(await currentCellNames(page)).toEqual([direction.cell]);
+    await expect(quiet.locator('[aria-current="true"]')).toHaveCount(0);
+    // The quiet rail is still a NAMED group of real controls — it did not lose its voice to gain honesty.
+    await expect(quiet.getByRole("button").first()).toBeVisible();
+  });
+}
+
+test("#112: the rail keeps ONE tab stop with arrow keys inside it — the toolbar's contract, not a lost one", async ({ mount, page }) => {
+  // Arm B's stated cost was Base UI's roving focus. It is not paid: the composite that provides it is the
+  // LIST, not the `tab` role, so dropping the role leaves the keyboard model untouched. Receipted as a real
+  // traversal — reach the rail by Tab, walk it by Arrow, and prove one more Tab LEAVES it (six cells, one
+  // stop) rather than stepping to the next cell.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverReferenceStory />);
+  const rail = component.getByRole("toolbar", { name: "Game state" });
+  await expect(rail.getByRole("button")).toHaveCount(6);
+
+  expect(await tabInto(page, '[data-slot="rpg-hud-rail"] [role="toolbar"]')).toBe(true);
+  const focused = (): Promise<string> => page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? "");
+  const first = await focused();
+  expect(first).not.toBe("");
+
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(focused).not.toBe(first);
+  // Still inside the SAME rail — the arrow walked the group, it did not escape it.
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[role="toolbar"]')?.getAttribute("aria-label") ?? "")).toBe("Game state");
+
+  // One Tab leaves the whole rail: six cells share a single stop (the #107 tab-budget law still holds).
+  await page.keyboard.press("Tab");
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-slot="rpg-hud-rail"]') !== null)).toBe(false);
 });
 
 test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short body AND a tall one, with no jump", async ({ mount, page }) => {
@@ -2144,7 +2222,7 @@ test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short bo
   const component = await mount(<RpgTakeoverReferenceStory />);
   const region = component.locator("[data-context-region]");
   await expect(region).toBeVisible();
-  const rail = component.getByRole("tablist", { name: "Chat" });
+  const rail = component.getByRole("toolbar", { name: "Chat" });
 
   // Measure only once the swap has SETTLED: Base UI keeps the outgoing panel mounted through its exit
   // transition, so a mid-swap read sees two viewports (the DEF-14 flake class). The panel is addressed by
@@ -2154,7 +2232,7 @@ test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short bo
     const [railBox, regionBox, viewportBox] = await Promise.all([
       rail.boundingBox(),
       region.boundingBox(),
-      component.getByRole("tabpanel", { name: tabName }).boundingBox(),
+      component.getByRole("region", { name: tabName }).boundingBox(),
     ]);
     if (railBox === null || regionBox === null || viewportBox === null) {
       throw new Error("expected the admin rail, the region and the viewport to be laid out");
@@ -2164,9 +2242,9 @@ test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short bo
 
   // SHORT body (Journal on the stub's three entries) — the rail sits ON the pane's bottom edge, and the
   // span between the body and it is the HUD's ground, not a void the rail floats above.
-  await component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Journal" }).click();
+  await component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Journal" }).click();
   // Settle the swap BEFORE measuring — geometry read mid-transition is the DEF-14 flake class.
-  await expect(component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Journal" })).toHaveAttribute("aria-selected", "true");
+  await expect(component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Journal" })).toHaveAttribute("aria-current", "true");
   const short = await footOf("Journal");
   expect(short.railBottom).toBeCloseTo(short.regionBottom, 0);
   expect(short.viewportBottom).toBeLessThanOrEqual(short.railBottom);
@@ -2178,8 +2256,8 @@ test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short bo
 
   // TALL body (Status: roster + orbs + the veiled ledger) — the viewport shrinks and scrolls, and the rail
   // has NOT moved: the two states differ by no layout jump at all.
-  await component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Status" }).click();
-  await expect(component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "true");
+  await component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Status" }).click();
+  await expect(component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Status" })).toHaveAttribute("aria-current", "true");
   const tall = await footOf("Status");
   expect(tall.railBottom).toBeCloseTo(short.railBottom, 0);
   expect(tall.railBottom).toBeCloseTo(tall.regionBottom, 0);
@@ -2251,8 +2329,8 @@ test("HUD-1 §4: the admin rail is a TAB GROUP — its own name on screen, in th
   expect(size).toBeCloseTo(micro, 0);
 
   // The kicker's rule replaces the rail's own track: one line at the rail's top edge, never two.
-  const adminList = component.getByRole("tablist", { name: "Chat" });
-  const gameList = component.getByRole("tablist", { name: "Game state" });
+  const adminList = component.getByRole("toolbar", { name: "Chat" });
+  const gameList = component.getByRole("toolbar", { name: "Game state" });
   await expect.poll(() => adminList.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("0px");
   await expect.poll(() => gameList.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderBottomWidth))).toBeGreaterThan(0);
   // …and the rule the kicker draws instead is really painted (a Separator that failed to lay out would
@@ -2267,12 +2345,12 @@ test("HUD-1 §4: HOST-ONLY cells wear the crown gold at rest — and only at res
   // through the same seam to one renderer.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const rail = component.getByRole("tablist", { name: "Chat" });
+  const rail = component.getByRole("toolbar", { name: "Chat" });
   const highlight = await resolvedToken(page, "--color-highlight");
 
   const glyphColor = async (tabName: string): Promise<string> =>
     rail
-      .getByRole("tab", { name: tabName })
+      .getByRole("button", { name: tabName })
       .locator("svg")
       .first()
       .evaluate((el) => getComputedStyle(el).color);
@@ -2286,8 +2364,8 @@ test("HUD-1 §4: HOST-ONLY cells wear the crown gold at rest — and only at res
 
   // Give the admin rail the selection and its crowns light up — the gold marks a class of CELL, within its
   // rail's own voice.
-  await rail.getByRole("tab", { name: "This chat" }).click();
-  await expect(rail.getByRole("tab", { name: "This chat" })).toHaveAttribute("aria-selected", "true");
+  await rail.getByRole("button", { name: "This chat" }).click();
+  await expect(rail.getByRole("button", { name: "This chat" })).toHaveAttribute("aria-current", "true");
   await expect.poll(() => glyphColor("Preview"), { intervals: [20, 50, 100, 200] }).toBe(highlight);
   expect(await glyphColor("Game")).toBe(highlight);
   // A non-host cell in the SAME (owning) rail is untouched — the gold marks a class of cell, not the rail.
@@ -2295,8 +2373,8 @@ test("HUD-1 §4: HOST-ONLY cells wear the crown gold at rest — and only at res
 
   // ACTIVE beats crowned: once the cell is the answer to "where am I", the accent state colour owns it —
   // a gold glyph inside an accent cell argues with the one treatment that means "selected".
-  await rail.getByRole("tab", { name: "Preview" }).click();
-  await expect(rail.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
+  await rail.getByRole("button", { name: "Preview" }).click();
+  await expect(rail.getByRole("button", { name: "Preview" })).toHaveAttribute("aria-current", "true");
   expect(await glyphColor("Preview")).not.toBe(highlight);
 });
 
@@ -2306,12 +2384,12 @@ test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the se
   // colour on both rails, in both directions — a one-directional check would pass on a stuck rail.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const gameList = component.getByRole("tablist", { name: "Game state" });
-  const adminList = component.getByRole("tablist", { name: "Chat" });
+  const gameList = component.getByRole("toolbar", { name: "Game state" });
+  const adminList = component.getByRole("toolbar", { name: "Chat" });
   const fill = (list: ReturnType<typeof component.getByRole>): Promise<string> => list.evaluate((el) => getComputedStyle(el).backgroundColor);
   const captionColor = (list: ReturnType<typeof component.getByRole>, tabName: string, word: string): Promise<string> =>
     list
-      .getByRole("tab", { name: tabName })
+      .getByRole("button", { name: tabName })
       .getByText(word)
       .evaluate((el) => getComputedStyle(el).color);
 
@@ -2328,8 +2406,8 @@ test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the se
   // POLLED, not read once: the cells carry a colour TRANSITION, so a synchronous read lands mid-interpolation
   // on a value that is neither state (the first run of this test caught itself at oklab L=0.919, between
   // muted-foreground's 0.74 and foreground's 0.955) — the settled colour is the assertion.
-  await adminList.getByRole("tab", { name: "This chat" }).click();
-  await expect(adminList.getByRole("tab", { name: "This chat" })).toHaveAttribute("aria-selected", "true");
+  await adminList.getByRole("button", { name: "This chat" }).click();
+  await expect(adminList.getByRole("button", { name: "This chat" })).toHaveAttribute("aria-current", "true");
   expect(await fill(adminList)).not.toBe(transparent);
   expect(await fill(gameList)).toBe(transparent);
   await expect.poll(() => captionColor(adminList, "Preview", "Preview"), { intervals: [20, 50, 100, 200] }).toBe(owningCaption);
@@ -2355,7 +2433,7 @@ test("HUD-1 §7.3: the band's LAST line ECHOES the selection — named rail, nam
   // It is a VISUAL aid, not a second announcement: the rails already tell AT what is selected.
   await expect(echo).toHaveAttribute("aria-hidden", "true");
 
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "This chat" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "This chat" }).click();
   await expect(echo).toHaveText("Chat · This chat");
 });
 
@@ -2492,10 +2570,10 @@ test("side-eye 08-01: at the panel's 17rem FLOOR the game rail wraps to rows of 
   // caption's scrollWidth inside its own box (the definition of "not clipped").
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverFloorStory />);
-  const list = component.getByRole("tablist", { name: "Game state" });
-  await expect(list.getByRole("tab")).toHaveCount(6);
+  const list = component.getByRole("toolbar", { name: "Game state" });
+  await expect(list.getByRole("button")).toHaveCount(6);
 
-  const boxes = await Promise.all((await list.getByRole("tab").all()).map((tab) => tab.boundingBox()));
+  const boxes = await Promise.all((await list.getByRole("button").all()).map((tab) => tab.boundingBox()));
   const tops = new Set(boxes.map((box) => Math.round(box?.y ?? 0)));
   expect(tops.size).toBe(2);
   const firstRow = boxes.filter((box) => Math.round(box?.y ?? 0) === Math.min(...tops));
@@ -2513,15 +2591,15 @@ test("side-eye 08-01: at 320px the SIX-cell game rail wraps too — the caption 
   // need to.)
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const game = component.getByRole("tablist", { name: "Game state" });
-  await expect(game.getByRole("tab")).toHaveCount(6);
+  const game = component.getByRole("toolbar", { name: "Game state" });
+  await expect(game.getByRole("button")).toHaveCount(6);
   const clipped = await game.locator('[data-slot="rpg-hud-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
   expect(clipped).toBe(0);
 
-  const gameRows = new Set((await Promise.all((await game.getByRole("tab").all()).map((tab) => tab.boundingBox()))).map((box) => Math.round(box?.y ?? 0)));
+  const gameRows = new Set((await Promise.all((await game.getByRole("button").all()).map((tab) => tab.boundingBox()))).map((box) => Math.round(box?.y ?? 0)));
   expect(gameRows.size).toBe(2);
-  const admin = component.getByRole("tablist", { name: "Chat" });
-  const adminRows = new Set((await Promise.all((await admin.getByRole("tab").all()).map((tab) => tab.boundingBox()))).map((box) => Math.round(box?.y ?? 0)));
+  const admin = component.getByRole("toolbar", { name: "Chat" });
+  const adminRows = new Set((await Promise.all((await admin.getByRole("button").all()).map((tab) => tab.boundingBox()))).map((box) => Math.round(box?.y ?? 0)));
   expect(adminRows.size).toBe(1);
 });
 
@@ -2545,7 +2623,7 @@ test("side-eye 08-01: an UNSET pool reads as an em dash, never a synthesized 0/m
   // reader announced the invention as the character's reading.
   await stubTakeover(page, { tracker: unwrittenTrackerView() });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
   const row = component.locator('[data-slot="meter-row"]').first();
   await expect(row).toHaveAttribute("data-unset", "true");
@@ -2562,7 +2640,7 @@ test("side-eye 08-01: the pack grid ends on the LAST ITEM — no empty ghost soc
   // it and nothing to click. The host's real add row sits directly beneath the grid.
   await stubTakeover(page, { tracker: packedTracker() });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
 
   await expect(component.locator('[data-slot="rpg-pack-cell"]')).toHaveCount(PACKED_ITEMS.length);
   await expect(component.locator('[data-slot="rpg-pack-ghost"]')).toHaveCount(0);
@@ -2601,7 +2679,7 @@ test("side-eye 08-01: a cast card's tracked readings are named by WHOSE they are
     },
   });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
   await expect(component.getByRole("button", { name: "Sera Trust" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Mara the elder Trust" })).toBeVisible();
@@ -2619,7 +2697,7 @@ test("side-eye 08-01: a cast card's tracked readings are named by WHOSE they are
 test("the resync's opt-in restamp: checked ⇒ the stamp write fires with the all-my-rows scope, then the rebuild", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   await component.getByRole("checkbox", { name: "Restamp my messages first" }).click();
   await component.getByRole("button", { name: "Resync from story" }).click();
@@ -2636,7 +2714,7 @@ test("the resync's opt-in restamp: checked ⇒ the stamp write fires with the al
 test("a FAILED restamp aborts the rebuild — the rebuild never runs on the stamps the host asked to replace", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { restampFails: true });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   await component.getByRole("checkbox", { name: "Restamp my messages first" }).click();
   await component.getByRole("button", { name: "Resync from story" }).click();
@@ -2650,7 +2728,7 @@ test("a FAILED restamp aborts the rebuild — the rebuild never runs on the stam
 test("unchecked ⇒ the rebuild ALONE — the resync never restamps anything the host didn't ask it to", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   await component.getByRole("button", { name: "Resync from story" }).click();
 
@@ -2667,7 +2745,7 @@ test("RESYNC-OR: a provider refusal is TOLD to the host, with the server's own r
   const reason = "the model call failed, so nothing was rebuilt: openrouter structured item 0 failed";
   const trpc = await stubTakeover(page, { resyncVerdict: { ok: false, reason } });
   const component = await mount(<RpgTakeoverNotifyStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   await component.getByRole("button", { name: "Resync from story" }).click();
 
@@ -2678,7 +2756,7 @@ test("RESYNC-OR: a provider refusal is TOLD to the host, with the server's own r
 test("RESYNC-OR: a rebuild that found NOTHING says so — not silence, and not an error either", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { resyncVerdict: { ok: true, rebuilt: false } });
   const component = await mount(<RpgTakeoverNotifyStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   await component.getByRole("button", { name: "Resync from story" }).click();
 
@@ -2689,7 +2767,7 @@ test("RESYNC-OR: a rebuild that found NOTHING says so — not silence, and not a
 test("RESYNC-OR: a rebuild that LANDED stays quiet — the repainted panel is the feedback", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { resyncVerdict: { ok: true, rebuilt: true } });
   const component = await mount(<RpgTakeoverNotifyStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   await component.getByRole("button", { name: "Resync from story" }).click();
 
@@ -2701,7 +2779,7 @@ test("RESYNC-OR: a rebuild that LANDED stays quiet — the repainted panel is th
 test("with no persona in this chat the option is DISABLED and says why (never hidden)", async ({ mount, page }) => {
   await stubTakeover(page, { chat: gameChat(null) });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   await expect(component.getByRole("checkbox", { name: "Restamp my messages first" })).toBeDisabled();
   await expect(component.getByText("Pick a persona for this chat first — there's nothing to re-stamp to.")).toBeVisible();
@@ -2716,7 +2794,7 @@ test("with no persona in this chat the option is DISABLED and says why (never hi
 test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, token-sized and inside their row", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverFloorStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Quests" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Quests" }).click();
 
   const del = component.getByRole("button", { name: "Delete quest: Keep the bone key" });
   await expect(del).toBeVisible();
@@ -2764,7 +2842,7 @@ test("GLYPHFIX: at the 272px floor the tracker-def row's SWATCH and its three gl
   // toggle is invisible to every static gate — this reads them back computed against their own tokens.
   await stubTakeover(page, { config: meterTrackerConfig() });
   const component = await mount(<RpgTakeoverFloorStory />);
-  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
 
   const row = component.locator('[data-slot="rpg-tracker-row"]').first();
   const swatch = row.locator('[data-slot="track-bar"]').first();
@@ -2839,7 +2917,7 @@ test.describe("coarse HUD budget", () => {
 
       const measured = await band.evaluate((el: HTMLElement) => {
         const paneEl = el.closest(".shell-panel") as HTMLElement;
-        const panel = paneEl.querySelector('[role="tabpanel"]:not([hidden])') as HTMLElement | null;
+        const panel = paneEl.querySelector('[data-slot="tabs-panel"]:not([hidden])') as HTMLElement | null;
         const rails = Array.from(paneEl.querySelectorAll<HTMLElement>('[data-slot="rpg-hud-rail"]'));
         return {
           pane: paneEl.getBoundingClientRect().height,
@@ -2864,7 +2942,7 @@ test.describe("coarse HUD budget", () => {
 
       // All six cells are present and each caption renders WHOLE — the `auto-cols-max` half of the fix.
       // (Six is the declared game rail: Status · Inventory · Scene · Quests · Journal · Map.)
-      const cells = component.locator('[data-slot="rpg-hud-rail"]').first().getByRole("tab");
+      const cells = component.locator('[data-slot="rpg-hud-rail"]').first().getByRole("button");
       await expect(cells).toHaveCount(6);
       const clipped = await component
         .locator('[data-slot="rpg-hud-rail"]')
@@ -2906,10 +2984,10 @@ test.describe("coarse game rail cells", () => {
 
       const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
       const rail = component.locator('[data-slot="rpg-hud-rail"]').first();
-      await expect(rail.getByRole("tab")).toHaveCount(6);
+      await expect(rail.getByRole("button")).toHaveCount(6);
       // BOXES, because `TabsTab` has no overflowing hit pseudo — here the box IS the target.
       const widths = await rail.evaluate((el: HTMLElement) =>
-        Array.from(el.querySelectorAll<HTMLElement>('[role="tab"]')).map((node) => node.getBoundingClientRect().width),
+        Array.from(el.querySelectorAll<HTMLElement>('[data-slot="tabs-tab"]')).map((node) => node.getBoundingClientRect().width),
       );
       expect(widths).toHaveLength(6);
       expect(widths.filter((w) => w < 44)).toEqual([]);
@@ -2921,12 +2999,12 @@ test.describe("coarse game rail cells", () => {
 
       const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
       const rail = component.locator('[data-slot="rpg-hud-rail"]').first();
-      await expect(rail.getByRole("tab")).toHaveCount(6);
+      await expect(rail.getByRole("button")).toHaveCount(6);
       // The tail gap is measured against the LIST's own box, so the assertion survives a retune of the rail's
       // inline padding. MEASURED before: 127px of 429 at 430.
       const tail = await rail.evaluate((el: HTMLElement) => {
-        const list = el.querySelector('[role="tablist"]') as HTMLElement;
-        const cells = Array.from(list.querySelectorAll<HTMLElement>('[role="tab"]'));
+        const list = el.querySelector('[role="toolbar"]') as HTMLElement;
+        const cells = Array.from(list.querySelectorAll<HTMLElement>('[data-slot="tabs-tab"]'));
         const last = cells.at(-1) as HTMLElement;
         return list.getBoundingClientRect().right - last.getBoundingClientRect().right;
       });
@@ -2971,13 +3049,13 @@ test.describe("coarse game rail focus ring", () => {
 
     const component = await mount(<RpgTakeoverStory width={430} height={700} />);
     const rail = component.locator('[data-slot="rpg-hud-rail"]').first();
-    await expect(rail.getByRole("tab")).toHaveCount(6);
+    await expect(rail.getByRole("button")).toHaveCount(6);
 
     // 1) REACHABILITY — the half the reviewer could not measure.
-    expect(await tabInto(page, '[data-slot="rpg-hud-rail"] [role="tablist"]')).toBe(true);
+    expect(await tabInto(page, '[data-slot="rpg-hud-rail"] [role="toolbar"]')).toBe(true);
 
     const measured = await rail.evaluate((el: HTMLElement) => {
-      const list = el.querySelector('[role="tablist"]') as HTMLElement;
+      const list = el.querySelector('[role="toolbar"]') as HTMLElement;
       const cell = document.activeElement as HTMLElement;
       const listBox = list.getBoundingClientRect();
       const cellBox = cell.getBoundingClientRect();
@@ -3068,7 +3146,7 @@ test("host GRANTS a class-excluded tracker: whole-list patchSheet persists it, a
   const store = grantsStore();
   const trpc = await stubTakeover(page, { game: d20Game(), liveTracker: store.tracker, patchSheet: store.patch });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
   await component.getByRole("button", { name: "Open Mara" }).click();
 
   const editor = component.locator('[data-slot="rpg-tracker-grants"]');
@@ -3107,7 +3185,7 @@ test("host REVOKES a class-included tracker: patchSheet persists the revoke and 
   const store = grantsStore();
   const trpc = await stubTakeover(page, { game: d20Game(), liveTracker: store.tracker, patchSheet: store.patch });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
   await component.getByRole("button", { name: "Open Mara" }).click();
 
   const row = component.locator('[data-slot="rpg-tracker-grants"] [data-slot="rpg-tracker-grant-row"][data-tracker-key="vitality"]');
@@ -3133,7 +3211,7 @@ test("a MEMBER sees NO grants editor in the takeover — grants are the host's c
     chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false },
   });
   const component = await mount(<RpgTakeoverStory />);
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
   await component.getByRole("button", { name: "Open Mara" }).click();
 
   const detail = component.locator('[data-slot="rpg-character-detail"]');
@@ -3199,7 +3277,7 @@ test.describe("coarse touch floor — the meter row's value and its ceiling", ()
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     await stubTakeover(page, { tracker: singleMeterTrackerView() });
     const component = await mount(<RpgTakeoverStory />);
-    await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+    await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
     // The rail must actually be RENDERED under the value — without it this test cannot fail for its reason.
     await expect(component.locator('[data-slot="meter-row"] [data-slot="track-bar"]').first()).toBeVisible();
@@ -3228,7 +3306,7 @@ test.describe("coarse touch floor — the meter row's value and its ceiling", ()
               if (hit === null) {
                 return "";
               }
-              return hit.closest("button,a,[role=tab],[role=switch]") === null ? (hit.getAttribute("data-slot") ?? hit.tagName.toLowerCase()) : "";
+              return hit.closest("button,a,[data-slot=tabs-tab],[role=switch]") === null ? (hit.getAttribute("data-slot") ?? hit.tagName.toLowerCase()) : "";
             });
           })
           .filter((slot) => slot !== ""),
@@ -3254,12 +3332,12 @@ test("side-eye 2026-08-16: at the 384px DOCKED panel no game-rail caption crushe
   // neither existing rail CT covered — can never regress into a wrap or a clip unnoticed.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverDockedStory />);
-  const list = component.getByRole("tablist", { name: "Game state" });
-  await expect(list.getByRole("tab")).toHaveCount(6);
+  const list = component.getByRole("toolbar", { name: "Game state" });
+  await expect(list.getByRole("button")).toHaveCount(6);
 
   // ONE row at this width (the wrap arm is for the narrower FLOOR story) — so this is genuinely the range
   // neither arm covered, not the row-wrap being re-tested at a new width.
-  const boxes = await Promise.all((await list.getByRole("tab").all()).map((tab) => tab.boundingBox()));
+  const boxes = await Promise.all((await list.getByRole("button").all()).map((tab) => tab.boundingBox()));
   expect(new Set(boxes.map((box) => Math.round(box?.y ?? 0))).size).toBe(1);
 
   // NO caption is truncated — the whole point. `+1` absorbs sub-pixel rounding, exactly as the FLOOR pin does.
@@ -3275,7 +3353,7 @@ test("side-eye 2026-08-16: the PHASE-lock glyph keeps a gutter off the pane's ow
   // against the resolved token, never a hardcoded px.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverDockedStory />);
-  const mapTab = component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Map" });
+  const mapTab = component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Map" });
   await expect(mapTab).toBeVisible();
 
   const gutter = await mapTab.evaluate((tab: HTMLElement): number => {

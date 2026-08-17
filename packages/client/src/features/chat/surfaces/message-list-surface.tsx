@@ -253,6 +253,9 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         smoothStreamCps={behaviorPrefs.smoothStreamCps}
         reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}
         enterMotion={newArrivalKeys.has(item.id)}
+        // #116 — the SAME measured verdict the settled row takes. The live turn is the row that exceeds the
+        // scrollport most often (it grows past it while streaming), so this is where the pin earns most.
+        stickyAttribution={meta.exceedsViewport}
       />
     ) : (
       <MessageRow

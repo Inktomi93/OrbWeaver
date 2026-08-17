@@ -267,19 +267,20 @@ function renderRowIdentity(args: { readonly attribution: RowAttribution; readonl
   );
 }
 
-/** The row's chrome row: the identity cluster on the left, the action cluster on the right.
+/** The name row's FRAME — the ONE home for the chrome row's anatomy, shared by the settled row
+ *  ({@link renderRowNameRow}) and the streaming ghost ({@link renderGhostNameRow}, #116). Both must carry
+ *  the same `data-slot`, the same two stacking backings and the same sticky mechanics, because #113's pin
+ *  is keyed off exactly this element: a ghost with its own hand-spelled name row would be a second home
+ *  that silently stops inheriting the next fix to this one.
  *
  *  Two INDEPENDENT backings can land on it and they stack: `chromeBacking` (the skin's wallpaper-gated
  *  scrim, no-fill modes only) and `STICKY_ATTRIBUTION_CHROME` (#113 — pin + chip, any mode, only for a row
- *  the virtualizer measured as taller than the scrollport). Split out of `message-row.tsx` so that row's
- *  body stays under the cognitive-complexity ceiling. */
-export function renderRowNameRow(args: {
-  readonly attribution: RowAttribution;
-  readonly message: MessageView;
-  readonly showTimestamp: boolean;
+ *  the virtualizer measured as taller than the scrollport). */
+function nameRowFrame(args: {
+  readonly identity: ReactNode;
+  readonly actions: ReactNode;
   readonly chromeBacking: string | undefined;
   readonly stickyAttribution: boolean;
-  readonly actions: ReactNode;
 }): ReactElement {
   return (
     <Row
@@ -290,10 +291,62 @@ export function renderRowNameRow(args: {
       data-sticky={args.stickyAttribution ? "" : undefined}
       className={cn(args.chromeBacking, args.stickyAttribution && STICKY_ATTRIBUTION_CHROME)}
     >
-      {renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp })}
+      {args.identity}
       {args.actions}
     </Row>
   );
+}
+
+/** The settled row's chrome row: the identity cluster on the left, the action cluster on the right. Split
+ *  out of `message-row.tsx` so that row's body stays under the cognitive-complexity ceiling. */
+export function renderRowNameRow(args: {
+  readonly attribution: RowAttribution;
+  readonly message: MessageView;
+  readonly showTimestamp: boolean;
+  readonly chromeBacking: string | undefined;
+  readonly stickyAttribution: boolean;
+  readonly actions: ReactNode;
+}): ReactElement {
+  return nameRowFrame({
+    identity: renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp }),
+    actions: args.actions,
+    chromeBacking: args.chromeBacking,
+    stickyAttribution: args.stickyAttribution,
+  });
+}
+
+/** THE LIVE TURN'S NAME ROW (#116) — the same anatomy as the settled row's, minus the two clusters a
+ *  pre-commit turn has no data for: there is no `MessageView` yet, so no timestamp, and the action cluster
+ *  (edit/swipe/kebab) only exists for canon. What is left is exactly the fact the ghost was missing: WHO is
+ *  speaking, for the whole minutes-long generation, in a group room where arbitration picks the speaker.
+ *
+ *  Riding the shared frame is what buys #113's sticky pin for the live turn for free — once the growing
+ *  ghost exceeds the scrollport the surface passes `stickyAttribution` and the name pins to the top of the
+ *  scrollport with the stream flowing under it, layout-neutral (`-my-row` cancels `py-row`).
+ *
+ *  ARIA: plain text inside the transcript's `role="log"`/`aria-live="polite"` region, and nothing more. It
+ *  is deliberately NOT given a second accessible home (no `role="article"`/`aria-label` on the ghost, the
+ *  way the settled row has one): the region is not `aria-atomic`, so the name enters the announcement
+ *  stream exactly ONCE, when the row appears, and every later delta announces only the delta. */
+export function renderGhostNameRow(args: {
+  readonly attribution: RowAttribution | undefined;
+  readonly chromeBacking: string | undefined;
+  readonly stickyAttribution: boolean;
+}): ReactElement | null {
+  const attribution = args.attribution;
+  if (attribution === undefined || attribution.name === null) {
+    return null;
+  }
+  return nameRowFrame({
+    identity: (
+      <Row gap="field" align="baseline" data-slot="message-attribution">
+        {renderAttributionName(attribution)}
+      </Row>
+    ),
+    actions: null,
+    chromeBacking: args.chromeBacking,
+    stickyAttribution: args.stickyAttribution,
+  });
 }
 
 export function renderRowActions(args: {

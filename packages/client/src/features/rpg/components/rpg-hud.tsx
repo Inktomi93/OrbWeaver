@@ -67,10 +67,36 @@ export interface RpgHudProps {
   readonly view: ContextRegionView;
 }
 
-/** The cell's DOM id — the anchor each viewport panel names as its accessible label (§3.6 fence 6). Base UI
+/** THE CELL'S ARIA STRIP (#112) — see the ARIA-model block below. Spread onto the cell to DELETE the two
+ *  attributes the tabs primitive emits for a tab it no longer is: Base UI merges external props last, and
+ *  the element under it is a real `<button>`, so a `role` of `undefined` leaves the native button role. */
+const CELL_ARIA_STRIP = { role: undefined, "aria-selected": undefined } as const;
+
+/** ── THE HUD'S ARIA MODEL (#112, 2026-08-16) — TWO NAMED TOOLBARS, ONE CURRENT CELL ────────────────────
+ *
+ *  The rails are NOT `tablist`s and the cells are NOT `tab`s, deliberately. The HUD deals two rails off ONE
+ *  `Tabs` root with ONE shared selection (§7.1 puts the viewport BETWEEN them, so one DOM tablist is ruled
+ *  out) — and a tablist whose selection lives in the OTHER rail announces with ZERO selected tabs. Measured
+ *  both directions; a screen-reader user entering the quiet rail heard a chooser with nothing chosen.
+ *
+ *  What each rail's own call site says instead (the ONE place with the two-rail problem — the shared
+ *  `@orb/ui` tabs seal keeps its honest tablist for every single-rail consumer):
+ *    · the RAIL is `role="toolbar"` + its `aria-label` — a named set of related controls, and a contract this
+ *      HUD keeps: Base UI's composite gives the rail ONE tab stop with arrow keys inside it. That roving
+ *      behaviour, the panel wiring, the active `data-*` treatment and every pixel are untouched here; only
+ *      the announced ROLES move.
+ *    · the CELL drops `role`/`aria-selected` (`CELL_ARIA_STRIP`) and carries `aria-current="true"` while it
+ *      holds the view — so a rail without the selection claims no state at all.
+ *    · the VIEWPORT panel is `role="region"` named by its cell: a `tabpanel` with no tab in the document is
+ *      a dangling promise, and a named region is what it actually is.
+ *  Rejected: `aria-owns`-ing one conceptual tablist across both rails — it announces a 10-tab group whose
+ *  arrow keys stop dead at the rail boundary (the composites are per-list, with the viewport between them)
+ *  and costs both rail NAMES; a worse contract than the one it fixes.
+ *
+ *  The cell's DOM id — the anchor each viewport panel names as its accessible label (§3.6 fence 6). Base UI
  *  associates a panel with its tab only within ONE list; the HUD deals two rails off one `Tabs` root, which
- *  breaks that lookup and left the active tabpanel with no accessible name at all. Naming both ends from the
- *  tab id is the one-home fix (pinned by the a11y CT). */
+ *  breaks that lookup and left the active panel with no accessible name at all. Naming both ends from the
+ *  cell id is the one-home fix (pinned by the a11y CT). */
 function cellDomId(tabId: string): string {
   return `rpg-hud-cell-${tabId}`;
 }
@@ -117,7 +143,15 @@ export function RpgHud({ view }: RpgHudProps): ReactElement {
             the HUD's own now (the shell's panel-body padding is dropped under a claim), so a body keeps its
             breathing room while the chrome around it reaches the pane's edges. */}
         {view.tabs.map((tab) => (
-          <TabsPanel key={tab.id} value={tab.id} aria-labelledby={cellDomId(tab.id)} className="relative min-h-0 flex-initial overflow-y-auto px-row py-row">
+          <TabsPanel
+            key={tab.id}
+            value={tab.id}
+            // `region`, not the primitive's `tabpanel` — see the ARIA-model note above `cellDomId`: with the
+            // rails announcing as toolbars there is no tab in the document for a tabpanel to belong to.
+            role="region"
+            aria-labelledby={cellDomId(tab.id)}
+            className="relative min-h-0 flex-initial overflow-y-auto px-row py-row"
+          >
             {tab.node}
           </TabsPanel>
         ))}
@@ -307,6 +341,10 @@ function RpgHudRail({
       )}
       <Row align="center" gap="row" className="min-w-0">
         <TabsList
+          // `toolbar`, not the primitive's `tablist` — see the ARIA-model note above `cellDomId`. The
+          // composite's one-tab-stop-plus-arrows behaviour is exactly a toolbar's contract, and it is the
+          // only container role here that does not imply a selection this rail may not be holding.
+          role="toolbar"
           aria-label={ariaLabel}
           className={`grid min-w-0 w-full auto-cols-fr grid-flow-col gap-field ${tabs.length >= RAIL_WRAP_MIN_CELLS ? RAIL_WRAP_CLASS : ""} ${track} ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
         >
@@ -360,6 +398,12 @@ function RpgHudCell({
       layout="stacked"
       value={tab.id}
       id={cellDomId(tab.id)}
+      // THE CELL IS A BUTTON, NOT A TAB (#112 — the ARIA-model note above `cellDomId`). The strip deletes
+      // `role`/`aria-selected` (the latter is only defined on a tab; on a button it is an invalid attribute),
+      // and `aria-current` carries the same fact honestly — ABSENT on every cell of the rail that is not
+      // holding the view, which is the whole defect: no rail announces as a chooser with nothing chosen.
+      {...CELL_ARIA_STRIP}
+      aria-current={isActive ? true : undefined}
       // THE LOCK IS IN THE NAME (side-eye 2026-08-06 ARIA). The glyph said "locked" to the eye and `title`
       // carried the reason, but Base UI emits `aria-disabled="false"` on this cell (it is genuinely not
       // disabled — see the block comment above), so AT heard "Map, tab" and nothing else: a lock a screen

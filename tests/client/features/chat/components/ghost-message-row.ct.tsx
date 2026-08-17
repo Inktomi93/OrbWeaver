@@ -331,6 +331,126 @@ test("§4.5: an ABORT after the card mounted drops the card with the ghost row (
   await expect(component.locator("iframe")).toHaveCount(0);
 });
 
+// ── #116: THE LIVE TURN HAS A SPEAKER ─────────────────────────────────────────────────────────────
+// The ghost rendered avatar + bubble and no name row at all, so mid-generation — minutes, on a local model —
+// a long reply in a group room had no speaker on it, and #113's sticky attribution could not reach the one
+// row that needs it most (the live one is the row that grows past the scrollport). The fix rides the SAME
+// frame the settled row uses (`renderGhostNameRow` → `nameRowFrame`), which is what buys the pin for free.
+//
+// No live generation is driven here on purpose: the stream is scripted, which is the honest CT form for a
+// mid-stream state. `speakerName` is what a group turn's resolved attribution carries.
+
+const NAME_ROW = '[data-slot="message-name-row"]';
+const GHOST_ROW = '[data-slot="ghost-message-row"]';
+const TRANSPARENT = "rgba(0, 0, 0, 0)";
+
+test("#116: a streaming turn names its speaker — the name row leads the ghost's content column", async ({ mount }) => {
+  const component = await mount(<GhostRowScriptedStory chunks={["The lantern gutters. "]} speakerName="Marguerite" />);
+  await driveScript(component, 1);
+
+  const nameRow = component.locator(NAME_ROW);
+  await expect(nameRow).toBeVisible();
+  await expect(nameRow).toContainText("Marguerite");
+  // ANATOMY: the name row is a SIBLING ABOVE the bubble inside the content column, exactly as the settled
+  // row composes it — not inside the bubble, where it would scroll away with the prose.
+  const [nameBox, bubbleBox] = await Promise.all([nameRow.boundingBox(), component.locator('[data-slot="message-bubble"]').boundingBox()]);
+  if (nameBox === null || bubbleBox === null) {
+    throw new Error("expected both the ghost's name row and its bubble to be laid out");
+  }
+  expect(nameBox.y + nameBox.height).toBeLessThanOrEqual(bubbleBox.y + 1);
+});
+
+test("#116: with no resolved attribution the ghost is byte-identically bare — no empty name row", async ({ mount }) => {
+  // The planted CONTROL for the assertion above: a mount with no roster resolves no name, and an empty
+  // chrome row would be a new blank band over every un-attributed stream.
+  const component = await mount(<GhostRowScriptedStory chunks={["Hello there "]} />);
+  await driveScript(component, 1);
+
+  await expect(component.getByText("Hello there", { exact: false })).toBeVisible();
+  await expect(component.locator(NAME_ROW)).toHaveCount(0);
+});
+
+test("#116: the ghost's name row takes #113's pin — sticky, backed, and layout-neutral", async ({ mount }) => {
+  // Layout neutrality is the load-bearing half: the sticky verdict arrives AFTER the virtualizer measures
+  // the row, so any height the chip added would land as a post-paint reflow on exactly the tall streaming
+  // rows this helps. `py-row` is cancelled by `-my-row` — measured as outer extent, not eyeballed.
+  const bare = await mount(<GhostRowScriptedStory chunks={["A long reply. "]} speakerName="Marguerite" />);
+  await driveScript(bare, 1);
+  await expect(bare.locator(NAME_ROW)).toHaveCSS("position", "static");
+  const bareHeight = await bare.locator(NAME_ROW).evaluate((el: HTMLElement) => el.getBoundingClientRect().height);
+  await bare.unmount();
+
+  const stuck = await mount(<GhostRowScriptedStory chunks={["A long reply. "]} speakerName="Marguerite" stickyAttribution={true} />);
+  await driveScript(stuck, 1);
+  const stuckRow = stuck.locator(NAME_ROW);
+  await expect(stuckRow).toHaveCSS("position", "sticky");
+  await expect(stuckRow).toHaveCSS("top", "0px");
+  await expect.poll(async () => await stuckRow.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
+  const stuckOuter = await stuckRow.evaluate((el: HTMLElement) => {
+    const cs = getComputedStyle(el);
+    return el.getBoundingClientRect().height + Number.parseFloat(cs.marginTop) + Number.parseFloat(cs.marginBottom);
+  });
+  expect(Math.abs(stuckOuter - bareHeight)).toBeLessThan(1);
+});
+
+test("#116: a MULTI-VIEWPORT stream keeps the speaker on screen — the name pins as the prose scrolls under it", async ({ mount }) => {
+  // The rendered proof the issue asks for, in CT form: a real bounded scrollport, content taller than it,
+  // and the name still at the top edge after scrolling deep into the turn.
+  const long = Array.from({ length: 60 }, (_, i) => `Line ${i} of a very long streamed reply.`).join("\n\n");
+  const component = await mount(<GhostRowScriptedStory chunks={[`${long} `]} speakerName="Marguerite" stickyAttribution={true} scrollportHeight={240} />);
+  await driveScript(component, 1);
+
+  const port = component.getByTestId("ghost-scrollport");
+  const nameRow = component.locator(NAME_ROW);
+  await expect(nameRow).toBeVisible();
+  // The premise: the turn really is taller than the reader's window.
+  const overflow = await port.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight);
+  expect(overflow).toBeGreaterThan(100);
+
+  await port.evaluate((el: HTMLElement) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await expect.poll(() => port.evaluate((el: HTMLElement) => el.scrollTop)).toBeGreaterThan(100);
+
+  // Deep inside the turn, the speaker is STILL on screen, pinned to the scrollport's top edge.
+  await expect(nameRow).toBeVisible();
+  await expect(nameRow).toContainText("Marguerite");
+  const [nameTop, portTop] = await Promise.all([
+    nameRow.evaluate((el: HTMLElement) => el.getBoundingClientRect().top),
+    port.evaluate((el: HTMLElement) => el.getBoundingClientRect().top),
+  ]);
+  expect(Math.abs(nameTop - portTop)).toBeLessThan(2);
+});
+
+test("#116: the aria-live semantics are UNCHANGED — the name enters the announcement stream once, not twice", async ({ mount }) => {
+  // #107 kept the transcript `role="log"` precisely because the ghost is the live region. Adding a name row
+  // must not add a SECOND announcement of the same fact: the ghost takes no live-region attributes of its
+  // own and no `aria-label`/`role="article"` (the settled row's second home for the name), so the region —
+  // which is not `aria-atomic` — announces the name once, when the row appears.
+  const component = await mount(<GhostRowScriptedStory chunks={["The lantern gutters. "]} speakerName="Marguerite" />);
+  await driveScript(component, 1);
+
+  const ghost = component.locator(GHOST_ROW);
+  await expect(ghost).toHaveCount(1);
+  const aria = await ghost.evaluate((el: HTMLElement) => ({
+    role: el.getAttribute("role"),
+    label: el.getAttribute("aria-label"),
+    live: el.getAttribute("aria-live"),
+    atomic: el.getAttribute("aria-atomic"),
+    liveDescendants: el.querySelectorAll("[aria-live],[role=status],[role=alert],[aria-atomic]").length,
+  }));
+  expect(aria.role).toBeNull();
+  expect(aria.label).toBeNull();
+  expect(aria.live).toBeNull();
+  expect(aria.atomic).toBeNull();
+  // The ONE live-region descendant a streaming ghost is allowed is the pending typing indicator, and it is
+  // gone by the first token — so mid-stream there is nothing announcing on its own.
+  expect(aria.liveDescendants).toBe(0);
+  // …and the speaker's name appears exactly once in the row's text, not once in chrome + once in a label.
+  const occurrences = await ghost.evaluate((el: HTMLElement) => (el.textContent ?? "").split("Marguerite").length - 1);
+  expect(occurrences).toBe(1);
+});
+
 test("reduced motion: the full streamed text lands immediately, with no pacing lag", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const longChunk = Array.from({ length: 40 }, (_, i) => `word${i}`).join(" ");

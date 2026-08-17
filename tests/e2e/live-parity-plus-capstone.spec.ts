@@ -77,14 +77,15 @@ async function seedGame(
   return { chatId, characterId, cleanup };
 }
 
-/** Open the CONTEXT panel on a GAME chat and land on its takeover (a game chat renders a "Game" tablist, not the
- *  shared "Detail" one; `rpg.status` is the defaultTab so the Status body lands without a click). Idempotent. */
+/** Open the CONTEXT panel on a GAME chat and land on its takeover (a game chat renders a "Game state" rail —
+ *  a TOOLBAR since #112, not a tablist — instead of the shared "Detail" strip; `rpg.status` is the defaultTab
+ *  so the Status body lands without a click). Idempotent. */
 async function openGamePanel(page: Page): Promise<void> {
   const show = page.getByRole("button", { name: "Show detail panel" });
   if ((await show.count()) > 0) {
     await show.first().click();
   }
-  await expect(page.getByRole("tablist", { name: "Game" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("toolbar", { name: "Game" })).toBeVisible({ timeout: 15_000 });
 }
 
 /** The greeting assistant row id (the durable row `startChat` seeded) — the deterministic edit target for the
