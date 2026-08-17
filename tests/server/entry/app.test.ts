@@ -224,6 +224,9 @@ describe("createApp", () => {
       forbidExternalMedia: true,
       // The deployment HTML-trust default (born-in-DB floor = untrusted) — the render-policy floor's other axis.
       trustHtml: false,
+      // The interactive-card deployment ceiling (#111 leg 3; born-in-DB floor = OFF) — the precondition the
+      // per-character Interactive rung is AND-gated against before card scripts can run.
+      allowInteractiveCards: false,
       // The served deployment byte caps (L5 uploads catalog): route caps + the effective image ceiling.
       uploads: { assetUpload: 67_108_864, image: 5_000_000, databankUpload: 20_971_520, importTotal: 268_435_456 },
     });
