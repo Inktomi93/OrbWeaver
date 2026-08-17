@@ -1,8 +1,9 @@
 // Story module for the message-list EDGE-FADE pixel CT (side-eye 2026-08-07 finding 5). Its own module,
-// not `_ct-stories.tsx`, for ONE reason: it side-effect imports the CLIENT's global stylesheet, which is
-// where the fade rule lives and which the CT harness (playwright/index.css) deliberately does not load for
-// every spec. Scoping that import to the one story that needs it keeps every other chat CT's pixels
-// unchanged.
+// not `_ct-stories.tsx`, historically for ONE reason: the fade rule lives in the CLIENT's global
+// stylesheet, which the CT harness did not load, so this module side-effect imported it for itself. #114
+// made `playwright/index.css` load the client styles tier for EVERY spec (production load order), so that
+// import is gone — a second one only re-emitted the same rules into a second chunk. The module stays split
+// out because its subject and fixtures are the @orb/ui MessageList, not the chat feature tree.
 //
 // The subject is the @orb/ui `MessageList` itself — it is what stamps `data-slot="message-list-scroll"`
 // and toggles `data-fade-top`/`-bottom`, and the rule keys on exactly those. Wrapping it in a
@@ -13,7 +14,6 @@
 
 import { MessageList } from "@orb/ui/message-list";
 import type { ReactElement } from "react";
-import "../../../../packages/client/src/styles/globals.css";
 
 // MODULE-PRIVATE, and that is a CT-harness constraint, not a style choice: playwright-ct rewrites a
 // spec's named imports from a story module into generated component consts, so this module may export
