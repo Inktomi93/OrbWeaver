@@ -62,7 +62,11 @@ export function HomeTempChatTileBody(): ReactElement {
   return (
     <Stack gap="row">
       <Row>
-        <Button intent="primary" onClick={startTempChat}>
+        {/* SECONDARY, not primary (CD3 re-ruled 2026-08-16, owner pick on #102). This button used to be
+            home's ONE accent element. The focal moved to the resume-room hero — the complaint under
+            review was that the live rooms were not the loudest thing on the page, and a page whose only
+            accent made a room that deletes itself in a day was exactly that complaint. */}
+        <Button intent="secondary" onClick={startTempChat}>
           <Icon icon={Plus} size="sm" />
           Start a temp chat
         </Button>

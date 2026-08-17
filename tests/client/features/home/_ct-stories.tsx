@@ -16,11 +16,13 @@ import { use } from "react";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { FIRST_BOOT_SKELETON_ROWS, RESERVED_TILE_PX } from "./_reserve-box.ts";
 
-/** Deliberately declared OUT of `order` — the grid must re-sort them (order asc, then id). */
+/** Deliberately declared OUT of `order` — the grid must re-sort them (order asc, then id). They declare
+ *  NO `region`, so all three land in the default one (the shelf) and DOM order is (order, id) with no
+ *  column split in between — the split has its own story below. */
 const FAKE_TILES: readonly HomeTileContribution[] = [
   { id: "z-third", title: "Third tile", icon: Clock, order: 30, body: () => <Text>third body</Text> },
   { id: "a-first", title: "First tile", icon: MessagesSquare, order: 10, body: () => <Text>first body</Text> },
-  { id: "b-second", title: "Second tile", icon: BrainCircuit, order: 20, span: "full", body: () => <Text>second body</Text> },
+  { id: "b-second", title: "Second tile", icon: BrainCircuit, order: 20, body: () => <Text>second body</Text> },
 ];
 
 /** A tile whose LIVE capability gate is false — it must render NOTHING (no gap, no empty card). */
@@ -101,6 +103,26 @@ export function HomeRealDoorwaysStory(): ReactElement {
   return <Story tiles={[buddyDormantTile, automationDormantTile]} />;
 }
 
+// ── The THREE REGIONS (#102, the Hearth Room) ───────────────────────────────────────────────────────
+// `region` replaced `span`: a tile declares WHICH COLUMN it lands in, home holds no list of who goes
+// where. This exercises all three at once plus the grouped doorways, which is the whole surface anatomy.
+
+const REGION_TILES: readonly HomeTileContribution[] = [
+  { id: "top", title: "Masthead tile", icon: Clock, order: 0, region: "masthead", body: () => <Text>masthead body</Text> },
+  { id: "lead", title: "Hearth tile", icon: MessagesSquare, order: 10, region: "hearth", body: () => <Text>hearth body</Text> },
+  { id: "rail", title: "Shelf tile", icon: BrainCircuit, order: 20, region: "shelf", body: () => <Text>shelf body</Text> },
+  // No `region` at all — the DEFAULT, which must be the shelf (never a silent promotion into the hearth).
+  { id: "unplaced", title: "Unplaced tile", icon: Clock, order: 30, body: () => <Text>unplaced body</Text> },
+  buddyDormantTile,
+  automationDormantTile,
+];
+
+/** All three regions + both real doorways: the masthead above the split, one tile per column, the
+ *  unplaced tile defaulting to the shelf, and the two doorways collected under ONE "Not yet" band. */
+export function HomeRegionStory(): ReactElement {
+  return <Story tiles={REGION_TILES} />;
+}
+
 // ── The BOOT-CLS reservation (F14) ──────────────────────────────────────────────────────────────────
 // A tile that is still reading is the state that used to move the whole grid: its 3-row skeleton is not
 // the box its content settles at. The frame reserves the height THIS DEVICE measured last time
@@ -124,7 +146,7 @@ function SlowTileBody(): ReactElement {
 }
 
 const RESERVE_TILES: readonly HomeTileContribution[] = [
-  { id: "slow", title: "Slow tile", icon: Clock, order: 10, span: "full", body: () => <SlowTileBody /> },
+  { id: "slow", title: "Slow tile", icon: Clock, order: 10, body: () => <SlowTileBody /> },
   { id: "below", title: "Below tile", icon: MessagesSquare, order: 20, body: () => <Text>below body</Text> },
 ];
 
@@ -165,7 +187,7 @@ function FirstBootBody(): ReactElement {
 }
 
 const FIRST_BOOT_TILES: readonly HomeTileContribution[] = [
-  { id: "declared", title: "Declared tile", icon: Clock, order: 10, skeletonRows: FIRST_BOOT_SKELETON_ROWS, span: "full", body: () => <FirstBootBody /> },
+  { id: "declared", title: "Declared tile", icon: Clock, order: 10, skeletonRows: FIRST_BOOT_SKELETON_ROWS, body: () => <FirstBootBody /> },
   { id: "under", title: "Under tile", icon: MessagesSquare, order: 20, body: () => <Text>under body</Text> },
 ];
 

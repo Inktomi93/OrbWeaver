@@ -327,6 +327,66 @@ test("VOICE: `monogram` is the decorative display glyph — title step, semibold
   expect(glyph.color).toBe(prose);
 });
 
+test("VOICE: `masthead` / `focal` / `reading` open the three steps a feature could not reach (program 102)", async ({ mount }) => {
+  // The home density pass measured the rendered ramp at 16/15/13/10.5 — `--text-display` and
+  // `--text-headline` existed in tokens.json and appeared NOWHERE, and `--text-body` was reachable only
+  // through `size="body"`, an @orb/ui-internal axis the A3 arm reds at every feature call site. These
+  // three voices are the routes. Read back as RESOLVED px against the tokens, per §5.3: this file's whole
+  // job is that the gate's literal-shape reader cannot see a computed style.
+  const mounted = await mount(
+    <div>
+      <Text data-testid="masthead" as="span" voice="masthead">
+        Six rooms, still warm.
+      </Text>
+      <Text data-testid="focal" as="span" voice="focal">
+        The Ashen Spire
+      </Text>
+      <Text data-testid="reading" as="span" voice="reading">
+        the last line anyone said
+      </Text>
+      <Text data-testid="hero-number" as="span" voice="hero">
+        42
+      </Text>
+    </div>,
+  );
+  const resolved = await mounted.evaluate((root) => {
+    const probe = root.ownerDocument.createElement("div");
+    root.ownerDocument.body.append(probe);
+    const px = (value: string): string => {
+      probe.style.fontSize = value;
+      return getComputedStyle(probe).fontSize;
+    };
+    const out = { display: px("var(--text-display)"), headline: px("var(--text-headline)"), body: px("var(--text-body)") };
+    probe.style.fontSize = "";
+    probe.style.color = "var(--color-prose-body)";
+    const prose = getComputedStyle(probe).color;
+    probe.remove();
+    return { ...out, prose };
+  });
+  const read = (id: string): Promise<{ size: string; family: string; color: string }> =>
+    mounted.getByTestId(id).evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { size: style.fontSize, family: style.fontFamily, color: style.color };
+    });
+
+  const masthead = await read("masthead");
+  const focal = await read("focal");
+  const reading = await read("reading");
+  const heroNumber = await read("hero-number");
+
+  expect(masthead.size).toBe(resolved.display);
+  expect(focal.size).toBe(resolved.headline);
+  expect(reading.size).toBe(resolved.body);
+  // `masthead` is `hero`'s PROSE twin, not a duplicate of it: same step, sans instead of mono. A sentence
+  // set in the tabular-numeral face reads as a serial, which is the whole reason a second display voice
+  // exists rather than one more call site of `hero`.
+  expect(masthead.size).toBe(heroNumber.size);
+  expect(masthead.family).not.toContain("Mono");
+  expect(heroNumber.family).toContain("Mono");
+  // `reading` rides the per-theme prose ink, never `foreground` — it is content, not chrome.
+  expect(reading.color).toBe(resolved.prose);
+});
+
 /** The px a font-size token resolves to in the live document (the `resolveToken` probe, font-size arm). */
 function resolveFontSize(el: Locator, token: string): Promise<string> {
   return el.evaluate((node, name) => {

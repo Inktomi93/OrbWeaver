@@ -10,8 +10,14 @@
 // actually own outranks a doorway to a domain that does not exist yet, and it never competes with the
 // three chat tiles that carry the launcher.
 //
-// `action` is a GHOST (CD3 — the ONE accent primary on home belongs to temp chat), and it is the tile's
-// only affordance besides the rows and the health chips.
+// `action` is a GHOST, and it is the tile's only affordance besides the rows and the health chips.
+//
+// CD3 RE-RULED, 2026-08-16 (owner pick on program #102). The clause above used to read "(CD3 — the ONE
+// accent primary on home belongs to temp chat)". Kept struck rather than deleted, because it was a
+// recorded decision that this file cited as its reason. Home's one focal is now the RESUME-ROOM HERO in
+// chat's recents body (a `--color-speaker` stripe plus the rationed `--shadow-glow` on a ::before, no
+// accent fill); temp chat is a secondary button. The ghost here is unchanged and now for a stronger
+// reason — nothing on the shelf may compete with the hearth.
 //
 // `sectionId` — WHY DATABANK DECLARES IT AND CHAT'S THREE TILES DO NOT (side-eye 2026-08-08 P2-c). The
 // jump grid is a NAV surface: a row per section, each teaching what lives there. This tile does that row's
@@ -39,6 +45,7 @@ export const databankDocumentsTile: HomeTileContribution = {
   title: "Databank",
   icon: Database,
   order: DOCUMENTS_TILE_ORDER,
+  region: "shelf",
   // The section this tile SUBSUMES on home — the jump grid drops its Databank row while this tile is
   // registered (side-eye 2026-08-08 P2-c: two doors to one place, ten pixels apart, one of them richer).
   sectionId: "databank",

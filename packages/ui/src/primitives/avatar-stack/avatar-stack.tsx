@@ -15,7 +15,10 @@ type AvatarSize = NonNullable<AvatarProps["size"]>;
 const DEFAULT_MAX = 4;
 
 // Per-item overlap offset by size — rides as inline style rather than a class (geometry, not a styling axis).
-const OVERLAP_PX: Record<AvatarSize, number> = { sm: 12, md: 14, lg: 18, hero: 28 };
+// `fill` is ZERO on purpose, not a placeholder: a cell-sized avatar has no px width of its own to
+// overlap BY — the layout track decided it — so a fixed offset would be an arbitrary bite out of an
+// unknown box. Stacking cell-sized portraits is a grid, not a stack; this arm degrades to a plain row.
+const OVERLAP_PX: Record<AvatarSize, number> = { sm: 12, md: 14, lg: 18, hero: 28, fill: 0 };
 
 export interface AvatarStackProps extends Omit<ComponentProps<"div">, "children"> {
   readonly items: readonly AvatarStackItem[];

@@ -1,4 +1,4 @@
-// CT: chat's "Start a chat" HOME tile (the character quick-picks), driven through the REAL `HomeSurface`
+// CT: chat's "Start with" HOME tile (the character FACE SHELF), driven through the REAL `HomeSurface`
 // over the REAL data layer (`character.list` stubbed at the network by routeTrpc). Chat-owned by owner
 // decision H6 — the tile's data and intent are "start a chat".
 //
@@ -21,7 +21,7 @@ test("renders the character faces inside the tile frame", async ({ mount, page }
   const home = await mount(<ChatQuickPicksTileStory />);
   const tile = home.locator('[data-home-tile="chat.quickPicks"]');
 
-  await expect(tile.getByText("Start a chat")).toBeVisible();
+  await expect(tile.getByText("Start with")).toBeVisible();
   await expect(tile.getByText("Aria")).toBeVisible();
   await expect(tile.getByText("Bolt")).toBeVisible();
   await expect(tile.getByRole("button", { name: "All characters →" })).toBeVisible();
@@ -68,7 +68,7 @@ test("each row carries an HONEST tagline off the summary it already reads — pi
   await expect(tile.getByText("bare_handle")).toBeVisible();
 });
 
-test("the rows are real LIST ITEMS inside the list — a role=list of generic divs announces empty", async ({ mount, page }) => {
+test("the cells are real LIST ITEMS inside the list — a role=list of generic divs announces empty", async ({ mount, page }) => {
   await routeTrpc(page, { "character.list": CHAR_PAGE });
 
   const home = await mount(<ChatQuickPicksTileStory />);
@@ -76,12 +76,30 @@ test("the rows are real LIST ITEMS inside the list — a role=list of generic di
   await expect(home.getByRole("list", { name: "Character quick-picks" }).getByRole("listitem")).toHaveCount(2);
 });
 
+test("#102 SHELF: extra width buys MORE faces, never BIGGER ones", async ({ mount, page }) => {
+  // Measured on the mockup pass: an auto-FIT `1fr` shelf grew 250px portraits at 2000px and read as a
+  // gallery. `cols="cellFixed"` is `auto-fill` at a FIXED track, so the cell is the same size at both
+  // widths and only the COUNT per row moves. Asserted by measuring one cell at two pane widths.
+  await routeTrpc(page, { "character.list": CHAR_PAGE });
+
+  await page.setViewportSize({ width: 700, height: 900 });
+  const home = await mount(<ChatQuickPicksTileStory />);
+  const cell = home.getByRole("listitem").first();
+  const narrow = await cell.boundingBox();
+
+  await page.setViewportSize({ width: 2000, height: 900 });
+  const wide = await cell.boundingBox();
+
+  expect(narrow?.width ?? 0).toBeGreaterThan(0);
+  expect(wide?.width ?? 0).toBe(narrow?.width ?? -1);
+});
+
 test("the tile's trailing action lives INSIDE the tile's own named region — '→' is never an orphan", async ({ mount, page }) => {
   await routeTrpc(page, { "character.list": CHAR_PAGE });
 
   const home = await mount(<ChatQuickPicksTileStory />);
 
-  await expect(home.getByRole("region", { name: "Start a chat" }).getByRole("button", { name: "All characters →" })).toBeVisible();
+  await expect(home.getByRole("region", { name: "Start with" }).getByRole("button", { name: "All characters →" })).toBeVisible();
 });
 
 test("an empty library renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {

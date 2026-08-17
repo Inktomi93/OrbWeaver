@@ -131,8 +131,8 @@ export { clearDocumentSelection, databankSectionSelection, selectDocumentFromLis
 export type { DurableLocalPersistApi, DurableLocalStorage } from "./durable-local.ts";
 export { __resetDurableLocal, activeDurableLocalUserId, bindDurableLocalToUser, durableLocalKey, registerDurableLocalStore } from "./durable-local.ts";
 export { __readHomeTileBoxForTest, __resetHomeTileBoxes, rememberHomeTileBox, useHomeTileBox } from "./home-tile-box-store.ts";
-export type { DormantDoorway, HomeTileContribution, HomeTileSpan } from "./home-tile-contracts.ts";
-export { HOME_TILE_SPANS } from "./home-tile-contracts.ts";
+export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
+export { HOME_TILE_REGIONS } from "./home-tile-contracts.ts";
 export {
   __readMessageEditDraftForTest,
   cancelEditingMessage,

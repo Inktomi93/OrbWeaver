@@ -11,14 +11,14 @@ export interface ButtonProps extends BaseButtonProps, VariantProps<typeof button
   loading?: boolean;
 }
 
-export function Button({ className, intent, size, loading = false, disabled = false, focusableWhenDisabled, ...rest }: ButtonProps): ReactElement {
+export function Button({ className, intent, size, shape, loading = false, disabled = false, focusableWhenDisabled, ...rest }: ButtonProps): ReactElement {
   return (
     <BaseButton
       data-slot="button"
       // The gradient-border accent ring keys off this attr, painting on the primary CTA only.
       data-cta={intent === "primary" ? "" : undefined}
       aria-busy={loading ? true : undefined}
-      className={cn(buttonVariants({ intent, size }), className)}
+      className={cn(buttonVariants({ intent, size, shape }), className)}
       disabled={disabled || loading}
       // Loading is a transient busy state, not a real disablement — stay in the tab sequence for AT.
       focusableWhenDisabled={focusableWhenDisabled ?? loading}
