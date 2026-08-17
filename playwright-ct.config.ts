@@ -8,8 +8,11 @@ import tailwindcss from "@tailwindcss/vite";
 // `pnpm test:ct --retries=2` after the vitest projects (merged 2026-07-17 — the split existed only for the
 // old single-thread constraint). Still NOT in `pnpm check` (browser suites never gate the static tier).
 //
-// The harness page (playwright/index.{html,tsx}) imports @orb/ui/styles/globals.css — tailwind v4 +
-// the GENERATED @theme — so token utilities resolve in-browser exactly as in the client build.
+// The harness page (playwright/index.{html,tsx}) loads the client's REAL stylesheet stack in the
+// production load order — shell.css, then @orb/ui/styles/globals.css (tailwind v4 + the GENERATED
+// @theme), then packages/client/src/styles/globals.css — so token utilities AND the client styles tier
+// (reading measure, reading typography, glass/grain, the transcript edge-fade mask) resolve in-browser
+// exactly as in the client build. See playwright/index.css for why the order is load-bearing (#114).
 // `#` subpath imports resolve via package.json `imports` (vite ≥6 reads them); cross-package
 // imports resolve through the workspace — no aliases needed.
 

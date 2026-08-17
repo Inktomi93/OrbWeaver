@@ -154,15 +154,14 @@ html[data-shadow] [data-slot="message-bubble"] {
  * column's own (unscaled) font while the prose below is scaled by that var — without it a reader at
  * scale 1.5 would get a 50ch column.
  *
- * WHY NO CT COVERS THIS (#106's rider, answered 2026-08-16 — do not go looking again). The playwright-ct
- * harness stylesheet is `playwright/index.css`, and it imports exactly TWO sheets: `@orb/ui/styles/
- * globals.css` and `app-shell/surfaces/shell.css`. THIS file — the client styles tier — is not among
- * them, so every rule in it, including this cap, is structurally absent from every component test: a CT
- * asserting 75ch here would be asserting against a stylesheet the CT page never loaded, and a CT
- * asserting the ABSENCE of a cap would go green for the wrong reason. The cap is verified instead by a
- * rendered measurement on the isolated stage (`pnpm snap --isolated`, reading the computed max-width of
- * `[data-slot=message-content-column]`). Making the harness load this sheet would raise CT fidelity for
- * the whole tree and is tracked as its own work — it is a shared-harness pixel change, not a lane edit. */
+ * A CT COVERS THIS NOW (#114, 2026-08-16 — this paragraph previously said the opposite, and said "do not
+ * go looking again"; that ruling was scoped to the harness as it then stood). `playwright/index.css` used
+ * to import exactly TWO sheets (`@orb/ui/styles/globals.css` + `app-shell/surfaces/shell.css`), so every
+ * rule in this file was structurally absent from every component test and a styles-tier regression could
+ * not red one. The harness now loads this sheet too, in the production order, and the cap is pinned by
+ * `tests/client/styles/reading-measure.suite.ct.tsx` (computed max-width vs `--reading-measure` resolved
+ * in the column's own font, plus a cap-on/cap-off A/B). The rendered measurement on the isolated stage
+ * (`pnpm snap --isolated`) remains the whole-app receipt. */
 [data-slot="message-content-column"] {
   max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
 }
