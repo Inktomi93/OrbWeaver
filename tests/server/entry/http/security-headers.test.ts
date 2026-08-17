@@ -59,7 +59,7 @@ describe("securityHeaders", () => {
   });
 
   // THE SRCDOC CARD-FLOOR SCRIPT-DEATH INVARIANT — the durable watch-item the #111 interactive-cards
-  // security review named (reports/reviews/interactive-cards-security-2026-08-16.md, CLEAN). The interactive
+  // security review named (CLEAN; verdict on the issue's review comment). The interactive
   // card's degraded arm (@orb/ui sandbox-frame's `srcdoc` mount — a story/CT mount or a failed/unresolved
   // mint) has NO document of its own; it inherits AND intersects THIS app-document policy. So it can only
   // stay script-dead while this prod `script-src` grants no keyword that would let inline/eval/host-loaded
