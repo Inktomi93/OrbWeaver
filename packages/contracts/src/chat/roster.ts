@@ -108,9 +108,16 @@ export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMem
  * "one ladder control, not a second checkbox"). Strictly increasing, and the order IS the meaning:
  *
  *   `untrusted`   — the D21 safe default. Sanitized markdown; a card renders in the inert tierA seal.
- *   `trusted`     — rich HTML + Mermaid render, and a card gets the sandboxed tierB frame (D44 §12.0).
+ *   `trusted`     — rich HTML + Mermaid render (still SANITIZED — no script/iframe/style/`on*`), and a
+ *                   card gets the sandboxed tierB frame (D44 §12.0).
  *   `interactive` — everything `trusted` has, PLUS the card frame is built under the `interactive`
- *                   {@link https://github.com/Inktomi93/orbweaver/issues/111} posture.
+ *                   {@link https://github.com/Inktomi93/orbweaver/issues/111} posture, which since leg 3's
+ *                   security pass RUNS the card's own scripts inside that sandbox.
+ *
+ * THE TOP RUNG IS THE LADDER'S ONLY CAPABILITY JUMP, and this is worth saying because a sibling comment
+ * once had it backwards: `trusted` widens what markup renders, but the renderer sanitizes it, so no rung
+ * below `interactive` executes author code at all. `interactive` is the first and only one that does — and
+ * it is the one rung that also needs the deployment operator's consent ({@link DeploymentRenderPolicy}).
  *
  * INTERACTIVE IMPLIES TRUSTED BY CONSTRUCTION — that is the whole reason this is a ladder and not two
  * booleans: with two flags, "interactive but not trusted" is representable, and every consumer has to
@@ -127,9 +134,10 @@ export function rendersTrustedHtml(step: HtmlTrustStep): boolean {
   return step !== "untrusted";
 }
 
-/** Does this step select the INTERACTIVE card-frame posture? Only the top step. NOTE it does not mean "a
- *  card can run scripts": the two postures emit identical CSP directives until the #111 leg-3 security pass
- *  grants card-authored scripts — this selects the arm, not the capability. */
+/** Does this step select the INTERACTIVE card-frame posture — i.e. may this participant's routed cards RUN
+ *  THEIR OWN SCRIPTS? Only the top step, and since #111 leg 3 that is a real capability rather than an arm
+ *  selection. A step only REACHES `interactive` when the deployment ceiling allowed it ({@link
+ *  resolveRenderPolicy}), so a reader of the resolved ladder never has to re-check the AppSetting. */
 export function allowsInteractiveCards(step: HtmlTrustStep): boolean {
   return step === "interactive";
 }
@@ -142,14 +150,19 @@ export interface RenderPolicy {
   readonly forbidExternalMedia: boolean;
 }
 
-/** The DEPLOYMENT tier as the resolver takes it. Deliberately NOT a {@link HtmlTrustStep}: the AppSetting
- *  is the boolean `trustHtml` ("does un-overridden card HTML render trusted"), and the ladder's top step
- *  has NO app tier at all (#111 leg 1 built the per-character opt-in only; whether a fleet-wide ceiling is
- *  a precondition of the script grant is the leg-3 security pass's call). Spelling a third step here would
- *  be config nothing can set. */
+/** The DEPLOYMENT tier as the resolver takes it. Deliberately NOT a {@link HtmlTrustStep}: the two rungs
+ *  have two DIFFERENT app-tier semantics (a default vs a ceiling — see {@link resolveRenderPolicy}), and
+ *  one enum value could not say both. */
 export interface DeploymentRenderPolicy {
   readonly trustHtml: boolean;
   readonly forbidExternalMedia: boolean;
+  /** The `allowInteractiveCards` AppSetting — the deployment operator's consent to run model-authored card
+   *  scripts in a viewer's browser at all. FLOOR IS FALSE, and it is an absolute CEILING (an AND, never
+   *  `override ??`): a per-character opt-in cannot reach the top rung without it. Built as a precondition
+   *  of the #111 leg-3 grant, not as a convenience — that grant opens a WebRTC/STUN beacon no CSP directive
+   *  in Chromium can close (`@orb/kit/card-frame` residual R1), so declining the whole posture is the only
+   *  control that exists for it. */
+  readonly allowInteractiveCards: boolean;
 }
 
 /** A LOWER-tier render-policy override as the resolver takes it — the tri-state `characters` columns
@@ -158,11 +171,11 @@ export interface DeploymentRenderPolicy {
 export interface RenderPolicyOverride {
   readonly trustHtml: boolean | null;
   readonly forbidExternalMedia: boolean | null;
-  /** `characters.interactive_html` — the ladder's TOP step, stored as its own column beside `trust_html`
-   *  rather than as an enum, so the two-tier `override ?? deployment` semantics of the render step survive
-   *  unchanged. Tri-state in SHAPE, two-valued in MEANING today: with no deployment tier to inherit, `null`
-   *  and `false` are both "not interactive". Kept nullable so leg 3 can add an app tier without a schema
-   *  change. The LADDER is what consumers read ({@link RenderPolicy.htmlTrust}); this pair is only ever the
+  /** `characters.interactive_html` — the HOST's half of the top step's two consents, stored as its own
+   *  column beside `trust_html` rather than as an enum, so the two-tier `override ?? deployment` semantics
+   *  of the render step survive unchanged. Tri-state in SHAPE, two-valued in MEANING: the deployment tier
+   *  is a CEILING rather than something to inherit, so `null` and `false` are both "the host did not opt
+   *  in". The LADDER is what consumers read ({@link RenderPolicy.htmlTrust}); this pair is only ever the
    *  resolver's input. */
   readonly interactiveHtml: boolean | null;
 }
@@ -184,17 +197,24 @@ export interface RenderPolicyOverride {
  *      – the RENDER step keeps `override ?? deployment`, unchanged. Its deployment value is a DEFAULT, not
  *        a block: the floor is the strict end (`untrusted`), and the per-character opt-in IS the designed
  *        escalation path (D44 §12.0); an admin-global `true` likewise stays overridable DOWN by a card.
- *      – the INTERACTIVE step is PER-CARD ONLY (no deployment tier — see {@link DeploymentRenderPolicy}),
- *        and it WINS over a lower render answer rather than combining with it. So a card carrying the
- *        contradictory pair `{ trustHtml: false, interactiveHtml: true }` — reachable only by a direct API
- *        write, never by the single ladder control — resolves to `interactive`, and no consumer ever sees
- *        "runs scripts but renders untrusted". `=== true`, never truthiness: `null` is "never opted in".
+ *      – the INTERACTIVE step needs BOTH consents and is therefore an AND, the `forbidExternalMedia` shape
+ *        rather than the render step's: the deployment `allowInteractiveCards` is an absolute CEILING
+ *        (floor FALSE) and the per-character `interactiveHtml` is the host's opt-in under it. Neither
+ *        alone reaches the rung. Ruled by the leg-3 security pass (#111) — the grant runs model-authored
+ *        code, and its WebRTC residual is not closeable by policy, so the operator of the box gets a veto.
+ *        Inside the ceiling the rung WINS over a lower render answer rather than combining with it: a card
+ *        carrying the contradictory pair `{ trustHtml: false, interactiveHtml: true }` — reachable only by
+ *        a direct API write, never by the single ladder control — resolves to `interactive`, and no
+ *        consumer ever sees "runs scripts but renders untrusted". When the CEILING vetoes, that same card
+ *        falls back to its own stored render answer (`untrusted` here), never to a rung it did not store.
+ *        `=== true`, never truthiness: `null` is "never opted in".
  */
 export function resolveRenderPolicy(deployment: DeploymentRenderPolicy, override: RenderPolicyOverride | null): RenderPolicy {
   const trusted = override?.trustHtml ?? deployment.trustHtml;
   const renderStep: HtmlTrustStep = trusted ? "trusted" : "untrusted";
+  const interactive = deployment.allowInteractiveCards && override?.interactiveHtml === true;
   return {
-    htmlTrust: override?.interactiveHtml === true ? "interactive" : renderStep,
+    htmlTrust: interactive ? "interactive" : renderStep,
     forbidExternalMedia: deployment.forbidExternalMedia || override?.forbidExternalMedia === true,
   };
 }

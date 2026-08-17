@@ -52,6 +52,18 @@ describe("layer (floor-merge)", () => {
     expect(layer({ trustHtml: true }).trustHtml).toBe(true);
   });
 
+  test("born-in-DB floor: allowInteractiveCards is OFF — card scripts need a deliberate admin opt-in", () => {
+    // #111 leg-3 security pass. The floor is the RULING, not a convention: the top rung of the html-trust
+    // ladder runs model-authored code and carries a WebRTC beacon no CSP directive can close, so an
+    // operator has to say yes. It is also the reason a per-character opt-in stored back when the editor
+    // called the rung inert does not silently arm itself on upgrade — so an accidental floor flip here is
+    // a fleet-wide capability change, and this asserts the absent/`null`/explicit arms all separately.
+    expect(layer({}).allowInteractiveCards).toBe(false);
+    expect(layer({ allowInteractiveCards: null }).allowInteractiveCards).toBe(false);
+    expect(layer({ allowInteractiveCards: true }).allowInteractiveCards).toBe(true);
+    expect(layer({ allowInteractiveCards: false }).allowInteractiveCards).toBe(false);
+  });
+
   test("D17 governance floors: local-compute ON, max-pro-sub OFF, budget null", () => {
     const cfg = layer({});
     expect(cfg.allowNonOwnerLocalCompute).toBe(true);

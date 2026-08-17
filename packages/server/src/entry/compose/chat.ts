@@ -869,10 +869,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // roster assembly). Collapses what were four separate reads of the same `characters` row per participant.
     // The tier combine is the ONE contracts resolver (`resolveRenderPolicy`) — external media is
     // TIGHTEN-ONLY there, so a card's `forbidExternalMedia: false` can never widen past a blocking
-    // deployment (which the app-document CSP enforces independently).
+    // deployment (which the app-document CSP enforces independently), and the ladder's top rung needs the
+    // `allowInteractiveCards` ceiling as well as the card's own opt-in (#111 leg 3).
     resolveSeatDeco: async ({ ownerId, characterId }) => {
       const cfg = input.settings.getEffectiveConfig();
-      const floor = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia };
+      const floor = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia, allowInteractiveCards: cfg.allowInteractiveCards };
       // The deployment floor AS A RESOLVED policy — what a seat with no readable card gets. Produced by the
       // SAME resolver with no override rather than hand-built, so the no-card arm can never spell a step
       // the resolver would not (#111: the html-trust ladder is folded in exactly one place).

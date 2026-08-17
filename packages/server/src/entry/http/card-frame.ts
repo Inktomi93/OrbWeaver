@@ -18,18 +18,25 @@
 //   • `allowInlineData` ⇐ the participant's HTML-TRUST LADDER at or above `trusted`. This is the door:
 //     `data:` images for cards authored by a character the HOST opted into (the same consent D44 uses to
 //     grant the tierB sandbox).
-//   • the SCRIPT POSTURE ⇐ the TOP step of that same ladder (#111 leg 1) — `interactive` when the
-//     host opted this character's cards in, `static` otherwise and on every failure arm. It selects which
-//     `CardFramePosture` the response policy is built through and is echoed as `granted.interactive`. It
-//     grants NOTHING today: both postures emit the same one-hash `script-src`, so a card-authored script is
-//     refused under either (the leg-3 security pass owns the flip, `@orb/kit/card-frame`).
+//   • the SCRIPT POSTURE ⇐ the TOP step of that same ladder AND the deployment `allowInteractiveCards`
+//     ceiling (#111 legs 1+3) — `interactive` only when BOTH say yes, `static` otherwise and on every
+//     failure arm. It selects which `CardFramePosture` the response policy is built through and is echoed
+//     as `granted.interactive`. Since leg 3 this is a real capability: the interactive arm emits
+//     `script-src 'unsafe-inline'` and the card's own scripts execute inside the opaque-origin sandbox.
+//     What that does and does NOT reach — including residual R1, an unclosable WebRTC beacon — is measured
+//     and recorded in `@orb/kit/card-frame`.
 //
-// ACCEPTED RESIDUAL, stated because it cannot be checked from here: a caller may name a TRUSTED sibling
-// character for a card actually authored by an untrusted one in the SAME room. It is the viewer's own
-// authenticated agent selecting between policies its host already granted inside that room, and the blast
-// radius is `data:`/`https:` image loading inside a script-dead opaque-origin document. Closing it means
-// resolving the AUTHOR from canon (a message read), which needs the display-macro/speaker-span pipeline to
-// agree byte-for-byte with the stored body — noted, not built.
+// ACCEPTED RESIDUAL, stated because it cannot be checked from here: a caller may name a TRUSTED (or, since
+// #111 leg 3, an INTERACTIVE) sibling character for a card actually authored by a lesser one in the SAME
+// room, and the frame is then built with the named character's policy. RE-WEIGHED at the leg-3 grant, since
+// the blast radius stopped being "an image load" and became "that card's scripts run":
+//   • no CHARACTER can reach it. Both live mint sites pass the message row's own `characterId` straight
+//     through (`features/chat/components/message-row-parts.tsx`, `features/rpg/lib/archived-cards.ts`), so
+//     the bytes and the selector come from the same server-supplied row. A model cannot choose a selector.
+//   • reaching it requires posting a hand-crafted mint from the VIEWER'S OWN authenticated session — an
+//     attacker who already has that has no need of a card frame. It stays self-attack, one rung louder.
+// Closing it means resolving the AUTHOR from canon (a message read), which needs the display-macro/
+// speaker-span pipeline to agree byte-for-byte with the stored body — noted, still not built.
 //
 // ── WHY THE HANDLES ARE PER-USER AND IN-PROCESS ──────────────────────────────────────────────────────────
 // A handle is 128 bits of CSPRNG, bound to the minting `userId`, and lives in a capped in-process map. So a
@@ -91,6 +98,11 @@ export interface CardFrameDeps {
   readonly roster: CardFrameRosterPort;
   /** The live app-tier external-media ceiling — the SAME read `securityHeaders` is built from. */
   readonly allowExternalMedia: () => boolean;
+  /** The live app-tier INTERACTIVE-CARD ceiling (`effectiveConfig.allowInteractiveCards`, floor FALSE).
+   *  Read here per mint for the same reason `allowExternalMedia` is: `resolveRenderPolicy` already folded
+   *  it into the ladder, and this is the boundary that must still hold if that resolver is ever weakened.
+   *  It is the ONLY control over residual R1 (`@orb/kit/card-frame`), so it gets two belts, not one. */
+  readonly allowInteractiveCards: () => boolean;
   readonly now: () => number;
 }
 
@@ -162,13 +174,13 @@ async function resolvePolicy(
       // ladder, so an interactive card is a trusted card by construction and cannot lose the door.
       allowInlineData: rendersTrustedHtml(policy.htmlTrust),
     },
-    // THE PER-DOCUMENT POSTURE SELECTION (#111 leg 1) — the TOP step of the same ladder, read through its
-    // one predicate rather than a second boolean. It is the server's own value off the membership-gated
-    // roster, exactly like the media axes; the mint body cannot name it (the request is a SELECTOR, never a
-    // policy, and `strictObject` rejects a smuggled key outright). Today both arms build the same
-    // directives, so this changes which arm a document is built through and nothing a card can do — the
-    // leg-3 security pass owns the grant that gives the arm teeth.
-    posture: allowsInteractiveCards(policy.htmlTrust) ? "interactive" : "static",
+    // THE PER-DOCUMENT POSTURE SELECTION (#111 leg 1), now a real capability (leg 3): the interactive arm
+    // emits `script-src 'unsafe-inline'` and the card's own scripts RUN. Read through the ladder's one
+    // predicate rather than a second boolean, off the server's own membership-gated roster value — the mint
+    // body cannot name it (the request is a SELECTOR, never a policy, and `strictObject` rejects a smuggled
+    // key outright). The deployment ceiling is re-applied HERE as well as inside `resolveRenderPolicy`, the
+    // `allowExternalMedia` shape exactly: two belts on the axis whose residual has no third one.
+    posture: deps.allowInteractiveCards() && allowsInteractiveCards(policy.htmlTrust) ? "interactive" : "static",
   };
 }
 

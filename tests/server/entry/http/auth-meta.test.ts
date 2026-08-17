@@ -72,6 +72,7 @@ function depsFor(mode: AuthMode, discreet = false, capable = false, forbidExtern
     // The strict floor is the default here (a fifth positional would breach the max-params ceiling); the
     // one test that needs a TRUSTING deployment spells its own deps literal, like the per-request tests do.
     trustHtml: () => false,
+    allowInteractiveCards: () => false,
   };
 }
 
@@ -97,6 +98,7 @@ describe("GET /api/auth/config", () => {
       multiHumanCapable: false,
       forbidExternalMedia: true,
       trustHtml: false,
+      allowInteractiveCards: false,
       uploads: resolveUploadCaps({ maxImageBytes: MAX_IMAGE_BYTES, maxDatabankBytes: MAX_DATABANK_BYTES }),
     });
   });
@@ -125,6 +127,7 @@ describe("GET /api/auth/config", () => {
       maxDatabankBytes: () => MAX_DATABANK_BYTES,
       forbidExternalMedia: () => true,
       trustHtml: () => false,
+      allowInteractiveCards: () => false,
     });
     expect((await run(config)).body["localFirstRun"]).toBe(true);
     pending = false;
@@ -149,10 +152,37 @@ describe("GET /api/auth/config", () => {
       maxDatabankBytes: () => MAX_DATABANK_BYTES,
       forbidExternalMedia: () => true,
       trustHtml: () => trusts,
+      allowInteractiveCards: () => false,
     });
     expect((await run(config)).body["trustHtml"]).toBe(false);
     trusts = true;
     expect((await run(config)).body["trustHtml"]).toBe(true);
+  });
+
+  // #111 leg 3 — the INTERACTIVE-CARD ceiling. Served for the same don't-ship-a-dead-switch reason as the
+  // external-media one: while it is off, the per-character "Interactive" rung stores fine and resolves to
+  // the static posture, so the editor has to say so. The DEFAULT arm asserts FALSE deliberately: the shipped
+  // floor is off, and a config that started serving `true` by accident would silently arm every card whose
+  // host clicked the rung back when the editor said it was inert.
+  test("serves the deployment allowInteractiveCards ceiling, read PER REQUEST, floor OFF", async () => {
+    expect((await run(handlers(depsFor("local")).config)).body["allowInteractiveCards"]).toBe(false);
+
+    let allows = false;
+    const { config } = handlers({
+      mode: "local",
+      defaultHandle: "owner",
+      oidcProviderName: PROVIDER,
+      discreetLogin: () => false,
+      multiHumanCapable: () => false,
+      maxImageBytes: () => MAX_IMAGE_BYTES,
+      maxDatabankBytes: () => MAX_DATABANK_BYTES,
+      forbidExternalMedia: () => true,
+      trustHtml: () => false,
+      allowInteractiveCards: () => allows,
+    });
+    expect((await run(config)).body["allowInteractiveCards"]).toBe(false);
+    allows = true;
+    expect((await run(config)).body["allowInteractiveCards"]).toBe(true);
   });
 
   // The deployment external-media CEILING, served so the per-character "External media" control can render
@@ -172,6 +202,7 @@ describe("GET /api/auth/config", () => {
       maxDatabankBytes: () => MAX_DATABANK_BYTES,
       forbidExternalMedia: () => forbid,
       trustHtml: () => false,
+      allowInteractiveCards: () => false,
     });
     expect((await run(config)).body["forbidExternalMedia"]).toBe(true);
     forbid = false;
@@ -215,6 +246,7 @@ describe("GET /api/auth/config", () => {
       maxDatabankBytes: () => MAX_DATABANK_BYTES,
       forbidExternalMedia: () => true,
       trustHtml: () => false,
+      allowInteractiveCards: () => false,
     });
     expect((await run(config)).body["multiHumanCapable"]).toBe(false);
     capable = true;
@@ -233,6 +265,7 @@ describe("GET /api/auth/config", () => {
       maxDatabankBytes: () => MAX_DATABANK_BYTES,
       forbidExternalMedia: () => true,
       trustHtml: () => false,
+      allowInteractiveCards: () => false,
     });
     expect((await run(config)).body["defaultHandle"]).toBe("owner");
     discreet = true;
