@@ -47,6 +47,17 @@ describe("securityHeaders", () => {
     expect(csp).toContain("form-action 'self'");
   });
 
+  // #111 leg 3 — THE CARD-FRAME NAVIGATION BELT. The embedder's policy is what decides where a card frame
+  // may navigate, whoever initiates it (measured in `@orb/kit/card-frame`), so this directive is the reason
+  // an interactive card's script cannot send the frame off-origin. It used to be an implicit `default-src`
+  // fallback; naming it means widening `default-src` for an unrelated reason no longer widens this too.
+  test("frame-src is NAMED 'self', in prod and dev — the belt an interactive card's navigation dies on", async () => {
+    for (const csp of await Promise.all([cspFor(false), cspFor(true), cspFor(false, true)])) {
+      expect(csp).toContain("frame-src 'self'");
+      expect(csp).not.toContain("frame-src *");
+    }
+  });
+
   test("dev loosens EXACTLY the two HMR directives", async () => {
     const csp = await cspFor(true);
     expect(csp).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
@@ -118,7 +129,7 @@ describe("securityHeaders", () => {
   // pair that has to agree: the render-policy resolver refuses to widen for an opted-in card, AND the
   // header the browser gets for that same request carries no `https:` media allowance.
   test("deployment BLOCKS + a per-character opt-in: the row verdict stays blocked AND the CSP gains no https:", async () => {
-    const deployment: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true };
+    const deployment: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true, allowInteractiveCards: false };
     const optInCard: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: false, interactiveHtml: null };
 
     // Layer 1 — the resolved per-participant policy the client renders from.

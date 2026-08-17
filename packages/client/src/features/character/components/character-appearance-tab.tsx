@@ -7,9 +7,10 @@
 // HTML rendering is ONE LADDER control, not two switches (owner ruling 2026-08-16, #111): Untrusted <
 // Render HTML < Interactive, plus Inherit for "no override". It writes the `trust_html` +
 // `interactive_html` pair through the contracts helper, so the incoherent "interactive but untrusted" pair
-// is unwritable here and unrepresentable in the resolved policy. The top rung is honest rather than locked:
-// picking it DOES something today (it selects the interactive card-frame posture and implies render trust),
-// and what it does not do yet — run card-authored scripts — the helper text says out loud.
+// is unwritable here and unrepresentable in the resolved policy. Since leg 3's security pass the top rung
+// really does run card-authored scripts — but only when the deployment's `allowInteractiveCards` ceiling is
+// also up, so this surface reads that ceiling and says which of the two it is. It does NOT lock the control
+// the way the external-media row does: there EVERY value is inert under the ceiling, here only one of four.
 //
 // The Theme cluster is also where the two THEME DOORS live — both projections of the ONE card-embeddable
 // partition (`cardEmbeddableSubset`), run in opposite directions:
@@ -35,7 +36,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { BackgroundSourceField } from "#components";
-import { QueryBoundary, QueryErrorState, useExternalMediaBlocked, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { notify } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
@@ -128,6 +129,10 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
   // from. While it is on, EVERY value of this control resolves to blocked, so the control is inert: render
   // it disabled + explained rather than as a dead switch (D107).
   const externalMediaBlocked = useExternalMediaBlocked();
+  // The deployment half of the ladder's TOP rung (#111 leg 3). Unlike external media this does NOT lock the
+  // control — only ONE of the four values is inert while it is off, and disabling the whole select would
+  // take away three working choices. The rung stays pickable and the note below says what it will do.
+  const interactiveCardsAllowed = useInteractiveCardsAllowed();
   const externalMediaLockId = useId();
   const interactiveLockId = useId();
 
@@ -186,9 +191,15 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
         ) : null}
         <Text id={interactiveLockId} voice="gloss">
           HTML rendering is a ladder: Untrusted keeps this character's messages as plain sanitized text, Render HTML lets them use rich HTML and card styling,
-          and Interactive is Render HTML plus cards that run their own scripts. Interactive is safe to pick now and it renders the same as Render HTML today:
-          card scripts stay switched off until the security review lands.
+          and Interactive is Render HTML plus cards that run their own scripts, in a locked-down frame that cannot reach your session, your data, or the rest of
+          the app.
         </Text>
+        {interactiveCardsAllowed ? null : (
+          <Text voice="gloss">
+            Interactive is switched off deployment-wide, so picking it renders the same as Render HTML — this character's cards will not run scripts. An admin
+            can turn it on in System settings → “Let interactive cards run their own scripts”.
+          </Text>
+        )}
         <Text size="micro" tone="muted">
           Trust settings apply the instant you change them — no save needed.
         </Text>

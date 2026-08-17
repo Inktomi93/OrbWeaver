@@ -19,9 +19,9 @@ import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_config_probe");
-const OPEN_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false };
-const BLOCKING_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true };
-const TRUSTING_FLOOR: DeploymentRenderPolicy = { trustHtml: true, forbidExternalMedia: false };
+const OPEN_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false, allowInteractiveCards: false };
+const BLOCKING_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true, allowInteractiveCards: false };
+const TRUSTING_FLOOR: DeploymentRenderPolicy = { trustHtml: true, forbidExternalMedia: false, allowInteractiveCards: false };
 
 async function seedOwner(db: Awaited<ReturnType<typeof freshDb>>): Promise<void> {
   await db.insert(users).values({ id: OWNER, handle: castId<Handle>("configprobe") });

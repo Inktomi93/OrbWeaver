@@ -12,9 +12,15 @@
 // THE SANDBOX ATTRIBUTE MOVED (2026-08-16 tier-B pass, #91): the grant is per-DELIVERY now and lives with
 // its CSP twin as `CARD_FRAME_SANDBOX` in `@orb/kit/card-frame` — `meta: ""` (this arm: every restriction
 // on, script-dead, so it keeps the caller's fixed height and never self-measures) vs
-// `document: "allow-scripts"` (the routed arm, paired with a one-hash `script-src`). Two constants in two
-// packages that a comment asked a reviewer to keep in sync are now one value indexed by arm. Read that
-// record for the review; nothing about the grant is decided here either.
+// `document: "allow-scripts"` (the routed arm, whose `script-src` is what actually decides which scripts
+// run). Two constants in two packages that a comment asked a reviewer to keep in sync are now one value
+// indexed by arm. Read that record for the review; nothing about the grant is decided here either.
+//
+// THE INTERACTIVE GRANT DOES NOT REACH THIS ARM (#111 leg 3, 2026-08-16). Card-authored scripts now run on
+// the ROUTED posture — and only there, for the same physics this file already turns on: a srcdoc document
+// inherits the app's `script-src 'self'`, so `'unsafe-inline'` emitted here would be intersected away and
+// would be a directive that can never match. The floor stays script-dead under BOTH postures, which is why
+// `buildCardFrameCsp` is called with `"static"` below regardless of what the card was granted.
 
 import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
 
@@ -33,8 +39,9 @@ export function buildSrcDoc(params: {
   return buildCardFrameDocument(
     { html: params.html, css: params.css, themeTokens: params.themeTokens, fontFamily: params.fontFamily },
     // `static`, always: the floor is script-dead by construction (sandbox `""` + an inherited
-    // `script-src 'self'`), so the interactive posture is not expressible on this arm — passing it would be
-    // a directive that can never match, the same lie as `data:` here (#111 leg 1).
+    // `script-src 'self'`), so the interactive posture is not expressible on this arm — passing it would
+    // emit an `'unsafe-inline'` the embedder's policy intersects away, a directive that can never match
+    // and the same lie as `data:` here (#111 legs 1+3).
     buildCardFrameCsp(policy, "meta", "static"),
   );
 }

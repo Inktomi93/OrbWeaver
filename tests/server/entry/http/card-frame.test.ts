@@ -79,11 +79,20 @@ interface Harness {
   readonly serve: (url: string, as?: Principal | null) => Promise<Response>;
 }
 
-function harness(overrides: { readonly deployExternal?: boolean; readonly roster?: () => Promise<readonly ParticipantView[]> } = {}): Harness {
+function harness(
+  overrides: {
+    readonly deployExternal?: boolean;
+    /** The #111 leg-3 deployment ceiling. Defaults TRUE here so the posture tests are about the posture;
+     *  its SHIPPED floor is false, and the ceiling's own tests pass it explicitly. */
+    readonly deployInteractive?: boolean;
+    readonly roster?: () => Promise<readonly ParticipantView[]>;
+  } = {},
+): Harness {
   let actor: Principal | null = ALICE;
   const deps: CardFrameDeps = {
     roster: { listParticipants: overrides.roster ?? ((): Promise<readonly ParticipantView[]> => Promise.resolve(ROSTER)) },
     allowExternalMedia: () => overrides.deployExternal ?? true,
+    allowInteractiveCards: () => overrides.deployInteractive ?? true,
     now: () => 1_000_000,
   };
   const app = new Hono<PrincipalEnv>();
@@ -262,21 +271,29 @@ describe("card-frame — the served document", () => {
   });
 });
 
-// ── THE PER-CARD POSTURE SELECTION (#111 leg 1) ──────────────────────────────────────────────────────────
-// The knob selects which `CardFramePosture` the response policy is built through. It GRANTS nothing yet:
-// both postures name the same one hash, so these assert the SELECTION is real and the CAPABILITY is not.
-// When the leg-3 security pass moves the interactive row, the policy assertion below is the one that flips —
-// and the "identical directives" test is the thing that must be REWRITTEN rather than deleted.
+// ── THE INTERACTIVE-CARD GRANT (#111 legs 1+3) ───────────────────────────────────────────────────────────
+// Leg 1 made the per-card SELECTION real while both postures emitted the same hash. The leg-3 security pass
+// granted the capability: an interactive document's `script-src` is `'unsafe-inline'` and the card's own
+// scripts run. Two consents are required — the host's per-character opt-in AND the deployment ceiling — and
+// the ceiling is re-applied HERE as well as inside `resolveRenderPolicy`, so these test the boundary's own
+// belt rather than the resolver's (the roster fixture hands this route an ALREADY-RESOLVED `interactive`
+// rung; if this route trusted that alone, the `deployInteractive: false` arms below would leak).
+//
+// The leg-1 "byte-identical postures" pin lived here and is REPLACED, not deleted (a sanctioned assertion
+// update — the grant is exactly what it guarded the absence of). What replaces it is stronger: the ruled
+// delta asserted directive-by-directive, plus the kill-switch asserted in both directions.
 
-describe("card-frame — the interactive-card knob", () => {
-  const grantedFor = async (characterId: CharacterId): Promise<{ interactive: boolean }> =>
-    ((await (await harness().mint({ ...CARD, characterId })).json()) as { granted: { interactive: boolean } }).granted;
+describe("card-frame — the interactive-card grant", () => {
+  const grantedFor = async (characterId: CharacterId, deployInteractive = true): Promise<{ interactive: boolean }> =>
+    ((await (await harness({ deployInteractive }).mint({ ...CARD, characterId })).json()) as { granted: { interactive: boolean } }).granted;
 
-  const cspFor = async (characterId: CharacterId): Promise<string> => {
-    const h = harness();
+  const cspFor = async (characterId: CharacterId, deployInteractive = true): Promise<string> => {
+    const h = harness({ deployInteractive });
     const res = await h.serve(await mintUrl(h, { ...CARD, characterId }));
     return res.headers.get("content-security-policy") ?? "";
   };
+
+  const scriptSrcOf = (csp: string): string | undefined => csp.split("; ").find((directive) => directive.startsWith("script-src "));
 
   test("an opted-in character mints through the INTERACTIVE arm; every other selector stays static", async () => {
     expect((await grantedFor(INTERACTIVE)).interactive).toBe(true);
@@ -293,19 +310,55 @@ describe("card-frame — the interactive-card knob", () => {
     expect((await harness().mint({ ...CARD, interactiveHtml: true })).status).toBe(400);
   });
 
-  test("NO GRANT YET: the interactive document's policy is BYTE-IDENTICAL to the static one", async () => {
-    // TRUSTED and INTERACTIVE differ by exactly one rung and nothing else, so the whole-string comparison
-    // isolates the posture — and today that difference is nothing.
-    expect(await cspFor(INTERACTIVE)).toBe(await cspFor(TRUSTED));
-    // Said again as a property, so a future widening reds here even if both arms move together: the one
-    // nameable script source is still exactly our height-script hash.
-    const scriptSrc = (await cspFor(INTERACTIVE)).split("; ").find((directive) => directive.startsWith("script-src "));
-    expect(scriptSrc).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
-    for (const keyword of ["unsafe-inline", "unsafe-hashes", "unsafe-eval", "strict-dynamic", "nonce-"]) {
+  test("THE GRANT: an interactive document's script-src is 'unsafe-inline' — and the hash does NOT ride along", async () => {
+    expect(scriptSrcOf(await cspFor(INTERACTIVE))).toBe("script-src 'unsafe-inline'");
+    // Measured (Chromium 149): a hash-source in the list makes 'unsafe-inline' IGNORED, so shipping both
+    // would refuse the very scripts this grant exists to run. The engine owns that record; this is the
+    // wire-level pin that the SERVED HEADER never regains a hash.
+    const scriptSrc = scriptSrcOf(await cspFor(INTERACTIVE));
+    expect(scriptSrc).not.toContain("sha256-");
+    for (const keyword of ["unsafe-eval", "unsafe-hashes", "strict-dynamic", "nonce-"]) {
       expect(scriptSrc).not.toContain(keyword);
     }
-    // …and the sandbox does not widen by posture either (`allow-same-origin` is the never).
-    expect((await cspFor(INTERACTIVE)).startsWith("sandbox allow-scripts;")).toBe(true);
-    expect(await cspFor(INTERACTIVE)).not.toContain("allow-same-origin");
+  });
+
+  test("the STATIC arm did not move: a trusted-but-not-interactive card still gets the one hash", async () => {
+    expect(scriptSrcOf(await cspFor(TRUSTED))).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
+    expect(scriptSrcOf(await cspFor(UNTRUSTED))).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
+    expect(scriptSrcOf(await cspFor(GHOST))).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
+  });
+
+  test("the grant moves EXACTLY script-src — TRUSTED and INTERACTIVE differ by one rung and one directive", async () => {
+    // The two fixtures are identical on every other axis, so a whole-policy diff isolates the posture.
+    const trusted = (await cspFor(TRUSTED)).split("; ");
+    const interactive = (await cspFor(INTERACTIVE)).split("; ");
+    expect(interactive).toHaveLength(trusted.length);
+    expect(trusted.filter((directive, index) => directive !== interactive[index])).toEqual([`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`]);
+    // Spelled out for the ones that matter, because "same length, one diff" would also pass if the
+    // isolation belts had been dropped from BOTH arms together.
+    const csp = await cspFor(INTERACTIVE);
+    expect(csp.startsWith("sandbox allow-scripts;")).toBe(true);
+    expect(csp).not.toContain("allow-same-origin");
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).not.toContain("connect-src");
+    expect(csp).toContain("form-action 'none'");
+    expect(csp).toContain("base-uri 'none'");
+    expect(csp).toContain("frame-ancestors 'self'");
+  });
+
+  test("THE KILL-SWITCH: with the deployment ceiling DOWN, an opted-in card is served the static posture", async () => {
+    // The roster still resolves this seat to the `interactive` rung — the fixture says so — so this proves
+    // the ROUTE's own belt, not the resolver's. Both observable channels agree: the echo and the header.
+    expect((await grantedFor(INTERACTIVE, false)).interactive).toBe(false);
+    expect(scriptSrcOf(await cspFor(INTERACTIVE, false))).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
+    expect(await cspFor(INTERACTIVE, false)).not.toContain("unsafe-inline;");
+    // …and the vetoed card keeps everything below the top rung: it is still a TRUSTED card, so the `data:`
+    // door stays open. A kill-switch that also silently revoked card images would be a different change.
+    expect(await cspFor(INTERACTIVE, false)).toContain("img-src 'self' data: https:");
+  });
+
+  test("the ceiling is a VETO, not a grant — it cannot lift a card that never opted in", async () => {
+    expect((await grantedFor(TRUSTED, true)).interactive).toBe(false);
+    expect((await grantedFor(UNTRUSTED, true)).interactive).toBe(false);
   });
 });

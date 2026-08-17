@@ -101,14 +101,20 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
           tokenSize: cardTokenSize(card),
           // The render/theme policies are properties of the CARD, not of its owner — a card the old host
           // marked `forbidExternalMedia` must not silently relax because it changed hands (`duplicate`
-          // carries them for the same reason). `interactiveHtml` (#111) rides with them on the same rule —
-          // it is the WEAKER of the two consents (a posture inside the null-origin sandbox, versus
-          // `trustHtml` which renders card HTML in the app's own DOM), so a copy that carried the stronger
-          // one and dropped this would be arbitrary. Whether a script grant should re-ask the new host is
-          // the leg-3 security pass's call, alongside the deployment ceiling it also owns.
+          // carries them for the same reason).
           forbidExternalMedia: source.forbidExternalMedia,
           trustHtml: source.trustHtml,
-          interactiveHtml: source.interactiveHtml,
+          // …but `interactiveHtml` is DROPPED, and this reverses the leg-1 comment that used to sit here.
+          // RULING, #111 leg-3 security pass (2026-08-16), which that comment explicitly deferred to: the
+          // top rung is NOT the weaker consent. `trustHtml` widens what markup renders and the renderer
+          // still SANITIZES it (no script/iframe/style/`on*` — `@orb/ui/markdown` policy.ts); `interactive`
+          // is the ladder's only rung that EXECUTES model-authored code, and it carries a WebRTC beacon no
+          // CSP directive can close (`@orb/kit/card-frame` residual R1). A consent that big does not cross
+          // an OWNER BOUNDARY silently: the nominee gets a trusted-but-static copy and re-opts-in on a card
+          // they now own and can read. Same precedent as the refinery signals below — some things simply do
+          // not travel with a handoff. Nothing in the room breaks: those seats keep rendering, one rung
+          // lower, until the new host decides. NOT the same call as `duplicate`, which is same-owner.
+          interactiveHtml: null,
           themeOverride: source.themeOverride,
           backgroundOverride: source.backgroundOverride,
           // The provenance stamp IS the idempotency key (`duplicate` deliberately clears provenance; a

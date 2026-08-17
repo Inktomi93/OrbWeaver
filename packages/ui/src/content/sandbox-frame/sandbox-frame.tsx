@@ -56,11 +56,15 @@ export interface SandboxFrameProps {
  *
  * TWO DELIVERIES, one policy engine (`@orb/kit/card-frame`), and the sandbox grant is now PER DELIVERY
  * (`CARD_FRAME_SANDBOX`, which owns the review): `src` (routed — the response carries its own CSP,
- * including the `sandbox` directive that keeps a DIRECT navigation opaque-origin, plus the one-hash
- * `script-src` that lets OUR height script run and refuses every card-authored one) or `srcdoc` (the floor
- * — inherits ours, sandbox `""`, script-dead). Applying the attribute on the routed arm as well as the
- * response's `sandbox` directive is deliberate belt-and-suspenders: a mis-wired route that lost its header
- * must not become a same-origin frame. Card interactivity (`'unsafe-inline'`) is still NOT granted.
+ * including the `sandbox` directive that keeps a DIRECT navigation opaque-origin, plus the `script-src`
+ * whose sources the server picked per POSTURE) or `srcdoc` (the floor — inherits ours, sandbox `""`,
+ * script-dead). Applying the attribute on the routed arm as well as the response's `sandbox` directive is
+ * deliberate belt-and-suspenders: a mis-wired route that lost its header must not become a same-origin
+ * frame — and since #111 leg 3 that belt is load-bearing rather than theoretical, because a routed card on
+ * the `interactive` posture RUNS ITS OWN SCRIPTS (`script-src 'unsafe-inline'`, granted only when the host
+ * opted this character in AND the deployment's `allowInteractiveCards` ceiling is up). Nothing about which
+ * posture a document got is decided or even visible here: the server built the policy, this side just
+ * frames the URL.
  *
  * HEIGHT: caller-controlled until the routed frame measures itself. The message is untrusted input from a
  * hostile document and is treated as such — see the listener below.
@@ -88,7 +92,9 @@ export function SandboxFrame({
   // model-authored markup. Two independent checks, neither of which trusts the message's contents:
   //   1. SENDER — `event.source` must be this frame's own window. Origin cannot do this job: every
   //      sandboxed document (ours, another card's, an ad iframe) reports `event.origin === "null"`, so an
-  //      origin check would accept any opaque frame on the page. Window identity names exactly one sender.
+  //      origin check would accept any opaque frame on the page. Window identity names exactly one sender,
+  //      which is what keeps an INTERACTIVE card (#111 leg 3 — it can `postMessage` anything, including to
+  //      its siblings, measured) from resizing any frame but its own.
   //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and refuses a shrink (kit, tested).
   // Listener registration follows the delivery, because a re-mint replaces the frame's window.
   useEffect(() => {

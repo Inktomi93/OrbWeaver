@@ -23,6 +23,7 @@ function config(overrides: Partial<AuthConfig>): AuthConfig {
     multiHumanCapable: false,
     forbidExternalMedia: true,
     trustHtml: false,
+    allowInteractiveCards: false,
     uploads: DEFAULT_UPLOAD_CAPS,
     ...overrides,
   };

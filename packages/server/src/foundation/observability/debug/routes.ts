@@ -383,7 +383,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
         return null;
       }
       const cfg = effectiveConfig();
-      return { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia };
+      return { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia, allowInteractiveCards: cfg.allowInteractiveCards };
     };
 
     app.get("/api/_debug/config/app", async (c) =>

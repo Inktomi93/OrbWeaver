@@ -41,7 +41,7 @@ export const mediaTrustSection: SettingsSectionContribution = {
   id: MEDIA_TRUST_ID,
   anchor: "admin",
   nav: MEDIA_TRUST_SUBCATEGORY,
-  owns: { tier: "app", keys: ["forbidExternalMedia", "trustHtml", "maxImageBytes"] },
+  owns: { tier: "app", keys: ["forbidExternalMedia", "trustHtml", "allowInteractiveCards", "maxImageBytes"] },
   body: () => <MediaTrustSection sectionId={MEDIA_TRUST_ID} />,
 };
 

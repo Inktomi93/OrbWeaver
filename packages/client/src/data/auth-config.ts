@@ -43,6 +43,12 @@ export interface AuthConfig {
    *  own `trustHtml` override wins in either direction (`resolveRenderPolicy`, D44 §12.0). A surface that
    *  previews card content combines this with the card's override instead of reading the override alone. */
   readonly trustHtml: boolean;
+  /** The deployment INTERACTIVE-CARD ceiling (#111 leg 3), floor FALSE. FALSE ⇒ the per-character
+   *  "Interactive" rung is inert deployment-wide: the mint builds every card through the static posture and
+   *  card scripts stay CSP-refused. Read by the surface that offers the rung, for the same
+   *  don't-ship-a-dead-switch reason as {@link forbidExternalMedia}. Never a capability the client grants —
+   *  the frame policy is built server-side from the server's own read of this. */
+  readonly allowInteractiveCards: boolean;
   /** The served deployment upload byte caps — the ONE source the client's dropzone hints + pre-checks
    *  derive from (resolved server-side, incl. the admin-tunable `maxImageBytes` clamp on the image cap).
    *  The `useUploadCaps` hook falls back to `DEFAULT_UPLOAD_CAPS` until this config has landed. */
@@ -96,6 +102,15 @@ export function useExternalMediaBlocked(): boolean {
   return useAuthConfig().data?.forbidExternalMedia === true;
 }
 
+/** Does this deployment allow interactive cards at all (#111 leg 3)? FALSE ⇒ the per-character "Interactive"
+ *  rung stores fine but resolves to the static posture everywhere, so a surface offering it must say so.
+ *  `=== true`, so a not-yet-landed config reads as BLOCKED — the strict direction, and the one that matches
+ *  the server's own floor. (The external-media twin defaults the other way for the same reason: there the
+ *  strict reading is "blocked", and here the strict reading is "not allowed".) */
+export function useInteractiveCardsAllowed(): boolean {
+  return useAuthConfig().data?.allowInteractiveCards === true;
+}
+
 /** The deployment RENDER-POLICY FLOOR — the pair `resolveRenderPolicy` (`@orb/contracts/chat`) combines a
  *  per-character override over. The ONE client home for it: a surface that renders card content it has no
  *  server-resolved `renderPolicy` for (the character editor's own previews, which read the `characters` row
@@ -105,13 +120,12 @@ export function useExternalMediaBlocked(): boolean {
  *  fail-closed posture `lib/render-trust.ts`'s `SAFE_FLOOR` takes one tier up. Guessing
  *  a permissive floor to make a preview look richer is exactly the lie this hook exists to stop.
  *
- *  A {@link DeploymentRenderPolicy}, not a resolved `RenderPolicy`: the deployment serves the two axes an
- *  AppSetting carries, and the html-trust LADDER's top rung (#111) is per-card only — there is no floor to
- *  serve for it and none is fabricated here. */
+ *  A {@link DeploymentRenderPolicy}, not a resolved `RenderPolicy`: the deployment serves the three axes an
+ *  AppSetting carries, and the resolver folds a per-character override over them. */
 export function useRenderPolicyFloor(): DeploymentRenderPolicy {
   const config = useAuthConfig().data;
   if (config === undefined) {
     return DEPLOYMENT_FLOOR;
   }
-  return { trustHtml: config.trustHtml, forbidExternalMedia: config.forbidExternalMedia };
+  return { trustHtml: config.trustHtml, forbidExternalMedia: config.forbidExternalMedia, allowInteractiveCards: config.allowInteractiveCards };
 }

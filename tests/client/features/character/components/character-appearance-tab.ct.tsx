@@ -152,7 +152,10 @@ test("Start from a theme… seeds the card from the theme's CARD-EMBEDDABLE subs
 // reason said out loud, never as a live-looking "Allow" (D107 — no dead switches). The deployment verdict
 // rides `/api/auth/config.forbidExternalMedia`, stubbed here at the network boundary — the honest source.
 
-async function stubExternalMediaBlocked(page: Page, blocked: boolean): Promise<void> {
+/** Stub `/api/auth/config` — the honest source for BOTH deployment ceilings this tab reads. The interactive
+ *  one (#111 leg 3) defaults to the SHIPPED floor (off) so a test that does not mention it gets the
+ *  deployment a fresh box actually has. */
+async function stubDeployment(page: Page, opts: { readonly externalMediaBlocked: boolean; readonly interactiveCards?: boolean }): Promise<void> {
   // `httpRoute`, not `route` — the module already has a `route()` trpc helper (noShadow).
   await page.route("**/api/auth/config", (httpRoute) =>
     httpRoute.fulfill({
@@ -166,11 +169,15 @@ async function stubExternalMediaBlocked(page: Page, blocked: boolean): Promise<v
         discreetLogin: false,
         defaultHandle: null,
         multiHumanCapable: false,
-        forbidExternalMedia: blocked,
+        forbidExternalMedia: opts.externalMediaBlocked,
+        allowInteractiveCards: opts.interactiveCards === true,
       }),
     }),
   );
 }
+
+const stubExternalMediaBlocked = async (page: Page, blocked: boolean): Promise<void> =>
+  await stubDeployment(page, { externalMediaBlocked: blocked, interactiveCards: true });
 
 const LOCK_COPY_RE = /External media is blocked deployment-wide/u;
 
@@ -200,7 +207,13 @@ test("deployment ALLOWS external media → the control is live and the lock copy
 // consumer should ever have to interpret. The rungs are asserted in ORDER — the control IS the ladder.
 
 const INTERACTIVE_VALUE_RE = /Interactive/u;
-const INTERACTIVE_COPY_RE = /card scripts stay switched off until the security review lands/u;
+/** The note shown ONLY while the deployment ceiling is down (#111 leg 3). It replaces leg 1's "card scripts
+ *  stay switched off until the security review lands" copy, which became false when the grant landed — an
+ *  assertion update the grant REQUIRED, since the whole point is that the rung now does something. */
+const CEILING_DOWN_COPY_RE = /Interactive is switched off deployment-wide/u;
+/** The ladder gloss, always shown. Pinned on the clause that describes the CAPABILITY, so a future edit that
+ *  quietly re-softens it back to "scripts are off" reds here. */
+const LADDER_COPY_RE = /Interactive is Render HTML plus cards that run their own scripts/u;
 
 /** The `character.update` input carried by the most recent write. */
 function lastUpdateInput(trpc: TrpcRecorder): Record<string, unknown> | undefined {
@@ -254,9 +267,35 @@ test("Inherit clears BOTH columns — a cleared render step must not leave an in
   await expect.poll(() => lastUpdateInput(trpc), { intervals: [20, 50, 100] }).toEqual({ trustHtml: null, interactiveHtml: null });
 });
 
-test("the ladder says what Interactive does NOT do yet — card scripts are still off (#111 leg 3)", async ({ mount, page }) => {
-  await stubExternalMediaBlocked(page, false);
+// ── The top rung reads honestly against the DEPLOYMENT CEILING (#111 leg 3) ───────────────────────────
+// Leg 1's copy promised "card scripts stay switched off until the security review lands". That review
+// landed and granted them, so the copy had to change — and what replaces it is the harder thing to keep
+// honest: the rung is live on some deployments and inert on others, and the tab has to say WHICH.
+//
+// The control stays ENABLED either way, unlike the external-media row above. That asymmetry is deliberate:
+// there the ceiling makes every value inert, here it makes one of four inert, and disabling the whole
+// select would take away three working choices to explain the fourth.
+
+test("ceiling UP → the ladder promises scripts and shows no deployment note", async ({ mount, page }) => {
+  await stubDeployment(page, { externalMediaBlocked: false, interactiveCards: true });
   await route(page, null);
   await mount(<CharacterAppearanceTabStory />);
-  await expect(page.getByText(INTERACTIVE_COPY_RE)).toBeVisible();
+
+  await expect(page.getByText(LADDER_COPY_RE)).toBeVisible();
+  await expect(page.getByText(CEILING_DOWN_COPY_RE)).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "HTML rendering" })).toBeEnabled();
+});
+
+test("ceiling DOWN (the shipped floor) → the tab says the rung is inert, and still lets you pick it", async ({ mount, page }) => {
+  await stubDeployment(page, { externalMediaBlocked: false });
+  await route(page, null);
+  await mount(<CharacterAppearanceTabStory />);
+
+  // The honest note names the remedy and where it lives — the D107 no-dead-switch posture, said in copy
+  // rather than by disabling, because the other three rungs still work.
+  await expect(page.getByText(CEILING_DOWN_COPY_RE)).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "HTML rendering" })).toBeEnabled();
+  // …and the rung is still WRITABLE: a host may opt a card in ahead of the admin flip, which is exactly
+  // what the stored-consent model expects (the mint re-checks the ceiling on every card it builds).
+  await expect(page.getByRole("combobox", { name: "HTML rendering" })).toBeEnabled();
 });

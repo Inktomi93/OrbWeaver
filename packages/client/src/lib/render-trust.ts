@@ -30,7 +30,7 @@ export const SAFE_FLOOR: RenderPolicy = { htmlTrust: "untrusted", forbidExternal
  *  while `/api/auth/config` has not landed (`data/auth-config.ts`'s `useRenderPolicyFloor`). Kept beside
  *  {@link SAFE_FLOOR} because they are the same decision said at two tiers, and a second spelling of a
  *  fail-closed default is how one of them drifts permissive. */
-export const DEPLOYMENT_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true };
+export const DEPLOYMENT_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true, allowInteractiveCards: false };
 
 export interface RowRenderPolicy {
   readonly trust: RenderTrust;
