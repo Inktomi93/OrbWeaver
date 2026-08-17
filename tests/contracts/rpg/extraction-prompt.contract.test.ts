@@ -12,11 +12,16 @@
 //      clause at once — deception, both actor-tracker axes, a game tracker, structured dates, plot
 //      progression, journal-type hints. A drift in ANY of the ~30 slots those blocks compose REDs here and
 //      names the block, which is the whole safety story for a migration this wide.
-//      THE ONE SANCTIONED DEPARTURE from those frozen bytes (owner ruling 2026-08-08, spec §11 decision 6 —
-//      WIRE row 27): both plane-teaching fixtures now carry the BE THOROUGH guide between the last plane and
-//      the RECONCILE rule. That is the intended prompt-bytes change — the guide was authored as a write-surface
-//      addendum and composed onto nothing for its entire life; the ruling wired it so its effect can be
-//      measured. Every other byte is still `e495855de`'s.
+//      THE SANCTIONED DEPARTURES from those frozen bytes — each a deliberate versioned revision, never drift:
+//        (a) owner ruling 2026-08-08, spec §11 decision 6 (WIRE row 27): both plane-teaching fixtures carry the
+//            BE THOROUGH guide between the last plane and the RECONCILE rule. The guide was authored as a
+//            write-surface addendum and composed onto nothing for its entire life; the ruling wired it so its
+//            effect can be measured.
+//        (b) `b5e48a907` (#76): `rpg.extract.plane.inventory` v3→v4 — the FIRST-ACQUISITION clause, after a
+//            measured miss where an empty pack read as nothing-to-do.
+//        (c) `#118`: `rpg.extract.tool.updateInventory` v3→v4 — the same clause, compressed, on the FOLD's own
+//            teaching vehicle (see §2c below for why one vehicle was not enough).
+//      Every other byte is still `e495855de`'s.
 //   2. AN OVERRIDE ACTUALLY REACHES THE WIRE — including through the per-game TOKEN vocabulary, which is what
 //      makes these template slots (§4.5 arm (a)) rather than static text.
 //
@@ -76,7 +81,7 @@ TRACKED STATES — party[].trackerSets: record the NEW reading whenever the beat
 Only write a tracker on an actor the schema offers it for — not every character carries every tracker.
 EXAMPLE — took a cut and spent themselves fighting: \`{targetRef:'player', trackerDeltas:[{key:'hp',delta:-3}], trackerSets:[{key:'poise',value:'guarded'}], addCondition:{name:'Bleeding',modifier:-1}, status:'bleeding, breathing hard'}\`.`;
 
-const TOOL_UPDATE_INVENTORY = `Items and coin on an actor. add: new items — ALWAYS give a \`description\` and a \`location\` (where it's carried: 'belt pouch', 'sheathed'), plus quantity. update: existing items whose description, quantity, or carrying location changed. remove: items used/lost/given away. walletDeltas: coin gained/spent (negative=spent). EXAMPLE — an existing key moves from a pocket onto a necklace: \`{targetRef:'Mira', update:[{name:'Small brass key', description:'key hanging on a silver chain', location:'silver chain around her neck'}]}\`. EXAMPLE — gifted an oil vial, paid 20 gold: \`{targetRef:'player', add:[{name:'Vial of Sanctified Oil', description:'warded holy oil, faintly glowing', quantity:1, location:'belt pouch'}], walletDeltas:[{name:'gold', delta:-20}]}\`.`;
+const TOOL_UPDATE_INVENTORY = `Items and coin on an actor. add: new items — ALWAYS give a \`description\` and a \`location\` (where it's carried: 'belt pouch', 'sheathed'), plus quantity. A beat where anyone buys, takes, pockets, receives, or stows something ALWAYS calls add — an EMPTY pack is never a reason to skip; first acquisitions are what add exists for. update: existing items whose description, quantity, or carrying location changed. remove: items used/lost/given away. walletDeltas: coin gained/spent (negative=spent). EXAMPLE — an existing key moves from a pocket onto a necklace: \`{targetRef:'Mira', update:[{name:'Small brass key', description:'key hanging on a silver chain', location:'silver chain around her neck'}]}\`. EXAMPLE — gifted an oil vial, paid 20 gold: \`{targetRef:'player', add:[{name:'Vial of Sanctified Oil', description:'warded holy oil, faintly glowing', quantity:1, location:'belt pouch'}], walletDeltas:[{name:'gold', delta:-20}]}\`.`;
 
 const TOOL_UPDATE_SCENE = `The scene + who is present. Set location/timeOfDay/weather when they change — specifically whenever the beat spends time (rest, travel, a cut to later), so the day actually moves, and whenever the sky turns; calendarDate/day as days pass; advance plot.act/title/actSummary as the story moves. weather is the WORLD'S weather — the sky, never the room: set it whenever the story says what the sky is doing, indoors or out (a blizzard past the cabin window counts); when the story says nothing about the sky, omit it and it keeps, and a room's own atmosphere goes in location instead. weather.type is one of clear/cloudy/rain/storm/snow/fog/wind/ash/indoors — use "indoors" when the scene is enclosed with no sky visible from it at all, and if none fits what the sky is doing, OMIT weather rather than forcing the nearest; the vivid phrasing goes in weather.label ("torrential sleet"). presentUpsert: for EACH character on screen set mood (every demeanor shift — 1-3 words, "wary", "quietly furious", NEVER a sentence), appearance + outfit (when described), thoughts (their implied inner state), and relationship {kind,label}. recentEvent: a one-line beat. EXAMPLE — a priest warms to you: \`{timeOfDay:'evening', presentUpsert:[{name:'Sister Vesna', emoji:'🕯️', mood:'warming', appearance:'tall, silver-haired', outfit:'patched grey habit', thoughts:'weighing whether to trust you', relationship:{kind:'ally',label:''}}], recentEvent:'Vesna softened as you shared road news'}\`.`;
 
@@ -258,6 +263,23 @@ test("the POPULATE round does NOT get the guide — a born-state read has no tur
   // Its counterpart doctrine there is INVENT-NOTHING, and "each turn record ALL that changed" is turn-loop
   // language a card read cannot honor. The guide's own doc-comment named the write surfaces it belongs to.
   expect(composePopulateTeaching(ctx(everythingConfig()))).not.toContain("BE THOROUGH");
+});
+
+// ── 2c. The first-acquisition rule reaches BOTH write-surface vehicles (#118) ────────────────────────
+// b5e48a907 put the clause on the PLANE fragment, which reaches only the vehicles that compose an extraction
+// SYSTEM PROMPT — the structured arm (`extractionSystem`) and the cheap tool round (`toolRoundSystem`). The
+// DEFAULT extraction mode is `folded` (`contracts/rpg/config.ts` `extractionMode`), and a folded turn assembles
+// NO extraction system prompt at all: `buildFoldedTurnBuilder` returns `{tools, reconcileNote}` and the gather
+// mounts them on the character turn, so the tool DESCRIPTIONS are that vehicle's ONLY write-surface teaching
+// (`domain/rpg/chat-ops/gather.ts` — "the tool DESCRIPTIONS teach the write surface"). A clause on one of the
+// two vehicles is a clause the default configuration never puts on the wire.
+test("the first-acquisition rule rides BOTH write-surface vehicles — the plane teaching AND the fold's tool description", () => {
+  const clause = "an EMPTY pack is never a reason to skip";
+  expect(composePlaneTeaching(ctx(everythingConfig()))).toContain(clause);
+  expect(buildRpgToolDescriptions(ctx(everythingConfig())).get("update_inventory")).toContain(clause);
+  // The tool-use REGISTRY renders the same slot against the game-free baseline, so the fold and the registry
+  // can never teach two different write surfaces.
+  expect(RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_inventory")).toContain(clause);
 });
 
 // ── 3. Override reach — the half a byte-identity fixture cannot prove ────────────────────────────────

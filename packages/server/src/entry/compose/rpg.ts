@@ -1024,7 +1024,27 @@ function buildToolRoundWireTools(
  *  Do not double every round: the narrow completeness pass fires only when (a) the first pass omitted the
  *  inventory tool, (b) inventory already exists, and (c) the latest committed beat names one of those items.
  *  The second model sees only update_inventory + no_changes, so it can either repair the proven ambiguity or
- *  decline it without repeating another plane. */
+ *  decline it without repeating another plane.
+ *
+ *  TWO DECLARED LIMITS (#118 — stated, not silently inherited; both are the CONSEQUENCE of clause (b)+(c)):
+ *    1. It is BLIND TO A FIRST ACQUISITION. Clause (b) requires an already-owned item and clause (c) requires
+ *       the beat to NAME one, so the empty-pack miss (#76's measured Sabine beat: a thing acquired into a pack
+ *       holding nothing) can never trigger this repair — the exact defect class the audit reads as if it
+ *       covered. Reaching it needs an ACQUISITION-CUE detector over the beat text, and that escalation is
+ *       DEFERRED by the owner's own sequencing: `b5e48a907` ruled the fix prompt-first and said "measurement
+ *       over real turns follows before any detector escalation". The prompt arm is now on BOTH vehicles
+ *       (`rpg.extract.plane.inventory` v4 here, `rpg.extract.tool.updateInventory` v4 for the fold), and the
+ *       measurement HAS run: on the empty-pack acquisition corpus the description-only (folded) teaching
+ *       moved 16/20 → 19/20, which is parity with the tool round's 35/36 reference (Fisher p=1.00, against
+ *       p=0.05 for the un-clauses arm), with 0/6 control false-fires. The escalation is therefore NOT
+ *       triggered. Re-open it only on a measured rate whose Wilson-95 UPPER bound sits below that 97.2%
+ *       reference — a heuristic, not a measurement, is what this gate must never grow on the strength of.
+ *    2. It never runs on a FOLDED turn that emitted anything. A folded flush with ≥1 co-emitted call goes
+ *       straight through `foldTurnToolCalls` (`domain/rpg/chat-ops/flush.ts` `resolveStateRound`), which makes
+ *       ZERO model calls by construction — an audit there would resurrect exactly the second call R1/D112
+ *       deleted, post-commit, on the mode most games run. A folded turn that emitted NOTHING already falls
+ *       back to this round and inherits the audit with it. So the fold's write-surface repair is its TOOL
+ *       DESCRIPTION, not a second pass; that is why the clause had to be ported onto the description at all. */
 function needsInventoryAudit(baseState: RpgSnapshotState, transcript: readonly RpgTurnTranscriptMessage[], calls: readonly RpgToolCall[]): boolean {
   if (calls.some((call) => call.name === "update_inventory")) {
     return false;
