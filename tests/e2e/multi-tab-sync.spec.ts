@@ -4,7 +4,7 @@
 // surfaces), so it is the load-bearing assertion.
 //
 // SHAPE A (the truest orb dual-device proof, list-only, zero room navigation): both browser contexts sit on
-// the landing/LIST. Tab A renames chat X via its LIST-ROW kebab; tab B's LIST row for X must update LIVE —
+// the Chats-section LIST. Tab A renames chat X via its LIST-ROW kebab; tab B's LIST row for X must update LIVE —
 // no reload — via the USER-BUS `chatsChanged` event → `listChats` query invalidation → refetch. This is
 // exactly the multi-device mechanism, and needs no `/chat/$id` URL (orb has none — the active chat is
 // store-only, so a room can't be deep-linked across tabs; SHAPE A sidesteps that entirely).
@@ -13,7 +13,7 @@
 // first time), then both tabs read the list fresh. The unique minted title makes `getByText` unambiguous.
 
 import { expect, test } from "@playwright/test";
-import { openOrCreateChat, renameFirstChatViaRowKebab, waitForAppReady } from "./support/chat-room.ts";
+import { gotoChatsList, openOrCreateChat, renameFirstChatViaRowKebab } from "./support/chat-room.ts";
 
 test("rename in tab A propagates live to tab B's list via the user-bus", async ({ browser }) => {
   const ctx = await browser.newContext();
@@ -23,13 +23,13 @@ test("rename in tab A propagates live to tab B's list via the user-bus", async (
     await openOrCreateChat(boot);
     await boot.close();
 
-    // Both tabs sit on the LANDING/LIST — no room opened, no URL deep-link.
+    // Both tabs sit on the Chats-section LIST — no room opened, no URL deep-link. (The list moved off `/`
+    // in the variant-C home rework; `gotoChatsList` lands the Chats section where the `aria-label="Chats"`
+    // list lives, which is exactly the surface SHAPE A's live-sync proof needs.)
     const tabA = await ctx.newPage();
     const tabB = await ctx.newPage();
-    await tabA.goto("/");
-    await waitForAppReady(tabA);
-    await tabB.goto("/");
-    await waitForAppReady(tabB);
+    await gotoChatsList(tabA);
+    await gotoChatsList(tabB);
     // Both list the same first chat.
     const listRowB = tabB.getByRole("list", { name: "Chats" }).getByRole("button").first();
     await expect(listRowB).toBeVisible({ timeout: 15_000 });

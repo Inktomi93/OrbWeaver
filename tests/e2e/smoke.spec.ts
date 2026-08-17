@@ -9,9 +9,10 @@
 //     port DIRECTLY. Body is `{status:"ok", harness:…}` (no `ok`/`version` field — neo's shape differs).
 //   • orb has no `app-root`/`app-shell` DOM testid stamped (the registry key is unused); the shell's ONE
 //     `main` landmark (app-shell.tsx `<main className="shell-content">`) is the stable shell-mounted target.
-//   • the chat list surface (chat-list-surface.tsx) owns an `aria-label="Chats"` region OR an empty-state —
-//     either proves `chat.listChats` resolved. Reached via the rail's exact "Characters"→no; the Chats
-//     section is the default CONTENT+LIST on `/`, so the list panel is present from first paint.
+//   • the variant-C HOME surface (home-surface.tsx) mounts a `main "Home content"` landmark, and its
+//     masthead/Hearth-hero/recents ALL derive from `chat.listChats` — so the home content rendering proves
+//     `chat.listChats` resolved. The chats-LIST surface (`aria-label="Chats"`) moved OFF `/` in the #102
+//     rework; it now lives on the Chats SECTION (reached via the Primary rail), not the landing.
 
 import { expect, test } from "@playwright/test";
 import { E2E_DEBUG_TOKEN, SINGLE_USER } from "./support/modes.ts";
@@ -25,8 +26,9 @@ const APP_READY = "html[data-app-ready]";
 
 // `@smoke` — the fast anti-rot subset run by the pre-push lefthook gate (`pnpm e2e:smoke`). Model-free +
 // data-light; proves the stack boots, auth resolves, the SPA mounts, and the drift-prone `/` landing surface
-// (the Chats list) still renders. If a selector/landing rots (the failure this whole task fixed), THIS goes
-// red on push instead of rotting unnoticed.
+// (the variant-C HOME — masthead + Hearth Room hero, its content query-derived) still renders. If a
+// selector/landing rots (the failure this whole task fixed), THIS goes red on push instead of rotting
+// unnoticed.
 test("the health endpoint reports ok", { tag: "@smoke" }, async ({ request }) => {
   const res = await request.get(HEALTHZ_URL);
   expect(res.ok()).toBe(true);
@@ -81,16 +83,18 @@ test("the SPA shell mounts and single-user boots with no login form", {
   await expect(page.getByRole("textbox", { name: LOGIN_FIELD })).toHaveCount(0);
 });
 
-test("the home page renders the chat list surface (tRPC query works)", {
+test("the home page renders the home surface (tRPC query works)", {
   tag: "@smoke",
 }, async ({ page }) => {
   await page.goto("/");
-  // Wait for the app to reach cache-idle (the agent-bridge signal) so the suspense-loaded list has resolved
-  // to EITHER its `aria-label="Chats"` region or the "No chats yet" empty-state — both prove the query
-  // succeeded (a transport/auth failure would render the surface's ErrorState "Couldn't load your chats").
+  // Wait for the app to reach cache-idle (the agent-bridge signal), then assert the variant-C HOME surface
+  // (program #102) actually MOUNTED: its `main "Home content"` landmark. The Hearth Room hero, the "Pick up
+  // where you left off" region and the "Also open" recents ALL derive from `chat.listChats`, so the home
+  // content rendering at all is the end-to-end proof the owner-scoped query resolved (auth + transport + DB
+  // all answered). A transport/auth failure would render an ErrorState instead of the surface — assert none.
+  // (The chats-LIST surface — `getByRole("list", { name: "Chats" })` — moved to the Chats SECTION in this
+  // rework; it no longer lives on `/`, which is exactly the stale coupling this test used to carry.)
   await expect(page.locator(APP_READY)).toBeAttached({ timeout: 30_000 });
-  const chatsList = page.getByRole("list", { name: "Chats" });
-  const emptyState = page.getByText("No chats yet");
-  await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("main", { name: "Home content" })).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText("Couldn't load your chats")).toHaveCount(0);
 });
