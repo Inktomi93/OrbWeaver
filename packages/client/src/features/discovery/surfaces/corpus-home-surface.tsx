@@ -1,19 +1,59 @@
-// The Corpus CONTENT overview (nothing selected) — the composed library-understanding home. It reads
-// the discovery verbs: `home` (index coverage + top scene/arc themes + near-duplicate counts), `catalog`
-// (distilled facet counts + top tags, charted as bar-lists), the `themes` browse-all drill, the keyword
-// explorer (`topKeywords` bar-list → `cooccurringKeywords` drill), and four insights — `forgottenGems`
-// (invested but quiet), `unusedCharacters` (never played), `modelRouting` (per-genre economics, cost as a
-// bar-list), and `themeDrift` (how themes move over story time, scene↔arc toggle). Theme rows drill inline
-// into `themeDetail`; a gem / unused row selects that character's dossier into CONTENT.
+// THE CORPUS OVERVIEW — the discovery section's CONTENT when nothing is selected. Rebuilt for program #102
+// (density propagation leg 3 of 3) to the owner-picked mockup A "The Cartographer"
+// (`reports/design/corpus-mockups/corpus-a-cartographer.html`) WITH the ruled state-swap from issue #127.
+//
+// ── THE SHAPE, AND WHY IT IS ONE SHAPE ────────────────────────────────────────────────────────────────
+// The owner picked A — the visual family map as the glowing focal, Obsidian depth — and ruled the swap the
+// mockup RATIONALE flagged rather than pre-deciding: while the library is un-analysed the map is thin (six
+// of eight families are singletons and every label is the server's unlabelled `"mixed"` fallback), so it
+// cannot carry a focal, and variant B's INVITATION takes it. The moment the semantic pass has produced
+// anything the map reclaims it. ONE surface whose focal is analysis-state-driven — never a fork, never a
+// separate reduced mode. `lib/corpus-analysis-state.ts` owns the derivation and is unit-tested at every
+// phase boundary, including the thin in-between (distilled, no story themes) where the map takes the focal
+// while the rail still honestly reads "Story themes & keywords — not run".
+//
+// CD3 IS WHAT MAKES THE SWAP MANDATORY (density-pass-spec.md §3.2): exactly one element per surface may
+// carry accent fill, glow, or elevated shadow at rest. Both islands can paint the focal treatment; exactly
+// one is ever told to. A CT pins `[data-corpus-focal]` at count 1 in every phase.
+//
+// ── WHAT WENT, AND WHAT REPLACED IT (the #99 item-7 / side-eye 2026-08-08 findings, in composition) ────
+//   • THE COVERAGE STAT STRIP IS GONE. Five structural zeros at display size above an empty state that
+//     already said "nothing". The masthead now states the library in a SENTENCE, one summary readout sits
+//     beside it, and every pass's true state — including its completeness — lives in the readiness rail.
+//   • THE SEVEN "No … computed yet." NOTES ARE GONE, and not by collapsing them into one empty state
+//     either: a section with no data now renders NOTHING AT ALL, because the rail is the single place that
+//     says what has not run. A section that prints its own zero note is a wall built one true sentence at
+//     a time, and the 2026-08-08 collapse only reduced it from seven bricks to one.
+//   • THE DEAD $0.00 COLUMN IS GONE. See `corpus-gem-tiles.tsx`: the trailing magnitude is words returned.
+//     Model economics survives as a section that renders only when there is spend to report — on a local
+//     instance `modelRouting` is `[]` and the block simply is not there.
+//
+// ── THE TIER IS `form`, DELIBERATELY (density-pass-spec.md §3.1) ───────────────────────────────────────
+// Corpus reads like analytics but it is a surface you LAND on and act from — prose, a focal island, one
+// primary door — which is home's own reasoning verbatim. It is the tier that resolves the island's
+// `--spacing-block` padding and `--radius-card` radius, which is what the mockup draws and what the glow's
+// `before:rounded-(--radius-card)` is a halo for. The dense INSTRUMENT surfaces of this section are its
+// CONTEXT tabs, which declare their own.
+//
+// ── PORTRAITS FOR THE MAP ARRIVE BY JOIN ───────────────────────────────────────────────────────────────
+// `ArchetypeMember` carries no `avatarHash` (packages/server/src/domain/discovery/contract/results.ts:123),
+// so the family plates are joined against `discovery.portraitAlignment` — an owner-scoped verb the Visuals
+// tab already reads, at the IDENTICAL query key, so the two share one cache entry rather than double-
+// fetching. A member the join misses degrades to hue-seeded initials. The durable fix is one server field
+// and is filed, not smuggled in here.
+//
+// "THEMES" ON THIS SURFACE IS ALWAYS "STORY THEMES" — the discovery domain's distillation output. It shares
+// a word with the app's colour themes and the owner has been caught by that once; the spelling is law here.
 
 import { modelDisplayName } from "@orb/kit/model-name";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { EmptyState } from "@orb/ui/empty-state";
+import { Icon, Sparkles, Users } from "@orb/ui/icons";
+import { Container, Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { StatFigure } from "@orb/ui/stat-figure";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -21,11 +61,15 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
-import { testId, timeLib, useFocusOnMount } from "#lib";
-import { selectCorpusCharacter } from "#state";
+import { testId, useFocusOnMount } from "#lib";
+import { selectCorpusCharacter, setActiveSection } from "#state";
 import { CharacterAvatar } from "../components/character-avatar.tsx";
-import { AllThemes, FacetBars, KeywordExplorer, ThemeDrift } from "../components/corpus-home-charts.tsx";
-import { CorpusRunJobEmptyState } from "../components/corpus-run-job-empty-state.tsx";
+import { CorpusFamilyMap } from "../components/corpus-family-map.tsx";
+import { CorpusGemTiles } from "../components/corpus-gem-tiles.tsx";
+import { AllStoryThemes, CatalogFacets, KeywordExplorer, StoryThemeDrift } from "../components/corpus-home-charts.tsx";
+import { CorpusReadinessRail } from "../components/corpus-readiness-rail.tsx";
+import { CorpusUnderstandingInvitation } from "../components/corpus-understanding-invitation.tsx";
+import { deriveCorpusAnalysisState } from "../lib/corpus-analysis-state.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
 
 type ThemeLevel = "scene" | "arc";
@@ -49,14 +93,16 @@ export function CorpusHomeSurface(): ReactElement {
   return (
     // No height/scroll/inset of its own — the CONTENT region owns all three for both corpus surfaces
     // (`corpus-content.tsx`, the Configuration precedent).
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none" data-testid={testId("corpusHomeSurface")}>
-      <QueryBoundary
-        fallback={<Text voice="gloss">Loading your corpus…</Text>}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}
-      >
-        <CorpusHomeBody />
-      </QueryBoundary>
-    </Stack>
+    <Surface tier="form">
+      <Stack className="outline-none" data-testid={testId("corpusHomeSurface")} ref={surfaceRef} tabIndex={-1}>
+        <QueryBoundary
+          fallback={<Text voice="gloss">Loading your corpus…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}
+        >
+          <CorpusHomeBody />
+        </QueryBoundary>
+      </Stack>
+    </Surface>
   );
 }
 
@@ -64,149 +110,152 @@ function CorpusHomeBody(): ReactElement {
   const trpc = useTRPC();
   const { data: home } = useSuspenseQuery(trpc.discovery.home.queryOptions());
   const { data: catalog } = useSuspenseQuery(trpc.discovery.catalog.queryOptions());
+  // `{}` and no-arg respectively — the IDENTICAL inputs the Archetypes and Visuals CONTEXT tabs pass, so
+  // opening those tabs after this surface is a cache hit rather than a second fetch of the same analytics.
+  const { data: families } = useSuspenseQuery(trpc.discovery.visualArchetypes.queryOptions({}));
+  const { data: portraitReport } = useSuspenseQuery(trpc.discovery.portraitAlignment.queryOptions());
   const { data: gems } = useSuspenseQuery(trpc.discovery.forgottenGems.queryOptions());
   const { data: unused } = useSuspenseQuery(trpc.discovery.unusedCharacters.queryOptions());
   const { data: routing } = useSuspenseQuery(trpc.discovery.modelRouting.queryOptions());
   const [theme, setTheme] = useState<ThemeSelection | null>(null);
 
-  // FIRST RUN: every analysis plane on this surface is fed by the same two jobs, so when they have never run
-  // the five analysis sections have nothing but seven muted "No … computed yet." notes between them. Collapse
-  // them into ONE state that names the jobs and opens the door (side-eye 2026-08-08 P1-2). The read is the
-  // two ALREADY-SUSPENDED queries — themes at both levels and the distilled catalog — never a probe query:
-  // keywords and theme drift derive from the same distillation, so a separate read could only agree.
-  const analysed = home.topSceneThemes.length > 0 || home.topArcThemes.length > 0 || catalog.totalDistilled > 0;
+  const state = deriveCorpusAnalysisState({
+    characters: home.coverage.characters,
+    familySizes: families.map((family) => family.size),
+    distilled: catalog.totalDistilled,
+    sceneThemes: home.topSceneThemes.length,
+    arcThemes: home.topArcThemes.length,
+    duplicateCharacters: home.duplicateCounts.characters,
+    duplicateChats: home.duplicateCounts.chats,
+  });
+
+  if (state.phase === "empty") {
+    // A library with nothing in it is not an un-analysed library — there is nothing to analyse, so the
+    // invitation would be an offer to read a blank page. The one honest door is the one that adds a card.
+    return (
+      <EmptyState
+        action={
+          <Button intent="primary" onClick={(): void => setActiveSection("characters")} size="sm">
+            <Icon icon={Users} size="sm" />
+            Go to Characters
+          </Button>
+        }
+        description="Add a character and the corpus starts reading your library back to you."
+        icon={<Icon icon={Sparkles} size="lg" />}
+        title="Nothing in your library yet"
+      />
+    );
+  }
+
+  const portraits = new Map(portraitReport.characters.map((row) => [row.characterId, row.avatarHash]));
+  const mapIsFocal = state.phase === "analysed";
+  const hasStoryThemes = home.topSceneThemes.length > 0 || home.topArcThemes.length > 0;
 
   return (
-    <Stack gap="section">
-      {/* COVERAGE SHOWS WHAT IT COVERS (#99 item 7 — the null state should look null). Before the two jobs
-          have ever run, five of these six figures are structurally zero, and the strip rendered them at
-          DISPLAY size directly above "Nothing analyzed yet" — a confident wall of numbers saying, loudly,
-          nothing, immediately above the sentence that already says it. Unanalysed, the strip prints the one
-          figure that IS a real count (the library itself) and lets the empty state below carry the rest.
-          It is not a general hide-zeros rule: once anything has been analysed every figure prints, zero
-          included, because THEN a zero is a measurement. */}
-      <Section heading="Coverage">
-        <Row gap="block" className="flex-wrap">
-          <StatFigure label="Characters" value={home.coverage.characters.toString()} />
-          {analysed ? (
-            <>
-              <StatFigure label="Digests" value={home.coverage.digests.toString()} />
-              <StatFigure label="Segments" value={home.coverage.segments.toString()} />
-              <StatFigure label="Distilled" value={catalog.totalDistilled.toString()} />
-              <StatFigure label="Duplicate characters" value={home.duplicateCounts.characters.toString()} />
-              <StatFigure label="Duplicate chats" value={home.duplicateCounts.chats.toString()} />
-            </>
-          ) : null}
+    // NO `size`: the container-query context survives (the split answers to THIS pane's inline size — the
+    // shell's docked LIST and CONTEXT panels narrow it independently) and no max-width cap centres the page.
+    <Container className="w-full">
+      <Stack gap="section">
+        <Row align="end" className="flex-wrap" gap="section" justify="between">
+          <Stack className="min-w-0 flex-1" gap="tight">
+            <Text as="span" voice="kicker">
+              Library understanding
+            </Text>
+            <Heading className="max-w-(--reading-measure)" level={1} voice="masthead">
+              {state.headline}
+            </Heading>
+          </Stack>
+          {/* The summary readout: ONE `hero` (the voice for THE value, one per surface by law — which is
+              why `deriveCorpusAnalysisState` MOVES it with the phase rather than pinning it to a column)
+              with its companions at datum weight beside it. Never a strip of display-size zeros. */}
+          <Row align="end" className="shrink-0" gap="section">
+            <Stack className="text-right" gap="tight">
+              <Text as="span" voice="hero">
+                {state.hero.value}
+              </Text>
+              <Text as="span" voice="gloss">
+                {state.hero.caption}
+              </Text>
+            </Stack>
+            {state.support.map((figure) => (
+              <Stack className="text-right" gap="tight" key={figure.id}>
+                <Text as="span" voice="datum">
+                  {figure.value}
+                </Text>
+                <Text as="span" voice="gloss">
+                  {figure.caption}
+                </Text>
+              </Stack>
+            ))}
+          </Row>
         </Row>
-      </Section>
 
-      {analysed ? (
-        <>
-          <Section heading="Themes">
-            <Stack gap="block">
-              <ThemeGroup label="Scenes" themes={home.topSceneThemes} selected={theme} onSelect={setTheme} />
-              <ThemeGroup label="Arcs" themes={home.topArcThemes} selected={theme} onSelect={setTheme} />
-              {theme !== null ? <ThemeDetailCard selection={theme} onDismiss={(): void => setTheme(null)} /> : null}
-            </Stack>
+        {/* `min-w-0` IS THE SPLIT (the home leg's P1-1, paid for once already): a grid TRACK CHILD is
+            `min-width:auto`, so a track is floored at its content's min-content width and the declared
+            1.55fr/1fr silently becomes whatever the widest island demands. */}
+        <Grid className="items-start" cols="lead" gap="gutter">
+          <Stack className="min-w-0" gap="section">
+            {mapIsFocal ? null : <CorpusUnderstandingInvitation />}
+            <CorpusFamilyMap families={families} focal={mapIsFocal} portraits={portraits} />
+          </Stack>
+          <Stack className="min-w-0" gap="section">
+            <CorpusReadinessRail showRerun={mapIsFocal} stages={state.stages} />
+          </Stack>
+        </Grid>
+
+        <CorpusGemTiles gems={gems} />
+
+        {hasStoryThemes ? (
+          <Section kicker="Story themes" level={2}>
+            <ThemeGroup label="Scenes" onSelect={setTheme} selected={theme} themes={home.topSceneThemes} />
+            <ThemeGroup label="Arcs" onSelect={setTheme} selected={theme} themes={home.topArcThemes} />
+            {theme === null ? null : <ThemeDetailCard onDismiss={(): void => setTheme(null)} selection={theme} />}
           </Section>
+        ) : null}
 
-          <AllThemes />
+        <AllStoryThemes />
+        <KeywordExplorer />
+        <CatalogFacets catalog={catalog} />
+        <StoryThemeDrift />
 
-          <KeywordExplorer />
-
-          <Section heading="Catalog">
-            <Stack gap="block">
-              <FacetBars label="Genres" facets={catalog.genres} />
-              <FacetBars label="Tones" facets={catalog.tones} />
-              {catalog.topTags.length === 0 ? (
-                <Text voice="gloss">No tags distilled.</Text>
-              ) : (
-                <BarList
-                  label="Top tags"
-                  items={toBarItems(
-                    catalog.topTags,
-                    (tag) => tag.tag,
-                    (tag) => tag.count,
-                  )}
-                />
-              )}
-            </Stack>
-          </Section>
-        </>
-      ) : (
-        <CorpusRunJobEmptyState title="Nothing analyzed yet" description="Run Distill characters and Compute themes to fill this in." />
-      )}
-
-      <Section heading="Forgotten gems">
-        {gems.length === 0 ? (
-          <Text voice="gloss">No quiet-but-invested characters yet.</Text>
-        ) : (
-          <Stack aria-label="Forgotten gems" gap="row" role="list">
-            {gems.map((gem) => (
-              <Row key={gem.characterId} role="listitem">
+        {unused.length === 0 ? null : (
+          <Section kicker="Never played" level={2}>
+            <VirtualList
+              aria-label="Never played characters"
+              className="max-h-96"
+              estimateSize={(): number => CORPUS_INSIGHT_ROW_ESTIMATE_PX}
+              fadeEdge={true}
+              gapToken="row"
+              getItemKey={(character): string => character.characterId}
+              items={unused}
+              renderItem={(character): ReactElement => (
                 <ListRow
                   clickable={true}
-                  onClick={(): void => selectCorpusCharacter(gem.characterId)}
-                  leading={<CharacterAvatar id={gem.characterId} name={gem.name} hash={gem.avatarHash} />}
-                  title={gem.name}
-                  // A LIFETIME AGGREGATE, said as one (#99 item 7): the bare "Mira · 1599 messages" was
-                  // anatomically a chat row, and read as one — the largest real chat on this instance is
-                  // 71 messages, so the number looked like a bug rather than a career total. "in total"
-                  // is the whole fix; the row is per-CHARACTER and now says so.
-                  // The stamp is the COMPACT form, the same column-scan shape the chats list uses (#99
-                  // item 4) — six rows of "last active about three weeks ago" is six wasted clauses.
-                  subtitle={`${gem.messageCount} messages in total · ${gem.tokensOut.toString()} tokens · last active ${timeLib.formatRelativeCompact(gem.lastActiveAt)}`}
-                  actions={<Money value={gem.costUsd} />}
+                  leading={<CharacterAvatar hash={character.avatarHash} id={character.characterId} name={character.name} />}
+                  onClick={(): void => selectCorpusCharacter(character.characterId)}
+                  subtitle="Collected but never played"
+                  title={character.name}
                 />
-              </Row>
-            ))}
-          </Stack>
+              )}
+            />
+          </Section>
         )}
-      </Section>
 
-      <Section heading="Never played">
-        {unused.length === 0 ? (
-          <Text voice="gloss">Every character has been played at least once.</Text>
-        ) : (
-          <VirtualList
-            aria-label="Never played characters"
-            className="max-h-96"
-            estimateSize={(): number => CORPUS_INSIGHT_ROW_ESTIMATE_PX}
-            fadeEdge={true}
-            gapToken="row"
-            getItemKey={(character): string => character.characterId}
-            items={unused}
-            renderItem={(character): ReactElement => (
-              <ListRow
-                clickable={true}
-                onClick={(): void => selectCorpusCharacter(character.characterId)}
-                leading={<CharacterAvatar id={character.characterId} name={character.name} hash={character.avatarHash} />}
-                title={character.name}
-                subtitle="Collected but never played"
-              />
-            )}
-          />
+        {routing.length === 0 ? null : (
+          <Section kicker="Model economics" level={2}>
+            <BarList
+              items={toBarItems(
+                routing,
+                (route) => `${route.genre} → ${modelDisplayName(route.model)}`,
+                (route) => route.costUsd,
+              )}
+              label="Cost by route"
+              valueFormatter={money}
+            />
+          </Section>
         )}
-      </Section>
-
-      <Section heading="Model economics">
-        {routing.length === 0 ? (
-          <Text voice="gloss">No generation economics recorded yet.</Text>
-        ) : (
-          <BarList
-            label="Cost by route"
-            valueFormatter={money}
-            items={toBarItems(
-              routing,
-              (route) => `${route.genre} → ${modelDisplayName(route.model)}`,
-              (route) => route.costUsd,
-            )}
-          />
-        )}
-      </Section>
-
-      {analysed ? <ThemeDrift /> : null}
-    </Stack>
+      </Stack>
+    </Container>
   );
 }
 
@@ -220,27 +269,27 @@ function ThemeGroup({
   readonly themes: readonly ThemeRow[];
   readonly selected: ThemeSelection | null;
   readonly onSelect: (selection: ThemeSelection) => void;
-}): ReactElement {
+}): ReactElement | null {
+  if (themes.length === 0) {
+    // The rail says which passes have not run; a per-group note here would say it a third time.
+    return null;
+  }
   return (
     <Stack gap="field">
       <Text voice="kicker">{label}</Text>
-      {themes.length === 0 ? (
-        <Text voice="gloss">No {label.toLowerCase()} themes computed yet.</Text>
-      ) : (
-        <Stack aria-label={`${label} themes`} gap="row" role="list">
-          {themes.map((row) => (
-            <Row key={row.id} role="listitem">
-              <ListRow
-                clickable={true}
-                selected={selected !== null && selected.clusterIdx === row.clusterIdx && selected.level === row.level}
-                onClick={(): void => onSelect({ clusterIdx: row.clusterIdx, level: row.level })}
-                title={row.name ?? "Unnamed theme"}
-                subtitle={`${row.size} digests`}
-              />
-            </Row>
-          ))}
-        </Stack>
-      )}
+      <Stack aria-label={`${label} story themes`} gap="row" role="list">
+        {themes.map((row) => (
+          <Row key={row.id} role="listitem">
+            <ListRow
+              clickable={true}
+              onClick={(): void => onSelect({ clusterIdx: row.clusterIdx, level: row.level })}
+              selected={selected !== null && selected.clusterIdx === row.clusterIdx && selected.level === row.level}
+              subtitle={`${row.size} digests`}
+              title={row.name ?? "Unnamed theme"}
+            />
+          </Row>
+        ))}
+      </Stack>
     </Stack>
   );
 }
@@ -252,7 +301,7 @@ function ThemeDetailCard({ selection, onDismiss }: { readonly selection: ThemeSe
         fallback={<Text voice="gloss">Loading theme…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the theme" onRetry={retry} />}
       >
-        <ThemeDetailBody selection={selection} onDismiss={onDismiss} />
+        <ThemeDetailBody onDismiss={onDismiss} selection={selection} />
       </QueryBoundary>
     </Card>
   );
@@ -269,8 +318,8 @@ function ThemeDetailBody({ selection, onDismiss }: { readonly selection: ThemeSe
   if (detail === null) {
     return (
       <Row align="center" justify="between">
-        <Text>This theme is no longer available.</Text>
-        <Button intent="ghost" size="sm" onClick={onDismiss}>
+        <Text>This story theme is no longer available.</Text>
+        <Button intent="ghost" onClick={onDismiss} size="sm">
           Close
         </Button>
       </Row>
@@ -279,8 +328,10 @@ function ThemeDetailBody({ selection, onDismiss }: { readonly selection: ThemeSe
   return (
     <Stack gap="block">
       <Row align="center" justify="between">
-        <Text className="font-semibold">{detail.name ?? "Unnamed theme"}</Text>
-        <Button intent="ghost" size="sm" onClick={onDismiss}>
+        <Text as="span" voice="label">
+          {detail.name ?? "Unnamed theme"}
+        </Text>
+        <Button intent="ghost" onClick={onDismiss} size="sm">
           Close
         </Button>
       </Row>
@@ -290,30 +341,14 @@ function ThemeDetailBody({ selection, onDismiss }: { readonly selection: ThemeSe
       <Stack gap="row" role="list">
         {detail.members.map((member) => (
           <ListRow
-            key={member.characterId}
             clickable={true}
+            key={member.characterId}
             onClick={(): void => selectCorpusCharacter(member.characterId)}
+            subtitle={`${member.count} digests in this story theme`}
             title={member.name}
-            subtitle={`${member.count} digests in this theme`}
           />
         ))}
       </Stack>
     </Stack>
-  );
-}
-
-/** A spend readout — and NOTHING at zero (#99 item 7). On a local-model instance every row's cost is
- *  genuinely $0.00, so the column rendered six identical zeros: a data column that never varies is not a
- *  column, it is decoration that costs the row's whole trailing zone. Absent means "this cost nothing",
- *  which is what the row is already saying; a real spend still prints, so the column appears exactly when
- *  it has something to say. */
-function Money({ value }: { readonly value: number }): ReactElement | null {
-  if (value === 0) {
-    return null;
-  }
-  return (
-    <Text voice="gloss" className="whitespace-nowrap font-mono">
-      {money(value)}
-    </Text>
   );
 }
