@@ -62,15 +62,15 @@ export function HomeQuickPicksTileBody(): ReactElement {
     // `role="list"` needs `listitem` CHILDREN or the cells are generic to AT and the list announces empty.
     <Grid aria-label="Character quick-picks" cols="cellFixed" gap="row" role="list">
       {quickPicks.map((character) => {
-        // The SAME honest ladder the character library row uses (character-card.tsx): the distilled pitch →
-        // the visible tag line → the handle. Never invented copy — a name-only cell read as an unfinished
-        // shelf, and the summary this tile already reads carries all three. The SECOND line is content
-        // debt, not a layout bug: on a corpus with no pitches and no visible tags it falls through to the
-        // handle and every caption is a slug (tracked as #119 — do not invent pitch copy here).
+        // The ladder is pitch → visible tag line → NOTHING (#119): the handle/slug is row IDENTITY, not
+        // caption copy — `CharacterSummary` carries no third honest fallback (no creator/kind field to
+        // fall back to), so a card with neither reads with one line instead of a lowercase slug. The name
+        // above already identifies the cell; an absent second line beats an invented one.
         const tagLine = character.tags
           .filter((tag) => !tag.isHiddenOnCard)
           .map((tag) => tag.name)
           .join(" · ");
+        const caption = character.elevatorPitch ?? (tagLine === "" ? null : tagLine);
         return (
           // `role="listitem"` rides a layout-primitive WRAPPER, never the Button: an interactive element
           // assigned a non-interactive role is a lie to AT (and eslint's own
@@ -102,11 +102,13 @@ export function HomeQuickPicksTileBody(): ReactElement {
                   nodes below the readable floor on this page were these captions: 10.5px, inside a button,
                   carrying a whole pitch sentence. `prose` is the sanctioned LENGTH modifier — it lifts the
                   step to `label` and relaxes the leading and changes nothing else, so the caption is still
-                  unmistakably the gloss voice, just legible at sentence length. (The CONTENT problem, a
-                  corpus where this falls through to a slug, stays #119; this is the floor axis.) */}
-              <Text as="span" className="block truncate" prose={true} voice="gloss">
-                {character.elevatorPitch ?? (tagLine === "" ? character.handle : tagLine)}
-              </Text>
+                  unmistakably the gloss voice, just legible at sentence length. Rendered only when a
+                  caption exists (#119) — no line beats a slug. */}
+              {caption === null ? null : (
+                <Text as="span" className="block truncate" prose={true} voice="gloss">
+                  {caption}
+                </Text>
+              )}
             </Button>
           </Stack>
         );

@@ -47,7 +47,7 @@ test("the trailing action jumps to the characters section", async ({ mount, page
   await expect(home.locator("output")).toHaveText("section=characters");
 });
 
-test("each row carries an HONEST tagline off the summary it already reads — pitch → tag line → handle", async ({ mount, page }) => {
+test("each row carries an HONEST tagline off the summary it already reads — pitch → tag line → NOTHING (#119)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": {
       items: [
@@ -62,10 +62,12 @@ test("each row carries an HONEST tagline off the summary it already reads — pi
   const home = await mount(<ChatQuickPicksTileStory />);
   const tile = home.locator('[data-home-tile="chat.quickPicks"]');
 
-  // Never invented copy: the distilled pitch when it exists, else the visible tag line, else the handle.
+  // Never invented copy: the distilled pitch when it exists, else the visible tag line, else NO second line —
+  // the handle/slug is row identity, not caption copy (#119: a slug read as an unfinished shelf).
   await expect(tile.getByText("The winter-court envoy")).toBeVisible();
   await expect(tile.getByText("noir")).toBeVisible();
-  await expect(tile.getByText("bare_handle")).toBeVisible();
+  await expect(tile.getByText("Bare")).toBeVisible();
+  await expect(tile.getByText("bare_handle")).toHaveCount(0);
 });
 
 test("the cells are real LIST ITEMS inside the list — a role=list of generic divs announces empty", async ({ mount, page }) => {
