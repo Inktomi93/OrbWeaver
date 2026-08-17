@@ -18,6 +18,14 @@ export const avatarVariants = tv({
       md: { root: "size-avatar-md" },
       lg: { root: "size-avatar-lg" },
       hero: { root: "size-avatar-hero" },
+      // THE CELL IS THE SIZE (added 2026-08-16, program 102 — the home face shelf). Every step above is a
+      // display TOKEN: the avatar decides its own box. This one hands the decision to the layout — the
+      // portrait fills a fixed grid track and stays square. It is a real variant rather than a call-site
+      // `w-full`, because `size-avatar-*` is a custom-token utility tailwind-merge cannot classify, so a
+      // call-site width would resolve against it by stylesheet order (`ui-size-via-variant` exists for
+      // exactly this, and reds the call site). Only correct inside a track that HAS a width of its own —
+      // in an auto-sized flow it collapses, which is the honest failure of "the cell is the size".
+      fill: { root: "aspect-square h-auto w-full" },
     },
     shape: {
       round: { root: "rounded-full" },

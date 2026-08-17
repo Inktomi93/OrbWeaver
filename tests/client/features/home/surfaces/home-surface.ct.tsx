@@ -7,7 +7,7 @@ import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { HomeDormantTileStory, HomeEmptyStory, HomeTileOrderStory, HomeTileVisibilityStory } from "../_ct-stories.tsx";
+import { HomeDormantTileStory, HomeEmptyStory, HomeRegionStory, HomeTileOrderStory, HomeTileVisibilityStory } from "../_ct-stories.tsx";
 
 const TEASER_RE = /Your companion/u;
 const REASON_RE = /waiting on: domain\/buddy/u;
@@ -32,12 +32,15 @@ test("a `useVisible:false` tile renders NOTHING — no gap, no empty card", asyn
   await expect(home.getByText("Hidden tile")).toHaveCount(0);
 });
 
-test("a DORMANT tile is a doorway: teaser + Dormant badge + reason, and ZERO interactive elements", async ({ mount }) => {
+test("a DORMANT tile is a doorway: name + teaser + reason, and ZERO interactive elements", async ({ mount }) => {
+  // The per-doorway `Dormant` BADGE went with #102: home collects every declared doorway under one
+  // "Not yet" band, so the group's own name says once what N badges said N times. The doorway's own
+  // title is what it gained in exchange — it used to be the frame's h2 and is now its first line.
   const home = await mount(<HomeDormantTileStory />);
 
   const tile = home.locator('[data-home-tile="dormant"]');
   await expect(tile).toBeVisible();
-  await expect(tile.getByText("Dormant")).toBeVisible();
+  await expect(tile.getByText("Buddy", { exact: true })).toBeVisible();
   await expect(tile.getByText(TEASER_RE)).toBeVisible();
   await expect(tile.getByText(REASON_RE)).toBeVisible();
   // The doorway does not fake a control, a spinner, or a skeleton.
@@ -76,32 +79,66 @@ test("the tile grid collapses to ONE column when its own pane is narrow", async 
   expect(trackCount(template)).toBe(1);
 });
 
-test("a tile card's resolved padding IS the form-tier token — never a hardcoded value", async ({ mount }) => {
+test("RED-FIRST (#102): home's grid FILLS the pane it is given — no centred cap, no symmetric void", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
   const home = await mount(<HomeTileOrderStory />);
 
-  const [padding, token] = await home.locator('[data-home-tile="a-first"]').evaluate((el) => {
-    // Resolve `--spacing-block` to the same UNIT the computed padding reports, so the comparison is
-    // token-vs-rendered rather than rem-string-vs-px-string.
-    const probe = globalThis.document.createElement("div");
-    probe.style.width = "var(--spacing-block)";
-    el.append(probe);
-    const tokenPx = globalThis.getComputedStyle(probe).width;
-    probe.remove();
-    return [globalThis.getComputedStyle(el).paddingTop, tokenPx];
-  });
-  expect(padding).toBe(token);
-  // A card that collapsed to zero padding would pass a "toBeVisible" check and look broken.
-  expect(Number.parseFloat(padding)).toBeGreaterThan(0);
+  // The pane is the DOCUMENT's own width, never `closest("[data-surface-tier]")`: <Surface> is
+  // `display: contents`, so it generates no box and `getBoundingClientRect()` reports 0×0 — a ratio
+  // against it divides by zero and passes whatever it is handed (measured on this very assertion).
+  const ratio = await home.locator("[data-home-grid]").evaluate((el) => el.getBoundingClientRect().width / el.ownerDocument.documentElement.clientWidth);
+  expect(ratio).toBeGreaterThan(0.9);
 });
 
-test("a full-span tile spans BOTH columns while a half-span tile does not", async ({ mount }) => {
+test("#102 CHROME DIET: a tile frame is a KICKER BAND, not a card — no border, no radius, no fill", async ({ mount }) => {
+  // CD1: a read-only grouping gets a caps label and a hairline rule, never a box. Home used to ship SEVEN
+  // boxes, all the same weight. The ONE box left on the surface is the hearth hero, which is an
+  // interactive island — exactly what CD1 reserves a box for. Asserted on the RESOLVED style, because the
+  // Card the frame used to render resolved its padding/radius out of tiers.css, not out of its own class.
   const home = await mount(<HomeTileOrderStory />);
 
-  const half = await home.locator('[data-home-tile="a-first"]').boundingBox();
-  const full = await home.locator('[data-home-tile="b-second"]').boundingBox();
-  expect(half).not.toBeNull();
-  expect(full).not.toBeNull();
-  expect((full?.width ?? 0) > (half?.width ?? 0) * 1.5).toBe(true);
+  const box = await home.locator('[data-home-tile="a-first"]').evaluate((el) => {
+    const style = globalThis.getComputedStyle(el);
+    return { border: Number.parseFloat(style.borderTopWidth), radius: Number.parseFloat(style.borderTopLeftRadius), bg: style.backgroundColor };
+  });
+  expect(box.border).toBe(0);
+  expect(box.radius).toBe(0);
+  // `rgba(0, 0, 0, 0)` is the transparent-background computed form.
+  expect(box.bg).toBe("rgba(0, 0, 0, 0)");
+});
+
+test("#102 REGIONS: masthead above the split, hearth in the LEAD column, an unplaced tile on the SHELF", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1400, height: 1200 });
+  const home = await mount(<HomeRegionStory />);
+
+  const grid = await home.locator("[data-home-grid]").boundingBox();
+  const top = await home.locator('[data-home-tile="top"]').boundingBox();
+  const lead = await home.locator('[data-home-tile="lead"]').boundingBox();
+  const rail = await home.locator('[data-home-tile="rail"]').boundingBox();
+  const unplaced = await home.locator('[data-home-tile="unplaced"]').boundingBox();
+
+  // The masthead spans the whole width and sits ABOVE the split.
+  expect((top?.width ?? 0) / (grid?.width ?? 1)).toBeGreaterThan(0.95);
+  expect(top?.y ?? 0).toBeLessThan(grid?.y ?? 0);
+  // The hearth is the DOMINANT track and the shelf the companion: unequal on purpose (≈1.55:1).
+  expect(lead?.width ?? 0).toBeGreaterThan(rail?.width ?? 0);
+  // …and they are side by side, not stacked.
+  expect(rail?.x ?? 0).toBeGreaterThan((lead?.x ?? 0) + (lead?.width ?? 0) - 1);
+  // A tile that declares NO region defaults to the shelf — never a silent promotion into the hearth.
+  expect(unplaced?.x ?? 0).toBe(rail?.x ?? -1);
+});
+
+test("#102 DOORWAYS are grouped under ONE 'Not yet' band, not framed one by one", async ({ mount, page }) => {
+  await mount(<HomeRegionStory />);
+
+  const group = page.getByRole("region", { name: "Not yet" });
+  await expect(group).toBeVisible();
+  // Both real doorways live inside that ONE band…
+  await expect(group.locator("[data-home-tile]")).toHaveCount(2);
+  // …and neither wears a band, a badge or a control of its own (a doorway has no chrome to spend).
+  await expect(group.getByText("Dormant")).toHaveCount(0);
+  await expect(group.getByRole("button")).toHaveCount(0);
+  await expect(group.getByRole("heading", { level: 2 })).toHaveCount(0);
 });
 
 // ── A11y STRUCTURE (side-eye F3/F4) — the frame owns it, so every contributed tile inherits it ──────
@@ -120,16 +157,20 @@ test("every tile is a REGION named by its own real h2 — home is navigable by h
 
 // ── RENDERED fidelity against the mock (docs/design/mocks/home-section/home.html) ───────────────────
 
-test("a DORMANT tile's frame is DASHED — the doorway reads as not-built-yet from across the grid", async ({ mount }) => {
+test("a DORMANT doorway wears a DASHED RULE — not-built-yet, at a fraction of a dashed card's weight", async ({ mount }) => {
+  // #102 moved the dashed edge from the tile's whole FRAME (a full dashed card, one per doorway) to a
+  // single dashed rule down the doorway's inline start (the mockup's `.doorway`). Same signal, no box.
   const dormant = await mount(<HomeDormantTileStory />);
 
   const style = await dormant.locator('[data-home-tile="dormant"]').evaluate((el) => {
     const s = globalThis.getComputedStyle(el);
-    return { border: s.borderTopStyle, width: s.borderTopWidth };
+    return { style: s.borderLeftStyle, width: s.borderLeftWidth, top: Number.parseFloat(s.borderTopWidth) };
   });
-  expect(style.border).toBe("dashed");
-  // A dashed edge that resolved to 0 width would be invisible — the mock's frame is a real hairline.
+  expect(style.style).toBe("dashed");
+  // A dashed edge that resolved to 0 width would be invisible — the mock's rule is a real hairline.
   expect(Number.parseFloat(style.width)).toBeGreaterThan(0);
+  // …and it is a RULE, not a frame: no box round the doorway.
+  expect(style.top).toBe(0);
 });
 
 test("a DORMANT tile RECEDES: a muted-gloss teaser, and the dev citation a mono/faded footnote under it", async ({ mount }) => {

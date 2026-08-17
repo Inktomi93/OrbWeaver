@@ -36,26 +36,31 @@ test("the jump rows ARE the section registry minus home, in registry order", asy
   await expect(tile.getByRole("button", { name: "Home" })).toHaveCount(0);
 });
 
-test("each row borrows its section's own placeholder copy as the gloss", async ({ mount }) => {
+test("#102: the destinations are a WRAPPING PILL RAIL, and the teaching gloss is gone from home", async ({ mount }) => {
+  // The rows carried each section's `placeholder.description` as a two-line gloss, which made the
+  // NAVIGATION block the tallest thing in the hearth column — seven sentences competing with the rooms
+  // the page exists to get you back into. The owner-picked variant C replaced them with a pill rail.
+  // This pin is BOTH halves, because half of it is a deliberate LOSS someone will otherwise "restore":
+  // the copy is not on home any more, and the pills are pills (full radius, wrapping, in one row).
   const home = await mount(<HomeSectionJumpStory />);
 
   const tile = home.locator('[data-home-tile="home.jump"]');
-  // Side-agnostic copy: on this tile there is no "left" at all, which is why the chats section's own
-  // placeholder stopped saying it.
-  await expect(tile.getByText("Your conversations live here — pick a thread from your chats, or start a new one.")).toBeVisible();
-  await expect(tile.getByText("Score → rewrite → analyze a character card without drifting from your original.")).toBeVisible();
-});
+  await expect(tile.getByText("Your conversations live here — pick a thread from your chats, or start a new one.")).toHaveCount(0);
+  await expect(tile.locator('[data-slot="list-row-subtitle"]')).toHaveCount(0);
 
-test("a row's gloss WRAPS to two clamped lines — a nowrap ellipsis would cut the sentence that is the row's content", async ({ mount }) => {
-  const home = await mount(<HomeSectionJumpStory />);
-
-  const gloss = home.locator('[data-home-tile="home.jump"] [data-slot="list-row-subtitle"]').first();
-  const style = await gloss.evaluate((el) => {
+  const rail = await tile.getByRole("button", { name: "Chats" }).evaluate((el) => {
     const s = globalThis.getComputedStyle(el);
-    return { clamp: s.webkitLineClamp, whitespace: s.whiteSpace, lines: el.getClientRects().length };
+    const parent = el.parentElement;
+    return {
+      radius: Number.parseFloat(s.borderTopLeftRadius),
+      height: el.getBoundingClientRect().height,
+      wraps: parent === null ? "" : globalThis.getComputedStyle(parent).flexWrap,
+    };
   });
-  expect(style.clamp).toBe("2");
-  expect(style.whitespace).not.toBe("nowrap");
+  // `rounded-full` resolves to a huge radius; the control step is a handful of px. Asserting "≥ half the
+  // pill's own height" is the shape claim (a capsule) rather than a brittle 9999.
+  expect(rail.radius).toBeGreaterThanOrEqual(rail.height / 2);
+  expect(rail.wraps).toBe("wrap");
 });
 
 test("no Planned badge survives a graduation — the badge derives from `content`, so it vanished the day refinery shipped", async ({ mount }) => {

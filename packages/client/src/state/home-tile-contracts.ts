@@ -13,10 +13,20 @@ import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { SectionId } from "./shell-store.ts";
 
-/** How much of the home tile grid one tile claims — a CLOSED axis (§5.5: one importable union), so an
- *  unlisted span is unspellable. `"half"` = one grid column; `"full"` = the whole row. */
-export const HOME_TILE_SPANS = ["half", "full"] as const;
-export type HomeTileSpan = (typeof HOME_TILE_SPANS)[number];
+/** WHERE on home a tile lands — a CLOSED axis (§5.5: one importable union), so an unlisted region is
+ *  unspellable. It REPLACED `HOME_TILE_SPANS` ("half" | "full") on 2026-08-16 with the hearth build
+ *  (program #102): home stopped being an auto-fit grid of equal islands, so "how many columns does this
+ *  tile claim" no longer names anything on the surface. The three regions are the surface's own anatomy:
+ *
+ *  - `masthead` — the full-width opening statement above the split. The frame gives it NO chrome at all
+ *    (no kicker band, no region landmark): it IS the page heading, and naming it twice would double it.
+ *  - `hearth` — the dominant lead column: the rooms you came back for, and the doors out of them.
+ *  - `shelf` — the companion rail: what you reach into beside the hearth.
+ *
+ *  DEFAULTS TO `shelf` on purpose. A tile that says nothing about where it belongs is a data surface, and
+ *  promoting a new one into the hearth by default would quietly demote the thing the hearth exists for. */
+export const HOME_TILE_REGIONS = ["masthead", "hearth", "shelf"] as const;
+export type HomeTileRegion = (typeof HOME_TILE_REGIONS)[number];
 
 /** What a DORMANT home tile must say to earn its pixels (home-section-spec §3.5). A doorway is not an
  *  IOU: it names what must land first AND what the thing will be, and it never fakes a spinner, a
@@ -42,8 +52,8 @@ export interface HomeTileContribution {
   readonly icon: LucideIcon;
   /** Canonical `(order, id)` sort — the `assembleChrome` ordering precedent, applied by `orderHomeTiles`. */
   readonly order?: number;
-  /** @defaultValue "half" */
-  readonly span?: HomeTileSpan;
+  /** @defaultValue "shelf" */
+  readonly region?: HomeTileRegion;
   /** The section whose JUMP ROW this tile subsumes — declared only by a tile that does that row's entire
    *  job (the section's name, its glyph, its live contents and a door into it), never by a tile that merely
    *  reads a section's data. Home's jump grid drops the row while such a tile is registered, so one

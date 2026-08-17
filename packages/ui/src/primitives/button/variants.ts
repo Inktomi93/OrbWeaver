@@ -22,7 +22,7 @@ function glyphBox(box: string): string[] {
 
 export const buttonVariants = tv({
   base: [
-    "inline-flex select-none items-center justify-center gap-field whitespace-nowrap rounded-control font-sans font-medium",
+    "inline-flex select-none items-center justify-center gap-field whitespace-nowrap font-sans font-medium",
     // Tailwind v4 `scale-*` sets the standalone `scale` CSS property, not the transform matrix, so the
     // transition must name `scale` — `transition-[...transform]` would not animate it.
     "transition-[scale] duration-(--motion-fast) ease-out-expo active:scale-95",
@@ -106,6 +106,20 @@ export const buttonVariants = tv({
       "glyph-md": glyphBox("size-glyph-md"),
       "glyph-lg": glyphBox("size-glyph-lg"),
     },
+    // THE RADIUS AXIS (added 2026-08-16, program #102). It used to live in `base` as a bare
+    // `rounded-control`, which made a pill button UNSPELLABLE from a call site: `rounded-control` is a
+    // custom `--radius-*` token, so tailwind-merge cannot classify it and `cn("rounded-control",
+    // "rounded-full")` keeps BOTH — the winner decided by stylesheet order, i.e. luck (the same
+    // unclassifiable-custom-token trap the `media`/`wrap`/`inline` size arms document). Moving it onto a
+    // variant makes the choice a declaration instead of a coin flip; the default is byte-identical to
+    // what `base` emitted.
+    shape: {
+      /** The standard control box — every button that is a button. */
+      control: "rounded-control",
+      /** A PILL — a destination/filter chip in a wrapping rail, where the full radius is what says "this
+       *  is one of many small things to skim" rather than "this is a control to operate". */
+      pill: "rounded-full",
+    },
   },
-  defaultVariants: { intent: "primary", size: "md" },
+  defaultVariants: { intent: "primary", size: "md", shape: "control" },
 });
