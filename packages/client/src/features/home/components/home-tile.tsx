@@ -1,14 +1,23 @@
-// HomeTile — the FRAME home draws around every contributed tile (home-section-spec §3.2/§6): a `form`-tier
-// island (border + bg + rounded-card + p-block) whose header is the kicker voice + the tile's icon + its ONE
-// optional trailing action. The CONTRIBUTION supplies only its body, so all six voices/paddings are
-// identical across features by construction — a tile can neither draw its own band nor its own card.
+// HomeTile — the FRAME home draws around every contributed tile (home-section-spec §3.2/§6). The
+// CONTRIBUTION supplies only its body, so all voices/paddings are identical across features by
+// construction — a tile can neither draw its own band nor its own card.
 //
-// A component per entry (never a hook call in a `.map()` body) so `useVisible` is a top-level hook over the
-// door-frozen registry list — the `RailChromeEntry`/`TrailWidget` precedent. `false` ⇒ render NOTHING (no
-// gap, no empty card).
+// THE FRAME LOST ITS CARD (2026-08-16, program #102 — the Hearth Room build, owner-picked variant C).
+// Every tile used to be a `form`-tier island: seven boxes on the landing page, all the same weight, in
+// one auto-fit grid. Chrome diet CD1 says a read-only grouping gets a kicker + a hairline rule and
+// nothing else, and home was seven violations of it wearing one frame. The frame is now that kicker
+// band, and the ONE elevated island left on the page is the resume-room hero INSIDE chat's recents body
+// (the mockup's `.fire`) — an interactive island you land on, which is exactly what CD1 reserves a box
+// for. Measured on the approved mockup: 7 boxed tiles → 1.
 //
-// PER-TILE boundary, never one for the grid (§3.7): a slow or throwing tile must not blank the whole home,
-// so each body mounts inside its own `QueryBoundary` with a shape-matched skeleton and its own retry.
+// THE FRAME DISPATCHES ON `region` (the axis that replaced `span`): `masthead` gets NO chrome at all —
+// it IS the page heading, and wrapping it in a band named by a kicker would name the same thing twice —
+// while `hearth`/`shelf` get the band. A component per entry (never a hook call in a `.map()` body) so
+// `useVisible` is a top-level hook over the door-frozen registry list — the `RailChromeEntry`/
+// `TrailWidget` precedent. `false` ⇒ render NOTHING (no gap, no empty band).
+//
+// PER-TILE boundary, never one for the grid (§3.7): a slow or throwing tile must not blank the whole
+// home, so each body mounts inside its own `QueryBoundary` with a shape-matched skeleton and its own retry.
 //
 // …and that per-tile skeleton is what made home the app's boot-CLS site (F14, measured 2026-08-02): a
 // fixed 3-row skeleton is not the box the tile settles at, so when the reads landed the full-span
@@ -29,23 +38,27 @@
 // pre-seeded scored 0.0002 with zero shifts — the mechanism was never broken, only its first-boot arm
 // was empty. So a tile now DECLARES `skeletonRows` (the row count its own query asks for) and the frame
 // turns that into a box through the same live pointer-conditional pitch the measured arm uses. The
-// MEASURED box still wins wherever it exists; the declaration is only what boot one has.
+// MEASURED box still wins wherever it exists; the declaration is only what boot one has. The hearth
+// build re-derived every declaration against its new body — a hero + five dense rows is not the same box
+// as eight equal rows, and a stale declaration is a reservation that lies in the other direction.
 //
-// The DORMANT arm renders a DOORWAY, not a fake feature: reduced weight, a DASHED frame (the mock's
-// `.tile.dormant`), a muted glyph, the teaser in the gloss voice, a `Dormant` badge, the tracked reason as
-// a FOOTNOTE-scale mono line — and NO interactive element at all (no button, no skeleton, no spinner).
-// `empty-states-are-load-bearing`: omitting the tile would say "this product has no companion"; a
-// fake-loading tile would lie.
+// The DORMANT arm renders a DOORWAY, not a fake feature: reduced weight, a DASHED rule, a muted glyph,
+// the teaser in the gloss voice, the tracked reason as a FOOTNOTE-scale mono line — and NO interactive
+// element at all (no button, no skeleton, no spinner). `empty-states-are-load-bearing`: omitting the tile
+// would say "this product has no companion"; a fake-loading tile would lie. It has NO band of its own
+// and no `Dormant` badge any more: HomeSurface collects every declared doorway under ONE "Not yet"
+// kicker (the mockup's right-rail move), so the group's own name says what the per-tile badge used to,
+// once instead of N times.
 //
-// A11y: the tile title is a real `h2` and the card is a `region` NAMED by it, so home's six tiles are six
-// navigable landmarks with a heading each — and a tile's own trailing action ("All chats →") inherits that
-// name instead of standing alone as an unattributed arrow (side-eye F3/F4). Both come from THIS frame, so
-// every contributed tile gets them by construction.
+// A11y: a banded tile is a `region` NAMED by its own real `h2`, so home's blocks are navigable landmarks
+// with a heading each — and a tile's own trailing action ("All chats →") inherits that name instead of
+// standing alone as an unattributed arrow (side-eye F3/F4). Both come from THIS frame, so every
+// contributed tile gets them by construction. The masthead is deliberately NOT a landmark: it is the
+// page's `h1`, which is a better handle than a region wrapped round it.
 
-import { Badge } from "@orb/ui/badge";
-import { Card } from "@orb/ui/card";
 import { Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
@@ -57,9 +70,11 @@ import { rememberHomeTileBox, useHomeTileBox } from "#state";
 /** The frame's fallback row count for a tile that declares no `skeletonRows` — what shipped before. */
 const TILE_SKELETON_ROWS = 3;
 
-/** The tile's kicker band — icon + title in the `kicker` voice + the ONE trailing slot (an action, or the
- *  Dormant badge). A hairline under it, matching the section-heading divider treatment. */
-function TileHeader({
+/** The tile's KICKER BAND — the CD1 replacement for a card header: the tile's icon, its name in the
+ *  `kicker` voice on a real heading, a hairline rule running to the trailing slot, and the ONE trailing
+ *  action. The rule is the `Separator` PRIMITIVE (the `<Section kicker>` anatomy), never a hand-styled
+ *  edge, so home's bands and every other surface's band are one thing. */
+function TileBand({
   tile,
   trailing,
   headingId,
@@ -69,32 +84,32 @@ function TileHeader({
   readonly headingId: string;
 }): ReactElement {
   return (
-    <Row align="center" gap="row" justify="between" className="border-border border-b pb-field">
-      <Row align="center" gap="field">
-        <Icon className="text-muted-foreground" icon={tile.icon} size="sm" />
-        {/* The `kicker` VOICE on a real heading element (density-pass §2.3 — it used to spell the same skin
-            out of four internal axes); `level` keeps the document outline (a styled div would leave home
-            with zero headings). */}
-        <Heading id={headingId} level={2} voice="kicker">
-          {tile.title}
-        </Heading>
-      </Row>
+    <Row align="center" gap="field">
+      <Icon className="text-muted-foreground" icon={tile.icon} size="sm" />
+      {/* The `kicker` VOICE on a real heading element (density-pass §2.3); `level` keeps the document
+          outline (a styled div would leave home with one heading and six anonymous blocks). */}
+      <Heading id={headingId} level={2} voice="kicker">
+        {tile.title}
+      </Heading>
+      <Separator className="flex-1" />
       {trailing}
     </Row>
   );
 }
 
-/** The DORMANT doorway body — what this will be, and exactly what must land first. Zero controls. */
-function DormantBody({ tile, doorway }: { readonly tile: HomeTileContribution; readonly doorway: DormantDoorway }): ReactElement {
+/** The DORMANT doorway — what this will be, and exactly what must land first. Zero controls, and no band
+ *  of its own: HomeSurface groups every doorway under one "Not yet" kicker. The dashed LEFT rule is the
+ *  mockup's `.doorway` treatment — the "not built yet" signal at a fraction of a dashed card's weight. */
+export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribution; readonly doorway: DormantDoorway }): ReactElement {
   return (
-    <Row align="start" gap="row">
-      <Row align="center" className="size-9 shrink-0 rounded-base bg-muted/40" justify="center">
-        <Icon className="text-muted-foreground" icon={tile.icon} size="md" />
-      </Row>
-      <Stack gap="field" className="min-w-0">
+    <Row align="start" className="border-border border-l border-dashed pl-row" data-home-tile={tile.id} gap="row">
+      <Icon className="mt-tight shrink-0 text-muted-foreground" icon={tile.icon} size="sm" />
+      <Stack className="min-w-0" gap="tight">
+        <Text voice="label">{tile.title}</Text>
         {/* The `gloss` VOICE (mock `.dorm .teaser`: 11px, muted). The `label` step made the two DORMANT
             tiles the brightest prose on home — full-foreground text on the two things you cannot use
-            (side-eye P1-2). The dashed frame + the Dormant badge carry "not built yet"; the copy recedes. */}
+            (side-eye P1-2). The dashed rule + the group's "Not yet" name carry "not built yet"; the copy
+            recedes. */}
         <Text voice="gloss">{doorway.teaser}</Text>
         {/* FOOTNOTE (mock: 9px mono at .75 alpha): the tracked reason is developer citation under a
             user-facing teaser. Same `gloss` step as the teaser above it — the scale has no step between
@@ -111,8 +126,7 @@ function DormantBody({ tile, doorway }: { readonly tile: HomeTileContribution; r
 /** The tile's LOADING box (F14 boot CLS). The skeleton sits inside the height this tile SETTLED at on
  *  this device last time (`useHomeTileBox` — localStorage, read synchronously, so the value is already
  *  in the FIRST commit): the tile's box is then the same before and after its read lands, and the tiles
- *  below it in the grid never move. No memory (a first-ever boot) ⇒ the bare skeleton, i.e. exactly the
- *  behaviour that shipped before.
+ *  below it in the column never move. No memory (a first-ever boot) ⇒ the tile's own DECLARED row count.
  *
  *  AND THE SKELETON FILLS THE BOX IT IS GIVEN (side-eye R-1). A fixed 3 rows inside a MEASURED box is a
  *  reservation that is honest about the height and dishonest about the content: the recents tile reserved
@@ -156,6 +170,19 @@ function TileBody({ tileId, children }: { readonly tileId: string; readonly chil
   return <Stack ref={bodyRef}>{children}</Stack>;
 }
 
+/** The tile's live body inside its own boundary + its own reservation. Shared by both framed regions and
+ *  by the bandless masthead, so the CLS mechanism has ONE home rather than one per region. */
+function TileContent({ tile, reserved }: { readonly tile: HomeTileContribution; readonly reserved: number | null }): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={<TileFallback declaredRows={tile.skeletonRows ?? TILE_SKELETON_ROWS} reserved={reserved} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={tile.title.toLowerCase()} onRetry={retry} />}
+    >
+      <TileBody tileId={tile.id}>{typeof tile.body === "function" ? tile.body() : null}</TileBody>
+    </QueryBoundary>
+  );
+}
+
 export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): ReactNode {
   const visible = tile.useVisible?.() ?? true;
   const headingId = useId();
@@ -163,38 +190,23 @@ export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): Rea
   if (!visible) {
     return null;
   }
-  const span = tile.span ?? "half";
   const dormant = typeof tile.body === "function" ? null : tile.body.dormant;
-  // The DORMANT frame is dashed (mock `.tile.dormant`) — the header already claims reduced weight with a
-  // muted glyph + the badge; the dashed edge is what makes "not built yet" legible from across the grid.
-  const frame = [span === "full" ? "col-span-full" : "", dormant === null ? "" : "border-dashed"].filter((c) => c !== "").join(" ");
-  return (
-    <Card className={frame === "" ? undefined : frame} data-home-tile={tile.id} role="region" aria-labelledby={headingId}>
-      <Stack gap="row">
-        <TileHeader
-          headingId={headingId}
-          tile={tile}
-          trailing={
-            dormant === null ? (
-              tile.action
-            ) : (
-              <Badge intent="neutral" tone="soft">
-                Dormant
-              </Badge>
-            )
-          }
-        />
-        {dormant === null ? (
-          <QueryBoundary
-            fallback={<TileFallback declaredRows={tile.skeletonRows ?? TILE_SKELETON_ROWS} reserved={reserved} />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label={tile.title.toLowerCase()} onRetry={retry} />}
-          >
-            <TileBody tileId={tile.id}>{typeof tile.body === "function" ? tile.body() : null}</TileBody>
-          </QueryBoundary>
-        ) : (
-          <DormantBody doorway={dormant} tile={tile} />
-        )}
+  if (dormant !== null) {
+    return <HomeDoorway doorway={dormant} tile={tile} />;
+  }
+  // The MASTHEAD is bandless and landmark-less by design (see the header): its body renders the page's
+  // own h1, which no wrapper can name better than itself.
+  if (tile.region === "masthead") {
+    return (
+      <Stack data-home-tile={tile.id} gap="row">
+        <TileContent reserved={reserved} tile={tile} />
       </Stack>
-    </Card>
+    );
+  }
+  return (
+    <Stack aria-labelledby={headingId} data-home-tile={tile.id} gap="row" role="region">
+      <TileBand headingId={headingId} tile={tile} trailing={tile.action} />
+      <TileContent reserved={reserved} tile={tile} />
+    </Stack>
   );
 }

@@ -104,6 +104,25 @@ export const gridVariants = tv({
       // narrow pane, so the row answers to the pane it lives in; an ancestor `<Container>` is required
       // (an element cannot query itself).
       pair: "grid-cols-1 @md:grid-cols-2",
+      // A DOMINANT LEAD column beside a companion RAIL (added 2026-08-16, program #102 — the landing/
+      // reading shape). Every arm above is auto-FIT: equal tracks, count chosen by width. This one is
+      // deliberately UNEQUAL and its two tracks are both required — a lead column you read and a rail you
+      // reach into. `fr` on both, no max-width cap, so the pair FILLS its pane instead of centring inside
+      // it; the lead's own prose caps itself at `--reading-measure`, which is where a measure belongs (on
+      // the paragraph, not on the page).
+      //
+      // CONTAINER-query driven, `pair`'s precedent: one column until the pane can genuinely hold two, and
+      // at a very wide pane the RAIL widens rather than the lead's line stretching past its measure — a
+      // bigger monitor should put more of the surface in reach, not print a longer line. The @min-[100rem]
+      // step is a raw container width because the container scale stops at @7xl (80rem) and this shape's
+      // second breath is measurably later than that.
+      lead: "grid-cols-1 @4xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-[1.5fr_1.05fr]",
+      // FIXED cells, variable COUNT (added 2026-08-16, program #102). `cell` is auto-FIT + `1fr`, so extra
+      // width makes each cell BIGGER; a portrait shelf measured 250px faces at a 2000px viewport and read
+      // as a gallery instead of a shelf you reach into. `auto-fill` at a fixed track spends surplus width
+      // on MORE cells and leaves the cell alone — the right answer wherever the cell is a picture of a
+      // thing rather than a container for text. Same 8.5rem cell as `cell`, so the two agree at the floor.
+      cellFixed: "grid-cols-[repeat(auto-fill,8.5rem)]",
     },
   },
   defaultVariants: { cols: "auto" },

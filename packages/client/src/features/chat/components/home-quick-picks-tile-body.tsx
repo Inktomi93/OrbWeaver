@@ -13,16 +13,17 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Users } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
-import { ListRow } from "@orb/ui/list-row";
+import { Grid, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useStartChat, useTRPC } from "#data";
 import { setActiveSection } from "#state";
 
-/** How many faces this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
- *  first-boot skeleton reserves (#92). Exported so the reservation cannot drift from the read. */
-export const QUICK_PICKS_LIMIT = 6;
+/** How many faces this shelf shows. NOT exported any more (#102): the tile's first-boot reservation is no
+ *  longer this number — the body is a fixed-cell GRID that tiles two per shelf-width row, so the row count
+ *  the skeleton reserves is derived from the shape, not from the limit, and lives beside the tile. */
+const QUICK_PICKS_LIMIT = 6;
 
 export function HomeQuickPicksTileBody(): ReactElement {
   const trpc = useTRPC();
@@ -52,40 +53,58 @@ export function HomeQuickPicksTileBody(): ReactElement {
   }
 
   return (
-    // `role="list"` needs `listitem` CHILDREN or the rows are generic to AT and the list announces empty —
-    // ListRow's root is a plain div, so the role rides a layout-primitive wrapper (the `import-report-
-    // summary` precedent; a literal <li> would be invalid HTML under a div[role=list]).
-    <Stack aria-label="Character quick-picks" gap="row" role="list">
+    // THE FACE SHELF (2026-08-16, #102): fixed-size cells, variable COUNT. `cols="cellFixed"` is
+    // `auto-fill` at a fixed 8.5rem track, NOT the `1fr` auto-fit every other grid arm uses — measured on
+    // the mockup pass, a fr-based shelf grew 250px portraits at a 2000px viewport and read as a gallery
+    // instead of a shelf you reach into. A wider monitor gets MORE faces at the same size, which is the
+    // whole point of a shelf.
+    //
+    // `role="list"` needs `listitem` CHILDREN or the cells are generic to AT and the list announces empty.
+    <Grid aria-label="Character quick-picks" cols="cellFixed" gap="row" role="list">
       {quickPicks.map((character) => {
         // The SAME honest ladder the character library row uses (character-card.tsx): the distilled pitch →
-        // the visible tag line → the handle. Never invented copy — a name-only row read as an unfinished
-        // list, and the summary this tile already reads carries all three.
+        // the visible tag line → the handle. Never invented copy — a name-only cell read as an unfinished
+        // shelf, and the summary this tile already reads carries all three. The SECOND line is content
+        // debt, not a layout bug: on a corpus with no pitches and no visible tags it falls through to the
+        // handle and every caption is a slug (tracked as #119 — do not invent pitch copy here).
         const tagLine = character.tags
           .filter((tag) => !tag.isHiddenOnCard)
           .map((tag) => tag.name)
           .join(" · ");
         return (
-          <Row key={character.id} role="listitem">
-            <ListRow
-              clickable={true}
-              leading={
-                <Avatar
-                  fallbackDelay={0}
-                  hueSeed={character.id}
-                  shape="square"
-                  size="sm"
-                  {...(character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) })}
-                >
-                  {initialsFor(character.name)}
-                </Avatar>
-              }
+          // `role="listitem"` rides a layout-primitive WRAPPER, never the Button: an interactive element
+          // assigned a non-interactive role is a lie to AT (and eslint's own
+          // `no-interactive-element-to-noninteractive-role`). Same shape the recents list uses.
+          <Stack key={character.id} role="listitem">
+            <Button
+              className="flex-col items-stretch gap-tight text-left"
+              intent="ghost"
               onClick={(): void => startChatWith(castId<CharacterId>(character.id))}
-              subtitle={character.elevatorPitch ?? (tagLine === "" ? character.handle : tagLine)}
-              title={character.name}
-            />
-          </Row>
+              size="media"
+            >
+              <Avatar
+                fallbackDelay={0}
+                hueSeed={character.id}
+                shape="rounded"
+                size="fill"
+                {...(character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) })}
+              >
+                {initialsFor(character.name)}
+              </Avatar>
+              {/* `block truncate`, NOT `line-clamp-1` (measured on the 2000px stage receipt): the Button
+                  base is `whitespace-nowrap`, and a nowrap line inside a `-webkit-box` clamp overflows
+                  its cell with no ellipsis at all — "Calamity, Doomblade of the Ninth Epoch" ran straight
+                  over the neighbouring face. An inline span cannot truncate either, hence `block`. */}
+              <Text as="span" className="block truncate text-foreground" voice="label">
+                {character.name}
+              </Text>
+              <Text as="span" className="block truncate" voice="gloss">
+                {character.elevatorPitch ?? (tagLine === "" ? character.handle : tagLine)}
+              </Text>
+            </Button>
+          </Stack>
         );
       })}
-    </Stack>
+    </Grid>
   );
 }

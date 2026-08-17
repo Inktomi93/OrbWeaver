@@ -1,10 +1,14 @@
-// The "Jump to" home tile — the ONE tile home itself owns, because it is SHELL-DERIVED content with no
-// other owner (home-section-spec §3.4). Its rows are derived from the section registry by
-// `SectionJumpGrid`; this file is only the contribution the door assembles.
+// The "Elsewhere in the house" home tile — the ONE tile home itself owns, because it is SHELL-DERIVED
+// content with no other owner (home-section-spec §3.4). Its pills are derived from the section registry
+// by `SectionJumpRail`; this file is only the contribution the door assembles.
+//
+// It sits in the HEARTH column (2026-08-16, #102): the doors OUT of the rooms belong under the rooms,
+// not on the shelf you reach into. Its title is the mockup's approved band copy — "Jump to" named the
+// mechanism, this names the place.
 
 import { LayoutGrid } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
-import { SectionJumpGrid } from "../components/section-jump-grid.tsx";
+import { SectionJumpRail } from "../components/section-jump-rail.tsx";
 
 const JUMP_TILE_ORDER = 40;
 
@@ -20,10 +24,12 @@ const JUMP_TILE_ORDER = 40;
 export function makeSectionJumpTile(siblings: readonly HomeTileContribution[]): HomeTileContribution {
   return {
     id: "home.jump",
-    title: "Jump to",
+    title: "Elsewhere in the house",
     icon: LayoutGrid,
     order: JUMP_TILE_ORDER,
-    span: "full",
-    body: () => <SectionJumpGrid siblings={siblings} />,
+    region: "hearth",
+    // A wrapping rail of pills, not a paged read: one row's worth of skeleton is the honest first-boot box.
+    skeletonRows: 1,
+    body: () => <SectionJumpRail siblings={siblings} />,
   };
 }

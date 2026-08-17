@@ -31,6 +31,7 @@ export { makeChatsSection } from "./lib/chats-section.tsx";
 export { commandModal } from "./lib/command-modal.tsx";
 export { isContinueEligible } from "./lib/continue-on-empty.ts";
 export { databankSettingsSection } from "./lib/databank-settings-section.tsx";
+export { chatMastheadTile } from "./lib/home-masthead-tile.tsx";
 export { chatQuickPicksTile } from "./lib/home-quick-picks-tile.tsx";
 export { chatRecentsTile } from "./lib/home-recents-tile.tsx";
 export { chatTempChatTile } from "./lib/home-temp-chat-tile.tsx";

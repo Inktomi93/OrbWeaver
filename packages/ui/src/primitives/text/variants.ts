@@ -66,6 +66,28 @@ export const textVariants = tv({
       // `tabular-nums` is load-bearing, not polish: these numerals COUNT UP on settle, and proportional
       // digits make the figure jitter horizontally while it ticks.
       hero: "font-mono text-display leading-display tracking-normal tabular-nums font-semibold text-foreground",
+      // THE CONTENT ITSELF (added 2026-08-16, program #102). Every voice above names a piece of CHROME —
+      // a section's name, a datum's label, a value, a quiet second line. None of them is the prose the
+      // user actually came to read, and a feature reaching for it had exactly one spelling left,
+      // `size="body"`, which is an @orb/ui-internal axis the density A3 arm reds at any feature call site.
+      // So the reading step had no route and surfaces reached for `gloss` instead, which is how a room's
+      // last spoken line ends up set at the same 10.5px as a footnote. Rides `--color-prose-body` (the
+      // per-theme reading ink, warmer than `foreground` and dimmer than pure white on a dark backdrop) and
+      // the body leading. Pair it with `max-w-(--reading-measure)`: a reading line is capped on the
+      // PARAGRAPH, never on the page.
+      reading: "font-sans text-body leading-body tracking-normal font-normal text-prose-body",
+      // THE SURFACE'S ONE OPENING STATEMENT (added 2026-08-16, program #102 — the home hearth build). A
+      // landing surface opens on a SENTENCE about your own state ("Six rooms, still warm."), and the two
+      // largest steps of the ramp had no sans route to a feature: `hero` is the display step for THE
+      // NUMBER (mono + tabular, built to stop a counting figure jittering), which is exactly wrong for
+      // prose — a sentence in tabular mono reads as a serial. So this is `hero`'s prose twin: same step,
+      // sans, the tracking a display line needs, and no tabular figures. ONE per surface, like `hero`.
+      masthead: "font-sans text-display leading-display tracking-tight font-semibold text-foreground",
+      // THE ONE ITEM PROMOTED ABOVE ITS SIBLINGS (added 2026-08-16, program #102). The headline step —
+      // between the masthead and the `title` its siblings run at — for the single entry a surface has
+      // decided you came for: home's resume-room hero. It is the type half of the CD3 focal (the other
+      // half is the stripe + the rationed ::before glow); a surface with two of these has no focal at all.
+      focal: "font-sans text-headline leading-headline tracking-tight font-semibold text-foreground",
       // The DECORATIVE DISPLAY GLYPH (added S6): a single-letter mark an immersive chat row skin paints on
       // its own band/tile fill — aria-hidden ornament, not prose. None of the four CONTENT voices fits it
       // (each would shrink a glyph whose entire job is to BE large), and the alternative at the call site
