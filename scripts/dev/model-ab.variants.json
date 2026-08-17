@@ -15,7 +15,7 @@
       "model": "/media/inktomi/Data/vllm-models/quantized/Qwen3.8-27B-W8A8-Dynamic-Per-Token",
       "chatTemplate": "scripts/dev/qwen3_gen_thinking_serve.jinja",
       "defaultChatTemplateKwargs": { "enable_thinking": false, "preserve_thinking": true },
-      "extraArgs": ["--speculative-config", "{\"method\":\"mtp\",\"num_speculative_tokens\":2}"]
+      "extraArgs": ["--speculative-config", "{\"method\":\"mtp\",\"num_speculative_tokens\":3}"]
     },
     {
       "name": "w8a8-stock-template",
