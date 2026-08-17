@@ -44,8 +44,9 @@ const config: KnipConfig = {
       entry: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
       project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
       // verify-run.int.test.ts asserts missing-binary handling with a deliberately fake binary name.
-      // ss/ps are system binaries scripts/probes/_kit/snap-stage.ts shells out to for port/process probing.
-      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "ss", "ps"],
+      // ss/ps are system binaries scripts/probes/_kit/snap-stage.ts shells out to for port/process probing;
+      // pgrep is the GPU-owner guard in scripts/dev/model-ab.ts (refuse-to-boot over the quantize job/fleet).
+      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "ss", "ps", "pgrep"],
       // pino-pretty is spawned as a BINARY by scripts/dev/dev.sh (the dev-log pretty-pipe), never imported —
       // invisible to import analysis. It's a root devDependency because the dev script lives at the repo root.
       // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.cjs (node_modules/ts7/bin/tsc) —
