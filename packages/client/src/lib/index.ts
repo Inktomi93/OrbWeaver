@@ -12,8 +12,8 @@ export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-
 export { deriveChatTitle, UNTITLED_CHAT_TITLE } from "./chat-title.ts";
 export type { ClientErrorPayload } from "./client-error-report.ts";
 export { buildClientErrorPayload } from "./client-error-report.ts";
-export type { CollectionContext, CollectionContribution, CollectionDetailView, CollectionListView } from "./collection-contracts.ts";
-export { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT } from "./collection-contracts.ts";
+export type { CollectionContext, CollectionContribution, CollectionDetailView, CollectionListView, CollectionPreviewEntry } from "./collection-contracts.ts";
+export { COLLECTION_LARGE_GROUP, COLLECTION_PREVIEW_LIMIT, COLLECTION_WINDOW_MAX_HEIGHT } from "./collection-contracts.ts";
 export type {
   CharacterDetailAnchor,
   CharacterDetailContribution,

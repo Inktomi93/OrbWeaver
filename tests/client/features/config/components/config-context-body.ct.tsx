@@ -79,7 +79,10 @@ test("over a member whose collection has NOTHING to attach, the sentence is the 
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator('[data-slot="config-roster"]').getByRole("button", { name: TAGS_BAND }).click();
-  await workspace.getByText("tag-000").click();
+  // SCOPED TO THE ROSTER (program #102): the welcome's hero now previews the library's most-used tags by
+  // NAME, so an unscoped `getByText("tag-000")` matches the roster row AND a preview chip. The row is what
+  // this test means — the chip is not selectable and clicking it would open the collection, not the member.
+  await workspace.locator('[data-slot="config-roster"]').getByText("tag-000").click();
   await expect(workspace.getByRole("heading", { name: "tag-000" })).toBeVisible();
 
   // The tag collection's own copy still reaches the reader — once, in the body, where the icon and the
