@@ -1224,6 +1224,81 @@ test("above the shell breakpoint the same fixture DOES get glass — the exclusi
   await expect.poll(() => backdropFilterOf(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] }).toContain("blur(");
 });
 
+// ── #137: prefers-reduced-transparency must deliver SOLID, and it delivered TRANSPARENT ─────────────
+// The reduce arm used to answer the glass with `background-color: revert`. `revert` rolls the property
+// back past the ENTIRE author origin — including the surface's OWN fill, which is an author declaration
+// too — so it resolves to the UA default: transparent. The audience that asked for less transparency got
+// more of it, at every viewport (the arm is width-unscoped, so it wiped `.shell-panel`'s --color-sidebar
+// on a phone as well, where no glass was ever emitted). It is the same `revert` mistake #135 removed from
+// shell.css, still live in the block one screen below. The fix drives the glass's two FILL-percentage
+// tokens to 100% instead of fighting the fills per-surface: one knob, every surface keeps its own tint,
+// and nothing depends on source order. Only a rendered assertion sees any of this — both spellings parse.
+
+/** prefers-reduced-transparency has no `emulateMedia` option in the installed playwright (1.61 —
+ *  `contrast` is there, this feature is not), so the CT drives chromium's emulation endpoint directly.
+ *
+ *  DO NOT `detach()` the session afterwards: emulation overrides are owned by the CDP session and are
+ *  REVERTED the moment it disconnects. Probed live — a detaching version of this helper left
+ *  `matchMedia("(prefers-reduced-transparency: reduce)")` false and the glass painting, so the tests
+ *  passed against the unfixed stylesheet. Playwright disposes the session with the page. */
+async function emulateReducedTransparency(page: Page, value: "reduce" | "no-preference"): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-transparency", value }] });
+  // Belt: assert the preference actually took, so a future playwright/chromium change that renames or
+  // drops the feature reds HERE instead of silently turning every assertion below into a no-preference run.
+  const applied = await page.evaluate((v) => matchMedia(`(prefers-reduced-transparency: ${v})`).matches, value);
+  expect(applied, `chromium must report prefers-reduced-transparency: ${value}`).toBe(true);
+}
+
+const ALL_BLUR_SURFACES = ["panels", "composer", "messages", "modals"] as const;
+/** Every probe the glass block paints when all four surfaces are enabled above the shell breakpoint. */
+const GLASS_PROBES = ["panel-probe", "composer-probe", "dialog-probe", "alert-dialog-probe", "bubble-probe"] as const;
+
+test("reduced-transparency turns every glass surface SOLID (alpha 1) and drops backdrop-filter", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await emulateReducedTransparency(page, "reduce");
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  await Promise.all(
+    GLASS_PROBES.map(async (probe) => {
+      // THE BUG: `revert` resolved each of these to rgba(0,0,0,0) — a stated preference for LESS
+      // transparency produced surfaces with none of their own paint at all.
+      await expect.poll(() => bgAlpha(shell.getByTestId(probe)), { intervals: [20, 50, 100] }).toBe(1);
+      await expect.poll(() => backdropFilterOf(shell.getByTestId(probe)), { intervals: [20, 50, 100] }).toBe("none");
+    }),
+  );
+});
+
+test("the same fixture under no-preference still gets the glass — reduce is a preference, not a kill", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await emulateReducedTransparency(page, "no-preference");
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const panel = shell.getByTestId("panel-probe");
+  await expect.poll(() => bgAlpha(panel), { intervals: [20, 50, 100] }).toBeLessThan(1);
+  await expect.poll(() => backdropFilterOf(panel), { intervals: [20, 50, 100] }).toContain("blur(");
+});
+
+test("reduced-transparency leaves the phone's own fills standing (the reduce arm is width-unscoped)", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  await emulateReducedTransparency(page, "reduce");
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  // Below the shell breakpoint no glass is emitted at all (#135), so there is nothing for this arm to
+  // answer — and the old `revert` still fired, stripping `.shell-panel`'s --color-sidebar. A phone with
+  // the preference set rendered a see-through side panel.
+  await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("reduced-transparency reaches the reading-surface backing too (the arm used to miss .shell-main)", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await emulateReducedTransparency(page, "reduce");
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={["panels"]} hasBgImage={true} section="characters" />);
+  // The glass block has SIX rules; the reduce arm hand-listed five and left `.shell-main`'s
+  // reading-surface glass out, so a non-Chats section over a photo kept both its 70% fill and a live
+  // backdrop-filter under the preference. Driving the fill token covers every rule by construction.
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => backdropFilterOf(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe("none");
+});
+
 test("background-image beats elevation: .shell-main goes transparent, .shell-topbar stays opaque", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture elevation="ramp" hasBgImage={true} />);
   // THE BUG: shell.css's un-:where()'d elevation rule for .shell-main used to out-specificity the
