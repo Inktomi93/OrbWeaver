@@ -5,9 +5,12 @@
 // raw color literals is the GENERATED token file `packages/ui/src/styles/theme.css` (tokens.json →
 // `pnpm --filter @orb/ui tokens:build`). Token-DERIVED colors — `oklch(from var(--color-*) l c h / α)`, or
 // any declaration referencing `var(--…)` — are ON-token and pass. ALLOWLIST is a both-directions ratchet
-// (motion-token-purity precedent): a listed file that no longer holds a raw color REDS.
+// (motion-token-purity precedent): a listed file that no longer holds a raw color REDS. COMMENTS ARE NOT
+// SCANNED (issue #117, 2026-08-16): a `#106` issue citation is the house comment idiom and read as a hex
+// color — `blankCssComments` blanks comment spans length-preservingly, so line numbers stay exact.
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { blankCssComments } from "../comment-spans.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -45,10 +48,11 @@ function hasRawColor(line: string): boolean {
   return COLOR_FN_RE.test(line) && !line.includes("var(--");
 }
 
-/** 1-based lines of every raw-color declaration in one CSS file's text. */
+/** 1-based lines of every raw-color declaration in one CSS file's text. Comment spans are blanked first
+ *  (issue #117) — a `#106` issue citation in a comment is a reference, not a color. */
 function offenceLines(text: string): number[] {
   const lines: number[] = [];
-  const rows = text.split("\n");
+  const rows = blankCssComments(text).split("\n");
   for (let i = 0; i < rows.length; i += 1) {
     if (hasRawColor(rows[i] ?? "")) {
       lines.push(i + 1);
@@ -123,6 +127,11 @@ export const gate: GateDescriptor = {
       why: "a raw oklch literal NOT deriving from a token var — RED (the theme.css token-definition shape, but outside the sanctioned home)",
     },
     {
+      files: { "packages/client/src/features/x/live-beside-comment.css": "/* see issue #106 */\n.a {\n  color: #abc;\n}\n" },
+      expect: { count: 1, line: 3 },
+      why: "the issue-#117 pair, live half: comment blanking must not blunt the gate — the `#abc` in the DECLARATION still REDs, and on its own line (3), not the comment's",
+    },
+    {
       // Mode-(B) proof (GATE-AUTHORING.md §4.3b/§4.4): the anchor exists (a real run) but NONE of the
       // ALLOWLIST .css paths do — the shape of a deleted/renamed token home. Every row must RED.
       files: { [ANCHOR]: "export const x = 1;\n" },
@@ -142,6 +151,13 @@ export const gate: GateDescriptor = {
     {
       files: { "packages/ui/src/styles/theme.css": ":root {\n  --color-primary: oklch(0.7 0.1 250);\n}\n" },
       why: "the sanctioned token home (theme.css) with raw oklch definitions — the ONE allowlisted raw-color home, passes",
+    },
+    {
+      files: {
+        "packages/client/src/features/x/cited.css":
+          "/* the scrim answer, issue #106 — the rgb() spelling below is quoted, not authored */\n.a {\n  /* was rgb(0 0 0 / 40%) */\n  background: var(--color-scrim);\n}\n",
+      },
+      why: "issue #117: an issue-number citation (#106) and a quoted color spelling inside COMMENTS are references, not authored values — comments are trivia the scan skips, so this passes",
     },
   ],
 };

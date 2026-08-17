@@ -1,0 +1,72 @@
+// The hit-area arithmetic of the design-audit in-page fact walker (scripts/probes/design-audit-walker.ts).
+// The walker is a raw JS STRING evaluated in the probe page, so a real browser is the only tier that can
+// prove it: `elementFromPoint`, layout geometry and pointer-conditional `::after` touch targets do not
+// exist in jsdom, and a stubbed DOM would be a lying proof.
+//
+// WHAT IS PINNED (2026-08-16, the walker's last known false-positive class): ownership is per COMPOSITE,
+// not per element. A Base UI Slider's real drag target is the whole `h-control-sm` control row — a mouse
+// press at the row's top edge, 60px from the thumb, moves the value — but the outward probe lands on
+// `[data-slot=slider-indicator]`, a SIBLING of the thumb inside the same control. Before the widening,
+// `ownsPoint` accepted only identity/containment, stalled there, and reported a fine-pointer P1 at 22px on
+// a 32px row. The paired control arm is the reason the widening is not a blanket: two genuine neighbouring
+// buttons must still measure as sub-targets.
+import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
+import { COLLECT_SAMPLES_JS } from "../../scripts/probes/design-audit-walker.ts";
+import { WalkerNeighbourButtonsStory, WalkerSliderCompositeStory } from "./_ct-stories.tsx";
+
+interface TapTarget {
+  readonly selector: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+// The CT provider tree mounts a toast viewport on every stage; it is harness chrome, not the story.
+const HARNESS_CHROME = "toast-viewport";
+
+/** Run the REAL walker string in the mounted page and return its tap-target census, harness chrome
+ *  dropped. */
+async function tapTargets(page: Page): Promise<readonly TapTarget[]> {
+  const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as { readonly tapTargets: readonly TapTarget[] };
+  return samples.tapTargets.filter((t) => !t.selector.includes(HARNESS_CHROME));
+}
+
+/** The smallest measured side across every censused control whose selector names `match` — the number a
+ *  sub-target finding is minted from. */
+function smallestSide(targets: readonly TapTarget[], match: string): number {
+  const hits = targets.filter((t) => t.selector.includes(match));
+  // Naming the whole census in the failure message: a zero here means the walker never SAW the control
+  // (a skipped aria-hidden twin, a changed data-slot), which is a different defect from a wrong number.
+  expect(hits.length, `the walker censused no control matching ${match} — saw: ${targets.map((t) => t.selector).join(" | ")}`).toBeGreaterThan(0);
+  return Math.min(...hits.map((t) => Math.min(t.width, t.height)));
+}
+
+// The fine-pointer floor the walker's consumers judge against (design-audit-checks.ts) — the slider row is
+// h-control-sm (32px fine), so a correct measurement clears it and 22 does not.
+const FINE_POINTER_FLOOR = 24;
+
+test("a slider's effective target is its whole control row, not the box the sibling probe stalls on", async ({ mount, page }) => {
+  await mount(<WalkerSliderCompositeStory />);
+  const targets = await tapTargets(page);
+
+  // The censused control is Base UI's native range input INSIDE the thumb (the thumb div itself carries no
+  // tabindex, so INTERACTIVE_SELECTOR never matches it) — pinned here because "which element the walker
+  // actually flags" is the premise the arithmetic below rests on, and it is not the one you would guess.
+  expect(targets.length, `expected exactly one product control on the slider stage — saw: ${targets.map((t) => t.selector).join(" | ")}`).toBe(1);
+  const measured = Math.min(targets[0]?.width ?? 0, targets[0]?.height ?? 0);
+
+  // The regression this exists for: 22px (the r=11 probe ring — the last radius whose hit was the thumb
+  // itself) was the reported number, and it minted a fine-pointer P1 on a control that is 32px tall.
+  expect(measured).toBeGreaterThan(22);
+  expect(measured).toBeGreaterThanOrEqual(FINE_POINTER_FLOOR);
+});
+
+test("two genuine neighbours stay sub-targets — the widening is per composite, never a blanket", async ({ mount, page }) => {
+  await mount(<WalkerNeighbourButtonsStory />);
+  const targets = await tapTargets(page);
+
+  // Each button is a real, separately-offered control 4px from the other. Neither may inherit the row.
+  for (const testid of ["neighbour-a", "neighbour-b"]) {
+    expect(smallestSide(targets, testid), `${testid} must still measure as a sub-target`).toBeLessThan(FINE_POINTER_FLOOR);
+  }
+});

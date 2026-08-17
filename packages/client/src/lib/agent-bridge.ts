@@ -245,12 +245,15 @@ declare global {
  *  layout frames on large surfaces. `observedCls` rides beside `cls` because the CWV metric
  *  excludes input-adjacent shifts and therefore reads ~0 through the exact interaction-driven relayout
  *  storms this line exists to surface (motion-stats.ts header) — a summary carrying only `cls` says
- *  "clean" about a shell that is thrashing. */
+ *  "clean" about a shell that is thrashing. `nonVirtualizedCls` rides here for the mirror reason (issue
+ *  #109): it is the total the motion budget actually gates on, and a summary carrying only `cls` says
+ *  "over budget" about a long thread whose whole score is the virtualizer settling. */
 function motionSummary(): {
   loafs: number;
   worstBlocking: number;
   cls: number;
   observedCls: number;
+  nonVirtualizedCls: number;
   dirtyAnimationFlags: number;
 } {
   const m = motionSnapshot();
@@ -259,6 +262,7 @@ function motionSummary(): {
     worstBlocking: m.worstBlocking,
     cls: m.cls,
     observedCls: m.observedCls,
+    nonVirtualizedCls: m.nonVirtualizedCls,
     dirtyAnimationFlags: motionFlags().filter((flag) => flag.tag === "anim").length,
   };
 }

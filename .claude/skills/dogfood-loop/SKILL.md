@@ -94,7 +94,9 @@ Every drive signal walks this ladder; skipping a rung ships noise into the Proje
   and name budgets, so one line is one real event.
 - **The known-fine list (investigate everything else):**
   - `[cls]` entries tagged `virtualized: true` — sources are all rows inside a known virtualizer;
-    retained in the ring, deliberately not warned.
+    retained in the ring, deliberately not warned, and (issue #109, 2026-08-16) excluded from the
+    total the budget gates on. Read `nonVirtualizedCls` off `__orb.motion()`, not `cls`: a long
+    thread's `cls` is dominated by message-list settling no app fix can move.
   - Nav-adjacent shifts within the 500ms window after an `__orb.nav` call — kept in
     `observedCls` without a false "unexpected" warning.
   - `sandbox-trace-noise` console errors — Playwright tracing injected into the app's

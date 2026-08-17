@@ -8,6 +8,14 @@
 // both run at once. The worktree is never edited, so its watchers never fire: crash-loop-immune by
 // construction while keeping the dev bundle's `window.__orb` (side-eye's eval machinery) intact.
 //
+// THE MARKER IS REPO-KEYED, NOT CHECKOUT-KEYED (issue #108, 2026-08-16). The band is ONE fixed port pair
+// for the whole BOX, so its owner marker must be one file every checkout agrees on. It used to be written
+// into whichever checkout snap ran from, so a lane's stage left main's marker dir empty and a sibling's
+// only tell was `ss -tlnp` plus ps spelunking — two coordination rounds in one afternoon. The marker now
+// lives beside the MAIN checkout (`git rev-parse --git-common-dir` answers `<main>/.git` from every linked
+// worktree) and records the owner's checkout, pid and start time, so `--stage-status` / `--stage-down`
+// work from anywhere and a collision REFUSES with a name instead of silently killing a sibling's stage.
+//
 // LIFECYCLE (single active stage, keyed by sha — one fixed offset port pair, so it never self-collides):
 //   • Stage worktree cached at .cache/snap-stage/<short-sha>/ (`.cache/` is gitignored wholesale).
 //   • `pnpm install` there once — the shared pnpm store makes it cheap (hardlinks, no re-download).
@@ -50,7 +58,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
 import { errorMessage } from "@orb/kit/error-message";
@@ -120,7 +128,78 @@ export type ActiveStage = {
   readonly serverPort: number;
   readonly vitePort: number;
   readonly baseUrl: string;
+  /** The repo root snap ran from when this stage was booted — the OWNER (issue #108). A marker whose
+   *  checkout is not yours means a sibling holds the band; that is a refusal, never a teardown. */
+  readonly checkout: string;
+  /** The pid bound to the stage SERVER port at boot, or null when `ss` could not name one. Recorded for
+   *  provenance; the refusal also reads the LIVE band pid, which is what a human can actually inspect. */
+  readonly ownerPid: number | null;
+  /** ISO timestamp of the boot that wrote this marker — the "age" half of the refusal. */
+  readonly startedAt: string;
 };
+
+const MS_PER_MINUTE = 60_000;
+const MINUTES_PER_HOUR = 60;
+
+/** Human age of a marker ("just now" / "37m" / "2h 14m"). An unparseable/absent stamp reads "unknown age"
+ *  rather than a fake zero — a marker that cannot say when it was written must not look fresh. */
+export function describeStageAge(startedAt: string, nowMs: number): string {
+  const started = Date.parse(startedAt);
+  if (Number.isNaN(started)) {
+    return "unknown age";
+  }
+  const minutes = Math.max(0, Math.floor((nowMs - started) / MS_PER_MINUTE));
+  if (minutes < 1) {
+    return "just now";
+  }
+  const hours = Math.floor(minutes / MINUTES_PER_HOUR);
+  return hours === 0 ? `${minutes}m` : `${hours}h ${minutes % MINUTES_PER_HOUR}m`;
+}
+
+/** How THIS checkout may use the band, given the shared marker (issue #108). The one-band design is
+ *  unchanged — this only decides whether a foreign owner is reused, reclaimed, or respected:
+ *   • `ours`         — no marker, or we wrote it: the existing staleness rules apply unchanged.
+ *   • `take-over`    — a foreign marker whose band is NOT bound: a dead stage, reclaim it.
+ *   • `shared-reuse` — a foreign, healthy stage at the SAME commit: identical frozen source, so point at
+ *                      it read-only rather than fighting for the pair.
+ *   • `refuse`       — a foreign LIVE stage we would have to rebuild, re-sync or kill. Name the owner. */
+export type BandAccess = "ours" | "shared-reuse" | "take-over" | "refuse";
+
+export function bandAccess(opts: {
+  readonly active: ActiveStage | null;
+  readonly checkout: string;
+  readonly targetSha: string;
+  readonly dirty: boolean;
+  readonly fresh: boolean;
+  readonly bandBound: boolean;
+  readonly healthy: boolean;
+}): BandAccess {
+  if (opts.active === null || opts.active.checkout === opts.checkout) {
+    return "ours";
+  }
+  if (!opts.bandBound) {
+    return "take-over";
+  }
+  // `--dirty` would rsync OUR working tree into THEIR stage dir; `--fresh` and a sha change would tear
+  // their stack down. Only an untouched same-commit reuse is safe across checkouts.
+  const wouldMutateTheirStage = opts.dirty || opts.fresh;
+  if (!wouldMutateTheirStage && opts.active.sha === opts.targetSha && opts.healthy) {
+    return "shared-reuse";
+  }
+  return "refuse";
+}
+
+/** The port-collision refusal: names the owner (checkout, pid, age) instead of "unknown", and states the
+ *  two remedies. This is the message issue #108 exists for. */
+export function foreignStageRefusal(active: ActiveStage, livePid: number | null, nowMs: number): string {
+  return (
+    `stage band :${active.serverPort}/:${active.vitePort} is held by ANOTHER checkout — ${active.checkout} ` +
+    `(stage ${active.shortSha}, owner pid ${active.ownerPid ?? "unknown"}, band pid ${livePid ?? "none"}, started ${describeStageAge(active.startedAt, nowMs)} ago). ` +
+    "THE BAND IS ONE FIXED PAIR: rebuilding/re-syncing/--fresh here would kill that stage. Either wait, tear " +
+    "it down deliberately with `pnpm snap --stage-down` (works from any checkout), or boot a private stack on " +
+    "a free pair (VITE_PORT/VITE_API_TARGET into scripts/dev/stack.sh) and drive it with `snap --base`."
+  );
+}
 
 export type StageDecision = "reuse" | "rebuild";
 
@@ -149,32 +228,58 @@ export function resolveRef(root: string, ref: string): string {
   return execFileSync("git", ["rev-parse", ref], { cwd: root, encoding: "utf8" }).trim();
 }
 
-// ── active-stage state (.cache/snap-stage/active.json) ─────────────────────────────────────────────────
-
-function activePath(root: string): string {
-  return join(root, ACTIVE_REL);
+/** The marker root derived from `git rev-parse --path-format=absolute --git-common-dir` (issue #108).
+ *  Every linked worktree answers the MAIN checkout's `<main>/.git`, so its parent is the one path all
+ *  checkouts of a repo agree on — that is what makes the band's owner discoverable across worktrees.
+ *  A common dir NOT named `.git` (a `--separate-git-dir` / bare layout) has no such sibling worktree, so
+ *  the marker stays INSIDE the git dir rather than being written to an unrelated parent directory. */
+export function markerRootFromCommonDir(gitCommonDir: string): string {
+  const dir = gitCommonDir.trim();
+  return basename(dir) === ".git" ? dirname(dir) : dir;
 }
 
-export function readActive(root: string): ActiveStage | null {
-  const p = activePath(root);
+function markerRoot(root: string): string {
+  const res = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root, encoding: "utf8" });
+  // No git answer at all ⇒ keep the marker local: a per-checkout marker is worse than none, but a marker
+  // written to a guessed path would be invisible to every reader including this one.
+  return res.status === 0 ? markerRootFromCommonDir(res.stdout) : root;
+}
+
+// ── active-stage state (the SHARED, repo-keyed marker — <main-checkout>/.cache/snap-stage/active.json) ──
+//
+// Every function here takes the MARKER ROOT (`markerRoot(repoRoot())`), never a checkout root: that is the
+// whole of issue #108. Stage DIRS stay per-checkout (they are worktrees of that checkout) — only the ONE
+// ownership marker is shared, and it names the checkout its dir belongs to.
+
+function activePath(markerHome: string): string {
+  return join(markerHome, ACTIVE_REL);
+}
+
+export function readActive(markerHome: string): ActiveStage | null {
+  const p = activePath(markerHome);
   if (!existsSync(p)) {
     return null;
   }
   try {
-    return JSON.parse(readFileSync(p, "utf8")) as ActiveStage;
+    const parsed = JSON.parse(readFileSync(p, "utf8")) as Partial<ActiveStage>;
+    // A marker with no owner cannot be reasoned about across checkouts (it predates #108, or is
+    // hand-written): treat it exactly like a truncated one — no marker, and the port-probe path decides.
+    return typeof parsed.checkout === "string" ? (parsed as ActiveStage) : null;
   } catch {
     // A truncated/garbage marker (a killed mid-write) is treated as "no active stage" → a clean rebuild.
     return null;
   }
 }
 
-function writeActive(root: string, a: ActiveStage): void {
-  mkdirSync(join(root, STAGE_ROOT_REL), { recursive: true });
-  writeFileSync(activePath(root), `${JSON.stringify(a, null, 2)}\n`);
+/** Exported beside `readActive` because the pair IS the cross-checkout contract (#108): the suite proves
+ *  a marker written under one checkout's `markerRoot` is read back under another's. */
+export function writeActive(markerHome: string, a: ActiveStage): void {
+  mkdirSync(join(markerHome, STAGE_ROOT_REL), { recursive: true });
+  writeFileSync(activePath(markerHome), `${JSON.stringify(a, null, 2)}\n`);
 }
 
-function clearActive(root: string): void {
-  rmSync(activePath(root), { force: true });
+function clearActive(markerHome: string): void {
+  rmSync(activePath(markerHome), { force: true });
 }
 
 // ── health / version / worktree primitives ─────────────────────────────────────────────────────────────
@@ -408,13 +513,14 @@ function assertStageSourceSupportsIsolation(root: string, dirty: boolean, target
   }
 }
 
-/** Free the fixed offset ports: tear down a DIFFERENT active stage, or a --fresh rebuild of the same one. */
-function teardownIfStale(root: string, active: ActiveStage | null, targetSha: string, fresh: boolean): void {
+/** Free the fixed offset ports: tear down a DIFFERENT active stage, or a --fresh rebuild of the same one.
+ *  `active` here is always OUR OWN stage — a foreign one is refused or reclaimed before this runs (#108). */
+function teardownIfStale(homes: { readonly root: string; readonly markerHome: string }, active: ActiveStage | null, targetSha: string, fresh: boolean): void {
   if (active !== null && (active.sha !== targetSha || fresh)) {
     print(`[snap-stage] tearing down stale stage ${active.shortSha}`);
     stopStage(active.dir);
-    removeStageDir(root, active);
-    clearActive(root);
+    removeStageDir(homes.root, active);
+    clearActive(homes.markerHome);
   }
 }
 
@@ -459,15 +565,36 @@ export function ensureStage(opts: EnsureStageOpts): ActiveStage {
   const targetSha = dirty ? DIRTY_STAGE_KEY : resolveRef(root, opts.ref ?? "HEAD");
   const ports = stagePorts();
   const paths = stagePaths(root, targetSha);
-  const active = readActive(root);
+  const markerHome = markerRoot(root);
+  const active = readActive(markerHome);
   const healthy = active !== null && active.sha === targetSha && stageHealthy(ports);
 
-  if (stageDecision({ targetSha, active, fresh: opts.fresh, healthy }) === "reuse" && active !== null) {
-    return reuseWarmStage(root, active, dirty);
+  // ISSUE #108: the marker is shared, so it can name ANOTHER checkout. Decide that before anything else —
+  // the old code tore down whatever the marker named, which is how a lane silently killed a sibling's stage.
+  const access = bandAccess({ active, checkout: root, targetSha, dirty, fresh: opts.fresh, bandBound: bandIsBound(ports), healthy });
+  if (active !== null && access === "refuse") {
+    throw new Error(foreignStageRefusal(active, stageBandPortPid(ports.server), Date.now()));
+  }
+  if (active !== null && access === "shared-reuse") {
+    print(`[snap-stage] reusing ${active.checkout}'s warm stage ${active.shortSha} (same commit) → ${active.baseUrl}`);
+    return active;
+  }
+  if (active !== null && access === "take-over") {
+    // Their dir lives under THEIR checkout, so `teardownIfStale` (which only judges sha/fresh against OUR
+    // paths) would leave the corpse and the marker behind. Reclaim explicitly, then proceed marker-less.
+    print(`[snap-stage] reclaiming a DEAD stage ${active.shortSha} owned by ${active.checkout} (band unbound)`);
+    stopStage(active.dir);
+    removeStageDir(root, active);
+    clearActive(markerHome);
+  }
+  const ours = access === "ours" ? active : null;
+
+  if (ours !== null && stageDecision({ targetSha, active: ours, fresh: opts.fresh, healthy }) === "reuse") {
+    return reuseWarmStage(root, ours, dirty);
   }
 
   assertStageSourceSupportsIsolation(root, dirty, targetSha);
-  teardownIfStale(root, active, targetSha, opts.fresh);
+  teardownIfStale({ root, markerHome }, ours, targetSha, opts.fresh);
   prepareStageSource(root, paths, { targetSha, dirty, fresh: opts.fresh });
 
   if (!existsSync(join(paths.dir, "node_modules"))) {
@@ -486,8 +613,11 @@ export function ensureStage(opts: EnsureStageOpts): ActiveStage {
     serverPort: ports.server,
     vitePort: ports.vite,
     baseUrl: stageBaseUrl(ports.vite),
+    checkout: root,
+    ownerPid: stageBandPortPid(ports.server),
+    startedAt: new Date().toISOString(),
   };
-  writeActive(root, built);
+  writeActive(markerHome, built);
   print(`[snap-stage] stage ready → ${built.baseUrl}`);
   return built;
 }
@@ -511,6 +641,12 @@ function stageBandPortPid(port: number): number | null {
   return null;
 }
 
+/** Is EITHER half of the fixed band bound right now? The liveness half of the #108 ownership question —
+ *  a foreign marker over an unbound band is a corpse to reclaim, over a bound one it is a live sibling. */
+function bandIsBound(ports: StagePorts): boolean {
+  return stageBandPortPid(ports.server) !== null || stageBandPortPid(ports.vite) !== null;
+}
+
 /** Stage worktree/dir names present under `.cache/snap-stage/` (excludes active.json). */
 function stageDirs(root: string): string[] {
   const dir = join(root, STAGE_ROOT_REL);
@@ -526,15 +662,19 @@ function stageDirs(root: string): string[] {
  *  port owners, and the worktree dirs on disk (so a LOST-marker / ownerless stage is SEEN, not invisible). */
 export function stageStatus(): string {
   const root = repoRoot();
-  const active = readActive(root);
+  const markerHome = markerRoot(root);
+  const active = readActive(markerHome);
   const ports = stagePorts();
   const serverPid = stageBandPortPid(ports.server);
   const vitePid = stageBandPortPid(ports.vite);
   const dirs = stageDirs(root);
   const lines = [
-    `marker      : ${active === null ? "none" : `${active.shortSha} → ${active.baseUrl}`}`,
+    `marker      : ${active === null ? "none" : `${active.shortSha} → ${active.baseUrl}`}  (${join(markerHome, ACTIVE_REL)})`,
+    // The #108 line: WHOSE stage it is, readable identically from every checkout.
+    `owner       : ${active === null ? "—" : `${active.checkout} · pid ${active.ownerPid ?? "unknown"} · started ${describeStageAge(active.startedAt, Date.now())} ago`}`,
     `stage ports : server :${ports.server} pid ${serverPid ?? "—"} · vite :${ports.vite} pid ${vitePid ?? "—"}`,
-    `stage dirs  : ${dirs.length === 0 ? "none" : dirs.join(", ")}`,
+    // Stage DIRS are per-checkout by design (each is a worktree of its own checkout) — this half is local.
+    `stage dirs  : ${dirs.length === 0 ? "none" : dirs.join(", ")}  (this checkout: ${root})`,
   ];
   // Flag the ownerless case the marker-index alone can't teardown: ports bound but no marker.
   if (active === null && (serverPid !== null || vitePid !== null)) {
@@ -569,20 +709,24 @@ function teardownStageMarkerless(root: string): string {
   return `marker-less teardown: killed ${killed.length} stage-band port owner(s), swept ${dirs.length} stage dir(s)`;
 }
 
-/** `--stage-down`: stop the active stage's stack and remove its worktree/dir. Falls back to a marker-less
- *  teardown (kill by stage-band port + sweep dirs) when there's no marker but a stage may still be bound. */
+/** `--stage-down`: stop the active stage's stack and remove its worktree/dir. Works from ANY checkout —
+ *  the marker is shared and carries the owner's absolute dir, and `git worktree remove` is repo-wide (#108).
+ *  Falls back to a marker-less teardown (kill by stage-band port + sweep THIS checkout's dirs) when there is
+ *  no marker but a stage may still be bound — which is also the path a pre-#108 per-checkout marker takes. */
 export function teardownStage(): string {
   const root = repoRoot();
-  const active = readActive(root);
+  const markerHome = markerRoot(root);
+  const active = readActive(markerHome);
   if (active === null) {
     return teardownStageMarkerless(root);
   }
+  const whose = active.checkout === root ? "" : ` owned by ${active.checkout}`;
   try {
     stopStage(active.dir);
     removeStageDir(root, active);
   } catch (e) {
-    return `partial teardown of ${active.shortSha}: ${errorMessage(e)}`;
+    return `partial teardown of ${active.shortSha}${whose}: ${errorMessage(e)}`;
   }
-  clearActive(root);
-  return `tore down stage ${active.shortSha} (stack stopped, ${active.sha === DIRTY_STAGE_KEY ? "dir" : "worktree"} removed)`;
+  clearActive(markerHome);
+  return `tore down stage ${active.shortSha}${whose} (stack stopped, ${active.sha === DIRTY_STAGE_KEY ? "dir" : "worktree"} removed)`;
 }

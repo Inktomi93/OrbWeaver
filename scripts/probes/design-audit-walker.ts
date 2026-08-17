@@ -347,10 +347,48 @@ export const COLLECT_SAMPLES_JS = `(async () => {
   // and ask elementFromPoint whether this control still owns them. The measured extent is what WCAG
   // 2.5.5/2.5.8 are about — "target size", not "border-box size".
   var HIT_PROBE_RADII = [11, 16, 22]; // half-extents probed outward: 22 → a 44px target
+  // OWNERSHIP IS PER COMPOSITE, NOT PER ELEMENT (2026-08-16). A Base UI Slider's real pointer target is
+  // the whole Control row (h-control-sm — 44px coarse / 32px fine; a mouse press at the row's top edge
+  // 60px from the thumb moved the value 60 to 73), but the outward probe lands on
+  // [data-slot=slider-indicator], a SIBLING of the thumb inside the same control. The identity/containment
+  // test alone stalled the walk there and printed a fine-pointer P1 at 22px on a 32px row.
+  // A hit is now ALSO owned when the nearest ancestor el and hit share offers exactly ONE control and that
+  // control is el — a neighbouring button IS another offered control, so a genuine sub-target still fires.
+  // DECLARED LIMIT: a lone control inside a larger non-interactive wrapper within COMPOSITE_WALK_MAX levels
+  // is credited with the wrapper's extent even if the wrapper takes no pointer. That direction (under-
+  // reporting one sub-target) is the deliberate trade against the measured FP class: 10 of 13 "sub-target"
+  // findings in one audit were hit-area misreads.
+  var COMPOSITE_WALK_MAX = 4;
+  // The same "is this an offered target" filter the tap-target census itself applies (aria-hidden Base UI
+  // twins, dev chrome, 1-2px plumbing) — two vocabularies here would let a phantom control veto a real
+  // composite.
+  function isOfferedControl(el) {
+    if (!isVisible(el) || isDevChrome(el)) return false;
+    if (el.closest("[aria-hidden='true']")) return false;
+    var r = el.getBoundingClientRect();
+    return Math.min(r.width, r.height) > 2;
+  }
+  function sharedCompositeOwns(el, hit) {
+    var scope = el.parentElement;
+    for (var d = 0; d < COMPOSITE_WALK_MAX && scope !== null; d += 1) {
+      if (scope.contains(hit)) {
+        var controls = scope.querySelectorAll(INTERACTIVE_SELECTOR);
+        for (var c = 0; c < controls.length; c += 1) {
+          var other = controls[c];
+          if (other !== el && !el.contains(other) && isOfferedControl(other)) return false;
+        }
+        return true;
+      }
+      scope = scope.parentElement;
+    }
+    return false;
+  }
   function ownsPoint(el, x, y) {
     if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
     var hit = document.elementFromPoint(x, y);
-    return hit !== null && (hit === el || el.contains(hit) || hit.contains(el));
+    if (hit === null) return false;
+    if (hit === el || el.contains(hit) || hit.contains(el)) return true;
+    return sharedCompositeOwns(el, hit);
   }
   // Grow outward from the centre while the control still answers on all four cardinal offsets. Returns
   // the effective half-extent in px (>= the box's own, never less).

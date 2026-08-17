@@ -1,11 +1,14 @@
 // Gate: ui-primitive-structure (core/UI-Primitives-and-Reuse.md §13.7) — the
 // structure gate @orb/ui shipped without, which is why it drifted. Eight clauses (5 AST, 3
 // filesystem) turning each measured divergence into a build failure. See the contract for the WHY
-// of each; this file is the enforcer.
+// of each; this file is the enforcer. DECLARED LIMIT: clause 5 (and its stale arm) skip COMMENT spans —
+// a `#103` issue citation is not a color (issue #117, 2026-08-16); STRING literals (a test title) still
+// scan, so cite an issue in a title as `issue 103`.
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { blankTsComments } from "../comment-spans.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { CheckContext, Violation } from "../harness.ts";
 
@@ -196,7 +199,9 @@ function clauseNoColorLiterals(ctx: CheckContext): Violation[] {
     if ([...COLOR_LITERAL_TEST_EXEMPT].some((name) => path.endsWith(`/${name}`))) {
       continue;
     }
-    sf.getFullText()
+    // Comments are blanked first (issue #117, 2026-08-16): a `#103` issue citation is the house comment
+    // idiom and read as a 3-digit hex. Blanking is length-preserving, so `i + 1` stays the real line.
+    blankTsComments(sf)
       .split("\n")
       .forEach((text, i) => {
         if (COLOR_LITERAL_RE.test(text)) {
@@ -395,7 +400,9 @@ function staleExemptionRows(ctx: CheckContext): Violation[] {
       out.push(row(STALE_COLOR(name, "is not in the project any more")));
       continue;
     }
-    const lines = sf.getFullText().split("\n");
+    // The SAME blanked text clause 5 judges: a row kept alive only by a color spelling quoted in a
+    // comment would be a promise about a file that no longer exercises hostile values.
+    const lines = blankTsComments(sf).split("\n");
     if (!lines.some((line) => COLOR_LITERAL_RE.test(line))) {
       out.push(row(STALE_COLOR(name, "carries no color literal any more")));
     }
@@ -459,6 +466,14 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "hardcoded color literal" },
       why: "clause 5 — a token-color literal in a .ct.tsx (assert via TOKENS) — §13.7",
+    },
+    {
+      files: {
+        // Issue #117, live half: the citation comment is skipped, the AUTHORED value on the next line is not.
+        "tests/ui/primitives/thing/thing.ct.tsx": '// issue #103: the monogram band\nexport const c = "#abc";\n',
+      },
+      expect: { count: 1, line: 2 },
+      why: "issue #117 — comment blanking must not blunt clause 5: the authored `#abc` still REDs, attributed to line 2 (the value), not line 1 (the citation)",
     },
     {
       files: {
@@ -550,6 +565,16 @@ export const gate: GateDescriptor = {
         "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
       },
       why: "a complete styled primitive (trio + correctly-named tv() + data-slot + co-located CT) — the §13.7 shape, passes",
+    },
+    {
+      files: {
+        "packages/ui/src/primitives/thing/thing.tsx": 'export const Thing = () => <div data-slot="thing" />;\n',
+        "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\n',
+        "packages/ui/src/primitives/thing/variants.ts": 'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
+        "tests/ui/primitives/thing/thing.ct.tsx":
+          "// ── issue #103: the monogram hue band ──\n/* the old spelling was rgb(1, 2, 3) — quoted here, not authored */\nexport const t = 1;\n",
+      },
+      why: "issue #117 (the FP class this gate fired on twice in one day): an issue-number citation and a quoted color spelling live in COMMENTS — trivia the pure-AST harness skips — so a .ct.tsx citing #103 passes",
     },
   ],
 };

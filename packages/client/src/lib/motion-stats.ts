@@ -33,6 +33,15 @@
 // could not see it either — it samples at the END of the audit window, by which time a 220ms transition
 // is over. So: `cls` stays the spec metric (no consumer's meaning changes), `observedCls` counts every
 // shift, and an input-adjacent shift is TAGGED in the log line rather than dropped.
+//
+// THE THIRD SPLIT — THE BUDGET GATES ON `nonVirtualizedCls` (issue #109, 2026-08-16). Virtual-row
+// reconciliation was already CLASSIFIED here (`virtualized`) and warn-suppressed, but still folded into
+// `cls`, which is the number `motion-audit`'s budget failed on. Measured by lane ae-shell-motion on a
+// no-probe home→chat journey: ~0.26 of the remaining CLS was the message list settling on mount, so
+// "journey under 0.1" was unreachable by ANY app fix short of replacing the virtualizer — a budget that
+// cannot be met is not a target. So `virtualizedCls` is accumulated separately and `nonVirtualizedCls`
+// (= `cls` − `virtualizedCls`) is what the budget and the over-budget log style judge. Nothing is hidden:
+// all three ride the snapshot and motion-audit prints them labeled.
 
 import { logClock } from "./log-clock.ts";
 
@@ -92,6 +101,9 @@ const shiftRing: ShiftRecord[] = [];
 
 let clsTotal = 0;
 let observedClsTotal = 0;
+/** The share of `clsTotal` the instrument classified as virtual-row reconciliation — subtracted out to
+ *  form the budgeted total (see the header's third-split note). */
+let virtualizedClsTotal = 0;
 let worstShift = 0;
 let evidenceStartTime = 0;
 let agentNavigationUntil = 0;
@@ -106,6 +118,10 @@ export interface MotionSnapshot {
   readonly cls: number;
   /** EVERY shift, input-adjacent included — the number that catches an interaction-driven relayout storm. */
   readonly observedCls: number;
+  /** The share of `cls` this instrument classified as virtual-row reconciliation — printed, never gated. */
+  readonly virtualizedCls: number;
+  /** `cls` − `virtualizedCls`: THE BUDGETED TOTAL (issue #109). The only CLS number an app fix can move. */
+  readonly nonVirtualizedCls: number;
   readonly worstBlocking: number;
   readonly worstShift: number;
   /** The recent attributed shifts — "what moved", which no CLS number carries. */
@@ -165,16 +181,48 @@ function warnShift(record: ShiftRecord): void {
   if (record.value < MIN_REPORTED_SHIFT || record.agentNavigation || record.virtualized) {
     return;
   }
-  const overBudget = clsTotal > CLS_BUDGET;
+  // The budget is the NON-virtualized total (issue #109) — virtual-row settling is not an app defect,
+  // so it must not be what turns this line red.
+  const overBudget = clsTotal - virtualizedClsTotal > CLS_BUDGET;
   const tag = record.hadRecentInput ? "input-adjacent (excluded from CLS)" : "unexpected";
   const who = record.sources.length === 0 ? "(no source attribution)" : record.sources.join(" · ");
   console.warn(
-    `%c${logClock()} [cls]%c shift ${record.value.toFixed(SHIFT_DECIMALS)} ${tag} · ${who} · CLS ${clsTotal.toFixed(SHIFT_DECIMALS)}${
-      overBudget ? " OVER BUDGET" : ""
-    } · observed ${observedClsTotal.toFixed(SHIFT_DECIMALS)} · route ${globalThis.location.pathname}`,
+    `%c${logClock()} [cls]%c shift ${record.value.toFixed(SHIFT_DECIMALS)} ${tag} · ${who} · CLS ${clsTotal.toFixed(SHIFT_DECIMALS)} (virtualized ${virtualizedClsTotal.toFixed(
+      SHIFT_DECIMALS,
+    )})${overBudget ? " OVER BUDGET" : ""} · observed ${observedClsTotal.toFixed(SHIFT_DECIMALS)} · route ${globalThis.location.pathname}`,
     overBudget ? OVER_BUDGET_STYLE : SHIFT_STYLE,
     MUTED_STYLE,
   );
+}
+
+/** Fold ONE layout-shift entry into the three totals + the attributed ring, then flag it. Extracted from
+ *  the observer callback so the three-way CLS split stays legible (and inside the complexity cap). */
+function accumulateShift(e: LayoutShiftEntry): void {
+  observedClsTotal += e.value;
+  const virtualized = sourcesAreVirtualized(e.sources);
+  // CWV definition: shifts within 500ms of user input are excluded from the METRIC (an expected reflow,
+  // not surprise) — but they are still recorded and still logged, see the header.
+  if (!e.hadRecentInput) {
+    clsTotal += e.value;
+    // Split out, never dropped: the budget judges what an app fix could actually move (issue #109).
+    if (virtualized) {
+      virtualizedClsTotal += e.value;
+    }
+    worstShift = Math.max(worstShift, e.value);
+  }
+  const record: ShiftRecord = {
+    startTime: Math.round(e.startTime),
+    value: e.value,
+    hadRecentInput: e.hadRecentInput,
+    agentNavigation: !e.hadRecentInput && e.startTime <= agentNavigationUntil,
+    virtualized,
+    sources: (e.sources ?? []).map((s) => describeShiftSource(s.node, s.previousRect, s.currentRect)),
+  };
+  shiftRing.push(record);
+  if (shiftRing.length > SHIFT_RING_CAP) {
+    shiftRing.shift();
+  }
+  warnShift(record);
 }
 
 /** Install both observers into their rings. Idempotence is the caller's concern (installed once). No-op
@@ -211,27 +259,7 @@ export function installMotionObservers(): void {
   if (supported.includes("layout-shift")) {
     const ls = new PerformanceObserver((list) => {
       for (const raw of entriesInCurrentCheckpoint(list.getEntries())) {
-        const e = raw as LayoutShiftEntry;
-        observedClsTotal += e.value;
-        // CWV definition: shifts within 500ms of user input are excluded from the METRIC (an expected
-        // reflow, not surprise) — but they are still recorded and still logged, see the header.
-        if (!e.hadRecentInput) {
-          clsTotal += e.value;
-          worstShift = Math.max(worstShift, e.value);
-        }
-        const record: ShiftRecord = {
-          startTime: Math.round(e.startTime),
-          value: e.value,
-          hadRecentInput: e.hadRecentInput,
-          agentNavigation: !e.hadRecentInput && e.startTime <= agentNavigationUntil,
-          virtualized: sourcesAreVirtualized(e.sources),
-          sources: (e.sources ?? []).map((s) => describeShiftSource(s.node, s.previousRect, s.currentRect)),
-        };
-        shiftRing.push(record);
-        if (shiftRing.length > SHIFT_RING_CAP) {
-          shiftRing.shift();
-        }
-        warnShift(record);
+        accumulateShift(raw as LayoutShiftEntry);
       }
     });
     ls.observe({ type: "layout-shift", buffered: true });
@@ -244,6 +272,8 @@ export function motionSnapshot(): MotionSnapshot {
     loafs: loafRing,
     cls: Number(clsTotal.toFixed(SHIFT_DECIMALS)),
     observedCls: Number(observedClsTotal.toFixed(SHIFT_DECIMALS)),
+    virtualizedCls: Number(virtualizedClsTotal.toFixed(SHIFT_DECIMALS)),
+    nonVirtualizedCls: Number((clsTotal - virtualizedClsTotal).toFixed(SHIFT_DECIMALS)),
     worstBlocking: loafRing.reduce((a, l) => Math.max(a, l.blockingDuration), 0),
     worstShift: Number(worstShift.toFixed(SHIFT_DECIMALS)),
     shifts: shiftRing,
@@ -258,6 +288,7 @@ export function __resetMotionStats(): void {
   shiftRing.length = 0;
   clsTotal = 0;
   observedClsTotal = 0;
+  virtualizedClsTotal = 0;
   worstShift = 0;
   agentNavigationUntil = 0;
 }

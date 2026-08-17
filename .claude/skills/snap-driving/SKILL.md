@@ -124,6 +124,12 @@ parameterized actions.
   from first paint, which kills the FLIP animations that make track changes CLS-free, so the
   harness manufactures layout-shift findings. Such a run prints `PROBE-NEUTERED-MOTION` and stamps
   `motion=PROBE-NEUTERED-MOTION` on the RESULT line. Take motion/CLS receipts WITHOUT `--probe`.
+- **`__orb.motion()` carries THREE CLS totals; the budget gates on the third.** `cls` (the CWV spec
+  metric) · `virtualizedCls` (the share the instrument classified as virtual-row reconciliation) ·
+  `nonVirtualizedCls` = the budgeted remainder. A long transcript's `cls` is dominated by the message
+  list settling on mount (~0.26 measured), which no app fix can move — so cite all three and judge
+  `nonVirtualizedCls`. `pnpm motion-audit` prints them labeled and fails only on the non-virtualized
+  one (`cls-raw` / `cls-virtualized` / `cls-non-virtualized` on its RESULT line).
 - **Two scroll containers, two different lists** — `[data-slot=virtual-list-scroll]` is the SIDEBAR
   chat list (`packages/ui/src/primitives/virtual-list/virtual-list.tsx:158`); the TRANSCRIPT's
   scroller is `[data-slot=message-list-scroll]`
@@ -193,15 +199,22 @@ parameterized actions.
   `scripts/probes/_kit/snap-stage.ts`). One stage at a time, keyed by sha; a new HEAD auto-
   rebuilds; `--fresh` forces it. Stage when your drive window overlaps active lanes — a
   crash-looping dev vite mid-drive is not a product finding.
-- `--stage-status` = the visibility read: marker + stage-band port owners + worktree dirs (a
-  lost-marker stage is SEEN, with the warning naming the remedy). `--stage-down` tears down, and
-  falls back to a marker-less teardown (kill by stage-band port + sweep stage dirs) when a lost
-  marker left an ownerless stage.
-- **THE BAND IS ONE FIXED PAIR — there is no per-lane band.** Two lanes cannot each hold a stage. If
-  the band is occupied, find the OWNER in `.cache/snap-stage/active.json` (the marker `--stage-status`
-  reads) before doing anything. Tear a stale stage down with **`pnpm snap --stage-down`** — never by
-  hand-killing pids: the marker-less fallback teardown exists precisely so the tool can reclaim an
-  ownerless stage, and a hand kill leaves the marker lying about a stage that no longer exists.
+- **THE OWNER MARKER IS SHARED ACROSS CHECKOUTS** (issue #108, 2026-08-16). It is ONE file keyed by the
+  REPO, not by the checkout snap ran from: `<main-checkout>/.cache/snap-stage/active.json`, resolved via
+  `git rev-parse --git-common-dir`, and it records the owner's **checkout path, pid and start time**. So
+  `--stage-status` and `--stage-down` see and act on the same stage from a lane worktree and from main.
+  (Before this, a lane's stage left main's marker dir empty and the only tell was `ss -tlnp` + ps.)
+- `--stage-status` = the visibility read: marker + **owner (checkout · pid · age)** + stage-band port
+  owners + this checkout's stage dirs (a lost-marker stage is SEEN, with the warning naming the remedy).
+  `--stage-down` tears down from ANY checkout, and falls back to a marker-less teardown (kill by
+  stage-band port + sweep stage dirs) when a lost marker left an ownerless stage.
+- **THE BAND IS ONE FIXED PAIR — there is no per-lane band.** Two lanes cannot each hold a stage, and
+  snap no longer silently kills the incumbent. Against a LIVE stage owned by another checkout:
+  `--isolated` at the SAME commit reuses it read-only (it is the same frozen source); anything that
+  would rebuild, `--fresh`, or `--dirty`-rsync it **REFUSES**, naming the owner's checkout, pid and age.
+  A marker whose band is unbound is a corpse and gets reclaimed automatically. Read the refusal, then
+  either wait, `pnpm snap --stage-down` deliberately, or boot a private pair (below) — never hand-kill
+  pids: a hand kill leaves the marker lying about a stage that no longer exists.
 - **Band occupied / need your own pair:** `scripts/dev/stack.sh` reads `VITE_PORT` and
   `VITE_API_TARGET` from env — boot a private stack on a free pair and point snap at it with
   `--base http://localhost:<vitePort>`.

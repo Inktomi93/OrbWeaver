@@ -3,14 +3,20 @@
 // smoke that the stage dir lands under a gitignored path. The imperative worktree/install/boot orchestration
 // is deliberately NOT exercised here (it spins a real stack — out of the CI-tier's remit; this file's home
 // is tests/tooling/ per core/Spine-Testing.md §2, a test of a scripts/ tool).
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ActiveStage } from "../../scripts/probes/_kit/snap-stage.ts";
 import {
+  bandAccess,
   DEV_SERVER_PORT,
   DEV_VITE_PORT,
   DIRTY_STAGE_KEY,
+  describeStageAge,
+  foreignStageRefusal,
   ISOLATION_TRIPWIRE,
+  markerRootFromCommonDir,
+  readActive,
   SHORT_SHA_LEN,
   STAGE_INHERITED_ENV_KEYS,
   shortSha,
@@ -19,11 +25,14 @@ import {
   stageInheritedEnv,
   stagePaths,
   stagePorts,
+  writeActive,
 } from "../../scripts/probes/_kit/snap-stage.ts";
 import { expect, test } from "../support/fixtures.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const SHORT = "0123456789ab";
+const MAIN_CHECKOUT = "/home/dev/orbweaver";
+const LANE_CHECKOUT = "/home/dev/orbweaver/.claude/worktrees/agent-lane";
 // The exact `.cache/` gitignore line (root-anchored, trailing slash) that swallows the stage worktrees.
 const CACHE_IGNORE_RE = /^\.cache\/$/m;
 
@@ -71,6 +80,9 @@ function active(over: Partial<ActiveStage> = {}): ActiveStage {
     serverPort: 8888,
     vitePort: 5273,
     baseUrl: "http://localhost:5273",
+    checkout: MAIN_CHECKOUT,
+    ownerPid: 4242,
+    startedAt: "2026-08-16T12:00:00.000Z",
     ...over,
   };
 }
@@ -165,6 +177,98 @@ test("stageInheritedEnv omits a key the dev .env does not declare (no empty-stri
   expect(Object.keys(partial)).toStrictEqual(["OWNER_HANDLES"]);
   expect(partial["OWNER_HANDLES"]).toBe("owner");
   expect(Object.keys(stageInheritedEnv(""))).toStrictEqual([]);
+});
+
+// ── the SHARED, repo-keyed owner marker (issue #108) ─────────────────────────────────────────────────
+//
+// The band is ONE fixed port pair for the whole box, so its owner marker must be one file every checkout
+// agrees on. It used to be written into whichever checkout snap ran from: a lane's stage left main's
+// marker dir empty and a sibling's only tell was a raw port check plus ps spelunking (two coordination
+// rounds in one afternoon). `git rev-parse --git-common-dir` answers `<main>/.git` from EVERY linked
+// worktree, which is the shared key these arms pin — in both directions.
+
+test("markerRootFromCommonDir resolves the SAME marker home from main and from a linked worktree", () => {
+  // Both checkouts get the identical `--git-common-dir` answer; that is what makes the marker shared.
+  const fromMain = markerRootFromCommonDir(`${MAIN_CHECKOUT}/.git`);
+  const fromLane = markerRootFromCommonDir(`${MAIN_CHECKOUT}/.git\n`);
+  expect(fromMain).toBe(MAIN_CHECKOUT);
+  expect(fromLane).toBe(MAIN_CHECKOUT);
+  // …and NOT the lane's own root, which is the whole defect.
+  expect(fromLane).not.toBe(LANE_CHECKOUT);
+});
+
+test("a common dir that is not a checkout's .git keeps the marker INSIDE it, never in an unrelated parent", () => {
+  // `--separate-git-dir` / bare: there is no sibling working tree, so `dirname` would write the marker to
+  // whatever directory happens to hold the git dir.
+  expect(markerRootFromCommonDir("/srv/gitdirs/orbweaver")).toBe("/srv/gitdirs/orbweaver");
+});
+
+test("a stage staged from a worktree is visible from main, and vice versa (one shared marker file)", () => {
+  const markerHome = mkdtempSync(join(tmpdir(), "ae-tooling2-marker-"));
+  // Direction 1: the LANE boots the stage…
+  writeActive(markerHome, active({ checkout: LANE_CHECKOUT, dir: `${LANE_CHECKOUT}/.cache/snap-stage/${SHORT}` }));
+  // …and MAIN, resolving the same marker home, sees whose it is.
+  const seenFromMain = readActive(markerHome);
+  expect(seenFromMain?.checkout).toBe(LANE_CHECKOUT);
+  expect(seenFromMain?.dir).toContain(LANE_CHECKOUT);
+
+  // Direction 2: main boots one, the lane reads it.
+  writeActive(markerHome, active({ checkout: MAIN_CHECKOUT }));
+  expect(readActive(markerHome)?.checkout).toBe(MAIN_CHECKOUT);
+});
+
+test("a marker with no owner (a pre-#108 per-checkout file) reads as NO marker, not as a foreign one", () => {
+  // Otherwise a legacy marker would refuse every checkout forever; the port-probe fallback handles it.
+  const markerHome = mkdtempSync(join(tmpdir(), "ae-tooling2-legacy-"));
+  const { checkout: _dropped, ...legacy } = active();
+  writeActive(markerHome, legacy as ActiveStage);
+  expect(readActive(markerHome)).toBeNull();
+});
+
+test("bandAccess leaves OUR OWN marker to the existing staleness rules", () => {
+  const opts = { checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false, bandBound: true, healthy: true };
+  expect(bandAccess({ ...opts, active: null })).toBe("ours");
+  expect(bandAccess({ ...opts, active: active({ checkout: MAIN_CHECKOUT }) })).toBe("ours");
+});
+
+test("bandAccess REFUSES rather than killing a live sibling's stage", () => {
+  const foreign = active({ checkout: LANE_CHECKOUT });
+  const base = { active: foreign, checkout: MAIN_CHECKOUT, bandBound: true, healthy: true };
+  // A different commit would tear their stack down…
+  expect(bandAccess({ ...base, targetSha: "f".repeat(40), dirty: false, fresh: false })).toBe("refuse");
+  // …--fresh would too…
+  expect(bandAccess({ ...base, targetSha: SHA, dirty: false, fresh: true })).toBe("refuse");
+  // …and --dirty would rsync OUR working tree into THEIR stage dir.
+  expect(bandAccess({ ...base, targetSha: SHA, dirty: true, fresh: false })).toBe("refuse");
+  // An unhealthy-but-bound foreign stage is theirs to fix, not ours to rebuild.
+  expect(bandAccess({ ...base, healthy: false, targetSha: SHA, dirty: false, fresh: false })).toBe("refuse");
+});
+
+test("bandAccess SHARES a healthy foreign stage at the same commit, and RECLAIMS a dead one", () => {
+  const foreign = active({ checkout: LANE_CHECKOUT });
+  const base = { active: foreign, checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false };
+  // Same frozen commit, still serving: point at it read-only rather than fight for the one pair.
+  expect(bandAccess({ ...base, bandBound: true, healthy: true })).toBe("shared-reuse");
+  // Marker present, band unbound ⇒ a corpse: reclaim it (this is the stale-marker case, not a collision).
+  expect(bandAccess({ ...base, bandBound: false, healthy: false })).toBe("take-over");
+});
+
+test("the refusal NAMES the owner — checkout, pid and age — not 'unknown'", () => {
+  const started = Date.parse("2026-08-16T12:00:00.000Z");
+  const message = foreignStageRefusal(active({ checkout: LANE_CHECKOUT, ownerPid: 4242 }), 4242, started + 37 * 60_000);
+  expect(message).toContain(LANE_CHECKOUT);
+  expect(message).toContain("4242");
+  expect(message).toContain("37m");
+  // …and carries the remedy, which is the tool, never a hand-kill.
+  expect(message).toContain("--stage-down");
+});
+
+test("describeStageAge reads humanely and refuses to fake freshness on an unparseable stamp", () => {
+  const now = Date.parse("2026-08-16T12:00:00.000Z");
+  expect(describeStageAge("2026-08-16T11:59:30.000Z", now)).toBe("just now");
+  expect(describeStageAge("2026-08-16T11:23:00.000Z", now)).toBe("37m");
+  expect(describeStageAge("2026-08-16T09:46:00.000Z", now)).toBe("2h 14m");
+  expect(describeStageAge("not-a-date", now)).toBe("unknown age");
 });
 
 test("the isolation tripwire is the exact env var vite.config reads for its proxy target", () => {

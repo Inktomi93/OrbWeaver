@@ -9,14 +9,16 @@
 //     0 and `observedCls` rises. This is the gap the flagger exists for: measured on the live shell, the
 //     docked-panel toggle scored 0.207 of instability with every entry `hadRecentInput: true`, so the
 //     CWV metric read ~0 through a full relayout per frame;
-//  3. an UNEXPECTED shift (past the 500ms input window) counts toward `cls` and is tagged `unexpected`.
+//  3. an UNEXPECTED shift (past the 500ms input window) counts toward `cls` and is tagged `unexpected`;
+//  4. a VIRTUALIZED shift (issue #109) moves `cls`/`observedCls`/`virtualizedCls` but leaves
+//     `nonVirtualizedCls` — the total motion-audit's budget gates on — at zero.
 //
 // The observers are module-global by design; CT gives each test a fresh browser context, so the totals
 // start at zero per test (the `_ct-stories` header's own note).
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { MotionShiftFlaggerStory } from "./_ct-stories.tsx";
+import { MotionShiftFlaggerStory, MotionVirtualizedShiftStory } from "./_ct-stories.tsx";
 
 /** The score the flagger prints — `shift 0.1234`. Hoisted: a regex literal inside a test body is a
  *  biome `useTopLevelRegex` error. */
@@ -25,6 +27,8 @@ const SCORE_RE = /shift 0\.\d{4}/u;
 interface MotionRead {
   readonly cls: number;
   readonly observedCls: number;
+  readonly virtualizedCls: number;
+  readonly nonVirtualizedCls: number;
   readonly shifts: readonly {
     readonly value: number;
     readonly hadRecentInput: boolean;
@@ -109,6 +113,25 @@ test("agent navigation keeps attributed shift evidence without emitting a false 
 
   const motion = await readMotion(page);
   expect(motion.shifts.some((shift) => shift.agentNavigation && shift.sources.some((source) => source.includes("cls-victim")))).toBe(true);
+  expect(lines).toEqual([]);
+});
+
+test("a VIRTUALIZED shift moves the raw CLS totals but never the budgeted non-virtualized one", async ({ mount, page }) => {
+  const lines = captureClsLines(page);
+  const component = await mount(<MotionVirtualizedShiftStory />);
+
+  // 900ms after the click ⇒ past the input window ⇒ the shift really does enter `cls` (the whole point:
+  // this is the number that made "journey under 0.1" unreachable, issue #109).
+  await component.getByRole("button", { name: "settle rows later" }).click();
+  await expect.poll(async () => (await readMotion(page)).cls, { intervals: [200, 300, 500, 800] }).toBeGreaterThan(0);
+
+  const motion = await readMotion(page);
+  expect(motion.shifts.some((s) => s.virtualized && s.sources.some((src) => src.includes("virtual-row")))).toBe(true);
+  // Raw moves, the instrument's virtualized share accounts for ALL of it…
+  expect(motion.virtualizedCls).toBe(motion.cls);
+  // …and the total the budget gates on stays clean — no app fix could have moved it.
+  expect(motion.nonVirtualizedCls).toBe(0);
+  // Still warn-suppressed: virtual-row settling is the list doing its job, not an accusation.
   expect(lines).toEqual([]);
 });
 
