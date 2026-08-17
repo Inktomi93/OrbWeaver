@@ -22422,6 +22422,40 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-08-16-home-hearth-room.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 282,
+      "bytes": 20664,
+      "sha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-16"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-16-home-hearth-room.md",
+        "assignedSha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "0381395fd491149c3d1886d8aeb8ef52d5f0b4275f5c43913d6c62ee7e4fcba4",
+        "verifiedCommit": "fdfac09d59aa50f733dfe44c4bd969750015b0a1",
+        "verifiedAt": "2026-08-16",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-16-home-hearth-room.md:1-282 authored+full-read this session (fresh-context frontier review of 96d458324+861de3e58+db242f066)",
+          "git log --oneline -1 -- docs/reviews/stickler/2026-08-16-home-hearth-room.md: fdfac09d5 docs(reviews): stickler frontier review of the Hearth Room home build"
+        ],
+        "summary": "Completed frontier review of the Hearth Room home rebuild (point-in-time evidence, no mutable work state duplicated); 7 findings ceiling P2, none merge-blocking, routed to fixes/follow-ups."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/vendor/base-ui/INDEX.md",
       "lane": "vendor",
       "issue": 10,
