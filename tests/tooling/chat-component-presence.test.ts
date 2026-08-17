@@ -46,6 +46,14 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "chat-list-surface",
     why: "the row is the list surface's split-out unit (projection L0); chat-list-surface.ct drives portrait/snippet/star/game-marker arms and the RowToggleAction star mutation on real rows.",
   },
+  "home-hearth-room": {
+    coveredBy: "home-recents-tile-body",
+    why: "the focal hearth hero is composed inside the recents tile; home-recents-tile-body.ct (ChatRecentsTileStory mounts the REAL HomeSurface) drives the hero card end-to-end, incl. the sub-minute 'just now' stamp arm.",
+  },
+  "home-also-open-tile-body": {
+    coveredBy: "home-recents-tile-body",
+    why: "ChatRecentsTileStory mounts chatAlsoOpenTile alongside recents through the real HomeSurface; home-recents-tile-body.ct exercises the also-open list rows next to the hero.",
+  },
   "chats-with-character-pane": {
     deferred:
       "REAL coverage lives OUTSIDE this checker's chat glob: tests/client/features/character/components/characters-list-pane.ct.tsx composes picker+editor+projection and drives the swap, rows, focus ownership and back-focus. This checker only resolves chat-dir CTs, so citing it as coveredBy reads as dangling (see header); recorded here instead.",
