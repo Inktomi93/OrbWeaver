@@ -19,6 +19,11 @@
 //
 // Unlisted procedures resolve `{result:{data:null}}` AND are recorded, so an incidental query a
 // surface fires never 404s the test. Exemplar usage: tests/client/data/query-boundary.ct.tsx.
+//
+// Two responder MARKERS ride alongside plain data/functions: `trpcError(…)` for a scripted failure
+// envelope, and `trpcHold()` for a deferred one — a release valve that lets a CT pin a PENDING render
+// as a stable state rather than trying to catch a flash. Both are recognised on the value a responder
+// PRODUCES, so either works as a route value or as a function's return.
 
 import type { Page, Request } from "@playwright/test";
 // The ONE tRPC code union home (tests/support/matchers.ts, derived through classifyDomainError —
@@ -102,6 +107,67 @@ function isTrpcError(value: unknown): value is TrpcErrorMarker {
   return typeof value === "object" && value !== null && ERROR_MARK in value;
 }
 
+const HOLD_MARK = Symbol("routeTrpc.hold");
+
+interface TrpcHoldMarker {
+  readonly [HOLD_MARK]: {
+    /** Called the moment the stub intercepts a request carrying this procedure. */
+    readonly onRequest: () => void;
+    /** Settles with the value `release` was given; the stub awaits it before fulfilling. */
+    readonly released: Promise<unknown>;
+  };
+  /** Resolves once a request carrying this procedure has reached the stub — i.e. the query is in
+   *  flight and being held. The deterministic barrier for "assert the pending arm, THEN release":
+   *  releasing before the request lands answers it instantly and the pending arm never renders. */
+  readonly requested: Promise<void>;
+  /** Release the held request with this data — or a `trpcError(…)` marker to release it as a failure.
+   *  Calls after the first are ignored (a re-fetch of the same procedure re-uses the settled value). */
+  readonly release: (data: unknown) => void;
+}
+
+/**
+ * A DEFERRED responder — hands the test the release valve for one procedure so a CT can pin a PENDING
+ * render as a settled, indefinitely-stable state instead of trying to catch a flash:
+ *
+ *     const hold = trpcHold();
+ *     await routeTrpc(page, { echo: hold, "tag.listTags": [] });
+ *     await mount(<Story />);
+ *     await hold.requested;                       // the query is in flight, held
+ *     await expect(page.getByText("loading…")).toBeVisible();
+ *     hold.release({ message: "pong" });          // …and now it settles
+ *
+ * Usable anywhere a responder is (a route value, or the return of a responder function), because the
+ * marker is recognised on the PRODUCED value exactly like `trpcError`.
+ *
+ * WHAT IT HOLDS IS THE REQUEST, NOT THE PROCEDURE — and it cannot be otherwise. Our client is
+ * `httpBatchLink`, deliberately NOT `httpBatchStreamLink` (packages/client/src/data/trpc.ts states why
+ * at length), so a batch is ONE HTTP response: there is no wire affordance for answering three of its
+ * four entries and leaving the fourth open. A hold therefore suspends every procedure batched WITH it,
+ * and releases them together — the envelope stays well-formed and index-aligned, each sibling carrying
+ * its own responder's real data. Requests that do not carry the held procedure are untouched. To render
+ * a sibling SETTLED beside a held query, keep them out of the same tick (mount the sibling first, await
+ * its settled text, then reveal the reader that holds).
+ *
+ * A hold that is never released simply never answers, and the test fails on its own timeout.
+ */
+export function trpcHold(): TrpcHoldMarker {
+  // `new Promise`'s executor runs SYNCHRONOUSLY, so both handles are assigned before the return below
+  // — definite assignment, not a throwaway no-op initialiser that could silently swallow a release.
+  let onRequest!: () => void;
+  let release!: (data: unknown) => void;
+  const requested = new Promise<void>((resolve) => {
+    onRequest = resolve;
+  });
+  const released = new Promise<unknown>((resolve) => {
+    release = resolve;
+  });
+  return { [HOLD_MARK]: { onRequest, released }, requested, release };
+}
+
+function isTrpcHold(value: unknown): value is TrpcHoldMarker {
+  return typeof value === "object" && value !== null && HOLD_MARK in value;
+}
+
 // Inputs: queries carry `?input=` (batched or not — getUrl always URL-encodes query input);
 // mutations carry the POST body. Batched payloads are index-keyed (`{"0":…}`); non-batched carry
 // the raw input, normalized to index "0".
@@ -155,18 +221,29 @@ export async function routeTrpc(page: Page, routes: TrpcRoutes): Promise<TrpcRec
       return;
     }
 
-    const results = procs.map((proc, i) => {
-      const input = byIndex[String(i)];
-      record(proc, input);
-      const responder = routes[proc];
-      const data = typeof responder === "function" ? (responder as (x: unknown) => unknown)(input) : responder;
-      if (isTrpcError(data)) {
-        const errorData = data.reason === undefined ? { code: data.code } : { code: data.code, reason: data.reason };
-        return { error: { code: errorNumber(data.code), message: data.message, data: errorData } };
-      }
-      // `data ?? null`: JSON can't carry undefined; unlisted procedures land here → {data:null}.
-      return { result: { data: data ?? null } };
-    });
+    // `await`ed as a whole: a `trpcHold` responder suspends the FULL batch until the test releases it
+    // (one HTTP response per batch — see trpcHold's header). Every OTHER entry is produced eagerly here,
+    // in call order, so the envelope that eventually lands is well-formed and index-aligned; only its
+    // delivery waits. Without the hold arm this stays exactly as synchronous as it was.
+    const results = await Promise.all(
+      procs.map(async (proc, i) => {
+        const input = byIndex[String(i)];
+        record(proc, input);
+        const responder = routes[proc];
+        const produced = typeof responder === "function" ? (responder as (x: unknown) => unknown)(input) : responder;
+        let data = produced;
+        if (isTrpcHold(produced)) {
+          produced[HOLD_MARK].onRequest();
+          data = await produced[HOLD_MARK].released;
+        }
+        if (isTrpcError(data)) {
+          const errorData = data.reason === undefined ? { code: data.code } : { code: data.code, reason: data.reason };
+          return { error: { code: errorNumber(data.code), message: data.message, data: errorData } };
+        }
+        // `data ?? null`: JSON can't carry undefined; unlisted procedures land here → {data:null}.
+        return { result: { data: data ?? null } };
+      }),
+    );
 
     await route.fulfill({ json: isBatch ? results : results[0] });
   });
