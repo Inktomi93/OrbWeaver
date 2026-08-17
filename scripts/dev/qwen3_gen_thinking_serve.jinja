@@ -1,19 +1,4 @@
-{#- PRODUCTION gen chat template (promoted 2026-08-17 from lane template-compress). Descends from
-    qwen3.8-froggeric-v22 — this file IS the froggeric fork, now with the compressive deltas below.
-    Three deltas vs the v22 baseline; everything else byte-identical to it:
-      S1  tool-format reminder trimmed: the 7-bullet <IMPORTANT> block (~150 words, injected once per
-          tools-bearing request) becomes a 4-clause "Rules:" paragraph. The full syntax EXAMPLE is kept
-          verbatim — it is the parser-teaching surface qwen3_coder depends on. Both xml + json branches.
-      S2  additive max_response_words kwarg (int, 0/absent = off): injects
-          "Keep your final response under N words." at the END of the system block. Response-length
-          lever independent of reasoning_effort (effort steers THINKING volume, not response length).
-          With the lever unset, rendering outside S1 is byte-identical to the baseline.
-      S3  version string.
-    Deliberately NOT changed (rejected in design): the reasoning_effort instruction strings (RL-trained
-    anchors; measured 37/25 tokens, thinking-mode only — trivial upside, off-distribution risk), the
-    tool-call syntax example, preserve_thinking default (100%-prefix-hit property), tojson schema shape.
-    The 6 defect classes the v22 fork exists for are preserved and asserted by the lane's offline test. -#}
-{%- set template_version = "qwen3.8-orb-v23-compress" %}
+{%- set template_version = "qwen3.8-froggeric-v22" %}
 {%- set _tool_format = tool_call_format if tool_call_format is defined else 'xml' %}
 {%- set image_count = namespace(value=0) %}
 {%- set video_count = namespace(value=0) %}
@@ -29,11 +14,6 @@
 {%- endif %}
 {%- set max_tool_arg_chars = max_tool_arg_chars if max_tool_arg_chars is defined else 0 %}
 {%- set max_tool_response_chars = max_tool_response_chars if max_tool_response_chars is defined else 0 %}
-{%- set max_response_words = max_response_words if max_response_words is defined else 0 %}
-{%- set _len_directive = '' %}
-{%- if max_response_words and max_response_words | int > 0 %}
-    {%- set _len_directive = 'Keep your final response under ' ~ (max_response_words | int) ~ ' words.' %}
-{%- endif %}
 {%- set _has_tools = (tools is defined and tools and tools is iterable and tools is not mapping) %}
 {%- set ns_state = namespace(thinking=enable_thinking) %}
 {%- if auto_disable_thinking_with_tools and _has_tools %}
@@ -153,28 +133,19 @@
     {%- endfor %}
     {{- '\n</tools>' }}
     {%- if _tool_format == 'json' %}
-        {{- '\n\nIf you choose to call a function ONLY reply in the following format with NO suffix:\n\n<think>\nBrief explanation of tool call\n</think>\n<tool_call>\n{"name": "example_function_name", "arguments": {"example_parameter_1": "value_1", "example_parameter_2": "This is the value for the second parameter"}}\n</tool_call>\n\nRules: ALL reasoning goes inside the <think></think> block. If you call a tool, the <tool_call> block starts IMMEDIATELY after </think>, at the very beginning of a line, with NO other text before it. Output one complete <tool_call></tool_call> block per function call — never nested. If you already have all necessary data, answer the user directly with no tool call.' }}
+        {{- '\n\nIf you choose to call a function ONLY reply in the following format with NO suffix:\n\n<think>\nBrief explanation of tool call\n</think>\n<tool_call>\n{"name": "example_function_name", "arguments": {"example_parameter_1": "value_1", "example_parameter_2": "This is the value for the second parameter"}}\n</tool_call>\n\n<IMPORTANT>\nReminder:\n- You can use the <think></think> block to plan your next tool call OR to synthesize data and formulate your final response to the user.\n- ALL explanation and reasoning MUST be placed strictly inside the <think></think> block.\n- Function calls MUST follow the specified format: a single JSON object with "name" and "arguments" keys inside <tool_call></tool_call> XML tags.\n- If you choose to call a tool, you MUST output the <tool_call> block IMMEDIATELY after thinking, with NO conversational text before it.\n- The <tool_call> tag MUST be at the very beginning of a new line, with NO spaces or indentation before it.\n- To call multiple functions, output a separate, completely closed <tool_call></tool_call> block for EACH function. Do NOT nest <tool_call> blocks.\n- If you have all necessary data, provide your final answer directly to the user without any tool call.\n</IMPORTANT>' }}
     {%- else %}
-        {{- '\n\nIf you choose to call a function ONLY reply in the following format with NO suffix:\n\n<think>\nBrief explanation of tool call\n</think>\n<tool_call>\n<function=example_function_name>\n<parameter=example_parameter_1>\nvalue_1\n</parameter>\n<parameter=example_parameter_2>\nThis is the value for the second parameter\nthat can span\nmultiple lines\n</parameter>\n</function>\n</tool_call>\n\nRules: ALL reasoning goes inside the <think></think> block. If you call a tool, the <tool_call> block starts IMMEDIATELY after </think>, at the very beginning of a line, with NO other text before it. Output one complete <tool_call></tool_call> block per function call — never nested. If you already have all necessary data, answer the user directly with no tool call.' }}
+        {{- '\n\nIf you choose to call a function ONLY reply in the following format with NO suffix:\n\n<think>\nBrief explanation of tool call\n</think>\n<tool_call>\n<function=example_function_name>\n<parameter=example_parameter_1>\nvalue_1\n</parameter>\n<parameter=example_parameter_2>\nThis is the value for the second parameter\nthat can span\nmultiple lines\n</parameter>\n</function>\n</tool_call>\n\n<IMPORTANT>\nReminder:\n- You can use the <think></think> block to plan your next tool call OR to synthesize data and formulate your final response to the user.\n- ALL explanation and reasoning MUST be placed strictly inside the <think></think> block.\n- Function calls MUST follow the specified format: an inner <function=...></function> block must be nested within <tool_call></tool_call> XML tags.\n- If you choose to call a tool, you MUST output the <tool_call> block IMMEDIATELY after thinking, with NO conversational text before it.\n- The <tool_call> and <function> tags MUST be at the very beginning of a new line, with NO spaces or indentation before them.\n- To call multiple functions, output a separate, completely closed <tool_call></tool_call> block for EACH function. Do NOT nest <tool_call> blocks.\n- If you have all necessary data, provide your final answer directly to the user without any tool call.\n</IMPORTANT>' }}
     {%- endif %}
     {%- if _sc %}
         {{- '\n\n' + _sc }}
     {%- endif %}
-    {%- if _len_directive %}
-        {{- '\n\n' + _len_directive }}
-    {%- endif %}
     {{- '<|im_end|>\n' }}
 {%- else %}
-    {%- if _sc or reasoning_instructions or _len_directive %}
-        {{- '<|im_start|>system\n' }}
-        {%- if reasoning_instructions %}
-            {{- reasoning_instructions + ('\n\n' if _sc else '') }}
-        {%- endif %}
-        {{- _sc }}
-        {%- if _len_directive %}
-            {{- ('\n\n' if _sc or reasoning_instructions else '') + _len_directive }}
-        {%- endif %}
-        {{- '<|im_end|>\n' }}
+    {%- if _sc %}
+        {{- '<|im_start|>system\n' + (reasoning_instructions + '\n\n' if reasoning_instructions else '') + _sc + '<|im_end|>\n' }}
+    {%- elif reasoning_instructions %}
+        {{- '<|im_start|>system\n' + reasoning_instructions + '<|im_end|>\n' }}
     {%- endif %}
 {%- endif %}
 {%- set _last_idx = _msgs | length - 1 %}
