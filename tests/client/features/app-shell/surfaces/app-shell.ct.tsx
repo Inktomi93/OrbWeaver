@@ -700,9 +700,12 @@ test("at 900px (48-64rem) the recents FINDER is still reachable — it moved to 
   await page.setViewportSize(NARROW_DESKTOP);
   const shell = await mount(<AppShellOnSectionStory section="home" />);
 
-  const recents = shell.getByRole("list", { name: "Recent chats" });
-  await expect(recents).toBeVisible();
-  await expect(recents.getByText("A grand adventure")).toBeVisible();
+  // The single recent room lands as the focal HERO ("Pick up where you left off"), reachable directly —
+  // NOT a "Recent chats" list row (the variant-C home rework, H1/D-1). The guarantee this CT protects is
+  // unchanged: at the auto-overlay width the recent is findable on home with the list pane collapsed, so
+  // there is no hidden panel to hunt.
+  const resume = shell.getByRole("button", { name: "Resume A grand adventure" });
+  await expect(resume).toBeVisible();
   await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "collapsed");
 });
 
