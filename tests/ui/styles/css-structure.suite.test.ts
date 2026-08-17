@@ -181,7 +181,7 @@ function findAnchoredBlock(css: string, anchor: string, label: string): string {
   return css.slice(anchorIndex, closeBrace + 1);
 }
 
-test("blur-surface selectors stay in sync with BLUR_SURFACES across all four hand-listed CSS blocks", () => {
+test("blur-surface selectors stay in sync with BLUR_SURFACES across all three hand-listed CSS blocks", () => {
   const clientGlobalsCss = readFileSync(CLIENT_GLOBALS_CSS_PATH, "utf8");
   const shellCss = readFileSync(SHELL_CSS_PATH, "utf8");
 
@@ -193,10 +193,18 @@ test("blur-surface selectors stay in sync with BLUR_SURFACES across all four han
       anchor: "@media (prefers-reduced-transparency: reduce) {",
     },
     { label: "client globals.css prefers-contrast: high block", css: clientGlobalsCss, anchor: "@media (prefers-contrast: high) {" },
-    { label: "shell.css mobile blur kill-switch block", css: shellCss, anchor: "/* Mobile blur kill-switch" },
   ];
-
-  expect(blocks.length, "expected exactly four hand-listed blur-surface CSS blocks").toBe(4);
+  // THREE, not four: shell.css's mobile arm used to carry a fourth (the blur kill-switch). It was
+  // deleted at #135 — it re-declared these selectors at identical specificity in the sheet the bundle
+  // emits FIRST, so it could never win, and the ruling moved into the glass block's own @media
+  // condition (asserted by the breakpoint-complement test below). `shellCss` is still read here so a
+  // re-added override reds rather than silently rejoining the tie. Comments stripped first: the
+  // tombstone comment left in that arm NAMES the declaration it forbids.
+  const shellRules = shellCss.replace(COMMENT_RE, "");
+  expect(shellRules.includes("backdrop-filter: none"), "shell.css must not re-declare a blur override — the ruling is the glass block's own @media").toBe(
+    false,
+  );
+  expect(blocks.length, "expected exactly three hand-listed blur-surface CSS blocks").toBe(3);
 
   for (const { label, css, anchor } of blocks) {
     const block = findAnchoredBlock(css, anchor, label);
@@ -204,6 +212,33 @@ test("blur-surface selectors stay in sync with BLUR_SURFACES across all four han
       expect(block, `${label} must reference data-blur-${surface}`).toContain(`data-blur-${surface}`);
     }
   }
+});
+
+// The ONE viewport breakpoint, across every site that hand-writes it (#135). `dimension.shell-breakpoint`
+// exists precisely so this assertion can be made — its own $description says an @media condition cannot
+// consume a var(), so the literal must repeat, and "this token exists so a test asserts the CSS literal +
+// the use-is-mobile-viewport.ts matchMedia twin agree". Until #135 that test did not exist. It matters more
+// now than when the note was written: the client styles tier's glass block is scoped to the COMPLEMENT of
+// shell.css's mobile arm (that is what makes the mobile-perf ruling order-proof rather than an override
+// that loses to source order), so a breakpoint edited in one file and not the other opens a band where the
+// shell is in its mobile layout and the glass is still painting — the exact defect #135 closed.
+const USE_IS_MOBILE_VIEWPORT_PATH = join(import.meta.dirname, "../../../packages/client/src/features/app-shell/hooks/use-is-mobile-viewport.ts");
+const TOKENS_JSON_PATH = join(import.meta.dirname, "../../../packages/ui/src/tokens/tokens.json");
+const REM_LITERAL_RE = /^\d+(?:\.\d+)?rem$/u;
+
+test("the shell breakpoint literal agrees across shell.css, the glass block's complement, the matchMedia twin, and its token", () => {
+  const breakpoint = (JSON.parse(readFileSync(TOKENS_JSON_PATH, "utf8")) as { dimension: { "shell-breakpoint": { $value: string } } }).dimension[
+    "shell-breakpoint"
+  ].$value;
+  expect(breakpoint, "dimension.shell-breakpoint must carry a rem literal").toMatch(REM_LITERAL_RE);
+
+  // shell.css's mobile arm — the one viewport @media in the layout engine.
+  expect(readFileSync(SHELL_CSS_PATH, "utf8")).toContain(`@media (max-width: ${breakpoint})`);
+  // …and the glass block's EXACT complement (range syntax: `width > X` is `not (width <= X)`), which is
+  // why the glass simply is not emitted on a phone.
+  expect(readFileSync(CLIENT_GLOBALS_CSS_PATH, "utf8")).toContain(`@media (width > ${breakpoint})`);
+  // The JS twin the shell's regime hooks read.
+  expect(readFileSync(USE_IS_MOBILE_VIEWPORT_PATH, "utf8")).toContain(`"(max-width: ${breakpoint})"`);
 });
 
 // PART A pin (W5): the reading-scale vars are runtime-stamped by use-appearance-root-effects and
