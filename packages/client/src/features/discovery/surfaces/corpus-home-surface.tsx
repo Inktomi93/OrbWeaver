@@ -6,6 +6,7 @@
 // bar-list), and `themeDrift` (how themes move over story time, scene↔arc toggle). Theme rows drill inline
 // into `themeDetail`; a gem / unused row selects that character's dossier into CONTENT.
 
+import { modelDisplayName } from "@orb/kit/model-name";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -197,7 +198,7 @@ function CorpusHomeBody(): ReactElement {
             valueFormatter={money}
             items={toBarItems(
               routing,
-              (route) => `${route.genre} → ${route.model}`,
+              (route) => `${route.genre} → ${modelDisplayName(route.model)}`,
               (route) => route.costUsd,
             )}
           />

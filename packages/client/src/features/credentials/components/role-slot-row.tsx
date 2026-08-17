@@ -11,6 +11,7 @@
 import type { ChatApi } from "@orb/contracts/connection";
 import type { CredentialSource } from "@orb/contracts/credentials";
 import type { UserCredentialId } from "@orb/kit/ids";
+import { modelDisplayName } from "@orb/kit/model-name";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
@@ -248,7 +249,8 @@ function AppDefaultDisplay({ isChat }: { readonly isChat: boolean }): ReactEleme
   // `enabled` only stops the FETCH — a disabled query still hands back a cache entry another row filled, so
   // the CHAT gate has to hold on the render too, or every role would claim the chat resolution as its own.
   const resolved = useQuery({ ...trpc.connection.resolveChatCapability.queryOptions(), enabled: isChat }).data;
-  const named = !isChat || resolved === undefined ? null : `${SOURCE_LABELS[resolved.source]} · ${resolved.model} · ${CHAT_API_LABELS[resolved.api]}`;
+  const named =
+    !isChat || resolved === undefined ? null : `${SOURCE_LABELS[resolved.source]} · ${modelDisplayName(resolved.model)} · ${CHAT_API_LABELS[resolved.api]}`;
   return (
     // IT WRAPS (side-eye 2026-08-06 P3). `truncate` on the ONE informative hint in the pane cut it at
     // "Uses the app default: Claude subscription (host) · cl…" — the model name, which is the entire reason

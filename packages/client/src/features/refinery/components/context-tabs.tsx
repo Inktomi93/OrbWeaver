@@ -9,6 +9,7 @@
 //     + Compare (DiffView vs the live card) + the existing `restore` verb (itself reversible).
 
 import type { RefinerySchemaStage, RefineryStage, RenderHintTone } from "@orb/contracts/refinery";
+import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { DiffView } from "@orb/ui/diff";
@@ -57,7 +58,16 @@ function economicsOf(run: RunView): string {
     return "hand-authored";
   }
   const tokens = run.promptTokens === null || run.outputTokens === null ? "usage unreported" : `${run.promptTokens} in / ${run.outputTokens} out`;
-  return `${run.model} · ${tokens} · ${(run.durationMs / MS_PER_SECOND).toFixed(1)}s`;
+  return `${modelDisplayName(run.model)} · ${tokens} · ${(run.durationMs / MS_PER_SECOND).toFixed(1)}s`;
+}
+
+/** The full model identifier, when the readable derivation changed it — `null` when a hosted id derives
+ *  to itself, so the row's `title` never repeats what's already on screen (#115's stutter rule). */
+function economicsModelTitle(run: RunView): string | null {
+  if (run.model === null || modelDisplayName(run.model) === run.model) {
+    return null;
+  }
+  return run.model;
 }
 
 export interface RunsTabProps {
@@ -84,6 +94,7 @@ function RunRow({
   onArmRewrite: (runId: string | null) => void;
 }): ReactElement {
   const verdict = verdictOf(run);
+  const modelTitle = economicsModelTitle(run);
   return (
     <Card elevated={viewed}>
       <Stack gap="tight" padding="row">
@@ -94,7 +105,9 @@ function RunRow({
           {run.payloadConfig.kind === "custom" ? <RefineryChip tone="info">custom schema</RefineryChip> : null}
           {armed ? <RefineryChip tone="good">in force for apply</RefineryChip> : null}
         </Row>
-        <Text voice="gloss">{economicsOf(run)}</Text>
+        <Text voice="gloss" {...(modelTitle === null ? {} : { title: modelTitle })}>
+          {economicsOf(run)}
+        </Text>
         {run.strippedKeys.length > 0 ? (
           <Text data-testid={testId("refineryStrippedWarn")} voice="gloss">
             {run.strippedKeys.length} invented key{run.strippedKeys.length === 1 ? "" : "s"} dropped from this payload — {run.strippedKeys.join(", ")}. The
