@@ -58,6 +58,7 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
       tokenSize: cardTokenSize(card),
       forbidExternalMedia: source.forbidExternalMedia,
       trustHtml: source.trustHtml,
+      interactiveHtml: source.interactiveHtml,
       themeOverride: source.themeOverride,
       backgroundOverride: source.backgroundOverride,
       createdAt: at,

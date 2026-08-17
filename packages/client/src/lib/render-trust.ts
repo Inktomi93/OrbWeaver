@@ -1,6 +1,7 @@
 // The render-trust resolver — pure, zero-I/O, the one place the per-message render trust tier +
 // external-media gate are decided. trust="trusted" iff the message is the viewer's own input, or the
-// authoring character opted in via its server-resolved renderPolicy.trustHtml; else "untrusted" (the
+// authoring character sits above the floor on the server-resolved renderPolicy.htmlTrust LADDER (the ONE
+// ordered axis, contracts/chat: untrusted < trusted < interactive); else "untrusted" (the
 // safe default for assistant/LLM, other-participant, and system content). External media is a separate
 // axis. Both read the server-resolved ParticipantView.renderPolicy; absent ⇒ fail closed.
 //
@@ -9,7 +10,8 @@
 // archive (Scene "Cards" / Journal) — and a cross-feature RUNTIME import is banned, so a second home
 // here would mean a second spelling of a SECURITY verdict.
 
-import type { ParticipantView, RenderPolicy } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy, ParticipantView, RenderPolicy } from "@orb/contracts/chat";
+import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
@@ -18,11 +20,17 @@ type RenderTrust = "trusted" | "untrusted";
  *  `tierB` = the OPT-IN sandboxed `ImmersiveCard` mini-UI that may carry the card's own CSS. */
 type CardTier = "tierA" | "tierB";
 
-/** The fail-closed render policy: no trusted HTML, no external media. Used when a policy could not be
- *  resolved at all — an unknown character (below), or a deployment config that has not landed yet
+/** The fail-closed render policy: no trusted HTML, no external media, static cards. Used when a policy could
+ *  not be resolved at all — an unknown character (below), or a deployment config that has not landed yet
  *  (`data/auth-config.ts`'s `useRenderPolicyFloor`). Exported so the two never drift into two spellings of
  *  one security default; this file is the client's trust authority (see the header). */
-export const SAFE_FLOOR: RenderPolicy = { trustHtml: false, forbidExternalMedia: true };
+export const SAFE_FLOOR: RenderPolicy = { htmlTrust: "untrusted", forbidExternalMedia: true };
+
+/** The same strictness one tier DOWN: the DEPLOYMENT pair a per-character override resolves against, used
+ *  while `/api/auth/config` has not landed (`data/auth-config.ts`'s `useRenderPolicyFloor`). Kept beside
+ *  {@link SAFE_FLOOR} because they are the same decision said at two tiers, and a second spelling of a
+ *  fail-closed default is how one of them drifts permissive. */
+export const DEPLOYMENT_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true };
 
 export interface RowRenderPolicy {
   readonly trust: RenderTrust;
@@ -40,8 +48,8 @@ export interface RowRenderPolicy {
    *  verdict, the same reason `trust` itself lives here.
    *
    *  `tierB` (the sandboxed ImmersiveCard, card CSS applied) when EITHER consent is present:
-   *   1. the AUTHOR is trusted — the viewer's own input, or `renderPolicy.trustHtml` (the per-character
-   *      opt-in D44 names), or
+   *   1. the AUTHOR is trusted — the viewer's own input, or the per-character opt-in D44 names, read off
+   *      the ONE ordered `renderPolicy.htmlTrust` ladder (`rendersTrustedHtml`), or
    *   2. the ROOM consented — a game chat with `features.immersiveHtml` ON (`lenientCards`). Turning that
    *      switch on is what makes the engine TEACH the model to emit `:::card` fences; a room that asks for
    *      cards and then refuses to render them is a toggle that lies. The host flipping it IS the consent.
@@ -69,7 +77,7 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
 
   const isOwnUserMessage = role === "user" && authorUserId !== null && authorUserId === viewerUserId;
 
-  const trust: RenderTrust = isOwnUserMessage || policy.trustHtml ? "trusted" : "untrusted";
+  const trust: RenderTrust = isOwnUserMessage || rendersTrustedHtml(policy.htmlTrust) ? "trusted" : "untrusted";
   const lenientCards = input.lenientHtmlCards === true;
   return {
     trust,

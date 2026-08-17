@@ -9,7 +9,7 @@
 // middleware construction. The last test pins the CEILING against the OTHER tier (owner ruling
 // 2026-08-01): a per-character opt-in may not widen either layer.
 
-import type { RenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import { securityHeaders } from "@orb/server/entry/http";
 import { Hono } from "hono";
@@ -118,8 +118,8 @@ describe("securityHeaders", () => {
   // pair that has to agree: the render-policy resolver refuses to widen for an opted-in card, AND the
   // header the browser gets for that same request carries no `https:` media allowance.
   test("deployment BLOCKS + a per-character opt-in: the row verdict stays blocked AND the CSP gains no https:", async () => {
-    const deployment: RenderPolicy = { trustHtml: false, forbidExternalMedia: true };
-    const optInCard: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: false };
+    const deployment: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true };
+    const optInCard: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: false, interactiveHtml: null };
 
     // Layer 1 — the resolved per-participant policy the client renders from.
     expect(resolveRenderPolicy(deployment, optInCard).forbidExternalMedia).toBe(true);

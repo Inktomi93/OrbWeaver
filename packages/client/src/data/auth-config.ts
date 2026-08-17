@@ -4,13 +4,13 @@
 // (e.g. chat's context port) reads it without a cross-feature reach into auth (client-features-no-cross);
 // features/auth re-exports this for its own login/account surfaces.
 
-import type { RenderPolicy } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
 import type { UploadCaps } from "@orb/contracts/uploads";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import { SAFE_FLOOR } from "#lib";
+import { DEPLOYMENT_FLOOR } from "#lib";
 
 /** The `/api/auth/config` wire shape (mirrors `entry/http/auth-meta.ts` — mode-derived flags). */
 export interface AuthConfig {
@@ -101,13 +101,17 @@ export function useExternalMediaBlocked(): boolean {
  *  server-resolved `renderPolicy` for (the character editor's own previews, which read the `characters` row
  *  directly) resolves policy the same way compose does, instead of reading the raw override column.
  *
- *  Falls back to the STRICT floor (`{ trustHtml: false, forbidExternalMedia: true }`) until the config lands
- *  and if it never does — the same fail-closed posture `lib/render-trust.ts`'s `SAFE_FLOOR` takes. Guessing
- *  a permissive floor to make a preview look richer is exactly the lie this hook exists to stop. */
-export function useRenderPolicyFloor(): RenderPolicy {
+ *  Falls back to the STRICT `DEPLOYMENT_FLOOR` until the config lands and if it never does — the same
+ *  fail-closed posture `lib/render-trust.ts`'s `SAFE_FLOOR` takes one tier up. Guessing
+ *  a permissive floor to make a preview look richer is exactly the lie this hook exists to stop.
+ *
+ *  A {@link DeploymentRenderPolicy}, not a resolved `RenderPolicy`: the deployment serves the two axes an
+ *  AppSetting carries, and the html-trust LADDER's top rung (#111) is per-card only — there is no floor to
+ *  serve for it and none is fabricated here. */
+export function useRenderPolicyFloor(): DeploymentRenderPolicy {
   const config = useAuthConfig().data;
   if (config === undefined) {
-    return SAFE_FLOOR;
+    return DEPLOYMENT_FLOOR;
   }
   return { trustHtml: config.trustHtml, forbidExternalMedia: config.forbidExternalMedia };
 }

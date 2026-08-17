@@ -10,6 +10,7 @@
 // the LIST pane, which — with her selected — already IS her chats (Arm A / D8). Both
 // ride the ONE home for those intents (`lib/character-chat-intents.ts`), shared with the LIST band.
 
+import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { SaveBar } from "@orb/ui/save-bar";
@@ -240,7 +241,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
               form={form}
               characterId={data.id}
               facetId={selectedFacetId as CharacterCardFacet["id"]}
-              trusted={previewPolicy.trustHtml}
+              trusted={rendersTrustedHtml(previewPolicy.htmlTrust)}
               readOnly={{
                 importedFrom: data.importedFrom,
                 importHash: data.importHash,

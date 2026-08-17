@@ -242,6 +242,14 @@ export const updateCharacterSchema = createCharacterSchema.partial().extend({
   forbidExternalMedia: z.boolean().nullable().optional(),
   /** Tri-state: null = inherit the deployment default, true = HTML renders TRUSTED, false = force untrusted. */
   trustHtml: z.boolean().nullable().optional(),
+  /** The interactive-card opt-in (#111) — the TOP RUNG of the html-trust ladder, stored beside `trustHtml`
+   *  and folded with it by `resolveRenderPolicy`. `true` = build this character's routed card documents
+   *  under the `interactive` frame posture (and render its HTML trusted, which the rung implies);
+   *  `null`/`false`/absent = not interactive (no deployment tier inherits here). A caller that writes this
+   *  pair should go through `renderPolicyOverrideForStep` rather than picking two booleans. Selecting the
+   *  posture is all the top rung does today: card-authored scripts stay CSP-refused on both arms until the
+   *  leg-3 security pass grants them. */
+  interactiveHtml: z.boolean().nullable().optional(),
   /** `undefined` = leave unchanged; `null` = clear (inherit global theme); a value = set it. */
   themeOverride: themeOverrideSchema.nullable().optional(),
   /** BG-C — the carried card BACKGROUND source (the `themeOverride` twin). `undefined` = leave unchanged;

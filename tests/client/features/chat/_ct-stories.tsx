@@ -570,7 +570,7 @@ function storyParticipant(characterId: CharacterId, trustHtml: boolean, allowExt
     handle: null,
     avatarAssetId: null,
     avatarHash: null,
-    renderPolicy: { trustHtml, forbidExternalMedia: !allowExternal },
+    renderPolicy: { htmlTrust: trustHtml ? "trusted" : "untrusted", forbidExternalMedia: !allowExternal },
   };
 }
 

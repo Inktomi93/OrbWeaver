@@ -32,6 +32,9 @@ export function buildSrcDoc(params: {
   const policy = { ...CARD_FRAME_SAFE_FLOOR, allowExternalMedia: params.allowExternalMedia === true };
   return buildCardFrameDocument(
     { html: params.html, css: params.css, themeTokens: params.themeTokens, fontFamily: params.fontFamily },
-    buildCardFrameCsp(policy, "meta"),
+    // `static`, always: the floor is script-dead by construction (sandbox `""` + an inherited
+    // `script-src 'self'`), so the interactive posture is not expressible on this arm — passing it would be
+    // a directive that can never match, the same lie as `data:` here (#111 leg 1).
+    buildCardFrameCsp(policy, "meta", "static"),
   );
 }

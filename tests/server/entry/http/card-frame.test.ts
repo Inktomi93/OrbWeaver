@@ -31,6 +31,7 @@ const CHAT = castId<ChatId>("chat_01h455vb4pex5vsknk084sn02q");
 const TRUSTED = castId<CharacterId>("character_01h455vb4pex5vsknk084sn02r");
 const UNTRUSTED = castId<CharacterId>("character_01h455vb4pex5vsknk084sn02s");
 const GHOST = castId<CharacterId>("character_01h455vb4pex5vsknk084sn02t");
+const INTERACTIVE = castId<CharacterId>("character_01h455vb4pex5vsknk084sn02v");
 
 function principal(id: string): Principal {
   return { userId: castId<UserId>(id), role: "owner", handle: castId<Handle>(id), externalId: null, via: "fallback" };
@@ -64,8 +65,13 @@ function participant(characterId: CharacterId, renderPolicy: RenderPolicy): Part
 }
 
 const ROSTER: readonly ParticipantView[] = [
-  participant(TRUSTED, { trustHtml: true, forbidExternalMedia: false }),
-  participant(UNTRUSTED, { trustHtml: false, forbidExternalMedia: true }),
+  participant(TRUSTED, { htmlTrust: "trusted", forbidExternalMedia: false }),
+  participant(UNTRUSTED, { htmlTrust: "untrusted", forbidExternalMedia: true }),
+  // #111 leg 1: the host put THIS character on the ladder's TOP rung. Deliberately identical to TRUSTED in
+  // every other axis, so a diff between their two policies can only be the posture — which is how the
+  // "no grant yet" test can compare them byte-for-byte. (Interactive IMPLIES trusted, so this seat also
+  // holds the `data:` door: that is the ladder, not an accident of the fixture.)
+  participant(INTERACTIVE, { htmlTrust: "interactive", forbidExternalMedia: false }),
 ];
 
 interface Harness {
@@ -251,7 +257,55 @@ describe("card-frame — the served document", () => {
 
   test("the response echoes what was GRANTED, so the client never infers a verdict it did not get", async () => {
     const granted = async (body: unknown): Promise<unknown> => ((await (await harness().mint(body)).json()) as { granted: unknown }).granted;
-    expect(await granted(CARD)).toEqual({ externalMedia: true, inlineData: true });
-    expect(await granted({ ...CARD, characterId: UNTRUSTED })).toEqual({ externalMedia: false, inlineData: false });
+    expect(await granted(CARD)).toEqual({ externalMedia: true, inlineData: true, interactive: false });
+    expect(await granted({ ...CARD, characterId: UNTRUSTED })).toEqual({ externalMedia: false, inlineData: false, interactive: false });
+  });
+});
+
+// ── THE PER-CARD POSTURE SELECTION (#111 leg 1) ──────────────────────────────────────────────────────────
+// The knob selects which `CardFramePosture` the response policy is built through. It GRANTS nothing yet:
+// both postures name the same one hash, so these assert the SELECTION is real and the CAPABILITY is not.
+// When the leg-3 security pass moves the interactive row, the policy assertion below is the one that flips —
+// and the "identical directives" test is the thing that must be REWRITTEN rather than deleted.
+
+describe("card-frame — the interactive-card knob", () => {
+  const grantedFor = async (characterId: CharacterId): Promise<{ interactive: boolean }> =>
+    ((await (await harness().mint({ ...CARD, characterId })).json()) as { granted: { interactive: boolean } }).granted;
+
+  const cspFor = async (characterId: CharacterId): Promise<string> => {
+    const h = harness();
+    const res = await h.serve(await mintUrl(h, { ...CARD, characterId }));
+    return res.headers.get("content-security-policy") ?? "";
+  };
+
+  test("an opted-in character mints through the INTERACTIVE arm; every other selector stays static", async () => {
+    expect((await grantedFor(INTERACTIVE)).interactive).toBe(true);
+    // The default (never opted in), the trusted-but-not-interactive card, and an unknown character.
+    expect((await grantedFor(UNTRUSTED)).interactive).toBe(false);
+    expect((await grantedFor(TRUSTED)).interactive).toBe(false);
+    expect((await grantedFor(GHOST)).interactive).toBe(false);
+  });
+
+  test("the CLIENT cannot ask for the interactive arm — the mint body is a selector, and an extra key is a 400", async () => {
+    // `strictObject`: naming the posture (or the policy) in the body is refused outright, so the only path
+    // to `interactive` is the server's own read of the character's column.
+    expect((await harness().mint({ ...CARD, interactive: true })).status).toBe(400);
+    expect((await harness().mint({ ...CARD, interactiveHtml: true })).status).toBe(400);
+  });
+
+  test("NO GRANT YET: the interactive document's policy is BYTE-IDENTICAL to the static one", async () => {
+    // TRUSTED and INTERACTIVE differ by exactly one rung and nothing else, so the whole-string comparison
+    // isolates the posture — and today that difference is nothing.
+    expect(await cspFor(INTERACTIVE)).toBe(await cspFor(TRUSTED));
+    // Said again as a property, so a future widening reds here even if both arms move together: the one
+    // nameable script source is still exactly our height-script hash.
+    const scriptSrc = (await cspFor(INTERACTIVE)).split("; ").find((directive) => directive.startsWith("script-src "));
+    expect(scriptSrc).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
+    for (const keyword of ["unsafe-inline", "unsafe-hashes", "unsafe-eval", "strict-dynamic", "nonce-"]) {
+      expect(scriptSrc).not.toContain(keyword);
+    }
+    // …and the sandbox does not widen by posture either (`allow-same-origin` is the never).
+    expect((await cspFor(INTERACTIVE)).startsWith("sandbox allow-scripts;")).toBe(true);
+    expect(await cspFor(INTERACTIVE)).not.toContain("allow-same-origin");
   });
 });

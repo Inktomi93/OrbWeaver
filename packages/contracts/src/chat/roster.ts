@@ -101,23 +101,70 @@ export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMem
 /** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3). The chat domain resolves each
  *  character's tri-state overrides against the deployment effective config at roster-build time (the ONE
  *  resolution home — {@link resolveRenderPolicy}, never re-resolved client-side); the client READS these to
- *  pick the markdown render trust tier + gate external media for content THIS participant authored. Both
- *  fields are non-null (already resolved). */
+ *  pick the markdown render trust tier + gate external media for content THIS participant authored. Every
+ *  field is non-null (already resolved). */
+/**
+ * ONE ORDERED LADDER for how much a participant's authored HTML may do (owner ruling 2026-08-16, #111 —
+ * "one ladder control, not a second checkbox"). Strictly increasing, and the order IS the meaning:
+ *
+ *   `untrusted`   — the D21 safe default. Sanitized markdown; a card renders in the inert tierA seal.
+ *   `trusted`     — rich HTML + Mermaid render, and a card gets the sandboxed tierB frame (D44 §12.0).
+ *   `interactive` — everything `trusted` has, PLUS the card frame is built under the `interactive`
+ *                   {@link https://github.com/Inktomi93/orbweaver/issues/111} posture.
+ *
+ * INTERACTIVE IMPLIES TRUSTED BY CONSTRUCTION — that is the whole reason this is a ladder and not two
+ * booleans: with two flags, "interactive but not trusted" is representable, and every consumer has to
+ * decide what that fourth state means (four different consumers, four answers). Here it cannot be said.
+ * Read the axis through {@link rendersTrustedHtml} / {@link allowsInteractiveCards}, never by re-spelling
+ * a comparison.
+ */
+export const HTML_TRUST_STEPS = ["untrusted", "trusted", "interactive"] as const;
+export type HtmlTrustStep = (typeof HTML_TRUST_STEPS)[number];
+
+/** Does this step render the author's HTML as TRUSTED (rich HTML/Mermaid, the tierB card frame)? True for
+ *  every step above the floor — `interactive` includes `trusted` by construction. */
+export function rendersTrustedHtml(step: HtmlTrustStep): boolean {
+  return step !== "untrusted";
+}
+
+/** Does this step select the INTERACTIVE card-frame posture? Only the top step. NOTE it does not mean "a
+ *  card can run scripts": the two postures emit identical CSP directives until the #111 leg-3 security pass
+ *  grants card-authored scripts — this selects the arm, not the capability. */
+export function allowsInteractiveCards(step: HtmlTrustStep): boolean {
+  return step === "interactive";
+}
+
 export interface RenderPolicy {
-  /** `true` = this participant's card/message HTML renders TRUSTED (rich HTML + Mermaid). Floor: `false`
-   *  (untrusted — the D21 safe default; an admin-global or per-character opt-in escalates). */
-  readonly trustHtml: boolean;
+  /** The RESOLVED HTML-trust step — the single ordered axis (see {@link HTML_TRUST_STEPS}). */
+  readonly htmlTrust: HtmlTrustStep;
   /** `true` = external (http/https) media in this participant's content is gated behind click-to-load
    *  (the load itself is the tracking-pixel/exfil — D44 §12.3). */
   readonly forbidExternalMedia: boolean;
 }
 
+/** The DEPLOYMENT tier as the resolver takes it. Deliberately NOT a {@link HtmlTrustStep}: the AppSetting
+ *  is the boolean `trustHtml` ("does un-overridden card HTML render trusted"), and the ladder's top step
+ *  has NO app tier at all (#111 leg 1 built the per-character opt-in only; whether a fleet-wide ceiling is
+ *  a precondition of the script grant is the leg-3 security pass's call). Spelling a third step here would
+ *  be config nothing can set. */
+export interface DeploymentRenderPolicy {
+  readonly trustHtml: boolean;
+  readonly forbidExternalMedia: boolean;
+}
+
 /** A LOWER-tier render-policy override as the resolver takes it — the tri-state `characters` columns
  *  (`null` = inherit the deployment tier, `true`/`false` = this card's own answer). Structural, so a
- *  `CharacterDetail` (or any future per-chat carrier of the same two columns) passes as-is. */
+ *  `CharacterDetail` (or any future per-chat carrier of the same columns) passes as-is. */
 export interface RenderPolicyOverride {
   readonly trustHtml: boolean | null;
   readonly forbidExternalMedia: boolean | null;
+  /** `characters.interactive_html` — the ladder's TOP step, stored as its own column beside `trust_html`
+   *  rather than as an enum, so the two-tier `override ?? deployment` semantics of the render step survive
+   *  unchanged. Tri-state in SHAPE, two-valued in MEANING today: with no deployment tier to inherit, `null`
+   *  and `false` are both "not interactive". Kept nullable so leg 3 can add an app tier without a schema
+   *  change. The LADDER is what consumers read ({@link RenderPolicy.htmlTrust}); this pair is only ever the
+   *  resolver's input. */
+  readonly interactiveHtml: boolean | null;
 }
 
 /**
@@ -132,15 +179,44 @@ export interface RenderPolicyOverride {
  *    at the browser (`entry/http/security-headers.ts` — it reads the DEPLOYMENT value only), so an
  *    `override ?? deployment` here produced a control that rendered the element and then ate a CSP block:
  *    a dead opt-in that looked live. Belt and suspenders now agree.
- *  • `trustHtml` stays `override ?? deployment`. Its deployment value is a DEFAULT, not a block: the floor
- *    is the strict end (`false`), and the per-character opt-in IS the designed escalation path (D44 §12.0).
- *    An admin-global `true` likewise stays overridable DOWN by a card. Nothing widens past a strict floor.
+ *  • the HTML-TRUST LADDER folds the two stored columns into ONE ordered step, and the fold is where
+ *    "interactive implies trusted" becomes unrepresentable-otherwise (owner ruling 2026-08-16):
+ *      – the RENDER step keeps `override ?? deployment`, unchanged. Its deployment value is a DEFAULT, not
+ *        a block: the floor is the strict end (`untrusted`), and the per-character opt-in IS the designed
+ *        escalation path (D44 §12.0); an admin-global `true` likewise stays overridable DOWN by a card.
+ *      – the INTERACTIVE step is PER-CARD ONLY (no deployment tier — see {@link DeploymentRenderPolicy}),
+ *        and it WINS over a lower render answer rather than combining with it. So a card carrying the
+ *        contradictory pair `{ trustHtml: false, interactiveHtml: true }` — reachable only by a direct API
+ *        write, never by the single ladder control — resolves to `interactive`, and no consumer ever sees
+ *        "runs scripts but renders untrusted". `=== true`, never truthiness: `null` is "never opted in".
  */
-export function resolveRenderPolicy(deployment: RenderPolicy, override: RenderPolicyOverride | null): RenderPolicy {
+export function resolveRenderPolicy(deployment: DeploymentRenderPolicy, override: RenderPolicyOverride | null): RenderPolicy {
+  const trusted = override?.trustHtml ?? deployment.trustHtml;
+  const renderStep: HtmlTrustStep = trusted ? "trusted" : "untrusted";
   return {
-    trustHtml: override?.trustHtml ?? deployment.trustHtml,
+    htmlTrust: override?.interactiveHtml === true ? "interactive" : renderStep,
     forbidExternalMedia: deployment.forbidExternalMedia || override?.forbidExternalMedia === true,
   };
+}
+
+/** The stored column pair one ladder step means — the ONE home for the write direction, so a surface that
+ *  offers the ladder cannot invent a contradictory pair. `null` (inherit) is NOT a step: it is the absence
+ *  of an override, and a caller writes `{ trustHtml: null, interactiveHtml: null }` for it directly. */
+export function renderPolicyOverrideForStep(step: HtmlTrustStep): { readonly trustHtml: boolean; readonly interactiveHtml: boolean } {
+  return { trustHtml: rendersTrustedHtml(step), interactiveHtml: allowsInteractiveCards(step) };
+}
+
+/** The ladder step a stored override PAIR reads back as, or `null` when the render step is inherited. The
+ *  inverse of {@link renderPolicyOverrideForStep} — one home, so a control's displayed value and the
+ *  resolver can never disagree about what a row says. */
+export function stepFromRenderPolicyOverride(override: Pick<RenderPolicyOverride, "trustHtml" | "interactiveHtml">): HtmlTrustStep | null {
+  if (override.interactiveHtml === true) {
+    return "interactive";
+  }
+  if (override.trustHtml === null) {
+    return null;
+  }
+  return override.trustHtml ? "trusted" : "untrusted";
 }
 
 /** The roster read-model (one `chat_participants` row, resolved for display). `kind` (∈ PARTICIPANT_KINDS)

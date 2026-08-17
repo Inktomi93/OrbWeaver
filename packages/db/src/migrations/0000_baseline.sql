@@ -118,6 +118,7 @@ CREATE TABLE `characters` (
 	`synthetic` integer DEFAULT false NOT NULL,
 	`forbid_external_media` integer,
 	`trust_html` integer,
+	`interactive_html` integer,
 	`theme_override` text,
 	`background_override` text,
 	`imported_from` text,

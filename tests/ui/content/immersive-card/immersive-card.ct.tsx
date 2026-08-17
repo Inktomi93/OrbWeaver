@@ -132,7 +132,7 @@ test("#91: a SHORT routed card shrinks the frame inside the card chrome — no v
       status: 200,
       headers: {
         "content-type": "text/html; charset=utf-8",
-        "content-security-policy": buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document"),
+        "content-security-policy": buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static"),
       },
       body: buildCardFrameDocument({
         html: '<div style="height:110px">a short in-world note</div>',

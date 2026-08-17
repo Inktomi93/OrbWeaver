@@ -10,7 +10,7 @@
 // The remaining cases pin the two shapes an operator would otherwise misread as a probe failure: a chat with
 // no rpg game (`rpg: null` ≠ broken) and a character id that does not exist (`null` ≠ empty row).
 
-import type { RenderPolicy } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import { characters, chats, users } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -19,9 +19,9 @@ import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_config_probe");
-const OPEN_FLOOR: RenderPolicy = { trustHtml: false, forbidExternalMedia: false };
-const BLOCKING_FLOOR: RenderPolicy = { trustHtml: false, forbidExternalMedia: true };
-const TRUSTING_FLOOR: RenderPolicy = { trustHtml: true, forbidExternalMedia: false };
+const OPEN_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false };
+const BLOCKING_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true };
+const TRUSTING_FLOOR: DeploymentRenderPolicy = { trustHtml: true, forbidExternalMedia: false };
 
 async function seedOwner(db: Awaited<ReturnType<typeof freshDb>>): Promise<void> {
   await db.insert(users).values({ id: OWNER, handle: castId<Handle>("configprobe") });
@@ -60,12 +60,12 @@ test("a stored trustHtml of null INHERITS the deployment tier — the resolution
   // code — the CARD-TRUST-INVERTED adjudication is the record. The sweep must mirror the renderer.
   const onUntrusting = await characterDetailRow(db, id, OPEN_FLOOR);
   expect(onUntrusting?.renderPolicy.stored.trustHtml).toBeNull();
-  expect(onUntrusting?.renderPolicy.resolved?.trustHtml).toBe(false);
+  expect(onUntrusting?.renderPolicy.resolved?.htmlTrust).toBe("untrusted");
   expect(onUntrusting?.renderPolicy.cardTier).toBe("tierA");
 
   const onTrusting = await characterDetailRow(db, id, TRUSTING_FLOOR);
   expect(onTrusting?.renderPolicy.stored.trustHtml).toBeNull();
-  expect(onTrusting?.renderPolicy.resolved?.trustHtml).toBe(true);
+  expect(onTrusting?.renderPolicy.resolved?.htmlTrust).toBe("trusted");
   expect(onTrusting?.renderPolicy.cardTier).toBe("tierB");
 });
 

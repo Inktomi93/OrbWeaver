@@ -30,6 +30,7 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
     synthetic: false,
     forbidExternalMedia: null,
     trustHtml: null,
+    interactiveHtml: null,
     themeOverride: null,
     backgroundOverride: null,
     importedFrom: null,

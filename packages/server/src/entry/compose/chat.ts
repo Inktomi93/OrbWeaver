@@ -873,8 +873,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveSeatDeco: async ({ ownerId, characterId }) => {
       const cfg = input.settings.getEffectiveConfig();
       const floor = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia };
+      // The deployment floor AS A RESOLVED policy — what a seat with no readable card gets. Produced by the
+      // SAME resolver with no override rather than hand-built, so the no-card arm can never spell a step
+      // the resolver would not (#111: the html-trust ladder is folded in exactly one place).
+      const resolvedFloor = resolveRenderPolicy(floor, null);
       if (characterId === null || ownerId === null) {
-        return { renderPolicy: floor, themeOverride: null, backgroundOverride: null, card: null };
+        return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
       }
       try {
         const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
@@ -885,7 +889,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           card: { name: detail.name, avatarAssetId: detail.avatarAssetId },
         };
       } catch {
-        return { renderPolicy: floor, themeOverride: null, backgroundOverride: null, card: null };
+        return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
       }
     },
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),

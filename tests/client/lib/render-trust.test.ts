@@ -63,7 +63,7 @@ test("an assistant message with NO opt-in is UNTRUSTED (the safe default)", () =
     authorUserId: null,
     characterId: CHAR,
     viewerUserId: VIEWER,
-    participants: participant({ trustHtml: false, forbidExternalMedia: true }),
+    participants: participant({ htmlTrust: "untrusted", forbidExternalMedia: true }),
   });
   expect(r.trust).toBe("untrusted");
   expect(r.allowExternal).toBe(false);
@@ -77,7 +77,7 @@ test("an assistant message whose character OPTED IN (resolved trustHtml=true) is
     authorUserId: null,
     characterId: CHAR,
     viewerUserId: VIEWER,
-    participants: participant({ trustHtml: true, forbidExternalMedia: false }),
+    participants: participant({ htmlTrust: "trusted", forbidExternalMedia: false }),
   });
   expect(r.trust).toBe("trusted");
   expect(r.allowExternal).toBe(true);
@@ -146,7 +146,7 @@ test("an UNTRUSTED author in a non-game room gets tierA — the inert default", 
     authorUserId: null,
     characterId: CHAR,
     viewerUserId: VIEWER,
-    participants: participant({ trustHtml: false, forbidExternalMedia: false }),
+    participants: participant({ htmlTrust: "untrusted", forbidExternalMedia: false }),
   });
   expect(r.trust).toBe("untrusted");
   expect(r.cardTier).toBe("tierA");
@@ -158,7 +158,7 @@ test("AXIS 1 — a per-character trustHtml opt-in grants tierB", () => {
     authorUserId: null,
     characterId: CHAR,
     viewerUserId: VIEWER,
-    participants: participant({ trustHtml: true, forbidExternalMedia: false }),
+    participants: participant({ htmlTrust: "trusted", forbidExternalMedia: false }),
   });
   expect(r.cardTier).toBe("tierB");
 });
@@ -172,7 +172,7 @@ test("AXIS 2 — the ROOM's immersive-HTML switch grants tierB even to an UNTRUS
     authorUserId: null,
     characterId: CHAR,
     viewerUserId: VIEWER,
-    participants: participant({ trustHtml: false, forbidExternalMedia: false }),
+    participants: participant({ htmlTrust: "untrusted", forbidExternalMedia: false }),
     lenientHtmlCards: true,
   });
   expect(r.trust).toBe("untrusted");

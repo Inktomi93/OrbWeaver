@@ -1,13 +1,26 @@
-import type { InvitePreview, InviteView, MemberCardView, ParticipantView, RenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
+import type {
+  DeploymentRenderPolicy,
+  InvitePreview,
+  InviteView,
+  MemberCardView,
+  ParticipantView,
+  RenderPolicy,
+  RenderPolicyOverride,
+} from "@orb/contracts/chat";
 import {
   acceptInviteSchema,
+  allowsInteractiveCards,
   characterMemberSpecSchema,
   createInviteSchema,
+  HTML_TRUST_STEPS,
   previewInviteSchema,
   redeemInviteSchema,
+  renderPolicyOverrideForStep,
+  rendersTrustedHtml,
   resolveRenderPolicy,
   rosterMemberSpecSchema,
   seatKnobsSchema,
+  stepFromRenderPolicyOverride,
 } from "@orb/contracts/chat";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -156,11 +169,11 @@ test("rosterMemberSpecSchema rejects `human`, `observer`, and `agent` — humans
 // document CSP (built from the DEPLOYMENT value alone) then blocked anyway. `trustHtml` deliberately keeps
 // `override ?? deployment`: its deployment value is a DEFAULT sitting at the strict end, not a block.
 
-const BLOCKING_DEPLOYMENT: RenderPolicy = { trustHtml: false, forbidExternalMedia: true };
-const PERMISSIVE_DEPLOYMENT: RenderPolicy = { trustHtml: false, forbidExternalMedia: false };
-const CARD_ALLOWS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: false };
-const CARD_FORBIDS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: true };
-const CARD_INHERITS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: null };
+const BLOCKING_DEPLOYMENT: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true };
+const PERMISSIVE_DEPLOYMENT: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false };
+const CARD_ALLOWS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: false, interactiveHtml: null };
+const CARD_FORBIDS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: true, interactiveHtml: null };
+const CARD_INHERITS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: null, interactiveHtml: null };
 
 test("deployment BLOCKS + card allows ⇒ BLOCKED — a lower tier can never widen past the deployment ceiling", () => {
   expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, CARD_ALLOWS).forbidExternalMedia).toBe(true);
@@ -180,17 +193,76 @@ test("deployment ALLOWS + card allows/inherits ⇒ ALLOWED (the resolver is not 
   expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, null).forbidExternalMedia).toBe(false);
 });
 
-test("trustHtml keeps `override ?? deployment` — the per-character escalation path is DELIBERATE (D44 §12.0)", () => {
-  const deployment: RenderPolicy = { trustHtml: false, forbidExternalMedia: false };
-  expect(resolveRenderPolicy(deployment, { trustHtml: true, forbidExternalMedia: null }).trustHtml).toBe(true);
-  expect(resolveRenderPolicy(deployment, CARD_INHERITS).trustHtml).toBe(false);
+test("the RENDER step keeps `override ?? deployment` — the per-character escalation path is DELIBERATE (D44 §12.0)", () => {
+  const deployment: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false };
+  expect(resolveRenderPolicy(deployment, { trustHtml: true, forbidExternalMedia: null, interactiveHtml: null }).htmlTrust).toBe("trusted");
+  expect(resolveRenderPolicy(deployment, CARD_INHERITS).htmlTrust).toBe("untrusted");
   // …and a card may force UNtrusted below an admin-global opt-in.
-  expect(resolveRenderPolicy({ trustHtml: true, forbidExternalMedia: false }, { trustHtml: false, forbidExternalMedia: null }).trustHtml).toBe(false);
+  expect(
+    resolveRenderPolicy({ trustHtml: true, forbidExternalMedia: false }, { trustHtml: false, forbidExternalMedia: null, interactiveHtml: null }).htmlTrust,
+  ).toBe("untrusted");
 });
 
-test("the two axes are INDEPENDENT — a trustHtml opt-in does not drag external media open", () => {
-  expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, { trustHtml: true, forbidExternalMedia: false })).toEqual({
-    trustHtml: true,
+test("the axes are INDEPENDENT — an HTML-trust opt-in does not drag external media open", () => {
+  expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, { trustHtml: true, forbidExternalMedia: false, interactiveHtml: null })).toEqual({
+    htmlTrust: "trusted",
     forbidExternalMedia: true,
   });
+});
+
+// ═══ THE HTML-TRUST LADDER — untrusted < trusted < interactive (owner ruling 2026-08-16, #111) ═════════
+//
+// ONE ordered axis, so no consumer can read two booleans and invent a fourth state. The top rung is
+// PER-CARD ONLY (no deployment tier), and reaching the floor must not depend on a card carrying an explicit
+// `false`: every card that predates the column — every imported one — carries `null`, and #111's done
+// criterion is that all of them stay static.
+
+test("the ladder is ordered, and its order is the API — untrusted < trusted < interactive", () => {
+  expect([...HTML_TRUST_STEPS]).toEqual(["untrusted", "trusted", "interactive"]);
+  expect(HTML_TRUST_STEPS.map(rendersTrustedHtml)).toEqual([false, true, true]);
+  expect(HTML_TRUST_STEPS.map(allowsInteractiveCards)).toEqual([false, false, true]);
+});
+
+test("the interactive rung is the WHOLE answer — no deployment tier widens or narrows it", () => {
+  const opted: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: null, interactiveHtml: true };
+  expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, opted).htmlTrust).toBe("interactive");
+  expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, opted).htmlTrust).toBe("interactive");
+});
+
+test("FAIL-CLOSED to static: never-opted-in (null), opted-out (false) and no card at all stay off the top rung", () => {
+  for (const resolved of [
+    resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, CARD_INHERITS),
+    resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, { trustHtml: null, forbidExternalMedia: null, interactiveHtml: false }),
+    resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, null),
+  ]) {
+    expect(allowsInteractiveCards(resolved.htmlTrust)).toBe(false);
+  }
+});
+
+test("a TRUSTED card is not thereby interactive — the rung above is its own host act", () => {
+  const trusted: RenderPolicyOverride = { trustHtml: true, forbidExternalMedia: null, interactiveHtml: null };
+  const resolved: RenderPolicy = resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, trusted);
+  expect(resolved.htmlTrust).toBe("trusted");
+  expect(allowsInteractiveCards(resolved.htmlTrust)).toBe(false);
+});
+
+test("INTERACTIVE IMPLIES TRUSTED: the contradictory stored pair cannot resolve to a fourth state", () => {
+  // Only reachable by a direct API write — the one ladder control cannot produce it. It must NOT resolve
+  // to "runs scripts but renders untrusted"; the ladder has no such rung, and the top one wins.
+  const contradictory: RenderPolicyOverride = { trustHtml: false, forbidExternalMedia: null, interactiveHtml: true };
+  const resolved = resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, contradictory);
+  expect(resolved.htmlTrust).toBe("interactive");
+  expect(rendersTrustedHtml(resolved.htmlTrust)).toBe(true);
+});
+
+test("the write direction round-trips: a step → its stored pair → the same step", () => {
+  for (const step of HTML_TRUST_STEPS) {
+    const stored = renderPolicyOverrideForStep(step);
+    expect(stepFromRenderPolicyOverride(stored)).toBe(step);
+    // …and the resolver agrees with the read-back, on either deployment tier.
+    expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, { ...stored, forbidExternalMedia: null }).htmlTrust).toBe(step);
+  }
+  // An un-overridden render step reads back as "inherit", not as a rung.
+  expect(stepFromRenderPolicyOverride({ trustHtml: null, interactiveHtml: null })).toBeNull();
+  expect(stepFromRenderPolicyOverride({ trustHtml: null, interactiveHtml: false })).toBeNull();
 });

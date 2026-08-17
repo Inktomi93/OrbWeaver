@@ -13,7 +13,7 @@
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import process from "node:process";
-import type { RenderPolicy } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
@@ -378,7 +378,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     // the settings UI, which proves what the UI displays, not what the row holds — and the two have diverged.
     // `deploymentFloor` is threaded into every render-policy answer so `trustHtml: null` ("inherit") resolves
     // to a real verdict instead of leaving the reader to guess what it inherits.
-    const deploymentFloor = (): RenderPolicy | null => {
+    const deploymentFloor = (): DeploymentRenderPolicy | null => {
       if (effectiveConfig === undefined) {
         return null;
       }

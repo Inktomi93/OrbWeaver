@@ -57,7 +57,11 @@ describe("mintCardFrame — degrade, never block", () => {
     stubFetch(() => ({
       ok: true,
       json: () =>
-        Promise.resolve({ url: "/api/card-frame/0123456789abcdef0123456789abcdef", expiresInMs: 1000, granted: { externalMedia: true, inlineData: true } }),
+        Promise.resolve({
+          url: "/api/card-frame/0123456789abcdef0123456789abcdef",
+          expiresInMs: 1000,
+          granted: { externalMedia: true, inlineData: true, interactive: false },
+        }),
     }));
     await expect(mintCardFrame("{}")).resolves.toBe("/api/card-frame/0123456789abcdef0123456789abcdef");
   });
@@ -66,7 +70,7 @@ describe("mintCardFrame — degrade, never block", () => {
     let seen: Record<string, string> | undefined;
     vi.stubGlobal("fetch", (_url: string, init: { headers: Record<string, string> }) => {
       seen = init.headers;
-      return { ok: true, json: () => Promise.resolve({ url: "/x", expiresInMs: 1, granted: { externalMedia: false, inlineData: false } }) };
+      return { ok: true, json: () => Promise.resolve({ url: "/x", expiresInMs: 1, granted: { externalMedia: false, inlineData: false, interactive: false } }) };
     });
     await mintCardFrame("{}");
     expect(seen?.[CSRF_HEADER]).toBe("1");

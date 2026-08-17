@@ -32,7 +32,7 @@ function character(characterId: CharacterId, forbidExternalMedia: boolean): Part
     handle: null,
     avatarAssetId: null,
     avatarHash: null,
-    renderPolicy: { trustHtml: false, forbidExternalMedia },
+    renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia },
   };
 }
 

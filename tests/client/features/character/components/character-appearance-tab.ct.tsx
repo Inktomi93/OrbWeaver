@@ -193,3 +193,70 @@ test("deployment ALLOWS external media → the control is live and the lock copy
   await expect(page.getByRole("combobox", { name: "External media" })).toBeEnabled();
   await expect(page.getByText(LOCK_COPY_RE)).toHaveCount(0);
 });
+
+// ── HTML rendering is ONE LADDER, not two switches (owner ruling 2026-08-16, #111) ────────────────────
+// Untrusted < Render HTML < Interactive, plus Inherit. The pin that matters is the WRITE: picking the top
+// rung must persist the render trust it implies, because "interactive but untrusted" is a state no
+// consumer should ever have to interpret. The rungs are asserted in ORDER — the control IS the ladder.
+
+const INTERACTIVE_VALUE_RE = /Interactive/u;
+const INTERACTIVE_COPY_RE = /card scripts stay switched off until the security review lands/u;
+
+/** The `character.update` input carried by the most recent write. */
+function lastUpdateInput(trpc: TrpcRecorder): Record<string, unknown> | undefined {
+  return (trpc.lastInput("character.update") as { input?: Record<string, unknown> } | undefined)?.input;
+}
+
+test("the HTML rendering control offers the ladder IN ORDER, with Inherit as the no-override option (#111)", async ({ mount, page }) => {
+  await stubExternalMediaBlocked(page, false);
+  await route(page, null);
+  await mount(<CharacterAppearanceTabStory />);
+
+  await page.getByRole("combobox", { name: "HTML rendering" }).click();
+  await expect(page.getByRole("option")).toHaveText(["Inherit default", "Untrusted", "Render HTML", "Interactive"]);
+});
+
+test("picking Interactive WRITES the render trust it implies — the incoherent pair is unwritable (#111)", async ({ mount, page }) => {
+  await stubExternalMediaBlocked(page, false);
+  const trpc = await route(page, null);
+  await mount(<CharacterAppearanceTabStory />);
+
+  await page.getByRole("combobox", { name: "HTML rendering" }).click();
+  await page.getByRole("option", { name: "Interactive", exact: true }).click();
+
+  await expect.poll(() => lastUpdateInput(trpc), { intervals: [20, 50, 100] }).toEqual({ trustHtml: true, interactiveHtml: true });
+});
+
+test("the lower rungs write the pair too — Render HTML is trusted-but-static, Untrusted is the floor", async ({ mount, page }) => {
+  await stubExternalMediaBlocked(page, false);
+  const trpc = await route(page, null);
+  await mount(<CharacterAppearanceTabStory />);
+
+  await page.getByRole("combobox", { name: "HTML rendering" }).click();
+  await page.getByRole("option", { name: "Render HTML", exact: true }).click();
+  await expect.poll(() => lastUpdateInput(trpc), { intervals: [20, 50, 100] }).toEqual({ trustHtml: true, interactiveHtml: false });
+
+  await page.getByRole("combobox", { name: "HTML rendering" }).click();
+  await page.getByRole("option", { name: "Untrusted", exact: true }).click();
+  await expect.poll(() => lastUpdateInput(trpc), { intervals: [20, 50, 100] }).toEqual({ trustHtml: false, interactiveHtml: false });
+});
+
+test("Inherit clears BOTH columns — a cleared render step must not leave an interactive opt-in behind", async ({ mount, page }) => {
+  await stubExternalMediaBlocked(page, false);
+  const card = makeCharacterDetail({ trustHtml: true, interactiveHtml: true });
+  const trpc = await routeTrpc(page, { "character.get": () => card, "character.update": () => card });
+  await mount(<CharacterAppearanceTabStory />);
+
+  // It reads back at the top rung first — the stored value is shown, never invented.
+  await expect(page.getByRole("combobox", { name: "HTML rendering" })).toHaveText(INTERACTIVE_VALUE_RE);
+  await page.getByRole("combobox", { name: "HTML rendering" }).click();
+  await page.getByRole("option", { name: "Inherit default", exact: true }).click();
+  await expect.poll(() => lastUpdateInput(trpc), { intervals: [20, 50, 100] }).toEqual({ trustHtml: null, interactiveHtml: null });
+});
+
+test("the ladder says what Interactive does NOT do yet — card scripts are still off (#111 leg 3)", async ({ mount, page }) => {
+  await stubExternalMediaBlocked(page, false);
+  await route(page, null);
+  await mount(<CharacterAppearanceTabStory />);
+  await expect(page.getByText(INTERACTIVE_COPY_RE)).toBeVisible();
+});

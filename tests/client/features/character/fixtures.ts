@@ -88,6 +88,7 @@ export interface CharacterDetailFixture {
   readonly synthetic: boolean;
   readonly forbidExternalMedia: boolean | null;
   readonly trustHtml: boolean | null;
+  readonly interactiveHtml: boolean | null;
   readonly themeOverride: Record<string, unknown> | null;
   readonly importedFrom: string | null;
   readonly importHash: string | null;
@@ -124,6 +125,7 @@ export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> =
     synthetic: false,
     forbidExternalMedia: null,
     trustHtml: null,
+    interactiveHtml: null,
     themeOverride: null,
     importedFrom: null,
     importHash: null,
