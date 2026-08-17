@@ -20,21 +20,22 @@
 // strings because its ids come from a fixture's display data, not from a mint.
 
 import { useInvalidation, useTRPC } from "@orb/client/data";
-import type { ReviewEntry, StageCell, StagePaneProps } from "@orb/client/features/refinery";
+import type { PayloadLaneProps, ReviewEntry, RewriteLaneProps } from "@orb/client/features/refinery";
 import {
   AcceptReview,
   BUILTIN_STAGE_HINTS,
   buildRenderPlan,
+  LaneRunControl,
+  PayloadLane,
   PayloadView,
   RefineryContentSurface,
   RefineryListHeader,
   RefineryListSurface,
+  RewriteLane,
   RunControlsCard,
   SchemaEditorDialog,
   ScopeEditorDialog,
   SetupTabBody,
-  StagePane,
-  StageStepper,
   TeachingState,
   useApplyRefineryFields,
   useDeleteRefinerySession,
@@ -54,7 +55,6 @@ import type { CharacterId, ModelId, RefinerySchemaId, RefinerySessionId } from "
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
-import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { Suspense, useState } from "react";
 import { CtAppDataProviders } from "../../../support/ct/ct-data-providers.tsx";
@@ -218,13 +218,13 @@ export interface PayloadViewStoryProps {
   /** A FIXED stage renders its projected contract + the built-in hint set (the blessed look IS the
    *  general renderer applied to a hinted schema). */
   readonly stage?: RefineryStage;
-  /** A CUSTOM schema renders hint-overlay-free — exactly the embedded-schema path `StagePane` runs. */
+  /** A CUSTOM schema renders hint-overlay-free — exactly the embedded-schema path `PayloadLane` runs. */
   readonly schema?: Record<string, unknown>;
   readonly payload: Record<string, unknown>;
 }
 
 /** The ONE payload renderer over either a fixed stage's projected contract or a custom schema — the
- *  same derivation `StagePane` performs, minus the run chrome. */
+ *  same derivation `PayloadLane` performs, minus the lane chrome. */
 export function PayloadViewStory({ stage, schema, payload }: PayloadViewStoryProps): ReactElement {
   const resolved = schema ?? projectJsonSchema(REFINERY_STAGE_PAYLOADS[stage ?? "score"]);
   const plan = buildRenderPlan(resolved, schema === undefined ? BUILTIN_STAGE_HINTS[stage ?? "score"] : {});
@@ -335,7 +335,7 @@ export function SetupTabBodyStory({ sessionId, characterId }: SetupTabBodyStoryP
 
 // --- The HERO COUNT-UP ramp (the money shot) ---
 
-type StagePaneRun = NonNullable<StagePaneProps["run"]>;
+type PayloadLaneRun = NonNullable<PayloadLaneProps["run"]>;
 
 const RAMP_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 /** MINTED, never hand-written (the `typeIdSchema` 26-char-suffix rule). Two distinct ids because `arrived`
@@ -345,7 +345,7 @@ const RAMP_LANDED_RUN_ID = mintTypeId(ID_PREFIX.refineryRun);
 const RAMP_FROZEN_AT = 1_750_000_000_000;
 
 /** One settled fixed SCORE run on the wire shape `listRuns` returns — the pane's whole input. */
-function scoreRun(id: StagePaneRun["id"], overallScore: number): StagePaneRun {
+function scoreRun(id: PayloadLaneRun["id"], overallScore: number): PayloadLaneRun {
   return {
     id,
     sessionId: RAMP_SESSION_ID,
@@ -373,20 +373,21 @@ export interface HeroRampStoryProps {
 }
 
 /**
- * The hero gauge's count-up driven THROUGH `StagePane`, exactly as `RefineryContentSurface` drives it —
- * because the arm this animation exists for only appears there.
+ * The hero gauge's count-up driven THROUGH `PayloadLane`, exactly as `RefineryContentSurface` drives it —
+ * because the arm this animation exists for only appears there. (It drove `StagePane` until the workbench
+ * rebuild; `PayloadLane` is the same body dispatch under the lane's own band.)
  *
  * WHY NOT `PayloadView` DIRECTLY (this story's previous shape, replaced under #47). A first run in
- * production goes `run === null && running` → `RunningPane` → the run lands → `PayloadView` MOUNTS holding
- * its final number. `PayloadView` therefore never renders `pending` with an empty payload in the app at
- * all; a story that mounted it that way was exercising a path the product does not have, and the local
- * `awaited` latch that made that story pass was itself unreachable code. The buttons below are the two
- * halves of a real mutation — "run" is the call going in flight (`runStage.isPending`), "land" is its
+ * production goes `run === null && running` → the running body → the run lands → `PayloadView` MOUNTS
+ * holding its final number. `PayloadView` therefore never renders `pending` with an empty payload in the
+ * app at all; a story that mounted it that way was exercising a path the product does not have, and the
+ * local `awaited` latch that made that story pass was itself unreachable code. The buttons below are the
+ * two halves of a real mutation — "run" is the call going in flight (`runStage.isPending`), "land" is its
  * `onSuccess` handing back a run whose id the surface records in `landedRunIds`, which is the ONLY thing
  * that says `arrived`. Re-introduce the mount-with-value skip and the first-run test goes red here.
  */
 export function HeroRampStory({ from, to }: HeroRampStoryProps): ReactElement {
-  const [run, setRun] = useState<StagePaneRun | null>(from === undefined ? null : scoreRun(RAMP_OPENED_RUN_ID, from));
+  const [run, setRun] = useState<PayloadLaneRun | null>(from === undefined ? null : scoreRun(RAMP_OPENED_RUN_ID, from));
   const [running, setRunning] = useState(false);
   // The surface's own signal: the ids ITS mutations produced. A session merely opened contributes none, so
   // the `from` run above is deliberately absent from this set.
@@ -407,82 +408,107 @@ export function HeroRampStory({ from, to }: HeroRampStoryProps): ReactElement {
       >
         land
       </button>
-      <StagePane
-        activeStage="score"
+      <PayloadLane
         arrived={run !== null && landedRunIds.has(run.id)}
-        decided={[]}
-        entries={[]}
-        onDecide={(): void => undefined}
+        behind={null}
+        onBackToLatest={(): void => undefined}
         run={run}
         running={running}
+        stage="score"
         viewingBack={false}
       />
     </div>
   );
 }
 
-// --- The stage stepper's RUNNING arm (the indeterminate hairline + its reduced-motion opt-out) ---
+// --- The LANE RUN CONTROL: the running hairline + the fit-line/verb geometry at a rail width ---
 
-export interface StageStepperStoryProps {
-  readonly cells: readonly StageCell[];
-  readonly active: RefineryStage;
-  /** Mounts the stepper inside a fixed-width `@container` frame — the stepper stacks vertically below the
-   *  container's `@lg` step, so the narrow-mount proof needs a real container to query. Absent ⇒ bare
-   *  (content-sized, no `@container` ancestor, so it stays horizontal — the running-arm stories' mount). */
-  readonly width?: number;
+export interface LaneRunControlStoryProps {
+  readonly stage: RefineryStage;
+  /** A call for THIS stage is in flight — the arm that carries the indeterminate hairline. */
+  readonly running: boolean;
+  /** Mounts the control in a fixed-width frame — a rail is 15–17rem, and a content-sized CT root agrees
+   *  with an overflow bug. `overflow: visible` so an overlap is measurable rather than clipped away. */
+  readonly width: number;
 }
 
-/** The stepper at a chosen state — the running cell carries the indeterminate hairline whose whole
- *  reduced-motion contract is that the travelling segment is REMOVED, not parked. `width` mounts it in a
- *  narrow `@container` for the P2 no-clip proof. */
-export function StageStepperStory({ cells, active, width }: StageStepperStoryProps): ReactElement {
-  if (width === undefined) {
-    return <StageStepper active={active} cells={cells} onSelect={(): void => undefined} />;
-  }
+/** One lane's run control at a rail width. The preflight slice is deliberately UNDER budget (no ⚠, no
+ *  PreflightWarn) — the fit-line + verb row is the subject; the WARN arm has its own story below. */
+export function LaneRunControlStory({ stage, running, width }: LaneRunControlStoryProps): ReactElement {
   return (
-    <div data-testid="stepper-frame" style={{ overflow: "visible", width }}>
-      <Container name="refinery-stepper-cq">
-        <StageStepper active={active} cells={cells} onSelect={(): void => undefined} />
-      </Container>
+    <div data-testid="lane-run-frame" style={{ overflow: "visible", width }}>
+      <LaneRunControl
+        busy={running}
+        contextTokens={8000}
+        hasRun={true}
+        onRun={(): void => undefined}
+        onScopeOpen={(): void => undefined}
+        running={running}
+        stage={stage}
+        stagePre={{
+          stage,
+          model: castId<ModelId>("test-model"),
+          temperature: null,
+          maxOutputTokens: 4096,
+          inputEstimate: 2736,
+          outputEstimate: 1490,
+        }}
+      />
     </div>
   );
 }
 
 const RUN_CONTROLS_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 
-/** The run bar at a fixed narrow CONTAINER width — the P1 overlap proof. `analyze` is the widest verb
- *  cluster (Hand-edit · Re-run analyze · Iterate), so if the fit-line readout ever paints through a button
- *  it does so here. The frame carries `overflow: visible` so an overlap is measurable, not clipped away.
- *  The preflight slice is deliberately UNDER budget (no ⚠, no PreflightWarn) — the fit-line + verbs row is
- *  the whole subject. Wrapped in the data providers because the guidance field's blur mutation hook is
- *  constructed at render (never fired here). */
+/** The FOOT run bar at a fixed narrow CONTAINER width — the P1-2 proof that survived the workbench
+ *  rebuild: an input and its action cluster cannot share one line's slack, so the guidance field must keep
+ *  a usable width instead of being squeezed under a min-content verb cluster. Wrapped in the data providers
+ *  because the guidance field's blur mutation hook is constructed at render (never fired here). */
 export function RunControlsCardStory({ width }: { readonly width: number }): ReactElement {
   return (
     <CtAppDataProviders>
       <div data-testid="run-controls-frame" style={{ overflow: "visible", width }}>
         <RunControlsCard
           canIterate={true}
-          contextTokens={8000}
-          effectiveStage="analyze"
           guidance={null}
-          hasRun={true}
           onIterate={(): void => undefined}
           onManualOpen={(): void => undefined}
-          onRun={(): void => undefined}
-          onScopeOpen={(): void => undefined}
           running={false}
           sessionId={RUN_CONTROLS_SESSION_ID}
-          stagePre={{
-            stage: "analyze",
-            model: castId<ModelId>("test-model"),
-            temperature: null,
-            maxOutputTokens: 4096,
-            inputEstimate: 2736,
-            outputEstimate: 1490,
-          }}
         />
       </div>
     </CtAppDataProviders>
+  );
+}
+
+// --- The REWRITE island (the ONE focal lane): the focal field, the queue, and the tally ---
+
+export interface RewriteLaneStoryProps {
+  readonly entries: readonly ReviewEntry[];
+  /** No settled rewrite run — the lane's not-run-yet arm. */
+  readonly empty?: boolean;
+}
+
+/** The rewrite island held exactly as the workbench holds it: the decision sheet lives in the caller (belt
+ *  10 — every field opens UNDECIDED and undecided fails closed), the lane owns which field is open. */
+export function RewriteLaneStory({ entries, empty = false }: RewriteLaneStoryProps): ReactElement {
+  const [decided, setDecided] = useState<readonly CompareDecision[]>(entries.map(() => null));
+  // Exactly what the lane READS off a run (`RewriteLaneProps["run"]` is the narrowed view): its round, its
+  // stage and the provenance its band prints. The reviewable entries arrive on their own prop — the surface
+  // joins the payload against the live card and the session pin before the lane ever sees it.
+  const run: NonNullable<RewriteLaneProps["run"]> = { iteration: 1, stage: "rewrite", payloadConfig: { kind: "fixed", mode: "balanced" } };
+  return (
+    <RewriteLane
+      behind={null}
+      decided={decided}
+      entries={entries}
+      onBackToLatest={(): void => undefined}
+      onDecide={(index, decision): void => setDecided((prev) => prev.map((d, i) => (i === index ? decision : d)))}
+      run={empty ? null : run}
+      runControl={null}
+      running={false}
+      viewingBack={false}
+    />
   );
 }
 

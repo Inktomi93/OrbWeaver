@@ -165,11 +165,20 @@ export const TEST_IDS = {
   /** The teaching state's three-step flow row. Scoped so a CT can assert the sequence is carried by the
    *  stage glyphs + order (owner ruling 2026-08-09: no 01/02/03 markers), not by numerals. */
   refineryTeachingSteps: "refinery-teaching-steps",
-  refineryStepper: "refinery-stepper",
-  /** One per stage cell — pair with `data-stage` to pick a cell. */
-  refineryStep: "refinery-step",
-  /** The RUNNING cell's indeterminate hairline — present iff that stage has a call in flight. */
-  refineryStepHairline: "refinery-step-hairline",
+  /** The workbench masthead block (program #102, mockup C) — card name, state chips, credit, scope strip. */
+  refineryMasthead: "refinery-masthead",
+  /** One lane's numbered band. Three per canvas; scope by the lane's own `[data-lane]`/island testid. */
+  refineryLaneBand: "refinery-lane-band",
+  /** A lane's indeterminate hairline — present iff THAT stage has a call in flight. (It replaced the stage
+   *  stepper's cell hairline when the stepper was deleted for the pipeline-parallel canvas; the
+   *  reduced-motion contract is identical — the travelling segment is REMOVED, never parked.) */
+  refineryLaneHairline: "refinery-lane-hairline",
+  /** The ONE focal island: the rewrite lane (stripe + rationed glow — CD3). */
+  refineryRewriteLane: "refinery-rewrite-lane",
+  /** One row of the accept queue — pair with `data-queue-state` (open/kept/discarded/undecided). */
+  refineryQueueRow: "refinery-queue-row",
+  /** The foot run bar (guidance · hand-edit · iterate · the terminal apply cluster). */
+  refineryRunBar: "refinery-run-bar",
   refineryPayloadView: "refinery-payload-view",
   /** The plan-shaped first-run skeleton. Mutually exclusive with `refineryPayloadView`: a CT asserting
    *  the loading arm must barrier on THIS, and one asserting the settled arm on the view. */
