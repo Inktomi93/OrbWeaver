@@ -1,30 +1,40 @@
-// The refinery CONTENT surface (R3 — the D62 anatomy: stepper · scope strip · stage pane · run bar,
-// rendered into the founding-member section). The GIT-TERMS state model rides the copy, never the words:
-// the session is a WORKSPACE (the draft state line — §20b), the anchor line teaches the pin, runs are
-// commits (the ledger walks them), per-block Keep/Discard stages hunks, apply merges, save-as-copy
-// branches off, and a live-card change is a visible conflict block (§21).
+// The refinery CONTENT surface — THE WORKBENCH (program #102, the owner-picked mockup variant C,
+// `reports/design/refinery-mockups/refinery-c-workbench.html`). Masthead · three lanes across the width
+// (score readout · the rewrite focal island · analyze verdict) · one foot run bar. The GIT-TERMS state
+// model still rides the copy, never the words: the session is a WORKSPACE (the draft state line — §20b),
+// the credit line teaches the pin, runs are commits (the ledger walks them), per-block Keep/Discard stages
+// hunks, apply merges, save-as-copy branches off, and a live-card change is a visible conflict block (§21).
 //
-// The pane never goes blank between stages (the surface mock's drawing call): each stage pane renders
-// the LATEST SETTLED payload of that stage — or the view-back run the ledger pinned — with the running
-// state carried on the stepper cell.
-//
-// THE NO-SELECTION ARM IS ITS OWN MODULE (`components/refinery-start-pane.tsx`): the landing joins a
-// different read set than the pipeline does — the roster, for the #79 resume-or-mint decision a character
-// pick resolves — and this file is at its `component-size` cap.
+// WHAT THE REBUILD REPLACED, and the finding it answers (audit #102 / issue #125): the surface rendered ONE
+// stage at a time behind a stepper, in a narrow single column whose work stopped at the top ~45% of the
+// canvas. The owner picked variant C, which is a genuine change to the STAGE MODEL and not a repaint — the
+// whole pipeline is on the canvas at once — so:
+//   • the STAGE STEPPER IS GONE. A stage switcher is meaningless when every stage is visible; what it also
+//     carried is redistributed rather than dropped — the per-stage status is the lane's own payload, the
+//     running hairline is in the lane band, the not-run-yet WHY is the lane's body, and clearing a
+//     view-back pin (previously a side effect of pressing a stage cell) is now the explicit "Back to
+//     latest" verb beside the superseded chip. Nothing the stepper did is unreachable.
+//   • `effectiveStage` is gone with it, and so is every fact that was addressed THROUGH it: the §8 fit
+//     line, the preflight WARN and the Run verb are per-STAGE, so they live in each lane's own run control.
+//     The foot bar keeps only the session-wide acts (guidance · hand-edit · iterate · the terminal apply).
+//   • the lanes tell the truth about EACH OTHER (`lib/workbench-lanes.ts`): a rewrite older than the latest
+//     score, or a verdict about a rewrite the canvas is no longer showing, says so. Three payloads side by
+//     side is a claim that they belong together, and that claim is sometimes false.
 //
 // THIS PANE OWNS ITS SCROLL (`h-full min-h-0 overflow-y-auto`) — the house requirement `databank-detail-
 // surface.tsx`'s header states verbatim: the shell's CONTENT region carries NO overflow, so a surface
-// without it "simply has its tail unreachable". It shipped without it and the tail here is the TERMINAL ACT
-// — live 2026-08-09 on a settled score+rewrite: content 3 981px in a 952px box, NO scrollable ancestor,
-// `scrollIntoView` a no-op, so Apply/Save-as-copy/run bar/Hand-edit were unreachable by mouse, key or
-// script. Invisible to every prior review: engines were adopt-only, and with no payload the pane fits.
+// without it "simply has its tail unreachable". It shipped without it once and the tail here is the
+// TERMINAL ACT (live 2026-08-09: content 3 981px in a 952px box, Apply unreachable by mouse, key or script).
+//
+// THE NO-SELECTION ARM IS ITS OWN MODULE (`components/refinery-start-pane.tsx`): the landing joins a
+// different read set than the pipeline does — the roster, for the #79 resume-or-mint decision a character
+// pick resolves.
 
 import type { RefinerySelection, RefineryStage } from "@orb/contracts/refinery";
 import { isAppendedRewrite } from "@orb/contracts/refinery";
 import type { RefinerySessionId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
-import { Container, Row, Stack } from "@orb/ui/layout";
+import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -36,23 +46,27 @@ import { setRefineryViewedRun, useRefineryArmedRewriteId, useRefineryViewedRunId
 import { ApplyOutcome } from "../components/apply-outcome.tsx";
 import type { OutcomeState } from "../components/apply-row.tsx";
 import { ApplyRow } from "../components/apply-row.tsx";
+import { LaneRunControl } from "../components/lane-run-control.tsx";
 import type { ManualTarget } from "../components/manual-rewrite-dialog.tsx";
 import { ManualRewriteDialog } from "../components/manual-rewrite-dialog.tsx";
-import { RefineryChip } from "../components/refinery-chip.tsx";
+import { PayloadLane } from "../components/payload-lane.tsx";
 import { RefineryStartPane } from "../components/refinery-start-pane.tsx";
+import { RewriteLane } from "../components/rewrite-lane.tsx";
 import { RunControlsCard } from "../components/run-controls-card.tsx";
 import { ScopeEditorDialog } from "../components/scope-editor-dialog.tsx";
-import { StagePane } from "../components/stage-pane.tsx";
-import type { StageCell } from "../components/stage-stepper.tsx";
-import { StageStepper } from "../components/stage-stepper.tsx";
+import { SessionMasthead } from "../components/session-masthead.tsx";
 import { useIterateRefinery, useRunRefineryStage, useSubmitManualRewrite, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
-import { scopeChipLabelOf } from "../lib/render-plan.ts";
 import { reviewEntriesOf } from "../lib/review-entries.ts";
-import { scorePayloadOf, statusLineOf } from "../lib/run-views.ts";
+import { scorePayloadOf } from "../lib/run-views.ts";
+import type { LaneView } from "../lib/workbench-lanes.ts";
+import { workbenchLanesOf } from "../lib/workbench-lanes.ts";
 
 type RunView = inferOutput<Trpc["refinery"]["listRuns"]>[number];
+// Re-derived locally from the wire (§7.4).
+type KeptAccept = inferInput<Trpc["refinery"]["applyFields"]>["accepts"][number];
+type StagePreflightView = NonNullable<ReturnType<typeof useRefineryPreflight>["data"]>["stages"][number];
 
 export function RefineryContentSurface(): ReactElement {
   const sessionId = useSelectedRefinerySessionId();
@@ -64,21 +78,6 @@ export function RefineryContentSurface(): ReactElement {
     </Container>
   );
 }
-
-/** The stepper's not-run-yet status states WHY (the stage-order teaching, per stage). */
-function notRunStatusOf(stage: RefineryStage, latestOf: ReadonlyMap<RefineryStage, RunView>): string {
-  if (stage === "analyze") {
-    return latestOf.get("rewrite") === undefined ? "needs a rewrite to judge" : "not run yet";
-  }
-  if (stage === "rewrite" && latestOf.get("score") === undefined) {
-    return "runs best after a score";
-  }
-  return "not run yet";
-}
-
-// Re-derived locally from the wire (§7.4).
-type KeptAccept = inferInput<Trpc["refinery"]["applyFields"]>["accepts"][number];
-type StagePreflightView = NonNullable<ReturnType<typeof useRefineryPreflight>["data"]>["stages"][number];
 
 function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): ReactElement {
   const trpc = useTRPC();
@@ -95,28 +94,23 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
   const manual = useSubmitManualRewrite(deps);
   const updateSession = useUpdateRefinerySession(deps);
 
-  const [activeStage, setActiveStage] = useState<RefineryStage>("score");
   const [scopeOpen, setScopeOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [outcome, setOutcome] = useState<OutcomeState | null>(null);
   // The run ids THIS view produced — the hero gauge's arrival signal (`useCountUp`'s `arrived`). Ids, not a
-  // boolean: the pane can show an OLDER run (view-back, a stage switch) while a newer one landed.
+  // boolean: a lane can show an OLDER run (view-back) while a newer one landed.
   const [landedRunIds, setLandedRunIds] = useState<ReadonlySet<string>>(() => new Set());
   const noteLanded = (...ids: readonly string[]): void => setLandedRunIds((prev) => new Set([...prev, ...ids]));
   const viewedRunId = useRefineryViewedRunId();
   const armedRewriteId = useRefineryArmedRewriteId();
 
   const allRuns: readonly RunView[] = runs.data ?? [];
-  const latestOf = new Map<RefineryStage, RunView>();
-  for (const run of allRuns) {
-    latestOf.set(run.stage, run); // oldest-first wire — the last write per stage wins.
-  }
-  const { viewedRun, armedRewrite, effectiveStage, paneRun, rewriteRun, rewriteRunId } = runSelectionOf(allRuns, latestOf, {
-    viewedRunId,
-    armedRewriteId,
-    activeStage,
-  });
-  const { sheet, decide } = useRewriteDecisions(rewriteRunId);
+  const lanes = workbenchLanesOf(
+    allRuns,
+    { viewedRunId, armedRewriteId },
+    { pendingStage: runStage.pendingVariables?.stage ?? null, iterating: iterate.isPending },
+  );
+  const { sheet, decide } = useRewriteDecisions(lanes.rewriteRunId);
 
   if (session.data === undefined || character.data === undefined) {
     return (
@@ -129,114 +123,144 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
   const card = character.data;
   const running = runStage.isPending || iterate.isPending;
 
-  const cells = stageCellsOf(latestOf, runStage, iterate.isPending);
-  const paneRunning = paneRunningOf({ running, iterating: iterate.isPending, pendingStage: runStage.pendingVariables?.stage, effectiveStage });
-
-  const rewriteEntries = rewriteEntriesFor(rewriteRun, card, view);
+  const rewriteEntries = rewriteEntriesFor(lanes.rewriteRun, card, view);
   const decided = sheet ?? Array.from({ length: rewriteEntries.length }, (): CompareDecision => null);
   const keptAccepts = keptAcceptsOf(rewriteEntries, decided);
-
-  const { stagePre, contextTokens } = preflightSliceOf(preflight.data, effectiveStage);
   const manualTargets = manualTargetsOf(view.selection, card);
+  const backToLatest = (): void => setRefineryViewedRun(null);
+
+  const runControlFor = (lane: LaneView): ReactElement => (
+    <LaneRunControl
+      busy={running}
+      contextTokens={preflight.data?.contextTokens ?? null}
+      hasRun={lane.run !== null}
+      onRun={(): void => runStage.mutate({ sessionId, stage: lane.stage }, { onSuccess: (run): void => noteLanded(run.id) })}
+      onScopeOpen={(): void => setScopeOpen(true)}
+      running={lane.running}
+      stage={lane.stage}
+      stagePre={preflightSliceOf(preflight.data, lane.stage)}
+    />
+  );
 
   return (
-    <Stack data-testid={testId("refineryContent")} gap="row" padding="block">
-      <SessionHeaderRow
-        applied={outcome !== null && outcome.applied.length > 0}
-        cardName={card.name}
-        onEditScope={(): void => setScopeOpen(true)}
-        status={view.status}
-      />
-
-      <StageStepper
-        active={effectiveStage}
-        cells={cells}
-        onSelect={(stage): void => {
-          setActiveStage(stage);
-          setRefineryViewedRun(null);
-        }}
-      />
-
-      {/* WRAPS (side-eye 2026-08-09 P2). A non-wrapping `Row` clipped the tail chips off the pane at the
-          3-pane / mobile container width — CREATOR NOTES / EXAMPLE MESSAGES were painted past the edge and
-          invisible. `flex-wrap` lets the strip reflow onto a second line (the teaching-steps precedent);
-          `gap="field"` supplies the between-line gap too. */}
-      <Row align="center" className="flex-wrap" gap="field">
-        <Text voice="kicker">Scope</Text>
-        {view.selection.fields.map((field) => (
-          <RefineryChip key={field} tone="info">
-            {scopeChipLabelOf(field, view.selection.greetingIndexes)}
-          </RefineryChip>
-        ))}
-      </Row>
-
-      {outcome !== null ? (
-        <ApplyOutcome
-          applied={outcome.applied}
-          copyName={outcome.copyName}
-          dropped={outcome.dropped}
-          onDone={(): void => setOutcome(null)}
-          onEditScope={(): void => {
-            setOutcome(null);
-            setScopeOpen(true);
-          }}
-          onRerunRewrite={(): void => {
-            setOutcome(null);
-            runStage.mutate({ sessionId, stage: "rewrite" }, { onSuccess: (run): void => noteLanded(run.id) });
-          }}
-          snapshotLabel={outcome.snapshotLabel}
+    // INSTRUMENT tier (density-pass-spec.md §3.1): the workbench is a cockpit you scan — three payloads per
+    // glance — so its islands resolve the dense steps and its rails are kickers + hairlines, not boxes.
+    <Surface tier="instrument">
+      <Stack className="px-gutter pt-block pb-gutter" data-testid={testId("refineryContent")} gap="block">
+        <SessionMasthead
+          anchoredAt={view.createdAt}
+          applied={outcome !== null && outcome.applied.length > 0}
+          cardName={card.name}
+          model={lanes.rewrite.run?.model ?? lanes.score.run?.model ?? null}
+          onEditScope={(): void => setScopeOpen(true)}
+          round={view.iterationCount}
+          selection={view.selection}
+          status={view.status}
         />
-      ) : (
-        <StagePane
-          activeStage={effectiveStage}
-          arrived={paneRun !== null && landedRunIds.has(paneRun.id)}
-          decided={decided}
-          entries={rewriteEntries}
-          onDecide={(index, decision): void => decide(index, decision, rewriteEntries.length)}
-          run={effectiveStage === "rewrite" ? rewriteRun : paneRun}
-          running={paneRunning}
-          viewingBack={viewedRun !== null}
+
+        {outcome === null ? (
+          // THE THREE LANES ACROSS THE WIDTH. Fixed rails either side of a fluid focal, and a container
+          // query — never a viewport breakpoint — decides when the canvas can hold them: the shell's docked
+          // LIST and CONTEXT panels narrow this pane independently of the window. Below `@5xl` the lanes
+          // stack, which keeps every lane's full width at the phone/3-pane mount instead of crushing the
+          // diff into a column no prose fits in. (Refinery's own `panelDefaults` collapse both panels — the
+          // D62 content-first hub — so the three-lane arm is the default, not the lucky case.)
+          <Row align="start" className="@max-5xl:flex-col @max-5xl:items-stretch" gap="block">
+            <Stack className="w-full shrink-0 @5xl:w-60" gap="row">
+              <PayloadLane
+                arrived={lanes.score.run !== null && landedRunIds.has(lanes.score.run.id)}
+                behind={lanes.score.behind}
+                onBackToLatest={backToLatest}
+                run={lanes.score.run}
+                runControl={runControlFor(lanes.score)}
+                running={lanes.score.running}
+                stage="score"
+                viewingBack={lanes.score.viewingBack}
+              />
+            </Stack>
+            <Stack className="min-w-0 flex-1" gap="row">
+              <RewriteLane
+                behind={lanes.rewrite.behind}
+                decided={decided}
+                entries={rewriteEntries}
+                onBackToLatest={backToLatest}
+                onDecide={(index, decision): void => decide(index, decision, rewriteEntries.length)}
+                run={lanes.rewriteRun}
+                runControl={runControlFor(lanes.rewrite)}
+                running={lanes.rewrite.running}
+                viewingBack={lanes.rewrite.viewingBack}
+              />
+            </Stack>
+            <Stack className="w-full shrink-0 @5xl:w-68" gap="row">
+              <PayloadLane
+                arrived={lanes.analyze.run !== null && landedRunIds.has(lanes.analyze.run.id)}
+                behind={lanes.analyze.behind}
+                onBackToLatest={backToLatest}
+                run={lanes.analyze.run}
+                runControl={runControlFor(lanes.analyze)}
+                running={lanes.analyze.running}
+                stage="analyze"
+                viewingBack={lanes.analyze.viewingBack}
+              />
+            </Stack>
+          </Row>
+        ) : (
+          <ApplyOutcome
+            applied={outcome.applied}
+            copyName={outcome.copyName}
+            dropped={outcome.dropped}
+            onDone={(): void => setOutcome(null)}
+            onEditScope={(): void => {
+              setOutcome(null);
+              setScopeOpen(true);
+            }}
+            onRerunRewrite={(): void => {
+              setOutcome(null);
+              runStage.mutate({ sessionId, stage: "rewrite" }, { onSuccess: (run): void => noteLanded(run.id) });
+            }}
+            snapshotLabel={outcome.snapshotLabel}
+          />
+        )}
+
+        <RunControlsCard
+          apply={
+            lanes.rewriteRun === null ? null : (
+              <ApplyRow
+                armedRewrite={lanes.armedRewrite}
+                armedRewriteId={armedRewriteId}
+                keptAccepts={keptAccepts}
+                onOutcome={setOutcome}
+                sessionId={sessionId}
+              />
+            )
+          }
+          canIterate={lanes.analyze.run !== null}
+          guidance={view.guidance}
+          onIterate={(): void => iterate.mutate({ sessionId }, { onSuccess: (round): void => noteLanded(round.rewrite.id, round.analyze.id) })}
+          onManualOpen={(): void => setManualOpen(true)}
+          running={running}
+          sessionId={sessionId}
         />
-      )}
 
-      <RunControlsCard
-        canIterate={latestOf.get("analyze") !== undefined}
-        contextTokens={contextTokens}
-        effectiveStage={effectiveStage}
-        guidance={view.guidance}
-        hasRun={latestOf.get(effectiveStage) !== undefined}
-        onIterate={(): void => iterate.mutate({ sessionId }, { onSuccess: (round): void => noteLanded(round.rewrite.id, round.analyze.id) })}
-        onManualOpen={(): void => setManualOpen(true)}
-        onRun={(): void => runStage.mutate({ sessionId, stage: effectiveStage }, { onSuccess: (run): void => noteLanded(run.id) })}
-        onScopeOpen={(): void => setScopeOpen(true)}
-        running={running}
-        sessionId={sessionId}
-        stagePre={stagePre}
-      />
-
-      {effectiveStage === "rewrite" && rewriteRun !== null ? (
-        <ApplyRow armedRewrite={armedRewrite} armedRewriteId={armedRewriteId} keptAccepts={keptAccepts} onOutcome={setOutcome} sessionId={sessionId} />
-      ) : null}
-
-      <ScopeEditorDialog
-        card={card}
-        onOpenChange={setScopeOpen}
-        onSave={(selection): void => updateSession.mutate({ sessionId, patch: { selection } })}
-        open={scopeOpen}
-        score={scorePayloadOf(latestOf.get("score")) ?? null}
-        selection={view.selection}
-      />
-      <ManualRewriteDialog
-        onOpenChange={setManualOpen}
-        onSubmit={(fields): void => {
-          manual.mutate({ sessionId, fields: [...fields] }, { onSuccess: (): void => setManualOpen(false) });
-          setActiveStage("rewrite");
-        }}
-        open={manualOpen}
-        saving={manual.isPending}
-        targets={manualTargets}
-      />
-    </Stack>
+        <ScopeEditorDialog
+          card={card}
+          onOpenChange={setScopeOpen}
+          onSave={(selection): void => updateSession.mutate({ sessionId, patch: { selection } })}
+          open={scopeOpen}
+          score={scorePayloadOf(lanes.score.run ?? undefined) ?? null}
+          selection={view.selection}
+        />
+        <ManualRewriteDialog
+          onOpenChange={setManualOpen}
+          onSubmit={(fields): void => {
+            manual.mutate({ sessionId, fields: [...fields] }, { onSuccess: (): void => setManualOpen(false) });
+          }}
+          open={manualOpen}
+          saving={manual.isPending}
+          targets={manualTargets}
+        />
+      </Stack>
+    </Surface>
   );
 }
 
@@ -273,90 +297,9 @@ function rewriteEntriesFor(
   return reviewEntriesOf((rewriteRun.payload as { fields: never[] }).fields, card, view.originalCard, view.selection);
 }
 
-/** The stepper cells: per-stage settled status (or the not-run WHY) + the running shimmer. */
-function stageCellsOf(
-  latestOf: ReadonlyMap<RefineryStage, RunView>,
-  runStage: { isPending: boolean; pendingVariables?: { stage?: RefineryStage } | undefined },
-  iterating: boolean,
-): StageCell[] {
-  const pendingStage = runStage.isPending ? (runStage.pendingVariables?.stage ?? null) : null;
-  return (["score", "rewrite", "analyze"] as const).map((stage) => {
-    const latest = latestOf.get(stage);
-    const status = latest === undefined ? notRunStatusOf(stage, latestOf) : statusLineOf(latest);
-    return { stage, status, done: latest !== undefined, running: pendingStage === stage || (iterating && stage !== "score") };
-  });
-}
-
-/** Is a call in flight FOR THE STAGE THE PANE IS SHOWING? `running` alone is true for any stage's call,
- *  so dimming on it would shimmer the score pane while a rewrite runs — the same "the status lies" defect
- *  the pending arm exists to fix, one pane over (side-eye 2026-08-09 P1-10). An `iterate` turn drives
- *  whichever stage is effective, since that is the pane it will land in. */
-function paneRunningOf(args: { running: boolean; iterating: boolean; pendingStage: RefineryStage | undefined; effectiveStage: RefineryStage }): boolean {
-  if (!args.running) {
-    return false;
-  }
-  return (args.pendingStage ?? (args.iterating ? args.effectiveStage : null)) === args.effectiveStage;
-}
-
-/** The preflight slice the pane reads for the effective stage. */
-function preflightSliceOf(
-  data: ReturnType<typeof useRefineryPreflight>["data"],
-  effectiveStage: RefineryStage,
-): { stagePre: StagePreflightView | undefined; contextTokens: number | null } {
-  return { stagePre: data?.stages.find((s) => s.stage === effectiveStage), contextTokens: data?.contextTokens ?? null };
-}
-
-/** The session header row: the card name, the roster status, and §20b's workspace state line — the ONE
- *  place draft flips to written. */
-function SessionHeaderRow({
-  cardName,
-  status,
-  applied,
-  onEditScope,
-}: {
-  cardName: string;
-  status: string;
-  applied: boolean;
-  onEditScope: () => void;
-}): ReactElement {
-  return (
-    <Row align="center" gap="row">
-      <Stack className="min-w-0 flex-1" gap="tight">
-        <Row align="center" gap="field">
-          <Text voice="label">{cardName}</Text>
-          <RefineryChip tone={status === "active" ? "info" : "neutral"}>{status}</RefineryChip>
-          <RefineryChip tone="neutral">{applied ? "applied · snapshot taken" : "draft — the live card is untouched"}</RefineryChip>
-        </Row>
-        <Text voice="gloss">Anchored to the card as it was when this session started — every analyze compares against that pin.</Text>
-      </Stack>
-      <Button intent="secondary" onClick={onEditScope} size="sm">
-        Edit scope
-      </Button>
-    </Row>
-  );
-}
-
-/** Which runs the pane is standing on: the view-back pin (the CONTEXT ledger's walker), the armed
- *  rewrite (operate-back), the effective stage, and the rewrite the accept review targets. */
-function runSelectionOf(
-  allRuns: readonly RunView[],
-  latestOf: ReadonlyMap<RefineryStage, RunView>,
-  pins: { viewedRunId: string | null; armedRewriteId: string | null; activeStage: RefineryStage },
-): {
-  viewedRun: RunView | null;
-  armedRewrite: RunView | null;
-  effectiveStage: RefineryStage;
-  paneRun: RunView | null;
-  rewriteRun: RunView | null;
-  rewriteRunId: string | null;
-} {
-  const viewedRun = pins.viewedRunId === null ? null : (allRuns.find((r) => r.id === pins.viewedRunId) ?? null);
-  const armedRewrite = pins.armedRewriteId === null ? null : (allRuns.find((r) => r.id === pins.armedRewriteId && r.stage === "rewrite") ?? null);
-  // A view-back pin from the CONTEXT ledger overrides the active stage (the walker loads WHERE you are).
-  const effectiveStage = viewedRun?.stage ?? pins.activeStage;
-  const paneRun = viewedRun ?? latestOf.get(effectiveStage) ?? null;
-  const rewriteRun = armedRewrite ?? (paneRun !== null && paneRun.stage === "rewrite" ? paneRun : (latestOf.get("rewrite") ?? null));
-  return { viewedRun, armedRewrite, effectiveStage, paneRun, rewriteRun, rewriteRunId: rewriteRun === null ? null : rewriteRun.id };
+/** The preflight slice one lane reads. */
+function preflightSliceOf(data: ReturnType<typeof useRefineryPreflight>["data"], stage: RefineryStage): StagePreflightView | undefined {
+  return data?.stages.find((s) => s.stage === stage);
 }
 
 /** The kept accepts the terminal verbs send: each Keep press's target, with `confirmDiverged` riding

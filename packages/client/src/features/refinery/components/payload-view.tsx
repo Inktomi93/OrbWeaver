@@ -31,16 +31,16 @@ export interface PayloadViewProps {
   readonly pending?: boolean;
   /** This payload LANDED from a mutation the surface itself just made — the hero gauge's ONE arrival
    *  signal (`useCountUp`'s `arrived`). The surface tracks the run ids its own mutations produced and
-   *  `StagePane` threads the verdict down: a run the user just watched land animates, a session merely
+   *  `PayloadLane` threads the verdict down: a run the user just watched land animates, a session merely
    *  opened does not.
    *
    *  WHY IT IS THE ONLY SIGNAL (live e2e 2026-08-09, then #47). This view briefly also carried a local
    *  `awaited` latch — "did I show my own skeleton before this payload landed?" — as a second arrival
    *  signal, and on the RUN PANE, the one path the animation exists for, that latch could never fire:
-   *  `StagePane` renders `RunningPane` (a different component) while the run is null, and a settled run
+   *  `PayloadLane` renders its running body (a different subtree) while the run is null, and a settled run
    *  carries a non-empty payload, so this view mounts already settled every time. It kept the money-shot
    *  CT green by serving a mount shape the run pane does not produce — the lying-instrument shape — so
-   *  the latch is gone and the story drives `StagePane` on the real arm instead.
+   *  the latch is gone and the story drives `PayloadLane` on the real arm instead.
    *
    *  The pending arms below are NOT dead with it: `SchemaEditorDialog`'s test preview mounts this view
    *  with `pending` and an empty payload while a forge run is in flight, which is the plan-skeleton's live

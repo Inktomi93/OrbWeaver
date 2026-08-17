@@ -162,7 +162,7 @@ test("a CUSTOM schema the build has never seen renders designed widgets — the 
 // proven by the frames the numeral actually painted, collected by a MutationObserver, so nothing here
 // races a 360ms animation.
 //
-// THEY DRIVE `StagePane`, NOT `PayloadView` (#47). The original trio mounted `PayloadView` directly with
+// THEY DRIVE `PayloadLane`, NOT `PayloadView` (#47). The original trio mounted `PayloadView` directly with
 // `pending` and no payload — a state the RUN PANE never produces, because the first-run wait is rendered
 // by `RunningPane`, a DIFFERENT component, so `PayloadView` always mounts there holding its final number.
 // (That mount shape does exist elsewhere — the schema editor's test preview — which is exactly why the

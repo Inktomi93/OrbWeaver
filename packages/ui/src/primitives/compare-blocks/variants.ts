@@ -1,13 +1,35 @@
 import { tv } from "#lib";
 
 /**
- * The compare-blocks skin (work order item 8 + the R3 review widening): before/after pairs get the FULL
- * intent-token pair (bg + fg together, never a bare opacity calc over a raw color) — the same solid-pair
- * convention the `diff` seal uses for added/removed segments. Tint alone is never the only signal:
- * `compare-blocks.tsx` also renders a glyph + visually-hidden text per side, and the REVIEW variant's
- * tri-state is carried by WORDS (the header chip + the verb labels) with the discarded body's dashed
- * border + dim as the third redundant channel — never strikethrough, which is the diff's own vocabulary
- * (the accept-ergonomics mock's owner-caught collision).
+ * The compare-blocks skin (work order item 8 + the R3 review widening). Tint alone is never the only
+ * signal: `compare-blocks.tsx` also renders a glyph + visually-hidden text per side, and the REVIEW
+ * variant's tri-state is carried by WORDS (the header chip + the verb labels) with the discarded body's
+ * dashed border + dim as the third redundant channel — never strikethrough, which is the diff's own
+ * vocabulary (the accept-ergonomics mock's owner-caught collision).
+ *
+ * ── THE SIDE PAIR IS A TINT, NOT A SOLID FILL (2026-08-17, program #102 · owner-picked refinery mockup C) ──
+ * THE FORK, STATED. This header used to rule the opposite: "before/after pairs get the FULL intent-token
+ * pair (bg + fg together, never a bare opacity calc over a raw color) — the same solid-pair convention the
+ * `diff` seal uses for added/removed segments." That ruling loses to a later one, and the two halves come
+ * apart cleanly:
+ *   • WHAT CHANGED (the new symptom): a saturated `bg-destructive` / `bg-success` pane is ACCENT FILL, and
+ *     the density chrome diet CD3 rations accent fill to exactly ONE focal element per surface. Measured on
+ *     the rebuilt refinery workbench, the two panes sat INSIDE the surface's one focal island and read
+ *     louder than the island's own rationed stripe+glow — the loudest thing on the canvas was a diff
+ *     backdrop. The owner-approved mockup draws this diff as plain prose columns under ORIGINAL/REWRITE
+ *     kickers with no fill at all, and ruled the solid pair a register break.
+ *   • WHAT SURVIVES (the old mechanism, intact): "never a bare opacity calc over a RAW COLOR" is still law
+ *     here, and is still obeyed — `bg-destructive/10` is an opacity modifier over the intent TOKEN, which
+ *     is what the token gates exist to require; there is no raw color and no hand-mixed literal anywhere
+ *     below. The register is the one already shipped one file over for exactly this job
+ *     (`features/refinery/components/payload-view.tsx`'s verdict-banner tones): `border-<intent>/40` +
+ *     `bg-<intent>/10` + readable `text-foreground`, which is also what the `state` arm already used.
+ *   • WHAT IS NOW DIVERGENT, deliberately and reported rather than silently: the `diff` seal
+ *     (`ui/src/diff/variants.ts` — `added: "bg-success text-success-foreground"`) still paints solid, so
+ *     the cross-reference above no longer holds. A word-level ins/del MARK inside a sentence is a
+ *     different object from a whole-pane backdrop (it is inline, it is small, and its saturation is what
+ *     makes it findable in running prose), so this change deliberately does NOT reach it — but the two
+ *     seals no longer share one convention, and that is a decision someone should ratify, not discover.
  */
 export const compareBlocksVariants = tv({
   slots: {
@@ -33,8 +55,8 @@ export const compareBlocksVariants = tv({
   },
   variants: {
     side: {
-      before: { panel: "bg-destructive text-destructive-foreground" },
-      after: { panel: "bg-success text-success-foreground" },
+      before: { panel: "border border-destructive/40 bg-destructive/10 text-foreground" },
+      after: { panel: "border border-success/40 bg-success/10 text-foreground" },
       /** The absent-side STATE panel (Added / Cleared) — a designed state word, never an empty tinted pane. */
       state: { panel: "border border-border bg-muted text-foreground" },
     },
