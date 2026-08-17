@@ -10,6 +10,10 @@ const ROOT_PX = 16;
 
 const MEMBERS = [{ name: "Nate Ward" }, { name: "Robin Song" }, { name: "Ash Vale" }, { name: "Quinn Rye" }, { name: "Devon Lark" }, { name: "Sam Post" }];
 
+/** A 1x1 transparent GIF — a seat WITH an image, so the `<img>` half of the a11y tree actually renders
+ *  (Base UI's Avatar mounts the image only when `src` is set, and swaps to the fallback on load error). */
+const PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
 test("under max renders every avatar and no overflow chip", async ({ mount }) => {
   const component = await mount(<AvatarStack items={MEMBERS.slice(0, 3)} max={5} />);
   await expect(component.locator('[data-slot="avatar-stack-item"]')).toHaveCount(3);
@@ -48,6 +52,66 @@ test("each avatar keeps its own name as its accessible name", async ({ mount }) 
 test("falls back to initials when no image src is given", async ({ mount }) => {
   const component = await mount(<AvatarStack items={[{ name: "Nate Ward" }]} />);
   await expect(component.locator('[data-slot="avatar-stack-item"]')).toHaveText("NW");
+});
+
+// ── RED-FIRST (#102 review F5): a seat is named ONCE ────────────────────────────────────────────────
+// The seat carried its name on the Avatar ROOT (`role="img"` + `aria-label`) AND on the <img> inside it,
+// so a three-seat stack inside a named button announced the same person at four nesting levels — measured
+// on home's hero, where the room name read out five times.
+test("a seat's IMAGE is decorative — the name lives on the seat root, exactly once", async ({ mount }) => {
+  const component = await mount(<AvatarStack items={[{ name: "Nate Ward", src: PIXEL }]} />);
+  const seat = component.locator('[data-slot="avatar-stack-item"]');
+
+  await expect(seat).toHaveAccessibleName("Nate Ward");
+  // The inner image contributes NOTHING to the tree: empty alt, and therefore no nested img role.
+  await expect(seat.locator("img")).toHaveAttribute("alt", "");
+  await expect(seat.getByRole("img")).toHaveCount(0);
+});
+
+test("emptying the image alt does NOT collapse the fallback hue — the seed is the name", async ({ mount }) => {
+  // `Avatar` defaults `hueSeed` to `alt`, so the F5 fix would have painted every portrait-less seat the
+  // same colour if the stack had not passed the name explicitly.
+  const component = await mount(<AvatarStack items={[{ name: "Nate Ward" }, { name: "Robin Song" }]} />);
+  const hues = await component.locator('[data-slot="avatar-fallback"]').evaluateAll((els) => els.map((el) => el.getAttribute("data-hue")));
+
+  expect(hues).toHaveLength(2);
+  expect(hues[0]).not.toBe(hues[1]);
+});
+
+test("shape passes through — the RULED portrait arm, against the circular default", async ({ mount }) => {
+  // Circles are roster vocabulary and stay the default; `rounded` is the opt-in for a stack that is ART
+  // (home's hearth hero, ruled 2026-08-16 on the #102 review). ONE mount holds both arms — playwright-ct
+  // allows a single React root per test, so an A/B is two stacks in one tree, never two `mount` calls.
+  const both = await mount(
+    <div>
+      <div data-testid="round">
+        <AvatarStack items={MEMBERS.slice(0, 1)} />
+      </div>
+      <div data-testid="portrait">
+        <AvatarStack items={MEMBERS.slice(0, 1)} shape="rounded" />
+      </div>
+    </div>,
+  );
+  const roundRadius = await both
+    .getByTestId("round")
+    .locator('[data-slot="avatar-stack-item"]')
+    .evaluate((el) => globalThis.getComputedStyle(el).borderTopLeftRadius);
+
+  const item = both.getByTestId("portrait").locator('[data-slot="avatar-stack-item"]');
+  const shape = await item.evaluate((el) => {
+    const probe = el.ownerDocument.createElement("span");
+    probe.style.borderRadius = "var(--radius-base)";
+    el.ownerDocument.body.append(probe);
+    const portraitStep = globalThis.getComputedStyle(probe).borderTopLeftRadius;
+    probe.remove();
+    const own = globalThis.getComputedStyle(el);
+    return { own: own.borderTopLeftRadius, portraitStep, width: own.width };
+  });
+
+  expect(shape.own).toBe(shape.portraitStep);
+  expect(shape.own).not.toBe(roundRadius);
+  // …and it is a real rounded RECT, not a capsule wearing a token name.
+  expect(Number.parseFloat(shape.own)).toBeLessThan(Number.parseFloat(shape.width) / 2);
 });
 
 test("size passes through to every avatar, matching avatar's own size scale", async ({ mount }) => {

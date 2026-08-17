@@ -18,6 +18,17 @@ export interface SectionProps extends ComponentProps<"section"> {
   /** Short explainer surfaced as an info-icon hover tooltip beside the heading (the Field `hint` idiom,
    *  no vertical-space cost) — for the insider terms a section's rows can't self-explain. */
   hint?: ReactNode;
+  /**
+   * The `kicker` heading's RANK. @defaultValue 3
+   *
+   * h3 is right for the common case and stated below: a Section is normally a SUB-grouping of a surface
+   * that already spent an h2 (a dialog title, a settings pane). It is WRONG where the Section IS a
+   * top-level block of the page — home's "Not yet" band sits beside six h2 blocks and rendered h3, so the
+   * outline stepped down a level for two of its seven peer blocks and they announced as children of
+   * nothing (side-eye 2026-08-16 F6). The skin does not move: `kicker` is one voice at one step, any rank.
+   * Only the `kicker` arm honours this — the `heading` arm's h3 is the settings-pane contract.
+   */
+  level?: 2 | 3;
 }
 
 /**
@@ -25,7 +36,7 @@ export interface SectionProps extends ComponentProps<"section"> {
  *
  * Usage: `<Section heading="Sampling">…fields…</Section>` · `<Section heading="Effects" divider>…`.
  */
-export function Section({ className, heading, kicker, divider = false, hint, children, ...props }: SectionProps): ReactElement {
+export function Section({ className, heading, kicker, divider = false, hint, level = 3, children, ...props }: SectionProps): ReactElement {
   const slots = sectionVariants({ divider });
   const hasHint = hint !== undefined && hint !== null;
   // h3, not h2: a Section is always a SUB-heading of its hosting surface (a dialog's Title and a drawer's
@@ -39,7 +50,7 @@ export function Section({ className, heading, kicker, divider = false, hint, chi
     // rpg `Kicker` precedent, now homed in the primitive so every surface's band is one anatomy.
     headingBlock = (
       <div className={slots.kickerRow()}>
-        <Heading level={3} voice="kicker">
+        <Heading level={level} voice="kicker">
           {kicker}
         </Heading>
         <Separator className="flex-1" />

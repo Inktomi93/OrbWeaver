@@ -16,6 +16,7 @@ import {
   ChatRoomSurface,
   CommandPaletteSurface,
   Composer,
+  chatAlsoOpenTile,
   chatQuickPicksTile,
   chatRecentsTile,
   chatSlashCommands,
@@ -1214,6 +1215,23 @@ function NewChatIntentProbe(): ReactElement {
 
 export function ChatRecentsTileStory(): ReactElement {
   return <HomeTileStory tile={chatRecentsTile} />;
+}
+
+/** The two hearth blocks TOGETHER — the shipped pair (#102 review F6/F13 split the also-open list out of
+ *  the recents body into its own tile). Mounted as one registry so the CT can assert what the split is
+ *  FOR: two peer regions, two h2s, and the trailing "All chats →" on the second band. */
+export function ChatRecentsPairStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ActiveSectionProbe />
+      <div style={{ height: 640, width: 720 }}>
+        <HomeSurface
+          onNewChat={(): void => undefined}
+          tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile, chatAlsoOpenTile])}
+        />
+      </div>
+    </CtDataProviders>
+  );
 }
 
 export function ChatQuickPicksTileStory(): ReactElement {

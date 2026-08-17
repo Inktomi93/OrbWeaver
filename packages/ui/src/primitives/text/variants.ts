@@ -83,6 +83,18 @@ export const textVariants = tv({
       // prose — a sentence in tabular mono reads as a serial. So this is `hero`'s prose twin: same step,
       // sans, the tracking a display line needs, and no tabular figures. ONE per surface, like `hero`.
       masthead: "font-sans text-display leading-display tracking-tight font-semibold text-foreground",
+      // THE ATTRIBUTION LINE UNDER A FOCAL ITEM (added 2026-08-16, program #102 review): who is in this
+      // thing and how long ago — a film credit, not prose and not a datum you compare. The mock draws it
+      // mono + UPPERCASE + tracked + muted (`home-c-hearth.html .fire .foot .meta`), and a feature has no
+      // route to that register: `transform` is one of the four @orb/ui-internal axes the density A3 arm
+      // reds at any feature call site, so the choice was a voice or a gate exemption.
+      //
+      // IT RIDES THE `label` STEP, NOT `micro`, AND THAT IS THE POINT. The mock sets it at 10.5px, which is
+      // correct for a static footnote and wrong here: this line sits INSIDE the hero's own button, so it is
+      // interactive text, and 10.5px interactive text was the review's #15 (seven nodes under the readable
+      // floor). Caps + tracking + mono carry the register; the step carries the legibility. Muted because a
+      // credit stands behind the title it credits.
+      credit: "font-mono text-label leading-label tracking-micro font-medium uppercase text-muted-foreground",
       // THE ONE ITEM PROMOTED ABOVE ITS SIBLINGS (added 2026-08-16, program #102). The headline step —
       // between the masthead and the `title` its siblings run at — for the single entry a surface has
       // decided you came for: home's resume-room hero. It is the type half of the CD3 focal (the other

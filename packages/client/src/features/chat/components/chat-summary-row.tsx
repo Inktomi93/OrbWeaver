@@ -52,6 +52,10 @@ interface ChatSummaryRowProps {
   readonly actionName?: string;
   /** Row root className (the chats-list `group` hover-reveal root). */
   readonly className?: string;
+  /** Forwarded to `ListRow` — `"promoted"` takes the room name to the ramp's `title` step, for the ONE
+   *  list where the rooms are a surface's content rather than a directory of it (home's also-open block).
+   *  Every dense pane leaves it at the tier default. @defaultValue "default" */
+  readonly titleStep?: "default" | "promoted";
 }
 
 /** The number of leading slots a multi-seat room spends: 3 real faces + the "+N" chip (D3/§3.6). */
@@ -144,6 +148,7 @@ export function ChatSummaryRow({
   onToggleStar,
   actionName,
   className,
+  titleStep = "default",
 }: ChatSummaryRowProps): ReactElement {
   const { title, subtitle, when } = chatSummaryRowView(chat);
   const rowName = actionName ?? chatRowActionName(title, timeLib.formatRelativeCompact(when));
@@ -200,6 +205,7 @@ export function ChatSummaryRow({
       selected={selected}
       subtitle={subtitle}
       title={title}
+      titleStep={titleStep}
       // An archived chat recedes so the live rows read first — the "Archived" badge above is the datum,
       // this is only its reinforcement.
       className={cn(className, chat.archived && "opacity-60") ?? ""}

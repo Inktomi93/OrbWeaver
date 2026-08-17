@@ -138,6 +138,37 @@ test("an EMPTY bank teaches the first step, opens the CEREMONY, and drops the li
   await expect(probe).toContainText("modal=addDocument");
 });
 
+// ── RED-FIRST (#102 review F2/F8): the empty rail slot is a RAIL block, not a centred island ────────
+// `EmptyState` is right for a CONTENT pane and was a register break here: 442x239px, centred, the only
+// centred thing on a page whose every other block is flush-left, 20% of the page height for the one block
+// with nothing in it, and its 16px title was the ramp's ONLY use of the title step. This asserts what a
+// reader sees — the alignment and the type step — not which primitive was composed.
+test("#102-F2 an EMPTY bank keeps the RAIL register: flush-left, no centred island, no 16px title", async ({ mount, page }) => {
+  await stubDatabank(page, {}, []);
+  const home = await mount(<DatabankHomeTileStory />);
+  const tile = home.locator(TILE);
+
+  // Nothing inside the block centres itself — the mock's `.bank` is a left-aligned column.
+  const centred = await tile.evaluate((root) => [...root.querySelectorAll("*")].filter((el) => globalThis.getComputedStyle(el).textAlign === "center").length);
+  expect(centred).toBe(0);
+
+  // The label line shares its left edge with the block's own kicker heading (a centred island did not).
+  const label = await tile.getByText("No documents yet").boundingBox();
+  const heading = await tile.getByRole("heading", { name: "Databank" }).boundingBox();
+  expect(Math.abs((label?.x ?? 0) - (heading?.x ?? 0))).toBeLessThan(2);
+
+  // …and it speaks in the rail's label voice, not the ramp's title step.
+  const steps = await tile.getByText("No documents yet").evaluate((el) => {
+    const probe = el.ownerDocument.createElement("span");
+    probe.style.fontSize = "var(--text-label)";
+    el.ownerDocument.body.append(probe);
+    const labelStep = globalThis.getComputedStyle(probe).fontSize;
+    probe.remove();
+    return { resolved: globalThis.getComputedStyle(el).fontSize, labelStep };
+  });
+  expect(steps.resolved).toBe(steps.labelStep);
+});
+
 test("the tile SUBSUMES its jump row — Databank is one door on home, not two", async ({ mount, page }) => {
   await stubDatabank(page);
   const home = await mount(<DatabankHomeTileWithJumpGridStory />);

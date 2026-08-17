@@ -30,7 +30,8 @@ export interface TextProps extends ComponentProps<"p">, VariantProps<typeof text
  * Token-driven typographic scale over the body intrinsics (p/span/div) — there is no Base UI text primitive.
  *
  * Feature code passes `voice` (density-pass-spec.md §2.3 — kicker · label · datum · gloss, plus `hero`
- * for THE number, `monogram` for a decorative display glyph, `reading` for the CONTENT prose itself, and
+ * for THE number, `monogram` for a decorative display glyph, `reading` for the CONTENT prose itself,
+ * `credit` for the cast/age line under a focal item, and
  * the two PROMOTION voices `masthead` (a surface's one opening sentence, display step, sans — `hero`'s
  * prose twin) and `focal` (the one item promoted above its siblings, headline step)): the voice grammar
  * is what makes a surface's hierarchy

@@ -70,10 +70,17 @@ import { rememberHomeTileBox, useHomeTileBox } from "#state";
 /** The frame's fallback row count for a tile that declares no `skeletonRows` — what shipped before. */
 const TILE_SKELETON_ROWS = 3;
 
-/** The tile's KICKER BAND — the CD1 replacement for a card header: the tile's icon, its name in the
- *  `kicker` voice on a real heading, a hairline rule running to the trailing slot, and the ONE trailing
- *  action. The rule is the `Separator` PRIMITIVE (the `<Section kicker>` anatomy), never a hand-styled
- *  edge, so home's bands and every other surface's band are one thing. */
+/** The tile's KICKER BAND — the CD1 replacement for a card header: the tile's name in the `kicker` voice
+ *  on a real heading, a hairline rule running to the trailing slot, and the ONE trailing action. The rule
+ *  is the `Separator` PRIMITIVE (the `<Section kicker>` anatomy), never a hand-styled edge, so home's
+ *  bands and every other surface's band are one thing.
+ *
+ *  NO GLYPH (side-eye 2026-08-16 F11). The band used to lead with `tile.icon`, which put a glyph on the
+ *  five framed tiles and none on the two `<Section kicker>` bands beside them — so the H2/H3 split read as
+ *  a decorative class difference rather than as structure, on a surface where the ratified kicker anatomy
+ *  (density-pass §2.3) has no glyph and the approved mock draws none. `icon` is still the tile's own
+ *  identity for the doorway arm (where the mock DOES draw one) and for any registry surface that lists a
+ *  tile by glyph; it simply paints nothing in the band. */
 function TileBand({
   tile,
   trailing,
@@ -85,7 +92,6 @@ function TileBand({
 }): ReactElement {
   return (
     <Row align="center" gap="field">
-      <Icon className="text-muted-foreground" icon={tile.icon} size="sm" />
       {/* The `kicker` VOICE on a real heading element (density-pass §2.3); `level` keeps the document
           outline (a styled div would leave home with one heading and six anonymous blocks). */}
       <Heading id={headingId} level={2} voice="kicker">

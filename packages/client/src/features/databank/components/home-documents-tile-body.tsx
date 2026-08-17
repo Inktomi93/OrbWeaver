@@ -32,8 +32,7 @@ import type { IngestPhase } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { EmptyState } from "@orb/ui/empty-state";
-import { FileText, Icon } from "@orb/ui/icons";
+import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
@@ -87,21 +86,32 @@ export function HomeDocumentsTileBody(): ReactElement {
 
   if (documents.length === 0) {
     return (
-      <EmptyState
-        action={
-          // IT OPENS THE CEREMONY, NOT A SECTION (side-eye 2026-08-08 P1-2). This button used to
-          // `setActiveSection("databank")`, which landed the user on the library's own empty state — the
-          // same sentence again, with the real button under it. The dialog is a shell modal slot now, so
-          // the promise the label makes is the thing that happens.
-          <Button intent="secondary" onClick={(): void => openModal("addDocument")} size="sm">
-            <Icon icon={FileText} size="sm" />
-            Add your first document
-          </Button>
-        }
-        description={DATABANK_INGEST_GLOSS}
-        icon={<Icon icon={FileText} size="lg" />}
-        title="No documents yet"
-      />
+      // THE RAIL FORM, NOT THE PANE FORM (side-eye 2026-08-16 F2). `EmptyState` is the right primitive for
+      // a CONTENT pane — a centred island with a glyph, a 16px title and a button, filling a space that is
+      // otherwise blank. In a rail SLOT it was a register break: 442x239px of centred column, the only
+      // centred thing on a page whose every other block is flush-left, 20% of the page's height for the one
+      // block with nothing in it, and at 2000px a centred island beside ~350px of void. It also spent the
+      // ramp's only 16px on the emptiest sentence on the surface (F8).
+      //
+      // The mock's own answer, and the RULED one: the block keeps its kicker band and says the same three
+      // things at rail weight — a label line, the shared gloss, and a text link. ~60px, in the flow, left
+      // edge shared with the four document rows it replaces. The COPY is unchanged; only the register is.
+      <Stack className="items-start" gap="field">
+        <Text voice="label">No documents yet</Text>
+        <Text className="line-clamp-3" voice="gloss" prose={true}>
+          {DATABANK_INGEST_GLOSS}
+        </Text>
+        {/* IT OPENS THE CEREMONY, NOT A SECTION (side-eye 2026-08-08 P1-2). This used to
+            `setActiveSection("databank")`, which landed the user on the library's own empty state — the
+            same sentence again, with the real button under it. The dialog is a shell modal slot now, so
+            the promise the label makes is the thing that happens. A GHOST at zero inline padding is the
+            mock's `.btn-ghost{padding-inline:0}` text link: the rail's one affordance reads as a line of
+            copy you can press, not as a second button competing with the hero across the gutter. */}
+        <Button className="px-0" intent="ghost" onClick={(): void => openModal("addDocument")} size="sm">
+          <Icon icon={Plus} size="sm" />
+          Add your first document
+        </Button>
+      </Stack>
     );
   }
 
