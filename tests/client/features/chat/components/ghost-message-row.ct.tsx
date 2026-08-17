@@ -403,9 +403,9 @@ test("#116: a MULTI-VIEWPORT stream keeps the speaker on screen — the name pin
   const port = component.getByTestId("ghost-scrollport");
   const nameRow = component.locator(NAME_ROW);
   await expect(nameRow).toBeVisible();
-  // The premise: the turn really is taller than the reader's window.
-  const overflow = await port.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight);
-  expect(overflow).toBeGreaterThan(100);
+  // The premise: the turn really is taller than the reader's window. POLL — the scrollport's overflow is a
+  // post-layout measurement, and reading it one-shot right after driveScript races the settle (reads 0).
+  await expect.poll(() => port.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(100);
 
   await port.evaluate((el: HTMLElement) => {
     el.scrollTop = el.scrollHeight;
