@@ -98,7 +98,7 @@ export function charactersRailButton(page: Page): Locator {
  *  `charactersRailButton` is: the variant-C HOME (program #102) renders its OWN "Chats" section-jump tile
  *  with the same accessible name, so an unscoped role+name lookup is a strict-mode violation on the home
  *  surface. `exact` keeps "Collapse Chats panel" and the like out. */
-export function chatsRailButton(page: Page): Locator {
+function chatsRailButton(page: Page): Locator {
   return page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Chats", exact: true });
 }
 
