@@ -21,7 +21,7 @@
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { messageRow, waitForAppReady } from "./support/chat-room.ts";
+import { gotoChatsList, messageRow } from "./support/chat-room.ts";
 import { getUserSettings, listCanon, listCharacters, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc.ts";
 
 interface ContextFitPreview {
@@ -67,8 +67,7 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
   const restingPreview = await previewFit(chatId);
   expect(restingPreview.boundaryMessageId).toBeNull();
 
-  await page.goto("/");
-  await waitForAppReady(page);
+  await gotoChatsList(page);
   await page.getByRole("list", { name: "Chats" }).getByRole("button").first().click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: 15_000 });

@@ -21,7 +21,7 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { waitForAppReady } from "./support/chat-room.ts";
+import { gotoChatsList } from "./support/chat-room.ts";
 import type { ChatRoute } from "./support/trpc.ts";
 import {
   getChatRoute,
@@ -77,8 +77,7 @@ test("managed compaction fires on the local model, the divider carries the compa
     expect(canon.length).toBeGreaterThan(0);
 
     // ── The DOM divider shows the MEMORY FACT + a working PEEK. ──
-    await page.goto("/");
-    await waitForAppReady(page);
+    await gotoChatsList(page);
     await page.getByRole("list", { name: "Chats" }).getByRole("button").first().click();
     await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
     const divider = page.locator('[data-slot="context-boundary-divider"]');

@@ -14,7 +14,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { waitForAppReady, waitForStreamOpen } from "./support/chat-room.ts";
+import { gotoChatsList, waitForStreamOpen } from "./support/chat-room.ts";
 import { listCanon, listCharacters, sendTurn, startChat, trpcMutation } from "./support/trpc.ts";
 import { assertVirtualListMatchesCanon, collectVirtualRows } from "./support/virtualizer.ts";
 
@@ -47,8 +47,7 @@ test("collectVirtualRows sweeps a transcript longer than the viewport and matche
   const chatTitle = `sweep-parity-${Date.now()}`;
   await trpcMutation("chat.updateTitle", { chatId, title: chatTitle });
 
-  await page.goto("/");
-  await waitForAppReady(page);
+  await gotoChatsList(page);
   const targetRow = page.getByRole("list", { name: "Chats" }).getByRole("button", { name: new RegExp(chatTitle, "u") });
   await expect(targetRow).toBeVisible({ timeout: 15_000 });
   await targetRow.click();
