@@ -39,8 +39,8 @@
 // script-DEAD because a srcdoc inherits+intersects THIS policy, so a widening here silently reanimates it.
 // ENFORCED by tests/server/entry/http/security-headers.test.ts ("prod script-src grants no script-execution
 // escape") — the prod `script-src` admits none of `'unsafe-inline'`/`'unsafe-eval'`/`'strict-dynamic'`/a
-// host wildcard. The #111 review named this the one durable watch-item
-// (reports/reviews/interactive-cards-security-2026-08-16.md, CLEAN).
+// host wildcard. The #111 security review (CLEAN, verdict on the issue's review comment) named this the
+// one durable watch-item.
 //
 // DECLINED, 2026-08-16 tier-B card-frame pass (#91) — the card frame's height script is NOT hash-allowed
 // here. That script (`@orb/kit/card-frame`) rides the ROUTED card document's own response policy, which
