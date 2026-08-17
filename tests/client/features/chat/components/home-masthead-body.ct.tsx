@@ -19,7 +19,7 @@ const LEFT_OFF = /^You left off/u;
 
 test("F1 the masthead reads 'You left off just now', never 'now ago', for a seconds-old room", async ({ mount, page }) => {
   // Freeze the page clock so the component's "now" and the message time agree deterministically — no
-  // ambient Date.now() (test-determinism gate; Spine-Testing §3). A zero-span read exercises the sub-minute arm.
+  // ambient wall-clock read (test-determinism gate; Spine-Testing §3). A zero-span read exercises the sub-minute arm.
   await page.clock.setFixedTime(FROZEN_AT_MS);
   const recent = makeChatSummary({ id: "chat_recent", title: "The Ashen Spire", participantNames: ["Wren"], lastMessageAt: FROZEN_AT_MS });
   await routeTrpc(page, { "chat.listChats": chatListResponder([recent]) });

@@ -350,7 +350,7 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
 // what the sentence composes), not the new API — this compiles and fails against the old composition.
 test("F1 a room whose last turn is seconds old reads 'just now', never 'now ago'", async ({ mount, page }) => {
   // Freeze the page clock so the component's "now" and the message time agree deterministically — no
-  // ambient Date.now() (test-determinism gate; Spine-Testing §3). A zero-span read exercises the sub-minute arm.
+  // ambient wall-clock read (test-determinism gate; Spine-Testing §3). A zero-span read exercises the sub-minute arm.
   await page.clock.setFixedTime(FROZEN_AT_MS);
   const recent = makeChatSummary({
     id: "chat_recent",
