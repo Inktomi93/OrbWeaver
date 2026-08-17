@@ -55,6 +55,7 @@ afterAll(() => {
     "map_svg",
     "map_targets",
     "deadcss_markers",
+    "paint_settle",
   ]) {
     rmSync(join(REPORT_SNAPS, `${RUN_ID}_${suffix}.json`), { force: true });
     rmSync(join(REPORT_TRACES, `${RUN_ID}_${suffix}.zip`), { force: true });
@@ -274,6 +275,40 @@ test("scenario checkpoints share one browser context and emit one aggregate mani
   const checkpoints = (report["scenario"] as { checkpoints: Array<{ name: string; screenshot: string | null }> }).checkpoints;
   expect(checkpoints.map((checkpoint) => checkpoint.name)).toEqual(["first", "second"]);
   expect(checkpoints.every((checkpoint) => checkpoint.screenshot === null)).toBe(true);
+});
+
+/** A PNG's pixel height, read straight out of the IHDR chunk (bytes 20-23, big-endian). `scale: "css"` in
+ *  snap's SHOT_BASE means one PNG pixel is one CSS pixel, so a full-page shot's height IS the document
+ *  height at the moment of capture — the cheapest possible witness to WHICH FRAME was captured. */
+function pngHeight(path: string): number {
+  return readFileSync(path).readUInt32BE(20);
+}
+
+test("the primary capture waits out a repaint that is still in flight when the shot is taken (#123)", () => {
+  // THE DEFECT: `settlePage` waits a fixed window, the evidence phase then runs for however long it
+  // takes, and the shot fires at whatever frame that lands on — nothing checks that the surface has
+  // stopped moving. A reflow still in flight at that moment (an image finishing its decode, a
+  // virtualized list re-measuring) is missing from the PNG while the run's own text evidence already
+  // describes the settled surface.
+  //
+  // Reproduced without a single wall-clock dependency: `grow()` adds 400px per ANIMATION FRAME for six
+  // frames, and the trailing --eval kicks it off in the capture phase — it returns immediately, so the
+  // reflow is provably mid-flight when captureShot is entered. Frame-driven, so it cannot race a slow
+  // machine the way a setTimeout fixture would.
+  const page = fixture(
+    "paint-settle",
+    '<main style="height:300px">grow</main><script>function grow(n){if(n===0)return;' +
+      'document.querySelector("main").style.height=(300+(7-n)*400)+"px";requestAnimationFrame(()=>grow(n-1));}</script>',
+  );
+  const name = `${RUN_ID}_paint_settle`;
+  const result = runSnap(["--file", page, "--full", "--eval", "grow(6)", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  // Six 400px steps off a 300px base = 2700px. Pre-fix the shot landed one frame into the chain (~700px);
+  // the paint-settle holds until two consecutive frames report the same geometry, so the PNG carries the
+  // finished layout. `>=` not `===`: the document can be taller than <main> (margins/scrollbars), and the
+  // assertion that matters is that the five missing steps are present.
+  expect(pngHeight(join(REPORT_SNAPS, `${name}.png`))).toBeGreaterThanOrEqual(2700);
 });
 
 test("watch durably records every poll, dedupes unchanged terminal noise, and mints no screenshots with --no-shot", () => {
