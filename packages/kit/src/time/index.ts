@@ -108,6 +108,13 @@ export interface TimeLib {
    *  dense row spends ~2-3 characters on recency instead of ~7. Use
    *  it where the stamp is a COLUMN the eye scans; a sentence ("edited 5m ago") keeps `formatRelative`. */
   readonly formatRelativeCompact: (epochMs: number) => string;
+  /** `just now` / `5m ago` / `2h ago` / `3w ago` — the SENTENCE relative-ago phrase: the compact stamp's
+   *  unit ladder (no absolute-date horizon, unlike `formatRelative`) with the past tense a prose line
+   *  needs. Sub-minute AND any future instant (clock skew, an imported timestamp) read `just now`, so a
+   *  sentence embedding it NEVER emits the bare `now ago` that `${formatRelativeCompact} ago` produces.
+   *  Use it where the phrase lives inside a sentence ("You left off 5m ago in …") whose whole job is
+   *  elapsed-since; a column stamp keeps `formatRelativeCompact`. */
+  readonly formatRelativeAgo: (epochMs: number) => string;
   /** Current epoch-ms from the SAME injected clock the formatters use — the sanctioned "now" read (a
    *  feature computing an elapsed-since a stored timestamp reads it here, never ambient `Date.now()`). */
   readonly now: () => number;
@@ -224,5 +231,11 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
       return relative.format(Math.trunc(deltaMs / MS_PER_SECOND), "second");
     },
     formatRelativeCompact: (epochMs): string => compactStamp(now() - epochMs),
+    formatRelativeAgo: (epochMs): string => {
+      const elapsedMs = now() - epochMs;
+      // Sub-minute and future both fall here (elapsed < a minute), so the phrase reads "just now" instead
+      // of composing the compact stamp's edge word "now" into "now ago".
+      return elapsedMs < MS_PER_MINUTE ? "just now" : `${compactStamp(elapsedMs)} ago`;
+    },
   };
 }

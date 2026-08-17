@@ -340,6 +340,31 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
   await expect(home.locator('[data-slot="list-row-actions"]')).toHaveCount(0);
 });
 
+// ── RED-FIRST (stickler 2026-08-16 F1): the SUB-MINUTE recency arm never reads "now ago" ────────────
+// The hero's credit line composed `formatRelativeCompact(when)` — which returns the WORD "now" for any
+// span under a minute — with a literal " ago", so the most common post-chat state ("you just sent a
+// message, then opened home") rendered "· last turn now ago" (the credit voice uppercases it to
+// "NOW AGO"). The fix is the kit's sentence form `formatRelativeAgo`, which reads "just now" sub-minute.
+// Asserted through the RENDERED stamp text (the credit voice's uppercase is CSS, so the DOM string is
+// what the sentence composes), not the new API — this compiles and fails against the old composition.
+test("F1 a room whose last turn is seconds old reads 'just now', never 'now ago'", async ({ mount, page }) => {
+  const recent = makeChatSummary({
+    id: "chat_recent",
+    title: "The Ashen Spire",
+    participantNames: ["Wren"],
+    participantCharacterIds: ["char_wren"],
+    lastMessageAt: Date.now(),
+  });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([recent]), "character.list": CHARACTERS });
+
+  const home = await mount(<ChatRecentsTileStory />);
+  const stamp = home.locator('[data-home-hearth="chat_recent"]').getByText(HERO_STAMP);
+
+  await expect(stamp).toBeVisible();
+  await expect(stamp).toHaveText("· last turn just now");
+  await expect(stamp).not.toContainText("now ago");
+});
+
 test("an empty chats list renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
 

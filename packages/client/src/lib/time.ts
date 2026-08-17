@@ -11,13 +11,17 @@ import { isProbeMode } from "./probe-mode.ts";
 const PROBE_RELATIVE_PLACEHOLDER = "some time ago";
 /** The stamp form's frozen twin — a fixed-width plausible stamp, so a probe diff sees the row's real geometry. */
 const PROBE_RELATIVE_COMPACT_PLACEHOLDER = "9d";
+/** The sentence-ago form's frozen twin — a fixed plausible phrase, so a probe diff of "You left off … in …"
+ *  sees the sentence's real geometry without the ago phrase churning every minute. */
+const PROBE_RELATIVE_AGO_PLACEHOLDER = "a while ago";
 
 const baseTimeLib = createTimeLib();
 
 /** The production instance — browser locale + timezone, real clock (defaulted inside the kit seam);
- *  BOTH relative forms freeze to a fixed placeholder under `pnpm snap --probe` (see header). */
+ *  ALL THREE relative forms freeze to a fixed placeholder under `pnpm snap --probe` (see header). */
 export const timeLib: TimeLib = {
   ...baseTimeLib,
   formatRelative: (epochMs): string => (isProbeMode() ? PROBE_RELATIVE_PLACEHOLDER : baseTimeLib.formatRelative(epochMs)),
   formatRelativeCompact: (epochMs): string => (isProbeMode() ? PROBE_RELATIVE_COMPACT_PLACEHOLDER : baseTimeLib.formatRelativeCompact(epochMs)),
+  formatRelativeAgo: (epochMs): string => (isProbeMode() ? PROBE_RELATIVE_AGO_PLACEHOLDER : baseTimeLib.formatRelativeAgo(epochMs)),
 };
