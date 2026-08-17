@@ -4,6 +4,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
+import type { CollectionPreviewEntry } from "#lib";
+import { COLLECTION_PREVIEW_LIMIT, sortTagsBy } from "#lib";
 import { selectCollectionMember } from "#state";
 import { TAG_COLLECTION_ID } from "../lib/tags-model.ts";
 import { useCreateTag } from "./use-tag-settings-mutations.ts";
@@ -17,6 +19,26 @@ const NEW_TAG_NAME = "New tag";
 export function useTagCount(): number | undefined {
   const trpc = useTRPC();
   return useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data?.length;
+}
+
+/** One ranked row → the host-facing preview entry. The wire row carries five per-target usage counters; the
+ *  hero shows the TOTAL, because "how much of the library this tag accounts for" is the one number that
+ *  ranks the wall and the breakdown belongs to the member editor. */
+function previewEntry(row: { readonly name: string; readonly usage: { readonly total: number } }): CollectionPreviewEntry {
+  return { label: row.name, count: row.usage.total };
+}
+
+/** The welcome hero's CHIP WALL (the `usePreview` seam): the most-used slice of the library, ranked by the
+ *  ONE comparator the roster and the tag picker already rank by (`sortTagsBy(…, "used")` — a second
+ *  spelling of "most used" here would be the drift that function exists to prevent).
+ *
+ *  THE SAME CACHED LIST the census and the rows read, so this is a cache hit and never a second request —
+ *  the `useMemberTitle` discipline. It is also why the tag library is the one collection that HAS a
+ *  preview: usage totals already ride every row of a query the pane has loaded anyway. */
+export function useTagPreview(): readonly CollectionPreviewEntry[] | undefined {
+  const trpc = useTRPC();
+  const rows = useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data;
+  return rows === undefined ? rows : sortTagsBy(rows, "used").slice(0, COLLECTION_PREVIEW_LIMIT).map(previewEntry);
 }
 
 /** The OPEN member's name for the mobile pushed frame's topbar (the `useMemberTitle` seam) — the SAME

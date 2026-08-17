@@ -32,6 +32,9 @@ const ANY_CREATE_VERB = /^New /;
  *  operable card is its own content, and the blurb is the half the roster band does not carry. */
 const TAGS_LAUNCHER = /Color-coded labels/;
 const WORLD_INFO_LAUNCHER = /Keyword-triggered lore/;
+/** The resting DOOR affordance a built library's island carries and a not-yet-built slot does not — the
+ *  same text-arrow register home's hearth uses ("Open <library> →"). */
+const ANY_OPEN_DOOR = /^Open /;
 /** The coarse-pointer tap floor (WCAG 2.5.5 / the house `size-control-md` coarse step). */
 const TOUCH_FLOOR_PX = 44;
 
@@ -62,6 +65,13 @@ const MANY_TAGS = Array.from({ length: TAG_COUNT }, (_unused, index) => tagRow(i
  *  not on `tag-000`. Naming it here keeps these host assertions about the HOST (rows mounted, filter
  *  applied) instead of quietly re-asserting the owner's comparator. */
 const FIRST_ROW = "tag-002";
+
+/** The first roster ROW, scoped to the roster (program #102). The welcome's hero previews the library's
+ *  most-used tags by NAME, so an unscoped `getByText("tag-002")` is a strict-mode violation: it matches the
+ *  row AND a preview chip. Every use below means the ROW. */
+function firstRow(workspace: Locator): Locator {
+  return workspace.locator(ROSTER).getByText(FIRST_ROW);
+}
 
 const SCRIPTS = [
   {
@@ -128,9 +138,11 @@ test("every group starts COLLAPSED, showing its band, count and create verb — 
     .poll(() => roster.locator('[data-slot="collection-group"]').evaluateAll((groups) => groups.map((g) => g.getAttribute("data-collection"))))
     .toEqual(["tags", "regex", "worldInfo"]);
   await expect(roster.getByRole("button", { name: WORLD_INFO_BAND })).toHaveAttribute("aria-expanded", "false");
-  // …and not one of the 400 rows is mounted.
+  // …and not one of the 400 ROWS is mounted. Scoped to the roster (program #102): the claim is about the
+  // collapsed group's rows, and the welcome's hero legitimately prints tag NAMES in its preview wall — an
+  // unscoped count would be answering a different question with this fixture's ranking.
   await expect(roster.getByRole("button", { name: TAGS_BAND })).toHaveAttribute("aria-expanded", "false");
-  await expect(workspace.getByText("tag-000")).toHaveCount(0);
+  await expect(roster.getByText("tag-000")).toHaveCount(0);
 });
 
 test("expanding a 400-member group renders its rows and offers the count-driven filter", async ({ mount, page }) => {
@@ -140,14 +152,14 @@ test("expanding a 400-member group renders its rows and offers the count-driven 
 
   await workspace.locator(ROSTER).getByRole("button", { name: TAGS_BAND }).click();
   await expect(workspace.locator(ROSTER).getByRole("button", { name: TAGS_BAND })).toHaveAttribute("aria-expanded", "true");
-  await expect(workspace.getByText(FIRST_ROW)).toBeVisible();
+  await expect(firstRow(workspace)).toBeVisible();
 
   // The filter is HOST chrome, shown by COUNT — and applied by the contribution's own rows.
   const filter = workspace.getByRole("textbox", { name: "Filter tags" });
   await expect(filter).toBeVisible();
   await filter.fill("tag-137");
-  await expect(workspace.getByText("tag-137")).toBeVisible();
-  await expect(workspace.getByText(FIRST_ROW)).toHaveCount(0);
+  await expect(workspace.locator(ROSTER).getByText("tag-137")).toBeVisible();
+  await expect(firstRow(workspace)).toHaveCount(0);
 
   // Create stays reachable with a 400-row list open (the band is chrome, not a list item).
   await expect(workspace.locator(ROSTER).getByRole("button", { name: "New tag" })).toBeVisible();
@@ -246,14 +258,23 @@ test("a POPULATED launcher card is a real control — clicking it opens that col
 
   await card.click();
   await expect(band).toHaveAttribute("aria-expanded", "true");
-  await expect(workspace.getByText(FIRST_ROW)).toBeVisible();
+  await expect(firstRow(workspace)).toBeVisible();
 });
 
 // …AND IT SAYS SO AT REST (side-eye 2026-08-08 P2). Hover, focus ring and keyboard operability all require
 // the pointer or the keyboard to have ALREADY arrived; at rest the one operable card was pixel-identical to
 // its two inert siblings, so a sighted scan had no way to learn which one was a door. The pin is the
-// DIFFERENCE — a glyph the populated card renders and the inert ones do not — because "give it an
+// DIFFERENCE — something the populated island renders and the inert ones do not — because "give it an
 // affordance" is only satisfied by something the siblings lack.
+//
+// RETARGETED, NOT WEAKENED (program #102, the Hearth rebuild). The finding stands; its ANATOMY moved. The
+// 2026-08-08 fix was a `ChevronRight` glyph, so this test counted `svg` nodes — and the rebuilt hero
+// carries the home hearth's TEXT arrow instead ("Open <library> →"), which is a deliberate register match,
+// not a regression: the `@orb/ui/icons` export list is a curated seal and one hero does not earn a new
+// glyph. Counting svgs therefore measured the old FIX rather than the finding, and read 1-vs-1 against a
+// surface whose resting difference had in fact grown (the island is boxed, striped and glowing while the
+// inert slot is deliberately un-boxed under a kicker). So the pin is now the DOOR AFFORDANCE ITSELF, which
+// is what the finding was always about and survives whichever glyph draws it.
 test("a POPULATED launcher card carries a resting affordance its inert siblings do not", async ({ mount, page }) => {
   await stub(page, []);
   const workspace = await mount(<ConfigWorkspaceStory />);
@@ -261,10 +282,12 @@ test("a POPULATED launcher card carries a resting affordance its inert siblings 
   await bandCount(workspace, "tags", 0);
   await bandCount(workspace, "worldInfo", BOOKS.length);
 
-  // One frame, both arms: `tags` is empty (inert card), `regex`/`worldInfo` are populated (launchers).
-  const glyphCount = async (collectionId: string): Promise<number> => launcher(workspace, collectionId).locator("svg").count();
-  const [inert, populated] = await Promise.all([glyphCount("tags"), glyphCount("worldInfo")]);
-  expect(populated, "the launchable card draws a glyph the inert card does not").toBeGreaterThan(inert);
+  // One frame, both arms: `tags` is empty (the inert slot), `regex`/`worldInfo` are populated (launchers).
+  await expect(launcher(workspace, "worldInfo").getByText(ANY_OPEN_DOOR), "the launchable island names its door at rest").toBeVisible();
+  await expect(launcher(workspace, "tags").getByText(ANY_OPEN_DOOR), "the inert slot draws no door").toHaveCount(0);
+  // …and the difference is visible without reading: only the launchable one is an operable island.
+  await expect(launcher(workspace, "worldInfo")).toHaveAttribute("role", "button");
+  await expect(launcher(workspace, "tags")).not.toHaveAttribute("role", "button");
 });
 
 // …AND THE CARD GRID READS IN THE SAME COLUMN AS THE COPY ABOVE IT (side-eye 2026-08-08 P3). The grid had no
@@ -371,7 +394,7 @@ test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its
   // A TAG: its editor mounts in CONTENT, and its collection declares NO context arm — so the pane shows
   // that collection's OWN copy, not a generic "nothing selected" over a selected thing.
   await workspace.locator(ROSTER).getByRole("button", { name: TAGS_BAND }).click();
-  await workspace.getByText(FIRST_ROW).click();
+  await firstRow(workspace).click();
   await expect(workspace.getByRole("heading", { name: FIRST_ROW })).toBeVisible();
   await expect(workspace.getByText("Nothing to attach")).toBeVisible();
 

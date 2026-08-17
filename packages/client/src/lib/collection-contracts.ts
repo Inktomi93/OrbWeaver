@@ -48,6 +48,26 @@ export const COLLECTION_LARGE_GROUP = 30;
  *  the exact failure collapsed-by-default groups exist to prevent. */
 export const COLLECTION_WINDOW_MAX_HEIGHT = "max-h-96";
 
+/** How many PREVIEW entries a contribution hands up, and therefore how many the welcome's hero draws —
+ *  ONE constant, two readers (the owner slices its ranked list to it; the host draws what it is given and
+ *  derives the "+N more" remainder from {@link CollectionContribution.useCount}), the
+ *  {@link COLLECTION_LARGE_GROUP} discipline. Twelve is two comfortable chip rows at the docked pane's
+ *  real width and three at a narrow one — past that the wall stops being a glance and starts being the
+ *  roster, which is the line the preview must not cross (it is a top-N glance plus a door, never a second
+ *  sortable list). */
+export const COLLECTION_PREVIEW_LIMIT = 12;
+
+/** ONE entry in a collection's welcome PREVIEW: a member's own name and how much of the library it
+ *  accounts for. It homes HERE rather than in the owning feature because the HOST draws it blind for every
+ *  contribution that has one — the same reason `blurb` and `emptyText` are contract fields and not host
+ *  string tables. */
+export interface CollectionPreviewEntry {
+  /** The member's own name, as the library spells it. */
+  readonly label: string;
+  /** How much of the library this member accounts for — a usage total, not a rank. */
+  readonly count: number;
+}
+
 /** What the host hands a collection's LIST half. */
 export interface CollectionListView {
   /** Selection arrives KIND-PRE-BOUND: non-null only when the selected member belongs to THIS collection. */
@@ -109,6 +129,25 @@ export interface CollectionContribution {
   /** The group count for the band ("TAGS · 412") — a cache-first hook, same call discipline. It also drives
    *  the host's filter affordance at {@link COLLECTION_LARGE_GROUP}. */
   readonly useCount?: () => number | undefined;
+  /** The library's own CONTENTS as a ranked top-{@link COLLECTION_PREVIEW_LIMIT} glance, for the welcome's
+   *  HERO (program #102, the owner-picked Hearth variant). It is the one thing NEITHER the roster band nor
+   *  the `blurb` carries: the band says how MANY, the blurb says what the library is FOR, and this says
+   *  what is actually IN it.
+   *
+   *  THAT IS WHY IT EXISTS, AND WHY IT DOES NOT RE-OPEN THE 2026-08-08 TRIM RULING. A populated launcher
+   *  sheds its count + create because the band already carries them; the hero has to say something the
+   *  band does not, or promoting it is chrome. The preview is that something — and it must stay a top-N
+   *  glance plus a door. The moment it grows into a second full sortable list it IS the roster, which is
+   *  the one-home line the trim ruling drew (`config-welcome.tsx`'s `CollectionLauncher` header states it).
+   *
+   *  OPTIONAL, unlike `blurb`: a library with nothing rankable has no honest glance to offer, so it simply
+   *  declines and its hero draws label + blurb + the door alone (regex and world-info today). `undefined`
+   *  takes the SAME arm as a declined field — the read has not landed, and a hero that flashed an empty
+   *  chip wall would be worse than one that never drew it.
+   *
+   *  MUST be exactly ONE cache-first `useQuery` over the SAME key the collection's other hooks read, like
+   *  {@link useCount}: this is a second reader of a list the roster already has, never a second request. */
+  readonly usePreview?: () => readonly CollectionPreviewEntry[] | undefined;
   /** The OPEN member's own name, for the mobile pushed frame's topbar title (the config section's
    *  `useSelectionTitle` — side-eye P2: a pushed detail must name the MEMBER, not the section). A hook over
    *  the member id, same call discipline as {@link useCount}: cache-first, non-suspending, `undefined`

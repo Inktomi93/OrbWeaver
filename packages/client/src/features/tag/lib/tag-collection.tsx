@@ -12,7 +12,7 @@
 import { Hash } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
-import { useCreateTagMember, useTagCount, useTagMemberTitle } from "../hooks/use-tag-collection.ts";
+import { useCreateTagMember, useTagCount, useTagMemberTitle, useTagPreview } from "../hooks/use-tag-collection.ts";
 import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
 import { TAG_COLLECTION_ID } from "./tags-model.ts";
 
@@ -26,6 +26,10 @@ export const tagCollection: CollectionContribution = {
   blurb: "Color-coded labels for characters, chats, books, personas and presets.",
   emptyText: "No tags yet.",
   useCount: useTagCount,
+  // The welcome hero's chip wall (program #102). Tags is the collection that HAS a ranked glance to offer:
+  // usage totals ride every row of the list the roster already loaded, so the preview is a cache read of
+  // that same key. Regex and world-info declare none and their heroes draw label + blurb + the door.
+  usePreview: useTagPreview,
   useMemberTitle: useTagMemberTitle,
   create: { label: "New tag", useRun: useCreateTagMember },
   list: (view) => <TagCollectionRows view={view} />,
