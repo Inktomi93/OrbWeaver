@@ -91,6 +91,17 @@ function contrastRatio(fg: readonly number[], bg: readonly number[]): number {
  *  nearest opaque ancestor down is composited in a canvas, then the text color is composited on top of
  *  that. Returns `[fg, bg]`. */
 const paintedColors = (el: Element): readonly (readonly number[])[] => {
+  // "Transparent" is READ OFF THE ENGINE (a fresh div's default background) rather than spelled as a
+  // color literal — the §13.7 discipline, and more robust than guessing the serialization. The probe must
+  // be IN THE DOCUMENT to read it: `getComputedStyle` on a DETACHED element resolves nothing and returns
+  // `""`, so the opaque-layer test below compared against the empty string and the walk broke on its FIRST
+  // iteration every time, silently reducing every composite to the document floor. That was invisible
+  // while the CT page had no background of its own (floor = transparent = black, and the two known ratios
+  // came out right for the wrong reason); it surfaced the moment the harness began loading the client
+  // styles tier, whose `:root`/`body` rules give the page a real background (#114, 2026-08-16).
+  const transparentProbe = document.body.appendChild(document.createElement("div"));
+  const transparent = getComputedStyle(transparentProbe).backgroundColor;
+  transparentProbe.remove();
   const layers: string[] = [];
   for (let node: Element | null = el; node !== null; node = node.parentElement) {
     const bg = getComputedStyle(node).backgroundColor;
@@ -98,10 +109,7 @@ const paintedColors = (el: Element): readonly (readonly number[])[] => {
     const probe = document.createElement("canvas").getContext("2d");
     if (probe !== null) {
       probe.fillStyle = bg;
-      // An opaque layer ends the walk — nothing below it can show through. "Transparent" is READ OFF THE
-      // ENGINE (a fresh div's default background) rather than spelled as a color literal, which is both
-      // the §13.7 discipline and more robust than guessing the serialization.
-      const transparent = getComputedStyle(document.createElement("div")).backgroundColor;
+      // An opaque layer ends the walk — nothing below it can show through.
       // biome-ignore lint/performance/useTopLevelRegex: serialized into the browser by `evaluate`
       const translucent = /\/\s*0?\.\d|,\s*0?\.\d+\)/u.test(probe.fillStyle);
       if (!translucent && probe.fillStyle !== transparent) {
