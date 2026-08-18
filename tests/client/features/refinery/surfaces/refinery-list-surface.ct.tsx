@@ -5,12 +5,17 @@
 // stories below put the card OUTSIDE any page the client could fetch and assert the row names itself
 // anyway — and that the surface asks `character.list` nothing at all.
 
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { RefineryRosterStory } from "../_ct-stories.tsx";
 import { makeRefinerySessionSummary } from "../fixtures.ts";
+
+/** The one card the header's picker offers — MINTED, never a hand-written literal (`typeIdSchema`). */
+const HEADER_PICK_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
 
 /** The iteration readout the row's subtitle prints (now inside the row content, not a trailing sibling). */
 const ITERATION_READOUT = /iteration 3/;
@@ -90,14 +95,25 @@ test("search finds a session by its CHARACTER name, including one no character p
   await expect(page.getByText("Nothing matches")).toBeVisible();
 });
 
-test("the roster's EMPTY arm teaches and offers the start door; the header's + is inert with nothing open", async ({ mount, page }) => {
-  await routeTrpc(page, { "refinery.listSessions": () => [], "character.list": () => ({ items: [], nextCursor: null }) });
+test("the roster's EMPTY arm teaches and offers the start door; the header's + is LIVE at cold open and opens the picker", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "refinery.listSessions": () => [],
+    "character.list": characterListResponder([makeCharacterSummary({ id: HEADER_PICK_CHARACTER_ID, name: "Zephyrine Vale" })]),
+  });
   await mount(<RefineryRosterStory />);
   await expect(page.getByText("No refinery sessions yet")).toBeVisible();
   await expect(page.getByRole("button", { name: "Pick a character" })).toBeVisible();
-  // P1-6's start door exists but is disabled while nothing is selected — pressing it would be a no-op,
-  // and a live-looking control that does nothing is the defect that door was built to remove.
-  await expect(page.getByRole("button", { name: "Start a new session" })).toBeDisabled();
+  // THIS PIN IS THE REVERSE OF THE ONE IT REPLACES, and the old text is kept rather than deleted so the
+  // next reader sees which claim lost and to what. It used to read: "P1-6's start door exists but is
+  // disabled while nothing is selected — pressing it would be a no-op, and a live-looking control that
+  // does nothing is the defect that door was built to remove." That premise was OWNER-OVERRULED on
+  // 2026-08-17 (#157): "the primary action must not be a visible dead control while the real affordance
+  // hides below the fold". The `+` is no longer a selection-clearing no-op — it IS the picker door, at
+  // cold open and with a session open alike, so there is nothing left for it to be inert about.
+  const start = page.getByRole("button", { name: "Start a new session" });
+  await expect(start).toBeEnabled();
+  await start.click();
+  await expect(page.getByRole("option", { name: "Zephyrine Vale" })).toBeVisible();
 });
 
 test("the row folds the readout into its accessible DESCRIPTION — a screen reader hears more than the name (P2 a11y)", async ({ mount, page }) => {

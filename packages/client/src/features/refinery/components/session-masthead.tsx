@@ -17,6 +17,18 @@
 // only place the session's selection is legible, and the Edit-scope door beside it is the §8 preflight
 // warn's own remedy. It WRAPS (side-eye 2026-08-09 P2) — a non-wrapping row clipped the tail chips off the
 // pane at the 3-pane / mobile container width.
+//
+// ── THIS IS SCOPE'S ONE EDITING HOME (#158 item 1, owner-ruled 2026-08-17) ───────────────────────────
+// The CONTEXT panel's Setup tab used to render the same selection with its own "Change" button and its own
+// `ScopeEditorDialog`, inches away: two independently-editable homes for one concept on one screen. The
+// ruling is one home, and it landed HERE rather than in Setup — the reverse of the shape #158's own
+// parenthetical suggested — on three pieces of evidence. (1) The paragraph above is a RECORDED ruling that
+// this strip and its door belong together. (2) The §8 remedy it exists for ("Narrow the selection", in
+// `lane-run-control.tsx`) fires in the CONTENT pane; moving the editor to CONTEXT would make that remedy a
+// cross-panel jump the shell has no verb for. (3) Setup mounted the editor with `score={null}` while this
+// call site passes the real score payload, so Setup's was the DEGRADED copy — keeping it and deleting the
+// rich one is the wrong direction. Setup now carries a READOUT that names this door, the same shape its
+// Guidance row already used for the run bar's textarea.
 
 import type { RefinerySelection } from "@orb/contracts/refinery";
 import { modelDisplayName } from "@orb/kit/model-name";

@@ -139,6 +139,9 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
       running={lane.running}
       stage={lane.stage}
       stagePre={preflightSliceOf(preflight.data, lane.stage)}
+      // The gate is the DOMAIN'S, re-derived in `workbench-lanes.ts` off `assertStageReady` — never a
+      // stricter client rule (#158 item 4).
+      blocked={lane.blocked}
     />
   );
 
@@ -170,6 +173,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
               <PayloadLane
                 arrived={lanes.score.run !== null && landedRunIds.has(lanes.score.run.id)}
                 behind={lanes.score.behind}
+                focal={lanes.score.focal}
                 onBackToLatest={backToLatest}
                 run={lanes.score.run}
                 runControl={runControlFor(lanes.score)}
@@ -183,6 +187,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
                 behind={lanes.rewrite.behind}
                 decided={decided}
                 entries={rewriteEntries}
+                focal={lanes.rewrite.focal}
                 onBackToLatest={backToLatest}
                 onDecide={(index, decision): void => decide(index, decision, rewriteEntries.length)}
                 run={lanes.rewriteRun}
@@ -195,6 +200,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
               <PayloadLane
                 arrived={lanes.analyze.run !== null && landedRunIds.has(lanes.analyze.run.id)}
                 behind={lanes.analyze.behind}
+                focal={lanes.analyze.focal}
                 onBackToLatest={backToLatest}
                 run={lanes.analyze.run}
                 runControl={runControlFor(lanes.analyze)}

@@ -3,7 +3,7 @@
 //   · RUNS — the append-only ledger: stage pill · round · verdict chip · the economics line (model,
 //     tokens, wall time — `durationMs`/`sourceRunId` are why the columns exist) + the strippedKeys warn
 //     line; every row carries its ACTIONS (View · Use for apply · Judge again) — no dead readouts.
-//   · SETUP — what is IN FORCE (anchor · stage modes · payload schema chip · guidance · fit) — each row
+//   · SETUP — what is IN FORCE (anchor · stage modes · payload schemas · scope · guidance) — each row
 //     with its action; it links out to edit, it never becomes a second settings surface.
 //   · VERSIONS — the D28 snapshot walk: label-classified rows (Refinery / Manual / Pre-restore)
 //     + Compare (DiffView vs the live card) + the existing `restore` verb (itself reversible).
@@ -163,18 +163,12 @@ export interface SetupTabProps {
   readonly analyzeSchemaLine: string;
   readonly scopeLine: string;
   readonly guidance: string | null;
-  readonly fitLine: string | null;
-  /** True ⇒ the fit estimate crosses a ceiling. CONTENT's run bar draws a ⚠ on the same fact; this pane
-   *  read `inputEstimate` alone and silently dropped it (P2: "CONTEXT drops the ⚠"). */
-  readonly fitWarn: boolean;
   readonly onViewOriginal: () => void;
   /** Opens the SCHEMA EDITOR for a specific STAGE (score / analyze) — see the door note on `SetupTab`. The
    *  BODY resolves whether that stage is currently on a custom schema and hands the editor the existing row
    *  to EDIT, or `null` to author a new one; both verbs were UI-unreachable before this took a stage
    *  (live custom-schema drive, 2026-08-14 — only score authoring had a door). */
   readonly onEditSchema: (stage: RefinerySchemaStage) => void;
-  /** Opens the SCOPE dialog. Ditto. */
-  readonly onEditScope: () => void;
 }
 
 /** One Setup row. A row with NO action is a READOUT — a deliberate arm, not an unfinished one: `note`
@@ -210,10 +204,33 @@ function SetupRow({ k, v, action, onAction, note }: { k: string; v: string; acti
  * (side-eye 2026-08-09 P1-7 + P1-8): one prop opened the schema editor and the other opened the scope
  * dialog, and the four rows were wired across them almost at random. "Guidance → Edit" opened SCOPE;
  * "Stage modes → Change" opened the SCHEMA EDITOR, which cannot change a stage mode at all. The props
- * are now named for the surface they open (`onEditSchema` / `onEditScope`) so the next wiring mistake
- * is visible at the call site rather than only on screen.
+ * are now named for the surface they open (`onEditSchema`) so the next wiring mistake is visible at the
+ * call site rather than only on screen.
  *
- * Two rows are deliberate READOUTS:
+ * ── THE WORKBENCH/SETUP SPLIT, STATED (#158 items 1-3, owner-ruled 2026-08-17) ───────────────────────
+ * One screen was rendering two independently-editable homes for the same concepts, inches apart. The
+ * ruling: ONE home per concept. The line drawn here, and its side:
+ *  - **SCOPE is edited in the WORKBENCH** (the masthead's strip + its Edit scope door), and this row is
+ *    the READOUT. Not the other way round, which is what #158's parenthetical suggested, because the
+ *    tree's evidence points the other way: the masthead's own header records the prior ruling that its
+ *    strip is "the only place the session's selection is legible, and the Edit-scope door beside it is
+ *    the §8 preflight warn's own remedy"; that remedy ("Narrow the selection") lives in CONTENT's lane
+ *    run control and would become a cross-panel jump the shell has no verb for; and THIS pane mounted
+ *    the editor with `score={null}` while CONTENT passes the real score payload — Setup's copy was the
+ *    DEGRADED one. Keeping the degraded arm and deleting the rich one is the wrong direction.
+ *  - **PROMPT FIT is read in the LANE**, per stage, beside the verb whose budget it is. The row that used
+ *    to print `≈ N/M tok` here is gone rather than echoed: it stated the SCORE stage's input estimate
+ *    only — one of six numbers `LaneRunControl` prints — so it was not a copy of the fact, it was a
+ *    third of it. (It also carried a `fitWarn` half added to stop the two homes disagreeing, side-eye
+ *    P2 "CONTEXT drops the ⚠"; deleting the second home closes that more completely than syncing it.)
+ *  - **AUDITED AND NOT DOUBLED:** the schema rows and Stage modes. What CONTENT shows adjacent to these
+ *    is a RUN's provenance — the rewrite band's `2 · Rewrite · balanced`, the Runs ledger's "custom
+ *    schema" chip — i.e. what a produced payload was made with, which is a fact about history, not the
+ *    config in force. Two facts that happen to share a vocabulary are not two homes.
+ *
+ * Three rows are deliberate READOUTS. A row with no action says where the value IS changed, so it never
+ * reads as a dead control (side-eye 2026-08-09 P1-8's second arm):
+ *  - **Scope** — edited in the workbench masthead (above).
  *  - **Stage modes** has no editor anywhere in the app. A "Change" button that opens something else is
  *    worse than no button; the row states the modes and says where they come from. Building the control
  *    is a feature, not a polish fix, and is NOT smuggled in here.
@@ -227,16 +244,13 @@ export function SetupTab({
   analyzeSchemaLine,
   scopeLine,
   guidance,
-  fitLine,
-  fitWarn,
   onViewOriginal,
   onEditSchema,
-  onEditScope,
 }: SetupTabProps): ReactElement {
   return (
     <Stack data-testid={testId("refinerySetupTab")} gap="tight">
       <SetupRow action="View" k="Original card" onAction={onViewOriginal} v={anchorLine} />
-      <SetupRow action="Change" k="Scope" onAction={onEditScope} v={scopeLine} />
+      <SetupRow k="Scope" note="Changed on the workbench, beside the card's name — the scope strip and its Edit scope door." v={scopeLine} />
       {/* ONE ROW PER STAGE (live custom-schema drive, 2026-08-14): the single "Payload schema" row wired
           ONLY the score stage's editor, so custom-ANALYZE authoring and editing a saved analyze schema had
           no door at all. Each stage now carries its own "Change" → the editor at that stage; the body
@@ -249,7 +263,6 @@ export function SetupTab({
         note="Edited in the run bar, beside the Run button — it applies to every stage."
         v={guidance === null || guidance.length === 0 ? "none — every stage runs unsteered" : `"${guidance}"`}
       />
-      {fitLine === null ? null : <SetupRow k="Prompt fit" v={fitWarn ? `${fitLine} ⚠` : fitLine} />}
     </Stack>
   );
 }

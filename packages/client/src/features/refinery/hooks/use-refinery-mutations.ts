@@ -84,14 +84,12 @@ function codedRefusalAwareToast(fallback: string): (error: unknown) => string {
 
 // ── session lifecycle ───────────────────────────────────────────────────────────────────────────────
 
-/** The R2 write tier — the session producer (consumed by the R3 surface since `5727fcb12`). */
-export const useStartRefinerySession = createEntityMutation<inferInput<Trpc["refinery"]["startSession"]>, inferOutput<Trpc["refinery"]["startSession"]>>({
-  options: (trpc) => trpc.refinery.startSession.mutationOptions(),
-  // `startSession` emits `refineryChanged` with the new session's id; the seam's row refetches the roster on
-  // every device. (`getSession`/`listRuns` for a session that did not exist are cold fetches of NEW keys.)
-  busDriven: true,
-  errorToast: "Couldn't start a refinery session for that card.",
-});
+// `useStartRefinerySession` USED TO LIVE HERE and moved to `data/use-open-refinery.ts` on 2026-08-17
+// (#157). It is not a plain write any more: the owner ruled ONE start-session-with-character flow behind
+// three doors — the roster header's `+`, the landing picker, and the CHARACTER section's "Open in
+// Refinery" — and the third of those is a different FEATURE, which may never import this one. The
+// `use-start-chat.ts` precedent is the same move for the same reason, and the mutation went WITH the flow
+// rather than being called across the seam, because a launcher and its creation verb are one concept.
 
 /** The R2 write tier — the session patch (name · guidance · selection · stageConfig · status); consumed by the R3 surface. */
 export const useUpdateRefinerySession = createEntityMutation<inferInput<Trpc["refinery"]["updateSession"]>, inferOutput<Trpc["refinery"]["updateSession"]>>({

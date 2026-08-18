@@ -8,8 +8,16 @@
 // lanes at fixed stages; what survives is the payload dispatch, which is this file.)
 //
 // THE RAILS ARE NOT BOXES (chrome diet CD1). A read-only grouping gets a kicker and a hairline rule and
-// nothing else — the accent, the border and the glow all belong to the ONE focal island between them (the
-// rewrite lane). What the width buys here is DATA in reach, not two more frames.
+// nothing else — the accent, the border and the glow belong to whichever lane is the ONE focal. What the
+// width buys here is DATA in reach, not two more frames.
+//
+// …WITH ONE MOVING EXCEPTION (#158 item 5, 2026-08-17): the SCORE lane wears the focal treatment while no
+// score has landed, because at round 0 that is the step the user should take and the rewrite island beside
+// it has nothing settled to emphasise. It is the same stripe+glow the island wears
+// (`lib/focal-treatment.ts`), applied to this same `Section` rather than by re-wrapping it in a Card — the
+// lane must not change ELEMENT as the pipeline advances, or the focal handing over would relayout the
+// canvas under the user. CD1 is intact either way: at most one lane on the canvas is ever a box, and
+// `lib/workbench-lanes.ts` is the single place that decides which.
 //
 // The renderer itself is unchanged and stays the whole point: fixed payloads render off the projected
 // contracts + the built-in hint set; CUSTOM runs render off their EMBEDDED schema (P1-B, never a live row).
@@ -26,7 +34,9 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import type { Trpc } from "#data";
 import { BUILTIN_STAGE_HINTS } from "../lib/builtin-hints.ts";
+import { FOCAL_GLOW, FOCAL_STRIPE } from "../lib/focal-treatment.ts";
 import { buildRenderPlan } from "../lib/render-plan.ts";
+import { STAGE_NOT_RUN_COPY } from "../lib/stage-not-run-copy.ts";
 import { LaneBand, LaneNotes } from "./lane-band.tsx";
 import { PayloadView } from "./payload-view.tsx";
 
@@ -38,13 +48,6 @@ const FIXED_SCHEMAS: Record<RefineryStage, Record<string, unknown>> = {
   score: projectJsonSchema(REFINERY_STAGE_PAYLOADS.score),
   rewrite: projectJsonSchema(REFINERY_STAGE_PAYLOADS.rewrite),
   analyze: projectJsonSchema(REFINERY_STAGE_PAYLOADS.analyze),
-};
-
-/** The not-run-yet arm's WHY, per stage (the stage-order rule the server enforces, stated). */
-const NOT_RUN_COPY: Record<RefineryStage, string> = {
-  score: "Run the score to get a per-field critique with a 1-10 and what to fix.",
-  rewrite: "Run the rewrite (or hand-edit) once a score exists — only the scoped fields are touched.",
-  analyze: "Analyze compares the latest rewrite against your original — run a rewrite first.",
 };
 
 /** The band's ordinal — the pipeline's own order, printed so the parallel canvas still reads as a sequence. */
@@ -68,6 +71,9 @@ export interface PayloadLaneProps {
   readonly arrived?: boolean;
   /** The lane's own run control (fit line · Run/Re-run · the §8 warn) — composed by the surface. */
   readonly runControl?: ReactNode;
+  /** This lane is carrying the canvas's ONE focal treatment right now (CD3 — derived in
+   *  `lib/workbench-lanes.ts`, never decided here). @defaultValue false */
+  readonly focal?: boolean;
 }
 
 /** The three body arms, as a total dispatch (never nested ternaries in the JSX). */
@@ -93,16 +99,32 @@ function LaneBody({ stage, run, running, arrived }: { stage: RefineryStage; run:
   return (
     <Stack gap="tight">
       <Text voice="label">Nothing settled for {stage} yet</Text>
-      <Text voice="gloss">{NOT_RUN_COPY[stage]}</Text>
+      <Text voice="gloss">{STAGE_NOT_RUN_COPY[stage]}</Text>
     </Stack>
   );
 }
 
-export function PayloadLane({ stage, run, running, viewingBack, behind, onBackToLatest, arrived = false, runControl }: PayloadLaneProps): ReactElement {
+export function PayloadLane({
+  stage,
+  run,
+  running,
+  viewingBack,
+  behind,
+  onBackToLatest,
+  arrived = false,
+  runControl,
+  focal = false,
+}: PayloadLaneProps): ReactElement {
   // `data-lane` rather than a per-stage testid: the registry is a fixed key set and a stage-templated id
   // would be invisible to both the typed-testid gate and the liveness lens. A CT scopes by `[data-lane=…]`.
   return (
-    <Section aria-label={LANE_LABEL[stage]} className="gap-row" data-lane={stage}>
+    <Section
+      aria-label={LANE_LABEL[stage]}
+      className={focal ? `gap-row rounded-(--radius-base) p-row ${FOCAL_GLOW}` : "gap-row"}
+      data-focal={focal ? "true" : undefined}
+      data-lane={stage}
+      {...(focal ? { style: FOCAL_STRIPE } : {})}
+    >
       <LaneBand kicker={`${LANE_ORDINAL[stage]} · ${LANE_LABEL[stage]}`} />
       {runControl}
       <LaneNotes behind={behind} iteration={run?.iteration ?? null} onBackToLatest={onBackToLatest} viewingBack={viewingBack} />

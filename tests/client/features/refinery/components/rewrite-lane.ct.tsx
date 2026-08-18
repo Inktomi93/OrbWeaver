@@ -20,6 +20,9 @@ const ENTRIES: readonly ReviewEntry[] = [
 ];
 
 const KEEP_DESCRIPTION = /^Keep description$/;
+/** The not-run arm's corrected sentence (`lib/stage-not-run-copy.ts`) — see the pin below for what it
+ *  replaced and why. */
+const REWRITE_NOT_RUN_COPY = /without one it works from the card alone/;
 
 /** The island's `::before` glow layer, as the browser resolved it — the sanctioned carrier for the CD3
  *  accent (a chromatic glow on the element's OWN box-shadow is the generated-UI tell the design audit
@@ -68,7 +71,13 @@ test("with no settled rewrite the lane says WHY, and offers no accept queue it h
   await mount(<RewriteLaneStory empty={true} entries={[]} />);
 
   await expect(page.getByText("Nothing settled for rewrite yet")).toBeVisible();
-  await expect(page.getByText("Run the rewrite (or hand-edit) once a score exists — only the scoped fields are touched.")).toBeVisible();
+  // THE SENTENCE CHANGED ON 2026-08-17 (#158 item 4) and the old one is quoted here rather than dropped:
+  // it read "Run the rewrite (or hand-edit) once a score exists — only the scoped fields are touched.",
+  // which states a precondition `assertStageReady` does not enforce (a cold rewrite is legal; only analyze
+  // is gated). The lane's own Run button stayed enabled beside it, which is the contradiction the owner
+  // screenshotted. The copy is now one home (`lib/stage-not-run-copy.ts`) and describes what a scoreless
+  // rewrite actually does.
+  await expect(page.getByText(REWRITE_NOT_RUN_COPY)).toBeVisible();
   // No tally and no queue: an accounting of zero fields would be a claim about a run that does not exist.
   await expect(page.getByText("0 undecided", { exact: true })).toHaveCount(0);
   await expect(page.getByTestId("refinery-queue-row")).toHaveCount(0);

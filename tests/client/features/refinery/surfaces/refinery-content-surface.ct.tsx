@@ -230,7 +230,17 @@ const COMPLETED_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 /** The session `startSession` hands back on the mint arm. */
 const MINTED_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 
-const PICK_A_CHARACTER = /^Pick a character$/;
+/** A library big enough to outgrow one `character.list` page — the owner's live corpus size (#157 scope
+ *  add). The picker used to ask for ONE 100-row page, so cards 101…327 were unreachable from the landing
+ *  even though the roster beside it could name them. */
+const BIG_LIBRARY_SIZE = 327;
+const BIG_LIBRARY = Array.from({ length: BIG_LIBRARY_SIZE }, (_, i) =>
+  makeCharacterSummary({ id: `chr_ct_lib_${String(i + 1).padStart(3, "0")}`, name: `Ward ${String(i + 1).padStart(3, "0")}` }),
+);
+/** The LAST card in that library — the one a fixed-limit picker can never reach. */
+const DEEPEST_CARD = `Ward ${String(BIG_LIBRARY_SIZE).padStart(3, "0")}`;
+/** The picker's own tail affordance (`CharacterPicker`) — the keyboard-reachable half of its paging. */
+const LOAD_MORE = /^Load more characters$/;
 
 /** The landing's reads: the roster the resume check consults, plus the library the picker lists. The four
  *  session-scoped reads answer for WHICHEVER session gets opened, so the id the surface asked for is the
@@ -251,13 +261,17 @@ function rosterRow(id: string, status: string, updatedAt: number): unknown {
   return makeRefinerySessionSummary({ id, characterId: CHARACTER_ID, characterName: "Zephyrine Vale", name: null, status, createdAt: FROZEN_AT, updatedAt });
 }
 
-/** Walk the landing exactly as a user does: wait for the door to go live (which is also the barrier that
- *  the roster the decision reads has LANDED — an unlanded roster keeps it disabled by design), open the
- *  picker, pick the card. */
+/**
+ * Walk the landing exactly as a user does: the picker IS the landing (#157 — "the landing for that is
+ * wasted"), so there is no reveal step any more; the barrier is the row itself being on screen.
+ *
+ * The old two-step walk waited for a "Pick a character" button to go ENABLED, and that wait was doing
+ * double duty as the barrier that the roster the resume-or-mint decision reads had landed. That job moved
+ * INTO the decision: `useOpenRefinery` awaits the roster (`ensureQueryData`) before it decides, so the
+ * #79 guarantee no longer depends on a disabled window in the UI — which is exactly why the window could
+ * be deleted rather than merely hidden.
+ */
 async function pickZephyrine(page: Page): Promise<void> {
-  const door = page.getByRole("button", { name: PICK_A_CHARACTER });
-  await expect(door).toBeEnabled();
-  await door.click();
   await page.getByRole("option", { name: "Zephyrine Vale" }).click();
 }
 
@@ -318,6 +332,60 @@ test("picking a character whose only session is FINISHED mints a fresh one and o
   expect(trpc.inputs("refinery.getSession")).toContainEqual({ sessionId: MINTED_SESSION_ID });
   // ONESHOT-OK: same settled barrier.
   expect(trpc.inputs("refinery.getSession")).not.toContainEqual({ sessionId: COMPLETED_SESSION_ID });
+});
+
+// ── THE LANDING IS THE PICKER (#157, owner-ruled) ────────────────────────────────────────────────────
+// "I have to go allll the way down going over a bunch of other stuff to pick a character" / "the landing
+// for that is wasted". The landing used to open on a promise sentence, a three-cell teaching row, and a
+// BUTTON that revealed the picker below all of it. The picker is the landing's job; the teaching material
+// follows it.
+
+test("the LANDING leads with the picker: the search box is live at first paint, ABOVE the teaching material", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, landingRoutes([]));
+  await mount(<RefineryStartStory />);
+
+  // No reveal step: the search field and the rows are on screen with nothing pressed.
+  const search = page.getByPlaceholder("Search characters…");
+  await expect(search).toBeVisible();
+  await expect(page.getByRole("option", { name: "Zephyrine Vale" })).toBeVisible();
+
+  // …and it is FIRST. Geometry, not DOM order: the teaching row is what the owner had to scroll past.
+  const searchBox = await search.boundingBox();
+  const steps = await page.getByTestId(testId("refineryTeachingSteps")).boundingBox();
+  expect(searchBox, "the picker's search field is laid out").not.toBeNull();
+  expect(steps, "the teaching row is laid out").not.toBeNull();
+  expect(searchBox?.y ?? 0, "the picker sits above the teaching material").toBeLessThan(steps?.y ?? 0);
+});
+
+test("the landing picker exposes the WHOLE library — a card past the first page is reachable, and it is a real 327-card corpus", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, {
+    ...landingRoutes([]),
+    "character.list": characterListResponder(BIG_LIBRARY),
+  });
+  await mount(<RefineryStartStory />);
+
+  // Page one landed…
+  await expect(page.getByRole("option", { name: "Ward 001" })).toBeVisible();
+  // …and the tail of the library is NOT on it. Under the old fixed `limit: 100` picker this stayed true
+  // forever: cards 101…327 had no affordance that could reach them.
+  await expect(page.getByRole("option", { name: DEEPEST_CARD })).toHaveCount(0);
+
+  // The picker's own paging walks to the end. Clicked rather than scrolled because the affordance has to be
+  // KEYBOARD-reachable to count — a scroll-only tail is unreachable for anyone not using a pointer.
+  // Unrolled rather than looped: each press is barriered on the page it landed, so a failure names WHICH
+  // page stopped arriving instead of timing out on the tail.
+  const loadMore = page.getByRole("option", { name: LOAD_MORE });
+  await expect(loadMore).toBeVisible();
+  await loadMore.click();
+  await expect(page.getByRole("option", { name: "Ward 101" })).toBeVisible();
+  await loadMore.click();
+  await expect(page.getByRole("option", { name: "Ward 201" })).toBeVisible();
+  await loadMore.click();
+  await expect(page.getByRole("option", { name: DEEPEST_CARD })).toBeVisible();
+  // Exhausted: the tail affordance retires rather than sitting there offering a page that does not exist.
+  await expect(loadMore).toHaveCount(0);
 });
 
 test("the session pane JOINS its reads: the masthead's card name, the roster status, the draft line and one scope chip per selected field", async ({
@@ -445,6 +513,58 @@ test("the §16.1 WALKER pins a superseded run — ONE lane follows it, the other
   await score.getByRole("button", { name: BACK_TO_LATEST }).click();
   await expect(page.getByText("superseded")).toHaveCount(0);
   await expect(score.getByTestId("refinery-hero-value")).toHaveText("8.2");
+});
+
+// ── HONEST GATING + THE FOCAL (#158 items 4 and 5) ───────────────────────────────────────────────────
+// The gate is the SERVER'S, re-derived, never invented: `assertStageReady` (domain/refinery/verbs/
+// run-stage.ts) refuses exactly one cold case — an analyze with no rewrite. A cold REWRITE with no score
+// is legal (`dispatchRewrite` passes `prior.score?.payload ?? null`), which is why only one of the two
+// buttons the issue named is disabled here and the other's CAPTION was the thing that lied.
+
+/** A session with NOTHING run yet — round 0, the state the owner's screenshot was taken in. */
+function emptyLedger(): unknown[] {
+  return [];
+}
+
+test("at round 0 the gated stage says so and the runnable ones do not — the gate is the server's, not a caption's", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": emptyLedger });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
+
+  // ANALYZE is genuinely un-runnable — the server refuses it outright — so it renders disabled WITH the
+  // reason, rather than at full enabled weight beside a caption stating the precondition it ignores.
+  const analyze = page.locator('[data-lane="analyze"]');
+  await expect(analyze.getByRole("button", { name: "Run analyze" })).toBeDisabled();
+  await expect(analyze.getByText("Run a rewrite first — analyze judges a rewrite against your original.")).toBeVisible();
+
+  // SCORE and REWRITE are both live at round 0. A client-side "you must score first" would be a stricter
+  // rule than the domain's, i.e. a tier-collapse — the rewrite simply runs ungrounded, and the copy says so.
+  await expect(page.locator('[data-lane="score"]').getByRole("button", { name: "Run score" })).toBeEnabled();
+  await expect(page.getByTestId(testId("refineryRewriteLane")).getByRole("button", { name: "Run rewrite" })).toBeEnabled();
+});
+
+test("the FOCAL tracks the actionable stage: at round 0 it is on SCORE, and it moves to the rewrite island once a score exists", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": emptyLedger });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
+
+  // ONE focal (CD3), and it points where the user should go. The accent used to sit permanently on
+  // 2 · REWRITE, which at round 0 is not the recommended next step.
+  await expect(page.locator('[data-lane="score"]')).toHaveAttribute("data-focal", "true");
+  await expect(page.getByTestId(testId("refineryRewriteLane"))).not.toHaveAttribute("data-focal", "true");
+  await expect(page.locator('[data-lane="analyze"]')).not.toHaveAttribute("data-focal", "true");
+});
+
+test("the FOCAL moves to the rewrite island once a score has landed — the accept work is the decision from there on", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, baseRoutes());
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await expect(page.locator('[data-lane="score"]').getByTestId("refinery-hero-value")).toHaveText("8.2");
+
+  await expect(page.getByTestId(testId("refineryRewriteLane"))).toHaveAttribute("data-focal", "true");
+  await expect(page.locator('[data-lane="score"]')).not.toHaveAttribute("data-focal", "true");
 });
 
 test("a per-field KEEP/DISCARD decision drives the apply: only the kept field is sent, and the terminal outcome itemizes it", async ({ mount, page }) => {

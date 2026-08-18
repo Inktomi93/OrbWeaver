@@ -37,12 +37,13 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
+import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { LibraryListLayout } from "#components";
-import { useTRPC } from "#data";
+import { CharacterPicker, LibraryListLayout } from "#components";
+import { useOpenRefinery, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
 import { clearRefinerySelection, selectRefinerySessionFromList, useSelectedRefinerySessionId } from "#state";
 import { RefineryChip } from "../components/refinery-chip.tsx";
@@ -194,30 +195,58 @@ export function RefineryListSurface(): ReactElement {
   );
 }
 
-/** The LIST chrome band (D66 A1/A2): the micro-caps title, the count, and — since P1-6 — the START
- *  DOOR. Once a session is selected there was NO way back to "start another one" from anywhere in the
- *  feature (and the phone roster, which IS the whole screen, never had one at all): the only door lived
- *  in CONTENT's teaching state, which a selected session replaces. The `+` clears the selection, which
- *  is exactly what re-renders that teaching state — one action, no new flow. */
+/**
+ * The LIST chrome band (D66 A1/A2): the micro-caps title, the count, and — since P1-6 — the START DOOR.
+ * Once a session is selected there was NO way back to "start another one" from anywhere in the feature
+ * (and the phone roster, which IS the whole screen, never had one at all): the only door lived in
+ * CONTENT's teaching state, which a selected session replaces.
+ *
+ * ── THE `+` IS A DOOR, NOT A SELECTION-CLEARER (owner ruling, 2026-08-17, #157) ──────────────────────
+ * It used to call `clearRefinerySelection()` and nothing else, which meant it did NOTHING at cold open
+ * (where the selection is already null) — so it shipped `disabled` there, and the real pick-a-character
+ * affordance sat in the content pane below a scroll. The owner ruled the inversion IS the defect: "the
+ * primary action must not be a visible dead control while the real affordance hides below the fold."
+ * (The kept-as-designed review this reverses, and the CT pin that recorded it, are named in
+ * `tests/client/features/refinery/surfaces/refinery-list-surface.ct.tsx`.)
+ *
+ * So the `+` now opens the SAME picker the landing shows and fires the SAME flow (`useOpenRefinery` —
+ * one resume-or-mint rule for all three doors), from cold open and with a session open alike. The
+ * anchored-Popover-around-a-shared-Command-body shape is `AddMemberPopover`'s, which is also what
+ * `CharacterDoor` does one folder over; the OUTER chrome differs (a glyph button in a chrome band, not a
+ * secondary button that echoes a choice), which is exactly the part each consumer is supposed to own.
+ */
 export function RefineryListHeader(): ReactElement {
   const trpc = useTRPC();
   const sessions = useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
-  const selectedId = useSelectedRefinerySessionId();
+  const { openRefinery, isPending } = useOpenRefinery();
+  const [pickerOpen, setPickerOpen] = useState(false);
   return (
     <>
       <Text voice="kicker">Sessions</Text>
       <Text voice="gloss">{sessions.data.length}</Text>
       <Row className="flex-1" gap="field" justify="end">
-        <Button
-          aria-label="Start a new session"
-          disabled={selectedId === null}
-          intent="ghost"
-          onClick={(): void => clearRefinerySelection()}
-          size="glyph-md"
-          title="Start a new session"
-        >
-          <Icon icon={Plus} size="sm" />
-        </Button>
+        <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
+          <PopoverTrigger
+            render={
+              <Button aria-busy={isPending} aria-label="Start a new session" intent="ghost" size="glyph-md" title="Start a new session">
+                <Icon icon={Plus} size="sm" />
+              </Button>
+            }
+          />
+          <PopoverPopup>
+            <CharacterPicker
+              autoFocusSearch={true}
+              emptyText="No characters match."
+              label="Start a refinery session"
+              onEscape={(): void => setPickerOpen(false)}
+              onSelect={(id): void => {
+                setPickerOpen(false);
+                void openRefinery(id).catch(() => undefined);
+              }}
+              placeholder="Search characters…"
+            />
+          </PopoverPopup>
+        </Popover>
       </Row>
     </>
   );

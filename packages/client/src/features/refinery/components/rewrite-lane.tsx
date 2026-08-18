@@ -1,18 +1,15 @@
-// Lane 2 of the WORKBENCH — the REWRITE island (program #102, mockup variant C). It is the surface's ONE
-// focal element (CD3): the widest lane, the only box carrying the `--color-speaker` stripe and the rationed
-// `--shadow-glow`, because the accept work is the decision the user came to make. Score and analyze recede
-// to kickers and hairlines on either side of it.
+// Lane 2 of the WORKBENCH — the REWRITE island (program #102, mockup variant C). The widest lane, and the
+// surface's focal element WHENEVER a score exists, because from that point the accept work is the decision
+// the user came to make. Score and analyze recede to kickers and hairlines on either side of it.
 //
-// THE FOCAL IS CARRIED BY STRIPE + GLOW, NOT ACCENT FILL — the hearth-room precedent (home's #102 leg) and
-// the same reason: `design-audit-checks.ts` classifies a chromatic glow on an element's OWN box-shadow as
-// the generated-UI tell, so the ::before layer is the sanctioned carrier, and it rides the island's edge at
-// -1px where it never sits behind reading text. Every colour is a per-theme token: `--color-speaker`
-// resolves differently under each built-in theme and to the scope's own primary under an imported one.
-//
-// THE RADIUS IS THE TIER'S, NOT `--radius-card`. The workbench is an INSTRUMENT surface, so the island
-// resolves `--radius-base` from `tiers.css`; `--radius-card` is the ELEVATED/floating step (D6) and this
-// island does not float. The glow halo therefore tracks `--radius-base` — a halo drawn at a radius its host
-// does not have is a visible double edge.
+// ── THE FOCAL IS NOW A PROP, NOT THIS FILE'S PROPERTY (#158 item 5, 2026-08-17) ──────────────────────
+// The stripe + glow used to be declared here and applied unconditionally, i.e. the island WAS the focal in
+// every state. At round 0 that put the canvas's one emphasised box on a lane whose own body says "nothing
+// settled for rewrite yet", while 1 · SCORE — the step to take — sat in a plain rail. CD3 is one focal
+// that POINTS WHERE THE USER SHOULD GO, so it has to move; `lib/workbench-lanes.ts` decides which lane
+// wears it (score until a score lands, this island thereafter — never analyze, which is a readout) and
+// `lib/focal-treatment.ts` is the treatment both lanes share. Un-focal, this stays a `Card`: it holds the
+// widest content on the canvas and a plain card is not an emphasis, it is a container.
 //
 // THE LANE STATES ITS OWN LIFE: not-run-yet says WHY (the stage-order rule the server enforces), a call in
 // flight replaces that with what is happening, a walked-back run says superseded and offers the way home,
@@ -24,10 +21,12 @@ import { Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { CSSProperties, ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { Trpc } from "#data";
 import { testId } from "#lib";
+import { FOCAL_GLOW, FOCAL_STRIPE } from "../lib/focal-treatment.ts";
 import type { ReviewEntry } from "../lib/review-entries.ts";
+import { STAGE_NOT_RUN_COPY } from "../lib/stage-not-run-copy.ts";
 import { AcceptReview } from "./accept-review.tsx";
 import { LaneBand, LaneNotes } from "./lane-band.tsx";
 import { RefineryChip } from "./refinery-chip.tsx";
@@ -39,19 +38,6 @@ type RunView = inferOutput<Trpc["refinery"]["listRuns"]>[number];
  *  session pin, which is not this component's job), so taking the whole row here would be asking callers
  *  for a payload the lane never opens. Derived from the wire, never re-spelled. */
 type RewriteRunView = Pick<RunView, "iteration" | "payloadConfig" | "stage">;
-
-/** The speaker stripe — the same three declarations the immersive chat rows and home's hearth paint
- *  (message-row-variants `STRIPE_LEFT`), inline because a border WIDTH from a non-spacing token has no
- *  utility. */
-const STRIPE: CSSProperties = {
-  borderInlineStartWidth: "var(--immersive-stripe-width)",
-  borderInlineStartStyle: "solid",
-  borderInlineStartColor: "var(--color-speaker)",
-};
-
-/** The rationed accent glow on the sanctioned ::before carrier, at the INSTRUMENT island radius (header). */
-const GLOW =
-  "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-base) before:opacity-40 before:shadow-glow before:content-['']";
 
 export interface RewriteLaneProps {
   readonly run: RewriteRunView | null;
@@ -67,6 +53,9 @@ export interface RewriteLaneProps {
   readonly onBackToLatest: () => void;
   /** The lane's own run control (fit line · Re-run rewrite · the §8 warn) — composed by the surface. */
   readonly runControl: ReactNode;
+  /** This lane is carrying the canvas's ONE focal treatment right now (CD3 — derived in
+   *  `lib/workbench-lanes.ts`, never decided here). */
+  readonly focal: boolean;
 }
 
 /** The provenance word on the lane's band: the F4 mode a model ran under, or the hand-authored arm. */
@@ -114,19 +103,37 @@ function RewriteBody({
   return (
     <Stack gap="tight">
       <Text voice="label">Nothing settled for rewrite yet</Text>
-      <Text voice="gloss">Run the rewrite (or hand-edit) once a score exists — only the scoped fields are touched.</Text>
+      {/* ONE HOME (#158, `lib/stage-not-run-copy.ts`). This sentence used to be spelled here AND in
+          `payload-lane.tsx`'s own table, byte-identical — so when it turned out to state a precondition
+          the domain does not have, only one of the two got corrected. */}
+      <Text voice="gloss">{STAGE_NOT_RUN_COPY.rewrite}</Text>
     </Stack>
   );
 }
 
-export function RewriteLane({ run, entries, decided, onDecide, running, viewingBack, behind, onBackToLatest, runControl }: RewriteLaneProps): ReactElement {
+export function RewriteLane({
+  run,
+  entries,
+  decided,
+  onDecide,
+  running,
+  viewingBack,
+  behind,
+  onBackToLatest,
+  runControl,
+  focal,
+}: RewriteLaneProps): ReactElement {
   const kept = decided.filter((d) => d === true).length;
   const discarded = decided.filter((d) => d === false).length;
   const undecided = entries.length - kept - discarded;
   const provenance = provenanceOf(run);
   const settled = run !== null && run.stage === "rewrite";
   return (
-    <Card className={GLOW} data-testid={testId("refineryRewriteLane")} style={STRIPE}>
+    <Card
+      data-focal={focal ? "true" : undefined}
+      data-testid={testId("refineryRewriteLane")}
+      {...(focal ? { className: FOCAL_GLOW, style: FOCAL_STRIPE } : {})}
+    >
       <Stack gap="row">
         <LaneBand kicker={provenance === null ? "2 · Rewrite" : `2 · Rewrite · ${provenance}`}>
           {settled ? (
