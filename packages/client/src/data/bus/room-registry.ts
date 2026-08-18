@@ -143,8 +143,14 @@ const ANNOUNCE_RETRY_SECOND_MS = 750;
 const ANNOUNCE_RETRY_BACKOFF_MS = [ANNOUNCE_RETRY_FIRST_MS, ANNOUNCE_RETRY_SECOND_MS] as const;
 
 /** What a room whose announce never landed says. The room is genuinely not receiving — the honest thing is
- *  to say so rather than let a live socket look like a quiet chat. */
-const ANNOUNCE_FAILED_MESSAGE = "Live updates could not be started for this room. Reload to try again.";
+ *  to say so rather than let a live socket look like a quiet chat.
+ *
+ *  NO ROOM NOUN (side-eye home re-score, 2026-08-18). It read "…for this room. Reload to try again." and
+ *  fired on HOME, where no room is open and "this room" names nothing the reader can see — the rooms that
+ *  fail there are the always-on `user` and `notifications` ones, which are shell plumbing, not a place. The
+ *  remedy survives because this arm now only fires on a LIVE socket (see `reportAnnounceFailure`): there a
+ *  reload genuinely re-subscribes, where under the per-origin socket cap it could not. */
+const ANNOUNCE_FAILED_MESSAGE = "Live updates could not be started. Reload to try again.";
 
 /** How long a room nobody wants is kept attached before the detach fires. Long enough to swallow a remount
  *  that spans commits (the StrictMode double-effect, a Suspense retry); short enough that a real "leave the
@@ -170,6 +176,9 @@ export function createRoomRegistry(): RoomRegistry {
   let everLive = false;
   /** Is the socket live RIGHT NOW? A room joining a live socket goes live immediately. */
   let socketIsLive = false;
+  /** Has THIS live episode already told the user its rooms could not be announced? (`reportAnnounceFailure`
+   *  — one alert per cause.) Re-armed on every live edge, which is where a new episode starts. */
+  let announceFailureReported = false;
   /** Room keys that have been live at least once in this page — the BOOT-4X gate (see the header). Never
    *  pruned on detach: "this room's cache may predate now" stays true for the rest of the page load. */
   const everLiveRooms = new Set<string>();
@@ -182,9 +191,11 @@ export function createRoomRegistry(): RoomRegistry {
    * inactivity reconnect ever comes. Silence with no signal, until the user leaves and re-enters the chat.
    *
    * `stream.attach` is idempotent by design, so retrying is free. Exhausting the retries surfaces to the
-   * room's own `onError` rather than staying quiet — a refusal worth seeing (the room/socket caps) reads as
-   * an error, and the leak-free NOT_FOUND for a room the viewer may not have costs three cheap round trips
-   * before saying so. Fire-and-forget from the caller's view either way: never an unhandled rejection.
+   * room's own `onError` rather than staying quiet — the leak-free NOT_FOUND for a room the viewer may not
+   * have costs three cheap round trips before saying so. Fire-and-forget from the caller's view either way:
+   * never an unhandled rejection. WHICH exhaustions speak is `reportAnnounceFailure`'s decision, not this
+   * one: a SOCKET-level refusal (the per-user cap is the live case) is the socket's story to tell once, not
+   * every room's to repeat.
    */
   function announce(entry: RoomEntry, force = false): void {
     // The dedupe: this room is already attached with exactly this replay request, so re-sending it would only
@@ -217,12 +228,38 @@ export function createRoomRegistry(): RoomRegistry {
   function retryAnnounce(entry: RoomEntry, attempt: number): void {
     const backoff = ANNOUNCE_RETRY_BACKOFF_MS[attempt];
     if (backoff === undefined) {
-      for (const subscriber of entry.subscribers) {
-        subscriber.onError?.(ANNOUNCE_FAILED_MESSAGE);
-      }
+      reportAnnounceFailure(entry);
       return;
     }
     setTimeout(() => attemptAnnounce(entry, attempt + 1), backoff);
+  }
+
+  /**
+   * ONE ALERT PER CAUSE (#215, side-eye home re-score 2026-08-18). A capped tab used to raise THREE: the
+   * socket's own "Too many tabs are open" — the only one naming a remedy that works — plus one identical
+   * "Live updates could not be started for this room. Reload to try again." per always-on room (`user` and
+   * `notifications`), telling the user to do the one thing that cannot help. The duplication is structural,
+   * not a copy bug: every room announces independently, so ONE cause fans out N times, and the count grows
+   * with every always-on room the app adds.
+   *
+   * Two gates, and neither is a toast-side de-dup (that would mask genuinely distinct causes):
+   *   • A DEAD SOCKET IS NOT THIS ROOM'S STORY. `stream.attach` mints the socket cell, so it refuses with the
+   *     SAME `DomainRateLimitError` the connect did (`transport/trpc/stream/socket-registry.ts::ensureCell`)
+   *     — i.e. when the socket has not reached the live state, every room's announce failure IS the socket's
+   *     failure, and `useOrbSocket` has already told the user in the user's own vocabulary (tabs, not
+   *     streams) with the retry that works. A room that stays quiet here is not swallowed: the socket going
+   *     live FORCES a re-announce of every room, which is the recovery this silence waits for.
+   *   • ONE PER EPISODE. With the socket live, N rooms failing for one server hiccup is still one thing that
+   *     happened; the first room says it and the rest are silent until the next live edge re-arms the flag.
+   */
+  function reportAnnounceFailure(entry: RoomEntry): void {
+    if (!socketIsLive || announceFailureReported) {
+      return;
+    }
+    announceFailureReported = true;
+    for (const subscriber of entry.subscribers) {
+      subscriber.onError?.(ANNOUNCE_FAILED_MESSAGE);
+    }
   }
 
   function retire(entry: RoomEntry): void {
@@ -307,6 +344,8 @@ export function createRoomRegistry(): RoomRegistry {
       const reconnected = everLive;
       everLive = true;
       socketIsLive = true;
+      // A new live episode: whatever this tab said about a failed announce belongs to the last one.
+      announceFailureReported = false;
       for (const [key, entry] of rooms) {
         if (reconnected) {
           // FORCED past the dedupe: the server may have reaped this room's cell while the socket was down.

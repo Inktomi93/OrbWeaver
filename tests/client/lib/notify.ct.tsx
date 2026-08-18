@@ -35,7 +35,11 @@ test("notify.warn renders a split title/description, the warning identity, and a
   const toast = page.locator('[data-slot="toast-root"]');
   await expect(toast).toHaveCount(1);
   await expect(toast).toHaveAttribute("data-type", "warning");
-  await expect(toast.getByRole("heading")).toHaveText("Your preset's custom parameters weren't sent");
+  // The title is addressed by SLOT: a transient notice is not a section of the document, so it no longer
+  // renders an `<h2>` (side-eye home re-score 2026-08-18 — tests/ui/primitives/toast/toast.ct.tsx owns the
+  // role/heading pins). It still NAMES the toast, which is what this assertion is really about.
+  await expect(toast.locator('[data-slot="toast-title"]')).toHaveText("Your preset's custom parameters weren't sent");
+  await expect(toast).toHaveAccessibleName("Your preset's custom parameters weren't sent");
   await expect(toast.locator("p")).toContainText("Custom OpenAI-compatible connection");
 
   // The action is a REAL button (Base UI's Toast.Action, fed from `NotifyAction`) — clicking it runs the

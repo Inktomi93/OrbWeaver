@@ -57,5 +57,27 @@ export interface ChromeEntry {
    *  (contentBySection precedent), so hooks-over-a-stable-list is legal. `false` ⇒ render NOTHING (no
    *  gap) — preserves the notification bell's no-flash-then-yank rule. Omitted ⇒ always visible. */
   readonly useVisible?: () => boolean;
+  /** How many items this entry has WAITING for the user, from the entry's own one source — the count the
+   *  desktop affordance already badges (`notificationsChrome` returns `useInbox().unreadCount`, the same
+   *  read the bell makes; react-query dedupes the key, so a second reader costs no request and mints no
+   *  second derivation). `0` ⇒ nothing waiting.
+   *
+   *  WHY THE REGISTRY CARRIES IT: an entry curated `mobile: "sheet"` leaves the phone's chrome for the You
+   *  sheet, so on a phone its signal has nowhere to appear — the notifications inbox was reachable but a
+   *  user was never TOLD there was anything in it, while the desktop bell has always badged the count
+   *  (side-eye home re-score 2026-08-18, #214 residue). The tab that HOSTS the sheet shows the sheet's own
+   *  signal, derived through the same projection as everything else in it; app-shell may not import a
+   *  feature (`client-features-no-cross`), so a hardcoded read here would not even resolve.
+   *
+   *  Called UNCONDITIONALLY inside a per-entry component, and only where `useVisible` already said yes —
+   *  the same contract `useVisible` itself has. */
+  readonly useBadge?: () => number;
   readonly behavior: ChromeEntryBehavior;
+}
+
+/** The `topbar.trail` widgets a PHONE's row cannot afford, which the You sheet projects instead (§E-5).
+ *  ONE home for the filter: the sheet renders their `body("sheet")` lens and the mobile bar's You tab
+ *  badges their `useBadge` count, and the two must never disagree about which entries those are. */
+export function sheetOverflowChrome(entries: readonly ChromeEntry[]): readonly ChromeEntry[] {
+  return entries.filter((entry) => entry.zone === "topbar.trail" && entry.mobile === "sheet");
 }

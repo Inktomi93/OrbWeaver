@@ -14,7 +14,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { ChromeEntry } from "#state";
-import { closeModal, openModal, setActiveSection, useActiveSection, useChromeRegistry, useModalRegistry } from "#state";
+import { closeModal, openModal, setActiveSection, sheetOverflowChrome, useActiveSection, useChromeRegistry, useModalRegistry } from "#state";
 
 /** One `rail.end` chrome entry, projected into the sheet. A component (not a bare map body) so `useVisible`
  *  is a top-level hook over the door-frozen list (the rail's `RailChromeEntry` precedent). A widget renders
@@ -43,8 +43,10 @@ export function YouSheet(): ReactElement {
   const footerEntries = entries.filter((e) => e.zone === "rail.end");
   const overflowSections = entries.filter((e) => e.zone === "rail.nav" && e.mobile === "sheet");
   // …and the TOPBAR widgets a phone's row cannot afford (the notifications inbox). They declare the same
-  // `mobile: "sheet"` curation the overflow sections do, and render their own sheet lens here.
-  const overflowChrome = entries.filter((e) => e.zone === "topbar.trail" && e.mobile === "sheet");
+  // `mobile: "sheet"` curation the overflow sections do, and render their own sheet lens here. The filter
+  // is SHARED (`sheetOverflowChrome`, #state) because the mobile bar's You tab badges these same entries'
+  // `useBadge` counts — the door and its contents may never disagree about which widgets live here.
+  const overflowChrome = sheetOverflowChrome(entries);
   // The ⌘K chip is desktop-shaped and sheds from the phone topbar (its row budget, side-eye P1) — so its
   // modal lands HERE, as a named row, DERIVED from the same `topbar.trail` trigger placement the chip reads.
   // Nothing is hardcoded and nothing becomes unreachable: the sheet is where every other overflow lives.

@@ -7,13 +7,14 @@
 // registry render: a new rail affordance is a registered chrome entry (section / modal trigger / widget),
 // never new DOM here — the persona avatar is `personaChrome` (§E-6, the old `railFoot` prop is dead).
 
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { FOCUS_RING_ON_SIDEBAR } from "@orb/ui/lib";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { WeaveGlyph } from "#lib";
 import type { ChromeEntry, ModalSlotId, SectionId } from "#state";
-import { SECTION_GROUPS, useChromeRegistry, useModalRegistry } from "#state";
+import { SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry } from "#state";
 import { RailButton } from "./rail-button.tsx";
 
 export interface RailProps {
@@ -108,6 +109,44 @@ function RailBrand({
 
 const BRAND_GLYPH_SIZE = 26;
 
+/**
+ * ONE sheet-hosted widget's waiting-count, projected onto the You TAB (side-eye home re-score 2026-08-18,
+ * #214 residue). A widget curated `mobile: "sheet"` leaves the phone's chrome for the sheet — which gave
+ * the notifications inbox room and cost it its only phone-side tell: the desktop bell badges its unread
+ * count, and a phone showed NOTHING anywhere, so a user was never told there was something to look at.
+ *
+ * A COMPONENT PER ENTRY, never a scalar folded at the call site: `useVisible`/`useBadge` are hooks over the
+ * door-frozen list, which is legal exactly once per entry at a component top level (the `RailChromeEntry`
+ * precedent). That is also why the count does not reach the tab's `aria-label` — a name is a string the
+ * parent must hold — so the badge carries its own live announcement instead: `role="status"` speaks
+ * "N unread" the moment the read lands, which is the AT equivalent of a badge appearing, and the sheet's
+ * own inbox heading ("Notifications (N unread)") names the count for anyone who opens it.
+ */
+function SheetBadge({ entry }: { readonly entry: ChromeEntry }): ReactNode {
+  const visible = entry.useVisible?.() ?? true;
+  if (!visible || entry.useBadge === undefined) {
+    return null;
+  }
+  return <SheetBadgeCount useBadge={entry.useBadge} />;
+}
+
+function SheetBadgeCount({ useBadge }: { readonly useBadge: () => number }): ReactNode {
+  const count = useBadge();
+  if (count === 0) {
+    return null;
+  }
+  return (
+    <>
+      <Badge intent="primary" size="sm" aria-hidden={true}>
+        {count}
+      </Badge>
+      <span className="sr-only" role="status">
+        {count} unread
+      </span>
+    </>
+  );
+}
+
 export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps): ReactElement {
   const entries = useChromeRegistry().list();
   const navEntries = entries.filter((e) => e.zone === "rail.nav");
@@ -196,6 +235,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
           actually knows. What survives here is the sighted hint (`data-contains-current`). */}
       {youModal === undefined ? null : (
         <RailButton
+          badge={sheetOverflowChrome(entries).map((e) => <SheetBadge entry={e} key={e.id} />)}
           containsCurrent={activeIsSheetSection}
           icon={youModal.trigger.icon}
           label={youModal.trigger.label}
