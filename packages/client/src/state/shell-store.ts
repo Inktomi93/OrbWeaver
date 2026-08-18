@@ -175,6 +175,24 @@ function resolveStoredSection(v: unknown): SectionId {
   return (typeof v === "string" ? RETIRED_SECTION_HEAL[v] : undefined) ?? DEFAULT_STATE.activeSection;
 }
 
+/**
+ * A URL path SEGMENT → the section it deep-links to, or `null` for "not a section" (#181 — `routes/router.tsx`
+ * resolves `/<segment>` through this and 404s on `null`).
+ *
+ * It is `resolveStoredSection`'s sibling and deliberately NOT the same function: a stored value is a user's
+ * last position and must ALWAYS produce a section (its miss arm is the born default), while a URL segment is
+ * an assertion that may simply be wrong — `/nonsense` must reach the router's `notFound`, never teleport the
+ * visitor home. The two share the vocabulary and the retired-id heal map, which is why this lives HERE and not
+ * in `routes/`: the path spelling IS the section id (no second map to drift), and a link a user bookmarked
+ * before a rename lands where their stored id would.
+ */
+export function resolveSectionPath(segment: string): SectionId | null {
+  if (isSectionId(segment)) {
+    return segment;
+  }
+  return RETIRED_SECTION_HEAL[segment] ?? null;
+}
+
 function isPanelMode(v: unknown): v is PanelMode {
   return typeof v === "string" && (PANEL_MODES as readonly string[]).includes(v);
 }

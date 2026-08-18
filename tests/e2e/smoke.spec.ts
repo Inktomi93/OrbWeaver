@@ -22,6 +22,10 @@ import { E2E_DEBUG_TOKEN, SINGLE_USER } from "./support/modes.ts";
 // a hardcoded probe there would have reported the operator's dev stack's health instead of the harness's).
 const HEALTHZ_URL = `${SINGLE_USER.backendUrl}/healthz`;
 const LOGIN_FIELD = /password|handle|username/u;
+// The app's one URL — what a section deep link must LAND on (#181).
+const APP_URL = /\/$/u;
+// The root route's notFound copy (`routes/__root.tsx`) — a CURLY apostrophe, as rendered.
+const NOT_FOUND_COPY = "that route doesn’t exist";
 const APP_READY = "html[data-app-ready]";
 
 // `@smoke` — the fast anti-rot subset run by the pre-push lefthook gate (`pnpm e2e:smoke`). Model-free +
@@ -81,6 +85,27 @@ test("the SPA shell mounts and single-user boots with no login form", {
   await expect(page.getByRole("main")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("login-page")).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: LOGIN_FIELD })).toHaveCount(0);
+});
+
+// #181 — the SECTION DEEP LINK. A rail section is client state, so `/chats` is an ALIAS route
+// (`routes/router.tsx`): it selects the section and hands the visitor to `/`, which is the app's one URL.
+// Before the alias existed, a direct load of `/chats` rendered the root's notFound surface — probed on the
+// isolated stage at 94636b0ed, so this was never a regression, just a deep link nobody had built. It lives in
+// `@smoke` because it is a BOOT contract: every `snap /<section>` probe and every bookmarked section link
+// depends on it, and a silent 404 here reads as "the app is broken" to whoever hits it next.
+test("a section deep link boots the app and lands on the one app URL", { tag: "@smoke" }, async ({ page }) => {
+  await page.goto("/chats");
+  await expect(page.getByRole("main")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(NOT_FOUND_COPY)).toHaveCount(0);
+  // The address bar is where in-app rail navigation leaves it — one URL story for both entrances.
+  await expect(page).toHaveURL(APP_URL);
+});
+
+test("a path that is NOT a section still renders the not-found surface", { tag: "@smoke" }, async ({ page }) => {
+  await page.goto("/definitely-not-a-section");
+  // The alias resolves the segment against the SECTION vocabulary and throws notFound on a miss — a typo
+  // must never be silently absorbed into the app (that is how a dead link looks like a working one).
+  await expect(page.getByText(NOT_FOUND_COPY)).toBeVisible({ timeout: 30_000 });
 });
 
 test("the home page renders the home surface (tRPC query works)", {

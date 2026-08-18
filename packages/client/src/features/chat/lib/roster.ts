@@ -58,7 +58,14 @@ const PEOPLE_TAB_FLOOR = 2;
  *  written as a DISPLAY rule ("don't show a Cast list of one") and was silently doing duty as an ACCESS rule:
  *  it also withheld every per-character control (mute, talkativeness, summon, view card, remove) and — since
  *  the add-character door now lives in this section's header — the only in-tab way to GROW the cast. The
- *  identical mistake, with the identical shape, as the People floor's host arm below. */
+ *  identical mistake, with the identical shape, as the People floor's host arm below.
+ *
+ *  NARROWED ONCE, AND ONLY OUTSIDE THIS FUNCTION (#182, owner live report 2026-08-18 — "some group stuff is
+ *  showing up even when not in group"). Three of the controls this floor used to hide are inputs to the GROUP
+ *  SPEAKER ARBITER (mute · talkativeness · "make X speak next"), and un-hiding them put arbitration chrome in
+ *  every 1:1 room. `committed-members-tab.tsx` now gates those three on {@link resolveIsGroupChat} — the
+ *  SECTION floor above stays ZERO, which is what the #162 ruling was about. Read both comments together
+ *  before touching either: the roster is not a group affordance, the arbiter's knobs are. */
 export function castSectionVisible(participants: readonly ParticipantView[]): boolean {
   return filterCharacters(participants).length >= CAST_SECTION_FLOOR;
 }
