@@ -3,7 +3,8 @@
 //
 // This subcategory ABSORBS the pane's old `motion` sub and the `density`/`elevation` leaves that used to sit under
 // `message-style`: app-shell reads all five knobs (`surfaces/app-shell.tsx` paints the shell scope tokens, the
-// content-width clamp, `data-elevation` and `data-reduced-motion`), and §6's rule is that a SECTION is owned by its
+// content-width clamp and `data-elevation`; `data-reduced-motion` goes onto <html> through
+// `useAppearanceRootEffects`, so the floor reaches portals and the boot veil), and §6's rule is that a SECTION is owned by its
 // reader — so the five land in one app-shell section rather than being split across two owners. The `sizing` anchor
 // id is unchanged (§7.1); every absorbed search LEAF travels here intact (§7.2), so a fuzzy jump for "reduce motion"
 // or "density" still lands on a real anchor.

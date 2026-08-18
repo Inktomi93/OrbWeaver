@@ -1,8 +1,18 @@
 // useAppearanceRootEffects — writes the appearance axes that must live on the document root (<html>),
 // not the shell grid, so they reach everything including portaled content (modals/tooltips/popovers
-// render to document.body, outside .shell-grid): font scale, theme, blur/shadow/texture attrs, and the
-// reading-typography vars globals.css consumes. A layout effect with a clean teardown so a hot-swap never
-// leaves a stale root attr.
+// render to document.body, outside .shell-grid): font scale, theme, blur/shadow/texture attrs, reduced
+// motion, and the reading-typography vars globals.css consumes. A layout effect with a clean teardown so a
+// hot-swap never leaves a stale root attr.
+//
+// REDUCED MOTION MOVED HERE FROM .shell-grid (issue #188 P2-4). The `[data-reduced-motion="true"] *` floor
+// in @orb/ui's globals.css is a DESCENDANT selector, so stamping the flag on the grid silently exempted
+// everything the grid does not contain: the boot veil and the route-pending brand shimmer (both mounted
+// above the router in main.tsx), every portalled surface, and the toaster. Measured on home: with the app's
+// own reduced-motion setting ON, the loader still ran its keyframe and dropped 67-83ms frames — only the OS
+// media query ever silenced it, which makes the in-app toggle a lie on the first screen a user sees. This is
+// the same class the rest of this hook exists for, so it belongs in the same one home; the JS readers
+// (`usePrefersReducedMotion`, `view-transition.ts`) query the attribute document-wide and are unaffected by
+// which element carries it.
 
 import type { BlurSurface, SurfaceTexture } from "@orb/contracts/settings";
 import { useLayoutEffect } from "react";
@@ -34,8 +44,9 @@ export function useAppearanceRootEffects(params: {
   readonly reading: ReadingTypographyVars;
   readonly themeColorization: boolean;
   readonly surfaceTexture: SurfaceTexture;
+  readonly reducedMotion: boolean;
 }): void {
-  const { fontScale, dataTheme, blurSurfaces, shadowEffects, blurStrength, reading, themeColorization, surfaceTexture } = params;
+  const { fontScale, dataTheme, blurSurfaces, shadowEffects, blurStrength, reading, themeColorization, surfaceTexture, reducedMotion } = params;
   useLayoutEffect((): (() => void) => {
     const root = document.documentElement;
     root.style.setProperty("--font-scale", String(fontScale));
@@ -76,6 +87,10 @@ export function useAppearanceRootEffects(params: {
     } else {
       root.setAttribute("data-texture", surfaceTexture);
     }
+    // Written as the literal "true"/"false" the CSS floor selects on (`[data-reduced-motion="true"]`) rather
+    // than as presence: the OFF arm must still be a value, because the shell rendered it as one and a bare
+    // presence attribute would match `[data-reduced-motion]` selectors that mean something else.
+    root.setAttribute("data-reduced-motion", String(reducedMotion));
     return (): void => {
       root.style.removeProperty("--font-scale");
       root.style.removeProperty("--blur-strength");
@@ -92,6 +107,7 @@ export function useAppearanceRootEffects(params: {
       root.removeAttribute("data-justify-body-text");
       root.removeAttribute("data-theme-colorization");
       root.removeAttribute("data-texture");
+      root.removeAttribute("data-reduced-motion");
     };
-  }, [fontScale, dataTheme, blurSurfaces, shadowEffects, blurStrength, reading, themeColorization, surfaceTexture]);
+  }, [fontScale, dataTheme, blurSurfaces, shadowEffects, blurStrength, reading, themeColorization, surfaceTexture, reducedMotion]);
 }

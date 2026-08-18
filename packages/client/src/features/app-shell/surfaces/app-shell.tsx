@@ -159,6 +159,7 @@ export function AppShell(): ReactElement {
     },
     themeColorization: appearance.enableThemeColorization,
     surfaceTexture: appearance.surfaceTexture,
+    reducedMotion: appearance.reducedMotion,
   });
   // A seed theme paints from its generated [data-theme] block (keyed by `dataTheme` above), NOT its stored
   // override — see resolve-theme-scope-tokens for the shadowing bug this prevents.
@@ -257,7 +258,6 @@ export function AppShell(): ReactElement {
             data-focus-mode={layout.focusMode}
             data-density={density}
             data-elevation={appearance.elevation}
-            data-reduced-motion={appearance.reducedMotion}
             {...(hasBgImage ? { "data-has-bg-image": true } : {})}
             style={shellVars}
           >
