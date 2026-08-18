@@ -593,8 +593,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 501,
-      "bytes": 240912,
-      "sha256": "09e3f88c7fe01fb4a5b8eb378d65a5b0803b801e99ea80dff0c845f8fc84833f",
+      "bytes": 242312,
+      "sha256": "6be3f261e2599fa2929f1cc29a4c3e662d1bdcd18dd80a2b28f4aa49b47dd293",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -611,8 +611,8 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "09e3f88c7fe01fb4a5b8eb378d65a5b0803b801e99ea80dff0c845f8fc84833f",
-        "verifiedCommit": "39d7daf8a8f1f2e9975180cd7dac2df69c0063ae",
+        "verifiedSha256": "6be3f261e2599fa2929f1cc29a4c3e662d1bdcd18dd80a2b28f4aa49b47dd293",
+        "verifiedCommit": "0bfe2bda5247d0812b2083ba3bb3a4ffb5db47d0",
         "verifiedAt": "2026-08-18",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
