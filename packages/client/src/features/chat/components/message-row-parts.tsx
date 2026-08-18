@@ -402,6 +402,14 @@ export function renderRowActions(args: {
 // The `greeting` binding arrives ONLY inside the window: `ChatThread` computes it from the canon it already
 // holds (no user row yet) and the roster's cards. Absent ⇒ the variant strip's own `showSwipes` rule decides,
 // exactly as before.
+//
+// BOTH STRIPS TAKE THE ROW'S WALLPAPER BACKING (#221). The slot sits between the metadata row and the
+// message footer, which have carried `BG_PHOTO_CHROME_PLATE` mode-independently since #106 — the strip
+// took nothing, so its chevrons were the one band still floating on the raw photo (measured 1.60:1 live,
+// against WCAG 1.4.11's 3:1 for a UI component). It is threaded from here, not imported by the strips, for
+// the same reason `MessageMetadataRow` takes it as a prop: the ROW owns its backings and the leaf keeps
+// knowing nothing about the shell's wallpaper flag. Self-gated on `in-data-[has-bg-image]`, so a
+// plain-background room is byte-identical.
 export function renderRowSwipe(args: {
   readonly editing: boolean;
   readonly showSwipes: boolean;
@@ -413,9 +421,17 @@ export function renderRowSwipe(args: {
     return null;
   }
   if (args.greeting !== undefined) {
-    return <GreetingSwipeStrip chatId={args.message.chatId} messageId={args.message.id} variants={args.greeting.variants} current={args.message.content} />;
+    return (
+      <GreetingSwipeStrip
+        chatId={args.message.chatId}
+        messageId={args.message.id}
+        variants={args.greeting.variants}
+        current={args.message.content}
+        backingClass={BG_PHOTO_CHROME_PLATE}
+      />
+    );
   }
-  return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} /> : null;
+  return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} backingClass={BG_PHOTO_CHROME_PLATE} /> : null;
 }
 
 export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string | undefined, compactSummary?: string | null | undefined): ReactNode {

@@ -44,9 +44,15 @@ const useSelectVariantMutation = createEntityMutation<SelectVariantVars, unknown
 
 export interface SwipeStripProps {
   readonly message: MessageView;
+  /** #221 — the wallpaper legibility backing the ROW owns (`BG_PHOTO_CHROME_PLATE`), threaded rather
+   *  than imported here so the one home for the row's backings stays `message-row-backing.ts` and this
+   *  component keeps knowing nothing about the shell's wallpaper flag (the `MessageMetadataRow`
+   *  precedent). Without it the chevrons floated on the raw photo at 1.60:1 — WCAG 1.4.11 needs 3:1 for
+   *  a UI component, and this band is the one chrome row under the bubble that took no chip. */
+  readonly backingClass?: string | undefined;
 }
 
-export function SwipeStrip({ message }: SwipeStripProps): ReactElement {
+export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const swipe = useSwipeMutation({ trpc, invalidation });
@@ -95,7 +101,7 @@ export function SwipeStrip({ message }: SwipeStripProps): ReactElement {
   const showPager = total > 1;
 
   return (
-    <Row gap="field" align="center" data-slot="swipe-strip">
+    <Row gap="field" align="center" data-slot="swipe-strip" className={backingClass}>
       {showPager ? (
         <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
           <Icon icon={ChevronLeft} size="sm" />

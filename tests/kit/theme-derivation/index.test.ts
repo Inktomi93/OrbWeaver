@@ -17,6 +17,7 @@ import {
   oklchToSrgb,
   proseInkLightness,
   rampSurface,
+  readingPlateAlpha,
   srgbToOklch,
   THEME_DERIVATION,
   wcagContrastRatio,
@@ -182,5 +183,72 @@ describe("proseInkLightness (#204 §7a — the author-picked ink clamp decision)
     const ink = { l: 0.75, c: 0.05, h: 60 };
     expect(proseInkLightness(ink, 1, darkBase)).toBeNull();
     expect(proseInkLightness(ink, 0.35, darkBase)).toBe(THEME_DERIVATION.fgLMax);
+  });
+});
+
+describe("readingPlateAlpha (#217 — the polarity-aware plate alpha)", () => {
+  const darkBase = { l: 0.158, c: 0.006, h: 60 };
+  const lightBase = { l: 0.98, c: 0.004, h: 78 };
+  const Black = { r: 0, g: 0, b: 0 };
+  const White = { r: 255, g: 255, b: 255 };
+  const { alpha: floor, deltaL, inkReferenceRatio } = THEME_DERIVATION.readingPlate;
+  /** The neutral grey sitting EXACTLY `ratio` from `base` — the reference ink the derivation protects,
+   *  rebuilt here by bisection rather than by the module's closed form, so this is an independent
+   *  measurement of the guarantee and not a re-run of the impl. Contrast is monotone in the channel in
+   *  both directions (a light base's reference is darker, a dark base's lighter); the direction is
+   *  measured rather than assumed. */
+  function referenceInk(base: { l: number; c: number; h: number }, ratio: number): { r: number; g: number; b: number } {
+    const baseRgb = oklchToSrgb(base);
+    const grey = (channel: number): { r: number; g: number; b: number } => ({ r: channel, g: channel, b: channel });
+    const increasing = wcagContrastRatio(grey(255), baseRgb) > wcagContrastRatio(grey(0), baseRgb);
+    let lo = 0;
+    let hi = 255;
+    for (let i = 0; i < 48; i += 1) {
+      const mid = (lo + hi) / 2;
+      if (wcagContrastRatio(grey(mid), baseRgb) < ratio === increasing) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return grey((lo + hi) / 2);
+  }
+
+  test("a DARK base keeps the measured 0.65 floor — D144(d)'s sacred dark rooms do not move", () => {
+    expect(readingPlateAlpha(darkBase)).toBe(floor);
+    expect(readingPlateAlpha({ l: 0.15, c: 0.015, h: 250 })).toBe(floor);
+    // The pivot itself is the DARK arm's ceiling (the same boundary `colorSchemeFor` uses).
+    expect(readingPlateAlpha({ l: THEME_DERIVATION.fgPivotL, c: 0.01, h: 60 })).toBe(floor);
+    expect(readingPlateAlpha({ l: THEME_DERIVATION.fgPivotL + 0.01, c: 0.01, h: 60 })).toBeGreaterThan(floor);
+  });
+
+  test("a LIGHT base is raised until the reference ink clears AA over the plate over BLACK art", () => {
+    const alpha = readingPlateAlpha(lightBase);
+    expect(alpha).toBeGreaterThan(floor);
+    expect(alpha).toBeLessThanOrEqual(1);
+    const plate = oklchToSrgb(rampSurface(lightBase, deltaL));
+    const ink = referenceInk(lightBase, inkReferenceRatio);
+    // The guarantee holds AT the derived alpha…
+    expect(wcagContrastRatio(ink, compositeSrgb(plate, alpha, Black))).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    // …and is the MINIMUM: one 0.001 step down loses it (so the plate stays as much of a window as the
+    // floor allows — this is what makes it a derivation rather than "make it nearly opaque").
+    expect(wcagContrastRatio(ink, compositeSrgb(plate, alpha - 0.001, Black))).toBeLessThan(AA_NORMAL_RATIO);
+    // The OTHER extreme is free for a light plate: white art only lightens the composite.
+    expect(wcagContrastRatio(ink, compositeSrgb(plate, alpha, White))).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+  });
+
+  test("the LIVE #217 defect is closed: the failing light room's inks clear AA over worst-case art", () => {
+    // The owner's room (rescore-chats-2026-08-18): base oklch(0.98 0.004 78), the light seed's own
+    // narration/dialogue/speaker inks — measured 3.48–4.23:1 over the bright wallpaper at 0.65.
+    const plate = oklchToSrgb(rampSurface(lightBase, deltaL));
+    const composite = compositeSrgb(plate, readingPlateAlpha(lightBase), Black);
+    for (const ink of [
+      { l: 0.4, c: 0.1, h: 240 },
+      { l: 0.42, c: 0.03, h: 60 },
+      { l: 0.28, c: 0.015, h: 60 },
+      { l: 0.5, c: 0.17, h: 50 },
+    ]) {
+      expect(wcagContrastRatio(oklchToSrgb(ink), composite)).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    }
   });
 });
