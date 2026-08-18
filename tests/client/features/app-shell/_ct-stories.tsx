@@ -285,6 +285,41 @@ export function RailOverflowSectionStory(): ReactElement {
   );
 }
 
+/** The Rail whose chrome carries a `topbar.trail` widget curated `mobile:"sheet"` and declaring a waiting
+ *  count — the notifications inbox's exact shape (#214 residue, side-eye home re-score 2026-08-18). The
+ *  bell leaves the phone's chrome for the You sheet, so the tab that HOSTS the sheet is where its unread
+ *  signal has to appear; a phone otherwise shows nothing anywhere. The entry is a stand-in so the pin is on
+ *  the SEAM (a curated widget's badge reaches the tab), never on the notifications feature. */
+export function RailSheetBadgeStory(): ReactElement {
+  const chrome = createContributorRegistry<ChromeEntry>("chrome", [
+    {
+      id: "fake-trail-overflow",
+      label: "Fake trail widget",
+      zone: "topbar.trail",
+      mobile: "sheet",
+      useBadge: (): number => 3,
+      behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="trail-sheet-lens">trail:{presentation}</div> },
+    },
+    {
+      id: "fake-hidden-overflow",
+      label: "Fake hidden widget",
+      zone: "topbar.trail",
+      mobile: "sheet",
+      // A gated entry may not badge: `useVisible` is the same door its affordance obeys everywhere else.
+      useVisible: (): boolean => false,
+      useBadge: (): number => 9,
+      behavior: { kind: "widget", body: (): ReactElement => <div data-testid="hidden-sheet-lens">hidden</div> },
+    },
+  ]);
+  return (
+    <CtFakeSectionRegistry>
+      <ChromeRegistryProvider value={chrome}>
+        <Rail activeSection="chats" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
+      </ChromeRegistryProvider>
+    </CtFakeSectionRegistry>
+  );
+}
+
 /** The Rail with the BRAND cell ACTIVE (home-section-spec §4.1) — the glyph is home's rail affordance, so
  *  it must carry `aria-current="page"` when home is the active section, exactly as any rail button does. */
 export function RailBrandActiveStory(): ReactElement {

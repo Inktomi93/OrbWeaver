@@ -44,6 +44,34 @@ interface ToastItemsProps {
   swipeDirection?: BaseRootProps["swipeDirection"];
 }
 
+/**
+ * A TRANSIENT NOTICE IS A LIVE-REGION ROLE, NEVER A DIALOG (side-eye home re-score, 2026-08-18).
+ * Base UI's `ToastRoot` defaults to `role="alertdialog"` for a high-priority toast and `role="dialog"` for
+ * the rest. Both are wrong for what this app renders: an `alertdialog` promises a MODAL awaiting a
+ * response with managed focus, and these are dismissible, non-modal toasts that never take focus — a
+ * screen-reader user was told "dialog" and then found focus elsewhere with no way back. A `dialog` inside
+ * the viewport's `aria-live="polite"` region is the same contradiction one notch quieter (two content
+ * models for the same node: announcement vs. a window you are supposed to be IN).
+ *
+ * So the role follows the SEVERITY the notice already declares: `notify.error` is the only channel that
+ * ships `priority: "high"` (`lib/toast-notify.ts`), and `alert` is exactly "assertive, no focus contract".
+ * Everything else is `status` — polite, announced, still not a window.
+ *
+ * `aria-modal` goes with the dialog roles that licensed it: it is only allowed on `dialog`/`alertdialog`,
+ * so leaving Base UI's `aria-modal={false}` on an `alert` would be an `aria-allowed-attr` violation. It is
+ * overridden to `undefined` rather than deleted upstream — the root still takes `tabIndex`, which is what
+ * makes the toast keyboard-dismissible, and that part is correct.
+ */
+function toastRole(priority: string | undefined): "alert" | "status" {
+  return priority === "high" ? "alert" : "status";
+}
+
+/** REMOVES Base UI's `aria-modal={false}` — its prop merge enumerates explicitly-`undefined` keys, so React
+ *  omits the attribute. A const rather than an inline `aria-modal={undefined}`: biome's `useValidAriaValues`
+ *  reads the inline form as SETTING an invalid value, which is the opposite of what this does, and a
+ *  suppression for a false positive is worse than naming the intent once. */
+const ARIA_MODAL_UNSET = { "aria-modal": undefined } as const;
+
 function ToastItems({ swipeDirection = TOP_ANCHORED_SWIPE }: ToastItemsProps): ReactElement {
   const { toasts } = BaseToast.useToastManager();
   return (
@@ -54,10 +82,24 @@ function ToastItems({ swipeDirection = TOP_ANCHORED_SWIPE }: ToastItemsProps): R
         // element is an axe `aria-hidden-focus` violation AND silences our loudest toasts — every
         // `notify.error` is high-priority, so the errors that most need announcing announced nothing. The
         // Viewport is `aria-live="polite"`, so the toast is announced exactly once with this restored.
-        <BaseToast.Root aria-hidden={false} className={slots.root()} data-slot="toast-root" key={toast.id} swipeDirection={swipeDirection} toast={toast}>
+        <BaseToast.Root
+          {...ARIA_MODAL_UNSET}
+          aria-hidden={false}
+          className={slots.root()}
+          data-slot="toast-root"
+          key={toast.id}
+          role={toastRole(toast.priority)}
+          swipeDirection={swipeDirection}
+          toast={toast}
+        >
           <TypeGlyph type={toast.type} />
           <BaseToast.Content className={slots.content()}>
-            <BaseToast.Title className={slots.title()} />
+            {/* NOT an `<h2>` (same finding). Base UI's Title renders one, so three transient notices
+                injected three headings into the document outline that belong to no section of the page —
+                a heading-navigation user landed on "Too many tabs are open" between the page's own h2s.
+                The title still NAMES the toast: `aria-labelledby` points at this node whatever it renders
+                as, which is where the name belongs on an `alert`/`status`. */}
+            <BaseToast.Title className={slots.title()} data-slot="toast-title" render={<div />} />
             <BaseToast.Description className={slots.description()} />
             {/* Renders null unless the toast carries `actionProps`; do NOT hand-roll a <button>. */}
             <BaseToast.Action className={slots.action()} data-slot="toast-action" />

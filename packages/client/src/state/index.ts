@@ -82,7 +82,7 @@ export {
   useTurnSpeakerCharacterId,
 } from "./chat-stream.ts";
 export type { ChromeEntry, ChromeEntryBehavior, ChromePresentation, ChromeZone, MobileCuration } from "./chrome-registry.ts";
-export { CHROME_ZONES } from "./chrome-registry.ts";
+export { CHROME_ZONES, sheetOverflowChrome } from "./chrome-registry.ts";
 export type { ChromeRegistry } from "./chrome-registry-context.ts";
 export { useChromeRegistry } from "./chrome-registry-context.ts";
 export { ChromeRegistryProvider } from "./chrome-registry-provider.tsx";

@@ -134,6 +134,27 @@ export const textVariants = tv({
       true: "text-label leading-body",
       false: "",
     },
+    // THE ROW-ALIGNMENT MODIFIER (side-eye home re-score 2026-08-18, #216). `line-clamp-N` CAPS a run at N
+    // lines; it does not RESERVE them — so in a grid of cells, a one-line name and a two-line name push
+    // their captions to different baselines and the shelf reads as loose objects instead of one rank
+    // (measured: `descTop` 359 vs 380 in the same row, a 21px drift, on the home face shelf at 1920).
+    // `lines` is the pair: clamp at N AND reserve N lines of the element's OWN leading (`lh` resolves
+    // against the computed line-height, so it follows the voice instead of hardcoding a pixel step), plus
+    // the `whitespace-normal` that makes a clamp wrap at word boundaries rather than overflow (the Button
+    // base is `whitespace-nowrap`, and a nowrap line inside a `-webkit-box` clamp escapes its cell with no
+    // ellipsis at all).
+    //
+    // It is a LAYOUT statement about a run of text in a repeated cell, not a taste knob — the `prose`
+    // precedent — which is why it is not one of the four internal axes the density gate ratchets. Use it
+    // where cells must share a baseline; a lone clamp with nothing to align to stays a `line-clamp-*`
+    // className.
+    //
+    // ONE ARM, because one shape needs it: the reservation is only ever right where cells must share a
+    // baseline, and each arm costs a `.orb-lines-N` rule in globals.css (the reservation cannot be a
+    // Tailwind utility — see that rule's comment). A second arm arrives with its second consumer.
+    lines: {
+      2: "line-clamp-2 orb-lines-2 whitespace-normal",
+    },
     // THE INHERITED-INK MODIFIER (side-eye 2026-08-09 P1-1). Every voice re-spells its own COLOR — which
     // is correct on a surface and actively wrong inside a FILLED control, where the control already
     // decided the ink. Measured on the refinery stage stepper: `voice="label"`/`"gloss"` inside

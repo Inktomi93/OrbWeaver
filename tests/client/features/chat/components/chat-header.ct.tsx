@@ -9,9 +9,12 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { ChatContextHeaderStory, ChatHeaderNarrowStory, ChatHeaderStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
+
+/** Any roster chip, whatever it counts — used to prove NO chip exists before the roster does. */
+const ANY_MEMBERS_CHIP = /^Members — /u;
 
 /** A human seat — `role` seats a host/member (the roster shape); `displayName` names the seat. */
 function human(role: ParticipantRole): Record<string, unknown> {
@@ -70,6 +73,38 @@ test("a GROUP cast shows the chip counting PRESENT participants (\u00a7 6.1: Mem
   const chip = component.getByRole("button", { name: "Members — 3" });
   await expect(chip).toBeVisible();
   await expect(chip).toHaveText("3");
+});
+
+// ── THE PLACEHOLDER MAY NOT LIE (#216, side-eye home re-score 2026-08-18) ─────────────────────────
+// This surface does not suspend, and its unresolved arm used to render the FALLBACK identity — so for
+// ~480ms after Resume the topbar said "Untitled chat" beside a "Members — 0" chip for a room that has a
+// name and a cast. The pending state is pinned as a SETTLED render (the read is HELD, never raced), then
+// released so the same mount proves the real identity still lands.
+test("while chat.getChat is unresolved the header shows a skeleton — never 'Untitled chat · 0 members'", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, {
+    "chat.getChat": hold,
+    "chat.listMessages": () => makeMessagesPage([]),
+  });
+
+  const component = await mount(<ChatHeaderStory />);
+  await hold.requested;
+
+  // THE DEFECT, asserted first and through what a user sees — this pair is what went red on the old
+  // source (a rendered "Untitled chat" and a rendered "Members — 0"), not the new slot below it.
+  await expect(component.getByText("Untitled chat")).toHaveCount(0);
+  // A "0" seat count is the same lie in a smaller box — the chip waits for a roster to count.
+  await expect(component.getByRole("button", { name: ANY_MEMBERS_CHIP })).toHaveCount(0);
+  await expect(component.locator('[data-slot="chat-header-pending"]')).toBeVisible();
+
+  hold.release({
+    title: "Council of Two",
+    participants: [human("host"), character("Aria")],
+    viewerIsHost: true,
+  });
+
+  await expect(component.getByRole("button", { name: "Members — 2" })).toBeVisible();
+  await expect(component.locator('[data-slot="chat-header-pending"]')).toHaveCount(0);
 });
 
 // ── THE MEMBERS CHIP WAS A DEAD CONTROL BELOW 64rem (CONFIG-FIX lane finding) ──────────────────────

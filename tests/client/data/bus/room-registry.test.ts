@@ -28,6 +28,8 @@ const CHAT = castId<ChatId>("chat_reg_1");
 const USER_ROOM: StreamRoomRef = { channel: "user" };
 const RPG_ROOM: StreamRoomRef = { channel: "rpg", chatId: CHAT };
 const ANNOUNCE_FAILED_COPY = /Live updates could not be started/u;
+/** #215: the alert fires on surfaces with no room open, so the copy may not name one. */
+const ROOM_NOUN = /room/iu;
 const USER_FRAME: StreamDataFrame = { channel: "user", event: { type: "tagsChanged" } };
 const RPG_FRAME: StreamDataFrame = { channel: "rpg", chatId: CHAT, event: { type: "gameChanged", chatId: CHAT } };
 /** Well past the registry's retire grace — the point where a room nobody wants is genuinely given back. */
@@ -379,7 +381,7 @@ describe("a failed announce is retried, and never silently abandoned", () => {
     expect(errors).toEqual([]);
   });
 
-  test("an announce that exhausts its retries SURFACES to the room instead of holding it silently", async () => {
+  test("an announce that exhausts its retries on a LIVE socket surfaces instead of holding it silently", async () => {
     vi.useFakeTimers();
     const registry = createRoomRegistry();
     let calls = 0;
@@ -392,6 +394,7 @@ describe("a failed announce is retried, and never silently abandoned", () => {
     });
     const errors: string[] = [];
 
+    registry.socketLive();
     registry.join(USER_ROOM, { onEvent: () => undefined, onError: (message) => errors.push(message) });
     await vi.advanceTimersByTimeAsync(2000);
 
@@ -399,6 +402,62 @@ describe("a failed announce is retried, and never silently abandoned", () => {
     // The room is genuinely not receiving; a live socket must not be allowed to look like a quiet chat.
     expect(errors).toHaveLength(1);
     expect(errors[0]).toMatch(ANNOUNCE_FAILED_COPY);
+    // …and it says so WITHOUT naming a room: the always-on rooms fail on surfaces (home) where no room is
+    // open, and "for this room" named nothing the reader could see (#215).
+    expect(errors[0]).not.toMatch(ROOM_NOUN);
+  });
+
+  // ── ONE ALERT PER CAUSE (#215, side-eye home re-score 2026-08-18) ─────────────────────────────────────
+  // A tab over the per-origin socket cap raised THREE alerts for ONE cause: the socket's own "Too many tabs
+  // are open" (the only remedy that works) plus one identical "…for this room. Reload to try again." per
+  // always-on room. The duplication is structural — every room announces independently — so it is deduped
+  // at the PRODUCER, keyed on the cause, never in the toast surface where distinct causes would collapse too.
+
+  test("a socket that never went live is the SOCKET's story: no room repeats it", async () => {
+    vi.useFakeTimers();
+    const registry = createRoomRegistry();
+    // `stream.attach` mints the socket cell, so the per-user cap refuses it with the same error the connect
+    // got — every room's failure here IS the socket's failure, and `useOrbSocket` already named the remedy.
+    registry.bindTransport({
+      attach: (): Promise<void> => Promise.reject(new Error("Too many open streams (8). Close a tab and retry.")),
+      detach: (): Promise<void> => Promise.resolve(),
+    });
+    const errors: string[] = [];
+    const onError = (message: string): void => {
+      errors.push(message);
+    };
+
+    registry.join(USER_ROOM, { onEvent: () => undefined, onError });
+    registry.join({ channel: "notifications" }, { onEvent: () => undefined, onError });
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(errors).toEqual([]);
+  });
+
+  test("with the socket live, N rooms failing for one hiccup is still ONE alert", async () => {
+    vi.useFakeTimers();
+    const registry = createRoomRegistry();
+    registry.bindTransport({
+      attach: (): Promise<void> => Promise.reject(new Error("hiccup")),
+      detach: (): Promise<void> => Promise.resolve(),
+    });
+    const errors: string[] = [];
+    const onError = (message: string): void => {
+      errors.push(message);
+    };
+
+    registry.socketLive();
+    registry.join(USER_ROOM, { onEvent: () => undefined, onError });
+    registry.join({ channel: "notifications" }, { onEvent: () => undefined, onError });
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(errors).toHaveLength(1);
+
+    // …and the NEXT live edge re-arms it: a later episode is a new thing that happened.
+    registry.socketDown();
+    registry.socketLive();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(errors).toHaveLength(2);
   });
 
   test("a room LEFT mid-retry stops retrying — a torn-down surface never announces or errors", async () => {
