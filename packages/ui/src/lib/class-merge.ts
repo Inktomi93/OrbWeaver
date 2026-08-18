@@ -20,6 +20,7 @@
 import { extendTailwindMerge } from "tailwind-merge";
 import type { CnOptions, CnReturn } from "tailwind-variants";
 import { createTV, cx } from "tailwind-variants";
+import { TOKENS } from "#tokens";
 
 // The DTCG type-scale utilities are custom `--text-*`/`--leading-*`/`--tracking-*` namespaces, so
 // tailwind-merge cannot classify them: it reads `text-title` as a text COLOR (dropping the size beside
@@ -33,8 +34,29 @@ const CUSTOM_CLASS_GROUPS = {
   tracking: [{ tracking: ["micro"] }],
 };
 
-/** The configured tailwind-merge instance — built once, at module scope, from CUSTOM_CLASS_GROUPS. */
-const mergeClasses = extendTailwindMerge({ extend: { classGroups: CUSTOM_CLASS_GROUPS } });
+// THE SPACING SCALE (#146) — the same defect, one namespace wider. `--spacing-*` is a Tailwind THEME
+// namespace, not a single utility family: it feeds `gap`/`gap-x`/`gap-y`, every `p`/`m` side and axis,
+// `w`/`h`/`size`/`min-*`/`max-*`, `inset`/`top`…, `space-x|y`, `scroll-m*`/`scroll-p*` and `translate`.
+// tailwind-merge's default spacing scale is `["px", isNumber]`, so `gap-tight` is opaque to it and
+// survives beside `gap-field` — the winner then being whichever class Tailwind emitted LAST, which is
+// alphabetical within the family and has nothing to do with which layer meant to override which. Two
+// live instances were rendering right only by that accident (`CHIP_BOX`'s `gap-tight` over the control
+// primitives' `gap-field` base; the `Section` root's `gap-tight` over its own `gap-block`), and one was
+// rendering WRONG (the Tabs `stacked` arm's `gap-0` losing to the tab base's `gap-field`).
+//
+// So this extends the THEME entry rather than enumerating class groups: one registration, every group
+// Tailwind itself derives from the namespace — registering only `gap` would leave the identical latent
+// bug in padding, in the sealed control HEIGHTS, and in every family added later. The scale is DERIVED
+// from the generated token map, so a token added to `tokens.json` is registered by existing; the
+// completeness pin is `tests/ui/lib/class-merge.test.ts`.
+const SPACING_SCALE = Object.keys(TOKENS)
+  .filter((path) => path.startsWith("spacing."))
+  .map((path) => path.slice("spacing.".length));
+
+/** The configured tailwind-merge instance — built once, at module scope, from the customizations above. */
+const mergeClasses = extendTailwindMerge({
+  extend: { classGroups: CUSTOM_CLASS_GROUPS, theme: { spacing: SPACING_SCALE } },
+});
 
 /**
  * Join class values (strings / arrays / `{cls: cond}` objects, like clsx) and resolve Tailwind
@@ -52,4 +74,6 @@ export function cn(...classes: CnOptions): CnReturn {
 }
 
 /** The variant factory — a `createTV`-CONFIGURED one, never tailwind-variants' bare `tv` export. */
-export const tv = createTV({ twMergeConfig: { extend: { classGroups: CUSTOM_CLASS_GROUPS } } });
+export const tv = createTV({
+  twMergeConfig: { extend: { classGroups: CUSTOM_CLASS_GROUPS, theme: { spacing: SPACING_SCALE } } },
+});

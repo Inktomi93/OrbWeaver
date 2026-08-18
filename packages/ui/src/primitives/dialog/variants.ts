@@ -10,8 +10,10 @@ export const dialogVariants = tv({
   slots: {
     // The modal scrim + the dialog-only `backdrop-blur-sm` on top (alert-dialog shares the scrim, not the blur).
     backdrop: `${SCRIM("modal")} backdrop-blur-sm`,
-    // Viewport gutter is set per-size (below), never in the base — else `full`'s `p-0` and a base `p-gutter`
-    // are two padding classes tailwind-merge can't dedupe.
+    // Viewport gutter is set per-size (below), never in the base. Pre-#146 the reason was that `full`'s `p-0`
+    // and a base `p-gutter` were two padding classes tailwind-merge could not dedupe; with the spacing scale
+    // registered they DO dedupe last-wins, and per-size stays because a size arm STATING its own gutter is
+    // legible where an arm neutralising an inherited one is not.
     viewport: "fixed inset-0 z-(--z-modal) flex items-center justify-center",
     popup: `relative flex max-h-full flex-col overflow-y-auto overscroll-contain ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
     title: "text-title leading-title font-semibold",

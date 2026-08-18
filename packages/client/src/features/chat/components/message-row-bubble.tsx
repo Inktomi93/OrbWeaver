@@ -9,10 +9,12 @@ import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import type { BubbleDecoration } from "../lib/message-row-variants.ts";
 
-// `cn` is configured for the DTCG TYPE-SCALE groups only (lib/class-merge.ts) — custom SPACING tokens
-// stay opaque to tailwind-merge, so it doesn't know px-block/py-row conflict with p-*; a p-0 decoration
-// className computed to 0 in React but the DOM still rendered the padding utility's declaration.
-// Removing the exact classes at the string level sidesteps the merge entirely.
+// The bubble's own padding is REMOVED at the string level, not overridden. It was written when `cn` knew
+// the DTCG type-scale groups only (lib/class-merge.ts) and custom SPACING tokens were opaque, so a `p-0`
+// decoration className computed to 0 in React while the DOM still rendered the padding utility. #146
+// registered the spacing scale, so an appended `p-0` WOULD win now — but the band case does not want a
+// zero padding declared on the bubble, it wants the bubble's own inset gone so the band can own the edge.
+// Stripping the exact tokens says that; `p-0` would only say it by accident of merge order.
 function withoutBubblePadding(className: string): string {
   return className
     .split(" ")

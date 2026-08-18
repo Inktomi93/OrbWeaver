@@ -122,8 +122,9 @@ export const trackBarVariants = tv({
     // value===max, used where the bar carries no magnitude at all and stands only for its ramp COLOR — the
     // tracker-DEFINITION row, which says "this tracker renders as a meter, in this hue". That site spelled
     // it `className="!w-block shrink-0"`, an `!important` override of the base `w-full`: a custom-token
-    // width is opaque to tailwind-merge (`twMerge("w-full","w-block")` keeps BOTH), so it resolved by
-    // stylesheet order and the `!` was there to force the coin flip (`ui-size-via-variant`, the Button
+    // width was opaque to tailwind-merge (`twMerge("w-full","w-block")` kept BOTH), so it resolved by
+    // stylesheet order and the `!` was there to force the coin flip (#146 registered the spacing scale, so
+    // that pair now resolves last-wins and the `!` is inert) (`ui-size-via-variant`, the Button
     // `glyph-*` twin). `shrink-0` rides the arm because a fixed swatch that shrinks is not a swatch.
     width: {
       full: { root: "w-full" },

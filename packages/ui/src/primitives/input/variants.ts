@@ -19,9 +19,11 @@ export const inputVariants = tv({
     // the datum's own inset and type, keeping only the chrome that marks it editable (border + bg-input).
     //
     // It is a VARIANT and not a call-site className for a MEASURED reason: `twMerge("h-control-sm","h-auto")`
-    // and `twMerge("px-block","px-field")` each keep BOTH classes (custom-token utilities are unclassifiable,
-    // twMerge 3.6), so the shipped call sites had to write `!h-auto !px-field` — an !important escape that
-    // also slips past the ui-size-via-variant gate. The scale can only be chosen HERE (Button `media`/`wrap`,
+    // and `twMerge("px-block","px-field")` each kept BOTH classes (custom-token utilities were unclassifiable,
+    // twMerge 3.6 pre-#146), so the shipped call sites had to write `!h-auto !px-field` — an !important escape
+    // that also slips past the ui-size-via-variant gate. #146 registered the spacing scale, so those pairs now
+    // resolve last-wins: the escape is inert AND a plain call-site class would now silently win, which is the
+    // stronger reason for the arm to exist at all. The scale can only be chosen HERE (Button `media`/`wrap`,
     // TabsTab `stacked` precedent). Pinned by COMPUTED box in tests/ui/primitives/input/input.ct.tsx.
     layout: {
       field: [FIELD_CONTROL, "h-control-sm"],

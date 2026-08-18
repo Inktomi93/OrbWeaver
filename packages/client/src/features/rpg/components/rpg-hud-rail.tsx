@@ -253,9 +253,11 @@ export function RpgHudRail({
 }
 
 /** One cell: glyph + caption, ALWAYS both (§7.2) — `layout="stacked"`, the primitive's OWN arm for a cell
- *  whose height follows its content. A call-site `h-auto` cannot express that: the sealed `h-control-sm` is
- *  opaque to tailwind-merge and wins on stylesheet order, which is precisely how the captions shipped
- *  clipped to a 5px sliver. The caption is the accessible name AND visible — the panel is never wide enough
+ *  whose height follows its content. A call-site `h-auto` does not express that: pre-#146 the sealed
+ *  `h-control-sm` was opaque to tailwind-merge and won on stylesheet order — precisely how the captions
+ *  shipped clipped to a 5px sliver — and post-#146 the call site wins instead, which quietly breaks the
+ *  seal rather than naming the arm (the `min-w-0` note at the cell below is the same lesson, measured).
+ *  The caption is the accessible name AND visible — the panel is never wide enough
  *  for the shared strip's container-query reveal to fire, so an icon-only game rail was permanent, not
  *  "compressed" (F6 defect 2). `title` is NOT the caption's understudy (§7.2): the word is on screen and
  *  `aria-label` carries the full name when it truncates, so a hover tooltip on every cell was pure noise.
@@ -302,7 +304,13 @@ function RpgHudCell({
       // name, so WCAG 2.5.3 Label-in-Name still holds and "click Map" still resolves.
       aria-label={locked ? `${tab.label} — locked` : tab.label}
       data-crown={tab.crown}
-      className={`relative min-w-0 data-active:bg-primary/10 data-active:text-primary ${CELL_EDGE_CLASSES[edge]} ${CELL_OWNERSHIP_CLASSES[ownership]}`}
+      // NO `min-w-0` HERE, EVER (#146). It used to sit in this list and was pure luck that it did nothing:
+      // the custom spacing scale was unregistered in tailwind-merge, so it survived beside `TabsTab`'s
+      // sealed `min-w-touch-target` and lost on stylesheet order alone (`.min-w-0` is emitted before
+      // `.min-w-touch-target`). With the scale registered the call site wins the merge outright, which
+      // deletes the ≥44px floor the block comment above delegates to the primitive for — MEASURED at 320
+      // coarse, the cells fell to 39px.
+      className={`relative data-active:bg-primary/10 data-active:text-primary ${CELL_EDGE_CLASSES[edge]} ${CELL_OWNERSHIP_CLASSES[ownership]}`}
       {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}
     >
       {tab.icon !== undefined ? <Icon icon={tab.icon} size="sm" className={crowned ? CROWN_OWNERSHIP_CLASSES[ownership] : ""} /> : null}
