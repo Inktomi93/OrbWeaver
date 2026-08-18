@@ -7,15 +7,15 @@ import { expect, test } from "../../support/fixtures.ts";
 test("viewed-run and armed-rewrite pointers move independently and clear to latest", () => {
   setRefineryViewedRun(null);
   setRefineryArmedRewrite(null);
-  expect(__peekRefineryViewForTest()).toEqual({ viewedRunId: null, armedRewriteRunId: null });
+  expect(__peekRefineryViewForTest()).toEqual({ viewedRunId: null, armedRewriteRunId: null, requestedDoor: null });
 
   setRefineryViewedRun("refinery_run_1");
-  expect(__peekRefineryViewForTest()).toEqual({ viewedRunId: "refinery_run_1", armedRewriteRunId: null });
+  expect(__peekRefineryViewForTest()).toEqual({ viewedRunId: "refinery_run_1", armedRewriteRunId: null, requestedDoor: null });
 
   setRefineryArmedRewrite("refinery_run_2");
-  expect(__peekRefineryViewForTest()).toEqual({ viewedRunId: "refinery_run_1", armedRewriteRunId: "refinery_run_2" });
+  expect(__peekRefineryViewForTest()).toEqual({ viewedRunId: "refinery_run_1", armedRewriteRunId: "refinery_run_2", requestedDoor: null });
 
   setRefineryViewedRun(null);
   setRefineryArmedRewrite(null);
-  expect(__peekRefineryViewForTest()).toEqual({ viewedRunId: null, armedRewriteRunId: null });
+  expect(__peekRefineryViewForTest()).toEqual({ viewedRunId: null, armedRewriteRunId: null, requestedDoor: null });
 });
