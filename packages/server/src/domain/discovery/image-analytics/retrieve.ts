@@ -16,7 +16,7 @@
 //   5. `image-analytics/facets.ts` tallies the same column into the Visuals tab's distributions + drill.
 // Nothing in this chain reads card TEXT to name a picture; `genre`/`tone` ride along as context chips only.
 
-import type { ImageFacetMetaKey } from "@orb/contracts/embeddings";
+import type { ImageCaptionMeta, ImageFacetMetaKey } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { DiscoveryContext } from "../context.ts";
@@ -288,11 +288,11 @@ interface VisualLabels {
   readonly facets: VisualFacets | undefined;
 }
 
-const metaStr = (m: Record<string, unknown> | null, key: string): string | null => (m !== null && typeof m[key] === "string" ? (m[key] as string) : null);
+const metaStr = (m: ImageCaptionMeta | null, key: string): string | null => (m !== null && typeof m[key] === "string" ? (m[key] as string) : null);
 
 /** Project one stored `caption_meta` blob onto the facets the labeler reads; `undefined` when it carries none
  *  (a provenance-only `{model}` row, i.e. captioned before the breakdown pass existed). */
-function toVisualFacets(meta: Record<string, unknown> | null): VisualFacets | undefined {
+function toVisualFacets(meta: ImageCaptionMeta | null): VisualFacets | undefined {
   const facets: Partial<Record<LabelFacet, string>> = {};
   let any = false;
   for (const facet of LABEL_FACETS) {

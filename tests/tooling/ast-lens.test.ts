@@ -30,7 +30,10 @@ import {
   collectStringyAudit,
   collectSwallowedCandidates,
   collectTypeOnlyCandidates,
+  contractFieldsOf,
   deadEvidenceFor,
+  fieldHit,
+  fieldIndexes,
   isColumnExempt,
   isNearPairExempt,
   isProdConsumed,
@@ -1035,6 +1038,80 @@ export function bulk(row: { id: string }): void {
     };
     expect(isColumnExempt(declOf("origin"))).toBe(true);
     expect(isColumnExempt(declOf("ghost"))).toBe(false);
+  });
+});
+
+describe("ast contract-field-liveness lens (fields declared but never populated)", () => {
+  // The audit's two real findings, reproduced as shapes: a field READ on a live wire that no production
+  // code ever constructs (RepetitionDetection.maxPatternSize), and a field whose declaration is its only
+  // occurrence in the repository (AssembleContext.activeSpeakerCharacterId). Beside them, the three shapes
+  // that must NOT be reported — a field the code populates, a field a pure BUILDER inside `contracts`
+  // populates (the audit's wrong package-fence produced 27 false hits), and a brand PHANTOM SYMBOL.
+  test("separates consumed-never-populated from declared-only, and never flags a populated field", () => {
+    const project = projectOf({
+      "packages/contracts/src/role-clients/index.ts": `
+declare const brand: unique symbol;
+export interface RepetitionDetection {
+  readonly maxPatternSize: number;
+  readonly aliveKnob: number;
+  readonly builtHere: string;
+  readonly [brand]: never;
+}
+export const buildIt = (v: string): RepetitionDetection => ({ builtHere: v }) as RepetitionDetection;
+export interface AssembleContext {
+  readonly activeSpeakerCharacterId?: string;
+}
+`,
+      // maxPatternSize is READ on the wire and constructed nowhere; aliveKnob is constructed here.
+      "packages/server/src/infra/providers/vllm/engine/chat-completion.ts": `
+export const wire = (cfg: { maxPatternSize: number; aliveKnob: number }): number => cfg.maxPatternSize + cfg.aliveKnob;
+export const origin = { aliveKnob: 3 };
+`,
+      // A TEST is not a producer — the shape that makes maxPatternSize a finding rather than a pass.
+      "tests/server/providers/chat-completion.test.ts": "export const fixture = { maxPatternSize: 4 };\n",
+    });
+    const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/role-clients/index.ts");
+    const fields = contractFieldsOf(contracts);
+    // The brand phantom-symbol is a COMPUTED name and never a field.
+    expect(fields.map((f) => `${f.owner}.${f.name}`)).toEqual([
+      "RepetitionDetection.maxPatternSize",
+      "RepetitionDetection.aliveKnob",
+      "RepetitionDetection.builtHere",
+      "AssembleContext.activeSpeakerCharacterId",
+    ]);
+    const { produced, consumed } = fieldIndexes(project);
+    const hits = fields.flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    expect(hits.map((h) => h.kind)).toEqual(["field-consumed-never-populated", "field-declared-only"]);
+    expect(hits[0]?.text).toContain("RepetitionDetection.maxPatternSize");
+    expect(hits[0]?.text).toContain("chat-completion.ts");
+    expect(hits[1]?.text).toContain("AssembleContext.activeSpeakerCharacterId");
+  });
+
+  test("an ACCESSOR member populates a field (the compose role-clients shape), and a z.object key is a declaration, not a producer", () => {
+    const project = projectOf({
+      "packages/contracts/src/role-clients/index.ts": `
+import { z } from "zod";
+export interface RoleClients {
+  readonly imageEmbedModel: string;
+}
+export const schema = z.object({ declaredOnly: z.string() });
+`,
+      "packages/server/src/entry/compose/role-clients.ts": `
+export const make = (): { imageEmbedModel: string } => ({
+  get imageEmbedModel(): string {
+    return "m";
+  },
+});
+`,
+    });
+    const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/role-clients/index.ts");
+    const { produced, consumed } = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    // imageEmbedModel is produced by the getter (a key-only index read it as unpopulated — the live shape);
+    // `declaredOnly`'s own `z.object` key is a DECLARATION and cannot populate itself.
+    expect(hits.map((h) => h.text)).toEqual([
+      "schema.declaredOnly — NO producer spells this name outside its own declaration, and NOTHING reads it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)",
+    ]);
   });
 });
 

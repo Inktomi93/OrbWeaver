@@ -4491,6 +4491,181 @@ function printRegistriesPerTable(registries: readonly RegistryDef[], byRegistry:
   console.log(`regkeys --all: swept ${registries.length} registry/registries, ${withFindings} carrying a finding.`);
 }
 
+// ── contract-field-liveness: contracts fields DECLARED but never POPULATED (INFORMATIONAL) ─────────────
+// The caption class one tier up from a db column, and the shape no other lens in this file can see:
+// `orphans`/`apisurface`/knip all work on EXPORTS, and a dead FIELD lives inside a very much alive export.
+// The silent-reader audit (docs/reviews/misc/2026-08-18-silent-reader-audit.md §5) swept 2,296 contract
+// fields with this method and found two real ones: `RepetitionDetection.maxPatternSize` — declared,
+// plumbed through five hops, read on the vLLM wire, and NEVER constructed outside a test, so the loop guard
+// its header advertises does not run — and `AssembleContext.activeSpeakerCharacterId`, which occurs exactly
+// ONCE in the repository (its own declaration) while carrying a doc comment asserting live behaviour.
+//
+// IT IS INFORMATIONAL AND NEVER GATES, for the `regkeys` reason: a key-based index cannot see every
+// producer, so acting on a line without reading the call sites deletes live code.
+//
+// THE FENCE IS THE DECLARATION SITE, NEVER A PACKAGE (the audit's corrected fence — an earlier pass fenced
+// "the producer must live outside packages/contracts" and produced 27 false hits). `contracts` legitimately
+// holds pure BUILDERS: `StImportResult.sectionCount` is produced at `preset/index.ts:3083` and rendered in
+// the client, and it looked exactly like the defect under the wrong fence.
+//
+// DECLARED BLIND SPOTS, each one measured:
+//   • A TEMPLATE-LITERAL producer is invisible. TanStack Form writes `name={`sections[${i}].forbid…`}` —
+//     a real write path that no key index will ever find (audit §9.2). Any field a FORM edits can appear
+//     here and be fully alive.
+//   • A SAME-NAMED field anywhere in the corpus hides a finding, so this lens UNDER-reports (never over-).
+//     A hit means "this exact name is spelled by no producer", which is strong; a clean run is weak.
+//   • Brand PHANTOM SYMBOLS (`[historyFloorBrand]`) are computed names, skipped by construction — they are
+//     declaration-only artifacts of the branded-type idiom, not fields (4 of the audit's 6 raw hits).
+//   • A SPREAD producer (`{ ...parsed }`) names no key at all, and neither does a `z.object` DECLARATION —
+//     a property whose initializer is a `z.` chain is read as a declaration, not as a producer.
+const CONTRACTS_SRC = "/packages/contracts/src/";
+const ZOD_INIT_RE = /^z\s*\./u;
+/** How many read sites a field's line names before collapsing. */
+const FIELD_READ_SITES_SHOWN = 3;
+
+/** ONE declared contract field: its name, the declaration node, and the owner shape it belongs to. */
+export type ContractField = { readonly name: string; readonly node: Node; readonly owner: string };
+
+/** The nearest named owner of a field declaration — the interface / type alias / schema const it sits in. */
+function fieldOwner(node: Node): string {
+  for (const a of node.getAncestors()) {
+    const named = a.asKind(SyntaxKind.InterfaceDeclaration) ?? a.asKind(SyntaxKind.TypeAliasDeclaration) ?? a.asKind(SyntaxKind.VariableDeclaration);
+    if (named !== undefined) {
+      return named.getName();
+    }
+  }
+  return "(anonymous)";
+}
+
+/** `z.object({...})`'s keys are DECLARATIONS, not producers — the property's initializer is a `z.` chain. */
+function isZodField(prop: Node): boolean {
+  const init = Node.isPropertyAssignment(prop) ? prop.getInitializer() : undefined;
+  return init !== undefined && ZOD_INIT_RE.test(init.getText());
+}
+
+/** Every field a contracts file DECLARES: interface/type-literal property signatures + `z.object` keys.
+ *  A COMPUTED name (the brand phantom-symbol idiom) is skipped — it is not a field. */
+export function contractFieldsOf(sf: SourceFile): ContractField[] {
+  const out: ContractField[] = [];
+  for (const ps of sf.getDescendantsOfKind(SyntaxKind.PropertySignature)) {
+    if (!Node.isComputedPropertyName(ps.getNameNode())) {
+      out.push({ name: ps.getName(), node: ps, owner: fieldOwner(ps) });
+    }
+  }
+  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
+    if (isZodField(pa) && !Node.isComputedPropertyName(pa.getNameNode())) {
+      out.push({ name: pa.getName(), node: pa, owner: fieldOwner(pa) });
+    }
+  }
+  return out;
+}
+
+/** Names this file PRODUCES: an object-literal key (excluding a `z.object` declaration), a shorthand, or
+ *  an assignment target (`x.foo = …`). The write-shaped half of the audit's method. */
+function producedNamesOf(sf: SourceFile, out: Set<string>): void {
+  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
+    if (!(isZodField(pa) || Node.isComputedPropertyName(pa.getNameNode()))) {
+      out.add(pa.getName());
+    }
+  }
+  for (const sp of sf.getDescendantsOfKind(SyntaxKind.ShorthandPropertyAssignment)) {
+    out.add(sp.getName());
+  }
+  // An ACCESSOR/METHOD member is a producer too — `get imageEmbedModel(): string { … }` in
+  // entry/compose/role-clients.ts is the live shape, and a key-only index read it as unpopulated.
+  for (const member of [
+    ...sf.getDescendantsOfKind(SyntaxKind.GetAccessor),
+    ...sf.getDescendantsOfKind(SyntaxKind.SetAccessor),
+    ...sf.getDescendantsOfKind(SyntaxKind.MethodDeclaration),
+  ]) {
+    out.add(member.getName());
+  }
+  for (const bin of sf.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
+    const lhs = bin.getLeft().asKind(SyntaxKind.PropertyAccessExpression);
+    if (lhs !== undefined && bin.getOperatorToken().getText() === "=") {
+      out.add(lhs.getName());
+    }
+  }
+}
+
+/** Names this file READS, in all three property-read shapes plus destructuring (a dot-only sweep is a known
+ *  false clean in this repo). Returns the file path per name so a hit can name its consumers. */
+function consumedNamesOf(sf: SourceFile, out: Map<string, Set<string>>): void {
+  const credit = (name: string): void => {
+    const bucket = out.get(name) ?? new Set<string>();
+    bucket.add(sf.getFilePath());
+    out.set(name, bucket);
+  };
+  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
+    credit(pa.getName());
+  }
+  for (const ea of sf.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
+    const arg = ea.getArgumentExpression();
+    if (arg !== undefined && Node.isStringLiteral(arg)) {
+      credit(arg.getLiteralText());
+    }
+  }
+  for (const be of sf.getDescendantsOfKind(SyntaxKind.BindingElement)) {
+    const pn = be.getPropertyNameNode() ?? be.getNameNode();
+    if (Node.isIdentifier(pn)) {
+      credit(pn.getText());
+    }
+  }
+}
+
+/** The producer / consumer indexes over the PRODUCTION corpus (tests excluded — a test constructing a
+ *  fixture is not a producer, the same rule `testonly` and `regkeys` apply). */
+export function fieldIndexes(project: Project): { readonly produced: Set<string>; readonly consumed: Map<string, Set<string>> } {
+  const produced = new Set<string>();
+  const consumed = new Map<string, Set<string>>();
+  for (const sf of project.getSourceFiles()) {
+    if (isTestPath(sf.getFilePath())) {
+      continue;
+    }
+    producedNamesOf(sf, produced);
+    consumedNamesOf(sf, consumed);
+  }
+  return { produced, consumed };
+}
+
+/** ONE field's verdict line, or undefined when a producer spells it. */
+export function fieldHit(field: ContractField, produced: ReadonlySet<string>, consumed: ReadonlyMap<string, Set<string>>): Hit | undefined {
+  if (produced.has(field.name)) {
+    return;
+  }
+  const readers = [...(consumed.get(field.name) ?? [])].filter((fp) => !fp.endsWith(field.node.getSourceFile().getFilePath()));
+  const kind = readers.length === 0 ? "field-declared-only" : "field-consumed-never-populated";
+  const where = readers.slice(0, FIELD_READ_SITES_SHOWN).map(relPath).join(", ");
+  const tail =
+    readers.length === 0
+      ? "and NOTHING reads it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
+      : `but ${readers.length} site(s) READ it (${where}${readers.length > FIELD_READ_SITES_SHOWN ? ", …" : ""}) — the RepetitionDetection class`;
+  const hit = hitOf(field.node, kind);
+  hit.text = `${field.owner}.${field.name} — NO producer spells this name outside its own declaration, ${tail}`;
+  return hit;
+}
+
+/** Contract fields no producer ever populates. INFORMATIONAL — read the call sites (and remember the
+ *  template-literal blind spot) before acting. Optional scope = a contracts path or a field-name substring;
+ *  bare = every field in `packages/contracts/src`. Never exits non-zero on findings. */
+function cmdContractFieldLiveness(project: Project, arg: string, flags: Flags): void {
+  const files = scanCorpus(project, { scope: CONTRACTS_SRC, label: "path:packages/contracts/src" });
+  const all = files.flatMap(contractFieldsOf);
+  const fields = arg === "" ? all : all.filter((f) => f.name.includes(arg) || f.node.getSourceFile().getFilePath().includes(arg));
+  noteUnits("contract fields", fields.length);
+  if (fields.length === 0) {
+    exitToolError(
+      `ast contract-field-liveness: scope "${arg}" matched no contract field — pass a field-name substring (maxPatternSize), a contracts path (contracts/src/chat), or run bare for all ${all.length}.`,
+    );
+  }
+  const { produced, consumed } = fieldIndexes(project);
+  const hits = fields.flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+  console.log(
+    `contract-field-liveness is an INFORMATIONAL lens — it NEVER gates. A field here is one NO producer spells outside its own declaration; two classes are separated by whether anything READS it. BLIND SPOTS, stated: a TEMPLATE-LITERAL producer is invisible (TanStack Form's \`name={\\\`sections[\${i}].field\\\`}\` is a real write path no key index can see), a SAME-NAMED field anywhere hides a finding (this lens under-reports, never over-), brand phantom-symbols are skipped as computed names, and a \`{ ...spread }\` producer names no key. TESTS ARE NOT PRODUCERS (the \`testonly\`/\`regkeys\` rule): a field only a fixture constructs is exactly the RepetitionDetection shape, so it is REPORTED, not absolved. The fence is the DECLARATION SITE, never a package — \`contracts\` legitimately holds pure builders (the audit's wrong package-fence produced 27 false hits). Prototype + the two real findings: docs/reviews/misc/2026-08-18-silent-reader-audit.md §5. (${fields.length} field(s) examined over ${files.length} contracts file(s).)`,
+  );
+  emit(hits, flags, `contract-field-liveness ${arg === "" ? "(all contract fields)" : arg}`);
+}
+
 // ── chains: declarations whose ONLY life originates inside OTHER DEAD declarations ─────────────────────
 // The owner-named ALIAS-RABBIT-HOLE class, and the one rot shape every lens above is structurally blind to.
 // `orphans` asks "does ANYTHING reach this export?" and stops. So a chain — `export const Head = Mid` that
@@ -5365,6 +5540,7 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
   "typeonly-alive": cmdTypeOnly,
   columns: cmdColumns,
   regkeys: cmdRegKeys,
+  "contract-field-liveness": cmdContractFieldLiveness,
   chains: cmdChains,
   stringy: cmdStringy,
   apisurface: cmdApiSurface,
@@ -5427,7 +5603,19 @@ const TYPED_VERBS = new Set([
 const WIDE_SYNTACTIC_VERBS = new Set(["literal"]);
 
 // Verbs whose scope arg is OPTIONAL (default to the whole surface) — run bare, arg defaults to "".
-const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "typeonly-alive", "columns", "regkeys", "chains", "stringy", "apisurface"]);
+const ARGLESS_VERBS = new Set([
+  "unwired",
+  "clientgap",
+  "swallowed",
+  "respell",
+  "typeonly-alive",
+  "columns",
+  "regkeys",
+  "contract-field-liveness",
+  "chains",
+  "stringy",
+  "apisurface",
+]);
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 const USAGE = [
@@ -5457,6 +5645,7 @@ const USAGE = [
   "  pnpm ast typeonly-alive server     VALUE exports whose every reference is a TYPE position (runtime-dead)",
   "  pnpm ast columns rpg_games         drizzle columns by consumption: READ+WRITE / WRITE-only / READ-only / NEITHER",
   "  pnpm ast regkeys TEMPLATE_DEFS     registry ROWS whose key is dispatched nowhere (HEURISTIC, informational)",
+  "  pnpm ast contract-field-liveness   contracts FIELDS no producer populates (INFORMATIONAL — the caption class one tier up)",
   "  pnpm ast chains server             WHOLE dead chains: declarations alive only via other DEAD declarations",
   "  pnpm ast stringy kit               type aliases that RESOLVE to bare `string` (no narrowing, no brand)",
   "  pnpm ast apisurface contracts      exports by package boundary: PUBLIC (cross-pkg) / INTERNAL / UNUSED",

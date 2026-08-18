@@ -15,7 +15,7 @@
 // empty states exist to prevent. A row analysed before the breakdown landed contributes to `captioned`, which
 // is what makes "captioned, not yet analysed" a statable coverage state rather than a silent zero.
 
-import type { ImageFacetMetaKey, ImageFacetNature } from "@orb/contracts/embeddings";
+import type { ImageCaptionMeta, ImageFacetMetaKey, ImageFacetNature } from "@orb/contracts/embeddings";
 import { IMAGE_FACET_NATURE_BY_KEY } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -45,7 +45,7 @@ export function createImageAnalyticsFacets(ctx: DiscoveryContext): Pick<Discover
   };
 }
 
-const metaStr = (m: Record<string, unknown> | null, key: string): string | null => (m !== null && typeof m[key] === "string" ? (m[key] as string) : null);
+const metaStr = (m: ImageCaptionMeta | null, key: string): string | null => (m !== null && typeof m[key] === "string" ? (m[key] as string) : null);
 
 /** Ascending — worst-matched art first (the curation signal). */
 async function portraitAlignment(db: Db, ownerId: UserId): Promise<PortraitAlignmentReport> {
@@ -89,10 +89,13 @@ function bumpArr(m: Map<string, number>, v: unknown): void {
 const toFacetCounts = (m: Map<string, number>): FacetCount[] => [...m.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
 
 /** Tally one row into the per-facet counters; `true` when the row carried ANY facet (i.e. it is analysed). */
-function tallyRow(counters: Map<ImageFacetMetaKey, Map<string, number>>, meta: Record<string, unknown>): boolean {
+function tallyRow(counters: Map<ImageFacetMetaKey, Map<string, number>>, meta: ImageCaptionMeta): boolean {
   let carried = false;
   for (const [key, nature] of Object.entries(IMAGE_FACET_NATURE_BY_KEY) as [ImageFacetMetaKey, ImageFacetNature][]) {
-    const value = meta[key];
+    // Read as `unknown`, deliberately: the TYPE says a facet is absent-or-valued, but the VALUE comes off a
+    // JSON column that outlives any one build, so a stored `null` is representable and this loop is the
+    // boundary that has to survive it (`bump`/`bumpArr` are unknown-taking for the same reason).
+    const value: unknown = meta[key];
     if (value === undefined || value === null) {
       continue;
     }

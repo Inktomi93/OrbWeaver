@@ -1,6 +1,6 @@
 // The dispatch axes (SourceKind, SourceLens) + the verb input shapes for the embeddings write surface.
 
-import type { ImageLens } from "@orb/contracts/embeddings";
+import type { ImageCaptionMeta, ImageLens } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
@@ -55,8 +55,10 @@ export interface ImageCaptionedStoreParams {
   readonly content: Uint8Array;
   /** Combined into the embed input AND written to `image_embeddings.caption`. */
   readonly caption: string;
-  /** Caption provenance sidecar (model/elapsed/…) → `image_embeddings.caption_meta`. */
-  readonly captionMeta?: Record<string, unknown> | undefined;
+  /** The VL breakdown + its `model` provenance → `image_embeddings.caption_meta`. TYPED, not an open
+   *  bag: the facet vocabulary has one home in `@orb/contracts/embeddings` and both sides import it
+   *  (issue #164 — the reader named fourteen facets this carrier could not promise). */
+  readonly captionMeta?: ImageCaptionMeta | undefined;
   readonly model: string;
   readonly dim: number;
   /** Re-embed even on a matched `content_hash`. */

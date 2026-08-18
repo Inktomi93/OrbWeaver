@@ -3,7 +3,7 @@
 // {@link writeHubScoreRows}. `existing*Hash` reads the stored `content_hash` so the verb can short-circuit a
 // no-op before the expensive embed.
 
-import type { ImageLens } from "@orb/contracts/embeddings";
+import type { ImageCaptionMeta, ImageLens } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 // `documents` is databank's table, read here (and only here) to derive the OWNER scope of a chunk row — the
 // vector tables carry no ownerId (D20: scope derives through the FK to the producer). A cross-domain READ
@@ -108,7 +108,9 @@ interface UpsertImageInput {
   readonly lens: ImageLens;
   /** The generated caption (image-captioned) or `null` (image-raw). */
   readonly caption: string | null;
-  readonly captionMeta: Record<string, unknown> | null;
+  /** The VL breakdown + provenance blob, in its ONE contract shape (issue #164 — an open bag here is
+   *  exactly what let the reader and the writer disagree in silence). */
+  readonly captionMeta: ImageCaptionMeta | null;
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;

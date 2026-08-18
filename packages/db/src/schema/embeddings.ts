@@ -41,6 +41,7 @@
 // `embedding` is the native `vector32` F32_BLOB column (../custom-types). `chat_digest_speakers` is an
 // identity-keyed join (composite PK — there is no TypeID brand for it).
 
+import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type {
   AssetId,
@@ -136,10 +137,15 @@ export const imageEmbeddings = sqliteTable(
     // image-raw | image-captioned — derives IMAGE_LENSES (@orb/contracts/embeddings, D34). The `enum`
     // option is type-only; the CHECK below is the SQL-level guard. Both lenses coexist per (asset, model).
     lens: text("lens", { enum: IMAGE_LENSES }).notNull(),
-    // The generated caption (only for the `image-captioned` lens) + its provenance sidecar. Nullable —
-    // the `image-raw` lens carries neither.
+    // The generated caption (only for the `image-captioned` lens) + its VL breakdown / provenance sidecar.
+    // Nullable — the `image-raw` lens carries neither.
     caption: text("caption"),
-    captionMeta: text("caption_meta", { mode: "json" }).$type<Record<string, unknown>>(),
+    // TYPED, deliberately (issue #164 + the open-json-column-key-parity gate): this column was
+    // `Record<string, unknown>` while discovery read fourteen named facet paths off it and both writers
+    // stored `{model}` — the reader-with-no-producer defect. `ImageCaptionMeta` is the ONE home of that
+    // vocabulary (@orb/contracts/embeddings) and it is `.loose()`, so a row written before the breakdown
+    // landed (and any future facet) still round-trips. The type is now the enforcer on both sides.
+    captionMeta: text("caption_meta", { mode: "json" }).$type<ImageCaptionMeta>(),
     // The staleness/collapse key. Both lenses for one asset share a content_hash (the resized bytes), so a
     // re-index de-dups. NOT NULL.
     contentHash: text("content_hash").notNull(),
