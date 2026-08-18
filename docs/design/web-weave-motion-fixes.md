@@ -1,10 +1,16 @@
 ---
 kind: design
-status: active
-updated: 2026-08-14
+status: archived
+updated: 2026-08-17
 ---
 
 # WebWeave motion fixes — the Claude Design handoff spec
+
+> **ARCHIVED 2026-08-17 (#161).** All four defect classes are BUILT and were re-verified against the
+> tree three days and four feature commits after they landed; the reference implementation and the
+> shipped modules were then driven side by side and found equivalent. The as-built record is §"As
+> built"; the re-verification, the parity verdict and the two receipts this pass added are
+> §"Re-verified 2026-08-17". Nothing here is open work.
 
 > Provenance: produced by the claude.ai/design motion review ("Orbweaver UI" project,
 > `templates/motion-review/HANDOFF.md`, fetched 2026-08-14) against the owner's four reported
@@ -103,6 +109,54 @@ red against the pre-fix modules, green after). Four deviations, each forced by t
    scaffold entry (the last radius leaves the weaver at the hub while the aux leg starts a free-zone
    radius out — ~104px, a gap in the itinerary DATA that only a walk-out leg plus shifted scaffold birth
    times would close), and the rest beat (she swaps to the resting head-down posture in one frame).
+
+## Re-verified 2026-08-17 (#161) — the parity verdict
+
+The fixes landed at `f688f56d4`, which is also the commit that appended §"As built" above. Four
+feature commits have since crossed these modules — `2292f5daf` (she lays the frame herself),
+`429bd6997` (silk physics), `0f8bab905` (prey response, anatomy v2, interactive API), `a6f1b61e4`
+(the sway/glint/pointer split), `d2e24af7b` (the login pointer wire) — so every claim was re-derived
+rather than trusted.
+
+**All four classes survive.** FIX 1: `web-weave-geometry.ts` `framePolys` → `silkSegments` →
+`rayHit()` casts at the SAGGED polylines. FIX 2: `EDGE_MARGIN`/`SPIRAL_EDGE_FRAC`, the inset box in
+the same caster, the per-sample spiral clamp. FIX 3a-e: the bridge leg is `[BRIDGE_WALK_START,
+T.drop[0]]`; `easeInOutQuad`; `turnToward` gated on `HEADING_MIN_MOVE_SQ`; `pointAtFraction` for tip
+legs; the last-pose hold instead of null. FIX 4a-b: `web-weave-glint.ts` is per-segment
+(`paintGlintRuns` is gone) and `web-weave-sway.ts` `swayPt` is the single field every layer rides.
+
+**Rendered parity vs the reference.** The read-only reference (`mocks/fixed-weave-reference.js`, a
+self-registering `<fixed-web-weave>`) was hosted beside a symmetric host over the SHIPPED pure
+modules, same cells as `.design-sync/previews/WebWeave.tsx` (480×320 · WideShort 640×180 ·
+TallNarrow 220×420), same live token values. **Verdict: equivalent.** Numerically, at 480×320 both
+give hub (240, 134.4), reach 190.88, 25 strands / 16 radii / 28 dew, and the silk-bound radius tips
+agree to the pixel ((401.83, 296.4), (157.64, 42.06), (195.4, 41.87), (246.65, 41.14)). Spiral points
+outside the host box: **0 for both, at all three aspect ratios** — defect 2 is closed on the arms the
+preview exists to expose. Two differences, both deliberate and both post-dating the reference: the
+per-constraint radius termination of as-built §1 (box-bound tips CROSS the edge at rect+14 where the
+reference parks them at rect·0.995 — the crop reads as an off-screen anchor, a tip inside the frame
+reads as broken silk), and 47 itinerary legs against the reference's 39 (the walk-back frame legs and
+the scaffold walk-out from `2292f5daf`). The reference's own timeline carries `SC = 1.6`, i.e. it was
+generated from the CALMED timeline — there is no pacing divergence to find.
+
+**Two receipts this pass added**, both in `tests/ui/art/web-weave/web-weave.ct.tsx`:
+
+- The mouse drive now measures against `ambientCeiling` (`tests/support/ct/weave-drive.ts`) instead
+  of a single two-frame baseline, and the file's duplicated fingerprint helpers were dropped for the
+  shared ones. A one-sample baseline on this web is a lottery — idle deltas span 16k–136k — so it
+  could flake red or pass a drive that did nothing. The theme-flip cache test carried the same defect
+  and got the same fix, and the mouse path gained the falsifying inert-weave control the coarse-
+  pointer suite already had.
+- **The HUNT is now proven through the component**, not just as a machine. The prey unit tests cover
+  the five states; nothing proved a production `interactive` host constructs the state, that a real
+  pointer reaches it, or that she is PAINTED out at the disturbance. Three tests do now: she leaves
+  the hub for a driven cursor and returns; a NON-interactive weave never does (the falsifier); and
+  reduced motion REMOVES the response — the one static frame is byte-identical after a cursor
+  crosses it, with no extra frame painted. The probe counts SOLID pixels (opaque with four opaque
+  neighbours) because silk is a 1px stroke with no interior: a plain painted-pixel count read 909
+  resting and 818 mid-hunt, i.e. the ambient beat swamped and inverted the signal. The drive aims at
+  a point derived from `buildWeb`, not a guessed coordinate — a guess sat in a gap between strands
+  and missed on 1 run in 3.
 
 ## Test notes (the handoff's own acceptance shapes)
 
