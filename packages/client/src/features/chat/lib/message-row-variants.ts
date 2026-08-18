@@ -4,7 +4,7 @@
 // in message-row.tsx. Echo/Whisper's feather is a layered background-image gradient, not literal
 // `mask-image` (that would also fade the text painted on top).
 
-import { blobBannerUrl, blobPortraitUrl } from "@orb/contracts/assets";
+import { blobBannerUrl, blobPortraitUrl, blobUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import { avatarFallbackHueColor } from "@orb/ui/avatar";
@@ -222,3 +222,16 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     bubbleLayout: "trains",
   },
 };
+
+// The avatar-chip src props live beside the other per-skin asset-URL shaping (Echo portrait, Whisper
+// banner) — one home for "which blob variant does this rendering slot request".
+// exactOptionalPropertyTypes idiom: omit `src` rather than pass undefined.
+export function avatarSrcProp(avatarHash: string | null): { src?: string } {
+  return avatarHash === null ? {} : { src: blobUrl(avatarHash) };
+}
+
+const RIPPLE_PORTRAIT_REQUEST_WIDTH = 200;
+
+export function avatarPortraitSrcProp(avatarHash: string | null): { src?: string } {
+  return avatarHash === null ? {} : { src: blobPortraitUrl(avatarHash, RIPPLE_PORTRAIT_REQUEST_WIDTH) };
+}
