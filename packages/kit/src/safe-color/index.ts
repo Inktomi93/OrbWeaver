@@ -46,6 +46,130 @@ export function isSafeColor(raw: string): boolean {
   return RGB.test(value) || HSL.test(value) || OKL.test(value);
 }
 
+// ── STATIC sRGB parsing for the derive law's judgments (#204) ────────────────────────────────────────
+// `parseCssColorToSrgb` reads the NUMERIC CSS color forms (hex / rgb[a]() / hsl[a]()) into an sRGB
+// triple + alpha, so the ThemeScope prose-ink clamp and the polarity derivation can JUDGE an authored
+// value in any numeric format instead of failing open on spelling (owner authorization 2026-08-18: the
+// engine guarantees legibility for arbitrary imported themes — ST themes are hex/hsl-heavy). Named
+// colors return null on purpose: without a DOM there is no value to read, and the derive law's rule for
+// a statically unreadable color is fail-open, never guess. oklch()/oklab() are NOT parsed here — the
+// oklch reader lives with its consumers (theme-scope/clamp.ts, the richer L/C/H/A form).
+
+const HEX_SHORT_LEN = 4;
+const HEX_LONG_ALPHA_LEN = 9;
+const HEX_MAX_NIBBLE = 15;
+const HEX_RADIX = 16;
+const HEX_PAIR = 2;
+const HEX_ALPHA_OFFSET = 6;
+const LIGHTNESS_DOUBLE = 2;
+// The classic HSL piecewise ramp, stated in DEGREES: a channel rises over the first 60°, holds to
+// 180°, falls to 240°, then floors — R/G/B read the same ramp at +120°/0°/−120°.
+const HSL_RISE_END_DEG = 60;
+const HSL_FLAT_END_DEG = 180;
+const HSL_FALL_END_DEG = 240;
+const HSL_RED_OFFSET_DEG = 120;
+const HSL_BLUE_OFFSET_DEG = -120;
+const CHANNEL_MAX = 255;
+const PERCENT_MAX = 100;
+const ALPHA_PERCENT_DIVISOR = 100;
+const HSL_HALF = 0.5;
+const RGB_FN_RE = /^rgba?\(\s*([\d.]+%?)\s*[,\s]\s*([\d.]+%?)\s*[,\s]\s*([\d.]+%?)\s*(?:[,/]\s*([\d.]+%?)\s*)?\)$/iu;
+const HSL_FN_RE = /^hsla?\(\s*([\d.]+)(?:deg)?\s*[,\s]\s*([\d.]+)%\s*[,\s]\s*([\d.]+)%\s*(?:[,/]\s*([\d.]+%?)\s*)?\)$/iu;
+
+/** An sRGB reading of a numeric CSS color: channels 0–255, alpha 0–1. */
+export interface ParsedSrgbColor {
+  readonly r: number;
+  readonly g: number;
+  readonly b: number;
+  readonly alpha: number;
+}
+
+function alphaOf(raw: string | undefined): number {
+  if (raw === undefined) {
+    return 1;
+  }
+  const v = raw.endsWith("%") ? Number.parseFloat(raw) / ALPHA_PERCENT_DIVISOR : Number.parseFloat(raw);
+  return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+}
+
+function channelOf(raw: string): number {
+  const v = raw.endsWith("%") ? (Number.parseFloat(raw) / PERCENT_MAX) * CHANNEL_MAX : Number.parseFloat(raw);
+  return Math.max(0, Math.min(CHANNEL_MAX, v));
+}
+
+function parseHex(value: string): ParsedSrgbColor | null {
+  const hex = value.slice(1);
+  if (hex.length <= HEX_SHORT_LEN) {
+    const nibbles = [...hex].map((ch) => Number.parseInt(ch, HEX_RADIX));
+    if (nibbles.some((n) => Number.isNaN(n))) {
+      return null;
+    }
+    const [r, g, b, a] = nibbles;
+    const widen = (n: number | undefined): number => ((n ?? 0) * CHANNEL_MAX) / HEX_MAX_NIBBLE;
+    return { r: widen(r), g: widen(g), b: widen(b), alpha: a === undefined ? 1 : a / HEX_MAX_NIBBLE };
+  }
+  const pair = (i: number): number => Number.parseInt(hex.slice(i, i + HEX_PAIR), HEX_RADIX);
+  const r = pair(0);
+  const g = pair(HEX_PAIR);
+  const b = pair(HEX_PAIR * 2);
+  if ([r, g, b].some((n) => Number.isNaN(n))) {
+    return null;
+  }
+  const alpha = value.length === HEX_LONG_ALPHA_LEN ? pair(HEX_ALPHA_OFFSET) / CHANNEL_MAX : 1;
+  return { r, g, b, alpha: Number.isNaN(alpha) ? 1 : alpha };
+}
+
+function hslChannel(p: number, q: number, hueDegRaw: number): number {
+  const h = ((hueDegRaw % HUE_WHEEL_DEGREES) + HUE_WHEEL_DEGREES) % HUE_WHEEL_DEGREES;
+  if (h < HSL_RISE_END_DEG) {
+    return p + (q - p) * (h / HSL_RISE_END_DEG);
+  }
+  if (h < HSL_FLAT_END_DEG) {
+    return q;
+  }
+  if (h < HSL_FALL_END_DEG) {
+    return p + (q - p) * ((HSL_FALL_END_DEG - h) / HSL_RISE_END_DEG);
+  }
+  return p;
+}
+
+function parseHsl(h: number, sPct: number, lPct: number, alpha: number): ParsedSrgbColor {
+  const s = Math.max(0, Math.min(1, sPct / PERCENT_MAX));
+  const l = Math.max(0, Math.min(1, lPct / PERCENT_MAX));
+  if (s === 0) {
+    const v = l * CHANNEL_MAX;
+    return { r: v, g: v, b: v, alpha };
+  }
+  const q = l < HSL_HALF ? l * (1 + s) : l + s - l * s;
+  const p = LIGHTNESS_DOUBLE * l - q;
+  return {
+    r: hslChannel(p, q, h + HSL_RED_OFFSET_DEG) * CHANNEL_MAX,
+    g: hslChannel(p, q, h) * CHANNEL_MAX,
+    b: hslChannel(p, q, h + HSL_BLUE_OFFSET_DEG) * CHANNEL_MAX,
+    alpha,
+  };
+}
+
+/**
+ * Parse a NUMERIC CSS color (hex `#rgb[a]`/`#rrggbb[aa]`, `rgb[a]()` comma or space syntax, `hsl[a]()`)
+ * into sRGB channels + alpha — `null` for anything else (named colors, oklch — see the section header).
+ */
+export function parseCssColorToSrgb(raw: string): ParsedSrgbColor | null {
+  const value = raw.trim();
+  if (HEX.test(value)) {
+    return parseHex(value);
+  }
+  const rgb = RGB_FN_RE.exec(value);
+  if (rgb !== null && rgb[1] !== undefined && rgb[2] !== undefined && rgb[3] !== undefined) {
+    return { r: channelOf(rgb[1]), g: channelOf(rgb[2]), b: channelOf(rgb[3]), alpha: alphaOf(rgb[4]) };
+  }
+  const hsl = HSL_FN_RE.exec(value);
+  if (hsl !== null && hsl[1] !== undefined && hsl[2] !== undefined && hsl[3] !== undefined) {
+    return parseHsl(Number.parseFloat(hsl[1]), Number.parseFloat(hsl[2]), Number.parseFloat(hsl[3]), alphaOf(hsl[4]));
+  }
+  return null;
+}
+
 /** The three `oklch(L C H)` components, in order — the only form this reader parses. */
 const OKLCH_COMPONENTS = /^oklch\(\s*([\d.%-]+)\s+([\d.%-]+)\s+([\d.-]+)/iu;
 const HUE_WHEEL_DEGREES = 360;

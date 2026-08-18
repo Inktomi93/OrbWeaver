@@ -50,7 +50,7 @@ export interface MessageMetadataVisibility {
 export interface MessageMetadataRowProps {
   readonly message: MessageView;
   readonly visibility: MessageMetadataVisibility;
-  /** #106 — the wallpaper legibility backing the ROW owns (`BG_PHOTO_CHROME_SCRIM`), threaded rather
+  /** #106 — the wallpaper legibility backing the ROW owns (`BG_PHOTO_CHROME_PLATE`), threaded rather
    *  than imported here so the one home for the row's backings stays `message-row-backing.ts` and this
    *  component keeps knowing nothing about the shell's wallpaper flag. */
   readonly backingClass?: string | undefined;

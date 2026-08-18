@@ -285,16 +285,17 @@ html[data-shadow] [data-slot="message-bubble"] {
 
 /* Brand wordmark readability halo (side-eye P3): the near-white "orbweaver" wordmark floats over the
  * live weave, where a bright strand/glow crossing behind a glyph drops worst-case framebuffer contrast
- * (measured ~1.43:1). A dark, theme-aware halo (--color-scrim, the shell.css over-image precedent) beds
- * the glyphs so the ink never abuts a bright strand directly — a framebuffer mock over a silk-bright
- * strand measured the near-glyph worst-case lift from 1.53:1 → 1.84:1 and p05 1.55:1 → 2.78:1.
- * Decoration (aria-hidden), so not an a11y fix — a look fix. text-shadow inherits, so one rule on the
- * row reaches the wordmark text. */
+ * (measured ~1.43:1). A dark, theme-aware halo (--color-backdrop — the retired --color-scrim's exact
+ * value, byte-identical across the #204 rename per the owner fence; the shell.css over-image precedent)
+ * beds the glyphs so the ink never abuts a bright strand directly — a framebuffer mock over a
+ * silk-bright strand measured the near-glyph worst-case lift from 1.53:1 → 1.84:1 and p05 1.55:1 →
+ * 2.78:1. Decoration (aria-hidden), so not an a11y fix — a look fix. text-shadow inherits, so one rule
+ * on the row reaches the wordmark text. */
 [data-slot="brand-wordmark"] {
   text-shadow:
-    0 0 2px var(--color-scrim),
-    0 0 4px var(--color-scrim),
-    0 1px 2px var(--color-scrim);
+    0 0 2px var(--color-backdrop),
+    0 0 4px var(--color-backdrop),
+    0 1px 2px var(--color-backdrop);
 }
 
 /* THE READING MEASURE (#97, side-eye aesthetic shakedown 2026-08-16). The transcript ran at
@@ -338,6 +339,21 @@ html[data-justify-body-text] [data-slot="message-bubble"] {
 }
 [data-slot="message-attribution"] {
   font-size: calc(var(--text-label) * var(--reading-name-scale, 1));
+}
+
+/* THE OVER-ART METADATA INK STEP-UP (#204). The transcript's quiet metadata (timestamp beside the name,
+ * token/cost/timer datums, the model credit) speaks the gloss voice — `--color-muted-foreground`, a
+ * deliberately SOFTER derived band (mutedLMax 0.82 / mutedLMin 0.34). Over a wallpaper those datums sit
+ * on the translucent reading plate (0.65α over arbitrary art), and the muted band mathematically cannot
+ * be guaranteed there on either polarity (a dark palette's 0.82 muted over plate-over-white-art ≈ 2.5:1;
+ * a light palette's 0.34 measured 4.35:1 over warm art — the last P1 of the #204 audit). The chip is a
+ * GUARANTEE tier (#106/#167: the 1.63:1 timestamp was its founding receipt), so over art its gloss steps
+ * up to the FULL derived foreground — the ink the plate's alpha floor is actually proven for
+ * (palette-contrast.suite.test.ts). Without a wallpaper nothing changes (the quiet voice stays quiet on
+ * the page). One prefix-keyed rule, not per-element utilities: every `message-metadata-*` slot is the
+ * same gloss-on-plate shape, and a new datum slot inherits the guarantee by naming convention. */
+[data-has-bg-image] [data-slot^="message-metadata-"] {
+  color: var(--color-foreground);
 }
 
 /* appearance.enableThemeColorization: retints border/hairline chrome tokens from the accent color.

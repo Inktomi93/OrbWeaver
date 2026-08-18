@@ -164,7 +164,7 @@ test("backdrop: the opt-in scrim renders behind the popup", async ({ mount, page
   await expect(page.getByRole("listbox")).toBeVisible();
   const backdrop = page.locator('[data-slot="select-backdrop"]');
   await expect(backdrop).toBeVisible();
-  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.scrim"].value);
+  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.backdrop"].value);
 });
 
 const LONG = Array.from({ length: 40 }, (_unused, i) => ({

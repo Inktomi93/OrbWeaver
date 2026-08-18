@@ -50,6 +50,11 @@ export interface MessageListProps<T> {
   readonly overscan?: number;
   /** Gap between rows as a spacing intent token. */
   readonly gapToken?: GapToken;
+  /** Block-axis breathing INSIDE the scroll content (virtual-core `paddingStart`/`paddingEnd`), as a
+   *  spacing token — deliberately NOT CSS `padding-block` on the scroll container: sticky `top: 0`
+   *  resolves against the scroller's CONTENT box, so container padding pinned the sticky band below the
+   *  visible top over a guillotined strip of its own prose (#204). Same token map as `gapToken`. */
+  readonly blockPaddingToken?: GapToken;
   /** How close to the true end (px) still counts as "pinned" for `followOnAppend`/`isAtEnd`. */
   readonly scrollEndThreshold?: number;
   /**
@@ -109,6 +114,7 @@ export function MessageList<T>({
   estimateSize,
   overscan = DEFAULT_OVERSCAN,
   gapToken,
+  blockPaddingToken,
   scrollEndThreshold = DEFAULT_SCROLL_END_THRESHOLD_PX,
   followTail = true,
   scrollMode = "follow",
@@ -178,9 +184,10 @@ export function MessageList<T>({
     estimateSize,
     overscan,
     gap: gapPxFor(gapToken),
+    paddingStart: gapPxFor(blockPaddingToken),
     // pin-prompt's bottom spacer: extra scrollable height below the last row so a short reply's pinned
     // prompt can still climb to the top. 0 (= virtual-core default) in `follow` mode → byte-identical.
-    paddingEnd: pinSpacerPx,
+    paddingEnd: gapPxFor(blockPaddingToken) + pinSpacerPx,
     getItemKey: (index) => getItemKey(itemAt(index), index),
     // exactOptionalPropertyTypes distinguishes an omitted prop from one set to undefined.
     ...(composedRangeExtractor === undefined ? {} : { rangeExtractor: composedRangeExtractor }),

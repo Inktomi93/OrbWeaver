@@ -18,7 +18,7 @@ import { cn, renderMessageForDisplay } from "#lib";
 
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
-import { BG_PHOTO_CHROME_SCRIM, STICKY_ATTRIBUTION_CHROME } from "../lib/message-row-backing.ts";
+import { BG_PHOTO_CHROME_PLATE, STICKY_ATTRIBUTION_CHROME } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
 import { CompactSummaryPeek } from "./compact-summary-peek.tsx";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
@@ -274,21 +274,34 @@ function renderRowIdentity(args: { readonly attribution: RowAttribution; readonl
  *  that silently stops inheriting the next fix to this one.
  *
  *  Two backings can land on it, and they are ALTERNATIVES, not layers (#168):
- *   · `BG_PHOTO_CHROME_SCRIM` — the wallpaper-gated legibility chip. UNCONDITIONAL here since #167: the
- *     speaker name and its timestamp are a GUARANTEE over any art in any skin, and the name row is above
- *     the bubble box in every mode, so no mode's fill can back it (the old per-skin `RowSkin.chromeBacking`
- *     opt-in left both roles naked in the five bubble-family skins — see message-row-backing.ts for the
- *     reversal and its live receipt). Self-gated on the shell's `data-has-bg-image`: no wallpaper, no chip.
+ *   · `BG_PHOTO_CHROME_PLATE` — the wallpaper-gated legibility chip (plate + paired ink, #204 derive
+ *     law). UNCONDITIONAL here since #167: the speaker name and its timestamp are a GUARANTEE over any
+ *     art in any skin, and the name row is above the bubble box in every mode, so no mode's fill can
+ *     back it (the old per-skin `RowSkin.chromeBacking` opt-in left both roles naked in the five
+ *     bubble-family skins — see message-row-backing.ts for the reversal and its live receipt).
+ *     Self-gated on the shell's `data-has-bg-image`: no wallpaper, no chip.
  *   · `STICKY_ATTRIBUTION_CHROME` (#113) — pin + OPAQUE chip, any mode, only for a row the virtualizer
  *     measured as taller than the scrollport. It is the row's one RAISED layer (z-order:
  *     message-row-backing.ts).
  *
- *  The sticky chip SUPERSEDES the wallpaper one because an opaque fill is a strict superset of a 60%-alpha
- *  scrim, and both spell the same property: applied together, `in-data-[has-bg-image]:bg-scrim` outranks a
- *  plain `bg-card` on specificity, so over ART — the exact mount #168's live receipt came from — the band
- *  would stay translucent and keep showing the prose scrolling under it. Layout neutrality is unchanged by
- *  the swap: over art both arms carry one `py-row`, and without art the sticky arm's own `-my-row` cancels
- *  its `py-row` (pinned by the "supersedes without doubling the box" CT). */
+ *  The sticky chip SUPERSEDES the wallpaper one because an opaque fill is a strict superset of a
+ *  translucent plate, and both spell the same property: applied together,
+ *  `in-data-[has-bg-image]:bg-reading-plate` outranks a plain `bg-card` on specificity, so over ART —
+ *  the exact mount #168's live receipt came from — the band would stay translucent and keep showing the
+ *  prose scrolling under it. Layout neutrality is unchanged by the swap: over art both arms carry one
+ *  `py-row`, and without art the sticky arm's own `-my-row` cancels its `py-row` (pinned by the
+ *  "supersedes without doubling the box" CT).
+ *
+ *  THE ACTION CLUSTER CONTRIBUTES NO HEIGHT (#204 — the owner's "phantom empty scrim bands" and "the
+ *  name is separated from the messages", both one mechanism). The hover-reveal cluster is a 34px row of
+ *  icon buttons that is `opacity: 0` at rest but stayed IN FLOW at full height — so the painted chip
+ *  measured 50px around a 16px name (50 = 34 + 2×py-row): the empty top/bottom thirds were the phantom
+ *  bands, and the ~17px of painted-then-empty space below the name was the detachment. The cluster now
+ *  rides a ZERO-HEIGHT flex wrapper (`h-0` + centered items): it keeps its full WIDTH in flow (the A3
+ *  geometry pin — a name can never be starved sideways), its buttons paint/hit-test centered on the
+ *  text line (overflow is visible; ±1px past the chip box), and reveal remains opacity-only, so hover
+ *  still reflows NOTHING. The chip hugs `name + 2×py-row` (~32px) in BOTH backing arms — the sticky
+ *  arm's layout-neutrality measurement holds because both arms shrink together. */
 function nameRowFrame(args: { readonly identity: ReactNode; readonly actions: ReactNode; readonly stickyAttribution: boolean }): ReactElement {
   return (
     <Row
@@ -297,10 +310,14 @@ function nameRowFrame(args: { readonly identity: ReactNode; readonly actions: Re
       gap="field"
       data-slot="message-name-row"
       data-sticky={args.stickyAttribution ? "" : undefined}
-      className={args.stickyAttribution ? STICKY_ATTRIBUTION_CHROME : BG_PHOTO_CHROME_SCRIM}
+      className={args.stickyAttribution ? STICKY_ATTRIBUTION_CHROME : BG_PHOTO_CHROME_PLATE}
     >
       {args.identity}
-      {args.actions}
+      {args.actions === null ? null : (
+        <Row align="center" className="h-0" data-slot="message-actions-slot">
+          {args.actions}
+        </Row>
+      )}
     </Row>
   );
 }

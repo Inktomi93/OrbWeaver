@@ -39,8 +39,12 @@
 }
 .shell-grid[data-has-bg-image] .shell-main {
   background: transparent;
-  /* Legibility halo for text floating directly over the photo; rides --color-scrim, not a raw literal. */
-  text-shadow: 0 1px 3px var(--color-scrim);
+  /* Legibility halo for text floating directly over the photo — rides --color-backdrop (the retired
+   * --color-scrim's exact value, so this job renders byte-identically across the #204 rename; owner
+   * fence 2026-08-18), never a raw literal. OPEN QUESTION reported with #204: the ink this beds is the
+   * theme-following --color-foreground, so under a LIGHT theme this is a dark smoke beneath dark ink —
+   * if that ever measures as a defect, the polarity-following --color-reading-plate is the candidate. */
+  text-shadow: 0 1px 3px var(--color-backdrop);
 }
 .shell-grid[data-has-bg-image] [data-slot="message-bubble"],
 .shell-grid[data-has-bg-image] [data-slot="composer"] {
@@ -832,7 +836,8 @@
   inset: 0;
   inset-block-start: var(--dimension-chrome-row);
   z-index: calc(var(--z-overlay) - 1);
-  background: var(--color-scrim);
+  /* A DIMMER (the panel-dismiss smoke) — the polarity-fixed backdrop token, never the reading plate. */
+  background: var(--color-backdrop);
   border: none;
   cursor: pointer;
   opacity: 0;

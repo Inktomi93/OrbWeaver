@@ -2,7 +2,7 @@
 // vector rejects OUTRIGHT (never sanitized). Both the ui render clamps and the contracts wire
 // clamp ride this one function — these pins are the shared security floor.
 
-import { hueDistance, isSafeColor, oklchHue } from "@orb/kit/safe-color";
+import { hueDistance, isSafeColor, oklchHue, parseCssColorToSrgb } from "@orb/kit/safe-color";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -94,5 +94,43 @@ describe("hueDistance", () => {
     expect(hueDistance(80, 72)).toBe(8);
     expect(hueDistance(0, 180)).toBe(180);
     expect(hueDistance(42, 42)).toBe(0);
+  });
+});
+
+describe("parseCssColorToSrgb (#204 — the derive law's static reader for numeric CSS forms)", () => {
+  test("reads every hex arity, including alpha", () => {
+    expect(parseCssColorToSrgb("#fff")).toEqual({ r: 255, g: 255, b: 255, alpha: 1 });
+    expect(parseCssColorToSrgb("#102030")).toEqual({ r: 16, g: 32, b: 48, alpha: 1 });
+    const short = parseCssColorToSrgb("#f008");
+    expect(short?.r).toBe(255);
+    expect(short?.alpha).toBeCloseTo(8 / 15, 4);
+    const long = parseCssColorToSrgb("#10203080");
+    expect(long?.alpha).toBeCloseTo(128 / 255, 4);
+  });
+
+  test("reads rgb()/rgba() in comma AND space syntax, with % channels and alpha", () => {
+    expect(parseCssColorToSrgb("rgb(20, 20, 30)")).toEqual({ r: 20, g: 20, b: 30, alpha: 1 });
+    expect(parseCssColorToSrgb("rgb(20 20 30 / 0.5)")).toEqual({ r: 20, g: 20, b: 30, alpha: 0.5 });
+    expect(parseCssColorToSrgb("rgba(100%, 0%, 50%, 40%)")).toEqual({ r: 255, g: 0, b: 127.5, alpha: 0.4 });
+  });
+
+  test("reads hsl()/hsla() through the classic ramp (spot-checked against browser-resolved values)", () => {
+    const red = parseCssColorToSrgb("hsl(0, 100%, 50%)");
+    expect(red?.r).toBeCloseTo(255, 3);
+    expect(red?.g).toBeCloseTo(0, 3);
+    const teal = parseCssColorToSrgb("hsl(180, 50%, 40%)");
+    expect(teal?.r).toBeCloseTo(51, 0);
+    expect(teal?.g).toBeCloseTo(153, 0);
+    expect(teal?.b).toBeCloseTo(153, 0);
+    const grey = parseCssColorToSrgb("hsla(200, 0%, 60%, 0.25)");
+    expect(grey?.r).toBeCloseTo(153, 0);
+    expect(grey?.alpha).toBe(0.25);
+  });
+
+  test("returns null for named colors and non-colors — the fail-open surface, kept honest", () => {
+    expect(parseCssColorToSrgb("ivory")).toBeNull();
+    expect(parseCssColorToSrgb("currentColor")).toBeNull();
+    expect(parseCssColorToSrgb("oklch(0.5 0.1 60)")).toBeNull();
+    expect(parseCssColorToSrgb("url(//x)")).toBeNull();
   });
 });
