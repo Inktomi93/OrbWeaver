@@ -165,6 +165,81 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     return rect.width > 0 && rect.height > 0;
   }
 
+  // VISUALLY-HIDDEN IS A STATE, NOT A CLASS NAME (2026-08-18). The app-wide screen-reader-only posture —
+  // Tailwind v4's \`sr-only\` (position:absolute; width:1px; height:1px; overflow:hidden;
+  // clip-path:inset(50%); white-space:nowrap) — collapses a control to nothing the eye can see while
+  // leaving its full unwrapped content width behind as scrollWidth. Measured on the live app-shell skip
+  // link (packages/client/src/features/app-shell/surfaces/app-shell.tsx): a 26x32 box, clientWidth 24,
+  // scrollWidth 70. So text-overflow read a 46px spill and tap-target read a 26px short side, and BOTH
+  // minted P1 — on every surface, since the skip link is in the shell. They were the only P1s a whole
+  // home audit produced, which makes \`--fail-on P1\` unusable while the class is live.
+  //
+  // The test is on the COMPUTED STATE for one load-bearing reason: it is what keeps the REVEALED arm
+  // judged. \`focus-visible:not-sr-only\` sets clip-path:none + overflow:visible, so a focused skip link is
+  // an ordinary painted button and a real overflow on it is a real finding. A class/selector test would
+  // exempt the element forever, in both states.
+  //
+  // Two canonical spellings, and each is only hidden IN COMBINATION with a clipping overflow — a bare
+  // clip-path is a legitimate shape mask, and \`clip\` is inert without one:
+  //   modern:  clip-path: inset(50%)          (the insets collapse the box on at least one axis)
+  //   legacy:  clip: rect(0px, 0px, 0px, 0px) (a zero-area clip rect)
+  // Hidden-ness INHERITS: a child of a clipped box paints no pixels either, so the walk climbs (memoized
+  // per element, the accumulatedOpacity precedent).
+  //
+  // DELIBERATELY NOT APPLIED to the accessible-name census or the heading outline: an sr-only control
+  // still owes a name and an sr-only heading is still part of the document outline — the skip belongs to
+  // the PAINT and GEOMETRY rules, which is why it is per-sample-family here and not inside isVisible().
+  var INSET_RE = /^inset\\(([^)]*)\\)/;
+  function insetCollapses(clipPath) {
+    var im = INSET_RE.exec(clipPath || "");
+    if (!im) return false;
+    var raw = im[1].split("round")[0].trim().split(/\\s+/).filter(Boolean);
+    var pct = [];
+    for (var ii = 0; ii < raw.length && ii < 4; ii += 1) {
+      // Percentages only: a px inset can only be judged against a box this helper does not measure.
+      if (raw[ii].charAt(raw[ii].length - 1) !== "%") return false;
+      var pv = Number.parseFloat(raw[ii]);
+      if (Number.isNaN(pv)) return false;
+      pct.push(pv);
+    }
+    if (pct.length === 0) return false;
+    var top = pct[0];
+    var right = pct.length > 1 ? pct[1] : top;
+    var bottom = pct.length > 2 ? pct[2] : top;
+    var left = pct.length > 3 ? pct[3] : right;
+    return top + bottom >= 100 || left + right >= 100;
+  }
+  var CLIP_RECT_RE = /^rect\\(([^)]*)\\)/;
+  function clipRectCollapses(clip) {
+    var cm = CLIP_RECT_RE.exec(clip || "");
+    if (!cm) return false;
+    var sides = cm[1].split(/[\\s,]+/).filter(Boolean);
+    if (sides.length !== 4) return false;
+    var edge = [];
+    for (var ri = 0; ri < 4; ri += 1) {
+      var rv = Number.parseFloat(sides[ri]);
+      if (Number.isNaN(rv)) return false; // "auto" — that axis is open, nothing provably collapsed
+      edge.push(rv);
+    }
+    return edge[2] - edge[0] <= 0 || edge[1] - edge[3] <= 0;
+  }
+  function clipsOverflow(style) {
+    var overflows = (style.overflow || "") + " " + (style.overflowX || "") + " " + (style.overflowY || "");
+    return /hidden|clip/.test(overflows);
+  }
+  var hiddenCache = new WeakMap();
+  function isVisuallyHidden(el) {
+    if (!(el instanceof Element)) return false;
+    var known = hiddenCache.get(el);
+    if (known !== undefined) return known;
+    var hs = getComputedStyle(el);
+    var own = clipsOverflow(hs) && (insetCollapses(hs.clipPath) || clipRectCollapses(hs.clip));
+    var parent = el.parentElement;
+    var value = own || (parent !== null && isVisuallyHidden(parent));
+    hiddenCache.set(el, value);
+    return value;
+  }
+
   // COLOR SPACE IS NOT A COLOR FORMAT (issue #188). getComputedStyle passes a non-legacy color function
   // straight through — a tokens-only codebase paints oklch(0.72 0.175 52) and reads it back verbatim —
   // so an rgb-regex-only sampler resolves null for EVERY authored color on this tree: measured live, the
@@ -329,7 +404,8 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     var fontSizePx = Number.parseFloat(style.fontSize) || 16;
     var fwRaw = style.fontWeight;
     var fontWeight = fwRaw === "bold" ? 700 : fwRaw === "normal" ? 400 : Number(fwRaw) || 400;
-    if (color) {
+    var textHidden = isVisuallyHidden(el);
+    if (color && !textHidden) {
       texts.push({
         selector: describe(el),
         color: { r: color.r, g: color.g, b: color.b },
@@ -376,7 +452,9 @@ export const COLLECT_SAMPLES_JS = `(async () => {
       isHeading: HEADING_TAGS[tag] === 1,
       interactive: interactivePrimary,
       codeContext: !!el.closest(CODE_CTX),
-      srOnly: rect.width <= 2 && rect.height <= 2,
+      // Screen-reader-only text, either shape: the CLIPPED state (isVisuallyHidden — the real
+      // \`sr-only\` posture, which keeps a full-size box) or a sub-2px plumbing box.
+      srOnly: textHidden || (rect.width <= 2 && rect.height <= 2),
     });
 
     // page censuses (impeccable overused-font/flat-type-hierarchy recipe, family list rebound
@@ -547,7 +625,16 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     if (iel.closest("[aria-hidden='true']")) continue;
     var irect = iel.getBoundingClientRect();
     if (Math.min(irect.width, irect.height) <= 2) continue;
-    if (inVisualViewport(irect)) {
+    // A HIDDEN CONTROL IS NOT AUTOMATICALLY AN UNREACHABLE ONE. The shell skip link at rest is a clipped
+    // 26x32 stub: no pointer can reach it, so a target-size verdict on it is a claim about nothing (it was
+    // a P1 on every surface). But Base UI's Slider hands its native range input the SAME visually-hidden
+    // styling and parks it inside the visible thumb — that control is fully reachable, its real target is
+    // the whole control row, and the composite probe below already measures it correctly. The empirical
+    // difference is hit-testing, so ask the compositor rather than the style: a hidden control that does
+    // not even own its own CENTRE POINT is offered to no pointer and leaves the census. The accessible-name
+    // census below keeps both — a screen-reader-only control is exactly the one that lives or dies by its name.
+    var hiddenStub = isVisuallyHidden(iel) && !ownsPoint(iel, irect.left + irect.width / 2, irect.top + irect.height / 2);
+    if (inVisualViewport(irect) && !hiddenStub) {
       var half = effectiveHalfExtent(iel, irect);
       // Report the EFFECTIVE extent as the measured size; the box only ever raises it, never lowers it.
       var effective = Math.max(Math.min(irect.width, irect.height), half * 2);
@@ -923,7 +1010,11 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     if (!hasDirect) continue;
     var ovStyle = getComputedStyle(ovel);
     var ovRect = ovel.getBoundingClientRect();
-    if (ovRect.width <= 2 && ovRect.height <= 2) continue; // sr-only shapes
+    if (ovRect.width <= 2 && ovRect.height <= 2) continue; // sub-2px plumbing boxes
+    // The CLIPPED screen-reader-only state is the other sr-only shape, and it keeps a full-size box:
+    // clientWidth 24 against a nowrap scrollWidth 70 on the shell skip link read as a 46px spill. Nothing
+    // spills — nothing is painted. The revealed (not-sr-only) arm has no clip and is still judged.
+    if (isVisuallyHidden(ovel)) continue;
     if (isScrollRegion(ovStyle)) continue;
     var scrollAnc = false;
     for (var oap = ovel.parentElement; oap; oap = oap.parentElement) {
@@ -1028,6 +1119,9 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     if (!clipX && !clipY) continue;
     if (/(auto|scroll)/.test((coStyle.overflow || "") + (coStyle.overflowX || "") + (coStyle.overflowY || ""))) continue;
     if (!isVisible(coel)) continue;
+    // Every screen-reader-only box is an overflow:hidden clip by construction, so this rule would call
+    // each one a UI-cutting container. Cut UI is a claim about pixels; a clipped stub paints none.
+    if (isVisuallyHidden(coel)) continue;
     var coIdent = ((coel.getAttribute("class") || "") + " " + (coel.getAttribute("id") || "")).toLowerCase();
     var coRoleDesc = (coel.getAttribute("aria-roledescription") || "").toLowerCase();
     if (VIEWPORT_IDENT_RE.test(coIdent) || /\\b(carousel|slider)\\b/.test(coRoleDesc)) continue;

@@ -21,6 +21,7 @@ import {
   WalkerDimmedContrastStory,
   WalkerDuplicateSlotStory,
   WalkerNeighbourButtonsStory,
+  WalkerScreenReaderOnlyStory,
   WalkerSliderCompositeStory,
   WalkerTranslucentTintStory,
 } from "./_ct-stories.tsx";
@@ -199,4 +200,57 @@ test("the rgb-authored twin fires identically, and a hairline neutral card stays
   expect(selectorsFor(findings, "border-accent-on-rounded")).toContain("[data-testid=accent-card-rgb]");
   const neutral = findings.filter((f) => f.selector === "[data-testid=neutral-card]" && (f.rule === "side-tab" || f.rule === "border-accent-on-rounded"));
   expect(neutral, "a hairline achromatic border on a radius is the sanctioned elevation recipe").toEqual([]);
+});
+
+// ── The screen-reader-only state paints nothing, so the paint rules must not judge it ─────────────
+// The shell's skip link wears the app-wide `sr-only` posture on EVERY surface, and at rest it computes
+// `position:absolute; overflow:hidden; clip-path:inset(50%); white-space:nowrap` — a 26x32 box with
+// clientWidth 24 and a nowrap scrollWidth of 70. text-overflow read that as a 46px spill and tap-target
+// read the box as a 26px target: two P1s per surface against pixels nobody paints, which is what made
+// `--fail-on P1` untrustworthy for the whole rail sweep. The skip is a COMPUTED-STATE test, which is what
+// keeps the revealed (`not-sr-only`) arm and every ordinary clipped control judged.
+test("neither sr-only spelling is a text-overflow finding — clipped content spills nowhere", async ({ mount, page }) => {
+  await mount(<WalkerScreenReaderOnlyStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const flagged = selectorsFor(findings, "text-overflow");
+  const seen = JSON.stringify(flagged);
+  expect(flagged, `clip-path: inset(50%) hides the box — a spill measured inside it is fiction. got ${seen}`).not.toContain("[data-testid=sr-skip-modern]");
+  expect(flagged, `clip: rect(0,0,0,0) is the legacy spelling of the same state. got ${seen}`).not.toContain("[data-testid=sr-skip-legacy]");
+  expect(flagged, `a line inside a clipped live region paints no pixels either — hidden-ness inherits. got ${seen}`).not.toContain(
+    "[data-testid=sr-nested-line]",
+  );
+});
+
+test("the revealed arm and an ordinary clipped box still fire text-overflow — the rule stays alive", async ({ mount, page }) => {
+  await mount(<WalkerScreenReaderOnlyStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const flagged = selectorsFor(findings, "text-overflow");
+  const seen = JSON.stringify(flagged);
+  expect(flagged, `focus-visible:not-sr-only drops the clip — a focused skip link that overflows is a real defect. got ${seen}`).toContain(
+    "[data-testid=revealed-skip]",
+  );
+  expect(flagged, `overflow:hidden WITHOUT a collapsing clip is the ordinary truncation defect. got ${seen}`).toContain("[data-testid=visible-overflow]");
+});
+
+test("an sr-only control is not a tap target, while a 20px visible button still is", async ({ mount, page }) => {
+  await mount(<WalkerScreenReaderOnlyStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const flagged = selectorsFor(findings, "tap-target");
+  const seen = JSON.stringify(flagged);
+  expect(flagged, `a clipped stub offers the pointer nothing to hit or miss. got ${seen}`).not.toContain("[data-testid=sr-skip-modern]");
+  expect(flagged, `same state, legacy spelling. got ${seen}`).not.toContain("[data-testid=sr-skip-legacy]");
+  expect(flagged, `a 20x20 offered control is under the 24px fine-pointer floor and must still fail. got ${seen}`).toContain("[data-testid=visible-subtarget]");
+});
+
+test("the a11y lens keeps seeing what the paint lens drops — a nameless sr-only control still fails", async ({ mount, page }) => {
+  await mount(<WalkerScreenReaderOnlyStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  expect(
+    selectorsFor(findings, "aria-name"),
+    `a screen-reader-only control lives or dies by its name — got ${JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`))}`,
+  ).toContain("[data-testid=sr-nameless]");
 });
