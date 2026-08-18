@@ -1,5 +1,8 @@
-// THE APPEARANCE SHIM — a per-run, NON-MUTATING override of the user's stored appearance settings for the
-// browser probes (`--appearance '<json>'`, and its `--full-motion` sugar).
+// THE SETTINGS SHIM — a per-run, NON-MUTATING override of the user's stored settings for the browser probes.
+// TWO AXES ride the SAME interception, because the app reads both out of ONE response:
+//   • APPEARANCE (`--appearance '<json>'`, `--appearance-preset`, `--full-motion`) — this file, below.
+//   • the ACTIVE THEME (`--theme <name|id|none>`) — `_kit/theme.ts` owns what a theme request means and how
+//     a name resolves to a real id; this file owns the interception it rides on (#225).
 //
 // WHY THIS EXISTS (owner ruling 2026-08-18): the dev account's SERVER-side `appearance.reducedMotion` is
 // `true`, so every probe drive against the dev stack reviews the REDUCED arm — motion audits have been
@@ -11,9 +14,11 @@
 // NO transformer (packages/client/src/data/trpc.ts), so `settings.getUserSettings` answers on a plain GET at
 // `/api/trpc/<proc>[,<proc>…]?batch=1&input=…` with `[{"result":{"data":{…,"config":{…,"appearance":{…}}}}}]`
 // — one array element per procedure, IN PATH ORDER. So the shim intercepts the request, fetches the REAL
-// response, deep-merges the patch into `result.data.config.appearance` of the element that belongs to
+// response, deep-merges the patch into `result.data.config` of the element that belongs to
 // `settings.getUserSettings`, and fulfills. Nothing is written: the db row, the server, and every other
 // procedure in the batch are untouched, and the next probe run with no flag sees the real account again.
+// The merge lands at CONFIG level so both axes are one patch: `{appearance:{…}}` and/or
+// `{theme:{selectedThemeId:…}}` — a key nobody named keeps the account's real value either way.
 //
 // TWO DIFFERENT MOTION GATES — do not confuse them (they diverge, which is exactly why this file exists):
 //   • `--reduced-motion` (snap) → `emulateMedia({reducedMotion:"reduce"})` — the OS MEDIA QUERY.
@@ -28,6 +33,8 @@
 // it here alongside the interception (snap's `--ls` seeds run through the same context).
 import { readFileSync } from "node:fs";
 import type { BrowserContext, Route } from "@playwright/test";
+import type { ThemeEntry, ThemeRequest } from "./theme.ts";
+import { LIST_THEMES_PROCEDURE, readThemeList, resolveTheme, themeConfigPatch, themeWarning } from "./theme.ts";
 
 /** The tRPC procedure that answers with the user's settings blob. */
 const SETTINGS_PROCEDURE = "settings.getUserSettings";
@@ -39,6 +46,10 @@ const TRPC_ROUTE_GLOB = "**/api/trpc/**";
  *  SERVER schema owns the vocabulary (`packages/contracts/src/settings`), and re-spelling it here would be a
  *  second home for it. An unknown key simply passes through to the app, which drops it at its own parse. */
 export type AppearancePatch = Readonly<Record<string, unknown>>;
+
+/** A patch at `config` level — the union of the axes a run pretends (`appearance`, `theme`). Same
+ *  `unknown` values for the same reason: the SERVER schema owns the vocabulary. */
+export type SettingsPatch = Readonly<Record<string, unknown>>;
 
 /** Parse outcome: a patch, or a stated reason (the caller turns it into an ARG ERROR — exit 2). */
 export type AppearanceParse = { readonly patch: AppearancePatch } | { readonly error: string };
@@ -134,17 +145,18 @@ export function parseAppearancePatch(raw: string): AppearanceParse {
 /**
  * Deep-merge `patch` over `base`. Nested objects merge key-by-key; every other value (array, scalar, null)
  * REPLACES wholesale — an appearance list like `blurSurfaces` is a set the caller means to state, not append
- * to. A key absent from the patch keeps the account's real value, which is what makes this an override of one
- * axis rather than a synthetic settings blob.
+ * to, and `theme.selectedThemeId: null` is the "no selection" arm, not an absent key. A key absent from the
+ * patch keeps the account's real value, which is what makes this an override of named axes rather than a
+ * synthetic settings blob.
  */
-export function deepMergeAppearance(base: unknown, patch: AppearancePatch): unknown {
+export function deepMergeSettings(base: unknown, patch: SettingsPatch): unknown {
   if (!isPlainObject(base)) {
     return { ...patch };
   }
   const merged: Record<string, unknown> = { ...base };
   for (const [key, value] of Object.entries(patch)) {
     const current = merged[key];
-    merged[key] = isPlainObject(current) && isPlainObject(value) ? deepMergeAppearance(current, value) : value;
+    merged[key] = isPlainObject(current) && isPlainObject(value) ? deepMergeSettings(current, value) : value;
   }
   return merged;
 }
@@ -152,7 +164,7 @@ export function deepMergeAppearance(base: unknown, patch: AppearancePatch): unkn
 /** Accumulate repeated appearance flags in argv order — later keys win, so
  *  `--full-motion --appearance '{"reducedMotion":true}'` ends up reduced, as written. */
 export function mergeAppearancePatches(base: AppearancePatch | null, next: AppearancePatch): AppearancePatch {
-  return base === null ? next : (deepMergeAppearance(base, next) as AppearancePatch);
+  return base === null ? next : (deepMergeSettings(base, next) as AppearancePatch);
 }
 
 /**
@@ -177,10 +189,10 @@ export function trpcProcedureIndex(rawUrl: string, procedure: string = SETTINGS_
   return index === -1 ? null : index;
 }
 
-/** Patch ONE tRPC envelope's `result.data.config.appearance`. A shape that isn't the settings envelope (an
+/** Patch ONE tRPC envelope's `result.data.config`. A shape that isn't the settings envelope (an
  *  error result, a schema that moved) is returned untouched with `applied:false` — the caller REPORTS that
  *  rather than fabricating a config the app never sent. */
-function patchEnvelope(envelope: unknown, patch: AppearancePatch): { readonly value: unknown; readonly applied: boolean } {
+function patchEnvelope(envelope: unknown, patch: SettingsPatch): { readonly value: unknown; readonly applied: boolean } {
   if (!isPlainObject(envelope)) {
     return { value: envelope, applied: false };
   }
@@ -196,16 +208,15 @@ function patchEnvelope(envelope: unknown, patch: AppearancePatch): { readonly va
   if (!isPlainObject(config)) {
     return { value: envelope, applied: false };
   }
-  const appearance = deepMergeAppearance(config["appearance"], patch);
   return {
-    value: { ...envelope, result: { ...result, data: { ...data, config: { ...config, appearance } } } },
+    value: { ...envelope, result: { ...result, data: { ...data, config: deepMergeSettings(config, patch) } } },
     applied: true,
   };
 }
 
 /** Patch a whole tRPC response body — a batch ARRAY (patch the element at `index`) or a single envelope
  *  (`batch=0`, index 0). Pure, so the merge semantics are unit-testable without a browser. */
-export function applyAppearanceToBody(body: unknown, index: number, patch: AppearancePatch): { readonly body: unknown; readonly applied: boolean } {
+export function applySettingsToBody(body: unknown, index: number, patch: SettingsPatch): { readonly body: unknown; readonly applied: boolean } {
   if (Array.isArray(body)) {
     const target = body[index];
     if (target === undefined) {
@@ -221,25 +232,83 @@ export function applyAppearanceToBody(body: unknown, index: number, patch: Appea
   return { body: patched.value, applied: patched.applied };
 }
 
-async function fulfilPatched(route: Route, patch: AppearancePatch, index: number): Promise<void> {
+async function fulfilPatched(route: Route, patch: SettingsPatch, index: number): Promise<void> {
   const response = await route.fetch();
   const body = (await response.json()) as unknown;
-  const patched = applyAppearanceToBody(body, index, patch);
+  const patched = applySettingsToBody(body, index, patch);
   await route.fulfill({ response, json: patched.body });
 }
 
+/** The theme library, asked of the app's OWN API on the context's cookie jar — the same origin the
+ *  intercepted request went to, so a `--base`/stage port never has to be re-derived here. `listThemes` takes
+ *  no input, so the batch URL carries an empty input map. */
+function themeListUrl(requestUrl: string): string | null {
+  try {
+    return `${new URL(requestUrl).origin}${TRPC_PATH_PREFIX}${LIST_THEMES_PROCEDURE}?batch=1&input=${encodeURIComponent("{}")}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Resolve `--theme` ONCE per context (the first intercepted settings read, by which point the context is
+ *  authenticated), then reuse the answer for every later request. Every failure arm — no origin, a non-200,
+ *  an unparseable body, a name that is not in the library — returns null AFTER printing the loud warning,
+ *  so a run can never quietly review the account's own theme under another theme's name. */
+function themeResolver(request: ThemeRequest): (route: Route, context: BrowserContext) => Promise<{ readonly id: string | null } | null> {
+  let pending: Promise<{ readonly id: string | null } | null> | null = null;
+  const resolveOnce = async (route: Route, context: BrowserContext): Promise<{ readonly id: string | null } | null> => {
+    const url = themeListUrl(route.request().url());
+    if (url === null) {
+      console.warn(themeWarning(`could not derive an API origin from ${route.request().url()}`));
+      return null;
+    }
+    let entries: readonly ThemeEntry[] | null = null;
+    try {
+      const response = await context.request.get(url);
+      entries = response.ok() ? readThemeList((await response.json()) as unknown) : null;
+      if (entries === null) {
+        console.warn(themeWarning(`${LIST_THEMES_PROCEDURE} answered ${response.status()} with no theme list`));
+        return null;
+      }
+    } catch (e) {
+      console.warn(themeWarning(`${LIST_THEMES_PROCEDURE} could not be read (${e instanceof Error ? e.message : String(e)})`));
+      return null;
+    }
+    const resolution = resolveTheme(entries, request);
+    if ("error" in resolution) {
+      console.warn(themeWarning(resolution.error));
+      return null;
+    }
+    return { id: resolution.id };
+  };
+  return (route, context) => {
+    pending ??= resolveOnce(route, context);
+    return pending;
+  };
+}
+
+/** What a run pretends about the user's settings: the appearance keys and/or the ACTIVE THEME. Both null =
+ *  no interception at all (the default probe run drives the REAL account state, itself a valid arm — it is
+ *  the owner's actual experience). */
+export type SettingsShim = {
+  readonly appearance: AppearancePatch | null;
+  readonly theme: ThemeRequest | null;
+};
+
 /**
  * Install the shim on a browser CONTEXT (before its first navigation, so the app's very first settings read
- * is already shimmed). A null patch installs nothing at all — the default probe run drives the REAL account
- * state, which is also a valid arm (it is the owner's actual experience).
+ * is already shimmed).
  *
  * Never fails the run: a request that can't be fetched/parsed (a mid-navigation abort, a non-JSON error page)
  * falls through to the real response — the alternative is a probe that dies on an unrelated network hiccup.
+ * An UNRESOLVABLE `--theme` is the one case that is loud (stderr) rather than silent, because unlike a
+ * network blip it means the run measured a different arm than the operator typed.
  */
-export async function installAppearanceShim(context: BrowserContext, patch: AppearancePatch | null): Promise<void> {
-  if (patch === null) {
+export async function installSettingsShim(context: BrowserContext, shim: SettingsShim): Promise<void> {
+  if (shim.appearance === null && shim.theme === null) {
     return;
   }
+  const resolveThemeId = shim.theme === null ? null : themeResolver(shim.theme);
   await context.route(TRPC_ROUTE_GLOB, async (route: Route) => {
     const index = trpcProcedureIndex(route.request().url());
     if (index === null) {
@@ -247,6 +316,13 @@ export async function installAppearanceShim(context: BrowserContext, patch: Appe
       return;
     }
     try {
+      // No --theme, or a resolution that FAILED (the warning already said so) → no theme key at all, never
+      // a fabricated selection. A resolved `none` IS a selection: `selectedThemeId: null`.
+      const themeOutcome = resolveThemeId === null ? null : await resolveThemeId(route, context);
+      const patch: SettingsPatch = {
+        ...(shim.appearance === null ? {} : { appearance: shim.appearance }),
+        ...(themeOutcome === null ? {} : themeConfigPatch(themeOutcome.id)),
+      };
       await fulfilPatched(route, patch, index);
     } catch {
       await route.fallback().catch(() => undefined);

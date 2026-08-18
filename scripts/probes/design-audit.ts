@@ -89,6 +89,8 @@ import type { NavMethod } from "./_kit/nav.ts";
 import { runNav } from "./_kit/nav.ts";
 import { clampBoxToImage, ringBackdropOfRegion } from "./_kit/pixel-backdrop.ts";
 import { print, printResult } from "./_kit/result.ts";
+import type { ThemeRequest } from "./_kit/theme.ts";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "./_kit/theme.ts";
 import type { ContrastInput, Finding, RawSamples, Severity } from "./design-audit-checks.ts";
 import { checkScriptErrors, collectFindings, isAtOrAboveSeverity, isValidSeverity } from "./design-audit-checks.ts";
 import { COLLECT_SAMPLES_JS } from "./design-audit-walker.ts";
@@ -123,6 +125,9 @@ type Args = {
    *  scan of the owner's account only ever judges HIS appearance choices; the shipped defaults, the
    *  compact/reading arms and every ornament he has off are unreachable without it. Never written. */
   appearance: AppearancePatch | null;
+  /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
+   *  `settings.getUserSettings` response (never written — _kit/theme.ts). null = the account's own theme. */
+  theme: ThemeRequest | null;
   /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
   errors: string[];
 };
@@ -184,6 +189,9 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--full-motion": (a) => {
     a.appearance = mergeAppearancePatches(a.appearance, FULL_MOTION_PATCH);
   },
+  "--theme": (a, rest) => {
+    applyThemeFlag(a, parseThemeFlag(rest.shift() ?? ""));
+  },
   "--fail-on": (a, rest) => {
     const raw = (rest.shift() ?? "").toUpperCase();
     if (isValidSeverity(raw)) {
@@ -206,6 +214,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--viewport",
   "--fail-on",
   ...APPEARANCE_VALUE_FLAGS,
+  ...THEME_VALUE_FLAGS,
 ]);
 
 const DESIGN_AUDIT_HELP = `design-audit — the deterministic UI defect scan
@@ -224,6 +233,8 @@ Environment:
   --desktop                 explicit 1280x800
 
 ${appearanceHelpBlock()}
+
+${themeHelpBlock()}
 
 Verdict:
   --fail-on <P0|P1|P2|P3>   exit 1 at this severity or worse (default ${DEFAULT_FAIL_ON})
@@ -275,6 +286,7 @@ export function parseAuditArgs(argv: string[]): Args {
     device: null,
     failOn: DEFAULT_FAIL_ON,
     appearance: null,
+    theme: null,
     errors: scanArgv(argv),
   };
   const rest = [...argv];
@@ -509,6 +521,7 @@ async function main(): Promise<number> {
     colorScheme: null,
     reducedMotion: false,
     appearance: opts.appearance,
+    theme: opts.theme,
     localStorage: [],
   });
 

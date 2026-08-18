@@ -213,6 +213,19 @@
  *                                          # appearance points: new coverage is a new PROFILE there, never
  *                                          # a new flag. `--appearance` composes OVER a preset (preset
  *                                          # first, then the patch, later keys winning).
+ *
+ *   ACTIVE THEME (the app's theme SELECTION — a third axis again, #225):
+ *   pnpm snap / --theme Light              # render as if the Light seed theme were selected: the shim
+ *                                          # patches config.theme.selectedThemeId over the SAME settings
+ *                                          # response, the app then fetches the REAL theme row itself
+ *                                          # (_kit/theme.ts). Seeds: Hearth | Mocha | Light; your own
+ *                                          # themes work too, by name or id; `--theme none` = no selection.
+ *                                          # The name is resolved against settings.listThemes, so a typo
+ *                                          # WARNS with the real list instead of silently rendering yours.
+ *   NOT the same as --dark/--light (the OS color scheme) and NOT the same as --appearance; all three
+ *   compose. Inside a chat room whose CARD carries a theme, <html> has NO data-theme and the room's
+ *   ThemeScope governs (D44 §12) — take theme arms on a non-carried surface (Home, Configuration).
+ *
  *   THE AXIS TRAP (2026-08-18, the reason this exists): `--reduced-motion` emulates the OS MEDIA QUERY;
  *   `--full-motion`/`--appearance` shim the APP SETTING (`<html data-reduced-motion>`, written by
  *   useAppearanceRootEffects off this query). They are DIFFERENT GATES and they diverge — the dev account
@@ -427,6 +440,8 @@ import { ringBackdrop } from "./_kit/pixel-backdrop.ts";
 import type { ResultPair } from "./_kit/result.ts";
 import { print, printResult } from "./_kit/result.ts";
 import { ensureStage, stageStatus, teardownStage } from "./_kit/snap-stage.ts";
+import type { ThemeRequest } from "./_kit/theme.ts";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "./_kit/theme.ts";
 import type { Rgb } from "./design-audit-checks.ts";
 import { contrastRatio, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "./design-audit-checks.ts";
 
@@ -685,6 +700,10 @@ export type Args = {
    *  Accumulated in argv order, later keys winning. null = drive the account's real state (the default, and
    *  a valid arm — it is the owner's actual experience). */
   appearance: AppearancePatch | null;
+  /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
+   *  `settings.getUserSettings` response (never written — _kit/theme.ts). Last spelling wins. null = the
+   *  account's own theme. A carried-theme chat room overrides it on purpose (D44 §12). */
+  theme: ThemeRequest | null;
   /** Settle on networkidle (bounded) instead of a fixed timeout before capture. */
   idle: boolean;
   // ── INTROSPECTION (the "skip the MCP hop" escape hatches) ───────────────────
@@ -975,6 +994,10 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--full-motion": (a) => {
     a.appearance = mergeAppearancePatches(a.appearance, FULL_MOTION_PATCH);
   },
+  // THE ACTIVE THEME — the settings SELECTION, a different axis from --dark/--light (the OS color scheme).
+  "--theme": (a, rest) => {
+    applyThemeFlag(a, parseThemeFlag(rest.shift() ?? ""));
+  },
   "--idle": (a) => {
     a.idle = true;
   },
@@ -1108,6 +1131,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--out",
   "--viewport",
   ...APPEARANCE_VALUE_FLAGS,
+  ...THEME_VALUE_FLAGS,
   "--eval",
   "--contrast",
   "--expect-visible",
@@ -1182,6 +1206,8 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
   Add @N to a page-targeted flag with --pages N, for example --click@1.
 
 ${appearanceHelpBlock()}
+
+${themeHelpBlock()}
 
 Pixels:
   --no-shot               skip the primary PNG
@@ -1441,6 +1467,7 @@ export function parseSnapArgs(argv: string[]): Args {
     colorScheme: null,
     reducedMotion: false,
     appearance: null,
+    theme: null,
     idle: false,
     eval: [],
     contrast: [],
@@ -3386,6 +3413,7 @@ function inheritScenarioSession(globalArgs: Args, checkpoint: Args, name: string
     // property like the media emulation, taken from the outer command (a checkpoint that sets its own is
     // refused below rather than silently applying to every checkpoint or to none).
     appearance: globalArgs.appearance,
+    theme: globalArgs.theme,
     probe: globalArgs.probe,
     localStorage: [...globalArgs.localStorage, ...checkpoint.localStorage],
     out: checkpoint.out ?? name,
@@ -3409,6 +3437,7 @@ function scenarioCheckpointArgs(globalArgs: Args, spec: ScenarioSpec): Args[] {
           args.appearance !== null,
           "scenario checkpoints share ONE browser context, so the appearance shim is session-level; put --appearance/--appearance-preset/--full-motion on the outer command",
         ],
+        [args.theme !== null, "scenario checkpoints share ONE browser context, so the theme shim is session-level; put --theme on the outer command"],
       ]
         .filter(([invalid]) => invalid)
         .map(([, message]) => `${checkpoint.name}: ${message}`),
@@ -3554,6 +3583,9 @@ type SnapManifest = {
      *  null when the run drove the account's real state — so a manifest never leaves which arm it measured
      *  to be inferred from the command line. */
     readonly appearance: AppearancePatch | null;
+    /** The ACTIVE-THEME arm this run asked for (--theme), null when it drove the account's own theme. A
+     *  request that failed to resolve printed a THEME SHIM WARNING and rendered the account's theme. */
+    readonly theme: ThemeRequest | null;
   };
   readonly failures: SnapFailureSummary;
   readonly traces: readonly string[];
@@ -3708,6 +3740,7 @@ async function launchSnapSession(opts: Args, name: string, extras: LaunchExtras 
     colorScheme: opts.colorScheme,
     reducedMotion: opts.reducedMotion || opts.probe,
     appearance: opts.appearance,
+    theme: opts.theme,
     localStorage: buildSeeds(opts),
     device: opts.device,
     trace: opts.failureEvidence,
@@ -3797,6 +3830,7 @@ async function snap(opts: Args): Promise<number> {
       colorScheme: opts.colorScheme,
       reducedMotion: opts.reducedMotion || opts.probe,
       appearance: opts.appearance,
+      theme: opts.theme,
     },
     failures: failureSummary,
     traces: artifacts.traces,
@@ -4038,6 +4072,7 @@ async function snapScenario(opts: Args): Promise<number> {
       colorScheme: first.colorScheme,
       reducedMotion: first.reducedMotion || first.probe,
       appearance: first.appearance,
+      theme: first.theme,
     },
     failures: failureSummary,
     traces: artifacts.traces,
@@ -4262,6 +4297,7 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[], target: F
       colorScheme: opts.colorScheme,
       reducedMotion: opts.reducedMotion || opts.probe,
       appearance: opts.appearance,
+      theme: opts.theme,
     },
     failures: failureSummary,
     traces: artifacts.traces,
@@ -4365,6 +4401,9 @@ function refuseFileMode(opts: Args): string | null {
   }
   if (opts.appearance !== null) {
     return "FILE REFUSED  --appearance/--appearance-preset/--full-motion shim the app's settings response; a static file makes no such request — drop them (a mock states its own appearance)";
+  }
+  if (opts.theme !== null) {
+    return "FILE REFUSED  --theme shims the app's settings response; a static file makes no such request — drop it (a mock states its own theme)";
   }
   return null;
 }
