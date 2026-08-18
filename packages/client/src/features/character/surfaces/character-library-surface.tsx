@@ -30,19 +30,14 @@ import { CHAT_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
-import { EmptyState } from "@orb/ui/empty-state";
-import { Icon, Search, Users } from "@orb/ui/icons";
 import { Stack, Surface } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
-import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { FaceStrip } from "#components";
 import type { Trpc } from "#data";
-import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useStartChat, useTRPC } from "#data";
+import { createCollectionSurface, useInvalidation, useStartChat, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnMount } from "#lib";
 import {
   clearCharacterFilters,
@@ -65,18 +60,15 @@ import {
 import { CharacterBulkBar } from "../components/character-bulk-bar.tsx";
 import type { CharacterCardItem } from "../components/character-card.tsx";
 import { CharacterCardTile } from "../components/character-card.tsx";
-import { CharacterCategorizedList } from "../components/character-categorized-list.tsx";
-import { CharacterCreateButton } from "../components/character-create-actions.tsx";
 import { CharacterFilterChips } from "../components/character-filter-chips.tsx";
+import { CharacterLibraryBody } from "../components/character-library-body.tsx";
 import { CharacterLibraryToolbar } from "../components/character-library-toolbar.tsx";
 import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
+import { useLibraryLens } from "../hooks/use-library-lens.ts";
 import { useRestoreRowFocus } from "../hooks/use-restore-row-focus.ts";
-import { effectiveTagFilter, knownTagIds, resultCountLabel, tagIdsInState, tagVocabulary } from "../lib/character-library-lens.ts";
-import { groupByTag, resumeTargets } from "../lib/character-list-view.ts";
-
-const ESTIMATED_ROW_PX = 80;
-const SKELETON_ROW_COUNT = 6;
+import { effectiveTagFilter, knownTagIds, resultCountLabel, tagVocabulary } from "../lib/character-library-lens.ts";
+import { resumeTargets } from "../lib/character-list-view.ts";
 
 /** How deep the resume-or-new map looks back. The server's own page ceiling — one read, no keyset walk. */
 const RESUME_WINDOW = CHAT_LIST_MAX_LIMIT;
@@ -179,16 +171,19 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   // lands is what keeps a LIVE filter from flashing off on every boot (`effectiveTagFilter`). A dropped entry
   // stays in the store and still renders its chip: visible + inert, never a write-on-render.
   const effectiveFilter = effectiveTagFilter(tagFilter, tagLibraryQuery.isSuccess ? knownTagIds(tagLibrary) : null);
+  // The chip lens reaches the LIST one render behind the chips — the whole WHY (and the review premise
+  // that died) is in `use-library-lens.ts`.
+  const lens = useLibraryLens(favoritesOnly, effectiveFilter);
   const collection = useCharacterLibraryCollection(
     { trpc },
     {
       sort: sortMode,
       pageSize,
       search: settledQuery,
-      favoritesOnly,
+      favoritesOnly: lens.favoritesOnly,
       showArchived,
-      includeTagIds: tagIdsInState(effectiveFilter, "include"),
-      excludeTagIds: tagIdsInState(effectiveFilter, "exclude"),
+      includeTagIds: lens.includeTagIds,
+      excludeTagIds: lens.excludeTagIds,
     },
   );
   const selectedId = useSelectedCharacterId();
@@ -275,6 +270,13 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
     <Surface tier="instrument">
       <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" gap="row">
         <CharacterLibraryToolbar onQueryChange={setQuery} query={query} />
+        {/* THE RESULT COUNT, SPOKEN (side-eye 2026-08-03 P2), AND NOW HOUSED (side-eye 2026-08-17 taste a).
+            It is a `role="status"` line that is ALWAYS mounted and always states the count (a region that
+            appears with its first message announces nothing; a count that exists only while filtered shifts
+            the layout on every chip press), and it counts the SERVER's matches, not the loaded rows.
+            It renders inside the Filters group in the `datum` voice now: floating between the rail and the
+            favorites strip in the `gloss` micro voice it read as a debug line, and it is the number the
+            rail's own controls PRODUCE. The chips component draws it — see its datum line. */}
         <CharacterFilterChips
           availableTags={availableTags}
           favoritesOnly={favoritesOnly}
@@ -282,18 +284,11 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
           onCycleTag={cycleTagFilter}
           onToggleArchived={toggleShowArchived}
           onToggleFavorites={toggleFavoritesOnly}
+          resultLabel={resultCountLabel(items.length, collection.totalCount)}
           showArchived={showArchived}
           tagFilter={tagFilter}
+          vocabularyPending={tagLibraryQuery.isPending}
         />
-        {/* THE RESULT COUNT, SPOKEN (side-eye 2026-08-03 P2). Cycling a chip changes what is on screen and
-            said nothing, so a screen-reader user operating a three-state control got no feedback that it
-            had done anything. `role="status"` is polite by default; the line is always mounted (a region
-            that appears WITH its first message announces nothing) and always states the count, because a
-            count that only exists while filtered is a layout that shifts on every chip press.
-            It counts the SERVER's matches now, not the loaded rows — and says so when the two differ. */}
-        <Text role="status" voice="gloss">
-          {resultCountLabel(items.length, collection.totalCount)}
-        </Text>
         {/* The favorites strip is the shared `FaceStrip` composite now — the
           private avatar-in-Button copy it used to carry is retired, not duplicated. Portraits only: the
           names are already the rows' titles right below. */}
@@ -304,7 +299,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
             categorized={viewMode === "categorized"}
             error={collection.error}
             filtered={items}
-            filtersActive={favoritesOnly || effectiveFilter.length > 0}
+            filtersActive={lens.filtersActive}
             hasNextPage={collection.hasNextPage}
             isFetchingNextPage={collection.isFetchingNextPage}
             isPending={collection.isPending}
@@ -320,117 +315,5 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
         ) : null}
       </Stack>
     </Surface>
-  );
-}
-
-interface CharacterLibraryBodyProps {
-  readonly ariaLabel: string;
-  readonly query: string;
-  /** Any chip narrowing the SERVER read (favorites / tag include-exclude). Archived is deliberately not one:
-   *  its OFF state is the resting library, so an empty library is not "the Archived toggle did this". Nor is
-   *  a tag entry dropped as unknown: it reaches no request, so blaming an empty library on it — and
-   *  offering "Clear filters" as the way out — would be a claim the pane has no standing to make. */
-  readonly filtersActive: boolean;
-  readonly categorized: boolean;
-  readonly isPending: boolean;
-  readonly error: unknown | null;
-  readonly filtered: readonly CharacterCardItem[];
-  readonly hasNextPage: boolean;
-  readonly isFetchingNextPage: boolean;
-  readonly listProps: ReturnType<typeof useCharacterLibraryCollection>["listProps"];
-  readonly onClearSearch: () => void;
-  readonly onRetry: () => void;
-  readonly renderRow: (item: CharacterCardItem) => ReactNode;
-}
-
-/** Loading → error → empty → no-matches → the flat virtual list OR the categorized grouped list.
- *
- *  The three empties are DIFFERENT CLAIMS and the server now lets each be honest: with the predicates on the
- *  server an empty page means "nothing in the whole library matches", so the search arm no longer has to
- *  hedge and the chip arm's old "load more to keep looking" affordance is gone — there is nothing further to
- *  load, and offering it would be a dead end pretending to be a next step. */
-function CharacterLibraryBody({
-  ariaLabel,
-  query,
-  filtersActive,
-  categorized,
-  isPending,
-  error,
-  filtered,
-  hasNextPage,
-  isFetchingNextPage,
-  listProps,
-  onClearSearch,
-  onRetry,
-  renderRow,
-}: CharacterLibraryBodyProps): ReactElement {
-  if (isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} />;
-  }
-  if (error !== null) {
-    return <QueryErrorState label="the character library" onRetry={onRetry} />;
-  }
-  if (filtered.length === 0) {
-    if (query !== "") {
-      return (
-        <EmptyState
-          action={
-            <Button intent="secondary" onClick={onClearSearch} size="sm">
-              Clear search
-            </Button>
-          }
-          description={`No character matches "${query}".`}
-          icon={<Icon icon={Search} size="lg" />}
-          title="No matches"
-        />
-      );
-    }
-    if (filtersActive) {
-      return (
-        <EmptyState
-          action={
-            <Button intent="secondary" onClick={clearCharacterFilters} size="sm">
-              Clear filters
-            </Button>
-          }
-          description="No character in your library matches the current filters."
-          icon={<Icon icon={Users} size="lg" />}
-          title="No matches"
-        />
-      );
-    }
-    return (
-      <EmptyState
-        action={<CharacterCreateButton />}
-        description="Weave your first one to begin."
-        icon={<Icon icon={Users} size="lg" />}
-        title="No characters yet"
-      />
-    );
-  }
-  if (categorized) {
-    return (
-      <CharacterCategorizedList
-        groups={groupByTag(filtered)}
-        hasNextPage={hasNextPage}
-        isLoadingMore={isFetchingNextPage}
-        onLoadMore={listProps.onEndApproach}
-        renderRow={renderRow}
-      />
-    );
-  }
-  return (
-    <Stack aria-label={ariaLabel} className="h-full min-h-0" role="list">
-      <VirtualList
-        className="h-full"
-        endApproachRows={listProps.endApproachRows}
-        estimateSize={(): number => ESTIMATED_ROW_PX}
-        gapToken="row"
-        getItemKey={(item): string => item.id}
-        items={filtered}
-        onEndApproach={listProps.onEndApproach}
-        renderItem={renderRow}
-      />
-    </Stack>
   );
 }

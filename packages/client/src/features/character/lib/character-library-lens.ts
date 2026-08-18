@@ -95,6 +95,28 @@ export function tagIdsInState(entries: readonly TagFilterEntry[], state: ActiveT
  *  The ranking is what makes the chip row's cap honest (side-eye 2026-08-03 P2): the row shows the first N,
  *  so the filters that can DO the most sit in the visible slice, where alphabetical order put whatever
  *  started with "a". `usage.characters` counts the whole library now, not the loaded window. */
+/**
+ * THE EXPANDED VOCABULARY'S ORDER + INDEX (side-eye 2026-08-17 P1). The chip rail's disclosure used to
+ * render the whole vocabulary back into the wrapping rail — 551 chips, a 5,957px wall, the character list
+ * driven to zero height. It renders into a BOUNDED SCROLLER now, and a bounded scroller re-opens the exact
+ * hole the cap was minted against: an ACTIVE chip 400 entries down is a filter you cannot see.
+ *
+ * So the panel's order is not the rail's. Two rules, in this order:
+ *   1. ACTIVE entries lead — every chip that is currently narrowing the library sits above the fold.
+ *   2. everything else keeps the caller's most-used-first ranking (`tagVocabulary`'s).
+ * `toSorted` is stable, so rule 2 costs nothing to state: the comparator only ever separates the two
+ * classes.
+ *
+ * `query` is the panel's search box — a case-insensitive NAME substring, trimmed, `""` meaning unfiltered.
+ * 551 entries is a vocabulary rather than a list, and the only way to operate one is to index it.
+ */
+export function vocabularyPanelTags(tags: readonly LibraryChipTag[], tagFilter: readonly TagFilterEntry[], query: string): readonly LibraryChipTag[] {
+  const needle = query.trim().toLocaleLowerCase();
+  const active = new Set(tagFilter.map((entry) => entry.id));
+  const matched = needle === "" ? tags : tags.filter((tag) => tag.name.toLocaleLowerCase().includes(needle));
+  return matched.toSorted((a, b) => Number(active.has(b.id)) - Number(active.has(a.id)));
+}
+
 export function tagVocabulary(library: readonly TagWithUsage[], tagFilter: readonly TagFilterEntry[]): readonly LibraryChipTag[] {
   const activeIds = new Set(tagFilter.map((entry) => entry.id));
   return library

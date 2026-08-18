@@ -20,7 +20,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { dropFiles } from "../../../../support/ct/drop-files.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterLibrarySurfaceStory } from "../_ct-stories.tsx";
 import { characterListResponder, makeCharacterSummary, makeTagFixture } from "../fixtures.ts";
@@ -644,6 +644,14 @@ test("a PNG with no character data gets a LOUD toast naming why, and the dialog 
 
 const NARROW_PANE_PX = 290;
 const VISIBLE_CHIPS = 8;
+/** The disclosure pair's ACCESSIBLE names (side-eye 2026-08-17 ARIA (b)). They were "+N more" and "Show
+ *  fewer" — a control that names neither a verb nor an object, on a pair that carries no `aria-expanded`
+ *  and no `aria-controls`. The visible labels are unchanged (each is a substring of its accessible name,
+ *  WCAG 2.5.3); what a screen reader hears is a disclosure now. */
+function moreTagsName(hidden: number): string {
+  return `Show ${String(hidden)} more tags`;
+}
+const FEWER_TAGS = "Show fewer tags";
 const LONG_TAG = "a-tag-name-long-enough-to-prove-the-chip-clips-instead-of-overflowing-x";
 /** A chip past the cap, addressed by its name prefix (its state word changes as it cycles). */
 const BEYOND_CAP_CHIP = /^Filter by bulk-11:/u;
@@ -669,9 +677,9 @@ test("the chip row is CAPPED, and the rest are one disclosure away", async ({ mo
   await expect(component.getByText("Tagged One")).toBeVisible();
 
   await expect(component.locator("[data-tag-filter-state]")).toHaveCount(VISIBLE_CHIPS);
-  await component.getByRole("button", { name: "+4 more" }).click();
+  await component.getByRole("button", { name: moreTagsName(4) }).click();
   await expect(component.locator("[data-tag-filter-state]")).toHaveCount(12);
-  await component.getByRole("button", { name: "Show fewer" }).click();
+  await component.getByRole("button", { name: FEWER_TAGS }).click();
   await expect(component.locator("[data-tag-filter-state]")).toHaveCount(VISIBLE_CHIPS);
 });
 
@@ -680,9 +688,9 @@ test("an ACTIVE chip is never hidden by the cap (a filter you cannot see is one 
   const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
 
-  await component.getByRole("button", { name: "+4 more" }).click();
+  await component.getByRole("button", { name: moreTagsName(4) }).click();
   await component.getByRole("button", { name: BEYOND_CAP_CHIP }).click();
-  await component.getByRole("button", { name: "Show fewer" }).click();
+  await component.getByRole("button", { name: FEWER_TAGS }).click();
   await expect(component.getByRole("button", { name: BEYOND_CAP_CHIP })).toBeVisible();
   await expect(component.locator("[data-tag-filter-state]")).toHaveCount(VISIBLE_CHIPS + 1);
 });
@@ -938,7 +946,7 @@ test("the rail renders THREE distinct registers — a command, a filter chip and
 
   const commandLocator = component.getByRole("button", { name: "Group by tag" });
   const chipLocator = component.getByRole("button", { name: RAIL_CHIP });
-  const disclosureLocator = component.getByRole("button", { name: "+4 more" });
+  const disclosureLocator = component.getByRole("button", { name: moreTagsName(4) });
   const [command, chip, disclosure] = await Promise.all([registerOf(commandLocator), registerOf(chipLocator), registerOf(disclosureLocator)]);
   const [commandBox, chipBox, disclosureBox] = await Promise.all([commandLocator.boundingBox(), chipLocator.boundingBox(), disclosureLocator.boundingBox()]);
 
@@ -1001,7 +1009,12 @@ test("the chip rail runs at the tight 32px pitch the grouping is paid for out of
  *
  *  The fence is what keeps "naming the groups is FREE" a standing property instead of a sentence in a
  *  rationale: the STACKED spelling of the same two kickers (variant A) lands ~22px above this line, and so
- *  does anyone who gives a rail register a control-height box again. */
+ *  does anyone who gives a rail register a control-height box again.
+ *
+ *  IT HELD AGAINST A REVIEW FINDING (side-eye re-pass 2026-08-17, owner-ruled ARM B). A proposed
+ *  width-stability fix — reserving the state-glyph cell in every resting chip — measured 262.5 → 293.4 here
+ *  and was REFUSED for it; the receipt and the recorded alternative live at the refusal site in
+ *  `character-filter-chips.tsx`. This is the fence doing its job, not a coincidence. */
 const RAIL_CHROME_CEILING_PX = 264;
 
 test("naming the groups stays HEIGHT-NEUTRAL — the chrome above the first row holds its budget", async ({ mount, page }) => {
@@ -1013,3 +1026,285 @@ test("naming the groups stays HEIGHT-NEUTRAL — the chrome above the first row 
   const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
   expect((listBox?.y ?? 0) - (paneBox?.y ?? 0)).toBeLessThanOrEqual(RAIL_CHROME_CEILING_PX);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE SIDE-EYE RE-PASS (2026-08-17, program #102's own review — reports/snaps/se-chars-*). Every pin below
+// names the measurement it was minted from; each one was RENDERED evidence, never a code reading.
+
+/** The owner's real tag library, as the review measured it (`tag.listTagsWithUsage … 551 rows`). */
+const OWNER_VOCABULARY = 551;
+/** The panel's own scroll cap (`max-h-48` = 12rem). The assertion is `<=` this, never `===`: the region is
+ *  content-sized below the cap, which is half of what "bounded" means. */
+const PANEL_CAP_PX = 192;
+/** Chips addressed by name PREFIX (the state word changes as they cycle). Top level: a locator regex built
+ *  inside a test body is a fresh compile per call. */
+const VOCAB_500_CHIP = /^Filter by vocab-500:/u;
+const VOCAB_400_CHIP = /^Filter by vocab-400:/u;
+const SECOND_RAIL_CHIP = /^Filter by bulk-01:/u;
+/** The LAST chip inside the 8-wide cap. */
+const LAST_RAIL_CHIP = /^Filter by bulk-07:/u;
+
+/** `count` tags in the LIBRARY read only — the character carries NONE of them. `routeManyTags` hangs every
+ *  tag off one character summary, which at 551 would be measuring a card's tag row rather than the rail. */
+function routeBigVocabulary(page: Page, count: number): Promise<TrpcRecorder> {
+  const tags = Array.from({ length: count }, (_unused, at) => makeTagFixture({ id: `tag_v_${String(at)}`, name: `vocab-${String(at).padStart(3, "0")}` }));
+  return routeTrpc(page, {
+    "character.list": characterListResponder([makeCharacterSummary({ id: "char_plain", name: "Tagged One", createdAt: 3000, tags: [] })]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => tags.map((tag) => ({ ...tag, usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 } })),
+  });
+}
+
+// P1 (se-chars-more.png · se-chars-trap.json · perf-meter se-chars-expandperf.json). One click on
+// "+543 more" replaced the ENTIRE list pane with a 5,957px chip wall: the character list's own height went
+// to ZERO, the only way back was 5.3k px down the page, and the mount blocked for 648ms. That is the defect
+// the VISIBLE_TAG_CHIPS cap was minted against, at 25× scale. The expansion is a BOUNDED REGION now.
+test("P1 the expansion is BOUNDED — the character list keeps its height and the way back is on screen", async ({ mount, page }) => {
+  await routeBigVocabulary(page, OWNER_VOCABULARY);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const scroller = component.locator('[data-slot="virtual-list-scroll"]');
+  const beforeHeight = await scroller.evaluate((el: Element) => el.clientHeight);
+  expect(beforeHeight).toBeGreaterThan(0);
+
+  await component.getByRole("button", { name: moreTagsName(OWNER_VOCABULARY - VISIBLE_CHIPS) }).click();
+
+  // THE LIST IS STILL ALIVE. This is the pin: it measured 0.
+  const exit = component.getByRole("button", { name: FEWER_TAGS });
+  await expect(exit).toBeVisible();
+  await expect.poll(async () => scroller.evaluate((el: Element) => el.clientHeight), { intervals: [50, 100, 200] }).toBeGreaterThan(0);
+
+  // …and the vocabulary is a bounded scroller, not a wall: its viewport is capped and it overflows.
+  const viewport = component.locator('[data-slot="scroll-area-viewport"]');
+  const region = await viewport.evaluate((el: Element) => ({
+    client: el.clientHeight,
+    scroll: el.scrollHeight,
+    clientW: el.clientWidth,
+    scrollW: el.scrollWidth,
+  }));
+  expect(region.client).toBeLessThanOrEqual(PANEL_CAP_PX);
+  expect(region.scroll).toBeGreaterThan(region.client);
+  // …and it scrolls in ONE axis. ScrollArea's content slot ships `min-w-max` for its usual tenant, which
+  // makes a wrapping rail measure at max-content and never wrap: the first rendered shot of this panel had
+  // 551 chips on a single clipped line behind a horizontal scrollbar (`done ≠ rendered`).
+  expect(region.scrollW).toBeLessThanOrEqual(region.clientW);
+
+  // The exit is ABOVE the scroller, so it can never be scrolled away (stronger than sticky-inside).
+  const [exitBox, viewportBox] = await Promise.all([exit.boundingBox(), viewport.boundingBox()]);
+  expect(exitBox?.y ?? 0).toBeLessThan(viewportBox?.y ?? 0);
+});
+
+// P1 (c) — 551 entries is a VOCABULARY. Without an index the only way to reach `vocab-500` is to scroll a
+// 192px window past five hundred chips.
+test("P1 the expanded vocabulary has an INDEX — the search box narrows it to the match", async ({ mount, page }) => {
+  await routeBigVocabulary(page, OWNER_VOCABULARY);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+  await component.getByRole("button", { name: moreTagsName(OWNER_VOCABULARY - VISIBLE_CHIPS) }).click();
+
+  await component.getByRole("searchbox", { name: "Filter tags" }).fill("vocab-500");
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(1);
+  await expect(component.getByRole("button", { name: VOCAB_500_CHIP })).toBeVisible();
+
+  // A search that finds nothing SAYS so — an empty scroller is indistinguishable from a broken one.
+  await component.getByRole("searchbox", { name: "Filter tags" }).fill("zzz-no-such-tag");
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(0);
+  await expect(component.getByText('No tag matches "zzz-no-such-tag".')).toBeVisible();
+});
+
+// P1 (a) — an ACTIVE chip must stay findable once the rail became a scroller. It leads the panel.
+test("P1 an ACTIVE tag leads the expanded panel, above its fold", async ({ mount, page }) => {
+  await routeBigVocabulary(page, OWNER_VOCABULARY);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+  await component.getByRole("button", { name: moreTagsName(OWNER_VOCABULARY - VISIBLE_CHIPS) }).click();
+
+  // A tag from deep in the ranking, reached through the index, then switched on.
+  await component.getByRole("searchbox", { name: "Filter tags" }).fill("vocab-400");
+  await component.getByRole("button", { name: VOCAB_400_CHIP }).click();
+  await component.getByRole("searchbox", { name: "Filter tags" }).fill("");
+
+  const [first, active, viewport] = await Promise.all([
+    component.locator("[data-tag-filter-state]").first().getAttribute("aria-label"),
+    component.getByRole("button", { name: VOCAB_400_CHIP }).boundingBox(),
+    component.locator('[data-slot="scroll-area-viewport"]').boundingBox(),
+  ]);
+  expect(first).toContain("vocab-400");
+  // ABOVE THE FOLD, in pixels — not merely first in the DOM.
+  expect(active?.y ?? 0).toBeLessThan((viewport?.y ?? 0) + PANEL_CAP_PX);
+});
+
+// P2 (se-chars-combined.json). A tag chip on + a no-match search: the pane named only the search and
+// offered only "Clear search", so clearing it landed the user in a still-empty library with a filter
+// nobody had mentioned — and the pane had already spent its one explanation.
+test("P2 a search-AND-filter empty names both causes and offers both exits", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Cassius")).toBeVisible();
+
+  await component.getByRole("button", { name: "Filter by rpg: off — activate to include" }).click();
+  await component.getByPlaceholder("Search characters…").fill("zzzqqq");
+
+  await expect(component.getByText('No character matches "zzzqqq" with the current filters.')).toBeVisible();
+  await expect(component.getByRole("button", { name: "Clear search" })).toBeVisible();
+  const clearFilters = component.getByRole("button", { name: "Clear filters" });
+  await expect(clearFilters).toBeVisible();
+
+  // Both exits WORK — the filter one drops the chip and leaves the search's own claim standing.
+  await clearFilters.click();
+  await expect(component.getByRole("button", { name: "Filter by rpg: off — activate to include" })).toBeVisible();
+  await expect(component.getByText('No character matches "zzzqqq".')).toBeVisible();
+});
+
+// P2 (se-chars-chip-rest.json), the HALF THAT WAS FIXED. The finding was two shifts on one click: the
+// group's active-count datum MOUNTED beside the chips and shoved the whole wrapped rail 18px sideways, and
+// the chip itself grew 16px as its state glyph appeared. The datum is a full-width line of its own now, so
+// the FIRST selection cannot move a chip at all.
+//
+// THE CHIP'S OWN 16px IS DELIBERATELY STILL THERE (owner ruling ARM B, 2026-08-17). Reserving the glyph
+// cell costs ~18px on every resting chip → a third wrap line → 293.4px of chrome against the ratified
+// 264px `RAIL_CHROME_CEILING_PX`. The receipt and the recorded revisit arm (an overlay glyph, zero layout
+// width) live at the refusal site in `character-filter-chips.tsx`. This pin states the ruling so the next
+// reader does not "fix" it back: a selected chip's own 16px is absorbed by the chips AFTER it in flow, and
+// nothing UPSTREAM of it moves — which is the property the datum push destroyed and this restores.
+test("P2 selecting a chip no longer reshuffles the rail — the count datum cannot push a chip", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  // Press the LAST chip of the capped rail; watch the FIRST one. The datum used to mount at the HEAD of the
+  // control line, so this observer moved 18px on a click that happened four rows away from it.
+  const observer = component.getByRole("button", { name: RAIL_CHIP });
+  const pressed = component.getByRole("button", { name: LAST_RAIL_CHIP });
+  const clearAll = component.getByRole("button", { name: "Clear all filters" });
+  await expect(clearAll).toHaveCount(0);
+  const before = await observer.boundingBox();
+
+  await pressed.click();
+  await expect(component.getByRole("button", { name: "Filter by bulk-07: included — activate to exclude" })).toBeVisible();
+  // The datum mounted (`1 active`), "Clear all" mounted — and the untouched chip has not moved a pixel.
+  await expect(component.getByText("1 active")).toBeVisible();
+  await expect(clearAll).toBeVisible();
+  const after = await observer.boundingBox();
+  expect(after?.x).toBe(before?.x);
+  expect(after?.y).toBe(before?.y);
+});
+
+// P2 (console `[cls] shift 0.0085 unexpected · aside[aria-label=Characters list] moved 0px,64px`, every
+// cold load). `tag.listTagsWithUsage` settles ~750ms after first paint and the rail grew underneath the
+// reader. The rail RESERVES the lines while the read is in flight, so the group's own height is the same
+// before and after the vocabulary lands.
+test("P2 the filter rail RESERVES the tag lines — the vocabulary landing does not grow the group", async ({ mount, page }) => {
+  const hold = trpcHold();
+  const tags = Array.from({ length: 12 }, (_unused, at) => makeTagFixture({ id: `tag_bulk_${String(at)}`, name: `bulk-${String(at).padStart(2, "0")}` }));
+  await routeTrpc(page, {
+    "character.list": characterListResponder([makeCharacterSummary({ id: "char_plain", name: "Tagged One", createdAt: 3000, tags: [] })]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": hold,
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await hold.requested;
+
+  // HELD: the reserve is rendered, and it is what the group is spending its height on.
+  const group = component.getByRole("group", { name: "Filters" });
+  await expect(component.locator('[data-slot="skeleton"]').first()).toBeVisible();
+  const held = (await group.boundingBox())?.height ?? 0;
+  expect(held).toBeGreaterThan(0);
+
+  hold.release(tags.map((tag) => ({ ...tag, usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 } })));
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(VISIBLE_CHIPS);
+  const settled = (await group.boundingBox())?.height ?? 0;
+
+  // The arrival is FREE. It measured +64px — two whole chip lines shoved into the character list.
+  expect(settled).toBe(held);
+});
+
+// ARIA (a)+(b)+(c) and taste (b)+(d) — the rail's non-chip controls, as assistive tech hears them.
+test("the rail's text affordances carry disclosure semantics and object-qualified names", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  // The disclosure is a DISCLOSURE: a verb, its state, and the region it owns.
+  const more = component.getByRole("button", { name: moreTagsName(4) });
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  const controls = await more.getAttribute("aria-controls");
+  expect(controls).not.toBeNull();
+  // …and it has a RESTING affordance again (taste (d)): the mockup's underline, dropped by the build and
+  // never listed among its deviations, so "+N more" sat as one more muted word in a rail of muted words.
+  await expect(more).toHaveCSS("text-decoration-line", "underline");
+  await expect(more).toHaveCSS("text-decoration-style", "dotted");
+
+  await more.click();
+  const fewer = component.getByRole("button", { name: FEWER_TAGS });
+  await expect(fewer).toHaveAttribute("aria-expanded", "true");
+  await expect(fewer).toHaveAttribute("aria-controls", controls ?? "");
+  await fewer.click();
+
+  // The count is CAPTIONED, not a bare digit in a paragraph (ARIA (a) + taste (b)) …
+  await component.getByRole("button", { name: RAIL_CHIP }).click();
+  await expect(component.getByText("1 active")).toBeVisible();
+  // … and "Clear all" names its object for anyone who meets it out of context (ARIA (c)).
+  await expect(component.getByRole("button", { name: "Clear all filters" })).toBeVisible();
+});
+
+// TASTE (a) — the result count read as a debug line: micro/gloss type, floating between the rail and the
+// favourites strip, belonging to nothing. It is a DATUM in the group whose controls produce it.
+test("the result count is typeset as a datum, inside the Filters group", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Starla")).toBeVisible();
+
+  const status = component.getByRole("status");
+  await expect(status).toHaveText("3 characters");
+  await expect(status).toHaveAttribute("data-voice", "datum");
+  // Its sibling datum (the active count) shares the voice — one register for the two numbers.
+  await expect(component.getByRole("group", { name: "Filters" }).getByRole("status")).toHaveCount(1);
+});
+
+// TASTE (c) — se-chars-focusring-crop.png: two orange rings stacked. FOCUS_RING paints `ring-ring` and the
+// selection layer paints `inset-ring-ring`, so a FOCUSED selected chip and a merely selected one were the
+// same picture. The selected arms re-hue the FOCUS ring (never the selection ring — that one is the
+// Toggle-parity reading).
+test("a focused SELECTED chip rings in a different hue from its selection ring", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const chip = component.getByRole("button", { name: RAIL_CHIP });
+  await chip.click();
+  const selected = component.getByRole("button", { name: "Filter by bulk-00: included — activate to exclude" });
+  // KEYBOARD MODALITY FIRST. `:focus-visible` is what carries the ring, and a programmatic `.focus()`
+  // after a MOUSE click does not satisfy it in Chromium — the assertion would read the resting skin and
+  // pass or fail for a reason that has nothing to do with the ring. One Tab flips the modality; focusing
+  // back then lands a real focus-visible.
+  await page.keyboard.press("Tab");
+  await selected.focus();
+  await expect(selected).toBeFocused();
+
+  const focusedShadow = await selected.evaluate((el: Element) => getComputedStyle(el).boxShadow);
+  const resting = await component.getByRole("button", { name: SECOND_RAIL_CHIP }).evaluate((el: Element) => getComputedStyle(el).boxShadow);
+  const [ringHue, selectionHue] = await Promise.all([resolvedColor(component, "--color-foreground"), resolvedColor(component, "--color-ring")]);
+
+  // TWO rings, TWO hues: the focus layer paints `foreground`, the selection layer keeps `ring` (the
+  // Toggle-parity reading). Before this both were `ring` and the two states were one picture.
+  expect(focusedShadow).toContain(ringHue);
+  expect(focusedShadow).toContain(selectionHue);
+  expect(ringHue).not.toBe(selectionHue);
+  // …and a chip that is merely at rest carries neither.
+  expect(resting).not.toContain(ringHue);
+});
+
+/** A theme colour token, resolved from the SAME document the assertion runs against — a computed
+ *  `box-shadow` prints resolved colours, so the comparison has to be against resolved ones too. */
+function resolvedColor(component: Locator, token: string): Promise<string> {
+  return component.evaluate((el: Element, name: string) => {
+    const probe = el.ownerDocument.createElement("div");
+    probe.style.color = `var(${name})`;
+    el.ownerDocument.body.append(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  }, token);
+}
