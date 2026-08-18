@@ -456,7 +456,7 @@ test("Arm B: the strip is the pane's FIRST element (above chip + search) and its
         page.evaluate(() => {
           const all = [...document.querySelectorAll("*")];
           const at = (el: Element | null | undefined): number => (el === null || el === undefined ? -1 : all.indexOf(el));
-          const strip = at(document.querySelector('[aria-label="Recent characters"]'));
+          const strip = at(document.querySelector('[aria-label="Filter by character"]'));
           const chip = at(all.find((el) => el.textContent === "Filtered:"));
           const search = at(document.querySelector('input[aria-label="Search chats"]'));
           return { stripBeforeChip: strip >= 0 && chip > strip, stripBeforeSearch: strip >= 0 && search > strip };
@@ -559,9 +559,11 @@ test("an empty chats list shows the 'no chats yet' empty state", async ({ mount,
  *  spends `--spacing-row` (8px) of inline padding on each side. The fold is only observable at one. */
 const NARROW_PANE_WIDTH = 256;
 const ROSTER_SIZE = 30;
-const FACE_ROW = '[aria-label="Recent characters"]';
+// #208: the strip's ONE name is its printed kicker ("Recent characters" was a divergent second string).
+const FACE_ROW = '[aria-label="Filter by character"]';
 const FACE_ITEM = "[data-face-key]";
-const OVERFLOW_TILE = "Filter by another character";
+// #208 label-in-name: the captioned tile prints "More", so its accessible name leads with that word.
+const OVERFLOW_TILE = "More — Filter by another character";
 /** The one roster member the strip could never reach by scrolling — the picker's proof. */
 const FOLDED_NAME = "Zoltan the Unfathomable";
 

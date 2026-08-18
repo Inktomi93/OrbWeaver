@@ -3,6 +3,32 @@
 // draft twin projects the founding cards and wires the draft-config store. One roving tabindex over the
 // whole list; a kick removes its row on the bus echo, so focus is recorded pending and re-asserted onto
 // a neighbor once the row disappears from the projected list.
+//
+// ── THE COMPOSITE IS ANNOUNCED (#208, 2026-08-18) ───────────────────────────────────────────────────
+// The roving tabindex above is the RIGHT mechanism and it was INVISIBLE. MEASURED live on 2026-08-18,
+// Tab-walking the open context panel from the Members tab: tabpanel → "Invite people" → the first PERSON
+// row → "Add a character" → out of the panel. The CAST rows are never reached by Tab; ArrowDown does reach
+// them, but the list carried no container role at all, so nothing — not AT, not a sighted keyboard user —
+// was ever told that arrows do anything here. A roving tabindex outside a composite widget is a keyboard
+// model with no way to learn it.
+//   · the LIST is `role="toolbar"` + `aria-orientation="vertical"` + its own name. Toolbar is the app's own
+//     precedent for exactly this shape (rpg-hud-rail.tsx #112: a roving-focus set of controls that must NOT
+//     claim a selection), and its contract IS this widget's: arrows inside, one stop for the rows.
+//     DELIBERATE DEVIATION from the pattern's "a toolbar SHOULD be a single tab stop": the two section-
+//     header doors (Invite people · Add a character) keep their OWN tab stops. They are the roster's primary
+//     verbs, not row-level shortcuts, they already had those stops, and burying a create action behind an
+//     arrow sweep of every member would be a worse affordance than the convention buys. The ROWS are the
+//     single roving stop the convention is actually about.
+//   · each section is a `role="group"` named BY ITS OWN VISIBLE KICKER (`aria-labelledby`, never a second
+//     copy of the word) — so "People" and "Cast" reach AT as groups instead of as decoration.
+//   · ArrowLeft/Right reach the row's TRAILING controls — the ⋯ menu shortcut, the fine-pointer inline
+//     mute/force-turn, the talkativeness chip. Those are `tabIndex={-1}` siblings by §7.1 ruling (one tab
+//     stop per row) and, until now, had no arrow handler either: they were reachable by POINTER ONLY. The
+//     row's canonical Menu still carries every one of those verbs, so this is a shortcut, not the only
+//     door — but a toolbar whose controls answer only to a mouse is not a toolbar.
+// What did NOT change, deliberately: the roving index is still ONE index over People+Cast, so ArrowUp/Down
+// still cross the section boundary (§7.1), and the post-kick focus restore still lands on whatever row took
+// the removed index — including a cast row.
 
 import { Button } from "@orb/ui/button";
 import { Icon, UserPlus } from "@orb/ui/icons";
@@ -10,7 +36,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { KeyboardEvent, ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { testId } from "#lib";
 import type { MemberCastRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
 import { MemberRow } from "./member-row.tsx";
@@ -51,6 +77,62 @@ function focusWithReassert(el: HTMLElement): void {
 
 type MembersRow = MemberPersonRow | MemberCastRow;
 
+/** The horizontal step, or 0 for any other key. (A `Record` keyed by the DOM key names would be the §5.5
+ *  idiom, but `ArrowRight`/`ArrowLeft` are PascalCase literals the naming-convention rule rejects as object
+ *  keys — the same shape `navigationTarget` above already spells as a switch.) */
+function horizontalStep(key: string): number {
+  if (key === "ArrowRight") {
+    return 1;
+  }
+  return key === "ArrowLeft" ? -1 : 0;
+}
+
+/** THE ROW'S OWN CONTROLS, in DOM order: the body (the Menu trigger, the one tab stop) then every
+ *  `tabIndex={-1}` sibling — the fine-pointer inline mute/force-turn, the talkativeness chip, the ⋯. This is
+ *  what ArrowLeft/Right walks (#208). Read off the DOM rather than modelled in state because the set is
+ *  row-KIND- and pointer-dependent (a person row has no inline cluster; the cluster is absent entirely at a
+ *  coarse pointer), and the DOM is the one place that is always already correct about which exist. */
+function rowControls(from: Element | null): readonly HTMLElement[] {
+  const row = from?.closest('[data-slot="member-row"]') ?? null;
+  return row === null ? [] : [...row.querySelectorAll<HTMLElement>("button")];
+}
+
+/** ArrowRight/ArrowLeft within ONE row — clamped at both ends (never wrapping into a neighbour row, which
+ *  is what ArrowUp/Down is for). Returns false when the key is not a horizontal move or there is nowhere to
+ *  go, so the caller leaves the event alone. */
+function moveWithinRow(key: string, active: Element | null): boolean {
+  const step = horizontalStep(key);
+  if (step === 0) {
+    return false;
+  }
+  const controls = rowControls(active);
+  const index = controls.findIndex((el) => el === active);
+  const next = controls[index + step];
+  if (index < 0 || next === undefined) {
+    return false;
+  }
+  next.focus();
+  return true;
+}
+
+/** The accumulating type-to-jump buffer, resolved to a row index — or `null` when the key is not a
+ *  printable character or nothing matches. Split out of the keydown handler so that handler stays inside
+ *  the `noExcessiveCognitiveComplexity` ceiling once the horizontal arm joined it (#208). */
+function typeaheadNext(
+  event: KeyboardEvent<HTMLDivElement>,
+  state: { current: { buffer: string; at: number } },
+  rows: readonly MembersRow[],
+  currentIndex: number,
+): number | null {
+  if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) {
+    return null;
+  }
+  const prior = state.current;
+  const buffer = event.timeStamp - prior.at <= TYPEAHEAD_RESET_MS ? prior.buffer + event.key.toLowerCase() : event.key.toLowerCase();
+  state.current = { buffer, at: event.timeStamp };
+  return typeaheadTarget(rows, buffer, buffer.length === 1 ? currentIndex + 1 : currentIndex);
+}
+
 function navigationTarget(key: string, currentIndex: number, rowCount: number): number | null {
   switch (key) {
     case "ArrowDown":
@@ -85,6 +167,10 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const pendingFocusRef = useRef<{ key: string; index: number; wasPerson: boolean } | null>(null);
   const typeaheadRef = useRef<{ buffer: string; at: number }>({ buffer: "", at: 0 });
+  // Each section's GROUP name is its own on-screen kicker (#208) — one string, so the announced name and
+  // the printed word cannot drift.
+  const peopleLabelId = useId();
+  const castLabelId = useId();
 
   const effectiveActiveKey = rows.some((r) => r.key === activeKey) ? activeKey : (rows[0]?.key ?? null);
 
@@ -107,6 +193,14 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   // Capture-phase: the row body is a MenuTrigger whose own keydown opens the menu on ArrowDown/ArrowUp;
   // roving navigation must claim those keys first via capture + stopPropagation.
   const handleKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>): void => {
+    // ArrowLeft/Right FIRST (#208): it is the only claimant of those keys here, and answering it before the
+    // vertical/typeahead arms keeps each key's owner obvious. Capture-phase for the same reason the vertical
+    // arm is — the row body is a MenuTrigger with its own key handling.
+    if (moveWithinRow(event.key, globalThis.document.activeElement)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const currentIndex = rows.findIndex((r) => r.key === effectiveActiveKey);
     const navTarget = navigationTarget(event.key, currentIndex, rows.length);
     if (navTarget !== null) {
@@ -115,17 +209,11 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
       focusRow(navTarget);
       return;
     }
-    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      const prior = typeaheadRef.current;
-      const buffer = event.timeStamp - prior.at <= TYPEAHEAD_RESET_MS ? prior.buffer + event.key.toLowerCase() : event.key.toLowerCase();
-      typeaheadRef.current = { buffer, at: event.timeStamp };
-      const start = buffer.length === 1 ? currentIndex + 1 : currentIndex;
-      const target = typeaheadTarget(rows, buffer, start);
-      if (target !== null) {
-        event.preventDefault();
-        event.stopPropagation();
-        focusRow(target);
-      }
+    const typed = typeaheadNext(event, typeaheadRef, rows, currentIndex);
+    if (typed !== null) {
+      event.preventDefault();
+      event.stopPropagation();
+      focusRow(typed);
     }
   };
 
@@ -191,11 +279,17 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
           `min-w-max`, which measures past the viewport for horizontal overflow): a members list scrolls
           vertically only, so a long member name TRUNCATES cleanly instead of busting the panel width. */}
       <ScrollArea className="min-h-0 flex-1" contentClassName="w-full !min-w-0">
-        <Stack gap="section" onKeyDownCapture={handleKeyDownCapture}>
+        {/* THE ANNOUNCED COMPOSITE (#208 — see the header). `toolbar` + a vertical orientation is what the
+            roving tabindex below has always BEHAVED as; until today it said nothing, so the arrow keys that
+            are the only route to the Cast rows were undiscoverable by AT and by sighted keyboard users
+            alike. The name is the one word the tab that owns this pane does not already say. */}
+        <Stack gap="section" role="toolbar" aria-orientation="vertical" aria-label="Members and cast" onKeyDownCapture={handleKeyDownCapture}>
           {showPeople ? (
-            <Stack gap="row" data-slot="members-people">
+            // The section is a GROUP named by its OWN visible kicker (`aria-labelledby`, never a second
+            // copy of the word) — "People" and "Cast" are the list's structure, not decoration.
+            <Stack gap="row" data-slot="members-people" role="group" aria-labelledby={peopleLabelId}>
               <Row gap="field" align="center" justify="between">
-                <Text as="span" voice="kicker">
+                <Text as="span" voice="kicker" id={peopleLabelId}>
                   People
                 </Text>
                 {onInvitePeople === undefined ? null : (
@@ -210,9 +304,9 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
           ) : null}
 
           {showCast ? (
-            <Stack gap="row" data-slot="members-cast">
+            <Stack gap="row" data-slot="members-cast" role="group" aria-labelledby={castLabelId}>
               <Row gap="field" align="center" justify="between">
-                <Text as="span" voice="kicker">
+                <Text as="span" voice="kicker" id={castLabelId}>
                   Cast
                 </Text>
                 {props.castAction ?? null}

@@ -47,26 +47,23 @@ export const DISCLOSURE_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-targ
  *  CT: tests/client/features/rpg/components/rpg-pack-rows.ct.tsx. */
 export const PICKER_GAP_AT_COARSE = "pointer-coarse:gap-block";
 
-/** The rpg HUD tab-rail's pointer-forked wrap: at FINE the narrow rail folds to rows of three (the `@max-xs`
- *  CONTAINER step, not a viewport query); at COARSE it stays ONE row and SCROLLS (`minmax(max-content,1fr)`
- *  tracks + `overflow-x-auto`) — the phone tab-strip idiom, so a phone spends 50px not 105px on the rail. The
- *  ≥44px cell floor itself is TabsTab's own sealed `min-w-touch-target`, not spelled here. CT: the rpg HUD
- *  rail geometry + tests/ui/primitives/tabs/tabs.ct.tsx.
+/** The rpg HUD tab-rail's narrow-panel FOLD: at a FINE pointer below the `xs` CONTAINER step (never a
+ *  viewport query) a LONG rail lays out as rows of three instead of one squeezed row, which buys each
+ *  caption ~85px and keeps every word whole. At a COARSE pointer it does not fire at all — a phone stays ONE
+ *  row and scrolls (the phone tab-strip idiom: 50px of rail, not 105px). The rail's caller decides WHICH
+ *  rails are long enough to be worth a second row; the ≥44px cell floor is `TabsTab`'s own sealed
+ *  `min-w-touch-target`, not spelled here. CT: tests/client/features/rpg/lib/rpg-context-section.ct.tsx.
  *
- *  THE FINE ARM HAD A HOLE BETWEEN ITS TWO ANSWERS (side-eye 2026-08-16 #94, MEASURED at a 1280px desktop:
- *  game rail 383px wide, six `auto-cols-fr` cells at 59px each, "Inventory" caption scrollWidth 48 vs
- *  clientWidth 47 ⇒ rendered "Invento…"). Below the `xs` container step the row-wrap arm fires and every
- *  caption is whole; at coarse the `minmax(max-content,1fr)` arm fires and the row scrolls rather than
- *  clipping. Between them — a FINE pointer at or above `xs`, which is every docked desktop panel, i.e. the
- *  most common mount in the product — neither fired and the bare `auto-cols-fr` clipped. The fix is not a
- *  third behaviour: it is the SAME track-sizing function the coarse arm already proves correct, applied to
- *  the fine range the row-wrap does not cover (`pointer-fine:@xs:`). `minmax(max-content, 1fr)`'s `1fr` max
- *  keeps the cells equal and the rail full whenever there is slack (unchanged on a wide pane), and its
- *  `max-content` min refuses to shrink a caption — where six no longer fit the tracks overflow and
- *  `overflow-x-auto` scrolls them. Degrade to scrolling, never into an ellipsis; the two arms cannot be
- *  tuned apart because they are now the same declaration. */
-export const RPG_RAIL_WRAP =
-  "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3 pointer-fine:@xs:auto-cols-[minmax(max-content,1fr)] pointer-fine:@xs:overflow-x-auto pointer-coarse:auto-cols-[minmax(max-content,1fr)] pointer-coarse:overflow-x-auto";
+ *  THIS CONSTANT USED TO CARRY THE NO-CLIP TRACK SIZING TOO, and that is exactly what broke (#208,
+ *  2026-08-18). It bundled the fold with `minmax(max-content,1fr)` + `overflow-x-auto` under one
+ *  count-gated application, so a rail SHORT enough to skip the fold also skipped the guarantee that a
+ *  caption never shrinks below its own word — and fell back to a bare `auto-cols-fr`, whose only
+ *  degradation is an ellipsis. MEASURED at the panel's 272px floor once the Members tab made the chat rail
+ *  four cells: 51px a cell against a 58px "Members" and a 54px "This chat", both clipped. The track sizing
+ *  is a property of EVERY rail at EVERY width and is now declared as one, unconditionally, at the rail
+ *  (`RAIL_TRACK_CLASSES` in rpg-hud-rail.tsx); this constant is the fold and nothing else. In the folded
+ *  arm the explicit `grid-cols-3` sizes the columns, so the two declarations compose without arguing. */
+export const RPG_RAIL_WRAP = "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3";
 
 /** The rpg HUD rail cell's active EDGE BAR, stood down in exactly the state that makes it lie (side-eye
  *  #102, 2026-08-17). The bar faces INWARD toward the viewport — the game rail marks its bottom edge — which

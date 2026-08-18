@@ -65,6 +65,57 @@ test("roving tabindex: one tab stop; arrows cross the People→Cast boundary; Ho
   await expect(component.getByRole("button", { name: "Kestrel — member, nominated as host" })).toBeFocused();
 });
 
+// ── #208: the roving composite is ANNOUNCED, and its trailing controls answer to a key ─────────────────
+// The defect these pin, measured live on 2026-08-18 by Tab-walking the open context panel: Tab reached the
+// first PERSON row and then left the panel — the CAST rows were reachable only by ArrowDown, which nothing
+// in the DOM advertised (the list carried no container role at all). And the per-row trailing controls (the
+// ⋯ menu shortcut, the inline mute/force-turn, the talkativeness chip) are `tabIndex={-1}` siblings with no
+// arrow handler, so they answered to a POINTER ONLY. Both assert through user-visible affordances (roles,
+// accessible names, focus) so they red on the pre-fix source rather than failing to compile against it.
+
+test("#208: the roster announces as a vertical toolbar, with People and Cast as named groups", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} />);
+
+  const toolbar = component.getByRole("toolbar", { name: "Members and cast" });
+  await expect(toolbar).toBeVisible();
+  await expect(toolbar).toHaveAttribute("aria-orientation", "vertical");
+  // Each section's group NAME is its own on-screen kicker — no second copy of the word to drift.
+  await expect(component.getByRole("group", { name: "People" })).toBeVisible();
+  await expect(component.getByRole("group", { name: "Cast" })).toBeVisible();
+  // The rows are still the ONE roving tab stop (§7.1 unchanged — the mechanism was right, the silence was not).
+  await expect(component.locator('[data-slot="member-row"] button[tabindex="0"]')).toHaveCount(1);
+});
+
+test("#208: ArrowRight/ArrowLeft reach a cast row's trailing controls and clamp at both ends", async ({ mount, page }) => {
+  const component = await mount(<MembersPanelStory />);
+  const row = component.getByRole("button", { name: "Aria — character" });
+
+  await row.focus();
+  // Rightward: the inline mute, then force-turn — the fine-pointer shortcuts that were pointer-only.
+  await page.keyboard.press("ArrowRight");
+  await expect(component.getByRole("button", { name: "Mute Aria" })).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(component.getByRole("button", { name: "Make Aria speak next" })).toBeFocused();
+  // …then the talkativeness chip, then the ⋯ shortcut into the canonical Menu — the row's last control.
+  // Press past it and focus CLAMPS inside the row (crossing rows is ArrowUp/Down's job, §7.1). Home/End
+  // are deliberately NOT used here: they belong to the vertical arm (first/last ROW).
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  const kebab = component.getByRole("button", { name: "Actions for Aria" });
+  await expect(kebab).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(kebab).toBeFocused();
+
+  // Leftward walks all the way back to the row body, and clamps there.
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  await expect(row).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(row).toBeFocused();
+});
+
 test("Enter opens the per-row Menu (the canonical action home); Mute fires the callback", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory />);
 
