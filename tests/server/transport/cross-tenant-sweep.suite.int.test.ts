@@ -1162,6 +1162,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "tag.createTag": "self-scoped",
   "tag.listTags": "self-scoped",
   "tag.listTagsWithUsage": "self-scoped",
+  "tag.listTagFilterVocabulary": "self-scoped: the same owned rows as listTagsWithUsage, projected — no foreign id on the input",
   "tag.pruneUnusedTags": "self-scoped: prunes the caller's own unused tags",
   "credentials.add": "self-scoped",
   "credentials.list": "self-scoped",

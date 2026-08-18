@@ -209,14 +209,25 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
         }}
       >
         <Stack gap="section" className="mx-auto w-full max-w-(--container-cq-lg)" padding="section">
-          <SaveBar title={data.name} kind="Character" sticky="header">
-            <form.Subscribe selector={(s): CharacterCardFormValues => s.values}>
-              {(values): ReactElement => (
-                <Text size="micro" tone="muted" className="font-mono">
-                  {totalTokenCount(values, activeGreetingIndex)} total · {permanentTokenCount(values)} permanent
-                </Text>
-              )}
-            </form.Subscribe>
+          {/* THE CENSUS IS `meta`, NOT AN ACTION (side-eye 2026-08-18 P1-4). It sat in the bar's `children`
+              with every sibling `shrink-0`, so at 430px the token line took 231px and the character's NAME
+              — the one thing a phone's save bar is telling you — was clipped to "Sabin…" at 54px. The
+              `meta` slot keeps the census inline where there is room and drops it to its own full-width
+              line under the identity where there is not: both read whole, neither hidden. */}
+          <SaveBar
+            title={data.name}
+            kind="Character"
+            sticky="header"
+            meta={
+              <form.Subscribe selector={(s): CharacterCardFormValues => s.values}>
+                {(values): ReactElement => (
+                  <Text size="micro" tone="muted" className="font-mono">
+                    {totalTokenCount(values, activeGreetingIndex)} total · {permanentTokenCount(values)} permanent
+                  </Text>
+                )}
+              </form.Subscribe>
+            }
+          >
             {/* Autosave everywhere (§7): the live status stands where Save/Discard used to. */}
             <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
           </SaveBar>

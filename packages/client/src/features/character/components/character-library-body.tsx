@@ -131,8 +131,14 @@ export function CharacterLibraryBody({
     );
   }
   return (
-    <Stack aria-label={ariaLabel} className="h-full min-h-0" role="list">
+    // THE STACK IS LAYOUT, NOT A LIST (side-eye 2026-08-18 P1-1). It used to carry `role="list"` +
+    // `aria-label` around a `<VirtualList>` that emits its OWN `role="list"` with `listitem` descendants — so
+    // the pane announced "list, 1 item" (the inner list) and then "list, 11 items", and the outer container
+    // failed `aria-required-children` on both axe and Lighthouse's agentic audit (agent-nav 50/100). The
+    // label belongs on the element that actually holds the items.
+    <Stack className="h-full min-h-0">
       <VirtualList
+        aria-label={ariaLabel}
         className="h-full"
         endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}

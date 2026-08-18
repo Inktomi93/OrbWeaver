@@ -106,4 +106,30 @@ export interface TagSuggestionView extends TagView {
   characterId: CharacterId;
 }
 
+/**
+ * One entry of the character-library FILTER VOCABULARY — the projection a tag-filter chip is built from,
+ * and nothing else.
+ *
+ * WHY IT IS NOT `TagWithUsage` (side-eye 2026-08-18 P2-6). The library's chip rail read the management
+ * screen's rollup, which is every owned tag with all FIVE junction counts and the full display axes:
+ * measured on the owner's library, **433,399 bytes for 1,736 rows** to paint 8 chips and a "+1,728 more"
+ * link, and five `GROUP BY` queries to produce counts four of which the chips cannot use. The chip needs
+ * exactly the id (the wire filter), the name (the label), whether it is card-hidden (the drop rule), and
+ * the CHARACTER count (the rank + the "can this filter ever match" test) — 132,996 bytes for the same
+ * 1,736 rows, from one `GROUP BY`.
+ *
+ * IT IS STILL EVERY OWNED TAG, deliberately: the vocabulary is also the REFERENTIAL AUTHORITY a persisted
+ * `tagFilter` entry is checked against (`character-library-lens.ts` `knownTagIds`), and an id the answer
+ * omits reads as "deleted" — which would drop a live filter. Dropping ROWS here is the one thing this
+ * projection may not do; dropping COLUMNS is the whole point.
+ */
+export interface TagFilterVocabularyEntry {
+  id: TagId;
+  name: string;
+  /** ST is_hidden_on_character_card — the chip rail drops these (they still filter, so they stay KNOWN). */
+  isHiddenOnCard: boolean;
+  /** How many of the owner's characters carry this tag, over the WHOLE library (never a loaded window). */
+  characters: number;
+}
+
 // Not a schema: ids are branded at their own `typeIdSchema` seam, not re-validated here.

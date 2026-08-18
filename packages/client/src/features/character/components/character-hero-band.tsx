@@ -1,7 +1,9 @@
 // The hero band — the editor's visual centerpiece. Mixes two commit models by design: the name is a draft
 // card field (bound to the form → save-bar), while the portrait/star/archive are immediate identity
 // commits (`character.update` single-key patches). The accent swatch is a read-only preview of the
-// resolved themeOverride — the theme control itself lives in the CONTEXT Appearance tab.
+// resolved themeOverride — the theme control itself lives in the CONTEXT **Options** tab (the tab that
+// merged the former Appearance + History tabs; `character-options-tab.tsx` mounts `CharacterAppearanceTab`
+// inside it, and the COMPONENT kept the old name while the TAB did not).
 
 import { blobUrl } from "@orb/contracts/assets";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
@@ -181,7 +183,7 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
 const CONFIRM_MS = 1500;
 
 /**
- * The card's OWN-LOOK marker — read-only; the theme control lives in the CONTEXT Appearance tab.
+ * The card's OWN-LOOK marker — read-only; the theme control lives in the CONTEXT Options tab.
  *
  * IT ONLY RENDERS WHEN THERE IS SOMETHING TO MARK, AND IT SAYS WHAT IT MEANS (side-eye 2026-08-03, the
  * cold-first-timer finding). It used to render unconditionally: a bare 16px dot with an ALL-CAPS
@@ -195,7 +197,12 @@ function AccentSwatch({ themeOverride }: { readonly themeOverride: ThemeOverride
   if (themeOverride === null || Object.keys(themeOverride).length === 0) {
     return null;
   }
-  const label = "This card carries its own look — edit it in the Appearance tab.";
+  // IT NAMES A TAB THAT EXISTS (side-eye 2026-08-18 P2-7). It used to point at "the Appearance tab" — there
+  // is none on Characters: the three CONTEXT tabs are Field / Links / **Options** (`characters-section.tsx`),
+  // and Options is where the per-character theme editor lives. Worse, the Settings modal DOES have an
+  // "Appearance" category, so anyone who followed this sentence landed in the wrong surface entirely. The
+  // tab was renamed; this string was the one user-facing site that never followed.
+  const label = "This card carries its own look — edit it in the Options tab.";
   return (
     <Tooltip>
       <TooltipTrigger
