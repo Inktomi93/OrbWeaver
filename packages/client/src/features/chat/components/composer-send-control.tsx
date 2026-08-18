@@ -32,7 +32,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
         disabled={props.stopping}
         aria-label={props.stopping ? "Stopping…" : "Stop generating"}
         onClick={props.onStop}
-        className="rounded-full"
+        shape="pill"
       >
         {props.stopping ? <WebSpinner size="sm" label="Stopping…" /> : <Icon icon={Square} size="sm" />}
       </Button>
@@ -50,7 +50,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
       loading={props.sendPending}
       aria-label="Send message"
       onClick={props.onSend}
-      className="rounded-full"
+      shape="pill"
     >
       <Icon icon={Send} size="sm" />
     </Button>

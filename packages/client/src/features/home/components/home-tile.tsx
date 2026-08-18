@@ -42,7 +42,8 @@
 // build re-derived every declaration against its new body — a hero + five dense rows is not the same box
 // as eight equal rows, and a stale declaration is a reservation that lies in the other direction.
 //
-// The DORMANT arm renders a DOORWAY, not a fake feature: reduced weight, a DASHED rule, a muted glyph,
+// The DOORWAY (`HomeDoorway`, homed here beside the frame but rendered by HomeSurface, which partitions
+// the registry — this frame only ever sees LIVE tiles) is not a fake feature: reduced weight, a DASHED rule, a muted glyph,
 // the teaser in the gloss voice, the tracked reason as a FOOTNOTE-scale mono line — and NO interactive
 // element at all (no button, no skeleton, no spinner). `empty-states-are-load-bearing`: omitting the tile
 // would say "this product has no companion"; a fake-loading tile would lie. It has NO band of its own
@@ -196,10 +197,12 @@ export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): Rea
   if (!visible) {
     return null;
   }
-  const dormant = typeof tile.body === "function" ? null : tile.body.dormant;
-  if (dormant !== null) {
-    return <HomeDoorway doorway={dormant} tile={tile} />;
-  }
+  // NO DOORWAY ARM HERE (review 2026-08-17 F7). The frame used to re-check `tile.body` for the `{dormant}`
+  // shape and render `HomeDoorway` itself — residue from before the doorways were GROUPED. HomeSurface
+  // partitions the registry first (`live`/`doorways`) and renders every doorway through `HomeDoorway`
+  // directly under the shared "Not yet" band, so every tile that reaches this frame is already live and the
+  // branch was unreachable: a second home for a decision that has one. `HomeTile` has exactly one importer
+  // (home-surface.tsx), which is what makes that provable rather than hopeful.
   // The MASTHEAD is bandless and landmark-less by design (see the header): its body renders the page's
   // own h1, which no wrapper can name better than itself.
   if (tile.region === "masthead") {

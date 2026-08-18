@@ -5,13 +5,59 @@
 
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { HomeDormantTileStory, HomeEmptyStory, HomeRegionStory, HomeSplitPressureStory, HomeTileOrderStory, HomeTileVisibilityStory } from "../_ct-stories.tsx";
+import { trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
+import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
+import { READY_DOC, stubDatabank } from "../../databank/fixtures.ts";
+import {
+  HomeDormantTileStory,
+  HomeEmptyStory,
+  HomeRegionStory,
+  HomeShippedFirstBootStory,
+  HomeSplitPressureStory,
+  HomeTileOrderStory,
+  HomeTileVisibilityStory,
+} from "../_ct-stories.tsx";
 
 const TEASER_RE = /Your companion/u;
 const REASON_RE = /waiting on: domain\/buddy/u;
 const DUPLICATE_ID_RE = /duplicate contributor id "same"/u;
+
+// ── #129 first-boot fixtures — a POPULATED house, because that is the shape a declaration is derived
+// against: an empty bank/library renders an EmptyState, which is a different box from the one the tile
+// reserves rows for. The counts are each tile's own read limit, i.e. the fullest page it can render.
+/** `RECENTS_LIMIT` — chat's home read (`home-recents-tile-body.tsx`); one hero + the also-open remainder. */
+const RECENTS_LIMIT = 8;
+/** `QUICK_PICKS_LIMIT` — the face shelf's read (`home-quick-picks-tile-body.tsx`). */
+const QUICK_PICKS_FACES = 6;
+/** `RECENT_DOCUMENTS_LIMIT` — the databank tile's read (`home-documents-tile-body.tsx`). */
+const RECENT_DOCUMENTS = 4;
+const FIRST_BOOT_ROOMS = Array.from({ length: RECENTS_LIMIT }, (_unused, index) =>
+  makeChatSummary({
+    id: `chat_boot_${String(index)}`,
+    lastMessageAt: 1_750_000_000_000 - index,
+    participantNames: ["Wren"],
+    title: `Room ${String(index)}`,
+    updatedAt: 1_750_000_000_000 - index,
+  }),
+);
+const FIRST_BOOT_FACES = Array.from({ length: QUICK_PICKS_FACES }, (_unused, index) =>
+  makeCharacterSummary({ id: `character_boot_${String(index)}`, name: `Face ${String(index)}` }),
+);
+/** The bank the tile's four rows + health line render — the databank fixtures' own `READY_DOC`, four up. */
+const FIRST_BOOT_BANK = {
+  items: Array.from({ length: RECENT_DOCUMENTS }, (_unused, index) => ({
+    ...READY_DOC,
+    id: `document_0000000000000000000${String(index)}`,
+    name: `Doc ${String(index)}`,
+  })),
+  nextCursor: null,
+  totalCount: RECENT_DOCUMENTS,
+};
+const FIRST_BOOT_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 4, stalled: 0 }, chunks: 48, passages: 48, total: 4 };
 
 test("tiles render in (order, id), not door-array order", async ({ mount }) => {
   const home = await mount(<HomeTileOrderStory />);
@@ -270,6 +316,82 @@ test("the grid aligns tiles to START — a short tile never stretches to its row
   // NOT `normal`/`stretch`, which is what grew the short tile.
   const align = await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).alignItems);
   expect(align).toBe("flex-start");
+});
+
+// ── THE SHIPPED FIRST BOOT (#129 residual 1) ─────────────────────────────────────────────────────────
+// Everything above drives FAKE tiles, which is right for the door seam and structurally blind to the
+// question #129 asks: is each SHIPPED `skeletonRows` the box its own body settles at? The frame's
+// mechanism is pinned in home-tile.ct.tsx with fakes; the DECLARATIONS were only ever pinned by the hand
+// derivation in each contribution's header, and nothing recomputes them when a body changes. The box
+// memory then HEALS the error from boot two on, so a wrong declaration is invisible on any device that
+// has already booted and costs a layout shift on every device that has not (measured live on a cold
+// profile: `[data-home-grid]` 948px → 869px, CLS 0.0606, behind the boot veil).
+//
+// So: the real registry, at the shipped content width, over the real data layer with every read HELD —
+// `trpcHold` turns the first-boot skeleton into an indefinitely stable state instead of a flash to race.
+// Measure the reserved grid, release, measure the settled grid. The delta IS the shift.
+//
+// IT PINS THE FULL PAGE, AND THAT IS THE WHOLE ANSWER TO #129 (measured here 2026-08-17, both arms):
+//   · a FULL house (8 rooms · 6 faces · 4 documents — each tile's own read limit) reserves 1043.75px and
+//     settles at 1041.14px. 2.6px. The declarations are RIGHT.
+//   · the SAME drive on a sparse house (3 rooms · 2 faces · 1 document) reserves the identical 1043.75px
+//     and settles at 698.39px — a 345px SHRINK, which is the reported 948→869 symptom with a smaller
+//     library in front of it.
+// `skeletonRows` is ONE static number and the settled height is DATA-dependent, so no value is right for
+// both arms; reserving the fullest page the tile can render is the correct choice, because the error it
+// leaves is a SHRINK (content pulls up, nothing is pushed under the reader's cursor) rather than the push
+// the whole #92 mechanism exists to kill. Tightening the declarations toward a sparse library would trade
+// this for that. Hence: the full-page arm is the CONTRACT and is pinned; the sparse-library shrink is
+// accepted (first boot only, behind the boot veil, healed by the box memory from boot two).
+test("#129 the shipped first boot reserves the grid a FULL page settles into", async ({ mount, page }) => {
+  const chats = trpcHold();
+  const characters = trpcHold();
+  const settings = trpcHold();
+  const documents = trpcHold();
+  const health = trpcHold();
+  await stubDatabank(page, {
+    "chat.listChats": chats,
+    "chat.reapTemporaryChats": { reaped: 0 },
+    "character.list": characters,
+    "databank.bankHealth": health,
+    "databank.list": documents,
+    "settings.getUserSettings": settings,
+  });
+
+  const home = await mount(<HomeShippedFirstBootStory />);
+  await Promise.all([chats.requested, characters.requested, settings.requested, documents.requested, health.requested]);
+  const grid = home.locator("[data-home-grid]");
+  // Every tile is on its DECLARED reservation: no box memory exists for any id on a first-ever boot.
+  await expect(grid.locator("[data-tile-reserved]")).toHaveCount(0);
+  await expect(grid.locator("[aria-busy]").first()).toBeVisible();
+  const reserved = (await grid.boundingBox())?.height ?? 0;
+  // The tolerance below, read off the RENDERED bars while they are still up — never a literal: a skeleton
+  // row is `--spacing-control-lg` plus its gap, and that token is pointer-conditional (40px fine / 56px
+  // coarse), so a hardcoded pitch would pass on this runner and lie about a tablet.
+  const rowPitch = await grid
+    .locator('[data-slot="skeleton"]')
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().height);
+
+  chats.release(chatListResponder(FIRST_BOOT_ROOMS)({ limit: RECENTS_LIMIT }));
+  characters.release(characterListResponder(FIRST_BOOT_FACES)({ limit: QUICK_PICKS_FACES }));
+  settings.release({ config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_first_boot" });
+  documents.release(FIRST_BOOT_BANK);
+  health.release(FIRST_BOOT_HEALTH);
+
+  // SETTLED, not "no longer busy": barrier on rendered content from every tile that was held, so the
+  // measurement below cannot land between two tiles' commits.
+  await expect(grid.locator('[data-home-hearth="chat_boot_0"]')).toBeVisible();
+  await expect(grid.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(grid.getByText("Start a temp chat")).toBeVisible();
+  await expect(grid.getByText("Doc 0", { exact: true })).toBeVisible();
+  await expect(grid.locator("[aria-busy]")).toHaveCount(0);
+  const settled = (await grid.boundingBox())?.height ?? 0;
+
+  // The whole point: a first boot that reserves what it settles into shifts nothing. The budget is ONE
+  // skeleton row's pitch — below that the declaration cannot be made truer (a row is the smallest unit the
+  // reservation is spelled in), above it the grid visibly re-flows behind the veil.
+  expect(Math.abs(reserved - settled)).toBeLessThanOrEqual(rowPitch);
 });
 
 test("a duplicate tile id THROWS at door construction — the seam never silently shadows a tile", () => {

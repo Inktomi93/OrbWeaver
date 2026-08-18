@@ -4,6 +4,8 @@
 // zero-tile empty state against the shipped grid, not a bespoke double.
 
 import { SkeletonRows } from "@orb/client/data";
+import { chatAlsoOpenTile, chatMastheadTile, chatQuickPicksTile, chatRecentsTile, chatTempChatTile } from "@orb/client/features/chat";
+import { databankDocumentsTile } from "@orb/client/features/databank";
 import { automationDormantTile, buddyDormantTile, HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
@@ -238,6 +240,55 @@ export function HomeTileFirstBootStory(): ReactElement {
         Settle
       </Button>
       <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", FIRST_BOOT_TILES)} />
+    </CtDataProviders>
+  );
+}
+
+// ── The SHIPPED first boot (#129 residual 1) ─────────────────────────────────────────────────────────
+// Every story above declares its own tiles, which is right for the FRAME's contract and structurally
+// blind to the one question #129 asks: are the SHIPPED declarations the shipped bodies' boxes? A tile's
+// `skeletonRows` is a hand-derived number sitting in a different file from the body it claims to size,
+// nothing recomputes it when the body changes, and the box memory HEALS it from boot two on — so a wrong
+// declaration is invisible on every device that has already booted, and costs a layout shift on every
+// device that has not (measured live: `[data-home-grid]` 948px → 869px on a cold profile, CLS 0.0606,
+// behind the boot veil).
+//
+// This story is the missing instrument: the REAL registry from the door (`compose/authed-app.tsx`), in
+// door order, at a production-like content width, over the REAL data layer — so a CT can hold every read
+// with `trpcHold`, measure the reserved grid, release, and measure the settled one. The frame's own
+// mechanism is already pinned above with fakes; this pins the DECLARATIONS.
+
+/** The home content pane's measured production width (`home-surface.tsx` header: `main` is 1224px at the
+ *  default desktop shell). The `lead` split and the face shelf's `auto-fill` track count both answer to
+ *  THIS number, so a reservation pin at any other width pins a layout the app does not ship. */
+const HOME_CONTENT_PX = 1224;
+
+/** The door's array, verbatim (`compose/authed-app.tsx`) — including the jump tile built FROM it, because
+ *  `sectionId` claims change which rows that tile renders and therefore its height. */
+const SHIPPED_TILES: readonly HomeTileContribution[] = [
+  chatMastheadTile,
+  chatRecentsTile,
+  chatAlsoOpenTile,
+  chatQuickPicksTile,
+  chatTempChatTile,
+  databankDocumentsTile,
+  buddyDormantTile,
+  automationDormantTile,
+];
+
+/** The shipped home, tile for tile, at the shipped width. No box memory is seeded, so every tile is on
+ *  its DECLARED reservation — a first-ever boot. */
+export function HomeShippedFirstBootStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ inlineSize: HOME_CONTENT_PX }}>
+          <HomeSurface
+            onNewChat={(): void => undefined}
+            tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [...SHIPPED_TILES, makeSectionJumpTile(SHIPPED_TILES)])}
+          />
+        </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }

@@ -152,7 +152,7 @@ function AttachmentPreview({ attachment, onRemove }: { readonly attachment: Pend
   return (
     <Row gap="field" align="center" className="shrink-0" data-slot="composer-attachment">
       <CrossfadeImage src={attachment.url} alt={`Attachment preview: ${attachment.file.name}`} aspectRatio={1} fit="cover" className="size-16 rounded-card" />
-      <Button type="button" intent="ghost" size="icon" aria-label={`Remove ${attachment.file.name}`} onClick={onRemove} className="rounded-full">
+      <Button type="button" intent="ghost" size="icon" aria-label={`Remove ${attachment.file.name}`} onClick={onRemove} shape="pill">
         <Icon icon={X} size="sm" />
       </Button>
     </Row>

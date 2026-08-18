@@ -266,7 +266,8 @@ function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
       aria-label={label}
       data-testid={testId(buttonTestId)}
       onClick={disabled ? undefined : onFire}
-      className="shrink-0 rounded-full"
+      shape="pill"
+      className="shrink-0"
     >
       <Icon icon={icon} size="sm" />
     </Button>
@@ -295,7 +296,7 @@ function responseTitle(label: string, hasText: boolean, disabledReason: string |
 
 // ── The live impersonate stream's Stop (IMP-2) ───────────────────────────────────────────────────────────
 /** Rendered ONLY while an impersonate stream is filling the composer — the same idiom as the turn Stop in
- *  composer row 2 (secondary square icon-button, `rounded-full`), sat at the cluster's right edge directly
+ *  composer row 2 (secondary square icon-button, `shape="pill"`), sat at the cluster's right edge directly
  *  above it. Before this, a user watching the composer fill had no way to end the stream: it is a
  *  subscription, so the row-2 turn Stop (which aborts a chat TURN) never applied to it. Stopping KEEPS the
  *  partial fill (a deliberate divergence from ST — see `useGuidedActions.stopImpersonation`). */
@@ -309,7 +310,8 @@ function ImpersonateStopButton({ onStop }: { readonly onStop: () => void }): Rea
       aria-label={IMPERSONATE_STOP_LABEL}
       data-testid={testId("composerGuidedStopImpersonate")}
       onClick={onStop}
-      className="shrink-0 rounded-full"
+      shape="pill"
+      className="shrink-0"
     >
       <Icon icon={Square} size="sm" />
     </Button>
@@ -353,7 +355,8 @@ function ImpersonateGuidedButton({
             size="icon"
             focusableWhenDisabled={true}
             title={title}
-            className="shrink-0 rounded-full"
+            shape="pill"
+            className="shrink-0"
           >
             <Icon icon={Drama} size="sm" />
           </Button>
@@ -406,7 +409,8 @@ function ResponseGuidedButton({
         aria-label={name}
         data-testid={testId("composerGuidedResponse")}
         onClick={idle ? (): void => onFire(null) : undefined}
-        className="shrink-0 rounded-full"
+        shape="pill"
+        className="shrink-0"
       >
         <Icon icon={Play} size="sm" />
       </Button>
@@ -419,7 +423,7 @@ function ResponseGuidedButton({
         aria-label={name}
         data-testid={testId("composerGuidedResponse")}
         render={
-          <Button type="button" intent={hasText ? "primary" : "ghost"} size="icon" title={title} className="shrink-0 rounded-full">
+          <Button type="button" intent={hasText ? "primary" : "ghost"} size="icon" title={title} shape="pill" className="shrink-0">
             <Icon icon={Play} size="sm" />
           </Button>
         }
