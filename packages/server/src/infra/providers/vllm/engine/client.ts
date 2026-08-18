@@ -31,30 +31,48 @@ const ERROR_TEXT_CAP = 500;
 // any caller-supplied signal (`AbortSignal.any`), so a real abort still cancels earlier.
 const DEFAULT_ENGINE_TIMEOUT_MS = 120_000;
 
-/** Compose the caller's optional signal with the default request-timeout signal — whichever aborts first wins.
+// THE BOUND IS PER REQUEST, AND A CALLER MAY SIZE IT (#187). 120s is the right DEFAULT for a request whose
+// work is one generation or one small batch — and a landmine for one whose work scales with a corpus. The
+// memory sweep's segment flood (#172) submitted POSTs of up to ~1M prompt tokens; measured live on the box's
+// embed engine, four concurrent 128-input POSTs over the corpus's largest blocks took 137s wall (the last one
+// 136.8s alone) and every one of them was legitimate compute on a healthy engine. A constant that knows
+// nothing about the batch cannot bound it honestly, so a caller that knows its own size passes `timeoutMs`.
+// The seam stays ALWAYS-bounded: an absent override is the default, never "no timeout".
+
+/** Compose the caller's optional signal with the request-timeout signal — whichever aborts first wins.
  *  Always returns a live signal (the timeout is unconditional), so no engine POST/stream-open can hang forever. */
-function withTimeout(signal: AbortSignal | undefined): AbortSignal {
-  const timeout = AbortSignal.timeout(DEFAULT_ENGINE_TIMEOUT_MS);
+function withTimeout(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
   return signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
+}
+
+/** Per-request knobs for {@link VllmEngineClient.enginePost}: the caller's abort signal, and the deadline a
+ *  caller derives from the work it is submitting (absent ⇒ the 120s default — never unbounded). */
+export interface EnginePostOpts {
+  readonly signal?: AbortSignal | undefined;
+  readonly timeoutMs?: number | undefined;
 }
 
 /** The injected HTTP surface the surfaces close over (the real impl, or a test fake). One generic POST +
  *  one streaming POST cover all five roles; surfaces never construct URLs or map transport errors. */
 export interface VllmEngineClient {
-  readonly enginePost: <T>(engine: VllmEngine, path: string, body: unknown, signal?: AbortSignal) => Promise<T>;
+  readonly enginePost: <T>(engine: VllmEngine, path: string, body: unknown, opts?: EnginePostOpts) => Promise<T>;
   readonly engineStream: (engine: VllmEngine, path: string, body: unknown, signal?: AbortSignal) => Promise<ReadableStream<Uint8Array>>;
   readonly baseUrl: (engine: VllmEngine) => string;
 }
 
 // Build the actionable "engine not reachable" error from the supervisor's known status (if any). A
-// TimeoutError (the default-bound `AbortSignal.timeout` fired — the socket hung past DEFAULT_ENGINE_TIMEOUT_MS)
-// is a distinct, retryable story: the engine was reachable enough to connect but never answered in the bound.
-function unreachable(engine: VllmEngine, url: string, cause: unknown): ProviderError {
+// TimeoutError (the request's `AbortSignal.timeout` fired — the socket hung past `timeoutMs`, which is the
+// caller's derived deadline or DEFAULT_ENGINE_TIMEOUT_MS) is a distinct, retryable story: the engine was
+// reachable enough to connect but never answered in the bound.
+function unreachable(engine: VllmEngine, url: string, cause: unknown, timeoutMs: number): ProviderError {
   if (cause instanceof DOMException && cause.name === "TimeoutError") {
     return new ProviderError({
       kind: "server",
       retryable: true,
-      message: `vllm ${engine} request at ${url} exceeded the ${DEFAULT_ENGINE_TIMEOUT_MS}ms bound (hung/slow engine) — aborted so the caller's promise settles.`,
+      // The bound NAMED here is the one that actually fired — a size-derived deadline, or the default. Reading
+      // the constant instead would mis-report every sized request (#187).
+      message: `vllm ${engine} request at ${url} exceeded the ${timeoutMs}ms bound (hung/slow engine) — aborted so the caller's promise settles.`,
       cause,
     });
   }
@@ -89,6 +107,8 @@ async function httpError(engine: VllmEngine, path: string, res: Response): Promi
 interface RequestOpts {
   readonly signal: AbortSignal | undefined;
   readonly wake: WakeGateDeps | undefined;
+  /** The caller's size-derived deadline (#187); absent ⇒ {@link DEFAULT_ENGINE_TIMEOUT_MS}. */
+  readonly timeoutMs?: number | undefined;
 }
 
 /** POST a JSON body to an engine endpoint; typed JSON back or a mapped {@link ProviderError}. */
@@ -99,18 +119,20 @@ async function enginePost<T>(engine: VllmEngine, path: string, body: unknown, op
   // non-retryable ProviderError.
   await ensureAwake(engine, opts.wake);
   const url = `${engineBaseUrl(engine)}${path}`;
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_ENGINE_TIMEOUT_MS;
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-      // ALWAYS signalled (F6): the default request-timeout composed with any caller signal, so a hung socket
-      // aborts at the bound and the caller's promise settles instead of leaking forever.
-      signal: withTimeout(opts.signal),
+      // ALWAYS signalled (F6): the request-timeout (the caller's derived deadline, else the default) composed
+      // with any caller signal, so a hung socket aborts at the bound and the caller's promise settles instead
+      // of leaking forever.
+      signal: withTimeout(opts.signal, timeoutMs),
     });
   } catch (cause) {
-    throw unreachable(engine, url, cause);
+    throw unreachable(engine, url, cause, timeoutMs);
   }
   if (!res.ok) {
     throw await httpError(engine, path, res);
@@ -136,7 +158,7 @@ async function engineStream(engine: VllmEngine, path: string, body: unknown, opt
       ...(opts.signal !== undefined ? { signal: opts.signal } : {}),
     });
   } catch (cause) {
-    throw unreachable(engine, url, cause);
+    throw unreachable(engine, url, cause, DEFAULT_ENGINE_TIMEOUT_MS);
   }
   if (!res.ok || res.body === null) {
     throw await httpError(engine, path, res);
@@ -150,7 +172,7 @@ async function engineStream(engine: VllmEngine, path: string, body: unknown, opt
  *  shelling out to `ps`/`nvidia-smi` or touching a real fleet. */
 export function createVllmEngineClient(wake?: WakeGateDeps): VllmEngineClient {
   return {
-    enginePost: (engine, path, body, signal) => enginePost(engine, path, body, { signal, wake }),
+    enginePost: (engine, path, body, opts) => enginePost(engine, path, body, { signal: opts?.signal, timeoutMs: opts?.timeoutMs, wake }),
     engineStream: (engine, path, body, signal) => engineStream(engine, path, body, { signal, wake }),
     baseUrl: engineBaseUrl,
   };

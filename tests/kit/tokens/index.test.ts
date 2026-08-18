@@ -1,4 +1,4 @@
-import { clampToTokenBudget, estimateTokens, splitToTokenBudget } from "@orb/kit/tokens";
+import { clampToTokenBudget, estimateTokens, safeTokenWindow, splitToTokenBudget } from "@orb/kit/tokens";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("empty string is zero tokens", () => {
@@ -80,4 +80,22 @@ test("split is codepoint-safe across astral characters", () => {
 test("an empty input or a non-positive budget yields NO pieces (the caller's 'cannot chunk' signal)", () => {
   expect(splitToTokenBudget("", 10)).toEqual([]);
   expect(splitToTokenBudget("abcd", 0)).toEqual([]);
+});
+
+// ── safeTokenWindow — the headroom against a REAL tokenizer (#187) ──────────────────────────────────
+// The QuadChars estimate is not a tokenizer: measured live against the box's embed engine
+// (Qwen3-VL-Embedding-2B, max_model_len 8192) over the imported corpus, the engine's own count ran up to
+// 1.4156× this estimate on real transcript text, and 6 of the 30 largest blocks — cut to the estimator's own
+// `window - 64` budget — were refused HTTP 400 "at least 8193 input tokens". A flat reserve cannot absorb a
+// PROPORTIONAL error, so a hard model window is discounted by a factor before anything is measured against it.
+
+test("safeTokenWindow discounts a hard model window by the measured headroom factor", () => {
+  expect(safeTokenWindow(8192)).toBeLessThan(8192);
+  // The worst measured estimate→engine ratio was 1.4156; the discounted window must survive it.
+  expect(safeTokenWindow(8192) * 1.4156).toBeLessThanOrEqual(8192);
+});
+
+test("safeTokenWindow is monotonic and never negative", () => {
+  expect(safeTokenWindow(2000)).toBeGreaterThan(safeTokenWindow(1000));
+  expect(safeTokenWindow(0)).toBe(0);
 });

@@ -10,7 +10,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 // The CANONICAL estimator (one home, §7.5). QuadChars counts each non-ASCII codepoint (CJK/emoji/accented) as
 // 1 token; a local `length/4` undercounts those ~4× and would let a CJK transcript silently overflow the
 // summarizer — the exact truncation this guard exists to prevent. Never re-roll the estimate here.
-import { estimateTokens, splitToTokenBudget } from "@orb/kit/tokens";
+import { estimateTokens, safeTokenWindow, splitToTokenBudget } from "@orb/kit/tokens";
 import type { MsgRow, SegmentChunk } from "../../types.ts";
 import { renderRowLine, renderTranscript } from "./transcript.ts";
 
@@ -104,7 +104,11 @@ export function chunkBlockForEmbedWindow(
   macroNames: RowMacroNameContext,
   embedContextTokens: number,
 ): SegmentChunk[] | null {
-  const budget = embedContextTokens - EMBED_SCAFFOLD_RESERVE_TOKENS;
+  // The window is DISCOUNTED before the flat scaffold reserve (#187): the QuadChars estimate undercounts the
+  // engine's real tokenizer proportionally (measured up to 1.4156× on this corpus), and 6 of the 30 largest
+  // blocks cut to the undiscounted budget were refused 400 "at least 8193 input tokens". Chunking more finely
+  // costs packing density and loses NOTHING — a rejected chunk loses the whole flood's write.
+  const budget = safeTokenWindow(embedContextTokens) - EMBED_SCAFFOLD_RESERVE_TOKENS;
   if (budget <= 0 || rows.length === 0) {
     return null;
   }

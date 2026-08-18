@@ -33,6 +33,13 @@ const VLLM_GEN_PORT_DEFAULT = 8703;
 // The unified text+image embedding space's output dimension (matches every F32_BLOB(1024) vector column).
 const VLLM_EMBED_DIM_DEFAULT = 1024;
 const VLLM_EMBED_CHUNK_DEFAULT = 128;
+// The per-POST embed token ceiling (#187). DERIVED from a live measurement on the box's embed engine
+// (Qwen3-VL-Embedding-2B, max_model_len 8192): ~15.1k prompt-tokens/s aggregate under 4-way concurrency, and
+// 4.4k tok/s end-to-end for the request that queued behind three siblings. At 256k tokens a POST clears in
+// ~60s at that worst-case rate — back inside the latency class the 120s default was written for — while four
+// in flight bound any OTHER caller's queue wait to ~68s (a small POST measured 72.8s behind just two
+// unbounded flood POSTs). Not a throttle: the whole flood still goes out, in schedulable units.
+const VLLM_EMBED_MAX_BATCH_TOKENS_DEFAULT = 262_144;
 // The gen engine's --max-model-len (buildEngineArgv `gen` arm). ONE home for the window so the launcher's
 // serve flag and the resolved ModelCapability.context.window can't drift (parity-tested + engine-self-report
 // outranks it for capability truth). The engine's OWN /v1/models max_model_len wins at runtime.
@@ -293,6 +300,10 @@ const envSchema = z
     VLLM_EMBED_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT),
     VLLM_EMBED_DIM: z.coerce.number().int().positive().default(VLLM_EMBED_DIM_DEFAULT),
     VLLM_EMBED_CHUNK_SIZE: z.coerce.number().int().positive().default(VLLM_EMBED_CHUNK_DEFAULT),
+    // The per-POST TOKEN ceiling for embed batches (#187) — the bound `VLLM_EMBED_CHUNK_SIZE` (an item count)
+    // cannot express. One POST of 128 near-window blocks is ~1M prompt tokens, which outlives any fixed
+    // deadline and head-of-line blocks every other caller on the engine.
+    VLLM_EMBED_MAX_BATCH_TOKENS: z.coerce.number().int().positive().default(VLLM_EMBED_MAX_BATCH_TOKENS_DEFAULT),
     // DEPLOYMENT facts (binary + cache stores) the engine SPAWNER resolves — all optional, unset ⇒ the
     // in-repo/venv defaults derived from the shared store root (buildEngineSpawnSpec). VLLM_BIN/VLLM_PY: the
     // Docker image pins system paths; VLLM_STORE_ROOT overrides the git-common-dir worktree derivation;

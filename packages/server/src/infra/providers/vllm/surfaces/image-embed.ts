@@ -73,10 +73,10 @@ async function embedOne(
   const { model, messages, dim, signal } = opts;
   const base = { model, add_generation_prompt: true, messages };
   try {
-    return await client.enginePost<OpenAiEmbeddingsResponse>("embed", "/v1/embeddings", { ...base, dimensions: dim }, signal);
+    return await client.enginePost<OpenAiEmbeddingsResponse>("embed", "/v1/embeddings", { ...base, dimensions: dim }, { signal });
   } catch (err) {
     if (err instanceof Error && DIMENSIONS_REJECTED_RE.test(err.message)) {
-      return await client.enginePost<OpenAiEmbeddingsResponse>("embed", "/v1/embeddings", base, signal);
+      return await client.enginePost<OpenAiEmbeddingsResponse>("embed", "/v1/embeddings", base, { signal });
     }
     throw err;
   }

@@ -9,7 +9,7 @@ export type {
   VllmChatMessage,
 } from "./chat-completion.ts";
 export { cleanJsonSchema, runVllmChatCompletion } from "./chat-completion.ts";
-export type { VllmEngineClient } from "./client.ts";
+export type { EnginePostOpts, VllmEngineClient } from "./client.ts";
 export { createVllmEngineClient } from "./client.ts";
 export {
   DOC_INSTRUCTION,

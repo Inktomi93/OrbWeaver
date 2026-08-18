@@ -131,7 +131,7 @@ export async function runVllmChatCompletion(
   const messages = await Promise.all(req.messages.map(toWireMessage));
   const body = buildBody(req, messages);
   onWireBody?.(body);
-  const response = await client.enginePost<ChatCompletionsResponse>("gen", "/v1/chat/completions", body, req.signal);
+  const response = await client.enginePost<ChatCompletionsResponse>("gen", "/v1/chat/completions", body, { signal: req.signal });
   return {
     text: response.choices[0]?.message.content ?? "",
     tokensIn: response.usage?.prompt_tokens ?? null,

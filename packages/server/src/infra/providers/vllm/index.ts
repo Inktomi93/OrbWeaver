@@ -179,6 +179,8 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
       chunkSize,
       concurrency: embedConcurrency,
       requestTimeoutMs: env.VLLM_EMBED_REQUEST_TIMEOUT_MS,
+      // The per-POST token ceiling the item-count `chunkSize` cannot express (#187) — one home, the env floor.
+      maxBatchTokens: env.VLLM_EMBED_MAX_BATCH_TOKENS,
       // The window the embed engine is LAUNCHED with (`--max-model-len`) — one home, so the client-side
       // clamp (#165) can never drift from what the engine will accept.
       maxInputTokens: env.VLLM_EMBED_MAX_MODEL_LEN,
