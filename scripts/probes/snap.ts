@@ -423,6 +423,7 @@ import type { Viewport } from "./_kit/flags.ts";
 import { parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "./_kit/flags.ts";
 import type { NavMethod } from "./_kit/nav.ts";
 import { buildNavScript } from "./_kit/nav.ts";
+import { ringBackdrop } from "./_kit/pixel-backdrop.ts";
 import type { ResultPair } from "./_kit/result.ts";
 import { print, printResult } from "./_kit/result.ts";
 import { ensureStage, stageStatus, teardownStage } from "./_kit/snap-stage.ts";
@@ -461,11 +462,6 @@ const UI_COMPONENT_MIN_RATIO = 3;
 // the latter is meaningless and produced the 1.71:1 Switch false-FAIL. --contrast SKIPS these with a
 // stated reason (the WCAG 1.4.11 state boundary is a separate measurement this axis can't make).
 const CONTROL_TRACK_ROLES = new Set(["switch", "slider", "progressbar", "scrollbar"]);
-// Perimeter-ring pixel sampling for the pixel-sample backdrop path: glyphs/icons sit in the box
-// INTERIOR, so the outer ring is background-dominant — sampling only the ring EXCLUDES the foreground
-// by construction (the hard part), instead of hoping a whole-box median outvotes the text.
-const SAMPLE_RING_FRAC = 0.15;
-const SAMPLE_RING_MAX_PX = 6;
 // Below this accumulated ancestor opacity, composite the (dimmed) foreground over the backdrop before
 // measuring. Just under 1 so sub-pixel float noise (0.999…) never triggers a pointless composite.
 const FOREGROUND_OPACITY_EPS = 0.999;
@@ -2238,40 +2234,11 @@ function parseRgbString(s: string): Rgb | null {
 type ContrastOutcome = { line: string; failed: boolean };
 type Box = { x: number; y: number; width: number; height: number };
 
-function medianChannel(values: number[]): number {
-  values.sort((a, b) => a - b);
-  return values[Math.floor(values.length / 2)] ?? 0;
-}
-
 // Alpha-composite a foreground rgb at `opacity` over the backdrop (source-over) — the visible color of a
 // glyph painted inside an opacity<1 group. opacity 1 is a no-op; opacity 0 is the pure backdrop.
 function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
   const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
   return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };
-}
-
-// Per-channel median of the box's PERIMETER RING (raw RGBA from sharp). The ring is background by
-// construction (text/icon glyphs live in the interior), so this yields the composited backdrop the eye
-// sees behind the foreground — the fixed photo layer + any scrim + the element's own translucent bg all
-// baked into real pixels — without the glyphs contaminating the number.
-function ringBackdrop(data: Buffer, width: number, height: number, channels: number): Rgb {
-  const ring = Math.max(1, Math.min(SAMPLE_RING_MAX_PX, Math.floor(Math.min(width, height) * SAMPLE_RING_FRAC)));
-  const rs: number[] = [];
-  const gs: number[] = [];
-  const bs: number[] = [];
-  for (let y = 0; y < height; y += 1) {
-    const edgeRow = y < ring || y >= height - ring;
-    for (let x = 0; x < width; x += 1) {
-      if (!(edgeRow || x < ring || x >= width - ring)) {
-        continue;
-      }
-      const i = (y * width + x) * channels;
-      rs.push(data[i] ?? 0);
-      gs.push(data[i + 1] ?? 0);
-      bs.push(data[i + 2] ?? 0);
-    }
-  }
-  return { r: medianChannel(rs), g: medianChannel(gs), b: medianChannel(bs) };
 }
 
 // Screenshot the element's box (clamped into the viewport — an overflowing clip makes Playwright throw)
