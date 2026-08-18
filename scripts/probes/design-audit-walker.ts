@@ -135,18 +135,75 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     return parts.join(" > ");
   }
 
+  // ACCUMULATED OPACITY over the element + its ancestors. CSS opacity GROUPS: a subtree inside
+  // opacity:0.6 is rasterized and composited over what is behind it, so every glyph in it is painted
+  // as a BLEND — while getComputedStyle(el).color still reports the undimmed rgb. Two consequences the
+  // walker owes: text samples carry this product so the Node side can composite before the WCAG ratio
+  // (issue #188 — the home surface's "waiting on:" lines measured 3.68:1 under snap's --contrast, which
+  // does exactly this, while design-audit reported nothing), and a subtree under an ancestor opacity of
+  // 0 paints NO pixels and must count as hidden (the old own-opacity-only test missed that, and a
+  // composite of an invisible glyph would come out as a fake 1:1 finding). Memoized per element, so the
+  // ancestor walk is O(1) amortized even though isVisible runs over every element.
+  var opacityCache = new WeakMap();
+  function accumulatedOpacity(el) {
+    var known = opacityCache.get(el);
+    if (known !== undefined) return known;
+    var raw = getComputedStyle(el).opacity;
+    var own = raw === "" ? 1 : Number(raw);
+    if (Number.isNaN(own)) own = 1;
+    var parent = el.parentElement;
+    var value = parent === null ? own : own * accumulatedOpacity(parent);
+    opacityCache.set(el, value);
+    return value;
+  }
+
   function isVisible(el) {
     if (!(el instanceof Element)) return false;
     var style = getComputedStyle(el);
-    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
+    if (style.display === "none" || style.visibility === "hidden" || accumulatedOpacity(el) === 0) return false;
     var rect = el.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
   }
 
+  // COLOR SPACE IS NOT A COLOR FORMAT (issue #188). getComputedStyle passes a non-legacy color function
+  // straight through — a tokens-only codebase paints oklch(0.72 0.175 52) and reads it back verbatim —
+  // so an rgb-regex-only sampler resolves null for EVERY authored color on this tree: measured live, the
+  // home resume card's 3px oklch accent edge produced zero findings, and the whole color rule family
+  // (contrast, gray-on-color, accent borders, card backgrounds) was silently dead. Normalize through a
+  // 1x1 canvas the way snap's --contrast does: fillStyle accepts every CSS color the page can produce,
+  // and painting onto a CLEARED canvas reads back un-premultiplied rgb + exact alpha in one shot.
+  // Validity is a two-sentinel test — an unparseable value leaves the previous fillStyle in place, so a
+  // color that survives both sentinels is one the browser actually understood.
+  // (Un-premultiplication amplifies rounding error at very low alpha; every consumer here gates on the
+  // ALPHA — which is exact — before trusting the channels.)
+  var colorCache = {};
+  var colorCanvas = document.createElement("canvas");
+  colorCanvas.width = 1;
+  colorCanvas.height = 1;
+  var colorCtx = colorCanvas.getContext("2d", { willReadFrequently: true });
+  function probeColor(css) {
+    if (colorCtx === null) return null;
+    colorCtx.fillStyle = "#000000";
+    colorCtx.fillStyle = css;
+    var onBlack = colorCtx.fillStyle;
+    colorCtx.fillStyle = "#ffffff";
+    colorCtx.fillStyle = css;
+    if (onBlack !== colorCtx.fillStyle) return null;
+    colorCtx.clearRect(0, 0, 1, 1);
+    colorCtx.fillRect(0, 0, 1, 1);
+    var d = colorCtx.getImageData(0, 0, 1, 1).data;
+    return { r: d[0], g: d[1], b: d[2], a: d[3] / 255 };
+  }
   function parseRgb(str) {
-    var m = RGB_RE.exec(str || "");
-    if (!m) return null;
-    return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]), a: m[4] === undefined ? 1 : Number(m[4]) };
+    var key = str || "";
+    if (key === "") return null;
+    var m = RGB_RE.exec(key);
+    if (m) return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]), a: m[4] === undefined ? 1 : Number(m[4]) };
+    var cached = colorCache[key];
+    if (cached !== undefined) return cached;
+    var probed = probeColor(key);
+    colorCache[key] = probed;
+    return probed;
   }
 
   function hexToRgb(hex) {
@@ -169,13 +226,34 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     return stops;
   }
 
-  // Walk el then its ancestors for the effective backdrop: first solid (alpha>0.1) background-color
-  // wins; a PURE gradient background-image reports its parsed color stops (with alpha); anything
-  // with a url() layer — including gradient-over-image composites — is indeterminate (no cheap
-  // DOM-only way to sample the pixels under the text; the old walker trusted the gradient half
-  // of a "gradient(...), url(...)" layer, which was the documented blind spot).
+  // Source-over composite of a translucent layer onto an already-resolved opaque base.
+  function compositeOver(layer, base) {
+    var a = layer.a === undefined ? 1 : layer.a;
+    return {
+      r: Math.round(a * layer.r + (1 - a) * base.r),
+      g: Math.round(a * layer.g + (1 - a) * base.g),
+      b: Math.round(a * layer.b + (1 - a) * base.b),
+    };
+  }
+
+  // Walk el then its ancestors for the effective backdrop: collect every TRANSLUCENT background down to
+  // the first OPAQUE one, then paint them back bottom-up so the returned color is what the eye sees. A
+  // PURE gradient background-image reports its parsed color stops (with alpha); anything with a url()
+  // layer — including gradient-over-image composites — is indeterminate (no cheap DOM-only way to sample
+  // the pixels under the text; the old walker trusted the gradient half of a "gradient(...), url(...)"
+  // layer, which was the documented blind spot).
+  //
+  // A TRANSLUCENT TINT IS NOT A BACKDROP (issue #188). The rule was "first background-color with
+  // alpha > 0.1 wins, alpha discarded" — so a chat list row's 10%-alpha selected tint
+  // (oklab(0.72 0.108 0.138 / 0.1)) was measured as a SATURATED ORANGE surface: 1.14:1 contrast plus a
+  // gray-on-color finding, both against a color nothing on screen is painted. snap's --contrast paid for
+  // this exact bug already (its 1.11-vs-2.6 false FAIL) and composites; these two instruments must not
+  // disagree about what is behind a glyph. It stayed invisible only because the rgb-regex sampler could
+  // not parse an oklab tint in the first place.
+  var OPAQUE_MIN_ALPHA = 0.999;
   function resolveBackdrop(el) {
     var node = el;
+    var layers = [];
     while (node) {
       var style = getComputedStyle(node);
       var bgImage = style.backgroundImage;
@@ -187,12 +265,21 @@ export const COLLECT_SAMPLES_JS = `(async () => {
         return { kind: "image-indeterminate" };
       }
       var bg = parseRgb(style.backgroundColor);
-      if (bg && bg.a > 0.1) {
-        return { kind: "flat", color: { r: bg.r, g: bg.g, b: bg.b } };
+      if (bg && bg.a > 0) {
+        if (bg.a >= OPAQUE_MIN_ALPHA) {
+          var acc = { r: bg.r, g: bg.g, b: bg.b };
+          for (var li = layers.length - 1; li >= 0; li -= 1) acc = compositeOver(layers[li], acc);
+          return { kind: "flat", color: acc };
+        }
+        layers.push(bg);
       }
       node = node.parentElement;
     }
-    return { kind: "flat", color: { r: 255, g: 255, b: 255 } };
+    // No opaque base anywhere in the chain — the walker has no pixel sampler, so it keeps the historical
+    // white assumption, with any translucent layers painted over it.
+    var white = { r: 255, g: 255, b: 255 };
+    for (var wi = layers.length - 1; wi >= 0; wi -= 1) white = compositeOver(layers[wi], white);
+    return { kind: "flat", color: white };
   }
 
   function loadNaturalSize(url) {
@@ -249,6 +336,7 @@ export const COLLECT_SAMPLES_JS = `(async () => {
         backdrop: resolveBackdrop(el),
         fontSizePx: fontSizePx,
         fontWeight: fontWeight,
+        foregroundOpacity: accumulatedOpacity(el),
       });
     }
 

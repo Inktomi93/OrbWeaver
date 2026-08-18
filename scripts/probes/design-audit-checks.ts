@@ -160,7 +160,25 @@ export type ContrastInput = {
   readonly backdrop: Backdrop;
   readonly fontSizePx: number;
   readonly fontWeight: number;
+  /** Product of `opacity` over the text element AND its ancestors. Below 1 the glyphs are painted as a
+   *  BLEND of `color` and the backdrop (CSS opacity groups the subtree and composites it), while
+   *  `color` still reports the undimmed value — so the ratio must be measured on the composite, exactly
+   *  as snap's `--contrast` does. Optional because this type also describes samples from an older
+   *  walker string (a CT pinning a historical sample set); absent reads as 1, the pre-#188 behavior. */
+  readonly foregroundOpacity?: number;
 };
+
+/** Below this accumulated opacity the foreground is composited before measuring. Just under 1 so
+ *  sub-pixel float noise (0.999…) never triggers a pointless composite. Same constant, same reason, as
+ *  snap.ts's FOREGROUND_OPACITY_EPS — the two instruments must not disagree about what "dimmed" is. */
+const FOREGROUND_OPACITY_EPS = 0.999;
+
+/** Alpha-composite a foreground rgb at `opacity` over the backdrop (source-over) — the visible color of a
+ *  glyph painted inside an opacity<1 group. opacity 1 is a no-op; opacity 0 is the pure backdrop. */
+function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
+  const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
+  return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };
+}
 
 function indeterminateFinding(selector: string, value: string, message: string): Finding {
   return { rule: "text-over-art", severity: "P1", selector, value, message, origin: "orbweaver" };
@@ -172,6 +190,17 @@ function indeterminateFinding(selector: string, value: string, message: string):
 export function checkContrast(input: ContrastInput): Finding | null {
   const large = isLargeText(input.fontSizePx, input.fontWeight);
   const minRatio = large ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
+  const opacity = input.foregroundOpacity ?? 1;
+  // Ancestor opacity dims the FOREGROUND: the glyph is a blend of `color` and whatever is behind it.
+  // Measuring the authored color is a false PASS the eye can see through (issue #188 — two live lines
+  // read 3.68:1 at α0.60 while this check reported nothing). The BACKDROP half needs no adjustment: the
+  // walker resolves it from the ancestor chain, which is what shows through.
+  const dimmed = opacity < FOREGROUND_OPACITY_EPS;
+  const dimNote = dimmed ? ` · dimmed α${opacity.toFixed(2)}` : "";
+  const dimmedMessage = dimmed
+    ? ` — the glyphs are painted at ${opacity.toFixed(2)} opacity by an ancestor group, so what the eye reads is the composite, not the authored color`
+    : "";
+  const seenColor = (over: Rgb): Rgb => (dimmed ? compositeForeground(input.color, over, opacity) : input.color);
 
   if (input.backdrop.kind === "image-indeterminate") {
     return indeterminateFinding(
@@ -190,14 +219,14 @@ export function checkContrast(input: ContrastInput): Finding | null {
         "text sits over a gradient with translucent color stops — what composites underneath is unknown, so a worst-stop ratio would be a fake number; verify legibility manually",
       );
     }
-    const ratios = input.backdrop.stops.map((stop) => contrastRatio(input.color, stop));
+    const ratios = input.backdrop.stops.map((stop) => contrastRatio(seenColor(stop), stop));
     const worst = Math.min(...ratios);
     if (worst < minRatio) {
       return {
         rule: "text-over-art",
         severity: "P0",
         selector: input.selector,
-        value: `${worst.toFixed(2)}:1 worst-stop (need ${minRatio}:1)`,
+        value: `${worst.toFixed(2)}:1 worst-stop (need ${minRatio}:1)${dimNote}`,
         message: "text over a gradient backdrop fails contrast against at least one color stop — the 'text bled unreadable over the picture' defect",
         origin: "orbweaver",
       };
@@ -205,14 +234,14 @@ export function checkContrast(input: ContrastInput): Finding | null {
     return null;
   }
 
-  const ratio = contrastRatio(input.color, input.backdrop.color);
+  const ratio = contrastRatio(seenColor(input.backdrop.color), input.backdrop.color);
   if (ratio < minRatio) {
     return {
       rule: "contrast",
       severity: "P1",
       selector: input.selector,
-      value: `${ratio.toFixed(2)}:1 (need ${minRatio}:1)`,
-      message: `text/background contrast is ${ratio.toFixed(2)}:1, below WCAG AA's ${minRatio}:1 floor for ${large ? "large" : "normal"} text`,
+      value: `${ratio.toFixed(2)}:1 (need ${minRatio}:1)${dimNote}`,
+      message: `text/background contrast is ${ratio.toFixed(2)}:1, below WCAG AA's ${minRatio}:1 floor for ${large ? "large" : "normal"} text${dimmedMessage}`,
       origin: "orbweaver",
     };
   }
@@ -737,31 +766,46 @@ const HORIZONTAL_BAND_MAX_PX = 12;
 const BORDER_SIDES = ["top", "right", "bottom", "left"] as const;
 type BorderSide = (typeof BORDER_SIDES)[number];
 
-/** One side's verdict: the accent-border rule it violates, or null. */
-function classifyAccentSide(input: AccentBorderInput, side: BorderSide): string | null {
+/** One side's verdict: every accent-border rule it violates (a single edge can be two tells at once —
+ *  a chromatic side band AND a border fighting the corner radius). */
+function classifyAccentSide(input: AccentBorderInput, side: BorderSide): readonly string[] {
   const w = input.widths[side];
   const color = input.colors[side];
   if (w < ACCENT_BORDER_MIN_PX || color === null || (color.a ?? 1) < ACCENT_BORDER_MIN_ALPHA || rgbChroma(color) < ACCENT_BORDER_MIN_CHROMA) {
-    return null;
+    return [];
   }
   const maxOther = Math.max(...BORDER_SIDES.filter((s) => s !== side).map((s) => input.widths[s]));
   // Dominant-edge gate: the accent side is ≥2px AND the other sides are hairline or half it.
   if (!(maxOther <= HAIRLINE_MAX_PX || w >= maxOther * ACCENT_DOMINANCE_FACTOR)) {
-    return null;
+    return [];
   }
-  if (side === "left" || side === "right") {
-    if (!input.badgeLike && (input.radius > 0 || w >= SIDE_TAB_BARE_MIN_PX)) {
-      return "side-tab";
-    }
-    return null;
+  return side === "left" || side === "right" ? classifyVerticalEdge(input, w) : classifyHorizontalEdge(input, w);
+}
+
+/** A left/right accent edge. A RADIUS MAKES IT BOTH TELLS (issue #188): the rule as born returned
+ *  "side-tab" alone here, so the live home resume card — a 3px accent edge on a 10px-radius panel, the
+ *  textbook shape of BOTH §6 bans — could never report `border-accent-on-rounded`, which was reachable
+ *  from a top/bottom edge only. A border fighting a rounded corner does not care which corner it hits. */
+function classifyVerticalEdge(input: AccentBorderInput, w: number): readonly string[] {
+  if (input.badgeLike) {
+    return [];
   }
   if (input.radius > 0) {
-    return "border-accent-on-rounded";
+    return ["border-accent-on-rounded", "side-tab"];
+  }
+  return w >= SIDE_TAB_BARE_MIN_PX ? ["side-tab"] : [];
+}
+
+/** A top/bottom accent edge: rounded ⇒ the corner-fighting tell; otherwise a bare 3–12px chromatic band,
+ *  with tab underlines exempt (an active-tab indicator is the affordance, not a decoration). */
+function classifyHorizontalEdge(input: AccentBorderInput, w: number): readonly string[] {
+  if (input.radius > 0) {
+    return ["border-accent-on-rounded"];
   }
   if (!input.tabContext && w >= SIDE_TAB_BARE_MIN_PX && w <= HORIZONTAL_BAND_MAX_PX) {
-    return "side-tab";
+    return ["side-tab"];
   }
-  return null;
+  return [];
 }
 
 export function checkAccentBorder(input: AccentBorderInput): Finding[] {
@@ -772,22 +816,23 @@ export function checkAccentBorder(input: AccentBorderInput): Finding[] {
   const findings: Finding[] = [];
   const seenRules = new Set<string>();
   for (const side of BORDER_SIDES) {
-    const rule = classifyAccentSide(input, side);
-    if (rule === null || seenRules.has(rule)) {
-      continue;
+    for (const rule of classifyAccentSide(input, side)) {
+      if (seenRules.has(rule)) {
+        continue;
+      }
+      seenRules.add(rule);
+      findings.push({
+        rule,
+        severity: "P3",
+        selector: input.selector,
+        value: `border-${side}: ${input.widths[side]}px${input.radius > 0 ? ` + radius ${input.radius}px` : ""}`,
+        message:
+          rule === "side-tab"
+            ? "a thick chromatic accent border on one edge of a card is the most recognizable generated-UI tell — use a subtler accent or remove it"
+            : "a thick accent border fighting rounded corners — remove the border or the radius; they contradict each other",
+        origin: "impeccable",
+      });
     }
-    seenRules.add(rule);
-    findings.push({
-      rule,
-      severity: "P3",
-      selector: input.selector,
-      value: `border-${side}: ${input.widths[side]}px${input.radius > 0 ? ` + radius ${input.radius}px` : ""}`,
-      message:
-        rule === "side-tab"
-          ? "a thick chromatic accent border on one edge of a card is the most recognizable generated-UI tell — use a subtler accent or remove it"
-          : "a thick accent border fighting rounded corners — remove the border or the radius; they contradict each other",
-      origin: "impeccable",
-    });
   }
   return findings;
 }

@@ -15,7 +15,15 @@ import type { Page } from "@playwright/test";
 import type { Finding, RawSamples } from "../../scripts/probes/design-audit-checks.ts";
 import { collectFindings } from "../../scripts/probes/design-audit-checks.ts";
 import { COLLECT_SAMPLES_JS } from "../../scripts/probes/design-audit-walker.ts";
-import { WalkerCapsTrackingStory, WalkerDuplicateSlotStory, WalkerNeighbourButtonsStory, WalkerSliderCompositeStory } from "./_ct-stories.tsx";
+import {
+  WalkerAccentBorderStory,
+  WalkerCapsTrackingStory,
+  WalkerDimmedContrastStory,
+  WalkerDuplicateSlotStory,
+  WalkerNeighbourButtonsStory,
+  WalkerSliderCompositeStory,
+  WalkerTranslucentTintStory,
+} from "./_ct-stories.tsx";
 
 interface TapTarget {
   readonly selector: string;
@@ -120,4 +128,75 @@ test("wide-tracking still fires on sentence-case running text — the exemption 
     findings.map((f) => f.selector),
     "0.08em on ordinary prose is the defect this rule exists for and must survive the exemption",
   ).toContain("[data-testid=tracked-prose]");
+});
+
+/** Every selector the given rule was reported against on the mounted stage. */
+function selectorsFor(findings: readonly Finding[], rule: string): string[] {
+  return findings.filter((f) => f.rule === rule).map((f) => f.selector);
+}
+
+// ── Ancestor opacity dims the FOREGROUND (issue #188) ─────────────────────────────────────────────
+// CSS opacity composites a whole subtree over what is behind it, so text inside an `opacity: 0.6` group is
+// painted as a BLEND of its color and the backdrop — `style.color` still reads the undimmed rgb. The live home
+// surface's two "waiting on:" lines measured 3.68:1 that way under snap's --contrast (which tags `dimmed
+// α0.60`) while design-audit reported nothing at all. The two instruments must agree.
+test("text dimmed by an ancestor's opacity fails contrast on the composited color, not the authored one", async ({ mount, page }) => {
+  await mount(<WalkerDimmedContrastStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const flagged = selectorsFor(findings, "contrast");
+  expect(flagged, `an α0.6 group over a near-black backdrop paints ~3.9:1 — got ${JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`))}`).toContain(
+    "[data-testid=dimmed-line]",
+  );
+  const dimmedFinding = findings.find((f) => f.rule === "contrast" && f.selector === "[data-testid=dimmed-line]");
+  expect(dimmedFinding?.value, "the finding must say the ratio was measured on a dimmed foreground, the way snap's --contrast does").toContain("dimmed");
+});
+
+test("the SAME color at full opacity still passes — the composite is the defect, not the color", async ({ mount, page }) => {
+  await mount(<WalkerDimmedContrastStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  expect(selectorsFor(findings, "contrast"), "rgb(180,180,185) on rgb(16,16,20) is ~9:1 undimmed — flagging it would be a false positive").not.toContain(
+    "[data-testid=undimmed-line]",
+  );
+});
+
+// ── A translucent tint is not a backdrop (issue #188) ─────────────────────────────────────────────
+// The backdrop walk took the first background-color with alpha > 0.1 and DISCARDED the alpha, so a chat list
+// row's 10%-alpha selected tint measured as a saturated orange surface — 1.14:1 plus a gray-on-color finding
+// against a color nothing on screen is painted. snap's --contrast composites down to the first opaque base for
+// exactly this reason (its own 1.11-vs-2.6 false FAIL); the two instruments must agree about what is behind a
+// glyph.
+test("text over a 10%-alpha tint is measured against the COMPOSITE, not the tint's own color", async ({ mount, page }) => {
+  await mount(<WalkerTranslucentTintStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const onLine = findings.filter((f) => f.selector === "[data-testid=tinted-row-subtitle]");
+  expect(onLine, `light text over a near-black base reads ~11:1 — every color finding here is fiction: ${JSON.stringify(onLine)}`).toEqual([]);
+});
+
+// ── The accent-border rule must SEE the colors this codebase can produce (issue #188) ─────────────
+// Tokens-only law means every authored color reaches the page as `oklch(...)`, and getComputedStyle passes that
+// spelling straight through. A rgb-regex-only sampler therefore reads `null` for every border color on the tree
+// and the whole `side-tab` / `border-accent-on-rounded` family is structurally dead — measured live: a 3px
+// oklch left border on a 10px-radius home card produced zero findings.
+test("a thick oklch accent edge on a rounded card fires BOTH tells — the §6 absolute bans", async ({ mount, page }) => {
+  await mount(<WalkerAccentBorderStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
+  expect(selectorsFor(findings, "side-tab"), `an oklch accent edge is still an accent edge — got ${seen}`).toContain("[data-testid=accent-card-oklch]");
+  expect(selectorsFor(findings, "border-accent-on-rounded"), `a 3px edge on a 10px radius fights the corner on ANY side — got ${seen}`).toContain(
+    "[data-testid=accent-card-oklch]",
+  );
+});
+
+test("the rgb-authored twin fires identically, and a hairline neutral card stays clean", async ({ mount, page }) => {
+  await mount(<WalkerAccentBorderStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  expect(selectorsFor(findings, "side-tab")).toContain("[data-testid=accent-card-rgb]");
+  expect(selectorsFor(findings, "border-accent-on-rounded")).toContain("[data-testid=accent-card-rgb]");
+  const neutral = findings.filter((f) => f.selector === "[data-testid=neutral-card]" && (f.rule === "side-tab" || f.rule === "border-accent-on-rounded"));
+  expect(neutral, "a hairline achromatic border on a radius is the sanctioned elevation recipe").toEqual([]);
 });

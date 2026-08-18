@@ -56,6 +56,73 @@ export function WalkerCapsTrackingStory(): ReactElement {
   );
 }
 
+/** The DIMMED-TEXT stage: text whose own `color` clears WCAG comfortably against the stage backdrop, painted
+ *  inside a group at `opacity: 0.6`. CSS opacity composites the whole subtree over what is behind it, so the
+ *  pixels the eye reads are the blend — the live home surface's two "waiting on:" lines measured 3.68:1 that
+ *  way while the audit reported nothing. Colors are authored in `rgb()` on purpose: this stage must isolate the
+ *  OPACITY blind spot from the separate color-space one. The control line is the same color at full opacity. */
+export function WalkerDimmedContrastStory(): ReactElement {
+  return (
+    <div style={{ backgroundColor: "rgb(16, 16, 20)", padding: 24, width: 480 }}>
+      <div style={{ opacity: 0.6 }}>
+        <p data-testid="dimmed-line" style={{ color: "rgb(180, 180, 185)", fontSize: 14 }}>
+          waiting on: the reply that never comes
+        </p>
+      </div>
+      <p data-testid="undimmed-line" style={{ color: "rgb(180, 180, 185)", fontSize: 14 }}>
+        this line is painted at full opacity and reads exactly as its color says
+      </p>
+    </div>
+  );
+}
+
+/** The TRANSLUCENT-TINT stage: the shape a selected chat list row wears — a low-alpha chromatic tint over an
+ *  opaque dark base. Taking that tint's own rgb as the backdrop (alpha discarded) measures the text against a
+ *  saturated orange nothing on screen is painted: the live chat room reported 1.14:1 plus a gray-on-color
+ *  finding, both fiction. The text here is comfortably legible against the REAL composite, so any color finding
+ *  on this line is a defect in the instrument. Authored in `rgba()` at 0.15 so the arithmetic is what is under
+ *  test: it clears the old "alpha > 0.1 means opaque" gate the way the live oklab tint did. */
+export function WalkerTranslucentTintStory(): ReactElement {
+  return (
+    <div style={{ backgroundColor: "rgb(18, 18, 22)", padding: 24, width: 480 }}>
+      <div style={{ backgroundColor: "rgba(230, 120, 40, 0.15)", padding: 12 }}>
+        <p data-testid="tinted-row-subtitle" style={{ color: "rgb(215, 215, 220)", fontSize: 14 }}>
+          the last thing anyone said in this conversation
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** The ACCENT-BORDER stage: the live home resume card's shape — a rounded panel wearing one thick chromatic
+ *  edge. The primary card authors that edge in `oklch()` (the only spelling this tokens-only codebase can
+ *  produce), the twin authors the identical edge in `rgb()`; both must fire, and both tells (`side-tab` for the
+ *  edge, `border-accent-on-rounded` for the edge fighting the radius) belong to each. The neutral card is the
+ *  control: a hairline achromatic border on the same radius is the house elevation recipe, never a finding. */
+export function WalkerAccentBorderStory(): ReactElement {
+  const card = {
+    backgroundColor: "rgb(24, 24, 28)",
+    borderRadius: 10,
+    color: "rgb(240, 240, 240)",
+    marginBottom: 12,
+    padding: 16,
+    width: 320,
+  } as const;
+  return (
+    <div style={{ padding: 24, width: 400 }}>
+      <div data-testid="accent-card-oklch" style={{ ...card, border: "1px solid rgb(40, 40, 46)", borderLeft: "3px solid oklch(0.72 0.175 52)" }}>
+        resume where you left off
+      </div>
+      <div data-testid="accent-card-rgb" style={{ ...card, border: "1px solid rgb(40, 40, 46)", borderLeft: "3px solid rgb(226, 122, 40)" }}>
+        resume where you left off
+      </div>
+      <div data-testid="neutral-card" style={{ ...card, border: "1px solid rgb(40, 40, 46)" }}>
+        an ordinary elevated panel
+      </div>
+    </div>
+  );
+}
+
 /** The control stage: two GENUINE neighbours — separate small buttons sharing a row. The widened
  *  ownership rule must NOT credit either one with the other's space; both stay sub-target. */
 export function WalkerNeighbourButtonsStory(): ReactElement {

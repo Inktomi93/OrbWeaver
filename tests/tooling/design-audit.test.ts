@@ -96,6 +96,44 @@ test("large text gets the relaxed 3:1 floor — a ratio that fails normal text c
   expect(large).toBeNull();
 });
 
+// ── ancestor opacity dims the FOREGROUND (issue #188) ────────────────────────
+// CSS opacity groups the subtree and composites it, so a glyph inside an `opacity: 0.6` group is painted
+// as a blend of its color and the backdrop while `style.color` still reports the authored value. snap's
+// --contrast has composited since blind-spot round 2 (`dimmed α0.60`); design-audit measured the authored
+// color and passed text the eye reads at 3.68:1.
+const DIM_TEXT: Rgb = { r: 180, g: 180, b: 185 };
+const NEAR_BLACK: Backdrop = { kind: "flat", color: { r: 16, g: 16, b: 20 } };
+
+test("text at full opacity over a near-black backdrop passes; the SAME color at α0.6 fails on the composite", () => {
+  const undimmed = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400 });
+  expect(undimmed, "~9:1 undimmed — flagging it would be a false positive").toBeNull();
+
+  const dimmed = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400, foregroundOpacity: 0.6 });
+  expect(dimmed?.rule).toBe("contrast");
+  expect(dimmed?.value, "the value must name the dimming the way snap's --contrast does").toContain("dimmed α0.60");
+});
+
+test("an absent foregroundOpacity reads as 1 — an older walker's samples keep their verdict", () => {
+  const withoutField = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400 });
+  const explicitOne = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400, foregroundOpacity: 1 });
+  expect(withoutField).toEqual(explicitOne);
+});
+
+test("a dimmed foreground is composited per gradient STOP, and the finding says so", () => {
+  // White text at α0.25 over near-black stops paints ~rgb(70,70,70) — unreadable, while the authored
+  // white clears every stop comfortably.
+  const dimmed = checkContrast({
+    selector: ".banner",
+    color: WHITE,
+    backdrop: { kind: "gradient", stops: [BLACK, { r: 20, g: 20, b: 20 }] },
+    fontSizePx: 24,
+    fontWeight: 700,
+    foregroundOpacity: 0.25,
+  });
+  expect(dimmed?.rule).toBe("text-over-art");
+  expect(dimmed?.value).toContain("dimmed α0.25");
+});
+
 // ── #2 text-over-art ─────────────────────────────────────────────────────────
 
 test("text over a background-image with no flat/gradient color is indeterminate and FAILs at P1", () => {
@@ -561,6 +599,32 @@ test("a thick chromatic top border on a rounded card fires border-accent-on-roun
     colors: { ...ACCENT_BASE.colors, bottom: ACCENT_RED },
   });
   expect(tabUnderline).toEqual([]);
+});
+
+test("a thick chromatic LEFT border on a rounded card fires BOTH tells (issue #188)", () => {
+  // The live home resume card's shape: border-left 3px accent on a 10px radius. The rule as born could
+  // only reach `border-accent-on-rounded` from a top/bottom edge, so this card — the textbook example of
+  // both §6 bans — reported at most one of them.
+  const rules = checkAccentBorder({
+    ...ACCENT_BASE,
+    radius: 10,
+    widths: { top: 1, right: 1, bottom: 1, left: 3 },
+    colors: { top: null, right: null, bottom: null, left: ACCENT_RED },
+  }).map((f) => f.rule);
+  expect(rules).toContain("side-tab");
+  expect(rules).toContain("border-accent-on-rounded");
+});
+
+test("a badge-like chip keeps its side-edge exemption even with a radius", () => {
+  const badge = checkAccentBorder({
+    ...ACCENT_BASE,
+    tag: "span",
+    badgeLike: true,
+    radius: 10,
+    widths: { ...ACCENT_BASE.widths, left: 3 },
+    colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
+  });
+  expect(badge, "a chip wearing a colored edge is house vocabulary, not a card tell").toEqual([]);
 });
 
 test("a uniform border (no dominant edge) never fires side-tab", () => {
