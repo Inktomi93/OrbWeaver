@@ -278,6 +278,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
         <CharacterFilterChips
           availableTags={availableTags}
           favoritesOnly={favoritesOnly}
+          onClearFilters={clearCharacterFilters}
           onCycleTag={cycleTagFilter}
           onToggleArchived={toggleShowArchived}
           onToggleFavorites={toggleFavoritesOnly}

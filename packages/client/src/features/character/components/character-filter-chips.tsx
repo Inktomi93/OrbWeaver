@@ -25,10 +25,11 @@
 // view-prefs store + `tag.listTagsWithUsage`, most-used first), the chips fire store actions.
 
 import type { TagId } from "@orb/kit/ids";
+import type { ButtonProps } from "@orb/ui/button";
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Check, Icon, Minus } from "@orb/ui/icons";
-import { Row } from "@orb/ui/layout";
+import { Archive, Check, Icon, Minus, Star } from "@orb/ui/icons";
+import { Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
@@ -52,24 +53,19 @@ interface TagChipPresentation {
   /** What ACTIVATING does from here — the second half of the accessible name, so the cycle is discoverable
    *  without operating it blind. */
   readonly next: string;
-  readonly intent: "ghost" | "secondary";
-  /** The persistent state ring (`inset-ring-*`, the state layer — never the focus `ring-*` layer) plus,
-   *  for the exclusion arm, the strike that says "not this one" without relying on the ring's hue. */
-  readonly className: string;
+  /** The primitive's own selection layer (the fill + the persistent `inset-ring-*` state ring, and the
+   *  strike on the exclusion arm). DERIVED from `Button`, never re-spelled: this used to be an `intent`
+   *  plus a hand-written `className` of ring utilities, i.e. a skin decided in a feature — which is how the
+   *  chips ended up reading as a different class of thing from the scope toggles they sit beside. */
+  readonly selection: NonNullable<ButtonProps["selection"]>;
   /** A shape cue beside the name, so include ⇄ exclude is distinguishable without colour. */
   readonly icon: LucideIcon | null;
 }
 
 const TAG_CHIP_PRESENTATION: Record<TagFilterState, TagChipPresentation> = {
-  off: { announced: "off", next: "activate to include", intent: "ghost", className: "", icon: null },
-  include: { announced: "included", next: "activate to exclude", intent: "secondary", className: "inset-ring-2 inset-ring-ring", icon: Check },
-  exclude: {
-    announced: "excluded",
-    next: "activate to clear",
-    intent: "secondary",
-    className: "inset-ring-2 inset-ring-destructive line-through",
-    icon: Minus,
-  },
+  off: { announced: "off", next: "activate to include", selection: "none", icon: null },
+  include: { announced: "included", next: "activate to exclude", selection: "on", icon: Check },
+  exclude: { announced: "excluded", next: "activate to clear", selection: "negated", icon: Minus },
 };
 
 export interface CharacterFilterChipsProps {
@@ -85,9 +81,20 @@ export interface CharacterFilterChipsProps {
   readonly onToggleArchived: () => void;
   /** Advances ONE tag chip one step around the cycle. */
   readonly onCycleTag: (tagId: TagId) => void;
+  /** Drops every active filter at once. Rendered ONLY while something is on — an always-present "clear"
+   *  beside a rail that is already at rest is a control with nothing to do. */
+  readonly onClearFilters: () => void;
 }
 
-/** The filter-chip row — Favorites · Archived · the capped three-state tag chips + their disclosure. */
+/** The filter group — its NAME, its active count, the scope pills, the capped three-state tag chips, and
+ *  the two text affordances (disclosure + clear).
+ *
+ *  IT IS A NAMED GROUP NOW, INLINE (program #102 variant B). The `role="group" aria-label="Filters"` has
+ *  been here all along: the accessibility tree already carried the grouping the pixels refused to show,
+ *  and `+N more` — not a filter at all — sat inside it looking exactly like one. A `Section` with a kicker
+ *  in the `inline` layout draws the CD1 pair (a name + a hairline, never a box) with the rule as the
+ *  section's own top edge and the kicker leading the control line, which is what makes the naming
+ *  height-neutral instead of costing a chip row. */
 export function CharacterFilterChips({
   favoritesOnly,
   showArchived,
@@ -96,18 +103,34 @@ export function CharacterFilterChips({
   onToggleFavorites,
   onToggleArchived,
   onCycleTag,
+  onClearFilters,
 }: CharacterFilterChipsProps): ReactElement {
   const [expanded, setExpanded] = useState(false);
   // Index-based, so the surface's most-used-first order survives; an ACTIVE chip is exempt from the cap.
   const visible = expanded ? availableTags : availableTags.filter((tag, at) => at < VISIBLE_TAG_CHIPS || tagFilterStateOf(tagFilter, tag.id) !== "off");
   const hiddenCount = availableTags.length - visible.length;
   const orphans = orphanChips(tagFilter, availableTags);
+  // What the group's datum COUNTS: the lenses that narrow the library. `showArchived` is deliberately not
+  // one — its ON state WIDENS the set (archived rows shown beside the rest), so counting it would print
+  // "1 filter" over a library nothing is filtering (the surface's own `filtersActive` draws the same line).
+  const activeCount = tagFilter.length + (favoritesOnly ? 1 : 0);
   return (
-    <Row aria-label="Filters" className="flex-wrap" gap="field" role="group">
-      <Toggle aria-label="Show only favorites" onPressedChange={onToggleFavorites} pressed={favoritesOnly} size="sm">
+    <Section aria-label="Filters" kicker="Filters" kickerLayout="inline" role="group">
+      {/* The count rides the group's name in the `datum` voice — the ONE number this rail produces, and the
+          only thing on the line that is a value rather than a control. */}
+      {activeCount > 0 ? (
+        <Text className="mr-field" voice="datum">
+          {String(activeCount)}
+        </Text>
+      ) : null}
+      {/* SCOPE and TAG share one register on purpose — Favorites and Archived ARE filters, they perform the
+          same act — and are told apart by a leading glyph rather than by a second box or a colour. */}
+      <Toggle aria-label="Show only favorites" intent="outline" onPressedChange={onToggleFavorites} pressed={favoritesOnly} shape="pill" size="chip">
+        <Icon icon={Star} size="xs" />
         Favorites
       </Toggle>
-      <Toggle aria-label="Show archived characters" onPressedChange={onToggleArchived} pressed={showArchived} size="sm">
+      <Toggle aria-label="Show archived characters" intent="outline" onPressedChange={onToggleArchived} pressed={showArchived} shape="pill" size="chip">
+        <Icon icon={Archive} size="xs" />
         Archived
       </Toggle>
       {/* The orphans lead the row: they are the ones actively narrowing the library for a reason nothing
@@ -118,17 +141,34 @@ export function CharacterFilterChips({
       {visible.map((tag) => (
         <TagFilterChip key={tag.id} onCycle={onCycleTag} state={tagFilterStateOf(tagFilter, tag.id)} tag={tag} />
       ))}
-      {hiddenCount > 0 ? (
-        <Button intent="ghost" onClick={(): void => setExpanded(true)} size="sm" type="button">
-          {`+${String(hiddenCount)} more`}
-        </Button>
-      ) : null}
-      {expanded && availableTags.length > VISIBLE_TAG_CHIPS ? (
-        <Button intent="ghost" onClick={(): void => setExpanded(false)} size="sm" type="button">
-          Show fewer
-        </Button>
-      ) : null}
-    </Row>
+      {hiddenCount > 0 ? <RailAction label={`+${String(hiddenCount)} more`} onClick={(): void => setExpanded(true)} /> : null}
+      {expanded && availableTags.length > VISIBLE_TAG_CHIPS ? <RailAction label="Show fewer" onClick={(): void => setExpanded(false)} /> : null}
+      {activeCount > 0 ? <RailAction label="Clear all" onClick={onClearFilters} /> : null}
+    </Section>
+  );
+}
+
+/** The rail's TEXT affordances — the tag-cap disclosure and the clear-all. They are the third register:
+ *  neither of them FILTERS anything, so neither wears a filter's edge. `ghost` draws no box at rest at all
+ *  (the box appears on hover, where it is an affordance rather than a claim of kinship), which is what
+ *  separates them from the outlined pills they sit among now that the pills are actually outlined.
+ *
+ *  TWO DELIBERATE DEVIATIONS from the approved mockup, both receipted:
+ *  1. The mockup sets these at `--text-micro` (10.5px, the `gloss` voice). A #102 review already ruled on
+ *     that exact shape — "10.5px interactive text was the review's #15 (seven nodes under the readable
+ *     floor)", recorded on the `credit` voice in `ui/src/primitives/text/variants.ts` — and these ARE
+ *     interactive text. They keep the label step; the absent edge carries the register.
+ *  2. They take the `chip` BOX (the rail cell's touch-target height — which is what the mockup gives them
+ *     too: `height: var(--spacing-touch-target)`, no border, no fill) rather than the floorless `inline`
+ *     size a "no box at all" reading invites. `inline` is exactly what `no-floorless-control-in-wrap`
+ *     exists to stop: a full-width 44px hit pseudo on an ~18px text button, repeated inside a `flex-wrap`
+ *     rail, is the measured weather-picker collision. A `ghost` box paints nothing at rest anyway, so the
+ *     boxless READING costs nothing and the tap target stays real. */
+function RailAction({ label, onClick }: { readonly label: string; readonly onClick: () => void }): ReactElement {
+  return (
+    <Button intent="ghost" onClick={onClick} size="chip" type="button">
+      {label}
+    </Button>
   );
 }
 
@@ -167,18 +207,21 @@ function TagFilterChip({
   return (
     <Button
       aria-label={`Filter by ${tag.name}: ${presentation.announced} — ${presentation.next}`}
-      className={`min-w-0 max-w-full ${presentation.className}`}
+      className="min-w-0 max-w-full"
       data-tag-filter-state={state}
-      intent={presentation.intent}
+      intent="outline"
       onClick={(): void => onCycle(tag.id)}
-      size="sm"
+      selection={presentation.selection}
+      shape="pill"
+      size="chip"
       title={tag.name}
       type="button"
     >
       {presentation.icon === null ? null : <Icon icon={presentation.icon} size="xs" />}
-      {/* `text-inherit` is load-bearing: `voice="label"` matches the `sm` control's own type step but would
-          also repaint the ink `text-foreground`, erasing the ghost/secondary weight distinction that IS the
-          off-vs-active reading at rest. The chip's intent owns the colour; this span owns only the clip. */}
+      {/* `text-inherit` is load-bearing: `voice="label"` matches the `chip` box's own type step but would
+          also repaint the ink `text-foreground`, erasing the muted-vs-selected reading that tells an off
+          chip from an on one at rest. The chip's intent + selection own the colour; this span owns only
+          the clip. */}
       <Text as="span" className="min-w-0 truncate text-inherit" voice="label">
         {tag.name}
       </Text>

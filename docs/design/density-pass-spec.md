@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-08-16
+updated: 2026-08-17
 ---
 
 # The density pass — tier map, mechanism, enforcement
@@ -227,6 +227,20 @@ its assumption, prove it.
 Features keep composing `<Stack gap>`/`<Row gap>` explicitly — the gap union is already token-only
 and the gates already ban raw values. What changes is that ISLAND padding and radius stop being a
 feature-level choice entirely.
+
+**(AMENDED 2026-08-17, program #102 — the owner-picked characters variant B, "the Facet Rail")** four
+more deltas, all forced by one measured defect: the characters pane's twelve filter-area controls sat in
+FOUR semantic classes and rendered ONE pixel-identical treatment, because the vocabulary to say otherwise
+did not exist. §2.1 assigns the pill radius to chips — and the live chips already HAD it, invisibly, since
+at rest they were transparent with a zero-width border. A radius differentiates nothing unless an edge
+draws it.
+
+| primitive | delta | why |
+| - | - | - |
+| `Section` | ADD `kickerLayout: "stacked" \| "inline"` | the INLINE spelling of the same CD1 grouping — the rule becomes the section's own `border-top` and the kicker LEADS the control line. Measured on the characters pane: naming two groups costs +2px inline against +22px stacked |
+| `Button` | ADD `intent="outline"` (hairline + muted ink) · ADD `size="chip"` · ADD the `selection: none \| on \| negated` state layer | `ghost`'s ink with `secondary`'s edge is what a filter chip needs and neither could spell; a TRI-STATE facet cannot be a `Toggle` (`aria-pressed` has two values), so the one control class that needs a selected state most was spelling it as call-site ring classNames |
+| `Toggle` | ADD `intent="outline"` + `intent="command"` · ADD `size="chip"` · ADD `shape` (`control`/`pill`, Button's own axis, out of `base` for the same unclassifiable-custom-token reason) | a scope filter and a tag filter share one rail and must share one box; a view COMMAND that redraws the pane is not one of the words beside it |
+| `lib/control-size.ts` | ADD `CHIP_BOX` beside `CONTROL_SIZE` | the rail cell in ONE home for both pressable primitives. Height is `--spacing-touch-target`, not a control step: pointer-conditional, so the box IS the tap floor, and the rail runs at a 32px pitch instead of 38px |
 
 ## 5. Enforcement
 

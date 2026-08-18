@@ -31,7 +31,7 @@ export interface ToggleProps extends BaseToggleProps<string>, VariantProps<typeo
  *
  * Usage: `<Toggle aria-label="Bold" pressed={bold} onPressedChange={setBold}>B</Toggle>`
  */
-export function Toggle({ className, intent, size, semantics = "toggle", checked, ...rest }: ToggleProps): ReactElement {
+export function Toggle({ className, intent, size, shape, semantics = "toggle", checked, ...rest }: ToggleProps): ReactElement {
   const radioAria = semantics === "radio" ? { role: "radio", "aria-checked": checked === true, "aria-pressed": undefined } : {};
-  return <BaseToggle data-slot="toggle" className={cn(toggleVariants({ intent, size }), className)} {...rest} {...radioAria} />;
+  return <BaseToggle data-slot="toggle" className={cn(toggleVariants({ intent, size, shape }), className)} {...rest} {...radioAria} />;
 }
