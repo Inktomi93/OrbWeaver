@@ -16,7 +16,7 @@ import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
-import { SetupTabBodyStory } from "../_ct-stories.tsx";
+import { RefineryDoorStory, SetupTabBodyStory } from "../_ct-stories.tsx";
 
 // MINTED, never hand-written (the `typeIdSchema` 26-char-suffix rule).
 const SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
@@ -134,12 +134,17 @@ test("#81 P2 — every Setup action names the row it acts on, so no two controls
   // evidence (`session-masthead.tsx`'s header records the argument). The row survives as a READOUT naming
   // the door, the same shape Guidance and Stage modes already had — so this set is the pane's remaining
   // editors, and the derivation the pin is actually about is unchanged.
-  expect(names).toEqual(["View Original card", "Change Score schema", "Change Analyze schema"]);
+  //
+  // "Edit Scope" and "Edit Guidance" REJOINED the set on 2026-08-18 (#171) — as DOORS, not editors. The
+  // #158 ruling is untouched (neither opens an editor in this pane; each raises the workbench's own
+  // control through the state commons, proven end-to-end below), and the derivation this pin is about is
+  // unchanged: two rows both visibly saying "Edit" are still distinct by their row.
+  expect(names).toEqual(["View Original card", "Edit Scope", "Change Score schema", "Change Analyze schema", "Edit Guidance"]);
 });
 
 // ── ONE HOME PER CONCEPT (#158 items 1-2, owner-ruled 2026-08-17) ────────────────────────────────────
 
-test("Setup states the scope but does not EDIT it — one editable home, and the row says where the other one is", async ({ mount, page }) => {
+test("Setup states the scope but does not EDIT it — one editable home, reached through a door instead of a sentence", async ({ mount, page }) => {
   await routeTrpc(page, baseRoutes());
   await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
   const setup = page.getByTestId(testId("refinerySetupTab"));
@@ -147,10 +152,67 @@ test("Setup states the scope but does not EDIT it — one editable home, and the
 
   // The readout is still here — the pane's job is saying what is in force.
   await expect(setup.getByText("Scope", { exact: true })).toBeVisible();
-  // …with NO editor of its own, and with the one home named rather than merely absent (a row that just
-  // loses its button reads as unfinished; that is P1-8's second arm).
+  // …with NO editor of its own (#158's ruling, unmoved: nothing here mounts a ScopeEditorDialog)…
   await expect(rowChangeButton(page, "Scope")).toHaveCount(0);
-  await expect(setup.getByText(SCOPE_HOME_NOTE)).toBeVisible();
+  // …and the one home is reached by a DOOR, not described in prose (#171). The sentence that used to sit
+  // in this row is gone from the whole tab, and its replacement is proven end-to-end below.
+  await expect(setup.getByText(SCOPE_HOME_NOTE)).toHaveCount(0);
+  await expect(setup.getByRole("button", { name: "Edit Scope", exact: true })).toBeVisible();
+});
+
+// ── #171: NO ROW EXISTS SOLELY TO POINT ELSEWHERE (owner, post-#158: "a fucking cop out") ────────────
+// The one-home fix left three of six rows ending in a sentence naming somewhere else. Each still stated
+// real in-force state, so the rows survive — what dies is the deferral rendered AS content: two of them
+// take the door the sentence described, and the third (Stage modes, which has no editor anywhere in the
+// app) keeps its readout and loses a note that named no reachable place at all.
+const POINTER_PROSE = [/Changed on the workbench/, /Edited in the run bar/, /Set per stage when a run is configured/];
+
+test("#171 — no Setup row ends in pointer prose, and every row either affords its own action or states state with no editor to point at", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, baseRoutes());
+  await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  const setup = page.getByTestId(testId("refinerySetupTab"));
+  await expect(setup).toBeVisible();
+  for (const prose of POINTER_PROSE) {
+    // biome-ignore lint/performance/noAwaitInLoops: three assertions against one settled surface, sequential by construction.
+    await expect(setup.getByText(prose)).toHaveCount(0);
+  }
+  // Stage modes keeps its READOUT — it is the one value with no editor anywhere, so a door would be a lie
+  // and a deletion would drop a fact this tab exists to state.
+  await expect(setup.getByText("Stage modes", { exact: true })).toBeVisible();
+  await expect(setup.getByText("score custom · rewrite balanced · analyze full", { exact: true })).toBeVisible();
+});
+
+test("#171 — the Scope door OPENS the workbench's own scope editor (the one home), not a second one in this pane", async ({ mount, page }) => {
+  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": (): readonly unknown[] => [] });
+  await mount(<RefineryDoorStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  const setup = page.getByTestId(testId("refinerySetupTab"));
+  await expect(setup).toBeVisible();
+  // The workbench is mounted beside it and its dialog is CLOSED — so what opens below is the door's work.
+  await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Scope" })).toHaveCount(0);
+
+  await setup.getByRole("button", { name: "Edit Scope", exact: true }).click();
+
+  // The dialog's own settled title — and it is the WORKBENCH's copy, the one the masthead opens.
+  await expect(page.getByRole("heading", { name: "Scope" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "description" })).toBeChecked();
+});
+
+test("#171 — the Guidance door FOCUSES the run bar's textarea, which is guidance's one editing home", async ({ mount, page }) => {
+  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": (): readonly unknown[] => [] });
+  await mount(<RefineryDoorStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  const setup = page.getByTestId(testId("refinerySetupTab"));
+  await expect(setup).toBeVisible();
+  const guidance = page.getByRole("textbox", { name: "Guidance · every stage" });
+  await expect(guidance).toBeVisible();
+  await expect(guidance).not.toBeFocused();
+
+  await setup.getByRole("button", { name: "Edit Guidance", exact: true }).click();
+
+  await expect(guidance).toBeFocused();
 });
 
 test("PROMPT FIT is not restated here — the per-stage budget lives beside the verb whose budget it is", async ({ mount, page }) => {

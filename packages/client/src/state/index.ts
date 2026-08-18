@@ -205,11 +205,15 @@ export {
   selectRefinerySessionFromList,
   useSelectedRefinerySessionId,
 } from "./refinery-selection-store.ts";
+export type { RefineryWorkbenchDoor } from "./refinery-view-store.ts";
 export {
   __peekRefineryViewForTest,
+  clearRefineryWorkbenchDoor,
+  requestRefineryWorkbenchDoor,
   setRefineryArmedRewrite,
   setRefineryViewedRun,
   useRefineryArmedRewriteId,
+  useRefineryRequestedDoor,
   useRefineryViewedRunId,
 } from "./refinery-view-store.ts";
 export {

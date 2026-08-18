@@ -273,14 +273,22 @@ function renderRowIdentity(args: { readonly attribution: RowAttribution; readonl
  *  is keyed off exactly this element: a ghost with its own hand-spelled name row would be a second home
  *  that silently stops inheriting the next fix to this one.
  *
- *  Two INDEPENDENT backings land on it and they stack:
+ *  Two backings can land on it, and they are ALTERNATIVES, not layers (#168):
  *   · `BG_PHOTO_CHROME_SCRIM` — the wallpaper-gated legibility chip. UNCONDITIONAL here since #167: the
  *     speaker name and its timestamp are a GUARANTEE over any art in any skin, and the name row is above
  *     the bubble box in every mode, so no mode's fill can back it (the old per-skin `RowSkin.chromeBacking`
  *     opt-in left both roles naked in the five bubble-family skins — see message-row-backing.ts for the
  *     reversal and its live receipt). Self-gated on the shell's `data-has-bg-image`: no wallpaper, no chip.
- *   · `STICKY_ATTRIBUTION_CHROME` (#113) — pin + chip, any mode, only for a row the virtualizer measured
- *     as taller than the scrollport. It is the row's one RAISED layer (z-order: message-row-backing.ts). */
+ *   · `STICKY_ATTRIBUTION_CHROME` (#113) — pin + OPAQUE chip, any mode, only for a row the virtualizer
+ *     measured as taller than the scrollport. It is the row's one RAISED layer (z-order:
+ *     message-row-backing.ts).
+ *
+ *  The sticky chip SUPERSEDES the wallpaper one because an opaque fill is a strict superset of a 60%-alpha
+ *  scrim, and both spell the same property: applied together, `in-data-[has-bg-image]:bg-scrim` outranks a
+ *  plain `bg-card` on specificity, so over ART — the exact mount #168's live receipt came from — the band
+ *  would stay translucent and keep showing the prose scrolling under it. Layout neutrality is unchanged by
+ *  the swap: over art both arms carry one `py-row`, and without art the sticky arm's own `-my-row` cancels
+ *  its `py-row` (pinned by the "supersedes without doubling the box" CT). */
 function nameRowFrame(args: { readonly identity: ReactNode; readonly actions: ReactNode; readonly stickyAttribution: boolean }): ReactElement {
   return (
     <Row
@@ -289,7 +297,7 @@ function nameRowFrame(args: { readonly identity: ReactNode; readonly actions: Re
       gap="field"
       data-slot="message-name-row"
       data-sticky={args.stickyAttribution ? "" : undefined}
-      className={cn(BG_PHOTO_CHROME_SCRIM, args.stickyAttribution && STICKY_ATTRIBUTION_CHROME)}
+      className={args.stickyAttribution ? STICKY_ATTRIBUTION_CHROME : BG_PHOTO_CHROME_SCRIM}
     >
       {args.identity}
       {args.actions}

@@ -24,7 +24,8 @@
 //     either: a section with no data now renders NOTHING AT ALL, because the rail is the single place that
 //     says what has not run. A section that prints its own zero note is a wall built one true sentence at
 //     a time, and the 2026-08-08 collapse only reduced it from seven bricks to one.
-//   • THE DEAD $0.00 COLUMN IS GONE. See `corpus-gem-tiles.tsx`: the trailing magnitude is words returned.
+//   • THE DEAD $0.00 COLUMN IS GONE. See `corpus-gem-tiles.tsx`: the trailing magnitude is tokens returned
+//     (labelled as tokens since #174 — it is `tokensOut`, and it shipped calling itself "words").
 //     Model economics survives as a section that renders only when there is spend to report — on a local
 //     instance `modelRouting` is `[]` and the block simply is not there.
 //
