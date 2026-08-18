@@ -1297,14 +1297,33 @@ test("above the shell breakpoint the same fixture DOES get glass — the exclusi
  *  DO NOT `detach()` the session afterwards: emulation overrides are owned by the CDP session and are
  *  REVERTED the moment it disconnects. Probed live — a detaching version of this helper left
  *  `matchMedia("(prefers-reduced-transparency: reduce)")` false and the glass painting, so the tests
- *  passed against the unfixed stylesheet. Playwright disposes the session with the page. */
-async function emulateReducedTransparency(page: Page, value: "reduce" | "no-preference"): Promise<void> {
+ *  passed against the unfixed stylesheet. Playwright disposes the session with the page.
+ *
+ *  EVERY CALLER STATES THE TOTAL MEDIA STATE, NOT A DELTA (#138, measured on this file). The overrides
+ *  outlive the test that set them — playwright reuses the page across the tests in a file, and
+ *  `page.emulateMedia({ contrast })` does NOT clear a feature it doesn't model, so a leaked
+ *  `prefers-reduced-transparency: reduce` from an earlier test kept the fill at 100% and reddened a 92%
+ *  assertion (repro: run the #137 `reduce` test and the #138 light-theme test in that order; the latter
+ *  passes alone and fails behind it). One `setEmulatedMedia` call REPLACES the whole feature list, which
+ *  is exactly the reset — so name every preference the assertions depend on, every time. */
+async function emulateMediaFeatures(page: Page, features: readonly (readonly [name: string, value: string])[]): Promise<void> {
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-transparency", value }] });
-  // Belt: assert the preference actually took, so a future playwright/chromium change that renames or
-  // drops the feature reds HERE instead of silently turning every assertion below into a no-preference run.
-  const applied = await page.evaluate((v) => matchMedia(`(prefers-reduced-transparency: ${v})`).matches, value);
-  expect(applied, `chromium must report prefers-reduced-transparency: ${value}`).toBe(true);
+  await cdp.send("Emulation.setEmulatedMedia", { features: features.map(([name, value]) => ({ name, value })) });
+  // Belt: assert every preference actually took, so a future playwright/chromium change that renames or
+  // drops a feature reds HERE instead of silently turning the assertions below into a no-preference run.
+  const applied = await page.evaluate((fs: readonly (readonly [string, string])[]) => fs.map(([n, v]) => matchMedia(`(${n}: ${v})`).matches), features);
+  for (const [index, [name, value]] of features.entries()) {
+    expect(applied[index], `chromium must report ${name}: ${value}`).toBe(true);
+  }
+}
+
+async function emulateReducedTransparency(page: Page, value: "reduce" | "no-preference"): Promise<void> {
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-transparency", value],
+    // Named explicitly so a leaked `more` from a #138 test can never raise these fills: the two arms
+    // both drive --blur-fill-*, so "the preference I did not set" is load-bearing here.
+    ["prefers-contrast", "no-preference"],
+  ]);
 }
 
 const ALL_BLUR_SURFACES = ["panels", "composer", "messages", "modals"] as const;
@@ -1354,6 +1373,161 @@ test("reduced-transparency reaches the reading-surface backing too (the arm used
   // backdrop-filter under the preference. Driving the fill token covers every rule by construction.
   await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => backdropFilterOf(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe("none");
+});
+
+// ── #138: the contrast block was spelled `high`, which matches NOTHING, so it had never rendered ────
+// `prefers-contrast: high` is the WebKit-era value; MQ5 renamed it to `more`, and Chromium/Firefox only
+// ever report `more`. The block therefore sat in the sheet, parsed and plausible, doing nothing for
+// every high-contrast user. Respelling it is behaviour-ENABLING, so these pins are the receipt that what
+// starts firing is what was intended: thicker borders, a HIGHER glass fill (92%, driven through the
+// #137 fill knob so each surface keeps its own tint instead of the hand-written --color-sidebar mix that
+// flattened both modal slots), the grain overlay dropped — and reduced-transparency still winning the
+// alpha when a user has set both preferences.
+
+/** The contrast arm with reduced-transparency pinned OFF. Playwright models `contrast` natively
+ *  (`page.emulateMedia({ contrast })`) and that spelling is fine in isolation — but it leaves an
+ *  earlier test's `prefers-reduced-transparency` override standing, and that preference outranks this
+ *  one on the very tokens these tests assert. So both go through the one CDP call. */
+async function emulateContrast(page: Page, contrast: "more" | "no-preference"): Promise<void> {
+  await emulateMediaFeatures(page, [
+    ["prefers-contrast", contrast],
+    ["prefers-reduced-transparency", "no-preference"],
+  ]);
+}
+
+/** Resolves `color-mix(in oklab, var(<token>) <pct>, transparent)` in the PAGE's own cascade, so the
+ *  expectation is the theme's real value rather than a hardcoded colour. The probe is APPENDED before it
+ *  is read: `getComputedStyle` on a detached element returns an empty string, which would make every
+ *  comparison below silently compare "" to "". */
+function resolveMixedFill(page: Page, token: string, pct: string): Promise<string> {
+  return page.evaluate(
+    ([t, p]: readonly [string, string]) => {
+      const probe = document.createElement("div");
+      probe.style.backgroundColor = `color-mix(in oklab, var(${t}) ${p}, transparent)`;
+      document.body.append(probe);
+      const resolved = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return resolved;
+    },
+    [token, pct] as const,
+  );
+}
+
+function borderInlineEndWidthOf(locator: Locator): Promise<string> {
+  return locator.evaluate((el) => getComputedStyle(el).getPropertyValue("border-inline-end-width"));
+}
+
+function bgColorOf(locator: Locator): Promise<string> {
+  return locator.evaluate((el) => getComputedStyle(el).backgroundColor);
+}
+
+/** The contrast arm's own fill percentage (globals.css) — an authored dial with no token, like the reduce
+ *  arm's 100%. Kept as one constant so a change to the sheet reds one line, not five. */
+const CONTRAST_FILL = "92%";
+const CONTRAST_FILL_ALPHA = 0.92;
+
+test("#138 receipt: an emulated high-contrast user reports `more`; the shipped `high` spelling matched nothing", async ({ page }) => {
+  // Not a defect pin (it passes against the un-respelled sheet) — it is the instrument receipt the whole
+  // block rests on, and it reds if a chromium/playwright change ever revives the WebKit-era value.
+  await emulateContrast(page, "more");
+  const seen = await page.evaluate(() => ({
+    more: matchMedia("(prefers-contrast: more)").matches,
+    high: matchMedia("(prefers-contrast: high)").matches,
+    noPreference: matchMedia("(prefers-contrast: no-preference)").matches,
+  }));
+  expect(seen).toStrictEqual({ more: true, high: false, noPreference: false });
+});
+
+test("contrast: more thickens the glass panel's border and raises the fill to 92% — each surface keeping its OWN tint", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await emulateContrast(page, "more");
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const panel = shell.getByTestId("panel-probe");
+  // The border half. Asserted on the ONE side `.shell-panel[data-panel-side="list"]` actually draws
+  // (`border-inline-end: 1px solid`): `border-width` is a no-op wherever border-style is `none`, and
+  // getComputedStyle reports 0px there — so a four-sided assertion would pass on a rule that does nothing.
+  await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("2px");
+  // The opacity half, through the glass's fill knob: chrome 70% → 92%, dense (bubbles) 88% → 92%. The old
+  // hand-written arm bumped no bubble fill at all, and covered neither `.shell-main` nor the breakpoint.
+  await expect.poll(() => bgAlpha(panel), { intervals: [20, 50, 100] }).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
+  await expect.poll(() => bgAlpha(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] }).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
+  // THE TINT DEFECT: the deleted arm re-spelled the fill as a --color-sidebar mix for all four selectors,
+  // including the two modal slots the glass rule tints --color-popover. Driving the knob leaves every
+  // rule's own token standing, so the modal is a popover again.
+  const [popoverMix, sidebarMix] = await Promise.all([
+    resolveMixedFill(page, "--color-popover", CONTRAST_FILL),
+    resolveMixedFill(page, "--color-sidebar", CONTRAST_FILL),
+  ]);
+  // Guard the assertion below against a theme where the two tokens happen to agree (it would pass for the
+  // wrong reason on any palette that ever unified them).
+  expect(popoverMix, "the two tints must differ, or the modal assertion proves nothing").not.toBe(sidebarMix);
+  await expect.poll(() => bgColorOf(shell.getByTestId("dialog-probe")), { intervals: [20, 50, 100] }).toBe(popoverMix);
+  await expect.poll(() => bgColorOf(shell.getByTestId("alert-dialog-probe")), { intervals: [20, 50, 100] }).toBe(popoverMix);
+});
+
+test("the same fixture under contrast: no-preference keeps the plain glass — the arm is a preference, not a baseline", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await emulateContrast(page, "no-preference");
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  const panel = shell.getByTestId("panel-probe");
+  await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("1px");
+  // The token defaults (--blur-fill-chrome 70% / --blur-fill-dense 88%), i.e. strictly more translucent
+  // than the contrast arm — which is the whole claim "more opacity" makes.
+  await expect.poll(() => bgAlpha(panel), { intervals: [20, 50, 100] }).toBeLessThan(CONTRAST_FILL_ALPHA);
+  await expect.poll(() => bgAlpha(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] }).toBeLessThan(CONTRAST_FILL_ALPHA);
+});
+
+test("BOTH preferences set: reduced-transparency wins the alpha (fully solid, not 92%) and the contrast border still applies", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  // One CDP call, both features — see emulateMediaFeatures: setEmulatedMedia REPLACES the feature list,
+  // so page.emulateMedia({contrast}) followed by a CDP reduced-transparency call would drop the contrast.
+  await emulateMediaFeatures(page, [
+    ["prefers-contrast", "more"],
+    ["prefers-reduced-transparency", "reduce"],
+  ]);
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  await Promise.all(
+    GLASS_PROBES.map(async (probe) => {
+      // The rule the two arms are ordered by, and the reason the contrast fill lives behind
+      // `not (prefers-reduced-transparency: reduce)` rather than trusting source order: a user asking for
+      // less transparency gets 100%, never the contrast arm's 92%.
+      await expect.poll(() => bgAlpha(shell.getByTestId(probe)), { intervals: [20, 50, 100] }).toBe(1);
+      await expect.poll(() => backdropFilterOf(shell.getByTestId(probe)), { intervals: [20, 50, 100] }).toBe("none");
+    }),
+  );
+  // …and the contrast arm's non-alpha half is unaffected by the yield: both preferences are honoured.
+  await expect.poll(() => borderInlineEndWidthOf(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe("2px");
+});
+
+/** The grain overlay paints in `.shell-grid::after`, i.e. on the fixture's ROOT element — `mount()`'s own
+ *  locator, never `shell.getByTestId("shell-grid")` (getByTestId searches DESCENDANTS, so that spelling
+ *  matches nothing and every poll below it times out reading like a style failure). */
+function afterDisplayOf(shell: Locator): Promise<string> {
+  return shell.evaluate((el) => getComputedStyle(el, "::after").display);
+}
+
+test("contrast: more drops the grain overlay (a noise texture works against a stated contrast preference)", async ({ mount, page }) => {
+  await emulateContrast(page, "more");
+  const shell = await mount(<ShellCascadeFixture surfaceTexture="grain" />);
+  await expect.poll(() => afterDisplayOf(shell), { intervals: [20, 50, 100] }).toBe("none");
+});
+
+test("under contrast: no-preference the same grain overlay still paints — the drop is the preference's doing", async ({ mount, page }) => {
+  await emulateContrast(page, "no-preference");
+  const shell = await mount(<ShellCascadeFixture surfaceTexture="grain" />);
+  await expect.poll(() => afterDisplayOf(shell), { intervals: [20, 50, 100] }).not.toBe("none");
+});
+
+test("the contrast fill is per-surface in the LIGHT theme too — the modal tracks --color-popover, not a baked colour", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await emulateContrast(page, "more");
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} dataTheme="light" />);
+  // Same assertion as the dark arm, resolved against the light palette: proof the fix is the fill KNOB
+  // (a percentage) and not a colour this block re-spells — the failure mode the deleted --color-sidebar
+  // mix was an instance of.
+  const popoverMix = await resolveMixedFill(page, "--color-popover", CONTRAST_FILL);
+  await expect.poll(() => bgColorOf(shell.getByTestId("dialog-probe")), { intervals: [20, 50, 100] }).toBe(popoverMix);
+  await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
 });
 
 test("background-image beats elevation: .shell-main goes transparent, .shell-topbar stays opaque", async ({ mount }) => {
