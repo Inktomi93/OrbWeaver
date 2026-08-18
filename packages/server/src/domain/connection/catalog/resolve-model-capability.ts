@@ -61,23 +61,30 @@ const OR_DEFAULT_WINDOW = 200_000; // when the catalog entry omits contextLength
  *  chat template, whose per-request kwargs are `enable_thinking` + `reasoning_effort`. So the axis holds for
  *  every model this source serves, which is why it is declared once here rather than sniffed per checkpoint.
  *
- *  `mode: "effort"` — the template branches on `reasoning_effort` only; a per-request TOKEN budget is a
- *  different mechanism (`--reasoning-config` + `thinking_token_budget`) that build-argv deliberately does NOT
- *  emit, so advertising `mode:"budget"` here would promise a knob no request can reach.
+ *  `mode: "effort"` — the template branches on `reasoning_effort` only. A per-request TOKEN budget is a
+ *  DIFFERENT mechanism (`--reasoning-config` + `thinking_token_budget`), and the owner RULED 2026-08-18 that
+ *  we do not adopt it: no `--reasoning-config` on the gen launch. That makes `mode:"effort"` with no
+ *  `budgetRange` the PERMANENT correct shape here, not an interim one — advertising `mode:"budget"` would
+ *  promise a knob no request can reach, and a preset that sets `thinkingBudgetTokens` gets a loud drop from
+ *  the funnel instead of a silent no-op. Effort IS the depth control on this wire.
  *
  *  `defaultEnabled: false` — the launch bakes `--default-chat-template-kwargs {"enable_thinking": false}`, so
  *  reasoning stays OFF until a preset asks for it. The funnel reads this bit to avoid filling an absent
  *  effort with the model's default (an off-by-default model must not start thinking on its own).
  *
- *  `minimal` is EXCLUDED from the level list ON PURPOSE, and the omission is the honest encoding rather than
- *  an oversight: the template's effort ladder recognizes `low`/`medium`/`high`/`xhigh` and folds EVERY
- *  unrecognized value into `xhigh` — so advertising `minimal` would silently buy MAXIMUM thinking, the exact
- *  opposite of the ask. `max` is listed because the wire mapper (`effortToOpenAIReasoning`) turns it into
- *  `xhigh`, which the template does recognize. A level the funnel drops emits a loud `effort_dropped`. */
+ *  EVERY level is listed, including `minimal` — the ERR-OPEN posture (owner ruling 2026-08-18). vLLM
+ *  capability varies per CHECKPOINT and we have no reliable way to detect what any given one supports, so on
+ *  this source the descriptor errs PERMISSIVE: expose the control, trust the user's setting, and let the
+ *  engine refuse or the template ignore. (An earlier draft of this cell WITHHELD `minimal` because the
+ *  template's ladder folds an unrecognized level to `xhigh` — hiding a knob to protect the user from a
+ *  surprise is exactly the reflex this ruling inverts.) The surprise itself is handled honestly where it
+ *  belongs instead: the vLLM wire projection maps `minimal` onto the template's real floor (`low`) rather
+ *  than letting the else-branch fold it UP to maximum thinking — see `reasoningFields` in
+ *  `infra/providers/vllm/surfaces/chat.ts`. Direction of intent is preserved without removing the choice. */
 const VLLM_REASONING: ModelCapability["reasoning"] = {
   mode: "effort",
   enabled: true,
-  effortLevels: ["low", "medium", "high", "xhigh", "max"],
+  effortLevels: [...EFFORT_LEVELS],
   defaultEnabled: false,
 };
 
