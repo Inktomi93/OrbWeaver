@@ -75,7 +75,27 @@ export const sectionVariants = tv({
     divider: {
       true: { heading: "border-border border-b pb-field" },
     },
+    // THE TWO SPELLINGS OF ONE CD1 GROUPING (added 2026-08-17, program #102 variant B). `stacked` is the
+    // literal reading: the kicker stands on its own line with a rule running to the edge. `inline` moves
+    // the rule ABOVE the group as the section's own `border-top` and lets the kicker LEAD the control
+    // line — same two marks, same mechanism, ~17px per group cheaper, which on a 291px LIST pane is a
+    // whole chip row. MEASURED on the characters pane, whose two groups this shipped for: naming both of
+    // them cost **+2px** of chrome above the first row (260.25 → 262.25 at the docked width, pinned in
+    // tests/client/features/character/surfaces/character-library-surface.ct.tsx) against the +22px the
+    // stacked spelling costs — on a pane already spending 38.6% of its height on chrome.
+    //
+    // The root itself becomes the wrapping control line, so the kicker is a flex ITEM of the group rather
+    // than a block above it; `gap-tight` is the atom gap those controls sit at (a rail of chips is atoms,
+    // not blocks) and the `pt-row` is the breathing room under the rule.
+    kickerLayout: {
+      stacked: {},
+      inline: {
+        root: "flex-row flex-wrap items-center gap-tight border-border border-t pt-row",
+        kickerRow: "mr-field shrink-0",
+      },
+    },
   },
+  defaultVariants: { kickerLayout: "stacked" },
 });
 
 /** Responsive auto-fit columns: children tile as many columns as fit at the min width, then reflow down to one. */

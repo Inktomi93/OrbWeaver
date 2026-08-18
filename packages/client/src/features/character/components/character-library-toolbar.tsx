@@ -6,12 +6,17 @@
 // The micro-caps "CHARACTERS" title + the create/import picker are NOT here any more: they moved into the
 // LIST chrome band (`characters-list-header.tsx`, D66 A1/A2 — the north-star N2 migration the other
 // sections had already made).
+//
+// TWO LINES, TWO REGISTERS (program #102, the owner-picked variant B of the characters density pass): the
+// FIELDS you type into, then a NAMED group of the commands that redraw the pane. The filter vocabulary is
+// the third register and lives one component down (`character-filter-chips.tsx`). Before this, all twelve
+// controls between the search box and the first character rendered one pixel-identical treatment.
 
 import type { CharacterListSort } from "@orb/contracts/character";
 import { CHARACTER_LIST_SORTS } from "@orb/contracts/character";
-import { Icon, Pencil } from "@orb/ui/icons";
+import { Icon, LayoutGrid, Pencil } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
@@ -51,11 +56,14 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
     <Stack gap="field">
       {/* The title + create MOVED to the LIST chrome band (`characters-list-header.tsx`, D66 A1/A2 — the
           A1/N2 gap this section was the last to carry). What stays is the pane's own view machinery. */}
-      {/* WRAPS AT THE NARROWEST MOUNT (side-eye P2). Four controls in one row is a 320px pane's whole
-          width: measured, the search box came out 95px against the 119px its own placeholder needs and
-          rendered "Search chai". The search is the row's PRIMARY control, so it carries a real floor and
-          the three view controls wrap beneath it instead — no viewport query, no second layout: the row
-          simply reflows when the pane cannot seat it. */}
+      {/* THE FIELD ROW — search + sort, and NOTHING ELSE (program #102 variant B). The two view commands
+          used to wrap beneath them out of this same row; they sit on their own NAMED line below now, which
+          is a stronger form of the same fix.
+          THE COMMANDS DO NOT COME BACK UP HERE, and that is a ruling, not a preference. Four controls in
+          one row is a 320px pane's whole width: measured, the search box came out 95px against the 119px
+          its own placeholder needs and rendered "Search chai" (side-eye P2) — and the B mockup re-tried it
+          as glyph buttons and re-opened the same wrap. The search keeps its floor; it is the row's PRIMARY
+          control. The commands never needed relocating, they needed NAMING. */}
       <Row align="center" className="flex-wrap" gap="field">
         <Input aria-label="Search characters" className="min-w-40 flex-1" onValueChange={onQueryChange} placeholder="Search characters…" value={query} />
         {/* `w-auto` beats the trigger's own `w-full` (FIELD_CONTROL): as a flex sibling of a `flex-1` Input a
@@ -73,22 +81,32 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
           }}
           value={sortMode}
         />
+      </Row>
+      {/* THE VIEW GROUP (program #102 variant B — the CD1 grouping, spelled inline). These two REDRAW the
+          pane: one re-folds the list, one re-modes it into a selection surface. They used to render in the
+          identical muted 13px/500 box as the tag words below them, so the whole block read as one
+          undifferentiated soup — the accessibility tree already carried the grouping (`role="group"`), and
+          only the pixels did not. `intent="command"` is the foreground register that separates a control
+          you operate from the vocabulary you skim. */}
+      <Section aria-label="View" kicker="View" kickerLayout="inline" role="group">
         <Toggle
           aria-label="Group by tag"
+          intent="command"
           onPressedChange={(pressed): void => setCharacterViewMode(pressed ? "categorized" : "flat")}
           pressed={viewMode === "categorized"}
           size="sm"
         >
+          <Icon icon={LayoutGrid} size="sm" />
           Group
         </Toggle>
         {/* Bulk mode joins the view controls now that the band owns the title row it used to sit in.
             IT CARRIES ITS WORD (side-eye leg-4 P3): beside the text toggle "Group", a bare pencil read as
             one phrase — "Group ✎" — which decodes as neither control. Two labelled toggles read as two. */}
-        <Toggle aria-label="Select multiple" onPressedChange={(pressed): void => setBulkMode(pressed)} pressed={bulkMode} size="sm">
+        <Toggle aria-label="Select multiple" intent="command" onPressedChange={(pressed): void => setBulkMode(pressed)} pressed={bulkMode} size="sm">
           <Icon icon={Pencil} size="sm" />
           Select
         </Toggle>
-      </Row>
+      </Section>
     </Stack>
   );
 }

@@ -13,6 +13,18 @@ export interface SectionProps extends ComponentProps<"section"> {
    * outline survives. Wins over `heading` if both are passed (they are two skins of one slot).
    */
   kicker?: ReactNode;
+  /**
+   * How the `kicker` grouping is SPELLED. @defaultValue "stacked"
+   *
+   * `stacked` — the kicker on its own line, a hairline rule running to the edge beside it. The literal
+   * CD1 reading, and the right one wherever the group is a block of rows.
+   *
+   * `inline` — the rule becomes this section's own top edge and the kicker LEADS the group's first (and
+   * usually only) control line. Same two marks, ~17px per group cheaper; for a dense chrome rail where
+   * the group is one wrapping line of controls and a stacked kicker would spend a chip row on saying so
+   * (the characters pane's View/Filters rail, program #102 variant B). Ignored without `kicker`.
+   */
+  kickerLayout?: "stacked" | "inline";
   /** Render a hairline under the heading (UIP-404 settings panes). @defaultValue false */
   divider?: boolean;
   /** Short explainer surfaced as an info-icon hover tooltip beside the heading (the Field `hint` idiom,
@@ -36,8 +48,18 @@ export interface SectionProps extends ComponentProps<"section"> {
  *
  * Usage: `<Section heading="Sampling">…fields…</Section>` · `<Section heading="Effects" divider>…`.
  */
-export function Section({ className, heading, kicker, divider = false, hint, level = 3, children, ...props }: SectionProps): ReactElement {
-  const slots = sectionVariants({ divider });
+export function Section({
+  className,
+  heading,
+  kicker,
+  kickerLayout = "stacked",
+  divider = false,
+  hint,
+  level = 3,
+  children,
+  ...props
+}: SectionProps): ReactElement {
+  const slots = sectionVariants({ divider, kickerLayout });
   const hasHint = hint !== undefined && hint !== null;
   // h3, not h2: a Section is always a SUB-heading of its hosting surface (a dialog's Title and a drawer's
   // Title render h2), so h2 here flattened e.g. the settings modal's whole hierarchy to one level. The
@@ -53,7 +75,10 @@ export function Section({ className, heading, kicker, divider = false, hint, lev
         <Heading level={level} voice="kicker">
           {kicker}
         </Heading>
-        <Separator className="flex-1" />
+        {/* The INLINE spelling draws no rule element: its hairline is the section's own `border-top`, so a
+            Separator here would be the same mark twice — and a `flex-1` one would eat the control line the
+            kicker is supposed to be leading. */}
+        {kickerLayout === "stacked" ? <Separator className="flex-1" /> : null}
       </div>
     );
   } else if (heading !== undefined) {

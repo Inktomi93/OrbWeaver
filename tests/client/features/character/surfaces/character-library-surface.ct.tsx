@@ -271,7 +271,12 @@ test("a tag chip cycles include → exclude → off, and exclusion hides the row
 // RENDERED, at the docked LIST width: the three chip states must be distinguishable WITHOUT colour (an
 // excluded chip carries a strike, an included one does not), and a chip is a real tap target at the
 // narrowest real host, not a text sliver. Computed style + box, never the class string.
-const CHIP_TAP_FLOOR_PX = 32;
+//
+// THE FLOOR IS THE TOKEN, NOT A LITERAL (retuned 2026-08-17 with program #102 variant B). It read `>= 32`,
+// which was the `sm` CONTROL step the chips used to borrow; they ride `--spacing-touch-target` now — the
+// pointer-CONDITIONAL tap token, 28px under a mouse and 44px under a finger — so a hardcoded 32 would be
+// asserting one pointer class's number against a box that is defined to change with the pointer. Resolving
+// the var from the same document is the stronger assertion AND the honest one.
 
 test("the excluded chip is distinguishable without colour, and every chip clears the tap floor", async ({ mount, page }) => {
   await routeThree(page);
@@ -279,18 +284,19 @@ test("the excluded chip is distinguishable without colour, and every chip clears
 
   const off = component.getByRole("button", { name: "Filter by rpg: off" });
   await expect(off).toBeVisible();
-  expect((await off.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(CHIP_TAP_FLOOR_PX);
+  const floor = await resolvedPx(component, "--spacing-touch-target");
+  expect((await off.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(floor);
   await expect(off).toHaveCSS("text-decoration-line", "none");
 
   await off.click();
   const included = component.getByRole("button", { name: "Filter by rpg: included" });
   await expect(included).toHaveCSS("text-decoration-line", "none");
-  expect((await included.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(CHIP_TAP_FLOOR_PX);
+  expect((await included.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(floor);
 
   await included.click();
   const excluded = component.getByRole("button", { name: "Filter by rpg: excluded" });
   await expect(excluded).toHaveCSS("text-decoration-line", "line-through");
-  expect((await excluded.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(CHIP_TAP_FLOOR_PX);
+  expect((await excluded.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(floor);
 });
 
 test("§4.6 bulk mode reveals row checkboxes + the selection bar", async ({ mount, page }) => {
@@ -852,4 +858,154 @@ test("the list band prints the server census, not the loaded row count", async (
   await expect(component.getByTestId("list-band")).toContainText(String(LIBRARY_CENSUS));
   // The pane's own live region stays the FILTER's answer — three rows loaded, three matched.
   await expect(component.getByRole("status")).toHaveText("3 characters");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE FACET RAIL — the owner-picked variant B of program #102's density propagation wave
+// (reports/design/characters-mockups/RATIONALE.md §5). The measured defect it answers: TWELVE controls in
+// FOUR semantic classes (view command · scope filter · tag filter · disclosure) rendered with ONE
+// pixel-identical treatment — `13px/500 · transparent · border 0 · radius 6px · 32px` for every one of
+// them — so the only thing separating a command that re-modes the pane from a word out of the tag
+// dictionary was the word itself. Two named groups, three registers, and a chip whose pill is actually
+// drawn.
+//
+// EVERY ASSERTION HERE IS RENDERED (`done ≠ rendered`): an authored-class assertion stays green through
+// exactly the regression these exist to catch — the live chips already sat at a ratified radius and
+// nobody could tell, because at rest they were transparent with a ZERO-width border.
+
+/** The docked LIST pane's real width (`--dimension-panel` resolves to 307px at a 1280 viewport). */
+const RAIL_PANE_PX = 307;
+/** The two groups the rail names — the accessibility tree already knew this grouping; the pixels did not. */
+const RAIL_GROUPS = ["View", "Filters"] as const;
+/** One tag chip of the 12-tag rail, addressed by its name PREFIX (its state word changes as it cycles). */
+const RAIL_CHIP = /^Filter by bulk-00:/u;
+
+/** One element's whole register, as the browser resolved it. */
+function registerOf(target: Locator): Promise<{ weight: number; size: number; color: string; border: number; radius: number }> {
+  return target.evaluate((el: Element) => {
+    const style = getComputedStyle(el);
+    return {
+      weight: Number.parseFloat(style.fontWeight),
+      size: Number.parseFloat(style.fontSize),
+      color: style.color,
+      border: Number.parseFloat(style.borderTopWidth),
+      radius: Number.parseFloat(style.borderTopLeftRadius),
+    };
+  });
+}
+
+/** A spacing token, resolved from the SAME document the assertion runs against — never a hardcoded px
+ *  (`--spacing-touch-target` is pointer-conditional by construction, so a literal would pin one pointer). */
+function resolvedPx(component: Locator, token: string): Promise<number> {
+  return component.evaluate((el: Element, name: string) => {
+    const probe = el.ownerDocument.createElement("div");
+    probe.style.height = `var(${name})`;
+    el.ownerDocument.body.append(probe);
+    const value = Number.parseFloat(getComputedStyle(probe).height);
+    probe.remove();
+    return value;
+  }, token);
+}
+
+test("the filter rail NAMES its two groups, each under its own hairline (CD1 — a grouping is not a box)", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Starla")).toBeVisible();
+
+  await Promise.all(
+    RAIL_GROUPS.map(async (name) => {
+      const group = component.getByRole("group", { name });
+      await expect(group).toBeVisible();
+      // The name is a REAL heading in the kicker voice (the document outline survives the density pass) …
+      await expect(group.getByRole("heading", { name })).toHaveAttribute("data-voice", "kicker");
+      // … and the rule that completes CD1 is the group's OWN top edge. That is the whole reason B is
+      // height-neutral where A costs +22px: the hairline is a border, not a line of its own, and the
+      // kicker LEADS the control line instead of standing on one.
+      const border = await group.evaluate((el: Element) => Number.parseFloat(getComputedStyle(el).borderTopWidth));
+      expect(border).toBeGreaterThan(0);
+    }),
+  );
+});
+
+test("the rail renders THREE distinct registers — a command, a filter chip and a disclosure", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const commandLocator = component.getByRole("button", { name: "Group by tag" });
+  const chipLocator = component.getByRole("button", { name: RAIL_CHIP });
+  const disclosureLocator = component.getByRole("button", { name: "+4 more" });
+  const [command, chip, disclosure] = await Promise.all([registerOf(commandLocator), registerOf(chipLocator), registerOf(disclosureLocator)]);
+  const [commandBox, chipBox, disclosureBox] = await Promise.all([commandLocator.boundingBox(), chipLocator.boundingBox(), disclosureLocator.boundingBox()]);
+
+  // COMMAND vs FILTER: a control that REDRAWS the pane reads in the foreground ink and wears the operate
+  // radius with no edge; a filter chip recedes to muted and wears a DRAWN pill. Three axes apart, where
+  // before they were pixel-identical and separated only by their words.
+  expect(command.color).not.toBe(chip.color);
+  expect(command.border).toBe(0);
+  expect(chip.border).toBeGreaterThan(0);
+  expect(chip.radius).toBeGreaterThan(command.radius);
+  // DISCLOSURE: `+N more` is not a filter at all and stops dressing as one. It recedes with the vocabulary
+  // (muted, never the command's ink) but wears no edge and no chip box — the two things that say "filter".
+  expect(disclosure.border).toBe(0);
+  expect(disclosure.radius).toBeLessThan(chip.radius);
+  expect(disclosure.color).toBe(chip.color);
+  expect(disclosure.color).not.toBe(command.color);
+  // …and it stays a real tap target while wearing no box: same rail cell height as the chips, which is
+  // the ONE thing the "no box at all" reading must not cost (`no-floorless-control-in-wrap`).
+  expect(disclosureBox?.height ?? 0).toBe(chipBox?.height ?? 0);
+  expect(chipBox?.height ?? 0).toBeLessThan(commandBox?.height ?? 0);
+});
+
+test("a filter chip DRAWS its pill at rest, at the pointer's own touch floor", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const chip = component.getByRole("button", { name: RAIL_CHIP });
+  const register = await registerOf(chip);
+  const box = await chip.boundingBox();
+  const height = box?.height ?? 0;
+
+  // A radius differentiates nothing unless something paints it: the resting hairline is what makes the
+  // ratified pill step (§2.1 "chips, badges, avatars, pills") visible at all.
+  expect(register.border).toBeGreaterThan(0);
+  expect(register.radius).toBeGreaterThanOrEqual(height / 2);
+  // The box IS the tap floor — `--spacing-touch-target`, which is 28px under a mouse and 44px under a
+  // finger by construction, not by a media query. That is where the rail's 22px come back from.
+  expect(height).toBe(await resolvedPx(component, "--spacing-touch-target"));
+});
+
+test("the chip rail runs at the tight 32px pitch the grouping is paid for out of", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  // Two chips on consecutive wrapped lines: the pitch is the chip box + the atom gap, and nothing else.
+  const tops = await component
+    .locator("[data-tag-filter-state]")
+    .evaluateAll((els: Element[]) => [...new Set(els.map((el) => Math.round(el.getBoundingClientRect().top)))].sort((a, b) => a - b));
+  expect(tops.length).toBeGreaterThan(1);
+  const [chipBox, atomGap] = await Promise.all([resolvedPx(component, "--spacing-touch-target"), resolvedPx(component, "--spacing-tight")]);
+  expect((tops[1] ?? 0) - (tops[0] ?? 0)).toBe(chipBox + atomGap);
+});
+
+/** The chrome the pane spends above its first character row, at the docked width with the 8-visible-chip
+ *  rail wrapped over four lines. MEASURED in this story (2026-08-17): **260.25px unnamed, 262.25px named**
+ *  — the two groups cost +2px, because the chip rail gave back 6px of pitch per line and the two hairlines
+ *  spent it. The mockup predicted +3 and the live pane 309 → 312.
+ *
+ *  The fence is what keeps "naming the groups is FREE" a standing property instead of a sentence in a
+ *  rationale: the STACKED spelling of the same two kickers (variant A) lands ~22px above this line, and so
+ *  does anyone who gives a rail register a control-height box again. */
+const RAIL_CHROME_CEILING_PX = 264;
+
+test("naming the groups stays HEIGHT-NEUTRAL — the chrome above the first row holds its budget", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const list = component.getByRole("list", { name: "Character library" });
+  const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
+  expect((listBox?.y ?? 0) - (paneBox?.y ?? 0)).toBeLessThanOrEqual(RAIL_CHROME_CEILING_PX);
 });

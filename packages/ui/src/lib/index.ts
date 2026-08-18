@@ -8,7 +8,7 @@ export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap.ts";
 // `cn` + `tv` are ONE module because they must share ONE tailwind-merge config — see class-merge.ts
 // for the import-order race that shape kills.
 export { cn, tv } from "./class-merge.ts";
-export { CONTROL_SIZE } from "./control-size.ts";
+export { CHIP_BOX, CONTROL_SIZE } from "./control-size.ts";
 export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state.ts";
 export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control.ts";
 export {

@@ -1,4 +1,4 @@
-import { ACCENT_HOVER, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
+import { ACCENT_HOVER, CHIP_BOX, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
 
 // Sizes ride the control-height tokens (CONTROL_SIZE, shared with Toggle) so the ≥44px touch floor
 // holds by construction; button adds `icon`, `media`, `wrap`, `inline` and the four-step `glyph-*` ramp on
@@ -38,6 +38,17 @@ export const buttonVariants = tv({
       secondary: `border border-border bg-transparent text-foreground ${ACCENT_HOVER} active:bg-accent/80`,
       ghost: `text-muted-foreground ${ACCENT_HOVER} active:bg-accent/80`,
       destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
+      // THE RESTING HAIRLINE (added 2026-08-17, program #102 variant B) — `ghost`'s ink with `secondary`'s
+      // edge, which is the one combination the intent axis could not spell and the one a FILTER CHIP needs.
+      //
+      // Why it is not either neighbour: `secondary` is a real secondary ACTION, so it paints `foreground`
+      // ink and reads as a button you press — wrong for twenty-eight words out of a tag dictionary that
+      // must recede. `ghost` recedes correctly and draws NO edge at all, and an edge is exactly what was
+      // missing: the characters pane's chips already sat at a ratified radius and nobody could tell,
+      // because at rest they were transparent with a ZERO-width border (measured 2026-08-17,
+      // reports/design/characters-mockups/RATIONALE.md §1). A radius differentiates nothing unless
+      // something paints it, so the shape axis only starts working once the pill is drawn.
+      outline: `border border-border bg-transparent text-muted-foreground ${ACCENT_HOVER} active:bg-accent/80`,
     },
     size: {
       ...CONTROL_SIZE,
@@ -105,6 +116,10 @@ export const buttonVariants = tv({
       "glyph-sm": glyphBox("size-glyph-sm"),
       "glyph-md": glyphBox("size-glyph-md"),
       "glyph-lg": glyphBox("size-glyph-lg"),
+      // THE WRAPPING-RAIL CELL — one home with Toggle's identical arm (`CHIP_BOX`, lib/control-size.ts),
+      // because a scope toggle and a tag button sit in the SAME rail and two boxes there is the defect,
+      // not the feature. Pair it with `shape="pill"` + `intent="outline"`.
+      chip: CHIP_BOX,
     },
     // THE RADIUS AXIS (added 2026-08-16, program #102). It used to live in `base` as a bare
     // `rounded-control`, which made a pill button UNSPELLABLE from a call site: `rounded-control` is a
@@ -120,6 +135,31 @@ export const buttonVariants = tv({
        *  is one of many small things to skim" rather than "this is a control to operate". */
       pill: "rounded-full",
     },
+    // THE SELECTION STATE LAYER (added 2026-08-17, program #102 variant B). Toggle already owns this
+    // reading on `data-pressed` — but a TRI-STATE filter (off → include → exclude → off) cannot be a
+    // Toggle: `aria-pressed` has two values and a third state announced through it would be a lie. So the
+    // one control class that needs the reading most had no route to it, and the two live sites spelled it
+    // as call-site classNames (`inset-ring-2 inset-ring-ring` / `… inset-ring-destructive line-through`) —
+    // a skin decided in a feature, which is how two rails drift.
+    //
+    // DECLARED AFTER `intent` ON PURPOSE (the Badge `tone` precedent): tv() emits variant classes in key
+    // order, so these must come last for tailwind-merge to resolve `bg-*`/`border-*`/`text-*` in the
+    // state's favour over the resting intent's.
+    //
+    // The fill is `accent` + a 2px `inset-ring-*` — byte-identical to Toggle's `data-pressed` skin, which
+    // is what makes a selected scope toggle and a selected tag chip in the same rail ONE reading. The
+    // ring layer is `--tw-inset-ring-shadow`, distinct from FOCUS_RING's `--tw-ring-shadow`, so a focused
+    // selected chip still stacks its focus ring on top.
+    selection: {
+      /** Not selected — the resting `intent` skin stands alone. */
+      none: "",
+      /** IN the set. */
+      on: "border-transparent bg-accent text-accent-foreground inset-ring-2 inset-ring-ring",
+      /** SUBTRACTED from the set — the exclusion arm of a tri-state facet. It carries BOTH a hue and a
+       *  strike because the state must never rest on colour alone (a red ring and an ember ring are one
+       *  ring to a red-blind reader); the strike says "not this one" on its own. */
+      negated: "border-transparent bg-accent text-accent-foreground inset-ring-2 inset-ring-destructive line-through",
+    },
   },
-  defaultVariants: { intent: "primary", size: "md", shape: "control" },
+  defaultVariants: { intent: "primary", size: "md", shape: "control", selection: "none" },
 });
