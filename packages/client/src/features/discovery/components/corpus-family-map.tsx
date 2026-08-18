@@ -30,7 +30,6 @@
 // only the single-member plates operable would be a control that exists on some rows and not others. The
 // drill into a character lives where it always has: the gem tiles, the browse list, the dossier.
 
-import { blobUrl } from "@orb/contracts/assets";
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -41,6 +40,7 @@ import type { CSSProperties, ReactElement } from "react";
 import { useId } from "react";
 import type { Trpc } from "#data";
 import { revealContextPanel } from "#state";
+import { toFaceItems } from "../lib/corpus-faces.ts";
 
 type VisualFamily = inferOutput<Trpc["discovery"]["visualArchetypes"]>[number];
 
@@ -83,10 +83,7 @@ function FamilyPlate({ family }: { readonly family: VisualFamily }): ReactElemen
   // The strip is ART here: every seat's name is already in the plate's own text (as the title when the
   // family is unlabelled, as the gloss when it is not), and a named stack would announce each of them a
   // second time inside a plate that is three lines long. The hearth-hero ruling, same reasoning.
-  const faces = family.members.slice(0, FAMILY_FACE_SLOTS).map((member) => ({
-    name: member.name,
-    ...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) }),
-  }));
+  const faces = toFaceItems(family.members, FAMILY_FACE_SLOTS);
   return (
     // THE CALLER SUPPLIES THE FILL, by the `nested` arm's own contract ("drop the border entirely, step the
     // radius one below the host's, and let the FILL alone carry the distinction — the caller supplies it").
