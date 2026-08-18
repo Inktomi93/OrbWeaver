@@ -107,7 +107,10 @@ const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = 
  *  three-letter stubs is the icon-only defect (F6 #2) wearing text. Below the `xs` container step (20rem —
  *  the SAME `--container-*` scale the waystone's size mapping steps on, never a viewport query) a rail of
  *  more than four cells lays out as ROWS of three instead, which buys each caption ~85px and keeps every
- *  word whole. A short rail (the admin rail's 3-4 cells) never wraps: it already fits.
+ *  word whole. A short rail (the admin rail's 3-4 cells) never wraps — it takes the second row's cost for
+ *  one lonely cell — and instead SCROLLS, which is `RAIL_TRACK_CLASSES` below. (This note read "it already
+ *  fits" until 2026-08-18. It did not: at four cells the 272px floor gives 51px a cell against a 58px
+ *  "Members". The fold and the no-clip floor were one bundled declaration, and unbundling them is #208.)
  *
  *  The threshold is the `xs` step and not something tighter because the clipping starts THERE, not only at
  *  the floor: measured in CT at a 320px pane, "Inventory" wants 48px of caption inside a 36px cell.
@@ -119,7 +122,9 @@ const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = 
  *  tab-strip idiom and costs 50px instead of 105. Base UI's roving focus is unchanged, and the browser
  *  scrolls a focused cell into view, so the keyboard reaches every tab either way.
  *
- *  THE COARSE ROW'S TRACK SIZING IS `minmax(max-content, 1fr)` (side-eye 2026-08-07 §① P2). The first shape
+ *  THE ROW'S TRACK SIZING IS `minmax(max-content, 1fr)` — stated once here, applied to every rail at every
+ *  width by `RAIL_TRACK_CLASSES` below (it was the COARSE row's alone when this paragraph was written; #208
+ *  found the fine short-rail hole it left). The first shape
  *  of that fix put the coarse cells at their CONTENT width (`auto-cols-max`), and MEASURED at 430 coarse it
  *  produced Status 43 · Inventory 60 · Scene 41 · Quests 46 · Journal 47 · Map 34 — three of six under the
  *  44px touch floor — with the six cells ending at x=302 and 127px of DEAD RAIL after them: word for word
@@ -138,10 +143,30 @@ const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = 
  *  gets a thumb's width. The bracket is a track-sizing FUNCTION, not an off-token size (the
  *  `grid-cols-[repeat(auto-fit,minmax(…))]` precedent in `@orb/ui`'s layout variants); `auto-cols` carries no
  *  token scale to spell it with. The vertical budget is untouched — the rail is one 50px row either way. */
-// The literal lives at the shell/shared layer (`#components/pointer-variants.ts`, gate
+// The pointer-keyed literal lives at the shell/shared layer (`#components/pointer-variants.ts`, gate
 // `no-pointer-variants-in-features`); the measured rationale above is the rpg HUD's own and stays here.
 const RAIL_WRAP_CLASS = RPG_RAIL_WRAP;
 const RAIL_WRAP_MIN_CELLS = 5;
+
+/** THE READABLE-CAPTION FLOOR, ON EVERY RAIL (#208, 2026-08-18) — the track-sizing function, unconditional.
+ *
+ *  `minmax(max-content, 1fr)`: the `1fr` MAX keeps the cells equal columns filling the rail whenever there
+ *  is slack (the 2026-07-28 owner ruling against "bitsy buttons bunched left"); the `max-content` MIN
+ *  refuses to shrink a cell below its whole caption, so where the cells no longer fit the tracks OVERFLOW
+ *  and `overflow-x-auto` scrolls them. Degrade to a scroll, never into an ellipsis.
+ *
+ *  IT IS NOT GATED ON THE CELL COUNT, and that is the whole fix. `RAIL_WRAP_MIN_CELLS` gates the FOLD —
+ *  whether a long rail is worth a second 55px row — and until today it also gated this, on the premise
+ *  (stated in the wrap note above) that "a short rail (the admin rail's 3-4 cells) never wraps: it already
+ *  fits". The Members tab falsified that premise the day it landed: MEASURED at the panel's 272px floor the
+ *  chat rail's four `auto-cols-fr` cells are 51px each against a 58px "Members" and a 54px "This chat", and
+ *  both clipped (the 2026-08-18 red at rpg-context-section.ct.tsx's wrapped-floor caption test, bisected to
+ *  the Members merge). A count was standing in for "does the word fit", and CSS can answer that question
+ *  exactly. The FOLD stays count-gated because it answers a different one: a 4-cell rail folding to 3+1
+ *  spends a whole extra row on one lonely cell and doubles the chrome in the pane where the budget is
+ *  tightest, while a 6-cell rail scrolling 150px hides half itself — so the short rail scrolls and the long
+ *  rail folds, and neither ever clips a word. */
+const RAIL_TRACK_CLASSES = "auto-cols-[minmax(max-content,1fr)] overflow-x-auto";
 
 /** THE RAIL BLOCK'S OWN LEAD — the separation it buys ABOVE its kicker (#102 variant A's measured anatomy).
  *  Only the GAME rail needs it: it follows the band, whose satellite row ends `spacing-row` (8px) above,
@@ -236,7 +261,7 @@ export function RpgHudRail({
           // ARIA-model block above `cellDomId` for why this rail overrides the primitive's seal default.
           activateOnFocus={false}
           aria-label={ariaLabel}
-          className={`grid min-w-0 w-full auto-cols-fr grid-flow-col gap-field ${tabs.length >= RAIL_WRAP_MIN_CELLS ? RAIL_WRAP_CLASS : ""} border-y-0 ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
+          className={`grid min-w-0 w-full ${RAIL_TRACK_CLASSES} grid-flow-col gap-field ${tabs.length >= RAIL_WRAP_MIN_CELLS ? RAIL_WRAP_CLASS : ""} border-y-0 ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
         >
           {tabs.map((tab) => (
             <RpgHudCell key={tab.id} tab={tab} isActive={tab.id === activeTab} edge={edge} ownership={ownership} />

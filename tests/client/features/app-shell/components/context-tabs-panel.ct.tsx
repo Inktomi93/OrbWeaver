@@ -2,17 +2,19 @@
 // strip labelled "Detail", always: the two-strip bracket branch is deleted, and rail membership (`strip`) is
 // a claimant's vocabulary this renderer ignores.
 //
-// CT: the container-responsive CONTEXT tab strip (context-tabs-panel.tsx, Context-Panel-Program CP-1 ·
-// UI-Arch §4.3 rule-4 · §4b axis-1 @container). The strip compresses word labels → icon+tooltip when its
-// @container can't fit every current tab's words, and restores words when it can. The shell.css
-// `.ctx-tab-strip` @container rules are loaded into the CT bundle (playwright/index.css + the story module
-// imports shell.css), so the collapse resolves against the story's FIXED container width — narrow ⇒
-// icon-mode, wide ⇒ label-mode. Both forms are proven, and the accessible NAME (aria-label) survives in
-// BOTH (icon-only-without-a-name is banned — Jordan/§9). The live-browser geometry receipt (no-clip at the
-// real 291px default tablist with 5 tabs, 127px headroom) is in the executor's snap --eval report; this CT
-// pins the React contract + the CSS collapse behavior.
+// CT: the CONTEXT tab strip (context-tabs-panel.tsx). ICON + LABEL ON EVERY TAB, AT EVERY WIDTH AND EVERY
+// POINTER (owner ruling 2026-08-18, #208) — which SUPERSEDES the container-responsive icon-mode this file
+// pinned until today (labels hidden by default on any tab with an icon; a per-count `@container` threshold
+// restored them). That mode never fired in the product: the panel clamps to 26rem and the 4-tab threshold
+// was 28rem, so the shell's only fine-pointer form was nameless glyphs, while the SAME resolved chat tabs
+// rendered glyph+caption under the rpg HUD's claim. The tests below are the inverse of the four they
+// replace, and the strip's degradation is now a SCROLL (`minmax(max-content, 1fr)` tracks + overflow-x-auto),
+// never a clipped word — so the no-clip assertions moved from the STRIP's scroll bounds to each CAPTION's.
+// The shell.css rules are loaded into the CT bundle (playwright/index.css + the story module imports
+// shell.css), so the cell form resolves against the story's FIXED container width exactly as in the shell.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { ContextDefaultTabStory, ContextTabStatesStory, ContextTabStripStory } from "../_ct-stories.tsx";
 
 const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
@@ -21,55 +23,109 @@ const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
  *  floor is 44). Same constant the touch-target-floor suite asserts against. */
 const COARSE_TOUCH_FLOOR_PX = 44;
 
-test("narrow container: icon-mode — labels visually collapse, but every tab keeps its accessible name", async ({ mount }) => {
-  // 291px = the real default-width tablist. The 4-tab reveal threshold is 28rem (448px), so labels collapse.
+/** How many of the strip's captions are rendering an ELLIPSIS — the readable-caption floor (#102) stated as
+ *  a measurement rather than a mode. `+1` absorbs sub-pixel text metrics. */
+function clippedCaptions(component: Locator): Promise<number> {
+  return component.locator(".ctx-tab-label").evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+}
+
+test("the shell's own panel width: every tab shows its ICON and its WORD — no nameless glyphs", async ({ mount }) => {
+  // 291px = the real default-width tablist, the width at which the superseded design was PERMANENTLY
+  // icon-only (the 4-tab reveal threshold was 448px, and the panel clamps to 416px).
   const component = await mount(<ContextTabStripStory width={291} />);
 
-  // Every tab still resolves BY NAME (aria-label survives icon-mode — the tab is never nameless).
-  await Promise.all(TAB_NAMES.map((name) => expect(component.getByRole("tab", { name })).toBeVisible()));
-  // The visible WORD is collapsed: the label span is display:none in icon-mode.
-  const membersLabel = component.getByRole("tab", { name: "Members" }).locator(".ctx-tab-label");
-  await expect(membersLabel).toHaveCSS("display", "none");
-  // The icon carries the tab (an SVG is present inside the tab).
-  await expect(component.getByRole("tab", { name: "Members" }).locator("svg")).toBeVisible();
-  // No horizontal clip — icon-mode fits (scrollWidth ≤ clientWidth).
-  const clipped = await component.getByRole("tablist").evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-  expect(clipped).toBe(false);
+  await Promise.all(
+    TAB_NAMES.map(async (name) => {
+      const tab = component.getByRole("tab", { name });
+      await expect(tab).toBeVisible();
+      // The icon carries half the cell…
+      await expect(tab.locator("svg")).toBeVisible();
+      // …and the WORD is on screen, rendered (a display:none or a 0px box is the same missing word).
+      const label = tab.locator(".ctx-tab-label");
+      await expect(label).toHaveText(name);
+      await expect(label).not.toHaveCSS("display", "none");
+      await expect.poll(async () => ((await label.boundingBox())?.width ?? 0) > 0).toBe(true);
+    }),
+  );
+  // And not one of them is an ellipsis: the tracks are `minmax(max-content, 1fr)`, so a cell cannot be
+  // squeezed below its own word.
+  expect(await clippedCaptions(component)).toBe(0);
 });
 
-test("wide container: label-mode — the word labels are shown", async ({ mount }) => {
-  // 600px comfortably clears the 4-tab 28rem (448px) reveal threshold, so words return.
+test("a wide host changes nothing but the slack — same icon+label cell, still no clip", async ({ mount }) => {
   const component = await mount(<ContextTabStripStory width={600} />);
 
   const membersLabel = component.getByRole("tab", { name: "Members" }).locator(".ctx-tab-label");
-  await expect(membersLabel).not.toHaveCSS("display", "none");
   await expect(membersLabel).toHaveText("Members");
-  const clipped = await component.getByRole("tablist").evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-  expect(clipped).toBe(false);
+  await expect(membersLabel).not.toHaveCSS("display", "none");
+  expect(await clippedCaptions(component)).toBe(0);
+  // With slack the `1fr` MAX still fills the strip as equal cells (the 2026-07-28 bracket ruling): the
+  // strip has no horizontal overflow to scroll.
+  const overflow = await component.getByRole("tablist").evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+  expect(overflow).toBe(false);
 });
 
-test("5 tabs at the default width (the Trackers ceiling): icon-mode, no clip", async ({ mount }) => {
+test("5 tabs at the default width (the Trackers ceiling): every word survives — the strip SCROLLS, it does not clip", async ({ mount }) => {
   const component = await mount(<ContextTabStripStory width={291} showTrackers={true} />);
 
-  // All 5 resolve by name…
-  await Promise.all([...TAB_NAMES, "Trackers"].map((name) => expect(component.getByRole("tab", { name })).toBeVisible()));
-  // …in icon-mode (5-tab reveal threshold is 35rem = 560px, unmet at 291px)…
-  await expect(component.getByRole("tab", { name: "Trackers" }).locator(".ctx-tab-label")).toHaveCSS("display", "none");
-  // …and the 5-icon strip does not clip (the structural headroom the word-label strip never had).
-  const clipped = await component.getByRole("tablist").evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-  expect(clipped).toBe(false);
+  // All 5 resolve by name and print their word…
+  await Promise.all(
+    [...TAB_NAMES, "Trackers"].map(async (name) => {
+      await expect(component.getByRole("tab", { name })).toBeVisible();
+      await expect(component.getByRole("tab", { name }).locator(".ctx-tab-label")).toHaveText(name);
+    }),
+  );
+  // …and the degradation, where five words no longer share 291px, is the strip's own scroll — never an
+  // ellipsis. This is the ONE assertion that separates the fix from the defect it replaces.
+  expect(await clippedCaptions(component)).toBe(0);
 });
 
-test("an icon-LESS tab keeps its word label unconditionally (never compressed to a nameless glyph)", async ({ mount }) => {
-  // Narrow container ⇒ the icon tabs collapse, but the icon-less contributor tab has nothing to compress TO,
-  // so its word stays (data-has-icon absent ⇒ shell.css never hides its label).
+test("an icon-LESS tab sits in the same strip as icon tabs and both keep their word", async ({ mount }) => {
+  // The mixing the owner ruled against is icon-only BESIDE icon+label. An icon-less contributor tab is
+  // label-only by construction (it has no glyph to print), and it must read as the same cell.
   const component = await mount(<ContextTabStripStory width={291} withIconless={true} />);
 
   const iconlessLabel = component.getByRole("tab", { name: "Iconless" }).locator(".ctx-tab-label");
-  await expect(iconlessLabel).not.toHaveCSS("display", "none");
   await expect(iconlessLabel).toHaveText("Iconless");
-  // Meanwhile an icon tab in the SAME strip is collapsed — the two coexist correctly.
-  await expect(component.getByRole("tab", { name: "Members" }).locator(".ctx-tab-label")).toHaveCSS("display", "none");
+  await expect(iconlessLabel).not.toHaveCSS("display", "none");
+  const membersLabel = component.getByRole("tab", { name: "Members" }).locator(".ctx-tab-label");
+  await expect(membersLabel).toHaveText("Members");
+  await expect(membersLabel).not.toHaveCSS("display", "none");
+  expect(await clippedCaptions(component)).toBe(0);
+});
+
+test("#208: the strip is a REAL tablist — role, selected state and panel wiring, not an orange fill", async ({ mount }) => {
+  // The ruled a11y bar for the context tabs, pinned on the renderer that serves every non-game chat and all
+  // six generic sections. (The rpg-CLAIMED pane deliberately announces two named TOOLBARS instead — #112,
+  // measured: two rails share ONE selection, and a tablist whose selected tab lives in the other rail
+  // announces a chooser with nothing chosen. That ruling is stated in rpg-hud-rail.tsx and is NOT reversed.)
+  const component = await mount(<ContextTabStripStory width={291} />);
+
+  // The announced tree, stated whole — this is the receipt the ruling is about, and an inline snapshot is
+  // the only assertion that catches a role or a NAME quietly changing shape.
+  await expect(component.getByRole("tablist")).toMatchAriaSnapshot(`
+    - tablist "Detail":
+      - tab "Members" [selected]
+      - tab "Settings"
+      - tab "Preview"
+      - tab "Injections"
+  `);
+  await expect(component.getByRole("tablist")).toHaveAttribute("aria-label", "Detail");
+  await expect(component.getByRole("tab")).toHaveCount(TAB_NAMES.length);
+  await expect(component.getByRole("tab", { selected: true })).toHaveCount(1);
+  const members = component.getByRole("tab", { name: "Members" });
+  await expect(members).toHaveAttribute("aria-selected", "true");
+  // The selected tab NAMES its panel, and the panel is a real tabpanel (not a bare div).
+  const controls = await members.getAttribute("aria-controls");
+  expect(controls).not.toBeNull();
+  await expect(component.getByRole("tabpanel")).toHaveAttribute("id", controls ?? "");
+
+  // Roving tabindex + arrow keys: the strip is ONE tab stop, and an arrow moves the selection within it.
+  await members.focus();
+  await expect(component.getByRole("tab", { name: "Settings" })).toHaveAttribute("tabindex", "-1");
+  await members.press("ArrowRight");
+  await expect(component.getByRole("tab", { name: "Settings" })).toHaveAttribute("aria-selected", "true");
+  await expect(members).toHaveAttribute("aria-selected", "false");
 });
 
 // ── ONE strip, always (HUD-1 §5.1 — the bracket branch is deleted) ───────────────────────────────────
@@ -159,16 +215,13 @@ test("badge: a boolean dot + a count, never on the active tab", async ({ mount }
   await expect(component.getByRole("tab", { name: "Scene" }).locator("span.rounded-full")).toHaveCount(0);
 });
 
-// ── COARSE POINTER: the name must be ON SCREEN, because a touch device cannot hover a `title` ────────
-// UI-Architecture §4.3 rule 4 ("appears on hover AND :focus-within, ALWAYS-VISIBLE at `pointer: coarse`")
-// + §4b axis 3. Icon-mode's contract is "the icon carries the tab, tooltip/title + aria-label carry the
-// name" — and at `pointer: coarse` that leaves the name in a native `title` ALONE (Base UI also suppresses
-// tooltips on touch by design), which is a hover affordance the device cannot produce. The container
-// thresholds above can never rescue it either: the CONTEXT panel clamps to 26rem while the 5-tab reveal
-// threshold is 35rem, so a phone reaches icon-mode and STAYS there, nameless. shell.css answers at the
-// shell/token layer in the app's own coarse-tab form — icon over label, exactly as the rail becomes the
-// mobile bottom tab bar. `hasTouch: true` is the proven pointer emulation (tests/ui/touch-target-floor
-// .suite.ct.tsx R6: `page.emulateMedia` exposes no `pointer` feature and cannot drive this).
+// ── COARSE POINTER: the same cell, plus the touch floor ──────────────────────────────────────────────
+// The coarse arm used to be the ONLY place the word was on screen (a touch device cannot hover the `title`
+// that icon-mode left the name in — UI-Architecture §4.3 rule 4 + §4b axis 3). #208 made that arm the only
+// arm, so what is left to prove HERE is what is genuinely pointer-specific: the two-line cell still clears
+// the D62 P1 ≥44px floor once `--spacing-control-md` steps up to 48px. `hasTouch: true` is the proven
+// pointer emulation (tests/ui/touch-target-floor.suite.ct.tsx R6: `page.emulateMedia` exposes no `pointer`
+// feature and cannot drive this).
 test.describe("coarse pointer (touch)", () => {
   test.use({ hasTouch: true });
 
@@ -179,7 +232,9 @@ test.describe("coarse pointer (touch)", () => {
   });
 
   test("at the shell's own panel width every tab shows its WORD — a title-only name is unreachable by touch", async ({ mount }) => {
-    // 291px = the real default tablist width, where a FINE pointer is icon-mode (proven above).
+    // 291px = the real default tablist width. Same expectation as the fine-pointer test above, kept as its
+    // own statement because the floor it protects (a name a touch user can actually perceive) is the one
+    // this arm exists for.
     const component = await mount(<ContextTabStripStory width={291} showTrackers={true} />);
 
     await Promise.all(
@@ -195,15 +250,13 @@ test.describe("coarse pointer (touch)", () => {
   test("the two-line cell still clears the ≥44px touch floor and the strip does not clip", async ({ mount }) => {
     const component = await mount(<ContextTabStripStory width={291} showTrackers={true} />);
 
-    // Revealing the label grows the cell to two lines, so its block size is a FLOOR now rather than a
+    // The label rides UNDER the icon, so the cell is two lines and its block size is a FLOOR rather than a
     // fixed height — it must never fall under the D62 P1 coarse floor.
     const boxes = await Promise.all([...TAB_NAMES, "Trackers"].map((name) => component.getByRole("tab", { name }).boundingBox()));
     for (const box of boxes) {
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(COARSE_TOUCH_FLOOR_PX);
     }
-    // Five word labels fit in 291px because each rides UNDER its icon (the rail's mobile-bar form), not
-    // beside it — the arrangement is what buys the width; `overflow-x-auto` is only the safety net.
-    const clipped = await component.getByRole("tablist").evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-    expect(clipped).toBe(false);
+    // …and no word is an ellipsis at the touch width either (the strip scrolls instead).
+    expect(await clippedCaptions(component)).toBe(0);
   });
 });

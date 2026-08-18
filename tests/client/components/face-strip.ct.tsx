@@ -127,17 +127,21 @@ test("#153 UNCAPTIONED (the favorites-strip posture) is untouched: no name in th
 
 // side-eye P2b: a bare row of portraits reads as decoration. The kicker is the mock's group label — the
 // only VISIBLE thing telling a cold user the strip is a control (the aria-label reaches SR users only).
-test("a kicker prints a micro-caps group label above the faces (and is omitted by default)", async ({ mount }) => {
+// #208: the kicker is a BOOLEAN — it prints the strip's own `label`, so the word on screen and the
+// announced name are one string and cannot drift (they did: "Filter by character" vs "Recent characters").
+test("a kicker prints the strip's OWN name in micro-caps above the faces (and is omitted by default)", async ({ mount }) => {
   const bare = await mount(<FaceStrip caption={true} items={[AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
-  await expect(bare.getByText("Faces", { exact: true })).toHaveCount(0);
+  await expect(bare.getByText("Recent characters", { exact: true })).toHaveCount(0);
   await bare.unmount();
 
   const labelled = await mount(
-    <FaceStrip caption={true} items={[AZARAEL]} kicker="Faces" label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
+    <FaceStrip caption={true} items={[AZARAEL]} kicker={true} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
   );
-  const kicker = labelled.getByText("Faces", { exact: true });
+  const kicker = labelled.getByText("Recent characters", { exact: true });
   await expect(kicker).toBeVisible();
   await expect(kicker).toHaveCSS("text-transform", "uppercase");
+  // THE ONE NAME: what the eye reads is what AT is told, byte for byte.
+  await expect(labelled.getByRole("list")).toHaveAttribute("aria-label", "Recent characters");
   // It labels the faces — above them in the reading order, not beside a face.
   const order = await labelled.evaluate((root) => {
     const nodes = [...root.querySelectorAll("*")];
@@ -212,8 +216,10 @@ test("the face's hit box is the avatar token square — content-sized, not a col
 // a six-character library). With an `overflow` picker the strip fits its PANE instead — as many measured
 // faces as the width holds, everyone else behind one tile. These pin the rules that survive every width.
 
-const FACE_ROW = '[aria-label="Recent characters"]';
-const OVERFLOW_TILE = "Filter by another character";
+// The harness is the CHATS posture, so the strip's ONE name is its printed kicker (#208).
+const FACE_ROW = '[aria-label="Filter by character"]';
+// LABEL IN NAME (#208): the captioned tile prints "More", so its accessible name LEADS with that word.
+const OVERFLOW_TILE = "More — Filter by another character";
 /** Every pane width a real LIST panel resolves to (`--dimension-panel` clamps 272px…416px, less the
  *  panel body's 8px inline padding either side) plus the margins around it — the fold's rules are
  *  properties of the strip, not of one lucky fixture width. */
