@@ -1,8 +1,8 @@
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
-import { describe } from "vitest";
 import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
+import { describe } from "vitest";
 import {
   chunkBlockForEmbedWindow,
   DEFAULT_OUTPUT_RESERVE_TOKENS,

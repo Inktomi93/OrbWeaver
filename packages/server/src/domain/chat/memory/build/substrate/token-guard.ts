@@ -99,11 +99,7 @@ function splitOversizedLine(line: RenderedLine, budget: number): string[] {
  * Returns `null` when the block cannot be chunked at all — a non-positive budget, or more than
  * {@link MAX_SEGMENT_CHUNKS_PER_BLOCK} chunks (the pathological ceiling) — and the caller skips-and-RECORDS.
  */
-export function chunkBlockForEmbedWindow(
-  rows: readonly MsgRow[],
-  macroNames: RowMacroNameContext,
-  embedContextTokens: number,
-): SegmentChunk[] | null {
+export function chunkBlockForEmbedWindow(rows: readonly MsgRow[], macroNames: RowMacroNameContext, embedContextTokens: number): SegmentChunk[] | null {
   // The window is DISCOUNTED before the flat scaffold reserve (#187): the QuadChars estimate undercounts the
   // engine's real tokenizer proportionally (measured up to 1.4156× on this corpus), and 6 of the 30 largest
   // blocks cut to the undiscounted budget were refused 400 "at least 8193 input tokens". Chunking more finely

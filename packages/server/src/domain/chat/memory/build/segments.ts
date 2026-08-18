@@ -23,8 +23,8 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
-import type { StoreSegmentParams } from "../../contract/context.ts";
 import type { ChatContext } from "../../context.ts";
+import type { StoreSegmentParams } from "../../contract/context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes } from "../persistence/queries.ts";
 import type { MemoryConfig, MsgRow, SegmentPassCounts } from "../types.ts";
