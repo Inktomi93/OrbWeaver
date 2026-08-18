@@ -15,6 +15,20 @@ export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
   viewportClassName?: string;
   /** Class for the sized `Content` wrapper (where `children` live). */
   contentClassName?: string;
+  /**
+   * The child WRAPS instead of overflowing sideways — a `flex-wrap` rail, a prose column, anything whose
+   * width is the viewport's. @defaultValue false
+   *
+   * Why it needs a prop at all: Base UI puts `min-width: fit-content` as an INLINE style on `Content` so a
+   * horizontally overflowing child can measure past the viewport (its `min-w-max` class below is the same
+   * intent). For a wrapping child that is exactly wrong — a flex row inside a fit-content box lays out at
+   * MAX-content and therefore never wraps. Measured on the characters tag panel: 551 chips on one clipped
+   * line behind a horizontal scrollbar, with the vertical cap working perfectly above it.
+   * A className CANNOT express this. An inline style outranks any non-`!important` class, so the fix has to
+   * be an inline style of our own — which is a decision about the SEAL, not something a call site should be
+   * spelling with an `!important` escape hatch.
+   */
+  wrapContent?: boolean;
   /** Props forwarded to the scrolling Viewport, not the Root — where `onScroll`/`ref` belong for autoscroll tracking. */
   viewportProps?: ScrollAreaViewportProps;
 }
@@ -25,7 +39,7 @@ export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
  * cannot be mis-assembled. Set a bounded height/width on the root (`className`) to make it scroll.
  */
 export function ScrollArea(props: ScrollAreaProps): ReactElement {
-  const { className, viewportClassName, contentClassName, viewportProps, children, ...rest } = props;
+  const { className, viewportClassName, contentClassName, viewportProps, wrapContent = false, children, ...rest } = props;
   return (
     <BaseScrollArea.Root className={slots.root({ className })} data-slot="scroll-area-root" {...rest}>
       <BaseScrollArea.Viewport
@@ -35,7 +49,11 @@ export function ScrollArea(props: ScrollAreaProps): ReactElement {
         })}
         data-slot="scroll-area-viewport"
       >
-        <BaseScrollArea.Content className={slots.content({ className: contentClassName })} data-slot="scroll-area-content">
+        <BaseScrollArea.Content
+          className={slots.content({ className: cn(wrapContent ? "min-w-0" : undefined, contentClassName) })}
+          data-slot="scroll-area-content"
+          style={wrapContent ? { minWidth: 0 } : undefined}
+        >
           {children}
         </BaseScrollArea.Content>
       </BaseScrollArea.Viewport>

@@ -11,12 +11,14 @@ import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the character-list-view precedent).
+import type { LibraryChipTag } from "../../../../../packages/client/src/features/character/lib/character-library-lens.ts";
 import {
   effectiveTagFilter,
   knownTagIds,
   resultCountLabel,
   tagIdsInState,
   tagVocabulary,
+  vocabularyPanelTags,
 } from "../../../../../packages/client/src/features/character/lib/character-library-lens.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -110,4 +112,35 @@ test("tagVocabulary: an unused tag is dropped — UNLESS it is an active filter 
   const active = [{ id: castId<TagId>("tag_unused"), state: "include" as const }];
   // A filter narrowing the library to nothing is exactly the one whose chip the user needs most.
   expect(tagVocabulary(library, active).map((tag) => tag.name)).toEqual(["used", "unused"]);
+});
+
+// ── vocabularyPanelTags — the BOUNDED expansion's order + index (side-eye 2026-08-17 P1) ────────────
+// The disclosure used to render the whole vocabulary back into the wrapping rail (551 chips, a 5,957px
+// wall, the character list at zero height). It renders into a bounded scroller now — which re-opens the
+// hole the cap was minted against unless the ACTIVE chips lead, and is unusable at 551 entries without an
+// index. Both rules are pure, so they are pinned here rather than only through a mounted pane.
+
+const panelChip = (id: string, name: string): LibraryChipTag => ({ id: castId<TagId>(id), name });
+
+test("vocabularyPanelTags: ACTIVE entries lead, and the caller's most-used ranking survives underneath", () => {
+  const tags = [panelChip("tag_a", "alpha"), panelChip("tag_b", "beta"), panelChip("tag_c", "gamma")];
+  const active = [{ id: castId<TagId>("tag_c"), state: "exclude" as const }];
+  // `gamma` was ranked last and is now first — an active filter must be above the scroller's fold, and
+  // the other two keep the order they arrived in (the sort is stable).
+  expect(vocabularyPanelTags(tags, active, "").map((tag) => tag.name)).toEqual(["gamma", "alpha", "beta"]);
+});
+
+test("vocabularyPanelTags: the query is a case-insensitive, trimmed NAME substring", () => {
+  const tags = [panelChip("tag_a", "Adventure"), panelChip("tag_b", "Slice of life"), panelChip("tag_c", "advent calendar")];
+  expect(vocabularyPanelTags(tags, [], "  ADVENT ").map((tag) => tag.name)).toEqual(["Adventure", "advent calendar"]);
+  // A mid-word match counts: a 551-entry vocabulary is searched by fragment, not by prefix.
+  expect(vocabularyPanelTags(tags, [], "of li").map((tag) => tag.name)).toEqual(["Slice of life"]);
+  // The empty query is the WHOLE vocabulary, never an empty result.
+  expect(vocabularyPanelTags(tags, [], "").length).toBe(tags.length);
+});
+
+test("vocabularyPanelTags: filtering does not lose the active-first rule", () => {
+  const tags = [panelChip("tag_a", "adventure"), panelChip("tag_b", "advice")];
+  const active = [{ id: castId<TagId>("tag_b"), state: "include" as const }];
+  expect(vocabularyPanelTags(tags, active, "adv").map((tag) => tag.name)).toEqual(["advice", "adventure"]);
 });
