@@ -1,7 +1,8 @@
 // The "Sizing & motion" appearance SECTION (SET-SEAMS stage 1) — chatWidthPct / fontScale / density /
 // elevation / reducedMotion. A settings-SECTION CONTRIBUTION at the `appearance` anchor owned by
 // features/app-shell, the feature that READS all five (`surfaces/app-shell.tsx`: the shell scope tokens, the
-// `--width-shell-content` clamp, `data-elevation`, `data-reduced-motion`). §6's rule is reader-owns, and
+// `--width-shell-content` clamp, `data-elevation`, and `data-reduced-motion` via `useAppearanceRootEffects`
+// onto <html>). §6's rule is reader-owns, and
 // app-shell is already a definition owner (chrome + the You modal), so this is not a new privilege.
 //
 // S1 — PATCH MINIMALITY: `OWNS` is spelled once and drives the projection, the seeded defaults, the form

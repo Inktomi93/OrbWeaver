@@ -456,6 +456,66 @@ test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no res
   }
 });
 
+// ── #188 P2-12 — the landing janitor must not buy the chats list a second round-trip ────────────────
+// `chat.reapTemporaryChats` fires once per home mount (owner decision H5) and its `invalidates` used to be
+// unconditional, so EVERY landing paid a second full `chat.listChats` inside the boot window — measured on
+// the live stack: sweep at +0.26s after the first read burst, refetch at +0.38s, and `data-app-ready` held
+// open for both because the readiness signal waits on an idle query cache. The verb's own answer already
+// says whether anything moved: `{reaped: 0}` is zero rows deleted, therefore zero rows the list can be
+// showing. Both arms are pinned — a sweep that DID delete must still reconcile, or the fix would trade a
+// wasted read for a stale list.
+//
+// The sweep itself is now deferred to an idle frame, so both tests poll for it rather than assuming it has
+// already left with the mount commit.
+const REAP_SETTLED_ROOMS = [FIRST_BOOT_ROOMS[0] ?? makeChatSummary({ id: "chat_boot_0" })];
+/** How long the negative arm watches for the read that must never come. */
+const SECOND_READ_WATCH_MS = 1500;
+
+test("#188 a sweep that DID reap reconciles the chats list (the arm the fix must not break)", async ({ mount, page }) => {
+  const recorder = await stubDatabank(page, {
+    "chat.listChats": chatListResponder(REAP_SETTLED_ROOMS),
+    "chat.reapTemporaryChats": { reaped: 3 },
+    "character.list": characterListResponder(FIRST_BOOT_FACES),
+    "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_reap_hit" },
+  });
+
+  const home = await mount(<HomeShippedFirstBootStory />);
+  await expect(home.getByText("Start a temp chat")).toBeVisible();
+  await expect.poll(() => recorder.count("chat.reapTemporaryChats"), { intervals: [20, 50, 100, 250] }).toBe(1);
+  // Rows died, so the list the user is looking at is stale — it is re-read.
+  await expect.poll(() => recorder.count("chat.listChats"), { intervals: [20, 50, 100, 250] }).toBe(2);
+});
+
+test("#188 a sweep that reaped NOTHING costs the landing no second chats read", async ({ mount, page }) => {
+  const recorder = await stubDatabank(page, {
+    "chat.listChats": chatListResponder(REAP_SETTLED_ROOMS),
+    "chat.reapTemporaryChats": { reaped: 0 },
+    "character.list": characterListResponder(FIRST_BOOT_FACES),
+    "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_reap_miss" },
+  });
+
+  const home = await mount(<HomeShippedFirstBootStory />);
+  // The temp-chat tile is the sweep's own call site, so its button on screen is the barrier that the
+  // janitor has a host at all; the quick-picks list settles the rest of the landing.
+  await expect(home.getByText("Start a temp chat")).toBeVisible();
+  await expect(home.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect.poll(() => recorder.count("chat.reapTemporaryChats"), { intervals: [20, 50, 100, 250] }).toBe(1);
+
+  // A refetch that never happens paints nothing, so there is no settled state to barrier on — it is
+  // OBSERVED instead. This poll is deliberately inverted: it asks for the second read and is expected to
+  // exhaust its window without ever seeing one. (`expect.poll(...).toBe(1)` would match on its first
+  // sample, before the old code's invalidation had even been raised, and prove nothing.) The positive arm
+  // above calibrates the window: there the refetch is recorded within one response turnaround.
+  const sawSecondRead = await expect
+    .poll(() => recorder.count("chat.listChats"), { intervals: [50, 100, 200, 400], timeout: SECOND_READ_WATCH_MS })
+    .toBe(2)
+    .then(
+      () => true,
+      () => false,
+    );
+  expect(sawSecondRead, "the sweep deleted nothing, so the chats list must not be re-read").toBe(false);
+});
+
 test("a duplicate tile id THROWS at door construction — the seam never silently shadows a tile", () => {
   const dup: HomeTileContribution = { id: "same", title: "T", icon: Clock, body: () => null };
   expect(() => createContributorRegistry<HomeTileContribution>("home-tiles", [dup, { ...dup, title: "Other" }])).toThrow(DUPLICATE_ID_RE);

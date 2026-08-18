@@ -1263,7 +1263,13 @@ export function ChatQuickPicksTileStory(): ReactElement {
 }
 
 /** The temp-chat tile PLUS the real chats topbar header + the new-chat intent probe — so one CT can drive
- *  the launcher and assert what it wrote: the shared picker opened with the creation-only flag preset. */
+ *  the launcher and assert what it wrote: the shared picker opened with the creation-only flag preset.
+ *
+ *
+ *  NOT wrapped in `StrictMode`, and a wrap would buy nothing: playwright-ct serves a PRODUCTION React
+ *  build, where StrictMode's effect double-invoke does not run. The reaper's arm/cleanup/re-arm behaviour
+ *  (#188) is therefore only observable on a dev stage — `snap --isolated`/`--dirty` — and that is where it
+ *  is proven. A StrictMode wrapper here would read like coverage of a class this tier cannot reach. */
 export function ChatTempChatTileStory(): ReactElement {
   return (
     <CtDataProviders>

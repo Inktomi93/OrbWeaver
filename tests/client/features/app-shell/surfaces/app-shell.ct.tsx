@@ -2105,6 +2105,58 @@ test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)",
     .toBeCloseTo(UA_ROOT_PX * fontScale, 0);
 });
 
+// ── #188 P2-4 — the app's own reduced-motion pref must REACH the surfaces outside the shell grid ─────
+// The `[data-reduced-motion="true"] *` floor (@orb/ui globals.css) is a DESCENDANT selector, so wherever
+// the app stamps that flag decides what it can silence. Stamped on `.shell-grid` it silenced the sections
+// and missed everything mounted beside the router or portalled to <body>: the boot veil, the route-pending
+// brand shimmer, the toaster, every popup. Measured on home before the fix — with the in-app toggle ON the
+// loader still ran its keyframe and dropped 67-83ms frames; only the OS media query ever stopped it.
+//
+// The probe is a `.orb-weave-shimmer` element appended to <body>, i.e. exactly the DOM POSITION the boot
+// veil and route-pending occupy (main.tsx mounts them above the router, outside the grid). The in-grid
+// twin is the control: it proves the floor rule itself is live in this harness, so an out-of-grid zero
+// cannot be read as "the stylesheet never loaded".
+const SHIMMER_CLASS = "orb-weave-shimmer";
+/** The reduced-motion floor writes `animation-duration: 0.01ms`; the unfloored shimmer runs at
+ *  `--motion-breathe` (whole seconds). 1ms sits three orders of magnitude below the live value and above
+ *  any rounding the computed-style serializer applies to 0.01ms — a threshold, not a pixel guess. */
+const FLOORED_ANIMATION_S = 0.001;
+
+test("#188 the app's reduced-motion pref floors an animation OUTSIDE the shell grid (the boot-veil position)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_shell_reduced_motion",
+      schemaVersion: 1,
+      config: {
+        ...DEFAULT_USER_SETTINGS,
+        appearance: { ...DEFAULT_USER_SETTINGS.appearance, reducedMotion: true },
+      },
+      updatedAt: 0,
+    }),
+  });
+  await mount(<AppShellStory />);
+
+  const durations = async (): Promise<{ outside: number; inside: number }> =>
+    page.evaluate((shimmerClass) => {
+      const read = (host: Element): number => {
+        const probe = document.createElement("div");
+        probe.className = shimmerClass;
+        host.append(probe);
+        const seconds = Number.parseFloat(getComputedStyle(probe).animationDuration);
+        probe.remove();
+        return seconds;
+      };
+      const grid = document.querySelector(".shell-grid");
+      return { outside: read(document.body), inside: grid === null ? Number.NaN : read(grid) };
+    }, SHIMMER_CLASS);
+
+  // The CONTROL first: inside the grid the floor has always applied, so a live rule is proven here.
+  await expect.poll(async () => (await durations()).inside, { intervals: [20, 50, 100] }).toBeLessThanOrEqual(FLOORED_ANIMATION_S);
+  // The FINDING: the same pref must reach the boot veil's position. Before the fix this measured
+  // `--motion-breathe` (seconds), because <body> is not a descendant of `.shell-grid`.
+  await expect.poll(async () => (await durations()).outside, { intervals: [20, 50, 100] }).toBeLessThanOrEqual(FLOORED_ANIMATION_S);
+});
+
 // STRAY-FILE-DROP GUARD. A file dropped outside any dropzone navigates the tab to that file — the app is
 // replaced by a PNG and the session (open chat, in-flight turn, unsaved drafts) goes with it. The shell
 // cancels the browser default for FILE drags nothing else handled, and says where files DO go; a real

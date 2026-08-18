@@ -72,15 +72,24 @@ interface EntityMutationBase<TVars, TData, TRead> {
  * verb emits a covering bus event, so supplying `invalidates` is a type error (`never`). Otherwise
  * `invalidates` is required — the filters for keys no delivered bus event covers.
  */
-type FreshnessSource<TVars> =
+type FreshnessSource<TVars, TData> =
   | { readonly busDriven: true; readonly invalidates?: never }
   | {
       readonly busDriven?: false;
-      /** Filters reconciled on settle (success AND error) — routed through the central seam. */
-      readonly invalidates: (trpc: Trpc, vars: TVars) => readonly InvalidateFilter[];
+      /**
+       * Filters reconciled on settle (success AND error) — routed through the central seam.
+       *
+       * `data` is the SETTLED RESPONSE (`undefined` when the write threw), so a verb whose own answer says
+       * NOTHING CHANGED can reconcile nothing: `chat.reapTemporaryChats` returns `{reaped}`, and a landing
+       * that swept zero rows was invalidating the chats list anyway — a second full `listChats` round-trip
+       * on every home visit, inside the boot window, for a list the server had just said was unaffected
+       * (issue #188 P2-12). The error arm keeps the conservative reconcile: `undefined` is not evidence of
+       * a no-op. A filter list that does not depend on the answer simply ignores the third argument.
+       */
+      readonly invalidates: (trpc: Trpc, vars: TVars, data: TData | undefined) => readonly InvalidateFilter[];
     };
 
-export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutationBase<TVars, TData, TRead> & FreshnessSource<TVars>;
+export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutationBase<TVars, TData, TRead> & FreshnessSource<TVars, TData>;
 
 /** A `busDriven` mutation reconciles via the bus, not itself — its settle invalidates nothing. */
 const NO_INVALIDATION = (): readonly InvalidateFilter[] => [];
@@ -156,10 +165,11 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
         // a caller awaiting the save sees the seeded read, not the pre-write one.
         context.client.setQueryData<TData>(config.echo(trpc, vars), data);
       },
-      onSettled: (_data, _error, vars) => {
-        // Always reconcile — the optimistic value is never trusted as final.
+      onSettled: (data, _error, vars) => {
+        // Always reconcile — the optimistic value is never trusted as final. The settled response rides
+        // along so a no-op write can decline the refetch it does not need (see `invalidates`).
         const invalidates = config.invalidates ?? NO_INVALIDATION;
-        invalidation.invalidateFilters(invalidates(trpc, vars));
+        invalidation.invalidateFilters(invalidates(trpc, vars, data));
       },
     });
 
