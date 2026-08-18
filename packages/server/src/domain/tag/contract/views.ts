@@ -4,4 +4,4 @@
 // would be a second home the client could disagree with; the resolve enforces single-home: `@orb/client`
 // imports the view from contracts, not from server).
 
-export type { TagUsage, TagView, TagWithUsage } from "@orb/contracts/tag";
+export type { TagFilterVocabularyEntry, TagUsage, TagView, TagWithUsage } from "@orb/contracts/tag";

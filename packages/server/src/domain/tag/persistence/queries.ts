@@ -2,7 +2,7 @@
 // on `ownerId` throughout: a foreign-owned tag is never returned/mutated. Junction dispatch lives in the
 // sibling `junctions.ts`.
 
-import type { TagSource, TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
+import type { TagFilterVocabularyEntry, TagSource, TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
 import { characters as charactersTable, characterTags, chatTags, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -310,6 +310,36 @@ export async function listOwnedTagsWithUsage(db: Db, ownerId: UserId): Promise<T
     usage.total = usage.characters + usage.chats + usage.worldBooks + usage.personas + usage.presets;
     return { ...toTagView(row), usage };
   });
+}
+
+/**
+ * The character-library FILTER VOCABULARY — every owned tag, projected to what a filter chip reads, ranked
+ * MOST-USED-FIRST (ties alphabetical, the order the chip rail's cap depends on being meaningful).
+ *
+ * ONE `GROUP BY`, NOT FIVE, and four columns instead of eleven: the chip rail used to ride
+ * {@link listOwnedTagsWithUsage}, the MANAGEMENT screen's read, which counts all five junctions and ships
+ * the full display axes — 433KB over the wire for 1,736 tags to paint 8 chips (side-eye 2026-08-18 P2-6).
+ * The other four counts are not a datum any chip can use.
+ *
+ * THE RANK IS THE SERVER'S (paged-list lenses go server-side): the client no longer re-sorts what it was
+ * handed, so the cap's "the filters that can do the most sit in the visible slice" rule has ONE author.
+ * Every owned tag is returned, including hidden and zero-usage ones — the caller drops those from the RAIL
+ * but needs them as the referential authority for a persisted filter (see `TagFilterVocabularyEntry`).
+ */
+export async function listOwnedTagFilterVocabulary(db: Db, ownerId: UserId): Promise<TagFilterVocabularyEntry[]> {
+  const owned = await listOwnedTags(db, ownerId);
+  if (owned.length === 0) {
+    return [];
+  }
+  const characters = await countByTag(
+    db,
+    characterTags,
+    characterTags.tagId,
+    owned.map((t) => t.id),
+  );
+  return owned
+    .map((row) => ({ id: row.id, name: row.name, isHiddenOnCard: row.isHiddenOnCard, characters: characters[row.id] ?? 0 }))
+    .sort((a, b) => b.characters - a.characters || a.name.localeCompare(b.name));
 }
 
 /** Delete every owned tag with zero junction usage; returns the removed count. Reuses the rollup so a

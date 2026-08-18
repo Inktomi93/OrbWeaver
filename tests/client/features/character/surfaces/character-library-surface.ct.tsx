@@ -123,7 +123,7 @@ test("a read failure shows the error state with a working Retry (rule 1 — no d
       return { items: isCollection ? [BOLT] : [], nextCursor: null, totalCount: 1 };
     },
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => [],
+    "tag.listTagFilterVocabulary": () => [],
   });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -149,13 +149,10 @@ const TAGGED = makeCharacterSummary({
   tags: [makeTagFixture({ id: "tag_rpg", name: "rpg" })],
 });
 
-/** The tag LIBRARY the chips are drawn from (`tag.listTagsWithUsage`) — the vocabulary is the owner's tags
+/** The tag LIBRARY the chips are drawn from (`tag.listTagFilterVocabulary`) — the vocabulary is the owner's tags
  *  now, not the loaded rows', so it has to be routed wherever a chip is asserted. */
 function tagLibraryOf(...names: readonly { readonly id: string; readonly name: string; readonly characters: number }[]): unknown {
-  return names.map((tag) => ({
-    ...makeTagFixture({ id: tag.id, name: tag.name }),
-    usage: { characters: tag.characters, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: tag.characters },
-  }));
+  return names.map((tag) => ({ id: tag.id, name: tag.name, isHiddenOnCard: false, characters: tag.characters }));
 }
 
 const RPG_TAG_LIBRARY = tagLibraryOf({ id: "tag_rpg", name: "rpg", characters: 1 });
@@ -166,7 +163,7 @@ function routeThree(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "character.list": characterListResponder([STARLA, BOLT2, TAGGED]),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => RPG_TAG_LIBRARY,
+    "tag.listTagFilterVocabulary": () => RPG_TAG_LIBRARY,
   });
 }
 
@@ -224,7 +221,7 @@ test("C9-1d an OPEN tag's group starts EXPANDED; a plain tag's group starts coll
   await routeTrpc(page, {
     "character.list": characterListResponder([inOpenFolder, inPlainGroup]),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 1 }, { id: "tag_rpg", name: "rpg", characters: 1 }),
+    "tag.listTagFilterVocabulary": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 1 }, { id: "tag_rpg", name: "rpg", characters: 1 }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Group by tag" }).click();
@@ -327,7 +324,7 @@ test("D1 a favorite that lives deep in the library arrives on the FIRST page of 
   await routeTrpc(page, {
     "character.list": characterListResponder([...PAGE1_FILLERS, LATE_FAVORITE]),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => [],
+    "tag.listTagFilterVocabulary": () => [],
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await expect(component.getByText("Filler 0")).toBeVisible();
@@ -365,7 +362,7 @@ test("the head page is NEVER evicted — all six pages stay loaded through a dee
     "settings.getUserSettings": () => settingsView(EVICTION_PAGE_SIZE),
     "character.list": characterListResponder(library),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => [],
+    "tag.listTagFilterVocabulary": () => [],
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await expect(component.getByText("Deep 00")).toBeVisible();
@@ -404,18 +401,24 @@ test("F1 the sort Select cannot crush the search box — search keeps the row's 
   expect(searchBox?.width ?? 0).toBeGreaterThan(sortBox?.width ?? 0);
 });
 
-/** The tag LIBRARY the picker suggests from (`tag.listTagsWithUsage` — the same read the config rail's
- *  Tags collection uses, so opening a picker rides that cache instead of minting a second one). */
+/** The tag LIBRARY the bulk PICKER suggests from — `tag.listTagsWithUsage`, the same read the config rail's
+ *  Tags collection uses, so opening a picker rides that cache instead of minting a second one. The library
+ *  pane's own chip rail no longer shares it: it reads the `listTagFilterVocabulary` projection (side-eye
+ *  2026-08-18 P2-6), so a test that drives BOTH surfaces routes both keys. */
 const TAG_LIBRARY = [
   { ...makeTagFixture({ id: "tag_adventure", name: "adventure" }), usage: { characters: 5, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 5 } },
   { ...makeTagFixture({ id: "tag_fantasy", name: "fantasy" }), usage: { characters: 12, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 12 } },
 ];
+
+/** The same two tags, as the library rail's own read answers them. */
+const TAG_VOCABULARY = tagLibraryOf({ id: "tag_adventure", name: "adventure", characters: 5 }, { id: "tag_fantasy", name: "fantasy", characters: 12 });
 
 test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
+    "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
     "character.bulkAddCardTag": () => ({ tagged: 1 }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -448,6 +451,7 @@ test("the tag picker suggests EXISTING tags as you type, and picking one attache
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
+    "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
     "character.bulkAddCardTag": () => ({ tagged: 1 }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -474,6 +478,7 @@ test("a name that matches nothing makes CREATING the deliberate, labelled act", 
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
+    "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
     "character.bulkAddCardTag": () => ({ tagged: 1 }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -500,6 +505,7 @@ test("a no-match query opens NO popup — the confirm stays clickable and in the
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
+    "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
     "character.bulkAddCardTag": () => ({ tagged: 1 }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -667,7 +673,7 @@ function routeManyTags(page: Page, count: number, extra: readonly { readonly id:
   return routeTrpc(page, {
     "character.list": characterListResponder([makeCharacterSummary({ id: "char_tagged", name: "Tagged One", createdAt: 3000, tags })]),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => tags.map((tag) => ({ ...tag, usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 } })),
+    "tag.listTagFilterVocabulary": () => tags.map((tag) => ({ id: tag.id, name: tag.name, isHiddenOnCard: false, characters: 1 })),
   });
 }
 
@@ -751,7 +757,7 @@ test("the chip vocabulary is the TAG LIBRARY — a tag no loaded row carries sti
     // BOLT2 carries no tags at all, so a row-derived vocabulary would render zero chips here.
     "character.list": characterListResponder([BOLT2]),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
+    "tag.listTagFilterVocabulary": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await expect(component.getByText("Bolt")).toBeVisible();
@@ -787,7 +793,7 @@ test("a persisted filter for a DELETED tag still renders a clearable chip (it ca
   await routeTrpc(page, {
     "character.list": characterListResponder([BOLT2]),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
+    "tag.listTagFilterVocabulary": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
   });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -813,7 +819,7 @@ test("W5 a persisted include-filter for a DELETED tag does NOT empty the library
   const trpc = await routeTrpc(page, {
     "character.list": characterListResponder([BOLT2]),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
+    "tag.listTagFilterVocabulary": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 7 }),
   });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -838,7 +844,7 @@ test("W5 a LIVE tag filter still filters — the drop is referential, not a disa
   const trpc = await routeTrpc(page, {
     "character.list": characterListResponder([BOLT2, TAGGED]),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => RPG_TAG_LIBRARY,
+    "tag.listTagFilterVocabulary": () => RPG_TAG_LIBRARY,
   });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -863,7 +869,7 @@ test("the list band prints the server census, not the loaded row count", async (
       return args.limit === COUNT_ONLY_PAGE ? { items: [STARLA], nextCursor: null, totalCount: LIBRARY_CENSUS } : rows(input);
     },
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => RPG_TAG_LIBRARY,
+    "tag.listTagFilterVocabulary": () => RPG_TAG_LIBRARY,
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
 
@@ -1051,7 +1057,7 @@ function routeBigVocabulary(page: Page, count: number): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "character.list": characterListResponder([makeCharacterSummary({ id: "char_plain", name: "Tagged One", createdAt: 3000, tags: [] })]),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": () => tags.map((tag) => ({ ...tag, usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 } })),
+    "tag.listTagFilterVocabulary": () => tags.map((tag) => ({ id: tag.id, name: tag.name, isHiddenOnCard: false, characters: 1 })),
   });
 }
 
@@ -1192,7 +1198,7 @@ test("P2 selecting a chip no longer reshuffles the rail — the count datum cann
 });
 
 // P2 (console `[cls] shift 0.0085 unexpected · aside[aria-label=Characters list] moved 0px,64px`, every
-// cold load). `tag.listTagsWithUsage` settles ~750ms after first paint and the rail grew underneath the
+// cold load). `tag.listTagFilterVocabulary` settles ~750ms after first paint and the rail grew underneath the
 // reader. The rail RESERVES the lines while the read is in flight, so the group's own height is the same
 // before and after the vocabulary lands.
 test("P2 the filter rail RESERVES the tag lines — the vocabulary landing does not grow the group", async ({ mount, page }) => {
@@ -1201,7 +1207,7 @@ test("P2 the filter rail RESERVES the tag lines — the vocabulary landing does 
   await routeTrpc(page, {
     "character.list": characterListResponder([makeCharacterSummary({ id: "char_plain", name: "Tagged One", createdAt: 3000, tags: [] })]),
     "chat.listChats": chatListResponder([]),
-    "tag.listTagsWithUsage": hold,
+    "tag.listTagFilterVocabulary": hold,
   });
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await hold.requested;
@@ -1212,7 +1218,7 @@ test("P2 the filter rail RESERVES the tag lines — the vocabulary landing does 
   const held = (await group.boundingBox())?.height ?? 0;
   expect(held).toBeGreaterThan(0);
 
-  hold.release(tags.map((tag) => ({ ...tag, usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 } })));
+  hold.release(tags.map((tag) => ({ id: tag.id, name: tag.name, isHiddenOnCard: false, characters: 1 })));
   await expect(component.locator("[data-tag-filter-state]")).toHaveCount(VISIBLE_CHIPS);
   const settled = (await group.boundingBox())?.height ?? 0;
 
@@ -1308,3 +1314,99 @@ function resolvedColor(component: Locator, token: string): Promise<string> {
     return value;
   }, token);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE 2026-08-18 SIDE-EYE PASS (rail sweep 3/9, reports/design/rail-characters-2026-08-18.md). Both pins
+// below are RENDERED geometry / a rendered a11y tree, never a code reading.
+
+/** The long name the review measured being clipped ("Morgatha, the …"), and its select-mode width. */
+const LONG_NAME = "Morgatha, the Undying Dark";
+/** The title width the review's own receipt demands at the docked 307px pane ("[data-slot=list-row-title]
+ *  clientWidth ≥ 200px at rest"). Select mode already proved 210px fits there. */
+const TITLE_FLOOR_PX = 200;
+
+function routeOneLongName(page: Page): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "character.list": characterListResponder([makeCharacterSummary({ id: "char_long", name: LONG_NAME, createdAt: 3000, tags: [] })]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": () => [],
+  });
+}
+
+// P1-1 — the pane was a `role="list"` whose ONLY child was another `role="list"`: a screen reader heard
+// "list, 1 item" and then "list, 11 items", `aria-required-children` FAILED on axe AND on Lighthouse's
+// agentic audit, and agent-nav scored 50/100 for it.
+test("P1-1 the library announces exactly ONE list, and it is the one holding the rows", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": () => [],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+
+  // ONE list on the surface, and the label is on it (not on a wrapper one level up).
+  const lists = component.getByRole("list", { name: "Character library" });
+  await expect(lists).toHaveCount(1);
+  // …and its children are the listitems, not a second list. This is the `aria-required-children` claim.
+  await expect(lists.getByRole("listitem")).toHaveCount(THREE_ROW_TOTAL);
+  await expect(lists.getByRole("list")).toHaveCount(0);
+});
+
+// P1-3 — the row gave the NAME 114px and reserved an identical 114px for controls that render nothing at
+// rest: 3 of 18 loaded rows clipped their name over a library with 27 duplicate-name groups, where the
+// clipped remainder was the only disambiguator.
+test("P1-3 the row name keeps the full text column at rest — the hidden cluster reserves nothing", async ({ mount, page }) => {
+  await routeOneLongName(page);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  const title = component.locator('[data-slot="list-row-title"]');
+  await expect(title).toHaveText(LONG_NAME);
+
+  const width = await title.evaluate((el: Element) => el.clientWidth);
+  // MEASURED at the docked 307px pane: 131px before, 251px after — past the review's own ≥200px receipt
+  // and past select mode's 210px, which is the width the app already proved fits there.
+  expect(width).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
+  // …and the name is not clipped at all at this width (the whole point — 114px cut it to "Morgatha, the …").
+  const clipped = await title.evaluate((el: Element) => el.scrollWidth > el.clientWidth);
+  expect(clipped).toBe(false);
+});
+
+// HOVER STABILITY IS HELD-UNDER-ATTACK, and this fix is exactly the kind that breaks it: a cluster that
+// changed the row's layout on reveal would re-hit-test the row under a stationary pointer at frame rate
+// (`ROW_REVEAL_SWAP`'s measured ~85 crossings/sec). Floating it out of flow is what makes the reveal free.
+test("P1-3 revealing the row's controls costs ZERO reflow — the title box is identical hovered", async ({ mount, page }) => {
+  await routeOneLongName(page);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  const title = component.locator('[data-slot="list-row-title"]');
+  await expect(title).toHaveText(LONG_NAME);
+
+  const rest = await title.boundingBox();
+  await component.locator('[data-slot="list-row-root"]').hover();
+  await expect(component.getByRole("button", { name: `Chat with ${LONG_NAME}`, exact: true })).toHaveCSS("opacity", "1");
+  const hovered = await title.boundingBox();
+
+  expect(hovered?.width).toBe(rest?.width);
+  expect(hovered?.x).toBe(rest?.x);
+});
+
+// The other half of the split: with the cluster floated, the row's REST-VISIBLE state has to live in the
+// text column or it would be an inert overlay sitting on the name. D11's invariant (pressed state visible
+// at rest) is met by the title-line ★ marker, which yields exactly when the toggle reveals.
+test("P1-3 a starred row shows its ★ at rest on the TITLE LINE, and it yields to the toggle on hover", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": characterListResponder([makeCharacterSummary({ id: "char_star1", name: "Starla", starred: true, createdAt: 3000, tags: [] })]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": () => [],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  const marker = component.locator('[data-slot="list-row-markers"]').getByLabel("Starred");
+  await expect(marker).toBeVisible();
+  // The toggle that SETS it is hidden at rest — the row never paints two stars.
+  const toggle = component.getByRole("button", { name: "Unstar Starla", exact: true });
+  await expect(toggle).toHaveCSS("opacity", "0");
+
+  await component.locator('[data-slot="list-row-root"]').hover();
+  await expect(toggle).toHaveCSS("opacity", "1");
+  // VISIBILITY, not display: the marker's box stays, so the title line cannot reflow under the pointer.
+  await expect(marker).toHaveCSS("visibility", "hidden");
+});

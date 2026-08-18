@@ -21,7 +21,7 @@
 //
 // The two reads that deliberately do NOT ride the lens: the FAVORITES strip (its own `starred: true` page —
 // it is a shortcut across the library, not a view of the filtered set, and reading the filtered page would
-// empty it the moment you typed) and the TAG VOCABULARY (`tag.listTagsWithUsage` — the chips must offer
+// empty it the moment you typed) and the TAG VOCABULARY (`tag.listTagFilterVocabulary` — the chips must offer
 // tags the loaded rows don't happen to carry, and an ACTIVE filter has to render its chip even when its tag
 // matches nothing at all: a filter you cannot see is a filter you cannot turn off).
 
@@ -161,7 +161,13 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   // chip that only exists once a matching row happens to be loaded is a filter you cannot turn off. It is
   // ALSO the referential authority for the persisted filter — hoisted above the collection because the
   // collection's query INPUT now depends on it.
-  const tagLibraryQuery = useQuery(trpc.tag.listTagsWithUsage.queryOptions());
+  // THE CHIPS READ A PROJECTION, NOT THE MANAGEMENT ROLLUP (side-eye 2026-08-18 P2-6). This used to be
+  // `tag.listTagsWithUsage` — the Tags screen's five-junction read — and on the owner's library that is
+  // 433,399 bytes over 1,736 rows, parsed on the section's cold entry, to paint 8 chips and a "+1,728 more"
+  // link. `listTagFilterVocabulary` is the same owned ROWS (it must be: this answer is also the referential
+  // authority for the persisted filter below) with four columns instead of eleven and one GROUP BY instead
+  // of five: 132,996 bytes for the same library.
+  const tagLibraryQuery = useQuery(trpc.tag.listTagFilterVocabulary.queryOptions());
   const tagLibrary = tagLibraryQuery.data ?? [];
   const availableTags = tagVocabulary(tagLibrary, tagFilter);
   // A persisted entry whose tag the library does not know can never match a row, and the server's tag

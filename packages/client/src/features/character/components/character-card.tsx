@@ -4,6 +4,11 @@
 // checkbox instead of opening the editor.
 //
 // Named `*Tile` because @orb/contracts owns `CharacterCard` as the ST wire-card type.
+//
+// THE TRAILING ZONE IS SPLIT (side-eye 2026-08-18 P1-3, the chats-row precedent): rest-visible MARKERS
+// (★ / Archived) ride `ListRow.markers` on the title line, and the trailing cluster holds only the
+// hover-revealed controls — so `actionsFloat` is on outside bulk mode and the NAME keeps the row's full
+// width at rest instead of yielding 114px of a 290px row to a cluster that paints nothing.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { TagView } from "@orb/contracts/tag";
@@ -17,8 +22,8 @@ import { Checkbox } from "@orb/ui/checkbox";
 import { Archive, Copy, Download, Icon, MessagesSquare, Star } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
-import type { ReactElement } from "react";
-import { ROW_REVEAL, RowActionsMenu, RowToggleAction } from "#components";
+import type { ReactElement, ReactNode } from "react";
+import { ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu, RowToggleAction } from "#components";
 
 /** The owner-gated card download route (`GET /api/export/character/:characterId`) — export's ONE home is
  *  this row's kebab (import is the list band's ghost; the editor carries no lifecycle chrome).
@@ -88,6 +93,7 @@ export function CharacterCardTile({
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
 
   const bulkActions = <Checkbox aria-label={`Select ${character.name}`} checked={bulkSelected} onCheckedChange={(): void => onToggleBulk(character.id)} />;
+  const markers = bulkMode ? undefined : rowMarkers(character);
 
   return (
     <ListRow
@@ -107,6 +113,21 @@ export function CharacterCardTile({
           />
         )
       }
+      // THE NAME GETS ITS WIDTH BACK (side-eye 2026-08-18 P1-3). The cluster is three hover-revealed
+      // controls, and reserving their strip in flow spent 114px of a 290px row on nothing you can see at
+      // rest while the TITLE — the one thing a 327-character library is scanned by, with 27 duplicate-name
+      // groups in it — got the same 114px and clipped on 3 of 18 loaded rows. `actionsFloat` lifts the
+      // cluster out of flow at the row's inline end (fine pointers only), so the text column keeps the full
+      // width at rest AND the reveal costs no reflow — the truncation point does not jump under the pointer.
+      // The app already proved the space exists: select mode's title box is 210px on the same pane.
+      //
+      // The float arm is INERT at rest, so a rest-VISIBLE control must not ride it: bulk mode's checkbox is
+      // exactly that, and it keeps the reserved strip (`rowTint="row"`, or the tint stops before the
+      // sibling cluster). The star's pressed state moved to `markers` on the title line, where it is in the
+      // accessible tree and in flow — the same split the chats row landed (chat-summary-row.tsx).
+      actionsFloat={!bulkMode}
+      rowTint={bulkMode ? "row" : "body"}
+      {...(markers === undefined ? {} : { markers })}
       className="group"
       clickable={true}
       // `md` (32px) is THE list-row portrait size — the mock's one row rhythm, shared with the chats panes
@@ -127,9 +148,35 @@ export function CharacterCardTile({
   );
 }
 
-/** The normal-mode trailing actions: the Star state-toggle (D11 rest posture — pressed always, unpressed
- *  revealed) + the dual-purpose Chat CTA (§4.4/§9c — the 1-click core loop, hover-revealed on fine pointers,
- *  always-on for coarse) + the ⋯ overflow. */
+/** The row's TITLE-LINE markers — the state the row already carries, rest-visible, INSIDE the text column
+ *  (`ListRow.markers`, which rides `aria-describedby`, unlike the `aria-hidden` leading slot).
+ *
+ *  This is the half that makes `actionsFloat` legal on this row (P1-3): a floated cluster is inert and sits
+ *  ON the title text, so anything the row shows AT REST has to earn its width where the text already is. The
+ *  ★ here and the star TOGGLE in the cluster are ONE concept, so the marker rides `ROW_REVEAL_SWAP` — it
+ *  paints the pressed state at rest and steps aside exactly when the control that sets it reveals, so the
+ *  row never paints two stars. `undefined` when the row is in neither state: the slot is data-driven, never
+ *  an empty reserved box. */
+function rowMarkers(character: Pick<CharacterCardItem, "archived" | "starred">): ReactNode {
+  if (!(character.archived || character.starred)) {
+    return;
+  }
+  return (
+    <>
+      {character.starred ? <Icon className={`text-warning ${ROW_REVEAL_SWAP}`} icon={Star} label="Starred" size="sm" /> : null}
+      {character.archived ? (
+        <Badge intent="warning" size="sm">
+          Archived
+        </Badge>
+      ) : null}
+    </>
+  );
+}
+
+/** The normal-mode trailing actions — CONTROLS ONLY (the rest-visible markers moved to the title line, so
+ *  the whole cluster is hover-revealed and can float): the Star state-toggle at `rest="never"` (its pressed
+ *  face is the title-line ★), the dual-purpose Chat CTA (§4.4/§9c — the 1-click core loop, hover-revealed on
+ *  fine pointers, always-on for coarse) + the ⋯ overflow. */
 function NormalRowActions({
   character,
   onChat,
@@ -147,13 +194,11 @@ function NormalRowActions({
 }): ReactElement {
   return (
     <>
-      {character.archived ? (
-        <Badge intent="warning" size="sm">
-          Archived
-        </Badge>
-      ) : null}
-      {/* D11 retrofit: the star was always-visible in BOTH states; it now rests hidden while unpressed and
-          stays put while pressed — the one grammar every list pane shares (§12.2). */}
+      {/* D11, in its MARKER form (`rest="never"`): the toggle is always reveal-gated because the title-line
+          ★ (`rowMarkers`) is what carries the pressed state at rest — D11's invariant is met in the marker
+          slot, and the two never paint together (`ROW_REVEAL_SWAP`). That is what leaves this cluster
+          entirely hover-revealed, which is the precondition for `actionsFloat` returning the name its
+          114px (P1-3). Same split as the chats row. */}
       <RowToggleAction
         icon={Star}
         labelOff={`Star ${character.name}`}
@@ -161,6 +206,7 @@ function NormalRowActions({
         onToggle={(): void => onToggleStar(character.id, !character.starred)}
         pressed={character.starred}
         pressedClassName="text-warning"
+        rest="never"
       />
       <Button
         aria-label={`Chat with ${character.name}`}

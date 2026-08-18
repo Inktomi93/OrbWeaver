@@ -6,7 +6,7 @@
 // claimed the loaded count was the answer, the chip vocabulary came from the loaded rows (so an active
 // filter could render no chip at all), and the chip ids went to the wire in click order.
 
-import type { TagUsage, TagWithUsage } from "@orb/contracts/tag";
+import type { TagFilterVocabularyEntry } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
@@ -22,18 +22,16 @@ import {
 } from "../../../../../packages/client/src/features/character/lib/character-library-lens.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-const usage = (characters: number): TagUsage => ({ characters, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: characters });
-
-const libraryTag = (id: string, name: string, characters: number, isHiddenOnCard = false): TagWithUsage => ({
+// The vocabulary read's four fields — `tag.listTagFilterVocabulary`, ALREADY RANKED most-used-first by the
+// server (side-eye 2026-08-18 P2-6: the chip rail used to read the management screen's five-junction
+// rollup, 433KB for 1,736 rows to paint 8 chips). So these fixtures are written in the order the server
+// would return them, and `tagVocabulary` is asserted to PRESERVE it rather than to produce it — the rank
+// itself is pinned server-side (tests/server/domain/tag/tag.int.test.ts).
+const libraryTag = (id: string, name: string, characters: number, isHiddenOnCard = false): TagFilterVocabularyEntry => ({
   id: castId<TagId>(id),
   name,
-  color: null,
-  color2: null,
-  source: null,
-  folderType: "NONE",
-  sortOrder: null,
   isHiddenOnCard,
-  usage: usage(characters),
+  characters,
 });
 
 test("resultCountLabel: with every match loaded it states one number, pluralised", () => {
@@ -63,15 +61,15 @@ test("tagIdsInState: splits the three-state entries by arm and SORTS (the query 
   expect(tagIdsInState([entries[1] as (typeof entries)[number], entries[0] as (typeof entries)[number]], "include")).toEqual(["tag_alpha", "tag_zeta"]);
 });
 
-test("tagVocabulary: ranks by whole-library usage, alphabetical on ties, hidden-on-card dropped", () => {
-  const library = [libraryTag("tag_b", "beta", 3), libraryTag("tag_a", "alpha", 9), libraryTag("tag_c", "cast", 3), libraryTag("tag_h", "hidden", 99, true)];
+test("tagVocabulary: drops hidden-on-card tags and PRESERVES the server's most-used-first rank", () => {
+  const library = [libraryTag("tag_h", "hidden", 99, true), libraryTag("tag_a", "alpha", 9), libraryTag("tag_b", "beta", 3), libraryTag("tag_c", "cast", 3)];
   expect(tagVocabulary(library, []).map((tag) => tag.name)).toEqual(["alpha", "beta", "cast"]);
 });
 
 test("tagVocabulary: an ACTIVE hidden-on-card tag is pinned back in — known ⟺ named (W5)", () => {
   // A hidden tag still EXISTS, so `knownTagIds` keeps it filtering; a chip reading "Deleted tag" over an id
   // that is narrowing the list would be the invisible-filter defect wearing a label.
-  const library = [libraryTag("tag_used", "used", 4), libraryTag("tag_h", "hidden", 99, true)];
+  const library = [libraryTag("tag_h", "hidden", 99, true), libraryTag("tag_used", "used", 4)];
   const active = [{ id: castId<TagId>("tag_h"), state: "exclude" as const }];
   expect(tagVocabulary(library, active).map((tag) => tag.name)).toEqual(["hidden", "used"]);
 });
