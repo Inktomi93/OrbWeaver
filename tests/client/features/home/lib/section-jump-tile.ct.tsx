@@ -6,8 +6,8 @@
 // Clicking a row fires the store action (assert the store, never a rendered echo).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { SectionId } from "../../../../../packages/client/src/state/shell-store.ts";
-import { SECTION_IDS } from "../../../../../packages/client/src/state/shell-store.ts";
+import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
+import { SECTION_IDS } from "../../../../../packages/client/src/state/section-ids.ts";
 import { HomeSectionJumpStory } from "../_ct-stories.tsx";
 
 // The expectation DERIVES from the registry tuple, never a frozen row list: the ORDER and the COUNT are

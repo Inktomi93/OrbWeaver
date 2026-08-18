@@ -42,7 +42,7 @@ const loginRoute = createRoute({
 //   • a section is CLIENT STATE, not a route — in-app rail navigation deliberately never touches the address
 //     bar, so a `/chats` that STAYED in the address bar would start lying the moment the user clicked
 //     Characters. Landing back on `/` keeps ONE URL story for both entrances;
-//   • the path spelling IS the `SectionId` (`resolveSectionPath`, `state/shell-store.ts`) — no second
+//   • the path spelling IS the `SectionId` (`resolveSectionPath`, `state/section-ids.ts`) — no second
 //     path→section map to half-edit when the vocabulary changes, and a retired id heals exactly as a stored
 //     one does. A segment that is not a section falls through to the root's `notFoundComponent`, so a genuine
 //     typo still reads "that route doesn't exist" instead of silently teleporting home.

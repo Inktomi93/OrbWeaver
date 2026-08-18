@@ -9,8 +9,8 @@
 import { useSyncExternalStore } from "react";
 import type { PanelMode } from "./panel-resolve.ts";
 import { resolvePanelMode } from "./panel-resolve.ts";
+import type { SectionId } from "./section-ids.ts";
 import { useSectionRegistry } from "./section-registry-context.ts";
-import type { SectionId } from "./shell-store.ts";
 import { useFocusMode, useMobileViewport, useNarrowViewport, useOpenOverlayPanel, usePanelOverride } from "./shell-store.ts";
 
 // The no-seam fallbacks are MODULE constants, not inline lambdas: `useSyncExternalStore` re-subscribes

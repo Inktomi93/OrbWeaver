@@ -227,6 +227,8 @@ export {
   useRegexBulkSelectedIds,
 } from "./regex-bulk-store.ts";
 export { applyRpgRoundEvent, clearRpgRounds, readRpgRoundPendingForTest, useRpgRoundPending } from "./rpg-round-store.ts";
+export type { SectionId } from "./section-ids.ts";
+export { isSectionId, RETIRED_SECTION_HEAL, resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
 export { useListDocked, useSectionListIsScreen } from "./section-list-projection.ts";
 export type {
   RailEntry,
@@ -276,7 +278,7 @@ export {
 export type { SettingsSectionRegistry } from "./settings-section-registry-context.ts";
 export { useSettingsSectionRegistry, useSettingsSections } from "./settings-section-registry-context.ts";
 export { SettingsSectionRegistryProvider } from "./settings-section-registry-provider.tsx";
-export type { ModalSlotId, SectionId, SettingsCategoryId } from "./shell-store.ts";
+export type { ModalSlotId, SettingsCategoryId } from "./shell-store.ts";
 export {
   closeModal,
   getAvailableContextTabIds,
@@ -286,10 +288,8 @@ export {
   openSettingsTo,
   publishContextTabIds,
   publishContextTabs,
-  resolveSectionPath,
   revealContextPanel,
   revealContextPanelBesideContent,
-  SECTION_IDS,
   SETTINGS_CATEGORY_IDS,
   setActiveSection,
   setContextTab,

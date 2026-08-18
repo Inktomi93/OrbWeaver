@@ -12,7 +12,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { SectionId } from "../../../../../packages/client/src/state/shell-store.ts";
+import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/shell-store.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterSummary } from "../../character/fixtures.ts";
