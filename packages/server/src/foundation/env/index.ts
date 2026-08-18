@@ -83,6 +83,13 @@ const VLLM_GEN_MAX_PIXELS_DEFAULT = 4_194_304;
 // token bill so a long video can't fill the whole context window (512 ≈ 2min @ fps 4).
 const VLLM_GEN_VIDEO_FPS_DEFAULT = 4;
 const VLLM_GEN_VIDEO_MAX_FRAMES_DEFAULT = 512;
+// The gen engine's chunked-prefill step budget (--max-num-batched-tokens). 8_192 (vLLM's own
+// chunked-prefill default) — NOT the old 2_096: one max-size image at VLLM_GEN_MAX_PIXELS is ~4_096
+// vision tokens, and vLLM sizes the ENCODER CACHE off this budget, so 2_096 left the encoder window
+// at one-image-at-a-time and multi-image prompts crawled (~90 tok/s prefill measured 2026-08-18 —
+// reads as a hang). 8_192 holds two max-size images resident. Accepted trade: bigger prefill bites
+// share steps with decode, so concurrent streams can get slightly chunkier under load.
+const VLLM_GEN_MAX_BATCHED_TOKENS_DEFAULT = 8192;
 // The gen engine's default repetition_penalty, applied PER REQUEST by the vLLM chat surface when a preset is
 // silent (#23; the per-request move landed 2026-08-14). It was a `--override-generation-config` LAUNCH flag
 // while the sampler-less agent-sdk /v1/messages wire existed — that wire carried no per-request penalty, so a
@@ -301,6 +308,7 @@ const envSchema = z
     VLLM_GEN_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_GEN_MAX_PIXELS_DEFAULT),
     VLLM_GEN_VIDEO_FPS: z.coerce.number().positive().default(VLLM_GEN_VIDEO_FPS_DEFAULT),
     VLLM_GEN_VIDEO_MAX_FRAMES: z.coerce.number().int().positive().default(VLLM_GEN_VIDEO_MAX_FRAMES_DEFAULT),
+    VLLM_GEN_MAX_BATCHED_TOKENS: z.coerce.number().int().positive().default(VLLM_GEN_MAX_BATCHED_TOKENS_DEFAULT),
     // The gen engine's per-REQUEST repetition-penalty default (#23) — applied by the vLLM chat surface when a
     // preset is silent. Admin-layerable ⊕ AppSettings override; applies on the next request, no restart.
     VLLM_GEN_REPETITION_PENALTY: z.coerce.number().positive().default(VLLM_GEN_REPETITION_PENALTY_DEFAULT),
@@ -549,6 +557,7 @@ export function engineLaunchEnvFloor(): {
   readonly VLLM_GEN_MAX_PIXELS: number;
   readonly VLLM_GEN_VIDEO_FPS: number;
   readonly VLLM_GEN_VIDEO_MAX_FRAMES: number;
+  readonly VLLM_GEN_MAX_BATCHED_TOKENS: number;
   readonly VLLM_GEN_REPETITION_PENALTY: number;
   readonly VLLM_GEN_PRESENCE_PENALTY: number;
   readonly VLLM_SLEEP_MODE: boolean;
@@ -574,6 +583,7 @@ export function engineLaunchEnvFloor(): {
     VLLM_GEN_MAX_PIXELS: env.VLLM_GEN_MAX_PIXELS,
     VLLM_GEN_VIDEO_FPS: env.VLLM_GEN_VIDEO_FPS,
     VLLM_GEN_VIDEO_MAX_FRAMES: env.VLLM_GEN_VIDEO_MAX_FRAMES,
+    VLLM_GEN_MAX_BATCHED_TOKENS: env.VLLM_GEN_MAX_BATCHED_TOKENS,
     VLLM_GEN_REPETITION_PENALTY: env.VLLM_GEN_REPETITION_PENALTY,
     VLLM_GEN_PRESENCE_PENALTY: env.VLLM_GEN_PRESENCE_PENALTY,
     VLLM_SLEEP_MODE: env.VLLM_SLEEP_MODE,
