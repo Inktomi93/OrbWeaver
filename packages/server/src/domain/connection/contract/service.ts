@@ -105,7 +105,9 @@ export interface ConnectionContext {
   /** The chat GEN engine's live reachability (domain-safe vocab), read by the send-availability gate to refuse
    *  a DOWN local engine under adopt-only. Cheap local read; `unknown` ⇒ never refuse. */
   readonly localGenEngineReachability: LocalGenEngineReachabilityOp;
-  /** Owner-ness of the acting principal. Read by `resolveRole('chat')` for the owner-conditional default. */
+  /** Owner-ness of the acting principal. Read by `getModelsForSource` to gate the owner-only `max-pro-sub`
+   *  picker arm. NO role DEFAULT consults it: since #196 the born chat default is local vLLM for every
+   *  principal role (`resolveRole` used to fork here and hand the owner the metered sub). */
   readonly isOwner: (principal: Principal) => boolean;
   /** The local-light builtin model trio (embed/imageEmbed/rerank), injected at the composition root. A
    *  display fact for `getModelsForSource`, never a stamped value. */
