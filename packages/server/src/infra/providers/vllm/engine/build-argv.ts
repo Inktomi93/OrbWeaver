@@ -56,6 +56,8 @@ export interface EngineLaunchConfig {
   /** Env-only (no admin override, like ports): video frame-sampling density for the gen arm. */
   readonly genVideoFps: number;
   readonly genVideoMaxFrames: number;
+  /** Env-only: the gen arm's chunked-prefill step budget — sizes the encoder cache too (multi-image). */
+  readonly genMaxBatchedTokens: number;
   /** Emit `--enable-sleep-mode` on every engine (force-enables vLLM's cumem allocator so /sleep can pin
    *  weights→CPU and free VRAM on idle). Resolved `override ?? env floor` (VLLM_SLEEP_MODE), default true.
    *  Paired with `VLLM_SERVER_DEV_MODE=1` on the child (spawn-engine.ts) to register the loopback /sleep,
@@ -89,6 +91,7 @@ export interface EngineLaunchEnvFloor {
   readonly VLLM_GEN_MAX_PIXELS: number;
   readonly VLLM_GEN_VIDEO_FPS: number;
   readonly VLLM_GEN_VIDEO_MAX_FRAMES: number;
+  readonly VLLM_GEN_MAX_BATCHED_TOKENS: number;
   readonly VLLM_SLEEP_MODE: boolean;
   readonly VLLM_DEBUG_REQUESTS: boolean;
   readonly VLLM_SHUTDOWN_TIMEOUT_S: number;
@@ -153,6 +156,7 @@ export function resolveEngineLaunchConfig(floor: EngineLaunchEnvFloor, override?
     genMaxPixels: o.genMaxPixels ?? floor.VLLM_GEN_MAX_PIXELS,
     genVideoFps: floor.VLLM_GEN_VIDEO_FPS,
     genVideoMaxFrames: floor.VLLM_GEN_VIDEO_MAX_FRAMES,
+    genMaxBatchedTokens: floor.VLLM_GEN_MAX_BATCHED_TOKENS,
     ...extra,
     ports: { embed: floor.VLLM_EMBED_PORT, rerank: floor.VLLM_RERANK_PORT, gen: floor.VLLM_GEN_PORT },
   };
@@ -275,10 +279,13 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
     String(config.ports.gen),
     "--gpu-memory-utilization",
     String(util),
+    // The step budget doubles as the ENCODER CACHE size: one max-size image at genMaxPixels is ~4,096
+    // vision tokens, so a budget below that serializes multi-image prompts through a one-image window
+    // (measured 2026-08-18: ~90 tok/s prefill, reads as a hang). The env default (8192) holds two.
     "--max-num-batched-tokens",
-    "2096",
-    "--max-num-seqs",
-    "150",
+    String(config.genMaxBatchedTokens),
+    // NO --max-num-seqs (owner order 2026-08-18): the old 150 was a hand-carried cap; vLLM's own
+    // default governs, and real admission is bounded by the KV pool anyway.
     "--max-model-len",
     String(config.genMaxModelLen),
     // ── THINKING-CHECKPOINT SWAP PLAYBOOK — ACTIVATED 2026-08-10 (was dormant under Qwen3-VL-8B-INSTRUCT;

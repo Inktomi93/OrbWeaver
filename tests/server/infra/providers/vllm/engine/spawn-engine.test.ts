@@ -28,6 +28,7 @@ const LAUNCH: EngineLaunchConfig = {
   genMaxPixels: 4_194_304,
   genVideoFps: 4,
   genVideoMaxFrames: 512,
+  genMaxBatchedTokens: 8192,
   sleepMode: true,
   debugRequests: false,
   shutdownTimeoutS: 0,
