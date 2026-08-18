@@ -1,6 +1,6 @@
 // Probe output lands under `<repo>/reports/<kind>/`, which is root-anchor gitignored.
 import { mkdir } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import process from "node:process";
 
 // _kit lives at scripts/probes/_kit/ — three levels up is the repo root.
@@ -42,8 +42,19 @@ export function isOutPath(out: string): boolean {
  *  reports dir and re-suffixed: `reports/snaps/abs/shot.png.png`. The run still exited 0, so the caller
  *  believed the file it named existed. A refusal would have been honest; landing where NAMED is better. */
 export function artifactFilePath(baseDir: string, out: string, ext: string): string {
-  const target = isOutPath(out) ? resolve(process.cwd(), out) : join(baseDir, out);
+  const target = isOutPath(out) ? resolve(process.cwd(), out) : (baseAnchoredOut(baseDir, out) ?? join(baseDir, out));
   return `${target.replace(ARTIFACT_EXT_RE, "")}${ext}`;
+}
+
+/** A bare-relative `--out` ALREADY spelled from the repo root INTO this kind's dir (`reports/snaps/foo.png`)
+ *  names the very file the prefixing would produce — so it passes through instead of being prefixed AGAIN
+ *  into `reports/snaps/reports/snaps/foo.png` (#209, 2026-08-18; a lane pasted back the path snap itself
+ *  had just printed). `baseDir` is `<root>/reports/<kind>`, so two levels up is the root the caller spelled
+ *  from — the check stays PURE, with no `process.cwd()` in it. A bare name that lands anywhere else
+ *  (`home/tiles`) is still an artifact BASE and keeps the prefix. */
+function baseAnchoredOut(baseDir: string, out: string): string | null {
+  const anchored = resolve(baseDir, "..", "..", out);
+  return anchored.startsWith(`${baseDir}${sep}`) ? anchored : null;
 }
 
 /** `artifactFilePath` + the directory it needs. `kind` is the `reports/<kind>/` family the artifact

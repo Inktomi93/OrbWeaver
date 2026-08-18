@@ -32,7 +32,10 @@
  *                                          # be joined under reports/ AND re-suffixed
  *                                          # (reports/snaps/tmp/x.png.png) while still exiting 0.
  *                                          # Trace/HAR/baseline stay in their reports/<kind>/ family,
- *                                          # keyed by the basename.
+ *                                          # keyed by the basename. Pasting back the path snap PRINTED
+ *                                          # (`--out reports/snaps/x.png`) also lands exactly there —
+ *                                          # an already-root-anchored value is not prefixed twice into
+ *                                          # reports/snaps/reports/snaps/x.png (#209).
  *   pnpm snap / --key Tab --key Tab --eval 'document.activeElement.outerHTML.slice(0,120)'
  *                                          # KEYBOARD WALK. `--key <KeyName>` with NO `=` sends the key
  *                                          # to the page keyboard WITHOUT changing focus, so N of them
@@ -114,13 +117,20 @@
  *                                          # An already-invoked arrow IIFE `(()=>{…})()` is left
  *                                          # alone; it is never mistaken for a bare function and
  *                                          # double-invoked.
- *   pnpm snap / --contrast 'label.field'   # WCAG AA contrast of the first IN-VIEWPORT match's text/icon
- *                                          # color (NOT the first DOM match — in a virtualized transcript
- *                                          # that is routinely a recycled off-screen mid-fade node, and
- *                                          # measuring it manufactured two P0s. Matches that are all
- *                                          # off-viewport report OFF-SCREEN / NO VERDICT and redden the
- *                                          # exit rather than emitting PASS or FAIL; a skipped-to match
- *                                          # is named on the line as `match k/N, first in-viewport`.)
+ *   pnpm snap / --contrast 'label.field'   # WCAG AA contrast of the first VISIBLE in-viewport match's
+ *                                          # text/icon color (NOT the first DOM match — in a virtualized
+ *                                          # transcript that is routinely a recycled off-screen mid-fade
+ *                                          # node, and measuring it manufactured two P0s. Nor merely the
+ *                                          # first match whose BOX is in the viewport: one sitting behind
+ *                                          # fixed chrome got its sample ring drawn on the TOPBAR's pixels
+ *                                          # and the topbar's ratio reported as the target's — #211. Each
+ *                                          # candidate must own its box's visible centre per
+ *                                          # elementFromPoint, or the walk falls through to the next
+ *                                          # match.) Matches that are all off-viewport report OFF-SCREEN,
+ *                                          # all-painted-over report OCCLUDED (naming what is on top) —
+ *                                          # both NO VERDICT, reddening the exit rather than emitting PASS
+ *                                          # or FAIL; a skipped-to match is named on the line as
+ *                                          # `match k/N, first visible in-viewport`.
  *                                          # Measured against its resolved backdrop (repeatable). Each line states
  *                                          # its METHOD honestly: `css-resolve` (an opaque ancestor bg,
  *                                          # cheap) or `pixel-sample`. TRANSLUCENT backdrops (glass,
@@ -1992,11 +2002,52 @@ function buildContrastScript(selector: string): string {
       if (r.width <= 0 || r.height <= 0) return false;
       return r.bottom > 0 && r.right > 0 && r.top < vh && r.left < vw;
     }
+    // IN THE VIEWPORT IS NOT VISIBLE (2026-08-18, #211). An element whose box is in the viewport but sits
+    // BEHIND fixed chrome — text at y=38 under a 48px topbar — passed the rect test, and the sample ring
+    // was then drawn over the CHROME's pixels: the reported ratio measured the topbar. Ask the compositor
+    // who owns the box's visible centre, the same ownership test design-audit-walker's ownsPoint uses:
+    // the hit must BE the candidate, be inside it, or be an ancestor of it (an ancestor answers when the
+    // candidate takes no pointer of its own, and it is still what is painted there).
+    function describeNode(n) {
+      var slot = n.getAttribute("data-slot");
+      var label = n.getAttribute("aria-label");
+      var cls = typeof n.className === "string" && n.className ? "." + n.className.trim().split(/\\s+/).slice(0, 2).join(".") : "";
+      return n.tagName.toLowerCase() + (n.id ? "#" + n.id : "") + (slot ? "[data-slot=" + slot + "]" : "") + cls + (label ? " (" + label + ")" : "");
+    }
+    // elementFromPoint is BLIND to a pointer-events:none subtree, so its silence there means "I cannot
+    // tell", not "occluded" — a tooltip/overlay label would otherwise be refused a verdict it deserves.
+    // Inconclusive keeps the OLD behaviour (measure it); only a KNOWN foreign owner rejects.
+    function pointerTransparent(node) {
+      var n = node;
+      while (n) { if (getComputedStyle(n).pointerEvents === "none") return true; n = n.parentElement; }
+      return false;
+    }
+    function occluderOf(node) {
+      if (pointerTransparent(node)) return null;
+      var r = node.getBoundingClientRect();
+      var x = (Math.max(0, r.left) + Math.min(vw, r.right)) / 2;
+      var y = (Math.max(0, r.top) + Math.min(vh, r.bottom)) / 2; // the VISIBLE box's centre — a half-scrolled
+      if (x < 0 || y < 0 || x >= vw || y >= vh) return null;     // element must not be judged by an off-screen point
+      var hit = document.elementFromPoint(x, y);
+      if (hit === null) return null;
+      if (hit === node || node.contains(hit) || hit.contains(node)) return null;
+      return describeNode(hit);
+    }
     var el = null;
     var matchIndex = -1;
+    var inViewportCount = 0;
+    var firstOccluder = null;
     for (var mi = 0; mi < all.length; mi += 1) {
-      if (inViewport(all[mi])) { el = all[mi]; matchIndex = mi; break; }
+      if (!inViewport(all[mi])) continue;
+      inViewportCount += 1;
+      var blocker = occluderOf(all[mi]);
+      // An occluded candidate is SKIPPED, not fatal — the next match may be the one on screen.
+      if (blocker !== null) { if (firstOccluder === null) firstOccluder = blocker; continue; }
+      el = all[mi];
+      matchIndex = mi;
+      break;
     }
+    if (!el && inViewportCount > 0) return { occluded: true, total: all.length, inViewport: inViewportCount, occluder: firstOccluder };
     if (!el) return { offscreen: true, total: all.length };
     // Tailwind v4 tokens are oklch(); Chromium's getComputedStyle SERIALIZES CSS Color 4
     // functions (oklch/oklab/lab/lch/color()) back verbatim rather than converting to rgb() —
@@ -2141,6 +2192,11 @@ function buildContrastScript(selector: string): string {
  *  distinct outcome, because "I can't see it" is not "it fails contrast". */
 type ContrastOffscreen = { offscreen: true; total: number };
 
+/** Matches that ARE in the viewport but every one of them is painted over by something else (#211) — a
+ *  third distinct outcome, because measuring one samples the OCCLUDER's pixels, and "I can only see the
+ *  topbar there" is not "it fails contrast" either. */
+type ContrastOccluded = { occluded: true; total: number; inViewport: number; occluder: string | null };
+
 type ContrastMeasured = {
   color: string;
   fontSizePx: number;
@@ -2158,13 +2214,13 @@ type ContrastMeasured = {
   foregroundOpacity: number;
   box: { x: number; y: number; width: number; height: number };
   /** Which querySelectorAll index actually got measured, and how many matched — a non-zero index means
-   *  earlier matches were skipped as off-viewport, which the report states so nobody assumes "the first
-   *  one". */
+   *  earlier matches were skipped as off-viewport OR as occluded, which the report states so nobody
+   *  assumes "the first one". */
   matchIndex: number;
   total: number;
 };
 
-type ContrastFacts = ContrastMeasured | ContrastOffscreen | null;
+type ContrastFacts = ContrastMeasured | ContrastOffscreen | ContrastOccluded | null;
 
 // buildContrastScript's toRgbString ALWAYS emits this exact "rgb(r, g, b)" shape (it composites
 // to a canvas pixel and reads the bytes back itself, sidestepping getComputedStyle's oklch()
@@ -2265,6 +2321,28 @@ async function resolveContrastBackdrop(
   return { rgb: sampled.rgb, method: "pixel-sample" };
 }
 
+/** The two "there is nothing I may measure" outcomes. A requested measurement that produced NO EVIDENCE is
+ *  red — same posture as a failed pixel sample or a --diff with no baseline. What it must never do is emit
+ *  PASS/FAIL: the two retracted P0s of 2026-08-16 were verdicts on a node scrolled out of the transcript,
+ *  and #211's were verdicts on the topbar painted over the target. */
+function refuseContrastVerdict(selector: string, facts: ContrastOffscreen | ContrastOccluded): ContrastOutcome {
+  if ("offscreen" in facts) {
+    return {
+      line: `CONTRAST ${selector}: OFF-SCREEN  ${facts.total} match(es), none rendered in the viewport — NO VERDICT (scroll it into view, or target the visible match)`,
+      failed: true,
+    };
+  }
+  const by = facts.occluder === null ? "" : `, behind ${facts.occluder}`;
+  return {
+    line: `CONTRAST ${selector}: OCCLUDED  ${facts.inViewport} in-viewport match(es) of ${facts.total}, all painted over${by} — NO VERDICT (measuring one samples the occluder's pixels; scroll it clear, dismiss the chrome, or target the visible match)`,
+    failed: true,
+  };
+}
+
+function isContrastMeasured(facts: NonNullable<ContrastFacts>): facts is ContrastMeasured {
+  return !("offscreen" in facts || "occluded" in facts);
+}
+
 async function checkContrast(page: Page, selector: string, forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome> {
   let facts: ContrastFacts;
   try {
@@ -2275,14 +2353,8 @@ async function checkContrast(page: Page, selector: string, forcePixel: boolean, 
   if (facts === null) {
     return { line: `CONTRAST ${selector}: NOT FOUND`, failed: true };
   }
-  // A requested measurement that produced NO EVIDENCE is red — same posture as a failed pixel sample or
-  // a --diff with no baseline. What it must never do is emit PASS/FAIL: the two retracted P0s of
-  // 2026-08-16 were verdicts on a node that was scrolled out of the transcript.
-  if ("offscreen" in facts) {
-    return {
-      line: `CONTRAST ${selector}: OFF-SCREEN  ${facts.total} match(es), none rendered in the viewport — NO VERDICT (scroll it into view, or target the visible match)`,
-      failed: true,
-    };
+  if (!isContrastMeasured(facts)) {
+    return refuseContrastVerdict(selector, facts);
   }
   // WCAG contrast criteria exempt inactive controls. Reporting their deliberate dimming as a defect
   // trains reviewers to ignore the instrument, so state the exemption and leave the run green.
@@ -2323,7 +2395,7 @@ async function checkContrast(page: Page, selector: string, forcePixel: boolean, 
   const pass = ratio >= needRatio;
   // Say WHICH match was measured whenever it wasn't the first — silence there is how "the first DOM
   // match" got mistaken for "the one on screen".
-  const matchNote = facts.matchIndex > 0 ? ` · match ${facts.matchIndex + 1}/${facts.total}, first in-viewport` : "";
+  const matchNote = facts.matchIndex > 0 ? ` · match ${facts.matchIndex + 1}/${facts.total}, first visible in-viewport` : "";
   const tail = `(${kindLabel} · font ${fontDisplay} · need ${needRatio.toFixed(1)} · ${backdrop.method}${dimNote}${matchNote})`;
   return {
     line: `CONTRAST ${selector}: ${ratio.toFixed(2)}:1  ${pass ? "PASS" : "FAIL"}  ${tail}`,
