@@ -229,12 +229,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "23e6e1c39b4eddde7af167bcf957c2192f656de5054d1608f80827a11e009ea8",
+      "assignedSha256": "a16f699ece2bb0e0d180198f9fec6362a324598235d01a0db51e57bf01ccaa00",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "23e6e1c39b4eddde7af167bcf957c2192f656de5054d1608f80827a11e009ea8",
-      "verifiedCommit": "0fadccadeb7117b0e5d1acab7ff7d45b9c4d743c",
+      "verifiedSha256": "a16f699ece2bb0e0d180198f9fec6362a324598235d01a0db51e57bf01ccaa00",
+      "verifiedCommit": "635b5bf49d08c2795bb686e621204b1ce5dbc1b6",
       "verifiedAt": "2026-08-18",
       "evidence": [
         "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
@@ -243,7 +243,8 @@
         "D119 Voices clause + D119a band-floor arithmetic truth-repaired 2026-08-17 (#102 tracker variant A, 0b8814d77; echo deleted, both rails kicker'd) \u2014 orchestrator authored and re-read the delta in full; verifier receipt on the tracker build confirmed the stale clauses",
         "D142 minted (born chat default = vllm x chat-completions, #196/28731d4f4) + D135(B) present-tense clause truth-repaired",
         "D143 minted (vllm errs-open posture + customParameters amendment, #197)",
-        "D143 rider: VLLM_TURNS measured cell (#200/#201, 56a979d44)"
+        "D143 rider: VLLM_TURNS measured cell (#200/#201, 56a979d44)",
+        "D129(B)+D143-rider truth-repair: narrator system-delivery REVERSED (#203, 7bb5e3e4f)"
       ],
       "claims": [
         {
