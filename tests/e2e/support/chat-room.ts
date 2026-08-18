@@ -104,7 +104,7 @@ function chatsRailButton(page: Page): Locator {
 
 /** Land on the Chats SECTION and wait for its list to settle. The `aria-label="Chats"` list surface
  *  (chat-list-surface.tsx) MOVED OFF `/` in the owner-approved variant-C home rework (program #102): `/`
- *  is now the Hearth Room hero (masthead + "Pick up where you left off" + "Also open" + face shelf), and
+ *  is now the Hearth Room hero (masthead + "Pick up where you left off" + "Other rooms" + face shelf), and
  *  the full Chats list lives on the Chats section (`main "Chats content"` + `complementary "Chats list"`),
  *  reached via the Primary rail. Every list-driven helper below routes through here rather than reading a
  *  list off `/` that no longer exists. Waits for the `aria-label="Chats"` list OR the "No chats yet"

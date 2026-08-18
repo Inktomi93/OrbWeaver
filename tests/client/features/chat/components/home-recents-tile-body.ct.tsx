@@ -74,16 +74,16 @@ test("#102-F6 the two hearth blocks are PEER h2 regions, neither nested inside t
   await mount(<ChatRecentsPairStory />);
 
   const pickUp = page.getByRole("region", { name: "Pick up where you left off" });
-  const alsoOpen = page.getByRole("region", { name: "Also open" });
+  const alsoOpen = page.getByRole("region", { name: "Other rooms" });
   await expect(pickUp).toBeVisible();
   await expect(alsoOpen).toBeVisible();
   // Both name themselves with a real h2 — no h3 anywhere in either block.
   await expect(pickUp.getByRole("heading", { level: 2, name: "Pick up where you left off" })).toBeVisible();
-  await expect(alsoOpen.getByRole("heading", { level: 2, name: "Also open" })).toBeVisible();
+  await expect(alsoOpen.getByRole("heading", { level: 2, name: "Other rooms" })).toBeVisible();
   await expect(pickUp.getByRole("heading", { level: 3 })).toHaveCount(0);
   await expect(alsoOpen.getByRole("heading", { level: 3 })).toHaveCount(0);
   // …and "Also open" is NOT a descendant of the pick-up region (the nesting the finding names).
-  await expect(pickUp.getByRole("region", { name: "Also open" })).toHaveCount(0);
+  await expect(pickUp.getByRole("region", { name: "Other rooms" })).toHaveCount(0);
 });
 
 // ── RED-FIRST (#102 review F13): "All chats →" belongs to the also-open band ────────────────────────
@@ -92,7 +92,7 @@ test("#102-F13 the trailing 'All chats →' sits on the ALSO-OPEN band, not on t
 
   await mount(<ChatRecentsPairStory />);
 
-  await expect(page.getByRole("region", { name: "Also open" }).getByRole("button", { name: "All chats →" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Other rooms" }).getByRole("button", { name: "All chats →" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Pick up where you left off" }).getByRole("button", { name: "All chats →" })).toHaveCount(0);
 });
 
@@ -103,7 +103,7 @@ test("#102 ONE ROOM OPEN: the hero renders and the also-open BLOCK does not — 
 
   await expect(home.locator('[data-home-hearth="chat_recent"]')).toBeVisible();
   await expect(home.locator('[data-home-tile="chat.alsoOpen"]')).toHaveCount(0);
-  await expect(home.getByText("Also open")).toHaveCount(0);
+  await expect(home.getByText("Other rooms")).toHaveCount(0);
 });
 
 // ── RED-FIRST (#102 review F8/F14): the ramp's `title` step, and a rule between rooms ───────────────
@@ -310,7 +310,7 @@ test("the rows are real LIST ITEMS, and the trailing action sits inside its own 
   await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsPairStory />);
-  const alsoOpen = home.getByRole("region", { name: "Also open" });
+  const alsoOpen = home.getByRole("region", { name: "Other rooms" });
 
   // A `role="list"` whose children are generic divs announces as an empty list to AT (side-eye F4).
   await expect(alsoOpen.getByRole("list").getByRole("listitem")).toHaveCount(1);

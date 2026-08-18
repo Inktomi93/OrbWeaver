@@ -12,7 +12,8 @@
 // finding under review was "the live conversations are not the loudest thing on home", and a page whose
 // only accent was a throwaway-room button was precisely that complaint.
 //
-// THE TRAILING ACTION MOVED to the "Also open" tile (side-eye 2026-08-16 F13). "All chats →" sat on this
+// THE TRAILING ACTION MOVED to the "Other rooms" tile (side-eye 2026-08-16 F13; the tile was titled "Also
+// open" then and was retitled by owner ruling 2026-08-17). "All chats →" sat on this
 // band, one line away from the "Chats" pill in the jump rail — two labels for one destination on one row —
 // and the mock puts it on the also-open kicker, which is the band the link is actually about. This block
 // now carries NO trailing affordance at all, which is the stronger reading of the sentence above: the hero

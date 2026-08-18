@@ -82,7 +82,8 @@ export interface StartChatParams extends ChatActorParams {
   readonly startAsGame?: { readonly profile?: RpgStatProfile | undefined } | undefined;
 }
 
-/** `listChats` — the caller's membership library, newest-updated-first, KEYSET-PAGED (the `character.list`
+/** `listChats` — the caller's membership library, newest-CONVERSATION-first (#150: the ONE recency clock,
+ *  `coalesce(newest message, updatedAt)` — the same value the row displays), KEYSET-PAGED (the `character.list`
  *  precedent). `characterId` is the D18 PROJECTION filter: it narrows the SERVER read to the chats that seat
  *  one character (present or departed), so a character screen never has to pull the whole library to find
  *  her three threads. `limit` is clamped in the verb; an absent `cursor` is the first page. */

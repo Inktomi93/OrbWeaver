@@ -194,7 +194,11 @@ type ReadVerbs = Pick<
   | "streamEventBounds"
 >;
 
-type ChatRowView = Awaited<ReturnType<typeof listMemberChats>>[number];
+/** One parsed `chats` row as the persistence layer yields it — the input `buildSummaries` maps. Derived from
+ *  the SINGLE-row read rather than from `listMemberChats`, whose rows carry the list's extra `recencyAt` sort
+ *  key (#150): the fork/lineage summaries come from `loadForkChildren`/`loadAncestorChain`, which have no
+ *  such key, and hanging this alias off the list read made those two callers un-typeable. */
+type ChatRowView = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
 /** The resolved preview substrate: the host, the resolved cast/personas, the connection `model`, and the
  *  cross-domain assemble inputs. The previews + `getActivePresetConfig` share this resolution. */
@@ -545,8 +549,14 @@ async function buildPreviewContext(
   return primary === undefined ? gathered : shapeContextForSpeaker(gathered, { ref: primary, output: inputs.group.output, cardScope: "merged" });
 }
 
-/** `listChats` — ONE KEYSET PAGE of the caller's chats (pure membership, host or member), newest-updated
- *  first, optionally projected to one character's seats.
+/** `listChats` — ONE KEYSET PAGE of the caller's chats (pure membership, host or member), newest
+ *  CONVERSATION first, optionally projected to one character's seats.
+ *
+ *  THE ORDER IS THE DISPLAYED CLOCK (#150): `listMemberChats` sorts on `coalesce(newest message, updatedAt)`
+ *  — the same value each row carries as `lastMessageAt ?? updatedAt` — so `items[0]` is the room you last
+ *  spoke in, which is what every consumer means by "most recent": the home hero + its masthead sentence, the
+ *  chats pane, and the agent bridge's `latest` sentinel. It used to sort on the raw row stamp, which a turn
+ *  does not write and a metadata touch does.
  *
  *  The page size is CLAMPED, never trusted (`character.list`'s precedent): every row here costs
  *  `buildSummaries` five bulk reads plus a per-chat participant resolve, so an unclamped `limit` is a
@@ -575,7 +585,8 @@ function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listCha
     const totalCount = await countMemberChats(ctx.db, principal.userId, filter);
     const items = await buildSummaries(ctx.db, deps, rows, principal.userId);
     const last = rows.at(-1);
-    const nextCursor = rows.length === pageSize && last !== undefined ? { updatedAt: last.updatedAt, id: last.id } : null;
+    // The cursor is the SORT key, never the row stamp: `recencyAt` is what `listMemberChats` ordered on.
+    const nextCursor = rows.length === pageSize && last !== undefined ? { recencyAt: last.recencyAt, id: last.id } : null;
     return { items, nextCursor, totalCount };
   };
 }
