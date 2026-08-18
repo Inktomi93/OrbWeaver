@@ -460,6 +460,49 @@ describe("shape — midConversationSystem gates the depth-0 system-injection del
   });
 });
 
+// ── MID-HISTORY SYSTEM INJECTIONS (the depth>0 arm of `turns.historySystemRows`) ─────────────────────
+// The DEFECT this pins: an author's note (`origin:"authors-note"`, role system, ST's default depth 4) and a
+// depth-N world-info entry are the real producers of a MID-CONVERSATION system row, and both demoted to
+// `[Note from system: …]` user rows on EVERY wire — including one measured to carry mid-array system rows —
+// because the splice hard-coded "depth > 0 always demotes". `historySystemRows` is the measured fact that
+// answers exactly this question (mid-array, not the tail channel), so it gates this arm too; the tail arm
+// stays on `midConversationSystem` (D69: one fact per question, never inferred from its sibling).
+describe("shape — historySystemRows also gates a DEPTH>0 system injection (author's note / WI depth entry)", () => {
+  const deepSys = inChat({ depth: 2, role: "system", content: "GM note" });
+
+  test("measured wire: the note rides as a REAL system row at its depth, un-framed and un-merged", () => {
+    const out = shape(soloInput({ injections: [deepSys], historySystemRows: true }));
+    const row = out.history.find((r) => r.role === "system");
+    expect(row?.content).toBe("GM note");
+    // Depth 2 = two positions back from the tail (canon: greeting, u1, a1 tip, +u2 volatile).
+    expect(out.history.map((r) => r.role)).toEqual(["assistant", "user", "system", "assistant", "user"]);
+    // No `[Note from …]` frame anywhere: the operator channel carries it as itself.
+    expect(out.history.some((r) => r.content.includes("[Note from"))).toBe(false);
+  });
+
+  test("unmeasured wire (the default): byte-identical demote — the pre-capability behavior (regression pin)", () => {
+    const off = shape(soloInput({ injections: [deepSys], historySystemRows: false }));
+    const unset = shape(soloInput({ injections: [deepSys] }));
+    expect(unset.history).toEqual(off.history);
+    expect(unset.history.some((r) => r.role === "system")).toBe(false);
+    expect(unset.history.some((r) => r.content.includes("[Note from system: GM note]"))).toBe(true);
+  });
+
+  test("the TAIL arm is still its own bit: midConversationSystem alone does NOT promote a depth>0 row (D69)", () => {
+    const out = shape(soloInput({ injections: [deepSys], midConversationSystem: true }));
+    expect(out.history.some((r) => r.role === "system")).toBe(false);
+  });
+
+  test("a mid-history system row is never speaker-labelled, on any names mode", () => {
+    for (const namesBehavior of ["content", "completion", "default"] as const) {
+      const out = shape(soloInput({ injections: [deepSys], historySystemRows: true, namesBehavior }));
+      const row = out.history.find((r) => r.role === "system");
+      expect(row?.content).toBe("GM note");
+      expect(row?.name).toBeUndefined();
+    }
+  });
+});
+
 // ── INJECT-NAMED-AS-PLAYER — the end-to-end pin ───────────────────────────────────────────────────
 // The reported live wire (chat_01kz6qesv6fk6bq1gmr8kc0wcf, OpenRouter/Sonnet — no mid-conversation
 // system): the rpg instruction channel arrived as `Nate: [Note from system: # Game state …]`, i.e. the

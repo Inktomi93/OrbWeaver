@@ -12,7 +12,7 @@ import { CLAUDE_CAPABILITY_FLOOR, getChatModel } from "./chat-models.ts";
 import type { MODEL_FAMILIES } from "./model-family.ts";
 import { detectModelFamily } from "./model-family.ts";
 import { resolveAgentSdkAlias } from "./resolve-agent-sdk-alias.ts";
-import { NON_CACHING_TURNS, refineCuratedTurns, synthesizeAnthropicTurns } from "./turns.ts";
+import { NON_CACHING_TURNS, refineCuratedTurns, synthesizeAnthropicTurns, VLLM_TURNS } from "./turns.ts";
 import type { WIRE_SHAPES } from "./wire-shape.ts";
 import { deriveWireShape } from "./wire-shape.ts";
 
@@ -405,10 +405,19 @@ export function resolveModelCapability(
       // could not ask for thinking and an effort that WAS set got dropped before any wire saw it. Folded on
       // here (like `tools`) rather than in `staticProfile`, because it is this source's launch fact and not
       // every static arm's — see {@link VLLM_REASONING}.
+      //
+      // `turns` — folded on for the same reason as `reasoning` and `tools`: `staticProfile`'s blanket
+      // `NON_CACHING_TURNS` is the FAIL-CLOSED cell built for wires nobody has measured, and this is the one
+      // wire we measure end to end (our engine, our vendored template). Carrying the strict role-handling
+      // floor made the preset pane report a constraint this wire does not impose, and the false
+      // `midConversationSystem`/`historySystemRows` pair demoted every system-role injection into a
+      // `[Note from system: …]` user row on a template that renders mid-array system blocks in place. See
+      // {@link VLLM_TURNS} for the two 2026-08-18 probe receipts (D143 errs-open).
       return {
         ...staticProfile(caches?.vllmGenWindow ?? env.VLLM_GEN_MAX_MODEL_LEN, true, true),
         reasoning: VLLM_REASONING,
         tools: { parallel: true, silencesProse: true },
+        turns: { ...VLLM_TURNS },
       };
     case "local-light":
       return staticProfile(LOCAL_LIGHT_WINDOW, false);

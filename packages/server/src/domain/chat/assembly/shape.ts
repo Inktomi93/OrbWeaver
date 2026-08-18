@@ -34,8 +34,9 @@ import { hasMultipleCharacters } from "./speaker-stamp.ts";
  *  system — `toShapeCanon` drops them). */
 type WireRole = "user" | "assistant";
 
-/** The DELIVERED wire-row role axis: canon roles plus the capability-gated `system` a depth-0 splice can
- *  emit when the model declares `turns.midConversationSystem` (see `assembly/injections`). */
+/** The DELIVERED wire-row role axis: canon roles plus the capability-gated `system` the splice can emit at
+ *  the tail (`turns.midConversationSystem`) or mid-array (`turns.historySystemRows`) — see
+ *  `assembly/injections` — and the same mid-array bit's D129(B) narrator delivery. */
 type DeliveredRole = WireRole | "system";
 
 /** One loaded canon row SHAPE consumes (from `persistence/queries.loadCanonHistory`, already sanitized).
@@ -97,11 +98,14 @@ interface ShapeInput {
    *  REAL system wire row (the model honors a tail system-authority channel); `false`/absent (the
    *  `TURNS_FLOOR` safe default) ⇒ it demotes to the visible `[Note from system: …]` user note. */
   midConversationSystem?: boolean;
-  /** The resolved `turns.historySystemRows` (read through `acceptsHistorySystemRows`): `true` ⇒ a
-   *  `narrator`-kind canon row DELIVERS as a wire `system` row (D129(B)); `false`/absent (the `TURNS_FLOOR`
-   *  fail-closed default, i.e. every model today) ⇒ narrator ships assistant-voiced, byte-identically to
-   *  before this dispatch existed. A SIBLING of {@link midConversationSystem}, never the same bit — that one
-   *  is wire-tested for the depth-0 TAIL and this is mid-history (see the contract's field docs). */
+  /** The resolved `turns.historySystemRows` (read through `acceptsHistorySystemRows`) — the MEASURED
+   *  mid-array-system fact, with TWO readers in this transform, both about placing a system row INSIDE the
+   *  delivered history: (1) the D129(B) delivered-role dispatch — a `narrator`-kind canon row ships as a wire
+   *  `system` row; (2) the depth \> 0 arm of the injection splice — an author's note / depth-N world-info
+   *  entry rides at its depth as a real `system` row instead of demoting to `[Note from system: …]`.
+   *  `false`/absent (the `TURNS_FLOOR` fail-closed default, i.e. every wire but vLLM) ⇒ both stay
+   *  byte-identical to before the dispatch existed. A SIBLING of {@link midConversationSystem}, never the
+   *  same bit — that one is wire-tested for the depth-0 TAIL and this is mid-history (contract field docs). */
   historySystemRows?: boolean;
   /** The user role-handling knob (from preset `params.advanced.roleHandling`); clamped against the floor. */
   roleHandling?: RoleHandling | undefined;
@@ -404,6 +408,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   const injected = spliceInChatInjections(withTail, input.injections, resolveContent, {
     allowAssistantPrefill: input.assistantPrefill === true,
     allowMidConversationSystem: input.midConversationSystem === true,
+    allowHistorySystemRows: input.historySystemRows === true,
     prefixBoundaryLen,
     squashSystemMessages: input.squashSystemMessages === true,
     prose: input.prose,

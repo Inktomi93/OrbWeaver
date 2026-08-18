@@ -1,7 +1,8 @@
 // Message handling — a collapsed Section in the Prompt tab. Two independent collapses between the rack
 // and the wire: adjacent-role merging (an editable Select bound to `params.advanced.roleHandling`; the
-// resolver clamps `max(floor, choice)`, the UI only annotates a below-floor pick) and squash system notes
-// (a Switch bound to `params.advanced.squashSystemMessages`).
+// resolver clamps `max(floor, choice)`, the UI only annotates a below-floor pick — and only when the model
+// declares a floor that CONSTRAINS anything) and squash system notes (a Switch bound to
+// `params.advanced.squashSystemMessages`).
 
 import type { ModelCapability, RoleHandling } from "@orb/contracts/connection";
 import { ROLE_HANDLING } from "@orb/contracts/connection";
@@ -44,6 +45,18 @@ function isBelowFloor(pick: RoleHandling | undefined, floor: RoleHandling): bool
   return pick !== undefined && ROLE_HANDLING_RANK[pick] < ROLE_HANDLING_RANK[floor];
 }
 
+/** The vocabulary's least-strict member — a floor OF this value constrains nothing, so there is nothing to
+ *  announce. Derived from `ROLE_HANDLING`'s own least→most-strict ordering, never a second literal. */
+const UNCONSTRAINED_FLOOR: RoleHandling = ROLE_HANDLING[0];
+
+/** Does the model's floor actually CONSTRAIN the pick? A model that imposes no floor (`none` — the local
+ *  vLLM wire, whose template renders every message as its own block whatever the adjacency, D143) used to
+ *  render "This model enforces at least None — stricter always wins", announcing a constraint that does not
+ *  exist and reading as a rule the user cannot escape. No constraint, no sentence. */
+function floorConstrains(floor: RoleHandling | undefined): floor is RoleHandling {
+  return floor !== undefined && ROLE_HANDLING_RANK[floor] > ROLE_HANDLING_RANK[UNCONSTRAINED_FLOOR];
+}
+
 export function MessageHandlingSection({ form, capability }: { readonly form: AssemblyForm; readonly capability: ModelCapability | undefined }): ReactElement {
   const floor = capability?.turns?.roleHandlingFloor;
 
@@ -72,7 +85,7 @@ export function MessageHandlingSection({ form, capability }: { readonly form: As
                 }}
                 value={roleHandling ?? ""}
               />
-              {floor !== undefined ? (
+              {floorConstrains(floor) ? (
                 <Row align="center" gap="field">
                   <Text voice="gloss">This model enforces at least {ROLE_HANDLING_LABELS[floor].split(" — ")[0]} — stricter always wins.</Text>
                   {isBelowFloor(roleHandling, floor) ? (
