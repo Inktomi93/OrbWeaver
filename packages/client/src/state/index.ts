@@ -286,6 +286,7 @@ export {
   openSettingsTo,
   publishContextTabIds,
   publishContextTabs,
+  resolveSectionPath,
   revealContextPanel,
   revealContextPanelBesideContent,
   SECTION_IDS,

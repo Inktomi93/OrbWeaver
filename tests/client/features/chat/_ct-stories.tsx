@@ -103,6 +103,7 @@ import { ChatImportDialog } from "../../../../packages/client/src/features/chat/
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu.tsx";
 import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat/components/chats-topbar-header.tsx";
 import { ChoiceSendProvider } from "../../../../packages/client/src/features/chat/components/choice-send-provider.tsx";
+import { CommittedMembersTab } from "../../../../packages/client/src/features/chat/components/committed-members-tab.tsx";
 import { CompactSummaryPeek } from "../../../../packages/client/src/features/chat/components/compact-summary-peek.tsx";
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/composer-chat-options.tsx";
 import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section.tsx";
@@ -2116,6 +2117,61 @@ export function MembersReseedStory(): ReactElement {
           bump
         </button>
         <MembersPanel people={[]} cast={cast} onSetDisabled={(): void => undefined} onSetTalkativeness={(): void => undefined} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** A committed room's cast SEAT, as the Members tab's projections read it (`toCastRows`). Only the fields
+ *  those projections touch vary per story; the rest is one shape so a seat added here can never disagree
+ *  with the wire type. */
+function membersTabSeat(name: string, characterId: string): ParticipantView {
+  return {
+    id: castId(`participant_${name.toLowerCase()}`),
+    chatId: castId("chat_members_tab"),
+    kind: "character",
+    userId: null,
+    characterId: castId<CharacterId>(characterId),
+    role: "member",
+    activePersonaId: null,
+    talkativeness: 0.5,
+    disabled: false,
+    joinedAt: 0,
+    joinSeq: 0,
+    leftSeq: null,
+    joinHistoryVisibility: "full",
+    displayName: name,
+    handle: null,
+    avatarAssetId: null,
+    avatarHash: null,
+    renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true },
+  };
+}
+
+export interface CommittedMembersTabStoryProps {
+  /** A 1:1 room — ONE character seat. The default is the two-seat GROUP room (the counter-arm). */
+  readonly soloCast?: boolean;
+  /** Seats the room's sole character ALREADY MUTED — the state a group room could leave behind, and the
+   *  reason mute keeps an exit in a solo room (committed-members-tab.tsx). */
+  readonly mutedSoloSeat?: boolean;
+}
+
+/** The REAL Members tab body (committed-members-tab.tsx) — the surface that decides which seams reach the
+ *  panel. Mounted with a host viewer and `multiHumanCapable:false`, so the People section is absent and the
+ *  arms under test are exactly the cast row's: which of the group-arbiter controls (#182) exist. */
+export function CommittedMembersTabStory({ soloCast = false, mutedSoloSeat = false }: CommittedMembersTabStoryProps = {}): ReactElement {
+  const aria = membersTabSeat("Aria", "character_aria");
+  const solo = mutedSoloSeat ? { ...aria, disabled: true } : aria;
+  const participants: readonly ParticipantView[] = soloCast ? [solo] : [aria, membersTabSeat("Bryn", "character_bryn")];
+  return (
+    <CtDataProviders>
+      <div style={{ width: 420 }}>
+        <CommittedMembersTab
+          chatId={castId<ChatId>("chat_members_tab")}
+          chat={{ participants, cast: [], viewerUserId: castId<UserId>("user_riley"), pendingHostUserId: null }}
+          isHost={true}
+          multiHumanCapable={false}
+        />
       </div>
     </CtDataProviders>
   );

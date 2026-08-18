@@ -1,5 +1,6 @@
-import { createRoute, createRouter, lazyRouteComponent } from "@tanstack/react-router";
+import { createRoute, createRouter, lazyRouteComponent, notFound, redirect } from "@tanstack/react-router";
 import { redirectIfAuthed, requireAuthed } from "#features/auth";
+import { resolveSectionPath, setActiveSection } from "#state";
 // Deep, not `#lib`: agent-bridge is OUT of the barrel (main.tsx imports it by path — a re-export would drag
 // the dev-only introspection handle into the prod bundle). Type-only, so nothing lands in the boot chunk.
 import type { RouteResolution } from "../lib/agent-bridge.ts";
@@ -7,10 +8,10 @@ import { rootRoute } from "./__root.tsx";
 import { LoginPage } from "./login-page.tsx";
 import { RoutePending } from "./route-pending.tsx";
 
-// Hand-written code-based route tree — 2 routes, no file-based codegen. The URL stays effectively pinned
-// at `/`; entity ids never enter the address bar. Admin is a pane inside the Settings modal at `/`, not a
-// standalone route. Auth gates live in features/auth: `/` requires an authenticated identity (else ->
-// /login, gated before render); /login reverse-gates (already-authed -> /).
+// Hand-written code-based route tree — 2 rendered routes + 1 section ALIAS, no file-based codegen. The URL
+// stays effectively pinned at `/`; entity ids never enter the address bar. Admin is a pane inside the
+// Settings modal at `/`, not a standalone route. Auth gates live in features/auth: `/` requires an
+// authenticated identity (else -> /login, gated before render); /login reverse-gates (already-authed -> /).
 //
 // THE `/` COMPONENT IS LAZY (#43, the boot code-split). `compose/authed-app.tsx` is the door's authed half:
 // it assembles every registry, so it statically imports every feature front door — the whole 4.9 MB app.
@@ -34,7 +35,38 @@ const loginRoute = createRoute({
   component: LoginPage,
 });
 
-const routeTree = rootRoute.addChildren([homeRoute, loginRoute]);
+// THE SECTION DEEP LINK (#181). `/chats`, `/characters`, `/corpus`, … are ALIASES of `/`, not surfaces of
+// their own: they select the rail section and hand the visitor to the one rendered app route. Two facts make
+// that the right shape rather than nine real routes:
+//
+//   • a section is CLIENT STATE, not a route — in-app rail navigation deliberately never touches the address
+//     bar, so a `/chats` that STAYED in the address bar would start lying the moment the user clicked
+//     Characters. Landing back on `/` keeps ONE URL story for both entrances;
+//   • the path spelling IS the `SectionId` (`resolveSectionPath`, `state/shell-store.ts`) — no second
+//     path→section map to half-edit when the vocabulary changes, and a retired id heals exactly as a stored
+//     one does. A segment that is not a section falls through to the root's `notFoundComponent`, so a genuine
+//     typo still reads "that route doesn't exist" instead of silently teleporting home.
+//
+// It carries NO auth gate of its own: it renders nothing, and `/` re-gates before render — a `requireAuthed()`
+// here would only buy a second `/api/auth/me` round-trip on every deep link. Static routes out-rank dynamic
+// ones in TanStack's matcher, so `/login` is never swallowed by this.
+//
+// NOT A REGRESSION FIX: `/chats` never resolved. Probed on the isolated stage at 94636b0ed (the pre-merge-train
+// floor), a direct load of `/chats` rendered the same 404 — the deep link had simply never existed.
+const sectionAliasRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/$section",
+  beforeLoad: ({ params }): never => {
+    const section = resolveSectionPath(params.section);
+    if (section === null) {
+      throw notFound();
+    }
+    setActiveSection(section);
+    throw redirect({ to: "/" });
+  },
+});
+
+const routeTree = rootRoute.addChildren([homeRoute, loginRoute, sectionAliasRoute]);
 
 export const router = createRouter({
   routeTree,
