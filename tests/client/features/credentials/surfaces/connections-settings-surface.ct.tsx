@@ -64,9 +64,10 @@ interface SettingsStub {
 
 /** A stateful stub of the user-settings tier: the write stores the patch, the read serves it back — so the
  *  "did the pane go back to LIVE after the save landed?" arm runs against a real echo, not a scripted one. */
-/** The owner's unconfigured chat default as the SERVER resolves it (resolve-role.ts: agent-sdk × the sub) —
- *  what the never-saved chat row names. `resolveFails` scripts the no-chat-connection rejection. */
-const RESOLVED_CHAT = makeResolvedChatCapability({ api: "agent-sdk", source: "max-pro-sub", model: castId<ModelId>("claude-opus-5") });
+/** The unconfigured chat default as the SERVER resolves it (resolve-role.ts: chat-completions × local vLLM
+ *  for EVERY principal role since #196 — the sub is reached only by picking it) — what the never-saved chat
+ *  row names. `resolveFails` scripts the no-chat-connection rejection. */
+const RESOLVED_CHAT = makeResolvedChatCapability({ api: "chat-completions", source: "vllm", model: castId<ModelId>(VLLM_MODEL) });
 
 async function stubSettings(page: Page, roleDefaults: Record<string, unknown>, opts: { readonly resolveFails?: boolean } = {}): Promise<SettingsStub> {
   let stored = roleDefaults;
@@ -306,10 +307,9 @@ test("the never-saved CHAT row NAMES the resolved fallback a turn would use", as
   await stubSettings(page, {});
   await mount(<ConnectionsSettingsStory />);
 
-  // api × source × model, exactly as the server resolved it (the story's stub: the owner's sub default).
-  await expect(page.locator(APP_DEFAULT).first()).toHaveText(
-    "Uses the app default: Claude subscription (host) · claude-opus-5 · Agent SDK (Claude subscription)",
-  );
+  // api × source × model, exactly as the server resolved it (the story's stub: the shipped born default —
+  // local vLLM on chat-completions, #196). The model prints through `modelDisplayName` (the org prefix goes).
+  await expect(page.locator(APP_DEFAULT).first()).toHaveText("Uses the app default: Local vLLM (GPU) · Qwen3-VL-8B-Instruct · Chat Completions");
   // The roles with no such one-hop read stay honest rather than guess — they name nothing.
   await expect(page.locator(APP_DEFAULT).last()).toHaveText("Uses the app default");
 });
@@ -323,7 +323,7 @@ test("an unresolvable chat connection degrades to the bare line — never a fabr
 
 // ── side-eye 2026-08-06 ────────────────────────────────────────────────────────────────────────────
 // P3: the resolved chat default is the ONE informative hint on this pane, and it was `truncate`d — in the
-// real settings modal it read "…Claude subscription (host) · cl…", eating the model name, which is the whole
+// real settings modal it read "…Claude subscription (host) · cl…" (the default of the day), eating the model name, which is the whole
 // reason the row resolves anything. The text is in the DOM either way (`truncate` clips by overflow), so the
 // assertion above cannot see it; this reads the RESOLVED property that decides whether it can clip at all.
 test("the resolved app-default hint WRAPS — it is the one line on this pane that must be readable in full", async ({ mount, page }) => {

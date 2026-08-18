@@ -361,8 +361,11 @@ describe("getModelsForSource — ghost parity with resolveRole (derive-not-stamp
     expect(facade.defaultModelId).toBe(resolved.model);
   });
 
-  test("max-pro-sub chat: the owner's unset chat heals to the curated opus id the facade ghosts", async () => {
+  test("max-pro-sub chat: a sub-pinned chat with NO model heals to the curated opus id the facade ghosts", async () => {
     const h = makeConnHarness(await freshDb());
+    // The sub is PICKED, not defaulted (#196 made the born chat default local vLLM for every principal role),
+    // so the parity subject — the facade's ghost for `source:"max-pro-sub"` — is reached by pinning it.
+    h.setRoleDefaults({ chat: { source: "max-pro-sub" } });
     const svc = createConnectionService(h.ctx);
 
     const facade = await svc.getModelsForSource({
@@ -370,7 +373,7 @@ describe("getModelsForSource — ghost parity with resolveRole (derive-not-stamp
       source: "max-pro-sub",
       role: "chat",
     });
-    // The owner's unset chat defaults to max-pro-sub/agent-sdk and heals the null model to the curated opus.
+    // max-pro-sub with protocol Auto derives agent-sdk and heals the null model to the curated opus.
     const resolved = await svc.resolveRole({
       role: "chat",
       principal: principal(castId<UserId>("owner_1"), "owner"),

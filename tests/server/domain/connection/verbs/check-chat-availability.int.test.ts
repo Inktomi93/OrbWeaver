@@ -36,6 +36,23 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     expect(verdict).toEqual({ available: false, cause: "engine-off" });
   });
 
+  // THE ABSENT-ENGINE ARM OF THE BORN DEFAULT (#196). The unconfigured chat default is now local vLLM for
+  // EVERY principal role, and a generation role never falls back to local-light (it cannot generate) — so on a
+  // GPU-less box a never-configured install must refuse HONESTLY here rather than fail late at the engine.
+  // This is the whole degrade story for the flip: the composer disables send and names the cause.
+  test.each([
+    ["a member", principal(castId<UserId>("user_1"))],
+    ["the OWNER", principal(castId<UserId>("owner_1"), "owner")],
+  ] as const)("%s with NO routing configured at all on a GPU-less box reads engine-off (never a late failure)", async (_who, actor) => {
+    const h = makeConnHarness(await freshDb());
+    h.setVllmAvailable(false); // no GPU, and nothing configured — the fresh-install worst case
+    const svc = createConnectionService(h.ctx);
+
+    const verdict = await svc.checkChatAvailability({ principal: actor, routableChat: {} });
+
+    expect(verdict).toEqual({ available: false, cause: "engine-off" });
+  });
+
   test("adopt-only + a DOWN gen engine is unavailable (engine-down) — the passive posture never self-recovers", async () => {
     const h = makeConnHarness(await freshDb());
     h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm" } });

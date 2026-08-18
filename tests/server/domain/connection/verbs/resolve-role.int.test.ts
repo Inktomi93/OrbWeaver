@@ -35,24 +35,22 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     expect(h.credentialCalls).toContain("local-light");
   });
 
-  test("a NON-owner chat defaults to the local vllm engine when no roleDefault is set", async () => {
+  // THE BORN CHAT DEFAULT IS ROLE-BLIND (owner order 2026-08-18, #196: "id like to move vllm chat complete
+  // to be the default not the agent sdk sub"). It used to fork on `isOwner` — the owner's unconfigured chat
+  // resolved `agent-sdk × max-pro-sub` while everyone else got the local engine, so every fresh DB booted the
+  // box owner onto the metered Claude subscription. One default now, for every principal role: the local
+  // engine on chat-completions (the ONLY protocol vLLM serves since the agent skin was retired 2026-07-27).
+  test.each([
+    ["a member", principal(castId<UserId>("user_1"))],
+    ["the OWNER", principal(castId<UserId>("owner_1"), "owner")],
+  ] as const)("%s chat defaults to local vLLM · chat-completions when no roleDefault is set", async (_who, actor) => {
     const h = makeConnHarness(await freshDb());
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
+    const conn = await svc.resolveRole({ role: "chat", principal: actor });
 
     expect(conn.api).toBe("chat-completions");
     expect(conn.credential.source).toBe("vllm");
-  });
-
-  test("the OWNER's chat defaults to their max-pro-sub (agent-sdk) when no roleDefault is set", async () => {
-    const h = makeConnHarness(await freshDb());
-    const svc = createConnectionService(h.ctx);
-
-    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("owner_1"), "owner") });
-
-    expect(conn.api).toBe("agent-sdk");
-    expect(conn.credential.source).toBe("max-pro-sub");
   });
 
   test("the OWNER's explicit vLLM source with protocol Auto resolves chat-completions", async () => {
@@ -101,7 +99,8 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
       principal: principal(castId<UserId>("owner_1"), "owner"),
     });
 
-    // Even the owner's summarize stays on the local engine — only chat is owner-conditional.
+    // Summarize was ALREADY role-blind on the local engine; chat joined it (#196), so no role default forks
+    // on `isOwner` any more.
     expect(conn.api).toBe("chat-completions");
     expect(conn.credential.source).toBe("vllm");
   });
@@ -174,10 +173,12 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
   // agent-sdk source (incl. the now-retired vllm) is rejected by assertCoherent before the heal.
   test("no regression: agent-sdk on the SUB heals to a Claude curated default (Claude models keep healToChatDefault)", async () => {
     const h = makeConnHarness(await freshDb());
+    // An EXPLICIT sub pick with no model pin (the sub is no longer any principal's born default since #196 —
+    // it is reached only by choosing it). max-pro-sub is a real Claude source, so the empty model heals to the
+    // curated Claude default (a `/`-free curated id).
+    h.setRoleDefaults({ chat: { source: "max-pro-sub" } });
     const svc = createConnectionService(h.ctx);
 
-    // The owner's unconfigured chat defaults to agent-sdk × max-pro-sub — a real Claude source, so it heals
-    // to the curated Claude default (a `/`-free curated id).
     const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("owner_1"), "owner") });
 
     expect(conn.credential.source).toBe("max-pro-sub");
@@ -205,12 +206,15 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
     expect(resolved.capability.output.maxTokens.max).toBeGreaterThan(0);
   });
 
-  test("the OWNER's chat default resolves the Claude curated capability (owner-conditional, same selector as resolveRole)", async () => {
+  test("an EXPLICIT max-pro-sub chat pick resolves the Claude curated capability (same selector as resolveRole)", async () => {
     const h = makeConnHarness(await freshDb());
+    // Explicit since #196 — the sub is nobody's born default now, so the curated-Claude descriptor is reached
+    // by PICKING the sub. Protocol Auto over max-pro-sub derives agent-sdk (the only coherent pair).
+    h.setRoleDefaults({ chat: { source: "max-pro-sub" } });
     const svc = createConnectionService(h.ctx);
 
-    // Owner unconfigured chat → agent-sdk × max-pro-sub → the curated Claude default descriptor (adaptive
-    // reasoning is the curated-Claude tell, matching getModelCapability.int.test.ts).
+    // agent-sdk × max-pro-sub → the curated Claude default descriptor (adaptive reasoning is the
+    // curated-Claude tell, matching getModelCapability.int.test.ts).
     const resolved = await svc.resolveChatCapability({ principal: principal(castId<UserId>("owner_1"), "owner") });
 
     expect(resolved.capability.reasoning.mode).toBe("adaptive");
@@ -219,18 +223,19 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
   // The IDENTITY half of the read (widened 2026-08-02): `ModelCapability` names neither the model nor the
   // source, so the Connections pane's never-saved row could only say "Uses the app default" and name nothing.
   // The resolved `(api, source, model)` rides back with the descriptor — and it is the RESOLVER's answer, so
-  // the pane can never drift from what a turn actually takes (the owner/non-owner fork included).
-  test("the read NAMES the connection it resolved — owner and non-owner defaults differ, as a turn would", async () => {
+  // the pane can never drift from what a turn actually takes. Since #196 owner and member resolve the SAME
+  // born default, so this also pins the pane's "Uses the app default: …" line to the local engine for both.
+  test("the read NAMES the connection it resolved — the born default is local vLLM for owner AND member", async () => {
     const h = makeConnHarness(await freshDb());
     const svc = createConnectionService(h.ctx);
 
     const owner = await svc.resolveChatCapability({ principal: principal(castId<UserId>("owner_1"), "owner") });
-    expect({ api: owner.api, source: owner.source }).toEqual({ api: "agent-sdk", source: "max-pro-sub" });
-    expect(owner.model.startsWith("claude")).toBe(true);
+    expect({ api: owner.api, source: owner.source }).toEqual({ api: "chat-completions", source: "vllm" });
+    expect(owner.model).toBe(env.VLLM_GEN_MODEL);
 
     const member = await svc.resolveChatCapability({ principal: principal(castId<UserId>("user_1")) });
     expect({ api: member.api, source: member.source }).toEqual({ api: "chat-completions", source: "vllm" });
-    expect(member.model.length).toBeGreaterThan(0);
+    expect(member.model).toBe(env.VLLM_GEN_MODEL);
   });
 
   test("the named identity follows an explicit roleDefaults.chat (never a stale/guessed fallback)", async () => {
@@ -385,6 +390,8 @@ describe("resolveRole — cold-catalog warm (every source reads its own window t
 
   test("max-pro-sub warms the DAEMON catalog (its own truth source), not the OR one", async () => {
     const h = makeConnHarness(await freshDb());
+    // Explicitly picked: since #196 the sub is nobody's born default, so the subject has to be selected.
+    h.setRoleDefaults({ chat: { source: "max-pro-sub" } });
     const svc = createConnectionService(h.ctx);
 
     await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("owner_1"), "owner") });
@@ -425,7 +432,10 @@ describe("resolveRole — derive-role local-light fallback when vLLM is unavaila
     const conn = await svc.resolveRole({ role, principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.credential.source).not.toBe("local-light");
-    // For a NON-owner, chat/summarize default to vllm — neither falls to local-light (generation roles never do).
+    // chat/summarize both BORN-default to vllm (role-blind since #196) — neither falls to local-light, because
+    // local-light cannot generate. A no-GPU box therefore keeps resolving vllm and refuses HONESTLY at the
+    // pre-send gate (`checkChatAvailability` → engine-off), instead of silently rerouting to a tier that
+    // cannot serve the turn.
     expect(conn.credential.source).toBe("vllm");
   });
 

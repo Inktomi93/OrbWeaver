@@ -50,7 +50,6 @@ interface RouteSelection {
 
 const DEFAULT_CHAT_API: ChatApi = "chat-completions";
 const DEFAULT_LOCAL_SOURCE: CredentialSource = "vllm";
-const DEFAULT_AGENT_SOURCE: CredentialSource = "max-pro-sub";
 const DEFAULT_IMAGE_SOURCE: CredentialSource = "openrouter";
 
 /** The coherent protocol for an explicit chat source with no pinned protocol (the UI's “Auto”). */
@@ -60,16 +59,23 @@ function defaultChatApiForSource(source: CredentialSource): ChatApi {
 
 /** Exhaustive over `RoutingRoleKey`; `agentOverride` fields beat the role default. */
 const ROLE_SELECTORS: {
-  readonly [K in ResolveRoleParams["role"]]: (roleDefaults: RoleDefaults, override: RouteOverride | undefined, isOwner: boolean) => RouteSelection;
+  readonly [K in ResolveRoleParams["role"]]: (roleDefaults: RoleDefaults, override: RouteOverride | undefined) => RouteSelection;
 } = {
-  // The unconfigured chat default is owner-conditional: owner falls back to max-pro-sub (agent-sdk),
-  // everyone else to local vllm (max-pro-sub is owner-only and would throw for a non-owner).
-  chat: (rd, ov, isOwner) => {
-    const source = ov?.source ?? rd.chat?.source ?? (isOwner ? DEFAULT_AGENT_SOURCE : DEFAULT_LOCAL_SOURCE);
+  // The unconfigured chat default is ROLE-BLIND: local vllm on chat-completions, for the owner exactly as for
+  // everyone else (owner order 2026-08-18, #196 — "id like to move vllm chat complete to be the default not
+  // the agent sdk sub"). It used to fork on `isOwner` and hand the box owner `agent-sdk × max-pro-sub`, so
+  // every fresh DB booted the owner onto the metered Claude subscription instead of the standing local-first
+  // posture. The sub is now reached only by PICKING it, and no role default consults the principal's role.
+  // No GPU is not a silent reroute: chat is a generation role, local-light cannot generate, so the selection
+  // stays vllm and `checkChatAvailability` refuses up front with `engine-off` (the honest pre-send arm).
+  chat: (rd, ov) => {
+    const source = ov?.source ?? rd.chat?.source ?? DEFAULT_LOCAL_SOURCE;
     return {
-      // `api` and `source` are one selection. “Auto” means derive a protocol for the selected source,
-      // not independently apply the owner's unconfigured agent-sdk default: that produced the live
-      // `{source:"vllm", api:"agent-sdk"}` pair and made every local turn fail coherence resolution.
+      // `api` and `source` are one selection. “Auto” means derive a protocol FOR THE SELECTED SOURCE, never
+      // an independently-defaulted protocol: when the protocol defaulted on its own it produced the live
+      // `{source:"vllm", api:"agent-sdk"}` pair and made every local turn fail coherence resolution. The
+      // derivation stays even though the born source is now always vllm — an explicit source pick (the sub)
+      // with protocol Auto still has to land on ITS coherent protocol.
       api: ov?.api ?? rd.chat?.api ?? defaultChatApiForSource(source),
       source,
       model: ov?.model ?? rd.chat?.model ?? null,
@@ -337,18 +343,14 @@ function capabilityCaches(ctx: ConnectionContext): {
   };
 }
 
-/** Run the selector cascade (roleDefaults → per-agent override → owner default), the vLLM-fallback, the
+/** Run the selector cascade (roleDefaults → per-agent override → the born default), the vLLM-fallback, the
  *  coherence assert, and the model heal — the shared SELECTION half both `resolveRole` and
  *  `resolveChatCapability` use. Reads the acting principal's OWN settings (no caller-supplied user id). */
 async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleParams): Promise<{ selection: RouteSelection; model: ModelId }> {
   const settings = await ctx.loadUserSettings(params.principal.userId);
   const selection = healConfigDerivedModel(
     params.role,
-    applyVllmFallback(
-      params.role,
-      ROLE_SELECTORS[params.role](settings.routing.roleDefaults, params.routeOverride, ctx.isOwner(params.principal)),
-      ctx.vllmAvailable,
-    ),
+    applyVllmFallback(params.role, ROLE_SELECTORS[params.role](settings.routing.roleDefaults, params.routeOverride), ctx.vllmAvailable),
     ctx,
   );
   assertCoherent(selection.api, selection.source);

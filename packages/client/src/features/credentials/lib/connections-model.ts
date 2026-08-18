@@ -260,7 +260,8 @@ export function toRoutingSection(form: RoutingForm): { roleDefaults: Record<stri
 // The pane is autosaved, so what it renders is FORM state — which is the user's draft until a save lands.
 // On 2026-08-01 that cost a live debugging session: the owner's `roleDefaults` was NULL for two hours
 // while the pane showed a full "OpenRouter · Claude Sonnet · Protocol Auto" row under a "Saved" chip, and
-// turns quietly resolved the owner fallback (resolve-role.ts). A row must therefore say which of the two
+// turns quietly resolved the app default (resolve-role.ts — the owner-conditional sub arm at the time; the
+// born default is local vLLM for every principal since #196). A row must therefore say which of the two
 // it is showing, per row, against the PERSISTED projection.
 
 /** A persistable role of the flat form (excludes the read-only `agent` mirror, which has no form entry).
@@ -340,9 +341,9 @@ const CHAT_APIS_BY_SOURCE: Partial<Record<CredentialSource, readonly ChatApi[]>>
  *
  * An UNSET source has NO legal pinned protocol: the resolver falls back to `api` and `source`
  * INDEPENDENTLY (resolve-role.ts `ROLE_SELECTORS.chat`), so a pinned `api` over an unpinned source is
- * paired with whatever default the server picks — for the owner that default is `max-pro-sub`, which
- * `assertCoherent` rejects for every api but `agent-sdk`. Offering protocols here would let the pane
- * persist a pair that cannot take a turn; the only honest option over an unset source is Auto.
+ * paired with whatever default the server picks — since #196 that default is `vllm` for every principal,
+ * and `assertCoherent` rejects `agent-sdk` on it. Offering protocols here would let the pane persist a
+ * pair that cannot take a turn; the only honest option over an unset source is Auto.
  */
 export function chatApisForSource(source: string): readonly ChatApi[] {
   if (source === "") {
