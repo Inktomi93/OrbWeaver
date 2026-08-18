@@ -121,9 +121,14 @@ describe("memory/build/segments", () => {
   test("a block past the PATHOLOGICAL ceiling is still skipped whole and RECORDED (#165's surviving arm)", async () => {
     const chatId = await seedChat(db, "absurd");
     // ~3.6M chars in ONE block ⇒ ~88 chunks at the test window, past MAX_SEGMENT_CHUNKS_PER_BLOCK (64).
-    // Spread over 24 messages rather than one: libsql silently stores an EMPTY string for a TEXT bind past
-    // ~1MB (measured here — a single 3M-char message read back as ""), so a one-message fixture would prove
-    // nothing.
+    // Spread over 24 messages rather than one because a BLOCK IS A ROW SET: `segments.ts:75` returns early
+    // when `cutoff < cfg.blockSize`, so with `blockSize: 24` a one-message fixture yields cutoff 1 < 24 and
+    // the pass bails with zero counts before it ever reads canon — it would prove nothing, whatever the
+    // message's size. (This comment previously blamed a libSQL bind limit — "silently stores an EMPTY string
+    // past ~1MB". That is FALSE and was never the reason: probed on the pinned @libsql/client 0.17.4, a TEXT
+    // bind round-trips byte-exact through the raw client on `file:` and `:memory:`, through `client.batch`,
+    // and end-to-end through `message_variants` + `loadCanonThroughSeq` at 3M, 6.2M, 13M and 26.1M chars.
+    // #179; the standing tripwire is in `tests/db/client.int.test.ts`.)
     for (let seq = 1; seq <= 24; seq += 1) {
       // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
       await seedMessage(db, chatId, seq, { characterId: aria, content: HUGE_LINE.repeat(3000) });

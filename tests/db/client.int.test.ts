@@ -5,6 +5,7 @@
 // test exercises a UNIQUE violation; the foreign-key arm of isConstraintViolation is exercised by the
 // Wave-1 slices that land real FKs.
 
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -100,6 +101,60 @@ test("createDb still boots a :memory: db (the WAL readback assert is file-only)"
 test("assertReferentialIntegrity passes on the freshly-applied schema", async () => {
   const db = await freshDb();
   await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
+});
+
+// THE SILENT-TRUNCATION TRIPWIRE (#179). A comment in the memory-segments spec asserted that libSQL
+// "silently stores an EMPTY string for a TEXT bind past ~1MB" — a success return with destroyed content, the
+// worst failure mode a persistence layer has. It is FALSE on the pinned driver: probed on @libsql/client
+// 0.17.4 every layer round-trips byte-exact — raw client on `file:` and `:memory:`, `client.batch`, drizzle,
+// and end-to-end through `message_variants` + `loadCanonThroughSeq` at 3M, 6.2M, 13M and 26.1M chars. So
+// there is no threshold to guard and NO write boundary gets a size cap: capping would also contradict the
+// memory ruling that content is chunked losslessly, never dropped (#172/#165).
+//
+// This test exists so that stops being true LOUDLY. A libSQL bump that introduces a bind-size truncation
+// would otherwise destroy chat/import/databank content with a success return and no test in the tree would
+// notice. Sizes straddle the claimed 1MiB boundary and go well past it; the multibyte case proves the
+// round-trip is not a BYTE cap either (each `é` is 2 UTF-8 bytes, so it crosses 1MiB at half the chars).
+// Equality is asserted by DIGEST, not `toBe` — a failing multi-MB string comparison prints an unusable diff.
+const MULTIBYTE_CHARS = 700_000; // 1.4 MB of UTF-8
+
+/** `HEAD…TAIL`-sentinelled filler of EXACTLY `size` chars — the sentinels make a head/tail-side cut legible. */
+function asciiCase(size: number): { label: string; text: string } {
+  return { label: `${size} ascii chars`, text: `HEAD${"a".repeat(size - 8)}TAIL` };
+}
+
+function digest(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
+}
+
+test("a large TEXT bind round-trips byte-exact — no silent truncation past 1MiB (#179)", async () => {
+  const db = await createDb(":memory:");
+  await db.run(sql`CREATE TABLE bind_probe (id INTEGER PRIMARY KEY, v TEXT NOT NULL)`);
+
+  // A TUPLE: `db.batch` takes a NON-EMPTY tuple, so the head is destructured out (a bare `.map` widens to a
+  // possibly-empty array and `tsc` rejects it) rather than asserted non-empty.
+  const cases = [
+    asciiCase(1_048_575), // 1MiB − 1
+    asciiCase(1_048_576), // exactly 1MiB
+    asciiCase(1_048_577), // 1MiB + 1
+    asciiCase(4_000_000), // well past any plausible cap
+    { label: `${MULTIBYTE_CHARS} multibyte chars`, text: `HEAD${"é".repeat(MULTIBYTE_CHARS)}TAIL` },
+  ] as const;
+
+  // db.batch — the path domain writes actually take (an interactive transaction replaces the connection).
+  const insert = (text: string): ReturnType<typeof db.run> => db.run(sql`INSERT INTO bind_probe (v) VALUES (${text})`);
+  const [first, ...others] = cases;
+  await db.batch([insert(first.text), ...others.map((c) => insert(c.text))]);
+
+  const rows = await db.all<Record<string, unknown>>(sql`SELECT id, v, length(v) AS len, typeof(v) AS ty FROM bind_probe ORDER BY id`);
+  expect(rows).toHaveLength(cases.length);
+  for (const [index, expected] of cases.entries()) {
+    const row = rows[index];
+    // typeof first: a bind that degraded to NULL/BLOB is a different destruction than a truncation.
+    expect(`${expected.label}: ${String(row?.["ty"])}`).toBe(`${expected.label}: text`);
+    expect(`${expected.label}: ${String(row?.["len"])}`).toBe(`${expected.label}: ${expected.text.length}`);
+    expect(`${expected.label}: ${digest(String(row?.["v"]))}`).toBe(`${expected.label}: ${digest(expected.text)}`);
+  }
 });
 
 test("users insert→select round-trips (branded id survives, role enum accepted)", async () => {
