@@ -104,7 +104,6 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
   // Acknowledged CT gaps — real surfaces without a CT yet. Named so the gap is loud, never silent. When
   // one gains a CT, delete its line (the ratchet fails on a stale waiver).
   "room-overrides-tab": { deferred: "the context-panel Overrides tab wrapper — CT gap; the form itself is room-overrides-form.ct." },
-  "committed-members-tab": { deferred: "the context-panel Members tab wrapper — CT gap; the panel itself is members-panel.ct." },
   "chats-topbar-header": { deferred: "the chats-section topbar header — CT gap." },
 
   // Slash-command parts — driven through their real hosts, never mounted standalone.
