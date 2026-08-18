@@ -66,10 +66,13 @@ export const messageRoleSchema = z.enum(MESSAGE_ROLES);
 // canon, D60), and its OUT-OF-BAND, unseated reaction is `comment` (visible, never prompt, never memory).
 //
 // KIND NEVER DECIDES THE CANON `role` (owner ruling, 2026-08-07). Narrator rows stay `role:'assistant'` in
-// canon; the "ship a narrator row as a wire `system` row on capable models" mapping is a SHAPE-time dispatch
-// on kind × capability, never a stored fact — otherwise canon stops being provider-independent (§14). Kind
-// also does not replace the D55 synthetic group character: that identity keeps the `__group__` memory
-// scoping, the attribution chrome and the host-owned mint. Kind is purpose; attribution remains voice.
+// canon. KIND NOW DECIDES NO WIRE ROLE EITHER (owner ruling, 2026-08-18, verbatim: "if you mean group chat
+// narration mode then that is the wrong behavior"): the "ship a narrator row as a wire `system` row on
+// capable models" mapping — a SHAPE-time dispatch on kind × capability, built on the measured vLLM cell in
+// `56a979d44` — is RULED OUT. Group narration is ONE generation voicing the whole cast, i.e. the assistant's
+// own output voice, so a narrator row delivers `assistant` on every wire. Kind also does not replace the D55
+// synthetic group character: that identity keeps the `__group__` memory scoping, the attribution chrome and
+// the host-owned mint. Kind is purpose; attribution remains voice.
 export const MESSAGE_KINDS = ["standard", "narrator", "comment"] as const;
 export type MessageKind = (typeof MESSAGE_KINDS)[number];
 /** Schema twin of {@link MESSAGE_KINDS}, which drives the `messages.kind` enum + CHECK. */
@@ -82,9 +85,12 @@ export const DEFAULT_MESSAGE_KIND: MessageKind = "standard";
 /** ONE kind's cross-plane policy — the `CONTENT_CLASS_POLICY` pattern one level UP (that registry is
  *  span-level: bytes INSIDE a row; this is row-level: what the row IS).
  *   • `prompt`  — how the row enters the assembled prompt. `conversation` = an ordinary history row;
- *     `system-channel` = eligible for the capability-gated narrator→wire-`system` mapping, which is DORMANT
- *     until a live wire probe sets the sibling capability fact per model (§9 — assistant-voiced everywhere
- *     today, so nothing changes at launch); `never` = the row is not prompt material at all.
+ *     `system-channel` = ALSO an ordinary history row on the wire, assistant-voiced, byte-identically to
+ *     `conversation`. The arm's name is archaeology: it was minted for the capability-gated
+ *     narrator→wire-`system` mapping, which the owner RULED OUT on 2026-08-18 (group narration is the
+ *     assistant's own output voice, not the operator channel). It is kept as its own arm because the two
+ *     purposes still differ where purpose matters — the label policy and the delivered-row trace read it.
+ *     `never` = the row is not prompt material at all.
  *   • `memory`  — whether the row is ingested by the digest/segment build (`loadCanonThroughSeq`). A narrator
  *     recap IS story canon and is precisely what a digest wants; an OOC comment is not story.
  *   • `reading` — the transcript surface. Every kind SHOWS: a comment is out-of-character, not secret (the

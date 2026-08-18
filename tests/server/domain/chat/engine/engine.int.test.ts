@@ -223,7 +223,8 @@ describe("createTurnEngine — the born message KIND", () => {
     const messageId = outcome.messages[0]?.id;
     expect(messageId).toBeDefined();
     expect(messageId === undefined ? null : await kindOf(messageId)).toBe("narrator");
-    // Kind never decides the canon role — any narrator→wire-`system` mapping is a SHAPE-time projection.
+    // Kind never decides the canon role — and since 2026-08-18 it decides no wire role either (the owner
+    // ruled the narrator→wire-`system` mapping out; group narration is the assistant's own output voice).
     expect(outcome.messages[0]?.role).toBe("assistant");
   });
 });

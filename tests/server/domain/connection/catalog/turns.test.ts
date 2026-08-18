@@ -80,7 +80,7 @@ describe("cache gate — midConversationSystem (the volatile-channel gating flag
   });
 });
 
-describe("shape gate — historySystemRows (D129(B): MID-history system rows, a SIBLING of the tail channel)", () => {
+describe("shape gate — historySystemRows (MID-history system rows, a SIBLING of the tail channel)", () => {
   test("UNMEASURED everywhere ⇒ false everywhere — including the one model that DOES honor the tail channel", () => {
     // The whole point of the sibling fact: Opus 4.8 on the cli shape honors a depth-0 TAIL system row and
     // still gets `false` here, because nothing has wire-tested mid-history placement on it. Inferring one

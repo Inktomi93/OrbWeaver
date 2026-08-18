@@ -74,8 +74,9 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
       role: "assistant" as const,
       // DECLARED purpose (the kind axis) — not inferred later from "assistant + the synthetic group char",
       // which is exactly the inference that evaporates when that character is deleted (its FK SET-NULLs) or
-      // when the room's output dial flips. The canon `role` stays `assistant`: any narrator→wire-`system`
-      // mapping is a SHAPE-time projection, never a stored fact.
+      // when the room's output dial flips. The canon `role` stays `assistant`, and so does the DELIVERED
+      // role: the narrator→wire-`system` mapping that was briefly a SHAPE-time projection is owner-ruled out
+      // (2026-08-18 — group narration is the assistant's own output voice).
       kind: "narrator" as const,
       authorUserId: null,
       characterId: group.characterId,

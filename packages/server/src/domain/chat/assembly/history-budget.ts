@@ -20,8 +20,9 @@ import { estimateTokens } from "@orb/kit/tokens";
  *  shape is the providers' ChatHistoryMessage; this is SHAPE's internal turn shape). */
 interface HistoryTurn {
   /** The delivered wire-row role — the full `MessageRole` axis (`system` appears only as a capability-kept
-   *  injection row, at the tail `turns.midConversationSystem` or mid-array `turns.historySystemRows`, or a
-   *  D129(B) narrator row; role-agnostic here). Derived, never re-spelled. */
+   *  INJECTION row, at the tail `turns.midConversationSystem` or mid-array `turns.historySystemRows`; never a
+   *  canon row, since the D129(B) narrator→`system` delivery was owner-ruled out 2026-08-18 — role-agnostic
+   *  here either way). Derived, never re-spelled. */
   readonly role: MessageRole;
   readonly content: string;
   readonly name?: string;

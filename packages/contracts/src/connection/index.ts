@@ -190,17 +190,22 @@ export const modelCapabilitySchema = z.object({
        *  i.e. mid-array, not just the tail channel {@link midConversationSystem} covers? Deliberately a
        *  SIBLING fact rather than a second reader of that bit: `midConversationSystem` is wire-tested for the
        *  DEPTH-0 TAIL only (`assembly/injections`: "the only wire-tested channel is tail-positioned, and a real
-       *  system row inside the stable prefix would mutate cached bytes"), and a narrator row is MID-HISTORY —
+       *  system row inside the stable prefix would mutate cached bytes"), and a depth-N note is MID-HISTORY —
        *  shipping history rows as system on the strength of a tail-tested bit is the category error the
        *  capability axis exists to prevent (D69).
        *
-       *  TWO consumers, both asking this one question (where may a `system` row sit INSIDE the history?):
-       *  (1) the D129(B) narrator mapping — a `narrator`-kind canon row (which stays `role:'assistant'` in
-       *  CANON forever — canon is provider-independent) DELIVERS as a wire `system` row where this is true;
-       *  (2) the depth \> 0 arm of the injection splice (`assembly/injections`) — an author's note or a
-       *  depth-N world-info entry authored `role:'system'` rides at its depth as a real `system` row instead
-       *  of demoting to the `[Note from system: …]` user framing. Read through
+       *  ONE consumer, asking exactly this question (where may a `system` row sit INSIDE the history?): the
+       *  depth \> 0 arm of the injection splice (`assembly/injections`) — an author's note or a depth-N
+       *  world-info entry authored `role:'system'` rides at its depth as a real `system` row instead of
+       *  demoting to the `[Note from system: …]` user framing. Read through
        *  {@link acceptsHistorySystemRows}, never re-spelled per consumer.
+       *
+       *  IT HAD A SECOND CONSUMER until 2026-08-18 — the D129(B) narrator mapping, which delivered a
+       *  `narrator`-kind canon row as a wire `system` row where this is true. OWNER-RULED OUT that day,
+       *  verbatim: "if you mean group chat narration mode then that is the wrong behavior" — group narration
+       *  is ONE generation voicing the whole cast, i.e. the assistant's OUTPUT voice, not the operator
+       *  channel. The MEASUREMENT stands (it was always about wire PLACEMENT); what it may never decide is a
+       *  canon row's PURPOSE.
        *
        *  FAIL-CLOSED: `false` until a live wire probe measures it per (model × wire-shape) —
        *  `pnpm probe:history-system-rows` (`scripts/probes/history-system-rows.ts`), the same
@@ -232,13 +237,14 @@ export function coEmitsProseWithTools(capability: ModelCapability): boolean {
 }
 
 /** MAY this wire carry `system` rows INSIDE the delivered history (mid-array, not the tail channel)? The ONE
- *  home of the mid-history system read (`capability.turns.historySystemRows`) — the gate for BOTH the D129(B)
- *  narrator mapping and the depth \> 0 system-injection delivery. Absent `turns` ⇒ `TURNS_FLOOR` ⇒ false: a
- *  model whose cell was never measured delivers narrator rows assistant-voiced and demotes a mid-history
- *  system note, exactly as every unmeasured wire does (D68 fail-closed — absence means the behavior does not
- *  engage, never a guessed default).
+ *  home of the mid-history system read (`capability.turns.historySystemRows`) — the gate for the depth \> 0
+ *  system-injection delivery, and for nothing about a canon row's role (the D129(B) narrator mapping that
+ *  also read it was owner-ruled out 2026-08-18). Absent `turns` ⇒ `TURNS_FLOOR` ⇒ false: a model whose cell
+ *  was never measured demotes a mid-history system note to the `[Note from system: …]` user framing, exactly
+ *  as every unmeasured wire does (D68 fail-closed — absence means the behavior does not engage, never a
+ *  guessed default).
  *
- *  Homed in `contracts` beside {@link coEmitsProseWithTools} for the same reason: the SHAPE dispatch reads it
+ *  Homed in `contracts` beside {@link coEmitsProseWithTools} for the same reason: the SHAPE splice reads it
  *  and any future consumer must read the identical fact rather than re-spell `turns?.historySystemRows`. */
 export function acceptsHistorySystemRows(capability: ModelCapability): boolean {
   return capability.turns?.historySystemRows === true;
