@@ -965,6 +965,16 @@ function writeFixtures(): void {
     "packages/server/src/transport/trpc/routers/__g_boundedlimit.ts",
     'import { z } from "zod";\nexport const gListInput = z.object({ limit: z.number().int().optional() });\n',
   );
+  // ct-poll-schedule-and-paint (ARM A): a module-scope interval array handed to `expect.poll` — Playwright's
+  // pollAgainstDeadline pops/shifts the caller's array, so the schedule is drained after its first use. ARM A
+  // is the fixturable one: ARM B needs a barrier-vocabulary derivation plus an ordered trigger/poll pair,
+  // which is a whole test body, and ARM C is the founding-anchor tripwire (a `__g_` file cannot move the real
+  // motion-stats CT). Both are proven per-arm by gate-conformance's mustFlag rows. The fixture leaves the
+  // real anchor untouched, so ARM C keeps judging the real tree.
+  fx(
+    "tests/client/features/__g_ctpoll/__g_ctpoll.ct.tsx",
+    'import { expect, test } from "@playwright/experimental-ct-react";\nconst G_SCHEDULE = [50, 100, 250];\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals: G_SCHEDULE, timeout: 10_000 }).toBe(1);\n});\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

@@ -22,6 +22,7 @@ import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { blankTsComments } from "../comment-spans.ts";
 import type { ExemptionRow, ExemptionTable, GateDescriptor, GateRunCtx } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
@@ -397,7 +398,11 @@ function readDoorCorpus(ctx: GateRunCtx): DoorCorpus {
         trpcCites.add(cite);
       }
     } else if (rel.startsWith(HTTP_DIR)) {
-      httpText.push(sf.getFullText());
+      // CODE, not file text (issue #117/#132): arm B asks whether a declared door RESOLVES to a real
+      // route literal, so a route path quoted in a COMMENT (a header listing the routes a module
+      // serves, the ordinary shape here) would keep a DELETED door reading as live — the exact
+      // rename-leaves-the-table-lying failure the arm exists to catch, wearing a `//`.
+      httpText.push(blankTsComments(sf));
     }
   }
   return { trpcCites, httpText };

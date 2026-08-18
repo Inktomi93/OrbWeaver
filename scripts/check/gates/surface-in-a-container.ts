@@ -7,6 +7,7 @@
 // snippets, not secrets.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { blankTsCommentsInText } from "../comment-spans.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -46,7 +47,7 @@ function anchorHasContainer(dir: string): boolean {
   }
   return readdirSync(anchors, { withFileTypes: true })
     .filter((e) => e.isFile() && e.name.endsWith(".tsx"))
-    .some((e) => CONTAINER_RE.test(readFileSync(join(anchors, e.name), "utf8")));
+    .some((e) => CONTAINER_RE.test(blankTsCommentsInText(readFileSync(join(anchors, e.name), "utf8"))));
 }
 
 const CONTAINER_MESSAGE =
@@ -65,7 +66,10 @@ function scanSurfaceInAContainer(root: string): Violation[] {
     }
     const dir = join(base, feat.name);
     for (const f of surfaceFiles(dir)) {
-      const src = readFileSync(join(dir, "surfaces", f), "utf8");
+      // Comments blanked before both regexes (issue #117/#132): a header naming `<Container>` would
+      // satisfy the containment requirement for a surface that renders none (permissive), and one
+      // showing structural JSX in an example would conscript a surface that renders none (positive).
+      const src = blankTsCommentsInText(readFileSync(join(dir, "surfaces", f), "utf8"));
       if (STRUCTURAL_RE.test(src) && !CONTAINER_RE.test(src) && !anchorHasContainer(dir)) {
         out.push({
           file: `${FEATURES}/${feat.name}/surfaces/${f}`,
@@ -111,6 +115,14 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "no <Container>" },
       why: "a surface with a raw structural <div>/<ul> root + no Container (own or anchor's) — §4",
+    },
+    {
+      files: {
+        "packages/client/src/features/x/surfaces/commented-container.tsx":
+          "// Containment: wrap this in <Container> when the pane gets its own scroll area.\nexport const Pane = () => <div><ul><li>row</li></ul></div>;\n",
+      },
+      expect: { messageIncludes: "no <Container>" },
+      why: "COMMENT POSTURE (issue #117/#132) in the PERMISSIVE direction: a surface whose COMMENT names `<Container>` establishes no containing block — a file-text scan reads the plan as the deed and the surface ships uncontained",
     },
     {
       files: {

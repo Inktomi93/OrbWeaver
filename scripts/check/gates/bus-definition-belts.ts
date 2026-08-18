@@ -33,6 +33,7 @@
 // is RED and gets deleted.
 import type { SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { codeIncludes } from "../comment-spans.ts";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
@@ -143,7 +144,11 @@ function findEventTypesConsts(files: readonly SourceFile[]): EventTypesConst[] {
 /** Does any scripts/check/gates/*.ts file (other than this one) name the const literally? Mirrors
  *  bus-coverage.ts's own `const TYPES_CONST = "CHAT_BUS_EVENT_TYPES"` convention. */
 function hasCoverageGate(files: readonly SourceFile[], constName: string): boolean {
-  return files.some((sf) => GATES_SCOPE.test(sf.getFilePath()) && !OWN_HOME.test(sf.getFilePath()) && sf.getFullText().includes(constName));
+  // CODE, not file text (issue #117/#132): the gate corpus is the most comment-dense tier in the tree, and a
+  // sibling gate's PROSE naming this const would satisfy the belt while enforcing nothing. Permissive-
+  // direction comment blindness — the belt reports covered and the union ships uncovered. `codeIncludes`
+  // fences on the raw text first, so only real candidates parse.
+  return files.some((sf) => GATES_SCOPE.test(sf.getFilePath()) && !OWN_HOME.test(sf.getFilePath()) && codeIncludes(sf, constName));
 }
 
 /** Is `node` an `IndexedAccessTypeNode` over exactly `unionName["type"]`-shaped? */
@@ -293,6 +298,19 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "NO `*_EVENT_TYPES` belt const" },
       why: "ARM C's founding shape: a beltless bus union. The two older arms quantify over belts, so before this arm existed a union with no belt was reachable by NO gate — which is how rulesChanged shipped dead",
+    },
+    {
+      // COMMENT POSTURE (issue #117/#132) in the PERMISSIVE direction: a gate file MENTIONING the const in
+      // prose is not a coverage gate.
+      files: {
+        "packages/contracts/src/__probe/index.ts":
+          'export type PEv = { type: "a" };\nexport const PROBE_EVENT_TYPES = { a: true } satisfies Record<PEv["type"], true>;\n',
+        "scripts/check/gates/__probe-prose.ts": '// The sibling ratchet keys on PROBE_EVENT_TYPES; this gate does not.\nexport const OTHER = "x";\n',
+        "packages/client/src/data/invalidation.ts":
+          'import type { PEv } from "@orb/contracts/__probe";\ntype ProbeMap = { readonly [K in PEv["type"]]: () => void };\n',
+      },
+      expect: { messageIncludes: "NO matching coverage-gate file" },
+      why: "COMMENT POSTURE: the coverage belt is read from CODE, so a gate whose COMMENT names the const does not satisfy it — the gate corpus is the tree's most comment-dense tier, and a prose match would report a belt that enforces nothing",
     },
     {
       // ARM C by NAME: `DomainEvent` does not end `BusEvent`, so the suffix test alone would miss it.

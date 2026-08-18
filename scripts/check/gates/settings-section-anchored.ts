@@ -10,6 +10,7 @@
 // precedent). The complement to settings-pane-completeness/placeholder-copy-registry.
 import type { JsxAttributeLike, JsxOpeningElement, JsxSelfClosingElement, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { codeIncludes } from "../comment-spans.ts";
 import type { GateDescriptor } from "../contract.ts";
 
 const TAG_NAME = "Section";
@@ -27,9 +28,12 @@ const ANCHOR_FN = "settingsAnchorId";
 const SETTINGS_SURFACE_RE = /packages\/client\/src\/.*-settings-surface\.tsx$/;
 const CLIENT_TSX_RE = /packages\/client\/src\/.*\.tsx$/;
 
-/** Is this file a settings section by CONTENT — does it stamp settings anchors at all? */
+/** Is this file a settings section by CONTENT — does it stamp settings anchors at all? Read from CODE, not
+ *  file text: a component whose comment MENTIONS `settingsAnchorId` (explaining why it is not one, the most
+ *  likely sentence to write) would otherwise be conscripted into the fragment arm and every heading Section
+ *  in it reported — the comment-blindness class of #117/#132, here in the false-POSITIVE direction. */
 function stampsSettingsAnchors(sf: SourceFile): boolean {
-  return sf.getFullText().includes(ANCHOR_FN);
+  return codeIncludes(sf, ANCHOR_FN);
 }
 
 /** Does this `<Section …>` carry a JSX attribute named `name`, or a spread that MIGHT (a conditional
@@ -106,6 +110,12 @@ export const gate: GateDescriptor = {
       files: 'export const G = <Section heading="Host Claude"><Text>x</Text></Section>;\n',
       at: "packages/client/src/features/credentials/components/role-slot-row.tsx",
       why: "scope: a component that stamps NO settings anchor is not a settings section (the character-editor / persona-panel / preset-editor `*-section.tsx` class) — passes",
+    },
+    {
+      files:
+        '// This panel is NOT a settings section and never calls settingsAnchorId — it is the persona context panel.\nexport const G = <Section heading="Host Claude"><Text>x</Text></Section>;\n',
+      at: "packages/client/src/features/persona/components/context-panel.tsx",
+      why: "COMMENT POSTURE (issue #117/#132): the fragment arm reads CODE, so a comment naming `settingsAnchorId` — the most natural sentence for a file explaining it is not a settings section — does not conscript the file. Reading prose as code reddened two lanes before this was law",
     },
   ],
 };

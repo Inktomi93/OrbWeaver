@@ -13,6 +13,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import { blankTsCommentsInText, codeTextForScan } from "../comment-spans.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -111,8 +112,11 @@ function storeActionNames(sf: SourceFile): string[] {
 // A `state/*.ts` file mints its OWN store only when it calls one of the three factory doors directly —
 // excludes the factory-definition files themselves (create-gated-store.ts etc. define, never call, the
 // door) and the context/provider/registry files (no store, nothing to gate here).
+// Read from CODE (issue #117/#132): a `state/*.ts` whose comment NAMES a factory door — which the
+// factory-definition files and the doc comments above every store both do — is not a store, and clause C
+// would then demand mirror coverage for actions it has none of.
 function isStoreFile(sf: SourceFile): boolean {
-  return STATE_STORE_FACTORY_RE.test(sf.getFullText());
+  return STATE_STORE_FACTORY_RE.test(codeTextForScan(sf, (raw) => STATE_STORE_FACTORY_RE.test(raw)));
 }
 
 // Clause C — a store's mirror .ct.tsx (the only kind these hook-backed stores use — useSyncExternalStore
@@ -149,8 +153,15 @@ function clientTierRel(rel: string): string | undefined {
 // violation; clause C only judges action-name coverage WITHIN an existing mirror. The action call sites
 // live in the shared `_ct-stories.tsx` story module (Spine-Testing §7 — "CT only mounts from a non-test
 // module"), so the corpus is BOTH the `.ct.tsx` and its sibling `_ct-stories.tsx`.
+// The mirror corpus is read off the REAL FS (it is a test file, judged by existence), so its comments are
+// blanked from TEXT. This is the PERMISSIVE direction of the comment-blindness class and the one that
+// matters here: a COMMENTED-OUT `revealContextPanel(` call in the mirror would satisfy clause C — which is
+// exactly the "shipped referenced by ZERO test" defect the clause was minted for, wearing a `//`.
 function readIfExists(path: string): string {
-  return existsSync(path) ? readFileSync(path, "utf8") : "";
+  if (!existsSync(path)) {
+    return "";
+  }
+  return blankTsCommentsInText(readFileSync(path, "utf8"));
 }
 
 function scanStoreActionPresence(root: string, clientRel: string, sf: SourceFile): Violation[] {
@@ -258,6 +269,21 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "gPresClientAction" },
       why: "clause C: the mirror exists but never calls gPresClientAction( by name — untested new action",
+    },
+    {
+      // COMMENT POSTURE (issue #117/#132), clause C, the PERMISSIVE direction — the one that reinstates the
+      // founding defect: a parked call in the mirror is not coverage.
+      files: {
+        "packages/client/src/state/__g_gprescomment-store.ts":
+          'import { createGatedStore } from "./create-gated-store";\n' +
+          'const useX = createGatedStore<{ n: number }>("g-prescomment", () => ({ n: 0 }));\n' +
+          'export function gPresCommentAction(): void {\n  useX.setState({ n: 1 }, false, "x/set");\n}\n' +
+          "export function useGPresComment(): number {\n  return useX((s) => s.n);\n}\n",
+        "tests/client/state/__g_gprescomment-store.ct.tsx":
+          'import { useGPresComment } from "@orb/client/state";\n// TODO drive it: gPresCommentAction();\nexport const t = useGPresComment;\n',
+      },
+      expect: { messageIncludes: "gPresCommentAction" },
+      why: "COMMENT POSTURE: a COMMENTED-OUT action call in the mirror satisfied clause C to a file-text scan — which is the `shipped referenced by ZERO test file` defect the clause exists for, wearing a `//`. The mirror corpus is comment-blanked, so it still REDs",
     },
   ],
   mustPass: [

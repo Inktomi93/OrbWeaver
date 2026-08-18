@@ -4,6 +4,7 @@
 // SAME LENGTH with comment characters replaced by spaces and newlines preserved, so a caller's
 // `split("\n")` line numbers and column offsets stay exact.
 import type { SourceFile } from "ts-morph";
+import { Project, ScriptKind } from "ts-morph";
 
 const SPACE = " ";
 const CSS_COMMENT_CLOSE = "*/";
@@ -25,6 +26,21 @@ function blankRange(text: string, start: number, end: number): string {
  *  returns it — so a leading-only sweep silently leaves every `code(); // …` comment in the scanned text.
  *  That is the single most common comment position in this repo's tests, and it was #117's residual hole. */
 export function blankTsComments(sf: SourceFile): string {
+  const cached = blanked.get(sf);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const text = blankTsCommentsUncached(sf);
+  blanked.set(sf, text);
+  return text;
+}
+
+/** Keyed on the SourceFile OBJECT, so it cannot bleed across runs the way a path key would (conformance
+ *  drives many mini-projects through one process and reuses virtual paths), and it releases with the
+ *  project. Gates are read-only by contract, so a cached blanking cannot go stale under one. */
+const blanked = new WeakMap<SourceFile, string>();
+
+function blankTsCommentsUncached(sf: SourceFile): string {
   let text = sf.getFullText();
   const seen = new Set<number>();
   const spans: { readonly pos: number; readonly end: number }[] = [];
@@ -43,6 +59,41 @@ export function blankTsComments(sf: SourceFile): string {
     text = blankRange(text, span.pos, span.end);
   }
   return text;
+}
+
+let scratchProject: Project | undefined;
+
+/** The same blanking for text a gate read off the REAL FILESYSTEM rather than from the shared workspace —
+ *  a `.ct.tsx` mirror, a `surfaces/*.tsx` read by `readFileSync`. It parses into ONE lazily-created
+ *  in-memory scratch project (reused, file overwritten per call), which is NOT the banned "a gate never
+ *  does `new Project(`" shape from GATE-AUTHORING.md §1: nothing here walks the workspace or resolves a
+ *  dependency — it is a parser for one string, so that a `//` inside a string literal is still not a
+ *  comment. Fence the CALL, not the parse: only hand it text a raw check already says could match. */
+export function blankTsCommentsInText(text: string): string {
+  scratchProject ??= new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true });
+  const sf = scratchProject.createSourceFile("comment-scan.tsx", text, { overwrite: true, scriptKind: ScriptKind.TSX });
+  // UNCACHED deliberately: `overwrite` REUSES the same SourceFile object with new text, so the identity
+  // cache would answer every later call with the FIRST file's blanking (it did — six conformance rows).
+  return blankTsCommentsUncached(sf);
+}
+
+/** The CANDIDATE FENCE, hoisted here because every caller needs it and it is a MEMORY decision, not a
+ *  micro-optimisation: `blankTsComments` walks `getDescendants()`, which materialises every wrapped node for
+ *  the file, and doing that for a whole tier (~1,900 test files) OOMs the run (measured: heap limit at 4GB,
+ *  exit 134 — issue #132). It is SOUND because blanking only ever REMOVES matches: a file whose RAW text
+ *  cannot match cannot match after comments are blanked either, so the raw text is a safe stand-in for a
+ *  non-candidate. Callers must only ASK THIS TEXT WHETHER SOMETHING MATCHES — never hand it on as "the code". */
+export function codeTextForScan(sf: SourceFile, couldMatch: (raw: string) => boolean): string {
+  const raw = sf.getFullText();
+  return couldMatch(raw) ? blankTsComments(sf) : raw;
+}
+
+/** Does this needle occur in the file's CODE? The presence-check door: a needle named only in a comment is
+ *  prose, and reading prose as code has now cost two gates (issue #117 hex colors, #132 determinism calls) —
+ *  in the PERMISSIVE direction it is worse, because a comment mentioning the thing SATISFIES the check and
+ *  the gate goes silently green. Fenced: the raw `includes` runs first, so a non-candidate never parses. */
+export function codeIncludes(sf: SourceFile, needle: string): boolean {
+  return sf.getFullText().includes(needle) && blankTsComments(sf).includes(needle);
 }
 
 /** Index just past the CSS string literal starting at `i` (an unterminated one runs to EOF). */

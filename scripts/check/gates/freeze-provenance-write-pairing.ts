@@ -8,6 +8,7 @@
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readStringValue, unwrapExpression } from "../ast-read.ts";
+import { codeTextForScan } from "../comment-spans.ts";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
@@ -388,8 +389,13 @@ function firstVerdict(nodes: readonly Node[], sf: SourceFile, depth: number): Ch
 /** Does this file mention any name that could denote the table? The cheap text pre-filter in front of every
  *  corpus derivation below — and ARM 5's relevance test. */
 function mentionsTable(sf: SourceFile): boolean {
-  const text = sf.getFullText();
-  return text.includes(TABLE) || [...derivedAliases].some((a) => text.includes(a));
+  // CODE, not file text (issue #117/#132): ARM 5 REPORTS on this test, so a file whose COMMENT names the
+  // table — a header explaining the freeze-provenance rule, which is exactly what a nearby writer's header
+  // does — would have its unresolved write builders reported as this table's. `codeTextForScan` fences on
+  // the raw text, so only files that could match are parsed at all.
+  const names = [TABLE, ...derivedAliases];
+  const text = codeTextForScan(sf, (raw) => names.some((name) => raw.includes(name)));
+  return names.some((name) => text.includes(name));
 }
 
 /** CORPUS DERIVATION 1 — every name the loaded tree proves is this table: a re-export rename
@@ -851,6 +857,16 @@ export const gate: GateDescriptor = {
         "}\n",
       at: "packages/server/src/domain/chat/persistence/x.ts",
       why: "`map.set(…)` in a file that imports the table: there is no drizzle write builder in the chain at all, so the gate must stay silent — the boundary that stops ARM 5's fail-closed posture from redding every `.set()` in the repo",
+    },
+    {
+      files:
+        "// Nothing here writes messageVariants — that lives in canon-write.ts, with its freeze provenance.\n" +
+        "const TABLES = { v: someOtherTable };\n" +
+        "export function computed(db: D, k: 'v', content: string) {\n" +
+        "  return db.update(TABLES[k]).set({ content });\n" +
+        "}\n",
+      at: "packages/server/src/domain/chat/persistence/x.ts",
+      why: "COMMENT POSTURE (issue #117/#132): ARM 5 REPORTS on the relevance test, so it reads CODE. A file whose COMMENT names the table while dealing with a different one is not 'a file that deals with this table' — reading prose as code turns every unresolved drizzle write near a mention of the rule into a false red",
     },
   ],
 };

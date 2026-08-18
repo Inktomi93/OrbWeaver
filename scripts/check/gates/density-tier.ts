@@ -32,6 +32,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { JsxOpeningElement, JsxSelfClosingElement, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { blankCssComments } from "../comment-spans.ts";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
 
 const BASELINE_REL = "scripts/check/gates/density-tier.baseline.json";
@@ -256,8 +257,6 @@ function tierWriterFindings(sf: SourceFile, rel: string): Finding[] {
 
 /** A `[data-slot="…"]` selector, as tiers.css spells it. */
 const SLOT_SELECTOR_RE = /\[data-slot="([a-z0-9-]+)"\]/gu;
-/** CSS block comments — stripped before parsing, so the header's ILLUSTRATIVE selectors never enter the map. */
-const CSS_COMMENT_RE = /\/\*[\s\S]*?\*\//gu;
 
 /** The slot names the live tier map keys on → the 1-based line of the first selector that names each.
  *  Parsed from tiers.css itself rather than hand-listed here: a hand-listed copy is a second map that
@@ -268,7 +267,10 @@ export function mappedSlots(root: string): Map<string, number> {
   if (!existsSync(path)) {
     return out;
   }
-  const lines = readFileSync(path, "utf-8").replace(CSS_COMMENT_RE, "").split("\n");
+  // Blanked, not stripped, by the ONE CSS blanker: the header's ILLUSTRATIVE `[data-slot="…"]` selectors
+  // must not enter the map (that was already true), and blanking is LENGTH-PRESERVING, so a multi-line
+  // comment no longer shifts every reported line number below it (`.replace` did).
+  const lines = blankCssComments(readFileSync(path, "utf-8")).split("\n");
   for (const [index, line] of lines.entries()) {
     for (const match of line.matchAll(SLOT_SELECTOR_RE)) {
       const slot = match[1];

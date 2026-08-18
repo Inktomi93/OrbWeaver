@@ -2,6 +2,7 @@
 // snippets, not secrets.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { blankTsCommentsInText } from "../comment-spans.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -45,7 +46,9 @@ function scanSurfaceA11yFocus(root: string): Violation[] {
       if (f.includes("app-shell") || f.includes("topbar")) {
         continue;
       }
-      const src = readFileSync(join(dir, "surfaces", f), "utf8");
+      // Comments blanked first (issue #117/#132), the PERMISSIVE direction: a surface whose comment
+      // names `.focus()` or an auto-focus primitive would read as focus-managing while managing none.
+      const src = blankTsCommentsInText(readFileSync(join(dir, "surfaces", f), "utf8"));
       // A full-page pane (no auto-focus primitive wrapper) must manage focus on mount for a11y/agents.
       if (!(AUTO_FOCUS_PRIMITIVES_RE.test(src) || FOCUS_CALL_RE.test(src))) {
         out.push({
@@ -79,6 +82,14 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "focus restoration" },
       why: "a full-page surface with no .focus()/useFocusOnMount and no focus-trapping primitive (a11y gap)",
+    },
+    {
+      files: {
+        "packages/client/src/features/x/surfaces/commented-focus.tsx":
+          "// Focus: the anchor's <Dialog> owns it today; when this becomes a drill-down pane, call ref.focus() here.\nexport const Pane = () => <div>content</div>;\n",
+      },
+      expect: { messageIncludes: "focus restoration" },
+      why: "COMMENT POSTURE (issue #117/#132) in the PERMISSIVE direction: a surface whose COMMENT names `.focus(` and a focus-trapping primitive manages no focus at all — a file-text scan hands it the exemption, which is the silent-green half of the comment-blindness class",
     },
   ],
   mustPass: [

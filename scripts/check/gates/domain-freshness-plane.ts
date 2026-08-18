@@ -42,6 +42,7 @@
 // adding a courtesy `none` row for any of them would be ORPHAN-red — which is the ORPHAN arm doing its job.
 import type { RoomEntityKind } from "@orb/contracts/chat";
 import type { SourceFile } from "ts-morph";
+import { blankTsComments } from "../comment-spans.ts";
 import type { ExemptionRow, GateDescriptor } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
@@ -283,7 +284,6 @@ const WRITE_RE = /\.(?:insert|update|delete|batch)\s*\(/u;
 /** Every injected-emit spelling a domain announces through (survey §1.1). `emit(` alone covers the chat
  *  bus's `bus.emit` and the domain-event `ctx.emit`. */
 const EMIT_RE = /\b(?:emitUserEvent|emitChatEvent|emitWiEvent|emitBus|emit)\s*\(/u;
-const COMMENTS_RE = /\/\/[^\n]*|\/\*[\s\S]*?\*\//gu;
 
 // Each arm's text is a SUFFIX so the finding reads `"<domain>" <verdict> … <pointer>` — `diagnostic-legibility`
 // requires the message to END with a code-home, which a `prefix + name` composition cannot do.
@@ -440,10 +440,13 @@ function deriveDomains(files: readonly SourceFile[]): Map<string, DomainFacts> {
     if (name === undefined || name === "") {
       continue;
     }
-    const text = sf.getFullText().replace(COMMENTS_RE, "");
+    // The ONE comment blanker (scripts/check/comment-spans.ts), not a hand-rolled regex: the old
+    // `//[^\n]*` strip also ate everything after a `//` inside a STRING — a `https://` URL blanked the
+    // rest of its line, so a `.insert(` behind one was invisible and the domain read as non-mutating.
+    const text = blankTsComments(sf);
     const facts = out.get(name) ?? { mutates: false, emits: false };
     // The `@orb/db` half is what keeps a MiniSearch `.delete(` or a `Map.delete(` out of the derivation.
-    if (sf.getFullText().includes(DB_IMPORT) && WRITE_RE.test(text)) {
+    if (text.includes(DB_IMPORT) && WRITE_RE.test(text)) {
       facts.mutates = true;
     }
     if (EMIT_RE.test(text)) {
@@ -660,6 +663,15 @@ export const gate: GateDescriptor = {
           'import MiniSearch from "minisearch";\nconst cache = new Map();\nexport function drop(k) {\n  cache.delete(k);\n  index.remove(k);\n}\n',
       },
       why: "DECLARED LIMIT MADE A PIN — `search`'s only `.delete(` is a Map/MiniSearch call in a file that never imports @orb/db, so it is NOT a mutating domain. Without the @orb/db half the derivation would classify every in-memory cache as persistence and the whole registry would be noise",
+    },
+    {
+      files: {
+        "packages/server/src/domain/chat/bus.ts":
+          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
+        "packages/server/src/domain/export/verbs/dump.ts":
+          'import { characters } from "@orb/db";\n// The writer lives elsewhere: it does ctx.db.insert(characters) and emits its own event.\nexport async function dump(ctx) {\n  return await ctx.db.select().from(characters);\n}\n',
+      },
+      why: "COMMENT POSTURE (issue #117/#132): a read-only domain whose COMMENT quotes a write call is still read-only, so it must not be conscripted into the registry as MISSING. The hand-rolled comment regex this gate used to carry got this right; it got the STRING case wrong, which is why the blanking is now the shared parser-backed one",
     },
     {
       files: {

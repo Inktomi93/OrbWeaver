@@ -307,7 +307,10 @@ function clauseOverlayAnatomy(ctx: CheckContext): Violation[] {
     if (sf === undefined) {
       continue;
     }
-    const text = sf.getFullText();
+    // CODE, not file text (issue #117/#132): a seal's header routinely names the parts it does and does
+    // not render (`.Positioner`, `.Popup`), so a file-text read both invents parts and satisfies the
+    // requirement for them.
+    const text = blankTsComments(sf);
     const has = (part: string): boolean => text.includes(`.${part}`);
     const rel = relPath(ctx.root, abs);
     if (anchored && has("Popup") && !has("Positioner")) {
@@ -340,7 +343,9 @@ function clauseDataSlot(ctx: CheckContext): Violation[] {
     if (sf === undefined) {
       continue; // clause 1 already reports the missing .tsx
     }
-    if (!sf.getFullText().includes("data-slot")) {
+    // CODE, not file text: a comment explaining the data-slot locator law would satisfy this clause
+    // for a primitive that stamps no locator at all — the permissive direction.
+    if (!blankTsComments(sf).includes("data-slot")) {
       out.push({
         file: relPath(ctx.root, abs),
         line: 1,
@@ -447,6 +452,19 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "tv export is 'wrongVariants'" },
       why: "clause 2 — a mis-named tv() export (must be {camelName}Variants) — §13.7",
+    },
+    {
+      files: {
+        // Clause 9 COMMENT POSTURE (issue #117/#132): the locator is read from CODE, so a header EXPLAINING
+        // the data-slot law does not stand in for stamping one.
+        "packages/ui/src/primitives/thing/thing.tsx":
+          '// Every part carries data-slot="<name>-<part>" — this one is a single element, so its root takes it.\nexport const Thing = () => <div className="block" />;\n',
+        "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\n',
+        "packages/ui/src/primitives/thing/variants.ts": 'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
+        "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "no data-slot locator" },
+      why: "COMMENT POSTURE in the PERMISSIVE direction: a primitive whose comment quotes the locator law stamps NO locator, and every CT that tries to reach it fails — a file-text read hands it the pass",
     },
     {
       files: {

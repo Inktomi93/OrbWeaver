@@ -32,7 +32,12 @@ import {
   ParamsDeckStaleStory,
 } from "./_params-deck-stories.tsx";
 
-const SAVE_POLL = { intervals: [100, 200, 300, 500] };
+/** A FUNCTION, not a const: Playwright's `pollAgainstDeadline` pops/shifts the interval array it is handed,
+ *  so a shared object is drained by its first use and the other ten polls in this file silently fall back to
+ *  1000ms (ct-poll-schedule-and-paint ARM A). */
+function savePoll(): { intervals: number[] } {
+  return { intervals: [100, 200, 300, 500] };
+}
 // The capability-gate notes + the ADVANCED gloss (hoisted — useTopLevelRegex). ONE note for the model-fed
 // clusters (F-02), printed once where it used to appear three times.
 const GATE_SETTINGS_RE = /Settings → Connections → Model roles/;
@@ -99,8 +104,8 @@ test("PROMOTION — typing into the twin writes ONLY that knob's key (the ghost 
 
   // THE PIN: the saved patch carries `topP` and nothing else — not the ghosted top-p the resolver reported
   // for the OTHER rows, not the max-output floor, not a materialized default anywhere.
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys=topP");
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("values=topP:0.5");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("keys=topP");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("values=topP:0.5");
 
   // The row is now EXPLICIT: the provenance gloss is gone and the reset appears.
   await expect(deck.getByText("model default", { exact: true })).toBeHidden();
@@ -117,13 +122,13 @@ test("RESET — ↺ clears the knob back to inherit, and the ghost returns", asy
   const deck = await mount(<ParamsDeckGhostStory />);
   const topP = deck.getByRole("textbox", { name: "Top-P", exact: true });
   await setNumber(topP, "0.5");
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys=topP");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("keys=topP");
 
   await deck.getByRole("button", { name: "Reset Top-P to inherited" }).click();
 
   await expect(topP).toHaveValue("");
   await expect(deck.getByText("model default", { exact: true })).toBeVisible();
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys= ");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("keys= ");
 });
 
 test("F-21 — the provenance gloss BELONGS to its row: both modalities point aria-describedby at it", async ({ mount }) => {
@@ -183,13 +188,13 @@ test("QUALITY OFF — 'don't use quality' is a real arm: it writes the ABSENCE a
   // Pick a level → the dial is stored…
   await dial.click();
   await deck.page().getByRole("option", { name: "Deep", exact: true }).click();
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain('values=quality:"deep"');
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('values=quality:"deep"');
 
   // …and picking OFF again writes NO quality key at all (not `"off"`, not a materialized default) while the
   // gloss returns to the named off arm. This is the whole ruling: the arm is the absence.
   await dial.click();
   await deck.page().getByRole("option", { name: "Don't use quality", exact: true }).click();
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys= ");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("keys= ");
   await expect(deck.getByText(QUALITY_OFF_GLOSS, { exact: true })).toBeVisible();
 });
 
@@ -201,7 +206,7 @@ test("STALENESS — a stored-but-unhonored knob is named, and Clear unsets it", 
 
   await deck.getByRole("button", { name: "Clear" }).click();
 
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys= ");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("keys= ");
 });
 
 test("STALENESS — Keep dismisses the row for the session without touching the value", async ({ mount, page }) => {
@@ -230,7 +235,7 @@ test("OUTPUT — the token caps are KnobRows at the model's real ceilings, and a
   // back through Base UI's formatter, while the row below it ghosts its placeholder as a plain string —
   // same KnobRow family, two grammars, until `KNOB_NUMBER_FORMAT` turned grouping off.
   await expect(deck.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveValue("8192");
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("values=maxOutputTokens:8192");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("values=maxOutputTokens:8192");
   // The ghost placeholder beside it is raw too — that is what "one grammar" means here.
   await expect(deck.getByRole("textbox", { name: "Max context tokens", exact: true })).toHaveAttribute("placeholder", "32768");
 });
@@ -242,9 +247,9 @@ test("OUTPUT — the stop-sequence chip list adds and removes (G2)", async ({ mo
   await deck.getByPlaceholder("add…").fill("<|im_end|>");
   await deck.getByPlaceholder("add…").press("Enter");
 
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain('values=stop:["<|im_end|>"]');
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('values=stop:["<|im_end|>"]');
   await deck.getByRole("button", { name: "Remove stop sequence <|im_end|>" }).click();
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("values=stop:[]");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("values=stop:[]");
 });
 
 // ── CONTEXT: the re-homed compaction fields + the two gap-closes ──────────────────────────────────────
@@ -414,7 +419,7 @@ test("CLEAR-THEN-BLANK — emptying the twin returns the knob to inherited (blan
   const deck = await mount(<ParamsDeckExplicitStory />);
   await clearNumber(deck.getByRole("textbox", { name: "Repetition penalty", exact: true }));
 
-  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys=quality");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("keys=quality");
   await expect(deck.getByText("clamped to 2 — this model's max", { exact: true })).toBeHidden();
 });
 
