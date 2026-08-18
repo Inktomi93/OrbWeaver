@@ -1,897 +1,897 @@
 {
- "schemaVersion": 1,
- "lane": "architecture-core",
- "issue": 2,
- "entries": [
-  {
-   "path": "docs/architecture/core/AGENTS.md",
-   "assignedSha256": "d49d9d2dc80f3cfc614fd427f1646588ccdefc95df53cdcae3459973dac9cfaf",
-   "disposition": "current",
-   "authority": "normative",
-   "fullRead": true,
-   "verifiedSha256": "8ee2e6f827d9193dbf3e621a559d2eb5d56d56fb2a6f2d0dffea43829cf19af9",
-   "verifiedCommit": "ae218dac78a72878540d9c2dd140819540cdb462",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/AGENTS.md:1-351 full read; Project, recovery, proposed-program, and lane authority routing reconciled",
-    "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
-    "git:68271889b1746b513defea44b0787bab7a89176f contains the exact constitution blob"
-   ],
-   "claims": [
+  "schemaVersion": 1,
+  "lane": "architecture-core",
+  "issue": 2,
+  "entries": [
     {
-     "claim": "Package layout gate.",
-     "evidence": [
-      {
-       "kind": "gate",
-       "target": "scripts/check/gates/package-layout.ts:35"
-      }
-     ]
+      "path": "docs/architecture/core/AGENTS.md",
+      "assignedSha256": "d49d9d2dc80f3cfc614fd427f1646588ccdefc95df53cdcae3459973dac9cfaf",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "8ee2e6f827d9193dbf3e621a559d2eb5d56d56fb2a6f2d0dffea43829cf19af9",
+      "verifiedCommit": "ae218dac78a72878540d9c2dd140819540cdb462",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/AGENTS.md:1-351 full read; Project, recovery, proposed-program, and lane authority routing reconciled",
+        "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact constitution blob"
+      ],
+      "claims": [
+        {
+          "claim": "Package layout gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/package-layout.ts:35"
+            }
+          ]
+        },
+        {
+          "claim": "Project 1 owns mutable work, the slim workboard owns cold-start recovery, and proposed/INDEX maps committed programs to sprint issues.",
+          "evidence": [
+            {
+              "kind": "ruling",
+              "target": "D140"
+            },
+            {
+              "kind": "issue",
+              "target": "#4"
+            }
+          ]
+        }
+      ],
+      "summary": "Normative constitution re-read against the split control plane, proposed-program sprint map, and existing package-layout enforcement."
     },
     {
-     "claim": "Project 1 owns mutable work, the slim workboard owns cold-start recovery, and proposed/INDEX maps committed programs to sprint issues.",
-     "evidence": [
-      {
-       "kind": "ruling",
-       "target": "D140"
-      },
-      {
-       "kind": "issue",
-       "target": "#4"
-      }
-     ]
-    }
-   ],
-   "summary": "Normative constitution re-read against the split control plane, proposed-program sprint map, and existing package-layout enforcement."
-  },
-  {
-   "path": "docs/architecture/core/Chat-Macro-Resolution.md",
-   "assignedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
-   "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Chat-Macro-Resolution.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Closed cast axis.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/contracts/src/chat/producers.ts:22"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
-   "assignedSha256": "598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58",
-   "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Core-0-Architecture-and-Structure.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Package layout gate.",
-     "evidence": [
-      {
-       "kind": "gate",
-       "target": "scripts/check/gates/package-layout.ts:35"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Core-Audits-and-Debt.md",
-   "assignedSha256": "4003838a76b08b2efda5975e9cdd344749a7b937e621853598023bbf59a3b862",
-   "disposition": "archive",
-   "authority": "historical",
-   "fullRead": true,
-   "verifiedSha256": "4003838a76b08b2efda5975e9cdd344749a7b937e621853598023bbf59a3b862",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-  },
-  {
-   "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
-   "assignedSha256": "f938899aa340a3508e954c211393f1590cda6c12ea2e97bd0f09f870f0222df6",
-   "disposition": "current",
-   "authority": "normative",
-   "fullRead": true,
-   "verifiedSha256": "f938899aa340a3508e954c211393f1590cda6c12ea2e97bd0f09f870f0222df6",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Core-Docs-Formatting-Law.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Docs formatting writer.",
-     "evidence": [
-      {
-       "kind": "gate",
-       "target": "scripts/check/gates/verify-registry-parity.ts:31"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-   "assignedSha256": "ca661c33dafddc5383e744a68ec571e98462ecf9be3763837d9777ec95776748",
-   "disposition": "current",
-   "authority": "operational",
-   "fullRead": true,
-   "verifiedSha256": "be81d08a67be762f325d1013b06dddb0af8df1c35e178190ec928e548cfebd09",
-   "verifiedCommit": "c7c06a89143f96407d0a58c2e386726d83ec91d9",
-   "verifiedAt": "2026-08-18",
-   "evidence": [
-    "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-    "ct-poll-schedule-and-paint row + 209->210 count added by #142 (c7c06a891, lane gate-hardening) \u2014 orchestrator re-read the delta in full at restamp; the row matches the landed gate's three arms and declared limits"
-   ],
-   "claims": [
-    {
-     "claim": "Package layout gate.",
-     "evidence": [
-      {
-       "kind": "gate",
-       "target": "scripts/check/gates/package-layout.ts:35"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
-   "assignedSha256": "be4c779fd900733d5df6e2ec8c85aef1ef43dc51084a65473ac294941e6dd9a8",
-   "disposition": "archive",
-   "authority": "historical",
-   "fullRead": true,
-   "verifiedSha256": "be4c779fd900733d5df6e2ec8c85aef1ef43dc51084a65473ac294941e6dd9a8",
-   "verifiedCommit": "6ec3f22de10b5d2a2acfe5b84edde0c9e0d2187a",
-   "verifiedAt": "2026-08-17",
-   "evidence": [
-    "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md:1 (full read; the \u00a7PREBUILT table re-derived row by row)",
-    "pnpm ast importers on each sealed barrel (scanned=4924): charts/meter + @orb/ui/diff have live consumers and lost their markers; stream/stream-text + primitives/status-chip have none outside their own CT and keep theirs",
-    "pnpm check:docs + pnpm doc-catalog:check (2026-08-17)"
-   ],
-   "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-  },
-  {
-   "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
-   "assignedSha256": "a30d6ca8b846c5b048f794c5e70ff422d40f11dd8d7dc0d9d842880bee9cda68",
-   "disposition": "current",
-   "authority": "normative",
-   "fullRead": true,
-   "verifiedSha256": "edd166459dd90c49e665b08afec95d5e4a8b0e5103a56495294e0e15c08fef6a",
-   "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Core-Laws-and-Precedents.md:1-66 full read; registry range and Project/recovery redirects reconcile through D141",
-    "docs/architecture/core/Core-Path-Registry.md:523-533 contains D139-D141",
-    "git:68271889b1746b513defea44b0787bab7a89176f contains the exact redirect blob"
-   ],
-   "claims": [
-    {
-     "claim": "Registry wins conflicts.",
-     "evidence": [
-      {
-       "kind": "law",
-       "target": "docs/architecture/core/Core-Laws-and-Precedents.md \u00a77"
-      }
-     ]
-    }
-   ],
-   "summary": "Normative ledger redirect re-read after D140-D141; the registry remains conflict authority."
-  },
-  {
-   "path": "docs/architecture/core/Core-Legacy-Migration-and-Gaps.md",
-   "assignedSha256": "e01f593b3e552b05d725fd4e15b2082e3d1190f555e64cbf8506f27774afda15",
-   "disposition": "archive",
-   "authority": "historical",
-   "fullRead": true,
-   "verifiedSha256": "e01f593b3e552b05d725fd4e15b2082e3d1190f555e64cbf8506f27774afda15",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Core-Legacy-Migration-and-Gaps.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-  },
-  {
-   "path": "docs/architecture/core/Core-Path-Registry.md",
-   "assignedSha256": "1985374024b16a8a6f89ee1f0877945fc74045867ea3e4ab007fe576c79d7281",
-   "disposition": "current",
-   "authority": "normative",
-   "fullRead": true,
-   "verifiedSha256": "3beafe1782a614a13414149cd764e9c202f8e72528a7a1bf2423d5d6a2d6a65a",
-   "verifiedCommit": "cfb9169b700484afbad9c8ebc11eac9247b2a97e",
-   "verifiedAt": "2026-08-17",
-   "evidence": [
-    "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
-    "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
-    "git:68271889b1746b513defea44b0787bab7a89176f contains the exact registry blob",
-    "D119 Voices clause + D119a band-floor arithmetic truth-repaired 2026-08-17 (#102 tracker variant A, 0b8814d77; echo deleted, both rails kicker'd) \u2014 orchestrator authored and re-read the delta in full; verifier receipt on the tracker build confirmed the stale clauses"
-   ],
-   "claims": [
-    {
-     "claim": "D129 is live.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/contracts/src/connection/index.ts:204"
-      }
-     ]
-    }
-   ],
-   "summary": "Canonical D-ledger re-read through D141; frozen assigned hash retained and current verified blob updated."
-  },
-  {
-   "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
-   "assignedSha256": "ca76c1f2bb8d44ca3a95c3ad267e6ae1dfd6e6e31736874f91420d8a86ec67cc",
-   "disposition": "archive",
-   "authority": "historical",
-   "fullRead": true,
-   "verifiedSha256": "ca76c1f2bb8d44ca3a95c3ad267e6ae1dfd6e6e31736874f91420d8a86ec67cc",
-   "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Core-Planning-and-Checklists.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-  },
-  {
-   "path": "docs/architecture/core/Core-ST-Feature-Gap-Register.md",
-   "assignedSha256": "7fc6b5d4aad8b49fb28a3686614e8d334c201d10bdfed90e74ab3ae002a0b836",
-   "disposition": "archive",
-   "authority": "historical",
-   "fullRead": true,
-   "verifiedSha256": "c88f6a5e89df7aca2cb5c6871691707625a88f42b91f82e9003cbc9a2b6e7fde",
-   "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Core-ST-Feature-Gap-Register.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-  },
-  {
-   "path": "docs/architecture/core/Core-STATUS.md",
-   "assignedSha256": "f69763702bfde1d4a3b0882f94a85180ea08e6459563c711788b6372458a0d6f",
-   "disposition": "archive",
-   "authority": "historical",
-   "fullRead": true,
-   "verifiedSha256": "2a0729734af1c90761beee23cb7fb4d9c999050decd9195b0e033d9ab1743271",
-   "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Core-STATUS.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
-    "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
-    "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
-   ],
-   "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
-  },
-  {
-   "path": "docs/architecture/core/Core-Shared-Dissolution.md",
-   "assignedSha256": "02cd1379fe114f3aa087a2ad831e9a7515c909c80cb18f252e12e983a1a0cdfb",
-   "disposition": "archive",
-   "authority": "historical",
-   "fullRead": true,
-   "verifiedSha256": "02cd1379fe114f3aa087a2ad831e9a7515c909c80cb18f252e12e983a1a0cdfb",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Core-Shared-Dissolution.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-  },
-  {
-   "path": "docs/architecture/core/Core-SillyTavern-Feature-Map.md",
-   "assignedSha256": "48f47f52c2a07c935a6cdf9a89cf74ed5c3e074256b90a2274db675f4033a2ca",
-   "disposition": "archive",
-   "authority": "historical",
-   "fullRead": true,
-   "verifiedSha256": "e213f2b6718f77ee83c509537710470a0ff964e039be1d179672a92d13a361e6",
-   "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Core-SillyTavern-Feature-Map.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
-    "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
-    "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
-   ],
-   "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
-  },
-  {
-   "path": "docs/architecture/core/Documentation-Law.md",
-   "assignedSha256": "e0a441e5ad0e63a3df99287cd09c2091b71a75040131171f1f291a4bd3355105",
-   "disposition": "current",
-   "authority": "normative",
-   "fullRead": true,
-   "verifiedSha256": "17d2a5a320c1f376d68ce2598effb12c0ef66994d569499dd6db349377c32d01",
-   "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Documentation-Law.md:1-217 full read; D139-D141 catalog, authority, code-as-truth, and source-comment rules reconciled",
-    "docs/architecture/core/Core-Path-Registry.md:523-533 carries the standing D139-D141 rulings",
-    "git:68271889b1746b513defea44b0787bab7a89176f contains the exact law blob"
-   ],
-   "claims": [
-    {
-     "claim": "D139 makes every document hash-bound to a full-read fact-check receipt.",
-     "evidence": [
-      {
-       "kind": "ruling",
-       "target": "D139"
-      }
-     ]
+      "path": "docs/architecture/core/Chat-Macro-Resolution.md",
+      "assignedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Chat-Macro-Resolution.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Closed cast axis.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/producers.ts:22"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
-     "claim": "D141 forbids volatile coordinates, inventory counts, and comparator archaeology in production comments while preserving stable current WHY.",
-     "evidence": [
-      {
-       "kind": "ruling",
-       "target": "D141"
-      },
-      {
-       "kind": "issue",
-       "target": "#63"
-      }
-     ]
-    }
-   ],
-   "summary": "Active documentation and comment law, re-read after the Project/workboard split and D141 source-comment ruling."
-  },
-  {
-   "path": "docs/architecture/core/Knowledge-Cluster.md",
-   "assignedSha256": "053617ed012948676777aef21b5921f0439fc4329d502956356e9d152765a640",
-   "disposition": "archive",
-   "authority": "historical",
-   "fullRead": true,
-   "verifiedSha256": "053617ed012948676777aef21b5921f0439fc4329d502956356e9d152765a640",
-   "verifiedCommit": "a212c1de0b9403e58131cebf3122403429f51a5d",
-   "verifiedAt": "2026-08-18",
-   "evidence": [
-    "docs/architecture/core/Knowledge-Cluster.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-    "truth-repair 2026-08-18 (a212c1de0, #172): invariant 1 now names embeddings.storeSegments as the one BATCH write arm beside embeddings.store"
-   ],
-   "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-  },
-  {
-   "path": "docs/architecture/core/Spine-Config-and-Serialization.md",
-   "assignedSha256": "00fb0e6c032c1c0747c48e965d9f50c904e53eb781aa43963bd970a02de6258b",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "00fb0e6c032c1c0747c48e965d9f50c904e53eb781aa43963bd970a02de6258b",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Spine-Config-and-Serialization.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Versioned app settings.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/contracts/src/settings/index.ts:425"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
-   "assignedSha256": "bf61b8e018bce8a76cd87d9e0098c486833cc49dfeab4298f9d6688ad2e71597",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "bf61b8e018bce8a76cd87d9e0098c486833cc49dfeab4298f9d6688ad2e71597",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Auth seam mint.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/server/src/entry/auth/seam.ts:304"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Spine-Testing.md",
-   "assignedSha256": "c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Central test layout.",
-     "evidence": [
-      {
-       "kind": "gate",
-       "target": "scripts/check/gates/test-layout.ts:118"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
-   "assignedSha256": "5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Spine-TypeScript-and-Patterns.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Closed participant union.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/contracts/src/chat/participants.ts:21"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Tier-1-DB.md",
-   "assignedSha256": "edb81c0055bec8ff31472b14d84decd75d00ac0b1f417b6c060343c7ad964c95",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "edb81c0055bec8ff31472b14d84decd75d00ac0b1f417b6c060343c7ad964c95",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Tier-1-DB.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Baseline schema parity.",
-     "evidence": [
-      {
-       "kind": "test",
-       "target": "tests/tooling/schema-baseline-parity.int.test.ts:18"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Tier-2-Foundation.md",
-   "assignedSha256": "3f0c417b884bdb3acd0b8e9a20e02efc30204094e7ce5c11bcbedc98517f9b23",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "3f0c417b884bdb3acd0b8e9a20e02efc30204094e7ce5c11bcbedc98517f9b23",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Tier-2-Foundation.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Foundation env parse.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/server/src/foundation/env/index.ts:588"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Tier-3-Infra.md",
-   "assignedSha256": "9f98b97d70bd74052932239964e1c2bd94c92f82e507fc0fdd141d0243fb26b6",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "9f98b97d70bd74052932239964e1c2bd94c92f82e507fc0fdd141d0243fb26b6",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Tier-3-Infra.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "SecretBox adapter.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/server/src/infra/crypto/secrets.ts:43"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Tier-3b-Providers.md",
-   "assignedSha256": "bbde1b6faa655e3882cfa9eba4c6261d4ef7fe189d3459d14f12b75ad2cf9df0",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "bbde1b6faa655e3882cfa9eba4c6261d4ef7fe189d3459d14f12b75ad2cf9df0",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Tier-3b-Providers.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Provider executor.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/server/src/infra/providers/index.ts:30"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Tier-4-Transport.md",
-   "assignedSha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Tier-4-Transport.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "tRPC transport router.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/server/src/transport/trpc/routers/persona.ts:17"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/Tier-5-Entry.md",
-   "assignedSha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/Tier-5-Entry.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Entry starts lifecycle.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/server/src/entry/index.ts:11"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-   "assignedSha256": "cb230125cace256d37d1268abeb3334bdda6c4bd257f126ae11cba12f82ecf59",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "c1944519e72205cef3f3ca43c9232acae26925bcd7f4326a9c70d2097e3a7a9f",
-   "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
-    "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
-    "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
-   ],
-   "claims": [
-    {
-     "claim": "UI dialog primitive.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/ui/src/primitives/dialog/dialog.tsx:18"
-      }
-     ]
-    }
-   ],
-   "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
-  },
-  {
-   "path": "docs/architecture/core/UI-Gates-and-Lessons.md",
-   "assignedSha256": "b370d04f0c719cad056a441272df51176e88d4d7d3788a1d93711d12ff668748",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "b370d04f0c719cad056a441272df51176e88d4d7d3788a1d93711d12ff668748",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/UI-Gates-and-Lessons.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "UI primitive gate.",
-     "evidence": [
-      {
-       "kind": "gate",
-       "target": "scripts/check/gates/ui-primitive-structure.ts:410"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/UI-Primitives-and-Reuse.md",
-   "assignedSha256": "0f5df04b79ffdaf313da08058a2341c487869dd5fb278b2824eaca92dc324409",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "0f5df04b79ffdaf313da08058a2341c487869dd5fb278b2824eaca92dc324409",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/UI-Primitives-and-Reuse.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
-    {
-     "claim": "Primitive structure gate.",
-     "evidence": [
-      {
-       "kind": "gate",
-       "target": "scripts/check/gates/ui-primitive-structure.ts:410"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/UI-Theming-and-Content.md",
-   "assignedSha256": "435720dc31d9053b83319fdcf6245137dc1fe5cf3f0eaa7888b95df9a41e3750",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "ab3a200b21cefd807f8e03be2a728570cbf93f4b541c2f94669f75075ce9a807",
-   "verifiedCommit": "e3efc08baf7601f1be23694babcbb2eeba94bf32",
-   "verifiedAt": "2026-08-16",
-   "evidence": [
-    "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); \u00a712.2 truth-repaired against the tree",
-    "git:e3efc08baf7601f1be23694babcbb2eeba94bf32 contains the exact current document blob",
-    "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings \u2014 carried from the 2026-08-14 verification)",
-    "packages/kit/src/card-frame/index.ts:45 the sandbox/CSP engine \u00a712.2 now cites (the grant moved out of srcdoc.ts)",
-    "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:156 browser receipt that a card-authored script is refused by hash"
-   ],
-   "claims": [
-    {
-     "claim": "Untrusted markdown policy.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/ui/src/markdown/policy.ts:77"
-      }
-     ]
+      "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
+      "assignedSha256": "598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "598fb10bebcd28a6755bdc2f7d1910116ee95e049a8e097dff6b7f8bb563ed58",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-0-Architecture-and-Structure.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Package layout gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/package-layout.ts:35"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
-     "claim": "Tier-B card frames are contained by the per-delivery sandbox grant plus a one-hash script-src, never by string-munging.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/kit/src/card-frame/index.ts:65"
-      },
-      {
-       "kind": "test",
-       "target": "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:156"
-      }
-     ]
-    }
-   ],
-   "summary": "Full-read current current-reference document reverified during the tier-B card-frame pass (#91): \u00a712.2 restated to name @orb/kit/card-frame as the sandbox/CSP home, source-checked (not origin-checked) auto-height, and the routed-only hash-pinned allow-scripts grant; existing typed implementation evidence remains current."
-  },
-  {
-   "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
-   "assignedSha256": "e35035e131c1e95cecfcd4be81745ea9e9e8e328bf5218d1490befed3b582377",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "e35035e131c1e95cecfcd4be81745ea9e9e8e328bf5218d1490befed3b582377",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
+      "path": "docs/architecture/core/Core-Audits-and-Debt.md",
+      "assignedSha256": "4003838a76b08b2efda5975e9cdd344749a7b937e621853598023bbf59a3b862",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "4003838a76b08b2efda5975e9cdd344749a7b937e621853598023bbf59a3b862",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
     {
-     "claim": "Verification registry gate.",
-     "evidence": [
-      {
-       "kind": "gate",
-       "target": "scripts/check/gates/verify-registry-parity.ts:31"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/client-architecture-lockdown.md",
-   "assignedSha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
-   "verifiedCommit": "800937aebae1eafafef458eab57ae64115ac5c68",
-   "verifiedAt": "2026-08-15",
-   "evidence": [
-    "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
-    "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-15; 800937aeb)",
-    "pnpm check:docs (2026-08-15 restamp \u2014 receipt sha/commit refresh, #73 red-fixes)"
-   ],
-   "claims": [
+      "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
+      "assignedSha256": "f938899aa340a3508e954c211393f1590cda6c12ea2e97bd0f09f870f0222df6",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "f938899aa340a3508e954c211393f1590cda6c12ea2e97bd0f09f870f0222df6",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Docs-Formatting-Law.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Docs formatting writer.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/verify-registry-parity.ts:31"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
     {
-     "claim": "Session channel home.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/client/src/lib/session-channel.ts:110"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/motion-and-animation-guide.md",
-   "assignedSha256": "f43b45872c46bc0093dd20d998aac3a25a613e0d5c61ae2fed0005221716d16e",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "f43b45872c46bc0093dd20d998aac3a25a613e0d5c61ae2fed0005221716d16e",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/motion-and-animation-guide.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
+      "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
+      "assignedSha256": "ca661c33dafddc5383e744a68ec571e98462ecf9be3763837d9777ec95776748",
+      "disposition": "current",
+      "authority": "operational",
+      "fullRead": true,
+      "verifiedSha256": "be81d08a67be762f325d1013b06dddb0af8df1c35e178190ec928e548cfebd09",
+      "verifiedCommit": "c7c06a89143f96407d0a58c2e386726d83ec91d9",
+      "verifiedAt": "2026-08-18",
+      "evidence": [
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "ct-poll-schedule-and-paint row + 209->210 count added by #142 (c7c06a891, lane gate-hardening) \u2014 orchestrator re-read the delta in full at restamp; the row matches the landed gate's three arms and declared limits"
+      ],
+      "claims": [
+        {
+          "claim": "Package layout gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/package-layout.ts:35"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
     {
-     "claim": "Shared overlay motion.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/ui/src/lib/overlay-motion.ts:25"
-      }
-     ]
-    }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  },
-  {
-   "path": "docs/architecture/core/ui-package-design.md",
-   "assignedSha256": "a739f2d7f5fd00f3e776064d25e72ca518d2725127b97ecc68aceff00ac86be5",
-   "disposition": "current",
-   "authority": "current-reference",
-   "fullRead": true,
-   "verifiedSha256": "a739f2d7f5fd00f3e776064d25e72ca518d2725127b97ecc68aceff00ac86be5",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
-   "evidence": [
-    "docs/architecture/core/ui-package-design.md:1 (full read; header/status evaluated)",
-    "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-    "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-   ],
-   "claims": [
+      "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
+      "assignedSha256": "be4c779fd900733d5df6e2ec8c85aef1ef43dc51084a65473ac294941e6dd9a8",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "be4c779fd900733d5df6e2ec8c85aef1ef43dc51084a65473ac294941e6dd9a8",
+      "verifiedCommit": "6ec3f22de10b5d2a2acfe5b84edde0c9e0d2187a",
+      "verifiedAt": "2026-08-17",
+      "evidence": [
+        "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md:1 (full read; the \u00a7PREBUILT table re-derived row by row)",
+        "pnpm ast importers on each sealed barrel (scanned=4924): charts/meter + @orb/ui/diff have live consumers and lost their markers; stream/stream-text + primitives/status-chip have none outside their own CT and keep theirs",
+        "pnpm check:docs + pnpm doc-catalog:check (2026-08-17)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
     {
-     "claim": "Dialog package API.",
-     "evidence": [
-      {
-       "kind": "code",
-       "target": "packages/ui/src/primitives/dialog/dialog.tsx:18"
-      }
-     ]
+      "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
+      "assignedSha256": "a30d6ca8b846c5b048f794c5e70ff422d40f11dd8d7dc0d9d842880bee9cda68",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "edd166459dd90c49e665b08afec95d5e4a8b0e5103a56495294e0e15c08fef6a",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Laws-and-Precedents.md:1-66 full read; registry range and Project/recovery redirects reconcile through D141",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 contains D139-D141",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact redirect blob"
+      ],
+      "claims": [
+        {
+          "claim": "Registry wins conflicts.",
+          "evidence": [
+            {
+              "kind": "law",
+              "target": "docs/architecture/core/Core-Laws-and-Precedents.md \u00a77"
+            }
+          ]
+        }
+      ],
+      "summary": "Normative ledger redirect re-read after D140-D141; the registry remains conflict authority."
+    },
+    {
+      "path": "docs/architecture/core/Core-Legacy-Migration-and-Gaps.md",
+      "assignedSha256": "e01f593b3e552b05d725fd4e15b2082e3d1190f555e64cbf8506f27774afda15",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "e01f593b3e552b05d725fd4e15b2082e3d1190f555e64cbf8506f27774afda15",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Legacy-Migration-and-Gaps.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/core/Core-Path-Registry.md",
+      "assignedSha256": "1985374024b16a8a6f89ee1f0877945fc74045867ea3e4ab007fe576c79d7281",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "3beafe1782a614a13414149cd764e9c202f8e72528a7a1bf2423d5d6a2d6a65a",
+      "verifiedCommit": "cfb9169b700484afbad9c8ebc11eac9247b2a97e",
+      "verifiedAt": "2026-08-17",
+      "evidence": [
+        "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
+        "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact registry blob",
+        "D119 Voices clause + D119a band-floor arithmetic truth-repaired 2026-08-17 (#102 tracker variant A, 0b8814d77; echo deleted, both rails kicker'd) \u2014 orchestrator authored and re-read the delta in full; verifier receipt on the tracker build confirmed the stale clauses"
+      ],
+      "claims": [
+        {
+          "claim": "D129 is live.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/connection/index.ts:204"
+            }
+          ]
+        }
+      ],
+      "summary": "Canonical D-ledger re-read through D141; frozen assigned hash retained and current verified blob updated."
+    },
+    {
+      "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
+      "assignedSha256": "ca76c1f2bb8d44ca3a95c3ad267e6ae1dfd6e6e31736874f91420d8a86ec67cc",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "ca76c1f2bb8d44ca3a95c3ad267e6ae1dfd6e6e31736874f91420d8a86ec67cc",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Planning-and-Checklists.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/core/Core-ST-Feature-Gap-Register.md",
+      "assignedSha256": "7fc6b5d4aad8b49fb28a3686614e8d334c201d10bdfed90e74ab3ae002a0b836",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "c88f6a5e89df7aca2cb5c6871691707625a88f42b91f82e9003cbc9a2b6e7fde",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-ST-Feature-Gap-Register.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/core/Core-STATUS.md",
+      "assignedSha256": "f69763702bfde1d4a3b0882f94a85180ea08e6459563c711788b6372458a0d6f",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "2a0729734af1c90761beee23cb7fb4d9c999050decd9195b0e033d9ab1743271",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-STATUS.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
+      ],
+      "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
+    },
+    {
+      "path": "docs/architecture/core/Core-Shared-Dissolution.md",
+      "assignedSha256": "02cd1379fe114f3aa087a2ad831e9a7515c909c80cb18f252e12e983a1a0cdfb",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "02cd1379fe114f3aa087a2ad831e9a7515c909c80cb18f252e12e983a1a0cdfb",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-Shared-Dissolution.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/core/Core-SillyTavern-Feature-Map.md",
+      "assignedSha256": "48f47f52c2a07c935a6cdf9a89cf74ed5c3e074256b90a2274db675f4033a2ca",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "e213f2b6718f77ee83c509537710470a0ff964e039be1d179672a92d13a361e6",
+      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Core-SillyTavern-Feature-Map.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
+      ],
+      "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
+    },
+    {
+      "path": "docs/architecture/core/Documentation-Law.md",
+      "assignedSha256": "e0a441e5ad0e63a3df99287cd09c2091b71a75040131171f1f291a4bd3355105",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "17d2a5a320c1f376d68ce2598effb12c0ef66994d569499dd6db349377c32d01",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Documentation-Law.md:1-217 full read; D139-D141 catalog, authority, code-as-truth, and source-comment rules reconciled",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 carries the standing D139-D141 rulings",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact law blob"
+      ],
+      "claims": [
+        {
+          "claim": "D139 makes every document hash-bound to a full-read fact-check receipt.",
+          "evidence": [
+            {
+              "kind": "ruling",
+              "target": "D139"
+            }
+          ]
+        },
+        {
+          "claim": "D141 forbids volatile coordinates, inventory counts, and comparator archaeology in production comments while preserving stable current WHY.",
+          "evidence": [
+            {
+              "kind": "ruling",
+              "target": "D141"
+            },
+            {
+              "kind": "issue",
+              "target": "#63"
+            }
+          ]
+        }
+      ],
+      "summary": "Active documentation and comment law, re-read after the Project/workboard split and D141 source-comment ruling."
+    },
+    {
+      "path": "docs/architecture/core/Knowledge-Cluster.md",
+      "assignedSha256": "053617ed012948676777aef21b5921f0439fc4329d502956356e9d152765a640",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "053617ed012948676777aef21b5921f0439fc4329d502956356e9d152765a640",
+      "verifiedCommit": "a212c1de0b9403e58131cebf3122403429f51a5d",
+      "verifiedAt": "2026-08-18",
+      "evidence": [
+        "docs/architecture/core/Knowledge-Cluster.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "truth-repair 2026-08-18 (a212c1de0, #172): invariant 1 now names embeddings.storeSegments as the one BATCH write arm beside embeddings.store"
+      ],
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/core/Spine-Config-and-Serialization.md",
+      "assignedSha256": "00fb0e6c032c1c0747c48e965d9f50c904e53eb781aa43963bd970a02de6258b",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "00fb0e6c032c1c0747c48e965d9f50c904e53eb781aa43963bd970a02de6258b",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Spine-Config-and-Serialization.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Versioned app settings.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/settings/index.ts:425"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
+      "assignedSha256": "bf61b8e018bce8a76cd87d9e0098c486833cc49dfeab4298f9d6688ad2e71597",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "bf61b8e018bce8a76cd87d9e0098c486833cc49dfeab4298f9d6688ad2e71597",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Auth seam mint.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/auth/seam.ts:304"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/Spine-Testing.md",
+      "assignedSha256": "c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "c5c30942b2ea90b1985951addfa5ff61138131fcb46dcbf0651d706477a9b0a1",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Central test layout.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/test-layout.ts:118"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
+      "assignedSha256": "5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "5d0492cebc9a6affd893f3415ca20cbe21fd96399f426d23fb9892bf43e18126",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Spine-TypeScript-and-Patterns.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Closed participant union.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/participants.ts:21"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/Tier-1-DB.md",
+      "assignedSha256": "edb81c0055bec8ff31472b14d84decd75d00ac0b1f417b6c060343c7ad964c95",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "edb81c0055bec8ff31472b14d84decd75d00ac0b1f417b6c060343c7ad964c95",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-1-DB.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Baseline schema parity.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/schema-baseline-parity.int.test.ts:18"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/Tier-2-Foundation.md",
+      "assignedSha256": "3f0c417b884bdb3acd0b8e9a20e02efc30204094e7ce5c11bcbedc98517f9b23",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "3f0c417b884bdb3acd0b8e9a20e02efc30204094e7ce5c11bcbedc98517f9b23",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-2-Foundation.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Foundation env parse.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/foundation/env/index.ts:588"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/Tier-3-Infra.md",
+      "assignedSha256": "9f98b97d70bd74052932239964e1c2bd94c92f82e507fc0fdd141d0243fb26b6",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "9f98b97d70bd74052932239964e1c2bd94c92f82e507fc0fdd141d0243fb26b6",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-3-Infra.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "SecretBox adapter.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/crypto/secrets.ts:43"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/Tier-3b-Providers.md",
+      "assignedSha256": "bbde1b6faa655e3882cfa9eba4c6261d4ef7fe189d3459d14f12b75ad2cf9df0",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "bbde1b6faa655e3882cfa9eba4c6261d4ef7fe189d3459d14f12b75ad2cf9df0",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-3b-Providers.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Provider executor.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/providers/index.ts:30"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/Tier-4-Transport.md",
+      "assignedSha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-4-Transport.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "tRPC transport router.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/transport/trpc/routers/persona.ts:17"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/Tier-5-Entry.md",
+      "assignedSha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/Tier-5-Entry.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Entry starts lifecycle.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/index.ts:11"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
+      "assignedSha256": "cb230125cace256d37d1268abeb3334bdda6c4bd257f126ae11cba12f82ecf59",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "c1944519e72205cef3f3ca43c9232acae26925bcd7f4326a9c70d2097e3a7a9f",
+      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)"
+      ],
+      "claims": [
+        {
+          "claim": "UI dialog primitive.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/dialog/dialog.tsx:18"
+            }
+          ]
+        }
+      ],
+      "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
+    },
+    {
+      "path": "docs/architecture/core/UI-Gates-and-Lessons.md",
+      "assignedSha256": "b370d04f0c719cad056a441272df51176e88d4d7d3788a1d93711d12ff668748",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "b370d04f0c719cad056a441272df51176e88d4d7d3788a1d93711d12ff668748",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/UI-Gates-and-Lessons.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "UI primitive gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/ui-primitive-structure.ts:410"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/UI-Primitives-and-Reuse.md",
+      "assignedSha256": "0f5df04b79ffdaf313da08058a2341c487869dd5fb278b2824eaca92dc324409",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "0f5df04b79ffdaf313da08058a2341c487869dd5fb278b2824eaca92dc324409",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/UI-Primitives-and-Reuse.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Primitive structure gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/ui-primitive-structure.ts:410"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/UI-Theming-and-Content.md",
+      "assignedSha256": "435720dc31d9053b83319fdcf6245137dc1fe5cf3f0eaa7888b95df9a41e3750",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "ab3a200b21cefd807f8e03be2a728570cbf93f4b541c2f94669f75075ce9a807",
+      "verifiedCommit": "e3efc08baf7601f1be23694babcbb2eeba94bf32",
+      "verifiedAt": "2026-08-16",
+      "evidence": [
+        "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); \u00a712.2 truth-repaired against the tree",
+        "git:e3efc08baf7601f1be23694babcbb2eeba94bf32 contains the exact current document blob",
+        "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings \u2014 carried from the 2026-08-14 verification)",
+        "packages/kit/src/card-frame/index.ts:45 the sandbox/CSP engine \u00a712.2 now cites (the grant moved out of srcdoc.ts)",
+        "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:156 browser receipt that a card-authored script is refused by hash"
+      ],
+      "claims": [
+        {
+          "claim": "Untrusted markdown policy.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/markdown/policy.ts:77"
+            }
+          ]
+        },
+        {
+          "claim": "Tier-B card frames are contained by the per-delivery sandbox grant plus a one-hash script-src, never by string-munging.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/kit/src/card-frame/index.ts:65"
+            },
+            {
+              "kind": "test",
+              "target": "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:156"
+            }
+          ]
+        }
+      ],
+      "summary": "Full-read current current-reference document reverified during the tier-B card-frame pass (#91): \u00a712.2 restated to name @orb/kit/card-frame as the sandbox/CSP home, source-checked (not origin-checked) auto-height, and the routed-only hash-pinned allow-scripts grant; existing typed implementation evidence remains current."
+    },
+    {
+      "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
+      "assignedSha256": "e35035e131c1e95cecfcd4be81745ea9e9e8e328bf5218d1490befed3b582377",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "e35035e131c1e95cecfcd4be81745ea9e9e8e328bf5218d1490befed3b582377",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Verification registry gate.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "scripts/check/gates/verify-registry-parity.ts:31"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/client-architecture-lockdown.md",
+      "assignedSha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "48c5fe58d90c4aae5285c083334479cb15308c8c18c0d7e194e67ea68cdb1b2f",
+      "verifiedCommit": "800937aebae1eafafef458eab57ae64115ac5c68",
+      "verifiedAt": "2026-08-15",
+      "evidence": [
+        "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
+        "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-15; 800937aeb)",
+        "pnpm check:docs (2026-08-15 restamp \u2014 receipt sha/commit refresh, #73 red-fixes)"
+      ],
+      "claims": [
+        {
+          "claim": "Session channel home.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/lib/session-channel.ts:110"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/motion-and-animation-guide.md",
+      "assignedSha256": "f43b45872c46bc0093dd20d998aac3a25a613e0d5c61ae2fed0005221716d16e",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "f43b45872c46bc0093dd20d998aac3a25a613e0d5c61ae2fed0005221716d16e",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/motion-and-animation-guide.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Shared overlay motion.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/lib/overlay-motion.ts:25"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+    },
+    {
+      "path": "docs/architecture/core/ui-package-design.md",
+      "assignedSha256": "a739f2d7f5fd00f3e776064d25e72ca518d2725127b97ecc68aceff00ac86be5",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "a739f2d7f5fd00f3e776064d25e72ca518d2725127b97ecc68aceff00ac86be5",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/core/ui-package-design.md:1 (full read; header/status evaluated)",
+        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "claims": [
+        {
+          "claim": "Dialog package API.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/dialog/dialog.tsx:18"
+            }
+          ]
+        }
+      ],
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     }
-   ],
-   "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
-  }
- ]
+  ]
 }

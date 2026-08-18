@@ -8,7 +8,7 @@
 // selection, or reads a query without a provider would blank the topbar of exactly one section.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { SECTION_IDS } from "../../../packages/client/src/state/shell-store.ts";
+import { SECTION_IDS } from "../../../packages/client/src/state/section-ids.ts";
 import { SectionTitleTotalityProbe } from "./_ct-stories.tsx";
 
 test("every real section answers `useSelectionTitle` — nothing selected ⇒ `null`, and no section throws", async ({ mount }) => {

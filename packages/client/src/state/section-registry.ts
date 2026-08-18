@@ -9,7 +9,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContextDefinition } from "#lib";
 import type { PanelMode, PanelName } from "./panel-resolve.ts";
-import type { SectionId } from "./shell-store.ts";
+import type { SectionId } from "./section-ids.ts";
 
 // The rail's section groups, in divider order — the `--spacing-section` grouping: primary (everyday
 // collections) · authoring (create/refine) · insight (analyze). The ONE home for the group axis (state

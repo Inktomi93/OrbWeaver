@@ -10,9 +10,10 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
+import type { SectionId } from "./section-ids.ts";
 import type { MobileCuration, SectionGroup } from "./section-registry.ts";
 import { RAIL_ZONES } from "./section-registry.ts";
-import type { ModalSlotId, SectionId } from "./shell-store.ts";
+import type { ModalSlotId } from "./shell-store.ts";
 
 // The rail's own zones DERIVE from `RAIL_ZONES` (its one home, beside `RailEntry.zone` in
 // section-registry.ts) — re-spelling them here would be the parallel map the lockdown kills.

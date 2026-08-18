@@ -2125,13 +2125,13 @@ export function MembersReseedStory(): ReactElement {
 /** A committed room's cast SEAT, as the Members tab's projections read it (`toCastRows`). Only the fields
  *  those projections touch vary per story; the rest is one shape so a seat added here can never disagree
  *  with the wire type. */
-function membersTabSeat(name: string, characterId: string): ParticipantView {
+function membersTabSeat(name: string, characterId: CharacterId): ParticipantView {
   return {
     id: castId(`participant_${name.toLowerCase()}`),
     chatId: castId("chat_members_tab"),
     kind: "character",
     userId: null,
-    characterId: castId<CharacterId>(characterId),
+    characterId,
     role: "member",
     activePersonaId: null,
     talkativeness: 0.5,

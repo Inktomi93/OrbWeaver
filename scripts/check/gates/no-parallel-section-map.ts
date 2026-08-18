@@ -8,7 +8,7 @@
 // LITERALS (the deleted `YOU_MODAL_IDS` shape — same drift, spelled as ids not `{id:…}` objects, which arm
 // (2) can't see since it has zero object elements). Derive from the registry, never re-declare — a DERIVED
 // map (`registry.list().filter…`) has no literal keys/type, so it passes (the load-bearing false-positive
-// check). The vocabulary TUPLES themselves (`SECTION_IDS`/`MODAL_SLOT_IDS` in shell-store.ts) are bare
+// check). The vocabulary TUPLES themselves (`SECTION_IDS` in section-ids.ts, `MODAL_SLOT_IDS` in shell-store.ts) are bare
 // all-ids string arrays too — they're the sanctioned ONE home, allowlisted like every other arm.
 //
 // (5) the CHROME arm (shell-chrome-unification.md §D/§E-7): chrome has NO id vocabulary — it's a
@@ -19,7 +19,7 @@
 // (features/*/lib/*-chrome.tsx). Everywhere else re-declares a parallel chrome registry — RED.
 //
 // SCOPE: the SectionId, ModalSlotId, AND SettingsCategoryId vocabularies (all LIVE — the SettingsCategoryId
-// arm lands at M6.1; its allowlist mirrors the modal arm: the tuple home (shell-store.ts), the door, and
+// arm lands at M6.1; its allowlist mirrors the modal arm: the tuple homes (section-ids.ts/shell-store.ts), the door, and
 // its own co-located *-pane.tsx defs) PLUS the zone-keyed chrome-entry array (arm 5, its own allowlist).
 import type { Expression, ObjectLiteralExpression, Project, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
@@ -132,7 +132,7 @@ function readVocabs(project: Project): readonly Vocab[] {
 /** The sanctioned homes for a vocab-keyed map: the vocabulary tuple + door (shell-store/main.tsx, shared
  *  by both vocabs) and the vocab's own co-located definition files. */
 function isAllowlisted(repoRelPath: string, vocab: Vocab): boolean {
-  return repoRelPath.endsWith("/state/shell-store.ts") || isDoorFile(repoRelPath) || vocab.isDefFile(repoRelPath);
+  return repoRelPath.endsWith("/state/shell-store.ts") || repoRelPath.endsWith("/state/section-ids.ts") || isDoorFile(repoRelPath) || vocab.isDefFile(repoRelPath);
 }
 
 /** A parallel vocab map = an object literal whose NAMED keys are ALL vocab ids, ≥2 of them. Requiring

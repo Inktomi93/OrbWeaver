@@ -415,19 +415,10 @@ export function FaceStrip({
           <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
             <PopoverTrigger
               render={
-                // `size="icon"` IS the `--spacing-control-md` square this used to spell as
-                // `min-h-control-md min-w-control-md` over the content-sized `media` arm: same token,
-                // same box at both pointer classes (48px coarse / 34px fine), named on the primitive
-                // instead of floored from the call site (#169 — the multi-segment token was invisible
-                // to `ui-size-via-variant` until its value class learned about hyphens). The captioned
-                // strip's uniform pitch (#153) rides the same cell width the face cells use.
-                <Button
-                  aria-label={overflow.label}
-                  className={`shrink-0${cellWidthClass(caption)}`}
-                  data-face-overflow=""
-                  intent="ghost"
-                  size="icon"
-                >
+                // `size="icon"` IS the control-md square this used to spell as min-h/min-w classes
+                // (#169 — the multi-segment token was invisible to `ui-size-via-variant` until its value
+                // class learned hyphens); the captioned strip's uniform pitch (#153) rides cellWidthClass.
+                <Button aria-label={overflow.label} className={`shrink-0${cellWidthClass(caption)}`} data-face-overflow="" intent="ghost" size="icon">
                   <Stack align="center" gap="tight">
                     {/* The tile is FACE-SHAPED (the avatar token square) so the row keeps one rhythm — and it
                         prints the count, because "there are more" without a number is just a shrug. During the

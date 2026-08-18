@@ -11,7 +11,7 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
-import type { SectionId } from "./shell-store.ts";
+import type { SectionId } from "./section-ids.ts";
 
 /** WHERE on home a tile lands — a CLOSED axis (§5.5: one importable union), so an unlisted region is
  *  unspellable. It REPLACED `HOME_TILE_SPANS` ("half" | "full") on 2026-08-16 with the hearth build
