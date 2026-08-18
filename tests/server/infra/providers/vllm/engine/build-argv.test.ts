@@ -170,6 +170,8 @@ describe("buildEngineArgv snapshots", () => {
         "--enable-auto-tool-choice",
         "--tool-call-parser",
         "qwen3_coder",
+        "--speculative-config",
+        "{"method":"mtp","num_speculative_tokens":3}",
         "--enable-prefix-caching",
         "--mm-encoder-tp-mode",
         "data",
