@@ -1,5 +1,8 @@
 import { createRoute, createRouter, lazyRouteComponent } from "@tanstack/react-router";
 import { redirectIfAuthed, requireAuthed } from "#features/auth";
+// Deep, not `#lib`: agent-bridge is OUT of the barrel (main.tsx imports it by path — a re-export would drag
+// the dev-only introspection handle into the prod bundle). Type-only, so nothing lands in the boot chunk.
+import type { RouteResolution } from "../lib/agent-bridge.ts";
 import { rootRoute } from "./__root.tsx";
 import { LoginPage } from "./login-page.tsx";
 import { RoutePending } from "./route-pending.tsx";
@@ -43,6 +46,26 @@ export const router = createRouter({
   // A free crossfade on the only real navigations (/ <-> /login); no-op without the View Transition API.
   defaultViewTransition: true,
 });
+
+// The readiness signal's ROUTE-RESOLUTION port (issue #145 — `lib/agent-bridge.ts` declares the shape;
+// `lib/` is the floor tier and may not import this module, so the adapter lives here beside the singleton).
+// `status: "pending"` covers a navigation whose beforeLoad/loader/lazy-component chunk is still landing —
+// which for `/` is the ~4.9 MB `compose/authed-app.tsx` graph. `onRendered` is the LAST lifecycle event of a
+// navigation (after onResolved + onBeforeRouteMount), so it is the tick at which "the component that owns
+// the initial reads is mounted" first becomes true; `onBeforeNavigate` re-opens the window on every later
+// navigation. Both are subscribed, because the port's contract is "tell me when resolution MAY have changed"
+// and the reader re-derives the answer from `state` every time.
+export const routeResolution: RouteResolution = {
+  isResolving: (): boolean => router.state.status === "pending" || router.state.isLoading,
+  subscribe: (onChange: () => void): (() => void) => {
+    const offRendered = router.subscribe("onRendered", onChange);
+    const offNavigate = router.subscribe("onBeforeNavigate", onChange);
+    return (): void => {
+      offRendered();
+      offNavigate();
+    };
+  },
+};
 
 declare module "@tanstack/react-router" {
   interface Register {

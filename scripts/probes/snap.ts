@@ -1434,8 +1434,21 @@ type EvidenceRange = {
 };
 
 /** Did the app reach a SETTLED state? `settled` = the flag went up on a real query-cache idle; `degraded` =
- *  agent-bridge's ceiling handed the flag over with reads still running; `absent` = it never went up. */
-type AppReadiness = "settled" | "degraded" | "absent";
+ *  agent-bridge's ceiling handed the flag over with reads still running; `dataless` = the flag says settled
+ *  but the app never reached its data layer at all; `absent` = it never went up. */
+type AppReadiness = "settled" | "degraded" | "dataless" | "absent";
+
+/** THE DATALESS TRIPWIRE (issue #145). `data-app-ready` claims a settle from an IDLE query cache, and an
+ *  idle cache also describes an app that never got as far as its first read — which is exactly what a stage
+ *  stuck on the router's pending component looks like. That shape screenshotted the boot glyph and reported
+ *  a clean wait for as long as `snap --isolated` has existed. An EMPTY cache (not idle — empty: zero query
+ *  entries ever created) is the signal, and it is never legitimate here: every route this app serves mounts
+ *  `useAuthConfig` (`data/auth-config.ts`), so a settled app has read something. `__orb` is dev-only — a
+ *  build without the bridge answers `null` and we make no claim rather than a false one. */
+async function everReadAnything(page: Page): Promise<boolean | null> {
+  const count = await page.evaluate("window.__orb ? window.__orb.queries().length : null").catch(() => null);
+  return typeof count === "number" ? count > 0 : null;
+}
 
 async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness> {
   const flag = page.locator("html[data-app-ready]");
@@ -1446,8 +1459,21 @@ async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness
   if (!attached) {
     return "absent";
   }
-  return (await flag.getAttribute("data-app-ready")) === "degraded" ? "degraded" : "settled";
+  if ((await flag.getAttribute("data-app-ready")) === "degraded") {
+    return "degraded";
+  }
+  return (await everReadAnything(page)) === false ? "dataless" : "settled";
 }
+
+/** Why a non-settled readiness voids the capture — one line per arm, mapped exhaustively so a new arm
+ *  cannot be added without its reason. */
+const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
+  absent:
+    "app never signalled data-app-ready — the capture is MID-HYDRATION, not the settled app (a cold stage's first navigation is the usual cause; re-run against the now-warm stage)",
+  degraded: "data-app-ready came up DEGRADED — reads were still in flight at the readiness ceiling, so the capture is mid-hydration, not the settled app",
+  dataless:
+    "data-app-ready came up settled but the query cache is EMPTY — the app never reached its data layer, so this capture is a boot placeholder (the router's pending glyph), not the app. On `--isolated` the usual cause is the stage's vite still serving `/`'s lazy component chunk; check the stage's stack log and re-run against the now-warm stage.",
+};
 
 async function navigate(page: Page, opts: Args, url: string): Promise<string | null> {
   const navTimeout = opts.isolated ? STAGE_NAV_TIMEOUT_MS : NAV_TIMEOUT_MS;
@@ -1474,10 +1500,7 @@ async function navigate(page: Page, opts: Args, url: string): Promise<string | n
   if (opts.file === null) {
     const readiness = await appReadiness(page, opts.isolated ? STAGE_READY_TIMEOUT_MS : WAIT_SELECTOR_TIMEOUT_MS);
     if (readiness !== "settled" && navError === null) {
-      navError =
-        readiness === "absent"
-          ? "app never signalled data-app-ready — the capture is MID-HYDRATION, not the settled app (a cold stage's first navigation is the usual cause; re-run against the now-warm stage)"
-          : "data-app-ready came up DEGRADED — reads were still in flight at the readiness ceiling, so the capture is mid-hydration, not the settled app";
+      navError = UNSETTLED_REASON[readiness];
     }
   }
   // Even a non-OK nav may still render something worth waiting for (SPA error page).

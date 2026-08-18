@@ -22,6 +22,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 // Deep, not `@orb/client/lib`: agent-bridge is OUT of the barrel too (main.tsx imports it by path — a
 // re-export would drag the dev-only introspection handle into the prod bundle).
+import type { RouteResolution } from "../../../packages/client/src/lib/agent-bridge.ts";
 import { installAppReadySignal } from "../../../packages/client/src/lib/agent-bridge.ts";
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
@@ -345,6 +346,96 @@ export function MotionFlaggersSlowInputStory(): ReactElement {
 // a fixed wait.
 const GRACE_MARKER_MS = 3500;
 
+/** A route that is ALREADY resolved — the readiness port for the stories whose subject is the query-cache
+ *  half of the contract. Not exported: a `_ct-stories` module may export components only (playwright-ct
+ *  rewrites its named imports into generated component consts, and a mixed import fails to parse). */
+const SETTLED_ROUTE: RouteResolution = {
+  isResolving: (): boolean => false,
+  subscribe: (): (() => void) => (): void => undefined,
+};
+
+/** A route whose resolution the story owns — `resolving` flips on the click, then every subscriber is
+ *  notified, exactly as `routes/router.tsx`'s adapter does on the router's `onRendered` event. */
+interface StoryRoute {
+  readonly port: RouteResolution;
+  readonly resolve: () => void;
+}
+
+function createStoryRoute(): StoryRoute {
+  const listeners = new Set<() => void>();
+  let resolving = true;
+  return {
+    port: {
+      isResolving: (): boolean => resolving,
+      subscribe: (onChange: () => void): (() => void) => {
+        listeners.add(onChange);
+        return (): void => {
+          listeners.delete(onChange);
+        };
+      },
+    },
+    resolve: (): void => {
+      resolving = false;
+      for (const onChange of listeners) {
+        onChange();
+      }
+    },
+  };
+}
+
+/** The "route component" — it is the thing that owns the initial read, so the read cannot exist before it
+ *  mounts. That ordering IS the defect's shape: on a cold stage the router was still fetching this
+ *  component's chunk when the readiness grace expired. */
+function StoryRouteComponent({ client, read }: { readonly client: QueryClient; readonly read: Promise<string> }): ReactElement {
+  useEffect(() => {
+    void client.fetchQuery({ queryKey: ["ct-route-read"], queryFn: () => read });
+  }, [client, read]);
+  return <div data-testid="route-mounted">route mounted</div>;
+}
+
+/** The ROUTE-RESOLUTION half of the readiness contract (issue #145) — the exact `snap --isolated` shape:
+ *  the router is still fetching `/`'s ~4.9 MB lazy component chunk, so at the 3s grace NO query exists at
+ *  all. Under the install-armed grace the flag went up SETTLED on the boot glyph and every instrument
+ *  screenshotted it while reporting a clean wait. The story's route mounts — and only then issues its read —
+ *  on a click, so the test owns both beats and never sleeps on a timer. */
+export function AppReadyRouteResolutionStory(): ReactElement {
+  const [graceElapsed, setGraceElapsed] = useState(false);
+  const [routeMounted, setRouteMounted] = useState(false);
+  const [client] = useState(() => new QueryClient());
+  const [gate] = useState(() => Promise.withResolvers<string>());
+  const [route] = useState(createStoryRoute);
+  useEffect(() => {
+    installAppReadySignal(client, route.port);
+    const marker = setTimeout(() => setGraceElapsed(true), GRACE_MARKER_MS);
+    return (): void => {
+      clearTimeout(marker);
+    };
+  }, [client, route]);
+  return (
+    <div>
+      {graceElapsed ? <div data-testid="grace-elapsed">grace elapsed</div> : null}
+      <button
+        type="button"
+        onClick={(): void => {
+          route.resolve();
+          setRouteMounted(true);
+        }}
+      >
+        resolve the route
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          gate.resolve("the read finally landed");
+        }}
+      >
+        land the read
+      </button>
+      {routeMounted ? <StoryRouteComponent client={client} read={gate.promise} /> : null}
+    </div>
+  );
+}
+
 /** The `data-app-ready` signal under a read that is STILL RUNNING when the grace fires — the exact shape that
  *  made every waiting instrument lie. `installAppReadySignal` is timer + query-cache wiring on the real
  *  `<html>` element, so a CT is the only tier that can observe it (same reason as MotionShiftFlaggerStory).
@@ -354,7 +445,7 @@ export function AppReadySignalStory(): ReactElement {
   const [client] = useState(() => new QueryClient());
   const [gate] = useState(() => Promise.withResolvers<string>());
   useEffect(() => {
-    installAppReadySignal(client);
+    installAppReadySignal(client, SETTLED_ROUTE);
     // fetchQuery, not a hook: the subject reads `queryClient.isFetching()` and the cache subscription only,
     // so driving the cache directly keeps the story free of the sealed query machinery it does not test.
     void client.fetchQuery({ queryKey: ["ct-app-ready"], queryFn: () => gate.promise });

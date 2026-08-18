@@ -14,7 +14,7 @@
 // past the grace rather than sleeping, then asks what the flag did.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AppReadySignalStory } from "./_ct-stories.tsx";
+import { AppReadyRouteResolutionStory, AppReadySignalStory } from "./_ct-stories.tsx";
 
 const READY_FLAG = "html[data-app-ready]";
 
@@ -31,5 +31,31 @@ test("the flag does NOT go up while the initial reads are still in flight — th
   await expect(page.locator(READY_FLAG)).toHaveCount(1);
   // `""`, never "degraded" — this was a real settle, and an instrument reading the value must be able to
   // tell the two apart.
+  await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
+});
+
+// ISSUE #145 — the OTHER way an idle query cache lies. Above, the read was in flight; here there is no read
+// AT ALL, because the route component that owns it has not mounted: on a cold `snap --isolated` stage vite
+// takes longer than the grace to serve `/`'s lazy `compose/authed-app.tsx` chunk. The install-armed grace
+// fired against the router's pending glyph, the flag went up SETTLED with an EMPTY cache, and every
+// instrument screenshotted the boot glyph and reported a clean wait. The grace window now STARTS at route
+// resolution, so "this app has no initial reads" is only claimable once the route is actually mounted.
+test("the flag does NOT go up while the ROUTE is still resolving — an idle cache with no route is not a settle", async ({ mount, page }) => {
+  await mount(<AppReadyRouteResolutionStory />);
+
+  // Past the 3s grace with the route still resolving and ZERO queries ever created. This is the state the
+  // stage sat in for the whole of `--isolated`'s existence; the flag must still be down.
+  await expect(page.getByTestId("grace-elapsed")).toBeVisible();
+  await expect(page.locator(READY_FLAG)).toHaveCount(0);
+
+  // Resolve the route: its component mounts and issues the initial read. Still not ready — that read is in
+  // flight, which is the rule the sibling test above pins.
+  await page.getByRole("button", { name: "resolve the route" }).click();
+  await expect(page.getByTestId("route-mounted")).toBeVisible();
+  await expect(page.locator(READY_FLAG)).toHaveCount(0);
+
+  // Land it: NOW the cache is idle for a reason, and the flag goes up as a real settle.
+  await page.getByRole("button", { name: "land the read" }).click();
+  await expect(page.locator(READY_FLAG)).toHaveCount(1);
   await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
 });

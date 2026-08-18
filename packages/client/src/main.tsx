@@ -40,7 +40,7 @@ import { buildAgentSeed } from "./agent-seed/index.ts";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge.ts";
 import { isProbeMode } from "./lib/probe-mode.ts";
-import { router } from "./routes/router.tsx";
+import { routeResolution, router } from "./routes/router.tsx";
 import "./styles/globals.css";
 
 // Both arms behind the literal import.meta.env.DEV, which the bundler constant-folds so neither
@@ -131,7 +131,10 @@ createRoot(rootEl).render(
 );
 
 // Installed after render so the query cache exists and the readiness check observes the initial reads.
-installAppReadySignal(queryClient);
+// The router rides along as the ROUTE-RESOLUTION port (#145): an idle query cache is only a settle once the
+// route that owns the initial reads has actually mounted — on a cold stage `/`'s lazy chunk outlives the
+// readiness grace, and without this the flag went up on the boot glyph.
+installAppReadySignal(queryClient, routeResolution);
 installAgentDebugHandle(queryClient, {
   nav: buildAgentNav(trpcProxy, queryClient),
   seed: buildAgentSeed(trpcClient),
