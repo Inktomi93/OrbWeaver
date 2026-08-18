@@ -81,19 +81,21 @@ function refusalFor(group: CollectedGroup, seatCount: number): string | null {
 
 /** ONE group's room(s), or the contained refusal. PER-GROUP ISOLATION lives here rather than in the wave loop:
  *  a refused seat or one malformed transcript is one skipped room, never an aborted wave. */
-type GroupOutcome = { readonly ok: true; readonly chatsImported: number; readonly realConversation: boolean } | { readonly ok: false; readonly reason: string };
+type GroupOutcome =
+  | { readonly ok: true; readonly chatsImported: number; readonly realConversation: boolean; readonly chatsPersonaHealed: number }
+  | { readonly ok: false; readonly reason: string };
 
 export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, "importGroupChats"> {
   async function importOne(
     group: CollectedGroup,
     input: ImportGroupsInput,
     profile: ReturnType<typeof requireProfile>,
-  ): Promise<{ readonly chatsImported: number; readonly realConversation: boolean }> {
+  ): Promise<{ readonly chatsImported: number; readonly realConversation: boolean; readonly chatsPersonaHealed: number }> {
     const { seated } = resolveMembers(group, input.characterIdByCardFilename);
     // Proven non-empty by `refusalFor` before this runs; the fallback keeps the read total.
     const primary = seated[0];
     if (primary === undefined) {
-      return { chatsImported: 0, realConversation: false };
+      return { chatsImported: 0, realConversation: false, chatsPersonaHealed: 0 };
     }
     const roster = seated.slice(1).map((s) => s.characterId);
     const metadata = metadataFor(group);
@@ -125,7 +127,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       ),
     );
     const counts = await profile.bulkImportChats({ ownerId: ctx.ownerId, characterId: primary.characterId, chats });
-    return { chatsImported: counts.chatsImported, realConversation: counts.realConversationWritten };
+    return { chatsImported: counts.chatsImported, realConversation: counts.realConversationWritten, chatsPersonaHealed: counts.chatsPersonaHealed };
   }
 
   /** Import one group, converting BOTH refusal shapes — the precondition miss and a thrown write — into the
@@ -154,6 +156,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     let groupsImported = 0;
     let groupChatsImported = 0;
     let backfillNeeded = false;
+    let chatsPersonaHealed = 0;
     const skippedGroups: ImportSkippedGroup[] = [];
     const skippedMembers: ImportSkippedGroupMember[] = [];
     // §5.7: collected across EVERY group's transcripts, including a group that is later refused — the pick
@@ -175,9 +178,10 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       groupsImported += outcome.chatsImported > 0 ? 1 : 0;
       groupChatsImported += outcome.chatsImported;
       backfillNeeded = backfillNeeded || outcome.realConversation;
+      chatsPersonaHealed += outcome.chatsPersonaHealed;
     }
 
-    return { groupsImported, groupChatsImported, skippedGroups, skippedMembers, backfillNeeded, unresolvedPinnedPersonas: unresolvedPins };
+    return { groupsImported, groupChatsImported, skippedGroups, skippedMembers, backfillNeeded, unresolvedPinnedPersonas: unresolvedPins, chatsPersonaHealed };
   }
   return { importGroupChats };
 }

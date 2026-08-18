@@ -80,10 +80,15 @@ function humanParticipant(id: string): ReturnType<typeof makeParticipant> {
   return makeParticipant({ id: castId(id), kind: "human", characterId: null, displayName: id });
 }
 
-test("castSectionVisible: false under 2 characters, true at 2", () => {
+// THE #162 REGRESSION (owner-observed 2026-08-17). The floor was 2, so a 1:1 room — the common shape —
+// rendered a Members tab with NO cast section at all: no character rows, no per-character controls, and
+// (since the add-character door now lives in that section's header) no way to grow the cast from the tab.
+// "It used to show … the characters in the room, now it just shows my email."
+test("castSectionVisible: ANY character in the room earns the Cast list", () => {
   const alice = makeParticipant({ characterId: ALICE_ID });
   const bob = makeParticipant({ characterId: BOB_ID });
-  expect(castSectionVisible([alice])).toBe(false);
+  expect(castSectionVisible([])).toBe(false);
+  expect(castSectionVisible([alice])).toBe(true);
   expect(castSectionVisible([alice, bob])).toBe(true);
 });
 
@@ -100,10 +105,16 @@ test("membersTabJustified: 2+ humans justifies the tab ONLY when multiHumanCapab
   expect(membersTabJustified(humans, false)).toBe(false);
 });
 
-test("membersTabJustified: false when neither floor is met (solo character, single-user)", () => {
+test("membersTabJustified: a SOLO-character room reaches the tab — its cast IS the roster (#162)", () => {
   const alice = makeParticipant({ characterId: ALICE_ID });
-  expect(membersTabJustified([alice], false)).toBe(false);
-  expect(membersTabJustified([alice], true)).toBe(false);
+  expect(membersTabJustified([alice], false)).toBe(true);
+  expect(membersTabJustified([alice], true)).toBe(true);
+});
+
+test("membersTabJustified: false when the room has NO cast and no People arm", () => {
+  const solo = [humanParticipant("participant_h1")];
+  expect(membersTabJustified(solo, false)).toBe(false);
+  expect(membersTabJustified(solo, true)).toBe(false);
 });
 
 // THE DEADLOCK REGRESSION (2026-08-03, found on the first real multi-user test). "Invite people" lives
@@ -118,11 +129,15 @@ test("membersTabJustified: a HOST reaches the tab with ONE human — the invite 
   expect(membersTabJustified([...solo, makeParticipant({ characterId: ALICE_ID })], true, true)).toBe(true);
 });
 
-test("membersTabJustified: the host arm needs multiHumanCapable, and does NOT leak to non-hosts", () => {
+// FLOOR ZERO FOR A HOST (owner ruling 2026-08-18, #162). This used to assert that a single-user host with
+// one human and no cast got NO tab — the arm "stayed shut" because there was nobody to invite. That is the
+// same display-rule-doing-access-work mistake in a third costume: a host with no cast still has the
+// add-character door, and that door lives in this tab. A NON-host with nothing to see keeps the floor.
+test("membersTabJustified: a HOST always reaches the tab; a non-host with nothing in it does not", () => {
   const solo = [humanParticipant("participant_h1")];
-  // single-user install: a host has nobody to invite, so the arm must stay shut
-  expect(membersTabJustified(solo, false, true)).toBe(false);
-  // non-host keeps the DISPLAY floor — it cannot invite, so a one-person People list buys it nothing
+  // single-user install, no cast: the host still has the add-character door, which lives ONLY in this tab
+  expect(membersTabJustified(solo, false, true)).toBe(true);
+  // non-host, nothing to see and nothing to do ⇒ still no tab
   expect(membersTabJustified(solo, true, false)).toBe(false);
   // and the default (omitted) is non-host, so existing callers are unchanged
   expect(membersTabJustified(solo, true)).toBe(false);

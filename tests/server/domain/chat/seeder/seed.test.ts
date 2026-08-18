@@ -74,6 +74,7 @@ function makeHarness(options: HarnessOptions = {}): { readonly deps: DemoChatSee
         variantsImported: chats.reduce((n, c) => n + c.messages.length, 0),
         branchesLinked: 0,
         realConversationWritten: false,
+        chatsPersonaHealed: 0,
       });
     },
     resolveSeatPersona: (): Promise<PersonaId | null> => Promise.resolve(options.persona ?? (options.persona === null ? null : PERSONA_ID)),

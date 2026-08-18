@@ -164,4 +164,11 @@ export interface BulkImportChatsResult {
   readonly variantsImported: number;
   readonly branchesLinked: number;
   readonly realConversationWritten: boolean;
+  /** How many ALREADY-IMPORTED chats this run back-filled persona attribution onto (the dedup-skip arm's
+   *  HEAL). A re-import is idempotent by `importHash`, so a corpus imported before the mapper could resolve
+   *  its persona would stay unattributed forever without this: the skip branch now fills the room's
+   *  `anchorPersonaId`, the host seat's `activePersonaId` and each user slot's `personaId` **only where they
+   *  are still NULL** — never overwriting a choice the owner made after the import. Counted per CHAT, and
+   *  zero on a run that healed nothing (including every fresh import). */
+  readonly chatsPersonaHealed: number;
 }

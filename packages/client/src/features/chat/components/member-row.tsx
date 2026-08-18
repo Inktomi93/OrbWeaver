@@ -86,8 +86,10 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         {initialsFor(row.displayName)}
       </Avatar>
       <Text as="span" voice="label" className={row.kind === "cast" && row.disabled ? "min-w-0 truncate text-muted-foreground" : "min-w-0 truncate"}>
+        {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
+            an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
+            carries a handle at all, so the suffix has nothing to come back from. */}
         {row.displayName}
-        {row.kind === "person" && row.handle !== null ? ` · ${row.handle}` : ""}
       </Text>
       <RowStateBadges row={row} />
       {responding ? (

@@ -94,6 +94,7 @@ function ctxWith(written: Written, opts: { readonly throws?: boolean } = {}): Im
           variantsImported: 0,
           branchesLinked: 0,
           realConversationWritten: true,
+          chatsPersonaHealed: 0,
         });
       },
       bulkImportPersonas: unused,

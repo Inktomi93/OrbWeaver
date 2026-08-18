@@ -20,7 +20,7 @@
 // `resolveContextTabs`, paired with its consumer INSIDE the definition file; the shell only ever sees the
 // NON-generic `ContextDefinition` this mint returns (§6b).
 
-import type { ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { CastEntry, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
@@ -293,6 +293,10 @@ export interface CommittedChatContext {
   readonly phase: "committed";
   readonly chatId: ChatId;
   readonly participants: readonly ParticipantView[];
+  /** The room's member-gated CAST producer (`ChatDetail.cast`, D137) — the ONE resolver a context tab has for
+   *  turning a seat's `activePersonaId` into the persona name/portrait its row renders (the Members tab's
+   *  human rows; see `features/chat/lib/member-rows.ts::toPersonRows`). */
+  readonly cast: readonly CastEntry[];
   readonly viewerUserId: UserId;
   readonly pendingHostUserId: UserId | null;
   readonly roomOverrides: RoomOverrides;

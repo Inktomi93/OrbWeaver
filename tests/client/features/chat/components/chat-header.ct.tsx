@@ -2,10 +2,10 @@
 // path over the stubbed network (routeTrpc): `chat.getChat` supplies the roster the entry counts. The ⋯
 // options menu (and its server-resolved host gate) moved to the COMPOSER — see composer-chat-options.ct.tsx.
 //
-// The members entry ALWAYS renders now (every chat has a roster — Context-Panel-Program CP-1 owner ruling
-// 2026-07-25). It counts PRESENT participants (humans + cast, `leftSeq === null`); a departed seat is
-// excluded. On a GROUP it opens the Members context tab (unchanged); on a SOLO chat it opens a compact
-// roster popover — the present seats + a host-only "Add a character" that converts the solo chat to a group.
+// The members entry ALWAYS renders (every chat has a roster — Context-Panel-Program CP-1 owner ruling
+// 2026-07-25) and it counts PRESENT participants (humans + cast, `leftSeq === null`); a departed seat is
+// excluded. It ALWAYS opens the Members context tab: the solo-chat roster POPOVER this file used to pin was
+// deleted with the Members tab's size gate (#162, owner-ruled 2026-08-18) — one roster surface, every room.
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -13,7 +13,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatContextHeaderStory, ChatHeaderNarrowStory, ChatHeaderStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
 
-/** A human seat — `role` seats a host/member (the roster shape); `displayName` for the roster popover row. */
+/** A human seat — `role` seats a host/member (the roster shape); `displayName` names the seat. */
 function human(role: ParticipantRole): Record<string, unknown> {
   return {
     id: `participant_${role}`,
@@ -56,7 +56,6 @@ test("a GROUP cast shows the chip counting PRESENT participants (\u00a7 6.1: Mem
           characterId: null,
           leftSeq: 41,
         },
-        // ≥2 present characters justify the Members tab (castSectionVisible) — and so the chip.
         character("Aria"),
         character("Bolt"),
       ],
@@ -71,11 +70,6 @@ test("a GROUP cast shows the chip counting PRESENT participants (\u00a7 6.1: Mem
   const chip = component.getByRole("button", { name: "Members — 3" });
   await expect(chip).toBeVisible();
   await expect(chip).toHaveText("3");
-  // GROUP behavior is UNCHANGED: clicking routes to the Members context tab (setContextTab/setPanelMode),
-  // NOT the solo roster popover. This story mounts only the topbar header (no context-tab strip), so the
-  // proof at this scope is the ABSENCE of the solo popover — the group arm never renders it.
-  await chip.click();
-  await expect(page.getByTestId("solo-roster-menu")).toHaveCount(0);
 });
 
 // ── THE MEMBERS CHIP WAS A DEAD CONTROL BELOW 64rem (CONFIG-FIX lane finding) ──────────────────────
@@ -110,7 +104,12 @@ test.describe("narrow/touch viewport", () => {
   });
 });
 
-test("a SOLO chat renders the members entry and opens a roster popover with Add a character (CP-1 ruling)", async ({ mount, page }) => {
+// SUPERSEDED (#162, owner-ruled 2026-08-18). These two cases used to assert a SOLO-chat `solo-roster-menu`
+// popover with its own "Add a character" — a SECOND roster surface that existed only because the Members tab
+// was size-gated out of 1:1 rooms. That gate is gone (`lib/roster.ts::membersTabJustified`), the tab is the
+// one roster home in every room state, and the popover was deleted with it. What the chip owes now is the
+// same thing in every room: the present-seat count, and a door to the one roster surface.
+test("the members chip counts every PRESENT seat and opens the Members tab — in a solo room too", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => ({
       title: "",
@@ -118,27 +117,19 @@ test("a SOLO chat renders the members entry and opens a roster popover with Add 
       viewerIsHost: true,
     }),
     "chat.listMessages": () => makeMessagesPage([]),
-    // The add-character picker lists the library minus the seated cast.
-    "character.list": () => ({ items: [], nextCursor: null }),
   });
 
-  const component = await mount(<ChatHeaderStory />);
+  const component = await mount(<ChatHeaderNarrowStory />);
 
-  // The entry ALWAYS renders now — a solo chat counts 1 human + 1 character = 2.
+  // 1 human + 1 character = 2.
   const entry = component.getByRole("button", { name: "Members — 2" });
   await expect(entry).toBeVisible();
 
-  // It opens the SOLO roster popover (not the Members tab, which doesn't exist for a 1:1).
   await entry.click();
-  const roster = page.getByTestId("solo-roster-menu");
-  await expect(roster).toBeVisible();
-  await expect(roster.getByText("Alex")).toBeVisible();
-  await expect(roster.getByText("Aria")).toBeVisible();
-  // The host-only add-character doorway that converts the solo chat to a group (reuses the add-member flow).
-  await expect(roster.getByRole("button", { name: "Add a character" })).toBeVisible();
+  await expect(component.getByTestId("shell-state")).toHaveText("contextTab=members openOverlayPanel=context");
 });
 
-test("a SOLO chat's roster popover hides Add a character for a non-host viewer (§8.1 host-only omit)", async ({ mount, page }) => {
+test("a NON-host gets the same chip and the same one door (no host-forked topbar roster)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => ({
       title: "",
@@ -148,11 +139,10 @@ test("a SOLO chat's roster popover hides Add a character for a non-host viewer (
     "chat.listMessages": () => makeMessagesPage([]),
   });
 
-  const component = await mount(<ChatHeaderStory />);
+  const component = await mount(<ChatHeaderNarrowStory />);
   await component.getByRole("button", { name: "Members — 2" }).click();
-  const roster = page.getByTestId("solo-roster-menu");
-  await expect(roster).toBeVisible();
-  await expect(roster.getByRole("button", { name: "Add a character" })).toHaveCount(0);
+
+  await expect(component.getByTestId("shell-state")).toHaveText("contextTab=members openOverlayPanel=context");
 });
 
 // ── THE DRAFT TOPBAR SAYS WHAT THE COMMITTED ONE SAYS (side-eye P2, 2026-08-06) ────────────────────

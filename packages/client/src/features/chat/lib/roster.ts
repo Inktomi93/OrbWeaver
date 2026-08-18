@@ -46,29 +46,45 @@ export function resolveIsGroupChat(participants: readonly ParticipantView[]): bo
   return buildParticipantsById(participants).size > 1;
 }
 
-const CAST_SECTION_FLOOR = 2;
+const CAST_SECTION_FLOOR = 1;
 const PEOPLE_TAB_FLOOR = 2;
 
-/** The Members tab's Cast section floor — needs \>=2 characters to be worth its own list. */
+/** The Members tab's Cast section floor — ANY character in the room earns the list.
+ *
+ *  ⚠️ IT WAS 2, AND THAT HID THE WHOLE ROSTER IN EVERY 1:1 ROOM. The Members tab is the room's roster
+ *  surface, so a solo chat — the overwhelmingly common shape — rendered a tab containing nothing but the
+ *  viewer's own People row, which is exactly the "Chat Members lost detail" the owner reported (#162,
+ *  2026-08-17: "it used to show … the characters in the room, now it just shows my email"). The old floor was
+ *  written as a DISPLAY rule ("don't show a Cast list of one") and was silently doing duty as an ACCESS rule:
+ *  it also withheld every per-character control (mute, talkativeness, summon, view card, remove) and — since
+ *  the add-character door now lives in this section's header — the only in-tab way to GROW the cast. The
+ *  identical mistake, with the identical shape, as the People floor's host arm below. */
 export function castSectionVisible(participants: readonly ParticipantView[]): boolean {
   return filterCharacters(participants).length >= CAST_SECTION_FLOOR;
 }
 
-/** The Members tab's overall floor gate (chats-section.tsx's members `when`): People needs a multi-human
- *  install with \>=2 humans OR a HOST who can invite; Cast needs \>=2 characters; either alone justifies
- *  the tab.
+/**
+ * The Members tab's floor gate (chats-section.tsx's members `when`).
  *
- *  ⚠️ THE HOST ARM IS NOT COSMETIC — WITHOUT IT MULTI-HUMAN IS UNREACHABLE. "Invite people" lives ONLY
- *  inside this tab (`committed-members-tab.tsx` → `members-panel.tsx`), so gating the tab purely on
- *  \>=2 humans is a deadlock: you need a second human to see the tab, and the tab is the only way to
- *  invite one. Found 2026-08-03 on the first real multi-user test — a fresh 1-human chat could never
- *  invite anybody. The \>=2 floor was written as a DISPLAY rule ("don't show a People list of one")
- *  and was silently doing duty as an ACCESS rule. `members-panel` even ships the copy for the state it
- *  forbade: "No one else is here yet — share an invite."
+ * THE FLOOR IS ZERO FOR A HOST (owner-ruled 2026-08-18 via #162): a committed room ALWAYS has a roster, the
+ * Members tab is its ONE home, and every state that used to hide the tab now has real content — the room's
+ * cast, or the empty state plus the add/invite doors. This is the third time this gate has been narrowed
+ * into an ACCESS rule while written as a DISPLAY rule, and each narrowing hid a door that lives nowhere else:
  *
- *  Non-hosts keep the display floor: they cannot invite, so a one-person People list buys them nothing. */
+ *   • \>=2 HUMANS (found 2026-08-03, first real multi-user test) — "Invite people" lives ONLY in this tab, so
+ *     you needed a second human to see the tab and the tab was the only way to invite one. A deadlock.
+ *   • \>=2 CHARACTERS (found 2026-08-17, owner dogfood) — a 1:1 room's whole Cast section vanished, taking
+ *     every per-character control with it: "it used to show … the characters in the room, now it just shows
+ *     my email". THE SUPERSESSION THAT KILLED THE TOPBAR POPOVER: `chat-header.tsx` carried a whole second
+ *     roster surface (`SoloRosterMenu`, with its own add-character door) built for exactly the rooms this
+ *     floor hid. The floor died; the popover died with it (chat-header's header records the reversal).
+ *
+ * A non-host with nothing to see — no cast, and no People arm — still gets no tab: an empty pane with no
+ * affordance in it is the one state worth hiding.
+ */
 export function membersTabJustified(participants: readonly ParticipantView[], multiHumanCapable: boolean, isHost = false): boolean {
   const humans = resolveHumanParticipants(participants).length;
   const peopleJustifies = multiHumanCapable && (isHost || humans >= PEOPLE_TAB_FLOOR);
-  return peopleJustifies || castSectionVisible(participants);
+  // The HOST arm is unconditional: they can always add a character, which is the tab's own empty state.
+  return isHost || peopleJustifies || castSectionVisible(participants);
 }

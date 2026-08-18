@@ -193,6 +193,9 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
     `- Themes converted: ${report.themesImported} (${report.themesCreated} new, ${report.themesImported - report.themesCreated} merged onto an existing imported theme)`,
     `- Background images imported: ${report.backgroundsImported}`,
     `- Group rooms imported: ${report.groupsImported} (${report.groupChatsImported} group transcript(s))`,
+    // The dedup-skip HEAL. Rendered even at zero: a re-run over an already-imported corpus writes no new
+    // canon, so this is the ONLY line that can tell an operator the re-run did anything at all.
+    `- Existing rooms given their user persona (re-run repair): ${report.chatsPersonaHealed}`,
     "",
     section(
       "Cards skipped — NOT imported",

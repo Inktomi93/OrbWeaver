@@ -44,6 +44,7 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
       variantsImported: counts.variantsImported,
       branchesLinked: counts.branchesLinked,
       backfillEnqueued: counts.realConversationWritten,
+      chatsPersonaHealed: counts.chatsPersonaHealed,
       // §5.7: the chat-bound persona picks that named nothing on this install. Computed over the SAME batch
       // the mapper consumed, so the report can never disagree with what was written.
       unresolvedPinnedPersonas: unresolvedPinnedPersonas(input.chats, profile.personaByUserName),

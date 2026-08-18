@@ -40,9 +40,9 @@ interface StartedChat {
   readonly chat: { readonly id: ChatId };
 }
 
-/** Two cast members so the Members tab renders BOTH of its sections (People needs ≥2 humans, Cast needs ≥2
- *  characters — `membersTabJustified`/`castSectionVisible`); a one-character room would screenshot a
- *  half-empty tab and quietly under-prove the surface. */
+/** Two cast members so the Members tab screenshots a room with a real CAST LIST rather than a single row.
+ *  (The ≥2-character floor that used to gate the Cast section — and the whole tab — died with #162: any room
+ *  with a cast shows it, and a host always has the tab. Two seats is still the honest capture.) */
 const CAST_A = {
   handle: "e2e-members-a",
   name: "Marisol",

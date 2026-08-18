@@ -53,6 +53,10 @@ export interface ImportChatsResult {
   readonly branchesLinked: number;
   readonly backfillEnqueued: boolean;
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
+  /** Already-imported rooms this run back-filled persona attribution onto (the dedup-skip arm's HEAL — the
+   *  write op's `chatsPersonaHealed`). NOT counted as `changed`: healing an existing room writes no new canon,
+   *  exactly as a merged preset or a replaced world book is not new canon. */
+  readonly chatsPersonaHealed: number;
 }
 
 /** The ST preset wave's tally. The two counts are deliberately DISTINCT: `presetsImported` is every preset the
@@ -92,6 +96,9 @@ export interface ImportGroupsResult {
   /** Same §5.7 record as the solo wave's — a group transcript can carry a chat-bound pick too, and a
    *  wave-local report field is what keeps it from being the one arm that drops it silently. */
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
+  /** The group wave's half of the dedup-skip HEAL count (`ImportChatsResult.chatsPersonaHealed`'s twin — an
+   *  already-imported group room gains its persona attribution the same way a solo one does). */
+  readonly chatsPersonaHealed: number;
 }
 
 export interface ImportPersonasResult {

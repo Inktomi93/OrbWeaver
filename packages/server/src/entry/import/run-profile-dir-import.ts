@@ -468,6 +468,9 @@ interface WaveOutcomes {
   /** §5.7, MERGED across the solo bundle loop and the group wave — one report line per chat whose ST
    *  chat-bound persona pick named nobody here, wherever the transcript came from. */
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
+  /** ALREADY-IMPORTED rooms this run back-filled persona attribution onto, summed across the solo, group and
+   *  orphan waves (the dedup-skip HEAL — `BulkImportChatsResult.chatsPersonaHealed`). */
+  readonly chatsPersonaHealed: number;
   /** The GLOBAL regex wave (found counts ride `collected`; these are the write-time outcomes). */
   readonly globalRegexScriptsLifted: number;
   readonly globalRegexScriptsReused: number;
@@ -501,6 +504,7 @@ const NO_WAVES: WaveOutcomes = {
   skippedGroups: [],
   skippedGroupMembers: [],
   unresolvedPinnedPersonas: [],
+  chatsPersonaHealed: 0,
   globalRegexScriptsLifted: 0,
   globalRegexScriptsReused: 0,
   globalRegexSkippedReason: null,
@@ -637,8 +641,10 @@ async function importOrphanBundles(
   readonly orphanImports: { dir: string; characterName: string; created: boolean; chatsImported: number }[];
   readonly orphanSkipped: { dir: string; reason: string }[];
   readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
+  readonly chatsPersonaHealed: number;
 }> {
   let changed = 0;
+  let chatsPersonaHealed = 0;
   const orphanImports: { dir: string; characterName: string; created: boolean; chatsImported: number }[] = [];
   const orphanSkipped: { dir: string; reason: string }[] = [];
   const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
@@ -665,6 +671,7 @@ async function importOrphanBundles(
       }
       const chatResult = await service.importChats({ characterId: mint.characterId, chats: orphan.chats });
       changed += chatResult.chatsImported;
+      chatsPersonaHealed += chatResult.chatsPersonaHealed;
       unresolvedPins.push(...chatResult.unresolvedPinnedPersonas);
       orphanImports.push({ dir: orphan.dirName, characterName: mint.name, created: mint.created, chatsImported: chatResult.chatsImported });
     } catch (err) {
@@ -672,7 +679,7 @@ async function importOrphanBundles(
       orphanSkipped.push({ dir: orphan.dirName, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
     }
   }
-  return { changed, orphanImports, orphanSkipped, unresolvedPins };
+  return { changed, orphanImports, orphanSkipped, unresolvedPins, chatsPersonaHealed };
 }
 
 /** Import one collected card bundle: the character (idempotent by importHash) then its chats. Returns the
@@ -685,6 +692,8 @@ async function importOneBundle(
   readonly changed: number;
   readonly characterId: CharacterId;
   readonly unresolvedPins: readonly ImportUnresolvedPinnedPersona[];
+  /** Already-imported rooms of THIS card whose persona attribution this run back-filled (the dedup-skip HEAL). */
+  readonly chatsPersonaHealed: number;
   /** The card's regex-script lift counts (D121-E) — summed into the report's card-lift accounting. */
   readonly scriptsLifted: number;
   readonly scriptsReused: number;
@@ -696,11 +705,17 @@ async function importOneBundle(
   }
   const scripts = { scriptsLifted: cardResult.regexScriptsLifted, scriptsReused: cardResult.regexScriptsReused };
   if (bundle.chats.length === 0) {
-    return { changed, characterId: cardResult.characterId, unresolvedPins: [], ...scripts };
+    return { changed, characterId: cardResult.characterId, unresolvedPins: [], chatsPersonaHealed: 0, ...scripts };
   }
   const chatResult = await service.importChats({ characterId: cardResult.characterId, chats: bundle.chats });
   changed += chatResult.chatsImported;
-  return { changed, characterId: cardResult.characterId, unresolvedPins: chatResult.unresolvedPinnedPersonas, ...scripts };
+  return {
+    changed,
+    characterId: cardResult.characterId,
+    unresolvedPins: chatResult.unresolvedPinnedPersonas,
+    chatsPersonaHealed: chatResult.chatsPersonaHealed,
+    ...scripts,
+  };
 }
 
 /** Attach the ST library tags for a just-imported character (`tag_map[card filename]` → resolve-or-create by
@@ -731,11 +746,14 @@ async function importCollectedBundles(
   readonly characterNameByCardFilename: Map<string, string>;
   /** §5.7 — the solo wave's half of the unresolved chat-bound persona picks. */
   readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
+  /** The solo wave's half of the dedup-skip HEAL count. */
+  readonly chatsPersonaHealed: number;
   /** The card-lift halves of the regex accounting, summed across every imported card. */
   readonly cardScriptsLifted: number;
   readonly cardScriptsReused: number;
 }> {
   let changed = 0;
+  let chatsPersonaHealed = 0;
   const skippedCards: ImportSkippedCard[] = [];
   const characterIdByCardFilename = new Map<string, CharacterId>();
   const characterNameByCardFilename = new Map<string, string>();
@@ -750,6 +768,7 @@ async function importCollectedBundles(
       // biome-ignore lint/performance/noAwaitInLoops: bulk import is intentionally sequential — each card is one atomic idempotent write, isolated per bundle.
       const result = await importOneBundle(service, bundle);
       changed += result.changed;
+      chatsPersonaHealed += result.chatsPersonaHealed;
       unresolvedPins.push(...result.unresolvedPins);
       cardScriptsLifted += result.scriptsLifted;
       cardScriptsReused += result.scriptsReused;
@@ -766,7 +785,16 @@ async function importCollectedBundles(
       skippedCards.push({ file: bundle.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
     }
   }
-  return { changed, skippedCards, characterIdByCardFilename, characterNameByCardFilename, unresolvedPins, cardScriptsLifted, cardScriptsReused };
+  return {
+    changed,
+    skippedCards,
+    characterIdByCardFilename,
+    characterNameByCardFilename,
+    unresolvedPins,
+    chatsPersonaHealed,
+    cardScriptsLifted,
+    cardScriptsReused,
+  };
 }
 
 /** Assemble the run's ImportContext. Post-import embedding is enqueued ONCE at the very end of the whole
@@ -936,6 +964,9 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       skippedGroupMembers: groupResult.skippedMembers,
       // Every wave's unresolved chat-bound persona picks, in run order: solo bundles, group rooms, orphans.
       unresolvedPinnedPersonas: [...bundleResult.unresolvedPins, ...groupResult.unresolvedPinnedPersonas, ...orphanResult.unresolvedPins],
+      // Every wave's dedup-skip HEALS, summed: this is the number the operator reads to see an existing
+      // corpus gain the persona attribution its first import could not resolve.
+      chatsPersonaHealed: bundleResult.chatsPersonaHealed + groupResult.chatsPersonaHealed + orphanResult.chatsPersonaHealed,
       globalRegexScriptsLifted,
       globalRegexScriptsReused,
       globalRegexSkippedReason,

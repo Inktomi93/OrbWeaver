@@ -379,6 +379,12 @@ export interface ImportReport {
   /** Chats whose ST chat-bound persona pick named a persona this install does not have (solo + group waves
    *  merged). The chats imported; only the pin did not travel. */
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
+  /** ALREADY-IMPORTED rooms this run back-filled persona attribution onto (solo + group + orphan waves
+   *  merged). The importer is idempotent by `importHash`, so a corpus imported before the mapper could
+   *  resolve its persona can only be repaired by re-running the import over the same snapshot — that re-run
+   *  reports its repairs here. NOT part of `changed`: a heal writes no new canon. Zero on every fresh
+   *  import, and zero on a re-run of an already-attributed corpus. */
+  readonly chatsPersonaHealed: number;
   // ── the regex + world-link + user-plane accounting (the silent-gap sweep, 2026-08-15): every one of these
   // planes used to vanish without a report line — the counts render even at zero so "read and empty" is
   // distinguishable from "never looked at". ──

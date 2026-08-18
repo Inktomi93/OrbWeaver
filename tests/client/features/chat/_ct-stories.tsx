@@ -80,7 +80,7 @@ import { buildCastAvatarMaps, buildCastNameContext, DEFAULT_GROUP_CONFIG } from 
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
-import type { AssetId, CharacterId, ChatId, DocumentId, Handle, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Text } from "@orb/ui/text";
@@ -1801,12 +1801,23 @@ export interface MembersPanelStoryProps {
   readonly memberView?: boolean;
   /** Seats Kestrel at the NON-default D16 posture (`from-join`) — the state chip + the RESTORE direction. */
   readonly restrictedMember?: boolean;
+  /** Fills the CAST section's header add SLOT (#162 — the roster's character-add door). The committed
+   *  surface passes `AddMemberPopover`; the story passes a plain button wearing the SAME accessible name,
+   *  because what this panel owes is the seat, not the picker (the picker has its own coverage). */
+  readonly withAddCharacter?: boolean;
+  /** A 1:1 room — the shape whose whole Cast section the old `>=2` floor hid (#162). */
+  readonly soloCast?: boolean;
+  /** A room with NO characters at all — the Cast section is then the add door's empty state. */
+  readonly emptyCast?: boolean;
 }
 export function MembersPanelStory({
   omitForceTurn = false,
   withPeople = false,
   memberView = false,
   restrictedMember = false,
+  withAddCharacter = false,
+  soloCast = false,
+  emptyCast = false,
 }: MembersPanelStoryProps): ReactElement {
   const [lastAction, setLastAction] = useState("");
   const people: MemberPersonRow[] = withPeople
@@ -1816,7 +1827,6 @@ export function MembersPanelStory({
           key: "participant_riley",
           userId: castId<UserId>("user_riley"),
           displayName: "Riley",
-          handle: castId<Handle>("riley"),
           isHost: !memberView,
           isViewer: true,
           avatarHash: null,
@@ -1828,7 +1838,6 @@ export function MembersPanelStory({
           key: "participant_kestrel",
           userId: castId<UserId>("user_kestrel"),
           displayName: "Kestrel",
-          handle: castId<Handle>("kestrel"),
           isHost: memberView,
           isViewer: false,
           avatarHash: null,
@@ -1861,13 +1870,24 @@ export function MembersPanelStory({
       responding: false,
     },
   ];
+  const soloOrFull = soloCast ? cast.slice(0, 1) : cast;
+  const seatedCast = emptyCast ? [] : soloOrFull;
   return (
     <CtDataProviders>
       <div style={{ width: 420 }}>
         <div data-testid="members-last-action">{lastAction}</div>
         <MembersPanel
           people={people}
-          cast={cast}
+          cast={seatedCast}
+          {...(withAddCharacter
+            ? {
+                castAction: (
+                  <button type="button" aria-label="Add a character" onClick={(): void => setLastAction("add-character")}>
+                    +
+                  </button>
+                ),
+              }
+            : {})}
           onViewCharacter={(id): void => setLastAction(`view:${id}`)}
           {...(memberView
             ? {}
@@ -1907,7 +1927,6 @@ export function MembersKickFocusStory(): ReactElement {
     key: "participant_kestrel",
     userId: castId<UserId>("user_kestrel"),
     displayName: "Kestrel",
-    handle: castId<Handle>("kestrel"),
     isHost: false,
     isViewer: false,
     avatarHash: null,
@@ -1920,7 +1939,6 @@ export function MembersKickFocusStory(): ReactElement {
       key: "participant_riley",
       userId: castId<UserId>("user_riley"),
       displayName: "Riley",
-      handle: castId<Handle>("riley"),
       isHost: true,
       isViewer: true,
       avatarHash: null,
