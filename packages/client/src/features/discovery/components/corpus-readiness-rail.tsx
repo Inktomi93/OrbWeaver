@@ -19,6 +19,13 @@
 // `corpus-run-job-empty-state.tsx` records, from two identical "Run a job…" buttons 400px apart): in that
 // state the INVITATION island is the focal and owns the verb. Once the passes have run the invitation is
 // gone and the rail carries the quiet re-run, which is the only affordance left that needs a home.
+//
+// AND THAT RE-RUN RUNS THE PASS (issue #155's other half). It deep-linked to Settings → Jobs, exactly like
+// the invitation did — so fixing only the invitation would have left the identical defect one phase later,
+// on the same surface, for the user who has already been through it once. It shares the invitation's hook,
+// so the dedupe is the same read and a run started from either place is visible from both; while a run holds
+// the floor the button gives way to the stage sentence at the rail's own datum weight (a progress BAR here
+// would be a second box on a deliberately boxless grouping, CD1).
 
 import { Button } from "@orb/ui/button";
 import { Check, Circle, Icon } from "@orb/ui/icons";
@@ -26,6 +33,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { openSettingsTo } from "#state";
+import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
 import type { CorpusReadinessStage } from "../lib/corpus-analysis-state.ts";
 
 export interface CorpusReadinessRailProps {
@@ -52,14 +60,39 @@ export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailPr
           </Row>
         ))}
       </Stack>
-      {showRerun ? (
-        <Stack gap="tight">
-          <Button intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm">
-            Run the passes again…
-          </Button>
-          <Text voice="gloss">Opens Settings → Jobs.</Text>
-        </Stack>
-      ) : null}
+      {showRerun ? <CorpusReadinessRerun /> : null}
     </Section>
+  );
+}
+
+/** The quiet re-run door — and, while a pass is live, that run's state in the rail's own register. */
+function CorpusReadinessRerun(): ReactElement {
+  const pass = useUnderstandingPass();
+  useUnderstandingPassTail(pass.liveRunId, pass.onLiveMessage);
+  if (pass.running) {
+    return (
+      <Stack data-slot="readiness-rerun-running" gap="tight">
+        <Text as="span" voice="datum">
+          {pass.stage}
+        </Text>
+        {pass.detail === null ? null : <Text voice="gloss">{pass.detail}</Text>}
+      </Stack>
+    );
+  }
+  return (
+    <Stack gap="tight">
+      <Button disabled={pass.starting} intent="ghost" onClick={pass.start} size="sm">
+        Run the passes again
+      </Button>
+      {pass.failure === null ? (
+        <Button intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm">
+          All jobs in Settings → Jobs
+        </Button>
+      ) : (
+        <Text className="text-destructive" voice="gloss">
+          {`The last pass stopped: ${pass.failure}`}
+        </Text>
+      )}
+    </Stack>
   );
 }

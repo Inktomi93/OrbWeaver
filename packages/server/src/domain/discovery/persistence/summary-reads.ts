@@ -3,6 +3,13 @@
 // ownerId, so every read innerJoins characters and filters on characters.ownerId, never a caller-supplied owner.
 // The current avatar's CAS hash rides along on a LEFT join to assets — one string off a join this read already
 // performs, so a display slice built from these rows can draw a face without a second owner-scoped read.
+//
+// SCOPE, AND WHAT THIS READ IS NOT (issue #154). Rooted at `character_summaries`, this returns the DISTILLED
+// subset of the owner's library and nothing else — which is right for a facet question and wrong for an
+// identity one. The embedding-driven views (archetypes · projection · similarity graph) cluster every INDEXED
+// card, so they resolve name + face from `card-reads.readOwnedCardDisplay` and come here only for
+// genre/tone/tags. Do not re-merge the two: a card is indexed on import and distilled much later, and reading
+// identity through this row is exactly how 327 imported characters all rendered "Unknown".
 
 import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";

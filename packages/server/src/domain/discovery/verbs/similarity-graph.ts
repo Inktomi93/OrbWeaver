@@ -10,6 +10,7 @@ import type { DiscoveryContext } from "../context.ts";
 import type { SimilarityGraphOptions } from "../contract/params.ts";
 import type { SimilarityGraph, SimilarityGraphEdge } from "../contract/results.ts";
 import type { DiscoveryService } from "../contract/service.ts";
+import { readOwnedCardDisplay } from "../persistence/card-reads.ts";
 import { readOwnedCharacterVectors } from "../persistence/embed-store-reads.ts";
 import { readOwnedCardFacets } from "../persistence/summary-reads.ts";
 import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
@@ -76,9 +77,10 @@ async function similarityGraph(db: Db, ownerId: UserId, opts: SimilarityGraphOpt
   );
   const keptEdges = edges.filter((e) => kept.has(e.source) && kept.has(e.target));
 
-  // A card not yet distilled has no facet row → name "Unknown", genre null.
-  const facets = await readOwnedCardFacets(db, ownerId);
-  const nameById = new Map(facets.map((f) => [f.characterId, f.name]));
+  // Two reads, two questions (issue #154): the NAME is the card row (every node has one, distilled or not);
+  // the GENRE is the distill pass's output and stays null until it has run.
+  const [display, facets] = await Promise.all([readOwnedCardDisplay(db, ownerId), readOwnedCardFacets(db, ownerId)]);
+  const nameById = new Map(display.map((d) => [d.characterId, d.name]));
   const genreById = new Map(facets.map((f) => [f.characterId, f.genre]));
   const nodes = [...kept].map((id) => ({
     characterId: id,

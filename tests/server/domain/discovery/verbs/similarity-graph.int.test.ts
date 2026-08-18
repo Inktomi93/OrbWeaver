@@ -102,6 +102,20 @@ describe("similarityGraph", () => {
     expect(graph).toEqual({ nodes: [], edges: [] });
   });
 
+  // Nodes come from the embeddings, so their NAMES must resolve with zero distill rows (issue #154 — the
+  // header here used to record "a card not yet distilled has no facet row → name Unknown" as intended
+  // behaviour; on a freshly imported library that is every node in the graph).
+  test("un-distilled nodes carry their real names and a null genre", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const a = await seedCard(db, { id: "alpha", ownerId: owner, embedding: vec(1, 0), distill: false });
+    await seedCard(db, { id: "beta", ownerId: owner, embedding: vec(1, 0.02), distill: false });
+
+    const graph = await svcFor(db).similarityGraph(owner);
+    expect(graph.nodes.map((n) => n.name).sort()).toEqual(["alpha", "beta"]);
+    expect(graph.nodes.find((n) => n.characterId === a)).toMatchObject({ genre: null });
+  });
+
   test("a foreign owner sees an empty graph (audit #1)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
