@@ -476,40 +476,48 @@
 .shell-panel[data-panel-side="context"] .shell-panel-header:has(> .shell-panel-header-group:empty) {
   display: none;
 }
-/* Container-responsive CONTEXT tab strip (Context-Panel-Program CP-1 · UI-Arch §4.3 rule-4 progressive
- * disclosure · §4b axis-1 @container — NEVER a viewport @media). The strip is the query CONTAINER; each
- * tab shows its word label ONLY when the container is wide enough to fit EVERY current tab's label,
- * else it compresses to icon+tooltip (the label stays the accessible name — see context-tabs-panel.tsx).
- * Icon-mode is the DEFAULT (labels hidden); a per-COUNT threshold reveals labels, because "fits" depends
- * on how many tabs share the width. Thresholds are the measured label-mode need per count (label text +
- * icon + padding + gaps, receipts in context-tabs-panel.tsx) rounded up — single-homed HERE. Measured
- * reality: the panel clamps to 26rem max, so even 4 word labels (~28rem need) only reveal in a container
- * wider than this panel ever gets — the strip is icon-mode in the shell, word-mode only in a wide host
- * (a test container, or CP-4's wider game panel). This is the CP-4 OSRS icon-strip trajectory, not a
- * one-off. A tab with NO icon can't compress, so it keeps its label unconditionally (data-has-icon). */
-.ctx-tab-strip {
-  container-type: inline-size;
-}
-/* THE BRACKET FILLS ITS ROW (Context-Panel-Program §4.0 OSRS bracket — owner live ruling 2026-07-28): the
- * strip's cells SPAN the full width as equal columns, so the band reads as a solid bracket framing the
- * viewport, never bitsy buttons bunched left with dead trailing space. `1fr` per tab = equal cells; the
- * `overflow-x-auto` safety scroll (label-mode in a wide host) still applies once a revealed word grows a
- * cell past its share. Icon-mode (the shell floor) = N equal square-ish cells filling the row. */
+/* ── THE CONTEXT TAB STRIP: ICON + LABEL ON EVERY TAB, ALWAYS (owner ruling 2026-08-18, #208) ─────────
+ * SUPERSEDES the container-responsive icon-mode this block carried until today. The superseded design,
+ * stated so a later reader does not "restore" it: the strip was an `inline-size` @container, labels were
+ * hidden by DEFAULT on any tab that had an icon (`data-has-icon`), and a per-COUNT `@container` threshold
+ * (7/14/21/28/35rem for 1-5 tabs) revealed the words again. Its own comment recorded why it never fired:
+ * "the panel clamps to 26rem max, so even 4 word labels (~28rem need) only reveal in a container wider
+ * than this panel ever gets". So the shell's ONLY fine-pointer form was icon-only, permanently — while the
+ * rpg HUD's rails (which render THE SAME resolved chat tabs on a game chat) always print glyph over
+ * caption. One product, one tab set, two treatments decided by which renderer owned the pane. MEASURED on
+ * main before this change (reports/snaps/rail-chats-ctx-1to1-tabs.png vs -ctx-group-tabs-crop.png): four
+ * nameless glyphs on a 1:1 chat, "Members · This chat · Preview · Game" with icons on a game chat.
+ * The owner ruled ONE treatment: icon + label, everywhere. The coarse-pointer form below WAS already that
+ * treatment (it had to be — a phone cannot hover a `title`), so this is not a new grammar: the coarse arm
+ * became the only arm, and the pointer fork, the @container thresholds and `data-tab-count` all went with
+ * the mode they existed to switch between.
+ *
+ * THE BRACKET STILL FILLS ITS ROW (Context-Panel-Program §4.0 — owner live ruling 2026-07-28): equal cells
+ * spanning the strip, never bitsy buttons bunched left. What changes is the track MINIMUM. */
 .ctx-tab-strip[data-slot="tabs-list"] {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(var(--spacing-control-md), 1fr);
+  /* `minmax(max-content, 1fr)` — the same track-sizing function the rpg rail's own no-clip arm uses
+   * (RPG_RAIL_WRAP, pointer-variants.ts), for the same reason and now on both strips: the `1fr` MAX keeps
+   * the cells equal and the strip full whenever there is slack, and the `max-content` MIN refuses to
+   * shrink a cell below its whole word. Where the words no longer fit, the tracks overflow and the
+   * strip's `overflow-x-auto` scrolls them. Degrade to a SCROLL, never into an ellipsis — a strip of
+   * three-letter stubs is the icon-only defect wearing text (#102's readable-caption floor). */
+  grid-auto-columns: minmax(max-content, 1fr);
 }
-/* OSRS icon cells (Context-Panel-Program §4.0/§4.7 — "chunky clickable icon cells", ≥32px tap targets).
- * In the shell the strip is always icon-mode, so each tab is a chunky SQUARE cell with a resting surface,
- * a clear hover fill, and an ember-tinted active fill (the OSRS active-tab tint) — not a bare underline.
- * The cells sit flush in a row with a small gap; the sliding underline indicator still rides beneath.
- * Overrides the tabs variant's `h-control-sm px-block` with a square control-md box. */
+/* The cell: glyph over caption, a resting surface, a clear hover fill, and an ember-tinted active fill
+ * (the OSRS active-tab tint) — the app's own tab-cell grammar, identical to `.shell-rail-button`'s mobile
+ * bottom bar and to the rpg HUD cell's `layout="stacked"`. The block size is a FLOOR, not a fixed height
+ * (two lines), which is what keeps the D62 P1 ≥44px touch floor — `--spacing-control-md` is 48px at a
+ * coarse pointer by token construction. Overrides the tabs variant's `h-control-sm px-block`. */
 .ctx-tab-strip [data-slot="tabs-tab"] {
-  block-size: var(--spacing-control-md);
-  /* A square floor in icon-mode (min = the box); in label-mode the revealed word grows the cell past it. */
+  flex-direction: column;
+  gap: 0.125rem;
+  block-size: auto;
+  min-block-size: var(--spacing-control-md);
   min-inline-size: var(--spacing-control-md);
   padding-inline: var(--spacing-field);
+  padding-block: var(--spacing-field);
   border-radius: var(--radius-control);
   background: color-mix(in oklab, var(--color-sidebar-accent) 55%, transparent);
   transition:
@@ -523,86 +531,14 @@
   background: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-accent));
   color: var(--color-foreground);
 }
-/* Icon-mode floor: hide compressible labels; the icon carries the tab, tooltip/title + aria-label carry
- * the name. Labels of icon-less tabs (a contributor that set none) always show — never a nameless tab. */
-.ctx-tab-strip [data-slot="tabs-tab"][data-has-icon] .ctx-tab-label {
-  display: none;
-}
-/* Per-count label reveal — the container must fit ALL current tabs' labels before words return. */
-.ctx-tab-strip[data-tab-count="1"] {
-  @container (min-width: 7rem) {
-    [data-slot="tabs-tab"] .ctx-tab-label {
-      display: revert;
-    }
-  }
-}
-.ctx-tab-strip[data-tab-count="2"] {
-  @container (min-width: 14rem) {
-    [data-slot="tabs-tab"] .ctx-tab-label {
-      display: revert;
-    }
-  }
-}
-.ctx-tab-strip[data-tab-count="3"] {
-  @container (min-width: 21rem) {
-    [data-slot="tabs-tab"] .ctx-tab-label {
-      display: revert;
-    }
-  }
-}
-.ctx-tab-strip[data-tab-count="4"] {
-  @container (min-width: 28rem) {
-    [data-slot="tabs-tab"] .ctx-tab-label {
-      display: revert;
-    }
-  }
-}
-/* 5 = the Trackers ceiling (CP-1's max, never 6). ~35rem label-mode need. */
-.ctx-tab-strip[data-tab-count="5"] {
-  @container (min-width: 35rem) {
-    [data-slot="tabs-tab"] .ctx-tab-label {
-      display: revert;
-    }
-  }
-}
-/* (The count-6/7 thresholds were DELETED at HUD-1 H1: they were authored for the CP-4 bracket's GAME strip,
- * which a claimant now draws itself, and they could never fire at any width the shell gives this panel.) */
-
-/* ── A TOUCH USER CANNOT HOVER A `title` (UI-Arch §4.3 rule 4 · §4b axis 3) ──────────────────────────
- * Icon-mode's whole contract is "the icon carries the tab, tooltip/title + aria-label carry the name".
- * That contract has a hole at `pointer: coarse`: the name lives ONLY in a native `title` (see
- * context-tabs-panel.tsx — Base UI also suppresses tooltips on touch by design), and a native title
- * needs a hover the device cannot produce. The reveal thresholds above can never close it either — they
- * are container-width questions, and the panel clamps to 26rem while the 5-tab threshold is 35rem, so a
- * phone reaches icon-mode and STAYS there with no name affordance at all. Rule 4 already states the
- * remedy in general ("appears on hover AND :focus-within, ALWAYS-VISIBLE at `pointer: coarse`"); this is
- * that rule applied to the strip.
- *
- * The form is the app's OWN coarse-tab grammar, not a new one: icon over label, exactly as the rail
- * becomes the mobile bottom tab bar below (`.shell-rail-button` — column, 0.125rem gap, label shown).
- * The cell grows to two lines, so the block size becomes a FLOOR rather than a fixed height and the ≥44px
- * touch floor is kept by `--spacing-control-md` (48px at coarse, D62 P1). The label truncates rather than
- * wrapping — the cells are equal `1fr` columns and a wrapped word would make one cell taller than its
- * neighbours; the full name stays in `aria-label`, so nothing is lost to AT. `overflow-x-auto` on the
- * strip remains the safety scroll if a very narrow coarse host still cannot seat the words.
- * Capability queries belong to this layer (§4b axis 3 — never a feature className). */
-@media (pointer: coarse) {
-  .ctx-tab-strip [data-slot="tabs-tab"] {
-    flex-direction: column;
-    gap: 0.125rem;
-    block-size: auto;
-    min-block-size: var(--spacing-control-md);
-    padding-block: var(--spacing-field);
-  }
-  /* Beats the icon-mode `display: none` on equal specificity by source order (that rule is declared
-   * above); the per-count `@container` reveals are equal too and simply agree with this. */
-  .ctx-tab-strip [data-slot="tabs-tab"][data-has-icon] .ctx-tab-label {
-    display: block;
-    max-inline-size: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+/* The caption's LAST-RESORT net, not its normal state: the track minimum above is `max-content`, so a
+ * label only meets this rule when the strip has already overflowed and been scrolled to. The full name
+ * stays the accessible name either way (aria-label — context-tabs-panel.tsx). */
+.ctx-tab-strip .ctx-tab-label {
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shell-panel-body {

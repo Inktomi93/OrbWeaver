@@ -417,12 +417,14 @@ export function SectionContextHeaderDefaultStory(): ReactElement {
   );
 }
 
-// ── The container-responsive CONTEXT tab strip (context-tabs-panel.tsx, CP-1) ───────────────────────
+// ── The CONTEXT tab strip (context-tabs-panel.tsx) ──────────────────────────────────────────────────
 // Mounts the real ContextTabsPanel inside a FIXED-width container the `.ct.tsx` sets, so the shell.css
-// `.ctx-tab-strip` @container query resolves against a known width — narrow ⇒ icon-mode (labels hidden,
-// no clip), wide ⇒ label-mode (words shown). Proves both forms render + the accessible NAME survives in
-// BOTH (aria-label). A `showTrackers` flag adds the 5th tab (the Trackers-ceiling headroom pin); a fake
-// icon-LESS contributor tab proves an icon-less tab keeps its word unconditionally (never a nameless tab).
+// `.ctx-tab-strip` cell + track sizing resolve against a KNOWN width. Since #208 the cell is icon+label at
+// every width (the @container icon-mode this comment used to describe is deleted), so the widths exist to
+// exercise the strip's SLACK: 291px = the real default panel (tracks at their `max-content` minimum, the
+// row may scroll), 600px = a wide host (the `1fr` maximum, equal cells filling the row). A `showTrackers`
+// flag adds the 5th tab (the CP-1 ceiling); a fake icon-LESS contributor tab proves a tab with no glyph
+// still reads as the same cell.
 
 /** A resolved-tab builder that fills the §4.11 defaults (strip "meta", no badge, enabled) so a story only
  *  spells the axis it exercises — mirrors `resolveContextTabs`'s own defaulting. */

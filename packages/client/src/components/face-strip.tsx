@@ -62,8 +62,8 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
-import type { FaceFold } from "./face-strip-fold.ts";
-import { foldFaces } from "./face-strip-fold.ts";
+import type { FoldState } from "./face-strip-fold.ts";
+import { cellWidthClass, foldFaces, sameFold } from "./face-strip-fold.ts";
 
 export interface FaceStripItem {
   readonly id: string;
@@ -93,18 +93,23 @@ export interface FaceStripProps {
   /** The face currently scoping the pane below (`aria-current` + the accent ring), or null. */
   readonly selectedId: string | null;
   readonly onSelect: (id: string) => void;
-  /** The strip's accessible name — it is a list of shortcuts, so it says which ones. */
+  /** The strip's name — its accessible name ALWAYS, and (with `kicker`) the word printed above the faces.
+   *  ONE string for both by construction (#208): it used to be two, and they disagreed — the chats strip
+   *  printed "Filter by character" and announced "Recent characters", so a speech-input user saying the
+   *  words on screen addressed nothing and an AT user and a sighted user were told about different lists. */
   readonly label: string;
   /** Per-face verb for the accessible name, e.g. "Open" → "Open Azarael". @defaultValue "Open" */
   readonly verb?: string;
   /** Print each face's name under it. Off by default (the favorites strip is portraits only). */
   readonly caption?: boolean;
-  /** A micro-caps KICKER printed above the faces (the mock's group label). Without it a cold user reads a
-   *  bare row of portraits and can't tell it is a control at all — the strip's accessible `label` only
-   *  reaches assistive tech. Make it name the strip's VERB, not its contents: a clickable portrait means
-   *  "start a chat" everywhere else in the app, so a strip that FILTERS has to say so in the one line a
-   *  sighted user actually reads. Omit for a strip whose surrounding copy already names it. */
-  readonly kicker?: string;
+  /** PRINT `label` as a micro-caps kicker above the faces (the mock's group label). Without it a cold user
+   *  reads a bare row of portraits and can't tell it is a control at all — the accessible name reaches
+   *  assistive tech only. So make `label` name the strip's VERB, not its contents: a clickable portrait
+   *  means "start a chat" everywhere else in the app, so a strip that FILTERS has to say so in the one line
+   *  a sighted user actually reads. Omit for a strip whose surrounding copy already names it.
+   *
+   *  It is a BOOLEAN and not a second string on purpose (#208) — see `label`. */
+  readonly kicker?: boolean;
   /** Opt into the FOLDED posture: the strip fits ONE row and hands everything it could not fit to this
    *  picker. Omitted, the strip keeps its original scrolling row (the favorites strip's posture). */
   readonly overflow?: FaceStripOverflow;
@@ -132,23 +137,18 @@ export interface FaceStripProps {
   readonly pending?: boolean;
 }
 
-/** What the fold decided, plus whether the selected face had to be hoisted to survive it. */
-interface FoldState extends FaceFold {
-  readonly hoisted: boolean;
-}
-
 const FACE_KEY_ATTR = "data-face-key";
 const OVERFLOW_ATTR = "data-face-overflow";
 /** A squeezed face is rendered NARROWER than it wants to be — measuring it would poison the cache with the
  *  width the fold itself imposed, and the next fold would then "discover" that it fits unaided. */
 const SQUEEZED_ATTR = "data-face-squeezed";
 
-/** THE CELL (#153): a captioned face, the overflow tile and the pending placeholder all take one fixed
- *  width, so the portrait pitch is a property of the strip and never of the cast's names. Uncaptioned
- *  cells were already uniform (portrait inside the control floor) and stay content-sized. Returned with
- *  its leading space so every call site is a plain template append. */
-function cellWidthClass(caption: boolean): string {
-  return caption ? " w-avatar-hero" : "";
+/** THE OVERFLOW TILE'S ACCESSIBLE NAME — LABEL IN NAME (WCAG 2.5.3, #208). A CAPTIONED tile prints "More"
+ *  under its `+N`, and its name was the bare verb, so a speech-input user saying the word on screen
+ *  addressed nothing. The name LEADS with the visible word (the talkativeness chip's shape); the
+ *  UNCAPTIONED arm prints only `+N` — no word to contain — and keeps the bare verb. */
+function tileName(caption: boolean, label: string): string {
+  return caption ? `More — ${label}` : label;
 }
 
 /** Cache key: a face's width is its portrait AND its caption, so a rename must re-measure. */
@@ -200,16 +200,6 @@ function computeFold({ row, items, selectedId, cache, tileWidth }: FoldMeasureme
   // hide (a strip that filters by a face you cannot see is a filter you cannot clear).
   const reordered = [widths[selectedIndex] ?? 0, ...widths.filter((_unused, index) => index !== selectedIndex)];
   return { ...foldFaces({ ...geometry, widths: reordered }), hoisted: true };
-}
-
-function sameFold(previous: FoldState | null, next: FoldState): boolean {
-  return (
-    previous !== null &&
-    previous.visible === next.visible &&
-    previous.hidden === next.hidden &&
-    previous.squeezed === next.squeezed &&
-    previous.hoisted === next.hoisted
-  );
 }
 
 interface FaceButtonProps {
@@ -273,8 +263,8 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
 
 /** Both strip arms wear the same optional KICKER, so they are wrapped by ONE function: a placeholder that
  *  reserved only the face row would be short by the kicker's line, which is the shift it exists to stop. */
-function withKicker(kicker: string | undefined, row: ReactElement): ReactElement {
-  if (kicker === undefined) {
+function withKicker(show: boolean, kicker: string, row: ReactElement): ReactElement {
+  if (!show) {
     return row;
   }
   return (
@@ -310,9 +300,10 @@ const CAPTION_PLACEHOLDER = " ";
  * an account that genuinely has no faces collapses the placeholder once — the one case that cannot be
  * reserved without inventing a shortcut row to nowhere.
  */
-function FaceStripPlaceholder({ caption, kicker }: { readonly caption: boolean; readonly kicker: string | undefined }): ReactElement {
+function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: boolean; readonly kicker: boolean; readonly label: string }): ReactElement {
   return withKicker(
     kicker,
+    label,
     <Row aria-busy={true} className="overflow-hidden" data-face-pending="" gap="field">
       {PLACEHOLDER_SLOTS.map((slot) => (
         // The settled face's own box: `FaceButton`'s per-pointer MIN box (`size="media"` is `p-0`, so the
@@ -339,7 +330,7 @@ export function FaceStrip({
   label,
   verb = "Open",
   caption = false,
-  kicker,
+  kicker = false,
   overflow,
   selectMode = "current",
   pending = false,
@@ -385,7 +376,8 @@ export function FaceStrip({
   }, [folding, items, measuring, selectedId]);
 
   if (items.length === 0) {
-    return pending ? <FaceStripPlaceholder caption={caption} kicker={kicker} /> : null;
+    // The kicker's WORD is the strip's own name — never a second string (#208).
+    return pending ? <FaceStripPlaceholder caption={caption} kicker={kicker} label={label} /> : null;
   }
 
   const ordered = fold?.hoisted === true ? hoistSelected(items, selectedId) : items;
@@ -418,7 +410,13 @@ export function FaceStrip({
                 // `size="icon"` IS the control-md square this used to spell as min-h/min-w classes
                 // (#169 — the multi-segment token was invisible to `ui-size-via-variant` until its value
                 // class learned hyphens); the captioned strip's uniform pitch (#153) rides cellWidthClass.
-                <Button aria-label={overflow.label} className={`shrink-0${cellWidthClass(caption)}`} data-face-overflow="" intent="ghost" size="icon">
+                <Button
+                  aria-label={tileName(caption, overflow.label)}
+                  className={`shrink-0${cellWidthClass(caption)}`}
+                  data-face-overflow=""
+                  intent="ghost"
+                  size="icon"
+                >
                   <Stack align="center" gap="tight">
                     {/* The tile is FACE-SHAPED (the avatar token square) so the row keeps one rhythm — and it
                         prints the count, because "there are more" without a number is just a shrug. During the
@@ -438,5 +436,5 @@ export function FaceStrip({
       ) : null}
     </InlineList>
   );
-  return withKicker(kicker, faces);
+  return withKicker(kicker, label, faces);
 }

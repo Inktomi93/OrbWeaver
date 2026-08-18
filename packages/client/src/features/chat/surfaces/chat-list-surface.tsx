@@ -170,6 +170,11 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
   // carrying opposite verbs. "Filter by character" is the line that disambiguates before the click (owner: name the thing, not the cuteness), and the
   // selected face's accent caption + the "Filtered: X" chip below confirm it after.
   //
+  // AND IT IS THE STRIP'S ACCESSIBLE NAME TOO (#208). This call passed a SECOND string — the list announced
+  // "Recent characters" while the kicker printed "Filter by character" — so AT and the eye were told about
+  // different lists, and a speech-input user saying the words on screen addressed nothing. `kicker` is a
+  // boolean now: `label` is the one name, printed and announced.
+  //
   // The strip FOLDS to the pane (FACEFILT — the owner's nine scrolling faces on a six-character library):
   // the faces that fit stay a one-tap shortcut, and the rest of the cast lives behind the tile, which opens
   // the house character picker over the WHOLE library — so it also reaches someone you have never opened a
@@ -178,8 +183,8 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
     <FaceStrip
       caption={true}
       items={faces}
-      kicker="Filter by character"
-      label="Recent characters"
+      kicker={true}
+      label="Filter by character"
       onSelect={scopeToFace}
       // RESERVE THE BOX WHILE THE READ IS IN FLIGHT (measured 2026-08-09: the pane shifted 74px on data
       // arrival — the strip mounted above the search field and pushed the field + the whole row list down,
