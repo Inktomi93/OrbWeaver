@@ -2160,9 +2160,9 @@ export interface CommittedMembersTabStoryProps {
  *  panel. Mounted with a host viewer and `multiHumanCapable:false`, so the People section is absent and the
  *  arms under test are exactly the cast row's: which of the group-arbiter controls (#182) exist. */
 export function CommittedMembersTabStory({ soloCast = false, mutedSoloSeat = false }: CommittedMembersTabStoryProps = {}): ReactElement {
-  const aria = membersTabSeat("Aria", "character_aria");
+  const aria = membersTabSeat("Aria", castId<CharacterId>("character_aria"));
   const solo = mutedSoloSeat ? { ...aria, disabled: true } : aria;
-  const participants: readonly ParticipantView[] = soloCast ? [solo] : [aria, membersTabSeat("Bryn", "character_bryn")];
+  const participants: readonly ParticipantView[] = soloCast ? [solo] : [aria, membersTabSeat("Bryn", castId<CharacterId>("character_bryn"))];
   return (
     <CtDataProviders>
       <div style={{ width: 420 }}>
