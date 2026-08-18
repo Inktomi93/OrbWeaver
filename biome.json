@@ -698,7 +698,8 @@
         "packages/server/src/infra/image/index.ts",
         "tests/server/infra/image/index.int.test.ts",
         "tests/server/infra/providers/backends/local-light/image-embed.int.test.ts",
-        "scripts/probes/snap.ts"
+        "scripts/probes/snap.ts",
+        "scripts/probes/design-audit.ts"
       ],
       "linter": {
         "rules": {

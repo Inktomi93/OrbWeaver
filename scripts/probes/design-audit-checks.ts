@@ -146,13 +146,24 @@ export const LARGE_MIN_RATIO = 3;
 const OPAQUE_STOP_MIN_ALPHA = 0.9;
 
 /** Resolved backdrop behind a text node — `flat` (solid ancestor bg), `gradient` (worst-stop
- *  ratio over OPAQUE stops; translucent stops refuse as indeterminate), or
+ *  ratio over OPAQUE stops; translucent stops refuse as indeterminate),
  *  `image-indeterminate` (a url() layer — incl. gradient-over-image composites — has no cheap
- *  DOM-only pixel sample, so it's flagged rather than silently passed). */
+ *  DOM-only pixel sample, so it's flagged rather than silently passed), or `unresolved` — the DOM
+ *  walk found no trustworthy base at all (issue #218).
+ *
+ *  `unresolved` IS NOT A VERDICT AND MUST NOT REACH A RATIO. It means the walker knows it cannot know:
+ *  either nothing opaque backs the chain, or a fixed/absolute PAINT LAYER (the app's wallpaper photo)
+ *  sits between the opaque base it found and the glyph. design-audit.ts settles these by sampling the
+ *  element's real pixels (`resolvePixelBackdrops`) and rewriting the sample to `flat` before
+ *  `collectFindings` ever sees it; one that survives to here is one the runner REFUSED (off-screen box,
+ *  failed shot) and reported as an explicit NO-VERDICT row, so the checks below stay silent rather than
+ *  minting a number from `fallback`. `fallback` is the pre-#218 fabricated composite, kept ONLY for the
+ *  non-verdict tells (the dark-glow "is this backdrop dark" question). */
 export type Backdrop =
   | { readonly kind: "flat"; readonly color: Rgb }
   | { readonly kind: "gradient"; readonly stops: readonly Rgb[] }
-  | { readonly kind: "image-indeterminate" };
+  | { readonly kind: "image-indeterminate" }
+  | { readonly kind: "unresolved"; readonly reason: "paint-layer-over-base" | "no-opaque-base"; readonly fallback: Rgb };
 
 export type ContrastInput = {
   readonly selector: string;
@@ -160,6 +171,18 @@ export type ContrastInput = {
   readonly backdrop: Backdrop;
   readonly fontSizePx: number;
   readonly fontWeight: number;
+  /** Viewport-coordinate box of the text element, present from the live walker (absent in the fixture
+   *  sample sets that predate it). The pixel sampler needs it to settle an `unresolved` backdrop. */
+  readonly box?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  /** What the compositor says is painted at this box's visible centre, when it is NOT this element (#211's
+   *  test, carried only for `unresolved` samples). Non-null means a pixel sample would measure the
+   *  OCCLUDER — the runner refuses the verdict instead. */
+  readonly occludedBy?: string | null;
+  /** How `backdrop` was arrived at. Absent/`css-resolve` = an authored background the walker resolved;
+   *  `pixel-sample` = the runner read the real composited pixels because the walk was `unresolved`. The
+   *  distinction is load-bearing for the rules that are about an authored COLOR rather than about
+   *  luminance — see checkGrayOnColor. */
+  readonly backdropMethod?: "css-resolve" | "pixel-sample";
   /** Product of `opacity` over the text element AND its ancestors. Below 1 the glyphs are painted as a
    *  BLEND of `color` and the backdrop (CSS opacity groups the subtree and composites it), while
    *  `color` still reports the undimmed value — so the ratio must be measured on the composite, exactly
@@ -201,6 +224,14 @@ export function checkContrast(input: ContrastInput): Finding | null {
     ? ` — the glyphs are painted at ${opacity.toFixed(2)} opacity by an ancestor group, so what the eye reads is the composite, not the authored color`
     : "";
   const seenColor = (over: Rgb): Rgb => (dimmed ? compositeForeground(input.color, over, opacity) : input.color);
+
+  // NO VERDICT (issue #218): the runner either pixel-samples this into a `flat` sample before we run, or
+  // refuses it out loud in its own report. A ratio against `fallback` is exactly the fiction that put 28
+  // false P1s on one transcript, and "text over an art layer" is not a defect claim either — the pixels
+  // may be perfectly legible.
+  if (input.backdrop.kind === "unresolved") {
+    return null;
+  }
 
   if (input.backdrop.kind === "image-indeterminate") {
     return indeterminateFinding(
@@ -258,7 +289,16 @@ const GRAY_TEXT_MIN_LUM = 0.05;
 const GRAY_TEXT_MAX_LUM = 0.85;
 
 export function checkGrayOnColor(input: ContrastInput): Finding | null {
-  if (input.backdrop.kind === "image-indeterminate") {
+  // Same NO-VERDICT posture as checkContrast: "gray on a chromatic surface" is a claim about a backdrop
+  // color, and an unresolved backdrop has none the walker may assert.
+  if (input.backdrop.kind === "image-indeterminate" || input.backdrop.kind === "unresolved") {
+    return null;
+  }
+  // A PIXEL-SAMPLED backdrop answers LUMINANCE, not authorship. This rule's whole remedy — "use a darker
+  // shade of the background's own hue" — presumes an authored background color; run against the median of
+  // a WALLPAPER PHOTO it minted five P2s about a photograph (measured on the chats surface, issue #218).
+  // Contrast still judges those samples: a ratio is exactly what pixels can prove.
+  if (input.backdropMethod === "pixel-sample") {
     return null;
   }
   const textLum = relativeLuminance(input.color);
