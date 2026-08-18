@@ -14,6 +14,9 @@ import { useAppearanceRootEffects } from "../../../../packages/client/src/featur
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import "../../../../packages/client/src/styles/globals.css";
 
+/** Roughly a production list panel (346px, reports/side-eye-138/L1.log) — see the probe comment below. */
+const PANEL_PROBE_WIDTH = "346px";
+
 export interface ShellCascadeFixtureProps {
   readonly elevation?: "flat" | "ramp";
   readonly hasBgImage?: boolean;
@@ -30,6 +33,17 @@ export interface ShellCascadeFixtureProps {
    *  assertion that only ever runs on the default palette cannot tell "mixes --color-popover" apart from
    *  "happens to equal the dark popover value" (#138's modal-tint pin runs on light too). */
   readonly dataTheme?: string | null;
+  /**
+   * Drops the `.shell-main` region (and the topbar / content / empty-state probes inside it).
+   *
+   * THIS FIXTURE'S REGIONS ALL SHARE ONE GRID CELL. The probes carry the classes and slots but not the
+   * `data-list-mode`/`data-panel-mode` attributes shell.css's track sizing keys on, so `.shell-main`
+   * lays out at `1224x800@56,0` — exactly on top of the list panel — and paints its opaque
+   * `--color-card` over it. That is invisible to every computed-style assertion in this file, and fatal
+   * to a FRAMEBUFFER one: measured, every sampled pixel across the whole viewport came back as the main
+   * region's fill, including the panel's own seam. Set this for a pixel-sampling test only.
+   */
+  readonly omitMainRegion?: boolean;
 }
 
 /**
@@ -50,6 +64,7 @@ export function ShellCascadeFixture({
   section,
   surfaceTexture = "none",
   dataTheme = null,
+  omitMainRegion = false,
 }: ShellCascadeFixtureProps): ReactElement {
   useAppearanceRootEffects({
     fontScale,
@@ -79,16 +94,28 @@ export function ShellCascadeFixture({
       {...(hasBgImage ? { "data-has-bg-image": "" } : {})}
       {...(section === undefined ? {} : { "data-section": section })}
     >
-      <div className="shell-panel" data-panel-side="list" data-testid="panel-probe" />
-      <div className="shell-main" data-testid="main-probe">
-        <div className="shell-topbar" data-testid="topbar-probe" />
-        {/* The CONTENT column + a landing empty-state hero — for the WS3 Chats-immersive scrim-chip
-            rule (only the Chats section over a bg image anchors this hero; every other case leaves it
-            un-boxed). */}
-        <div className="shell-content">
-          <div data-slot="empty-state-root" data-testid="empty-state-probe" />
+      {/* PANEL_PROBE_WIDTH is not decoration: these probes carry no content, and the shell grid gives a
+          content-empty panel a zero track — measured 2x800, i.e. a box that is ENTIRELY its own border.
+          Every computed-style assertion was happy with that; #138's framebuffer pin is not, because
+          "sample the panel a few px inside its seam" then lands on the page background and compares the
+          backdrop with itself. A production list panel measures ~346px (reports/side-eye-138/L1.log). */}
+      <div className="shell-panel" data-panel-side="list" data-testid="panel-probe" style={{ width: PANEL_PROBE_WIDTH }} />
+      {/* The MIRROR side. The two panels author OPPOSITE seams (`border-inline-end` vs
+          `border-inline-start`, shell.css), and #138's per-side contrast rules have to be asserted on
+          both — a list-only fixture cannot tell a correct per-side rule from one that thickens the wrong
+          edge. */}
+      <div className="shell-panel" data-panel-side="context" data-testid="context-panel-probe" style={{ width: PANEL_PROBE_WIDTH }} />
+      {omitMainRegion ? null : (
+        <div className="shell-main" data-testid="main-probe">
+          <div className="shell-topbar" data-testid="topbar-probe" />
+          {/* The CONTENT column + a landing empty-state hero — for the WS3 Chats-immersive scrim-chip
+              rule (only the Chats section over a bg image anchors this hero; every other case leaves it
+              un-boxed). */}
+          <div className="shell-content">
+            <div data-slot="empty-state-root" data-testid="empty-state-probe" />
+          </div>
         </div>
-      </div>
+      )}
       <div data-slot="composer" data-testid="composer-probe" />
       <div data-role={messageRole}>
         <div data-slot="message-bubble" data-testid="bubble-probe" />

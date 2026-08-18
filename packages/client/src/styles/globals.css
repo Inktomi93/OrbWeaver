@@ -185,24 +185,87 @@ body {
  * false, so the `no-preference` spelling would silently drop the contrast fix in a browser that knows
  * `prefers-contrast` but not `prefers-reduced-transparency` (Safari < 17).
  *
- * `less` and `custom` are deliberately unhandled: `less` asks for the opposite of this block, and
- * `custom` means the user's own colour set is already in force (forced-colors territory, not ours).
+ * THE EDGE HALF IS PER-SIDE, PER-SURFACE, AND NOT BLUR-GATED. Three rulings, all paid for by a rendered
+ * review of the first cut (side-eye, reports/side-eye-138/):
  *
- * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts
- * Rendered pin: tests/client/features/app-shell/surfaces/app-shell.ct.tsx (#138 block — contrast vs
- * no-preference, the modal's popover tint, both-preferences, and the grain drop). */
+ *  1. NEVER `border-width` (the shorthand) HERE. Tailwind v4's preflight sets `border: 0 solid` on every
+ *     element, so border-STYLE is `solid` on all four sides app-wide and only the WIDTH is zero. The
+ *     shorthand un-zeroes the three sides a surface never draws, and their colour is the preflight
+ *     default — `currentColor`, i.e. the surface's TEXT colour. Measured: a 2px near-white 900px stripe
+ *     down the list panel's left edge at 15.66:1 against its own fill, and a heavy dark frame in light.
+ *     So each surface is given exactly the side it authors: the list panel's inline-END, the context
+ *     panel's inline-START; only the composer and the two modal slots author all four, and only they get
+ *     the shorthand. `message-bubble` is absent by the same rule — bubbles author NO border at any
+ *     viewport, so a rule here would MINT one; their contrast half is the 92% dense fill.
+ *  2. THE COLOUR IS RAISED WITH THE WIDTH, or the treatment is invisible. `--color-sidebar-border` /
+ *     `--color-border` are 7-8% alpha hairlines; at 2px they measured 1.16:1 against the panel, i.e. a
+ *     doubled invisible line, against WCAG 1.4.11's 3:1 non-text floor — while the panel's TEXT was
+ *     already 8.66:1. The boundary was the whole gap. Each edge is mixed from the pair its OWN surface
+ *     owns (sidebar-foreground over sidebar, foreground over card, popover-foreground over popover), so
+ *     it is opaque, theme-derived, and correct on a custom palette. It is set per-surface rather than by
+ *     overriding the two border TOKENS: a token override would silently restyle every hairline seam in
+ *     the app (topbar, rail, row separators, cards) — out of scope for this block, listed as an omission
+ *     below — and `--color-border` is declared INLINE on `.shell-grid` by ThemeScope, which an html-level
+ *     override cannot beat (the colorization rules 90 lines down carry that scar).
+ *  3. ACCESSIBILITY DOES NOT DEPEND ON AN AESTHETIC TOGGLE. The first cut gated every rule on
+ *     `html[data-blur-*]`, so a contrast user who turned the glass OFF got nothing at all (measured).
+ *     The edge half is now un-gated — the grain rule was already universal and is the precedent. The FILL
+ *     half stays knob-driven, and that asymmetry is not an oversight: a fill percentage is meaningless
+ *     unless the glass recipe is running, so gating it on the glass is a tautology, whereas an edge exists
+ *     on every surface regardless. The edge half IS width-scoped (`width > 48rem`, shell.css's mobile
+ *     complement, the #135 literal) because below the breakpoint the panels are full-bleed overlays that
+ *     author a different seam entirely (`border-block-start`), so a desktop rule there would paint an
+ *     edge that no layout has.
+ *
+ * The `html` type selector in each edge selector is specificity, not decoration: it clears shell.css's
+ * own `.shell-panel[data-panel-side=…]` (0,2,0) without depending on which sheet the bundle emits last.
+ *
+ * DELIBERATELY UNTOUCHED, so the next reader does not read absence as oversight: `less` and `custom`
+ * (`less` asks for the opposite of this block; `custom` means the user's own colour set is already in
+ * force — forced-colors territory, and we ship no `forced-colors` arm at all yet); focus rings (the
+ * `--color-ring` treatment is its own axis and already clears the floor); the topbar / rail /
+ * panel-header / row-separator hairlines and every card border (the token-override blast radius above);
+ * `data-elevation="ramp"`, which deletes the panels' inline borders outright at higher specificity and is
+ * left winning — its raised FILL is the boundary signal there; and the sub-breakpoint layout (per 3).
+ *
+ * surface list: the four SLOTS above, asserted in tests/ui/styles/css-structure.suite.test.ts — it is
+ * deliberately no longer the BLUR_SURFACES sync (that list is what the GLASS paints; `messages` is
+ * excluded here on purpose, per 1).
+ * Rendered pin: tests/client/features/app-shell/surfaces/app-shell.ct.tsx (#138 block — per-side widths
+ * and the zero sides, the raised edge colour by framebuffer ratio, the no-blur and sub-breakpoint arms,
+ * the modal's popover tint, both-preferences, and the grain drop). */
 @media (prefers-contrast: more) {
-  html[data-blur-panels] .shell-panel,
-  html[data-blur-composer] [data-slot="composer"],
-  html[data-blur-modals] [data-slot="dialog-popup"],
-  html[data-blur-modals] [data-slot="alert-dialog-popup"],
-  html[data-blur-messages] [data-slot="message-bubble"] {
-    border-width: 2px;
-  }
   /* A noise overlay works against a stated high-contrast preference — drop it entirely here. */
   html[data-texture="grain"] .shell-grid::after,
   html[data-texture="grain"] [data-slot="card-root"]::after {
     display: none;
+  }
+}
+
+@media (prefers-contrast: more) and (width > 48rem) {
+  :root {
+    /* One dial for all four edges: how far each border is pulled from its surface toward that surface's
+       own text colour. FRAMEBUFFER-measured on the list panel's seam (app-shell.ct.tsx annotates every
+       run): 6.10:1 dark and 4.66:1 light at this value, against 1.14:1 / 1.23:1 for the hairline it
+       replaces — so both palettes clear the 3:1 non-text floor with margin, on the pixels, not on paper. */
+    --contrast-edge-mix: 65%;
+  }
+  html .shell-panel[data-panel-side="list"] {
+    border-inline-end-width: 2px;
+    border-inline-end-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
+  }
+  html .shell-panel[data-panel-side="context"] {
+    border-inline-start-width: 2px;
+    border-inline-start-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
+  }
+  html [data-slot="composer"] {
+    border-width: 2px;
+    border-color: color-mix(in oklab, var(--color-foreground) var(--contrast-edge-mix), var(--color-card));
+  }
+  html [data-slot="dialog-popup"],
+  html [data-slot="alert-dialog-popup"] {
+    border-width: 2px;
+    border-color: color-mix(in oklab, var(--color-popover-foreground) var(--contrast-edge-mix), var(--color-popover));
   }
 }
 
