@@ -583,15 +583,15 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 495,
-      "bytes": 233340,
-      "sha256": "2aaf987271d1223f5396ac1fe33d422dc9146d56161db1f281d5614d9384daf9",
+      "bytes": 234081,
+      "sha256": "3beafe1782a614a13414149cd764e9c202f8e72528a7a1bf2423d5d6a2d6a65a",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "reference",
           "status": "active",
-          "updated": "2026-08-07"
+          "updated": "2026-08-17"
         },
         "errors": []
       },
@@ -601,13 +601,14 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "2aaf987271d1223f5396ac1fe33d422dc9146d56161db1f281d5614d9384daf9",
-        "verifiedCommit": "ae218dac78a72878540d9c2dd140819540cdb462",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "3beafe1782a614a13414149cd764e9c202f8e72528a7a1bf2423d5d6a2d6a65a",
+        "verifiedCommit": "cfb9169b700484afbad9c8ebc11eac9247b2a97e",
+        "verifiedAt": "2026-08-17",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
           "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
-          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact registry blob"
+          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact registry blob",
+          "D119 Voices clause + D119a band-floor arithmetic truth-repaired 2026-08-17 (#102 tracker variant A, 0b8814d77; echo deleted, both rails kicker'd) — orchestrator authored and re-read the delta in full; verifier receipt on the tracker build confirmed the stale clauses"
         ],
         "claims": [
           {
@@ -10779,16 +10780,16 @@
       "path": "docs/design/density-pass-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 336,
-      "bytes": 24078,
-      "sha256": "bd9e51de8e500b8c5b3905ba1840eca4a1215b2ba188dacb26978ed21598451d",
+      "lines": 350,
+      "bytes": 25975,
+      "sha256": "4cbeecaed90834ad557794c6f6ef1fa063e41ae4779a507adde6a13874b8064b",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "active",
-          "updated": "2026-08-16"
+          "updated": "2026-08-17"
         },
         "errors": []
       },
@@ -10798,15 +10799,16 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "bd9e51de8e500b8c5b3905ba1840eca4a1215b2ba188dacb26978ed21598451d",
-        "verifiedCommit": "57de7e7192d8afc4653537e1770c21954d287fc5",
-        "verifiedAt": "2026-08-16",
+        "verifiedSha256": "4cbeecaed90834ad557794c6f6ef1fa063e41ae4779a507adde6a13874b8064b",
+        "verifiedCommit": "51fe047192f656d57a2e94382b8972015e29d235",
+        "verifiedAt": "2026-08-17",
         "evidence": [
           "docs/design/density-pass-spec.md:1 (spec; approved (owner-ruled 2026-08-01))",
           "git log --oneline -1 -- docs/design/density-pass-spec.md: fb36e52c5 feat(chat,ui): density S6 — the transcript + composer on the tier map, baseline 290 → 244",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
           "docs/design/density-pass-spec.md §2.3 voice table amended by the #102 home build (758bafd5a, owner-ruled variant C + CD3 re-rule): reading/masthead/focal voices added — orchestrator re-attested full read of the delta 2026-08-16",
-          "docs/design/density-pass-spec.md §2.3 back-filled the credit (861de3e58) + hero (2026-08-09) voice rows — stickler #130 F5; full read of the delta re-attested against 57de7e719 (2026-08-16)"
+          "docs/design/density-pass-spec.md §2.3 back-filled the credit (861de3e58) + hero (2026-08-09) voice rows — stickler #130 F5; full read of the delta re-attested against 57de7e719 (2026-08-16)",
+          "docs/design/density-pass-spec.md sect 4.3 amended by the #102 characters build (51fe04719, owner-ruled variant B): Section kickerLayout, Button outline/chip/selection layer, Toggle outline+command/chip/shape, CHIP_BOX — orchestrator re-read the delta in full 2026-08-17; verifier-characters confirmed all four deltas exist as declared axes"
         ],
         "summary": "The density pass — tier map, mechanism, enforcement: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
         "claims": [
