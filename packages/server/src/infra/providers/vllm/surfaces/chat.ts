@@ -291,7 +291,7 @@ async function* toChunks(raw: AsyncIterable<unknown>): AsyncGenerator<ChatComple
 
 // ── customParameters ON THE LOCAL ENGINE — owner word 2026-08-18, AMENDING the 2026-07-24 ruling.
 //
-// LEDGER ANCHOR PENDING: this amendment gets its own D-row, minted by the orchestrator at merge. The row is
+// D143 (Core-Path-Registry.md — owner word 2026-08-18, AMENDING the 2026-07-24 ruling of 20ac4154c).
 // deliberately NOT cited by number here yet — the `d-citation-integrity` gate REDs a bare `D<n>` with no
 // anchor in `Core-Path-Registry.md` (the ledger's high-water mark is D128 today), and a citation pointing at
 // a ruling a reader cannot resolve is exactly the drift that gate exists to catch. The ruling is identified
