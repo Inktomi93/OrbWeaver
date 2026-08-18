@@ -486,6 +486,19 @@ test("wide tracking on running text fires; the uppercase micro-caps voice is exe
   expect(caps.map((f) => f.rule)).not.toContain("wide-tracking");
 });
 
+test("TYPED caps are caps: the tracking exemption follows the rendered pixels, not the stylesheet", () => {
+  // Issue #148 item 4: the exemption keyed on `text-transform` alone, so a kicker whose caps were authored
+  // in the CONTENT ("SESSION SUMMARY") was flagged as running text — 4× on one panel, on the ratified voice.
+  const typedCaps = checkTextStyle({ ...TEXT_STYLE_BASE, letterSpacingPx: 1.2, directTextLen: 25, capsText: true });
+  expect(typedCaps.map((f) => f.rule)).not.toContain("wide-tracking");
+  // Not a blanket: mixed-case text at the same tracking is still the defect the rule exists for.
+  const mixed = checkTextStyle({ ...TEXT_STYLE_BASE, letterSpacingPx: 1.2, directTextLen: 25, capsText: false });
+  expect(mixed.map((f) => f.rule)).toContain("wide-tracking");
+  // A sample set from an older walker string carries no `capsText` — that reads as "not caps" (the old
+  // behaviour), never as a free pass.
+  expect(checkTextStyle({ ...TEXT_STYLE_BASE, letterSpacingPx: 1.2, directTextLen: 25 }).map((f) => f.rule)).toContain("wide-tracking");
+});
+
 test("crushed tracking fires strictly below the −0.04em floor; the floor itself is legal", () => {
   const crushed = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 20, letterSpacingPx: -1.0 }); // −0.05em
   expect(crushed.map((f) => f.rule)).toContain("crushed-tracking");

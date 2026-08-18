@@ -38,6 +38,20 @@
  *   Flags: --base <url> · --url <full-url> · --selector <sel> (click to open the window) ·
  *          --window <ms> (interaction/observation window, default 2500) · --viewport WxH · --vnc (headful,
  *          for a trustworthy dropped-frame %) · --no-throttle (skip the 4× CPU throttle)
+ *
+ * REACH vs MEASURE (the nav queue, 2026-08-17 — issue #148). This probe had `--selector` and nothing else,
+ * so any surface behind a room was STRUCTURALLY unauditable (a chat room needs 2+ hops) and every "the
+ * motion is clean" claim about one was a claim about a surface it never reached. The same argv-ordered
+ * dev-bridge queue design-audit and snap drive is now available here — but it REACHES, it does not measure:
+ *   --goto <section|settings:cat|modal:slot> · --open-chat <id|title|latest|current> ·
+ *   --open-character <id|name> · --context-tab <tab> · --click <selector>
+ * run in argv order BEFORE the trace starts, and the in-page evidence (LoAF ring / CLS / flags) is RESET
+ * after the last one — so the numbers describe the interaction you are measuring, not the trip to it.
+ * `--selector` remains THE measured interaction (clicked inside the trace window).
+ *   pnpm motion-audit / --open-chat latest --context-tab rpg.game --selector '[data-slot=tracker-toggle]'
+ * A reach action that does not land is a FAILED run: the alternative is a smoothness number for the wrong
+ * surface. An unknown flag is a hard error (exit 2) for the same reason — a typo'd `--open-caht` must not
+ * quietly audit the landing page.
  */
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -47,6 +61,8 @@ import type { ProbeSession } from "./_kit/browser.ts";
 import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
 import type { Viewport } from "./_kit/flags.ts";
 import { parseViewport } from "./_kit/flags.ts";
+import type { NavMethod } from "./_kit/nav.ts";
+import { runNav } from "./_kit/nav.ts";
 import { print, printResult } from "./_kit/result.ts";
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
@@ -55,6 +71,9 @@ const NAV_TIMEOUT_MS = 20_000;
 const READY_TIMEOUT_MS = 10_000;
 const STEP_TIMEOUT_MS = 5000;
 const MOUNT_SETTLE_MS = 500;
+// Per reach action: enough for the store write + the view transition the next action targets.
+const REACH_SETTLE_MS = 500;
+const EXIT_MISUSE = 2;
 // 4× CPU throttle so a frame budget is real — a dev machine's headroom masks jank that a user's phone won't.
 const CPU_THROTTLE_RATE = 4;
 // The budget thresholds (documented in the header). ms unless noted.
@@ -63,21 +82,43 @@ const CLS_BUDGET = 0.1;
 const DROPPED_FRAME_BUDGET_PCT = 5;
 const PCT = 100;
 
+/** One pre-trace REACH action, in argv order: a DOM click or a dev-bridge navigation. Never measured —
+ *  see the header's reach-vs-measure note. */
+export type ReachAction = { kind: "click"; selector: string } | { kind: "nav"; method: NavMethod; target: string };
+
 type Args = {
   route: string;
   url: string | null;
   base: string;
   selector: string | null;
+  reach: ReachAction[];
   windowMs: number;
   viewport: Viewport;
   vnc: boolean;
   throttle: boolean;
+  /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
+  errors: string[];
 };
 
 // One handler per flag (Record dispatch, snap.ts house style) — keeps parseArgs flat under the
 // cognitive-complexity cap instead of a long else-if chain.
 type FlagHandler = (args: Args, rest: string[]) => void;
 const FLAG_HANDLERS: Record<string, FlagHandler> = {
+  "--click": (a, rest) => {
+    a.reach.push({ kind: "click", selector: rest.shift() ?? "" });
+  },
+  "--goto": (a, rest) => {
+    a.reach.push({ kind: "nav", method: "goto", target: rest.shift() ?? "" });
+  },
+  "--open-chat": (a, rest) => {
+    a.reach.push({ kind: "nav", method: "open-chat", target: rest.shift() ?? "" });
+  },
+  "--open-character": (a, rest) => {
+    a.reach.push({ kind: "nav", method: "open-character", target: rest.shift() ?? "" });
+  },
+  "--context-tab": (a, rest) => {
+    a.reach.push({ kind: "nav", method: "context-tab", target: rest.shift() ?? "" });
+  },
   "--url": (a, rest) => {
     a.url = rest.shift() ?? null;
   },
@@ -101,16 +142,82 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
 };
 
-function parseArgs(argv: string[]): Args {
+// Flags that consume the next token. A missing value used to swallow the following flag silently.
+const REQUIRED_VALUE_FLAGS = new Set([
+  "--click",
+  "--goto",
+  "--open-chat",
+  "--open-character",
+  "--context-tab",
+  "--url",
+  "--base",
+  "--selector",
+  "--window",
+  "--viewport",
+]);
+
+const MOTION_AUDIT_HELP = `motion-audit — the smoothness ground-truth harness
+
+Usage:
+  pnpm motion-audit [route] [flags]
+
+Reach the surface (argv-ordered, run BEFORE the trace; evidence is reset after the last one):
+  --click <selector>        --goto <section|settings:cat|modal:slot>
+  --open-chat <id|title|latest|current>   --open-character <id|name>   --context-tab <tab>
+
+Measure:
+  --selector <sel>          THE interaction — clicked inside the trace window
+  --window <ms>             observation window (default ${DEFAULT_WINDOW_MS})
+
+Environment:
+  --base <url> · --url <full-url> · --viewport <WxH> · --vnc (headful) · --no-throttle
+
+Exit: 0 pass · 1 budget breach / failed action / page error · 2 CLI misuse.`;
+
+/** Argv is scanned for misuse BEFORE a browser boots — snap's and design-audit's strict-CLI posture. A
+ *  typo'd nav flag used to print "(ignored)" and audit the landing page under the name of the surface the
+ *  caller asked for, which is a smoothness verdict about the wrong thing. */
+function scanArgv(argv: readonly string[]): string[] {
+  const errors: string[] = [];
+  let routeCount = 0;
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index] as string;
+    if (FLAG_HANDLERS[token] === undefined) {
+      if (token.startsWith("-")) {
+        errors.push(`unknown flag ${token}`);
+      } else {
+        routeCount += 1;
+      }
+      continue;
+    }
+    if (!REQUIRED_VALUE_FLAGS.has(token)) {
+      continue;
+    }
+    const value = argv[index + 1];
+    if (value === undefined || value.startsWith("--")) {
+      errors.push(`${token} requires a value`);
+      continue;
+    }
+    index += 1;
+  }
+  if (routeCount > 1) {
+    errors.push(`expected at most one route, got ${routeCount}`);
+  }
+  return errors;
+}
+
+export function parseMotionArgs(argv: string[]): Args {
   const args: Args = {
     route: "/",
     url: null,
     base: DEFAULT_BASE,
     selector: null,
+    reach: [],
     windowMs: DEFAULT_WINDOW_MS,
     viewport: DEFAULT_VIEWPORT,
     vnc: false,
     throttle: true,
+    errors: scanArgv(argv),
   };
   const rest = [...argv];
   while (rest.length > 0) {
@@ -118,9 +225,7 @@ function parseArgs(argv: string[]): Args {
     const handler = FLAG_HANDLERS[tok];
     if (handler !== undefined) {
       handler(args, rest);
-    } else if (tok.startsWith("--")) {
-      print(`UNKNOWN FLAG ${tok} (ignored)`);
-    } else {
+    } else if (!tok.startsWith("-")) {
       args.route = tok;
     }
   }
@@ -207,7 +312,42 @@ type AuditData = {
   readonly frames: { total: number; dropped: number; pct: number };
   readonly pageErrors: readonly string[];
   readonly stepFailed: boolean;
+  /** Reach actions that did not land — the run is FAILED, because the window measured another surface. */
+  readonly reachFailures: number;
 };
+
+/** Drive the reach queue in argv order, then clear the in-page evidence so the trace window that follows
+ *  carries only the measured interaction's motion. Returns the failure count (each one printed). */
+async function driveReach(page: Page, reach: readonly ReachAction[]): Promise<number> {
+  if (reach.length === 0) {
+    return 0;
+  }
+  let failures = 0;
+  for (const action of reach) {
+    if (action.kind === "click") {
+      try {
+        const loc = page.locator(action.selector).first();
+        // biome-ignore lint/performance/noAwaitInLoops: the reach queue is SEQUENTIAL by contract — each action may produce the surface the next one targets.
+        await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
+        await loc.click({ timeout: STEP_TIMEOUT_MS });
+      } catch (e) {
+        failures += 1;
+        print(`REACH FAILED click ${action.selector}: ${errorMessage(e)}`);
+      }
+    } else {
+      const result = await runNav(page, action.method, action.target);
+      if (!result.ok) {
+        failures += 1;
+        print(`REACH FAILED ${action.method} ${action.target}: ${result.reason}`);
+      }
+    }
+    await settle(page, REACH_SETTLE_MS);
+  }
+  // The trip to the surface is not the thing being measured (entry animations, the room's own mount
+  // reflow). Cleared only when a reach ran, so a bare `motion-audit /` still audits app entry.
+  await page.evaluate(() => globalThis.__orb?.resetEvidence()).catch(() => undefined);
+  return failures;
+}
 
 async function runAudit(page: Page, cdp: Awaited<ReturnType<ProbeSession["context"]["newCDPSession"]>>, opts: Args): Promise<AuditData> {
   const traceEvents: TraceEvent[] = [];
@@ -244,18 +384,31 @@ async function runAudit(page: Page, cdp: Awaited<ReturnType<ProbeSession["contex
     frames: droppedFramePct(traceEvents),
     pageErrors: [],
     stepFailed,
+    reachFailures: 0,
   };
+}
+
+/** The reach chain, named in full, plus a LOUD note when part of it failed — a smoothness number for a
+ *  surface the probe never arrived at is the failure mode this line exists to make impossible to miss. */
+function printReachLine(reach: readonly ReachAction[], reachFailures: number): void {
+  if (reach.length === 0) {
+    return;
+  }
+  const chain = reach.map((a) => (a.kind === "click" ? `click ${a.selector}` : `${a.method} ${a.target}`)).join(" → ");
+  const note = reachFailures > 0 ? `  (${reachFailures} FAILED — the numbers below describe another surface)` : "";
+  print(`reached     ${chain}${note}`);
 }
 
 /** Print the human report + the RESULT line, return the exit code. */
 function report(url: string, opts: Args, data: AuditData): number {
-  const { motion, animations, frames, pageErrors, stepFailed } = data;
+  const { motion, animations, frames, pageErrors, stepFailed, reachFailures } = data;
   const worstBlocking = motion === null ? 0 : motion.worstBlocking;
   const cls = clsTotals(motion);
   const layoutInFrame = (motion === null ? [] : motion.loafs).filter((l) => l.styleAndLayoutStart > 0);
   const dirtyAnimations = animations.filter((a) => !a.compositorClean);
 
   print(`URL         ${url}`);
+  printReachLine(opts.reach, reachFailures);
   print(`window      ${opts.windowMs}ms · cpu-throttle ${opts.throttle ? `${CPU_THROTTLE_RATE}×` : "off"}`);
   print(`headless    ${opts.vnc ? "no (headful — dropped-frame % trustworthy)" : "yes (dropped-frame % ADVISORY — no real vsync)"}`);
   print(`LoAF        ${motion?.loafs.length ?? 0} in ring · worst blockingDuration ${worstBlocking}ms · ${layoutInFrame.length} with style/layout in-frame`);
@@ -283,10 +436,12 @@ function report(url: string, opts: Args, data: AuditData): number {
     clsOverBudget(motion) ||
     dirtyAnimations.length > 0 ||
     frames.pct > DROPPED_FRAME_BUDGET_PCT;
-  const pass = !(budgetFails || stepFailed || pageErrors.length > 0);
+  const pass = !(budgetFails || stepFailed || reachFailures > 0 || pageErrors.length > 0);
 
   printResult("motion-audit", [
     ["verdict", pass ? "PASS" : "FAIL"],
+    ["reach-actions", opts.reach.length],
+    ["reach-failed", reachFailures],
     ["dropped-frames", `${frames.pct}%`],
     ["worst-blocking", `${worstBlocking}ms`],
     ["cls-raw", cls.raw],
@@ -300,7 +455,15 @@ function report(url: string, opts: Args, data: AuditData): number {
 }
 
 async function main(): Promise<number> {
-  const opts = parseArgs(process.argv.slice(2));
+  const opts = parseMotionArgs(process.argv.slice(2));
+  if (opts.errors.length > 0) {
+    for (const message of opts.errors) {
+      print(`ARG ERROR    ${message}`);
+    }
+    print("");
+    print(MOTION_AUDIT_HELP);
+    return EXIT_MISUSE;
+  }
   const url = opts.url ?? buildUrl(opts.base, opts.route);
 
   const session = await launchProbeSession({
@@ -324,8 +487,11 @@ async function main(): Promise<number> {
     .catch(() => undefined);
   await settle(page, MOUNT_SETTLE_MS);
 
+  // Reach the surface FIRST (and reset the evidence it produced), then trace the measured window.
+  const reachFailures = await driveReach(page, opts.reach);
+
   const data = await runAudit(page, cdp, opts);
-  const withErrors: AuditData = { ...data, pageErrors: [...session.pageErrors] };
+  const withErrors: AuditData = { ...data, pageErrors: [...session.pageErrors], reachFailures };
   await session.context.close();
   await session.browser.close();
 

@@ -1,13 +1,16 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import type { CapturedRequest } from "../../scripts/probes/_kit/browser.ts";
 import type { SnapFailureSummary } from "../../scripts/probes/snap.ts";
 import {
   capEvalText,
   hasSnapFailure,
   isSandboxTraceNoise,
+  isViteDepChurn,
   parseScenarioSpec,
   parseSnapArgs,
+  partitionFailedRequests,
   selectConsoleMessagesForReport,
   splitTrailingEvals,
 } from "../../scripts/probes/snap.ts";
@@ -308,6 +311,32 @@ test("sandbox-trace noise is excluded from the error verdict but never from the 
   const selected = selectConsoleMessagesForReport([noise, realError, routedNoise], 10);
   expect(selected.omitted).toBe(0);
   expect(selected.messages).toHaveLength(3);
+});
+
+// ── Cold-stage vite churn is not a failure (issue #148 item 3) ──────────────────────────────────────
+// On a COLD vite server the first page load discovers deps, re-bundles, and aborts the in-flight
+// /node_modules/.vite/deps/*.js requests it had already started. The browser re-requests every one and the
+// page loads; nothing is broken. It red-exited the first `--isolated --fresh` snap every time — which is
+// exactly the call a lane makes when it has nothing else to trust.
+function request(over: Partial<CapturedRequest>): CapturedRequest {
+  return { method: "GET", url: "http://localhost:5273/x.js", status: null, failed: null, type: "script", ...over };
+}
+
+test("a vite dep-optimizer abort is reported but never counted against the run", () => {
+  const churn = request({ url: "http://localhost:5273/node_modules/.vite/deps/react-dom_client.js?v=abc", failed: "net::ERR_ABORTED" });
+  const realAbort = request({ url: "http://localhost:5273/api/chat/stream", failed: "net::ERR_ABORTED", type: "fetch" });
+  const depNotFound = request({ url: "http://localhost:5273/node_modules/.vite/deps/missing.js", status: 404 });
+  const clean = request({ status: 200 });
+
+  expect(isViteDepChurn(churn)).toBe(true);
+  // A real abort elsewhere, and a 404 ON the dep path, are genuine failures — the exemption is narrow by
+  // construction (an ABORT, and only on the optimizer's own path).
+  expect(isViteDepChurn(realAbort)).toBe(false);
+  expect(isViteDepChurn(depNotFound)).toBe(false);
+
+  const partitioned = partitionFailedRequests([churn, realAbort, depNotFound, clean]);
+  expect(partitioned.viteChurn).toEqual([churn]);
+  expect(partitioned.failed).toEqual([realAbort, depNotFound]);
 });
 
 test("snap help exits cleanly without starting Chromium", () => {
