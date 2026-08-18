@@ -36,6 +36,20 @@ test("an explicitly-relative --out resolves against the CWD, the way the shell s
   expect(artifactFilePath(SNAPS, "home/tiles", ".png")).toBe(join(SNAPS, "home/tiles.png"));
 });
 
+test("an --out already spelled from the repo root into reports/<kind>/ is not prefixed twice", () => {
+  // #209: a lane pasted back the path snap itself had printed and the shot landed at
+  // reports/snaps/reports/snaps/<name>.png — exit 0, artifact nowhere near where it was named.
+  expect(artifactFilePath(SNAPS, "reports/snaps/lane-shot.png", ".png")).toBe(join(SNAPS, "lane-shot.png"));
+  expect(artifactFilePath(SNAPS, "reports/snaps/lane-shot.png", ".json")).toBe(join(SNAPS, "lane-shot.json"));
+  // Inner directories under the kind dir survive the pass-through.
+  expect(artifactFilePath(SNAPS, "reports/snaps/rail/tile", ".png")).toBe(join(SNAPS, "rail", "tile.png"));
+  // Another kind's dir is NOT this kind's dir — it stays a bare base name and keeps the prefix, because
+  // silently writing into reports/traces/ from a snaps call would scatter the family.
+  expect(artifactFilePath(SNAPS, "reports/traces/lane.png", ".png")).toBe(join(SNAPS, "reports/traces/lane.png"));
+  // The key is still the basename, so trace/HAR siblings do not inherit the prefix path.
+  expect(artifactKey("reports/snaps/lane-shot.png")).toBe("lane-shot");
+});
+
 test("naming an extension the artifact already has never doubles it", () => {
   expect(artifactFilePath(SNAPS, "shot.png", ".png")).toBe(join(SNAPS, "shot.png"));
   expect(artifactFilePath(SNAPS, "report.json", ".json")).toBe(join(SNAPS, "report.json"));
