@@ -457,6 +457,18 @@ function writeFixtures(): void {
     `${D}/chat/__g_jsonstraddle.ts`,
     'import { chats } from "@orb/db";\nexport async function clobber(ctx: { db: { update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => Promise<void> } } } }, patch: { metadata: unknown }): Promise<void> {\n  await ctx.db.update(chats).set({ metadata: patch.metadata }).where(1);\n}\n',
   );
+  // open-json-column-key-parity: the caption_meta class, planted whole — an OPEN json column whose writer
+  // stores `{ model }` while a reader json_extracts `$.artStyle` off it. TWO files by necessity: the column
+  // set is DERIVED from packages/db/src/schema/**, which no mini-project can populate, and the verdict is a
+  // comparison across writer and reader.
+  fx(
+    "packages/db/src/schema/__g_openjson.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n\nexport const gOpenProbe = sqliteTable("g_open_probe", {\n  id: text("id").primaryKey(),\n  probeMeta: text("probe_meta", { mode: "json" }).$type<Record<string, unknown>>(),\n});\n',
+  );
+  fx(
+    `${D}/discovery/__g_openjsonread.ts`,
+    'import { gOpenProbe } from "@orb/db";\nimport { sql } from "drizzle-orm";\nexport async function write(ctx: { db: { insert: (t: unknown) => { values: (v: unknown) => Promise<void> } } }, model: string): Promise<void> {\n  await ctx.db.insert(gOpenProbe).values({ probeMeta: { model } });\n}\nexport const read = sql`SELECT id FROM g_open_probe p WHERE json_extract(p.probe_meta, \'$.artStyle\') IS NOT NULL`;\n',
+  );
   // scroll-container-positioned: a vertical scroller class string with no positioning class. Written as a
   // bare const (not JSX) on purpose — it also exercises the UNFENCED arm the gate is built around.
   fx("packages/client/src/features/__g_scroller/lib/__g_scroller.ts", 'export const paneClass = "min-h-0 flex-1 overflow-y-auto overscroll-contain";\n');

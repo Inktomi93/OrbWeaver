@@ -3,6 +3,7 @@
 // through the injected `embeddings.writeHubScores` seam). Vector rows carry no ownerId — owner derives via
 // characters.ownerId, the present chat host (kind='human' AND role='host' AND leftSeq IS NULL), or assets.ownerId.
 
+import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import { assets, characterEmbeddings, characters, chatDigests, chatParticipants, chatSegments, chats, digestThemeAssignments, imageEmbeddings } from "@orb/db";
 import type { AssetId, CharacterId, ChatDigestId, ChatId, ThemeClusterId, UserId } from "@orb/kit/ids";
@@ -584,7 +585,7 @@ interface CaptionRow {
   readonly name: string;
   readonly avatarHash: string;
   readonly caption: string | null;
-  readonly captionMeta: Record<string, unknown> | null;
+  readonly captionMeta: ImageCaptionMeta | null;
 }
 
 // `extra` is an allowlisted json path the verb resolves (never caller-derived).
