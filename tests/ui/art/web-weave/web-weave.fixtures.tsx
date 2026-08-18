@@ -28,6 +28,20 @@ export function WeaveTouchBox(props: WeaveBoxProps): ReactElement {
   return <WeaveBox {...props} interactive={true} />;
 }
 
+/** The scroll-fence story: an INTERACTIVE weave full-bleed behind a tall scrollable column. The web is
+ *  backdrop decoration, so a vertical thumb drag started on the silk must still scroll the column —
+ *  the fence against "fix touch by taking the gesture" (a blanket `touch-action: none`). */
+export function WeaveScrollBox(): ReactElement {
+  return (
+    <div data-testid="ct-weave-scroller" style={{ width: 640, height: 420, overflowY: "auto", position: "relative" }}>
+      <div style={{ position: "sticky", top: 0, height: 420 }}>
+        <WebWeave interactive={true} state="settled" />
+      </div>
+      <div style={{ height: 2000 }} />
+    </div>
+  );
+}
+
 /** The veil lifecycle story: a close trigger floated ABOVE the veil + the exited flag as DOM. */
 export function VeilStory(): ReactElement {
   const [open, setOpen] = useState(true);

@@ -21,9 +21,16 @@ function isFreshDocumentLoad(): boolean {
 }
 
 /** The full-bleed per-mode web behind the login card. Decoration only — mounts under the content
- *  (CT locator: the primitive's own `data-slot="web-weave"`). */
+ *  (CT locator: the primitive's own `data-slot="web-weave"`).
+ *
+ *  INTERACTIVE (#152): the login web is the one weave a person can dwell on — an unhurried, otherwise
+ *  empty page — so it answers a hand: the silk rings where a cursor or a THUMB crosses it and the
+ *  weaver comes to investigate (weave-lab-upgrades §5; hosts opt in, and this is the host that should).
+ *  It stays `aria-hidden` (the primitive's a11y ruling: ornament that answers a pointer is ornament)
+ *  and stays inert under reduced motion (the primitive's `listening` gate), and the anchor's box is
+ *  `overflow-hidden min-h-dvh` — there is no scroll here for a pointer-events layer to swallow. */
 export function LoginWeaveBackdrop(): ReactElement {
   const config = useAuthConfig();
   const spec = resolveLoginWeave(config.data, globalThis.location.search, isFreshDocumentLoad());
-  return <WebWeave state={spec.state} dim={spec.dim} hub={LOGIN_HUB} className="absolute inset-0" />;
+  return <WebWeave state={spec.state} dim={spec.dim} hub={LOGIN_HUB} interactive={true} className="absolute inset-0" />;
 }
