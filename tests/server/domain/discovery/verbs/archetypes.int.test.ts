@@ -4,12 +4,12 @@
 
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedCharacterEmbedding, seedUser, vec } from "../_support.ts";
+import { FROZEN_AT, makeDiscoveryHarness, seedAsset, seedCharacter, seedCharacterEmbedding, seedUser, vec } from "../_support.ts";
 
 async function seedSummary(db: Db, characterId: CharacterId, facets: { genre?: string; tone?: string; tags?: string[] }): Promise<void> {
   await db.insert(characterSummaries).values({
@@ -33,9 +33,15 @@ async function seedCard(
     genre?: string;
     tone?: string;
     tags?: string[];
+    avatarAssetId?: AssetId;
   },
 ): Promise<CharacterId> {
-  const id = await seedCharacter(db, { id: args.id, ownerId: args.ownerId, name: args.id });
+  const id = await seedCharacter(db, {
+    id: args.id,
+    ownerId: args.ownerId,
+    name: args.id,
+    ...(args.avatarAssetId !== undefined ? { avatarAssetId: args.avatarAssetId } : {}),
+  });
   await seedCharacterEmbedding(db, {
     characterId: id,
     embedding: args.embedding,
@@ -129,6 +135,36 @@ describe("archetypes", () => {
     expect(total).toBe(6);
     const fantasy = arch.find((a) => a.genre === "fantasy");
     expect(fantasy?.size).toBe(4);
+  });
+
+  // The member display slice carries the portrait on the WIRE (issue #134). Before this field the corpus
+  // surface joined every member against `discovery.portraitAlignment` for its faces — a second owner-scoped
+  // read for one string the clustering read already passes over. `null` is the honest miss (no avatar, or an
+  // undistilled card the facet join never reached), and the client degrades it to hue-seeded initials.
+  test("members carry the card's portrait hash — null when the character has no avatar", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const asset = await seedAsset(db, "asset_face", owner);
+    const faced = await seedCard(db, {
+      id: "faced",
+      ownerId: owner,
+      embedding: vec(1, 0),
+      contentHash: "h_faced",
+      genre: "fantasy",
+      avatarAssetId: asset,
+    });
+    const faceless = await seedCard(db, {
+      id: "faceless",
+      ownerId: owner,
+      embedding: vec(0, 1),
+      contentHash: "h_faceless",
+      genre: "fantasy",
+    });
+    await seedCard(db, { id: "third", ownerId: owner, embedding: vec(0, 1, 0.01), contentHash: "h_third", genre: "fantasy" });
+
+    const members = (await svcFor(db).archetypes(owner, { k: 1 })).flatMap((a) => a.members);
+    expect(members.find((m) => m.characterId === faced)).toHaveProperty("avatarHash", "cas_asset_face");
+    expect(members.find((m) => m.characterId === faceless)).toHaveProperty("avatarHash", null);
   });
 
   test("a foreign owner sees no archetypes (audit #1)", async () => {

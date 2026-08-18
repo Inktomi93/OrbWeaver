@@ -139,4 +139,21 @@ describe("visualArchetypes", () => {
     expect(arch.map((a) => a.label).sort()).toEqual(["anime · moody", "painterly · serene"]);
     expect(arch.find((a) => a.artStyle === "anime")?.size).toBe(3);
   });
+
+  // The member slice carries the portrait hash on the WIRE (issue #134) — this read clusters BY the avatar,
+  // so the hash is already in hand and the corpus surface no longer joins `portraitAlignment` for its faces.
+  // Never null here by construction: a row without a current-avatar asset has no avatar vector to cluster.
+  test("members carry the avatar's CAS hash", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await Promise.all(
+      Array.from({ length: 3 }, (_, i) => seedAvatarChar(db, { id: `face_${i}`, ownerId: owner, avatarVec: vec(1, i * 0.001), artStyle: "anime" })),
+    );
+
+    const members = (await svcFor(db).visualArchetypes(owner, 1)).flatMap((a) => a.members);
+    expect(members).toHaveLength(3);
+    for (const member of members) {
+      expect(member).toHaveProperty("avatarHash", `cas_asset_${member.name}`);
+    }
+  });
 });

@@ -63,7 +63,9 @@ function topN(m: Map<string, number>, n: number): string[] {
 }
 
 function tallyCard(acc: ClusterAcc, card: CardVector, facet: CardFacet | undefined): void {
-  acc.members.push({ characterId: card.characterId, name: facet?.name ?? "Unknown" });
+  // The portrait rides the facet row (one LEFT join off the read that already resolves the name). A card with
+  // no facet row has no name to show either, so "Unknown" and a null face are the same miss, stated twice.
+  acc.members.push({ characterId: card.characterId, name: facet?.name ?? "Unknown", avatarHash: facet?.avatarHash ?? null });
   if (facet?.genre !== null && facet?.genre !== undefined && facet.genre !== "") {
     bump(acc.genre, facet.genre);
   }

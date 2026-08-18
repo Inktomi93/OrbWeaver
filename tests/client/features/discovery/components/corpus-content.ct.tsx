@@ -10,9 +10,10 @@
 //     can see.
 //   • THE FOCAL TREATMENT BY COMPUTED VALUE, against the RESOLVED token — never a class list. An authored
 //     `before:shadow-glow` string stays green through a visual regression; a measured stripe width does not.
-//   • THE PORTRAIT JOIN AND ITS DEGRADATION. `ArchetypeMember` carries no avatarHash, so family faces are
-//     joined against `discovery.portraitAlignment`. One family member is deliberately ABSENT from that
-//     report in every fixture, so the initials fallback is EXERCISED rather than assumed.
+//   • THE PORTRAIT ON THE PAYLOAD AND ITS DEGRADATION. `ArchetypeMember.avatarHash` (issue #134) carries the
+//     face, so the plates draw from `visualArchetypes` alone — no `portraitAlignment` join, and that verb is
+//     deliberately UNSTUBBED here so a re-introduced second read renders nothing and fails. One family member
+//     carries a NULL hash in every fixture, so the initials fallback is EXERCISED rather than assumed.
 //   • THE ZERO WALL STAYING GONE. The first-run pane used to print a coverage strip of display zeros plus
 //     seven muted "No … computed yet." notes. Both absences are asserted, with the analysed fixture as the
 //     control that the blocks are CONDITIONAL rather than deleted.
@@ -35,8 +36,8 @@ const FROZEN_AT_MS = 1_760_000_000_000;
 const ONE_DAY_MS = 86_400_000;
 const TWO_WEEKS_MS = 14 * ONE_DAY_MS;
 
-/** The three characters in the fixtures' visual families. `ORPHAN` is deliberately missing from
- *  `portraitAlignment`, which is what exercises the join's initials fallback. */
+/** The three characters in the fixtures' visual families. `ORPHAN` carries a NULL `avatarHash` on purpose —
+ *  that is what exercises the initials fallback. */
 const JFC = "character_jfc";
 const ELIAS = "character_elias";
 const ORPHAN = "character_orphan";
@@ -53,8 +54,8 @@ const FAMILIES = [
     mood: null,
     size: 2,
     members: [
-      { characterId: JFC, name: "JFC" },
-      { characterId: ELIAS, name: "Elias Thorn" },
+      { characterId: JFC, name: "JFC", avatarHash: JFC_HASH },
+      { characterId: ELIAS, name: "Elias Thorn", avatarHash: ELIAS_HASH },
     ],
     model: "Qwen/Qwen3-VL-Embedding-2B",
   },
@@ -66,21 +67,10 @@ const FAMILIES = [
     palette: null,
     mood: null,
     size: 1,
-    members: [{ characterId: ORPHAN, name: "Morgatha" }],
+    members: [{ characterId: ORPHAN, name: "Morgatha", avatarHash: null }],
     model: "Qwen/Qwen3-VL-Embedding-2B",
   },
 ];
-
-/** Portraits for TWO of the three members — Morgatha is absent on purpose (see above). */
-const PORTRAITS = {
-  count: 2,
-  mean: 0.3,
-  median: 0.3,
-  characters: [
-    { characterId: JFC, name: "JFC", avatarHash: JFC_HASH, alignment: 0.28, rating: null, artStyle: null },
-    { characterId: ELIAS, name: "Elias Thorn", avatarHash: ELIAS_HASH, alignment: 0.31, rating: null, artStyle: null },
-  ],
-};
 
 /** A library with real characters, a completed VISUAL pass, and NOTHING semantic — the audited first run. */
 const UNANALYSED: TrpcRoutes = {
@@ -92,7 +82,6 @@ const UNANALYSED: TrpcRoutes = {
   },
   "discovery.catalog": { totalDistilled: 0, genres: [], tones: [], topTags: [] },
   "discovery.visualArchetypes": FAMILIES,
-  "discovery.portraitAlignment": PORTRAITS,
   "discovery.forgottenGems": [],
   "discovery.unusedCharacters": [],
   "discovery.modelRouting": [],
@@ -129,7 +118,6 @@ const EMPTY_LIBRARY: TrpcRoutes = {
     duplicateCounts: { characters: 0, chats: 0 },
   },
   "discovery.visualArchetypes": [],
-  "discovery.portraitAlignment": { count: 0, mean: 0, median: 0, characters: [] },
 };
 
 const GEMS = [
@@ -272,20 +260,28 @@ test("THE FOCAL IS PAINTED, not merely marked: the stripe measures the RESOLVED 
   expect(painted.shadow, "…and the rationed glow rides the sanctioned ::before carrier").not.toBe("none");
 });
 
-test("THE PORTRAIT JOIN: a member the alignment report covers draws its blob; one it misses draws initials", async ({ mount, page }) => {
-  await stub(page, UNANALYSED);
+test("THE PORTRAIT ON THE PAYLOAD: a member carrying a hash draws its blob; a null one draws initials", async ({ mount, page }) => {
+  const recorder = await stub(page, UNANALYSED);
   const component = await mount(<CorpusContentStory />);
   await expect(component.getByRole("heading", { name: "The shape of your library" })).toBeVisible();
 
-  // Joined — the real CAS hash reached the <img>.
+  // The hash off `visualArchetypes.members[].avatarHash` reached the <img> — no second read did this.
   await expect(page.locator(`img[src="/api/blob/${JFC_HASH}"]`)).toHaveCount(1);
   await expect(page.locator(`img[src="/api/blob/${ELIAS_HASH}"]`)).toHaveCount(1);
 
-  // NOT joined — Morgatha is absent from `portraitAlignment`, so her seat degrades to hue-seeded initials
-  // rather than a broken image or an invented portrait. The plate that names her still renders.
+  // NULL hash — Morgatha's seat degrades to hue-seeded initials rather than a broken image or an invented
+  // portrait. The plate that names her still renders.
   await expect(component.getByText("Morgatha", { exact: true })).toBeVisible();
   const morgathaSeat = page.locator('[data-slot="avatar-stack-item"]', { has: page.locator('text="M"') });
   await expect(morgathaSeat.locator("img")).toHaveCount(0);
+
+  // …and the surface asked for the alignment report ZERO times — the pin that the second owner-scoped read
+  // is GONE, not merely redundant. (The Visuals CONTEXT tab still reads that verb; it is not mounted here.)
+  // ONESHOT-OK: settled by construction — every query on this surface is a `useSuspenseQuery` fired in the
+  // first render and batched into ONE http request by httpBatchLink, and the portraits asserted above only
+  // paint after that batch's response. A `portraitAlignment` call could only have ridden that same flight,
+  // so by the time a face is visible the recorder has seen everything this mount will ever ask for.
+  expect(recorder.count("discovery.portraitAlignment")).toBe(0);
 });
 
 test("THE FAMILY PLATES ARE VISIBLE ISLANDS — the nested fill actually resolves", async ({ mount, page }) => {
