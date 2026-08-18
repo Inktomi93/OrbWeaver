@@ -23,6 +23,19 @@ interface VtGlobals {
 }
 
 /**
+ * "This user has asked for no motion" — the OS preference OR the app's own `data-reduced-motion` pref,
+ * which the shell stamps on `.shell-grid` (a setting beyond the OS one). ONE home for the pair, because a
+ * caller that checks only the OS half silently ignores half its users: `withViewTransition` skips the
+ * crossfade on it, and `useListTrackFlip` skips the counter-translate on it (#151 — a FLIP whose duration
+ * the reduced-motion CSS floor collapses to ~0 does not become "instant", it becomes a one-to-two-frame
+ * hold of its `from` corner, i.e. the whole content column painted a panel-width out of place).
+ */
+export function motionIsReduced(): boolean {
+  const g = globalThis as VtGlobals;
+  return prefersReducedMotionNow() || (g.document?.querySelector?.('[data-reduced-motion="true"]') ?? null) !== null;
+}
+
+/**
  * Run a view-state update inside a View Transition when the platform supports it (and the user
  * hasn't asked for reduced motion) — otherwise apply the update directly. Fire-and-forget: the
  * caller never awaits the transition.
@@ -37,9 +50,7 @@ interface VtGlobals {
 export function withViewTransition(update: () => void): void {
   const g = globalThis as VtGlobals;
   const start = g.document?.startViewTransition;
-  const reducedMotion = prefersReducedMotionNow();
-  const appReducedMotion = (g.document?.querySelector?.('[data-reduced-motion="true"]') ?? null) !== null;
-  if (start === undefined || reducedMotion || appReducedMotion) {
+  if (start === undefined || motionIsReduced()) {
     update();
     return;
   }

@@ -31,7 +31,7 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { ChatId } from "@orb/kit/ids";
-import { AvatarStack } from "@orb/ui/avatar-stack";
+import { AvatarStack, avatarStackInlineSize } from "@orb/ui/avatar-stack";
 import { Badge } from "@orb/ui/badge";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
@@ -47,6 +47,15 @@ type HearthChat = Parameters<typeof chatSummaryRowView>[0];
 /** The cast strip's slot budget: three faces, then a "+N". The hero is a portrait of the ROOM, and a
  *  fourth 64px face pushes the title's column below its own measure at the 1280px pane. */
 const CAST_SLOTS = 4;
+
+/** The strip's settled width from the room's own SEAT COUNT (#147). The seats are on the chat row; only the
+ *  FACES need `character.list`, which lands on its own clock — so the strip used to appear from nothing and
+ *  shove the title column right (measured: 76px for one seat, 148px for three, `[cls] unexpected` every cold
+ *  load). Reserving off the count keeps the portrait read non-blocking (this tile's own ruling: portraits are
+ *  decoration and must never gate home) while the column beside it is laid out once. */
+function castStripWidth(seatCount: number): string | undefined {
+  return avatarStackInlineSize(Math.min(seatCount, CAST_SLOTS), "hero");
+}
 
 /** The speaker stripe — the same three declarations the immersive chat rows paint (message-row-variants
  *  `STRIPE_LEFT`), inline because a border WIDTH from a non-spacing token has no utility. */
@@ -98,7 +107,7 @@ export function HomeHearthRoom({
           under the Resume affordance. Above `@md` nothing changes; below it the art goes over the column
           and the column gets the island's full width, which is the only budget that fits both lines. */}
       <Row align="start" className="flex-col @md:flex-row" gap="block">
-        {portraits.length === 0 ? null : (
+        {chat.participantCharacterIds.length === 0 ? null : (
           // DECORATIVE HERE, and only here (side-eye F5). The strip's seats are already spelled out, in
           // order, in the credit line below — which rides the island's own `aria-describedby` — so a named
           // stack made the hero announce its cast twice and its room name five times over. The stack keeps
@@ -114,6 +123,11 @@ export function HomeHearthRoom({
             max={CAST_SLOTS}
             shape="rounded"
             size="hero"
+            // Born at the width the resolved cast will paint at — see `castStripWidth`. An UNRESOLVED seat
+            // still paints no face (the chats-row ruling: a seat the character read does not carry is
+            // dropped, never a blank chip claiming a person); it just no longer takes its width from the
+            // column beside it when it arrives.
+            style={{ minInlineSize: castStripWidth(chat.participantCharacterIds.length) }}
           />
         )}
         <Stack className="w-full min-w-0 flex-1" gap="row">

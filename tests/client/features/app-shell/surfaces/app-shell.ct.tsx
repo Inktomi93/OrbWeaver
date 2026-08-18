@@ -7,6 +7,7 @@
 // Each test gets a fresh page (isolated localStorage) so the store starts default.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -578,6 +579,43 @@ test.describe("the Refinery's phone door (coarse pointer)", () => {
 // never be written by the auto-mechanism, nor by opening/closing the narrow auto-overlay slide-over.
 
 const WIDE = { width: 1280, height: 900 }; // >64rem
+
+// ── #170 fixtures: one room, one human seat, one chat-set background ─────────────────────────────────
+/** The active room's id — MINTED, never a hand-written literal: the persisted active-chat store parses it
+ *  through `typeIdSchema` on rehydrate and drops anything that fails. */
+const ROOM_CHAT_ID = mintTypeId(ID_PREFIX.chat);
+/** ONE human seat and no other — the BG-C gate (`isSingleHumanCast`): with a second human on the roster
+ *  the carried source is inert for everyone and the test would pass against a broken shell. */
+const ROOM_HUMAN_SEAT = {
+  id: "participant_ct_bg",
+  chatId: ROOM_CHAT_ID,
+  kind: "human",
+  userId: "user_ct_bg",
+  characterId: null,
+  role: "host",
+  activePersonaId: null,
+  talkativeness: 1,
+  disabled: false,
+  joinedAt: 0,
+  joinSeq: 0,
+  leftSeq: null,
+  joinHistoryVisibility: "full",
+  displayName: "Nate",
+  handle: null,
+  avatarAssetId: null,
+  avatarHash: null,
+};
+/** The room's own chat-SET background (the cascade's first arm). `asset` + a stored hash is the only kind
+ *  that resolves to a paintable URL without a seeded-id lookup; `image/*` keeps it off the video layer. */
+const ROOM_BACKGROUND = {
+  kind: "asset",
+  seededId: "",
+  externalUrl: "",
+  provenanceUrl: "",
+  assetId: "asset_ct_bg",
+  assetHash: "hash_ct_bg",
+  mime: "image/png",
+};
 const NARROW_DESKTOP = { width: 900, height: 900 }; // 48–64rem (900px ≈ 56.25rem)
 
 function shellPersistedOverrides(page: Page): Promise<unknown> {
@@ -1086,6 +1124,158 @@ test("toggling the docked LIST panel is compositor-only: no meaningful layout sh
     page.evaluate(() => (globalThis as unknown as { __shiftTotal: number }).__shiftTotal);
   // Polls PAST the 220ms motion so a late entry cannot land after the read.
   await expect.poll(readTotal, { intervals: [100, 200, 300, 400] }).toBeLessThan(0.1);
+});
+
+// ── #151: with motion OFF there is no counter-translate to hold the wrong corner ────────────────────
+// The owner saw "a weird glitch where the home header is and where the chats header with the count
+// appears" on a home→chats swap, WORSE with reduced motion on — and CLS read 0.0000, because a
+// `translate` records no layout-shift at all. Measured per-animation-frame on the LIVE shell
+// (2026-08-18, `reports/snaps/sp-151-*`): under `prefers-reduced-motion: reduce` the shell stamped
+// `data-list-flip` and Chrome held the freshly-started animation PENDING at `currentTime 0` for two
+// consecutive frames — the reduced-motion floor collapses `animation-duration` to 0.01ms, which does not
+// make the animation instant, it makes it a one-to-two-frame HOLD of its `from` corner. `.shell-main`
+// (topbar and header band included) painted at x=-290 docking and x=747 collapsing, a full `--panel-w`
+// outside the corridor between its start and end columns, then snapped back.
+//
+// TWO ARMS, and the honest labels for each:
+//  · the ATTRIBUTE arm is the DEFECT PROOF — it is red against the old hook, which stamped the flip
+//    regardless of the motion preference. A FLIP is a motion mechanism; with motion off the track just
+//    resizes.
+//  · the CORRIDOR arm is a FENCE, not the defect proof: the live compositor hold does NOT reproduce at CT
+//    page weight (the old hook passes it here), so it cannot be the receipt for the reported glitch —
+//    the per-frame live measurement is. It earns its place anyway: it caught a WRONG first fix in this
+//    lane (forcing a synchronous layout in the flip effect, which made the CT jolt to x=670 for two
+//    frames), which is exactly the regression class a fence is for.
+// The full-motion arm below is the third guard: the fix must not simply delete the FLIP.
+test("#151 reduced motion: no LIST-track FLIP is stamped, and .shell-main never leaves the corridor between its old and new columns", async ({
+  mount,
+  page,
+}) => {
+  await page.setViewportSize(WIDE);
+  // TOTAL media state, never a delta (see emulateMediaFeatures): reduced motion is the arm under test, and
+  // the other two are named so a leak from an earlier test in this file cannot change what renders here.
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "reduce"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const main = page.locator(".shell-main");
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  const startX = await main.evaluate((el) => Math.round(el.getBoundingClientRect().x));
+  // A bounded per-frame sampler — rAF, not a screenshot loop: the jolt is two frames wide, so anything
+  // slower than the frame clock samples past it. Bounded so it cannot outlive the test.
+  await page.evaluate(() => {
+    // FABRICATION-OK: a browser-context probe slot, written and read in this test alone.
+    const bag = globalThis as unknown as { __mainX: number[] };
+    bag.__mainX = [];
+    const el = document.querySelector(".shell-main");
+    const tick = (): void => {
+      if (el === null || bag.__mainX.length > 60) {
+        return;
+      }
+      bag.__mainX.push(Math.round(el.getBoundingClientRect().x));
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+  // The reported repro is the chats⇄HOME swap, and home is the one section that declares NO list pane at
+  // all — so the track genuinely appears/disappears with the section, which is the move the FLIP exists
+  // for. It is also where `setActiveSection`'s View Transition is SKIPPED under reduced motion, leaving
+  // nothing to flush the new track before the counter-translate composites.
+  await shell.getByRole("button", { name: "Home" }).click();
+  await expect(listPanel).not.toHaveAttribute("data-panel-mode", "docked");
+  // BARRIER ON THE SETTLED RENDER, not on the attribute: the mode attribute lands a frame or more before
+  // the grid is re-laid out at the new track (that lag is the whole subject of this test), so reading the
+  // end column off the attribute alone samples the OLD x and makes the corridor a point.
+  const readX = (): Promise<number> => main.evaluate((el) => Math.round(el.getBoundingClientRect().x));
+  await expect.poll(readX).not.toBe(startX);
+  const endX = await readX();
+  // THE DEFECT PROOF: the counter-translate is simply not armed for a user who asked for no motion, so
+  // there is no `from` corner for the compositor to hold.
+  expect(await page.locator(".shell-grid").getAttribute("data-list-flip"), "no flip may be armed with motion off").toBeNull();
+  // Read ONCE (never poll a shared array — a poll drains the very samples it is judging).
+  // FABRICATION-OK: reads back the probe slot installed above.
+  const samples = await page.evaluate(() => (globalThis as unknown as { __mainX: number[] }).__mainX);
+
+  expect(samples.length, "the rAF sampler must have run — an empty ring proves nothing").toBeGreaterThan(2);
+  // The track really did change (a no-op swap would make the corridor a point and pass vacuously).
+  expect(Math.abs(endX - startX), `the track must really change — start ${startX}, end ${endX}, samples ${samples.join(",")}`).toBeGreaterThan(100);
+  const low = Math.min(startX, endX) - 1;
+  const high = Math.max(startX, endX) + 1;
+  const strays = samples.filter((x) => x < low || x > high);
+  expect(strays, `.shell-main left the ${low}…${high} corridor: ${strays.join(", ")}`).toEqual([]);
+
+  // Hand the page back in the file's baseline media state — the overrides outlive this test.
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "no-preference"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+});
+
+// The counter-arm of the test above: with motion ON the FLIP is still armed on the SAME swap. Without
+// this, "never stamp the flip" would pass both tests and silently delete the compositor-only panel push
+// (task #32) that the co-motion + zero-shift tests above exist to protect.
+test("#151 the LIST-track FLIP IS still armed on the same swap when motion is allowed", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "no-preference"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  await shell.getByRole("button", { name: "Home" }).click();
+  await expect(listPanel).not.toHaveAttribute("data-panel-mode", "docked");
+  await expect(page.locator(".shell-grid")).toHaveAttribute("data-list-flip", "out");
+});
+
+// ── RED-FIRST (#170): a per-chat background paints INSIDE its room and nowhere else ──────────────────
+// Owner, live 2026-08-18: "the chat's background is sticky and following me" — with no global background
+// set, the last-visited room's wallpaper dressed every other section, and survived a reload. The cause is
+// a pointer, not a write: `useActiveChatId` is a PERSISTED handle (deliberately — returning to chats must
+// land you back in the room you left), and the app-root background layer keyed on it ALONE. The pointer
+// says which room is open; only the active SECTION says whether that room is on screen.
+// Asserted through the rendered layer — the affordance the owner actually saw — so it compiles against
+// the old hook and fails on it.
+test("#170 a chat's carried background paints in the chats section and is GONE the moment another section is active", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await routeTrpc(page, {
+    "chat.getChat": { participants: [ROOM_HUMAN_SEAT], background: ROOM_BACKGROUND },
+  });
+  // The room pointer as a real boot has it: in localStorage BEFORE any module runs, so the shell's first
+  // render reads it (the store rehydrates synchronously — see the boot test below). An effect-seeded
+  // pointer would be one commit late and could not pin first-paint behaviour.
+  await page.addInitScript({
+    content: `try { localStorage.setItem("orb:active-chat", ${JSON.stringify(
+      JSON.stringify({ state: { handle: { kind: "committed", id: ROOM_CHAT_ID } }, version: 1 }),
+    )}); } catch { /* storage disabled — the room pointer stays at landing and the arms below say so */ }`,
+  });
+  await page.reload();
+
+  const shell = await mount(<AppShellStory />);
+  const backgroundLayer = page.locator('[data-slot="theme-background-layer"]');
+  // In the room: the carried source paints, and the shell goes transparent for it.
+  await expect(backgroundLayer).toBeVisible();
+  await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+
+  await shell.getByRole("button", { name: "Characters" }).click();
+  await expect(page.getByText("characters content pane")).toBeVisible();
+
+  // Out of the room, with no global background set, the app paints its OWN ground — the null-origin rule.
+  await expect(backgroundLayer).toHaveCount(0);
+  await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-has-bg-image", "true");
+
+  // …and coming back re-dresses the room, so nothing had to be CLEARED and the pointer still means what
+  // it always meant.
+  await shell.getByRole("button", { name: "Chats", exact: true }).click();
+  await expect(backgroundLayer).toBeVisible();
 });
 
 // ── BOOT: the FIRST committed grid template already carries the resolved tracks (F14) ───────────────

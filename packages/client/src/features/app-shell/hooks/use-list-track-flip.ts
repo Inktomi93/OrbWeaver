@@ -21,6 +21,7 @@
 
 import type { RefObject } from "react";
 import { useLayoutEffect, useRef } from "react";
+import { motionIsReduced } from "#lib";
 import type { PanelMode } from "#state";
 
 /** The stamped attribute; `in` = the track opened (content pushed right), `out` = it closed. */
@@ -42,6 +43,24 @@ export function useListTrackFlip(gridRef: RefObject<HTMLDivElement | null>, list
     const was = previous.current;
     previous.current = docked;
     if (was === null || was === docked) {
+      return;
+    }
+    // NO FLIP WHEN THE USER ASKED FOR NO MOTION (#151, measured per-frame on the live shell 2026-08-18 and
+    // pinned by the CT beside this file's own). The reduced-motion CSS floor (@orb/ui globals.css) collapses
+    // every `animation-duration` to 0.01ms — which does NOT make this animation instant. Chrome starts a
+    // freshly-stamped animation PENDING, holding its `from` corner for one to two frames before the first
+    // sample: measured `animation currentTime 0` across two consecutive rAFs with the grid still laid out at
+    // the OLD track, so `.shell-main` — topbar and header band included — painted a full `--panel-w` out of
+    // place (x 56 → -290 → 402 docking, 402 → 747 → 56 collapsing) and snapped back. A translate records no
+    // layout-shift, so CLS read 0.0000 through the whole thing: the owner's "weird glitch where the home
+    // header is and where the chats header with the count appears", CLS-invisible, worse with reduced motion
+    // on — because reduced motion is the arm where it happens at all.
+    //
+    // A FLIP is a MOTION mechanism: it exists to make an instant layout change LOOK continuous. With motion
+    // off there is nothing to make continuous, so the track just resizes — one frame, in place. That trades
+    // the FLIP's zero-recorded-shift property for a real (single, expected) layout shift on this one toggle,
+    // for the users who have asked not to be animated at. Correct pixels beat a clean metric.
+    if (motionIsReduced()) {
       return;
     }
     // Setting the attribute is what starts the animation: the rule begins matching in this same style
