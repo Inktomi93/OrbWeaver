@@ -26,7 +26,17 @@
 // from it.
 
 /** The numeric derivation constants — the ONE declaration. `@orb/ui`'s clamp re-exports these as
- *  `THEME_DERIVATION` (its own consumers' name) and spells them into CSS; nothing re-derives them. */
+ *  `THEME_DERIVATION` (its own consumers' name) and spells them into CSS; nothing re-derives them.
+ *
+ *  `readingPlate` is the transcript's over-art text backing (`--color-reading-plate`, #204): the base
+ *  surface with only L shifted (like the ramp) but CARRYING ITS OWN ALPHA, because the plate composites
+ *  over wallpaper art. It is NOT the backdrop dimmer (`--color-backdrop`, polarity-FIXED smoke): a
+ *  reading plate must follow the palette's polarity so the palette's own inks land on their own surface
+ *  — the #204 root cause was one `--color-scrim` token serving both jobs. `deltaL` −0.038 reproduces the
+ *  retired scrim's dark value off the Hearth base to the digit (0.158 − 0.038 = 0.120); `alpha` 0.65 is
+ *  the MEASURED floor (live A/B 2026-08-18: 0.65 turned the failing carried-light room's dialogue
+ *  1.32→6.79 and body 1.14→14.33 while the dark-art room stayed 12.06/13.60 and visually identical),
+ *  pinned by the plate-floor proof in `palette-contrast.suite.test.ts`. */
 export const THEME_DERIVATION = {
   fgPivotL: 0.62,
   fgSteepness: 1000,
@@ -36,6 +46,7 @@ export const THEME_DERIVATION = {
   mutedLMax: 0.82,
   borderAlpha: 0.14,
   inputAlpha: 0.12,
+  readingPlate: { deltaL: -0.038, alpha: 0.65 },
   ramp: {
     sidebar: -0.026,
     surfaceRaised: 0.027,
@@ -129,6 +140,54 @@ export function oklchToSrgb({ l, c, h }: Oklch): Rgb {
   };
 }
 
+// Ottosson's linear-sRGB→LMS matrix (the inverse direction of the pair above; INV_-prefixed because
+// the forward pair already owns the bare LMS_* names).
+const INV_LMS_L_R = 0.412_221_470_8;
+const INV_LMS_L_G = 0.536_332_536_3;
+const INV_LMS_L_B = 0.051_445_992_9;
+const INV_LMS_M_R = 0.211_903_498_2;
+const INV_LMS_M_G = 0.680_699_545_1;
+const INV_LMS_M_B = 0.107_396_956_6;
+const INV_LMS_S_R = 0.088_302_461_9;
+const INV_LMS_S_G = 0.281_718_837_6;
+const INV_LMS_S_B = 0.629_978_700_5;
+// Ottosson's LMS'→OKLab matrix.
+const LAB_L_L = 0.210_454_255_3;
+const LAB_L_M = 0.793_617_785;
+const LAB_L_S = 0.004_072_046_8;
+const LAB_A_L = 1.977_998_495_1;
+const LAB_A_M = 2.428_592_205;
+const LAB_A_S = 0.450_593_709_9;
+const LAB_B_L = 0.025_904_037_1;
+const LAB_B_M = 0.782_771_766_2;
+const LAB_B_S = 0.808_675_766;
+// The standard sRGB EOTF threshold (Ottosson's reference uses 0.04045; the WCAG 0.03928 above is the
+// legacy luminance spelling — the two constants serve different formulas and must not be merged).
+const SRGB_EOTF_THRESHOLD = 0.040_45;
+const HUE_WHEEL_DEGREES = 360;
+
+function srgbLinear(channel: number): number {
+  const c = Math.max(0, Math.min(SRGB_MAX, channel)) / SRGB_MAX;
+  return c <= SRGB_EOTF_THRESHOLD ? c / GAMMA_LINEAR_SLOPE : ((c + GAMMA_OFFSET) / GAMMA_SCALE) ** GAMMA_EXPONENT;
+}
+
+/** sRGB (0–255) → OKLCH — the exact inverse of {@link oklchToSrgb} (#204: lets the prose-ink clamp and
+ *  the polarity derivation judge a hex/rgb()/hsl() authored value instead of failing open on format). */
+export function srgbToOklch({ r, g, b }: Rgb): Oklch {
+  const lr = srgbLinear(r);
+  const lg = srgbLinear(g);
+  const lb = srgbLinear(b);
+  const l = Math.cbrt(INV_LMS_L_R * lr + INV_LMS_L_G * lg + INV_LMS_L_B * lb);
+  const m = Math.cbrt(INV_LMS_M_R * lr + INV_LMS_M_G * lg + INV_LMS_M_B * lb);
+  const s = Math.cbrt(INV_LMS_S_R * lr + INV_LMS_S_G * lg + INV_LMS_S_B * lb);
+  const okL = LAB_L_L * l + LAB_L_M * m - LAB_L_S * s;
+  const okA = LAB_A_L * l - LAB_A_M * m + LAB_A_S * s;
+  const okB = LAB_B_L * l + LAB_B_M * m - LAB_B_S * s;
+  const chroma = Math.hypot(okA, okB);
+  const hue = (((Math.atan2(okB, okA) * DEGREES_PER_RADIAN) % HUE_WHEEL_DEGREES) + HUE_WHEEL_DEGREES) % HUE_WHEEL_DEGREES;
+  return { l: okL, c: chroma, h: hue };
+}
+
 function relativeLuminance({ r, g, b }: Rgb): number {
   const channel = (raw: number): number => {
     const c = Math.max(0, Math.min(SRGB_MAX, raw)) / SRGB_MAX;
@@ -142,6 +201,38 @@ export function wcagContrastRatio(a: Rgb, b: Rgb): number {
   const la = relativeLuminance(a);
   const lb = relativeLuminance(b);
   return (Math.max(la, lb) + CONTRAST_OFFSET) / (Math.min(la, lb) + CONTRAST_OFFSET);
+}
+
+/** Alpha-composite a translucent sRGB colour over an opaque one (non-linear sRGB space — the same
+ *  space the browser composites in by default). Shared by the reading-plate floor proof (plate over
+ *  worst-case art) and the prose-ink clamp (a translucent authored ink over the base surface). */
+export function compositeSrgb(top: Rgb, alpha: number, under: Rgb): Rgb {
+  const a = clamp01(alpha);
+  return {
+    r: a * top.r + (1 - a) * under.r,
+    g: a * top.g + (1 - a) * under.g,
+    b: a * top.b + (1 - a) * under.b,
+  };
+}
+
+/**
+ * The #204 §7a prose-ink clamp decision — for the four AUTHOR-PICKED transcript inks
+ * (`speaker`/`dialogueColor`/`narrationColor`/`bodyColor`), the only inks exempt from the house
+ * "a foreground is never picked, only derived" law. Judged against the theme's own BASE surface
+ * (post-#204 every reading plate derives from that one base, so base-legibility is plate-legibility):
+ *   • `null`  — the authored ink already clears AA against the base: keep it BYTE-IDENTICAL
+ *     (the no-op-where-the-card-was-sensible guarantee; the dark-art rooms do not move a pixel);
+ *   • a number — the ink fails AA there: the LIGHTNESS to re-derive it at (the same steep pivot flip
+ *     as every derived foreground), keeping the author's hue and chroma.
+ * `inkAlpha` < 1 composites the ink over the base first — a naive ratio on a translucent ink lies.
+ */
+export function proseInkLightness(ink: Oklch, inkAlpha: number, base: Oklch): number | null {
+  const baseRgb = oklchToSrgb(base);
+  const inkRgb = inkAlpha < 1 ? compositeSrgb(oklchToSrgb(ink), inkAlpha, baseRgb) : oklchToSrgb(ink);
+  if (wcagContrastRatio(inkRgb, baseRgb) >= AA_NORMAL_RATIO) {
+    return null;
+  }
+  return derivedForegroundLightness(base.l);
 }
 
 /** The LIGHTNESS orb derives for text sitting on a surface of lightness `surfaceL` — the steep pivot flip

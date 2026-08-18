@@ -11,7 +11,7 @@ import { avatarFallbackHueColor } from "@orb/ui/avatar";
 import type { CSSProperties } from "react";
 import { cn, messageBubbleClass } from "#lib";
 import type { RowAttribution } from "./attribution.ts";
-import { BG_PHOTO_READING_SCRIM } from "./message-row-backing.ts";
+import { BG_PHOTO_READING_PLATE } from "./message-row-backing.ts";
 
 function alignFor(role: MessageRole): string {
   return role === "user" ? "items-end" : "items-start";
@@ -70,7 +70,10 @@ function flatOuter(): string {
   return "w-full items-stretch";
 }
 function flatInner(role: MessageRole): string {
-  return cx("w-full px-section py-row", BG_PHOTO_READING_SCRIM, role === "system" && "text-muted-foreground");
+  // The plate constant carries the paired reading ink (#204 derive law); a system row keeps its muted
+  // tone in BOTH arms — the second spelling out-cascades the plate's `in-data-…:text-prose-body` (same
+  // variant, later in the merge), the first covers the plain-background arm.
+  return cx("w-full px-section py-row", BG_PHOTO_READING_PLATE, role === "system" && "text-muted-foreground in-data-[has-bg-image]:text-muted-foreground");
 }
 const iconLeftTreatment = (): AvatarTreatment => "icon-left";
 
@@ -181,7 +184,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   },
   document: {
     outer: () => "w-full items-center",
-    inner: () => cx("w-full max-w-prose px-block py-row text-prose-body", BG_PHOTO_READING_SCRIM),
+    inner: () => cx("w-full max-w-prose px-block py-row text-prose-body", BG_PHOTO_READING_PLATE),
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
   },

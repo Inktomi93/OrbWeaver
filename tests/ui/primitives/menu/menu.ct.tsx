@@ -369,7 +369,7 @@ test("the backdrop appears while the menu is open and hides when it closes", asy
   await expect(page.getByRole("menu")).toBeVisible();
   await expect(backdrop).toBeVisible();
   // The theme-aware overlay token (D43 §11.4) — never bg-black/50.
-  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.scrim"].value);
+  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.backdrop"].value);
   await page.keyboard.press("Escape");
   await expect(backdrop).toBeHidden();
 });

@@ -872,7 +872,16 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
   await expect(component.locator(STUCK_NAME_ROW)).toHaveCSS("position", "sticky");
   await expect(component.locator(STUCK_NAME_ROW).getByText("Narrator")).toBeVisible();
 
-  // Deep inside the turn, the attribution is STILL on screen and pinned to the scrollport's top edge.
+  // #204 (the 12px guillotine): the scroller carries NO block padding of its own — the breathing lives
+  // in the virtualizer's coordinate space (`blockPaddingToken`). Chrome resolves `sticky; top: 0`
+  // against the scroll container's CONTENT box, so a `py-block` here pinned the band 12px below the
+  // visible top with a strip of the row's own prose permanently guillotined above it (all four rooms,
+  // owner screenshot). RED on the pre-fix source (padding-top was 12px).
+  await expect(scroller).toHaveCSS("padding-top", "0px");
+  await expect(scroller).toHaveCSS("padding-bottom", "0px");
+
+  // Deep inside the turn, the attribution is STILL on screen and pinned FLUSH to the scrollport's top
+  // edge — not one strip of prose renders above it (#204; was `< 24`, tolerating the guillotine).
   await scroller.evaluate((el: HTMLElement) => {
     el.scrollTop = 900;
   });
@@ -883,10 +892,23 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
     }
     return name.getBoundingClientRect().top - el.getBoundingClientRect().top;
   });
-  // Within the scroller's own top padding (py-block) of the edge — i.e. stuck, not scrolled away.
   expect(offsetFromTop).toBeGreaterThanOrEqual(0);
-  expect(offsetFromTop).toBeLessThan(24);
+  expect(offsetFromTop).toBeLessThan(1);
   await expect(component.locator(STUCK_NAME_ROW).getByText("Narrator")).toBeVisible();
+
+  // …and the breathing did not vanish, it MOVED: scrolled to the very top, the first row still sits one
+  // spacing.block (12px) off the scrollport edge, now provided by the virtualizer's paddingStart.
+  await scroller.evaluate((el: HTMLElement) => {
+    el.scrollTop = 0;
+  });
+  const firstRowGap = await scroller.evaluate((el: HTMLElement) => {
+    const row = el.querySelector('[data-slot="message-list-row"]');
+    if (row === null) {
+      return Number.NaN;
+    }
+    return row.getBoundingClientRect().top - el.getBoundingClientRect().top;
+  });
+  expect(Math.round(firstRowGap)).toBe(12);
 });
 
 test("#113 CONTROL: a short turn is left alone — no sticky, no chip, no measured height change", async ({ mount, page }) => {

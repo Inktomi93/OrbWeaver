@@ -165,13 +165,76 @@ test("colorScheme is DERIVED from the base oklch L polarity (light-dark arm + na
   expect("colorScheme" in clampThemeTokens({ background: "oklch(0.98 0.004 75)" }).vars).toBe(false);
 });
 
-test("colorScheme is OMITTED when polarity is not statically knowable (non-oklch base, or no base)", () => {
-  // A safe-but-not-oklch base (named color / rgb()) is legal for the vars, but its polarity can't be read
-  // statically — fail open to the inherited scheme rather than guess.
+// ── #204: the READING PLATE emission — the over-art text backing rides the one-base derivation. ──
+test("a picked background emits --color-reading-plate as base + readingPlate.deltaL at readingPlate.alpha", () => {
+  const { vars } = clampThemeTokens({ background: "oklch(0.98 0.004 78)" });
+  expect(vars["--color-reading-plate"]).toBe("oklch(from oklch(0.98 0.004 78) calc(l + -0.038) c h / 0.65)");
+  // No base ⇒ no plate (the static token shows through) — the plate is a DERIVATION, never a default.
+  expect(clampThemeTokens({ accent: "#abc" }).vars["--color-reading-plate"]).toBeUndefined();
+});
+
+// ── #204 §7a: the prose-ink clamp — the four author-picked inks judged against the picked base. ──
+test("a SENSIBLE authored ink passes through BYTE-IDENTICAL (the no-op-where-the-card-was-sensible arm)", () => {
+  // Birdie's real palette: dialogue L 0.4 on base L 0.98 clears AA (~8.5:1) — the clamp must not move it.
+  const { vars } = clampThemeTokens({ background: "oklch(0.98 0.004 78)", dialogueColor: "oklch(0.4 0.1 40)" });
+  expect(vars["--color-dialogue"]).toBe("oklch(0.4 0.1 40)");
+});
+
+test("an ILLEGIBLE authored ink keeps its hue+chroma and gets the derived lightness (the #204 worst-case card)", () => {
+  // A dark ink on a dark base — the exact divorce class: L re-derives (0.96, the dark-base arm of the
+  // pivot flip), the author's chroma/hue ride the relative-color form untouched.
+  const { vars } = clampThemeTokens({ background: "oklch(0.158 0.006 60)", dialogueColor: "oklch(0.3 0.1 40)" });
+  expect(vars["--color-dialogue"]).toBe("oklch(from oklch(0.3 0.1 40) 0.96 c h)");
+  // …and all four ink fields ride the same clamp.
+  const light = clampThemeTokens({
+    background: "oklch(0.98 0.004 78)",
+    speaker: "oklch(0.9 0.05 60)",
+    narrationColor: "oklch(0.92 0.02 60)",
+    bodyColor: "oklch(0.95 0.01 60)",
+  });
+  // Light inks on a light base all fail AA and re-derive to the light-base arm (0.22).
+  expect(light.vars["--color-speaker"]).toBe("oklch(from oklch(0.9 0.05 60) 0.22 c h)");
+  expect(light.vars["--color-narration"]).toBe("oklch(from oklch(0.92 0.02 60) 0.22 c h)");
+  expect(light.vars["--color-prose-body"]).toBe("oklch(from oklch(0.95 0.01 60) 0.22 c h)");
+});
+
+test("the ink clamp judges EVERY numeric color format, and fails open only where no static value exists", () => {
+  // No base: nothing to judge against — pass through (same rule as colorSchemeFor).
+  expect(clampThemeTokens({ dialogueColor: "oklch(0.3 0.1 40)" }).vars["--color-dialogue"]).toBe("oklch(0.3 0.1 40)");
+  // A NAMED color has no statically-readable value (kit's parser is numeric-only) — pass through.
+  const named = clampThemeTokens({ background: "oklch(0.158 0.006 60)", narrationColor: "wheat" });
+  expect(named.vars["--color-narration"]).toBe("wheat");
+  // An hsl() ink over a dark base (#204 format widening): a LIGHT hsl ink passes; a DARK one clamps —
+  // the format is parsed via kit's parseCssColorToSrgb + srgbToOklch, never failed-open on spelling.
+  const hslLight = clampThemeTokens({ background: "oklch(0.158 0.006 60)", narrationColor: "hsl(30, 40%, 60%)" });
+  expect(hslLight.vars["--color-narration"]).toBe("hsl(30, 40%, 60%)");
+  const hslDark = clampThemeTokens({ background: "oklch(0.158 0.006 60)", narrationColor: "hsl(30, 40%, 20%)" });
+  expect(hslDark.vars["--color-narration"]).toBe("oklch(from hsl(30, 40%, 20%) 0.96 c h)");
+  // An rgb() BASE is judged too: dark base + dark oklch ink ⇒ the clamp fires.
+  const rgbBase = clampThemeTokens({ background: "rgb(20, 20, 30)", dialogueColor: "oklch(0.3 0.1 40)" });
+  expect(rgbBase.vars["--color-dialogue"]).toBe("oklch(from oklch(0.3 0.1 40) 0.96 c h)");
+  // …and a hex ink on a hex base: light-on-light clamps to the dark arm.
+  const hexPair = clampThemeTokens({ background: "#f5f0e8", dialogueColor: "#e0d8c8" });
+  expect(hexPair.vars["--color-dialogue"]).toBe("oklch(from #e0d8c8 0.22 c h)");
+});
+
+test("a TRANSLUCENT authored ink is composited over the base before judging (a naive ratio on alpha lies)", () => {
+  // A light ink at 50% alpha over a dark base composites to a mid tone that fails AA — the clamp fires
+  // even though the ink's own opaque value would have passed.
+  const { vars } = clampThemeTokens({ background: "oklch(0.158 0.006 60)", dialogueColor: "oklch(0.75 0.05 60 / 0.35)" });
+  expect(vars["--color-dialogue"]).toBe("oklch(from oklch(0.75 0.05 60 / 0.35) 0.96 c h)");
+});
+
+test("colorScheme derives for every NUMERIC base format, and is omitted only where no static value exists", () => {
+  // A NAMED base is legal for the vars but has no statically-readable value — fail open to the
+  // inherited scheme rather than guess (kit's parser is numeric-only by design).
   const named = clampThemeTokens({ background: "ivory" });
   expect(named.vars["--color-background"]).toBe("ivory");
   expect(named.colorScheme).toBeUndefined();
-  expect(clampThemeTokens({ background: "rgb(20, 20, 30)" }).colorScheme).toBeUndefined();
+  // #204 format widening: rgb()/hex/hsl() bases resolve their polarity through kit's sRGB→OKLCH inverse.
+  expect(clampThemeTokens({ background: "rgb(20, 20, 30)" }).colorScheme).toBe("dark");
+  expect(clampThemeTokens({ background: "#f5f0e8" }).colorScheme).toBe("light");
+  expect(clampThemeTokens({ background: "hsl(30, 40%, 10%)" }).colorScheme).toBe("dark");
   // No base at all ⇒ nothing to derive from.
   expect(clampThemeTokens({ accent: "#abc" }).colorScheme).toBeUndefined();
 });

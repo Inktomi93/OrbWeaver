@@ -43,7 +43,12 @@ export function ThemeBackgroundVideoLayer({ url, fit, dim, appReducedMotion }: T
       <div aria-hidden="true" data-slot="theme-background-video-layer" className="pointer-events-none fixed inset-0 z-(--z-base)">
         <BackgroundVideo src={url} paused={appReducedMotion} className={OBJECT_FIT_CLASS_BY_FIT[fit]} />
       </div>
-      <div aria-hidden="true" data-slot="theme-background-scrim" className="pointer-events-none fixed inset-0 z-(--z-base) bg-scrim" style={{ opacity: dim }} />
+      <div
+        aria-hidden="true"
+        data-slot="theme-background-scrim"
+        className="pointer-events-none fixed inset-0 z-(--z-base) bg-backdrop"
+        style={{ opacity: dim }}
+      />
     </>
   );
 }

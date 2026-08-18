@@ -2,7 +2,7 @@ import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 
 const MESSAGE_NON_TOKEN =
-  "named non-token color in className (bg-black/bg-white/…-black/…-white) — D43 / UI-Gates-and-Lessons.md §11.4: use a theme token; for overlays use bg-scrim (a bg-black/50 scrim is invisible on a true-black theme).";
+  "named non-token color in className (bg-black/bg-white/…-black/…-white) — D43 / UI-Gates-and-Lessons.md §11.4: use a theme token; for overlays use bg-backdrop (a bg-black/50 scrim is invisible on a true-black theme).";
 const MESSAGE_HEX =
   "arbitrary hex color in className/cn() — use a design token from theme.css (bg-card, text-foreground, text-success, text-destructive, etc.). Theme switching breaks with literal hex. See docs/architecture/core/UI-Architecture-and-Layout.md.";
 const MESSAGE_PALETTE =

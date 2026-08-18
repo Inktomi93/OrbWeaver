@@ -318,9 +318,12 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         scrollContainerRef={jump.scrollContainerRef}
         scrollMode={behaviorPrefs.streamScrollMode}
         gapToken="block"
-        // py-block: the first/last rows breathe off the topbar/composer edges instead of butting the
-        // scroll container's border (12px is inside the virtualizer's overscan + isAtEnd tolerances).
-        className="h-full py-block"
+        // Block breathing rides the virtualizer's OWN padding (never CSS `py-*` on the scroll
+        // container): sticky `top: 0` resolves against the scroller's content box, so container padding
+        // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
+        // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
+        blockPaddingToken="block"
+        className="h-full"
       />
       <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
     </Stack>

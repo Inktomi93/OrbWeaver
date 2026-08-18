@@ -58,10 +58,11 @@ test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine overr
   }
 });
 
-test("the load-bearing token names exist (scrim · chart ramp · the D44 §12.1 override targets)", async () => {
+test("the load-bearing token names exist (backdrop · reading plate · chart ramp · the D44 §12.1 override targets)", async () => {
   const { themeCss } = await generateArtifacts();
   const required = [
-    "--color-scrim",
+    "--color-backdrop",
+    "--color-reading-plate",
     "--color-chart-1",
     "--color-chart-5",
     "--color-user-bubble",

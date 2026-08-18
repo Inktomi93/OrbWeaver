@@ -155,7 +155,7 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/client/src/features/x/cited.css":
-          "/* the scrim answer, issue #106 — the rgb() spelling below is quoted, not authored */\n.a {\n  /* was rgb(0 0 0 / 40%) */\n  background: var(--color-scrim);\n}\n",
+          "/* the scrim answer, issue #106 — the rgb() spelling below is quoted, not authored */\n.a {\n  /* was rgb(0 0 0 / 40%) */\n  background: var(--color-backdrop);\n}\n",
       },
       why: "issue #117: an issue-number citation (#106) and a quoted color spelling inside COMMENTS are references, not authored values — comments are trivia the scan skips, so this passes",
     },

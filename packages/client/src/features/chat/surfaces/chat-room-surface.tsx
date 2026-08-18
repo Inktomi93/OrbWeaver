@@ -21,7 +21,7 @@ import { Fragment, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { useCarriedAppearanceCast, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { deriveChatTitle, useFocusOnMount } from "#lib";
+import { cn, deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
 import { ChatCastBar } from "../components/chat-cast-bar.tsx";
@@ -108,7 +108,20 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
           reading surface, and a second declaration would be the same-tier nesting the spec calls RED.
           `<Surface>` is display:contents, so nothing in this pane's height chain moves. */}
       <Surface tier="instrument">
-        <Stack aria-label={roomLabel} className="h-full px-block pb-block outline-none" gap="block" ref={surfaceRef} role="group" tabIndex={-1}>
+        <Stack
+          aria-label={roomLabel}
+          // A carried theme that picks a BASE SURFACE paints it (#204 derive law: a surface cannot exist
+          // outside the palette — without this the carried scope re-derived every ink against a base the
+          // reader never saw, dark carried inks over the app's dark page). Gated to the carried case (the
+          // viewer's own theme already paints `.shell-grid`, and elevation=ramp deliberately re-fills
+          // `.shell-main` with card — this must not override that) and to the no-wallpaper arm (over art
+          // the wallpaper IS the page and the reading plates carry the text).
+          className={cn("h-full px-block pb-block outline-none", roomTheme?.background !== undefined && "not-in-data-[has-bg-image]:bg-background")}
+          gap="block"
+          ref={surfaceRef}
+          role="group"
+          tabIndex={-1}
+        >
           {/* The cast strip is presence-at-a-glance for the room's roster — size-gated inside. */}
           <ChatCastBar chatId={chatId} />
           {/* Zero flank contributions ⇒ the thread renders alone (today's exact layout, no visual
