@@ -22461,6 +22461,55 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 643,
+      "bytes": 52116,
+      "sha256": "693f1168efb71d5c770d8c327d1a8f53f32008afa021a0a0463653981a7244bb",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-18"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",
+        "assignedSha256": "693f1168efb71d5c770d8c327d1a8f53f32008afa021a0a0463653981a7244bb",
+        "disposition": "needs-owner",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "693f1168efb71d5c770d8c327d1a8f53f32008afa021a0a0463653981a7244bb",
+        "verifiedCommit": "d29355b19aec0bce09250b7cfb2e9461d2cf3f71",
+        "verifiedAt": "2026-08-18",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md authored+full-read this session (stickler research: corpus consolidation, Observatory vs Wing; owner picked Observatory V1 on #159)",
+          "git log --oneline -1 -- docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md: d29355b19 docs(reviews): the corpus consolidation proposal (#159)"
+        ],
+        "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 — awaiting detailed-mockup sign-off (#159), nothing builds before it.",
+        "claims": [
+          {
+            "claim": "Owner picked Observatory V1; detailed mockups gate any build — mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#159"
+              },
+              {
+                "kind": "issue",
+                "target": "#160"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/vendor/base-ui/INDEX.md",
       "lane": "vendor",
       "issue": 10,
