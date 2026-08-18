@@ -9,12 +9,13 @@
 // hazard, so the `<output>` mirrors the saved key set, not just one field.
 
 import type { AppFormInstance } from "@orb/client/forms";
-import { createAutosaveEntityForm } from "@orb/client/forms";
+import { AutosaveStatus, createAutosaveEntityForm } from "@orb/client/forms";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck.tsx";
+import { validatePresetConfig } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
 import type { ReadFailure } from "../../../../../packages/client/src/features/preset/lib/resolve-failure.ts";
 import { makeModelCapability } from "../../../../support/factories/resolved-connection.ts";
 
@@ -80,7 +81,16 @@ const STALE_EFFECTIVE = {
   stale: [{ knob: "topA", value: 0.2 }],
 };
 
-const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
+// The PRODUCTION validator is mounted here, not omitted: the escape-hatch editor's saved-truth arm is a
+// claim about the fold `form.state.isValid` drives, so a story without it could not fail.
+const StoryForm = createAutosaveEntityForm<PromptConfig>({
+  defaultValues: DEFAULT_PROMPT_CONFIG,
+  options: {
+    validators: {
+      onDynamic: ({ value }: { value: PromptConfig }): { fields: Record<string, string> } | undefined => validatePresetConfig(value),
+    },
+  },
+});
 
 /** The deck over a BLANK params blob — every knob inherited, so the ghost column is what renders. */
 export function ParamsDeckGhostStory(): ReactElement {
@@ -155,9 +165,21 @@ export function ParamsDeckCapabilityTransportFailureStory(): ReactElement {
   return <DeckHarness capability={null} capabilityError={readError(undefined, "Failed to fetch")} effective={undefined} params={{}} />;
 }
 
-/** The deck carrying a server-only `customParameters` blob — D7's read-only presence row in ADVANCED. */
+/** The deck carrying a stored `customParameters` blob — the ADVANCED editor's populated arm (D143a). One
+ *  plain sampler key and one BELT-OWNED key, so the per-row drop warning has a subject. */
 export function ParamsDeckCustomParamsStory(): ReactElement {
-  return <DeckHarness customParameterKeys={["top_a", "repetition_penalty"]} effective={GHOST_EFFECTIVE} params={{}} />;
+  // Built from PAIRS: the keys are provider wire names (snake_case), which an object literal would put
+  // through the camelCase naming rule.
+  const stored = Object.fromEntries([
+    ["dry_multiplier", 0.8],
+    ["stream", false],
+  ]);
+  return <DeckHarness customParameters={stored} effective={GHOST_EFFECTIVE} params={{}} />;
+}
+
+/** The deck with NO stored blob — the editor's empty arm, where Add is the only affordance. */
+export function ParamsDeckNoCustomParamsStory(): ReactElement {
+  return <DeckHarness effective={GHOST_EFFECTIVE} params={{}} />;
 }
 
 interface DeckHarnessProps {
@@ -166,33 +188,38 @@ interface DeckHarnessProps {
   /** `null` = the no-model arm. A defaulted `undefined` would silently fall back to the story capability,
    *  which is exactly the mistake that made the gate story render a model's knobs. */
   readonly capability?: Parameters<typeof ParamsDeck>[0]["capability"] | null;
-  readonly customParameterKeys?: readonly string[];
+  /** The stored escape-hatch blob the ADVANCED editor seeds from. */
+  readonly customParameters?: PromptConfig["customParameters"];
   /** The capability read's THROWN error — passed WHOLE so the gate reads `data.code` (side-eye F-02 + the
    *  2026-08-08 earned-cause fix). `null` = PENDING. */
   readonly capabilityError?: ReadFailure | null;
 }
 
 /** The shared harness: the REAL deck under the REAL autosave boundary, with the last-saved params KEY SET
- *  mirrored to an `<output>` (the key-minimal patch proof) plus the last-saved value of each knob. */
-function DeckHarness({ params, effective, capability = STORY_CAPABILITY, customParameterKeys = [], capabilityError = null }: DeckHarnessProps): ReactElement {
+ *  mirrored to an `<output>` (the key-minimal patch proof) plus the last-saved value of each knob, and the
+ *  escape-hatch blob as it was actually written. The header's REAL `AutosaveStatus` rides along: the
+ *  editor's saved-truth arm is a claim about what that affordance says, so the story must render it rather
+ *  than a stand-in. */
+function DeckHarness({ params, effective, capability = STORY_CAPABILITY, customParameters, capabilityError = null }: DeckHarnessProps): ReactElement {
   const resolvedCapability = capability ?? undefined;
   const [saved, setSaved] = useState("keys=- ");
   const save = (values: PromptConfig): Promise<void> => {
     const entries = Object.entries(values.params).filter(([, value]) => value !== undefined);
     const keys = entries.map(([key]) => key).sort();
     const pairs = entries.map(([key, value]) => `${key}:${JSON.stringify(value)}`).sort();
-    setSaved(`keys=${keys.join(",")} values=${pairs.join(",")}`);
+    setSaved(`keys=${keys.join(",")} values=${pairs.join(",")} custom=${JSON.stringify(values.customParameters ?? null)}`);
     return Promise.resolve();
   };
+  const serverValues: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, params, ...(customParameters === undefined ? {} : { customParameters }) };
   return (
-    <StoryForm entityId={STORY_PRESET} save={save} serverValues={{ ...DEFAULT_PROMPT_CONFIG, params }}>
+    <StoryForm entityId={STORY_PRESET} save={save} serverValues={serverValues}>
       {(session): ReactElement => (
         <>
           <output>{saved}</output>
+          <AutosaveStatus onRetry={session.retrySave} state={session.saveState} />
           <ParamsDeck
             capability={resolvedCapability}
             capabilityError={capabilityError}
-            customParameterKeys={customParameterKeys}
             effective={effective}
             form={session.form as AppFormInstance<PromptConfig>}
           />

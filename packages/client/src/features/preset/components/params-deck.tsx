@@ -66,8 +66,6 @@ export interface ParamsDeckProps {
   /** The funnel projected for this preset (`preset.resolveEffective`) — `undefined` while it is
    *  unavailable (no chat model, or the read has not landed), which degrades to un-ghosted rows. */
   readonly effective: EffectiveProfileRow | undefined;
-  /** The server-only BYOK passthrough's KEYS — a read-only presence row in ADVANCED (D7). */
-  readonly customParameterKeys: readonly string[];
   /** The capability read's THROWN error object — `null` while the read is still PENDING. Passed WHOLE (not a
    *  flattened `.message`) so the gate discriminates the cause on `data.code`: only a routing refusal earns
    *  the routing verdict (side-eye F-02 + the 2026-08-08 earned-cause fix), and a pending read is not a state
@@ -102,7 +100,7 @@ function staleWireName(knob: string): string {
   return STALE_KNOB_ROWS.find((row) => row.knob === knob)?.wire ?? knob;
 }
 
-export function ParamsDeck({ form, capability, effective, customParameterKeys, capabilityError }: ParamsDeckProps): ReactElement {
+export function ParamsDeck({ form, capability, effective, capabilityError }: ParamsDeckProps): ReactElement {
   return (
     <Surface tier="instrument">
       <Stack gap="section">
@@ -118,7 +116,7 @@ export function ParamsDeck({ form, capability, effective, customParameterKeys, c
             <ReasoningCluster capability={capability} effective={effective} form={form} />
           </>
         )}
-        <ParamsLimits capability={capability} customParameterKeys={customParameterKeys} effective={effective} form={form} />
+        <ParamsLimits capability={capability} effective={effective} form={form} />
       </Stack>
     </Surface>
   );

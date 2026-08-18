@@ -599,6 +599,24 @@ const jsonValueSchema: z.ZodType<unknown> = z.lazy(
 
 export const customParametersSchema: z.ZodType<CustomParameters> = z.record(z.string(), jsonValueSchema).superRefine(rejectForbiddenKeys);
 
+/** The `customParameters` keys the vLLM infra belt OWNS (D143a): they are DROPPED before the request with a
+ *  named warn rather than merged. Homed here, not in the surface that enforces them, because the preset
+ *  EDITOR states the same fact at authoring time — a second spelling would let the editor promise a key the
+ *  wire refuses.
+ *
+ *  Why each: `truncate_prompt_tokens` turns an over-window request into an unbounded hang, so the window
+ *  guard is client-side; `truncation_side` is a second opinion about a cut the belt owns; the surface
+ *  hardcodes `stream` and reads usage off `stream_options`; `model` is the resolved connection's identity
+ *  (window math, cost attribution, catalog) and `messages` is the assembled canon history. */
+export const VLLM_BELT_OWNED_PARAMETER_KEYS = ["truncate_prompt_tokens", "truncation_side", "stream", "stream_options", "model", "messages"] as const;
+
+const VLLM_BELT_OWNED_PARAMETER_KEY_SET: ReadonlySet<string> = new Set<string>(VLLM_BELT_OWNED_PARAMETER_KEYS);
+
+/** `true` when a `customParameters` key is belt-owned on the vLLM wire (see {@link VLLM_BELT_OWNED_PARAMETER_KEYS}). */
+export function isVllmBeltOwnedParameterKey(key: string): boolean {
+  return VLLM_BELT_OWNED_PARAMETER_KEY_SET.has(key);
+}
+
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // PromptConfig — the `presets.config` blob: an ordered (= array index) list of sections + generation
 // knobs + regex/variables/customParameters + the names/postfix/format/guided/postProcess knobs.

@@ -25,8 +25,6 @@ export interface ViewContentProps {
   readonly capabilityError: ReadFailure | null;
   /** The funnel projected for this preset (§4.3) — undefined while unavailable. */
   readonly effective: EffectiveProfileRow | undefined;
-  /** The server-only BYOK passthrough's keys (D7's presence row) — it never enters the form values. */
-  readonly customParameterKeys: readonly string[];
   /** The Macros body's source attribution (`preset:<id>` in the browser). */
   readonly presetId: PresetId;
   /** Can this preset hold regex ATTACHMENTS? `false` for the built-in default (null `ownerId`), whose
@@ -40,12 +38,10 @@ export interface ViewContentProps {
 /** Render one VIEW's body. Params is the new deck; the other four are the landed bodies re-homed per the
  *  §3 map (Data and Transforms simply stack the leaves that used to be sub-tabs). */
 export function viewContent(id: PresetEditorView["id"], props: ViewContentProps): ReactElement {
-  const { form, capability, capabilityError, effective, customParameterKeys, presetId, attachable, onRevealSection } = props;
+  const { form, capability, capabilityError, effective, presetId, attachable, onRevealSection } = props;
   switch (id) {
     case "params":
-      return (
-        <ParamsDeck capability={capability} capabilityError={capabilityError} customParameterKeys={customParameterKeys} effective={effective} form={form} />
-      );
+      return <ParamsDeck capability={capability} capabilityError={capabilityError} effective={effective} form={form} />;
     case "prompt":
       // No `capability` here any more: the one cluster that read it (Collapsing's floor line) moved to
       // Transforms with the rest of the wire-shaping tail (O-17★).
