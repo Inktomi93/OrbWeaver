@@ -175,10 +175,20 @@ test("colorScheme is DERIVED from the base oklch L polarity (light-dark arm + na
   expect("colorScheme" in clampThemeTokens({ background: "oklch(0.98 0.004 75)" }).vars).toBe(false);
 });
 
-// ── #204: the READING PLATE emission — the over-art text backing rides the one-base derivation. ──
-test("a picked background emits --color-reading-plate as base + readingPlate.deltaL at readingPlate.alpha", () => {
+// ── #204: the READING PLATE emission — the over-art text backing rides the one-base derivation, at the
+// POLARITY-AWARE alpha (#217): the L shift is spelled for the browser, the alpha is SOLVED in node. ──
+test("a picked background emits --color-reading-plate as base + readingPlate.deltaL at the polarity-derived alpha", () => {
+  // The owner's carried LIGHT palette (the #217 room): the light plate composites over dark art, so its
+  // alpha is the derived 0.921, NOT the 0.65 floor. This is the byte-pin the fix moves.
   const { vars } = clampThemeTokens({ background: "oklch(0.98 0.004 78)" });
-  expect(vars["--color-reading-plate"]).toBe("oklch(from oklch(0.98 0.004 78) calc(l + -0.038) c h / 0.65)");
+  expect(vars["--color-reading-plate"]).toBe("oklch(from oklch(0.98 0.004 78) calc(l + -0.038) c h / 0.921)");
+  // A DARK base keeps the measured floor byte-for-byte — D144(d)'s sacred dark rooms do not move.
+  expect(clampThemeTokens({ background: "oklch(0.158 0.006 60)" }).vars["--color-reading-plate"]).toBe(
+    "oklch(from oklch(0.158 0.006 60) calc(l + -0.038) c h / 0.65)",
+  );
+  // A base NEITHER reader resolves (a named colour) still emits a plate — it just cannot be judged, so it
+  // is OPAQUE rather than a window onto art nothing has measured.
+  expect(clampThemeTokens({ background: "rebeccapurple" }).vars["--color-reading-plate"]).toBe("oklch(from rebeccapurple calc(l + -0.038) c h / 1)");
   // No base ⇒ no plate (the static token shows through) — the plate is a DERIVATION, never a default.
   expect(clampThemeTokens({ accent: "#abc" }).vars["--color-reading-plate"]).toBeUndefined();
 });

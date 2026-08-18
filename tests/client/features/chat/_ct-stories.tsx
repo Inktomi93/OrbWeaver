@@ -232,6 +232,10 @@ export interface MessageRowStoryProps {
    *  `@orb/kit/model-name`). Omitted ⇒ the story's hosted-route default; `null` ⇒ a row with no model at
    *  all (a greeting/draft), which must credit nothing. */
   readonly model?: string | null;
+  /** `MessageRow.showSwipes` — the tail-assistant bit that renders the SWIPE STRIP under the bubble.
+   *  The row is given 3 variants so the strip renders its full pager (#221 measures the strip's own
+   *  backing over wallpaper, and a single-variant strip is just the generate chevron). */
+  readonly showSwipes?: boolean;
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -262,6 +266,7 @@ export function MessageRowStory({
   stickyAttribution = false,
   scrollportHeight,
   model = "ct/model-x",
+  showSwipes = false,
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -314,8 +319,10 @@ export function MessageRowStory({
               model,
               toolCalls: toolCalls ?? [],
               reasoning,
+              ...(showSwipes ? { variantCount: 3, selectedVariantIdx: 1 } : {}),
             })}
             chatStyle={chatStyle}
+            showSwipes={showSwipes}
             stickyAttribution={stickyAttribution}
             showLLMReasoningIcon={showLLMReasoningIcon}
             metadataVisibility={metadataVisibility}

@@ -4,7 +4,7 @@
 //
 // THE READING-SURFACE DERIVE LAW (#204): every PLATE the transcript paints text on derives from the one
 // picked base surface — the neutral ramp (opaque chrome), and `--color-reading-plate` (the over-art text
-// backing, base + readingPlate.deltaL at readingPlate.alpha) — and every INK on such a plate comes from
+// backing, base + readingPlate.deltaL at the polarity-derived `readingPlateAlpha`) — and every INK on such a plate comes from
 // the SAME palette: derived foregrounds by the pivot flip, and the four author-picked prose inks
 // (`speaker`/`dialogueColor`/`narrationColor`/`bodyColor`) through the §7a conditional lightness clamp
 // below (pass-through byte-identical when the pairing already clears AA; L re-derived and the ink made
@@ -14,7 +14,7 @@
 // serving both jobs is exactly how #204 happened — a light palette's dark inks landed on the app's fixed
 // dark smoke. A token names ONE polarity semantic.
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";
-import { THEME_DERIVATION as KIT_THEME_DERIVATION, oklabToOklch, proseInkLightness, srgbToOklch } from "@orb/kit/theme-derivation";
+import { THEME_DERIVATION as KIT_THEME_DERIVATION, oklabToOklch, proseInkLightness, readingPlateAlpha, srgbToOklch } from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import { isSafeColor } from "#lib";
 
@@ -97,8 +97,9 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-secondary",
   "--color-secondary-foreground",
   "--color-muted",
-  // The over-art READING PLATE (#204): base + readingPlate.deltaL, carrying readingPlate.alpha — the one
-  // ramp member with its own alpha, because it composites over wallpaper art. Never `--color-backdrop`.
+  // The over-art READING PLATE (#204): base + readingPlate.deltaL, carrying the polarity-derived plate
+  // alpha (#217) — the one ramp member with its own alpha, because it composites over wallpaper art.
+  // Never `--color-backdrop`.
   "--color-reading-plate",
   // Neutral foregrounds, derived for contrast from the surface they sit on — never picked directly.
   "--color-foreground",
@@ -271,6 +272,29 @@ function borderOn(surface: string): string {
 function inputSurfaceOn(surface: string): string {
   return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${INPUT_ALPHA})`;
 }
+/** An unjudgeable base gets an OPAQUE plate — see {@link readingPlateOn}. */
+const UNJUDGEABLE_PLATE_ALPHA = 1;
+/**
+ * The over-art reading plate for a picked base: the same one-base L shift the ramp rides, but carrying
+ * its own alpha (it composites over wallpaper art), so it is spelled here rather than in the alphaless
+ * ramp loop.
+ *
+ * The ALPHA is polarity-aware and DERIVED IN NODE (#217, `readingPlateAlpha` — the algebra and the
+ * dark-arm owner ruling live on that function): a LIGHT plate's composite over DARK art is the failing
+ * case (the same ink measured 3.48:1 and 4.94:1 in one room at two scroll positions), so a light base
+ * gets the alpha that keeps the reference ink at AA over worst-case art while a dark base keeps the
+ * measured 0.65 floor. It is the one derived number the browser CANNOT compute for us — relative-colour
+ * syntax has no contrast operator — so it lands as a literal, judged off the parsed base.
+ *
+ * A base neither reader resolves (`base === null`: a named colour, modern unitless `hsl()`) cannot be
+ * judged at all, so it gets an OPAQUE plate. Failing open on POLARITY is the safe direction
+ * (`colorSchemeFor`); failing open on the READING FLOOR would ship the #217 defect on exactly the
+ * palettes nothing can prove. Opacity costs the art, never the reader.
+ */
+function readingPlateOn(background: string, base: ParsedOklch | null): string {
+  const alpha = base === null ? UNJUDGEABLE_PLATE_ALPHA : readingPlateAlpha({ l: base.l, c: base.c, h: base.h });
+  return `oklch(from ${background} calc(l + ${KIT_THEME_DERIVATION.readingPlate.deltaL}) c h / ${alpha})`;
+}
 
 /**
  * Parse + clamp raw override tokens into a safe custom-property map. Unknown keys are stripped
@@ -344,10 +368,7 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
     for (const [name, deltaL] of SURFACE_RAMP_DELTAS) {
       vars[name] = `oklch(from ${t.background} calc(l + ${deltaL}) c h)`;
     }
-    // The over-art reading plate rides the same one-base derivation as the ramp, but with its own alpha
-    // (it composites over wallpaper art) — spelled separately because the ramp loop emits alphaless.
-    vars["--color-reading-plate"] =
-      `oklch(from ${t.background} calc(l + ${KIT_THEME_DERIVATION.readingPlate.deltaL}) c h / ${KIT_THEME_DERIVATION.readingPlate.alpha})`;
+    vars["--color-reading-plate"] = readingPlateOn(t.background, baseInk);
     vars["--color-accent-foreground"] = foregroundOnShifted(t.background, RAMP_DL_ACCENT);
     const fg = foregroundOn(t.background);
     vars["--color-foreground"] = fg;

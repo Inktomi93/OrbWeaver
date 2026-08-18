@@ -8,6 +8,7 @@
 // are ALPHA-COMPOSITED over their backdrop before measuring — a naive contrast on an alpha value lies
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
 // generated TOKENS map and the derivation constants from clamp.ts, so both are drift-free single sources.
+import { readingPlateAlpha } from "@orb/kit/theme-derivation";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens, THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import type { Rgb } from "../../../../scripts/probes/design-audit-checks.ts";
@@ -277,8 +278,8 @@ test("clamp DERIVED primary-foreground clears AA on every realistic picked accen
 // ── #204: THE READING PLATE (`--color-reading-plate`) — derived, never designed, and a PROVEN floor ──
 // The transcript's over-art text backing. Three properties, each a machine invariant:
 //   1. every shipped palette's plate literal IS the derivation (background + readingPlate.deltaL at
-//      readingPlate.alpha) to the digit — a hand-retuned plate that drifts off its base is the #204
-//      surface/ink divorce reborn;
+//      `readingPlateAlpha(background)`, polarity-aware since #217) to the digit — a hand-retuned plate
+//      that drifts off its base is the #204 surface/ink divorce reborn;
 //   2. the alpha is a FLOOR, not a taste call: the palette's derived foreground clears AA-NORMAL over
 //      the plate composited over WORST-CASE art (pure black AND pure white — `backgroundDim` can be 0,
 //      so raw art is the legal worst case), for every shipped palette and every realistic custom base
@@ -292,9 +293,12 @@ const WORST_ART: ReadonlyArray<readonly [name: string, rgb: Rgb]> = [
   ["black art", { r: 0, g: 0, b: 0 }],
   ["white art", { r: 255, g: 255, b: 255 }],
 ];
-/** The plate the clamp would derive for `base` — L shifted, hue/chroma kept, the plate's own alpha. */
+/** The plate the clamp would derive for `base` — L shifted, hue/chroma kept, the plate's own alpha.
+ *  The ALPHA is CALLED, not mirrored (#217): unlike the L-derivations above it is a solved minimum, not a
+ *  formula, and a second search loop here would be a copy of the impl rather than an independent
+ *  cross-check. What keeps it honest is that the two properties below measure the SHIPPED literals. */
 function derivedPlate(base: Oklch): Oklch {
-  return { ...rampSurface(base, D.readingPlate.deltaL), alpha: D.readingPlate.alpha };
+  return { ...rampSurface(base, D.readingPlate.deltaL), alpha: readingPlateAlpha(base) };
 }
 
 test.each(PALETTES.map((p) => [p.name, p] as const))("#204 %s: the reading-plate literal IS derive(background) to the digit", (_name, palette) => {
@@ -303,7 +307,7 @@ test.each(PALETTES.map((p) => [p.name, p] as const))("#204 %s: the reading-plate
   expect(plate.l, "plate L = base L + readingPlate.deltaL").toBeCloseTo(clamp01(base.l + D.readingPlate.deltaL), 3);
   expect(plate.c, "plate chroma = base chroma").toBeCloseTo(base.c, 4);
   expect(plate.h, "plate hue = base hue").toBeCloseTo(base.h, 4);
-  expect(plate.alpha, "plate alpha = readingPlate.alpha").toBeCloseTo(D.readingPlate.alpha, 4);
+  expect(plate.alpha, "plate alpha = readingPlateAlpha(background)").toBeCloseTo(readingPlateAlpha(base), 4);
 });
 
 test("#204 the plate alpha FLOORS AA for the derived foreground over worst-case art on every realistic base", () => {
@@ -314,6 +318,47 @@ test("#204 the plate alpha FLOORS AA for the derived foreground over worst-case 
     for (const [artName, art] of WORST_ART) {
       const ratio = contrastRatio(fg, compositeOver(plate, art));
       expect(ratio, `derived foreground over plate over ${artName} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    }
+  }
+});
+
+// ── #217: THE PROSE INKS OVER THE PLATE OVER ART — the arm the "proven alpha floor" never covered ──
+// The test above proves the DERIVED foreground (the near-black/near-white pivot flip) over the plate over
+// worst-case art. The four AUTHOR-STYLE prose inks are NOT that foreground — they sit between the base and
+// the derived tone — and they are what a transcript is actually made of. Measured live 2026-08-18 (the
+// chats re-score, `reports/design/rescore-chats-2026-08-18.md`): the light-palette room read narration
+// 3.48:1 / dialogue 4.09:1 over the bright regions of its wallpaper while the SAME ink measured 4.94/5.39
+// parked over the dark regions — the plate's alpha, not the ink, was the variable.
+//
+// WHICH ART IS THE WORST CASE IS A FUNCTION OF THE PLATE'S POLARITY, and the intuition runs backwards: a
+// LIGHT plate carries DARK inks, so the composite is worst when the art DARKENS it ⇒ BLACK art. A DARK
+// plate carries LIGHT inks ⇒ WHITE art. `backgroundDim` can be 0 (`BACKGROUND_DIM_MIN`), so raw art is
+// legal and both extremes are reachable.
+//
+// THE DARK-PLATE × WHITE-ART PAIR IS A STATED, OWNER-RULED EXEMPTION, not an oversight. D144(d): "Inks are
+// guaranteed vs their BASE, not worst-case art pixels — closing that would move the sacred dark rooms
+// (owner-adjacent, refused)", and #217 re-states it as the fix's hard constraint ("Dark plates keep 0.65").
+// Measured at the shipped 0.65 (this file's own math, 2026-08-18): hearth speaker 2.51 · narration 3.29 ·
+// dialogue 4.29; mocha speaker 2.50 · narration 3.12 · dialogue 4.12 — i.e. the dark plates carry the SAME
+// defect over bright art, and closing it needs alpha 0.86, which is exactly the sacred-room move the owner
+// refused. The exemption is recorded here so the next reader finds the numbers, not a silent gap.
+const GUARANTEED_ART = {
+  light: ["black art", "white art"],
+  dark: ["black art"],
+} as const satisfies Record<"light" | "dark", readonly string[]>;
+
+test.each(
+  PALETTES.map((p) => [p.name, p] as const),
+)("#217 %s: the four prose inks clear AA over the plate composited over worst-case art (the guaranteed arts)", (_name, palette) => {
+  const plate = parseOklch(palette.vars[TOKENS[READING_PLATE_PATH].cssVar] ?? TOKENS[READING_PLATE_PATH].value);
+  for (const [artName, art] of WORST_ART) {
+    if (!GUARANTEED_ART[palette.colorScheme].includes(artName)) {
+      continue;
+    }
+    const composited = compositeOver(plate, art);
+    for (const ink of PROSE_INK_PATHS) {
+      const ratio = contrastRatio(resolveTokenRgb(ink, palette), composited);
+      expect(ratio, `${ink} over the plate over ${artName} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
   }
 });
