@@ -763,7 +763,12 @@ const EVICTION_SCROLL_STEP_PX = 2000;
 /** The poll IS the scroll loop: each attempt wheels one step and reports whether the target row has arrived,
  *  so the walk needs no `waitForTimeout` and no awaits inside a `for` (both banned in CTs, and both would be
  *  a fixed sleep standing in for the settle this actually waits on). */
-const EVICTION_POLL = { intervals: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], timeout: 20_000 };
+/** A FUNCTION, not a const: Playwright's `pollAgainstDeadline` pops/shifts the interval array it is handed,
+ *  so a shared object is drained by its first use and the SECOND walk below silently falls back to 1000ms
+ *  (ct-poll-schedule-and-paint ARM A). */
+function evictionPoll(): { intervals: number[]; timeout: number } {
+  return { intervals: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], timeout: 20_000 };
+}
 const HEAD_CHAT = "Chat 000";
 const TAIL_CHAT = "Chat 299";
 
@@ -792,7 +797,7 @@ test("the head page is NEVER evicted — a deep scroll and back still lands on t
     .poll(async () => {
       await page.mouse.wheel(0, EVICTION_SCROLL_STEP_PX);
       return tail.count();
-    }, EVICTION_POLL)
+    }, evictionPoll())
     .toBeGreaterThan(0);
 
   // …and back. With the cap in place this poll can never succeed: page 1 is not in the cache and there is no
@@ -802,6 +807,6 @@ test("the head page is NEVER evicted — a deep scroll and back still lands on t
     .poll(async () => {
       await page.mouse.wheel(0, -EVICTION_SCROLL_STEP_PX);
       return head.count();
-    }, EVICTION_POLL)
+    }, evictionPoll())
     .toBeGreaterThan(0);
 });

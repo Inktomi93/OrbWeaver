@@ -5,6 +5,7 @@
 // ≥2 literal floorless siblings · JUDGMENT_DEFERRED stale (both modes) · variants-vocabulary tripwire.
 import type { JsxElement, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { blankTsComments } from "../comment-spans.ts";
 import type { ExemptionRow, ExemptionTable, GateDescriptor } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
@@ -194,7 +195,9 @@ export const gate: GateDescriptor = {
     // an example plants it deliberately).
     const variants = ctx.project.getSourceFile(`${ctx.root}/${BUTTON_VARIANTS}`);
     if (variants !== undefined) {
-      const text = variants.getFullText();
+      // CODE, not file text (issue #117/#132): this is a ROT tripwire, so a comment in variants.ts
+      // naming a removed size arm would keep it reporting healthy while the vocabulary is dead.
+      const text = blankTsComments(variants);
       for (const key of FLOORLESS) {
         if (!(text.includes(`${key}:`) || text.includes(`"${key}":`))) {
           ctx.report({
@@ -259,6 +262,14 @@ export const gate: GateDescriptor = {
       },
       expect: { count: 6, messageIncludes: "no longer" },
       why: "the §4.6 blindness tripwire: the declaring variants file lost every floorless key AND the touch-target pseudo — five key reds + one pseudo red, never silent green",
+    },
+    {
+      files: {
+        [BUTTON_VARIANTS]:
+          "// The floorless arms — inline, glyph-xs, glyph-sm, glyph-md, glyph-lg — rode the ::after touch-target.\nexport const buttonVariants = { size: { sm: 'h-control-sm' } };\n",
+      },
+      expect: { count: 6, messageIncludes: "no longer" },
+      why: "COMMENT POSTURE (issue #117/#132): the tripwire reads CODE, so a HISTORY comment listing the deleted arms (the most natural thing to leave behind when you delete them) cannot report the vocabulary healthy. A rot tripwire satisfied by prose is worse than no tripwire — it reports ✓ over a dead gate",
     },
     {
       files: {

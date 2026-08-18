@@ -20,7 +20,12 @@ import { INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
  *  reports whether the target has arrived, so the walk needs no `waitForTimeout` and no awaits inside a `for`
  *  (both banned in CTs, and both would be a fixed sleep standing in for the settle this waits on). */
 const SCROLL_STEP_PX = 600;
-const SCROLL_POLL = { intervals: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], timeout: 20_000 };
+/** A FUNCTION, not a const: Playwright's `pollAgainstDeadline` pops/shifts the interval array it is handed,
+ *  so a shared object is drained by its first use and every later poll in this file silently falls back to
+ *  1000ms (ct-poll-schedule-and-paint ARM A — three walks share this schedule). */
+function scrollPoll(): { intervals: number[]; timeout: number } {
+  return { intervals: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], timeout: 20_000 };
+}
 
 test("a phase chip renders ONLY for a non-ready row — Ready is the absence of a chip (§6.1)", async ({ mount, page }) => {
   await stubDatabank(page);
@@ -270,7 +275,7 @@ test("a document PAST the first page is reachable — the virtual list walks the
     .poll(async () => {
       await page.mouse.wheel(0, SCROLL_STEP_PX);
       return deep.count();
-    }, SCROLL_POLL)
+    }, scrollPoll())
     .toBeGreaterThan(0);
 });
 
@@ -291,7 +296,7 @@ test("the HEAD page is never evicted — the row you started at is still there a
     .poll(async () => {
       await page.mouse.wheel(0, SCROLL_STEP_PX);
       return tail.count();
-    }, SCROLL_POLL)
+    }, scrollPoll())
     .toBeGreaterThan(0);
 
   // …and scrolling back finds the head row again, which an evicted page could not produce.
@@ -299,7 +304,7 @@ test("the HEAD page is never evicted — the row you started at is still there a
     .poll(async () => {
       await page.mouse.wheel(0, -SCROLL_STEP_PX);
       return list.getByRole("button", { exact: true, name: "Document 1" }).count();
-    }, SCROLL_POLL)
+    }, scrollPoll())
     .toBeGreaterThan(0);
 });
 

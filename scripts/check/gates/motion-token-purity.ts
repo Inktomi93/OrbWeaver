@@ -5,6 +5,7 @@
 // both-directions ratchet (no-off-token-radius-shadow precedent); `shell.css` is deliberately NOT allowlisted — it must stay raw-value-free.
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { blankCssComments } from "../comment-spans.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -97,7 +98,9 @@ function scanCss(root: string, allowlist: Record<string, string>): { violations:
   const seenAllowlisted = new Set<string>();
   const files = [...globSync("packages/ui/src/**/*.css", { cwd: root }), ...globSync("packages/client/src/**/*.css", { cwd: root })];
   for (const rel of files) {
-    const text = readFileSync(`${root}/${rel}`, "utf8");
+    // CSS comments are blanked LENGTH-PRESERVINGLY before the scan (issue #117, the founding class:
+    // a raw duration quoted in a `/* … */` note is prose, and its line numbers must not shift).
+    const text = blankCssComments(readFileSync(`${root}/${rel}`, "utf8"));
     const lines = offenceLines(text);
     if (rel in allowlist) {
       if (lines.length > 0) {
@@ -169,6 +172,13 @@ export const gate: GateDescriptor = {
         "packages/ui/src/x/ok.css": ".a { transition: opacity var(--motion-base) var(--ease-out-expo); }\n",
       },
       why: "the transition uses var(--motion-*)/var(--ease-*) tokens — on-token, passes",
+    },
+    {
+      files: {
+        "packages/ui/src/x/commented.css":
+          "/* was: .b { transition: opacity 220ms ease-out; } */\n.a { transition: opacity var(--motion-base) var(--ease-out-expo); }\n",
+      },
+      why: "COMMENT POSTURE (issue #117, the founding class): a raw duration + easing quoted in a CSS comment is PROSE — the note explaining what the tokens replaced is the most natural thing to write next to a migration, and reading it as a declaration reddens the file that did the work",
     },
   ],
 };

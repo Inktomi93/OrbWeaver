@@ -350,8 +350,12 @@ const EVICTION_ROWS = 60;
 const SCROLL_STEP_PX = 600;
 /** The poll IS the scroll loop: each attempt wheels one step and reports whether the tail has arrived, so
  *  the walk needs no `waitForTimeout` and no awaits inside a `for` (both banned in CTs, and both would be
- *  a fixed sleep standing in for the settle this actually waits on). */
-const SCROLL_POLL = { intervals: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], timeout: 20_000 };
+ *  a fixed sleep standing in for the settle this actually waits on). A FUNCTION, not a const: Playwright's
+ *  `pollAgainstDeadline` pops/shifts the interval array it is handed, so a shared object is drained by its
+ *  first use and every later poll silently falls back to 1000ms (ct-poll-schedule-and-paint ARM A). */
+function scrollPoll(): { intervals: number[]; timeout: number } {
+  return { intervals: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], timeout: 20_000 };
+}
 
 test("the head page is NEVER evicted — all six pages stay loaded through a deep scroll", async ({ mount, page }) => {
   const library = Array.from({ length: EVICTION_ROWS }, (_unused, at) =>
@@ -374,7 +378,7 @@ test("the head page is NEVER evicted — all six pages stay loaded through a dee
     .poll(async () => {
       await page.mouse.wheel(0, SCROLL_STEP_PX);
       return tail.count();
-    }, SCROLL_POLL)
+    }, scrollPoll())
     .toBeGreaterThan(0);
   // Sixty loaded of sixty — never "50 of 60", which is what a silently dropped head page reads as.
   await expect(component.getByRole("status")).toHaveText(`${String(EVICTION_ROWS)} characters`);

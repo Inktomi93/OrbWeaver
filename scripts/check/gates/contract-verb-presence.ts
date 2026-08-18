@@ -5,6 +5,7 @@
 // bare call `<verb>(` or its `create<Verb>(` factory call in `tests/server/domain/<d>/**`. DEFERRED is a ratchet (bus-coverage.ts precedent).
 import type { InterfaceDeclaration, Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import { blankTsComments } from "../comment-spans.ts";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 import { fileLoaded } from "../pass.ts";
@@ -49,10 +50,16 @@ function factoryName(verb: string): string {
   return `create${verb.charAt(0).toUpperCase()}${verb.slice(1)}`;
 }
 
-/** A verb is COVERED when the corpus has a boundary-anchored bare call `<verb>(` (not a longer identifier
- *  ending in the verb) OR its `create<Verb>(` factory call. */
-function isCovered(corpus: string, verb: string): boolean {
-  return new RegExp(`(?:[^\\w]|^)${verb}\\(|${factoryName(verb)}\\(`, "u").test(corpus);
+/** A verb is COVERED when a test file has a boundary-anchored bare call `<verb>(` (not a longer identifier
+ *  ending in the verb) OR its `create<Verb>(` factory call — IN CODE. A verb named in a test COMMENT (the
+ *  most ordinary sentence in this tree: "covers createStartChat(") is not coverage, and reading it as
+ *  coverage is the PERMISSIVE half of the comment-blindness class (#117/#132) — the gate would go silently
+ *  green on exactly the wired-with-zero-coverage verb it exists to find. The raw `.test` is the CANDIDATE
+ *  FENCE: blanking only removes matches, so a file whose raw text misses cannot match blanked either, and
+ *  the AST is materialised only for files that could actually cover the verb. */
+function isCovered(files: readonly SourceFile[], verb: string): boolean {
+  const re = new RegExp(`(?:[^\\w]|^)${verb}\\(|${factoryName(verb)}\\(`, "u");
+  return files.some((sf) => re.test(sf.getFullText()) && re.test(blankTsComments(sf)));
 }
 
 /** A property member is verb-shaped when its type is a function type (`(…) => …`) — the codebase's
@@ -86,16 +93,9 @@ function serviceVerbs(contract: SourceFile): string[] {
   return verbs;
 }
 
-/** The concatenated full text of every test file under `tests/server/domain/<domain>/`. */
-function domainTestCorpus(domain: string, files: readonly SourceFile[]): string {
-  const parts: string[] = [];
-  for (const sf of files) {
-    const match = DOMAIN_TEST_RE.exec(sf.getFilePath());
-    if (match?.groups?.["domain"] === domain) {
-      parts.push(sf.getFullText());
-    }
-  }
-  return parts.join("\n");
+/** Every test file under `tests/server/domain/<domain>/`. */
+function domainTestFiles(domain: string, files: readonly SourceFile[]): SourceFile[] {
+  return files.filter((sf) => DOMAIN_TEST_RE.exec(sf.getFilePath())?.groups?.["domain"] === domain);
 }
 
 /** The whole-tree reconciliation shared by the legacy Check and the single-pass `run` descriptor: each
@@ -109,7 +109,7 @@ function reconcileContractVerbPresence(project: Project): Violation[] {
     if (domain === undefined) {
       continue;
     }
-    const corpus = domainTestCorpus(domain, files);
+    const corpus = domainTestFiles(domain, files);
     const file = `packages/server/src/domain/${domain}/contract/service.ts`;
     for (const verb of serviceVerbs(contract)) {
       const key = `${domain}.${verb}`;
@@ -170,6 +170,16 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "hub.build" },
       why: "a bare call to a LONGER identifier ending in the verb name (rebuild) does not count as coverage",
+    },
+    {
+      // COMMENT POSTURE (issue #117/#132) in the PERMISSIVE direction — the one that silently disarms the
+      // gate: a verb NAMED in a test comment is not an invocation.
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly parkedVerb: () => void;\n}\n",
+        "tests/server/domain/hub/x.test.ts": "// TODO cover parkedVerb() — createParkedVerb( needs a fixture first.\nexport const q = 1;\n",
+      },
+      expect: { messageIncludes: "hub.parkedVerb" },
+      why: "COMMENT POSTURE: the corpus is read as CODE, so a TODO naming the verb (and its factory) is not coverage — a file-text scan called this verb covered and the gate went green on exactly the wired-with-zero-coverage shape it exists to find",
     },
     {
       // MethodSignature members (not just readonly-arrow properties) are enumerated as verbs.

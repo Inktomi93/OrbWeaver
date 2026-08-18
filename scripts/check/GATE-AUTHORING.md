@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-02
+updated: 2026-08-17
 ---
 
 # Authoring a structural gate
@@ -21,6 +21,7 @@ updated: 2026-08-02
 | write | fill the descriptor; ≥1 `mustFlag`, ≥1 `mustPass`, each with a `why` |
 | couple | Core-Enforcement row · the `(N registered gates)` count · `check-gates.int` fixture OR `UNFIXTURABLE_GATES` |
 | exempt | typed `ExemptionRow` (`why` mandatory) + a STALE arm + a real-tree anchor. Never a comment marker without a stale arm |
+| posture | if it matches a literal against FILE TEXT, declare its COMMENT POSTURE in the header and wire it through `comment-spans.ts` (§5) |
 | prove | `pnpm exec tsx scripts/check/report.ts` on a REAL planted violation — conformance passing proves nothing about `scanRoot` |
 | fix | violations found at landing get FIXED in the same lane. Allowlists are for PERMANENT deliberate exemptions only |
 
@@ -308,6 +309,50 @@ parenthesized, and `NoSubstitutionTemplateLiteral` shapes — and SILENTLY PASSE
 - A gate scanning STRING CONTENT must evaluate the initializer into its ORDERED runtime value first (follow
   identifier→const, join `+`-concats in order, gap `${…}` interpolations) and tokenize the WHOLE value.
   `.md` tokens routinely straddle a `+` boundary; `dangling-refs.ts` `evalString` is the precedent.
+
+**EVERY LITERAL-MATCHING GATE DECLARES ITS COMMENT POSTURE** (2026-08-17, after the class recurred twice:
+issue #117 read a `#106` issue citation in a comment as a 3-digit hex color; issue #132 read a comment
+EXPLAINING a determinism fix as the banned call). The harness is pure-AST by law, so most gates are
+comment-SAFE for free — but the moment a gate matches a literal or a regex against FILE TEXT
+(`sf.getFullText()`, a `readFileSync` of a source file), comments are in its scan. Pick one of three, and
+write which one in the gate header:
+
+| Posture | What it means | How |
+| - | - | - |
+| comment-SAFE | the gate subscribes to node KINDS and reads authored values through `ast-read.ts` | nothing to do — say so if the gate looks textual |
+| comment-BLIND ⇒ WIRE IT | it matches text, and a comment can change the verdict | route through `scripts/check/comment-spans.ts` (below) |
+| comments-INTENDED | comments ARE the subject: a `// marker:` reader, a citation scanner, `commented-code` | say so in the header — a deliberate refusal is a decision, not an oversight |
+
+`comment-spans.ts` is the ONE home; never hand-roll a `/\/\/[^\n]*/` strip (it also eats everything after a
+`//` inside a STRING — a `https://` URL blanked the rest of its line in `domain-freshness-plane`, hiding a
+`.insert(` behind it). Four doors:
+
+- `blankTsComments(sf)` — the whole file's text with every comment span blanked, LENGTH-PRESERVING, so line
+  numbers and column offsets stay exact. Leading AND trailing trivia (a same-line `code(); // …` is TRAILING
+  and a leading-only sweep never saw it — that was #117's residual hole). Cached per SourceFile.
+- `codeIncludes(sf, needle)` — the presence-check door, already fenced.
+- `codeTextForScan(sf, couldMatch)` — the regex/line-scan door. **The CANDIDATE FENCE is a MEMORY decision,
+  not a micro-optimisation:** blanking materialises every wrapped node for the file, and doing that for a
+  whole tier (~1,900 test files) OOMs the run at a 4GB heap limit. It is SOUND because blanking only ever
+  REMOVES matches, so a file whose RAW text cannot match cannot match blanked either.
+- `blankTsCommentsInText(text)` / `blankCssComments(text)` — for text read off the real filesystem (a CT
+  mirror, a `surfaces/*.tsx`, a stylesheet). The TS one parses into a reused in-memory scratch project;
+  its result is deliberately NOT cached, because `createSourceFile(..., { overwrite: true })` reuses the
+  same SourceFile OBJECT and an identity cache then answers every later call with the FIRST file's text
+  (it did — six conformance rows went green on one blanking).
+
+**THE PERMISSIVE DIRECTION IS THE DANGEROUS ONE.** A false POSITIVE (a comment naming the banned shape) is
+loud and gets fixed in an hour. A false PASS — a comment SATISFYING a presence check — is a gate that
+reports ✓ forever: a verb "covered" by a `// TODO cover createX(`, a store action "driven" by a parked call
+in its mirror, a rot tripwire "healthy" because a header still lists the arms somebody deleted. When you
+wire a gate, ask which direction its needle points and write the mustFlag row for the permissive half.
+
+**THE PROOF IS A ROW, NOT A PROBE RUN.** Each wiring owes a conformance example carrying the COMMENT shape
+(a `mustFlag` when the comment must not exempt, a `mustPass` when it must not accuse) — and it must be a
+row the raw matcher would actually catch, or it is a LYING PROOF that passes for the wrong reason (a CSS
+comment `/* transition: 220ms */` does NOT match `motion-token-purity`'s regex, which anchors the property
+on `^`/`;`/`{`; the row only became real as `/* .b { transition: 220ms … } */`). The receipt that catches
+that: neuter `comment-spans.ts` to raw file text and re-run conformance — every wired gate must go RED.
 
 **A CARRIER FENCE IS A COVERAGE DECISION, NOT A STYLE ONE.** Copying another gate's `className=`/`cn()`
 ancestry fence loses every class string that reaches an element through a VARIABLE. Inherit a fence only when

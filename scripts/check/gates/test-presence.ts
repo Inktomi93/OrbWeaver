@@ -7,6 +7,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import { codeTextForScan } from "../comment-spans.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -41,8 +42,14 @@ function hasTest(root: string, pkg: string, rel: string, kinds: readonly string[
   return kinds.some((kind) => existsSync(join(root, "tests", pkg, `${base}${kind}`)));
 }
 
-function hasSchema(text: string): boolean {
-  return text.includes("z.object(") || text.includes("z.enum(") || text.includes("z.discriminatedUnion(");
+// Read from CODE, never file text (issue #117/#132): a contract file whose comment SPELLS `z.object(` while
+// declaring none demands a `.contract.test.ts` that has nothing to assert, and a runner whose comment quotes
+// `deferred: true` is silently EXEMPTED from needing a test at all — comment-blindness in both directions.
+const SCHEMA_NEEDLES: readonly string[] = ["z.object(", "z.enum(", "z.discriminatedUnion("];
+
+function hasSchema(sf: SourceFile): boolean {
+  const text = codeTextForScan(sf, (raw) => SCHEMA_NEEDLES.some((needle) => raw.includes(needle)));
+  return SCHEMA_NEEDLES.some((needle) => text.includes(needle));
 }
 
 // A workloads runner is a D58 no-op STUB (inert — the kind exists so `RUNNERS`/exhaustive-dispatch stay
@@ -50,8 +57,12 @@ function hasSchema(text: string): boolean {
 // and never touches its injected env. There is no behavior to regress, so it's exempt UNTIL filled in:
 // adding a real `ctx.env.*` call drops the exemption and the gate then demands a test. Detected on SOURCE
 // SHAPE, not a static list, so the 16 current stubs need no per-file allowlist and can't go stale.
-function isDeferredStubRunner(text: string): boolean {
-  return text.includes("deferred: true") && !text.includes("ctx.env");
+const DEFERRED_RESULT = "deferred: true";
+const ENV_CALL = "ctx.env";
+
+function isDeferredStubRunner(sf: SourceFile): boolean {
+  const text = codeTextForScan(sf, (raw) => raw.includes(DEFERRED_RESULT));
+  return text.includes(DEFERRED_RESULT) && !text.includes(ENV_CALL);
 }
 
 // A file carries runtime LOGIC (vs only types/data) if it exports a function, a class, or a const bound
@@ -88,10 +99,10 @@ function pushDomain(root: string, rel: string, sf: SourceFile, out: Violation[])
   if (rel.includes("/persistence/") && !hasTest(root, "server", rel, [".int.test.ts"])) {
     out.push(missing("server", rel, MSG.persistence));
   }
-  if (rel.includes("/contract/") && hasSchema(sf.getFullText()) && !hasTest(root, "server", rel, [".contract.test.ts"])) {
+  if (rel.includes("/contract/") && hasSchema(sf) && !hasTest(root, "server", rel, [".contract.test.ts"])) {
     out.push(missing("server", rel, MSG.contract));
   }
-  if (rel.includes("/workloads/runners/") && !isDeferredStubRunner(sf.getFullText()) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
+  if (rel.includes("/workloads/runners/") && !isDeferredStubRunner(sf) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
     out.push(missing("server", rel, MSG.runner));
   }
 }
@@ -104,7 +115,7 @@ function pushInfra(root: string, rel: string, sf: SourceFile, out: Violation[]):
 }
 
 function pushContracts(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
-  if (hasSchema(sf.getFullText()) && !hasTest(root, "contracts", rel, [".contract.test.ts"])) {
+  if (hasSchema(sf) && !hasTest(root, "contracts", rel, [".contract.test.ts"])) {
     out.push(missing("contracts", rel, MSG.sharedContract));
   }
 }
@@ -199,6 +210,14 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "shared contract schema has no .contract.test" },
       why: "a shared @orb/contracts schema-bearing file (even index.ts) with no mirror .contract.test — the contracts arm",
     },
+    {
+      files: {
+        "packages/server/src/domain/workloads/runners/regrown.ts":
+          "// Not a D58 stub any more — it used to return { deferred: true } and now does the real pass.\nexport const run = (ctx: { env: { x: number } }) => ctx.env.x;\n",
+      },
+      expect: { messageIncludes: "workloads runner with real logic has no test" },
+      why: "COMMENT POSTURE (issue #117/#132) in the PERMISSIVE direction — the dangerous one. A runner whose COMMENT quotes `deferred: true` reads as an exempt D58 stub to a file-text scan and silently drops its test requirement; the code says otherwise, so it must still RED",
+    },
   ],
   mustPass: [
     {
@@ -213,6 +232,13 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/workloads/runners/stub.ts": "export const run = () => ({ deferred: true });\n",
       },
       why: "a D58 no-op stub runner (deferred: true, never touches ctx.env) — exempt until filled in, passes",
+    },
+    {
+      files: {
+        "packages/server/src/domain/chat/contract/prose.ts":
+          '// The wire shape for this lives in packages/contracts — z.object({ id }) is declared there, not here.\nexport const LABEL = "x";\n',
+      },
+      why: "COMMENT POSTURE (issue #117/#132), false-POSITIVE direction: a contract-dir file whose COMMENT spells `z.object(` declares no schema, so demanding a .contract.test.ts would demand a test with nothing to assert",
     },
   ],
 };
