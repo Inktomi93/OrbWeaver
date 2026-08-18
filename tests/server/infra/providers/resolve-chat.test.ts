@@ -175,6 +175,25 @@ describe("resolveChat — the Opus-4.8 adaptive/budget guard (Esoteric §8)", ()
     expect(out.reasoning.effort).toBe("high");
     expect(out.warnings.some((w) => w.code === "adaptive_budget_dropped")).toBe(true);
   });
+
+  // #197 — the SAME drop on the other budget-less mode. Only `mode:"budget"` has a slot for the budget, but
+  // until now only the ADAPTIVE arm said so: an effort-mode model swallowed a user's budget in total silence.
+  // That gap went unnoticed while no effort-mode wire exposed a budget dial, and the local vLLM arm
+  // (`mode:"effort"`, whose engine's token budget needs a `--reasoning-config` BOOT flag we do not emit) is
+  // exactly that case. D41 no-silent-degrade: a drop is visible, or it is a bug.
+  test("EFFORT mode drops an explicit budget + warns — it has no budget slot either", () => {
+    const cap = withReasoning({ mode: "effort", enabled: true, effortLevels: ["low", "high"] });
+    const out = resolveChat({ effort: "low", thinkingBudgetTokens: 4096 }, cap);
+    expect(out.reasoning.budgetTokens).toBeUndefined();
+    // …and the effort the user CAN have survives the other knob's drop.
+    expect(out.reasoning.effort).toBe("low");
+    expect(out.warnings.some((w) => w.code === "sampling_knob_dropped" && w.message.includes("reasoning budget ignored"))).toBe(true);
+  });
+
+  test("no budget, no warning — an effort-only intent is not a degrade", () => {
+    const cap = withReasoning({ mode: "effort", enabled: true, effortLevels: ["low"] });
+    expect(resolveChat({ effort: "low" }, cap).warnings).toEqual([]);
+  });
 });
 
 describe("resolveChat — budget mode (clamp + default)", () => {

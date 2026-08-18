@@ -302,11 +302,44 @@ describe("resolveModelCapability — the four gapped axes (§U0 + IC-A synthesis
 });
 
 describe("resolveModelCapability — static arms", () => {
-  test("vLLM: no reasoning, full sampling, engine window", () => {
+  // #197 — this used to assert `reasoning.mode === "none"`, which was a LIE about the gen slot the moment it
+  // started serving a thinking checkpoint: `genArgv` UNCONDITIONALLY emits `--reasoning-parser qwen3` and our
+  // vendored fixed chat template, whose per-request variables are `enable_thinking` + `reasoning_effort`. The
+  // descriptor is what gates the preset params-deck's reasoning control AND what `resolveChat` clamps against,
+  // so a `none` cell meant a user could not ask for thinking and an effort that WAS set died in the funnel.
+  test("vLLM: EFFORT-mode reasoning (our launch config's fact), full sampling, engine window", () => {
     const cap = resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions");
-    expect(cap.reasoning.mode).toBe("none");
+    expect(cap.reasoning.mode).toBe("effort");
+    expect(cap.reasoning.enabled).toBe(true);
+    // OFF until a preset asks: the launch bakes `--default-chat-template-kwargs {"enable_thinking": false}`,
+    // and the funnel reads this bit to avoid filling an absent effort with a model default.
+    expect(cap.reasoning.defaultEnabled).toBe(false);
     expect(cap.sampling.temperature).toBeDefined();
     expect(cap.context.window).toBe(32_768);
+  });
+
+  // The level list is not cosmetic. The template's effort ladder recognizes low/medium/high/xhigh and folds
+  // EVERYTHING ELSE into `xhigh` — so advertising `minimal` would silently buy MAXIMUM thinking, the exact
+  // opposite of the ask. Its absence is the honest encoding, and the funnel drops it with a loud warning.
+  test("vLLM: `minimal` is deliberately ABSENT from the effort levels (the template folds it to xhigh)", () => {
+    const cap = resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions");
+    expect(cap.reasoning.effortLevels).toEqual(["low", "medium", "high", "xhigh", "max"]);
+    expect(cap.reasoning.effortLevels).not.toContain("minimal");
+  });
+
+  // No per-request TOKEN budget on this wire: that mechanism needs a `--reasoning-config` BOOT flag `genArgv`
+  // deliberately does not emit, so `mode:"budget"`/`budgetRange` here would promise a knob no request reaches.
+  test("vLLM: no reasoning budgetRange — the token-budget mechanism is a BOOT flag we do not emit", () => {
+    const cap = resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions");
+    expect(cap.reasoning.budgetRange).toBeUndefined();
+    expect(cap.reasoning.supportsMaxTokens).toBeUndefined();
+  });
+
+  // The reasoning cell is the VLLM arm's, folded on AFTER staticProfile — it must not leak onto the other
+  // static arms, which have no such launch config.
+  test("the vLLM reasoning cell does NOT leak onto the other static arms", () => {
+    expect(resolveModelCapability("bge-small", "local-light", "chat-completions").reasoning.mode).toBe("none");
+    expect(resolveModelCapability("my-model", "custom_openai", "chat-completions").reasoning.mode).toBe("none");
   });
 
   test("local-light: conservative, no sampling (chat-less tier)", () => {

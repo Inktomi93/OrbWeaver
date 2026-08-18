@@ -10,6 +10,7 @@ import type { DynamicContextChannel, ResolvedChatKnobs, ResolvedReasoning, Resol
 
 const EFFORT_OFF = "none";
 const ADAPTIVE_BUDGET_WARNING = "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";
+const EFFORT_BUDGET_WARNING = "reasoning budget ignored: this model reasons by EFFORT LEVEL and exposes no token-budget field — set the effort dial instead";
 const DYNAMIC_CONTEXT_DEMOTED_WARNING = "dynamic context 'hook' ignored: model does not honor a mid-conversation system channel — using the system block";
 const VERBOSITY_DROPPED_WARNING = "verbosity ignored: model does not expose a verbosity level";
 
@@ -192,8 +193,18 @@ function resolveReasoning(
       ...displayPart,
     };
   }
-  if (r.mode === "adaptive" && params.thinkingBudgetTokens !== undefined) {
-    warnings.push({ code: "adaptive_budget_dropped", message: ADAPTIVE_BUDGET_WARNING });
+  // D41 no-silent-degrade for the OTHER budget-less modes. Only `mode:"budget"` (returned above) has a slot
+  // for `thinkingBudgetTokens`; every remaining mode drops it, and until now ONLY `adaptive` said so — an
+  // EFFORT-mode model swallowed a user's budget without a word. That gap was invisible while no effort-mode
+  // model was reachable with a budget dial, and the local vLLM arm (`mode:"effort"`, whose engine's token
+  // budget needs a `--reasoning-config` BOOT flag we do not emit) is exactly that case. Both drops are the
+  // same event with different reasons, so they warn from one place rather than one per backend.
+  if (params.thinkingBudgetTokens !== undefined) {
+    warnings.push(
+      r.mode === "adaptive"
+        ? { code: "adaptive_budget_dropped", message: ADAPTIVE_BUDGET_WARNING }
+        : { code: "sampling_knob_dropped", message: EFFORT_BUDGET_WARNING },
+    );
   }
   const resolvedEffort = resolveEffort(effort, r.effortLevels, warnings);
   return {

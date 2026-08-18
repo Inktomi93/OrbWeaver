@@ -5,6 +5,7 @@
 // `client.engineStream`. The agent-sdk fail-close now lives at the composition seam (`vllm/index.test.ts`):
 // this surface takes {@link VllmChatRequest}, so the state is unrepresentable here.
 
+import type { ModelCapability } from "@orb/contracts/connection";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -18,7 +19,34 @@ import { wireSchema } from "../../../../../support/wire-ready.ts";
 
 const CRED = makeResolvedCredential("vllm");
 const MODEL = "Qwen/Qwen3-VL-8B-Instruct" as ModelId;
+// The REAL vLLM descriptor shape (`domain/connection` `staticProfile(…, fullSampling: true)` + the arm's
+// folded `reasoning` cell), not the factory's empty default. This surface now routes every knob through
+// `resolveChat`, which GATES on the descriptor — so a capability that advertises nothing would drop every
+// sampler and make these assertions test the funnel's gate instead of the surface's wire. Mirrored here
+// rather than imported from `domain/connection` (infra must not learn a domain), and pinned against the real
+// resolver by `tests/server/domain/connection/catalog/resolve-model-capability.test.ts`.
+const VLLM_SAMPLING = {
+  temperature: { min: 0, max: 2 },
+  topP: { min: 0, max: 1 },
+  topK: { min: 0, max: 200 },
+  frequencyPenalty: { min: -2, max: 2 },
+  presencePenalty: { min: -2, max: 2 },
+  repetitionPenalty: { min: 0, max: 2 },
+  minP: { min: 0, max: 1 },
+  topA: { min: 0, max: 1 },
+  seed: true,
+  stop: true,
+  logitBias: true,
+};
+const VLLM_REASONING: ModelCapability["reasoning"] = {
+  mode: "effort",
+  enabled: true,
+  effortLevels: ["low", "medium", "high", "xhigh", "max"],
+  defaultEnabled: false,
+};
 const CAP = makeModelCapability({
+  reasoning: VLLM_REASONING,
+  sampling: VLLM_SAMPLING,
   output: { maxTokens: { min: 1, max: 4096 } },
   context: { window: 32_768 },
 });
@@ -303,5 +331,126 @@ describe("createVllmChat", () => {
     const chat = createVllmChat({ client, now: clock() });
     await chat(chatReq({ params: {} }));
     expect(read()?.["repetition_penalty"]).toBe(1.0);
+  });
+});
+
+// ── THE THINKING KNOBS (#197). The gen slot serves a THINKING checkpoint behind our vendored fixed chat
+// template, whose per-request variables are `enable_thinking` + `reasoning_effort` and whose override door is
+// `chat_template_kwargs` (the same map the launch's `--default-chat-template-kwargs` supplies defaults for).
+// Before #197 this surface read `req.params` RAW: no funnel, no capability gate, and NO path at all from a
+// preset's reasoning dial to the wire — the knobs existed in `UserIntent` and died at this file. ──
+// Read the wire body's template-kwargs map as a plain record. Index access, never an object literal: the
+// wire vocabulary is snake_case and a literal declaration of those keys is a `useNamingConvention` violation
+// in the test tree (the production file spells them once, where the wire contract lives).
+function templateKwargs(body: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  return body?.["chat_template_kwargs"] as Record<string, unknown> | undefined;
+}
+
+describe("createVllmChat — reasoning (the per-request thinking door)", () => {
+  test("a preset effort rides as chat_template_kwargs — the ONLY door that can beat the baked enable_thinking:false", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: { effort: "low" } }));
+    // Both fields, one map: `reasoning_effort` alone cannot turn thinking on — the launch bakes
+    // enable_thinking:false, which short-circuits the template's reasoning branch before any effort is read.
+    const ctk = templateKwargs(read());
+    expect(ctk?.["enable_thinking"]).toBe(true);
+    expect(ctk?.["reasoning_effort"]).toBe("low");
+  });
+
+  test("our `max` maps to the wire's `xhigh` — the level vocab is effortToOpenAIReasoning's, never re-spelled", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: { effort: "max" } }));
+    expect(templateKwargs(read())?.["reasoning_effort"]).toBe("xhigh");
+  });
+
+  test("effort:'none' emits NO template kwargs — the off-switch leaves the body byte-identical to a pre-thinking turn", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: { effort: "none" } }));
+    expect(read()).not.toHaveProperty("chat_template_kwargs");
+  });
+
+  test("a SILENT preset does not start the model thinking (descriptor is defaultEnabled:false)", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: {} }));
+    expect(read()).not.toHaveProperty("chat_template_kwargs");
+  });
+
+  // `minimal` is deliberately ABSENT from the descriptor's level list: the template's else-branch folds any
+  // unrecognized effort into `xhigh`, so honoring `minimal` would buy MAXIMUM thinking — the opposite of the
+  // ask. The funnel must therefore DROP it, loudly, rather than let it reach the wire.
+  test("an effort the descriptor does not list is dropped LOUD, never sent (minimal would silently buy xhigh)", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    const res = await chat(chatReq({ params: { effort: "minimal" } }));
+    expect(read()).not.toHaveProperty("chat_template_kwargs");
+    expect(res.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "effort_dropped" }));
+  });
+
+  // This wire has NO per-request reasoning-token budget: that mechanism needs a `--reasoning-config` BOOT flag
+  // `genArgv` deliberately does not emit. An effort-mode model used to swallow a budget in SILENCE (only the
+  // adaptive arm warned) — D41 says a drop is visible or it is a bug.
+  test("thinkingBudgetTokens drops LOUD on this effort-mode wire and never reaches the body", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    const res = await chat(chatReq({ params: { effort: "low", thinkingBudgetTokens: 4096 } }));
+    const body = read();
+    expect(body).not.toHaveProperty("thinking_token_budget");
+    // …and the effort still rides: the budget's drop must not take the knob that DOES work with it.
+    expect(templateKwargs(body)?.["reasoning_effort"]).toBe("low");
+    expect(res.events).toContainEqual(
+      expect.objectContaining({ kind: "warning", code: "sampling_knob_dropped", message: expect.stringContaining("reasoning budget ignored") }),
+    );
+  });
+
+  // The funnel is genuinely in the path now — proven by a CLAMP, which the old raw-forward could not do.
+  test("a sampler beyond the descriptor's range is CLAMPED (proof the resolveChat funnel really runs)", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: { temperature: 9 } }));
+    expect(read()?.["temperature"]).toBe(2);
+  });
+});
+
+// ── customParameters on the LOCAL engine (#197 arm B). The blob stays BYOK/custom-byo-only: locking it there
+// (20ac4154c) was a RULING, and its stated reason — "a first-class owned integration whose knobs are the
+// modeled sampling surface" — covers the engine we launch ourselves at least as strongly as it covers
+// OpenRouter. What changes is that the drop is now VISIBLE: compose threads the blob onto the request and
+// this surface used to ignore it in total silence, while both OR runners warned. ──
+// A vendor-spelled escape-hatch blob. Built from ENTRIES, not an object literal: these are deliberately
+// snake_case textgen sampler names (the exact shape a user would reach for), and declaring them as literal
+// keys is a `useNamingConvention` violation in the test tree.
+const TEXTGEN_BLOB: Record<string, unknown> = Object.fromEntries([
+  ["mirostat_mode", 2],
+  ["dry_multiplier", 0.8],
+]);
+
+describe("createVllmChat — customParameters is dropped, and dropped LOUDLY", () => {
+  test("the blob does not reach the body and the turn carries custom_parameters_ignored", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    const res = await chat(chatReq({ customParameters: TEXTGEN_BLOB }));
+    const body = read();
+    expect(body).not.toHaveProperty("mirostat_mode");
+    expect(body).not.toHaveProperty("dry_multiplier");
+    expect(res.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "custom_parameters_ignored" }));
+  });
+
+  test("an EMPTY blob is not a degrade — no warning on a turn that asked for nothing", async () => {
+    const { client } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    const res = await chat(chatReq({ customParameters: {} }));
+    expect(res.events).not.toContainEqual(expect.objectContaining({ code: "custom_parameters_ignored" }));
+  });
+
+  test("the drop also fires on `onEvent` as the turn completes, not only on the result", async () => {
+    const { client } = recordingClient();
+    const seen: string[] = [];
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ customParameters: TEXTGEN_BLOB, onEvent: (e) => seen.push(e.kind === "warning" ? e.code : e.kind) }));
+    expect(seen).toContain("custom_parameters_ignored");
   });
 });
