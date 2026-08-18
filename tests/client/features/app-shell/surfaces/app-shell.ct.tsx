@@ -1383,6 +1383,20 @@ test("reduced-transparency reaches the reading-surface backing too (the arm used
 // #137 fill knob so each surface keeps its own tint instead of the hand-written --color-sidebar mix that
 // flattened both modal slots), the grain overlay dropped — and reduced-transparency still winning the
 // alpha when a user has set both preferences.
+//
+// THE EDGE PINS BELOW ARE THE SECOND PASS, and they exist because the first cut shipped three rendered
+// defects a green CT did not see (side-eye, reports/side-eye-138/):
+//   · `border-width: 2px` is a FOUR-SIDED shorthand, and Tailwind v4's preflight sets `border: 0 solid`
+//     on everything — border-STYLE is solid app-wide, only the width is 0. So the shorthand un-zeroed
+//     three sides per surface and painted them `currentColor`: a 2px near-white stripe down the list
+//     panel's left edge, measured 15.66:1 against its own fill. Hence the per-side widths AND the
+//     zero-side assertions here — the sides a surface does not author must stay at 0px.
+//   · the border it thickened was a 7%-alpha hairline: 1.16:1 at 2px, against a 3:1 non-text floor. The
+//     colour is raised with the width now, and it is pinned by a FRAMEBUFFER read, because that is the
+//     only instrument that sees a translucent border composited over a glass surface.
+//   · every rule was gated on `html[data-blur-*]`, so a contrast user who turned the glass off got
+//     nothing. The edge half is un-gated now (and width-scoped instead), which the no-blur and
+//     sub-breakpoint arms below pin from both directions.
 
 /** The contrast arm with reduced-transparency pinned OFF. Playwright models `contrast` natively
  *  (`page.emulateMedia({ contrast })`) and that spelling is fine in isolation — but it leaves an
@@ -1417,8 +1431,97 @@ function borderInlineEndWidthOf(locator: Locator): Promise<string> {
   return locator.evaluate((el) => getComputedStyle(el).getPropertyValue("border-inline-end-width"));
 }
 
+/** All four LOGICAL border widths. Read as a set, never one side: the defect this pins is a rule painting
+ *  the three sides a surface never authors, which a single-side assertion is blind to by construction. */
+function borderWidthsOf(locator: Locator): Promise<Record<"blockStart" | "blockEnd" | "inlineStart" | "inlineEnd", string>> {
+  return locator.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return {
+      blockEnd: s.getPropertyValue("border-block-end-width"),
+      blockStart: s.getPropertyValue("border-block-start-width"),
+      inlineEnd: s.getPropertyValue("border-inline-end-width"),
+      inlineStart: s.getPropertyValue("border-inline-start-width"),
+    };
+  });
+}
+
 function bgColorOf(locator: Locator): Promise<string> {
   return locator.evaluate((el) => getComputedStyle(el).backgroundColor);
+}
+
+interface Rgb {
+  readonly r: number;
+  readonly g: number;
+  readonly b: number;
+}
+
+/** One FRAMEBUFFER pixel at page coordinates, decoded in-browser (no image dependency in the runner) —
+ *  the same technique message-list-surface.ct.tsx uses. Computed style cannot answer the question this
+ *  block asks: a border's contrast is what LANDS, i.e. the border composited over whatever the glass let
+ *  through, and `getComputedStyle` reports the authored colour of each layer separately. */
+async function samplePixel(page: Page, x: number, y: number): Promise<Rgb> {
+  const clip = await page.screenshot({ clip: { height: 1, width: 1, x, y } });
+  const dataUrl = `data:image/png;base64,${clip.toString("base64")}`;
+  return await page.evaluate(async (url: string) => {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) {
+      throw new Error("no 2d context");
+    }
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, 1, 1).data;
+    return { b: data[2] ?? 0, g: data[1] ?? 0, r: data[0] ?? 0 };
+  }, dataUrl);
+}
+
+/** WCAG 2.1 relative luminance + contrast ratio, on framebuffer RGB (already composited, so no alpha). */
+function contrastRatio(a: Rgb, b: Rgb): number {
+  const luminance = ({ r, g, b: blue }: Rgb): number => {
+    const channel = (c: number): number => {
+      const s = c / 255;
+      // WCAG's 0.03928 knee, written with a separator only because biome's numeric-literal rule wants one.
+      return s <= 0.039_28 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(blue);
+  };
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** WCAG 1.4.11 non-text contrast: a UI boundary must clear 3:1 to count as visible. The whole point of
+ *  this block is that the panel's TEXT was already 8.66:1 while its EDGE measured 1.16:1. */
+const NON_TEXT_FLOOR = 3;
+
+/**
+ * Measures the list panel's inline-end seam off the framebuffer: the ratio between the border's own
+ * pixels and the panel interior a few px inside it. `boundingBox()` is the BORDER box, so the last
+ * rendered column belongs to the border.
+ *
+ * MOUNT WITH `omitMainRegion` OR THIS MEASURES NOTHING. The fixture's regions share one grid cell, so
+ * `.shell-main` lays out directly on top of the panel and paints its opaque fill over the seam — the
+ * first version of these pins sampled a uniform viewport and reported a flat 1.0 (the no-preference
+ * control would have PASSED on that, which is why the control below floors the ratio above 1 as its own
+ * positive control rather than only capping it).
+ */
+async function listPanelEdgeRatio(page: Page, panel: Locator): Promise<number> {
+  const box = await panel.boundingBox();
+  expect(box, "the list panel probe must be laid out before its edge can be sampled").not.toBeNull();
+  const { x, y, width, height } = box as NonNullable<typeof box>;
+  const midY = Math.floor(y + height / 2);
+  const [edge, interior] = await Promise.all([samplePixel(page, Math.floor(x + width) - 1, midY), samplePixel(page, Math.floor(x + width) - 8, midY)]);
+  const ratio = contrastRatio(edge, interior);
+  // The MEASURED number, into reports/ct-report.json. An a11y threshold assertion that only ever prints
+  // pass/fail makes the next reader re-derive the margin by hand; these annotations are the receipt.
+  test.info().annotations.push({
+    description: `${ratio.toFixed(2)}:1 · edge rgb(${edge.r},${edge.g},${edge.b}) vs interior rgb(${interior.r},${interior.g},${interior.b})`,
+    type: "edge-contrast",
+  });
+  return ratio;
 }
 
 /** The contrast arm's own fill percentage (globals.css) — an authored dial with no token, like the reduce
@@ -1438,15 +1541,37 @@ test("#138 receipt: an emulated high-contrast user reports `more`; the shipped `
   expect(seen).toStrictEqual({ more: true, high: false, noPreference: false });
 });
 
-test("contrast: more thickens the glass panel's border and raises the fill to 92% — each surface keeping its OWN tint", async ({ mount, page }) => {
+test("contrast: more thickens ONLY the side each surface authors — the other three stay at 0px", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await emulateContrast(page, "more");
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  // THE P1 DEFECT, from both directions. Tailwind preflight (`border: 0 solid`) leaves border-STYLE solid
+  // everywhere, so a `border-width` shorthand here paints all four sides in `currentColor` — the panel's
+  // near-white TEXT colour. The zero assertions are the load-bearing half: the 2px alone was green while a
+  // 900px white stripe ran down the panel's left edge.
+  await expect
+    .poll(() => borderWidthsOf(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] })
+    .toStrictEqual({ blockEnd: "0px", blockStart: "0px", inlineEnd: "2px", inlineStart: "0px" });
+  // The MIRROR side, which is how we know the rule is per-side and not "whatever the list panel needed".
+  await expect
+    .poll(() => borderWidthsOf(shell.getByTestId("context-panel-probe")), { intervals: [20, 50, 100] })
+    .toStrictEqual({ blockEnd: "0px", blockStart: "0px", inlineEnd: "0px", inlineStart: "2px" });
+  // The composer authors all four sides (`border border-border`), so there the shorthand is correct.
+  await expect
+    .poll(() => borderWidthsOf(shell.getByTestId("composer-probe")), { intervals: [20, 50, 100] })
+    .toStrictEqual({ blockEnd: "2px", blockStart: "2px", inlineEnd: "2px", inlineStart: "2px" });
+  // Bubbles author NO border at any viewport — a contrast rule there does not thicken one, it MINTS one.
+  // Their half of this block is the 92% dense fill, asserted below.
+  await expect
+    .poll(() => borderWidthsOf(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] })
+    .toStrictEqual({ blockEnd: "0px", blockStart: "0px", inlineEnd: "0px", inlineStart: "0px" });
+});
+
+test("contrast: more raises the glass fill to 92% — each surface keeping its OWN tint", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await emulateContrast(page, "more");
   const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
   const panel = shell.getByTestId("panel-probe");
-  // The border half. Asserted on the ONE side `.shell-panel[data-panel-side="list"]` actually draws
-  // (`border-inline-end: 1px solid`): `border-width` is a no-op wherever border-style is `none`, and
-  // getComputedStyle reports 0px there — so a four-sided assertion would pass on a rule that does nothing.
-  await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("2px");
   // The opacity half, through the glass's fill knob: chrome 70% → 92%, dense (bubbles) 88% → 92%. The old
   // hand-written arm bumped no bubble fill at all, and covered neither `.shell-main` nor the breakpoint.
   await expect.poll(() => bgAlpha(panel), { intervals: [20, 50, 100] }).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
@@ -1463,6 +1588,63 @@ test("contrast: more thickens the glass panel's border and raises the fill to 92
   expect(popoverMix, "the two tints must differ, or the modal assertion proves nothing").not.toBe(sidebarMix);
   await expect.poll(() => bgColorOf(shell.getByTestId("dialog-probe")), { intervals: [20, 50, 100] }).toBe(popoverMix);
   await expect.poll(() => bgColorOf(shell.getByTestId("alert-dialog-probe")), { intervals: [20, 50, 100] }).toBe(popoverMix);
+});
+
+// The P2 pins. Width without colour is a doubled invisible line: the shipped hairline is 7% alpha, and
+// side-eye measured the 2px result at 1.16:1 against the panel it separates — on a surface whose TEXT was
+// already 8.66:1. Both arms run through the framebuffer because a translucent border over a translucent
+// glass panel has no computed-style answer: `getComputedStyle` reports the two authored layers, never the
+// pixel a reader actually sees.
+for (const theme of ["dark", "light"] as const) {
+  test(`contrast: more makes the list panel's seam actually VISIBLE (≥3:1 by framebuffer, ${theme})`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await emulateContrast(page, "more");
+    const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} dataTheme={theme === "light" ? "light" : null} omitMainRegion={true} />);
+    const panel = shell.getByTestId("panel-probe");
+    await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("2px");
+    await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(NON_TEXT_FLOOR);
+  });
+
+  test(`under contrast: no-preference that same seam is the hairline it always was (${theme})`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await emulateContrast(page, "no-preference");
+    const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} dataTheme={theme === "light" ? "light" : null} omitMainRegion={true} />);
+    const panel = shell.getByTestId("panel-probe");
+    // The control that keeps the pin above honest: the raise is the PREFERENCE's doing, not the theme's.
+    // A hairline below the non-text floor is the deliberate resting state — this block is what closes it.
+    const ratio = await listPanelEdgeRatio(page, panel);
+    expect(ratio, "the shipped hairline is BELOW the non-text floor — closing that is what this block is for").toBeLessThan(NON_TEXT_FLOOR);
+    // …and strictly above 1, which is this test's own positive control: a screenshot that sampled the
+    // wrong element (or a covered panel) returns the identical pixel twice and would otherwise sail
+    // through the assertion above.
+    expect(ratio, "edge and interior must differ at all — an exactly-1.0 ratio means the sample missed the seam").toBeGreaterThan(1);
+  });
+}
+
+test("the contrast edge does NOT depend on the glass toggle — blur off, the seam is still raised", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await emulateContrast(page, "more");
+  // THE P2 GATING DEFECT: every rule used to be gated on `html[data-blur-*]`, so a contrast user who
+  // turned off an AESTHETIC toggle silently lost the whole accessibility treatment. No blur surfaces here.
+  const shell = await mount(<ShellCascadeFixture omitMainRegion={true} />);
+  const panel = shell.getByTestId("panel-probe");
+  await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("2px");
+  await expect.poll(() => listPanelEdgeRatio(page, panel), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(NON_TEXT_FLOOR);
+  // Still per-side with the glass off, i.e. the currentColor stripe cannot come back through this door.
+  await expect
+    .poll(() => borderWidthsOf(panel), { intervals: [20, 50, 100] })
+    .toStrictEqual({ blockEnd: "0px", blockStart: "0px", inlineEnd: "2px", inlineStart: "0px" });
+});
+
+test("below the shell breakpoint the contrast edge is NOT emitted — that layout authors a different seam", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  await emulateContrast(page, "more");
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
+  // The edge half carries shell.css's mobile complement (`width > 48rem`, the #135 literal) because below
+  // it the panels are full-bleed overlays whose seam is `border-block-start`, not the inline edge — a
+  // desktop rule there paints an edge no layout has. (The fill half needs no such scoping: it is a token
+  // the glass recipe consumes, and no glass is emitted down here at all.)
+  await expect.poll(() => borderInlineEndWidthOf(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).not.toBe("2px");
 });
 
 test("the same fixture under contrast: no-preference keeps the plain glass — the arm is a preference, not a baseline", async ({ mount, page }) => {

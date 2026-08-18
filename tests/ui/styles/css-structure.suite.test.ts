@@ -181,7 +181,7 @@ function findAnchoredBlock(css: string, anchor: string, label: string): string {
   return css.slice(anchorIndex, closeBrace + 1);
 }
 
-test("blur-surface selectors stay in sync with BLUR_SURFACES across all three hand-listed CSS blocks", () => {
+test("blur-surface selectors stay in sync with BLUR_SURFACES across both hand-listed CSS blocks", () => {
   const clientGlobalsCss = readFileSync(CLIENT_GLOBALS_CSS_PATH, "utf8");
   const shellCss = readFileSync(SHELL_CSS_PATH, "utf8");
 
@@ -192,19 +192,23 @@ test("blur-surface selectors stay in sync with BLUR_SURFACES across all three ha
       css: clientGlobalsCss,
       anchor: "@media (prefers-reduced-transparency: reduce) {",
     },
-    { label: "client globals.css prefers-contrast: more block", css: clientGlobalsCss, anchor: "@media (prefers-contrast: more) {" },
   ];
-  // THREE, not four: shell.css's mobile arm used to carry a fourth (the blur kill-switch). It was
-  // deleted at #135 — it re-declared these selectors at identical specificity in the sheet the bundle
-  // emits FIRST, so it could never win, and the ruling moved into the glass block's own @media
+  // TWO now, and the arithmetic has a history. shell.css's mobile arm used to carry one (the blur
+  // kill-switch), deleted at #135 — it re-declared these selectors at identical specificity in the sheet
+  // the bundle emits FIRST, so it could never win, and the ruling moved into the glass block's own @media
   // condition (asserted by the breakpoint-complement test below). `shellCss` is still read here so a
-  // re-added override reds rather than silently rejoining the tie. Comments stripped first: the
-  // tombstone comment left in that arm NAMES the declaration it forbids.
+  // re-added override reds rather than silently rejoining the tie. Comments stripped first: the tombstone
+  // comment left in that arm NAMES the declaration it forbids.
+  // The prefers-contrast arm LEFT this list at #138 and must not be re-added: its rules are deliberately
+  // NOT gated on `data-blur-*` (accessibility must not depend on an aesthetic toggle) and deliberately
+  // exclude `messages` (bubbles author no border, so a rule there mints one). It is surface-listed by
+  // SLOT instead, asserted in the #138 test below — a blur-attr assertion here would demand exactly the
+  // gating that review removed.
   const shellRules = shellCss.replace(COMMENT_RE, "");
   expect(shellRules.includes("backdrop-filter: none"), "shell.css must not re-declare a blur override — the ruling is the glass block's own @media").toBe(
     false,
   );
-  expect(blocks.length, "expected exactly three hand-listed blur-surface CSS blocks").toBe(3);
+  expect(blocks.length, "expected exactly two hand-listed blur-surface CSS blocks").toBe(2);
 
   for (const { label, css, anchor } of blocks) {
     const block = findAnchoredBlock(css, anchor, label);
@@ -271,6 +275,51 @@ test("client globals.css: the contrast arm uses the MQ5 value `more` and drives 
   // for the two modal slots the glass rule tints --color-popover.
   const contrastArm = findAnchoredBlock(rules, "@media (prefers-contrast: more) {", "client globals.css prefers-contrast: more block");
   expect(contrastArm.includes("background-color"), "the contrast arm must not re-spell a surface fill — drive --blur-fill-* instead").toBe(false);
+});
+
+// #138 (second pass, side-eye rendered review): the EDGE half. Every clause below is a defect that
+// shipped in the first cut and is invisible to a parse — the rendered pins live in the app-shell CT; this
+// test guards the SHAPE the pins depend on.
+test("client globals.css: the contrast EDGE arm is per-side, colour-raised, un-gated, and width-scoped", () => {
+  const rules = readFileSync(CLIENT_GLOBALS_CSS_PATH, "utf8").replace(COMMENT_RE, "");
+  const edgeAnchor = "@media (prefers-contrast: more) and (width > 48rem) {";
+  expect(rules, "the edge arm must be scoped to the desktop complement of shell.css's mobile arm").toContain(edgeAnchor);
+  const edgeArm = findAnchoredBlock(rules, edgeAnchor, "client globals.css contrast edge arm");
+
+  // 1. PER-SIDE. Tailwind preflight makes border-STYLE solid on all four sides, so the `border-width`
+  // shorthand un-zeroes the three sides a panel never draws and paints them in currentColor (a near-white
+  // stripe down the list panel, measured). Panels get exactly the side they author.
+  expect(edgeArm).toContain("border-inline-end-width: 2px");
+  expect(edgeArm).toContain("border-inline-start-width: 2px");
+  const panelRules = edgeArm.slice(edgeArm.indexOf('.shell-panel[data-panel-side="list"]'), edgeArm.indexOf('[data-slot="composer"]'));
+  expect(panelRules.includes("border-width:"), "a panel must never take the four-sided shorthand — it paints three currentColor edges").toBe(false);
+  // Only the surfaces that author all four sides may use it.
+  expect(edgeArm.includes('[data-slot="message-bubble"]'), "bubbles author no border at any viewport — a rule here MINTS one").toBe(false);
+
+  // 2. COLOUR RAISED WITH THE WIDTH. A 2px 7%-alpha hairline measured 1.16:1 against its own panel; each
+  // edge is mixed from the pair its own surface owns, through one dial.
+  expect(edgeArm).toContain("--contrast-edge-mix");
+  for (const pair of [
+    "color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar))",
+    "color-mix(in oklab, var(--color-foreground) var(--contrast-edge-mix), var(--color-card))",
+    "color-mix(in oklab, var(--color-popover-foreground) var(--contrast-edge-mix), var(--color-popover))",
+  ]) {
+    expect(edgeArm, "each edge colour mixes the pair its OWN surface owns, so a custom palette stays correct").toContain(pair);
+  }
+
+  // 3. NOT BLUR-GATED. Accessibility must not depend on the decorative glass toggle — the first cut gated
+  // every rule on data-blur-*, so a contrast user with the glass off got nothing.
+  expect(edgeArm.includes("data-blur-"), "the edge arm must not be gated on an aesthetic toggle").toBe(false);
+  const edgeSlots = [
+    '.shell-panel[data-panel-side="list"]',
+    '.shell-panel[data-panel-side="context"]',
+    '[data-slot="composer"]',
+    '[data-slot="dialog-popup"]',
+    '[data-slot="alert-dialog-popup"]',
+  ];
+  for (const slot of edgeSlots) {
+    expect(edgeArm, `the edge arm must cover ${slot}`).toContain(slot);
+  }
 });
 
 // The ONE viewport breakpoint, across every site that hand-writes it (#135). `dimension.shell-breakpoint`
