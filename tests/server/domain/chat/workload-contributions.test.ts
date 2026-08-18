@@ -70,7 +70,7 @@ describe("memory-backfill", () => {
     const report = vi.fn();
     await contributions[0].run(ctx, {}, report, sig());
     expect(report).toHaveBeenLastCalledWith({
-      message: expect.stringContaining("3 blocks TOO LARGE for the embed model (skipped whole, NOT truncated"),
+      message: expect.stringContaining("3 blocks TOO LARGE EVEN TO CHUNK for the embed model (skipped whole, NOT truncated"),
     });
   });
 

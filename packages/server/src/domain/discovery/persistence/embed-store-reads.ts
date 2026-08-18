@@ -7,7 +7,7 @@ import type { Db } from "@orb/db";
 import { assets, characterEmbeddings, characters, chatDigests, chatParticipants, chatSegments, chats, digestThemeAssignments, imageEmbeddings } from "@orb/db";
 import type { AssetId, CharacterId, ChatDigestId, ChatId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
 
 interface DigestKeywordRow {
   readonly ownerId: UserId;
@@ -415,20 +415,27 @@ interface SegmentBlockSpan {
 }
 
 /** The verbatim block grid of the given chats — each tier-0 block's seq-span. The tier-k backfill folds a
- *  digest's covered blockIdx range over these to derive its whole-span `[min(seqStart), max(seqEnd)]`. */
+ *  digest's covered blockIdx range over these to derive its whole-span `[min(seqStart), max(seqEnd)]`.
+ *
+ *  AGGREGATED PER BLOCK (#172): `chat_segments` holds N chunk rows per block (an over-window block is chunked
+ *  rather than truncated), so the grid folds `min(seq_start)`/`max(seq_end)` per `(chat, block)`. A distinct
+ *  row-per-chunk read would put several spans in one grid slot and the last one written would win — silently
+ *  shrinking a chunked block's contribution to every tier-k digest that covers it. */
 export async function readSegmentBlockSpans(db: Db, chatIds: readonly ChatId[]): Promise<SegmentBlockSpan[]> {
   if (chatIds.length === 0) {
     return [];
   }
-  return await db
-    .selectDistinct({
+  const rows = await db
+    .select({
       chatId: chatSegments.chatId,
       blockIdx: chatSegments.blockIdx,
-      seqStart: chatSegments.seqStart,
-      seqEnd: chatSegments.seqEnd,
+      seqStart: min(chatSegments.seqStart),
+      seqEnd: max(chatSegments.seqEnd),
     })
     .from(chatSegments)
-    .where(inArray(chatSegments.chatId, [...chatIds]));
+    .where(inArray(chatSegments.chatId, [...chatIds]))
+    .groupBy(chatSegments.chatId, chatSegments.blockIdx);
+  return rows.flatMap((r) => (r.seqStart === null || r.seqEnd === null ? [] : [{ ...r, seqStart: r.seqStart, seqEnd: r.seqEnd }]));
 }
 
 // ── composed views (home coverage + theme-detail members/timeline) ───────────

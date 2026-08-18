@@ -32,7 +32,7 @@ export function createPruneMemoryBlocks(ctx: EmbeddingsContext): EmbeddingsServi
         return { rowsDeleted };
       }
       case "segment": {
-        const rowsDeleted = await pruneChatSegments(ctx.db, params.chatId, params.keepBlockCount);
+        const rowsDeleted = await pruneChatSegments(ctx.db, params.chatId, params.keepBlockCount, params.chunkCounts);
         return { rowsDeleted };
       }
       default:

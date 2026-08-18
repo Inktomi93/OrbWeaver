@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "820a3e3c-e15b-47b2-8456-954c12edf8c8",
+  "id": "22f10880-84ae-458c-98d3-755d1dbf6c32",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -3856,6 +3856,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "chunk_idx": {
+          "name": "chunk_idx",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "seq_start": {
           "name": "seq_start",
           "type": "integer",
@@ -3922,9 +3929,9 @@
         }
       },
       "indexes": {
-        "chat_segments_chat_block_unique": {
-          "name": "chat_segments_chat_block_unique",
-          "columns": ["chat_id", "block_idx", "model"],
+        "chat_segments_chat_block_chunk_unique": {
+          "name": "chat_segments_chat_block_chunk_unique",
+          "columns": ["chat_id", "block_idx", "chunk_idx", "model"],
           "isUnique": true
         }
       },

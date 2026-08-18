@@ -907,20 +907,32 @@ export interface StoreDigestParams {
   readonly speakerCharacterIds: readonly CharacterId[];
 }
 
-/** memory's verbatim-segment write payload → `embeddings.store`. `(chatId, blockIdx)` is the upsert key;
- *  segments are shared per chat, not scope-keyed. */
+/** memory's verbatim-segment CHUNK write payload → `embeddings.storeSegments`. `(chatId, blockIdx, chunkIdx)`
+ *  is the upsert key; segments are shared per chat, not scope-keyed. One chunk covers the whole block in the
+ *  overwhelming majority of cases — a block too big for the embed model's window becomes N chunks rather than
+ *  one truncated row (#172), each carrying the honest span of the messages its text contains. */
 export interface StoreSegmentParams {
   readonly lens: "segment";
   readonly chatId: ChatId;
   readonly blockIdx: number;
+  readonly chunkIdx: number;
   readonly seqStart: number;
   readonly seqEnd: number;
   readonly text: string;
   readonly contentHash: string;
 }
 
-/** memory's digest/segment vector write — the one write path. */
-export type EmbeddingsStoreOp = (params: StoreDigestParams | StoreSegmentParams) => Promise<void>;
+/** memory's digest vector write — the one write path. */
+export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<void>;
+
+/**
+ * memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (#172,
+ * owner batching ruling: derived-data sweeps batch BY PHASE, never per-item interleaved). The corpus sweep
+ * collects every chat's pending chunks, hands them over in ONE call, and the embeddings side submits them to
+ * the engine as a single flood with no client-side throttle; the live post-turn build calls the same op with
+ * one chat's chunks. Nothing here decides concurrency — that is the provider surface's.
+ */
+export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[]) => Promise<void>;
 
 /** memory's digest SHRINK reclaim — the blocks-that-no-longer-exist half of the build. `keepPerTier[k]` is
  *  the surviving block COUNT at tier k; every stored row with `blockIdx >= keepPerTier[tier]` is beyond canon
@@ -932,11 +944,15 @@ interface PruneDigestBlocksParams {
   readonly keepPerTier: readonly number[];
 }
 
-/** The segment twin: chat-wide and single-tier, so ONE ceiling and no scope bucket. */
+/** The segment twin: chat-wide and single-tier, so ONE block ceiling and no scope bucket — plus the per-block
+ *  CHUNK ceiling (#172), since a block is a row set now. `chunkCounts` lists only the blocks whose count is
+ *  not 1 (a block that shrank from 5 chunks to 2 would otherwise strand 3 rows still claiming spans; a block
+ *  past the pathological ceiling rides with `chunkCount: 0`). */
 interface PruneSegmentBlocksParams {
   readonly lens: "segment";
   readonly chatId: ChatId;
   readonly keepBlockCount: number;
+  readonly chunkCounts: readonly { readonly blockIdx: number; readonly chunkCount: number }[];
 }
 
 /**
@@ -1091,6 +1107,7 @@ export interface ChatContext {
   readonly resolveConnectedPersona: ResolveConnectedPersonaOp;
   readonly verifyPersonaOwned: VerifyPersonaOwnedOp;
   readonly embeddingsStore: EmbeddingsStoreOp;
+  readonly embeddingsStoreSegments: EmbeddingsStoreSegmentsOp;
   readonly embeddingsPruneBlocks: EmbeddingsPruneBlocksOp;
   readonly searchDigests: SearchDigestsOp;
   readonly searchCorpus: SearchCorpusOp;

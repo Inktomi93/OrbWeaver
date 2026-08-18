@@ -129,14 +129,23 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
     });
 }
 
-/** The stored `content_hash` for a chat segment `(chatId, blockIdx, model)`, or `undefined` when no row
- *  exists in that space. `model` is part of the key (PD-104) — the read scopes to the active space so the
- *  staleness short-circuit never compares against a different model's row. */
-export async function existingSegmentHash(db: Db, chatId: ChatId, blockIdx: number, model: string): Promise<string | undefined> {
+/** The stored `content_hash` for a chat segment CHUNK `(chatId, blockIdx, chunkIdx, model)`, or `undefined`
+ *  when no row exists in that space. `chunkIdx` joined the key with #172 (a block is a row set now), which is
+ *  also what makes a half-written block self-heal: the chunks that never landed have no row, so they are not
+ *  hash-skipped. `model` is part of the key (PD-104) — the read scopes to the active space so the staleness
+ *  short-circuit never compares against a different model's row. */
+export async function existingSegmentHash(db: Db, key: { chatId: ChatId; blockIdx: number; chunkIdx: number; model: string }): Promise<string | undefined> {
   const rows = await db
     .select({ hash: chatSegments.contentHash })
     .from(chatSegments)
-    .where(and(eq(chatSegments.chatId, chatId), eq(chatSegments.blockIdx, blockIdx), eq(chatSegments.model, model)))
+    .where(
+      and(
+        eq(chatSegments.chatId, key.chatId),
+        eq(chatSegments.blockIdx, key.blockIdx),
+        eq(chatSegments.chunkIdx, key.chunkIdx),
+        eq(chatSegments.model, key.model),
+      ),
+    )
     .limit(LIMIT_ONE);
   return rows[0]?.hash;
 }
@@ -175,6 +184,7 @@ interface UpsertSegmentInput {
   readonly id: ChatSegmentId;
   readonly chatId: ChatId;
   readonly blockIdx: number;
+  readonly chunkIdx: number;
   readonly seqStart: number;
   readonly seqEnd: number;
   readonly text: string;
@@ -185,9 +195,10 @@ interface UpsertSegmentInput {
   readonly now: number;
 }
 
-/** Upsert a verbatim segment by `(chatId, blockIdx, model)`. On conflict updates the vector + text +
- *  seq-span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is (§invariant
- *  2). `model` is in the conflict key (PD-104): a new space inserts, never overwrites the old one. */
+/** Upsert a verbatim segment CHUNK by `(chatId, blockIdx, chunkIdx, model)`. On conflict updates the vector +
+ *  text + seq-span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is
+ *  (§invariant 2). `model` is in the conflict key (PD-104): a new space inserts, never overwrites the old
+ *  one. `chunkIdx` joined it with #172 — a block over the embed window is N rows, never a truncated one. */
 export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Promise<void> {
   await db
     .insert(chatSegments)
@@ -195,6 +206,7 @@ export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Prom
       id: input.id,
       chatId: input.chatId,
       blockIdx: input.blockIdx,
+      chunkIdx: input.chunkIdx,
       seqStart: input.seqStart,
       seqEnd: input.seqEnd,
       text: input.text,
@@ -205,7 +217,7 @@ export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Prom
       createdAt: input.now,
     })
     .onConflictDoUpdate({
-      target: [chatSegments.chatId, chatSegments.blockIdx, chatSegments.model],
+      target: [chatSegments.chatId, chatSegments.blockIdx, chatSegments.chunkIdx, chatSegments.model],
       set: {
         seqStart: input.seqStart,
         seqEnd: input.seqEnd,

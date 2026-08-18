@@ -14,6 +14,7 @@ export type {
   MsgRow,
   ParsedDigest,
   ResolvedMemoryConfig,
+  SegmentChunk,
   SegmentPassCounts,
   WitnessInterval,
 } from "../contract/memory.ts";

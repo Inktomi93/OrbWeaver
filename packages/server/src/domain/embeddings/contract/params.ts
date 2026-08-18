@@ -63,19 +63,26 @@ export interface ImageCaptionedStoreParams {
   readonly force?: boolean | undefined;
 }
 
-/** Embed an aged-out chat block's verbatim transcript. `text` is the embed input AND the stored
- *  `chat_segments.text`. `contentHash` is precomputed by memory (not recomputed here). Unique key:
- *  `(chatId, blockIdx)`. */
+/** Embed ONE in-budget chunk of an aged-out chat block's verbatim transcript. `text` is the embed input AND
+ *  the stored `chat_segments.text`. `contentHash` is precomputed by memory (not recomputed here). Unique key:
+ *  `(chatId, blockIdx, chunkIdx, model)`.
+ *
+ *  Segments are written through {@link EmbeddingsService.storeSegments} (a BATCH), never through the single
+ *  `store` — a block over the embed window becomes N chunks (#172), and the corpus sweep submits every chat's
+ *  chunks as ONE embed flood (owner batching ruling: batch by phase, let vLLM's scheduler own concurrency). */
 export interface SegmentStoreParams {
   readonly kind: "chat-block";
   readonly lens: "segment";
   readonly chatId: ChatId;
   readonly blockIdx: number;
+  /** Position within the block (0 when one chunk covers it whole — the overwhelming majority). */
+  readonly chunkIdx: number;
+  /** The HONEST span of messages this chunk's text contains (see `db/schema/embeddings.ts` chat_segments). */
   readonly seqStart: number;
   readonly seqEnd: number;
-  /** The verbatim block transcript — embedded AND persisted (`chat_segments.text`). */
+  /** The verbatim chunk transcript — embedded AND persisted (`chat_segments.text`). */
   readonly text: string;
-  /** Staleness/collapse key, precomputed by memory. */
+  /** Staleness/collapse key, precomputed by memory (per CHUNK — it folds the chunk's position + count). */
   readonly contentHash: string;
   readonly model: string;
   readonly dim: number;
@@ -126,14 +133,9 @@ export interface DocumentChunkStoreParams {
   };
 }
 
-/** The single write path's input — discriminated on `lens`. */
-export type StoreParams =
-  | CardTextStoreParams
-  | ImageRawStoreParams
-  | ImageCaptionedStoreParams
-  | SegmentStoreParams
-  | DigestStoreParams
-  | DocumentChunkStoreParams;
+/** The single write path's input — discriminated on `lens`. `segment` is NOT an arm: verbatim segments are
+ *  written in BATCHES through `storeSegments` (#172), the one place their corpus-wide embed flood lives. */
+export type StoreParams = CardTextStoreParams | ImageRawStoreParams | ImageCaptionedStoreParams | DigestStoreParams | DocumentChunkStoreParams;
 
 /** `pruneDocumentChunks` input (databank-design/05 §2.4) — the reindex-shrink seam. After the ingest upserts
  *  every current chunk (hash-gated no-ops keep it cheap), this deletes the strays: tail rows
@@ -172,8 +174,15 @@ interface PruneDigestBlocksParams {
 interface PruneSegmentBlocksParams {
   readonly lens: "segment";
   readonly chatId: ChatId;
-  /** Segments are chat-wide and single-tier — one ceiling, no scope bucket. */
+  /** Segments are chat-wide and single-tier — one BLOCK ceiling, no scope bucket. Rows at
+   *  `blockIdx >= keepBlockCount` index canon that is no longer ingested. */
   readonly keepBlockCount: number;
+  /** The second ceiling, per block, since a block is a ROW SET now (#172): the blocks whose chunk count is
+   *  NOT 1, so `chunkIdx >= chunkCount` is deletable. Listing only the exceptions keeps the DELETE bounded —
+   *  every block absent from this list holds exactly one chunk, so anything at `chunkIdx >= 1` is stale
+   *  there. A block that could not be chunked at all (the pathological ceiling) rides here with
+   *  `chunkCount: 0`, which reclaims its whole row set. */
+  readonly chunkCounts: readonly { readonly blockIdx: number; readonly chunkCount: number }[];
 }
 
 export type PruneMemoryBlocksParams = PruneDigestBlocksParams | PruneSegmentBlocksParams;

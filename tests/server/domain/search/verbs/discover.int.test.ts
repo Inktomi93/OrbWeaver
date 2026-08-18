@@ -46,6 +46,26 @@ describe("discover", () => {
     expect(result[0]?.segments[0]?.chatId).toBe(chat);
   });
 
+  // #172: a chunked block is N rows. `matchCount` and the evidence list are per SCENE, so the chunks collapse
+  // to the block's best one first — counting a long message twice would rank a character on one dump.
+  test("a CHUNKED block counts as ONE match, with its best chunk as the evidence", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const nyx = await seedCharacter(db, { id: "character_nyx", ownerId: owner, name: "Nyx" });
+    const chat = await seedChat(db, "chat_chunked");
+    await seedChatDigest(db, { chatId: chat, scopedCharacterId: nyx, blockIdx: 0, embedding: vec(0, 1) });
+    await seedChatSegment(db, { chatId: chat, blockIdx: 0, chunkIdx: 0, text: "Nyx sharpened the blade for hours.", embedding: vec(0, 1) });
+    await seedChatSegment(db, { chatId: chat, blockIdx: 0, chunkIdx: 1, text: "Nyx drew her blade in the moonlit alley.", embedding: vec(1) });
+
+    const svc = makeSearch(db, { embedVector: () => vec(1) });
+    const result = await svc.discover({ ownerId: owner, queryText: "a duel at night", topN: 5 });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.matchCount).toBe(1); // ONE scene, not two
+    expect(result[0]?.segments).toHaveLength(1);
+    expect(result[0]?.segments[0]?.snippet).toContain("moonlit alley"); // the chunk that matched
+  });
+
   test("a GROUP block credits every co-star speaker (not the synthetic group char)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

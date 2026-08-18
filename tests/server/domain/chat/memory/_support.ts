@@ -10,7 +10,12 @@ import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { EmbeddingsStoreOp, StoreDigestParams, StoreSegmentParams } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
+import type {
+  EmbeddingsStoreOp,
+  EmbeddingsStoreSegmentsOp,
+  StoreDigestParams,
+  StoreSegmentParams,
+} from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { MemoryScope } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { seedMessage } from "../_support.ts";
 
@@ -93,22 +98,26 @@ export async function seedSegment(
   opts: {
     readonly chatId: ChatId;
     readonly blockIdx: number;
+    /** The chunk within the block (#172) — defaults to 0, the single-chunk case. */
+    readonly chunkIdx?: number;
     readonly seqStart: number;
     readonly seqEnd: number;
     readonly text?: string;
     readonly contentHash?: string;
   },
 ): Promise<ChatSegmentId> {
-  const id = castId<ChatSegmentId>(`chat_segment_${opts.chatId}_${opts.blockIdx}`);
+  const chunkIdx = opts.chunkIdx ?? 0;
+  const id = castId<ChatSegmentId>(`chat_segment_${opts.chatId}_${opts.blockIdx}_${chunkIdx}`);
   await db.insert(chatSegments).values({
     id,
     chatId: opts.chatId,
     blockIdx: opts.blockIdx,
+    chunkIdx,
     seqStart: opts.seqStart,
     seqEnd: opts.seqEnd,
     text: opts.text ?? `verbatim block ${opts.blockIdx}`,
     embedding: dummyVector(),
-    contentHash: opts.contentHash ?? `seg_${opts.blockIdx}`,
+    contentHash: opts.contentHash ?? `seg_${opts.blockIdx}_${chunkIdx}`,
     model: MODEL,
     dim: DIM,
   });
@@ -143,35 +152,44 @@ export function fakeSummarize(): {
   return { fn, calls, optsSeen, batchSizes };
 }
 
-/** A fake `embeddingsStore` that RECORDS every call AND actually inserts the row (digest or segment) — so a
- *  build pass's consolidation can read back the tier-0 rows it just wrote (mirrors the real store's persist). */
+/** Fakes for the TWO memory vector-write ops that RECORD every call AND actually insert the rows — so a build
+ *  pass's consolidation can read back the tier-0 rows it just wrote (mirrors the real store's persist).
+ *  `store` is the digest op; `storeSegments` is the BATCH segment op (#172) and records the batch SIZES too,
+ *  which is the flood proof (every value is 1 under a per-block loop, one big value once a phase batches). */
 export function fakeEmbeddingsStore(db: Db): {
   store: EmbeddingsStoreOp;
+  storeSegments: EmbeddingsStoreSegmentsOp;
   digests: StoreDigestParams[];
   segments: StoreSegmentParams[];
+  segmentBatchSizes: number[];
 } {
   const digests: StoreDigestParams[] = [];
   const segments: StoreSegmentParams[] = [];
+  const segmentBatchSizes: number[] = [];
   const store: EmbeddingsStoreOp = async (params) => {
-    if (params.lens === "digest") {
-      digests.push(params);
-      await seedDigest(db, {
-        chatId: params.key.chatId,
-        scopedCharacterId: params.key.scopedCharacterId,
-        tier: params.key.tier,
-        blockIdx: params.key.blockIdx,
-        text: params.text,
-        contentHash: params.contentHash,
-        topicAnchor: params.topicAnchor,
-        keywords: [...params.keywords],
-        isGroup: params.isGroup,
-        speakers: [...params.speakerCharacterIds],
-      });
-    } else {
+    digests.push(params);
+    await seedDigest(db, {
+      chatId: params.key.chatId,
+      scopedCharacterId: params.key.scopedCharacterId,
+      tier: params.key.tier,
+      blockIdx: params.key.blockIdx,
+      text: params.text,
+      contentHash: params.contentHash,
+      topicAnchor: params.topicAnchor,
+      keywords: [...params.keywords],
+      isGroup: params.isGroup,
+      speakers: [...params.speakerCharacterIds],
+    });
+  };
+  const storeSegments: EmbeddingsStoreSegmentsOp = async (batch) => {
+    segmentBatchSizes.push(batch.length);
+    for (const params of batch) {
       segments.push(params);
+      // biome-ignore lint/performance/noAwaitInLoops: the fake mirrors the real op's sequential row writes.
       await seedSegment(db, {
         chatId: params.chatId,
         blockIdx: params.blockIdx,
+        chunkIdx: params.chunkIdx,
         seqStart: params.seqStart,
         seqEnd: params.seqEnd,
         text: params.text,
@@ -179,7 +197,7 @@ export function fakeEmbeddingsStore(db: Db): {
       });
     }
   };
-  return { store, digests, segments };
+  return { store, storeSegments, digests, segments, segmentBatchSizes };
 }
 
 /** A fake `searchDigests` that records the `MemoryQueryOptions` + returns a fixed key list (the injected

@@ -2,9 +2,10 @@
 // sweeps, both @public composition-root helpers, homed in `substrate/` because they coordinate the
 // `memory/` subsystem + `persistence/` reads.
 //
-//   - `backfillMemory` — enumerate every chat, run the segment build, then the digest build per scope
-//     bucket, mirroring the engine's post-turn enumeration. Per-chat builds are already idempotent/
-//     self-healing, so the sweep is resumable. A `mode:"off"` host's chat is skipped entirely.
+//   - `backfillMemory` — enumerate every chat, collect the segment build, then the digest build per scope
+//     bucket, mirroring the engine's post-turn enumeration but re-ordered into corpus-wide PHASES (the DAG is
+//     stated on `backfillMemory` itself). Per-chat builds are already idempotent/self-healing, so the sweep
+//     is resumable. A `mode:"off"` host's chat is skipped entirely.
 //   - `backfillGroupCharacters` — mint the synthetic group character for every >1-character room that
 //     lacks one. Idempotent: `findSyntheticGroupCharacter` short-circuits an existing mint.
 //
@@ -36,7 +37,7 @@ import {
   summarizeConsolidationBatch,
   summarizeDigestBatch,
 } from "../memory/build/digests.ts";
-import { generateSegments } from "../memory/build/segments.ts";
+import { collectSegments, storeSegments } from "../memory/build/segments.ts";
 import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
@@ -110,13 +111,17 @@ async function scopesFor(ctx: ChatContext, chatId: ChatId, cast: readonly Charac
  *  (no-inline-types: exported types live in a type home). */
 type DigestPlan = NonNullable<Awaited<ReturnType<typeof planDigests>>>;
 
-/** The PHASE-1 fold: the collected plans + the running segment/digest scan counts + failure tally. */
+/** One chat's collected segment work, derived by inference so this build-internal orchestration type stays
+ *  out of a substrate export (the `DigestPlan` precedent above). */
+type SegmentWork = Awaited<ReturnType<typeof collectSegments>>;
+
+/** The PHASE-1 fold: the collected plans + the collected SEGMENT chunk writes + the running scan counts +
+ *  failure tally. Segment chunks accumulate corpus-wide instead of being embedded per chat (#172): PHASE 1b
+ *  submits them as ONE flood. */
 interface PlanSweep {
   readonly plans: DigestPlan[];
+  readonly segments: SegmentWork[];
   segmentsScanned: number;
-  segmentsChanged: number;
-  /** Blocks skipped WHOLE because they exceed the embed window (#165) — recorded, never truncated. */
-  segmentsSkippedOverWindow: number;
   digestsScanned: number;
   failed: number;
 }
@@ -127,7 +132,8 @@ interface PlanDeps {
   readonly resolveMemoryConfig: ResolveBackfillMemoryConfig;
 }
 
-/** Plan ONE chat: build its segments, then tier-0 COLLECT each of its scope buckets into `sweep`. No summarize. */
+/** Plan ONE chat: COLLECT its segment chunks (no embed), then tier-0 COLLECT each of its scope buckets into
+ *  `sweep`. No summarize, no vector write — both are corpus-wide phases of their own. */
 async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, sweep: PlanSweep): Promise<void> {
   const { cast, hostUserId, macroNames } = await loadCastAndHost(ctx, chatId);
   // Resolved inside the per-chat try (the caller's) so a settings-read failure is counted + continues.
@@ -135,10 +141,11 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
   if (config?.mode === "off") {
     return; // the host disabled memory — skip enumerate/mint/plan entirely.
   }
-  const seg = await generateSegments(ctx, { chatId, config, macroNames, signal: deps.signal });
+  // COLLECT only — the chunking, the hash gate and the shrink prune happen here; the embeds do not. Every
+  // chat's pending chunks pool into one corpus-wide flood (PHASE 1b), which is what the owner batching ruling
+  // asks for: batch by phase, never one awaited embed per block interleaved with db reads.
+  sweep.segments.push(await collectSegments(ctx, { chatId, config, macroNames, signal: deps.signal }));
   sweep.segmentsScanned += 1;
-  sweep.segmentsChanged += seg.written;
-  sweep.segmentsSkippedOverWindow += seg.skippedOverWindow;
   const castSet = new Set<CharacterId>(cast);
   for (const scope of await scopesFor(ctx, chatId, cast, hostUserId)) {
     if (deps.signal.aborted) {
@@ -162,7 +169,7 @@ async function planAllBuckets(
   args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null },
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<PlanSweep> {
-  const sweep: PlanSweep = { plans: [], segmentsScanned: 0, segmentsChanged: 0, segmentsSkippedOverWindow: 0, digestsScanned: 0, failed: 0 };
+  const sweep: PlanSweep = { plans: [], segments: [], segmentsScanned: 0, digestsScanned: 0, failed: 0 };
   const deps: PlanDeps = { signal: args.signal, resolveMemoryConfig };
   for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
     if (args.signal.aborted) {
@@ -419,12 +426,27 @@ async function commitAllPlans(
 }
 
 /**
- * The corpus-wide memory backfill, restructured into THREE global phases so vLLM sees ONE big batch instead of
- * a tiny one per bucket (measured ~6.6× on the sweep — a single saturated continuous batch, and no per-bucket
- * gen-idle window while embeds run). Every write is the same idempotent/self-healing path the live per-turn
- * trigger uses; the sweep only REORDERS the work: PLAN all buckets → SUMMARIZE the whole corpus at once →
- * COMMIT each. Note: PLAN holds every bucket's fitted transcript inputs in memory across the sweep — a
- * deliberate throughput-for-memory trade sized to the corpus; a very large corpus would want a chunked loop.
+ * The corpus-wide memory backfill, restructured into GLOBAL PHASES so vLLM sees ONE big batch per phase
+ * instead of a tiny one per bucket (measured ~6.6× on the sweep — a single saturated continuous batch, and no
+ * per-bucket gen-idle window while embeds run). Every write is the same idempotent/self-healing path the live
+ * per-turn trigger uses; the sweep only REORDERS the work.
+ *
+ * THE PHASE DAG (each phase completes corpus-wide before the next starts; a phase's engine work is ONE
+ * submission, never a per-item round-robin — owner batching ruling, #172):
+ *
+ *   PHASE 1  PLAN      per chat: collect its SEGMENT chunks (chunk + hash-gate + shrink-prune, no embed),
+ *                      then tier-0 COLLECT each of its digest scope buckets (no summarize).
+ *   PHASE 1b SEGMENTS  ONE length-sorted embed flood over every chat's pending chunks → rows. Independent of
+ *                      the digest phases (a segment is verbatim canon; a digest is a summary of it), so it
+ *                      runs first and its engine time is over before the summarizer starts.
+ *   PHASE 2  SUMMARIZE the whole corpus's tier-0 blocks in ONE length-sorted batch.
+ *   PHASE 3  STORE     each bucket's tier-0 digests (embed-store; per-bucket sequential — db writes).
+ *   PHASE 4  CONSOLIDATE tier by tier: COLLECT every bucket at tier k → ONE summarize batch → STORE tier k+1.
+ *                      Tier k fully stores before tier k+1 collects (the read-your-writes barrier).
+ *
+ * Note: PLAN holds every bucket's fitted transcript inputs AND every changed block's verbatim chunk text in
+ * memory across the sweep — a deliberate throughput-for-memory trade sized to the corpus; a very large corpus
+ * would want a chunked loop.
  */
 export async function backfillMemory(
   ctx: ChatContext,
@@ -432,14 +454,54 @@ export async function backfillMemory(
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<MemoryBackfillCounts> {
   const sweep = await planAllBuckets(ctx, args, resolveMemoryConfig);
+  const segments = await storeAllSegments(ctx, sweep.segments);
   const perPlanTexts = await summarizeAllPending(ctx, sweep.plans);
   const committed = await commitAllPlans(ctx, sweep.plans, perPlanTexts, args.signal);
   return {
-    segments: { scanned: sweep.segmentsScanned, changed: sweep.segmentsChanged },
-    segmentsSkippedOverWindow: sweep.segmentsSkippedOverWindow,
+    segments: { scanned: sweep.segmentsScanned, changed: segments.written },
+    segmentsSkippedOverWindow: segments.skippedOverWindow,
     digests: { scanned: sweep.digestsScanned, changed: committed.changed },
-    failed: sweep.failed + committed.failed,
+    failed: sweep.failed + segments.failed + committed.failed,
   };
+}
+
+/** PHASE 1b — the SEGMENT flood (#172, owner batching ruling). Every chat's pending chunks, collected during
+ *  PHASE 1, go to the embeddings batch op in ONE call: one saturated continuous batch on the engine instead
+ *  of a per-chat ramp, and zero client-side throttling (the provider surface owns how it lands on the wire).
+ *  The pending texts are length-sorted first, exactly like the corpus summarize batch below — similar-length
+ *  sequences pack with less ragged-batch padding.
+ *
+ *  MEMORY TRADE, stated: this holds every CHANGED block's verbatim text in RAM for the length of the sweep —
+ *  the same deliberate throughput-for-memory bargain PHASE 1 already makes for the digest inputs, and bounded
+ *  by the same thing (a steady-state sweep changes almost nothing; a first full backfill holds the corpus's
+ *  aged-out text, which the db is about to store anyway). */
+async function storeAllSegments(ctx: ChatContext, collected: readonly SegmentWork[]): Promise<{ written: number; skippedOverWindow: number; failed: number }> {
+  const pending = collected.flatMap((c) => c.pending).sort((a, b) => a.text.length - b.text.length);
+  const skippedOverWindow = collected.reduce((n, c) => n + c.skippedOverWindow, 0);
+  try {
+    const stored = await storeSegments(ctx, {
+      pending,
+      skipped: collected.reduce((n, c) => n + c.skipped, 0),
+      skippedOverWindow,
+    });
+    return { written: stored.written, skippedOverWindow: stored.skippedOverWindow, failed: 0 };
+  } catch (err) {
+    // ISOLATED like every other phase (#41): one poisoned chunk (a filtered vector, a dead engine) must not
+    // also cost the corpus its DIGEST half, which needs no embed of these blocks at all. Counted + logged
+    // with the cause as scalars (#165), and the content-hash self-heal re-offers every unwritten chunk next
+    // pass — a batch failure loses throughput, never content.
+    getLog().error(
+      {
+        err,
+        phase: "segments",
+        pending: pending.length,
+        errName: err instanceof Error ? err.name : typeof err,
+        errMessage: err instanceof Error ? err.message : String(err),
+      },
+      "memory backfill: the SEGMENT embed flood FAILED — no segment rows were written this pass (digests still build; the self-heal re-offers every chunk)",
+    );
+    return { written: 0, skippedOverWindow, failed: 1 };
+  }
 }
 
 /** Sort key for the corpus-wide summarize batch: total prompt length (system + user). Similar-length inputs

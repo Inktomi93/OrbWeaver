@@ -74,8 +74,23 @@ export function speakerLabel(row: MsgRow, macroNames: RowMacroNameContext): stri
  *  persona — §8 / G1) so the summarizer + the embedding index carry real names, never literal `{{user}}`. */
 export function renderTranscript(rows: readonly MsgRow[], macroNames: RowMacroNameContext): string {
   return rows
-    .map((r) => `${speakerLabel(r, macroNames)}: ${resolveRowMacros(r.content, { characterId: r.characterId, personaId: r.personaId }, macroNames)}`)
+    .map((r) => {
+      const { label, body } = renderRowLine(r, macroNames);
+      return `${label}: ${body}`;
+    })
     .join("\n");
+}
+
+/** ONE row's transcript line, kept in its two parts. The segment CHUNKER (#172) needs them separately: a
+ *  single message too big for the embed window is split into pieces that each RE-CARRY the label, so every
+ *  piece stays an attributable transcript fragment instead of anonymous prose. `renderTranscript` composes
+ *  the same two parts — one renderer, so a chunked block and a whole one are byte-identical where they
+ *  overlap. */
+export function renderRowLine(row: MsgRow, macroNames: RowMacroNameContext): { readonly label: string; readonly body: string } {
+  return {
+    label: speakerLabel(row, macroNames),
+    body: resolveRowMacros(row.content, { characterId: row.characterId, personaId: row.personaId }, macroNames),
+  };
 }
 
 /** Slice canon (oldest→newest, already seq ≤ cutoff) into COMPLETE fixed-width `blockSize` blocks. A partial

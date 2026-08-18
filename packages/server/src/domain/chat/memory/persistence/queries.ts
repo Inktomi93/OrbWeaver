@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, messages, messageVariants } from "@orb/db";
 import { projectBodyForSummary } from "@orb/kit/content";
 import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
-import { and, asc, eq, inArray, lte, max } from "drizzle-orm";
+import { and, asc, eq, inArray, lte, max, min } from "drizzle-orm";
 import type { DigestRow, MsgRow, WitnessInterval } from "../types.ts";
 
 /** The chat's canon head (`max(messages.seq)`, 0 when empty) — the build cutoff (`maxSeq − verbatimWindow`)
@@ -102,17 +102,19 @@ export async function loadDigestHashes(db: Db, chatId: ChatId, scopedCharacterId
   return out;
 }
 
-/** The `blockIdx → content_hash` map for a chat's segments (the segment staleness gate). Segments are NOT
- *  scope-keyed (shared per chat). */
-export async function loadSegmentHashes(db: Db, chatId: ChatId): Promise<Map<number, string>> {
+/** The `${blockIdx}:${chunkIdx} → content_hash` map for a chat's segments (the segment staleness gate),
+ *  keyed by the same string the build looks up — the `loadDigestHashes` idiom. Segments are NOT scope-keyed
+ *  (shared per chat), and since #172 a block is a ROW SET: the gate is per CHUNK, which is also what makes a
+ *  half-written block self-heal (the chunks that never landed have no row, so nothing skips them). */
+export async function loadSegmentHashes(db: Db, chatId: ChatId): Promise<Map<string, string>> {
   const rows = await db
-    .select({ blockIdx: chatSegments.blockIdx, contentHash: chatSegments.contentHash })
+    .select({ blockIdx: chatSegments.blockIdx, chunkIdx: chatSegments.chunkIdx, contentHash: chatSegments.contentHash })
     .from(chatSegments)
     .where(eq(chatSegments.chatId, chatId));
   // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for segment hashes
-  const out = new Map<number, string>();
+  const out = new Map<string, string>();
   for (const r of rows) {
-    out.set(r.blockIdx, r.contentHash);
+    out.set(`${r.blockIdx}:${r.chunkIdx}`, r.contentHash);
   }
   return out;
 }
@@ -178,20 +180,27 @@ export async function loadWitnessHorizons(db: Db, chatId: ChatId, characterId: C
 
 /** The `blockIdx → seq-span` map for a chat's segments (the recall WITNESSING filter resolves a digest's
  *  block range to its `messages.seq` span via `chat_segments`, then tests it against the speaker's horizons —
- *  §4). Segments are chat-wide (not scope-keyed), so one map serves both the shared + scoped buckets. */
+ *  §4). Segments are chat-wide (not scope-keyed), so one map serves both the shared + scoped buckets.
+ *
+ *  AGGREGATED ACROSS CHUNKS (#172): a block is a row set, and the filter asks about the BLOCK's span, so the
+ *  min/max fold is the honest answer (`min(seq_start)`, `max(seq_end)` over the block's chunks). Reading one
+ *  arbitrary chunk's span instead would shrink a chunked block's witnessing window and hide real digests. */
 export async function loadSegmentSpans(db: Db, chatId: ChatId): Promise<Map<number, { seqStart: number; seqEnd: number }>> {
   const rows = await db
     .select({
       blockIdx: chatSegments.blockIdx,
-      seqStart: chatSegments.seqStart,
-      seqEnd: chatSegments.seqEnd,
+      seqStart: min(chatSegments.seqStart),
+      seqEnd: max(chatSegments.seqEnd),
     })
     .from(chatSegments)
-    .where(eq(chatSegments.chatId, chatId));
+    .where(eq(chatSegments.chatId, chatId))
+    .groupBy(chatSegments.blockIdx);
   // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for segment spans
   const out = new Map<number, { seqStart: number; seqEnd: number }>();
   for (const r of rows) {
-    out.set(r.blockIdx, { seqStart: r.seqStart, seqEnd: r.seqEnd });
+    if (r.seqStart !== null && r.seqEnd !== null) {
+      out.set(r.blockIdx, { seqStart: r.seqStart, seqEnd: r.seqEnd });
+    }
   }
   return out;
 }
