@@ -15377,6 +15377,40 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/misc/2026-08-18-silent-reader-audit.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 375,
+      "bytes": 30848,
+      "sha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-18"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/misc/2026-08-18-silent-reader-audit.md",
+        "assignedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
+        "disposition": "archive",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
+        "verifiedCommit": "6491b9522f35a5b70643e53fb0603cbe35b571ed",
+        "verifiedAt": "2026-08-18",
+        "evidence": [
+          "docs/reviews/misc/2026-08-18-silent-reader-audit.md authored+full-read this session (owner-ordered #183 reader-no-producer hunt; 754 cols/297 typed fields/2296 contract fields/207 regkeys swept, probe-validated instruments)",
+          "git log --oneline -1 -- docs/reviews/misc/2026-08-18-silent-reader-audit.md: 0efa54de9 (lane silent-readers)"
+        ],
+        "summary": "Point-in-time audit: the caption class is bounded to the 13 open JSON columns; findings F1-F5 triaged to issues; open-json-column-key-parity gate proposed (design only)."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/misc/marinara-engine-parser-macro-audit.md",
       "lane": "reviews",
       "issue": 7,
