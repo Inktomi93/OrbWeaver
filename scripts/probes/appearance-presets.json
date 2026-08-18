@@ -1,0 +1,111 @@
+{
+  "$schema-note": "THE ONE HOME for curated appearance points the probes drive (--appearance-preset <name>). Each entry is a --appearance patch over the REAL getUserSettings response: keys listed here are pretended, every other key keeps the account's own value, and NOTHING is written. New coverage = a new profile HERE, never a new CLI flag. Keys and values must exist in the appearance schema (packages/contracts/src/settings/index.ts, appearanceSchema) — an unknown key is silently dropped by the app's own parse, which reads as a preset that did nothing.",
+  "presets": {
+    "defaults": {
+      "why": "The schema's BORN values (appearanceSchema defaults) — what a brand-new account sees, which is NOT the owner's row (his row differs on chatStyle, showModelIcon, showInChatAvatars, reducedMotion and more). Use it to answer 'is the shipped default state good?'. backgroundLibrary is deliberately left alone: it is the user's uploaded content, not an appearance axis.",
+      "appearance": {
+        "chatWidthPct": 60,
+        "fontScale": 1,
+        "avatarSize": "md",
+        "avatarShape": "round",
+        "avatarAspect": "square",
+        "avatarRing": "none",
+        "density": "comfortable",
+        "elevation": "flat",
+        "chatStyle": "bubble",
+        "showTimestamps": true,
+        "showGenerationTimer": false,
+        "showGenerationCost": false,
+        "showTokenCount": false,
+        "showMessageId": false,
+        "showModelIcon": false,
+        "showInChatAvatars": true,
+        "messageActions": "hover",
+        "autoFixMarkdown": false,
+        "colorQuotedSpeech": true,
+        "blurSurfaces": ["panels", "composer", "modals"],
+        "shadowEffects": false,
+        "surfaceTexture": "none",
+        "reducedMotion": false,
+        "backgroundImageKind": "none",
+        "backgroundFit": "cover",
+        "backgroundDim": 0.45,
+        "backgroundBlur": 0,
+        "readingLineHeight": 1.55,
+        "readingLetterSpacing": 0,
+        "readingParagraphSpacing": 0.75,
+        "readingNameScale": 1,
+        "readingBodyScale": 1,
+        "justifyBodyText": false,
+        "enableThemeColorization": false,
+        "blurStrength": 14,
+        "showLLMReasoningIcon": false
+      }
+    },
+    "maximal": {
+      "why": "ALL THE NICE STUFF ON — glow elevation, glass on every surface at a strong radius, grain texture, theme colorization, avatar accent rings, in-chat avatars, and motion actually running. This is the arm a motion/visual audit owes: with the owner's row (reducedMotion true, flat elevation, no texture) every ornament the app ships is invisible to the probe.",
+      "appearance": {
+        "density": "comfortable",
+        "elevation": "glow",
+        "shadowEffects": true,
+        "blurSurfaces": ["panels", "composer", "messages", "modals"],
+        "blurStrength": 22,
+        "surfaceTexture": "grain",
+        "enableThemeColorization": true,
+        "reducedMotion": false,
+        "avatarRing": "accent",
+        "avatarSize": "lg",
+        "showInChatAvatars": true,
+        "showTimestamps": true,
+        "showModelIcon": true,
+        "colorQuotedSpeech": true
+      }
+    },
+    "compact": {
+      "why": "Minimum chrome at maximum density — compact rows, small square-ish avatars off, no per-message chips, no glass/texture/shadow. The arm where row height, hit targets and truncation defects show up; a comfortable-density pass cannot see them.",
+      "appearance": {
+        "density": "compact",
+        "avatarSize": "sm",
+        "showInChatAvatars": false,
+        "showTimestamps": false,
+        "showModelIcon": false,
+        "showTokenCount": false,
+        "showMessageId": false,
+        "showGenerationTimer": false,
+        "showLLMReasoningIcon": false,
+        "elevation": "flat",
+        "shadowEffects": false,
+        "blurSurfaces": [],
+        "surfaceTexture": "none",
+        "messageActions": "hover"
+      }
+    },
+    "reading": {
+      "why": "The long-form reading arm: big type, wide column, document chat style, loosened line height / paragraph spacing / letter spacing, justified body. Every reading-typography var (--reading-*) is off its default here, which is the only way a transcript pass measures them at all.",
+      "appearance": {
+        "chatWidthPct": 90,
+        "fontScale": 1.25,
+        "chatStyle": "document",
+        "density": "comfortable",
+        "readingLineHeight": 1.9,
+        "readingLetterSpacing": 0.01,
+        "readingParagraphSpacing": 1.25,
+        "readingNameScale": 1.1,
+        "readingBodyScale": 1.15,
+        "justifyBodyText": true
+      }
+    },
+    "diagnostics": {
+      "why": "Every per-message diagnostic affordance revealed at once — timer, settled cost, token count, message id, reasoning icon, and the always-expanded action row. These change transcript ROW GEOMETRY (a second metadata line, a permanent action bar), so they are their own layout risk and are OFF in both the schema defaults and the owner's row.",
+      "appearance": {
+        "showGenerationTimer": true,
+        "showGenerationCost": true,
+        "showTokenCount": true,
+        "showMessageId": true,
+        "showLLMReasoningIcon": true,
+        "showTimestamps": true,
+        "messageActions": "expanded"
+      }
+    }
+  }
+}

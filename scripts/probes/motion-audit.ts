@@ -57,6 +57,16 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
+import type { AppearancePatch } from "./_kit/appearance.ts";
+import {
+  APPEARANCE_VALUE_FLAGS,
+  appearanceHelpBlock,
+  applyAppearanceFlag,
+  FULL_MOTION_PATCH,
+  loadAppearancePreset,
+  mergeAppearancePatches,
+  parseAppearancePatch,
+} from "./_kit/appearance.ts";
 import type { ProbeSession } from "./_kit/browser.ts";
 import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
 import type { Viewport } from "./_kit/flags.ts";
@@ -96,6 +106,11 @@ type Args = {
   viewport: Viewport;
   vnc: boolean;
   throttle: boolean;
+  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_kit/appearance.ts). This
+   *  probe already asks the browser for full motion (`reducedMotion:false`, the OS media query) — but the
+   *  dev account STORES `appearance.reducedMotion:true`, so without this every number here described an app
+   *  whose own setting had frozen the animations being measured. null = the account's real state. */
+  appearance: AppearancePatch | null;
   /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
   errors: string[];
 };
@@ -140,6 +155,15 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--no-throttle": (a) => {
     a.throttle = false;
   },
+  "--appearance": (a, rest) => {
+    applyAppearanceFlag(a, parseAppearancePatch(rest.shift() ?? ""));
+  },
+  "--appearance-preset": (a, rest) => {
+    applyAppearanceFlag(a, loadAppearancePreset(rest.shift() ?? ""));
+  },
+  "--full-motion": (a) => {
+    a.appearance = mergeAppearancePatches(a.appearance, FULL_MOTION_PATCH);
+  },
 };
 
 // Flags that consume the next token. A missing value used to swallow the following flag silently.
@@ -154,6 +178,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--selector",
   "--window",
   "--viewport",
+  ...APPEARANCE_VALUE_FLAGS,
 ]);
 
 const MOTION_AUDIT_HELP = `motion-audit — the smoothness ground-truth harness
@@ -171,6 +196,11 @@ Measure:
 
 Environment:
   --base <url> · --url <full-url> · --viewport <WxH> · --vnc (headful) · --no-throttle
+
+${appearanceHelpBlock()}
+  A motion verdict owes BOTH arms: bare (the account's real state — does the floor hold?) and
+  --full-motion (is the nice stuff good?). This probe's browser-level reducedMotion:false is the OS
+  media query only; it does NOT turn the app's own setting back on.
 
 Exit: 0 pass · 1 budget breach / failed action / page error · 2 CLI misuse.`;
 
@@ -217,6 +247,7 @@ export function parseMotionArgs(argv: string[]): Args {
     viewport: DEFAULT_VIEWPORT,
     vnc: false,
     throttle: true,
+    appearance: null,
     errors: scanArgv(argv),
   };
   const rest = [...argv];
@@ -470,7 +501,8 @@ async function main(): Promise<number> {
     headless: !opts.vnc,
     viewport: opts.viewport,
     colorScheme: null,
-    reducedMotion: false, // a motion probe wants the REAL animations
+    reducedMotion: false, // the OS media query — a motion probe wants the REAL animations
+    appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
     localStorage: [],
   });
   const { page } = session;

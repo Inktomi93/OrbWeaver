@@ -1,6 +1,6 @@
 ---
 name: snap-driving
-description: "Craft doctrine for driving the live Orbweaver app with the `pnpm snap` probe — selector-engine discipline, the argv-ordered action queue, two-stage picker affordances, room/session state (`current` vs `latest`, the one-browser-lifetime rule), the cheap-evidence ladder (--text/--aria → --expect-* → pixels), scenario/matrix/watch recipes, hover-reveal vs virtualized targeting, the isolated stage band, and exit-code triage. Use whenever you drive or verify the running app headlessly: composing any snap invocation, reaching a section/room/modal, verifying a rendered change, watching a stream or transient, diagnosing a 'dead button', a NAV FAILED or ARG ERROR, a wrong-room drive, or a stale selector — and for multi-user (--contexts) or staged (--isolated/--dirty) drives. The flag contract lives in scripts/probes/snap.ts's header and `pnpm snap --help`; this skill teaches how to drive, not what the flags are."
+description: "Craft doctrine for driving the live Orbweaver app with the `pnpm snap` probe — selector-engine discipline, the argv-ordered action queue, two-stage picker affordances, room/session state (`current` vs `latest`, the one-browser-lifetime rule), the cheap-evidence ladder (--text/--aria → --expect-* → pixels), the appearance arms (--full-motion/--appearance/--appearance-preset — the APP setting, a different gate from --reduced-motion's OS media query), scenario/matrix/watch recipes, hover-reveal vs virtualized targeting, the isolated stage band, and exit-code triage. Use whenever you drive or verify the running app headlessly: composing any snap invocation, reaching a section/room/modal, verifying a rendered change, watching a stream or transient, diagnosing a 'dead button', a NAV FAILED or ARG ERROR, a wrong-room drive, or a stale selector — and for multi-user (--contexts) or staged (--isolated/--dirty) drives. The flag contract lives in scripts/probes/snap.ts's header and `pnpm snap --help`; this skill teaches how to drive, not what the flags are."
 ---
 
 # Driving the app with snap
@@ -158,6 +158,42 @@ parameterized actions.
   rerun, never assert on it. Mid-run HMR/dev-server churn is named and retried once by snap
   itself, so an environmental blip reads differently from an app failure.
 
+## §5b Appearance: the account state is ONE arm, and it is not the default one
+
+The dev account STORES `appearance.reducedMotion: true` (verified on the live wire 2026-08-18), plus its
+own density/elevation/texture/typography choices. So every un-flagged drive reviews THAT state — motion
+audits spent months judging an app whose own setting had frozen the animations they were measuring.
+
+- **TWO DIFFERENT MOTION GATES, and they diverge.** `--reduced-motion` emulates the **OS media query**
+  (`prefers-reduced-motion`). `--full-motion` / `--appearance` shim the **app setting** (`<html
+  data-reduced-motion>`, written by `useAppearanceRootEffects` off `settings.getUserSettings`).
+  `motion-audit`/`perf-meter` already pass the media query as "full motion" and STILL measured a frozen
+  app. They compose; neither implies the other. Naming the wrong one is a wrong verdict, not a typo.
+- **`--full-motion`** = `--appearance '{"reducedMotion":false}'` — the flag a motion sweep types.
+- **`--appearance '<json>'`** deep-merges ANY appearance keys over the REAL settings response
+  (`page.route` response shim, `scripts/probes/_kit/appearance.ts`). Keys you name are pretended; every
+  other key keeps the account's own value. **NOTHING IS WRITTEN** — no db row, no durable state, and the
+  next flagless run sees the account again. Unparseable JSON or a non-object is ARG ERROR (exit 2).
+- **`--appearance-preset <name>`** loads a curated profile from `scripts/probes/appearance-presets.json`:
+  `defaults` (the schema's born values — NOT the owner's row) · `maximal` (all the nice stuff: glow
+  elevation, glass everywhere, grain, colorization, motion on) · `compact` (compact density, minimal
+  chrome — where row height/truncation defects surface) · `reading` (big type, wide column, document
+  style, every `--reading-*` var off default) · `diagnostics` (every per-message chip + expanded action
+  row — a second metadata line's worth of geometry). An unknown name is ARG ERROR listing the valid ones.
+  `--appearance` composes OVER a preset (preset first, then the patch; later keys win).
+- **That file is the ONE home for curated appearance points.** New coverage = a new PROFILE there, with
+  its `why`. Never a new flag: the CLI carries exactly `--appearance` / `--appearance-preset` /
+  `--full-motion`, by owner ruling.
+- **BOTH ARMS OR IT IS HALF AN ANSWER.** A motion/visual verdict owes the bare run (the owner's real
+  state — does the floor hold?) AND `--full-motion` / `--appearance-preset maximal` (is the nice stuff
+  good?). A full-battery surface pass drives bare + `maximal` at minimum; transcript/chat surfaces add
+  `compact` and `reading` wherever density or typography is the question.
+- Same three flags on `pnpm design-audit`, `pnpm motion-audit` and `pnpm perf-meter` — one vocabulary
+  (`_kit/appearance.ts`), so a probe cannot offer half of it. `--json` records the applied patch under
+  `environment.appearance`, so a manifest states which arm it measured.
+- `--file` (static mock) REFUSES them: a local HTML file makes no settings request. Scenario checkpoints
+  refuse them too — one shared browser context, so the shim goes on the OUTER command.
+
 ## §6 Scenario, matrix, watch (recipes: `reference/recipes.md`)
 
 - **`--scenario <file.json>`** = sequential checkpoints in ONE browser lifetime
@@ -169,7 +205,9 @@ parameterized actions.
   nest scenarios, and stage flags go on the OUTER command.
 - **`--matrix`** = the bounded 8-variant sweep (desktop/mobile × light/dark × motion/reduced-
   motion) in one command, each variant its own report + `<out>-<variant>.png`. Composes with
-  `--scenario`; refuses `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff`.
+  `--scenario`; refuses `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff`. Its motion axis
+  is the OS MEDIA QUERY only — the app's own setting rides the run's `--appearance`/`--full-motion`
+  (§5b) across all 8 variants, so a "motion" variant of a reduced ACCOUNT is still reduced.
 - **`--watch <totalMs> [--every <ms>]`** = timed series after nav+steps settle: per-tick
   screenshot + a re-run of every `--eval`, labeled by elapsed ms. THE instrument for streaming
   turns and transient states. It observes PAGE 0 only; `--no-shot --watch` is the cheap
