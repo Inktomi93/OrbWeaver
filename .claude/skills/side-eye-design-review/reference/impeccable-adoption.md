@@ -60,7 +60,7 @@ taste-tell / advisory → P3. `pnpm design-audit --fail-on` semantics unchanged 
 | impeccable id | our rule id | P | mechanism (as adapted) |
 | - | - | - | - |
 | `side-tab` | `side-tab` | P3 | dominant chromatic edge border (≥2px, ≥2× other sides; L/R any radius or ≥3px; T/B 3–12px band); exempt tab-context, status/alert, safe tags |
-| `border-accent-on-rounded` | `border-accent-on-rounded` | P3 | thick chromatic top/bottom border + border-radius (same sampler as side-tab) |
+| `border-accent-on-rounded` | `border-accent-on-rounded` | P3 | thick chromatic border on ANY edge + border-radius (same sampler as side-tab; a L/R accent on a rounded card fires this AND `side-tab` — issue #188, the live home resume card was a 3px oklch left edge on a 10px radius and the top/bottom-only reach reported neither) |
 | `flat-type-hierarchy` | `flat-type-hierarchy` | P3 | page font-size census: ≥3 sizes with max/min ratio < 2.0 |
 | `bounce-easing` | `bounce-easing` | P2 | animation-name /bounce\|elastic\|wobble\|jiggle\|spring/ or overshoot cubic-bezier (y outside [-0.1,1.1]); P2 because motion law §4.3 hard-bans it |
 | `dark-glow` | `glow-shadow` | P3 | chromatic box/text-shadow: zero-offset halo anywhere, or blurred chromatic shadow on a dark backdrop; message names the sanctioned carriers (`--shadow-glow` rides `::before`; element-level shadows are never the sanctioned form) |
