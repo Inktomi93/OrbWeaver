@@ -229,18 +229,19 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "1985374024b16a8a6f89ee1f0877945fc74045867ea3e4ab007fe576c79d7281",
+      "assignedSha256": "c6ba2a8c613dbc388544cc1bdb7e0f712b0a46ddf1b52f8177a395fb4f461bd6",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "3beafe1782a614a13414149cd764e9c202f8e72528a7a1bf2423d5d6a2d6a65a",
-      "verifiedCommit": "cfb9169b700484afbad9c8ebc11eac9247b2a97e",
-      "verifiedAt": "2026-08-17",
+      "verifiedSha256": "c6ba2a8c613dbc388544cc1bdb7e0f712b0a46ddf1b52f8177a395fb4f461bd6",
+      "verifiedCommit": "f2173cb8d98aedc2c1669ff3571bd74d81cab39d",
+      "verifiedAt": "2026-08-18",
       "evidence": [
         "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
         "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact registry blob",
-        "D119 Voices clause + D119a band-floor arithmetic truth-repaired 2026-08-17 (#102 tracker variant A, 0b8814d77; echo deleted, both rails kicker'd) \u2014 orchestrator authored and re-read the delta in full; verifier receipt on the tracker build confirmed the stale clauses"
+        "D119 Voices clause + D119a band-floor arithmetic truth-repaired 2026-08-17 (#102 tracker variant A, 0b8814d77; echo deleted, both rails kicker'd) \u2014 orchestrator authored and re-read the delta in full; verifier receipt on the tracker build confirmed the stale clauses",
+        "D142 minted (born chat default = vllm x chat-completions, #196/28731d4f4) + D135(B) present-tense clause truth-repaired"
       ],
       "claims": [
         {
