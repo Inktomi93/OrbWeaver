@@ -145,10 +145,31 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
  *  `declaredRows` is the tile's own first-boot claim (`HomeTileContribution.skeletonRows`). It sizes the
  *  box when this device has no memory, and stays the fill-count fallback for a box the metrics module
  *  cannot invert (no document to read the pitch from) — the two arms want the same number. */
-function TileFallback({ declaredRows, reserved }: { readonly declaredRows: number; readonly reserved: number | null }): ReactElement {
-  const rows = reserved === null ? declaredRows : skeletonRowCountFor(reserved, declaredRows);
+function TileFallback({
+  declaredRows,
+  declaredBlock,
+  reserved,
+}: {
+  readonly declaredRows: number;
+  readonly declaredBlock: number | undefined;
+  readonly reserved: number | null;
+}): ReactElement {
+  // THREE SOURCES, ONE MECHANISM (#177). The measured box wins (it is what THIS device saw last boot);
+  // then the tile's declared px box, for a body whose settled height is a constant; then the row count,
+  // whose ~48px pitch quantisation is what left a residual first-boot shift on the three tiles that had
+  // a constant to declare (`HomeTileContribution.skeletonBlock` carries the measurements).
+  const box = reserved ?? declaredBlock ?? null;
+  const rows = box === null ? declaredRows : skeletonRowCountFor(box, declaredRows);
+  const source = reserved === null ? "declared" : "measured";
   return (
-    <Stack data-tile-reserved={reserved === null ? undefined : Math.round(reserved)} style={reserved === null ? undefined : reserveStyle(reserved)}>
+    <Stack
+      data-tile-reserved={box === null ? undefined : Math.round(box)}
+      // WHICH source held the box open. Two sources now write the same attribute, and "this device has a
+      // MEASURED box" is a different claim from "this tile declared a constant" — a first-boot assertion
+      // that reads only `data-tile-reserved` would silently start passing for the wrong reason.
+      data-tile-reserve-source={box === null ? undefined : source}
+      style={box === null ? undefined : reserveStyle(box)}
+    >
       <SkeletonRows count={rows} />
     </Stack>
   );
@@ -182,7 +203,7 @@ function TileBody({ tileId, children }: { readonly tileId: string; readonly chil
 function TileContent({ tile, reserved }: { readonly tile: HomeTileContribution; readonly reserved: number | null }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<TileFallback declaredRows={tile.skeletonRows ?? TILE_SKELETON_ROWS} reserved={reserved} />}
+      fallback={<TileFallback declaredBlock={tile.skeletonBlock} declaredRows={tile.skeletonRows ?? TILE_SKELETON_ROWS} reserved={reserved} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label={tile.title.toLowerCase()} onRetry={retry} />}
     >
       <TileBody tileId={tile.id}>{typeof tile.body === "function" ? tile.body() : null}</TileBody>

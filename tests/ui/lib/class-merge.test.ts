@@ -54,13 +54,72 @@ test.for(SPACING_AXES)("cn resolves the custom spacing scale as ONE axis: %s the
   expect(merged, "the one it overrides must be DROPPED, not left to stylesheet order").not.toContain(first);
 });
 
-test("every --spacing-* token is registered — a new token cannot silently re-open the defect", () => {
-  const spacingTokens = Object.keys(TOKENS)
-    .filter((path) => path.startsWith("spacing."))
-    .map((path) => path.slice("spacing.".length));
-  expect(spacingTokens.length, "the spacing namespace must be non-empty, or this assertion proves nothing").toBeGreaterThan(0);
-  const unresolved = spacingTokens.filter((token) => cn(`gap-${token}`, "gap-0")?.includes(`gap-${token}`));
-  expect(unresolved, "these spacing tokens are opaque to the merger — gap-<token> survived beside gap-0").toStrictEqual([]);
+// The RADIUS half (#169). `--radius-*` is a Tailwind theme namespace feeding `rounded` and every corner
+// / side / logical-corner group derived from it. Live instances at the time of the fix: Button's and
+// Toggle's `shape` axis (`rounded-control` vs `rounded-full`), Card's `elevated`/`nested` arms over its
+// `rounded-base`, ListRow's `rowTint` `rounded-none` over its `rounded-control` base, and one call site
+// (`character-hero-band.tsx`) whose `rounded-base` on a Button was inert only because the stylesheet
+// emits `.rounded-control` after it — alphabetically, which is the whole defect.
+const RADIUS_AXES = [
+  ["rounded-full", "rounded-control"],
+  ["rounded-control", "rounded-full"],
+  ["rounded-base", "rounded-card"],
+  ["rounded-card", "rounded-base"],
+  // a custom token against the CORE keywords it shares one axis with
+  ["rounded-control", "rounded-none"],
+  ["rounded-none", "rounded-inset"],
+  // the derived groups: one namespace registration has to reach every corner/side/logical family
+  ["rounded-t-base", "rounded-t-card"],
+  ["rounded-l-full", "rounded-l-control"],
+  ["rounded-ss-card", "rounded-ss-inset"],
+] as const;
+
+// The CONTAINER half. `--container-*` feeds `w`/`min-w`/`max-w`/`basis` — the `max-w-cq-*` steps.
+const CONTAINER_AXES = [
+  ["max-w-cq-lg", "max-w-cq-sm"],
+  ["max-w-prose", "max-w-cq-md"],
+  ["min-w-cq-sm", "min-w-cq-lg"],
+  ["w-cq-sm", "w-cq-md"],
+  ["basis-cq-md", "basis-cq-sm"],
+] as const;
+
+// The WIDTH half — the odd namespace out. tailwind-merge 3.6 has NO `width` theme key, and the v4.3
+// engine emits `w-<name>` for `--width-*` but not `max-w-<name>`/`min-w-<name>` (probed), so the one
+// group these can conflict in is `w` and they register as a classGroup extension. A width token and a
+// spacing token are therefore ONE axis, which is exactly the pair a caller writes.
+const WIDTH_AXES = [
+  ["w-dialog-lg", "w-number-inline"],
+  ["w-number-inline", "w-dialog-lg"],
+  ["w-block", "w-content-col"],
+  ["w-content-col", "w-0"],
+] as const;
+
+const NAMESPACE_AXES = [...RADIUS_AXES, ...CONTAINER_AXES, ...WIDTH_AXES];
+
+test.for(NAMESPACE_AXES)("cn resolves the custom radius/container/width namespaces as ONE axis: %s then %s → only the second", ([first, second]) => {
+  const merged = cn(first, second);
+  expect(merged, "the LAST class on an axis must win — the caller's override").toContain(second);
+  expect(merged, "the one it overrides must be DROPPED, not left to stylesheet order").not.toContain(first);
+});
+
+/** Namespace → a `<utility>-<token>` speller + the CORE class of the same axis it must defeat. One row
+ *  per REGISTERED namespace; a namespace registered without a row here is caught by the count assertion
+ *  in the completeness test below, so a new registration cannot land unproven. */
+const REGISTERED_NAMESPACES = [
+  { namespace: "spacing", utility: (token: string): string => `gap-${token}`, core: "gap-0" },
+  { namespace: "radius", utility: (token: string): string => `rounded-${token}`, core: "rounded-none" },
+  { namespace: "container", utility: (token: string): string => `max-w-${token}`, core: "max-w-0" },
+  { namespace: "width", utility: (token: string): string => `w-${token}`, core: "w-0" },
+] as const;
+
+test.for(REGISTERED_NAMESPACES)("every --$namespace-* token is registered — a new token cannot silently re-open the defect", ({ namespace, utility, core }) => {
+  const prefix = `${namespace}.`;
+  const tokens = Object.keys(TOKENS)
+    .filter((path) => path.startsWith(prefix))
+    .map((path) => path.slice(prefix.length));
+  expect(tokens.length, `the ${namespace} namespace must be non-empty, or this assertion proves nothing`).toBeGreaterThan(0);
+  const unresolved = tokens.filter((token) => cn(utility(token), core)?.includes(utility(token)));
+  expect(unresolved, `these ${namespace} tokens are opaque to the merger — ${utility("<token>")} survived beside ${core}`).toStrictEqual([]);
 });
 
 test("cn keeps a custom type-scale class beside a text COLOR on a COLD graph (no variants module loaded yet)", () => {

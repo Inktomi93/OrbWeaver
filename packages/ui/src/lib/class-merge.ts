@@ -49,13 +49,38 @@ const CUSTOM_CLASS_GROUPS = {
 // bug in padding, in the sealed control HEIGHTS, and in every family added later. The scale is DERIVED
 // from the generated token map, so a token added to `tokens.json` is registered by existing; the
 // completeness pin is `tests/ui/lib/class-merge.test.ts`.
-const SPACING_SCALE = Object.keys(TOKENS)
-  .filter((path) => path.startsWith("spacing."))
-  .map((path) => path.slice("spacing.".length));
+/** Every token name under one DTCG namespace, e.g. `radius.control` → `control`. The scale is DERIVED,
+ *  never hand-listed: a token added to `tokens.json` is registered by existing. */
+function scaleOf(namespace: string): string[] {
+  const prefix = `${namespace}.`;
+  return Object.keys(TOKENS)
+    .filter((path) => path.startsWith(prefix))
+    .map((path) => path.slice(prefix.length));
+}
+
+const SPACING_SCALE = scaleOf("spacing");
+
+// THE OTHER CUSTOM NAMESPACES (#169) — the same latent defect, one namespace at a time.
+//
+// `--radius-*` feeds `rounded` and every corner/side variant of it. Live instance: Button's and Toggle's
+// `shape` axis (`rounded-control` vs `rounded-full`) and Card's `elevated`/`nested` arms over its
+// `rounded-base` — all of which kept BOTH classes and were decided by the emitted stylesheet's order.
+const RADIUS_SCALE = scaleOf("radius");
+// `--container-*` feeds `w`/`min-w`/`max-w`/`basis` (the `max-w-cq-*` container-query steps).
+const CONTAINER_SCALE = scaleOf("container");
+// `--width-*` is the odd one out and is NOT a theme registration: tailwind-merge 3.6 has no `width` key
+// in `DefaultThemeGroupIds` (a `theme.width` entry would be an inert no-op), and the v4.3 engine emits
+// `w-<name>` for this namespace but NOT `max-w-<name>`/`min-w-<name>` — probed, not assumed. So the one
+// group it can conflict in is `w`, and it registers as a classGroup extension (which CONCATS onto the
+// built-in `w` group, `mergeArrayProperties`), still derived from the token map.
+const WIDTH_SCALE = scaleOf("width");
+
+const CLASS_GROUPS = { ...CUSTOM_CLASS_GROUPS, w: [{ w: WIDTH_SCALE }] };
+const THEME = { spacing: SPACING_SCALE, radius: RADIUS_SCALE, container: CONTAINER_SCALE };
 
 /** The configured tailwind-merge instance — built once, at module scope, from the customizations above. */
 const mergeClasses = extendTailwindMerge({
-  extend: { classGroups: CUSTOM_CLASS_GROUPS, theme: { spacing: SPACING_SCALE } },
+  extend: { classGroups: CLASS_GROUPS, theme: THEME },
 });
 
 /**
@@ -75,5 +100,5 @@ export function cn(...classes: CnOptions): CnReturn {
 
 /** The variant factory — a `createTV`-CONFIGURED one, never tailwind-variants' bare `tv` export. */
 export const tv = createTV({
-  twMergeConfig: { extend: { classGroups: CUSTOM_CLASS_GROUPS, theme: { spacing: SPACING_SCALE } } },
+  twMergeConfig: { extend: { classGroups: CLASS_GROUPS, theme: THEME } },
 });

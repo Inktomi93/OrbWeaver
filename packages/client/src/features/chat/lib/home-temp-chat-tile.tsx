@@ -13,6 +13,9 @@ import { HomeTempChatTileBody, TEMP_CHAT_SKELETON_ROWS } from "../components/hom
 
 const TEMP_CHAT_TILE_ORDER = 30;
 
+/** The measured settled body block — see the `skeletonBlock` note on the contribution below. */
+const TEMP_CHAT_SKELETON_BLOCK_PX = 95;
+
 export const chatTempChatTile: HomeTileContribution = {
   id: "chat.tempChat",
   title: "Temp chat",
@@ -21,6 +24,13 @@ export const chatTempChatTile: HomeTileContribution = {
   region: "shelf",
   // The FIRST-BOOT reservation (#92): a fixed two-row body over-reserved by a whole row on the 3-row
   // default, which pulled the tiles below it UP when the read landed.
+  //
+  // …and TWO rows is still 17px too tall (#177). Measured on the live home at 1280×900 with the tRPC
+  // responses held so the loading state is observable: 112px reserved against a 94.64px settled body,
+  // which pulled `databank.documents` and the doorway group up on every first boot. The body is a button
+  // over one gloss line — a CONSTANT — so it declares the measurement instead of the nearest whole row.
+  // The row count stays as the fill-count fallback for the box. Re-measure if the gloss grows a line.
+  skeletonBlock: TEMP_CHAT_SKELETON_BLOCK_PX,
   skeletonRows: TEMP_CHAT_SKELETON_ROWS,
   body: () => <HomeTempChatTileBody />,
 };

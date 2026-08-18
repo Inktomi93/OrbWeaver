@@ -14,6 +14,16 @@ const QUICK_PICKS_TILE_ORDER = 20;
  *  note below for the pitch arithmetic (measured 320px settled → 6 rows). */
 const QUICK_PICKS_SKELETON_ROWS = 6;
 
+/** …and "a residual under half a row" is still a shift (#177). Six rows reserve ~304px against the 320.5px
+ *  this shelf settles at, so the tile GREW 16.5px on every first boot and pushed temp-chat, databank and
+ *  the doorway group down — measured on the live home at 1280×900 with the tRPC responses held so the
+ *  loading state is observable, and it was the largest single entry in the boot's `__orb.motion()` list.
+ *  The settled box is a constant at the shelf's primary 3-column mount (fixed 136px cells, not N data
+ *  rows), so it declares the measurement through `skeletonBlock` instead of the nearest whole row; the row
+ *  count above stays as the fill-count fallback. Re-measure with the same probe if the cell size, the cell
+ *  anatomy or `QUICK_PICKS_LIMIT` changes. */
+const QUICK_PICKS_SKELETON_BLOCK_PX = 321;
+
 export const chatQuickPicksTile: HomeTileContribution = {
   id: "chat.quickPicks",
   // The mockup's approved band copy for the face shelf: "Start a chat" named the verb, "Start with" names
@@ -33,6 +43,7 @@ export const chatQuickPicksTile: HomeTileContribution = {
   // residual under half a row). The declaration is a single number and the cell grid is column-count
   // dependent (a narrower 2-column shelf makes six cells ~484px), so it targets the primary 3-column mount
   // the shelf ships at; the MEASURED box wins on every boot after the first.
+  skeletonBlock: QUICK_PICKS_SKELETON_BLOCK_PX,
   skeletonRows: QUICK_PICKS_SKELETON_ROWS,
   action: (
     <Button intent="ghost" onClick={(): void => setActiveSection("characters")} size="sm">

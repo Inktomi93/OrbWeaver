@@ -286,10 +286,17 @@ function RankCell({ position, reserve }: { readonly position: number | undefined
   if (position === undefined) {
     return reserve ? <Row aria-hidden={true} className="w-control-sm shrink-0" /> : null;
   }
+  // The COLUMN is a layout box, not a property of the text (#169). Both states now spell the reserved
+  // width on the same `Row` — a feature may size the layout kit and only the layout kit, and a `w-*` on
+  // `Text` is a call-site override of a sealed primitive that `ui-size-via-variant` reds (it read the
+  // single-segment `w-control` and not the real `w-control-sm` until #169 taught its value class about
+  // hyphens). `justify="end"` carries what `text-end` did: one flex child, right-aligned in a fixed cell.
   return (
-    <Text as="span" voice="datum" className="w-control-sm shrink-0 text-end tabular-nums">
-      {position}
-    </Text>
+    <Row className="w-control-sm shrink-0" justify="end">
+      <Text as="span" voice="datum" className="tabular-nums">
+        {position}
+      </Text>
+    </Row>
   );
 }
 
