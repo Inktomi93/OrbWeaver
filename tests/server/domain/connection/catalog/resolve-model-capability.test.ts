@@ -4,7 +4,7 @@
 // The four gapped axes (§U0 + IC-A) — `tools` / `output.structured` / `input.vision` / `input.imageEdit` —
 // are pinned per arm, present AND absent.
 
-import { coEmitsProseWithTools } from "@orb/contracts/connection";
+import { coEmitsProseWithTools, EFFORT_LEVELS } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -318,18 +318,22 @@ describe("resolveModelCapability — static arms", () => {
     expect(cap.context.window).toBe(32_768);
   });
 
-  // The level list is not cosmetic. The template's effort ladder recognizes low/medium/high/xhigh and folds
-  // EVERYTHING ELSE into `xhigh` — so advertising `minimal` would silently buy MAXIMUM thinking, the exact
-  // opposite of the ask. Its absence is the honest encoding, and the funnel drops it with a loud warning.
-  test("vLLM: `minimal` is deliberately ABSENT from the effort levels (the template folds it to xhigh)", () => {
+  // ERR-OPEN (owner ruling 2026-08-18): vLLM capability varies per checkpoint and is not reliably
+  // detectable, so the descriptor exposes EVERY level and trusts the user's setting rather than withholding
+  // one. `minimal` is the case that earned the ruling — the template's ladder would fold it to `xhigh`, and
+  // an earlier draft withheld it for that reason. Hiding the knob is the reflex the ruling inverts; the
+  // surprise is fixed in the WIRE PROJECTION instead (minimal → the template's `low` floor), pinned in
+  // `tests/server/infra/providers/vllm/surfaces/chat.test.ts`.
+  test("vLLM: EVERY effort level is exposed (err-open — capability is per-checkpoint and undetectable)", () => {
     const cap = resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions");
-    expect(cap.reasoning.effortLevels).toEqual(["low", "medium", "high", "xhigh", "max"]);
-    expect(cap.reasoning.effortLevels).not.toContain("minimal");
+    expect(cap.reasoning.effortLevels).toEqual([...EFFORT_LEVELS]);
+    expect(cap.reasoning.effortLevels).toContain("minimal");
   });
 
-  // No per-request TOKEN budget on this wire: that mechanism needs a `--reasoning-config` BOOT flag `genArgv`
-  // deliberately does not emit, so `mode:"budget"`/`budgetRange` here would promise a knob no request reaches.
-  test("vLLM: no reasoning budgetRange — the token-budget mechanism is a BOOT flag we do not emit", () => {
+  // No per-request TOKEN budget on this wire, PERMANENTLY: the `--reasoning-config` + `thinking_token_budget`
+  // mechanism is owner-ruled OUT (2026-08-18, "skip"), so this is the settled shape and not an interim gap.
+  // Effort IS the depth control here; a preset's `thinkingBudgetTokens` gets a loud funnel drop.
+  test("vLLM: no reasoning budgetRange — the token-budget mechanism is owner-ruled out, not pending", () => {
     const cap = resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions");
     expect(cap.reasoning.budgetRange).toBeUndefined();
     expect(cap.reasoning.supportsMaxTokens).toBeUndefined();

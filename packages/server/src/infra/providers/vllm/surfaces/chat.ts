@@ -6,6 +6,7 @@ import type { ChatContentPart } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
 import type { ChatCompletionStreamChunk, MapTurnContext, StreamDelta } from "../../backends/kit/index.ts";
 import {
   buildOpenAiSamplingFields,
@@ -165,28 +166,36 @@ interface SamplerDefaults {
 // level: `reasoning_effort` alone cannot turn thinking on, because the baked `enable_thinking:false` short-
 // circuits the template's whole reasoning branch before any effort is read.
 //
-// The template's effort ladder is `low` | `medium` | `high`|`xhigh`, and its ELSE branch folds anything else
-// to `xhigh` — which is why the capability descriptor (`VLLM_REASONING`, domain/connection) does not advertise
-// `minimal`: an unrecognized level buys MAXIMUM thinking, never minimum. `effortToOpenAIReasoning` owns the
-// level vocab (our `max` → the wire's `xhigh`) and is never re-spelled here.
+// THE EFFORT LADDER. The template recognizes `low` | `medium` | `high`|`xhigh`, and its ELSE branch folds
+// anything unrecognized to `xhigh`. `effortToOpenAIReasoning` owns the shared vocab (our `max` → the wire's
+// `xhigh`) and is never re-spelled here — but it maps `minimal` to a literal `minimal`, which THIS template
+// does not know, so the else-branch would silently buy MAXIMUM thinking for the user who asked for the least.
+// The descriptor deliberately still ADVERTISES `minimal` (err-open, owner ruling 2026-08-18 — see
+// `VLLM_REASONING`), so the honesty has to live here, in the wire projection: `minimal` lands on the
+// template's real floor. Withholding the level would have been the other fix, and it is the one the ruling
+// rejects — never hide a knob to prevent a surprise you can instead translate correctly.
+const TEMPLATE_EFFORT_FLOOR = "low";
+const UNKNOWN_TO_TEMPLATE_EFFORT = "minimal";
+
 /** The funnel's resolved reasoning → this wire's per-request template kwargs. Reasoning OFF (the common path:
  *  the descriptor is `defaultEnabled:false`, so silence means off) emits NOTHING — byte-identical to every
  *  pre-reasoning body, so the baked launch default stands and no prefix-cache entry is disturbed. A resolved
- *  effort emits the pair; a budget never appears (this wire has no per-request budget field — the funnel
- *  already made that drop loud). */
+ *  effort emits the pair; a budget never appears (this wire has no per-request budget field, permanently —
+ *  the `--reasoning-config` mechanism is owner-ruled out, and the funnel makes that drop loud). */
 function reasoningFields(reasoning: ResolvedReasoning): Record<string, unknown> {
   if (!reasoning.enabled || reasoning.effort === undefined) {
     return {};
   }
+  const wire = effortToOpenAIReasoning({ enabled: true, effort: reasoning.effort }).effort;
   return {
     chat_template_kwargs: {
       enable_thinking: true,
-      reasoning_effort: effortToOpenAIReasoning({ enabled: true, effort: reasoning.effort }).effort,
+      reasoning_effort: wire === UNKNOWN_TO_TEMPLATE_EFFORT ? TEMPLATE_EFFORT_FLOOR : wire,
     },
   };
 }
 
-function buildBody(req: VllmChatRequest, resolved: ResolvedChatKnobs, defaults: SamplerDefaults): Record<string, unknown> {
+function buildBody(req: VllmChatRequest, resolved: ResolvedChatKnobs, defaults: SamplerDefaults, warnings: ResolvedWarning[]): Record<string, unknown> {
   const s = resolved.sampling;
   const sampling = buildOpenAiSamplingFields({
     temperature: s.temperature,
@@ -207,7 +216,7 @@ function buildBody(req: VllmChatRequest, resolved: ResolvedChatKnobs, defaults: 
     // window, which would let generation overflow the reserved history and 400 vLLM).
     maxTokens: resolved.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
   });
-  return {
+  const modeled: Record<string, unknown> = {
     model: req.model,
     stream: true,
     stream_options: { include_usage: true },
@@ -218,6 +227,8 @@ function buildBody(req: VllmChatRequest, resolved: ResolvedChatKnobs, defaults: 
     ...(req.toolChoice !== undefined ? { tool_choice: rawToolChoice(req.toolChoice) } : {}),
     ...(req.responseFormat !== undefined ? { response_format: rawResponseFormat(strictByDefault(req.responseFormat)) } : {}),
   };
+  // The escape hatch merges LAST but wins NOTHING it collides with — see {@link applyCustomParameters}.
+  return applyCustomParameters(modeled, req.customParameters, warnings);
 }
 
 // STRICTFMT — the vLLM PIN. `rawResponseFormat` (backends/kit) invents nothing: `strict` rides only when the
@@ -278,26 +289,113 @@ async function* toChunks(raw: AsyncIterable<unknown>): AsyncGenerator<ChatComple
   }
 }
 
-// The preset's `customParameters` escape hatch is BYOK/custom-byo-only (locked there deliberately, commit
-// 20ac4154c: "OpenRouter is a first-class owned integration whose knobs are the modeled sampling surface (the
-// anti-SillyTavern-sprawl design); customParameters is a BYOK-only escape hatch"). The LOCAL gen engine is
-// this repo's most first-class owned integration — we launch the process — so the same ruling puts it on the
-// OpenRouter side of that line, and the blob does NOT reach this wire. What was wrong until now is that the
-// drop was SILENT here while OpenRouter's is loud: compose threads `customParameters` onto the request, this
-// surface never read it, and nothing told the user. D41 no-silent-degrade — same code, same spelling as both
-// OR runners, so the infra→chat re-map is a MATCH rather than a re-spell.
-const CUSTOM_PARAMETERS_IGNORED = "customParameters ignored on the local vLLM engine (BYOK/custom-byo only)";
+// ── customParameters ON THE LOCAL ENGINE — owner word 2026-08-18, AMENDING the 2026-07-24 ruling.
+//
+// LEDGER ANCHOR PENDING: this amendment gets its own D-row, minted by the orchestrator at merge. The row is
+// deliberately NOT cited by number here yet — the `d-citation-integrity` gate REDs a bare `D<n>` with no
+// anchor in `Core-Path-Registry.md` (the ledger's high-water mark is D128 today), and a citation pointing at
+// a ruling a reader cannot resolve is exactly the drift that gate exists to catch. The ruling is identified
+// unambiguously by DATE + the commit it amends until then; swap in the number when the row lands.
+//
+// The escape hatch was locked to BYOK/custom-byo by commit 20ac4154c, whose stated reason was: "OpenRouter is
+// a first-class owned integration whose knobs are the modeled sampling surface (the anti-SillyTavern-sprawl
+// design); customParameters is a BYOK-only escape hatch." That reasoning read ONTO the local engine too (we
+// launch the process — it is the most owned integration here), which is why this surface shipped the blob as a
+// LOUD DROP first. The owner AMENDED the ruling rather than accept the drop: vLLM JOINS the escape hatch. The
+// motivating case is real and recorded — `Core-ST-Feature-Gap-Register.md` rows 53/55: the exotic samplers
+// (DRY, XTC, mirostat, dynatemp, TFS, typical_p, smoothing) have no first-class UI and "ride customParameters
+// today", and the local engine is precisely the one that speaks them. OpenRouter's lock is UNCHANGED.
+//
+// THE POSTURE THIS SOURCE IS BUILT ON (owner ruling, 2026-08-18): vLLM capability varies per CHECKPOINT and
+// is not reliably detectable — the gen slot's model is config, and a swapped checkpoint can gain or lose
+// support for a knob with nothing on the wire announcing it (the fixed Qwen 3.8 template accepting MID-TURN
+// system prompts is the owner's own example: no probe would ever have found it). So on this source the
+// descriptor errs PERMISSIVE, user settings are TRUSTED, and we do not force — and the belt denylist below
+// is therefore the ONLY load-bearing fence here. That is why it is enumerated so carefully and why each
+// entry carries the incident or the mechanism that earned it: nothing else is holding.
+//
+// TWO TIERS OF PROTECTION, and they are different mechanisms for different reasons:
+//   1. PRECEDENCE (below) covers every knob we MODEL. A named param — temperature, max_tokens, the reasoning
+//      kwargs — wins over a customParameters key of the same name, because the modeled value is the one the
+//      funnel capability-gated and clamped. The escape hatch extends the wire; it does not re-litigate it.
+//   2. THE BELT DENYLIST ({@link BELT_OWNED_KEYS}) covers what we do NOT model but infra OWNS. These are
+//      dropped outright, never merged, and the drop is loud — precedence alone would not be enough for them,
+//      because several are keys the modeled body does not even emit, so there would be nothing to win the
+//      collision and the user's value would ride unopposed.
+const BELT_OWNED_KEYS: ReadonlySet<string> = new Set([
+  // THE HANG KNOB (#165/#173). Sending this converts an over-window request from a fast, honest 400 into an
+  // UNBOUNDED HANG — measured on this box's own engines: 21ms refusal without it, >30s (production bound 120s,
+  // zero GPU activity, no request even logged) with it. It was removed from the embed + rerank surfaces at the
+  // cost of two production incidents, and the window guard is now CLIENT-side (`clampToTokenBudget`). Letting
+  // a preset re-add it would restore the exact landmine those issues were closed to remove — which is why this
+  // denylist exists at all and is not merely a precedence rule.
+  "truncate_prompt_tokens",
+  // Its sibling — which END of an over-window prompt the engine cuts. The belt owns the cut, so this is dead
+  // weight at best and a silent second opinion about truncation at worst (`rerank.ts` asserts its absence too).
+  "truncation_side",
+  // THE TRANSPORT SHAPE. This surface hardcodes `stream: true` and drives the response through an SSE reducer;
+  // `stream: false` hands `parseOpenAiSse` a plain JSON object, which yields a turn that produces NOTHING while
+  // looking healthy. `stream_options.include_usage` is what feeds the usage/cost accounting downstream.
+  "stream",
+  "stream_options",
+  // IDENTITY + ASSEMBLY, owned above this layer. `model` is the resolved connection's model — the capability
+  // window math, the cost attribution and the catalog identity all key off it, so overriding it here would
+  // silently route a turn to a different model than the one the user picked and every downstream number would
+  // describe the wrong one. `messages` is the assembled canon history (persona, world-info, injections, the
+  // fit budget); a preset overwriting it discards the entire assembly pipeline.
+  "model",
+  "messages",
+]);
+
+/** Merge the preset's `customParameters` onto the modeled body (the 2026-08-18 amendment), minus the
+ *  belt-owned keys. Returns the body UNCHANGED (byte-identical) when there is nothing to merge, so a preset
+ *  that sets no escape hatch — every preset today — produces exactly the bytes it did before the amendment.
+ *
+ *  PRECEDENCE: the MODELED body wins on collision. `deepMergeRequestBody`'s second argument is the patch, so
+ *  passing the modeled body there makes it overwrite the user's key rather than the reverse. This is the
+ *  OPPOSITE of custom-byo (`runners/chat.ts`, where customParameters deliberately beats the resolved value):
+ *  there the endpoint is the user's own and "your endpoint your risk" is the posture, here the endpoint is
+ *  OURS and the funnel's capability-gated, clamped value is the one that keeps the turn inside the window. */
+function applyCustomParameters(
+  base: Record<string, unknown>,
+  customParameters: Readonly<Record<string, unknown>> | undefined,
+  warnings: ResolvedWarning[],
+): Record<string, unknown> {
+  if (customParameters === undefined) {
+    return base;
+  }
+  const allowed: Record<string, unknown> = {};
+  const denied: string[] = [];
+  for (const key of Object.keys(customParameters)) {
+    if (BELT_OWNED_KEYS.has(key)) {
+      denied.push(key);
+      continue;
+    }
+    allowed[key] = customParameters[key];
+  }
+  if (denied.length > 0) {
+    // D41 no-silent-degrade: a PARTIAL drop still names exactly which keys died, so a user who set one of the
+    // belt keys learns it did nothing instead of concluding the escape hatch is broken.
+    warnings.push({
+      code: "custom_parameters_ignored",
+      message: `${CUSTOM_PARAMETERS_BELT_DROPPED}: ${denied.join(", ")}`,
+    });
+  }
+  // `deepMergeRequestBody` is also the Layer-2 prototype-pollution belt (`server/kit/custom-parameters`) —
+  // routing through it, rather than spreading, is what keeps the two-layer __proto__/constructor defense real.
+  return Object.keys(allowed).length === 0 ? base : deepMergeRequestBody(allowed, base);
+}
+
+const CUSTOM_PARAMETERS_BELT_DROPPED = "customParameters keys dropped — owned by the vLLM infra belt and not overridable from a preset";
 // The vLLM `tool` message is {role,tool_call_id,content} and nothing else (see `wireToolResults`), so a failed
 // tool result reads to the model as an ordinary one — the identical wire limitation custom-byo reports.
 const TOOL_RESULT_ERROR_DROPPED = "tool-result isError ignored: the OpenAI-compatible chat-completions wire has no tool-result error field";
 
-/** The funnel's own degrade warnings plus the two this SURFACE causes: a dropped `customParameters` blob and a
- *  dropped tool-result error flag. Every drop on this wire is observable on the turn, never silent (D41). */
-function turnWarnings(resolved: ResolvedChatKnobs, req: VllmChatRequest): readonly ResolvedWarning[] {
-  const warnings = [...resolved.warnings];
-  if (req.customParameters !== undefined && Object.keys(req.customParameters).length > 0) {
-    warnings.push({ code: "custom_parameters_ignored", message: CUSTOM_PARAMETERS_IGNORED });
-  }
+/** The funnel's own degrade warnings plus the ones this SURFACE causes. Every drop on this wire is observable
+ *  on the turn, never silent (D41). The customParameters drops are appended by {@link applyCustomParameters}
+ *  during the body build, since only that pass knows which keys the belt actually took. */
+function turnWarnings(resolved: ResolvedChatKnobs, req: VllmChatRequest, bodyWarnings: readonly ResolvedWarning[]): readonly ResolvedWarning[] {
+  const warnings = [...resolved.warnings, ...bodyWarnings];
   if (req.history.some((turn) => turn.content.some((part) => part.type === "tool-result" && part.isError === true))) {
     warnings.push({ code: "tool_result_error_dropped", message: TOOL_RESULT_ERROR_DROPPED });
   }
@@ -331,11 +429,20 @@ export function createVllmChat(deps: VllmChatDeps): (req: VllmChatRequest) => Pr
     // path at all from a preset's reasoning dial to the wire.
     const resolved = resolveChat(req.params, req.capability);
 
+    // Collects the drops the BODY BUILD discovers (the belt-denied customParameters keys) — only that pass
+    // knows which keys the belt actually took, so it hands them to `turnWarnings` rather than re-deriving.
+    const bodyWarnings: ResolvedWarning[] = [];
+
     try {
-      const wireBody = buildBody(req, resolved, {
-        presencePenalty: deps.genPresencePenalty?.() ?? CARD_DEFAULT_PRESENCE_PENALTY,
-        repetitionPenalty: deps.genRepetitionPenalty?.() ?? CARD_DEFAULT_REPETITION_PENALTY,
-      });
+      const wireBody = buildBody(
+        req,
+        resolved,
+        {
+          presencePenalty: deps.genPresencePenalty?.() ?? CARD_DEFAULT_PRESENCE_PENALTY,
+          repetitionPenalty: deps.genRepetitionPenalty?.() ?? CARD_DEFAULT_REPETITION_PENALTY,
+        },
+        bodyWarnings,
+      );
       // TASK-24: capture the LITERAL openai-compat body right before it goes on the wire (the harness reads
       // this to prove the FE setting propagated truthfully into the real bytes). Only fires when compose
       // wired a sink (capture enabled); otherwise absent → zero cost.
@@ -354,7 +461,7 @@ export function createVllmChat(deps: VllmChatDeps): (req: VllmChatRequest) => Pr
         reasoning,
       };
       const turn = mapChatCompletionToTurnResult(view, ctx);
-      const warnings = warningEvents(turnWarnings(resolved, req), deps.now());
+      const warnings = warningEvents(turnWarnings(resolved, req, bodyWarnings), deps.now());
       for (const event of warnings) {
         req.onEvent?.(event);
       }

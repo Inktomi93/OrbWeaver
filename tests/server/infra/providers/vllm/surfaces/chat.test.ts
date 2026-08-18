@@ -6,6 +6,7 @@
 // this surface takes {@link VllmChatRequest}, so the state is unrepresentable here.
 
 import type { ModelCapability } from "@orb/contracts/connection";
+import { EFFORT_LEVELS } from "@orb/contracts/connection";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -41,7 +42,8 @@ const VLLM_SAMPLING = {
 const VLLM_REASONING: ModelCapability["reasoning"] = {
   mode: "effort",
   enabled: true,
-  effortLevels: ["low", "medium", "high", "xhigh", "max"],
+  // ERR-OPEN: every level, matching the real descriptor (owner ruling 2026-08-18).
+  effortLevels: [...EFFORT_LEVELS],
   defaultEnabled: false,
 };
 const CAP = makeModelCapability({
@@ -379,15 +381,19 @@ describe("createVllmChat — reasoning (the per-request thinking door)", () => {
     expect(read()).not.toHaveProperty("chat_template_kwargs");
   });
 
-  // `minimal` is deliberately ABSENT from the descriptor's level list: the template's else-branch folds any
-  // unrecognized effort into `xhigh`, so honoring `minimal` would buy MAXIMUM thinking — the opposite of the
-  // ask. The funnel must therefore DROP it, loudly, rather than let it reach the wire.
-  test("an effort the descriptor does not list is dropped LOUD, never sent (minimal would silently buy xhigh)", async () => {
+  // ERR-OPEN + honest translation (owner ruling 2026-08-18). `minimal` IS offered — the descriptor does not
+  // withhold a level to protect the user from a surprise. The template's ladder does not know `minimal` and
+  // its else-branch would fold it UP to `xhigh` (maximum thinking for the user who asked for the least), so
+  // the wire projection lands it on the template's real floor instead. The knob stays available AND the
+  // direction of intent is preserved — the pairing is the whole point, so pin both halves.
+  test("`minimal` is OFFERED and lands on the template's floor — never dropped, never folded up to xhigh", async () => {
     const { client, read } = recordingClient();
     const chat = createVllmChat({ client, now: clock() });
     const res = await chat(chatReq({ params: { effort: "minimal" } }));
-    expect(read()).not.toHaveProperty("chat_template_kwargs");
-    expect(res.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "effort_dropped" }));
+    expect(templateKwargs(read())?.["reasoning_effort"]).toBe("low");
+    expect(templateKwargs(read())?.["enable_thinking"]).toBe(true);
+    // Offered, so nothing was degraded — an err-open level must not warn.
+    expect(res.events).not.toContainEqual(expect.objectContaining({ code: "effort_dropped" }));
   });
 
   // This wire has NO per-request reasoning-token budget: that mechanism needs a `--reasoning-config` BOOT flag
@@ -415,42 +421,130 @@ describe("createVllmChat — reasoning (the per-request thinking door)", () => {
   });
 });
 
-// ── customParameters on the LOCAL engine (#197 arm B). The blob stays BYOK/custom-byo-only: locking it there
-// (20ac4154c) was a RULING, and its stated reason — "a first-class owned integration whose knobs are the
-// modeled sampling surface" — covers the engine we launch ourselves at least as strongly as it covers
-// OpenRouter. What changes is that the drop is now VISIBLE: compose threads the blob onto the request and
-// this surface used to ignore it in total silence, while both OR runners warned. ──
-// A vendor-spelled escape-hatch blob. Built from ENTRIES, not an object literal: these are deliberately
-// snake_case textgen sampler names (the exact shape a user would reach for), and declaring them as literal
-// keys is a `useNamingConvention` violation in the test tree.
+// ── customParameters ON the LOCAL engine — owner word 2026-08-18, AMENDING the 2026-07-24 BYOK-only
+// ruling of commit 20ac4154c). vLLM JOINS the escape hatch: capability here varies per checkpoint and is not
+// reliably detectable, so the posture is trust-the-user, err open, and let the engine refuse. OpenRouter's
+// lock is unchanged. Two tiers protect the turn — PRECEDENCE for everything we model, and the BELT DENYLIST
+// for what infra owns; the denylist is the only hard fence, so it gets the heaviest pinning. ──
+// Vendor-spelled blobs, built from ENTRIES rather than object literals: these are deliberately snake_case
+// engine field names (the exact shape a user reaches for) and literal keys would violate useNamingConvention.
 const TEXTGEN_BLOB: Record<string, unknown> = Object.fromEntries([
   ["mirostat_mode", 2],
   ["dry_multiplier", 0.8],
 ]);
 
-describe("createVllmChat — customParameters is dropped, and dropped LOUDLY", () => {
-  test("the blob does not reach the body and the turn carries custom_parameters_ignored", async () => {
+describe("createVllmChat — customParameters reaches the wire (the 2026-08-18 amendment)", () => {
+  test("an exotic sampler the modeled surface does not carry rides through to the body", async () => {
     const { client, read } = recordingClient();
     const chat = createVllmChat({ client, now: clock() });
     const res = await chat(chatReq({ customParameters: TEXTGEN_BLOB }));
     const body = read();
-    expect(body).not.toHaveProperty("mirostat_mode");
-    expect(body).not.toHaveProperty("dry_multiplier");
-    expect(res.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "custom_parameters_ignored" }));
-  });
-
-  test("an EMPTY blob is not a degrade — no warning on a turn that asked for nothing", async () => {
-    const { client } = recordingClient();
-    const chat = createVllmChat({ client, now: clock() });
-    const res = await chat(chatReq({ customParameters: {} }));
+    expect(body?.["mirostat_mode"]).toBe(2);
+    expect(body?.["dry_multiplier"]).toBe(0.8);
+    // Nothing was dropped, so nothing warns — the blob is no longer a degrade on this source.
     expect(res.events).not.toContainEqual(expect.objectContaining({ code: "custom_parameters_ignored" }));
   });
 
-  test("the drop also fires on `onEvent` as the turn completes, not only on the result", async () => {
+  test("an absent blob leaves the body byte-identical (every preset today takes this path)", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: { temperature: 0.7 } }));
+    const withoutBlob = read();
+    await chat(chatReq({ params: { temperature: 0.7 }, customParameters: {} }));
+    expect(read()).toEqual(withoutBlob);
+  });
+
+  // PRECEDENCE — the modeled knob wins. `temperature` is capability-gated and clamped by the funnel; the
+  // escape hatch EXTENDS the wire, it does not re-litigate a value the funnel already decided. This is the
+  // OPPOSITE of custom-byo, where the user's endpoint makes customParameters the final word.
+  test("a modeled param WINS over a customParameters key of the same name", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: { temperature: 0.4 }, customParameters: Object.fromEntries([["temperature", 1.9]]) }));
+    expect(read()?.["temperature"]).toBe(0.4);
+  });
+
+  test("the reasoning kwargs also win — the escape hatch cannot rewrite the resolved thinking door", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(
+      chatReq({
+        params: { effort: "low" },
+        customParameters: Object.fromEntries([["chat_template_kwargs", Object.fromEntries([["enable_thinking", false]])]]),
+      }),
+    );
+    expect(templateKwargs(read())?.["enable_thinking"]).toBe(true);
+    expect(templateKwargs(read())?.["reasoning_effort"]).toBe("low");
+  });
+});
+
+// THE BELT DENYLIST is the ONLY hard fence on this source now (err-open posture), so each key is pinned.
+// `truncate_prompt_tokens` is the one that earned it: #165/#173 measured it turning a 21ms honest 400 into an
+// unbounded hang that burned 120s timeouts in production, and it was removed from the embed + rerank surfaces
+// at the cost of two incidents. A preset must not be able to put it back.
+describe("createVllmChat — the belt denylist (the one hard fence)", () => {
+  const beltKeys = ["truncate_prompt_tokens", "truncation_side", "stream", "stream_options", "model", "messages"];
+
+  for (const key of beltKeys) {
+    test(`\`${key}\` is DROPPED from customParameters and the drop is loud`, async () => {
+      const { client, read } = recordingClient();
+      const chat = createVllmChat({ client, now: clock() });
+      const res = await chat(chatReq({ customParameters: Object.fromEntries([[key, "belt-owned-poison"]]) }));
+      expect(read()?.[key]).not.toBe("belt-owned-poison");
+      expect(res.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "custom_parameters_ignored", message: expect.stringContaining(key) }));
+    });
+  }
+
+  test("the hang knob cannot be re-added even alongside legitimate keys (partial drop keeps the rest)", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    const res = await chat(
+      chatReq({
+        customParameters: Object.fromEntries([
+          ["truncate_prompt_tokens", -1],
+          ["mirostat_mode", 2],
+        ]),
+      }),
+    );
+    const body = read();
+    expect(body).not.toHaveProperty("truncate_prompt_tokens");
+    // …and the legitimate key still rides: a partial drop must not throw away the whole blob.
+    expect(body?.["mirostat_mode"]).toBe(2);
+    expect(res.events).toContainEqual(
+      expect.objectContaining({ code: "custom_parameters_ignored", message: expect.stringContaining("truncate_prompt_tokens") }),
+    );
+  });
+
+  test("the transport shape survives a blob that tries to unset streaming", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ customParameters: Object.fromEntries([["stream", false]]) }));
+    expect(read()?.["stream"]).toBe(true);
+  });
+
+  test("the belt drop also fires on `onEvent`, not only on the result", async () => {
     const { client } = recordingClient();
     const seen: string[] = [];
     const chat = createVllmChat({ client, now: clock() });
-    await chat(chatReq({ customParameters: TEXTGEN_BLOB, onEvent: (e) => seen.push(e.kind === "warning" ? e.code : e.kind) }));
+    await chat(
+      chatReq({
+        customParameters: Object.fromEntries([["truncate_prompt_tokens", -1]]),
+        onEvent: (e) => seen.push(e.kind === "warning" ? e.code : e.kind),
+      }),
+    );
     expect(seen).toContain("custom_parameters_ignored");
+  });
+
+  // The Layer-2 prototype-pollution belt (`server/kit/custom-parameters.deepMergeRequestBody`) must still be
+  // in the path — routing through it rather than spreading is what keeps the two-layer defense real.
+  test("prototype-pollution keys are neutralized by the merge belt", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ customParameters: Object.fromEntries([["__proto__", Object.fromEntries([["polluted", true]])]]) }));
+    expect(read()).not.toHaveProperty("polluted");
+    // …and no OTHER object gained the key — the real proof that the global prototype was never touched.
+    const bystander: Record<string, unknown> = {};
+    expect(Object.hasOwn(bystander, "polluted")).toBe(false);
+    expect(bystander["polluted"]).toBeUndefined();
   });
 });
