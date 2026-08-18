@@ -20,9 +20,10 @@
 //   • THE REGION'S INSET and the containing-block fence, carried over unchanged from the 2026-08-08 pass.
 //
 // DETERMINISM: the gem rows print a relative stamp, so the page clock is frozen at FROZEN_AT_MS and every
-// `lastActiveAt` is derived from it. No ambient clock is read anywhere in this file — the `test-determinism`
-// gate patrols the SPELLING, comments included, and it is right to: a commented-out wall-clock read is one
-// paste away from being a live one.
+// `lastActiveAt` is derived from it. No ambient clock is read anywhere in this file. SUPERSEDED (issue
+// #132): `test-determinism` no longer patrols comment PROSE — it blanks comment spans before the scan, so
+// naming `Date.now()` in a comment is legal. The "one paste away" worry this header used to record is not
+// lost: a commented-OUT statement is `commented-code`'s territory and REDs there.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";

@@ -18,13 +18,18 @@ function blankRange(text: string, start: number, end: number): string {
  *  ranges of some token, and ts-morph's `getDescendants()` walks tokens (not just the `forEachChild`
  *  nodes), so a comment before a `)` / `}` / EOF is covered too — which a node-only walk misses. Using the
  *  real parse rather than a hand-rolled scanner is what keeps a `//` inside a string or a regex literal
- *  from being mistaken for a comment opener. */
+ *  from being mistaken for a comment opener.
+ *
+ *  BOTH SIDES, and the second one is not optional (issue #132): TypeScript classifies a comment on the
+ *  SAME LINE as the code before it as TRAILING trivia of that node, and `getLeadingCommentRanges` never
+ *  returns it — so a leading-only sweep silently leaves every `code(); // …` comment in the scanned text.
+ *  That is the single most common comment position in this repo's tests, and it was #117's residual hole. */
 export function blankTsComments(sf: SourceFile): string {
   let text = sf.getFullText();
   const seen = new Set<number>();
   const spans: { readonly pos: number; readonly end: number }[] = [];
   for (const node of [sf, ...sf.getDescendants()]) {
-    for (const range of node.getLeadingCommentRanges()) {
+    for (const range of [...node.getLeadingCommentRanges(), ...node.getTrailingCommentRanges()]) {
       const pos = range.getPos();
       if (!seen.has(pos)) {
         seen.add(pos);
