@@ -26,6 +26,26 @@ export const DEFAULT_OUTPUT_RESERVE_TOKENS = DEFAULT_MEMORY_SUMMARIZER_MAX_TOKEN
  *  emit the soft-warning at build start (the degrade is visible, never silent). */
 export const SUMMARIZER_CONTEXT_FLOOR = 4096;
 
+/** Tokens held back from the embed window for the ChatML scaffold the embed surface wraps every input in
+ *  (system instruction + four role markers ≈ 30 estimated tokens) plus slack for tokenizer disagreement. */
+const EMBED_SCAFFOLD_RESERVE_TOKENS = 64;
+
+/**
+ * Does a rendered verbatim block fit the EMBED model's window? The segment twin of {@link fitBlockToBudget},
+ * and deliberately a BOOLEAN rather than a fitter: a digest is a SUMMARY (trimming the oldest message still
+ * yields an honest summary of what is left), while a segment is the VERBATIM ground truth a digest hit
+ * resolves back to. Trimming or truncating one produces a vector that claims to represent a seq-span it
+ * never read — a lying embedding, and memory-feeding content silently lost (owner ruling, #165: "if we are
+ * skimping out on messages that's a no go since this feeds the memory system"). So an over-window block is
+ * SKIPPED AND RECORDED by the caller instead. The chunking arm — a block that does not fit becomes N
+ * in-budget segments, losing nothing — is the ruled preference and needs a `chat_segments` key that admits
+ * more than one row per `(chat, block)`; it rides its own lane.
+ */
+export function blockFitsEmbedWindow(renderedText: string, embedContextTokens: number): boolean {
+  const budget = embedContextTokens - EMBED_SCAFFOLD_RESERVE_TOKENS;
+  return budget > 0 && estimateTokens(renderedText) <= budget;
+}
+
 /**
  * Fit a block's rows to the summarizer transcript budget by trimming OLDEST-within-block until the rendered
  * transcript fits `contextTokens` (minus the system prompt + the output reserve). Returns the kept rows, or

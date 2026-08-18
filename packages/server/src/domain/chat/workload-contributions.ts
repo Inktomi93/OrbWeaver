@@ -31,7 +31,10 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
         report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
         const counts = await deps.backfillMemory({ ownerId: ctx.ownerId, signal });
         report({
-          message: `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)${counts.failed > 0 ? `, ${counts.failed} chats FAILED (skipped — see error log)` : ""}`,
+          message:
+            `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)` +
+            `${counts.segmentsSkippedOverWindow > 0 ? `, ${counts.segmentsSkippedOverWindow} blocks TOO LARGE for the embed model (skipped whole, NOT truncated — see the warn log)` : ""}` +
+            `${counts.failed > 0 ? `, ${counts.failed} chats FAILED (skipped — see error log)` : ""}`,
         });
         // PD-139(b): once a COMPLETE BULK sweep has re-derived every segment/digest into the box's active
         // embed `(model)` space, reclaim the rows stranded in any OTHER space. BULK-ONLY: a model change is a

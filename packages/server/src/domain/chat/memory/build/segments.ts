@@ -4,15 +4,21 @@
 // shared per chat, regardless of group bucketing); the verbatim TEXT is not persisted on the row (only the
 // embedding + the seq-span pointer — the substrate stays a pure function of canon).
 //
+// A block whose verbatim transcript exceeds the EMBED model's window is SKIPPED WHOLE and COUNTED
+// (`skippedOverWindow`) — never truncated to fit. Truncating would store a vector claiming a seq-span it
+// never read, silently losing memory-feeding content (owner ruling, #165).
+//
 // SELF-HEAL on the content hash (a swipe/edit at the protected tip never touches a settled segment).
 // DETERMINISM (D46): blockIdx order; injected embed; no clock/random. NO ownerId (D20 — chat FK derives owner).
 
 import type { ChatId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
+import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../../context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes } from "../persistence/queries.ts";
-import type { MemoryConfig, MemoryPassCounts } from "../types.ts";
+import type { MemoryConfig, SegmentPassCounts } from "../types.ts";
+import { blockFitsEmbedWindow } from "./substrate/token-guard.ts";
 import { blockHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript.ts";
 
 /** What `generateSegments` needs (file-local, NON-exported — the `types-in-contract` gate; caller passes a
@@ -29,17 +35,17 @@ interface GenerateSegmentsArgs {
  * Same cutoff as the digest build (`maxSeq − verbatimWindow`): only complete, aged-out blocks. `mode: 'off'`
  * (D36) → a no-op. Returns the written/skipped counts.
  */
-export async function generateSegments(ctx: ChatContext, args: GenerateSegmentsArgs): Promise<MemoryPassCounts> {
+export async function generateSegments(ctx: ChatContext, args: GenerateSegmentsArgs): Promise<SegmentPassCounts> {
   const cfg = resolveCfg(args.config);
   if (cfg.mode === "off") {
-    return { written: 0, skipped: 0 };
+    return { written: 0, skipped: 0, skippedOverWindow: 0 };
   }
   const macroNames = args.macroNames ?? EMPTY_MACRO_NAMES;
 
   const { maxSeq } = await loadChatMeta(ctx.db, args.chatId);
   const cutoff = maxSeq - cfg.verbatimWindow;
   if (cutoff < cfg.blockSize) {
-    return { written: 0, skipped: 0 };
+    return { written: 0, skipped: 0, skippedOverWindow: 0 };
   }
 
   const canon = await loadCanonThroughSeq(ctx.db, args.chatId, cutoff);
@@ -53,11 +59,27 @@ export async function generateSegments(ctx: ChatContext, args: GenerateSegmentsA
 
   let written = 0;
   let skipped = 0;
+  let skippedOverWindow = 0;
   for (const block of blocks) {
     args.signal?.throwIfAborted();
     const hash = blockHash(`seg:${block.blockIdx}`, block.rows);
     if (existing.get(block.blockIdx) === hash) {
       skipped += 1;
+      continue;
+    }
+    const text = renderTranscript(block.rows, macroNames);
+    // THE WINDOW GUARD (#165). A block bigger than the embed model's window is skipped WHOLE and recorded —
+    // never truncated, because the vector would then claim a seq-span it never read and the tail of a
+    // memory-feeding block would vanish with no trace (owner ruling). The block stays un-stored, so the
+    // content-hash self-heal re-offers it every pass: the day the corpus embeds a bigger window — or the
+    // chunking arm lands — it builds with nothing lost. The pathological source is real: the live corpus's
+    // worst block is a 200k-char code dump in a coding-helper chat.
+    if (!blockFitsEmbedWindow(text, ctx.embedContextTokens())) {
+      skippedOverWindow += 1;
+      getLog().warn(
+        { chatId: args.chatId, blockIdx: block.blockIdx, seqStart: block.seqStart, seqEnd: block.seqEnd, chars: text.length, embedContextTokens: ctx.embedContextTokens() },
+        "memory segments: block EXCEEDS the embed window — skipped whole (recorded, never truncated); its span is not retrievable until it fits",
+      );
       continue;
     }
     // biome-ignore lint/performance/noAwaitInLoops: the embed is metered + ordered (idempotent upsert per block) — segments are stored sequentially, not fanned out.
@@ -67,10 +89,10 @@ export async function generateSegments(ctx: ChatContext, args: GenerateSegmentsA
       blockIdx: block.blockIdx,
       seqStart: block.seqStart,
       seqEnd: block.seqEnd,
-      text: renderTranscript(block.rows, macroNames),
+      text,
       contentHash: hash,
     });
     written += 1;
   }
-  return { written, skipped };
+  return { written, skipped, skippedOverWindow };
 }

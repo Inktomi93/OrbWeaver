@@ -12,6 +12,11 @@ export interface BackfillPassResult {
 export interface MemoryBackfillResult {
   readonly segments: BackfillPassResult;
   readonly digests: BackfillPassResult;
+  /** Verbatim blocks whose transcript exceeds the embed model's window: skipped WHOLE, never truncated (a
+   *  truncated segment vector would claim a seq-span it never read and silently drop memory-feeding
+   *  content — owner ruling, #165). Recorded here + in the progress copy + an `warn` log per block, so the
+   *  gap is a stated fact; the content-hash self-heal re-offers each block every pass. */
+  readonly segmentsSkippedOverWindow: number;
   /** Chats whose per-chat build threw an UNEXPECTED error and were isolated-and-skipped. A non-silent
    *  skip: the sweep survives one bad chat, but the failure lands in the durable result JSON (and an
    *  `error`-level log), never vanishing without a trace. */

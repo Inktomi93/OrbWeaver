@@ -1062,6 +1062,12 @@ export interface ChatContext {
    *  (`entry/compose/role-clients.ts` header): capturing it at compose would re-freeze at boot exactly what
    *  that binder stopped freezing, and the guard would size every digest to the model the server started on. */
   readonly summarizerContextTokens: () => number;
+  /** The EMBED model's context window (tokens) — the segment build's window guard. A verbatim block that
+   *  cannot fit is SKIPPED AND RECORDED, never truncated: a segment is memory-feeding content, and a vector
+   *  built from the first 8k tokens of a 200k-token block is a lying embedding (owner ruling, #165 — "if we
+   *  are skimping out on messages that's a no go since this feeds the memory system"). A thunk for the same
+   *  reason as {@link summarizerContextTokens}: the resolution is per-call, never frozen at boot. */
+  readonly embedContextTokens: () => number;
   /** The admin-resolved memory-summarizer sampling (`AppSettings.memorySummarizer`) — the memory build passes
    *  `{maxTokens, temperature}` onto every `summarize` call AND mirrors `maxTokens` into the token-guard's
    *  output reserve (one home, so the fit and the request can't diverge). Both fields absent ⇒ the summarizer

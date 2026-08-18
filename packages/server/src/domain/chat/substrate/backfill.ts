@@ -115,6 +115,8 @@ interface PlanSweep {
   readonly plans: DigestPlan[];
   segmentsScanned: number;
   segmentsChanged: number;
+  /** Blocks skipped WHOLE because they exceed the embed window (#165) — recorded, never truncated. */
+  segmentsSkippedOverWindow: number;
   digestsScanned: number;
   failed: number;
 }
@@ -136,6 +138,7 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
   const seg = await generateSegments(ctx, { chatId, config, macroNames, signal: deps.signal });
   sweep.segmentsScanned += 1;
   sweep.segmentsChanged += seg.written;
+  sweep.segmentsSkippedOverWindow += seg.skippedOverWindow;
   const castSet = new Set<CharacterId>(cast);
   for (const scope of await scopesFor(ctx, chatId, cast, hostUserId)) {
     if (deps.signal.aborted) {
@@ -159,7 +162,7 @@ async function planAllBuckets(
   args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null },
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<PlanSweep> {
-  const sweep: PlanSweep = { plans: [], segmentsScanned: 0, segmentsChanged: 0, digestsScanned: 0, failed: 0 };
+  const sweep: PlanSweep = { plans: [], segmentsScanned: 0, segmentsChanged: 0, segmentsSkippedOverWindow: 0, digestsScanned: 0, failed: 0 };
   const deps: PlanDeps = { signal: args.signal, resolveMemoryConfig };
   for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
     if (args.signal.aborted) {
@@ -433,6 +436,7 @@ export async function backfillMemory(
   const committed = await commitAllPlans(ctx, sweep.plans, perPlanTexts, args.signal);
   return {
     segments: { scanned: sweep.segmentsScanned, changed: sweep.segmentsChanged },
+    segmentsSkippedOverWindow: sweep.segmentsSkippedOverWindow,
     digests: { scanned: sweep.digestsScanned, changed: committed.changed },
     failed: sweep.failed + committed.failed,
   };

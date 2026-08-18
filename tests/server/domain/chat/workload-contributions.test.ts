@@ -18,9 +18,12 @@ const bulkCtx: WorkloadRunContext = { ...ctx, ownerId: null };
 const sig = (): AbortSignal => new AbortController().signal;
 const FAILED_CHATS_RE = /7 chat/;
 
-function build(failed = 0): { readonly deps: ChatWorkloadDeps; readonly contributions: ReturnType<typeof createChatWorkloadContributions> } {
+function build(
+  failed = 0,
+  segmentsSkippedOverWindow = 0,
+): { readonly deps: ChatWorkloadDeps; readonly contributions: ReturnType<typeof createChatWorkloadContributions> } {
   const deps: ChatWorkloadDeps = {
-    backfillMemory: vi.fn(async () => ({ segments: { scanned: 4, changed: 2 }, digests: { scanned: 6, changed: 3 }, failed })),
+    backfillMemory: vi.fn(async () => ({ segments: { scanned: 4, changed: 2 }, digests: { scanned: 6, changed: 3 }, segmentsSkippedOverWindow, failed })),
     backfillGroupCharacters: vi.fn(async () => ({ scanned: 5, changed: 1 })),
     purgeMemoryVectors: vi.fn(async () => undefined),
   };
@@ -32,7 +35,7 @@ describe("memory-backfill", () => {
     const { deps, contributions } = build();
     const result = await contributions[0].run(ctx, {}, vi.fn(), sig());
     expect(deps.backfillMemory).toHaveBeenCalledWith({ ownerId: OWNER_ID, signal: expect.any(AbortSignal) });
-    expect(result).toEqual({ segments: { scanned: 4, changed: 2 }, digests: { scanned: 6, changed: 3 }, failed: 0 });
+    expect(result).toEqual({ segments: { scanned: 4, changed: 2 }, digests: { scanned: 6, changed: 3 }, segmentsSkippedOverWindow: 0, failed: 0 });
   });
 
   test("a BULK run (ownerId===null) reclaims the old chat-memory space after the sweep", async () => {
@@ -58,6 +61,17 @@ describe("memory-backfill", () => {
     await expect(contributions[0].run(ctx, {}, report, sig())).rejects.toThrow(FAILED_CHATS_RE);
     // The progress line still landed first, so the Jobs row keeps the full counts next to the failure.
     expect(report).toHaveBeenCalledWith({ message: expect.stringContaining("7 chats FAILED") });
+  });
+
+  // The owner ruling's visibility half (#165): blocks skipped for being too big are a RECORDED gap, so the
+  // Jobs row copy has to say so — and say it did NOT truncate them.
+  test("the progress copy NAMES blocks skipped for exceeding the embed window (recorded, not truncated)", async () => {
+    const { contributions } = build(0, 3);
+    const report = vi.fn();
+    await contributions[0].run(ctx, {}, report, sig());
+    expect(report).toHaveBeenLastCalledWith({
+      message: expect.stringContaining("3 blocks TOO LARGE for the embed model (skipped whole, NOT truncated"),
+    });
   });
 
   test("a BULK sweep with failures does NOT purge the old embed space (the corpus was not fully re-derived)", async () => {
