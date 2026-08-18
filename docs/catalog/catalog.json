@@ -420,9 +420,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 344,
-      "bytes": 155013,
-      "sha256": "be81d08a67be762f325d1013b06dddb0af8df1c35e178190ec928e548cfebd09",
+      "lines": 345,
+      "bytes": 157817,
+      "sha256": "3f55e63f7472904045edc1ff8b704e6bb2ee0961551741e3334e33c6fef08e12",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -439,8 +439,8 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "be81d08a67be762f325d1013b06dddb0af8df1c35e178190ec928e548cfebd09",
-        "verifiedCommit": "c7c06a89143f96407d0a58c2e386726d83ec91d9",
+        "verifiedSha256": "3f55e63f7472904045edc1ff8b704e6bb2ee0961551741e3334e33c6fef08e12",
+        "verifiedCommit": "0f6b3eb4da3bccd1c1e7171067732f9276e554db",
         "verifiedAt": "2026-08-18",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -455,6 +455,15 @@
               {
                 "kind": "gate",
                 "target": "scripts/check/gates/package-layout.ts:35"
+              }
+            ]
+          },
+          {
+            "claim": "ui-skin-fragment-purity row names bg-backdrop.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "scripts/check/gates/ui-skin-fragment-purity.ts:35"
               }
             ]
           }
@@ -583,9 +592,9 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 499,
-      "bytes": 238241,
-      "sha256": "a16f699ece2bb0e0d180198f9fec6362a324598235d01a0db51e57bf01ccaa00",
+      "lines": 501,
+      "bytes": 240916,
+      "sha256": "ae08f293460d187576b6540c09a2e0b0f281e0be1e8539c4171ccfa1f71acded",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -602,8 +611,8 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "a16f699ece2bb0e0d180198f9fec6362a324598235d01a0db51e57bf01ccaa00",
-        "verifiedCommit": "635b5bf49d08c2795bb686e621204b1ce5dbc1b6",
+        "verifiedSha256": "ae08f293460d187576b6540c09a2e0b0f281e0be1e8539c4171ccfa1f71acded",
+        "verifiedCommit": "0f6b3eb4da3bccd1c1e7171067732f9276e554db",
         "verifiedAt": "2026-08-18",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
@@ -624,9 +633,22 @@
                 "target": "packages/contracts/src/connection/index.ts:204"
               }
             ]
+          },
+          {
+            "claim": "D144 is live (derive law + scrim retirement).",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/content/theme-scope/clamp.ts:99"
+              },
+              {
+                "kind": "code",
+                "target": "packages/kit/src/theme-derivation/index.ts:1"
+              }
+            ]
           }
         ],
-        "summary": "Canonical D-ledger re-read through D141; frozen assigned hash retained and current verified blob updated."
+        "summary": "Canonical D-ledger re-read through D144; D71 backdrop truth-repair; frozen assigned hash retained and current verified blob updated."
       },
       "receiptCurrent": true
     },
@@ -22587,6 +22609,64 @@
               {
                 "kind": "issue",
                 "target": "#160"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 194,
+      "bytes": 16446,
+      "sha256": "b42697dc7abaa5890a60bf7f513361d19c5f62caab38ebb4d78fd1de192d771a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-18"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md",
+        "assignedSha256": "b42697dc7abaa5890a60bf7f513361d19c5f62caab38ebb4d78fd1de192d771a",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "b42697dc7abaa5890a60bf7f513361d19c5f62caab38ebb4d78fd1de192d771a",
+        "verifiedCommit": "d0e0a6ce06ee42fbaf9c2536c4a11e90267e4115",
+        "verifiedAt": "2026-08-18",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md:1-194 full read at merge",
+          "stickler F1 fixed at e0f8512f8 (opaque corrected ink, close-the-loop test); F2/F3 truth-repaired at 0f6b3eb4d; issue #204"
+        ],
+        "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) — all resolved at merge.",
+        "claims": [
+          {
+            "claim": "F1 (translucent-ink fixed point) is fixed: the corrected emission is opaque and re-judged.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/content/theme-scope/clamp.ts:290"
+              },
+              {
+                "kind": "test",
+                "target": "tests/ui/content/theme-scope/clamp.test.ts:1"
+              }
+            ]
+          },
+          {
+            "claim": "F3 gate row scans bg-backdrop.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "scripts/check/gates/ui-skin-fragment-purity.ts:35"
               }
             ]
           }
