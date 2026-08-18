@@ -13,6 +13,26 @@ test("open renders the media through MessageMedia; the external gate still compo
   await expect(page.locator(`img[src*="cdn.example"]`)).toHaveCount(0);
 });
 
+// THE VIEWER'S OWN FRAME (#146). `Lightbox` asks its `DialogPopup` for `p-block` — a zoom viewer is a bare
+// media frame (`bg-transparent shadow-none`), not a padded modal — and it was silently getting the popup's
+// `md` size padding (`p-section`) instead: the custom spacing scale was unregistered in tailwind-merge, both
+// paddings survived, and `.p-section` is emitted after `.p-block`. With the scale registered the call site's
+// declared intent lands. Resolved against the TOKEN, never a hardcoded px.
+test("the popup wears the viewer's own p-block frame, not the dialog size's p-section", async ({ mount, page }) => {
+  await mount(<Lightbox open={true} onOpenChange={noop} src={{ kind: "asset", url: "/blob/a.png" }} media="image" alt="a" />);
+  const popup = page.getByRole("dialog");
+  const block = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.height = "var(--spacing-block)";
+    document.body.append(probe);
+    const height = probe.getBoundingClientRect().height;
+    probe.remove();
+    return height;
+  });
+  await expect(popup).toHaveCSS("padding-top", `${block}px`);
+  await expect(popup).toHaveCSS("padding-left", `${block}px`);
+});
+
 test("closed renders nothing", async ({ mount, page }) => {
   await mount(<Lightbox open={false} onOpenChange={noop} src={{ kind: "asset", url: "/blob/a.png" }} media="image" alt="a" />);
   await expect(page.locator('[data-slot="message-media"]')).toHaveCount(0);

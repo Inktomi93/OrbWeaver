@@ -41,6 +41,19 @@ test("groups the catalog by provider — a heading per vendor, majors first, row
   await expect(groups.nth(2).locator(ITEM)).toContainText(["zebra-labs model 0", "zebra-labs model 1"]);
 });
 
+// THE POPUP IS FLUSH (#146). The picker asks its `PopoverPopup` for `p-0` because the list owns its own
+// insets — the search input, the chip row and every item already carry `px-block`, so a popup pad would
+// double-count and inset the search field from the surface it belongs to. It was silently getting the
+// popover's base `p-block`: the custom spacing scale was unregistered in tailwind-merge, both paddings
+// survived, and `.p-block` is emitted after `.p-0`. Registering the scale lands the declared intent.
+test("the popup is flush (p-0) — the list owns its own insets, the popup does not double-pad them", async ({ mount, page }) => {
+  await mount(<ModelPickerStory source="openrouter" result={catalogResult(vendorModels(["anthropic"], 2))} />);
+  await page.getByRole("button", { name: "Chat model" }).click();
+  const popup = page.locator('[data-slot="popover-popup"]');
+  await expect(popup).toHaveCSS("padding-top", "0px");
+  await expect(popup).toHaveCSS("padding-left", "0px");
+});
+
 test("fuzzy search reaches every group, not just the first — and hoists the typed row to the top", async ({ mount, page }) => {
   await mount(<ModelPickerStory source="openrouter" result={catalogResult(vendorModels(["anthropic", "openai", "zebra-labs"], 3))} />);
   await page.getByRole("button", { name: "Chat model" }).click();

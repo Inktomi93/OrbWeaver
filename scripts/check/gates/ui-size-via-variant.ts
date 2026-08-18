@@ -1,12 +1,24 @@
 // Gate: ui-size-via-variant (Core-Enforcement-Active-Gates.md Layer 3; ui-package-design.md — sizes are
 // VARIANT axes on the primitive, never call-site utilities). A `className` on a JSX element whose
 // component is imported from `@orb/ui` must not carry a SIZE/HEIGHT box utility (`h-*`, `min-h-*`,
-// `size-*`, `w-*` with a numeric / custom-token / `auto` value): tailwind-merge cannot classify the
-// custom-token utilities the primitives are built from (`h-control`, `size-icon`, …), so a call-site
-// override neither reliably wins nor reliably loses — it resolves by stylesheet order. Three real
-// incidents behind this gate: `size-auto` on Button (pre-F2), `h-auto` on TabsTab (pre-layout-variant),
-// and the general custom-token-override class. The fix is a variant on the primitive, not a stronger
-// class at the call site.
+// `size-*`, `w-*` with a numeric / custom-token / `auto` value). Three real incidents behind this gate:
+// `size-auto` on Button (pre-F2), `h-auto` on TabsTab (pre-layout-variant), and the general
+// custom-token-override class. The fix is a variant on the primitive, not a stronger class at the call
+// site.
+//
+// THE MECHANISM INVERTED AT #146 — the gate is unchanged, its rationale is not. It used to be that
+// tailwind-merge could not classify the custom-token utilities the primitives are built from
+// (`h-control`, `size-icon`, …), so a call-site override neither reliably won nor reliably lost: it
+// resolved by stylesheet order. `packages/ui/src/lib/class-merge.ts` now registers the whole `--spacing-*`
+// scale in the merger's THEME, so a call-site size resolves LAST-WINS and reliably DEFEATS the sealed box.
+// Unresolvable then, silently overriding now — the ruling ("sizes are variant axes") holds in both regimes,
+// and this gate is now the only thing standing between a feature and a broken seal.
+//   OPEN HOLE, filed as follow-up (#146 lane receipt): the `min-w-*`/`max-w-*`/`max-h-*` exclusion below was
+// written as a FALSE-POSITIVE fence under the old regime, where such a class could not win anyway. Under
+// the new one it can: `rpg-hud-rail.tsx`'s cell carried a `min-w-0` that was inert only on stylesheet order
+// and would have deleted `TabsTab`'s sealed `min-w-touch-target` — measured 39.09px against a 44px floor.
+// That instance was fixed in the #146 lane and the tree was swept for its siblings; WIDENING this gate is
+// its own lane, because a gate lands on a fixed tree.
 //
 // Deliberately OUT of scope (the false-positive fence): `max-w-*` / `min-w-*` / `max-h-*` layout
 // CONSTRAINTS; `min-h-0` (the flex-child overflow release, the height twin of `min-w-0`);

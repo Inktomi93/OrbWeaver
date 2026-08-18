@@ -118,12 +118,13 @@ export function RpgHud({ view }: RpgHudProps): ReactElement {
         }}
         // THE COLUMN SEAM IS DECLARED, NOT INHERITED (side-eye #102, 2026-08-17). This class read `gap-0`
         // and had NEVER been in effect: `gap-block` is the tabs primitive's own base, and tailwind-merge
-        // does not dedupe a CUSTOM-TOKEN gap against the numeric scale, so both classes survived and
+        // did not then dedupe a CUSTOM-TOKEN gap against the numeric scale, so both classes survived and
         // stylesheet order gave the primitive the win — MEASURED `gap: 12px`, four 12px seams (band ↔ game
         // rail ↔ viewport ↔ ground ↔ admin rail). Every vertical measurement this file's CTs pin was
         // therefore taken against a value the source denied. The 12px seam is KEPT (it is the geometry the
-        // #102 rendered pass verified: 24px medallions → kicker, 4px kicker → cells) and now SAYS SO, so
-        // when the merge-config fix lands and a call-site gap starts winning, nothing here moves.
+        // #102 rendered pass verified: 24px medallions → kicker, 4px kicker → cells) and now SAYS SO. That
+        // merge-config fix HAS landed (#146 — the spacing scale is registered, a call-site gap wins), and
+        // nothing here moved, which is exactly what declaring the seam bought.
         className="flex h-full min-h-0 flex-col gap-block"
       >
         <RpgHudBand />

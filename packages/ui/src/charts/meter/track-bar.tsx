@@ -36,8 +36,9 @@ export interface TrackBarProps {
    *  the text datum still reads value/max). */
   dangerBelow?: number;
   /**
-   * The rail's WIDTH — a variant, because a custom-token width is opaque to tailwind-merge and a
-   * call-site `w-*` would resolve by stylesheet order (`ui-size-via-variant`). `full` spans the column
+   * The rail's WIDTH — a variant, because a call-site `w-*` is not the rail's size to state
+   * (`ui-size-via-variant`): pre-#146 it resolved by stylesheet order against the opaque custom token,
+   * post-#146 it resolves last-wins and silently defeats it. `full` spans the column
    * (the magnitude reading). `swatch` is the fixed LEGEND pill: no magnitude, the bar stands only for
    * its ramp colour beside the thing it names.
    * @defaultValue "full"

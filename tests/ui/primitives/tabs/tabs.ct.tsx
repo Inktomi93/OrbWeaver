@@ -61,9 +61,12 @@ test("the indicator is a 2px primary UNDERLINE and the list is a bordered track,
   await expect(list).toHaveCSS("border-bottom-width", "1px");
 });
 
-// `layout="stacked"` exists because a call-site `h-auto` CANNOT beat the sealed `h-control-sm`
-// (custom-token heights are opaque to tailwind-merge ⇒ stylesheet order decides), which clipped the rpg
-// HUD's rail captions to a ~5px sliver. So the assertion is the COMPUTED box, never the class string:
+// `layout="stacked"` exists because a call-site `h-auto` could not beat the sealed `h-control-sm` — the
+// custom spacing scale was unregistered in tailwind-merge, both heights survived, and stylesheet order
+// decided, which clipped the rpg HUD's rail captions to a ~5px sliver. (#146 registered the scale, so a
+// call-site height now WINS the merge outright — which is why the seal is a variant plus the
+// `ui-size-via-variant` gate rather than a merge accident.) So the assertion is the COMPUTED box, never
+// the class string:
 // the cell's content box must actually HOLD the glyph and the caption stacked, and the caption must sit
 // inside it. `done ≠ rendered` — a class-string test passed the whole time the pixels were wrong.
 test("layout=stacked sizes the cell to its stacked content (glyph OVER caption), and the caption is not clipped", async ({ mount, page }) => {
@@ -106,6 +109,41 @@ test("layout=stacked sizes the cell to its stacked content (glyph OVER caption),
   expect(captionBox.y).toBeGreaterThanOrEqual(glyphBox.y + glyphBox.height);
   expect(captionBox.y + captionBox.height).toBeLessThanOrEqual(tabBox.y + tabBox.height);
   expect(captionBox.height).toBeGreaterThan(0);
+});
+
+// THE STACKED ARM'S `gap-0` NOW MEANS ZERO (#146). It was written deliberately — a glyph sitting ON its
+// caption is the rail cell's whole point — and rendered 6px anyway, because the base's `gap-field` and the
+// arm's `gap-0` both survived an unconfigured-for-spacing tailwind-merge and `.gap-field` is emitted after
+// `.gap-0`. Registering the spacing scale hands the LAST layer the win, so the declared intent lands. The
+// receipt is the computed gap; the sibling assertion is that `inline` still pays the base's `gap-field`,
+// resolved against the token rather than a hardcoded px.
+test("layout=stacked lands its declared gap-0 (and the inline arm still pays the base's gap-field)", async ({ mount, page }) => {
+  await mount(
+    <Tabs defaultValue="one">
+      <TabsList>
+        <TabsTab layout="stacked" value="one">
+          <svg aria-hidden={true} data-testid="glyph" height="16" width="16" />
+          <span>Inventory</span>
+        </TabsTab>
+        <TabsTab value="two">Two</TabsTab>
+      </TabsList>
+      <TabsPanel value="one">First panel</TabsPanel>
+      <TabsPanel value="two">Second panel</TabsPanel>
+    </Tabs>,
+  );
+
+  const gapOf = async (name: string): Promise<number> => await page.getByRole("tab", { name }).evaluate((el) => Number.parseFloat(getComputedStyle(el).rowGap));
+  const fieldGap = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.height = "var(--spacing-field)";
+    document.body.append(probe);
+    const height = probe.getBoundingClientRect().height;
+    probe.remove();
+    return height;
+  });
+
+  expect(await gapOf("Inventory")).toBe(0);
+  expect(await gapOf("Two")).toBeCloseTo(fieldGap, 1);
 });
 
 test("the default (inline) layout keeps the sealed control height — the stacked arm is opt-in only", async ({ mount, page }) => {

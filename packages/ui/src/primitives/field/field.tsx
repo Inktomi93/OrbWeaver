@@ -94,8 +94,9 @@ export function Field({
           labels off one baseline, its controls off another (the preset drill-ins' DELIVERY row, crunch
           item 10, owner-reported live). `size="inline"` is the arm for exactly this: no control box,
           text-height, and the touch floor kept by its own layout-neutral hit-area pseudo. A className
-          height CANNOT express it — a custom-token height is opaque to tailwind-merge, so both heights
-          would survive and stylesheet order would pick the winner. */}
+          height does not express it — pre-#146 a custom-token height was opaque to tailwind-merge, so both
+          heights survived and stylesheet order picked the winner; with the spacing scale registered the
+          call site wins instead, which is silently defeating a sealed box rather than naming an arm. */}
       <HintTrigger className={slots.hintTrigger()} hint={hint} size="inline" subject={label} />
     </span>
   ) : (

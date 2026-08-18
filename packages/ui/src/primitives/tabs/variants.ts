@@ -49,10 +49,14 @@ export const tabsVariants = tv({
     // must FOLLOW the content (`h-auto`) with `min-h-control-sm` keeping the ≥44px coarse tap floor.
     //
     // This is a VARIANT and not a call-site `className` for a measured reason (the 2026-08-01 side-eye P0):
-    // `h-auto` appended by a caller does NOT beat `h-control-sm` — a custom-token height is opaque to
-    // tailwind-merge, both classes survive, and STYLESHEET ORDER decides (h-auto loses). The rail's captions
-    // rendered as a 5px sliver. A sealed size can only be overridden HERE, the button `size="media"`
-    // precedent (F2). Pinned by COMPUTED height in tests/ui/primitives/tabs/tabs.ct.tsx.
+    // `h-auto` appended by a caller did NOT beat `h-control-sm` — the custom spacing scale was unregistered
+    // in tailwind-merge, both classes survived, and STYLESHEET ORDER decided (h-auto loses; `.h-auto` is
+    // emitted before `.h-control-sm`). The rail's captions rendered as a 5px sliver. #146 registered the
+    // scale, so the mechanism INVERTED: a call-site height now wins the merge outright. That does not undo
+    // this ruling, it sharpens it — an unsealed size is now silently overridable by any caller, so the seal
+    // is the variant plus the `ui-size-via-variant` gate, never a merge accident. A sealed size can only be
+    // overridden HERE, the button `size="media"` precedent (F2). Pinned by COMPUTED height in
+    // tests/ui/primitives/tabs/tabs.ct.tsx, whose sibling pin now also holds this arm's `gap-0` to zero.
     layout: {
       inline: { tab: `h-control-sm px-block ${FOCUS_RING}` },
       // `min-w-touch-target` is the WIDTH half of the same floor the height already carries, and it is

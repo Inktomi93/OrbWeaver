@@ -36,9 +36,11 @@ export const numberFieldVariants = tv({
     stepReadOnlyIcon: "hidden group-data-[readonly]:block",
   },
   // The SIZE axis owns the whole box — the field's width and the input's height/type step — because a
-  // control height is a custom token tailwind-merge cannot classify, so a call-site override would resolve
-  // by stylesheet order (the Button `size="wrap"` / TabsTab `layout="stacked"` precedent). Nothing else
-  // here may set a height.
+  // control height must not be settable from outside (the Button `size="wrap"` / TabsTab `layout="stacked"`
+  // precedent). Pre-#146 the reason was that tailwind-merge could not classify the custom token, so a
+  // call-site override resolved by stylesheet order; with the spacing scale registered it resolves
+  // last-wins, i.e. the call site silently beats the seal. Either way the axis owns the box and nothing
+  // else here may set a height.
   //
   // `md` is the default full-width form field, byte-identical to the pre-axis skin (a 44px stepper-flanked
   // input with centered body type). `inline` is the knob-row twin (preset-surface-redesign.md §4.1/§13): a
