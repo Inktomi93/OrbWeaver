@@ -223,6 +223,10 @@ export interface MessageRowStoryProps {
    *  than the scrollport). Passed directly here so a CT can assert the sticky treatment across every
    *  chatStyle without building eight multi-viewport transcripts. */
   readonly stickyAttribution?: boolean;
+  /** The variant's `model` identifier (#167 — the credit the action cluster prints through
+   *  `@orb/kit/model-name`). Omitted ⇒ the story's hosted-route default; `null` ⇒ a row with no model at
+   *  all (a greeting/draft), which must credit nothing. */
+  readonly model?: string | null;
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -251,6 +255,7 @@ export function MessageRowStory({
   viewerIsHost = false,
   messageKind = "standard",
   stickyAttribution = false,
+  model = "ct/model-x",
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -292,7 +297,7 @@ export function MessageRowStory({
               characterId,
               personaId,
               tokensOut: 128,
-              model: "ct/model-x",
+              model,
               toolCalls: toolCalls ?? [],
               reasoning,
             })}

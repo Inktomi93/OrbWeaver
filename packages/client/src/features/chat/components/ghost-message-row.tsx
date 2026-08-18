@@ -300,7 +300,7 @@ export function GhostMessageRow({
               as the settled row's name row (`renderGhostNameRow`), so a multi-viewport streaming turn pins
               its attribution exactly the way the committed one does instead of being the one row in the
               transcript with no speaker on it. */}
-          {renderGhostNameRow({ attribution, chromeBacking: skin.chromeBacking, stickyAttribution })}
+          {renderGhostNameRow({ attribution, stickyAttribution })}
           {decoratedBubble}
         </Stack>
       </Row>

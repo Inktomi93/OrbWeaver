@@ -1,7 +1,13 @@
 // The per-message METADATA row (WS3, D44 §12.1) — each datum gated by its OWN appearance toggle
-// (`showModelIcon`/`showTokenCount`/`showMessageId`/`showGenerationTimer`/`showGenerationCost`) and
-// rendered only when its datum is actually present on the `MessageView` (a draft/greeting row has null
-// model/tokens/gen-window — no datum, no gap).
+// (`showTokenCount`/`showMessageId`/`showGenerationTimer`/`showGenerationCost`) and rendered only when its
+// datum is actually present on the `MessageView` (a draft/greeting row has null tokens/gen-window — no
+// datum, no gap).
+//
+// THE MODEL CREDIT IS NOT HERE ANY MORE (#167, owner ruling 2026-08-18). `showModelIcon` still gates it,
+// but it prints in the row's REVEAL cluster (`MessageActionsRow`) through `@orb/kit/model-name` — an
+// attribution about the reply, revealed on hover/focus, instead of a raw 106-character weights path parked
+// under every message at 1.59:1 over background art. The `MessageMetadataVisibility` shape keeps the flag
+// (it is the appearance section's own key set); this row simply no longer reads it.
 //
 // D66 P5 (north-star ui-cohesion — quiet metadata): the old `@orb/ui/badge` pills (Clock/Cpu/Coins/Hash)
 // are replaced by inline `--text-micro` `--font-mono` `--color-muted-foreground` text, `·`-separated —
@@ -82,15 +88,6 @@ function metadatum(slot: string, text: string, title?: string): ReactElement {
   );
 }
 
-/** Local engines may identify a model by its absolute on-disk path. Keep that exact identity in the
- *  message record/title, but do not dump the host's directory tree into the conversation surface. */
-function modelLabel(model: string): string {
-  if (!model.startsWith("/")) {
-    return model;
-  }
-  return model.split("/").filter(Boolean).at(-1) ?? model;
-}
-
 /** The opt-in per-message metadata row. Renders nothing when every gated datum is absent (a draft
  *  greeting row, or every toggle off) — never an empty `<Row>` shell. Timestamps are handled by
  *  `MessageTimestamp` in the name row, not here. */
@@ -98,10 +95,6 @@ export function MessageMetadataRow({ message, visibility, backingClass }: Messag
   const tokens = tokenCount(message);
   const items: ReactElement[] = [];
 
-  if (visibility.showModelIcon && message.model !== null) {
-    const label = modelLabel(message.model);
-    items.push(<Fragment key="model">{metadatum("message-metadata-model", label, label === message.model ? undefined : message.model)}</Fragment>);
-  }
   if (visibility.showTokenCount && tokens !== null) {
     items.push(<Fragment key="tokens">{metadatum("message-metadata-tokens", `${tokens} tok`)}</Fragment>);
   }

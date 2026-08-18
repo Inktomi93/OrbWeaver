@@ -26,14 +26,15 @@ const WIRE_PROC = "chat.getVariantWire";
 const WIRE_ITEM = "View wire trace…";
 const MENU_TRIGGER = "More message actions";
 
-/** Only the model datum on — the wire item is gated by AUTHORITY, not by an appearance toggle, so the row
+/** Only the token datum on — the wire item is gated by AUTHORITY, not by an appearance toggle, so the row
  *  keeps one ordinary metadata datum beside it (the datum that proves the metadata row still renders, and
- *  renders nothing EXTRA, after the move). */
+ *  renders nothing EXTRA, after the move). It used to be the MODEL datum; #167 moved that credit out of
+ *  the metadata row into the action cluster, so tokens is the ordinary datum this row still owns. */
 const WIRE_STORY_VISIBILITY = {
   showTimestamps: false,
   showMessageId: false,
-  showModelIcon: true,
-  showTokenCount: false,
+  showModelIcon: false,
+  showTokenCount: true,
   showGenerationTimer: false,
   showGenerationCost: false,
 } as const;
@@ -71,7 +72,7 @@ test("a NON-HOST viewer gets no wire item at all — the host-only plane is neve
   const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={false} />);
 
   // The ordinary member-plane datum still renders — nothing about the row is suppressed, only the host arm.
-  await expect(component.locator('[data-slot="message-metadata-model"]')).toHaveText("ct/model-x");
+  await expect(component.locator('[data-slot="message-metadata-tokens"]')).toHaveText("128 tok");
   await openActionsMenu(component);
   await expect(menuItem(page, WIRE_ITEM)).toHaveCount(0);
   await expect.poll(() => trpc.count(WIRE_PROC)).toBe(0);

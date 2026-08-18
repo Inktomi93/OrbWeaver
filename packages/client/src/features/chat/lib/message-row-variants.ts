@@ -11,7 +11,7 @@ import { avatarFallbackHueColor } from "@orb/ui/avatar";
 import type { CSSProperties } from "react";
 import { cn, messageBubbleClass } from "#lib";
 import type { RowAttribution } from "./attribution.ts";
-import { BG_PHOTO_CHROME_SCRIM, BG_PHOTO_READING_SCRIM } from "./message-row-backing.ts";
+import { BG_PHOTO_READING_SCRIM } from "./message-row-backing.ts";
 
 function alignFor(role: MessageRole): string {
   return role === "user" ? "items-end" : "items-start";
@@ -56,9 +56,6 @@ export interface RowSkin {
   readonly avatarTreatment: (kind: RowAttribution["kind"]) => AvatarTreatment;
   readonly bubbleDecoration?: (args: BubbleDecorationArgs) => BubbleDecoration | null;
   readonly bubbleLayout: BubbleLayout;
-  /** Reading-scrim backing for the name/action chrome row, present only for no-fill modes
-   *  (flat/hush/document) whose chrome would otherwise float on a raw bg photo. */
-  readonly chromeBacking?: string | undefined;
 }
 
 function bubbleOuter(role: MessageRole): string {
@@ -181,14 +178,12 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     inner: flatInner,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
-    chromeBacking: BG_PHOTO_CHROME_SCRIM,
   },
   document: {
     outer: () => "w-full items-center",
     inner: () => cx("w-full max-w-prose px-block py-row text-prose-body", BG_PHOTO_READING_SCRIM),
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
-    chromeBacking: BG_PHOTO_CHROME_SCRIM,
   },
   echo: {
     outer: bubbleOuter,
@@ -210,7 +205,6 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: hushDecoration,
     bubbleLayout: "single",
-    chromeBacking: BG_PHOTO_CHROME_SCRIM,
   },
   ripple: {
     outer: bubbleOuter,
