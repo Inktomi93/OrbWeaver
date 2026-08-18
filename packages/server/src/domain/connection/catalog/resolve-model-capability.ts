@@ -55,6 +55,32 @@ const MIN_OUTPUT = 1;
 const OUTPUT_CAP = 32_768;
 const OR_DEFAULT_WINDOW = 200_000; // when the catalog entry omits contextLength (cold cache)
 
+/** The gen engine's reasoning axis — a fact about OUR LAUNCH CONFIG, not about whichever checkpoint the env
+ *  points the gen slot at. `genArgv` (`infra/providers/vllm/engine/build-argv.ts`) UNCONDITIONALLY emits
+ *  `--reasoning-parser qwen3` (reasoning arrives in its own response field) and serves our vendored fixed
+ *  chat template, whose per-request kwargs are `enable_thinking` + `reasoning_effort`. So the axis holds for
+ *  every model this source serves, which is why it is declared once here rather than sniffed per checkpoint.
+ *
+ *  `mode: "effort"` — the template branches on `reasoning_effort` only; a per-request TOKEN budget is a
+ *  different mechanism (`--reasoning-config` + `thinking_token_budget`) that build-argv deliberately does NOT
+ *  emit, so advertising `mode:"budget"` here would promise a knob no request can reach.
+ *
+ *  `defaultEnabled: false` — the launch bakes `--default-chat-template-kwargs {"enable_thinking": false}`, so
+ *  reasoning stays OFF until a preset asks for it. The funnel reads this bit to avoid filling an absent
+ *  effort with the model's default (an off-by-default model must not start thinking on its own).
+ *
+ *  `minimal` is EXCLUDED from the level list ON PURPOSE, and the omission is the honest encoding rather than
+ *  an oversight: the template's effort ladder recognizes `low`/`medium`/`high`/`xhigh` and folds EVERY
+ *  unrecognized value into `xhigh` — so advertising `minimal` would silently buy MAXIMUM thinking, the exact
+ *  opposite of the ask. `max` is listed because the wire mapper (`effortToOpenAIReasoning`) turns it into
+ *  `xhigh`, which the template does recognize. A level the funnel drops emits a loud `effort_dropped`. */
+const VLLM_REASONING: ModelCapability["reasoning"] = {
+  mode: "effort",
+  enabled: true,
+  effortLevels: ["low", "medium", "high", "xhigh", "max"],
+  defaultEnabled: false,
+};
+
 const CUSTOM_OPENAI_DEFAULT_WINDOW = 128_000;
 // In-process embed/rerank tier — chat capability is moot here. Sized off the embed pooling window's
 // single-home env floor (VLLM_EMBED_MAX_MODEL_LEN), not a bare literal, so the 8192 lives in exactly one place.
@@ -365,8 +391,16 @@ export function resolveModelCapability(
       // + `finish_reason: tool_calls` on 36/36 turns, while the identical model with no tools attached wrote
       // prose on every one. Declared HERE (the ONE capability factory) rather than sniffed downstream, so the
       // consumers that must not co-emit on this wire read a capability fact instead of branching on the source.
+      //
+      // `reasoning` — the gen slot serves a THINKING checkpoint behind our vendored fixed chat template, and
+      // `staticProfile`'s blanket `mode:"none"` was a LIE about it: the descriptor is what gates the preset
+      // params-deck's reasoning control AND what `resolveChat` clamps against, so a `none` cell meant a user
+      // could not ask for thinking and an effort that WAS set got dropped before any wire saw it. Folded on
+      // here (like `tools`) rather than in `staticProfile`, because it is this source's launch fact and not
+      // every static arm's — see {@link VLLM_REASONING}.
       return {
         ...staticProfile(caches?.vllmGenWindow ?? env.VLLM_GEN_MAX_MODEL_LEN, true, true),
+        reasoning: VLLM_REASONING,
         tools: { parallel: true, silencesProse: true },
       };
     case "local-light":
