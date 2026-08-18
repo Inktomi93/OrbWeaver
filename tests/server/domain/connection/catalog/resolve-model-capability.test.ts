@@ -315,7 +315,10 @@ describe("resolveModelCapability — static arms", () => {
     // and the funnel reads this bit to avoid filling an absent effort with a model default.
     expect(cap.reasoning.defaultEnabled).toBe(false);
     expect(cap.sampling.temperature).toBeDefined();
-    expect(cap.context.window).toBe(32_768);
+    // The env-floor launch window (VLLM_GEN_MAX_MODEL_LEN, 65_536 since 2026-08-18 — a 262k-native
+    // checkpoint traded 9x→4.5x concurrency for dense-video depth). The engine's self-report outranks
+    // this at runtime; the static arm only mirrors the env default.
+    expect(cap.context.window).toBe(65_536);
   });
 
   // ERR-OPEN (owner ruling 2026-08-18): vLLM capability varies per checkpoint and is not reliably

@@ -43,7 +43,10 @@ const VLLM_EMBED_MAX_BATCH_TOKENS_DEFAULT = 262_144;
 // The gen engine's --max-model-len (buildEngineArgv `gen` arm). ONE home for the window so the launcher's
 // serve flag and the resolved ModelCapability.context.window can't drift (parity-tested + engine-self-report
 // outranks it for capability truth). The engine's OWN /v1/models max_model_len wins at runtime.
-const VLLM_GEN_MAX_MODEL_LEN_DEFAULT = 32_768;
+// 65_536 on a 262_144-native checkpoint (no rope scaling involved): at gen util 0.6 the KV pool is
+// ~296k tokens, so 64k/request floors concurrency at ~4.5x — the owner-picked depth/parallelism trade
+// (2026-08-18, for dense video analysis; 32k was 9x).
+const VLLM_GEN_MAX_MODEL_LEN_DEFAULT = 65_536;
 // The embed + rerank pooling engines' --max-model-len. ONE home for the 8192 that was hand-copied into the
 // shell script's embed/rerank arms AND the character embed-text char budget AND the local-light capability
 // window. The engines self-report these too (extend-of the gen-window seam); the env is the launch flag +
@@ -73,6 +76,13 @@ const VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT = 0.5;
 // regime; the gen VL engine at its 4.2M-px cap. ONE home for the two literals the shell hand-carried.
 const VLLM_POOLING_MAX_PIXELS_DEFAULT = 1_843_200;
 const VLLM_GEN_MAX_PIXELS_DEFAULT = 4_194_304;
+// Gen video sampling density — LAUNCH-TIME ONLY knobs (vLLM 0.26's per-request media/processor kwargs
+// never reach the video sampler; probed live 2026-08-18). fps 4 doubles the Qwen3VL class default
+// (temporal_patch_size 2 → the model sees fps×duration/2 timestamped steps); raise the env for
+// frame-to-frame motion judgment, at ~2× vision tokens per fps step. max_frames caps one clip's
+// token bill so a long video can't fill the whole context window (512 ≈ 2min @ fps 4).
+const VLLM_GEN_VIDEO_FPS_DEFAULT = 4;
+const VLLM_GEN_VIDEO_MAX_FRAMES_DEFAULT = 512;
 // The gen engine's default repetition_penalty, applied PER REQUEST by the vLLM chat surface when a preset is
 // silent (#23; the per-request move landed 2026-08-14). It was a `--override-generation-config` LAUNCH flag
 // while the sampler-less agent-sdk /v1/messages wire existed — that wire carried no per-request penalty, so a
@@ -289,6 +299,8 @@ const envSchema = z
     VLLM_GEN_GPU_UTIL_SINGLE: z.coerce.number().positive().default(VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT),
     VLLM_POOLING_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_POOLING_MAX_PIXELS_DEFAULT),
     VLLM_GEN_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_GEN_MAX_PIXELS_DEFAULT),
+    VLLM_GEN_VIDEO_FPS: z.coerce.number().positive().default(VLLM_GEN_VIDEO_FPS_DEFAULT),
+    VLLM_GEN_VIDEO_MAX_FRAMES: z.coerce.number().int().positive().default(VLLM_GEN_VIDEO_MAX_FRAMES_DEFAULT),
     // The gen engine's per-REQUEST repetition-penalty default (#23) — applied by the vLLM chat surface when a
     // preset is silent. Admin-layerable ⊕ AppSettings override; applies on the next request, no restart.
     VLLM_GEN_REPETITION_PENALTY: z.coerce.number().positive().default(VLLM_GEN_REPETITION_PENALTY_DEFAULT),
@@ -535,6 +547,8 @@ export function engineLaunchEnvFloor(): {
   readonly VLLM_GEN_GPU_UTIL_SINGLE: number;
   readonly VLLM_POOLING_MAX_PIXELS: number;
   readonly VLLM_GEN_MAX_PIXELS: number;
+  readonly VLLM_GEN_VIDEO_FPS: number;
+  readonly VLLM_GEN_VIDEO_MAX_FRAMES: number;
   readonly VLLM_GEN_REPETITION_PENALTY: number;
   readonly VLLM_GEN_PRESENCE_PENALTY: number;
   readonly VLLM_SLEEP_MODE: boolean;
@@ -558,6 +572,8 @@ export function engineLaunchEnvFloor(): {
     VLLM_GEN_GPU_UTIL_SINGLE: env.VLLM_GEN_GPU_UTIL_SINGLE,
     VLLM_POOLING_MAX_PIXELS: env.VLLM_POOLING_MAX_PIXELS,
     VLLM_GEN_MAX_PIXELS: env.VLLM_GEN_MAX_PIXELS,
+    VLLM_GEN_VIDEO_FPS: env.VLLM_GEN_VIDEO_FPS,
+    VLLM_GEN_VIDEO_MAX_FRAMES: env.VLLM_GEN_VIDEO_MAX_FRAMES,
     VLLM_GEN_REPETITION_PENALTY: env.VLLM_GEN_REPETITION_PENALTY,
     VLLM_GEN_PRESENCE_PENALTY: env.VLLM_GEN_PRESENCE_PENALTY,
     VLLM_SLEEP_MODE: env.VLLM_SLEEP_MODE,
