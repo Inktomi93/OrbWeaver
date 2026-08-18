@@ -36,11 +36,13 @@ const THEMES_TS = join(HERE, "src/tokens/themes.gen.ts");
 const THEMES_MODULE = "./themes.gen.ts";
 
 // The exact token-path coverage every seed value-set must carry: each EMITTED `--color-*` (the
-// themeable surface, from clamp.ts) plus color.scrim (SEED_COVERED). A value-set with a missing or
-// extra path fails the build — this is what makes the seed palettes un-driftable against the emit set.
+// themeable surface, from clamp.ts — since #204 that includes color.reading-plate, the derived over-art
+// text plate) plus color.backdrop (SEED_COVERED: the polarity-fixed dimming smoke each palette tunes).
+// A value-set with a missing or extra path fails the build — this is what makes the seed palettes
+// un-driftable against the emit set.
 const SEED_VALUE_SET_PATHS: ReadonlySet<string> = new Set([
   ...THEME_SCOPE_EMIT_VARS.filter((v) => v.startsWith("--color-")).map((v) => `color.${v.slice("--color-".length)}`),
-  "color.scrim",
+  "color.backdrop",
 ]);
 
 const HEADER =
@@ -190,7 +192,7 @@ function loadSeedThemes(basePaths: ReadonlySet<string>): SeedTheme[] {
     const missing = [...SEED_VALUE_SET_PATHS].filter((p) => !present.has(p));
     const extra = [...present].filter((p) => !SEED_VALUE_SET_PATHS.has(p));
     if (missing.length > 0 || extra.length > 0) {
-      fail(`token paths must be EXACTLY the EMITTED colors + color.scrim — missing [${missing.join(", ")}], extra [${extra.join(", ")}]`);
+      fail(`token paths must be EXACTLY the EMITTED colors + color.backdrop — missing [${missing.join(", ")}], extra [${extra.join(", ")}]`);
     }
     for (const [path, value] of flat) {
       if (!basePaths.has(path)) {

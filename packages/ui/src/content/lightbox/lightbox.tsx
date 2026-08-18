@@ -15,7 +15,7 @@ export interface LightboxProps {
 
 /**
  * `<Lightbox>` — a zoom viewer hand-built over `@orb/ui/dialog` + `MessageMedia` (D54 — no lib). The
- * Dialog supplies the focus trap, Esc, and `bg-scrim` backdrop; the media renders THROUGH
+ * Dialog supplies the focus trap, Esc, and `bg-backdrop` backdrop; the media renders THROUGH
  * `MessageMedia` so its gates compose (an external image opened in the lightbox is still gated —
  * `allowExternal` flows through). Images/video only.
  *

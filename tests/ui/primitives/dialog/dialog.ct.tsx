@@ -54,7 +54,7 @@ test("backdrop renders with the scrim token color", async ({ mount, page }) => {
   const backdrop = page.locator('[data-slot="dialog-backdrop"]');
   await expect(backdrop).toBeVisible();
   // The theme-aware overlay token (D43 §11.4) — never bg-black/50.
-  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.scrim"].value);
+  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.backdrop"].value);
 });
 
 // Base UI Dialog defaults `modal={true}` — focus trap + document scroll lock come free. This CT

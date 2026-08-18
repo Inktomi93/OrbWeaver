@@ -145,7 +145,7 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
   renderValue?: (value: unknown) => ReactNode;
   /** Render sticky hover-to-scroll arrows in the popup (long lists). @defaultValue false */
   scrollArrows?: boolean;
-  /** Render a dimming `bg-scrim` backdrop behind the (modal-by-default) popup. @defaultValue false */
+  /** Render a dimming `bg-backdrop` backdrop behind the (modal-by-default) popup. @defaultValue false */
   backdrop?: boolean;
   /** Render an arrow pointing at the trigger inside the popup. @defaultValue false */
   arrow?: boolean;

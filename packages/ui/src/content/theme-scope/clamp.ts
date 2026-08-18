@@ -1,7 +1,20 @@
 // Security boundary for user/character theming: a custom-property VALUE must be parsed + clamped
 // here before it reaches the DOM (color must parse as a color, dimension snaps to the token scale,
 // font is allowlisted) — anything that fails is dropped, never applied raw.
-import { THEME_DERIVATION as KIT_THEME_DERIVATION } from "@orb/kit/theme-derivation";
+//
+// THE READING-SURFACE DERIVE LAW (#204): every PLATE the transcript paints text on derives from the one
+// picked base surface — the neutral ramp (opaque chrome), and `--color-reading-plate` (the over-art text
+// backing, base + readingPlate.deltaL at readingPlate.alpha) — and every INK on such a plate comes from
+// the SAME palette: derived foregrounds by the pivot flip, and the four author-picked prose inks
+// (`speaker`/`dialogueColor`/`narrationColor`/`bodyColor`) through the §7a conditional lightness clamp
+// below (pass-through byte-identical when the pairing already clears AA; L re-derived and the ink made
+// OPAQUE, hue+chroma kept, when it does not; fail-open when either side carries no statically-readable
+// value — a named color, `currentColor`, or any legal spelling neither reader parses). The plate is NOT
+// `--color-backdrop` (the polarity-FIXED dimming smoke behind modals/dismiss/wallpaper-dim): one token
+// serving both jobs is exactly how #204 happened — a light palette's dark inks landed on the app's fixed
+// dark smoke. A token names ONE polarity semantic.
+import { parseCssColorToSrgb } from "@orb/kit/safe-color";
+import { THEME_DERIVATION as KIT_THEME_DERIVATION, oklabToOklch, proseInkLightness, srgbToOklch } from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import { isSafeColor } from "#lib";
 
@@ -84,6 +97,9 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-secondary",
   "--color-secondary-foreground",
   "--color-muted",
+  // The over-art READING PLATE (#204): base + readingPlate.deltaL, carrying readingPlate.alpha — the one
+  // ramp member with its own alpha, because it composites over wallpaper art. Never `--color-backdrop`.
+  "--color-reading-plate",
   // Neutral foregrounds, derived for contrast from the surface they sit on — never picked directly.
   "--color-foreground",
   "--color-card-foreground",
@@ -147,18 +163,68 @@ const MUTED_CONTRAST_L = `clamp(${MUTED_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEP
  */
 export const THEME_DERIVATION = KIT_THEME_DERIVATION;
 
-// Strict L-parse of an `oklch(L C H[ / A])` literal — the form the theme editor emits. L is the first
-// component: a 0–1 number OR a percentage. Anything else (a named color, rgb()/hsl(), a var()) returns
-// null: the polarity is not STATICALLY knowable, so the caller must fail open, never guess.
-const OKLCH_L_RE = /^oklch\(\s*([\d.]+%?)\s+[\d.]+\s+[\d.]+/;
+// Strict parse of an `oklch(L C H[ / A])` literal — the form the theme editor emits. L (and A) may be a
+// 0–1 number OR a percentage. Anything else (a named color, rgb()/hsl(), a var()) returns null: the
+// polarity is not STATICALLY knowable, so the caller must fail open, never guess.
+const OKLCH_RE = /^oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)$/;
 const PERCENT_DIVISOR = 100;
-function parseOklchL(color: string): number | null {
-  const raw = OKLCH_L_RE.exec(color)?.[1];
-  if (raw === undefined) {
+interface ParsedOklch {
+  readonly l: number;
+  readonly c: number;
+  readonly h: number;
+  readonly alpha: number;
+}
+function unitOrPercent(raw: string): number {
+  return raw.endsWith("%") ? Number(raw.slice(0, -1)) / PERCENT_DIVISOR : Number(raw);
+}
+function parseOklch(color: string): ParsedOklch | null {
+  const m = OKLCH_RE.exec(color.trim());
+  if (m === null || m[1] === undefined || m[2] === undefined || m[3] === undefined) {
     return null;
   }
-  const l = raw.endsWith("%") ? Number(raw.slice(0, -1)) / PERCENT_DIVISOR : Number(raw);
-  return Number.isFinite(l) ? l : null;
+  const l = unitOrPercent(m[1]);
+  const c = Number(m[2]);
+  const h = Number(m[3]);
+  const alpha = m[4] === undefined ? 1 : unitOrPercent(m[4]);
+  return Number.isFinite(l) && Number.isFinite(c) && Number.isFinite(h) && Number.isFinite(alpha) ? { l, c, h, alpha } : null;
+}
+/** Any statically-readable color → OKLCH+alpha: the OKL literal forms (`oklch()`/`oklab()`, read here
+ *  because kit owns only the lab→lch math), else a NUMERIC CSS form (hex/rgb()/hsl(), via kit's parser +
+ *  the sRGB→OKLCH inverse — #204: an imported theme's hex/hsl ink is JUDGED, not failed-open on spelling).
+ *  What stays null is a value with no readable static form — a named color, `currentColor` — plus the
+ *  legal-but-unread spelling MEASURED to survive `isSafeColor` and reach here: modern unitless
+ *  `hsl(30 40 20)` (kit's hsl reader requires the `%`). Those fail OPEN (pass-through, the pre-#204
+ *  behaviour) — the safe direction, never a guessed polarity. Note the OTHER exotic spellings never get
+ *  this far: `isSafeColor` drops a `deg`/negative hue inside `okl*()` and a negative hue in `hsl()`
+ *  outright (probed 2026-08-18) — "named colors are the only fail-open" was wrong in both directions. */
+function toOklch(color: string): ParsedOklch | null {
+  const literal = parseOklch(color) ?? parseOklab(color);
+  if (literal !== null) {
+    return literal;
+  }
+  const css = parseCssColorToSrgb(color);
+  if (css === null) {
+    return null;
+  }
+  const o = srgbToOklch({ r: css.r, g: css.g, b: css.b });
+  return { l: o.l, c: o.c, h: o.h, alpha: css.alpha };
+}
+// `oklab(L a b[ / A])` — the OTHER `isSafeColor`-legal OKL form. L (and A) may be a 0–1 number or a
+// percentage; a/b are signed. Read here rather than in kit's sRGB parser for the same reason the oklch
+// literal is: the OKL readers live with their consumer, and kit owns only the lab→lch math.
+const OKLAB_RE = /^oklab\(\s*([\d.]+%?)\s+(-?[\d.]+)\s+(-?[\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)$/;
+function parseOklab(color: string): ParsedOklch | null {
+  const m = OKLAB_RE.exec(color.trim());
+  if (m === null || m[1] === undefined || m[2] === undefined || m[3] === undefined) {
+    return null;
+  }
+  const { l, c, h } = oklabToOklch(unitOrPercent(m[1]), Number(m[2]), Number(m[3]));
+  const alpha = m[4] === undefined ? 1 : unitOrPercent(m[4]);
+  return Number.isFinite(l) && Number.isFinite(c) && Number.isFinite(h) && Number.isFinite(alpha) ? { l, c, h, alpha } : null;
+}
+function parseOklchL(color: string): number | null {
+  const parsed = toOklch(color);
+  return parsed === null ? null : parsed.l;
 }
 
 /**
@@ -225,10 +291,40 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
   // The accent's readable foreground derives off the picked accent so a dark accent + static light
   // text can never go invisible.
   put("--color-primary-foreground", t.accent === undefined ? undefined : foregroundOn(t.accent));
-  put("--color-speaker", t.speaker);
-  put("--color-dialogue", t.dialogueColor);
-  put("--color-narration", t.narrationColor);
-  put("--color-prose-body", t.bodyColor);
+  // The §7a prose-ink clamp (#204, see the header law): the four author-picked inks are judged against
+  // the picked BASE surface — every reading plate now derives from it, so base-legibility is
+  // plate-legibility. A sensible pairing passes through BYTE-IDENTICAL; a failing ink keeps its hue and
+  // chroma and gets the derived lightness at full opacity; no base / a value neither reader resolves on
+  // either side ⇒ fail open (polarity not statically knowable — the same rule as `colorSchemeFor`).
+  const baseInk = t.background === undefined ? null : toOklch(t.background);
+  const proseInk = (picked: string | undefined): string | undefined => {
+    if (picked === undefined || baseInk === null) {
+      return picked;
+    }
+    const ink = toOklch(picked);
+    if (ink === null) {
+      return picked;
+    }
+    const clampedL = proseInkLightness({ l: ink.l, c: ink.c, h: ink.h }, ink.alpha, { l: baseInk.l, c: baseInk.c, h: baseInk.h });
+    // Relative-color re-derivation: L replaced, the author's c/h kept — and the alpha slot spelled
+    // EXPLICITLY OPAQUE. Relative-color syntax defaults the omitted alpha to the ORIGIN's, so a
+    // translucent failing ink used to be re-composited at the author's alpha and STILL failed AA
+    // (measured 2.89:1 on oklch(0.75 0.05 60 / 0.35) over oklch(0.158 0.006 60)) — and re-judging that
+    // output returned the same L: a fixed point that never passes (stickler F1, 2026-08-18).
+    // WHY OPAQUE rather than the minimal alpha that would just clear AA: this arm IS the fallback to
+    // the house "a foreground is derived, never picked" derivation, and every other derived foreground
+    // in the system is opaque; a minimal alpha would sit exactly ON the 4.5 boundary with zero margin,
+    // while the judge measures against the BASE as a proxy for the surface actually painted (over art
+    // the ink lands on `--color-reading-plate` — base+deltaL at alpha, so real art bleeds through and
+    // moves the backing). Opaque inherits the same margin every derived foreground has; translucency
+    // is the author's intent only while their pick is legible, which the pass-through arm preserves
+    // byte-identically.
+    return clampedL === null ? picked : `oklch(from ${picked} ${clampedL} c h / 1)`;
+  };
+  put("--color-speaker", proseInk(t.speaker));
+  put("--color-dialogue", proseInk(t.dialogueColor));
+  put("--color-narration", proseInk(t.narrationColor));
+  put("--color-prose-body", proseInk(t.bodyColor));
   // Bubbles: the picker sets each bubble's bg; the fg is always derived for contrast, never picked.
   const putBubble = (bg: string, bgVar: string, fgVar: string): void => {
     vars[bgVar] = bg;
@@ -248,6 +344,10 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
     for (const [name, deltaL] of SURFACE_RAMP_DELTAS) {
       vars[name] = `oklch(from ${t.background} calc(l + ${deltaL}) c h)`;
     }
+    // The over-art reading plate rides the same one-base derivation as the ramp, but with its own alpha
+    // (it composites over wallpaper art) — spelled separately because the ramp loop emits alphaless.
+    vars["--color-reading-plate"] =
+      `oklch(from ${t.background} calc(l + ${KIT_THEME_DERIVATION.readingPlate.deltaL}) c h / ${KIT_THEME_DERIVATION.readingPlate.alpha})`;
     vars["--color-accent-foreground"] = foregroundOnShifted(t.background, RAMP_DL_ACCENT);
     const fg = foregroundOn(t.background);
     vars["--color-foreground"] = fg;

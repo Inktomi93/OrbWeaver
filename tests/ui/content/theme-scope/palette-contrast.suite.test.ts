@@ -273,3 +273,55 @@ test("clamp DERIVED primary-foreground clears AA on every realistic picked accen
     expect(ratio, `derived primary-foreground on accent ${accentStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
+
+// ── #204: THE READING PLATE (`--color-reading-plate`) — derived, never designed, and a PROVEN floor ──
+// The transcript's over-art text backing. Three properties, each a machine invariant:
+//   1. every shipped palette's plate literal IS the derivation (background + readingPlate.deltaL at
+//      readingPlate.alpha) to the digit — a hand-retuned plate that drifts off its base is the #204
+//      surface/ink divorce reborn;
+//   2. the alpha is a FLOOR, not a taste call: the palette's derived foreground clears AA-NORMAL over
+//      the plate composited over WORST-CASE art (pure black AND pure white — `backgroundDim` can be 0,
+//      so raw art is the legal worst case), for every shipped palette and every realistic custom base
+//      (measured pre-pin at alpha 0.65: worst 4.88, over the 0.25-L base + black art);
+//   3. every shipped palette's four AUTHOR-STYLE prose inks (dialogue/narration/prose-body/speaker)
+//      clear AA against their own base — the §7a "sensible card" criterion, proving the clamp is a
+//      byte-identical no-op on every palette we ship (measured pre-pin: min 6.02, light speaker).
+const READING_PLATE_PATH = "color.reading-plate" as const;
+const PROSE_INK_PATHS = ["color.dialogue", "color.narration", "color.prose-body", "color.speaker"] as const;
+const WORST_ART: ReadonlyArray<readonly [name: string, rgb: Rgb]> = [
+  ["black art", { r: 0, g: 0, b: 0 }],
+  ["white art", { r: 255, g: 255, b: 255 }],
+];
+/** The plate the clamp would derive for `base` — L shifted, hue/chroma kept, the plate's own alpha. */
+function derivedPlate(base: Oklch): Oklch {
+  return { ...rampSurface(base, D.readingPlate.deltaL), alpha: D.readingPlate.alpha };
+}
+
+test.each(PALETTES.map((p) => [p.name, p] as const))("#204 %s: the reading-plate literal IS derive(background) to the digit", (_name, palette) => {
+  const plate = parseOklch(palette.vars[TOKENS[READING_PLATE_PATH].cssVar] ?? TOKENS[READING_PLATE_PATH].value);
+  const base = parseOklch(palette.vars[TOKENS["color.background"].cssVar] ?? TOKENS["color.background"].value);
+  expect(plate.l, "plate L = base L + readingPlate.deltaL").toBeCloseTo(clamp01(base.l + D.readingPlate.deltaL), 3);
+  expect(plate.c, "plate chroma = base chroma").toBeCloseTo(base.c, 4);
+  expect(plate.h, "plate hue = base hue").toBeCloseTo(base.h, 4);
+  expect(plate.alpha, "plate alpha = readingPlate.alpha").toBeCloseTo(D.readingPlate.alpha, 4);
+});
+
+test("#204 the plate alpha FLOORS AA for the derived foreground over worst-case art on every realistic base", () => {
+  for (const baseStr of REALISTIC_BASES) {
+    const base = parseOklch(baseStr);
+    const fg = foregroundRgb(base);
+    const plate = derivedPlate(base);
+    for (const [artName, art] of WORST_ART) {
+      const ratio = contrastRatio(fg, compositeOver(plate, art));
+      expect(ratio, `derived foreground over plate over ${artName} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    }
+  }
+});
+
+test.each(PALETTES.map((p) => [p.name, p] as const))("#204 %s: the four prose inks clear AA on their own base (the §7a no-op criterion)", (_name, palette) => {
+  const baseRgb = resolveTokenRgb("color.background", palette);
+  for (const ink of PROSE_INK_PATHS) {
+    const ratio = contrastRatio(resolveTokenRgb(ink, palette), baseRgb);
+    expect(ratio, `${ink} on background @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  }
+});

@@ -88,15 +88,18 @@ function cssVar(locator: Locator, name: string): Promise<string> {
 // real resolved CSS property (`border-left-color`, which consumes `var(--color-speaker)`) is
 // re-serialized by the engine with L as a bare 0–1 fraction (`oklch(0.72 0.16 318)`) — verified live,
 // not assumed. Parse both to numbers so the comparison is format-independent.
-const OKLCH_RE = /oklch\(\s*(?<l>[\d.]+)(?<pct>%)?\s+(?<c>[\d.]+)\s+(?<h>[\d.]+)/u;
-function parseOklch(value: string): readonly [number, number, number] {
+const OKLCH_RE = /oklch\(\s*(?<l>[\d.]+)(?<pct>%)?\s+(?<c>[\d.]+)\s+(?<h>[\d.]+)(?:\s*\/\s*(?<a>[\d.]+))?/u;
+function parseOklch(value: string): readonly [number, number, number, number] {
   const match = OKLCH_RE.exec(value);
   if (match?.groups === undefined) {
     throw new Error(`not an oklch() color: ${value}`);
   }
   const rawL = Number.parseFloat(match.groups["l"] ?? "0");
   const l = match.groups["pct"] === "%" ? rawL / 100 : rawL;
-  return [l, Number.parseFloat(match.groups["c"] ?? "0"), Number.parseFloat(match.groups["h"] ?? "0")];
+  // Alpha is part of the identity: `--color-backdrop` and `--color-reading-plate` share L/C/H on the
+  // base palette and differ ONLY in alpha (0.6 vs 0.65) — an alpha-blind compare could not catch the
+  // plate regressing to the dimmer token (#204).
+  return [l, Number.parseFloat(match.groups["c"] ?? "0"), Number.parseFloat(match.groups["h"] ?? "0"), Number.parseFloat(match.groups["a"] ?? "1")];
 }
 
 test("bubble style tints the assistant bubble with the ai-bubble token", async ({ mount }) => {
@@ -557,7 +560,7 @@ const LONG_BODY = "Line one is fairly long.\n\nLine two.\n\nLine three.\n\nLine 
 // rollup entry from the tests/ root; the golden bucket numbers stand in, cross-checked by the runtime.
 const ALICE_HUE_BUCKET = 5;
 const BOB_HUE_BUCKET = 4;
-async function bgOf(locator: Locator): Promise<readonly [number, number, number]> {
+async function bgOf(locator: Locator): Promise<readonly [number, number, number, number]> {
   return parseOklch(await locator.evaluate((el) => getComputedStyle(el).backgroundColor));
 }
 // #103 (owner-ruled 2026-08-16, from decision #100): fallback identity paints IN-BAND — derived at
@@ -679,14 +682,14 @@ test("ripple (no avatar): the welded VN portrait falls back to the hue tile at t
 // ── Reading scrim over a background photo (side-eye live P1, 2026-07-09) ───────────────────────────
 // Flat/Hush/Document carry no bubble fill AND the shell strips their float halo — so text landed
 // directly on the photo (2.0–2.4:1 on bright patches). When an ANCESTOR carries `data-has-bg-image`
-// (the shell grid's flag), those three back the text with the theme `--color-scrim` + backdrop-blur; on
+// (the shell grid's flag), those three back the text with the derived `--color-reading-plate` + backdrop-blur; on
 // a plain background the scrim is OFF (flat stays truly flat). `in-data-[has-bg-image]:` is an ancestor
 // variant, so a plain wrapping `<div data-has-bg-image>` around the mount drives the ON case.
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
 // NO BUILD-TIME SAFELIST IS NEEDED HERE, and this is the note that says so rather than a re-added one.
 // The scrim's ancestor-variant utilities are authored in the client skin as WHOLE literals
-// (message-row-backing.ts `BG_PHOTO_READING_SCRIM`/`BG_PHOTO_CHROME_SCRIM`, consumed by
+// (message-row-backing.ts `BG_PHOTO_READING_PLATE`/`BG_PHOTO_CHROME_PLATE`, consumed by
 // message-row-variants.ts), and the CT harness's Tailwind content-scan covers `packages/client/src` —
 // `playwright/index.css` @sources it alongside `@orb/ui/src` and `tests/`, and says why in its own
 // header — so the CT build emits them exactly as the client build does. This comment previously claimed
@@ -705,10 +708,10 @@ for (const style of ["flat", "hush", "document"] as const) {
       const cs = getComputedStyle(el);
       return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
     });
-    // The nearest backdrop IS the theme scrim (resolved off the element, never a hardcoded literal),
+    // The nearest backdrop IS the derived reading plate (resolved off the element, never a literal),
     // not transparent — the reading-surface floor over ANY image region.
     expect(bg).not.toBe(TRANSPARENT);
-    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(bubble, "--color-scrim")));
+    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(bubble, "--color-reading-plate")));
     // + the dialog-backdrop blur that collapses bright-patch peaks a flat scrim alone can't.
     expect(backdrop).not.toBe("none");
   });
@@ -757,7 +760,7 @@ for (const style of ALL_CHAT_STYLES) {
       };
     });
     expect(bg).not.toBe(TRANSPARENT);
-    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(nameRow, "--color-scrim")));
+    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(nameRow, "--color-reading-plate")));
     expect(backdrop).not.toBe("none");
     // A backed CHIP (rounded), not a full-bleed band.
     expect(Number.parseFloat(radius)).toBeGreaterThan(0);
@@ -784,7 +787,7 @@ for (const style of ALL_CHAT_STYLES) {
       const cs = getComputedStyle(el);
       return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
     });
-    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(nameRow, "--color-scrim")));
+    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(nameRow, "--color-reading-plate")));
     expect(backdrop).not.toBe("none");
   });
 }
@@ -932,6 +935,107 @@ test("action cluster is hidden-at-rest (opacity 0, in-flow, inert) and never sta
   // sibling-starve). scrollWidth ≤ clientWidth ⇒ nothing clipped/pushed past the edge.
   const overflow = await nameRow.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
   expect(overflow).toBe(false);
+});
+
+// ── #204: the chip HUGS ITS TEXT — the invisible action cluster contributes NO height ───────────────
+// The hover-reveal cluster is a ~34px row of icon buttons, opacity-0 at rest but in flow at full
+// height, and it SET the painted chip's height: 50px around a 16px name (50 = 34 + 2×py-row). Over
+// wallpaper that painted the owner's "phantom empty scrim bands" (the chip's empty top/bottom thirds)
+// and the "name separated from the messages" gap. The cluster now rides a zero-height slot: full WIDTH
+// stays reserved (the A3 pin above), buttons still paint/hit at full size (overflow visible), and the
+// chip's height derives from the NAME + its own padding. RED on the pre-fix source (height was 50px).
+test("#204 the name chip's height derives from the name, not the invisible action cluster", async ({ mount }) => {
+  const component = await mount(
+    <div data-has-bg-image="">
+      <MessageRowStory chatStyle="flat" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
+    </div>,
+  );
+  const nameRow = component.locator(NAME_ROW);
+  const attribution = component.locator(ATTRIBUTION);
+  const rowPadPx = remTokenPx(TOKENS["spacing.row"].value);
+  const nameRowHeight = await nameRow.evaluate((el) => el.getBoundingClientRect().height);
+  const attributionHeight = await attribution.evaluate((el) => el.getBoundingClientRect().height);
+  // chip = name line + 2×py-row (the chrome plate's own padding) — the cluster adds nothing.
+  expect(Math.abs(nameRowHeight - (attributionHeight + 2 * rowPadPx))).toBeLessThan(2);
+  // …while the cluster's buttons keep their full interactive box (they overflow the slot, not shrink).
+  const editButton = component.getByRole("button", { name: "Edit message" });
+  const buttonBox = await editButton.boundingBox();
+  expect(buttonBox?.height ?? 0).toBeGreaterThan(nameRowHeight - 2 * rowPadPx);
+});
+
+// ── #204: the DERIVE LAW — a plate's ink comes from the SAME palette as the plate ────────────────────
+// flat/hush painted the reading plate with NO ink token at all, so their body prose INHERITED
+// `.shell-grid`'s already-resolved viewer foreground while the plate followed the carried palette —
+// dark carried plate under light viewer ink worked by luck; a light carried palette flipped the plate
+// and left the ink (the two-polarity paragraph, measured 1.14:1 in the owner's room). The plate
+// constant now carries `text-prose-body` (and the chrome plate `text-foreground`) in the same string.
+for (const style of ["flat", "hush"] as const) {
+  test(`#204 ${style} over a bg image: body prose takes the palette's prose ink, never inherited color`, async ({ mount }) => {
+    const component = await mount(
+      <div data-has-bg-image="">
+        <MessageRowStory chatStyle={style} messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />
+      </div>,
+    );
+    const bubble = component.locator(BUBBLE).first();
+    const inkVar = await cssVar(bubble, "--color-prose-body");
+    const rendered = await bubble.evaluate((el) => getComputedStyle(el).color);
+    expect(parseOklch(rendered)).toEqual(parseOklch(inkVar));
+  });
+}
+
+test("#204 the name chip's ink rides the palette's foreground token over art (paired with its plate)", async ({ mount }) => {
+  const component = await mount(
+    <div data-has-bg-image="">
+      <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
+    </div>,
+  );
+  const nameRow = component.locator(NAME_ROW);
+  const inkVar = await cssVar(nameRow, "--color-foreground");
+  const rendered = await nameRow.evaluate((el) => getComputedStyle(el).color);
+  expect(parseOklch(rendered)).toEqual(parseOklch(inkVar));
+});
+
+test("#204 over art, metadata gloss steps up to the FULL foreground (the muted band cannot be floored on a translucent plate)", async ({ mount }) => {
+  // The chip timestamp is gloss-voiced (`--color-muted-foreground`, the soft band) — over a wallpaper it
+  // sits on the 0.65α reading plate, where the muted band mathematically cannot clear worst-case art on
+  // either polarity (the last P1 of the #204 audit, 4.35:1). The `[data-slot^="message-metadata-"]`
+  // step-up rule (client globals.css) lifts every metadata datum to the derived foreground — the ink the
+  // plate's alpha floor is proven for. Without art the quiet voice stays muted (asserted second).
+  const overArt = await mount(
+    <div data-has-bg-image="">
+      <MessageRowStory
+        chatStyle="bubble"
+        messageRole="assistant"
+        characterId={ALICE_ID}
+        participants={[alice()]}
+        metadataVisibility={meta({ showTimestamps: true })}
+      />
+    </div>,
+  );
+  const stamp = overArt.locator(TIMESTAMP);
+  expect(parseOklch(await stamp.evaluate((el) => getComputedStyle(el).color))).toEqual(parseOklch(await cssVar(stamp, "--color-foreground")));
+  await overArt.unmount();
+  const plain = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      metadataVisibility={meta({ showTimestamps: true })}
+    />,
+  );
+  const plainStamp = plain.locator(TIMESTAMP);
+  expect(parseOklch(await plainStamp.evaluate((el) => getComputedStyle(el).color))).toEqual(parseOklch(await cssVar(plainStamp, "--color-muted-foreground")));
+});
+
+test("#204 the sticky band's ink is the card foreground — the same palette as its opaque bg-card fill", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} stickyAttribution={true} />,
+  );
+  const nameRow = component.locator(NAME_ROW);
+  const inkVar = await cssVar(nameRow, "--color-card-foreground");
+  const rendered = await nameRow.evaluate((el) => getComputedStyle(el).color);
+  expect(parseOklch(rendered)).toEqual(parseOklch(inkVar));
 });
 
 // ── D48 tool records reach the row (the wiring the transcript was silently dropping) ────────────────
@@ -1221,7 +1325,7 @@ for (const chatStyle of THEME_CHAT_STYLES) {
 // ── #106: the chrome BELOW the bubble gets the wallpaper scrim ────────────────────────────────────
 // The metadata row is a sibling UNDER the bubble box, outside any fill, in EVERY chatStyle — so over a
 // bright wallpaper it rendered pale grey on white (the 2026-07-09 exemption of the "floating chrome" was
-// measured under a DARK wallpaper and did not survive re-measurement). `BG_PHOTO_CHROME_SCRIM` self-gates
+// measured under a DARK wallpaper and did not survive re-measurement). `BG_PHOTO_CHROME_PLATE` self-gates
 // on the shell's `data-has-bg-image`, so both arms below are the same mount with and without that flag —
 // which is also the planted control: if the assertion could not see the difference, the "no wallpaper"
 // arm would not read transparent.
@@ -1250,7 +1354,7 @@ test("#106 metadata row: over a background photo it paints a scrim backing, not 
 
 // ── #168: the pinned band OWNS ITS SLICE ───────────────────────────────────────────────────────────
 // Owner, live 2026-08-18: the sticky attribution "lets some partial of the message you are on go above
-// it". It shipped `bg-scrim backdrop-blur-sm`, and `--color-scrim` is a 60%-alpha overlay — so the prose
+// it". It shipped a translucent 60%-alpha overlay fill (the then-`bg-scrim`) — so the prose
 // running under the pinned band stayed visible through it. These two mount a REAL bounded scrollport with
 // a body several viewports tall (prose + a code block + a table + a blockquote, the shapes a real reply
 // carries) and drive an actual scroll under the band.
@@ -1264,6 +1368,7 @@ const STUCK_BAND_SCROLLPORT_PX = 240;
 for (const overArt of [false, true] as const) {
   test(`#168 ${overArt ? "over art" : "plain"}: the pinned band OCCLUDES the prose scrolling under it (its pixels do not move with the scroll)`, async ({
     mount,
+    page,
   }) => {
     const row = (
       <MessageRowStory
@@ -1277,7 +1382,7 @@ for (const overArt of [false, true] as const) {
         scrollportHeight={STUCK_BAND_SCROLLPORT_PX}
       />
     );
-    // The wallpaper arm is the mount the live receipt came from — and the one where a `bg-scrim` chip
+    // The wallpaper arm is the mount the live receipt came from — and the one where a translucent chip
     // outranks a plain fill on specificity, so a fix that only covers the plain arm goes green here and
     // stays broken for the owner.
     const component = await mount(overArt ? <div data-has-bg-image="">{row}</div> : row);
@@ -1286,12 +1391,24 @@ for (const overArt of [false, true] as const) {
     const nameRow = component.locator(NAME_ROW);
     await expect(nameRow).toHaveCSS("position", "sticky");
 
+    // The comparison rect is the band's FULLY-OWNED region: since #204 the chip's height derives from
+    // its text line, which is FRACTIONAL (≈32.25px at the label line-height; the old 50px was integral
+    // only because the 34px action cluster set it). An element screenshot CEILS the rect, so its last
+    // row lies past the band's own paint entirely — raw prose, no band pixel in it — and byte-equality
+    // reads that sub-pixel rasterization edge as an occlusion failure (measured: exactly row 32 of 33
+    // differed, unblended prose rgb). Flooring the height compares every row the band actually paints;
+    // the sub-pixel bottom edge is not a slice the band can own on ANY fractional-height sticky.
+    const box = await nameRow.boundingBox();
+    if (box === null) {
+      throw new Error("#168: the pinned band has no box");
+    }
+    const clip = { x: box.x, y: box.y, width: box.width, height: Math.floor(box.height) };
     const shotAt = async (top: number): Promise<Buffer> => {
       await port.evaluate((el: HTMLElement, y: number) => {
         el.scrollTop = y;
       }, top);
       await expect.poll(() => port.evaluate((el: HTMLElement) => el.scrollTop)).toBe(top);
-      return await nameRow.screenshot();
+      return await page.screenshot({ clip });
     };
     // Two scroll depths deep inside the same turn: the band's OWN content (name, timestamp, actions) is
     // byte-identical between them, so any pixel difference in its box is the message showing through it.

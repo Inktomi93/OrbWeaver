@@ -9,11 +9,15 @@
 
 import {
   AA_NORMAL_RATIO,
+  compositeSrgb,
   derivedForeground,
   derivedForegroundLightness,
   isDerivableBaseSurface,
+  oklabToOklch,
   oklchToSrgb,
+  proseInkLightness,
   rampSurface,
+  srgbToOklch,
   THEME_DERIVATION,
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
@@ -97,5 +101,86 @@ describe("isDerivableBaseSurface", () => {
     const ratio = wcagContrastRatio(oklchToSrgb(derivedForeground(base)), oklchToSrgb(worst));
     expect(ratio).toBeLessThan(AA_NORMAL_RATIO);
     expect(isDerivableBaseSurface(base)).toBe(false);
+  });
+});
+
+describe("srgbToOklch (#204 — the format-widening inverse)", () => {
+  test("round-trips oklchToSrgb on realistic surfaces and inks", () => {
+    for (const o of [
+      { l: 0.158, c: 0.006, h: 60 },
+      { l: 0.98, c: 0.004, h: 78 },
+      // In-gamut samples only: oklchToSrgb gamut-clamps, so an out-of-gamut chroma round-trips smaller
+      // BY DESIGN — that is the clamp working, not a transposed coefficient.
+      { l: 0.53, c: 0.1, h: 58 },
+      { l: 0.86, c: 0.08, h: 85 },
+    ]) {
+      // 8-bit channel quantization bounds the round-trip at ~1e-3 — far under any judgment-relevant
+      // delta (the clamp's decisions move in tenths of L).
+      const back = srgbToOklch(oklchToSrgb(o));
+      expect(back.l, `L of ${JSON.stringify(o)}`).toBeCloseTo(o.l, 2);
+      expect(back.c, `C of ${JSON.stringify(o)}`).toBeCloseTo(o.c, 2);
+      expect(back.h, `H of ${JSON.stringify(o)}`).toBeCloseTo(o.h, 0);
+    }
+  });
+
+  test("reads the extremes: black is L≈0, white is L≈1, both achromatic", () => {
+    const black = srgbToOklch({ r: 0, g: 0, b: 0 });
+    expect(black.l).toBeCloseTo(0, 4);
+    const white = srgbToOklch({ r: 255, g: 255, b: 255 });
+    expect(white.l).toBeCloseTo(1, 3);
+    expect(white.c).toBeCloseTo(0, 3);
+  });
+});
+
+describe("oklabToOklch", () => {
+  test("re-polarises the a/b axes: chroma is their magnitude, hue their angle, L untouched", () => {
+    // A pure +a colour sits at hue 0; +b at 90 — the standard OKLab→OKLCH polar reading.
+    expect(oklabToOklch(0.5, 0.1, 0)).toEqual({ l: 0.5, c: 0.1, h: 0 });
+    const quarter = oklabToOklch(0.5, 0, 0.1);
+    expect(quarter.c).toBeCloseTo(0.1, 10);
+    expect(quarter.h).toBeCloseTo(90, 10);
+    // Negative axes wrap into [0,360) rather than going negative (the hue the clamp emits from).
+    expect(oklabToOklch(0.5, -0.1, 0).h).toBeCloseTo(180, 10);
+    expect(oklabToOklch(0.5, 0, -0.1).h).toBeCloseTo(270, 10);
+    // Achromatic: no chroma, and the round-trip agrees with the sRGB reader on a real grey.
+    expect(oklabToOklch(0.4, 0, 0).c).toBe(0);
+    const grey = srgbToOklch({ r: 128, g: 128, b: 128 });
+    expect(oklabToOklch(grey.l, 0, 0).l).toBeCloseTo(grey.l, 10);
+  });
+});
+
+describe("compositeSrgb (#204 — the plate/ink alpha math)", () => {
+  test("interpolates channels linearly in sRGB space, clamping alpha to [0,1]", () => {
+    const top = { r: 200, g: 100, b: 0 };
+    const under = { r: 0, g: 100, b: 200 };
+    expect(compositeSrgb(top, 0.5, under)).toEqual({ r: 100, g: 100, b: 100 });
+    expect(compositeSrgb(top, 1, under)).toEqual(top);
+    expect(compositeSrgb(top, 0, under)).toEqual(under);
+    expect(compositeSrgb(top, 2, under)).toEqual(top);
+  });
+});
+
+describe("proseInkLightness (#204 §7a — the author-picked ink clamp decision)", () => {
+  const darkBase = { l: 0.158, c: 0.006, h: 60 };
+  const lightBase = { l: 0.98, c: 0.004, h: 78 };
+
+  test("returns null for a pairing that already clears AA — the byte-identical no-op arm", () => {
+    // Birdie's real dialogue on her real base (~8.5:1): the sensible card does not move a pixel.
+    expect(proseInkLightness({ l: 0.4, c: 0.1, h: 40 }, 1, lightBase)).toBeNull();
+    // Hearth's own light inks on the dark base.
+    expect(proseInkLightness({ l: 0.86, c: 0.1, h: 85 }, 1, darkBase)).toBeNull();
+  });
+
+  test("returns the derived pivot-flip lightness for a failing pairing (hue/chroma are the caller's)", () => {
+    // Dark ink, dark base — the #204 divorce class: the dark base derives the light arm (fgLMax).
+    expect(proseInkLightness({ l: 0.3, c: 0.1, h: 40 }, 1, darkBase)).toBe(THEME_DERIVATION.fgLMax);
+    // Light ink, light base — the light base derives the dark arm (fgLMin).
+    expect(proseInkLightness({ l: 0.9, c: 0.05, h: 60 }, 1, lightBase)).toBe(THEME_DERIVATION.fgLMin);
+  });
+
+  test("composites a translucent ink over the base before judging — alpha can fail an opaque-passing ink", () => {
+    const ink = { l: 0.75, c: 0.05, h: 60 };
+    expect(proseInkLightness(ink, 1, darkBase)).toBeNull();
+    expect(proseInkLightness(ink, 0.35, darkBase)).toBe(THEME_DERIVATION.fgLMax);
   });
 });

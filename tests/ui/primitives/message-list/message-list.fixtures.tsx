@@ -48,6 +48,40 @@ export function AppendableList({ initialCount, rowHeightPx, listHeightPx, ariaLa
   );
 }
 
+/**
+ * The #204 `blockPaddingToken` shape: breathing INSIDE the scroll content (virtual-core paddingStart/
+ * paddingEnd), never CSS padding on the scroll container — container padding pins a `sticky; top: 0`
+ * descendant below the visible top (Chrome resolves sticky against the CONTENT box) and guillotines a
+ * strip of the row above it. Row 0 is taller than the scrollport and carries a sticky band, the exact
+ * anatomy of a pinned speaker attribution.
+ */
+export function BlockPaddedStickyList({ listHeightPx, tallRowPx }: { readonly listHeightPx: number; readonly tallRowPx: number }): ReactElement {
+  const items = makeItems(3);
+  return (
+    <div style={{ height: listHeightPx }}>
+      <MessageList
+        items={items}
+        getItemKey={(item): string => item.id}
+        estimateSize={(index): number => (index === 0 ? tallRowPx : 40)}
+        blockPaddingToken="block"
+        renderItem={(item, index): ReactElement =>
+          index === 0 ? (
+            <div style={{ height: tallRowPx }}>
+              <div data-testid="sticky-band" style={{ position: "sticky", top: 0, height: 24 }}>
+                band
+              </div>
+              {item.label}
+            </div>
+          ) : (
+            <div style={{ height: 40 }}>{item.label}</div>
+          )
+        }
+        className="h-full"
+      />
+    </div>
+  );
+}
+
 interface CaughtState {
   readonly message: string | null;
 }
