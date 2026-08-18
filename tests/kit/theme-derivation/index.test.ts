@@ -13,6 +13,7 @@ import {
   derivedForeground,
   derivedForegroundLightness,
   isDerivableBaseSurface,
+  oklabToOklch,
   oklchToSrgb,
   proseInkLightness,
   rampSurface,
@@ -128,6 +129,23 @@ describe("srgbToOklch (#204 — the format-widening inverse)", () => {
     const white = srgbToOklch({ r: 255, g: 255, b: 255 });
     expect(white.l).toBeCloseTo(1, 3);
     expect(white.c).toBeCloseTo(0, 3);
+  });
+});
+
+describe("oklabToOklch", () => {
+  test("re-polarises the a/b axes: chroma is their magnitude, hue their angle, L untouched", () => {
+    // A pure +a colour sits at hue 0; +b at 90 — the standard OKLab→OKLCH polar reading.
+    expect(oklabToOklch(0.5, 0.1, 0)).toEqual({ l: 0.5, c: 0.1, h: 0 });
+    const quarter = oklabToOklch(0.5, 0, 0.1);
+    expect(quarter.c).toBeCloseTo(0.1, 10);
+    expect(quarter.h).toBeCloseTo(90, 10);
+    // Negative axes wrap into [0,360) rather than going negative (the hue the clamp emits from).
+    expect(oklabToOklch(0.5, -0.1, 0).h).toBeCloseTo(180, 10);
+    expect(oklabToOklch(0.5, 0, -0.1).h).toBeCloseTo(270, 10);
+    // Achromatic: no chroma, and the round-trip agrees with the sRGB reader on a real grey.
+    expect(oklabToOklch(0.4, 0, 0).c).toBe(0);
+    const grey = srgbToOklch({ r: 128, g: 128, b: 128 });
+    expect(oklabToOklch(grey.l, 0, 0).l).toBeCloseTo(grey.l, 10);
   });
 });
 

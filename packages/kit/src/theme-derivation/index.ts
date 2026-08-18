@@ -188,6 +188,15 @@ export function srgbToOklch({ r, g, b }: Rgb): Oklch {
   return { l: okL, c: chroma, h: hue };
 }
 
+/** OKLab (the rectangular form: L + the a/b axes) → OKLCH (the polar form the derivation reasons in) —
+ *  the same L, chroma as the a/b magnitude, hue as their angle. Kit-homed beside `srgbToOklch` because it
+ *  is the other "authored colour → judgeable OKLCH" conversion: `oklab()` is an `isSafeColor`-legal
+ *  spelling, so the prose-ink clamp reads it rather than failing open on format (#204 / stickler F4). */
+export function oklabToOklch(l: number, a: number, b: number): Oklch {
+  const hue = (((Math.atan2(b, a) * DEGREES_PER_RADIAN) % HUE_WHEEL_DEGREES) + HUE_WHEEL_DEGREES) % HUE_WHEEL_DEGREES;
+  return { l, c: Math.hypot(a, b), h: hue };
+}
+
 function relativeLuminance({ r, g, b }: Rgb): number {
   const channel = (raw: number): number => {
     const c = Math.max(0, Math.min(SRGB_MAX, raw)) / SRGB_MAX;
@@ -224,7 +233,9 @@ export function compositeSrgb(top: Rgb, alpha: number, under: Rgb): Rgb {
  *     (the no-op-where-the-card-was-sensible guarantee; the dark-art rooms do not move a pixel);
  *   • a number — the ink fails AA there: the LIGHTNESS to re-derive it at (the same steep pivot flip
  *     as every derived foreground), keeping the author's hue and chroma.
- * `inkAlpha` < 1 composites the ink over the base first — a naive ratio on a translucent ink lies.
+ * `inkAlpha < 1` composites the ink over the base first — a naive ratio on a translucent ink lies. (The
+ * comparison stays INSIDE the backticks: tsdoc reads a bare `<` followed by a space as a malformed HTML
+ * element and the eslint tsdoc/syntax rule reds the file.)
  */
 export function proseInkLightness(ink: Oklch, inkAlpha: number, base: Oklch): number | null {
   const baseRgb = oklchToSrgb(base);
