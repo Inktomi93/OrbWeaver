@@ -33,8 +33,10 @@ test("MESSAGE_KIND_POLICY is TOTAL over the axis and carries the ruled cells", (
   // placeholder row and that the shipped semantics are the ones the design ruled.
   expect(Object.keys(MESSAGE_KIND_POLICY).sort()).toEqual(MESSAGE_KINDS.toSorted());
   expect(MESSAGE_KIND_POLICY.standard).toEqual({ prompt: "conversation", memory: "ingest", reading: "show" });
-  // A narrator recap IS story canon: prompt-eligible and digested. `system-channel` marks it ELIGIBLE for the
-  // capability-gated wire mapping — dormant until a live probe measures it per model, so nothing ships live.
+  // A narrator recap IS story canon: prompt-eligible and digested. `system-channel` no longer names a wire
+  // mapping — the capability-gated narrator→`system` delivery was owner-ruled out 2026-08-18 (group narration
+  // is the assistant's own output voice), so this arm delivers assistant-voiced on every wire and the cell
+  // survives only as the PURPOSE distinction the label policy and the trace read.
   expect(MESSAGE_KIND_POLICY.narrator).toEqual({ prompt: "system-channel", memory: "ingest", reading: "show" });
   // An OOC comment is readable forever but never prompt material and never story — that pairing is the whole
   // reason the kind exists (it is also the home an unseated agent's out-of-band reaction lands in).

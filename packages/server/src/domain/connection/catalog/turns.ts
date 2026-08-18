@@ -66,12 +66,14 @@ function anthropicMidConvSystem(id: string, wireShape: WireShape): boolean {
   return wireShape === "anthropic-cli" && OPUS_48_RE.test(id);
 }
 
-/** MID-HISTORY system rows per (id × wire-shape) — the D129(B) narrator-mapping gate.
+/** MID-HISTORY system rows per (id × wire-shape) — the gate for a DEPTH \> 0 system INJECTION (an author's
+ *  note, a depth-N world-info entry). Not a narrator gate: the D129(B) narrator mapping that also read this
+ *  bit was owner-ruled out 2026-08-18 (group narration is the assistant's own output voice).
  *
- *  UNMEASURED EVERYWHERE, so `false` everywhere, and that is the whole content of this function today: the
- *  fact is a LIVE-WIRE MEASUREMENT (`pnpm probe:history-system-rows`), never a model-name regex (D69), and
- *  never an inference from {@link anthropicMidConvSystem} — that bit is wire-tested for the DEPTH-0 TAIL only
- *  and a narrator row is mid-history. It exists as a named function rather than an inline `false` so the
+ *  UNMEASURED on every anthropic arm, so `false` everywhere here, and that is the whole content of this
+ *  function today: the fact is a LIVE-WIRE MEASUREMENT (`pnpm probe:history-system-rows`), never a model-name
+ *  regex (D69), and never an inference from {@link anthropicMidConvSystem} — that bit is wire-tested for the
+ *  DEPTH-0 TAIL only and a depth-N note is mid-history. It exists as a named function rather than an inline `false` so the
  *  measured table lands HERE, in the ONE (wire-shape × model) derivation, when the probe produces one — the
  *  same measure-then-declare seam `tools.silencesProse` rides in `resolve-model-capability`. */
 function historySystemRows(_id: string, _wireShape: WireShape): boolean {
@@ -132,8 +134,14 @@ export const NON_CACHING_TURNS: Turns = { ...TURNS_FLOOR };
  *    • `pnpm probe:history-system-rows --endpoint http://127.0.0.1:8703/v1/chat/completions`: mid-array
  *      system row status=200 obeyed=true ⇒ ACCEPTED + HONORED. Qualified exactly as the probe prints it: the
  *      assistant-voiced control also obeyed, so the run shows the row SURVIVES and is READ, not that `system`
- *      carries authority the ordinary delivery lacks — which is precisely what the D129(B) mapping and the
- *      injection splice need.
+ *      carries authority the ordinary delivery lacks — which is precisely what the injection splice needs.
+ *
+ *  WHAT `historySystemRows: true` DOES AND DOES NOT BUY ON THIS WIRE (owner ruling 2026-08-18, verbatim: "if
+ *  you mean group chat narration mode then that is the wrong behavior"): it delivers a DEPTH \> 0 system
+ *  INJECTION — an author's note, a depth-N world-info entry — at its depth as a real `system` row. It does
+ *  NOT re-role narrator CANON rows; that D129(B) mapping read the same bit until the ruling and is gone.
+ *  Group narration is one generation voicing the whole cast, i.e. the assistant's own output voice. The
+ *  measurement is honored; it answers where a system row may SIT, never which rows ARE system.
  *
  *  `assistantPrefill: false` — measured too, and it stays false: the same `/tokenize` render appends the
  *  template's OWN `<|im_start|>assistant` header (plus the empty `<think>` block) after the last message, so

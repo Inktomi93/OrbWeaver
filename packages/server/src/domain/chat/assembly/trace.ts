@@ -19,11 +19,13 @@ import type { MessageRole } from "@orb/kit/message-role";
  *  `ShapeTrace`). */
 interface ShapeStages {
   multiCharacter: boolean;
-  // Every stage carries the full `MessageRole` axis, DERIVED from the homed tuple, never re-spelled. Two
-  // ways a `system` row is in here, and `withTail` (pre-splice) can now carry the second: a capability-kept
-  // depth-0 INJECTION (`turns.midConversationSystem`, post-splice only), and a narrator canon row DELIVERED
-  // as system on a model measured for mid-history system rows (`turns.historySystemRows`, D129(B) — the
-  // dispatch runs while `withTail` is built). This stage was `Exclude<…,"system">` until that landed.
+  // Every stage carries the full `MessageRole` axis, DERIVED from the homed tuple, never re-spelled. The ONE
+  // producer of a `system` row is the injection SPLICE — a capability-kept injection at the tail
+  // (`turns.midConversationSystem`) or mid-array (`turns.historySystemRows`) — so `withTail` (pre-splice) in
+  // fact never carries one. It is typed on the full axis anyway rather than `Exclude<…,"system">`: this is a
+  // structural INPUT shape, and narrowing it would make the builder reject a caller that is already correct.
+  // (`withTail` did briefly carry system, from the D129(B) narrator delivery `56a979d44` shipped; the owner
+  // ruled that out 2026-08-18 — group narration is the assistant's own voice.)
   withTail: readonly { role: MessageRole }[];
   injected: readonly { role: MessageRole }[];
   squashed: readonly { role: MessageRole }[];

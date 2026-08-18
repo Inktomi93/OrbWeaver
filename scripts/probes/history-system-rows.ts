@@ -3,18 +3,23 @@
 /**
  * pnpm probe:history-system-rows [--endpoint <url>] [--model <id>] [--key <api-key>] [--verbose]
  *
- * THE MEASUREMENT BEHIND `ModelCapability.turns.historySystemRows` (D129(B)).
+ * THE MEASUREMENT BEHIND `ModelCapability.turns.historySystemRows`.
  *
- * The D129(B) narrator mapping ships a `narrator`-kind canon row as a wire `system` row — but ONLY on a
- * (model × wire-shape) where that is MEASURED to work. D69 forbids guessing it from a model name, and the
- * existing `turns.midConversationSystem` bit cannot answer it: that one is wire-tested for the DEPTH-0 TAIL
- * only ("a real system row inside the stable prefix would mutate cached bytes", `assembly/injections`), and a
- * narrator row is MID-HISTORY. So the fact needs its own measurement, and this is it — the same
+ * The splice delivers a DEPTH \> 0 system injection — an author's note, a depth-N world-info entry — as a real
+ * mid-array `system` row, but ONLY on a (model × wire-shape) where that is MEASURED to work. D69 forbids
+ * guessing it from a model name, and the existing `turns.midConversationSystem` bit cannot answer it: that one
+ * is wire-tested for the DEPTH-0 TAIL only ("a real system row inside the stable prefix would mutate cached
+ * bytes", `assembly/injections`), and a depth-N note is MID-HISTORY. So the fact needs its own measurement,
+ * and this is it — the same
  * measure-then-declare seam `tools.silencesProse` rides (measured by a spike, DECLARED in the one capability
  * factory; here: `domain/connection/catalog/turns.ts::historySystemRows`).
  *
+ * (It also gated the D129(B) narrator→wire-`system` delivery until 2026-08-18, when the owner ruled that
+ * mapping out — group narration is the assistant's own output voice. The measurement is unaffected: it always
+ * asked where a system row may SIT, never which rows ARE system.)
+ *
  * TWO INDEPENDENT QUESTIONS, both required for a `true` cell — a wire that accepts the row and ignores it is
- * worse than one that rejects it, because the narrator's words would silently stop being story:
+ * worse than one that rejects it, because the operator note would silently stop being authority:
  *
  *   ACCEPTED — does the endpoint take a `system` row at index 1 of a multi-row `messages[]` without a 4xx?
  *              (The Anthropic Messages API, for one, hoists `system` to a top-level param and rejects it in
@@ -109,11 +114,11 @@ const control = await run("assistant");
 
 const accepted = measured.status < HTTP_CLIENT_ERROR;
 // HONORED = the wire took the row AND the model read it. Both halves are required and neither is sufficient:
-// a 4xx is the obvious no, and an accepted-but-ignored row is the WORSE no (the narrator's words would
-// silently stop being story). The CONTROL does not gate the verdict — it qualifies it: when the
-// assistant-voiced delivery obeys too, this run has not isolated system AUTHORITY, only that a mid-history
-// system row survives and is read. That is still exactly what the D129(B) mapping needs, and the qualifier is
-// printed so nobody reads a stronger claim off the table than the run supports.
+// a 4xx is the obvious no, and an accepted-but-ignored row is the WORSE no (the operator note would silently
+// stop being authority while still burning tokens). The CONTROL does not gate the verdict — it qualifies it:
+// when the assistant-voiced delivery obeys too, this run has not isolated system AUTHORITY, only that a
+// mid-history system row survives and is read. That is still exactly what the injection splice needs, and the
+// qualifier is printed so nobody reads a stronger claim off the table than the run supports.
 const honored = accepted && measured.obeyed;
 
 process.stdout.write(`endpoint  ${ENDPOINT}\nmodel     ${MODEL}\n\n`);
@@ -127,7 +132,7 @@ process.stdout.write(`HONORED  (taken AND obeyed):                 ${String(hono
 process.stdout.write(`control also obeyed (assistant-voiced):      ${String(control.obeyed)}\n\n`);
 if (!honored) {
   process.stdout.write(
-    `VERDICT: turns.historySystemRows stays FALSE for this (model x wire-shape) — ${accepted ? "the wire took the row but the model IGNORED it (the worse failure: a narrator row would silently stop being story)" : "the wire REJECTED the row"}.\n`,
+    `VERDICT: turns.historySystemRows stays FALSE for this (model x wire-shape) — ${accepted ? "the wire took the row but the model IGNORED it (the worse failure: a depth-N operator note would silently stop being authority)" : "the wire REJECTED the row"}.\n`,
   );
 } else {
   process.stdout.write(

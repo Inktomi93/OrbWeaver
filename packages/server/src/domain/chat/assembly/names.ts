@@ -36,10 +36,13 @@ import type { NamesBehavior } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
-/** The delivered wire-row role axis. `system` rows exist only as capability-kept injections — at the tail
- *  (`turns.midConversationSystem`) or mid-array (`turns.historySystemRows`) — plus a D129(B) narrator row on
- *  that same mid-array bit. All of them are the operator/system channel, not a speaker, so every names mode
- *  passes them through untouched (no prefix, no completion `name`). */
+/** The delivered wire-row role axis. `system` rows exist only as capability-kept INJECTIONS — at the tail
+ *  (`turns.midConversationSystem`) or mid-array (`turns.historySystemRows`). They are the operator/system
+ *  channel, not a speaker, so every names mode passes them through untouched (no prefix, no completion
+ *  `name`). A CANON row is never one: the D129(B) narrator→`system` delivery that briefly rode the mid-array
+ *  bit was OWNER-RULED OUT 2026-08-18 ("if you mean group chat narration mode then that is the wrong
+ *  behavior") — a narrator row is assistant-voiced here and takes no label because of its KIND, which is a
+ *  separate, still-live policy. */
 type WireRole = MessageRole;
 
 /** The two axes beyond mode/speakers, bundled so the signature stays inside the parameter budget. NOT

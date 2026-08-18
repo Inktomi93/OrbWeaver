@@ -1091,16 +1091,18 @@ describe("the `<speaker>` strip is GATED ON KIND, not applied blind to every ass
   });
 });
 
-// ── THE DELIVERED-ROLE DISPATCH (D129(B)) ────────────────────────────────────────────────────────────
-// `historySystemRows` is a MEASURED per-(model × wire-shape) fact (`pnpm probe:history-system-rows`), never a
-// model-name guess (D69) and never a second reader of `midConversationSystem` (that bit is wire-tested for the
-// DEPTH-0 TAIL; a narrator row is mid-history). The dispatch it gates is the one D129(B) committed and left
-// unbuilt: the policy record said `narrator: {prompt: "system-channel"}` and no code performed it.
+// ── NARRATOR DELIVERY IS ASSISTANT ON EVERY WIRE (the D129(B) delivered-role dispatch, RULED OUT) ─────
+// OWNER RULING 2026-08-18, verbatim: "if you mean group chat narration mode then that is the wrong
+// behavior." Group-chat narration mode is ONE generation voicing the whole cast — it is the assistant's own
+// OUTPUT voice, not an operator/system channel, so it delivers as an `assistant` row on every wire including
+// a measured one. The `turns.historySystemRows` MEASUREMENT is honored and stands (the vLLM cell is real and
+// the injection SPLICE still reads it, above); what the owner ruled wrong is the SEMANTICS of routing
+// narrator canon through that bit.
 //
-// The PARITY arm below is a FENCE, not a defect proof — it passed before this dispatch existed, by
-// construction (there was no dispatch). The DEFECT-GRADE red is the `true` arm: run against the pre-change
-// `shape.ts` it fails on the assertion (the row ships `assistant`), which is the absent behavior itself.
-describe("shape — the DELIVERED-ROLE dispatch (a narrator row's WIRE role is kind x measured capability)", () => {
+// So these pins run the SAME narrator canon under both capability profiles and demand ONE wire. The
+// defect-grade red is the `true` arm: against the pre-ruling `shape.ts` the row ships `system` and the
+// assertion fails, which is the ruled-out behavior itself.
+describe("shape — a NARRATOR row delivers ASSISTANT on every wire (owner ruling 2026-08-18)", () => {
   const narratorCanon = (): readonly ReturnType<typeof toShapeCanon>[number][] =>
     toShapeCanon(
       [kindRow({ kind: "narrator", content: "The lamp gutters." }), kindRow({ kind: "standard", content: "one voice" })],
@@ -1109,64 +1111,70 @@ describe("shape — the DELIVERED-ROLE dispatch (a narrator row's WIRE role is k
       null,
     );
 
-  test("capability TRUE: the narrator row ships as a wire `system` row; the standard row beside it does not", () => {
+  test("MEASURED wire (historySystemRows true): the narrator row is STILL assistant — no system row anywhere", () => {
     const out = shape(soloInput({ canon: narratorCanon(), appendUserTurn: null, historySystemRows: true }));
-    expect(out.history.find((r) => r.content === "The lamp gutters.")?.role).toBe("system");
-    expect(out.history.find((r) => r.content === "one voice")?.role).toBe("assistant");
+    expect(out.history.some((r) => r.role === "system")).toBe(false);
+    // Assistant-voiced, and therefore squash-eligible with the standard row beside it, exactly as on every
+    // unmeasured wire.
+    expect(out.history.find((r) => r.role === "assistant")?.content).toBe("The lamp gutters.\n\none voice");
   });
 
-  test("capability ABSENT: byte-identical to capability FALSE — the fail-closed default is today's wire", () => {
-    const canon = narratorCanon();
-    const off = shape(soloInput({ canon, appendUserTurn: null, historySystemRows: false }));
-    const unset = shape(soloInput({ canon, appendUserTurn: null }));
-    expect(unset.history).toEqual(off.history);
-    // Assistant-voiced, and therefore squash-eligible with the standard row beside it — the pre-dispatch wire.
-    expect(unset.history.some((r) => r.role === "system")).toBe(false);
-    expect(unset.history.find((r) => r.role === "assistant")?.content).toBe("The lamp gutters.\n\none voice");
-  });
-
-  test("the mapping is DELIVERY only — the same canon shaped under both profiles differs on the wire and nowhere else", () => {
+  test("the capability bit does not reach narrator delivery: true / false / absent produce the IDENTICAL wire", () => {
     const canon = narratorCanon();
     const on = shape(soloInput({ canon, appendUserTurn: null, historySystemRows: true }));
     const off = shape(soloInput({ canon, appendUserTurn: null, historySystemRows: false }));
-    // The §14 provider-independence invariant at this seam: SHAPE reads `canon` and never writes it, so the
-    // input rows are byte-identical after both runs while the delivered role sequence differs.
+    const unset = shape(soloInput({ canon, appendUserTurn: null }));
+    expect(on.history).toEqual(off.history);
+    expect(unset.history).toEqual(off.history);
+    // CANON is untouched by either run (the §14 provider-independence invariant at this seam).
     expect(canon.map((r) => `${r.role}:${r.content}`)).toEqual(["assistant:The lamp gutters.", "assistant:one voice"]);
-    expect(on.history.map((r) => r.role)).not.toEqual(off.history.map((r) => r.role));
   });
 
-  test("a system-delivered narrator row is never speaker-labelled, on any names mode", () => {
+  test("a narrator row is assistant-and-unlabelled on a measured wire too (the label policy is kind, unchanged)", () => {
     for (const namesBehavior of ["content", "completion", "default"] as const) {
-      const out = shape(soloInput({ canon: narratorCanon(), appendUserTurn: null, historySystemRows: true, namesBehavior }));
-      const row = out.history.find((r) => r.role === "system");
+      const canon = toShapeCanon([kindRow({ kind: "narrator", content: "The lamp gutters." })], KIND_CTX, KIND_NAMES, null);
+      const out = shape(soloInput({ canon, appendUserTurn: null, historySystemRows: true, namesBehavior }));
+      const row = out.history.find((r) => r.role === "assistant");
+      // No "Group: " (the synthetic card's name), no completion `name`, and the row is in the ASSISTANT
+      // voice — the measured capability reaches neither the label policy nor the delivered role.
       expect(row?.content).toBe("The lamp gutters.");
       expect(row?.name).toBeUndefined();
     }
   });
 
-  test("the ends-on-user invariant still holds: a trailing system row does not count as the user tail", () => {
-    const out = shape(soloInput({ canon: narratorCanon(), appendUserTurn: null, historySystemRows: true }));
-    // `system` rows are squash-isolated and the tail check reads the last NON-system row, so the canon's
-    // trailing assistant row still earns its continuation nudge.
+  test("the ends-on-user invariant still holds around the SURVIVING system producer (a depth-0 injection)", () => {
+    // The splice is the only thing that can put a `system` row in the delivered history now. The tail check
+    // reads the last NON-system row, so a canon ending on assistant still earns its continuation nudge with a
+    // capability-kept system row sitting after it.
+    const out = shape(
+      soloInput({
+        canon: narratorCanon(),
+        appendUserTurn: null,
+        injections: [inChat({ role: "system", content: "GM note" })],
+        midConversationSystem: true,
+      }),
+    );
+    expect(out.history.some((r) => r.role === "system")).toBe(true);
     expect(out.history.at(-1)?.role).toBe("user");
   });
 
-  test("a `comment` row is still DROPPED under the capability — the wire-role dispatch never resurrects one", () => {
+  test("a `comment` row is still DROPPED on a measured wire — no capability resurrects one", () => {
     const canon = toShapeCanon([kindRow({ kind: "comment", content: "OOC: brb, dog" })], KIND_CTX, KIND_NAMES, null);
     const out = shape(soloInput({ canon, appendUserTurn: null, historySystemRows: true }));
     expect(out.history.some((r) => r.content.includes("OOC"))).toBe(false);
   });
 
-  test("the EGOCENTRIC FOLD wins: a folded narrator row is a participant line, not the operator channel", () => {
+  test("the EGOCENTRIC FOLD is unaffected: a folded narrator row is a participant `user` line", () => {
     // The scoped fold rewrites another character's row into a `user` line addressed to the target and
-    // deliberately KEEPS its kind. Promoting that to system would put a folded participant line into the
-    // operator channel, so the dispatch is gated on the row still being assistant-voiced.
+    // deliberately KEEPS its kind. It was the one guard the ruled-out dispatch needed; the fold's own
+    // behavior is independent of the capability and stays pinned.
     const other = castId<CharacterId>("character_other_speaker");
     const canon = toShapeCanon([kindRow({ kind: "narrator", content: "The lamp gutters.", characterId: other })], KIND_CTX, KIND_NAMES, null);
     const out = shape(
       soloInput({ canon, appendUserTurn: null, historySystemRows: true, output: "per-speaker", cardScope: "scoped", scopedTargetId: GROUP_ID }),
     );
     expect(out.history.some((r) => r.role === "system")).toBe(false);
+    expect(out.history.some((r) => r.role === "user" && r.content.includes("The lamp gutters."))).toBe(true);
   });
 });
 
