@@ -58,6 +58,8 @@ import type { NavMethod } from "./_kit/nav.ts";
 import { NAV_FLAG_METHOD, NAV_FLAGS, runNav } from "./_kit/nav.ts";
 import type { ResultPair } from "./_kit/result.ts";
 import { print, printResult } from "./_kit/result.ts";
+import type { ThemeRequest } from "./_kit/theme.ts";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "./_kit/theme.ts";
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_SETTLE_MS = 2000;
@@ -107,6 +109,9 @@ type Args = {
    *  browser-level `reducedMotion:false` below is only the OS media query; an INP/LoAF number taken while
    *  the app's own reduce-motion setting is on describes a surface with its transitions removed. */
   appearance: AppearancePatch | null;
+  /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
+   *  `settings.getUserSettings` response (never written — _kit/theme.ts). null = the account's own theme. */
+  theme: ThemeRequest | null;
   /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
   errors: string[];
 };
@@ -180,6 +185,10 @@ function parseAppearanceFlag(flag: string, rest: string[], args: Args): boolean 
     args.appearance = mergeAppearancePatches(args.appearance, FULL_MOTION_PATCH);
     return true;
   }
+  if (flag === "--theme") {
+    applyThemeFlag(args, parseThemeFlag(rest.shift() ?? ""));
+    return true;
+  }
   return false;
 }
 
@@ -227,6 +236,7 @@ const VALUE_FLAGS = new Set([
   "--viewport",
   "--cycles",
   ...APPEARANCE_VALUE_FLAGS,
+  ...THEME_VALUE_FLAGS,
 ]);
 const BOOLEAN_FLAGS = new Set(["--cpuprofile", "--full-motion"]);
 
@@ -245,6 +255,8 @@ Run:
   --base <url> · --viewport <WxH> · --settle <ms> · --cycles <n> · --out <name> · --cpuprofile
 
 ${appearanceHelpBlock()}
+
+${themeHelpBlock()}
 
 Exit: 0 clean · 1 step failure / page error · 2 CLI misuse.`;
 
@@ -290,6 +302,7 @@ export function parsePerfArgs(argv: string[]): Args {
     cpuProfile: false,
     steps: [],
     appearance: null,
+    theme: null,
     errors: scanArgv(argv),
   };
   const rest = [...argv];
@@ -593,6 +606,7 @@ async function main(): Promise<number> {
     colorScheme: null,
     reducedMotion: false, // the OS media query — a motion probe wants the real animations
     appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
+    theme: opts.theme,
     localStorage: [],
   });
   await session.context.addInitScript({ content: METER_INIT_JS });
