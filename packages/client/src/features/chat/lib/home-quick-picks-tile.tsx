@@ -26,8 +26,13 @@ const QUICK_PICKS_SKELETON_ROWS = 6;
  *  RE-MEASURED 2026-08-17 (rail sweep P2-9/P3-18): the cell's anatomy changed — its name went up a ramp
  *  step (the `promoted` voice) and both its lines clamp to two WRAPPED lines instead of truncating — so the
  *  settled box grew. 331 is the re-measurement, taken the way this note demands: the `#177` first-boot CT
- *  (`home-surface.ct.tsx`) reported the residual as `chat.quickPicks moved 10.19px` against the old 321. */
-const QUICK_PICKS_SKELETON_BLOCK_PX = 331;
+ *  (`home-surface.ct.tsx`) reported the residual as `chat.quickPicks moved 10.19px` against the old 321.
+ *  RE-MEASURED 2026-08-18 (side-eye home re-score #216-d): the cell's name now RESERVES its two lines
+ *  (`Text lines={2}` — a clamp caps, it does not reserve, so one- and two-line names started their captions
+ *  21px apart in the same row), which adds one line of the `promoted` leading to EVERY row of the shelf.
+ *  374 is the re-measurement, taken the way this note demands: the same `#177` CT reported the residual as
+ *  `chat.quickPicks moved 43.38px` against the old 331 (two rows × one line). */
+const QUICK_PICKS_SKELETON_BLOCK_PX = 374;
 
 export const chatQuickPicksTile: HomeTileContribution = {
   id: "chat.quickPicks",

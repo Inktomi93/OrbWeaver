@@ -217,6 +217,18 @@
   scrollbar-width: thin;
 }
 
+/* TWO RESERVED LINES (`Text lines={2}`, side-eye home re-score 2026-08-18 #216-d). `line-clamp-2` CAPS a
+ * run at two lines; it never RESERVES them, so in a grid of cells a one-line name and a two-line name push
+ * their captions to different baselines (measured 21px apart in one row of the home face shelf). The
+ * reservation is one line-height unit arithmetic — `lh` resolves against THIS element's computed
+ * line-height, so it follows whatever voice the text is set in instead of pinning a step's pixel value.
+ * It lives here, not as a Tailwind arbitrary value: `min-h-[2lh]` is off the token scale by construction
+ * (`no-arbitrary-tw-values`), and there is no design token for "as tall as this element's own two lines"
+ * — the same reason `orb-skeleton-shimmer` below is a class rather than a utility stack. */
+.orb-lines-2 {
+  min-height: 2lh;
+}
+
 /* Skeleton shimmer sweep: the gradient rides an oversized pseudo-element and translates on the
  * compositor. Animating background-position repainted every skeleton on every frame. Reduced-motion
  * removes the pseudo-element entirely, leaving the flat bg-muted fill. */

@@ -176,6 +176,50 @@ test("P2-9 the cell's name is a step above its gloss, and both wrap instead of c
   await expect(gloss).toHaveCSS("-webkit-line-clamp", "2");
 });
 
+// ── ONE RANK, NOT SIX LOOSE OBJECTS (side-eye home re-score 2026-08-18, #216-d) ─────────────────────
+// `line-clamp-2` CAPS the name at two lines; it never RESERVED them. So in one grid row a one-line name
+// and a two-line name pushed their pitch lines to different baselines — measured on the live shelf at
+// 1920: `descTop` 359 (Mira) vs 380 (Calamity, Doomblade of the Ninth Epoch), a 21px drift you cannot
+// unsee. The receipt the review asked for is exactly this: every cell in a row reports the same descTop.
+test("#216 every cell in a row starts its pitch at the same baseline, whatever its name's length", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": {
+      items: [
+        makeCharacterSummary({ id: "char_short", name: "Mira", elevatorPitch: "A burnt-out night-shift medic." }),
+        makeCharacterSummary({
+          id: "char_long",
+          name: "Calamity, Doomblade of the Ninth Epoch",
+          elevatorPitch: "A legendary, apocalypse-forged blade.",
+        }),
+      ],
+      nextCursor: null,
+    },
+  });
+
+  const home = await mount(<ChatQuickPicksTileStory />);
+  const cells = home.getByRole("list", { name: "Character quick-picks" }).getByRole("listitem");
+  await expect(cells).toHaveCount(2);
+
+  // The pitch's own top edge, per cell — geometry, never a class string.
+  const pitchTops = await cells.evaluateAll((nodes: Element[]) =>
+    nodes.map((cell) => {
+      const spans = [...cell.querySelectorAll("span[data-slot='text']")];
+      const pitch = spans.at(-1);
+      return pitch === undefined ? Number.NaN : Math.round(pitch.getBoundingClientRect().top);
+    }),
+  );
+
+  expect(pitchTops[0]).toBe(pitchTops[1]);
+  // …and the reservation is what does it: the SHORT name's box is two lines tall even with one line in it.
+  const nameBoxes = await cells.evaluateAll((nodes: Element[]) =>
+    nodes.map((cell) => {
+      const name = cell.querySelector("span[data-slot='text']");
+      return name === null ? Number.NaN : Math.round(name.getBoundingClientRect().height);
+    }),
+  );
+  expect(nameBoxes[0]).toBe(nameBoxes[1]);
+});
+
 test("the cells are real LIST ITEMS inside the list — a role=list of generic divs announces empty", async ({ mount, page }) => {
   await routeTrpc(page, { "character.list": CHAR_PAGE });
 

@@ -4,6 +4,9 @@ import type { Locator, Page } from "@playwright/test";
 import { ToastOverComposerPlayground, ToastPlayground } from "./toast.fixtures.tsx";
 
 const ROOT = '[data-slot="toast-root"]';
+/** The title is addressed by SLOT, not by `getByRole("heading")`: a transient notice is not a section of
+ *  the document and no longer renders an `<h2>` (side-eye home re-score 2026-08-18 — see the role tests). */
+const TITLE = '[data-slot="toast-title"]';
 
 /** Resolve a token through the LIVE document rather than TOKENS' static string: the colour tokens are
  *  `light-dark()` pairs and the control sizes are pointer-conditional, so only the browser knows the
@@ -21,6 +24,12 @@ function resolvedToken(page: Page, property: "color" | "width", cssVar: string):
     },
     [property, cssVar] as const,
   );
+}
+
+/** Is Base UI's dialog-only `aria-modal` still on this root? Read as ATTRIBUTE PRESENCE — the override
+ *  removes it, and `toHaveAttribute` can only ask about a value. */
+function hasAriaModal(locator: Locator): Promise<boolean> {
+  return locator.evaluate((element: Element) => element.hasAttribute("aria-modal"));
 }
 
 async function boxOf(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
@@ -184,7 +193,7 @@ test("the content reserves the close button's box so the ✕ never paints over t
   const close = toast.locator('button[aria-label="Close notification"]');
 
   const closeBox = await boxOf(close);
-  const titleBox = await boxOf(toast.getByRole("heading"));
+  const titleBox = await boxOf(toast.locator(TITLE));
   const descriptionBox = await boxOf(toast.locator("p"));
 
   expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(closeBox.x);
@@ -222,14 +231,54 @@ test("a warning toast carries data-type=warning, the warning tint AND a glyph (n
 
 // P2-3 / description. The split title/description is the whole point of the widened notice: the title
 // must scan in under a second, the detail rides below it. Base UI names the toast BY its title, so the
-// two must be distinct elements — a heading plus a paragraph — not one concatenated string.
+// two must be distinct elements — a title block plus a paragraph — not one concatenated string.
 test("title and description render as distinct elements, the title naming the toast", async ({ mount, page }) => {
   await mount(<ToastPlayground />);
   await page.getByRole("button", { name: "add toast", exact: true }).click();
 
   const toast = page.locator(ROOT);
-  await expect(toast.getByRole("heading")).toHaveText("Saved");
+  await expect(toast.locator(TITLE)).toHaveText("Saved");
   await expect(toast.locator("p")).toHaveText("All changes stored.");
+  // The NAMING half, which is what the element choice may never cost: `aria-labelledby` still points at
+  // the title, so the toast's accessible name is its title whatever tag carries it.
+  await expect(toast).toHaveAccessibleName("Saved");
+});
+
+// ── A TRANSIENT NOTICE IS NOT A DIALOG (side-eye home re-score, 2026-08-18) ───────────────────────────
+// Base UI's ToastRoot ships `role="alertdialog"` for a high-priority toast and `role="dialog"` for the
+// rest, both inside the viewport's `aria-live="polite"` region, each carrying an `<h2>`, and none of them
+// ever taking focus. `alertdialog` promises a modal awaiting a response with managed focus — a screen
+// reader announced "dialog" and the user found focus still on `<body>` with no way in or back. The role
+// now follows the severity the notice already declares.
+
+test("a high-priority (error) toast is role=alert; every other toast is role=status", async ({ mount, page }) => {
+  await mount(<ToastPlayground />);
+
+  await page.getByRole("button", { name: "add error toast", exact: true }).click();
+  const error = page.locator(`${ROOT}[data-type="error"]`);
+  await expect(error).toHaveAttribute("role", "alert");
+  // `aria-modal` is only allowed on the dialog roles, so it leaves with them.
+  expect(await hasAriaModal(error)).toBe(false);
+  await error.locator('button[aria-label="Close notification"]').click();
+  await expect(error).toHaveCount(0);
+
+  await page.getByRole("button", { name: "add toast", exact: true }).click();
+  const plain = page.locator(ROOT);
+  await expect(plain).toHaveAttribute("role", "status");
+  expect(await hasAriaModal(plain)).toBe(false);
+});
+
+test("a toast injects NO heading into the document outline", async ({ mount, page }) => {
+  await mount(<ToastPlayground />);
+
+  await page.getByRole("button", { name: "add error toast", exact: true }).click();
+  await page.getByRole("button", { name: "add warning toast", exact: true }).click();
+  await expect(page.locator(ROOT)).toHaveCount(2);
+
+  // The titles are rendered and named (above); what they may not be is document structure — three
+  // transient notices used to add three `<h2>`s belonging to no section of the page.
+  await expect(page.locator(`${ROOT} ${TITLE}`)).toHaveCount(2);
+  await expect(page.locator(ROOT).getByRole("heading")).toHaveCount(0);
 });
 
 // P3-1. The root is `tabIndex: 0` (ToastRoot.mjs:414) and carried NO focus style, so keyboard focus fell

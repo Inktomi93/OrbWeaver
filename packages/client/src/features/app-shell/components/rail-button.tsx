@@ -14,7 +14,7 @@ import { Icon } from "@orb/ui/icons";
 import { FOCUS_RING_ON_SIDEBAR } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { MobileCuration } from "#state";
 
 export interface RailButtonProps {
@@ -34,6 +34,10 @@ export interface RailButtonProps {
   readonly mobile?: MobileCuration;
   /** The mobile-only "You" overflow tab — `display:none` on the desktop icon column, shown on the bar. */
   readonly mobileOnly?: boolean;
+  /** An optional signal riding the control — the You tab's unread count for the widgets its sheet hosts
+   *  (`sheetOverflowChrome`). Rendered inside the button beside the icon, exactly where the desktop bell
+   *  puts its own badge. */
+  readonly badge?: ReactNode;
 }
 
 export function RailButton({
@@ -44,6 +48,7 @@ export function RailButton({
   onClick,
   mobile = "sheet",
   mobileOnly = false,
+  badge,
 }: RailButtonProps): ReactElement {
   return (
     <Tooltip>
@@ -62,6 +67,7 @@ export function RailButton({
             onClick={onClick}
           >
             <Icon icon={icon} size="sm" />
+            {badge}
             {/* `label` (13px), not `micro` (10.5px): this string is the PRIMARY name of a primary-nav
                 control on the phone bar, and `micro` is the ramp's kicker/gloss step — a caps section
                 name or a quiet second line, never a control's own name. 10.5px also sits under the

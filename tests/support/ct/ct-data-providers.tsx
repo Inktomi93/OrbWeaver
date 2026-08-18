@@ -324,12 +324,26 @@ const railStandInPersona: ChromeEntry = {
   mobile: "sheet",
   behavior: { kind: "widget", body: (): ReactElement => <button type="button">Account</button> },
 };
+// …and the same stand-in philosophy now reaches the NOTIFICATIONS widget. The rail used to render only
+// `rail.nav`/`rail.end`, so a `topbar.trail` entry's hooks were never called in this mount; the mobile You
+// tab badges the sheet-hosted widgets' `useBadge` counts (#214 residue), so the rail evaluates
+// `useVisible`/`useBadge` for them too — and `notificationsChrome`'s gate reads `useAuthConfig()`, which
+// mount-throws the whole rail in a dataless story. The stand-in keeps the SEAM (a curated `topbar.trail`
+// widget the You tab can badge) with none of the data layer; `RailSheetBadgeStory` owns the badge itself.
+const railStandInNotifications: ChromeEntry = {
+  id: "notifications-bell",
+  label: "Notifications",
+  zone: "topbar.trail",
+  mobile: "sheet",
+  useBadge: (): number => 0,
+  behavior: { kind: "widget", body: (): ReactElement => <button type="button">Notifications</button> },
+};
 const standInChromeRegistry: ChromeRegistry = createContributorRegistry(
   "chrome",
   assembleChrome({
     sections: realRegistry.list(),
     modals: realModalRegistry.list(),
-    widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome, railStandInPersona],
+    widgets: [railStandInNotifications, fullscreenChrome, contextToggleChrome, railStandInPersona],
   }),
 );
 

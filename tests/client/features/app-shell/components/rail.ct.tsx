@@ -3,7 +3,7 @@
 // the buttons are keyboard-focusable in order.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RailBrandActiveStory, RailBrandNavStory, RailOverflowSectionStory, RailStory } from "../_ct-stories.tsx";
+import { RailBrandActiveStory, RailBrandNavStory, RailOverflowSectionStory, RailSheetBadgeStory, RailStory } from "../_ct-stories.tsx";
 
 test("renders every section + footer action as a named button; active = aria-current", async ({ mount }) => {
   const rail = await mount(<RailStory />);
@@ -101,6 +101,26 @@ test("rail buttons are keyboard-focusable", async ({ mount }) => {
 // off the shell's one viewport @media, and `hasTouch` is what makes Chromium report `pointer: coarse`.)
 test.describe("the mobile bottom bar", () => {
   test.use({ viewport: { width: 320, height: 800 }, hasTouch: true });
+
+  // ── THE PHONE'S ONLY UNREAD SIGNAL (#214 residue, side-eye home re-score 2026-08-18) ─────────────
+  // A `topbar.trail` widget curated `mobile:"sheet"` leaves the phone's chrome for the You sheet. That is
+  // right for the row's budget and it cost the inbox its TELL: the desktop bell badges the unread count,
+  // and the phone showed nothing anywhere — the feature was reachable, but a user was never told there
+  // was anything in it. The tab that hosts the sheet badges the sheet's own signal, derived through the
+  // same projection (never a hardcoded feature read — app-shell cannot import one).
+  test("the You tab badges a sheet-hosted widget's waiting count, and skips a gated one", async ({ mount }) => {
+    const rail = await mount(<RailSheetBadgeStory />);
+    const you = rail.getByRole("button", { name: "You", exact: true });
+
+    await expect(you).toBeVisible();
+    await expect(you.locator('[data-slot="badge"]')).toHaveText("3");
+    // The count is announced when it lands — the tab's own NAME cannot carry it (a name is a string the
+    // parent holds, and these counts arrive through a per-entry hook), so the signal is a live region.
+    await expect(you.getByRole("status")).toHaveText("3 unread");
+    // A `useVisible: false` entry contributes NOTHING: one badge on the tab, not two, and never the
+    // hidden entry's 9.
+    await expect(you.locator('[data-slot="badge"]')).toHaveCount(1);
+  });
 
   test("the You tab HINTS at an overflow section without claiming to be the current page", async ({ mount }) => {
     const rail = await mount(<RailOverflowSectionStory />);
