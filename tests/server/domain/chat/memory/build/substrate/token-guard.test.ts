@@ -2,7 +2,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
 import { describe } from "vitest";
-import { estimateTokens } from "@orb/kit/tokens";
+import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import {
   chunkBlockForEmbedWindow,
   DEFAULT_OUTPUT_RESERVE_TOKENS,
@@ -72,8 +72,9 @@ describe("memory/build/substrate/token-guard — chunkBlockForEmbedWindow", () =
 
   test("an over-window block cuts at MESSAGE boundaries — each chunk's span is exactly what its text holds", () => {
     const rows = [row(1, "a".repeat(2000)), row(2, "b".repeat(2000)), row(3, "c".repeat(2000))];
-    // ~500 tokens per row; a 700-token window fits ONE row per chunk (minus the scaffold reserve).
-    const chunks = chunkBlockForEmbedWindow(rows, names, 700);
+    // ~500 tokens per row; a 1000-token window fits ONE row per chunk (minus the headroom discount + the
+    // scaffold reserve — 1000 × 0.7 − 64 = 636, #187).
+    const chunks = chunkBlockForEmbedWindow(rows, names, 1000);
     expect(chunks).not.toBeNull();
     expect(chunks?.map((c) => [c.chunkIdx, c.seqStart, c.seqEnd])).toEqual([
       [0, 1, 1],
@@ -112,5 +113,16 @@ describe("memory/build/substrate/token-guard — chunkBlockForEmbedWindow", () =
 
   test("a non-positive window (an absurd config) returns null rather than an empty vector set", () => {
     expect(chunkBlockForEmbedWindow([row(1, "x")], names, 8)).toBeNull();
+  });
+
+  // #187 — the chunk budget must clear the engine's REAL tokenizer, not just this estimator. Measured live
+  // (Qwen3-VL-Embedding-2B, max_model_len 8192): 6 of the corpus's 30 largest blocks, cut to the estimator's
+  // own `window - 64`, were refused HTTP 400 "at least 8193 input tokens" — the wall waiting behind the 120s
+  // timeout this issue is about. So every chunk stays inside the HEADROOM-discounted window.
+  test("every chunk fits the headroom-discounted window, not just the raw one (#187)", () => {
+    const rows = [row(1, "y".repeat(20_000)), row(2, "z".repeat(500))];
+    const chunks = chunkBlockForEmbedWindow(rows, names, 1000) ?? [];
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.every((c) => estimateTokens(c.text) <= safeTokenWindow(1000))).toBe(true);
   });
 });

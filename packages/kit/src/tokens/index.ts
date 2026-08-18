@@ -16,6 +16,22 @@ const PRINTABLE_ASCII_HIGH = 0x7e; // tilde
 const CHARS_PER_TOKEN = 4;
 
 /**
+ * The fraction of a HARD model window this estimate may be measured against (#187).
+ *
+ * QuadChars is an ADVISORY estimate, not a tokenizer, and it undercounts real BPE vocabularies on dense
+ * prose/code. Measured live against the box's embed engine (Qwen3-VL-Embedding-2B, `max_model_len` 8192) over
+ * the imported 895-chat corpus: the engine's own `prompt_tokens` ran up to **1.4156×** this estimate, and 6 of
+ * the 30 largest transcript blocks — cut to exactly `window - 64` estimated tokens — were refused HTTP 400
+ * ("at least 8193 input tokens"). A FLAT reserve cannot absorb a PROPORTIONAL error, which is why the old
+ * 64-token scaffold reserve did not save them.
+ *
+ * 0.7 ≈ 1 / 1.4156 (rounded down), so the worst ratio measured still lands inside the window. The cost is
+ * packing density (an over-window block cuts into slightly more pieces); the cost of being wrong the other way
+ * is a 400 that fails a whole embed batch. Nothing is truncated either way — over-budget content is CHUNKED.
+ */
+export const TOKENIZER_HEADROOM_FACTOR = 0.7;
+
+/**
  * Generic token estimate for one string. Model-agnostic (see file header). Returns 0 for empty.
  *
  * `for…of` iterates Unicode codepoints (surrogate pairs handled), so a non-ASCII codepoint — an
@@ -33,6 +49,16 @@ export function estimateTokens(text: string): number {
     }
   }
   return Math.ceil(printableAscii / CHARS_PER_TOKEN) + other;
+}
+
+/**
+ * The largest ESTIMATED-token budget that is safe to measure against a hard model window of `windowTokens`
+ * (see {@link TOKENIZER_HEADROOM_FACTOR}). Every caller that cuts content to fit a real engine window — the
+ * embed clamp, the memory segment chunker — sizes against THIS, never the raw window, so the discount has one
+ * home and cannot drift between them.
+ */
+export function safeTokenWindow(windowTokens: number): number {
+  return Math.max(0, Math.floor(windowTokens * TOKENIZER_HEADROOM_FACTOR));
 }
 
 /** The longest CODEPOINT prefix of `text` that fits `maxTokens` — the shared search {@link clampToTokenBudget}

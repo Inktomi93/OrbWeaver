@@ -64,6 +64,29 @@ describe("enginePost", () => {
     expect(seenSignal).toBeInstanceOf(AbortSignal); // never undefined — the bound is unconditional
   });
 
+  // #187 — the bound is PER REQUEST and the CALLER may size it. The 120s default is a constant that knows
+  // nothing about the work a request carries: the memory sweep's segment flood submits POSTs of up to
+  // ~1M prompt tokens (measured live: 4 concurrent 128-input POSTs over the corpus's largest blocks took
+  // 137s, the last one alone 136.8s), so a fixed 120s aborted legitimate compute. A caller that knows the
+  // size of its own batch derives the bound; the seam stays ALWAYS-bounded (never unbounded).
+  test("a caller-supplied timeoutMs is the effective bound (a sized batch is not capped at the 120s default)", async () => {
+    // The POST black-holes (a slow engine); the wake gate's own probes still answer — otherwise the stub would
+    // hang the PRE-DISPATCH gate instead of the request under test.
+    vi.stubGlobal("fetch", (_url: string, init?: RequestInit) => {
+      if (init?.method !== "POST") {
+        return Promise.resolve(new Response(JSON.stringify({ is_sleeping: false }), { status: 200 }));
+      }
+      return new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+      });
+    });
+    const err = await client.enginePost("embed", "/v1/embeddings", {}, { timeoutMs: 40 }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    expect((err as ProviderError).retryable).toBe(true);
+    // The message names the bound that actually fired — never the default constant.
+    expect((err as ProviderError).message).toContain("40ms bound");
+  });
+
   // F6 — the hung flush SETTLES: when the bound fires, fetch rejects with a TimeoutError DOMException; that maps
   // to a RETRYABLE server ProviderError (not a raw DOMException), so the rpg flush promise settles → the
   // flush-barrier `.finally` runs → the entry clears (no permanent per-chat 15s tax).

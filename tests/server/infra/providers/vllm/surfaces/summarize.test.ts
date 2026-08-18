@@ -10,7 +10,7 @@ import { logger } from "@orb/server/foundation/observability";
 import type { WireCaptureSink } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
 import { createVllmStructured, createVllmSummarize } from "@orb/server/infra/providers/vllm";
-import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
+import type { EnginePostOpts, VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe, vi } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
@@ -48,9 +48,9 @@ interface PostCall {
 function fakeClient(contentFor?: (user: string) => string): { client: VllmEngineClient; calls: PostCall[] } {
   const calls: PostCall[] = [];
   const client: VllmEngineClient = {
-    enginePost: <T>(_engine: unknown, path: string, body: unknown, signal?: AbortSignal): Promise<T> => {
+    enginePost: <T>(_engine: unknown, path: string, body: unknown, postOpts?: EnginePostOpts): Promise<T> => {
       const b = body as ChatBody;
-      calls.push({ path, body: b, signal });
+      calls.push({ path, body: b, signal: postOpts?.signal });
       const user = String(b.messages.find((m) => m.role === "user")?.content ?? "");
       const content = contentFor !== undefined ? contentFor(user) : `<think>reasoning</think>summary of ${user}`;
       return Promise.resolve({

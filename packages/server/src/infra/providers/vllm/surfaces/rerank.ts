@@ -152,7 +152,7 @@ export function createVllmRerank(deps: VllmRerankDeps): (req: RerankRequest) => 
       // Per-task `<Instruct>` the reranker conditions its yes/no judgement on; omitted → the template default.
       ...(req.instruction !== undefined ? { instruction: req.instruction } : {}),
     };
-    const response = await deps.client.enginePost<VllmRerankResponse>("rerank", "/v1/rerank", body, req.signal);
+    const response = await deps.client.enginePost<VllmRerankResponse>("rerank", "/v1/rerank", body, { signal: req.signal });
     return toRerankResult(response, docs, req.topN, req.model);
   };
 }
