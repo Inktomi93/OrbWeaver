@@ -39,10 +39,15 @@ export interface TextProps extends ComponentProps<"p">, VariantProps<typeof text
  * legible instead of uniformly loud. `size`/`weight`/`tone`/`transform` are the ui-package-internal axes a
  * voice is BUILT from; the `density-tier` gate (arm A3) ratchets their remaining feature call sites down.
  */
-export function Text({ className, as = "p", size, weight, tone, transform, voice, prose, ink, ...rest }: TextProps): ReactElement {
+export function Text({ className, as = "p", size, weight, tone, transform, voice, prose, ink, lines, ...rest }: TextProps): ReactElement {
   const Component = TEXT_ELEMENTS[as];
   return (
-    <Component data-slot="text" data-voice={voice} className={cn(textVariants({ size, weight, tone, transform, voice, prose, ink }), className)} {...rest} />
+    <Component
+      data-slot="text"
+      data-voice={voice}
+      className={cn(textVariants({ size, weight, tone, transform, voice, prose, ink, lines }), className)}
+      {...rest}
+    />
   );
 }
 
@@ -54,13 +59,13 @@ export interface HeadingProps extends ComponentProps<"h1">, VariantProps<typeof 
 /** Renders a real h1-h6 with the type-scale skin; `size` defaults from `level`, override for the rare hero.
  *  `voice="kicker"` is the section-NAME heading (the mocks' band label) — it keeps the document outline
  *  while dropping to the micro-caps skin, which a styled div would not. */
-export function Heading({ className, level, size, weight = "semibold", tone, transform, voice, prose, ink, ...rest }: HeadingProps): ReactElement {
+export function Heading({ className, level, size, weight = "semibold", tone, transform, voice, prose, ink, lines, ...rest }: HeadingProps): ReactElement {
   const Component = HEADING_ELEMENTS[level];
   return (
     <Component
       data-slot="heading"
       data-voice={voice}
-      className={cn(textVariants({ size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform, voice, prose, ink }), className)}
+      className={cn(textVariants({ size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform, voice, prose, ink, lines }), className)}
       {...rest}
     />
   );

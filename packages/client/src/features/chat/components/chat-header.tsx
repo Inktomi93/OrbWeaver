@@ -8,7 +8,9 @@
 // owns identity, the band is neutral chrome; Context-Panel-Program.md §1 Q3. CP-4's scene banner will be
 // a NEW component.)
 // It reads the same chat.getChat query the room already suspends on via a plain useQuery, so the surface
-// never suspends on its own account — it degrades to a neutral title until the cache populates.
+// never suspends on its own account — it renders a title-width SKELETON until the cache populates (it used
+// to degrade to the fallback identity, which read as a real "Untitled chat · 0 members"; see
+// `ChatHeaderSurface`).
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { ChatId } from "@orb/kit/ids";
@@ -18,6 +20,7 @@ import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
 import { Icon, Users } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
@@ -38,6 +41,8 @@ interface CommittedIdentity {
   readonly title: string;
   /** Every PRESENT seat, humans + characters — the number on the roster chip. */
   readonly memberCount: number;
+  /** Has the room's own read landed? `false` ⇒ there is no identity yet, only the shape of one. */
+  readonly resolved: boolean;
 }
 
 /** The committed chat's identity (avatars/title/member-count), read from the shared `getChat` query
@@ -56,6 +61,7 @@ function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
       cast.map((c) => c.displayName),
     ),
     memberCount: participants.filter((p) => p.leftSeq === null).length,
+    resolved: chat !== undefined,
   };
 }
 
@@ -72,8 +78,32 @@ function ChatIdentityCluster({ avatars, title }: { readonly avatars: ReactNode; 
   );
 }
 
+/**
+ * THE PLACEHOLDER MAY NOT LIE (#216, side-eye home re-score 2026-08-18). This surface deliberately does not
+ * suspend, and its unresolved arm used to render the FALLBACK identity: `deriveChatTitle(null, [])` is
+ * "Untitled chat" and an empty roster counts 0, so for ~480ms after Resume the topbar told the user they
+ * were in an *Untitled chat with 0 members* — measured on a 120ms click strip, tiles 0 and 1. That is worse
+ * than an absent status: it is a wrong one, on the one action home exists to offer.
+ *
+ * So the unresolved arm is the SHAPE of the identity, not a guess at its content — a title-width skeleton
+ * and no roster chip (a "0" is the same lie in a smaller box), inside an `aria-busy` row so the state is
+ * audible as well as visible. The resolved arm is untouched. NOT fixed by seeding the cache from the row
+ * that launched the room: a chat SUMMARY is not `getChat`'s shape, and writing a partial one into that key
+ * trades a visible lie for an invisible one. A room created here still paints its real title on the first
+ * frame — `useStartChat` seeds this exact key from `startChat`'s own response.
+ */
 export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElement {
-  const { cast, title, memberCount } = useCommittedIdentity(chatId);
+  const { cast, title, memberCount, resolved } = useCommittedIdentity(chatId);
+
+  if (!resolved) {
+    return (
+      <Row gap="row" align="center" aria-busy={true} className="min-w-0 grow">
+        {/* The identity's own footprint, capped on the container scale (never a raw width): it grows with
+            the lead and stops where a title would. */}
+        <Skeleton className="h-control-sm w-full max-w-cq-sm" data-slot="chat-header-pending" />
+      </Row>
+    );
+  }
 
   return (
     <Row gap="row" align="center" className="min-w-0">
