@@ -11,7 +11,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 // 1 token; a local `length/4` undercounts those ~4× and would let a CJK transcript silently overflow the
 // summarizer — the exact truncation this guard exists to prevent. Never re-roll the estimate here.
 import { estimateTokens, safeTokenWindow, splitToTokenBudget } from "@orb/kit/tokens";
-import type { MsgRow, SegmentChunk } from "../../types.ts";
+import type { MsgRow, SegmentChunk, SummarizerBudget } from "../../types.ts";
 import { renderRowLine, renderTranscript } from "./transcript.ts";
 
 /** The baseline tokens reserved for the digest OUTPUT + the prompt scaffold (the system prompt is subtracted
@@ -82,6 +82,31 @@ function splitOversizedLine(line: RenderedLine, budget: number): string[] {
   return pieces.length === 0 ? splitToTokenBudget(line.body, budget) : pieces.map((p) => `${prefix}${p}`);
 }
 
+/** Pack the block's rendered lines into in-budget chunks, splitting the one line that cannot fit alone, and
+ *  stamping each chunk's HONEST `(seqStart, seqEnd)` span. `null` past {@link MAX_SEGMENT_CHUNKS_PER_BLOCK}
+ *  (the pathological ceiling) or when the pack yields nothing — see {@link chunkBlockForEmbedWindow}, whose
+ *  window arithmetic + whole-block fast path stay there. */
+function chunkPackedLines(lines: readonly RenderedLine[], budget: number): SegmentChunk[] | null {
+  const chunks: SegmentChunk[] = [];
+  for (const group of packLines(lines, budget)) {
+    const groupFirst = group.at(0);
+    const groupLast = group.at(-1);
+    if (groupFirst === undefined || groupLast === undefined) {
+      continue;
+    }
+    const text = group.map((l) => `${l.label}: ${l.body}`).join("\n");
+    // A group of ≥2 lines always fits (packLines only exceeds the budget on a SINGLE unsplittable line).
+    const texts = group.length === 1 && estimateTokens(text) > budget ? splitOversizedLine(groupFirst, budget) : [text];
+    for (const t of texts) {
+      chunks.push({ chunkIdx: chunks.length, seqStart: groupFirst.seq, seqEnd: groupLast.seq, text: t });
+      if (chunks.length > MAX_SEGMENT_CHUNKS_PER_BLOCK) {
+        return null; // the pathological ceiling — skip-and-record (#165's surviving arm)
+      }
+    }
+  }
+  return chunks.length === 0 ? null : chunks;
+}
+
 /**
  * CHUNK a verbatim block to the EMBED model's window — the segment counterpart of {@link fitBlockToBudget},
  * and deliberately a CHUNKER rather than a fitter or a clamp. A digest is a SUMMARY (trimming the oldest
@@ -123,41 +148,17 @@ export function chunkBlockForEmbedWindow(rows: readonly MsgRow[], macroNames: Ro
     const { label, body } = renderRowLine(r, macroNames);
     return { seq: r.seq, label, body, tokens: estimateTokens(`${label}: ${body}`) };
   });
-  const chunks: SegmentChunk[] = [];
-  for (const group of packLines(lines, budget)) {
-    const groupFirst = group.at(0);
-    const groupLast = group.at(-1);
-    if (groupFirst === undefined || groupLast === undefined) {
-      continue;
-    }
-    const text = group.map((l) => `${l.label}: ${l.body}`).join("\n");
-    // A group of ≥2 lines always fits (packLines only exceeds the budget on a SINGLE unsplittable line).
-    const texts = group.length === 1 && estimateTokens(text) > budget ? splitOversizedLine(groupFirst, budget) : [text];
-    for (const t of texts) {
-      chunks.push({ chunkIdx: chunks.length, seqStart: groupFirst.seq, seqEnd: groupLast.seq, text: t });
-      if (chunks.length > MAX_SEGMENT_CHUNKS_PER_BLOCK) {
-        return null; // the pathological ceiling — skip-and-record (#165's surviving arm)
-      }
-    }
-  }
-  return chunks.length === 0 ? null : chunks;
+  return chunkPackedLines(lines, budget);
 }
 
 /**
  * Fit a block's rows to the summarizer transcript budget by trimming OLDEST-within-block until the rendered
- * transcript fits `contextTokens` (minus the system prompt + the output reserve). Returns the kept rows, or
- * `null` when even the single newest message overflows (the caller skips-and-flags — never silent truncation).
- * `contextTokens ≤ 0` ⇒ no room at all ⇒ `null`. `outputReserveTokens` = the SAME `max_tokens` the summarize
- * request sends (the one-home rule; caller resolves `AppSettings.memorySummarizer.maxTokens ?? default`).
+ * transcript fits {@link SummarizerBudget.contextTokens} (minus the system prompt + the output reserve).
+ * Returns the kept rows, or `null` when even the single newest message overflows (the caller skips-and-flags —
+ * never silent truncation). A non-positive remainder ⇒ no room at all ⇒ `null`.
  */
-export function fitBlockToBudget(
-  rows: readonly MsgRow[],
-  macroNames: RowMacroNameContext,
-  contextTokens: number,
-  systemPromptTokens: number,
-  outputReserveTokens: number,
-): MsgRow[] | null {
-  const budget = contextTokens - systemPromptTokens - outputReserveTokens;
+export function fitBlockToBudget(rows: readonly MsgRow[], macroNames: RowMacroNameContext, tokens: SummarizerBudget): MsgRow[] | null {
+  const budget = tokens.contextTokens - tokens.systemPromptTokens - tokens.outputReserveTokens;
   if (budget <= 0) {
     return null;
   }

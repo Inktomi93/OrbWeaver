@@ -113,6 +113,17 @@ export interface BlockSpan {
   readonly rows: readonly MsgRow[];
 }
 
+/** The three token quantities the summarizer token-guard fits a block against (`build/substrate/token-guard`
+ *  `fitBlockToBudget`). Bundled because they are ONE budget read together — the transcript room is
+ *  `contextTokens - systemPromptTokens - outputReserveTokens`, and three bare positional numbers at a call
+ *  site are silently swappable. `outputReserveTokens` is the SAME `max_tokens` the summarize request sends
+ *  (the one-home rule: the caller resolves `AppSettings.memorySummarizer.maxTokens ?? the default reserve`). */
+export interface SummarizerBudget {
+  readonly contextTokens: number;
+  readonly systemPromptTokens: number;
+  readonly outputReserveTokens: number;
+}
+
 /** A `chat_digests` row as memory reads it — the NON-vector facets (the `embedding`/`hubScore`/`model`/`dim`
  *  columns are search's/discovery's, never read here). `contentHash` is the staleness key; `text` is the
  *  stored distilled body (§2b) that fills `{{memory}}`; `topicAnchor` + `keywords` are the retrieval facets

@@ -209,8 +209,10 @@ async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: reado
 /** The ONE place both the live per-turn build and the corpus-wide backfill feed vLLM: a batched, per-item-
  *  isolated summarize of digest inputs with the admin summarizer opts. Index-aligned; `null` = per-item fail
  *  (the content-hash self-heal retries it next pass). Length-sort the inputs before this for the big backfill
- *  batch — similar-length sequences pack with less ragged-batch padding waste. */
-export async function summarizeDigestBatch(ctx: ChatContext, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
+ *  batch — similar-length sequences pack with less ragged-batch padding waste.
+ *  NOT `async` (nor its consolidation twin): it only composes the opts + the error tag and FORWARDS
+ *  `summarizeBatchIsolated`'s promise, so an added `await` would just re-wrap it. Every caller awaits. */
+export function summarizeDigestBatch(ctx: ChatContext, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
   return summarizeBatchIsolated(ctx, inputs, summarizerOpts(ctx), (i, err) =>
     getLog().error({ err, index: i }, "memory digest: block summarize FAILED (isolated — the block retries next pass)"),
   );
@@ -280,7 +282,11 @@ async function collectTier0(
       skipped += 1;
       continue;
     }
-    const fitted = fitBlockToBudget(block.rows, env.macroNames, ctx.summarizerContextTokens(), systemPromptTokens, outputReserve(ctx));
+    const fitted = fitBlockToBudget(block.rows, env.macroNames, {
+      contextTokens: ctx.summarizerContextTokens(),
+      systemPromptTokens,
+      outputReserveTokens: outputReserve(ctx),
+    });
     if (fitted === null) {
       skippedTokenGuard += 1;
       continue;
@@ -491,7 +497,7 @@ export async function collectConsolidationTier(
 /** The consolidation summarize batch (per-item-isolated on failure) — same wire home as `summarizeDigestBatch`
  *  but its own error tag. In the corpus backfill the flat batch loses per-parent context, so the log carries
  *  only the flat index; the content-hash self-heal retries the dropped parent next pass regardless. */
-export async function summarizeConsolidationBatch(ctx: ChatContext, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
+export function summarizeConsolidationBatch(ctx: ChatContext, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
   return summarizeBatchIsolated(ctx, inputs, summarizerOpts(ctx), (i, err) =>
     getLog().error({ err, index: i }, "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)"),
   );
