@@ -61,6 +61,23 @@ describe("corpusProjection", () => {
     expect(typeof alpha?.y).toBe("number");
   });
 
+  // The projection's point set is every INDEXED card, so its NAMES must resolve with zero distill rows
+  // (issue #154 — the same "Unknown" wall the archetype clusters showed).
+  test("un-distilled cards plot with their real names and a null genre", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const named = await seedCharacter(db, { id: "alpha", ownerId: owner, name: "Wren" });
+    await seedCharacterEmbedding(db, { characterId: named, embedding: vec(1, 0), contentHash: "a" });
+    const beta = await seedCharacter(db, { id: "beta", ownerId: owner, name: "Nyx" });
+    await seedCharacterEmbedding(db, { characterId: beta, embedding: vec(0, 1), contentHash: "b" });
+    const gamma = await seedCharacter(db, { id: "gamma", ownerId: owner, name: "Ilse" });
+    await seedCharacterEmbedding(db, { characterId: gamma, embedding: vec(1, 1), contentHash: "g" });
+
+    const points = await svcFor(db).corpusProjection(owner);
+    expect(points.map((p) => p.name).sort()).toEqual(["Ilse", "Nyx", "Wren"]);
+    expect(points.find((p) => p.characterId === named)).toMatchObject({ genre: null });
+  });
+
   test("a foreign owner sees an empty galaxy (audit #1)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");

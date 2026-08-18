@@ -10,6 +10,28 @@
 // (an extra wire field is assignable) and silently drops the field. The member type is derived from the
 // verb's own output now, so the tab cannot fall behind the payload again, and the seats come from the ONE
 // mapper both surfaces share (`lib/corpus-faces.ts`) so the null→initials degradation is identical.
+//
+// ── THE TAB GATES ON THE UNDERSTANDING PASS (issue #154, owner-ruled: "if we haven't run it we probably
+//    shouldn't show data, seems kind of misleading") ────────────────────────────────────────────────────
+// Cluster MEMBERSHIP comes from the embeddings the indexer writes on import; every cluster LABEL on this tab
+// comes from the distill pass's facets. On a library that has been indexed but not distilled the k-means
+// therefore succeeds perfectly and labels nothing — the audited state was ten rows of "mixed" over a bar
+// chart of real sizes, i.e. a confident chart of a question the app has not asked yet. So with zero distilled
+// cards this tab renders the INVITATION and nothing else: no bars, no rows, no plates. The `"mixed"` label
+// class is unreachable from this surface as a result, which is what the ruling means by it dying with the
+// gate — the verb keeps the fallback for the residual post-pass case (a cluster of name-only cards the
+// distill pass legitimately skipped), where it is an honest reading rather than a stand-in for "un-run".
+//
+// THE GATE'S SIGNAL IS THE DOMAIN'S OWN COUNT, not a client heuristic: `discovery.catalog.totalDistilled` is
+// a `count(*)` over `character_summaries` scoped through `characters.ownerId` (`verbs/catalog.ts`). It is
+// also the read the Corpus CONTENT surface already suspends on, so opening this tab after that surface is a
+// cache hit rather than a second question.
+//
+// ART ARCHETYPES RIDE THE SAME GATE, deliberately. Their labels prefer the avatar CAPTION facets
+// (art-style/mood, from the image index) and fall back through the distilled genre/tone — so on the audited
+// instance they were "mixed" too. Splitting them onto a second signal would put two different invitations on
+// one 420px tab; one door, one sentence, and the caption-labelled case reappears the moment either pass has
+// run. If a library ever has captions but no distillation, the art half simply returns with real labels.
 
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Badge } from "@orb/ui/badge";
@@ -27,6 +49,7 @@ import { toBarItems } from "../lib/corpus-charts.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
 import { CorpusDistillEmptyState } from "./corpus-distill-empty-state.tsx";
+import { CorpusUnderstandingInvitation } from "./corpus-understanding-invitation.tsx";
 
 /** The member shape as the verb ACTUALLY returns it — derived, never re-spelled: the tab's own narrower
  *  copy of it is exactly how the portrait went missing on this surface. */
@@ -62,8 +85,25 @@ export function CorpusArchetypesTab(): ReactElement {
   const [k, setK] = useState(AUTO);
   const kArg = k === AUTO ? {} : { k: Number(k) };
 
+  const catalog = useQuery(trpc.discovery.catalog.queryOptions());
   const archetypes = useQuery(trpc.discovery.archetypes.queryOptions(kArg));
   const visual = useQuery(trpc.discovery.visualArchetypes.queryOptions(kArg));
+
+  if (catalog.isPending) {
+    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
+  }
+  if (catalog.error !== null) {
+    return <QueryErrorState label="archetypes" onRetry={catalog.refetch} />;
+  }
+  if (catalog.data.totalDistilled === 0) {
+    // THE UN-RUN STATE: the invitation, and nothing that would read as a finding. Not the cluster knob
+    // either — a control that re-clusters data the surface is refusing to show is a control over nothing.
+    return (
+      <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-slot="archetypes-not-run">
+        <CorpusUnderstandingInvitation />
+      </Stack>
+    );
+  }
 
   return (
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section">

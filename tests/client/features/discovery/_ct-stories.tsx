@@ -10,6 +10,7 @@ import {
   CorpusDossierSurface,
   CorpusListHeader,
   CorpusListSurface,
+  CorpusUnderstandingInvitation,
 } from "@orb/client/features/discovery";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -52,6 +53,19 @@ export function CorpusArchetypesTabStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 640, width: 420 }}>
         <CorpusArchetypesTab />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The understanding-pass INVITATION on its own, at the CONTENT island's real width — the card is the door
+ *  that RUNS the pass (issue #155), so this is the mount that proves the enqueue, the dedupe and the failure
+ *  arm without a whole surface's reads standing between the click and the wire. */
+export function CorpusUnderstandingInvitationStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 640 }}>
+        <CorpusUnderstandingInvitation />
       </div>
     </CtDataProviders>
   );

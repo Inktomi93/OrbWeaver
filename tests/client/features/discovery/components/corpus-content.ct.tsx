@@ -193,10 +193,11 @@ test("UN-ANALYSED: the invitation holds the focal and the family map renders qui
   await expect(page.locator('[data-corpus-family-map="quiet"]')).toBeVisible();
   await expect(component.getByRole("heading", { name: "The shape of your library" })).toBeVisible();
 
-  // ONE door on the screen, and it names the two jobs by the picker's own labels.
-  await expect(component.getByRole("button", { name: "Run the understanding pass…" })).toHaveCount(1);
-  await expect(component.getByText("Run Distill characters, then Compute themes", { exact: false })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Run the passes again…" })).toHaveCount(0);
+  // ONE door on the screen, and it names the two jobs by the picker's own labels. NO ELLIPSIS since #155:
+  // the button RUNS the pass now (it used to open the Settings → Jobs picker, and the ellipsis said so).
+  await expect(component.getByRole("button", { name: "Run the understanding pass" })).toHaveCount(1);
+  await expect(component.getByText("This runs Distill characters, then Compute themes", { exact: false })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Run the passes again" })).toHaveCount(0);
 });
 
 test("ANALYSED: the map reclaims the focal, the invitation is gone, and the rail keeps the quiet re-run", async ({ mount, page }) => {
@@ -209,8 +210,8 @@ test("ANALYSED: the map reclaims the focal, the invitation is gone, and the rail
   await expect(page.locator('[data-corpus-focal="invitation"]')).toHaveCount(0);
   await expect(page.locator('[data-corpus-family-map="quiet"]')).toHaveCount(0);
 
-  await expect(component.getByRole("button", { name: "Run the understanding pass…" })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Run the passes again…" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Run the understanding pass" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Run the passes again" })).toBeVisible();
 
   // The analysis drills are back — the diet is CONDITIONAL, not a removal.
   await expect(component.getByRole("heading", { name: "Story themes", exact: true })).toBeVisible();
@@ -241,7 +242,7 @@ test("AN EMPTY LIBRARY is not an un-analysed one: no invitation, no focal island
   await expect(component.getByText("Nothing in your library yet")).toBeVisible();
   await expect(page.locator("[data-corpus-focal]")).toHaveCount(0);
   await expect(component.getByRole("button", { name: "Go to Characters" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Run the understanding pass…" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Run the understanding pass" })).toHaveCount(0);
 });
 
 test("THE FOCAL IS PAINTED, not merely marked: the stripe measures the RESOLVED token", async ({ mount, page }) => {

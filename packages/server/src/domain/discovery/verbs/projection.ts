@@ -3,12 +3,17 @@
 //
 // A PCA basis only makes sense within one embedding space, so this runs over the owner's most-populous
 // (owner, model) group; cards in a stray secondary space are omitted (they can't share the basis).
+//
+// THE POINT SET IS EVERY INDEXED CARD, so its NAME read has to be too (issue #154): names come from the
+// `characters` row, genre from the distilled facets. Reading both off the facet row meant an un-distilled
+// library plotted correctly and labelled every point "Unknown".
 
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { DiscoveryContext } from "../context.ts";
 import type { CorpusPoint } from "../contract/results.ts";
 import type { DiscoveryService } from "../contract/service.ts";
+import { readOwnedCardDisplay } from "../persistence/card-reads.ts";
 import { readOwnedCharacterVectors } from "../persistence/embed-store-reads.ts";
 import { readOwnedCardFacets } from "../persistence/summary-reads.ts";
 import { pca2d } from "../substrate/pca.ts";
@@ -48,8 +53,8 @@ async function corpusProjection(db: Db, ownerId: UserId): Promise<CorpusPoint[]>
     return [];
   }
   const coords = pca2d(space.map((r) => r.embedding));
-  const facets = await readOwnedCardFacets(db, ownerId);
-  const nameById = new Map(facets.map((f) => [f.characterId, f.name]));
+  const [display, facets] = await Promise.all([readOwnedCardDisplay(db, ownerId), readOwnedCardFacets(db, ownerId)]);
+  const nameById = new Map(display.map((d) => [d.characterId, d.name]));
   const genreById = new Map(facets.map((f) => [f.characterId, f.genre]));
   return space.map((r, i) => ({
     characterId: r.characterId,

@@ -167,6 +167,31 @@ describe("archetypes", () => {
     expect(members.find((m) => m.characterId === faceless)).toHaveProperty("avatarHash", null);
   });
 
+  // THE DEFECT PROOF (issue #154 — owner screenshot: 327 members, every name "Unknown", every face a bare
+  // "U"). Cluster MEMBERSHIP comes from `character_embeddings`, which the indexer fills on import; member
+  // IDENTITY used to come from `character_summaries`, which only the distill pass fills. On a library that
+  // has been indexed but not distilled — i.e. every freshly imported library — the two sets do not overlap at
+  // all, so every real character was clustered and then printed as a stranger. Names and faces are card-row
+  // facts and must resolve with zero distill rows in the database.
+  test("an INDEXED but UN-DISTILLED card still carries its real name and portrait", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const asset = await seedAsset(db, "asset_sable", owner);
+    // Deliberately NO seedSummary anywhere in this test: the un-distilled corpus, exactly as imported.
+    const sable = await seedCharacter(db, { id: "sable", ownerId: owner, name: "Sable", avatarAssetId: asset });
+    await seedCharacterEmbedding(db, { characterId: sable, embedding: vec(1, 0), contentHash: "h_sable" });
+    const morgatha = await seedCharacter(db, { id: "morgatha", ownerId: owner, name: "Morgatha" });
+    await seedCharacterEmbedding(db, { characterId: morgatha, embedding: vec(0, 1), contentHash: "h_morgatha" });
+    const third = await seedCharacter(db, { id: "third", ownerId: owner, name: "Ilse" });
+    await seedCharacterEmbedding(db, { characterId: third, embedding: vec(0, 1, 0.01), contentHash: "h_third" });
+
+    const members = (await svcFor(db).archetypes(owner, { k: 1 })).flatMap((a) => a.members);
+    expect(members).toHaveLength(3);
+    expect(members.map((m) => m.name).sort()).toEqual(["Ilse", "Morgatha", "Sable"]);
+    expect(members.find((m) => m.characterId === sable)).toHaveProperty("avatarHash", "cas_asset_sable");
+    expect(members.find((m) => m.characterId === morgatha)).toHaveProperty("avatarHash", null);
+  });
+
   test("a foreign owner sees no archetypes (audit #1)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");

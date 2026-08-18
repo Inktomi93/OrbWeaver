@@ -13,6 +13,7 @@ export { CorpusContextHeader } from "./components/corpus-context-header.tsx";
 export { CorpusListHeader } from "./components/corpus-list-header.tsx";
 export { CorpusMapTab } from "./components/corpus-map-tab.tsx";
 export { CorpusSimilarityTab } from "./components/corpus-similarity-tab.tsx";
+export { CorpusUnderstandingInvitation } from "./components/corpus-understanding-invitation.tsx";
 export { CorpusVisualsTab } from "./components/corpus-visuals-tab.tsx";
 export { corpusSection } from "./lib/corpus-section.tsx";
 export type { CorpusDossierSurfaceProps } from "./surfaces/corpus-dossier-surface.tsx";

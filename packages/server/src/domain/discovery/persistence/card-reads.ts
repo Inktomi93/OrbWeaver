@@ -1,11 +1,20 @@
-// domain/discovery/persistence/card-reads — read-only SELECT over the flat characters card row that the
+// domain/discovery/persistence/card-reads — read-only SELECTs over the flat characters card row that the
 // distill pass summarizes; discovery writes no character row. Reads the flat card row directly (not
 // character_embeddings.sourceText, which would couple distill to the embed indexer's text builder).
 // Synthetic (per-room group) characters are excluded — they have no real card text.
+//
+// IDENTITY LIVES HERE, NOT IN `summary-reads` (issue #154). A card's DISPLAY name + face are properties of
+// the `characters` row and exist the moment it is imported; its genre/tone/tags are the distill pass's
+// output and exist only after that pass runs. Every embedding-driven view (archetypes · projection ·
+// similarity graph) had been resolving BOTH from `readOwnedCardFacets`, which is rooted at
+// `character_summaries` — so on a freshly-imported, un-distilled library every one of those views clustered
+// 327 real characters and then printed "Unknown" beside every single one, because the identity read could
+// only see cards the distill pass had already reached. Splitting the two reads is the fix: identity from
+// `characters` (this file), facets from `character_summaries` (that one).
 
 import type { Greeting } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
-import { characters } from "@orb/db";
+import { assets, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 
@@ -19,6 +28,32 @@ interface CardDistillTarget {
    *  would be summarized under a schema REQUIRING genre/tone/setting/pitch/overview/3-8 tags — every facet
    *  invented from a name. This flag is what makes that refusable (owner ruling 2026-08-03). */
   readonly hasContent: boolean;
+}
+
+interface CardDisplayRow {
+  readonly characterId: CharacterId;
+  readonly name: string;
+  /** The CAS hash of the card's CURRENT avatar, or `null` when it has none. LEFT-joined: an inner join would
+   *  delete every faceless card from the views this read dresses. */
+  readonly avatarHash: string | null;
+}
+
+/**
+ * Every non-synthetic card the owner holds, as DISPLAY IDENTITY — the name and the face, and nothing the
+ * distill pass produces. This is the join the embedding-driven views need: they cluster over
+ * `character_embeddings`, which the indexer fills on import, so their member set is every INDEXED card and
+ * their identity read has to cover exactly that set rather than the distilled subset of it.
+ */
+export async function readOwnedCardDisplay(db: Db, ownerId: UserId): Promise<CardDisplayRow[]> {
+  return await db
+    .select({
+      characterId: characters.id,
+      name: characters.name,
+      avatarHash: assets.hash,
+    })
+    .from(characters)
+    .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
+    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false)));
 }
 
 /** Read the flat card text for every non-synthetic character (batch) or one owned character (on-demand). */
