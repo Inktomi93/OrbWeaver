@@ -3,20 +3,34 @@
 // over avatar vectors labelled by caption art-style/mood (art archetypes). A shared `k` knob (cluster
 // count) re-clusters both in place; each cluster's size is charted as a bar-list, with its label, headline
 // facets, and member slice below. Read-only analytics.
+//
+// A CLUSTER'S MEMBERS ARE FACES, not just a name list (issue #139). Both producers carry the member's
+// `avatarHash` on the wire (issue #134), and the CONTENT family plates already draw it — this tab printed
+// names only because its local card type re-declared `members` WITHOUT the portrait, which typechecks
+// (an extra wire field is assignable) and silently drops the field. The member type is derived from the
+// verb's own output now, so the tab cannot fall behind the payload again, and the seats come from the ONE
+// mapper both surfaces share (`lib/corpus-faces.ts`) so the null→initials degradation is identical.
 
-import type { CharacterId } from "@orb/kit/ids";
+import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Badge } from "@orb/ui/badge";
 import { BarList } from "@orb/ui/bar-list";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { toBarItems } from "../lib/corpus-charts.ts";
+import { toFaceItems } from "../lib/corpus-faces.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
 import { CorpusDistillEmptyState } from "./corpus-distill-empty-state.tsx";
+
+/** The member shape as the verb ACTUALLY returns it — derived, never re-spelled: the tab's own narrower
+ *  copy of it is exactly how the portrait went missing on this surface. */
+type ClusterMember = inferOutput<Trpc["discovery"]["archetypes"]>[number]["members"][number];
 
 interface ArchetypeCard {
   readonly label: string;
@@ -25,10 +39,15 @@ interface ArchetypeCard {
   readonly topTags: readonly string[];
   readonly extra?: readonly (string | null)[];
   readonly size: number;
-  readonly members: readonly { readonly characterId: CharacterId; readonly name: string }[];
+  readonly members: readonly ClusterMember[];
 }
 
 const AUTO = "";
+/** Faces per cluster row. The verb hands back up to 12 members; six `sm` seats is what the CONTEXT pane
+ *  affords at its narrowest real width while the member NAMES keep the rest of the row. The true total is
+ *  the "N members" count on the row above, so the strip never has to total — hence no "+N" chip, which
+ *  computed off this display slice would undercount the cluster. */
+const CLUSTER_FACE_SLOTS = 6;
 const SKELETON_ROW_COUNT = 3;
 const K_ITEMS: SelectItems<string> = [
   { value: AUTO, label: "Auto" },
@@ -142,7 +161,24 @@ function ClusterCard({ cluster }: { readonly cluster: ArchetypeCard }): ReactEle
           ))}
         </Row>
       ) : null}
-      <Text voice="gloss">{cluster.members.map((m) => m.name).join(", ")}</Text>
+      {cluster.members.length > 0 ? (
+        <Row align="center" gap="field">
+          {/* The strip is ART, like the family plates it mirrors: every seat's name is printed right beside
+              it, so a named stack would announce the same people a second time inside a three-line row. */}
+          <AvatarStack
+            aria-hidden={true}
+            className="shrink-0"
+            items={toFaceItems(cluster.members, CLUSTER_FACE_SLOTS)}
+            max={CLUSTER_FACE_SLOTS + 1}
+            shape="rounded"
+            size="sm"
+          />
+          {/* `min-w-0` or the names refuse to wrap below the strip's intrinsic width and push the row wide. */}
+          <Text className="min-w-0 flex-1" voice="gloss">
+            {cluster.members.map((m) => m.name).join(", ")}
+          </Text>
+        </Row>
+      ) : null}
     </Stack>
   );
 }

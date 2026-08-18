@@ -3,6 +3,7 @@
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 
 import {
+  CorpusArchetypesTab,
   CorpusCompareTab,
   CorpusContent,
   CorpusContextHeader,
@@ -40,6 +41,18 @@ export function CorpusContextHeaderStory(): ReactElement {
   return (
     <CtDataProviders>
       <CorpusContextHeader />
+    </CtDataProviders>
+  );
+}
+
+/** The Corpus CONTEXT "Archetypes" tab over the real data layer, at the CONTEXT pane's real width — the
+ *  cluster rows carry a face strip, so the mount has to be the width that decides how many seats fit. */
+export function CorpusArchetypesTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 420 }}>
+        <CorpusArchetypesTab />
+      </div>
     </CtDataProviders>
   );
 }
