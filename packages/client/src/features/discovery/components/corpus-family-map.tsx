@@ -13,15 +13,13 @@
 // A component that painted the glow unconditionally would put two focals on the surface, which by the
 // spec's own words means the surface has no focal.
 //
-// PORTRAITS ARRIVE BY JOIN, NOT BY WIRE, and that is a KNOWN GAP, not a preference:
-// `ArchetypeMember` is `{ characterId, name }` with NO avatarHash
-// (packages/server/src/domain/discovery/contract/results.ts:123-126, carried into `VisualArchetype.members`
-// at :423). Live probe against the dev instance 2026-08-17 confirms it — eight clusters, ids and names
-// only. So the host joins each member against `discovery.portraitAlignment`, an owner-scoped verb the
-// Visuals tab already reads, which returns `characterId + name + avatarHash` for every scored character.
-// Real hashes, no fabrication. A member the join misses falls back to the hue-seeded initials `Avatar`
-// already draws, which is honest — it says "we have no portrait for this one", not "this one has no face".
-// The durable fix is one field on `ArchetypeMember`; it is a server change and is filed, not smuggled here.
+// PORTRAITS ARRIVE ON THE WIRE (issue #134 — the durable fix, landed): `ArchetypeMember` carries
+// `avatarHash` (packages/server/src/domain/discovery/contract/results.ts), so a plate draws its faces from
+// the `visualArchetypes` payload it already has. This component used to join every member against
+// `discovery.portraitAlignment` for the same string — a second owner-scoped read the clustering verb was
+// always holding, since it clusters BY the avatar. A member whose hash is null falls back to the hue-seeded
+// initials `Avatar` already draws, which is honest — it says "we have no portrait for this one", not "this
+// one has no face". Do not re-introduce the join: the CT pins that verb at zero calls from this surface.
 //
 // A FAMILY IS NOT NUMBERED. The mockup labels the plates "Family 1 … Family 8"; k-means assigns cluster
 // indices per run against a `k` the CONTEXT panel exposes as a knob, so that number is not an identity and
@@ -33,7 +31,6 @@
 // drill into a character lives where it always has: the gem tiles, the browse list, the dossier.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { CharacterId } from "@orb/kit/ids";
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -82,14 +79,14 @@ function plateGloss(family: VisualFamily): string {
   return isUnlabelled(family) ? `${members} · grouped by portrait` : `${members} · ${memberNames(family)}`;
 }
 
-function FamilyPlate({ family, portraits }: { readonly family: VisualFamily; readonly portraits: ReadonlyMap<CharacterId, string | null> }): ReactElement {
+function FamilyPlate({ family }: { readonly family: VisualFamily }): ReactElement {
   // The strip is ART here: every seat's name is already in the plate's own text (as the title when the
   // family is unlabelled, as the gloss when it is not), and a named stack would announce each of them a
   // second time inside a plate that is three lines long. The hearth-hero ruling, same reasoning.
-  const faces = family.members.slice(0, FAMILY_FACE_SLOTS).map((member) => {
-    const hash = portraits.get(member.characterId) ?? null;
-    return { name: member.name, ...(hash === null ? {} : { src: blobUrl(hash) }) };
-  });
+  const faces = family.members.slice(0, FAMILY_FACE_SLOTS).map((member) => ({
+    name: member.name,
+    ...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) }),
+  }));
   return (
     // THE CALLER SUPPLIES THE FILL, by the `nested` arm's own contract ("drop the border entirely, step the
     // radius one below the host's, and let the FILL alone carry the distinction — the caller supplies it").
@@ -123,13 +120,11 @@ function FamilyPlate({ family, portraits }: { readonly family: VisualFamily; rea
 
 export interface CorpusFamilyMapProps {
   readonly families: readonly VisualFamily[];
-  /** characterId → the CAS hash of that character's portrait, or null when it has none. */
-  readonly portraits: ReadonlyMap<CharacterId, string | null>;
   /** Carry the surface's ONE focal treatment (stripe + glow + elevated island). Exactly one caller may. */
   readonly focal: boolean;
 }
 
-export function CorpusFamilyMap({ families, portraits, focal }: CorpusFamilyMapProps): ReactElement | null {
+export function CorpusFamilyMap({ families, focal }: CorpusFamilyMapProps): ReactElement | null {
   const titleId = useId();
   if (families.length === 0) {
     // NOT an empty state. When the clustering has produced nothing the readiness rail already says
@@ -161,7 +156,7 @@ export function CorpusFamilyMap({ families, portraits, focal }: CorpusFamilyMapP
       {/* auto-fit at the 13rem plate floor: a wider pane shows MORE plates, never wider ones. */}
       <Grid cols="auto" gap="row">
         {families.map((family) => (
-          <FamilyPlate family={family} key={`${family.label}-${family.members[0]?.characterId ?? family.size.toString()}`} portraits={portraits} />
+          <FamilyPlate family={family} key={`${family.label}-${family.members[0]?.characterId ?? family.size.toString()}`} />
         ))}
       </Grid>
     </Stack>

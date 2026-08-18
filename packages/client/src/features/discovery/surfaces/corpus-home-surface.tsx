@@ -35,12 +35,11 @@
 // `before:rounded-(--radius-card)` is a halo for. The dense INSTRUMENT surfaces of this section are its
 // CONTEXT tabs, which declare their own.
 //
-// ── PORTRAITS FOR THE MAP ARRIVE BY JOIN ───────────────────────────────────────────────────────────────
-// `ArchetypeMember` carries no `avatarHash` (packages/server/src/domain/discovery/contract/results.ts:123),
-// so the family plates are joined against `discovery.portraitAlignment` — an owner-scoped verb the Visuals
-// tab already reads, at the IDENTICAL query key, so the two share one cache entry rather than double-
-// fetching. A member the join misses degrades to hue-seeded initials. The durable fix is one server field
-// and is filed, not smuggled in here.
+// ── PORTRAITS FOR THE MAP ARRIVE ON THE PAYLOAD ────────────────────────────────────────────────────────
+// `ArchetypeMember` carries `avatarHash` (issue #134), so `visualArchetypes` alone dresses the family
+// plates. This surface used to ALSO read `discovery.portraitAlignment` purely to join those faces; that
+// second owner-scoped read is gone. A member with a null hash degrades to hue-seeded initials. The Visuals
+// CONTEXT tab still reads `portraitAlignment` — it is that report's real consumer, and it is untouched.
 //
 // "THEMES" ON THIS SURFACE IS ALWAYS "STORY THEMES" — the discovery domain's distillation output. It shares
 // a word with the app's colour themes and the owner has been caught by that once; the spelling is law here.
@@ -110,10 +109,9 @@ function CorpusHomeBody(): ReactElement {
   const trpc = useTRPC();
   const { data: home } = useSuspenseQuery(trpc.discovery.home.queryOptions());
   const { data: catalog } = useSuspenseQuery(trpc.discovery.catalog.queryOptions());
-  // `{}` and no-arg respectively — the IDENTICAL inputs the Archetypes and Visuals CONTEXT tabs pass, so
-  // opening those tabs after this surface is a cache hit rather than a second fetch of the same analytics.
+  // `{}` — the IDENTICAL input the Archetypes CONTEXT tab passes, so opening that tab after this surface is
+  // a cache hit rather than a second fetch of the same analytics.
   const { data: families } = useSuspenseQuery(trpc.discovery.visualArchetypes.queryOptions({}));
-  const { data: portraitReport } = useSuspenseQuery(trpc.discovery.portraitAlignment.queryOptions());
   const { data: gems } = useSuspenseQuery(trpc.discovery.forgottenGems.queryOptions());
   const { data: unused } = useSuspenseQuery(trpc.discovery.unusedCharacters.queryOptions());
   const { data: routing } = useSuspenseQuery(trpc.discovery.modelRouting.queryOptions());
@@ -147,7 +145,6 @@ function CorpusHomeBody(): ReactElement {
     );
   }
 
-  const portraits = new Map(portraitReport.characters.map((row) => [row.characterId, row.avatarHash]));
   const mapIsFocal = state.phase === "analysed";
   const hasStoryThemes = home.topSceneThemes.length > 0 || home.topArcThemes.length > 0;
 
@@ -196,7 +193,7 @@ function CorpusHomeBody(): ReactElement {
         <Grid className="items-start" cols="lead" gap="gutter">
           <Stack className="min-w-0" gap="section">
             {mapIsFocal ? null : <CorpusUnderstandingInvitation />}
-            <CorpusFamilyMap families={families} focal={mapIsFocal} portraits={portraits} />
+            <CorpusFamilyMap families={families} focal={mapIsFocal} />
           </Stack>
           <Stack className="min-w-0" gap="section">
             <CorpusReadinessRail showRerun={mapIsFocal} stages={state.stages} />

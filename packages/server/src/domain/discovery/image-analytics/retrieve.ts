@@ -120,7 +120,9 @@ function visualArchetypesForGroup(group: readonly AvatarVector[], labels: Map<Ch
       };
       clusters.set(c, acc);
     }
-    acc.members.push({ characterId: row.characterId, name: row.name });
+    // Never null on this side: a row is only here BECAUSE it has a current-avatar vector, so the hash the
+    // cluster was computed from is the hash the member draws with.
+    acc.members.push({ characterId: row.characterId, name: row.name, avatarHash: row.avatarHash });
     const l = labels.get(row.characterId);
     bump(acc.genre, l?.genre);
     bump(acc.tone, l?.tone);

@@ -119,10 +119,16 @@ export interface CharacterFacets {
 }
 
 // ── archetypes (k-means over card embeddings, labelled from distilled facets — no LLM) ──────────────────
-/** One character in an archetype cluster (the display slice — capped in the verb). */
+/** One character in an archetype cluster (the display slice — capped in the verb). Carries the portrait so a
+ *  member can be DRAWN from this payload alone: the client's family plates used to join every member against
+ *  `portraitAlignment` for its faces, a second owner-scoped read for one string both producers already have
+ *  in hand (the visual clusterer keys ON the avatar; the card clusterer's facet read already joins
+ *  `characters`). `null` is the honest miss — no current avatar, or an undistilled card the facet join never
+ *  reached — and a renderer degrades it to initials rather than inventing a face. */
 export interface ArchetypeMember {
   readonly characterId: CharacterId;
   readonly name: string;
+  readonly avatarHash: string | null;
 }
 
 /** One character archetype — a k-means cluster of an owner's card embeddings, labelled from the dominant
