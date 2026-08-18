@@ -864,32 +864,33 @@
       "path": "docs/architecture/core/Knowledge-Cluster.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 63,
-      "bytes": 4427,
-      "sha256": "19bde53d8b552cdd3963a2b431655604367345e2c975a38b02a8977ee6839605",
+      "lines": 66,
+      "bytes": 4758,
+      "sha256": "053617ed012948676777aef21b5921f0439fc4329d502956356e9d152765a640",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-07-13"
+          "updated": "2026-08-18"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Knowledge-Cluster.md",
-        "assignedSha256": "19bde53d8b552cdd3963a2b431655604367345e2c975a38b02a8977ee6839605",
+        "assignedSha256": "053617ed012948676777aef21b5921f0439fc4329d502956356e9d152765a640",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "19bde53d8b552cdd3963a2b431655604367345e2c975a38b02a8977ee6839605",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "053617ed012948676777aef21b5921f0439fc4329d502956356e9d152765a640",
+        "verifiedCommit": "a212c1de0b9403e58131cebf3122403429f51a5d",
+        "verifiedAt": "2026-08-18",
         "evidence": [
           "docs/architecture/core/Knowledge-Cluster.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+          "truth-repair 2026-08-18 (a212c1de0, #172): invariant 1 now names embeddings.storeSegments as the one BATCH write arm beside embeddings.store"
         ],
         "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
       },
