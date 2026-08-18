@@ -10,7 +10,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
-import { setRefineryArmedRewrite, setRefineryViewedRun, useRefineryArmedRewriteId, useRefineryViewedRunId } from "#state";
+import { requestRefineryWorkbenchDoor, setRefineryArmedRewrite, setRefineryViewedRun, useRefineryArmedRewriteId, useRefineryViewedRunId } from "#state";
 import { useRunRefineryStage, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefinerySchemas } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
@@ -121,6 +121,10 @@ export function SetupTabBody({ state }: { state: RefineryContextState }): ReactE
         anchorLine={`Pinned at session start · ${view.originalCard.greetings.length} greetings`}
         guidance={view.guidance}
         onEditSchema={openSchemaEditor}
+        // #171 — the doors: this pane READS scope and guidance and now knocks on the workbench control
+        // that owns each, instead of printing a sentence naming it. The request travels the same
+        // Content↔Context commons the Runs tab's actions already use.
+        onOpenDoor={requestRefineryWorkbenchDoor}
         onViewOriginal={(): void => setRefineryViewedRun(null)}
         scopeLine={scopeLineOf(view)}
         scoreSchemaLine={stageSchemaLineOf(customNameOf(view.stageConfig.score, schemas.data))}

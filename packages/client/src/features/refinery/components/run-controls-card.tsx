@@ -20,9 +20,10 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
+import { clearRefineryWorkbenchDoor, useRefineryRequestedDoor } from "#state";
 import { useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 
 export interface RunControlsCardProps {
@@ -45,11 +46,30 @@ export function RunControlsCard({ sessionId, guidance, running, canIterate, onMa
   const invalidation = useInvalidation();
   const updateSession = useUpdateRefinerySession({ trpc, invalidation });
   const [guidanceDraft, setGuidanceDraft] = useState<string | null>(null);
+  // THE `guidance` WORKBENCH DOOR (#171). Guidance has exactly one editing home — this textarea — and the
+  // CONTEXT pane's Setup row reads it. The row's "Edit" raises a request; the OWNER (here) answers it by
+  // scrolling itself into view and taking focus, then spends the request. Nothing about the one-home
+  // ruling moves: the second home the Setup row used to describe in prose still does not exist.
+  const guidanceRef = useRef<HTMLTextAreaElement>(null);
+  const requestedDoor = useRefineryRequestedDoor();
+  useEffect(() => {
+    if (requestedDoor !== "guidance") {
+      return;
+    }
+    clearRefineryWorkbenchDoor();
+    const field = guidanceRef.current;
+    if (field === null) {
+      return;
+    }
+    field.scrollIntoView({ block: "nearest" });
+    field.focus();
+  }, [requestedDoor]);
   return (
     <Card data-testid={testId("refineryRunBar")}>
       <Stack gap="row">
         <Field label="Guidance · every stage">
           <Textarea
+            ref={guidanceRef}
             onBlur={(): void => {
               if (guidanceDraft !== null && guidanceDraft !== (guidance ?? "")) {
                 updateSession.mutate({ sessionId, patch: { guidance: guidanceDraft.length === 0 ? null : guidanceDraft } });

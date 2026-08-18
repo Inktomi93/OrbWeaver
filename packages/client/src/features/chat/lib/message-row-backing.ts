@@ -65,7 +65,27 @@ export const BG_PHOTO_CHROME_SCRIM =
 // with them. Those two answer "the chrome is floating on a wallpaper at rest" and are wallpaper-gated.
 // This one answers "the chrome is now floating over the row's OWN prose", which is true regardless of
 // theme: inside a turn taller than the screen the name row is pinned to the top of the scrollport and the
-// body scrolls underneath it, so it needs an opaque-enough chip in EVERY mode, wallpaper or not.
+// body scrolls underneath it, so it needs an OPAQUE chip in EVERY mode, wallpaper or not.
+//
+// THE FILL IS OPAQUE (`bg-card`), NOT THE SCRIM (#168, owner-observed live 2026-08-18: the band "lets some
+// partial of the message you are on go above it"). It shipped as `bg-scrim backdrop-blur-sm` — and
+// `--color-scrim` is `oklch(… / 0.6)`, a 60%-alpha overlay — so the prose running under the pinned band
+// stayed VISIBLE THROUGH it, blurred and dimmed but legibly moving. That is the whole defect: a pinned band
+// that does not own its slice. An occluding sticky header is the house recipe already (`modal-host.tsx`'s
+// `sticky top-0 z-(--z-sticky) … bg-card`, `preset-editor-surface.tsx`'s `sticky top-0 z-(--z-raised)
+// bg-card`), and an opaque fill makes `backdrop-blur` dead paint, so the blur went with the scrim.
+//
+// It also SUPERSEDES the wallpaper chip rather than stacking with it (`nameRowFrame`, message-row-parts.tsx):
+// an opaque fill is a strict superset of a scrim one, and the two classes are the same property — stacking
+// them let `in-data-[has-bg-image]:bg-scrim` win on specificity over art, which is exactly the mount the
+// live receipt came from.
+//
+// THE MECHANISM THAT DID *NOT* HOLD (#167's own prediction, measured dead 2026-08-18): the note below used
+// to end by naming a row-content sibling that mints its own stacking context as #168's cause. Hit-tested at
+// four scroll depths on a settled row carrying prose + a code block + a table + a blockquote in a real
+// 240px scrollport, `document.elementFromPoint` returned the BAND at every sampled point of its own box —
+// nothing in the row's content out-paints it. The paint order stated below is correct and intact; what
+// failed was opacity, not z-order. The hit-test survives as a fence in message-row.ct.tsx.
 //
 // Applied only to rows the virtualizer MEASURED as exceeding the scrollport (`MessageListRowMeta`), so a
 // normal-length message is byte-identical to before — no chip, no sticky, no new stacking context.
@@ -102,9 +122,9 @@ export const BG_PHOTO_CHROME_SCRIM =
 //   2. the shell's chrome — topbar, panels, composer, overlays: `--z-overlay` (40) and up, in the shell's
 //      own stacking contexts, always above a row.
 // The band's raise is scoped to its ROW's stacking context (`.shell-grid` sets `isolation: isolate`, and
-// the row is plain flow), so it can never leak over a panel — and, per #168, it only wins against a
-// sibling that stays in the SAME context: any row content that mints its own stacking context (a
-// transform / filter / non-`auto` z-index / `opacity < 1` on the bubble subtree) paints in its own layer
-// and can still cover the band. That is #168's defect, and its fix belongs here at (1)/(0), never in a
-// per-skin class.
-export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky top-0 z-(--z-raised) rounded-card bg-scrim py-row backdrop-blur-sm";
+// the row is plain flow), so it can never leak over a panel — and it only wins against a sibling that stays
+// in the SAME context: any row content that minted its own stacking context (a transform / filter /
+// non-`auto` z-index / `opacity < 1` on the bubble subtree) would paint in its own layer and could still
+// cover the band. No such sibling exists on the tree today (measured — see the #168 note above), and the
+// fence that keeps it that way is the hit-test CT, never a per-skin class.
+export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky top-0 z-(--z-raised) rounded-card bg-card py-row";

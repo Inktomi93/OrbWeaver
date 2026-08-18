@@ -20,12 +20,28 @@
 // "no answer yet" are different facts, and only the second one owes a reserved box (`FaceStripPlaceholder`,
 // which carries the measurement that bought it).
 //
+// ONE PITCH (#153, owner-observed live 2026-08-18: "weird fucking spacing between portraits that is
+// determined by the characters names"). A CAPTIONED face's cell is a fixed `w-avatar-hero` — the same 64px
+// ceiling the caption already truncated at — so the portraits keep one rhythm no matter what the cast is
+// called. The name still drove the CELL until now: the button was content-sized over a `min-w-control-md`
+// floor, so a face called "Bo" measured the floor and one called "Aria Nightshade" measured its caption, and
+// the gap between portraits wobbled per name across a 327-character library.
+//   · It does NOT reverse the P2a ruling below (the caption's own box stays a MAX, not a width): a short
+//     name still takes its natural width and is NOT clipped — it is now CENTRED in a uniform cell instead of
+//     shrinking the cell around itself. Both facts are pinned in face-strip.ct.tsx.
+//   · The UNCAPTIONED posture (the library's favorites strip) is untouched: with no name in the box its
+//     cells were already uniform (the avatar token inside the control floor), so a fixed width there would
+//     only add 30px of air between portraits that never wobbled.
+//   · The overflow tile and the pending placeholder take the same cell, or the row's rhythm breaks at
+//     exactly the two moments (a fold, a cold read) the reader is least able to explain it.
+//
 // THE FOLD (FACEFILT — owner report: nine faces already scrolling on a six-character library). A strip
 // that scrolls sideways is a second thing to navigate, and the shortcut it was supposed to be is gone. A
 // caller that supplies `overflow` gets the FOLDED posture instead: the strip measures its own row and
-// renders as many faces as the pane actually holds, with everyone else behind ONE picker tile. There is no
-// N to configure — a captioned face costs its NAME's width, so any fixed count is wrong at some pane width
-// (`face-strip-fold.ts` holds the rules; this file only measures and renders).
+// renders as many faces as the pane actually holds, with everyone else behind ONE picker tile. It still
+// MEASURES rather than dividing by a constant: the uncaptioned posture, the squeezed leftover-of-one and
+// the tile itself are not all one width, and the measurement is what keeps the two postures on one code
+// path (`face-strip-fold.ts` holds the rules; this file only measures and renders).
 //
 // Two invariants the fold owes its caller:
 //  · the SELECTED face is never folded away — it is hoisted to the front of the row rather than hidden,
@@ -127,6 +143,14 @@ const OVERFLOW_ATTR = "data-face-overflow";
  *  width the fold itself imposed, and the next fold would then "discover" that it fits unaided. */
 const SQUEEZED_ATTR = "data-face-squeezed";
 
+/** THE CELL (#153): a captioned face, the overflow tile and the pending placeholder all take one fixed
+ *  width, so the portrait pitch is a property of the strip and never of the cast's names. Uncaptioned
+ *  cells were already uniform (portrait inside the control floor) and stay content-sized. Returned with
+ *  its leading space so every call site is a plain template append. */
+function cellWidthClass(caption: boolean): string {
+  return caption ? " w-avatar-hero" : "";
+}
+
 /** Cache key: a face's width is its portrait AND its caption, so a rename must re-measure. */
 function faceKey(item: FaceStripItem): string {
   return `${item.id} ${item.name}`;
@@ -207,8 +231,9 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
       {...(selectMode === "toggle" ? { "aria-pressed": selected } : { "aria-current": selected ? ("true" as const) : undefined })}
       aria-label={`${verb} ${item.name}`}
       // The squeezed face takes the tile's slot, which is the control-token box by construction — so it
-      // always fits where the tile fit, and only its caption pays for it.
-      className={`min-h-control-md min-w-control-md shrink-0${squeezed ? " max-w-control-md" : ""}`}
+      // always fits where the tile fit, and only its caption pays for it (its `max-w` clamps the captioned
+      // cell width below, which is why the two can be spelled together).
+      className={`min-h-control-md min-w-control-md shrink-0${cellWidthClass(caption)}${squeezed ? " max-w-control-md" : ""}`}
       data-face-key={faceKey(item)}
       data-face-squeezed={squeezed ? "" : undefined}
       intent="ghost"
@@ -292,7 +317,7 @@ function FaceStripPlaceholder({ caption, kicker }: { readonly caption: boolean; 
       {PLACEHOLDER_SLOTS.map((slot) => (
         // The settled face's own box: `FaceButton`'s per-pointer MIN box (`size="media"` is `p-0`, so the
         // button adds nothing else) around the avatar token and its caption line.
-        <Stack align="center" className="min-h-control-md min-w-control-md shrink-0" gap="tight" key={slot}>
+        <Stack align="center" className={`min-h-control-md min-w-control-md shrink-0${cellWidthClass(caption)}`} gap="tight" key={slot}>
           <Skeleton className="size-avatar-md rounded-control" />
           {caption ? (
             <Text aria-hidden={true} className="text-transparent" voice="gloss">
@@ -390,7 +415,13 @@ export function FaceStrip({
           <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
             <PopoverTrigger
               render={
-                <Button aria-label={overflow.label} className="min-h-control-md min-w-control-md shrink-0" data-face-overflow="" intent="ghost" size="media">
+                <Button
+                  aria-label={overflow.label}
+                  className={`min-h-control-md min-w-control-md shrink-0${cellWidthClass(caption)}`}
+                  data-face-overflow=""
+                  intent="ghost"
+                  size="media"
+                >
                   <Stack align="center" gap="tight">
                     {/* The tile is FACE-SHAPED (the avatar token square) so the row keeps one rhythm — and it
                         prints the count, because "there are more" without a number is just a shrug. During the

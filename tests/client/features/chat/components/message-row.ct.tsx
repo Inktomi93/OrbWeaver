@@ -789,11 +789,12 @@ for (const style of ALL_CHAT_STYLES) {
   });
 }
 
-test("the two backings STACK without doubling the box: a sticky row over art measures like the same row un-stuck", async ({ mount }) => {
+test("the sticky chip SUPERSEDES the wallpaper one without doubling the box: a sticky row over art measures like the same row un-stuck", async ({ mount }) => {
   // #113's layout-neutrality invariant, now that the wallpaper chip lands on EVERY row (#167): the sticky
   // verdict arrives AFTER the virtualizer measures the row, so if turning it on changed the row's outer
-  // extent the reflow would land on exactly the tall rows the pin exists to help. Both backings bring
-  // `py-row`, and only one `-my-row` cancels — the measurement is the only honest check of that arithmetic.
+  // extent the reflow would land on exactly the tall rows the pin exists to help. Since #168 the two are
+  // ALTERNATIVES (an opaque fill supersedes the scrim one), and the arithmetic is the same either way:
+  // over art both arms carry exactly one `py-row` — the measurement is the only honest check of that.
   const bare = await mount(
     <div data-has-bg-image="">
       <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
@@ -1245,6 +1246,96 @@ test("#106 metadata row: over a background photo it paints a scrim backing, not 
   await page.evaluate(() => document.body.setAttribute("data-has-bg-image", ""));
   await expect.poll(async () => await metadataRowBackground(component)).not.toBe(TRANSPARENT);
   await expect(component.locator(METADATA_ROW)).toHaveCSS("backdrop-filter", BLUR_BACKDROP);
+});
+
+// ── #168: the pinned band OWNS ITS SLICE ───────────────────────────────────────────────────────────
+// Owner, live 2026-08-18: the sticky attribution "lets some partial of the message you are on go above
+// it". It shipped `bg-scrim backdrop-blur-sm`, and `--color-scrim` is a 60%-alpha overlay — so the prose
+// running under the pinned band stayed visible through it. These two mount a REAL bounded scrollport with
+// a body several viewports tall (prose + a code block + a table + a blockquote, the shapes a real reply
+// carries) and drive an actual scroll under the band.
+const STUCK_BAND_BODY = ((): string => {
+  const prose = Array.from({ length: 20 }, (_, i) => `Line ${i} of a long reply that scrolls under the pinned band.`).join("\n\n");
+  return `${prose}\n\n\`\`\`js\nconst x = 1;\n\`\`\`\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n> a quotation\n\n${prose}`;
+})();
+
+const STUCK_BAND_SCROLLPORT_PX = 240;
+
+for (const overArt of [false, true] as const) {
+  test(`#168 ${overArt ? "over art" : "plain"}: the pinned band OCCLUDES the prose scrolling under it (its pixels do not move with the scroll)`, async ({
+    mount,
+  }) => {
+    const row = (
+      <MessageRowStory
+        chatStyle="bubble"
+        messageRole="assistant"
+        characterId={ALICE_ID}
+        participants={[alice()]}
+        stickyAttribution={true}
+        content={STUCK_BAND_BODY}
+        width={360}
+        scrollportHeight={STUCK_BAND_SCROLLPORT_PX}
+      />
+    );
+    // The wallpaper arm is the mount the live receipt came from — and the one where a `bg-scrim` chip
+    // outranks a plain fill on specificity, so a fix that only covers the plain arm goes green here and
+    // stays broken for the owner.
+    const component = await mount(overArt ? <div data-has-bg-image="">{row}</div> : row);
+    const port = overArt ? component.getByTestId("row-scrollport") : component;
+    await expect.poll(() => port.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(400);
+    const nameRow = component.locator(NAME_ROW);
+    await expect(nameRow).toHaveCSS("position", "sticky");
+
+    const shotAt = async (top: number): Promise<Buffer> => {
+      await port.evaluate((el: HTMLElement, y: number) => {
+        el.scrollTop = y;
+      }, top);
+      await expect.poll(() => port.evaluate((el: HTMLElement) => el.scrollTop)).toBe(top);
+      return await nameRow.screenshot();
+    };
+    // Two scroll depths deep inside the same turn: the band's OWN content (name, timestamp, actions) is
+    // byte-identical between them, so any pixel difference in its box is the message showing through it.
+    const early = await shotAt(400);
+    const late = await shotAt(900);
+    expect(early.equals(late)).toBe(true);
+  });
+}
+
+test("#168 FENCE (green before the fix): nothing in the row's content out-paints the pinned band", async ({ mount }) => {
+  // #167 predicted #168's cause as a row-content sibling minting its own stacking context. Measured dead:
+  // at four scroll depths, over prose + a code block + a table + a blockquote, the band wins the hit test
+  // at every point of its own box. This is therefore a REGRESSION FENCE, not the defect proof above — it
+  // is what keeps a future `transform`/`opacity`/`z-index` inside the bubble subtree from reopening #168
+  // through the door #167 named.
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      stickyAttribution={true}
+      content={STUCK_BAND_BODY}
+      width={360}
+      scrollportHeight={STUCK_BAND_SCROLLPORT_PX}
+    />,
+  );
+  await expect.poll(() => component.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(400);
+  const nameRow = component.locator(NAME_ROW);
+  for (const top of [200, 600, 1000, 1400]) {
+    // biome-ignore lint/performance/noAwaitInLoops: each scroll must land before the next sample.
+    await component.evaluate((el: HTMLElement, y: number) => {
+      el.scrollTop = y;
+    }, top);
+    // biome-ignore lint/performance/noAwaitInLoops: sequential by construction.
+    const topmostIsBand = await nameRow.evaluate((band: HTMLElement) => {
+      const r = band.getBoundingClientRect();
+      return [0.05, 0.5, 0.95].every((fy) => {
+        const el = document.elementFromPoint(r.left + r.width * 0.5, r.top + r.height * fy);
+        return el !== null && band.contains(el);
+      });
+    });
+    expect(topmostIsBand).toBe(true);
+  }
 });
 
 test("#106 CONTROL: with no background photo the same row is byte-identically bare (the scrim is inert)", async ({ mount }) => {

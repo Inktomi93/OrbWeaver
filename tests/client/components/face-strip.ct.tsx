@@ -89,6 +89,42 @@ test("a caption takes its NATURAL width; only a long name truncates, and the ful
   await expect(component.getByRole("button", { name: `Open ${SERA.name}`, exact: true })).toBeVisible();
 });
 
+// #153 (owner, live 2026-08-18): "weird fucking spacing between portraits that is determined by the
+// characters names". The captioned cell was content-sized over a `min-w-control-md` floor, so every face
+// measured its own name and the portrait pitch wobbled down the row. The cell is a fixed `w-avatar-hero`
+// now — measured as EQUAL BUTTON BOXES across deliberately uneven names, including the two the issue named.
+const KOHAKU = { id: "char_kohaku", name: "Kohaku", avatarHash: null };
+const BO = { id: "char_bo", name: "Bo", avatarHash: null };
+const CALAMITY = { id: "char_calamity", name: "Calamity, Doomblade of the Ninth Epoch", avatarHash: null };
+
+test("#153 captioned: every face cell is ONE width regardless of name length, and so are the portraits' positions", async ({ mount }) => {
+  const component = await mount(
+    <FaceStrip caption={true} items={[BO, KOHAKU, CALAMITY, AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
+  );
+  await expect(component.getByRole("listitem")).toHaveCount(4);
+  const widths = await component.evaluate((root) => [...root.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().width)));
+  expect(widths).toHaveLength(4);
+  expect(new Set(widths).size).toBe(1);
+  // …and the PITCH is what the reader sees: the gap between consecutive portraits is the same all the way
+  // down the row (the defect was visible as portrait spacing, not as button boxes).
+  const gaps = await component.evaluate((root) => {
+    const lefts = [...root.querySelectorAll('[data-slot="avatar-root"]')].map((el) => el.getBoundingClientRect().left);
+    return lefts.slice(1).map((left, index) => Math.round(left - (lefts[index] ?? 0)));
+  });
+  expect(gaps).toHaveLength(3);
+  expect(new Set(gaps).size).toBe(1);
+});
+
+test("#153 UNCAPTIONED (the favorites-strip posture) is untouched: no name in the box, so no fixed cell", async ({ mount }) => {
+  // The control: with no caption the cell never depended on a name, so it stays content-sized at the
+  // control floor — a fixed 64px cell here would only add air between portraits that never wobbled.
+  const component = await mount(<FaceStrip items={[BO, CALAMITY]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
+  const boxes = await component.evaluate((root) => [...root.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().width)));
+  const controlMd = await component.evaluate((root) => Number.parseFloat(getComputedStyle(root).getPropertyValue("--spacing-control-md")) * 16);
+  expect(new Set(boxes).size).toBe(1);
+  expect(boxes[0]).toBe(Math.round(controlMd));
+});
+
 // side-eye P2b: a bare row of portraits reads as decoration. The kicker is the mock's group label — the
 // only VISIBLE thing telling a cold user the strip is a control (the aria-label reaches SR users only).
 test("a kicker prints a micro-caps group label above the faces (and is omitted by default)", async ({ mount }) => {
@@ -182,6 +218,8 @@ const OVERFLOW_TILE = "Filter by another character";
  *  panel body's 8px inline padding either side) plus the margins around it — the fold's rules are
  *  properties of the strip, not of one lucky fixture width. */
 const SWEEP_WIDTHS = [180, 200, 220, 240, 256, 272, 288, 304, 320, 344, 368, 400];
+/** The overflow tile prints `+N` (plus its "More" caption) — the COUNT, read as a number. */
+const TILE_COUNT_RE = /\+(\d+)/u;
 
 interface StripReadout {
   readonly clientWidth: number;
@@ -234,7 +272,12 @@ test("the fold holds at EVERY pane width: one un-scrolled row, nothing clipped, 
     expect(settled.faces).toBeGreaterThan(0);
     // The tile costs exactly the slot of a face, so it never stands in for a single one: a "+1 more"
     // button IS the face it is hiding. The leftover-of-one takes the tile's slot instead.
-    expect(settled.tile).not.toContain("+1");
+    //
+    // READ AS A NUMBER, not as a substring (repaired with #153): `not.toContain("+1")` also rejects "+11",
+    // and #153's uniform 64px cell is what first pushed a narrow pane's hidden count into double digits —
+    // so the old spelling reported a fold defect that was really an eleven. It was only ever passing
+    // because the fixture's twelve faces had never all folded away.
+    expect(settled.tile === null ? 0 : Number.parseInt(TILE_COUNT_RE.exec(settled.tile)?.[1] ?? "0", 10)).not.toBe(1);
   }
 });
 

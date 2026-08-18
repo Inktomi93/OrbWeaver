@@ -223,6 +223,10 @@ export interface MessageRowStoryProps {
    *  than the scrollport). Passed directly here so a CT can assert the sticky treatment across every
    *  chatStyle without building eight multi-viewport transcripts. */
   readonly stickyAttribution?: boolean;
+  /** Present ⇒ the row mounts inside a bounded SCROLLPORT of this pixel height, so a long body really
+   *  exceeds the viewport and the #113 pin can be measured against a real scroll (the settled-row twin of
+   *  `GhostRowScriptedStoryProps.scrollportHeight`). Absent ⇒ the unbounded mount every other row story uses. */
+  readonly scrollportHeight?: number;
   /** The variant's `model` identifier (#167 — the credit the action cluster prints through
    *  `@orb/kit/model-name`). Omitted ⇒ the story's hosted-route default; `null` ⇒ a row with no model at
    *  all (a greeting/draft), which must credit nothing. */
@@ -255,6 +259,7 @@ export function MessageRowStory({
   viewerIsHost = false,
   messageKind = "standard",
   stickyAttribution = false,
+  scrollportHeight,
   model = "ct/model-x",
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
@@ -286,8 +291,16 @@ export function MessageRowStory({
     //
     // `width` is a FIXED container (the narrowest-mount rule): the row is its own `@container`, so its
     // reading composition is a function of this box — a content-sized mount root agrees with the bug.
+    // `scrollportHeight` turns that same box into the row's SCROLLPORT, which is the only mount where a
+    // `position: sticky` band actually sticks and a scroll can be driven under it (#168).
     <CtDataProviders>
-      <div style={width === undefined ? undefined : { width }}>
+      <div
+        data-testid="row-scrollport"
+        style={{
+          ...(width === undefined ? {} : { width }),
+          ...(scrollportHeight === undefined ? {} : { height: scrollportHeight, overflowY: "auto" }),
+        }}
+      >
         <MessageThreadAnchor>
           <MessageRow
             message={makeMessageView({

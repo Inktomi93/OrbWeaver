@@ -42,7 +42,14 @@ import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
-import { setRefineryViewedRun, useRefineryArmedRewriteId, useRefineryViewedRunId, useSelectedRefinerySessionId } from "#state";
+import {
+  clearRefineryWorkbenchDoor,
+  setRefineryViewedRun,
+  useRefineryArmedRewriteId,
+  useRefineryRequestedDoor,
+  useRefineryViewedRunId,
+  useSelectedRefinerySessionId,
+} from "#state";
 import { ApplyOutcome } from "../components/apply-outcome.tsx";
 import type { OutcomeState } from "../components/apply-row.tsx";
 import { ApplyRow } from "../components/apply-row.tsx";
@@ -94,7 +101,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
   const manual = useSubmitManualRewrite(deps);
   const updateSession = useUpdateRefinerySession(deps);
 
-  const [scopeOpen, setScopeOpen] = useState(false);
+  const { open: scopeOpen, setOpen: setScopeOpen } = useScopeDoor();
   const [manualOpen, setManualOpen] = useState(false);
   const [outcome, setOutcome] = useState<OutcomeState | null>(null);
   // The run ids THIS view produced — the hero gauge's arrival signal (`useCountUp`'s `arrived`). Ids, not a
@@ -268,6 +275,30 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
       </Stack>
     </Surface>
   );
+}
+
+/**
+ * The scope dialog's open state, JOINED with the CONTEXT pane's `scope` door request (#171).
+ *
+ * The Setup readout can ask for the ONE scope editor, which lives on this surface — so the row that used
+ * to end in the sentence "Changed on the workbench…" now takes you there instead of describing the trip.
+ *
+ * DERIVED, NOT AN EFFECT: a pending request IS an open dialog, so the open state is `local ‖ requested`,
+ * read during render. Mirroring the request into local state inside a `useEffect` is the cascading-render
+ * shape `react-hooks/set-state-in-effect` reds, and the derivation is the simpler truth anyway. The request
+ * is spent when the dialog closes — the one moment it stops meaning anything — so it can never re-open
+ * itself on a later unrelated render.
+ */
+function useScopeDoor(): { readonly open: boolean; readonly setOpen: (open: boolean) => void } {
+  const [openedHere, setOpenedHere] = useState(false);
+  const requestedDoor = useRefineryRequestedDoor();
+  const setOpen = (next: boolean): void => {
+    setOpenedHere(next);
+    if (!next) {
+      clearRefineryWorkbenchDoor();
+    }
+  };
+  return { open: openedHere || requestedDoor === "scope", setOpen };
 }
 
 /** The per-rewrite-run decision sheet (keyed BY REWRITE RUN — a re-run reopens every block Undecided;

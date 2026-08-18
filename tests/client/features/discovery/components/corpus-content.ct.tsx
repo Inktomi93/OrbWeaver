@@ -325,9 +325,12 @@ test("THE ZERO WALL IS GONE: no coverage strip, no dead-end notes, no cost colum
   await expect(component.getByText("None distilled.")).toHaveCount(0);
   await expect(component.getByText("No tags distilled")).toHaveCount(0);
   await expect(component.getByText("Nothing analyzed yet")).toHaveCount(0);
-  // The dead $0.00 column: the gem's trailing magnitude is WORDS, and no money is printed anywhere.
+  // The dead $0.00 column: the gem's trailing magnitude is TOKENS RETURNED, and no money is printed
+  // anywhere. The label is pinned as tokens (#174) — the field is `tokensOut`, and it shipped calling
+  // itself "words", which overstates a real word count by ~30-40% on the live corpus.
   await expect(component.getByText(MONEY_CELL)).toHaveCount(0);
-  await expect(component.getByText("1,200 words · 42 exchanges · last opened 2w ago")).toBeVisible();
+  await expect(component.getByText("1,200 tokens returned · 42 exchanges · last opened 2w ago")).toBeVisible();
+  await expect(component.getByText("1,200 words", { exact: false })).toHaveCount(0);
   // The lifetime framing is stated ONCE, so the aggregate is not mistaken for one conversation.
   await expect(component.getByText("Lifetime totals per character", { exact: false })).toBeVisible();
 });

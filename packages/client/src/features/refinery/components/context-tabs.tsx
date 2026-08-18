@@ -24,6 +24,7 @@ import type { Trpc } from "#data";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
 import { testId } from "#lib";
+import type { RefineryWorkbenchDoor } from "#state";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 type RunLedger = inferOutput<Trpc["refinery"]["listRuns"]>;
@@ -169,19 +170,27 @@ export interface SetupTabProps {
    *  to EDIT, or `null` to author a new one; both verbs were UI-unreachable before this took a stage
    *  (live custom-schema drive, 2026-08-14 — only score authoring had a door). */
   readonly onEditSchema: (stage: RefinerySchemaStage) => void;
+  /** Opens the WORKBENCH control that owns a concept this pane only reads (#171) — never an editor of this
+   *  pane's own (see the door note on `SetupTab`). */
+  readonly onOpenDoor: (door: RefineryWorkbenchDoor) => void;
 }
 
-/** One Setup row. A row with NO action is a READOUT — a deliberate arm, not an unfinished one: `note`
- *  says where the value is changed instead, so a readout never reads as a dead control (side-eye
- *  2026-08-09 P1-8's second arm, "make the row a readout"). */
-function SetupRow({ k, v, action, onAction, note }: { k: string; v: string; action?: string; onAction?: () => void; note?: string }): ReactElement {
+/** One Setup row: the value in force, and the control that acts on it.
+ *
+ *  THE `note` PROP IS GONE (#171, owner: "a fucking cop out"). It printed a sentence saying where a value
+ *  was edited instead — the shape P1-8's second arm asked for when the alternative was a bare row that
+ *  read as unfinished. Three of six rows ended in one, and a row whose only trailing content is "go
+ *  somewhere else" carries no leverage: it is the deferral rendered AS content. What replaced it is a real
+ *  door (`onAction` opening the owning control on the workbench — see `SetupTab`), which satisfies both
+ *  rulings: the row still does not EDIT (one home, #158), and it no longer reads as a dead readout. A row
+ *  with no action at all survives only where the value has no editor anywhere in the app. */
+function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: string; onAction?: () => void }): ReactElement {
   return (
     <Card>
       <Row align="center" gap="row" padding="row">
         <Stack className="min-w-0 flex-1" gap="tight">
           <Text voice="kicker">{k}</Text>
           <Text voice="label">{v}</Text>
-          {note === undefined ? null : <Text voice="gloss">{note}</Text>}
         </Stack>
         {action !== undefined && onAction !== undefined ? (
           // THE ACCESSIBLE NAME CARRIES THE ROW (side-eye #81 P2). Three of these rows say "Change" and one
@@ -228,14 +237,22 @@ function SetupRow({ k, v, action, onAction, note }: { k: string; v: string; acti
  *    schema" chip — i.e. what a produced payload was made with, which is a fact about history, not the
  *    config in force. Two facts that happen to share a vocabulary are not two homes.
  *
- * Three rows are deliberate READOUTS. A row with no action says where the value IS changed, so it never
- * reads as a dead control (side-eye 2026-08-09 P1-8's second arm):
- *  - **Scope** — edited in the workbench masthead (above).
- *  - **Stage modes** has no editor anywhere in the app. A "Change" button that opens something else is
- *    worse than no button; the row states the modes and says where they come from. Building the control
- *    is a feature, not a polish fix, and is NOT smuggled in here.
- *  - **Guidance** is edited in CONTENT's run bar, where it is a live textarea that applies to every
- *    stage. A second editing home for one value is the "two homes" smell; the row points at the one.
+ * ── A DOOR, NOT A SENTENCE (#171, owner screenshot post-#158: "a fucking cop out") ────────────────────
+ * The one-home ruling left Scope, Guidance and Stage modes as rows whose trailing content was a sentence
+ * naming somewhere else ("Changed on the workbench…", "Edited in the run bar…", "Set per stage when a run
+ * is configured"). Each of those rows DOES state real in-force state — that half was never the problem —
+ * but the deferral was rendered as content, which is the cop-out re-derived one layer down. The rows keep
+ * their readout and take the affordance the sentence was standing in for:
+ *  - **Scope → "Edit"** raises the `scope` workbench door: the masthead's OWN `ScopeEditorDialog` opens
+ *    (the rich one, with the score-informed hints — this pane's deleted copy passed `score={null}`). No
+ *    second editor is minted here, so #158's ruling is untouched; the row is a remote control for the one
+ *    home, which is exactly what the sentence was describing in prose.
+ *  - **Guidance → "Edit"** raises the `guidance` door: the run bar's live textarea takes focus and scrolls
+ *    into view. Same shape, same reason.
+ *  - **Stage modes** keeps NO action, because it has no editor anywhere in the app — and its old note was
+ *    the emptiest of the three (it named no reachable place at all). It states the modes in force, which
+ *    is this tab's whole charter. Building the missing control is a feature, not a polish fix, and is NOT
+ *    smuggled in here.
  */
 export function SetupTab({
   anchorLine,
@@ -246,21 +263,23 @@ export function SetupTab({
   guidance,
   onViewOriginal,
   onEditSchema,
+  onOpenDoor,
 }: SetupTabProps): ReactElement {
   return (
     <Stack data-testid={testId("refinerySetupTab")} gap="tight">
       <SetupRow action="View" k="Original card" onAction={onViewOriginal} v={anchorLine} />
-      <SetupRow k="Scope" note="Changed on the workbench, beside the card's name — the scope strip and its Edit scope door." v={scopeLine} />
+      <SetupRow action="Edit" k="Scope" onAction={(): void => onOpenDoor("scope")} v={scopeLine} />
       {/* ONE ROW PER STAGE (live custom-schema drive, 2026-08-14): the single "Payload schema" row wired
           ONLY the score stage's editor, so custom-ANALYZE authoring and editing a saved analyze schema had
           no door at all. Each stage now carries its own "Change" → the editor at that stage; the body
           resolves edit-vs-author. */}
       <SetupRow action="Change" k="Score schema" onAction={(): void => onEditSchema("score")} v={scoreSchemaLine} />
       <SetupRow action="Change" k="Analyze schema" onAction={(): void => onEditSchema("analyze")} v={analyzeSchemaLine} />
-      <SetupRow k="Stage modes" note="Set per stage when a run is configured." v={stageModesLine} />
+      <SetupRow k="Stage modes" v={stageModesLine} />
       <SetupRow
+        action="Edit"
         k="Guidance"
-        note="Edited in the run bar, beside the Run button — it applies to every stage."
+        onAction={(): void => onOpenDoor("guidance")}
         v={guidance === null || guidance.length === 0 ? "none — every stage runs unsteered" : `"${guidance}"`}
       />
     </Stack>

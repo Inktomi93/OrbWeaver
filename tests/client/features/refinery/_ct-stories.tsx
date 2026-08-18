@@ -334,6 +334,27 @@ export function SetupTabBodyStory({ sessionId, characterId }: SetupTabBodyStoryP
   );
 }
 
+/** THE #171 DOORS, mounted the way the SHELL mounts them: the CONTEXT pane's Setup readout and the
+ *  WORKBENCH that owns the controls it reads, in one tree, sharing the state commons. It is the only mount
+ *  where a door can be proven at all — the Setup row raises a request and the OWNING control answers it,
+ *  and neither half can show that alone. The drill is seeded during the first render pass (never in an
+ *  effect), for the same reason `RefineryContentStory` seeds one there. */
+export function RefineryDoorStory({ sessionId, characterId }: SetupTabBodyStoryProps): ReactElement {
+  useState((): null => {
+    selectRefinerySession(sessionId);
+    setRefineryViewedRun(null);
+    return null;
+  });
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <SetupTabBody state={{ sessionId, characterId }} />
+        <RefineryContentSurface />
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
 // --- The HERO COUNT-UP ramp (the money shot) ---
 
 type PayloadLaneRun = NonNullable<PayloadLaneProps["run"]>;

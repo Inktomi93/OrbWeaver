@@ -7,8 +7,13 @@
 //      like a bug. A gem is now a TILE in a shelf: a different anatomy from a row, and the band above says
 //      "lifetime totals" once so the aggregate is framed rather than mistaken.
 //   2. A DEAD COST COLUMN. Six identical `$0.00` cells, because a local-model instance records no spend.
-//      Cost appears NOWHERE here. The trailing magnitude is WORDS RETURNED (`tokensOut`), the signal that
+//      Cost appears NOWHERE here. The trailing magnitude is TOKENS RETURNED (`tokensOut`), the signal that
 //      actually varies on this corpus (10,217 → 0), so the column carries information instead of zeros.
+//      IT IS LABELLED "tokens returned", NOT "words" (#174, owner-observed live 2026-08-18: "Mira 281,711
+//      words"). The field is the model's OUTPUT TOKEN total — as a word claim it overstates by ~30-40%, and
+//      this app already counts real words elsewhere off a real `wordCount()` (`stats.wrapped.words`, the
+//      analytics overview's "Words" figure), so the two are separately true numbers and the label decides
+//      which one the reader thinks they are reading.
 //
 // THE TILE IS A GHOST BUTTON, not a Card — the shipped precedent for an interactive grid cell whose subject
 // is a character (`home-quick-picks-tile-body.tsx`), and it keeps the name at the `label` step, which is the
@@ -17,7 +22,7 @@
 //
 // THE BAR SITS OUTSIDE THE BUTTON AND IS DECORATION. `TrackBar` is aria-hidden by contract — its own header
 // states the law: "the value TEXT is the accessible datum; bars are decorative, never colour-alone meaning",
-// and the words are already in the tile's gloss. The alternative, `Meter`, is `role="meter"` (bar-as-datum)
+// and the magnitude is already stated in the tile's gloss. The alternative, `Meter`, is `role="meter"` (bar-as-datum)
 // and would announce the same magnitude a second time inside a named control. RECEIPTED DEVIATION on its
 // tint: the mockup paints the bar with `--color-primary` mixed toward muted, and TrackBar's palette arms are
 // the CATEGORICAL track ramp (vitality green — a hue this surface does not otherwise contain, which is the
@@ -43,7 +48,7 @@ function gemGloss(gem: ForgottenGem): string {
   // "last opened <ago>", never "<stamp> quiet": `formatRelativeAgo` is the kit's ONE sentence-ago form and
   // returns "just now" for a sub-minute span, so no call site can compose the "now ago" this app has already
   // shipped once. The band above supplies the "lifetime totals" framing; the row states plain facts.
-  return `${formatCount(gem.tokensOut)} words · ${exchanges} · last opened ${timeLib.formatRelativeAgo(gem.lastActiveAt)}`;
+  return `${formatCount(gem.tokensOut)} tokens returned · ${exchanges} · last opened ${timeLib.formatRelativeAgo(gem.lastActiveAt)}`;
 }
 
 export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[] }): ReactElement | null {
@@ -54,12 +59,12 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
     return null;
   }
   // The shelf's own top value sets the bar scale — these are relative investments within YOUR library, and
-  // there is no external maximum a words-returned total could be a fraction of.
-  const topWords = Math.max(...gems.map((gem) => gem.tokensOut), 1);
+  // there is no external maximum a tokens-returned total could be a fraction of.
+  const topTokensOut = Math.max(...gems.map((gem) => gem.tokensOut), 1);
 
   return (
     <Section kicker="Invested, but quiet" level={2}>
-      <Text voice="gloss">Lifetime totals per character — most words returned, least recently opened.</Text>
+      <Text voice="gloss">Lifetime totals per character — most tokens returned, least recently opened.</Text>
       {/* auto-fit at the 16rem tile floor: a wider pane shows MORE tiles, never wider ones. `role="list"`
           needs real `listitem` CHILDREN or the cells are generic to AT and the list announces empty. */}
       <Grid aria-label="Invested but quiet characters" cols="auto" gap="row" role="list">
@@ -88,7 +93,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                 </Stack>
               </Row>
             </Button>
-            <TrackBar accent="info" max={topWords} value={gem.tokensOut} />
+            <TrackBar accent="info" max={topTokensOut} value={gem.tokensOut} />
           </Stack>
         ))}
       </Grid>
