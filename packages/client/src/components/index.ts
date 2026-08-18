@@ -29,6 +29,7 @@ export {
   PICKER_GAP_AT_COARSE,
   REVEAL_AT_COARSE,
   RPG_RAIL_WRAP,
+  RPG_RAIL_WRAPPED_EDGE_BAR_OFF,
 } from "./pointer-variants.ts";
 export type { RegexScopeOrderProps } from "./regex-scope-order.tsx";
 export { RegexScopeOrder } from "./regex-scope-order.tsx";

@@ -2085,9 +2085,10 @@ test("HUD-1 §7.2: only the PHASE-LOCKED cell carries a `title` — a live cell'
 });
 
 test("HUD-1: the ACTIVE cell's caption takes the cell's accent state colour (the Text primitive must not win)", async ({ mount, page }) => {
-  // `voice="gloss"` paints `text-muted-foreground`; without `text-inherit` the caption stays grey while the
-  // glyph and the cell tint go accent, which reads as "nothing is selected". Asserted as the COMPUTED colour
-  // against the same token the cell's `data-active:text-primary` resolves to.
+  // Every `voice` re-spells its own colour (`gloss` painted `text-muted-foreground`; `label`, which the
+  // caption rides since the #102 readable-floor fix, paints `text-foreground`) — so without `text-inherit`
+  // the caption keeps the voice's ink while the glyph and the cell tint go accent, which reads as "nothing
+  // is selected". Asserted as the COMPUTED colour against the cell's own `data-active:text-primary`.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   const rail = component.getByRole("toolbar", { name: "Game state" });
@@ -2511,24 +2512,57 @@ test("#102 variant A: the game kicker binds DOWNWARD — 4px above its own cells
   expect(box.background).toBe("rgba(0, 0, 0, 0)");
 });
 
-test("#102 variant A: the second kicker PAYS FOR ITSELF — the HUD's chrome does not grow", async ({ mount, page }) => {
+test("#102: the HUD's NON-VIEWPORT SPEND is pinned — measured as the pane minus its own panel, gaps included", async ({ mount, page }) => {
   // The header's recorded objection to a second kicker was VERTICAL BUDGET (§7.1 caps chrome at 30%), and
-  // the owner pick answers it on its own terms rather than overruling it: the deleted echo line and its
-  // 8px gap pay for the kicker row. MEASURED in this story at exactly the live panel's 383×800 — chrome
-  // (band + both rails) was 347.0px with the band echo, matching the live measurement to the tenth, and is
-  // 346.0px with the rail kicker. The ratchet is the pre-change number: the swap may not cost height.
-  // DEVIATION, receipted: the mockup projected 341.7px (−5.3px). The real delta is −1.0px, because the
-  // arrangement is a WASH by construction — echo 13.1 + its 8px gap out, kicker 13.1 + a 4px gap + the
-  // rail block's 4px lead in — and the mockup's extra 4px came from its hand-built 49px cells against the
-  // app's 50.1px ones. The claim that survives is the one that answers the objection: it does not grow.
+  // the owner pick answered it on its own terms rather than overruling it: the deleted echo line and its
+  // 8px gap pay for the kicker row.
+  //
+  // THIS TEST USED TO SUM THREE ELEMENT HEIGHTS AND CALL IT "chrome" (side-eye #102, 2026-08-17), which is
+  // the number the pane does NOT spend. The HUD column carries a `gap-block` seam between all five of its
+  // children — band ↔ game rail ↔ viewport ↔ ground ↔ admin rail — so FOUR 12px gaps, 48px, sat outside
+  // every reading this file took. Measured live at 383×800: band 209.5 + rails 70.3 + 66.3 = 346.1 of
+  // element (the old figure) against a real 394.0px of non-viewport spend, 49.3% of the pane — the gaps
+  // were a third of the miss. The honest measurement is the one the viewport actually feels: the pane's
+  // height minus the panel it leaves AND minus the GROUND, which counts every gap, margin and rounding by
+  // construction and cannot be defeated by adding a sixth child. The ground is subtracted because it is not
+  // spend: §7.1's residual absorbs whatever a SHORT body leaves and measures ZERO under a tall one (which
+  // is why the live reading needed no such term — its body filled the viewport), so counting it would make
+  // this number a function of the stubbed body's length rather than of the HUD's chrome.
+  //
+  // THE NUMBERS, with their provenance:
+  //   · 347.0px element / (the echo era, live-measured — the pre-#102 ratchet this test was born holding)
+  //   · 346.1px element · 394.0px REAL — the #102 kicker swap; the swap is still a wash, which is the
+  //     claim the owner pick owed and it survives intact.
+  //   · 400.3px REAL — today's caption raise (`voice="gloss"` → `"label"`, the 10.5px→13px readable-floor
+  //     fix on the pane's primary navigation). It costs ~3px a rail and it is DELIBERATE: ten sub-11px
+  //     interactive captions were the review's largest remaining legibility finding. The §7.1 30% cap is
+  //     asserted separately, at its own stated 30rem×900 reference, and is unaffected.
+  // The fence is the post-change real number: no future change may spend more without saying why here.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory width={383} height={800} />);
   // SETTLED, not in-flight: the band renders behind a QueryBoundary whose `fallback={null}` collapses it,
-  // and a chrome measured mid-query is a measurement of the fallback.
+  // and a spend measured mid-query is a measurement of the fallback.
   await expect(component.locator('[data-slot="rpg-band-satellites"]')).toBeVisible();
   await expect(component.locator('[data-slot="rpg-hud-rail"]')).toHaveCount(2);
+  const [paneHeight, panelBox, groundBox] = await Promise.all([
+    component.locator('[data-slot="rpg-hud-band"]').evaluate((el) => {
+      const column = el.parentElement;
+      if (column === null) {
+        throw new Error("expected the band to sit in the HUD column");
+      }
+      return column.getBoundingClientRect().height;
+    }),
+    component.locator('[data-slot="tabs-panel"]:visible').boundingBox(),
+    component.locator('[data-slot="rpg-hud-ground"]').boundingBox(),
+  ]);
+  if (panelBox === null || groundBox === null) {
+    throw new Error("expected the active viewport panel and the ground to be laid out");
+  }
+  const spend = paneHeight - panelBox.height - groundBox.height;
+  expect(spend).toBeLessThanOrEqual(401);
+  // …and the element sum ALONE is strictly smaller, which is the proof that this reading counts the gaps
+  // the old one dropped (a same-value pair would mean the seam went missing, not that it was measured).
   const rails = await component.locator('[data-slot="rpg-hud-rail"]').all();
-  expect(rails).toHaveLength(2);
   const [bandBox, ...railBoxes] = await Promise.all([
     component.locator('[data-slot="rpg-hud-band"]').boundingBox(),
     ...rails.map((rail) => rail.boundingBox()),
@@ -2536,8 +2570,199 @@ test("#102 variant A: the second kicker PAYS FOR ITSELF — the HUD's chrome doe
   if (bandBox === null) {
     throw new Error("expected the band to be laid out");
   }
-  const chrome = bandBox.height + railBoxes.reduce((total, box) => total + (box?.height ?? 0), 0);
-  expect(chrome).toBeLessThanOrEqual(347);
+  const elementSum = bandBox.height + railBoxes.reduce((total, box) => total + (box?.height ?? 0), 0);
+  expect(elementSum).toBeLessThan(spend - 40);
+});
+
+test("#102: the HUD column's seam is DECLARED — `gap-0` was never in effect and no longer claims to be", async ({ mount, page }) => {
+  // THE LIE, measured: `rpg-hud.tsx` set `gap-0` on the Tabs root while the primitive's base set `gap-block`,
+  // and tailwind-merge does NOT dedupe a custom-token gap against the numeric scale — both survived and the
+  // primitive won on stylesheet order (computed `gap: 12px`, four 12px seams). Every vertical number in this
+  // file was taken against a value the source denied. The RENDERED geometry is kept (it is what the #102
+  // pass verified); what changes is that the call site now says so, so a later merge-config fix that makes a
+  // call-site gap win cannot silently collapse this column.
+  //
+  // Asserted BOTH ways on purpose: the computed seam against the resolved token (the pixels), and the class
+  // list (the declaration). A computed-only check passes on the old, lying source.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory width={383} height={800} />);
+  await expect(component.locator('[data-slot="rpg-hud-rail"]')).toHaveCount(2);
+  const column = component.locator('[data-slot="tabs-root"]');
+  const [rowGap, block, declared] = await Promise.all([
+    column.evaluate((el) => Number.parseFloat(getComputedStyle(el).rowGap)),
+    page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-block")) * 16),
+    column.evaluate((el) => ({ block: el.classList.contains("gap-block"), zero: el.classList.contains("gap-0") })),
+  ]);
+  expect(rowGap).toBeCloseTo(block, 0);
+  expect(declared.block).toBe(true);
+  expect(declared.zero).toBe(false);
+});
+
+test("#102: the rails activate MANUALLY — an arrow moves focus without committing a selection, Enter commits", async ({ mount, page }) => {
+  // THE DEFECT (side-eye #102): `@orb/ui`'s TabsList seals `activateOnFocus={true}`, so two ArrowRights
+  // across the game rail committed TWO selections and mounted every query-backed panel they crossed. The
+  // rail overrides the seal. Asserted through the user-visible affordance the HUD actually exposes —
+  // `aria-current`, not the primitive's prop — so this reds on the pre-fix source rather than failing to
+  // compile against it.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory width={383} height={800} />);
+  const rail = component.getByRole("toolbar", { name: "Game state" });
+  const status = rail.getByRole("button", { name: "Status" });
+  await expect(status).toHaveAttribute("aria-current", "true");
+
+  await status.focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  // Focus MOVED two cells…
+  await expect(rail.getByRole("button", { name: "Scene" })).toBeFocused();
+  // …and NOTHING was committed on the way: the landing tab still holds the view, and neither cell it
+  // crossed nor the one it landed on claims it.
+  await expect(status).toHaveAttribute("aria-current", "true");
+  await expect(rail.getByRole("button", { name: "Inventory" })).not.toHaveAttribute("aria-current", "true");
+  await expect(rail.getByRole("button", { name: "Scene" })).not.toHaveAttribute("aria-current", "true");
+  // Enter is what commits — the cell is a native button, so this is the browser's own click path.
+  await page.keyboard.press("Enter");
+  await expect(rail.getByRole("button", { name: "Scene" })).toHaveAttribute("aria-current", "true");
+  await expect(status).not.toHaveAttribute("aria-current", "true");
+});
+
+test("#102: every rail caption sits at the READABLE step, and still fits at the docked and floor widths", async ({ mount, page }) => {
+  // THE DEFECT: all ten captions rode `voice="gloss"` — the 10.5px `micro` step, under the 11px readable
+  // floor at BOTH pointers, on the pane's PRIMARY NAVIGATION. They are `voice="label"` (13px) now. The
+  // assertion is the resolved TOKEN, never a px literal, plus the floor itself as a second, independent
+  // statement of what the fix is for.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverDockedStory />);
+  await expect(component.locator('[data-slot="rpg-hud-rail"]')).toHaveCount(2);
+  // Barrier on the SETTLED rails (both rails' cells resolved) before measuring — the admin rail's roster
+  // cell arrives with its own query. The count is a FLOOR, not an identity: the six game cells plus the
+  // admin set this stub produces. What the test is about is that NONE of them is under the floor.
+  const game = component.getByRole("toolbar", { name: "Game state" });
+  await expect(game.getByRole("button", { name: "Map" })).toBeVisible();
+  const captions = component.locator('[data-slot="rpg-hud-cell-caption"]');
+  await expect.poll(() => captions.count(), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(9);
+  const [sizes, label] = await Promise.all([
+    captions.evaluateAll((els) => els.map((el) => Number.parseFloat(getComputedStyle(el).fontSize))),
+    page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--text-label")) * 16),
+  ]);
+  for (const size of sizes) {
+    expect(size).toBeCloseTo(label, 0);
+    expect(size).toBeGreaterThanOrEqual(11);
+  }
+  // …and the wider word does not buy an ellipsis at the most common mount (384px docked): the rail's
+  // `minmax(max-content,1fr)` tracks scroll instead of clipping, which is the arm that exists for this.
+  const clipped = await captions.evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+  expect(clipped).toBe(0);
+});
+
+// A FENCE, not a defect proof — stated honestly: this test PASSES on the pre-fix 10.5px source too (a
+// smaller word obviously fits where a bigger one does). Its job is the other direction: the readable-floor
+// raise must not re-buy the three-character-stub defect at the panel's narrowest real mount, and it also
+// pins the two-row premise the wrapped-marker test below rests on.
+test("#102: the readable caption survives the WRAPPED floor width too — rows of three, no clipped word", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverFloorStory />);
+  const game = component.getByRole("toolbar", { name: "Game state" });
+  await expect(game.getByRole("button", { name: "Inventory" })).toBeVisible();
+  const captions = component.locator('[data-slot="rpg-hud-cell-caption"]');
+  const clipped = await captions.evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+  expect(clipped).toBe(0);
+  // The six game cells really are on TWO rows here (the `@max-xs` wrap arm) — the premise item 7 rests on.
+  const rows = await game.locator('[data-slot="tabs-tab"]').evaluateAll((els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().y))).size);
+  expect(rows).toBe(2);
+});
+
+test("#102: the kicker's SELECTION half stands one axis quieter than the group's name", async ({ mount, page }) => {
+  // Measured, the two halves were byte-identical on all five computed axes (10.5px / 600 / 0.84px / the same
+  // muted ink / caps), so "GAME STATE · STATUS" read as one flat string instead of a name plus what it
+  // holds. Exactly ONE axis moves — weight — and the other four are asserted EQUAL, because a breadcrumb
+  // that changes size or colour mid-line stops being one typographic line.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory width={383} height={800} />);
+  const gameKicker = railBlock(component, page, "Game state").locator('[data-slot="rpg-hud-rail-kicker"]');
+  await expect(gameKicker).toHaveText("Game state · Status");
+  const read = (locator: Locator): Promise<{ size: number; weight: number; tracking: string; color: string; transform: string }> =>
+    locator.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return {
+        size: Number.parseFloat(style.fontSize),
+        weight: Number.parseFloat(style.fontWeight),
+        tracking: style.letterSpacing,
+        color: style.color,
+        transform: style.textTransform,
+      };
+    });
+  const [name, selection] = await Promise.all([
+    read(gameKicker.locator('[data-slot="text"]')),
+    read(gameKicker.locator('[data-slot="rpg-hud-rail-selection"]')),
+  ]);
+  expect(selection.weight).toBeLessThan(name.weight);
+  expect(selection.size).toBeCloseTo(name.size, 1);
+  expect(selection.tracking).toBe(name.tracking);
+  expect(selection.color).toBe(name.color);
+  expect(selection.transform).toBe(name.transform);
+});
+
+test("#102: the kicker's hairline IS the rail's edge — the rule bleeds to the full width, only the word is inset", async ({ mount, page }) => {
+  // The header has always claimed "that kicker's hairline rule IS the rail's own edge". It was not: the
+  // kicker row carried `px-block`, which inset the Separator as well as the word, so the rule stopped a
+  // block short of the full-bleed cell row underneath it. Measured at the panel's 272px floor, in the axis
+  // the defect lives in — the rule's END edge against the CELLS' end edge.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverFloorStory />);
+  const gameRail = railBlock(component, page, "Game state");
+  const kicker = gameRail.locator('[data-slot="rpg-hud-rail-kicker"]');
+  await expect(kicker).toBeVisible();
+  const [ruleBox, cellsBox, wordBox, block] = await Promise.all([
+    kicker.locator('[data-slot="separator"]').boundingBox(),
+    component.getByRole("toolbar", { name: "Game state" }).boundingBox(),
+    kicker.locator('[data-slot="text"]').boundingBox(),
+    page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-block")) * 16),
+  ]);
+  if (ruleBox === null || cellsBox === null || wordBox === null) {
+    throw new Error("expected the kicker's rule, its word and the rail's cells to be laid out");
+  }
+  // The rule ends where the rail ends (the full-bleed edge), not a block short of it.
+  expect(ruleBox.x + ruleBox.width).toBeCloseTo(cellsBox.x + cellsBox.width, 0);
+  // …and the WORD keeps the band's inline rhythm, which is the half that should stay inset.
+  expect(wordBox.x - cellsBox.x).toBeCloseTo(block, 0);
+});
+
+test("#102: in the WRAPPED rail the active cell drops its edge bar — a bar between two rows points at the wrong one", async ({ mount, page }) => {
+  // At the 272px floor the six game cells fold to two rows of three, and the active FIRST-ROW cell painted
+  // its inward-facing 2px bar along the seam above row TWO — a marker aimed at the cell below it instead of
+  // at the viewport it selects. In the wrapped state the active treatment is the cell's own fill + accent
+  // ink, which is a whole-cell mark with no direction to be wrong about. The border BOX is kept (transparent)
+  // so folding the rail moves no cell.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverFloorStory />);
+  const game = component.getByRole("toolbar", { name: "Game state" });
+  const active = game.getByRole("button", { name: "Status" });
+  await expect(active).toHaveAttribute("aria-current", "true");
+  const cells = game.locator('[data-slot="tabs-tab"]');
+  // The wrap really is in effect (this assertion is meaningless on a one-row rail).
+  expect(await cells.evaluateAll((els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().y))).size)).toBe(2);
+  // …and the active cell is on the FIRST of those rows, i.e. exactly the cell whose bottom edge is an
+  // internal seam.
+  const [activeY, firstY] = await Promise.all([
+    active.evaluate((el) => Math.round(el.getBoundingClientRect().y)),
+    cells.first().evaluate((el) => Math.round(el.getBoundingClientRect().y)),
+  ]);
+  expect(activeY).toBe(firstY);
+
+  const marker = await active.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
+  });
+  const transparent = "rgba(0, 0, 0, 0)";
+  expect(marker.color).toBe(transparent);
+  // The 2px box survives, so no cell changes height when the rail folds…
+  expect(marker.width).toBe("2px");
+  // …and the cell is still unmistakably the selected one, by fill and by ink.
+  expect(marker.fill).not.toBe(transparent);
+  const resting = await game.getByRole("button", { name: "Scene" }).evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(marker.fill).not.toBe(resting);
+  expect(marker.ink).not.toBe(await game.getByRole("button", { name: "Scene" }).evaluate((el) => getComputedStyle(el).color));
 });
 
 // ── HUD-1 H3, THE WAYSTONE COMPACT + THE VERTICAL BUDGET (F6 defect 4's second half) ─────────────────

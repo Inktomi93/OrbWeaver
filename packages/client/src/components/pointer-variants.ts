@@ -67,3 +67,16 @@ export const PICKER_GAP_AT_COARSE = "pointer-coarse:gap-block";
  *  tuned apart because they are now the same declaration. */
 export const RPG_RAIL_WRAP =
   "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3 pointer-fine:@xs:auto-cols-[minmax(max-content,1fr)] pointer-fine:@xs:overflow-x-auto pointer-coarse:auto-cols-[minmax(max-content,1fr)] pointer-coarse:overflow-x-auto";
+
+/** The rpg HUD rail cell's active EDGE BAR, stood down in exactly the state that makes it lie (side-eye
+ *  #102, 2026-08-17). The bar faces INWARD toward the viewport — the game rail marks its bottom edge — which
+ *  is true only while the rail is ONE row. In {@link RPG_RAIL_WRAP}'s `@max-xs` fine arm the six cells fold
+ *  to two rows of three, and MEASURED at the panel's 272px floor the active first-row cell painted its 2px
+ *  primary bar along the seam between row one and row two: the marker pointed at the cell BELOW it, not at
+ *  the content it selects. The bar is suppressed to `transparent` rather than removed, so the 2px border
+ *  box stays and no cell changes height when the rail folds; the active treatment in the wrapped state is
+ *  the cell's own fill + accent ink, which is a WHOLE-cell mark with no direction to be wrong about. The
+ *  coarse arm is untouched — there the rail stays one row and scrolls, so the bar still points at the
+ *  viewport. Pointer-keyed, so it is homed here and not in the feature (`no-pointer-variants-in-features`).
+ *  CT: tests/client/features/rpg/lib/rpg-context-section.ct.tsx. */
+export const RPG_RAIL_WRAPPED_EDGE_BAR_OFF = "pointer-fine:@max-xs:data-active:border-transparent";
