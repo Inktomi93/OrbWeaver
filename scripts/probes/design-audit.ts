@@ -60,6 +60,16 @@ import { writeFile } from "node:fs/promises";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
+import type { AppearancePatch } from "./_kit/appearance.ts";
+import {
+  APPEARANCE_VALUE_FLAGS,
+  appearanceHelpBlock,
+  applyAppearanceFlag,
+  FULL_MOTION_PATCH,
+  loadAppearancePreset,
+  mergeAppearancePatches,
+  parseAppearancePatch,
+} from "./_kit/appearance.ts";
 import { artifactFile, routeSlug } from "./_kit/artifacts.ts";
 import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
 import type { Viewport } from "./_kit/flags.ts";
@@ -97,6 +107,10 @@ type Args = {
   /** A Playwright device descriptor name (--mobile), or null for the raw desktop viewport. */
   device: string | null;
   failOn: Severity;
+  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_kit/appearance.ts) — a
+   *  scan of the owner's account only ever judges HIS appearance choices; the shipped defaults, the
+   *  compact/reading arms and every ornament he has off are unreachable without it. Never written. */
+  appearance: AppearancePatch | null;
   /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
   errors: string[];
 };
@@ -149,6 +163,15 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
     a.viewport = DEFAULT_VIEWPORT;
     a.device = null;
   },
+  "--appearance": (a, rest) => {
+    applyAppearanceFlag(a, parseAppearancePatch(rest.shift() ?? ""));
+  },
+  "--appearance-preset": (a, rest) => {
+    applyAppearanceFlag(a, loadAppearancePreset(rest.shift() ?? ""));
+  },
+  "--full-motion": (a) => {
+    a.appearance = mergeAppearancePatches(a.appearance, FULL_MOTION_PATCH);
+  },
   "--fail-on": (a, rest) => {
     const raw = (rest.shift() ?? "").toUpperCase();
     if (isValidSeverity(raw)) {
@@ -170,6 +193,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--base",
   "--viewport",
   "--fail-on",
+  ...APPEARANCE_VALUE_FLAGS,
 ]);
 
 const DESIGN_AUDIT_HELP = `design-audit — the deterministic UI defect scan
@@ -186,6 +210,8 @@ Environment:
   --viewport <WxH>          default 1280x800
   --mobile                  iPhone 14 Pro Max — touch + pointer:coarse (the 44px tap floor)
   --desktop                 explicit 1280x800
+
+${appearanceHelpBlock()}
 
 Verdict:
   --fail-on <P0|P1|P2|P3>   exit 1 at this severity or worse (default ${DEFAULT_FAIL_ON})
@@ -236,6 +262,7 @@ export function parseAuditArgs(argv: string[]): Args {
     viewport: DEFAULT_VIEWPORT,
     device: null,
     failOn: DEFAULT_FAIL_ON,
+    appearance: null,
     errors: scanArgv(argv),
   };
   const rest = [...argv];
@@ -373,6 +400,7 @@ async function main(): Promise<number> {
     device: opts.device,
     colorScheme: null,
     reducedMotion: false,
+    appearance: opts.appearance,
     localStorage: [],
   });
 

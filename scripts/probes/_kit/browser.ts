@@ -6,6 +6,8 @@
 import process from "node:process";
 import type { Browser, BrowserContext, ConsoleMessage, Page } from "@playwright/test";
 import { chromium, devices } from "@playwright/test";
+import type { AppearancePatch } from "./appearance.ts";
+import { installAppearanceShim } from "./appearance.ts";
 import type { Viewport } from "./flags.ts";
 
 // biome-ignore lint/style/noProcessEnv: SNAP_BASE_URL is a probe-harness knob (where the running dev stack answers; `localhost`, not 127.0.0.1 — vite v8 binds [::1] only) — ambient tooling env, not app config.
@@ -62,6 +64,11 @@ export type ProbeLaunchOptions = {
    *  cookie when given a `url` (even `secure:true` alongside it) — "Invalid cookie fields", verified
    *  empirically. `domain`+`path`+`secure:true` (no `url`) is the combination that actually lands it. */
   readonly cookieDomain?: string;
+  /** `--appearance` / `--appearance-preset` / `--full-motion`: a deep-merge patch shimmed over the REAL
+   *  `settings.getUserSettings` response on EVERY context, so the app renders as if those appearance keys
+   *  were set while the db row is never touched (see _kit/appearance.ts for the mechanism + the
+   *  media-query-vs-app-setting axis difference). null/absent = drive the account's real state. */
+  readonly appearance?: AppearancePatch | null;
   /** Record a Playwright trace; the caller saves it on failure or discards it on success. */
   readonly trace?: boolean;
   /** Prefix for per-context full HAR files. The caller removes green-run files after context close. */
@@ -198,6 +205,10 @@ async function openRecordedContext(args: BuildContextArgs): Promise<{ readonly c
 }
 
 async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, sessionCookie: string | null): Promise<void> {
+  // BEFORE the localStorage seeds and before any page exists: the shim must be live for the app's FIRST
+  // settings read, which is what paints the boot veil and stamps <html data-reduced-motion>.
+  await installAppearanceShim(context, opts.appearance ?? null);
+
   if (opts.localStorage.length > 0) {
     const seedScript = `(() => {
       try {

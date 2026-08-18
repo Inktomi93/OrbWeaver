@@ -185,6 +185,31 @@
  *                                          # stable without app-side probe mode
  *   pnpm snap / --dark                     # emulateMedia colorScheme (also --light)
  *   pnpm snap / --reduced-motion           # emulateMedia reducedMotion:reduce
+ *
+ *   APPEARANCE (the APP's own settings — NOT the OS media query; see the axis warning below):
+ *   pnpm snap / --full-motion              # render with the app's reduce-motion setting OFF
+ *   pnpm snap / --appearance '{"density":"compact","elevation":"glow"}'
+ *                                          # deep-merge ANY appearance keys over the REAL
+ *                                          # settings.getUserSettings response (page.route response shim,
+ *                                          # _kit/appearance.ts). The db is NEVER touched: nothing durable
+ *                                          # changes, the next run with no flag sees the account again.
+ *                                          # Unknown keys pass through (the server schema owns the
+ *                                          # vocabulary); unparseable JSON / a non-object is ARG ERROR
+ *                                          # (exit 2), never a silent no-op.
+ *   pnpm snap / --appearance-preset maximal
+ *                                          # a CURATED profile from scripts/probes/appearance-presets.json
+ *                                          # (defaults | maximal | compact | reading | diagnostics — each
+ *                                          # carries its own `why`). That file is the ONE home for curated
+ *                                          # appearance points: new coverage is a new PROFILE there, never
+ *                                          # a new flag. `--appearance` composes OVER a preset (preset
+ *                                          # first, then the patch, later keys winning).
+ *   THE AXIS TRAP (2026-08-18, the reason this exists): `--reduced-motion` emulates the OS MEDIA QUERY;
+ *   `--full-motion`/`--appearance` shim the APP SETTING (`<html data-reduced-motion>`, written by
+ *   useAppearanceRootEffects off this query). They are DIFFERENT GATES and they diverge — the dev account
+ *   stores reducedMotion:true, so motion-audit/perf-meter passed `reducedMotion:false` (media) for months
+ *   and still measured an app whose own setting had frozen every animation. They compose freely.
+ *   MOTION/APPEARANCE VERDICTS OWE BOTH ARMS: bare (the owner's real state — is the floor sound?) AND
+ *   `--full-motion`/`--appearance-preset maximal` (is the nice stuff good?). One arm is half an answer.
  *   pnpm snap / --idle                     # settle on networkidle (bounded 10s)
  *                                          # instead of a fixed timeout
  *
@@ -368,6 +393,16 @@ import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
+import type { AppearancePatch } from "./_kit/appearance.ts";
+import {
+  APPEARANCE_VALUE_FLAGS,
+  appearanceHelpBlock,
+  applyAppearanceFlag,
+  FULL_MOTION_PATCH,
+  loadAppearancePreset,
+  mergeAppearancePatches,
+  parseAppearancePatch,
+} from "./_kit/appearance.ts";
 import { artifactDir, artifactFile, artifactFilePath, artifactKey, routeSlug } from "./_kit/artifacts.ts";
 import type { CapturedConsole, CapturedRequest, LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "./_kit/browser.ts";
 import { buildUrl, DEFAULT_BASE, DEFAULT_DEBUG_TOKEN, launchProbeSession, settle } from "./_kit/browser.ts";
@@ -636,8 +671,14 @@ export type Args = {
   mask: string[];
   /** emulateMedia colorScheme — exercise the app's dark/light surfaces. */
   colorScheme: "light" | "dark" | null;
-  /** emulateMedia reducedMotion:"reduce" (also implied by --probe). */
+  /** emulateMedia reducedMotion:"reduce" (also implied by --probe). THE OS MEDIA QUERY — a DIFFERENT gate
+   *  from `appearance` below (the app's own setting); they diverge and they compose. */
   reducedMotion: boolean;
+  /** `--appearance '<json>'` / `--appearance-preset <name>` / `--full-motion`: the deep-merge patch shimmed
+   *  over the REAL `settings.getUserSettings` response for this run (never written — _kit/appearance.ts).
+   *  Accumulated in argv order, later keys winning. null = drive the account's real state (the default, and
+   *  a valid arm — it is the owner's actual experience). */
+  appearance: AppearancePatch | null;
   /** Settle on networkidle (bounded) instead of a fixed timeout before capture. */
   idle: boolean;
   // ── INTROSPECTION (the "skip the MCP hop" escape hatches) ───────────────────
@@ -914,8 +955,19 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--light": (a) => {
     a.colorScheme = "light";
   },
+  // THE OS MEDIA QUERY. Its app-setting twin is --full-motion/--appearance below — different gates.
   "--reduced-motion": (a) => {
     a.reducedMotion = true;
+  },
+  // ── APPEARANCE SHIM (the app's own settings, not the OS media query) ──
+  "--appearance": (a, rest) => {
+    applyAppearanceFlag(a, parseAppearancePatch(rest.shift() ?? ""));
+  },
+  "--appearance-preset": (a, rest) => {
+    applyAppearanceFlag(a, loadAppearancePreset(rest.shift() ?? ""));
+  },
+  "--full-motion": (a) => {
+    a.appearance = mergeAppearancePatches(a.appearance, FULL_MOTION_PATCH);
   },
   "--idle": (a) => {
     a.idle = true;
@@ -1049,6 +1101,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--crop",
   "--out",
   "--viewport",
+  ...APPEARANCE_VALUE_FLAGS,
   "--eval",
   "--contrast",
   "--expect-visible",
@@ -1121,6 +1174,8 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
     use after creating a room, since a fresh room is unlisted until the list refetches)
   --watch <totalMs> [--every <ms>]  poll evals and optional screenshots over time
   Add @N to a page-targeted flag with --pages N, for example --click@1.
+
+${appearanceHelpBlock()}
 
 Pixels:
   --no-shot               skip the primary PNG
@@ -1379,6 +1434,7 @@ export function parseSnapArgs(argv: string[]): Args {
     mask: [],
     colorScheme: null,
     reducedMotion: false,
+    appearance: null,
     idle: false,
     eval: [],
     contrast: [],
@@ -3287,6 +3343,10 @@ function inheritScenarioSession(globalArgs: Args, checkpoint: Args, name: string
     device: globalArgs.device,
     colorScheme: globalArgs.colorScheme,
     reducedMotion: globalArgs.reducedMotion,
+    // The shim is installed once, on the ONE context every checkpoint shares — so it is a session-level
+    // property like the media emulation, taken from the outer command (a checkpoint that sets its own is
+    // refused below rather than silently applying to every checkpoint or to none).
+    appearance: globalArgs.appearance,
     probe: globalArgs.probe,
     localStorage: [...globalArgs.localStorage, ...checkpoint.localStorage],
     out: checkpoint.out ?? name,
@@ -3305,6 +3365,10 @@ function scenarioCheckpointArgs(globalArgs: Args, spec: ScenarioSpec): Args[] {
         [
           inherited.isolated || inherited.stageDown || inherited.stageStatus,
           "scenario checkpoint args cannot manage stages; put stage flags on the outer command",
+        ],
+        [
+          args.appearance !== null,
+          "scenario checkpoints share ONE browser context, so the appearance shim is session-level; put --appearance/--appearance-preset/--full-motion on the outer command",
         ],
       ]
         .filter(([invalid]) => invalid)
@@ -3441,7 +3505,17 @@ type SnapManifest = {
   readonly schemaVersion: 1;
   readonly status: "pass" | "fail";
   readonly target: { readonly url: string; readonly name: string };
-  readonly environment: { readonly viewport: Viewport; readonly device: string | null; readonly colorScheme: string | null; readonly reducedMotion: boolean };
+  readonly environment: {
+    readonly viewport: Viewport;
+    readonly device: string | null;
+    readonly colorScheme: string | null;
+    /** The OS media query (--reduced-motion/--probe). */
+    readonly reducedMotion: boolean;
+    /** The APP-setting shim actually applied to this run (--appearance/--appearance-preset/--full-motion),
+     *  null when the run drove the account's real state — so a manifest never leaves which arm it measured
+     *  to be inferred from the command line. */
+    readonly appearance: AppearancePatch | null;
+  };
   readonly failures: SnapFailureSummary;
   readonly traces: readonly string[];
   readonly hars: readonly string[];
@@ -3594,6 +3668,7 @@ async function launchSnapSession(opts: Args, name: string, extras: LaunchExtras 
     viewport: opts.viewport,
     colorScheme: opts.colorScheme,
     reducedMotion: opts.reducedMotion || opts.probe,
+    appearance: opts.appearance,
     localStorage: buildSeeds(opts),
     device: opts.device,
     trace: opts.failureEvidence,
@@ -3682,6 +3757,7 @@ async function snap(opts: Args): Promise<number> {
       device: opts.device,
       colorScheme: opts.colorScheme,
       reducedMotion: opts.reducedMotion || opts.probe,
+      appearance: opts.appearance,
     },
     failures: failureSummary,
     traces: artifacts.traces,
@@ -3922,6 +3998,7 @@ async function snapScenario(opts: Args): Promise<number> {
       device: first.device,
       colorScheme: first.colorScheme,
       reducedMotion: first.reducedMotion || first.probe,
+      appearance: first.appearance,
     },
     failures: failureSummary,
     traces: artifacts.traces,
@@ -4145,6 +4222,7 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[], target: F
       device: opts.device,
       colorScheme: opts.colorScheme,
       reducedMotion: opts.reducedMotion || opts.probe,
+      appearance: opts.appearance,
     },
     failures: failureSummary,
     traces: artifacts.traces,
@@ -4245,6 +4323,9 @@ function refuseFileMode(opts: Args): string | null {
   }
   if (opts.actions.some((entry) => entry.type === "nav")) {
     return "FILE REFUSED  --goto/--open-chat/--open-character/--context-tab drive the app's __orb nav bridge; a static file has none — drop them (--click/--fill still work)";
+  }
+  if (opts.appearance !== null) {
+    return "FILE REFUSED  --appearance/--appearance-preset/--full-motion shim the app's settings response; a static file makes no such request — drop them (a mock states its own appearance)";
   }
   return null;
 }

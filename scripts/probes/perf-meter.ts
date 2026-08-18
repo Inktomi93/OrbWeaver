@@ -40,6 +40,16 @@ import { writeFile } from "node:fs/promises";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
+import type { AppearancePatch } from "./_kit/appearance.ts";
+import {
+  APPEARANCE_VALUE_FLAGS,
+  appearanceHelpBlock,
+  applyAppearanceFlag,
+  FULL_MOTION_PATCH,
+  loadAppearancePreset,
+  mergeAppearancePatches,
+  parseAppearancePatch,
+} from "./_kit/appearance.ts";
 import { artifactFile } from "./_kit/artifacts.ts";
 import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
 import type { Viewport } from "./_kit/flags.ts";
@@ -93,6 +103,10 @@ type Args = {
   cycles: number;
   cpuProfile: boolean;
   steps: Step[];
+  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_kit/appearance.ts). The
+   *  browser-level `reducedMotion:false` below is only the OS media query; an INP/LoAF number taken while
+   *  the app's own reduce-motion setting is on describes a surface with its transitions removed. */
+  appearance: AppearancePatch | null;
   /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
   errors: string[];
 };
@@ -151,6 +165,24 @@ function parseStepFlag(flag: string, rest: string[], steps: Step[]): boolean {
   return parseWheelFlag(flag, rest, steps);
 }
 
+/** The appearance-shim flags — its own arm (not folded into parseScalarFlag) so that function stays under
+ *  the cognitive-complexity cap, and so the axis has one visible home in each probe's parser. */
+function parseAppearanceFlag(flag: string, rest: string[], args: Args): boolean {
+  if (flag === "--appearance") {
+    applyAppearanceFlag(args, parseAppearancePatch(rest.shift() ?? ""));
+    return true;
+  }
+  if (flag === "--appearance-preset") {
+    applyAppearanceFlag(args, loadAppearancePreset(rest.shift() ?? ""));
+    return true;
+  }
+  if (flag === "--full-motion") {
+    args.appearance = mergeAppearancePatches(args.appearance, FULL_MOTION_PATCH);
+    return true;
+  }
+  return false;
+}
+
 function parseScalarFlag(flag: string, rest: string[], args: Args): boolean {
   if (flag === "--base") {
     args.base = rest.shift() ?? DEFAULT_BASE;
@@ -194,8 +226,9 @@ const VALUE_FLAGS = new Set([
   "--settle",
   "--viewport",
   "--cycles",
+  ...APPEARANCE_VALUE_FLAGS,
 ]);
-const BOOLEAN_FLAGS = new Set(["--cpuprofile"]);
+const BOOLEAN_FLAGS = new Set(["--cpuprofile", "--full-motion"]);
 
 const PERF_METER_HELP = `perf-meter — per-step interaction responsiveness
 
@@ -210,6 +243,8 @@ Steps (ONE argv-ordered tape; each gets its own measurement window):
 
 Run:
   --base <url> · --viewport <WxH> · --settle <ms> · --cycles <n> · --out <name> · --cpuprofile
+
+${appearanceHelpBlock()}
 
 Exit: 0 clean · 1 step failure / page error · 2 CLI misuse.`;
 
@@ -254,12 +289,13 @@ export function parsePerfArgs(argv: string[]): Args {
     cycles: 1,
     cpuProfile: false,
     steps: [],
+    appearance: null,
     errors: scanArgv(argv),
   };
   const rest = [...argv];
   while (rest.length > 0) {
     const a = rest.shift() as string;
-    if (parseScalarFlag(a, rest, args) || parseStepFlag(a, rest, args.steps)) {
+    if (parseScalarFlag(a, rest, args) || parseAppearanceFlag(a, rest, args) || parseStepFlag(a, rest, args.steps)) {
       continue;
     }
     if (!a.startsWith("--")) {
@@ -555,7 +591,8 @@ async function main(): Promise<number> {
     headless: true,
     viewport: opts.viewport,
     colorScheme: null,
-    reducedMotion: false, // a motion probe wants the real animations
+    reducedMotion: false, // the OS media query — a motion probe wants the real animations
+    appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
     localStorage: [],
   });
   await session.context.addInitScript({ content: METER_INIT_JS });
