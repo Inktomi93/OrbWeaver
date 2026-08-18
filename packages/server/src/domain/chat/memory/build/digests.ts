@@ -417,11 +417,15 @@ async function consolidateOneTier(
   }
   // The live path keeps the RICH per-parent error context (it has it); the corpus backfill's flat batch can't,
   // so it uses `summarizeConsolidationBatch` (flat index). Same summaries, same opts — only the error tag differs.
-  const texts = await summarizeBatchIsolated(ctx, plan.pending.map((p) => p.input), summarizerOpts(ctx), (i, err) =>
-    getLog().error(
-      { err, chatId: scope.chatId, scopedCharacterId: scope.scopedCharacterId, tier: plan.parentTier, blockIdx: plan.pending[i]?.parentBlockIdx },
-      "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)",
-    ),
+  const texts = await summarizeBatchIsolated(
+    ctx,
+    plan.pending.map((p) => p.input),
+    summarizerOpts(ctx),
+    (i, err) =>
+      getLog().error(
+        { err, chatId: scope.chatId, scopedCharacterId: scope.scopedCharacterId, tier: plan.parentTier, blockIdx: plan.pending[i]?.parentBlockIdx },
+        "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)",
+      ),
   );
   const stored = await storeConsolidationTier(ctx, scope, plan, texts);
   return { written: stored.written, skipped: plan.skipped, skippedEmpty: stored.skippedEmpty };
@@ -472,7 +476,13 @@ export async function collectConsolidationTier(
       parentBlockIdx,
       ordered,
       parentHash,
-      input: { systemPrompt: consolidationSystem, userPrompt: consolidationUserPrompt(prose, ordered.map((c) => renderDigestFacets(c))) },
+      input: {
+        systemPrompt: consolidationSystem,
+        userPrompt: consolidationUserPrompt(
+          prose,
+          ordered.map((c) => renderDigestFacets(c)),
+        ),
+      },
     });
   }
   return { parentTier, pending, speakerMap, skipped };
@@ -490,7 +500,12 @@ export async function summarizeConsolidationBatch(ctx: ChatContext, inputs: read
 /** STORE one tier's consolidations: `texts` index-aligned to `plan.pending`; embed-store each parent (blank-arc
  *  empty-skip preserved — a blank digest keyed by parentHash would skip forever, so it retries next pass). The
  *  returned `skipped` is always 0 (the hash-skip tally lives on the plan from the collect); callers add that. */
-export async function storeConsolidationTier(ctx: ChatContext, scope: MemoryScope, plan: ConsolidationTierPlan, texts: readonly (string | null)[]): Promise<PassCounts> {
+export async function storeConsolidationTier(
+  ctx: ChatContext,
+  scope: MemoryScope,
+  plan: ConsolidationTierPlan,
+  texts: readonly (string | null)[],
+): Promise<PassCounts> {
   let written = 0;
   let skippedEmpty = 0;
   for (let i = 0; i < plan.pending.length; i += 1) {

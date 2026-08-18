@@ -1,8 +1,8 @@
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, messages, messageVariants } from "@orb/db";
-import type { CharacterId, ChatDigestId, MessageId, MessageVariantId } from "@orb/kit/ids";
-import { castId, type Handle } from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, Handle, MessageId, MessageVariantId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -262,7 +262,10 @@ describe("memory/build/digests", () => {
     // The host HIDES the trailing span (seq 3-4) — block 1's rows leave the ingest set entirely.
     for (const seq of [3, 4]) {
       // biome-ignore lint/performance/noAwaitInLoops: two ordered updates in a test seed.
-      await db.update(messages).set({ excludedFromPrompt: true }).where(eq(messages.id, castId<MessageId>(`message_${chatId}_${seq}`)));
+      await db
+        .update(messages)
+        .set({ excludedFromPrompt: true })
+        .where(eq(messages.id, castId<MessageId>(`message_${chatId}_${seq}`)));
     }
 
     const second = upsertingStore(db);
@@ -603,10 +606,13 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     });
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const counts = await generateDigests(makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments }), {
-      scope: sharedScope(chatId),
-      config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 },
-    });
+    const counts = await generateDigests(
+      makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments }),
+      {
+        scope: sharedScope(chatId),
+        config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 },
+      },
+    );
     expect(store.digests.map((d) => d.key.blockIdx)).toEqual([1]); // only the divergent block (re)built
     expect(sum.calls).toHaveLength(1); // block 0's identical-hash digest skipped the LLM
     expect(counts.skipped).toBeGreaterThanOrEqual(1);

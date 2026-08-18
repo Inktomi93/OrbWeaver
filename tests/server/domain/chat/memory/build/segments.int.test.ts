@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
-import type { CharacterId } from "@orb/kit/ids";
-import { castId, type Handle } from "@orb/kit/ids";
+import type { CharacterId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import { beforeEach, describe, vi } from "vitest";
 import { generateSegments } from "../../../../../../packages/server/src/domain/chat/memory/build/segments.ts";
