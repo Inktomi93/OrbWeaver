@@ -2,7 +2,7 @@ import { SCRIM_BASE, tv } from "#lib";
 
 // `side` variant places the panel and wires the live swipe transform to Base UI's --drawer-* vars
 // (transition suspended while data-swiping so the gesture tracks 1:1). The backdrops compose
-// SCRIM_BASE (the bare `bg-scrim` fill) but keep their OWN `--motion-layout` fade — a drawer's scrim
+// SCRIM_BASE (the bare `bg-backdrop` fill) but keep their OWN `--motion-layout` fade — a drawer's scrim
 // tracks the sliding panel, not the standard overlay fade of SCRIM(tier).
 export const drawerVariants = tv({
   slots: {

@@ -35,11 +35,13 @@ function cssVarToTokenPath(cssVar: string): string {
 const EMITTED = new Set(THEME_SCOPE_EMIT_VARS.filter((v) => v.startsWith("--color-")).map(cssVarToTokenPath));
 
 // Class 2 — seed-covered, acceptably static under a custom theme, with rationale.
-//   • scrim: a translucent DIMMING overlay (modal/sheet/rail-overlay backdrop). A scrim darkens whatever
-//     is behind it regardless of palette; keeping Hearth's dark scrim under a custom theme still reads as
-//     "dimmed", never as an unthemed slab beside derived chrome. Each seed block still re-authors it (a
-//     light seed lightens it) so the seed palettes stay coherent.
-const SEED_COVERED = new Set<string>(["color.scrim"]);
+//   • backdrop (was `scrim`, split at #204): a translucent DIMMING overlay (modal/sheet/rail-overlay
+//     backdrop, the wallpaper-dim layer). A backdrop darkens whatever is behind it regardless of palette;
+//     keeping Hearth's dark smoke under a custom theme still reads as "dimmed", never as an unthemed
+//     slab beside derived chrome. Each seed block still re-authors it so the seed palettes stay coherent.
+//     The over-art TEXT plate that used to share this token is `color.reading-plate` — EMITTED (class 1),
+//     because a reading plate must FOLLOW the palette's polarity (a token names ONE polarity semantic).
+const SEED_COVERED = new Set<string>(["color.backdrop"]);
 
 // Class 3 — static with rationale (semantic-intent or theme-independent).
 //   • destructive/success/warning/info/highlight (+ their foregrounds): SEMANTIC-intent colours — a
@@ -70,7 +72,7 @@ const SEED_COVERED = new Set<string>(["color.scrim"]);
 //     off a raised edge), not a palette role, so it is white on every seed while the glow's HEAD stays
 //     fully theme-reactive (--color-primary). Base-only by design: a theme MAY re-bind it (a light theme
 //     wanting a dark gloss), none is required to, and no seed value-set carries it (the seed sets are
-//     restricted to the ThemeScope-emitted class + scrim). It replaced three bare `oklch(1 0 0 / 0.0N)`
+//     restricted to the ThemeScope-emitted class + backdrop). It replaced three bare `oklch(1 0 0 / 0.0N)`
 //     literals, so the token's job is making that choice visible and overridable, not palette-tracking.
 const STATIC_RATIONALE = new Set<string>([
   "color.sheen",

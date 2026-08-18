@@ -50,7 +50,7 @@ test("backdrop renders with the scrim token color", async ({ mount, page }) => {
 
   const backdrop = page.locator('[data-slot="alert-dialog-backdrop"]');
   await expect(backdrop).toBeVisible();
-  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.scrim"].value);
+  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.backdrop"].value);
 });
 
 // Base UI AlertDialog defaults `modal={true}` — focus trap + document scroll lock come free. This CT

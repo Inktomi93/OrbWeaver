@@ -6,6 +6,7 @@ import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
 import {
   AppendableList,
+  BlockPaddedStickyList,
   CachedMeasurementsList,
   DerivedItemsMessageList,
   HandleExposingList,
@@ -22,6 +23,38 @@ const ROW_HEIGHT_PX = 40;
 const LIST_HEIGHT_PX = 200; // 5 rows visible
 const ITEM_COUNT = 500;
 const MAX_WINDOWED_ROWS = 20; // a bounded 200px window + the default two-row overscan stays compact
+
+// ── #204: block breathing lives in the SCROLL CONTENT (`blockPaddingToken`), never as CSS padding on
+// the scroll container. Chrome resolves a descendant's `position: sticky; top: 0` against the
+// container's CONTENT box, so container padding pins the band `padding-top` below the visible top and a
+// strip of the row's own content renders permanently above it, guillotined. With the padding in the
+// virtualizer's coordinate space the band pins FLUSH and the first row still breathes off the edge.
+test("blockPaddingToken: a sticky top-0 band pins FLUSH at the scrollport top; the breathing rides the content, not the container", async ({ mount }) => {
+  const component = await mount(<BlockPaddedStickyList listHeightPx={LIST_HEIGHT_PX} tallRowPx={800} />);
+  const scroller = component.locator('[data-slot="message-list-scroll"]');
+  // The container itself carries no block padding (the sticky-correctness half).
+  await expect(scroller).toHaveCSS("padding-top", "0px");
+  await expect(scroller).toHaveCSS("padding-bottom", "0px");
+  // Park the viewport mid-way inside the tall first row, where the band must be pinned.
+  await scroller.evaluate((el: HTMLElement) => {
+    el.scrollTop = 400;
+  });
+  const bandOffset = await scroller.evaluate((el: HTMLElement) => {
+    const band = el.querySelector('[data-testid="sticky-band"]');
+    return band === null ? Number.NaN : band.getBoundingClientRect().top - el.getBoundingClientRect().top;
+  });
+  expect(bandOffset).toBeGreaterThanOrEqual(0);
+  expect(bandOffset).toBeLessThan(1);
+  // The breathing half: scrolled to the very top, row 0 sits one spacing.block (12px) inside the edge.
+  await scroller.evaluate((el: HTMLElement) => {
+    el.scrollTop = 0;
+  });
+  const firstRowGap = await scroller.evaluate((el: HTMLElement) => {
+    const row = el.querySelector('[data-slot="message-list-row"]');
+    return row === null ? Number.NaN : row.getBoundingClientRect().top - el.getBoundingClientRect().top;
+  });
+  expect(Math.round(firstRowGap)).toBe(12);
+});
 
 test("renders only a window of a 500-item list", async ({ mount }) => {
   const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);

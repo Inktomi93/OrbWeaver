@@ -47,7 +47,12 @@ export function ThemeBackgroundLayer({ url, fit, dim, blur }: ThemeBackgroundLay
         className="pointer-events-none fixed inset-0 z-(--z-base) bg-center bg-no-repeat"
         style={photoStyle}
       />
-      <div aria-hidden="true" data-slot="theme-background-scrim" className="pointer-events-none fixed inset-0 z-(--z-base) bg-scrim" style={{ opacity: dim }} />
+      <div
+        aria-hidden="true"
+        data-slot="theme-background-scrim"
+        className="pointer-events-none fixed inset-0 z-(--z-base) bg-backdrop"
+        style={{ opacity: dim }}
+      />
     </>
   );
 }

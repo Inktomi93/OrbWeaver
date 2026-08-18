@@ -32,7 +32,7 @@ const SIGNATURES: readonly FragmentSignature[] = [
   },
   { signature: "before:size-touch-target", composeInstead: "TOUCH_TARGET_PSEUDO (lib/selection-control.ts)" },
   { signature: "rotate-45 border border-border bg-popover", composeInstead: "OVERLAY_ARROW (lib/overlay-arrow.ts)" },
-  { signature: "bg-scrim", composeInstead: "SCRIM(tier) / SCRIM_BASE (lib/scrim.ts)" },
+  { signature: "bg-backdrop", composeInstead: "SCRIM(tier) / SCRIM_BASE (lib/scrim.ts)" },
   { signature: "data-disabled:pointer-events-none data-disabled:opacity-50", composeInstead: "DISABLED_STATE (lib/disabled-state.ts)" },
   { signature: "disabled:pointer-events-none disabled:opacity-50", composeInstead: "DISABLED_STATE_NATIVE (lib/disabled-state.ts)" },
 ];
@@ -68,7 +68,7 @@ export const gate: GateDescriptor = {
       }
       // The TOKEN overload (GATE-AUTHORING §1): `offset` lands the caret on the signature INSIDE the class
       // string — the literal case that overload exists for — and the signature is the token, so
-      // `// @orb-gate-ignore ui-skin-fragment-purity(bg-scrim): <reason>` works AND names its position
+      // `// @orb-gate-ignore ui-skin-fragment-purity(bg-backdrop): <reason>` works AND names its position
       // (§4.3a: one class string routinely carries two signatures). Until 2026-08-08 this computed the
       // same caret by hand and reported through the explicit-`Finding` overload, which bypasses
       // `hasGateIgnore` — so every marker was inert. The per-row `composeInstead` moved into MESSAGE.
@@ -90,10 +90,10 @@ export const gate: GateDescriptor = {
     },
     {
       // biome-ignore lint/suspicious/noTemplateCurlyInString: test syntax
-      files: "declare const z: string;\nexport const scrim = `fixed inset-0 bg-scrim ${z}`;\n",
+      files: "declare const z: string;\nexport const scrim = `fixed inset-0 bg-backdrop ${z}`;\n",
       at: "packages/ui/src/primitives/backdrop/variants.ts",
-      expect: { count: 1, token: "bg-scrim" },
-      why: "a TEMPLATE literal whose STATIC part hand-spells `bg-scrim` around an interpolation — the head/tail scan must still bite",
+      expect: { count: 1, token: "bg-backdrop" },
+      why: "a TEMPLATE literal whose STATIC part hand-spells `bg-backdrop` around an interpolation — the head/tail scan must still bite",
     },
   ],
   mustPass: [
@@ -106,7 +106,7 @@ export const gate: GateDescriptor = {
       why: "composing the lib constants via `${…}` — the static template parts carry no banned signature, so a composer is clean",
     },
     {
-      files: 'export const OVERLAY_ARROW = "size-row rotate-45 border border-border bg-popover";\nexport const SCRIM_BASE = "fixed inset-0 bg-scrim";\n',
+      files: 'export const OVERLAY_ARROW = "size-row rotate-45 border border-border bg-popover";\nexport const SCRIM_BASE = "fixed inset-0 bg-backdrop";\n',
       at: "packages/ui/src/lib/overlay-arrow.ts",
       why: "the lib home itself IS where the signatures live — packages/ui/src/lib/ is excluded from the scan",
     },

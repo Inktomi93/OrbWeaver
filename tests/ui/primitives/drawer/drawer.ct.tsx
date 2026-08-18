@@ -52,7 +52,7 @@ test("panel uses the card token and the backdrop uses the scrim token", async ({
   await expect(popup).toHaveCSS("background-color", TOKENS["color.card"].value);
 
   const backdrop = page.locator('[data-slot="drawer-backdrop"]');
-  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.scrim"].value);
+  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.backdrop"].value);
 });
 
 test("side variants place the panel on the chosen edge", async ({ mount, page }) => {

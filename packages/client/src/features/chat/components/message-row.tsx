@@ -21,7 +21,7 @@ import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { isNarratorVoiced, resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
-import { BG_PHOTO_CHROME_SCRIM } from "../lib/message-row-backing.ts";
+import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
@@ -319,7 +319,7 @@ export function MessageRow({
             {/* #106 — the two chrome bands BELOW the bubble. Unlike the name row they are outside any
                 bubble fill in EVERY mode, so their scrim is mode-independent (the skin's `chromeBacking`
                 is not consulted here). Both self-gate on `data-has-bg-image`: no wallpaper, no chip. */}
-            {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} backingClass={BG_PHOTO_CHROME_SCRIM} />}
+            {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} backingClass={BG_PHOTO_CHROME_PLATE} />}
             {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
             {/* `empty:hidden` on the footer is LOAD-BEARING, caught on a live drive: a contribution can be
                 REGISTERED and still render nothing (TurnToolCallsDisclosure returns null for a turn with no
@@ -327,7 +327,7 @@ export function MessageRow({
                 scrim that left an invisible empty box; with it, every ordinary reply grew a full-width
                 chrome bar under the bubble. No CT saw it — a rendered drive did. */}
             {footerContributions.length === 0 ? null : (
-              <Stack gap="field" data-slot="message-footer" className={cn("empty:hidden", BG_PHOTO_CHROME_SCRIM)}>
+              <Stack gap="field" data-slot="message-footer" className={cn("empty:hidden", BG_PHOTO_CHROME_PLATE)}>
                 {footerContributions.map((c) => (
                   <Fragment key={c.id}>{c.body({ message })}</Fragment>
                 ))}

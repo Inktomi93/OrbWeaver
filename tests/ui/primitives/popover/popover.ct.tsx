@@ -180,7 +180,7 @@ test("backdrop renders with the scrim token only when enabled", async ({ mount, 
   const backdrop = page.locator('[data-slot="popover-backdrop"]');
   await expect(backdrop).toBeVisible();
   // The theme-aware overlay token (D43 §11.4) — never bg-black/50.
-  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.scrim"].value);
+  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.backdrop"].value);
 });
 
 test("no backdrop element when the prop is omitted", async ({ mount, page }) => {

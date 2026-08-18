@@ -1,6 +1,29 @@
 // The message row's LEGIBILITY BACKINGS — one seam, three constants, split out of message-row-variants.ts
 // to keep it under the 450-line component-size cap (UI-Architecture §2.1).
 //
+// ── THE DERIVE LAW (#204) — a plate and its ink come from ONE palette, and a surface cannot exist
+// outside the law ────────────────────────────────────────────────────────────────────────────────────
+// Every constant here pairs a PLATE with an INK from the SAME derivation root (`--color-background`,
+// clamp.ts): the over-art plates ride `--color-reading-plate` (base + THEME_DERIVATION.readingPlate.deltaL
+// at .alpha — the palette-following over-art text backing) and carry the palette's matching ink CLASS in
+// the same string, so a skin can never again take the plate without the ink. #204's root cause was the
+// un-paired version of exactly this file: the plates rode `--color-scrim` — the app's polarity-FIXED
+// dimming smoke, which a carried theme's ramp never re-derives — so a carried LIGHT palette put its DARK
+// inks on the app's DARK plate (dialogue 1.32:1, body 1.14:1, measured live 2026-08-18 in the owner's
+// room). `--color-scrim` itself was RETIRED over it (owner ruling, #204): the one token was triple-duty —
+// dialog/drawer/select backdrop + shell dismiss scrim + readability halo AND this reading plate — and the
+// first two jobs are polarity-FIXED (dimming means darker in every palette; the light seed deliberately
+// keeps a dark smoke for its dialogs) while the plate job must FOLLOW the palette. One token cannot serve
+// both, and the overloaded name was the attractive nuisance that caused the bug (this file's author
+// reached for the token literally named "scrim", citing the Dialog seal's legibility recipe). The split:
+// `--color-backdrop` (fixed smoke: overlays/dismiss/wallpaper-dim) · `--color-reading-plate` (derived,
+// this file + the shell's over-photo text halo). A token names ONE polarity semantic.
+//
+// The ink side of the law: paragraphs/name text must never depend on INHERITANCE for their colour over a
+// plate — `.shell-grid` resolves `color: var(--color-foreground)` ABOVE every ThemeScope, so inherited
+// ink is the VIEWER's palette while the plate follows the CARRIED one (the #204 two-polarity paragraph).
+// Each plate constant therefore names its ink token beside its fill, gated by the same wallpaper flag.
+//
 // The first two are the background-PHOTO backings (the side-eye P1 + its follow-up, extended by #106):
 // both are self-gated by Tailwind's `in-*` ANCESTOR variant on `data-has-bg-image` (the shell grid stamps
 // it, shell.css) — the declarative way to react to a shell-level flag with NO render-time DOM read — so
@@ -16,18 +39,24 @@
 // strips their float halo (they stamp `data-slot="message-bubble"`, which shell.css targets to kill the
 // text-shadow "bubbles carry their own fill" — but these three don't), so their body text landed DIRECTLY
 // on the photo → 2.0–2.4:1 on bright (sky) patches, the house §0 reading-surface #1 defect. Back the text
-// with the theme `--color-scrim` + `backdrop-blur-sm` — the SAME legibility composition the Dialog seal
-// uses (`bg-scrim backdrop-blur-sm`, dialog/variants.ts) — so light text clears AA over ANY region (scrim
-// floors the luminance; blur collapses the bright peaks a flat scrim alone can't). Applied to `skin.inner`
-// (the bubble) of the three no-fill modes; the filled modes' bubble/card/portrait fill already backs their
-// text (side-eye: those SHIP as-is).
-export const BG_PHOTO_READING_SCRIM = "in-data-[has-bg-image]:bg-scrim in-data-[has-bg-image]:backdrop-blur-sm";
+// with the derived `--color-reading-plate` + `backdrop-blur-sm` (blur collapses the bright peaks a flat
+// plate alone can't; the alpha floor is proven in palette-contrast.suite.test.ts) — AND ink the plate
+// from the same palette: `text-prose-body`, the theme's reading ink, clamped for legibility against the
+// base by the §7a prose-ink clamp (clamp.ts). Without the ink half, flat/hush painted a carried theme's
+// plate under the VIEWER's inherited foreground — the #204 defect. Applied to `skin.inner` (the bubble)
+// of the three no-fill modes; the filled modes' bubble fill already pairs its own derived foreground
+// (`messageBubbleClass` — those SHIP as-is).
+export const BG_PHOTO_READING_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:text-prose-body";
 
 // Chrome backing (name + action-icon row) — side-eye P1 follow-up (2026-07-09). That row is a SIBLING
 // rendered ABOVE the bubble (message-row.tsx; verified: it sits entirely above the bubble box in EVERY
 // mode, ~8px gap — never on the fill), so in the no-fill modes it floated on the raw photo → the
-// interactive action icons hit 1.83:1 (fails WCAG 1.4.11's 3:1). Same scrim + blur as the reading surface,
-// as its own rounded CHIP (`rounded-card` + a little padding).
+// interactive action icons hit 1.83:1 (fails WCAG 1.4.11's 3:1). Same plate + blur as the reading
+// surface, as its own rounded CHIP (`rounded-card` + a little padding) — plus the paired ink
+// (`text-foreground`, the derived neutral): on the app's own themes this is byte-identical to what the
+// chip's text already inherited from `.shell-grid`, and under a carried palette it is what flips the
+// name/icon ink WITH the plate (#204). The name's authored `text-speaker` and the timestamp's
+// `text-muted-foreground` keep their own (derived/clamped) tokens and simply win over this base.
 //
 // WHERE IT IS APPLIED, and the 2026-08-16 correction (#106). The chrome BELOW the bubble — the metadata
 // row and the message-footer disclosures — takes it MODE-INDEPENDENTLY from message-row.tsx. The sentence
@@ -58,8 +87,8 @@ export const BG_PHOTO_READING_SCRIM = "in-data-[has-bg-image]:bg-scrim in-data-[
 //     inverted in the same commit — half a migration is the rot.
 //
 // Self-gated on `in-data-[has-bg-image]` like its sibling, so a plain-background theme is byte-identical.
-export const BG_PHOTO_CHROME_SCRIM =
-  "in-data-[has-bg-image]:bg-scrim in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row";
+export const BG_PHOTO_CHROME_PLATE =
+  "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row in-data-[has-bg-image]:text-foreground";
 
 // STICKY SPEAKER ATTRIBUTION (#113) — a DIFFERENT backing from the two above, deliberately not merged
 // with them. Those two answer "the chrome is floating on a wallpaper at rest" and are wallpaper-gated.
@@ -67,18 +96,23 @@ export const BG_PHOTO_CHROME_SCRIM =
 // theme: inside a turn taller than the screen the name row is pinned to the top of the scrollport and the
 // body scrolls underneath it, so it needs an OPAQUE chip in EVERY mode, wallpaper or not.
 //
-// THE FILL IS OPAQUE (`bg-card`), NOT THE SCRIM (#168, owner-observed live 2026-08-18: the band "lets some
-// partial of the message you are on go above it"). It shipped as `bg-scrim backdrop-blur-sm` — and
-// `--color-scrim` is `oklch(… / 0.6)`, a 60%-alpha overlay — so the prose running under the pinned band
-// stayed VISIBLE THROUGH it, blurred and dimmed but legibly moving. That is the whole defect: a pinned band
-// that does not own its slice. An occluding sticky header is the house recipe already (`modal-host.tsx`'s
-// `sticky top-0 z-(--z-sticky) … bg-card`, `preset-editor-surface.tsx`'s `sticky top-0 z-(--z-raised)
-// bg-card`), and an opaque fill makes `backdrop-blur` dead paint, so the blur went with the scrim.
+// THE FILL IS OPAQUE (`bg-card`), NOT A TRANSLUCENT PLATE (#168, owner-observed live 2026-08-18: the band
+// "lets some partial of the message you are on go above it"). It shipped as a 60%-alpha overlay fill —
+// so the prose running under the pinned band stayed VISIBLE THROUGH it, blurred and dimmed but legibly
+// moving. That is the whole defect: a pinned band that does not own its slice. An occluding sticky header
+// is the house recipe already (`modal-host.tsx`'s `sticky top-0 z-(--z-sticky) … bg-card`,
+// `preset-editor-surface.tsx`'s `sticky top-0 z-(--z-raised) bg-card`), and an opaque fill makes
+// `backdrop-blur` dead paint, so the blur went with the translucency. Its ink is the PAIRED
+// `text-card-foreground` (#204): `bg-card` rides the carried ramp, so its text must ride the same
+// palette's card ink — on the app's own themes card-foreground equals the inherited foreground, so this
+// is byte-identical there; under a carried palette it is what keeps the pinned name readable on the
+// carried card fill (the white-band/dark-band split §5 of the #204 forensics measured is gone the same
+// way: both the sticky band's `bg-card` and the chip's `bg-reading-plate` now derive from ONE base).
 //
 // It also SUPERSEDES the wallpaper chip rather than stacking with it (`nameRowFrame`, message-row-parts.tsx):
-// an opaque fill is a strict superset of a scrim one, and the two classes are the same property — stacking
-// them let `in-data-[has-bg-image]:bg-scrim` win on specificity over art, which is exactly the mount the
-// live receipt came from.
+// an opaque fill is a strict superset of a translucent one, and the two classes are the same property —
+// stacking them let `in-data-[has-bg-image]:bg-reading-plate` win on specificity over art, which is
+// exactly the mount the live receipt came from.
 //
 // THE MECHANISM THAT DID *NOT* HOLD (#167's own prediction, measured dead 2026-08-18): the note below used
 // to end by naming a row-content sibling that mints its own stacking context as #168's cause. Hit-tested at
@@ -100,12 +134,12 @@ export const BG_PHOTO_CHROME_SCRIM =
 //
 // THE CANCELLATION IS WALLPAPER-GATED (`not-in-data-[has-bg-image]:-my-row`, #167) because the padding it
 // cancels is not always this constant's to cancel. Over a background image the name row ALREADY carries
-// `BG_PHOTO_CHROME_SCRIM`'s `py-row`; both `py-row`s resolve to one padding, so an unconditional `-my-row`
+// `BG_PHOTO_CHROME_PLATE`'s `py-row`; both `py-row`s resolve to one padding, so an unconditional `-my-row`
 // SHRANK the row by 2×--spacing-row the moment it went sticky — measured at 16px, i.e. the exact reflow
 // this pair exists to prevent, on exactly the tall rows it exists to help. (That arithmetic was already
 // wrong for flat/hush/document, whose chip predates this note; making the chip universal is what made it
 // measurable.) Gate the compensation on the padding's owner instead: no wallpaper ⇒ this constant's own
-// `py-row` is cancelled as before; wallpaper ⇒ the scrim's padding stands and nothing is cancelled, so
+// `py-row` is cancelled as before; wallpaper ⇒ the plate's padding stands and nothing is cancelled, so
 // going sticky changes NO box in either arm. Pinned by the "two backings STACK" CT.
 // `z-(--z-raised)`, NOT `z-raised` (side-eye #102, 2026-08-17). `--z-raised` is a plain custom property in
 // `theme.css`, not a `--z-index-*` theme namespace entry, so Tailwind generates NO `z-raised` utility for it
@@ -127,4 +161,4 @@ export const BG_PHOTO_CHROME_SCRIM =
 // non-`auto` z-index / `opacity < 1` on the bubble subtree) would paint in its own layer and could still
 // cover the band. No such sibling exists on the tree today (measured — see the #168 note above), and the
 // fence that keeps it that way is the hit-test CT, never a per-skin class.
-export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky top-0 z-(--z-raised) rounded-card bg-card py-row";
+export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky top-0 z-(--z-raised) rounded-card bg-card py-row text-card-foreground";
