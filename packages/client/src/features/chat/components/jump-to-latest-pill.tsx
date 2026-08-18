@@ -43,7 +43,8 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
           onClick={onJump}
           aria-label={`Jump to latest, ${label}`}
           tabIndex={visible ? 0 : -1}
-          className="gap-field rounded-full text-foreground"
+          shape="pill"
+          className="gap-field text-foreground"
         >
           <Icon icon={ChevronDown} size="sm" />
           {label}

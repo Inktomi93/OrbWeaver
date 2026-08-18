@@ -145,10 +145,11 @@ export function HomeDocumentsTileBody(): ReactElement {
                 // `min-h-touch-target` is the POINTER-CONDITIONAL token (44px coarse / 28px fine), not a
                 // media variant a feature may not spell: the chip's own box is ~24px, which is a fine
                 // target for a mouse and an unhittable one for a thumb.
-                className="min-h-touch-target rounded-full p-0"
+                className="min-h-touch-target p-0"
                 intent="ghost"
                 key={chip.phase}
                 onClick={(): void => showPhase(chip.phase)}
+                shape="pill"
                 size="sm"
                 type="button"
               >

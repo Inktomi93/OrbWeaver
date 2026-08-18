@@ -358,6 +358,63 @@ test("landmark uniqueness: exactly ONE main, distinct complementary labels, one 
   expect(new Set(names).size).toBe(names.length);
 });
 
+// ── THE SKIP (side-eye 2026-08-16 F9) ────────────────────────────────────────────────────────────────
+// The skip control's contract is entirely POSITIONAL — "first focusable inside the grid" — and a positional
+// contract rots silently: nothing in the type system, the gates or any other CT notices when a control is
+// added above it in JSX, and the failure mode (the skip becomes tab stop 2 of ~16, i.e. not a skip) is
+// invisible to a pointer user and to every snapshot. So it is pinned through the KEYBOARD, at the seam a
+// user meets it: it is the first tabbable inside the grid, it reveals itself when focused, and activating
+// it lands focus on `<main>` so the next Tab is the section's own first affordance.
+test("the skip link is the first tab stop and lands focus on the main scroll container", async ({ mount, page }) => {
+  const shell = await mount(<AppShellStory />);
+  const skip = shell.getByRole("button", { name: "Skip to content", exact: true });
+
+  // THE POSITIONAL CONTRACT, read off the rendered DOM: the FIRST tabbable inside `.shell-grid` is the
+  // skip. This is the assertion that rots the moment anything focusable is added above it in JSX, and it
+  // is stated as DOM order rather than as "press Tab once" deliberately — the shell focuses its `<main>`
+  // anchor on mount (`SectionContent focusAnchorRef` → `useFocusOnMount`), so sequential navigation in a
+  // live shell RESUMES from a stop after the skip. Blurring does not reset that (the sequential focus
+  // navigation starting point survives a blur), so a Tab-from-mount test would walk straight past the
+  // control and pass for the wrong reason. Measured: it lands on the story's "content control".
+  const firstTabbable = await page.locator(".shell-grid").evaluate((grid) => {
+    const candidates = [...grid.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')];
+    const first = candidates.find((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
+    return first?.textContent ?? "";
+  });
+  expect(firstTabbable).toBe("Skip to content");
+
+  // AT REST it costs the pointer user nothing — asserted through the RESOLVED clip, not the class string
+  // (which could survive a variant change that stopped clipping). Deliberately not a box assertion: the
+  // button's own `size` arm pins a control height in a custom token, which is opaque to tailwind-merge and
+  // survives `sr-only`'s 1px pair, so the rest box measures ~26px wide and is invisible anyway — the CLIP
+  // is what hides it, and the clip is what this must read.
+  const restClip = await skip.evaluate((el) => globalThis.getComputedStyle(el).clipPath);
+  expect(restClip).toBe("inset(50%)");
+  const restBox = await skip.boundingBox();
+
+  // A real Tab first, so the page is in KEYBOARD modality — `:focus-visible` (which is what un-hides the
+  // control) matches a programmatic focus only when the user's last interaction was a keypress, so a bare
+  // `.focus()` on a fresh page would read as pointer focus and the reveal below would be a false red.
+  await page.keyboard.press("Tab");
+  await skip.focus();
+  await expect(skip).toBeFocused();
+
+  // …and taking focus REVEALS it (`focus-visible:not-sr-only`) — a skip link nobody can see while using it
+  // is a keyboard trap wearing a fix. Unclipped AND wider than the clipped stub, both rendered.
+  const focusedClip = await skip.evaluate((el) => globalThis.getComputedStyle(el).clipPath);
+  expect(focusedClip).toBe("none");
+  const focusedBox = await skip.boundingBox();
+  expect(focusedBox?.width ?? 0).toBeGreaterThan(restBox?.width ?? 0);
+
+  // It moves focus to the `<main>` scroll container itself (tabIndex=-1, named by the active section)
+  // rather than to a control inside it, so the NEXT Tab lands on the section's first real affordance
+  // whatever that section is — here, the story's "content control".
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("main")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(shell.getByRole("button", { name: "content control", exact: true })).toBeFocused();
+});
+
 // ── MOBILE (L6/J12 · D62 P3) — the bottom-tab-bar reflow ─────────────────────────────────────────
 
 test("mobile: the bottom bar is the curated four; overflow + footer affordances are off the bar", async ({ mount, page }) => {

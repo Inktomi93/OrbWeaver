@@ -65,7 +65,7 @@ export function UtilityMenu(props: UtilityMenuProps): ReactElement {
         aria-label="Message tools"
         data-testid={testId("composerUtility")}
         render={
-          <Button type="button" intent="ghost" size="icon" title="Message tools" className="shrink-0 rounded-full">
+          <Button type="button" intent="ghost" size="icon" title="Message tools" shape="pill" className="shrink-0">
             <Icon icon={WandSparkles} size="sm" />
           </Button>
         }
