@@ -304,6 +304,12 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
     "--enable-auto-tool-choice",
     "--tool-call-parser",
     "qwen3_coder",
+    // MTP speculative decoding, num 3 (owner 2026-08-18, per the Qwen3.8 serve recipe): every gen
+    // checkpoint this box serves carries an in-checkpoint/grafted MTP head. Acceptance is read from
+    // vllm:spec_decode_num_{accepted,draft}_tokens_total — throughput alone cannot tell a working
+    // drafter from one that loaded and was ignored. fp8 KV stays banned on this hardware (below).
+    "--speculative-config",
+    JSON.stringify({ method: "mtp", num_speculative_tokens: 3 }),
     //    (d)-(f) remain OPTIONAL and unemitted: `--reasoning-config` + per-request `thinking_token_budget`
     //    (runaway guard), `--default-chat-template-kwargs enable_thinking:false` + per-request
     //    `reasoning_effort` (buy thinking per call), and `include_reasoning:false` on the wire (don't ship
