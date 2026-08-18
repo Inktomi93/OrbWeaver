@@ -1340,13 +1340,14 @@
    "disposition": "current",
    "authority": "design",
    "fullRead": true,
-   "verifiedSha256": "2f374f70b7a30ea7a5fc64e5b57d4db3ba66eb791a8b9b47d75668408afa0bfd",
-   "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-   "verifiedAt": "2026-08-14",
+   "verifiedSha256": "c8a5cb511dccfbca4e8df518ee8eaf438b17d9b0aa099b67a24e4d4758b8b483",
+   "verifiedCommit": "150dd4050cc0c5cca364c6e593602fde21b25d12",
+   "verifiedAt": "2026-08-18",
    "evidence": [
     "docs/design/web-weave-motion-fixes.md:1 (design; active)",
     "git log --oneline -1 -- docs/design/web-weave-motion-fixes.md: f688f56d4 fix(ui): WebWeave motion — connected tips, containment, spider pathing, per-segment glint",
-    "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+    "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+    "archived by lane weave-motion (#161): all four fix classes verified ALREADY LANDED at f688f56d4 on today's tree (per-fix code receipts); pixel-parity side-by-side vs the reference at three aspect arms; orchestrator re-read the as-built delta in full"
    ],
    "summary": "WebWeave motion fixes — the Claude Design handoff spec: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
    "claims": [
