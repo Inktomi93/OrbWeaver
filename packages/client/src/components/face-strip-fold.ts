@@ -37,6 +37,31 @@ export interface FaceFold {
   readonly squeezed: boolean;
 }
 
+/** What the fold decided, plus whether the selected face had to be hoisted to survive it. */
+export interface FoldState extends FaceFold {
+  readonly hoisted: boolean;
+}
+
+/** Is the strip already rendering this decision? (Re-setting an equal fold would loop the observer.) */
+export function sameFold(previous: FoldState | null, next: FoldState): boolean {
+  return (
+    previous !== null &&
+    previous.visible === next.visible &&
+    previous.hidden === next.hidden &&
+    previous.squeezed === next.squeezed &&
+    previous.hoisted === next.hoisted
+  );
+}
+
+/** THE CELL (#153): a captioned face, the overflow tile and the pending placeholder all take one fixed
+ *  width, so the portrait pitch is a property of the strip and never of the cast's names — and so the
+ *  widths this module folds are the strip's own rhythm rather than the cast's names. Uncaptioned cells were
+ *  already uniform (portrait inside the control floor) and stay content-sized. Returned with its leading
+ *  space so every call site is a plain template append. */
+export function cellWidthClass(caption: boolean): string {
+  return caption ? " w-avatar-hero" : "";
+}
+
 /** Does a run of `n` leading faces (plus the tile, when `triggerWidth` is given) fit `available`? */
 function fits(input: FaceFoldInput, n: number, withTile: boolean): boolean {
   const slots = n + (withTile ? 1 : 0);

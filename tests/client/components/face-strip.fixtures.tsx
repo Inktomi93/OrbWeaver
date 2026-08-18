@@ -43,8 +43,8 @@ export function FaceStripFoldHarness({ width = 256, count = 12, initialSelectedI
       <FaceStrip
         caption={true}
         items={items}
-        kicker="Filter by character"
-        label="Recent characters"
+        kicker={true}
+        label="Filter by character"
         onSelect={(id): void => setSelectedId((current) => (current === id ? null : id))}
         overflow={{
           label: "Filter by another character",

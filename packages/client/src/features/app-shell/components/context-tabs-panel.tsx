@@ -13,13 +13,16 @@
 // every visible tab in a single top strip labelled "Detail", the pre-HUD contract, now permanent. Tab
 // `strip` (rail membership) is a CLAIMANT's vocabulary; this renderer ignores it.
 //
-// CONTAINER-RESPONSIVE labels (Context-Panel-Program CP-1 · UI-Arch §4.3 rule-4 · §4b axis-1): each tab
-// renders its icon + a word label; the label COLLAPSES to icon-only (icon+tooltip) when the strip's
-// @container can't fit every current tab's words (the fit logic + per-count thresholds live in shell.css
-// `.ctx-tab-strip`, NOT a viewport @media and NOT a JS px). The label is ALWAYS the accessible name — a
-// compressed tab is icon + `title` + `aria-label`, never nameless (Jordan/§9 icon-name ban); the visible
-// word is what disappears, not the name. The CP-4 OSRS icon strips ARE this compressed form. A tab with
-// no icon can't compress (data-has-icon absent), so its word stays put — never a nameless tab.
+// ICON + LABEL, ALWAYS (owner ruling 2026-08-18, #208). SUPERSEDES the container-responsive icon-mode this
+// header described until today ("the label COLLAPSES to icon-only when the strip's @container can't fit
+// every current tab's words"). That mode's own shell.css comment recorded that it could never NOT fire in
+// the shell — the panel clamps to 26rem and the 4-tab reveal threshold was 28rem — so the generic pane's
+// only fine-pointer form was four nameless glyphs, while the SAME resolved chat tabs rendered glyph+caption
+// the moment the rpg HUD claimed the pane. One tab set, two treatments, decided by the renderer. The word
+// is now on screen at every width and every pointer; `shell.css .ctx-tab-strip` carries the cell form and
+// the `minmax(max-content, 1fr)` track sizing that makes the strip SCROLL rather than clip a word.
+// `aria-label` still carries the name — it is the same string as the visible word (never a drifting twin),
+// and it is what keeps a badge count out of the tab's accessible name.
 
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
@@ -88,8 +91,8 @@ interface ContextTabStripProps {
   readonly actions?: ReactNode;
 }
 
-/** The ONE `.ctx-tab-strip` TabsList (its own a11y group + roving-focus row) with its `data-tab-count`
- *  reveal threshold.
+/** The ONE `.ctx-tab-strip` TabsList — its own a11y group (`role="tablist"` from the primitive) and
+ *  roving-focus row. The `data-tab-count` attribute went with the per-count label-reveal thresholds it fed.
  *
  *  The active marker is a PER-TAB 2px bar on the strip's INWARD (bottom) edge — transparent on every tab,
  *  `--color-primary` on the active one, so selection costs zero layout shift — plus the ember active tint,
@@ -98,10 +101,9 @@ interface ContextTabStripProps {
 function ContextTabStrip({ ariaLabel, tabs, activeTab, actions }: ContextTabStripProps): ReactElement {
   return (
     <Row align="center" gap="row" className="min-w-0 shrink-0">
-      {/* `.ctx-tab-strip` = the @container; `data-tab-count` picks the per-count label-reveal threshold
-          (shell.css). `overflow-x-auto` is the safety scroll if a wide host shows words that still don't
-          fit — icon-mode always fits, so this only ever bites in label-mode. */}
-      <TabsList aria-label={ariaLabel} data-tab-count={tabs.length} className="ctx-tab-strip min-w-0 w-full gap-field overflow-x-auto">
+      {/* `overflow-x-auto` is the strip's degradation (shell.css sizes the tracks `minmax(max-content, 1fr)`):
+          where the words no longer fit, the row SCROLLS rather than shrinking a caption into an ellipsis. */}
+      <TabsList aria-label={ariaLabel} className="ctx-tab-strip min-w-0 w-full gap-field overflow-x-auto">
         {tabs.map((entry) => (
           <ContextTab key={entry.id} entry={entry} isActive={entry.id === activeTab} />
         ))}
@@ -119,28 +121,27 @@ function ContextTabStrip({ ariaLabel, tabs, activeTab, actions }: ContextTabStri
  *  active state (tint + primary icon/label — the mock's `.tabbtn.active`). */
 const TAB_ACTIVE_CLASSES = "border-b-2 border-transparent data-active:border-primary data-active:bg-primary/10 data-active:text-primary";
 
-/** One tab: icon (when the def carries one) + the word label, plus the §4.6 state affordances. The label
- *  is the accessible name in BOTH forms — `aria-label` carries it always, so when shell.css collapses
- *  `.ctx-tab-label` in icon-mode the tab is still named. An icon-mode tab is icon + `title` (the hover name
- *  reveal) + `aria-label`. An icon-less tab keeps its visible word unconditionally (no `data-has-icon`).
+/** One tab: icon (when the def carries one) + the word label, ALWAYS both (#208), plus the §4.6 state
+ *  affordances. `aria-label` repeats the visible word verbatim — not a drifting twin, and label-in-name
+ *  (WCAG 2.5.3) holds by construction; its job is to keep a badge COUNT out of the tab's accessible name.
+ *  `title` is no longer the hover name-reveal it was in icon-mode — the word is on screen — so it belongs
+ *  to the PHASE-locked reason alone, which is the only thing it ever said that the cell does not.
  *
  *  Badge (§4.6): a dot when `badge` is truthy-boolean, a count when it's a number \> 0 — NEVER on the active
  *  tab, and the dot is `aria-hidden` (the tab content states the change). Disabled (PHASE, §4.6): a non-null
  *  `disabledReason` ⇒ `aria-disabled` + `title=<reason>` (the [base-ui-disabled-menuitem-title] pattern —
  *  never a tooltip wrap) + reduced opacity + a lock glyph, staying focusable-discoverable. */
 function ContextTab({ entry, isActive }: { readonly entry: ResolvedContextTab; readonly isActive: boolean }): ReactElement {
-  const hasIcon = entry.icon !== undefined;
   const disabled = entry.disabledReason !== null;
-  // The disabled reason owns `title`; otherwise an icon-mode tab uses `title` for the hover name reveal.
-  const title = entry.disabledReason ?? (hasIcon ? entry.label : undefined);
 
   return (
     <TabsTab
       value={entry.id}
       aria-label={entry.label}
-      className={`relative shrink-0 flex items-center justify-center gap-field px-field aria-disabled:opacity-50 ${TAB_ACTIVE_CLASSES}`}
-      {...(hasIcon ? { "data-has-icon": true } : {})}
-      {...(title !== undefined ? { title } : {})}
+      // NOT `shrink-0`: the cell is a GRID TRACK now (shell.css sizes the strip `minmax(max-content, 1fr)`),
+      // and a flex shorthand on a grid item only argues with the track it already cannot be squeezed below.
+      className={`relative flex items-center justify-center gap-field px-field aria-disabled:opacity-50 ${TAB_ACTIVE_CLASSES}`}
+      {...(entry.disabledReason !== null ? { title: entry.disabledReason } : {})}
       {...(disabled ? { "aria-disabled": true } : {})}
     >
       {entry.icon !== undefined ? <Icon icon={entry.icon} size="sm" /> : null}
