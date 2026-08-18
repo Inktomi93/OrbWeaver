@@ -81,7 +81,9 @@ const ALLOWLIST: Record<string, string> = {
     "`w-auto` on Select — the measured 2026-08-01 F1 content-width ruling (see the site comment); `auto` vs FIELD_CONTROL's `w-full` are both STANDARD width utilities, so tailwind-merge classifies them and the override is deterministic (no stylesheet-order hazard).",
   "packages/client/src/features/tag/components/tag-collection-rows.tsx":
     "`w-auto` on the roster's sort Select — the same content-width-Select pattern as character-library-toolbar (deterministic: `auto` vs FIELD_CONTROL's `w-full` are both tailwind-merge-classifiable standard width utilities). Without it the trigger claims the whole 330px roster band for a three-word label.",
-  "packages/client/src/features/rpg/components/rpg-hud.tsx":
+  // Re-pointed 2026-08-17: the rail + its cell (and this dot) split out of `rpg-hud.tsx` into
+  // `rpg-hud-rail.tsx` under the `component-size` cap. Same code, same exemption, new path.
+  "packages/client/src/features/rpg/components/rpg-hud-rail.tsx":
     "`size-1.5` on a CHILDLESS Badge dot — Badge declares no h/w/size of its own (padding-sized), so there is no variant to fight; a features-tier surface can't paint a raw <span>, so the dot is a Badge sized at the call site (see the site comment).",
 };
 

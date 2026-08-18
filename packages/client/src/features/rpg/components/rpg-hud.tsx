@@ -32,84 +32,65 @@
 // The tab CELL is the HUD's own: rail membership, the always-visible caption (§7.2 — the "compressed form is
 // the only form" defect dies here), the active treatment and the PHASE-locked treatment are arrangement, and
 // arrangement is exactly what forked. The resolution, selection, `when`-gating, badge and disabled VALUES all
-// stay shared — they arrive already resolved.
+// stay shared — they arrive already resolved. THE RAIL AND ITS CELL LIVE IN `rpg-hud-rail.tsx` (split out
+// 2026-08-17 under the `component-size` cap): this file owns the pane's vertical COMPOSITION, that one owns
+// what a rail IS, and the HUD's ARIA model + the wrap/ownership/crown maps went with it.
 //
 // THE VOICE PASS (H2 — F6 defects 1 + 3) is what one owner of both rails buys, and it is the whole reason the
 // fold in §4 is worth its duplication:
 //   · SELECTION ECHOES ACROSS THE SPLIT (defect 1). The rail holding the selection is the OWNING rail: it
 //     wears the resting surface fill and its captions step up to the foreground; the other RECEDES to muted
-//     glyphs over bare ground. The band then names the winner in one kicker line ("Game · Status" /
-//     "Chat · This chat"). No renderer could do either before — neither strip knew the other's state, and the
-//     band belonged to a third party 870px away.
-//   · THE ADMIN RAIL IS A TAB GROUP, NOT AN ACTION BAR (defect 3). It gets a KICKER — its own name, on
-//     screen, in the same micro-caps voice every rpg section header uses — and that kicker's hairline rule IS
-//     the rail's top edge, so naming the group costs one line and no extra divider. Only the ADMIN rail
-//     carries one: the game rail sits directly under the band it belongs to, the echo already names it, and
-//     a second kicker row spends vertical budget §7.1 caps at 30%.
+//     glyphs over bare ground. The OWNING RAIL NAMES THE WINNER IN ITS OWN KICKER LINE ("GAME STATE · STATUS"
+//     / "CHAT" at rest; "GAME STATE" / "CHAT · MEMBERS" once a chat tab takes the view). No renderer could do
+//     that before — neither strip knew the other's state.
+//   · BOTH RAILS ARE TAB GROUPS, NOT ACTION BARS (defect 3). Each gets a KICKER — its own name, on screen,
+//     in the same micro-caps voice every rpg section header uses — and that kicker's hairline rule IS the
+//     rail's own edge, so naming the group costs one line and no extra divider.
+//
+// THE 2026-08-17 RE-RULE (owner pick of tracker mockup variant A on #102) — stated in full because a later
+// reader will otherwise re-derive the ruling it replaces. THE SUPERSEDED RULING, verbatim from this header
+// until today: "Only the ADMIN rail carries one: the game rail sits directly under the band it belongs to,
+// the echo already names it, and a second kicker row spends vertical budget §7.1 caps at 30%" — the echo
+// being a `kicker`-voiced line the BAND printed as its last row. The mockup measured that line and both of
+// its premises failed:
+//   · IT NAMED THE WRONG THING. Live at a 383px panel the echo sat 8.0px under the satellite row and 20.0px
+//     above the game rail — binding ratio 1:2.5 pointing UP at the medallions — while wearing a voice
+//     identical to the orb captions on four of five computed axes (10.5px / uppercase / 0.84px tracking /
+//     the same muted ink; only weight differed, 600 vs 400). On a CHAT selection it read "CHAT · MEMBERS"
+//     8px under the coin with the rail it named 524px further down the pane.
+//   · THE BUDGET OBJECTION WAS ANSWERED ON ITS OWN TERMS, not overruled. The second kicker row is PAID FOR
+//     by deleting the echo line and its gap: the mockup lands 341.7px of chrome against today's 347.0px, a
+//     5.3px saving (reproduced in CT at the same 383×800 geometry — see the "PAYS FOR ITSELF" test).
+// So the echo's MECHANISM survives and its ambiguity dies: the sentence prints ON the rail it describes.
+// At a coarse pointer, where the echo used to be dropped whole, the kicker keeps the NAME and sheds only
+// the "· Selection" half — the part a phone still needs, at no cost to the rail it already pays for.
 // The grammar is the four VOICES + the tier map (§7.4, density S1): every text here passes `voice`, never a
 // size/weight/tone triple, so the pane's hierarchy is declared rather than negotiated per call site.
 
-import { Badge } from "@orb/ui/badge";
-import { Icon, Lock } from "@orb/ui/icons";
-import { Row, Stack, Surface } from "@orb/ui/layout";
-import { Separator } from "@orb/ui/separator";
-import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
-import { Text } from "@orb/ui/text";
+import { Stack, Surface } from "@orb/ui/layout";
+import { Tabs, TabsPanel } from "@orb/ui/tabs";
 import type { ReactElement } from "react";
-import { HIDE_AT_COARSE, RPG_RAIL_WRAP } from "#components";
 import { QueryBoundary } from "#data";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
-import { cn } from "#lib";
 import { useActiveChatId } from "#state";
+import { cellDomId } from "../lib/hud-cell-id.ts";
 import { RpgHeaderBand } from "./rpg-header-band.tsx";
+import { RpgHudRail } from "./rpg-hud-rail.tsx";
 
 export interface RpgHudProps {
   readonly view: ContextRegionView;
 }
 
-/** THE CELL'S ARIA STRIP (#112) — see the ARIA-model block below. Spread onto the cell to DELETE the two
- *  attributes the tabs primitive emits for a tab it no longer is: Base UI merges external props last, and
- *  the element under it is a real `<button>`, so a `role` of `undefined` leaves the native button role. */
-const CELL_ARIA_STRIP = { role: undefined, "aria-selected": undefined } as const;
-
-/** ── THE HUD'S ARIA MODEL (#112, 2026-08-16) — TWO NAMED TOOLBARS, ONE CURRENT CELL ────────────────────
- *
- *  The rails are NOT `tablist`s and the cells are NOT `tab`s, deliberately. The HUD deals two rails off ONE
- *  `Tabs` root with ONE shared selection (§7.1 puts the viewport BETWEEN them, so one DOM tablist is ruled
- *  out) — and a tablist whose selection lives in the OTHER rail announces with ZERO selected tabs. Measured
- *  both directions; a screen-reader user entering the quiet rail heard a chooser with nothing chosen.
- *
- *  What each rail's own call site says instead (the ONE place with the two-rail problem — the shared
- *  `@orb/ui` tabs seal keeps its honest tablist for every single-rail consumer):
- *    · the RAIL is `role="toolbar"` + its `aria-label` — a named set of related controls, and a contract this
- *      HUD keeps: Base UI's composite gives the rail ONE tab stop with arrow keys inside it. That roving
- *      behaviour, the panel wiring, the active `data-*` treatment and every pixel are untouched here; only
- *      the announced ROLES move.
- *    · the CELL drops `role`/`aria-selected` (`CELL_ARIA_STRIP`) and carries `aria-current="true"` while it
- *      holds the view — so a rail without the selection claims no state at all.
- *    · the VIEWPORT panel is `role="region"` named by its cell: a `tabpanel` with no tab in the document is
- *      a dangling promise, and a named region is what it actually is.
- *  Rejected: `aria-owns`-ing one conceptual tablist across both rails — it announces a 10-tab group whose
- *  arrow keys stop dead at the rail boundary (the composites are per-list, with the viewport between them)
- *  and costs both rail NAMES; a worse contract than the one it fixes.
- *
- *  The cell's DOM id — the anchor each viewport panel names as its accessible label (§3.6 fence 6). Base UI
- *  associates a panel with its tab only within ONE list; the HUD deals two rails off one `Tabs` root, which
- *  breaks that lookup and left the active panel with no accessible name at all. Naming both ends from the
- *  cell id is the one-home fix (pinned by the a11y CT). */
-function cellDomId(tabId: string): string {
-  return `rpg-hud-cell-${tabId}`;
+/** What ONE rail prints after its own name — the selected tab's label, and ONLY on the rail that owns the
+ *  selection (§7.3 as re-ruled by the #102 owner pick, see the header). `null` on the receded rail and when
+ *  nothing is selected: a rail that does not hold the view claims no state, in its kicker exactly as in its
+ *  cells' `aria-current`. The `kicker` voice upper-cases it, so the labels stay in their declared casing
+ *  here and read "GAME STATE · STATUS" on screen. */
+function railSelection(active: ResolvedContextTab | null, strip: ResolvedContextTab["strip"]): string | null {
+  return active !== null && active.strip === strip ? active.label : null;
 }
 
-/** The band's SELECTION ECHO (§7.3 — the band's last line): which rail owns the selection, and what it
- *  landed on. `null` when nothing is selected (there is no answer to echo). The `kicker` voice upper-cases
- *  it, so the labels stay in their declared casing here and read "GAME · STATUS" on screen. */
-function selectionEcho(tabs: readonly ResolvedContextTab[], activeTab: string | null): string | null {
-  const active = tabs.find((tab) => tab.id === activeTab);
-  return active === undefined ? null : `${active.strip === "game" ? RAIL_NAME.game : RAIL_NAME.meta} · ${active.label}`;
-}
-
-/** The two rails' own names — ONE home, so the echo, the kicker and the a11y group label cannot drift.
+/** The two rails' own names — ONE home, so a rail's KICKER and its a11y group label cannot drift.
  *  `game` reads "Game state", not "Game": the crown GM console in the ADMIN rail is a TAB named "Game", and
  *  two sibling groups where one's name is the other's member collide for anyone navigating by name. */
 const RAIL_NAME: Readonly<Record<ResolvedContextTab["strip"], string>> = { game: "Game state", meta: "Chat" };
@@ -118,7 +99,8 @@ export function RpgHud({ view }: RpgHudProps): ReactElement {
   const gameTabs = view.tabs.filter((tab) => tab.strip === "game");
   const adminTabs = view.tabs.filter((tab) => tab.strip === "meta");
   // WHICH RAIL OWNS THE SELECTION — the one fact neither strip's renderer could know before (F6 defect 1).
-  const activeStrip = view.tabs.find((tab) => tab.id === view.activeTab)?.strip ?? null;
+  const active = view.tabs.find((tab) => tab.id === view.activeTab) ?? null;
+  const activeStrip = active?.strip ?? null;
   return (
     // THE PANE IS INSTRUMENT TIER (§7.4; density-pass-spec §3.1 names this exact surface) — read-mostly,
     // glanceable, many data per cm². Declaring it is what makes every island inside the pane resolve the
@@ -134,9 +116,17 @@ export function RpgHud({ view }: RpgHudProps): ReactElement {
         }}
         className="flex h-full min-h-0 flex-col gap-0"
       >
-        <RpgHudBand echo={selectionEcho(view.tabs, view.activeTab)} />
+        <RpgHudBand />
         {gameTabs.length > 0 ? (
-          <RpgHudRail ariaLabel={RAIL_NAME.game} tabs={gameTabs} activeTab={view.activeTab} edge="top" owns={activeStrip === "game"} />
+          <RpgHudRail
+            ariaLabel={RAIL_NAME.game}
+            tabs={gameTabs}
+            activeTab={view.activeTab}
+            edge="top"
+            owns={activeStrip === "game"}
+            kicker={RAIL_NAME.game}
+            selection={railSelection(active, "game")}
+          />
         ) : null}
         {/* One viewport, ALL tabs — an admin body opens in the same scroll region as a state body (owner
             decision 4); nothing about a body changes when the HUD draws the frame around it. The padding is
@@ -165,6 +155,7 @@ export function RpgHud({ view }: RpgHudProps): ReactElement {
             edge="bottom"
             owns={activeStrip === "meta"}
             kicker={RAIL_NAME.meta}
+            selection={railSelection(active, "meta")}
           />
         ) : null}
       </Tabs>
@@ -183,12 +174,10 @@ export function RpgHud({ view }: RpgHudProps): ReactElement {
  *  boundary, `renderError → null`) so a failed read is the ONE announced surface in the body, never a second
  *  generic error block above it.
  *
- *  ITS LAST LINE IS THE SELECTION ECHO (§7.3 / F6 defect 1): the rail that owns the selection, then the tab.
- *  `aria-hidden` deliberately — the rails already announce their own selection, and a second announcement of
- *  the same fact is noise; this is the VISUAL half, for a reader whose eye is 870px from the strip that
- *  changed. It sits OUTSIDE the band's query boundary because it is the HUD's own chrome, not a game read:
- *  a failed tracker fetch collapses the waystone, and the pane still says what you are looking at. */
-function RpgHudBand({ echo }: { readonly echo: string | null }): ReactElement | null {
+ *  IT NO LONGER CARRIES THE SELECTION ECHO (#102 owner pick, 2026-08-17 — the header states the re-rule and
+ *  the superseded ruling in full). The band ends with the composite it owns; the sentence naming the
+ *  selection moved onto the rail that holds it, where its referent is 4px away instead of 20-524px. */
+function RpgHudBand(): ReactElement | null {
   const chatId = useActiveChatId();
   if (chatId === null) {
     return null;
@@ -198,15 +187,6 @@ function RpgHudBand({ echo }: { readonly echo: string | null }): ReactElement | 
       <QueryBoundary fallback={null} renderError={(): null => null}>
         <RpgHeaderBand chatId={chatId} />
       </QueryBoundary>
-      {echo === null ? null : (
-        /* COARSE DROPS THE ECHO (side-eye 2026-08-07 finding 2): it is `aria-hidden` decoration for a reader
-           whose eye is 870px from the rail that changed — a distance a 320px column does not have, where the
-           owning rail is a thumb's width from the band. On a phone that line is a whole text row of the 464px
-           the pane has to spend, and the pane's job is the tab body. */
-        <Text as="span" voice="kicker" aria-hidden={true} data-slot="rpg-hud-echo" className={cn("truncate", HIDE_AT_COARSE) ?? ""}>
-          {echo}
-        </Text>
-      )}
     </Stack>
   );
 }
@@ -219,231 +199,4 @@ function RpgHudBand({ echo }: { readonly echo: string | null }): ReactElement | 
  *  identical in both states. */
 function RpgHudGround(): ReactElement {
   return <Stack data-slot="rpg-hud-ground" aria-hidden={true} className="min-h-0 flex-1 bg-linear-to-b from-transparent to-sidebar-accent/40" />;
-}
-
-/** The rail's hairline track and its cells' active bar both face INWARD, toward the viewport between them:
- *  the GAME rail (above) marks its bottom edge, the ADMIN rail (below) its top. A marker on the outside
- *  edge dangles against the panel frame instead of binding the rail to the content it selects. */
-const RAIL_EDGE_CLASSES: Readonly<Record<"top" | "bottom", string>> = {
-  top: "border-b border-border",
-  bottom: "border-b-0 border-t border-border",
-};
-const CELL_EDGE_CLASSES: Readonly<Record<"top" | "bottom", string>> = {
-  top: "border-b-2 border-transparent data-active:border-primary",
-  bottom: "border-t-2 border-transparent data-active:border-primary",
-};
-
-/** THE OWNERSHIP TREATMENT (§4's last two rows — half of the F6 defect-1 fix). The rail holding the
- *  selection carries a resting surface fill and lifts its captions to the foreground; the other has no
- *  resting fill at all and stays at the primitive's muted step. The contrast is what makes a selection
- *  visible across a split neither strip could see across before — and it is stated as ONE map so the two
- *  states can never be tuned apart. */
-const RAIL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
-  owning: "bg-sidebar-accent/40",
-  receded: "",
-};
-const CELL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
-  owning: "text-foreground",
-  receded: "",
-};
-
-/** THE CROWN INHERITS THE RECEDE (side-eye 08-01). Crown gold marks a host-only cell (§4), but it was
- *  painted as an absolute `text-highlight` on the glyph — so a RECEDED admin rail's brightest pixel was its
- *  crown, and the quiet strip announced itself louder than the strip holding the selection. The gold is a
- *  treatment WITHIN a rail's own voice, so it steps with that voice: full gold while the rail owns, the
- *  cell's inherited (muted) colour while it recedes. Stated as the same one-map idiom the two ownership
- *  treatments above use, so the two states can never be tuned apart. */
-const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
-  owning: "text-highlight",
-  receded: "text-inherit",
-};
-
-/** The narrow-panel WRAP (side-eye 08-01, measured at the panel's 17rem/272px floor): six cells on one
- *  `auto-cols-fr` row give ~44px each, and four of the six captions clipped to ~3 characters — a rail of
- *  three-letter stubs is the icon-only defect (F6 #2) wearing text. Below the `xs` container step (20rem —
- *  the SAME `--container-*` scale the waystone's size mapping steps on, never a viewport query) a rail of
- *  more than four cells lays out as ROWS of three instead, which buys each caption ~85px and keeps every
- *  word whole. A short rail (the admin rail's 3-4 cells) never wraps: it already fits.
- *
- *  The threshold is the `xs` step and not something tighter because the clipping starts THERE, not only at
- *  the floor: measured in CT at a 320px pane, "Inventory" wants 48px of caption inside a 36px cell.
- *
- *  AND THE WRAP IS A FINE-POINTER ANSWER (side-eye 2026-08-07 finding 2). Two rows of three costs a second
- *  55px band, which a desktop pane in a narrow dock can afford and a phone cannot: MEASURED at 320×568, the
- *  claimed pane is 464px, this rail took 105 of it, and the active tabpanel was left EIGHTEEN pixels against
- *  a 558px body. At a coarse pointer the rail stays ONE row and SCROLLS instead, which is the phone
- *  tab-strip idiom and costs 50px instead of 105. Base UI's roving focus is unchanged, and the browser
- *  scrolls a focused cell into view, so the keyboard reaches every tab either way.
- *
- *  THE COARSE ROW'S TRACK SIZING IS `minmax(max-content, 1fr)` (side-eye 2026-08-07 §① P2). The first shape
- *  of that fix put the coarse cells at their CONTENT width (`auto-cols-max`), and MEASURED at 430 coarse it
- *  produced Status 43 · Inventory 60 · Scene 41 · Quests 46 · Journal 47 · Map 34 — three of six under the
- *  44px touch floor — with the six cells ending at x=302 and 127px of DEAD RAIL after them: word for word
- *  the "bitsy buttons bunched left" this function's own header says an owner ruled against on 2026-07-28.
- *  Neither `max-content` nor `1fr` alone satisfies all three constraints this rail is under, and the three
- *  are not negotiable against each other:
- *    · `auto-cols-max` → whole captions, but bunched left AND below the floor (the measured defect).
- *    · `auto-cols-fr`  → equal columns and full rail, but at a 320-375px pane the equal share is ~48px and
- *      "Inventory" clips — re-buying the icon-only defect (F6 #2) the caption rule exists to end.
- *    · `minmax(max-content, 1fr)` → the fr MAX makes the cells equal columns filling the rail whenever there
- *      is slack (measured 67px a cell at 430, no dead strip), and the max-content MIN refuses to shrink a
- *      caption: where the six no longer fit, the tracks OVERFLOW and `overflow-x-auto` scrolls them. The row
- *      degrades to scrolling, never below the floor and never into an ellipsis.
- *  The ≥44px floor itself is NOT spelled here — it is `TabsTab`'s own sealed `min-w-touch-target`, which
- *  raises each track's max-content minimum, so a cell whose caption is narrower than a thumb ("Map") still
- *  gets a thumb's width. The bracket is a track-sizing FUNCTION, not an off-token size (the
- *  `grid-cols-[repeat(auto-fit,minmax(…))]` precedent in `@orb/ui`'s layout variants); `auto-cols` carries no
- *  token scale to spell it with. The vertical budget is untouched — the rail is one 50px row either way. */
-// The literal lives at the shell/shared layer (`#components/pointer-variants.ts`, gate
-// `no-pointer-variants-in-features`); the measured rationale above is the rpg HUD's own and stays here.
-const RAIL_WRAP_CLASS = RPG_RAIL_WRAP;
-const RAIL_WRAP_MIN_CELLS = 5;
-
-/** One rail: its OWN labelled a11y group + roving-focus row, cells as equal columns so the rail reads as a
- *  solid frame rather than bitsy buttons bunched left (the 2026-07-28 owner ruling, carried over).
- *
- *  THE KICKER (§4, F6 defect 3) names the group ON SCREEN, and its hairline rule doubles as the rail's own
- *  edge — which is why a kicker'd rail drops the track border it would otherwise draw: one line, not two.
- *  It is `aria-hidden` because the `TabsList` already carries the same word as the group's accessible name;
- *  announcing "Chat" twice is the noise, not the fix. The anatomy (micro-caps + rule to the edge) is the
- *  rpg `Kicker`'s, spelled here in the `voice` grammar §7.4 asks the HUD to speak — that component predates
- *  the voices and is a section header inside tab BODIES, while this is the pane's own chrome. */
-function RpgHudRail({
-  ariaLabel,
-  tabs,
-  activeTab,
-  actions,
-  edge,
-  owns,
-  kicker,
-}: {
-  readonly ariaLabel: string;
-  readonly tabs: readonly ResolvedContextTab[];
-  readonly activeTab: string | null;
-  readonly actions?: ContextRegionView["actions"];
-  readonly edge: "top" | "bottom";
-  readonly owns: boolean;
-  readonly kicker?: string;
-}): ReactElement {
-  const ownership = owns ? "owning" : "receded";
-  const track = kicker === undefined ? RAIL_EDGE_CLASSES[edge] : "border-y-0";
-  return (
-    <Stack data-slot="rpg-hud-rail" data-owns={owns} gap="tight" className="min-w-0 shrink-0">
-      {/* The kicker is INSET to the band's inline rhythm while the rail itself stays full-bleed — the rail
-          is the pane's floor and reaches its edges (§5.2), a word floating against them does not. */}
-      {kicker === undefined ? null : (
-        <Row gap="field" align="center" aria-hidden={true} data-slot="rpg-hud-rail-kicker" className="px-block">
-          <Text as="span" voice="kicker">
-            {kicker}
-          </Text>
-          <Separator className="flex-1" />
-        </Row>
-      )}
-      <Row align="center" gap="row" className="min-w-0">
-        <TabsList
-          // `toolbar`, not the primitive's `tablist` — see the ARIA-model note above `cellDomId`. The
-          // composite's one-tab-stop-plus-arrows behaviour is exactly a toolbar's contract, and it is the
-          // only container role here that does not imply a selection this rail may not be holding.
-          role="toolbar"
-          aria-label={ariaLabel}
-          className={`grid min-w-0 w-full auto-cols-fr grid-flow-col gap-field ${tabs.length >= RAIL_WRAP_MIN_CELLS ? RAIL_WRAP_CLASS : ""} ${track} ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
-        >
-          {tabs.map((tab) => (
-            <RpgHudCell key={tab.id} tab={tab} isActive={tab.id === activeTab} edge={edge} ownership={ownership} />
-          ))}
-        </TabsList>
-        {actions !== undefined ? (
-          <Row align="center" className="shrink-0">
-            {actions}
-          </Row>
-        ) : null}
-      </Row>
-    </Stack>
-  );
-}
-
-/** One cell: glyph + caption, ALWAYS both (§7.2) — `layout="stacked"`, the primitive's OWN arm for a cell
- *  whose height follows its content. A call-site `h-auto` cannot express that: the sealed `h-control-sm` is
- *  opaque to tailwind-merge and wins on stylesheet order, which is precisely how the captions shipped
- *  clipped to a 5px sliver. The caption is the accessible name AND visible — the panel is never wide enough
- *  for the shared strip's container-query reveal to fire, so an icon-only game rail was permanent, not
- *  "compressed" (F6 defect 2). `title` is NOT the caption's understudy (§7.2): the word is on screen and
- *  `aria-label` carries the full name when it truncates, so a hover tooltip on every cell was pure noise.
- *
- *  PHASE-locked (the Map): a LOCK glyph + the reason on `title` — which, beside an `aria-label`, is the
- *  cell's accessible DESCRIPTION, so AT hears the promise too. It is deliberately NOT `aria-disabled`: the
- *  locked tab OPENS onto a body that states when the feature arrives (RV-7, built on owner review), and a
- *  control announcing "unavailable" while Enter opens it is two stories. One story: a real tab wearing a
- *  lock, where mouse, keyboard and AT all get the same answer. */
-function RpgHudCell({
-  tab,
-  isActive,
-  edge,
-  ownership,
-}: {
-  readonly tab: ResolvedContextTab;
-  readonly isActive: boolean;
-  readonly edge: "top" | "bottom";
-  readonly ownership: "owning" | "receded";
-}): ReactElement {
-  const locked = tab.disabledReason !== null;
-  const count = typeof tab.badge === "number" ? tab.badge : 0;
-  // CROWN GOLD AT REST (§4): the host-only cells (`preview`, the crown GM console) read as host-only
-  // without spending a word on it. AT REST only — once the cell is active the accent state colour is the
-  // answer to "where am I", and a gold glyph inside an accent cell would argue with it. And at rest the gold
-  // rides its RAIL'S ownership voice (`CROWN_OWNERSHIP_CLASSES`), so a receded strip's crown recedes with it.
-  const crowned = tab.crown && !isActive;
-  return (
-    <TabsTab
-      layout="stacked"
-      value={tab.id}
-      id={cellDomId(tab.id)}
-      // THE CELL IS A BUTTON, NOT A TAB (#112 — the ARIA-model note above `cellDomId`). The strip deletes
-      // `role`/`aria-selected` (the latter is only defined on a tab; on a button it is an invalid attribute),
-      // and `aria-current` carries the same fact honestly — ABSENT on every cell of the rail that is not
-      // holding the view, which is the whole defect: no rail announces as a chooser with nothing chosen.
-      {...CELL_ARIA_STRIP}
-      aria-current={isActive ? true : undefined}
-      // THE LOCK IS IN THE NAME (side-eye 2026-08-06 ARIA). The glyph said "locked" to the eye and `title`
-      // carried the reason, but Base UI emits `aria-disabled="false"` on this cell (it is genuinely not
-      // disabled — see the block comment above), so AT heard "Map, tab" and nothing else: a lock a screen
-      // reader cannot perceive. `title` is only the DESCRIPTION, which many readers announce late, after a
-      // verbosity setting, or not at all. The visible caption ("Map") stays the prefix of the accessible
-      // name, so WCAG 2.5.3 Label-in-Name still holds and "click Map" still resolves.
-      aria-label={locked ? `${tab.label} — locked` : tab.label}
-      data-crown={tab.crown}
-      className={`relative min-w-0 data-active:bg-primary/10 data-active:text-primary ${CELL_EDGE_CLASSES[edge]} ${CELL_OWNERSHIP_CLASSES[ownership]}`}
-      {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}
-    >
-      {tab.icon !== undefined ? <Icon icon={tab.icon} size="sm" className={crowned ? CROWN_OWNERSHIP_CLASSES[ownership] : ""} /> : null}
-      {/* voice=gloss for the grammar; text-inherit so the cell's own state color (data-active accent) wins. */}
-      <Text as="span" voice="gloss" data-slot="rpg-hud-cell-caption" className="max-w-full truncate text-inherit">
-        {tab.label}
-      </Text>
-      {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER, not flush in it (side-eye
-          2026-08-16 #94). The rail is full-bleed by ruling (§5.2 — it is the pane's floor and reaches its
-          edges), so the LAST cell's inline-end edge IS the pane's edge: at a 1280px desktop the Map cell's
-          lock glyph MEASURED at x 1268..1280, ending exactly on the viewport edge with zero gutter, reading
-          as a clipped glyph rather than a lock. The gutter is bought INSIDE the cell so the full-bleed ruling
-          stands and every cell's ornament reads the same. LOGICAL (`end-*`), never `right-*` — an ornament
-          pinned to a physical side flips to the wrong corner in RTL. Spelled as a whole literal at each site
-          (not hoisted to a const) because `ui-size-via-variant` reads these class strings statically, and a
-          template hole would hide the sibling `size-1.5` from its allowlist. */}
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute end-field top-field text-muted-foreground" /> : null}
-      {locked || isActive ? null : <RpgHudCellBadge count={count} dot={tab.badge === true} />}
-    </TabsTab>
-  );
-}
-
-function RpgHudCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {
-  if (count > 0) {
-    return (
-      <Badge intent="primary" size="sm" aria-hidden={true} className="absolute end-field top-field">
-        {count}
-      </Badge>
-    );
-  }
-  // The boolean form is the same primitive with no content — a features-tier surface never paints a raw
-  // element, so the dot is a childless `Badge` sized down, not a styled `<span>`.
-  return dot ? <Badge intent="primary" size="sm" aria-hidden={true} className="absolute end-field top-field size-1.5 rounded-full p-0" /> : null;
 }
