@@ -85,11 +85,17 @@ interface ResolvedRow {
  *  render in ListRow's `actions` slot — a sibling OUTSIDE the clickable button — so the row's accessible
  *  description was empty and a screen reader heard the bare character name once per session ("Elias Thorn"
  *  ×6 for six sessions on one card). It now heads the subtitle line (`subtitleLead`), which rides the row's
- *  `aria-describedby` through the subtitle span. */
-function verdictChipOf(row: ResolvedRow): ReactElement {
-  return row.latestVerdict === null ? (
-    <RefineryChip tone="neutral">No verdict</RefineryChip>
-  ) : (
+ *  `aria-describedby` through the subtitle span.
+ *
+ *  ABSENCE IS NOT A VERDICT (side-eye 2026-08-17, finding c). `latestVerdict === null` means one thing —
+ *  ANALYZE has not been run — and it wore the same filled, boxed, uppercase chip as `REGRESSION` on a
+ *  session already scored 9.5/10, shouting louder than the character name that is the row's identity. A
+ *  chip is for a verdict the model RETURNED; the absent arm has no chip at all and states itself in the
+ *  subtitle beside the iteration and the stamp (`readoutSubtitleOf`), one register BELOW the row's title
+ *  rather than above it. The WORD moved with it: "no verdict" named the wire field, "not analyzed" names
+ *  the fact the row is reporting. */
+function verdictChipOf(row: ResolvedRow): ReactElement | undefined {
+  return row.latestVerdict === null ? undefined : (
     <RefineryChip tone={VERDICT_TONE[row.latestVerdict] ?? "neutral"}>{VERDICT_WORD[row.latestVerdict] ?? row.latestVerdict}</RefineryChip>
   );
 }
@@ -99,9 +105,12 @@ function verdictChipOf(row: ResolvedRow): ReactElement {
  *  per-session, so an absolute start stamp differs the rows visually AND in the a11y tree (the ruled
  *  auto-label arm; no nameable-session affordance is added here). "Freshness" is already positional (the
  *  roster is newest-updated first), so WHEN-STARTED is the fact that actually tells six sessions apart. A
- *  session that HAS a name leads with it. Rides `aria-describedby` with the verdict via the subtitle span. */
+ *  session that HAS a name leads with it. Rides `aria-describedby` with the verdict via the subtitle span.
+ *  It also carries the NOT-ANALYZED state (finding c): a row with no verdict says so here, in the same
+ *  quiet register as its iteration and stamp, instead of wearing a filled chip louder than its own name. */
 function readoutSubtitleOf(row: ResolvedRow): string {
-  const readout = `iteration ${row.iterationCount} · started ${timeLib.formatDateTime(row.createdAt)}`;
+  const stage = row.latestVerdict === null ? "not analyzed · " : "";
+  const readout = `${stage}iteration ${row.iterationCount} · started ${timeLib.formatDateTime(row.createdAt)}`;
   return row.sessionName === null ? readout : `${row.sessionName} · ${readout}`;
 }
 

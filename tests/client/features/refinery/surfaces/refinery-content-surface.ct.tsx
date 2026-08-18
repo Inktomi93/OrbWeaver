@@ -344,6 +344,31 @@ test("the session pane JOINS its reads: the masthead's card name, the roster sta
   await expect(page.getByText("Personality", { exact: true })).toBeVisible();
 });
 
+// ── THE CREDIT LINE NAMES THE MODEL (side-eye 2026-08-17, finding b) ─────────────────────────────────
+// A self-hosted connection's `model` is an absolute weights PATH. The masthead inlined it raw into the
+// caps/mono credit line, which wrapped onto a second row under the card's name. `@orb/kit/model-name` is
+// the repo's answer to exactly this shape (#115) and every other model-naming surface already uses it.
+/** A served local checkpoint, in the shape the engine actually reports (the kit's own worked example). */
+const LOCAL_WEIGHTS_PATH = "/media/inktomi/Data/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
+const LOCAL_WEIGHTS_DISPLAY = "Huihui-ThinkingCap-Qwen3.6-27B-abliterated · W8A8";
+
+test("the masthead credits the model by NAME — a local weights path never reaches the credit line", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    // The masthead reads the REWRITE run's model first, so this is the run that decides the credit line.
+    "refinery.listRuns": (): unknown[] => [...ledger().slice(0, 2), { ...(rewriteRun() as Record<string, unknown>), model: LOCAL_WEIGHTS_PATH }],
+  });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+
+  const masthead = page.getByTestId(testId("refineryMasthead"));
+  await expect(masthead).toContainText(LOCAL_WEIGHTS_DISPLAY);
+  await expect(masthead, "the raw path is not printed").not.toContainText(LOCAL_WEIGHTS_PATH);
+  // LOSSLESS: the full identifier is still reachable, on the line's own tooltip (the kit's display
+  // derivation is for TYPOGRAPHY — nothing routes on it, and nothing may lose it).
+  await expect(masthead.getByTitle(LOCAL_WEIGHTS_PATH)).toBeVisible();
+});
+
 test("ALL THREE STAGES are on one canvas: the score lane's latest payload, the rewrite island's accept work, and the analyze verdict", async ({
   mount,
   page,

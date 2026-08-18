@@ -257,7 +257,19 @@
  *
  * Reduced-motion REMOVES it (guide §3.9), and removes the SEGMENT too, not just its travel — a frozen
  * bar parked at one end reads as a stalled determinate progress bar, which is a worse lie than no
- * affordance. Both floors: the OS @media and the shell-stamped [data-reduced-motion="true"]. */
+ * affordance. Both floors: the OS @media and the shell-stamped [data-reduced-motion="true"].
+ *
+ * THE TRACK RULE IS PART OF THE CLASS, NOT THE CONSUMER'S JOB (#143). The segment is an ABSOLUTE box
+ * sized `33%` of — and inset to — its containing block, so it only means "a third of this track" when the
+ * TRACK is that containing block. The one consumer hosted the class on a 1px `Container` with no
+ * `relative`, and the segment escaped to the pane's scroll container: a full-height opaque
+ * `--color-primary` block over a third of the workbench for the whole run (measured 302.5×752px), invisible
+ * to hit-testing thanks to `pointer-events-none` and absent for reduced-motion users, which is why it
+ * survived. A prose "host me on something positioned" would have been a wish, so the class OWNS both
+ * halves of its own contract — the containing block and the clip the -100%→300% travel needs — and a
+ * consumer can no longer get it wrong. Same shape as the empty-state decoration pair above.
+ * Pinned by tests/client/features/refinery/components/lane-run-control.ct.tsx (the segment's resolved box
+ * against its host's, never the class list). */
 @keyframes orb-indeterminate-hairline {
   from {
     translate: -100% 0;
@@ -265,6 +277,10 @@
   to {
     translate: 300% 0;
   }
+}
+.orb-indeterminate-hairline {
+  position: relative;
+  overflow: hidden;
 }
 .orb-indeterminate-hairline::after {
   content: "";

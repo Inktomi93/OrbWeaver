@@ -13,14 +13,15 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { Meter } from "@orb/ui/meter";
+import { Separator } from "@orb/ui/separator";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { testId } from "#lib";
 import { useCountUp } from "../hooks/use-count-up.ts";
 import type { PlanField, RenderPlan, RowPlan } from "../lib/render-plan.ts";
-import { armFits } from "../lib/render-plan.ts";
+import { armFits, dangerBelowOf } from "../lib/render-plan.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 export interface PayloadViewProps {
@@ -209,6 +210,10 @@ function HeroGauge({
   const widget = field.widget as GaugeWidget;
   const value = typeof payload[field.key] === "number" ? (payload[field.key] as number) : null;
   const shown = useCountUp(value, arrived);
+  // Decided by the SETTLED score, never by a frame of the ramp or by the absent arm: the meter reads
+  // `shown`, so an unconditional threshold would paint a 9/10 danger-red on its way up from 0, and would
+  // paint the "not scored yet" fill (parked at `min`) as a failure. Present-and-low is the only verdict.
+  const danger = value !== null && value < dangerBelowOf(widget);
   return (
     <Card data-testid={testId("refineryHeroGauge")}>
       <Row align="center" gap="block" padding="block">
@@ -224,7 +229,14 @@ function HeroGauge({
           <Text voice="kicker">{field.label}</Text>
         </Stack>
         <Stack className="min-w-0 flex-1" gap="field">
-          <Meter kind="linear" label={field.label} max={widget.max} min={widget.min} value={value === null ? widget.min : shown} />
+          <Meter
+            {...(danger ? { dangerBelow: dangerBelowOf(widget) } : {})}
+            kind="linear"
+            label={field.label}
+            max={widget.max}
+            min={widget.min}
+            value={value === null ? widget.min : shown}
+          />
           {prose !== null ? <Text prose={true}>{scalarText(payload[prose.key])}</Text> : null}
         </Stack>
       </Row>
@@ -279,7 +291,7 @@ function GaugeRow({ field, widget, value }: { field: PlanField; widget: GaugeWid
           <Text voice="gloss">{ABSENT_TEXT}</Text>
         </Row>
       ) : (
-        <Meter kind="linear" label={field.label} max={widget.max} min={widget.min} showValue={true} value={n} />
+        <Meter dangerBelow={dangerBelowOf(widget)} kind="linear" label={field.label} max={widget.max} min={widget.min} showValue={true} value={n} />
       )}
     </Stack>
   );
@@ -367,7 +379,15 @@ function UnionBlock({ field, widget, value }: { field: PlanField; widget: UnionW
 }
 
 /** The assay rows (§3.2's `array<object>` arm): a fixed per-schema row anatomy — header chips, the
- *  bounded-number score bar, and the accordion body (FORK A: one open at a time). */
+ *  bounded-number score bar, and the accordion body (FORK A: one open at a time).
+ *
+ *  THE ROWS ARE NOT CARDS (chrome diet CD1/CD2; side-eye 2026-08-17, finding d). Each entry is a label, a
+ *  one-character number and a hairline — a DATUM — and each wore a bordered, rounded, padded card: six of
+ *  them ate ~490px in a 240px rail while the hero, which carries the number the run exists to produce, took
+ *  ~130px, so the priority improvements sat below the fold behind boxes drawn around single numbers. They
+ *  separate the way the lane's own rails do — a hairline between siblings — which is also what CD2 demands
+ *  the moment this block renders inside a `section` widget's card. The accordion BUTTON is the interactive
+ *  island and keeps its own affordance; the frame around it was never the thing you could press. */
 function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; value: unknown }): ReactElement {
   const items = Array.isArray(value) ? value.filter(isRecord) : [];
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -383,8 +403,9 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
         const open = openIndex === i;
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: a read-only payload list never reorders.
-          <Card key={i}>
-            <Stack gap="field" padding="row">
+          <Fragment key={i}>
+            {i === 0 ? null : <Separator />}
+            <Stack gap="tight">
               <Button
                 aria-expanded={open}
                 className="justify-start"
@@ -408,7 +429,7 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
               </Button>
               {scoreValue !== null && scoreWidget !== undefined && row.score !== null ? (
                 <Meter
-                  dangerBelow={scoreWidget.min + (scoreWidget.max - scoreWidget.min) / 2}
+                  dangerBelow={dangerBelowOf(scoreWidget)}
                   kind="linear"
                   label={row.score.label}
                   max={scoreWidget.max}
@@ -418,7 +439,7 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
               ) : null}
               {open ? row.body.map((b) => <FieldBlock field={b} key={b.key} value={item[b.key]} />) : null}
             </Stack>
-          </Card>
+          </Fragment>
         );
       })}
     </Stack>

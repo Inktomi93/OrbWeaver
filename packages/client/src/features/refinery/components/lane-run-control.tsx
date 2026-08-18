@@ -16,7 +16,9 @@
 // (ui/src/styles/globals.css), which REMOVES the travelling segment outright per motion guide §3.9 rather
 // than parking it — a frozen bar at one end reads as a stalled determinate progress bar, which is a worse
 // lie than no affordance. `aria-hidden` because it is pure ornament: the verb beside it is already
-// `aria-busy` while the call is in flight, so the state is announced once.
+// `aria-busy` while the call is in flight, so the state is announced once. The class also owns its own
+// containing block and clip (#143) — this host contributes only the track's ink and height, never
+// `relative`/`overflow-hidden`, so there is exactly one place the segment's geometry is decided.
 
 import type { RefineryStage } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
@@ -53,11 +55,18 @@ function overBudgetOf(stagePre: StagePreflightView | undefined, contextTokens: n
 /** The fit readout: both directions, ceilings included where resolved, the ⚠ on either overrun. */
 function FitLine({ stagePre, contextTokens, warn }: { stagePre: StagePreflightView; contextTokens: number | null; warn: boolean }): ReactElement {
   return (
-    // `basis-full`, never `truncate`: a rail is 15rem and the readout is ~34 characters, so shrinking it
-    // ellipsed the OUT half away ("in ≈ 2736 / 8000 · out ≈ 1490…") — half a budget line is worse than
-    // none, because the number a user checks before pressing Run is the one that got cut. It takes its own
-    // line and the verb takes the next.
-    <Text className="min-w-0 basis-full" data-testid={testId("refineryFitLine")} voice="datum">
+    // NEVER `truncate`, and never shrinkable: a rail is 15rem and the readout is ~34 characters, so
+    // shrinking it ellipsed the OUT half away ("in ≈ 2736 / 8000 · out ≈ 1490…") — half a budget line is
+    // worse than none, because the number a user checks before pressing Run is the one that got cut.
+    //
+    // THE MECHANISM IS `whitespace-nowrap`, NOT `basis-full` (side-eye 2026-08-17, finding e). Forcing the
+    // readout onto its own row put ~100px of chrome above every lane's content ×3 lanes, and it did so
+    // unconditionally — the fluid rewrite lane has room for both on one line. `nowrap` makes the readout's
+    // MIN-CONTENT its whole string, so the flex row keeps it whole either way: inline with the verb where
+    // it fits, wrapped onto its own line where it does not. Same guarantee, paid for only where it is owed.
+    // `voice="gloss"`, not `datum`: a budget advisory is the quiet line under the lane's NAME, and at
+    // `datum` (13px mono foreground) it outranked the 10.5px kicker naming the lane it belongs to.
+    <Text className="whitespace-nowrap" data-testid={testId("refineryFitLine")} voice="gloss">
       in ≈ {stagePre.inputEstimate}
       {contextTokens === null ? "" : ` / ${contextTokens}`} · out ≈ {stagePre.outputEstimate}
       {stagePre.maxOutputTokens === null ? "" : ` / ${stagePre.maxOutputTokens}`} tok{warn ? " ⚠" : ""}
@@ -98,7 +107,7 @@ function RunningHairline(): ReactElement {
   return (
     <Container
       aria-hidden={true}
-      className="orb-indeterminate-hairline pointer-events-none h-px overflow-hidden rounded-full bg-primary/30"
+      className="orb-indeterminate-hairline pointer-events-none h-px rounded-full bg-primary/30"
       data-testid={testId("refineryLaneHairline")}
       name="refinery-lane-hairline"
     />
