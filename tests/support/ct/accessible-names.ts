@@ -313,7 +313,8 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
 /**
  * The CT PROVIDER STACK's own portaled chrome — not the surface under test, and not something a feature
  * author can fix. `tests/support/ct/ct-providers.tsx` mounts a `<Toaster />` for EVERY CT (its
- * `region "Notifications"`), and a story whose behaviour ends in a `notify.*` call additionally mounts
+ * `region "Alerts"` — it was Base UI's default `"Notifications"` until the 2026-08-17 rail sweep P3-15,
+ * which collided with the notification BELL's own name on every screen), and a story whose behaviour ends in a `notify.*` call additionally mounts
  * `CtToastSurface` — which must render its OWN `<Toaster />` because `bindNotify` targets that specific
  * manager (`tests/client/lib/_ct-stories.tsx`). Two Toasters is therefore a HARNESS fact, and counting it
  * as a product `duplicate-landmark` would be the instrument reporting on itself.
@@ -321,7 +322,7 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
  * This is a harness carve-out, NOT a product allowlist: a real duplicate landmark on any other name still
  * fails, and the day the harness stops double-stacking, this list is deleted rather than grown.
  */
-const HARNESS_LANDMARK_NAMES: readonly string[] = ["Notifications"];
+const HARNESS_LANDMARK_NAMES: readonly string[] = ["Alerts"];
 
 /** Runs BOTH engines over the page and returns every finding, newest lens last. */
 export async function nameQualityFindings(page: Page): Promise<readonly NameFinding[]> {

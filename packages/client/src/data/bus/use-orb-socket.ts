@@ -19,6 +19,7 @@
 import type { StreamFrame } from "@orb/contracts/stream";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { useEffect } from "react";
+import type { NotifyNotice } from "#lib";
 import { notify } from "#lib";
 import { recoverIfUnauthorizedCode } from "../stale-session.ts";
 import { useTRPC, useTRPCClient } from "../trpc.ts";
@@ -59,6 +60,40 @@ function routeFrame(payload: SocketPayload): void {
   // an instrument (the CT recorder / the e2e tap) observe the lifecycle on the wire.
 }
 
+/** The tRPC code a per-user socket-cap refusal arrives as (`DomainRateLimitError` → `TOO_MANY_REQUESTS`,
+ *  `transport/trpc/error-mapping.ts`). Keyed on the CODE, never on the message text — the message is a
+ *  server sentence and the client owns its own copy. */
+const SOCKET_CAP_CODE = "TOO_MANY_REQUESTS";
+
+/** The socket's failure notice, in the user's terms, with the one next step it actually has (side-eye rail
+ *  sweep P2-10, 2026-08-17). This was `notify.error(error.message)` — so the socket cap surfaced verbatim
+ *  as "Too many open streams (8). Close a tab and retry.": a server sentence about a server noun, naming an
+ *  internal limit, with the retry it asks for available nowhere but a page reload.
+ *
+ *  The cap arm says what happened in the user's own vocabulary (TABS, which is the thing they can close)
+ *  and deliberately does NOT quote the number: that digit lives inside the server's message string, and
+ *  reading it here would key the client on message TEXT. Both arms carry the retry, because both are
+ *  recoverable by exactly one action — re-subscribing. */
+export function socketNotice(code: string | undefined, message: string, retry: () => void): NotifyNotice {
+  const action = { label: "Try again", onClick: retry };
+  if (code === SOCKET_CAP_CODE) {
+    return {
+      title: "Too many tabs are open",
+      description: "Orbweaver keeps one live connection per tab, and this browser has reached the limit. Close another tab, then try again.",
+      action,
+    };
+  }
+  return { title: "Lost the live connection", description: message, action };
+}
+
+/** The live subscription's own `reset`, so the failure notice's "Try again" can re-subscribe. It is MODULE
+ *  state for the same reason `roomRegistry` is: this hook mounts exactly once per tab, at the authed
+ *  composition root, so "the socket" is a singleton and a per-render ref would be a lie about that (and
+ *  `react-hooks/refs` reds handing a ref to a function that may read it during render — the options object
+ *  IS built during render). The effect below binds it and clears it on unmount, so a stale closure can only
+ *  ever call the no-op. */
+let resetSocket: () => void = () => undefined;
+
 /** Attach the ONE multiplexed socket for this tab. Call once, at the authed composition root. */
 export function useOrbSocket(): void {
   const trpc = useTRPC();
@@ -78,7 +113,7 @@ export function useOrbSocket(): void {
     };
   }, [client]);
 
-  useSubscription(
+  const subscription = useSubscription(
     trpc.stream.connect.subscriptionOptions(
       { socketId: socketId() },
       {
@@ -104,9 +139,20 @@ export function useOrbSocket(): void {
           if (recoverIfUnauthorizedCode(error.data?.code)) {
             return;
           }
-          notify.error(error.message);
+          notify.error(
+            socketNotice(error.data?.code, error.message, () => {
+              resetSocket();
+            }),
+          );
         },
       },
     ),
   );
+
+  useEffect(() => {
+    resetSocket = subscription.reset;
+    return (): void => {
+      resetSocket = (): void => undefined;
+    };
+  }, [subscription.reset]);
 }

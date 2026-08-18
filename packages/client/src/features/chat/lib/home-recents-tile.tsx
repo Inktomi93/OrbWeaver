@@ -6,8 +6,10 @@
 // "The trailing action is a ghost — the ONE accent primary on home belongs to temp chat (CD3)." That is
 // no longer the ruling and the sentence is kept here, struck, rather than deleted, because it was a
 // RECORDED decision and a reader deserves to know it was overturned rather than forgotten. Home's one
-// focal is now the RESUME-ROOM HERO in this tile's body — a `--color-speaker` stripe plus the rationed
+// focal is now the RESUME-ROOM HERO in this tile's body — an elevated island plus the rationed
 // `--shadow-glow` on a ::before, no accent fill at all — and temp chat demotes to a secondary button.
+// (The stripe that sentence used to name was deleted on the 2026-08-17 rail sweep: a chromatic accent
+// border on one edge of a rounded card is a two-rule impeccable violation. See the body's header.)
 // The reason the owner gave for the swap is the reason the old ruling looks wrong in hindsight: the
 // finding under review was "the live conversations are not the loudest thing on home", and a page whose
 // only accent was a throwaway-room button was precisely that complaint.
@@ -26,8 +28,9 @@ import { HomeRecentsTileBody } from "../components/home-recents-tile-body.tsx";
 const RECENTS_TILE_ORDER = 10;
 
 /** The FIRST-BOOT box, in skeleton rows (#92). The body is the HERO ALONE now that the also-open list is
- *  its own tile, and the hero is about three rows tall — a 64px cast strip beside a headline, two clamped
- *  prose lines, and a credit line. It was `RECENTS_LIMIT + 2` when this body rendered the hero AND seven
+ *  its own tile, and the hero is about three rows tall — a headline, two clamped prose lines, and a credit
+ *  line (the 64px cast strip that used to sit beside them went on the 2026-08-17 rail sweep, which makes
+ *  this reservation slightly generous rather than short). It was `RECENTS_LIMIT + 2` when this body rendered the hero AND seven
  *  rows; leaving it there would reserve ten rows for a three-row block and snap the whole hearth column up
  *  when the read landed, which is the same defect in the other direction. Re-measure if the hero grows a
  *  line; do not re-derive it by counting DOM nodes (a skeleton ROW is a bar plus its gap, not a text line). */

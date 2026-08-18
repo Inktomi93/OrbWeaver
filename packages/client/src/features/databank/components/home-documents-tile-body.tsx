@@ -38,6 +38,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { TrailingArrow } from "#components";
 import { useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { openModal, selectDocumentFromList, setActiveSection, setDatabankPhaseFilter } from "#state";
@@ -101,16 +102,31 @@ export function HomeDocumentsTileBody(): ReactElement {
         <Text className="line-clamp-3" voice="gloss" prose={true}>
           {DATABANK_INGEST_GLOSS}
         </Text>
-        {/* IT OPENS THE CEREMONY, NOT A SECTION (side-eye 2026-08-08 P1-2). This used to
-            `setActiveSection("databank")`, which landed the user on the library's own empty state — the
-            same sentence again, with the real button under it. The dialog is a shell modal slot now, so
-            the promise the label makes is the thing that happens. A GHOST at zero inline padding is the
-            mock's `.btn-ghost{padding-inline:0}` text link: the rail's one affordance reads as a line of
-            copy you can press, not as a second button competing with the hero across the gutter. */}
-        <Button className="px-0" intent="ghost" onClick={(): void => openModal("addDocument")} size="sm">
-          <Icon icon={Plus} size="sm" />
-          Add your first document
-        </Button>
+        {/* TWO AFFORDANCES, ONE STYLE (side-eye rail sweep P3-16 + the IA finding, 2026-08-17).
+            [1] THE CEREMONY stays first and stays the promise the label makes (side-eye 2026-08-08 P1-2:
+            it used to `setActiveSection("databank")` and land the user on the library's own empty state —
+            the same sentence again, with the real button under it).
+            [2] THE SECTION DOOR is new. Every other block on home can be entered; the bank could only be
+            entered while it had rows in it (the trailing "All documents" action hides on an empty bank —
+            2026-08-08 P2-b, which is preserved: that ruling is about a link PROMISING A LIST OF NOTHING,
+            and "Open Databank" promises the section, which exists and teaches). It is the SECOND control,
+            so the ceremony is still the path this block recommends.
+            AND THE STYLE IS THE SHELF'S, not this tile's own: the `px-0` ghost text-link that used to sit
+            here was 171×32 beside temp chat's 169×34 bordered secondary — two peer-rank CTAs, one column,
+            two registers. Both are `secondary`/`sm` now (temp chat came down to `sm` in the same pass).
+            The old ruling's reason — "not a second button competing with the hero across the gutter" —
+            is answered by the hero itself: it is an ELEVATED, glowing island now rather than a form-tier
+            box, so an `sm` secondary on the shelf is no longer in the same weight class. */}
+        <Row gap="field">
+          <Button intent="secondary" onClick={(): void => openModal("addDocument")} size="sm">
+            <Icon icon={Plus} size="sm" />
+            Add your first document
+          </Button>
+          <Button intent="secondary" onClick={(): void => setActiveSection("databank")} size="sm">
+            Open Databank
+            <TrailingArrow />
+          </Button>
+        </Row>
       </Stack>
     );
   }
@@ -218,8 +234,10 @@ export function HomeDocumentsTileAction(): ReactElement | null {
     return null;
   }
   return (
+    // The arrow is DECORATIVE (rail sweep P3-14) — the name is "All documents".
     <Button intent="ghost" onClick={(): void => setActiveSection("databank")} size="sm">
-      All documents →
+      All documents
+      <TrailingArrow />
     </Button>
   );
 }

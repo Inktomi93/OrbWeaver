@@ -92,7 +92,12 @@ export function Toaster(props: ToasterProps): ReactElement {
   const { className, container, swipeDirection } = props;
   return (
     <BaseToast.Portal container={container}>
-      <BaseToast.Viewport className={slots.viewport({ className })} data-slot="toast-viewport">
+      {/* NAMED "Alerts", not Base UI's default (side-eye rail sweep P3-15, 2026-08-17). The viewport is a
+          `role="region"` and Base UI labels it "Notifications" out of the box — which is the accessible
+          name of this app's NOTIFICATION BELL and of its inbox popover, so every screen carried two
+          unrelated "Notifications" landmarks and a rotor/landmark jump was a coin flip. The bell owns the
+          word (it is a durable per-user inbox); this stack is transient app alerts, and says so. */}
+      <BaseToast.Viewport aria-label="Alerts" className={slots.viewport({ className })} data-slot="toast-viewport">
         <ToastItems swipeDirection={swipeDirection} />
       </BaseToast.Viewport>
     </BaseToast.Portal>

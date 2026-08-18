@@ -6,7 +6,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { HomeRealDoorwaysStory } from "../_ct-stories.tsx";
 
 const AUTOMATION_TEASER_RE = /Rules that fire on your rooms/u;
-const AUTOMATION_REASON_RE = /waiting on: automation\.stream/u;
+/** The state line, in the USER's terms (rail sweep P1-3): the shipped copy used to be the repo-internal
+ *  citation "waiting on: automation.stream through the SSE multiplex (stage 4 …)". */
+const AUTOMATION_REASON_RE = /^Half built:/u;
 
 test("automation renders the sanctioned-dormant channel honestly, not an empty promise card", async ({ mount }) => {
   const home = await mount(<HomeRealDoorwaysStory />);

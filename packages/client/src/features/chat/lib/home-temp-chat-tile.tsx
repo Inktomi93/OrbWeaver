@@ -13,8 +13,11 @@ import { HomeTempChatTileBody, TEMP_CHAT_SKELETON_ROWS } from "../components/hom
 
 const TEMP_CHAT_TILE_ORDER = 30;
 
-/** The measured settled body block — see the `skeletonBlock` note on the contribution below. */
-const TEMP_CHAT_SKELETON_BLOCK_PX = 95;
+/** The measured settled body block — see the `skeletonBlock` note on the contribution below.
+ *  RE-MEASURED 2026-08-17 (rail sweep P3-16): the CTA came down to `size="sm"` so the shelf's two
+ *  peer-rank CTAs share one register, which shortened this fixed body. 93 is the re-measurement, reported
+ *  by the `#177` first-boot CT as `chat.tempChat moved -2.36px` against the old 95. */
+const TEMP_CHAT_SKELETON_BLOCK_PX = 93;
 
 export const chatTempChatTile: HomeTileContribution = {
   id: "chat.tempChat",

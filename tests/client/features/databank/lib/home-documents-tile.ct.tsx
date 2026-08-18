@@ -7,9 +7,11 @@
 //   · an aggregate chip appears ONLY for what the rows do not already show, and when it appears it is a
 //     CONTROL that scopes the library to that phase and goes there (the store, not a rendered echo);
 //   · READY is the ABSENCE of a chip on a row here too (§6.1) — the tile does not re-litigate the ruling;
-//   · the EMPTY bank opens the ingest CEREMONY (the shell modal slot), not a section, and drops the
-//     "All documents →" link rather than promising a list of nothing;
-//   · the tile SUBSUMES its jump row — beside the real jump grid, Databank appears once;
+//   · the EMPTY bank leads with the ingest CEREMONY (the shell modal slot) and drops the "All documents"
+//     link rather than promising a list of nothing — while still carrying a DOOR into its own section
+//     (the 2026-08-17 rail sweep: every other block on home can be entered, this one could not);
+//   · the tile does NOT hide its jump pill — beside the real jump rail, Databank appears in the index like
+//     every other section (the 2026-08-08 subsumption ruling, retracted; see the tile's header);
 //   · at the NARROWEST real host (390px content) the health chips stay INSIDE the tile card.
 
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -113,7 +115,7 @@ test("the trailing action goes to the library — assert the STORE, not a render
   const probe = home.locator("output");
   await expect(probe).not.toContainText("section=databank");
 
-  await home.locator(TILE).getByRole("button", { name: "All documents →" }).click();
+  await home.locator(TILE).getByRole("button", { name: "All documents" }).click();
 
   await expect(probe).toContainText("section=databank");
 });
@@ -129,13 +131,55 @@ test("an EMPTY bank teaches the first step, opens the CEREMONY, and drops the li
   // except that it is empty.
   await expect(tile.getByText("documents ·")).toHaveCount(0);
   await expect(tile.getByRole("listitem")).toHaveCount(0);
-  // …and no second control promising a list of zero documents (P2-b).
-  await expect(tile.getByRole("button", { name: "All documents →" })).toHaveCount(0);
+  // …and no trailing control promising a list of zero documents (P2-b — still true: "All documents" is
+  // about a LIST, and there is none).
+  await expect(tile.getByRole("button", { name: "All documents" })).toHaveCount(0);
 
   // The button OPENS THE DIALOG — it used to only move the rail, landing the user on the library's own
   // empty state with the same sentence and the real button under it (P1-2).
   await tile.getByRole("button", { name: "Add your first document" }).click();
   await expect(probe).toContainText("modal=addDocument");
+});
+
+// ── RED-FIRST (rail sweep, the IA finding): an empty bank still has a DOOR into its section ──────────
+// Every other block on home can be entered; this one could be entered only while it had rows in it, because
+// the trailing "All documents" action hides on an empty bank. The ceremony stays the recommended path (it
+// is first, and P1-2's ruling that it must open the DIALOG is untouched); the door is the second control,
+// and it promises the SECTION rather than a list of nothing.
+test("an EMPTY bank still opens its SECTION — the ceremony first, the door beside it", async ({ mount, page }) => {
+  await stubDatabank(page, {}, []);
+  const home = await mount(<DatabankHomeTileStory />);
+  const probe = home.locator("output");
+  const tile = home.locator(TILE);
+  await expect(probe).not.toContainText("section=databank");
+
+  await tile.getByRole("button", { name: "Open Databank" }).click();
+
+  await expect(probe).toContainText("section=databank");
+});
+
+// ── RED-FIRST (rail sweep P3-16): the shelf's peer-rank CTAs share ONE style ─────────────────────────
+// Measured: "Start a temp chat" was a 169×34 bordered secondary and "Add your first document" a 171×32
+// `px-0` ghost text-link, one column apart, at identical rank. Asserted on the RENDERED box of the two
+// controls in the same shelf, so a re-divergence of size OR of border weight reds here.
+test("P3-16 the empty bank's CTAs are the shelf's own control register, not a bare text link", async ({ mount, page }) => {
+  await stubDatabank(page, {}, []);
+  const home = await mount(<DatabankHomeTileStory />);
+  const tile = home.locator(TILE);
+
+  const shape = await tile.getByRole("button", { name: "Add your first document" }).evaluate((el) => {
+    const style = globalThis.getComputedStyle(el);
+    return {
+      border: Number.parseFloat(style.borderTopWidth),
+      padding: Number.parseFloat(style.paddingLeft),
+      height: Math.round(el.getBoundingClientRect().height),
+    };
+  });
+
+  // A real bordered control with real inline padding — the `px-0` text link had neither.
+  expect(shape.border).toBeGreaterThan(0);
+  expect(shape.padding).toBeGreaterThan(0);
+  expect(shape.height).toBeGreaterThan(0);
 });
 
 // ── RED-FIRST (#102 review F2/F8): the empty rail slot is a RAIL block, not a centred island ────────
@@ -169,15 +213,21 @@ test("#102-F2 an EMPTY bank keeps the RAIL register: flush-left, no centred isla
   expect(steps.resolved).toBe(steps.labelStep);
 });
 
-test("the tile SUBSUMES its jump row — Databank is one door on home, not two", async ({ mount, page }) => {
+// ── RED-FIRST (rail sweep, the IA finding): Databank is IN the rail, like every other section ────────
+// This pin used to read "the tile SUBSUMES its jump row — Databank is one door on home, not two", and it
+// was written (side-eye 2026-08-08 P2-c) when "Elsewhere in the house" was seven FAT TEACHING ROWS, where a
+// duplicate row really was a duplicate block. Program #102 replaced those with a wrapping PILL RAIL whose
+// whole promise is that every room in the house is one skim away — and Databank was then the ONE section
+// missing from it (eight pills for nine sections, measured on the live surface). The `sectionId` MECHANISM
+// is untouched; this tile simply no longer claims it. See the tile's own header for the retraction.
+test("Databank keeps its pill in the rail — the tile beside it is not a substitute for the index", async ({ mount, page }) => {
   await stubDatabank(page);
   const home = await mount(<DatabankHomeTileWithJumpGridStory />);
 
   const jump = home.locator('[data-home-tile="home.jump"]');
-  // The grid is REAL and still derives every other section from the registry…
-  await expect(jump.getByRole("button", { name: "Chats" })).toBeVisible();
-  // …but the section this tile carries in full is gone from it.
-  await expect(jump.getByRole("button", { name: "Databank" })).toHaveCount(0);
+  // The grid is REAL and derives every section from the registry — including this tile's own.
+  await expect(jump.getByRole("button", { name: "Go to Chats" })).toBeVisible();
+  await expect(jump.getByRole("button", { name: "Go to Databank" })).toBeVisible();
 });
 
 test("at the narrowest real host a crowded health line WRAPS — every chip stays inside the card", async ({ mount, page }) => {

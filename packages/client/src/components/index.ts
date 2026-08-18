@@ -72,5 +72,7 @@ export {
   TrackerChip,
   TrackerValue,
 } from "./tracker-blocks/index.ts";
+export type { TrailingArrowProps } from "./trailing-arrow.tsx";
+export { TrailingArrow } from "./trailing-arrow.tsx";
 export type { UserMacroEditorDialogProps, UserMacrosFormValues } from "./user-macro-editor-dialog.tsx";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";

@@ -118,7 +118,14 @@ function CommandChip({ modalId, show }: { readonly modalId: ModalSlotId | undefi
               }}
             >
               <Kbd>⌘K</Kbd>
-              <Text as="span" size="micro" tone="muted" className="shell-topbar-jump-label">
+              {/* THE LABEL STEP, not micro (side-eye rail sweep P3-13, 2026-08-17). This word is the only
+                  prose on a CONTROL, and it rendered at 10.5px — under the 11px functional floor a control
+                  label owes, on the topbar affordance a first-time visitor is most likely to squint at. The
+                  `label` voice IS that step; the muted ink is a className because `tone` is declared BEFORE
+                  `voice` and loses the merge (the voice grammar's own ordering law). It also drops two A3
+                  findings from this file — `size`/`tone` at a feature call site are exactly what the voice
+                  API exists to replace. */}
+              <Text as="span" className="shell-topbar-jump-label text-muted-foreground" voice="label">
                 jump
               </Text>
             </Button>

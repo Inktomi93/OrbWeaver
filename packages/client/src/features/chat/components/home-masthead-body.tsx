@@ -1,13 +1,13 @@
 // Home's MASTHEAD line — chat-owned, for the same reason every other chat tile is: the sentence is about
-// YOUR ROOMS ("Six rooms, still warm." / "You left off a week ago in The Ashen Spire."), and home imports
+// YOUR ROOMS ("Six rooms, still warm." / "You left off a week ago."), and home imports
 // zero features, so the only honest place to derive it is here. The alternative was a static "Home",
 // which is the chrome this pass is deleting, not the copy it is adding.
 //
 // COPY REGISTER (#104): en-US, no em-dash, no SaaS voice — a warm plain sentence about a house you live
 // in. Every number in it is DERIVED: the room count from the same `chat.listChats` page the recents tile
-// reads (identical query key ⇒ one cache entry, no second fetch), the room name from `deriveChatTitle`
-// through the shared `chatSummaryRowView`, the age from the shared relative-time formatter. Nothing here
-// is a hardcoded six or a hardcoded week.
+// reads (identical query key ⇒ one cache entry, no second fetch), the age off the same
+// `chatSummaryRowView` projection every room row reads, through the shared relative-time formatter.
+// Nothing here is a hardcoded six or a hardcoded week.
 //
 // ONE RECENCY VOCABULARY (side-eye 2026-08-16 F4). Three renderings of the SAME instant were visible at
 // once — "Aug 2, 2026" here, "1w ago" on the hero, "1w" on the rows — and the cause was not a second
@@ -63,10 +63,16 @@ export function HomeMastheadBody(): ReactElement {
       <Heading level={1} voice="masthead">
         {page.totalCount === 0 ? "An empty house." : `${roomCountPhrase(page.totalCount)}, still warm.`}
       </Heading>
+      {/* IT NAMES THE INSTANT, NOT THE ROOM (rail sweep P2-6, 2026-08-17). This line read "You left off 2w
+          ago in Example — The Ashen Spire." directly above a hero island whose own title is that room and
+          whose credit line ended "· LAST TURN 2W AGO" — the same room name twice and the same instant
+          twice, inside 90px. The split is by ownership: the HERO is the room (it is the control you press
+          to go back into it), and this sentence is the one whose whole job is "how long has it been", so
+          it keeps the recency and drops the name. The hero dropped the stamp in the same pass. */}
       <Text voice="reading">
         {lastRoom === null
           ? "Start a room and this is where you will find your way back into it."
-          : `You left off ${timeLib.formatRelativeAgo(lastRoom.when)} in ${lastRoom.title}.`}
+          : `You left off ${timeLib.formatRelativeAgo(lastRoom.when)}.`}
       </Text>
     </Stack>
   );

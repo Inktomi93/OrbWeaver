@@ -36,8 +36,8 @@ test("the jump rows ARE the section registry minus home, in registry order", asy
   const tile = home.locator('[data-home-tile="home.jump"]');
   const rows = tile.getByRole("button");
   await expect(rows).toHaveCount(EXPECTED.length);
-  await Promise.all(EXPECTED.map(async (label, index) => await expect(rows.nth(index)).toHaveAccessibleName(label)));
-  await expect(tile.getByRole("button", { name: "Home" })).toHaveCount(0);
+  await Promise.all(EXPECTED.map(async (label, index) => await expect(rows.nth(index)).toHaveAccessibleName(`Go to ${label}`)));
+  await expect(tile.getByRole("button", { name: "Go to Home" })).toHaveCount(0);
 });
 
 test("#102: the destinations are a WRAPPING PILL RAIL, and the teaching gloss is gone from home", async ({ mount }) => {
@@ -52,7 +52,7 @@ test("#102: the destinations are a WRAPPING PILL RAIL, and the teaching gloss is
   await expect(tile.getByText(CHATS_GLOSS, { exact: true })).toHaveCount(0);
   await expect(tile.locator('[data-slot="list-row-subtitle"]')).toHaveCount(0);
 
-  const rail = await tile.getByRole("button", { name: "Chats" }).evaluate((el) => {
+  const rail = await tile.getByRole("button", { name: "Go to Chats" }).evaluate((el) => {
     const s = globalThis.getComputedStyle(el);
     const parent = el.parentElement;
     return {
@@ -75,11 +75,15 @@ test("#102: the destinations are a WRAPPING PILL RAIL, and the teaching gloss is
 test("#102-F10 every jump pill carries its section's gloss — as a tooltip AND as an accessible description", async ({ mount }) => {
   const home = await mount(<HomeSectionJumpStory />);
 
-  const chats = home.locator('[data-home-tile="home.jump"]').getByRole("button", { name: "Chats" });
+  const chats = home.locator('[data-home-tile="home.jump"]').getByRole("button", { name: "Go to Chats" });
   await expect(chats).toHaveAttribute("title", CHATS_GLOSS);
   await expect(chats).toHaveAccessibleDescription(CHATS_GLOSS);
-  // …and the pill's NAME is still the visible word, not the sentence.
-  await expect(chats).toHaveAccessibleName("Chats");
+  // …and the pill's NAME still CONTAINS the visible word (WCAG 2.5.3 label-in-name; voice control still
+  // matches on it) rather than being replaced by the sentence. The verb prefix arrived on the 2026-08-17
+  // rail sweep (P3-19): a bare "Chats" collided with the rail nav's own `aria-label="Chats"`, so two
+  // buttons on one screen shared a name and `snap --map` could mint no unique semantic selector for any
+  // of the seven pills — all of them fell back to a DOM path.
+  await expect(chats).toHaveAccessibleName("Go to Chats");
 });
 
 test("no Planned badge survives a graduation — the badge derives from `content`, so it vanished the day refinery shipped", async ({ mount }) => {
@@ -98,6 +102,6 @@ test("clicking a jump row fires setActiveSection — assert the STORE, not a ren
   const probe = home.locator("output");
   await expect(probe).not.toHaveText("section=presets");
 
-  await home.getByRole("button", { name: "Presets" }).click();
+  await home.getByRole("button", { name: "Go to Presets" }).click();
   await expect(probe).toHaveText("section=presets");
 });

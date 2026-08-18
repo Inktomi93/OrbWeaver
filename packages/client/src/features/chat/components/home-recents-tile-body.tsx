@@ -36,8 +36,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { openNewChatPicker, selectChatFromList, setActiveSection } from "#state";
-import { useChatPortraitMap } from "../hooks/use-chat-portrait-map.ts";
-import { chatPortraits } from "../lib/chat-summary-row.ts";
 import { HomeHearthRoom } from "./home-hearth-room.tsx";
 
 /** How many recents this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
@@ -52,15 +50,11 @@ function openRecent(chatId: ChatId): void {
 export function HomeRecentsTileBody(): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
-  // ONE ENTITY, ONE FACE (#99 item 2). This tile rendered the SAME rows as the chats pane while omitting
-  // `portraits`, so a 1:1 room with Kohaku showed Kohaku's portrait in the pane and a hue-seeded monogram
-  // here — three surfaces' worth of "three treatments for one entity" traced to one missing prop, not to
-  // three avatar components (there is exactly one). `useChatPortraitMap` is the SAME non-blocking read the
-  // two chats panes already share (same query key ⇒ same cache entry, no second fetch): portraits are
-  // decoration, so a slow or failed character read leaves the rows on their initials blob rather than
-  // blocking home's tile. The HERO rides it too — the one room at focal weight is the last place that
-  // should fall back to initials.
-  const characterById = useChatPortraitMap();
+  // NO PORTRAIT READ HERE ANY MORE (rail sweep P2-5/P2-6, 2026-08-17). This body used to run the shared
+  // `useChatPortraitMap` purely to feed the hero's 3-face cover-crop strip; the strip is deleted (the same
+  // cast was already spelled out in the island's credit line, and at a 64px crop the faces were
+  // unreadable), so the read has no consumer here. The ALSO-OPEN list keeps it — its rows are the surface
+  // where a face is the fastest way to recognise a room — and it is the same cache entry either way.
   const hearth = page.items[0];
 
   if (hearth === undefined) {
@@ -79,5 +73,5 @@ export function HomeRecentsTileBody(): ReactElement {
     );
   }
 
-  return <HomeHearthRoom chat={hearth} onResume={openRecent} portraits={chatPortraits(hearth.participantCharacterIds, characterById)} />;
+  return <HomeHearthRoom chat={hearth} onResume={openRecent} />;
 }

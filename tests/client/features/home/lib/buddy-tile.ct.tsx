@@ -10,7 +10,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { HomeRealDoorwaysStory } from "../_ct-stories.tsx";
 
 const BUDDY_TEASER_RE = /Your companion/u;
-const BUDDY_REASON_RE = /waiting on: domain\/buddy/u;
+/** The state line, in the USER's terms (rail sweep P1-3): the shipped copy used to be the repo-internal
+ *  citation "waiting on: domain/buddy (not in the retro tree) · the agent-role connection". */
+const BUDDY_REASON_RE = /^Not started yet/u;
 
 test("buddy renders as a doorway — name, teaser, tracked reason, ZERO controls", async ({ mount }) => {
   // The per-doorway `Dormant` BADGE went with #102: home now collects every declared doorway under one

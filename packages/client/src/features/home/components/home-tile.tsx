@@ -44,7 +44,7 @@
 //
 // The DOORWAY (`HomeDoorway`, homed here beside the frame but rendered by HomeSurface, which partitions
 // the registry — this frame only ever sees LIVE tiles) is not a fake feature: reduced weight, a DASHED rule, a muted glyph,
-// the teaser in the gloss voice, the tracked reason as a FOOTNOTE-scale mono line — and NO interactive
+// the teaser in the gloss voice, the state line as a FOOTNOTE-scale mono line — and NO interactive
 // element at all (no button, no skeleton, no spinner). `empty-states-are-load-bearing`: omitting the tile
 // would say "this product has no companion"; a fake-loading tile would lie. It has NO band of its own
 // and no `Dormant` badge any more: HomeSurface collects every declared doorway under ONE "Not yet"
@@ -118,12 +118,16 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
             (side-eye P1-2). The dashed rule + the group's "Not yet" name carry "not built yet"; the copy
             recedes. */}
         <Text voice="gloss">{doorway.teaser}</Text>
-        {/* FOOTNOTE (mock: 9px mono at .75 alpha): the tracked reason is developer citation under a
-            user-facing teaser. Same `gloss` step as the teaser above it — the scale has no step between
-            micro and nothing — so the separation is carried by mono + the alpha this footnote tier has
-            always had, which is the mock's own distinction (9px mono .75 vs 11px sans). */}
-        <Text className="font-mono opacity-60" voice="gloss">
-          waiting on: {doorway.reason}
+        {/* THE STATE LINE — what is still missing, in the user's own words (`DormantDoorway.reason`).
+            It was a DEVELOPER CITATION behind an alpha, and both halves were defects (side-eye rail sweep
+            P1-3, 2026-08-17): the copy read "waiting on: domain/buddy (not in the retro tree)" at a user,
+            and `opacity-60` over the muted ink measured **3.68:1** rendered — under the 4.5 floor, and
+            invisible to the design-audit's own contrast walker (it does not compose ancestor opacity).
+            Same `gloss` step as the teaser above it — the scale has no step between micro and nothing — so
+            the separation is carried by the MONO FACE alone now, which is the distinction that costs no
+            contrast. No "waiting on:" prefix: the sentence says its own state. */}
+        <Text className="font-mono" voice="gloss">
+          {doorway.reason}
         </Text>
       </Stack>
     </Row>

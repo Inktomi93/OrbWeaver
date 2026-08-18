@@ -32,7 +32,9 @@ test("the landing does NOT re-grow a second launcher — the recents finder and 
 
   await expect(component.getByText("Recent chats")).toHaveCount(0);
   await expect(component.getByText("Start a chat")).toHaveCount(0);
-  await expect(component.getByText("All characters →")).toHaveCount(0);
+  // (Matched WITHOUT the trailing arrow: it is a decorative `aria-hidden` span since the 2026-08-17 rail
+  // sweep, so the old literal would pass here for the wrong reason — an absence test that cannot fail.)
+  await expect(component.getByText("All characters")).toHaveCount(0);
   // The old hero copy is gone with it — one launcher, one voice.
   await expect(component.getByText("Pick up a thread")).toHaveCount(0);
 });
