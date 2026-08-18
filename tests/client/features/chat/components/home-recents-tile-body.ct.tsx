@@ -9,7 +9,6 @@
 // asserted against the shell STORE, never a rendered echo.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
@@ -18,15 +17,13 @@ const RECENT = makeChatSummary({ id: "chat_recent", title: "A grand adventure", 
 const GAME = makeChatSummary({ id: "chat_game", title: "The Ashfell run", participantNames: ["Wren"], isGame: true });
 /** The row's description also carries its subtitle + stamp, so match the marker's datum WITHIN it. */
 const GAME_MARKER_DATUM = /Game chat/u;
-/** The HERO's recency STAMP, which is a span of its own so the cast can clip without taking the age with
- *  it. Leading middot: the separator lives inside the stamp so the accessible description reads as one
- *  sentence (adjacent inline nodes concatenate with no separator). */
-const HERO_STAMP = /^· last turn/u;
-/** A cast name in the mock's APPOSITIVE shape, which is what the credit line has to shorten (F1/F12): the
- *  full string was the widest min-content contribution on the page and set the whole grid's split. */
-const LAST_TURN_RE = /last turn/u;
+/** The recency STAMP the hero used to carry. It is the MASTHEAD's sentence alone now (rail sweep P2-6 —
+ *  the two rendered the same instant 90px apart), so this pattern exists to assert its ABSENCE here. */
+const HERO_STAMP = /last turn/u;
 /** The SHORTENED cast, in credit order — the whole point of `castCredit`. */
 const SHORT_CAST_LINE = /^Calamity · Morgatha$/u;
+/** One seat of the fixture cast, for the island's accessible DESCRIPTION (the credit line rides it). */
+const CAST_IN_DESCRIPTION = /Wren/u;
 const LONG_CAST = makeChatSummary({
   id: "chat_long",
   title: "A grand adventure",
@@ -66,7 +63,9 @@ test("renders the HERO room in its own block, and the also-open list in a SECOND
   // The NEWEST room is the hero — the surface's one focal island, not a row in a list (#102).
   await expect(hero.locator('[data-home-hearth="chat_recent"]')).toBeVisible();
   await expect(hero.getByText("A grand adventure")).toBeVisible();
-  await expect(hero.getByText(HERO_STAMP)).toBeVisible();
+  // The credit line — the island's ONE cast rendering (the fixture's subtitle happens to be the same
+  // word, hence the voice-scoped locator).
+  await expect(hero.locator('[data-voice="credit"]').getByText("Wren")).toBeVisible();
   // …and everything else is the dense ALSO-OPEN list, in a block of its own — NOT inside the hero's.
   await expect(hero.locator('[data-home-tile="chat.alsoOpen"]')).toHaveCount(0);
   await expect(list.getByRole("listitem")).toHaveCount(1);
@@ -96,13 +95,13 @@ test("#102-F6 the two hearth blocks are PEER h2 regions, neither nested inside t
 });
 
 // ── RED-FIRST (#102 review F13): "All chats →" belongs to the also-open band ────────────────────────
-test("#102-F13 the trailing 'All chats →' sits on the ALSO-OPEN band, not on the pick-up row", async ({ mount, page }) => {
+test("#102-F13 the trailing 'All chats' sits on the ALSO-OPEN band, not on the pick-up row", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   await mount(<ChatRecentsPairStory />);
 
-  await expect(page.getByRole("region", { name: "Other rooms" }).getByRole("button", { name: "All chats →" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Pick up where you left off" }).getByRole("button", { name: "All chats →" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Other rooms" }).getByRole("button", { name: "All chats" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Pick up where you left off" }).getByRole("button", { name: "All chats" })).toHaveCount(0);
 });
 
 test("#102 ONE ROOM OPEN: the hero renders and the also-open BLOCK does not — no band over an empty list", async ({ mount, page }) => {
@@ -157,12 +156,15 @@ test("#102-F8/F14 an also-open room title outranks its own gloss, and the rooms 
   expect(rules.slice(1).every((width) => width > 0)).toBe(true);
 });
 
-test("#102 CD3: the hero carries the focal as a SPEAKER STRIPE plus a ::before glow — never accent fill", async ({ mount, page }) => {
-  // The focal moved here from the temp-chat primary (owner re-rule on #102). It is carried by geometry and
-  // a rationed halo, not by paint: `design-audit-checks.ts` classifies a chromatic glow on an element's OWN
-  // box-shadow as the generated-UI tell, so the halo must ride the ::before. Read from the RESOLVED style,
-  // and compare against the theme's own resolved `--color-speaker`, so this holds under every palette
-  // rather than pinning a Hearth literal.
+// ── RED-FIRST (rail sweep P2-5): the focal carries NO accent border on any edge ─────────────────────
+// The island shipped with a `--color-speaker` border-inline-start at `--immersive-stripe-width` (3px) over
+// the card radius, which is `side-tab` AND `border-accent-on-rounded` — two ABSOLUTE impeccable rules
+// (`scripts/probes/design-audit-checks.ts` `classifyAccentSide`). This asserts the RENDERED border box:
+// every edge is either hairline or achromatic, so no re-spelling of the stripe can pass it. The focal is
+// carried by the sanctioned pair instead — the elevated island's own shadow plus the rationed
+// `--shadow-glow` on the ::before layer (a chromatic glow on the element's OWN box-shadow is the
+// generated-UI tell the same file names, which is why the halo must stay on the pseudo-element).
+test("#102/P2-5 CD3: the hero's focal is an elevated island + a ::before glow — never an accent border, never accent fill", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsTileStory />);
@@ -173,31 +175,27 @@ test("#102 CD3: the hero carries the focal as a SPEAKER STRIPE plus a ::before g
     const halo = globalThis.getComputedStyle(el, "::before");
     const probe = el.ownerDocument.createElement("span");
     probe.style.color = "var(--color-speaker)";
-    probe.style.borderLeftWidth = "var(--immersive-stripe-width)";
-    probe.style.borderLeftStyle = "solid";
     el.ownerDocument.body.append(probe);
-    const probed = globalThis.getComputedStyle(probe);
-    const speaker = probed.color;
-    const stripeToken = probed.borderLeftWidth;
+    const speaker = globalThis.getComputedStyle(probe).color;
     probe.remove();
-    return {
-      stripeColor: own.borderLeftColor,
-      stripeWidth: own.borderLeftWidth,
-      ownShadow: own.boxShadow,
-      haloShadow: halo.boxShadow,
-      background: own.backgroundColor,
-      speaker,
-      stripeToken,
-    };
+    /** One edge, as the accent-border checker reads it: its width and its resolved colour. */
+    const edges = (["Top", "Right", "Bottom", "Left"] as const).map((side) => ({
+      width: Number.parseFloat(own[`border${side}Width` as "borderTopWidth"]),
+      color: own[`border${side}Color` as "borderTopColor"],
+    }));
+    return { edges, ownShadow: own.boxShadow, haloShadow: halo.boxShadow, background: own.backgroundColor, speaker };
   });
 
-  expect(paint.stripeColor).toBe(paint.speaker);
-  expect(paint.stripeWidth).toBe(paint.stripeToken);
-  expect(Number.parseFloat(paint.stripeWidth)).toBeGreaterThan(0);
-  // The halo is on the pseudo-element…
+  // No edge is BOTH thick (the checker's ≥2px accent floor) and painted in the speaker hue.
+  for (const edge of paint.edges) {
+    expect(edge.width).toBeLessThan(2);
+    expect(edge.color).not.toBe(paint.speaker);
+  }
+  // The rationed halo is on the pseudo-element…
   expect(paint.haloShadow).not.toBe("none");
-  // …and NOT on the island's own box.
-  expect(paint.ownShadow).toBe("none");
+  // …and the ELEVATED island's own shadow is the other sanctioned carrier (`Card elevated` — the finding
+  // was that the card did not read as the page's focal at all once the illegal stripe was gone).
+  expect(paint.ownShadow).not.toBe("none");
   // …and the island is NOT accent-filled: a focal made of fill is the thing CD3's ≤10% ceiling exists for.
   expect(paint.background).not.toBe(paint.speaker);
 });
@@ -225,20 +223,64 @@ test("#102 RAMP: the hero title is the HEADLINE step — strictly larger than an
 // The measured tree was `button "Sabine Veyra" > group "Sabine Veyra" > img "Sabine Veyra" > img
 // "Sabine Veyra"` — the room name five times over, and a name that is a NOUN on the one control the
 // landing surface exists to offer. Asserted through the accessible name, which is the affordance.
-test("#102-F5 the hero is named 'Resume <room>' and its cast strip announces nothing", async ({ mount, page }) => {
+test("#102-F5 the hero is named 'Resume <room>', arrow and all art excluded", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]), "character.list": CHARACTERS });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_recent"]');
 
+  // Exactly the verb phrase: no trailing "→" (rail sweep P3-14 — the visible affordance still ends in the
+  // glyph, the NAME does not), and no cast names bleeding in from art that should not be in the tree.
   await expect(hero).toHaveAccessibleName("Resume A grand adventure");
-  // The cast strip is out of the accessible tree entirely: its seats are already in the credit line the
-  // island is DESCRIBED by, so a named stack said each of them a second and third time.
-  await expect(hero.locator('[data-slot="avatar-stack-root"]')).toHaveAttribute("aria-hidden", "true");
   await expect(hero.getByRole("img")).toHaveCount(0);
-  // …and the cast/age line still rides the description (after the scent line), so nothing was lost by
-  // taking the art out of the tree.
-  await expect(hero).toHaveAccessibleDescription(LAST_TURN_RE);
+  // …and the cast line rides the description (after the scent line).
+  await expect(hero).toHaveAccessibleDescription(CAST_IN_DESCRIPTION);
+});
+
+// ── RED-FIRST (rail sweep P2-6): the island renders its cast ONCE and its recency NEVER ─────────────
+// It shipped with a 3-face 64px cover-crop strip AND the mono credit line (the same cast twice, one of
+// them illegible at that crop), plus "· LAST TURN 2W AGO" under a masthead sentence that already said
+// "You left off 2w ago in …". Asserted through what is RENDERED — a thumbnail strip and a stamp string —
+// so it compiles and fails against the old source.
+test("P2-6 the hero has NO thumbnail strip and NO recency stamp — one cast rendering, no duplicated instant", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS });
+
+  const home = await mount(<ChatRecentsTileStory />);
+  const hero = home.locator('[data-home-hearth="chat_long"]');
+
+  await expect(hero).toBeVisible();
+  await expect(hero.locator('[data-slot="avatar-stack-root"]')).toHaveCount(0);
+  await expect(hero.getByText(HERO_STAMP)).toHaveCount(0);
+  // The ONE cast rendering survives, and it is the credit line.
+  await expect(hero.getByText(SHORT_CAST_LINE)).toBeVisible();
+});
+
+// ── RED-FIRST (rail sweep P3-17): "Resume" is a hint on the card, not a link beside it ──────────────
+// The whole island is the control, and this label rendered in `text-primary` — link ink — so the eye read
+// "the link is over there" and the 700px of card beside it as inert. Asserted against the RESOLVED primary
+// colour rather than a literal, so it holds under every palette.
+test("P3-17 the hero's Resume label is not painted as a link", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT]) });
+
+  const home = await mount(<ChatRecentsTileStory />);
+  const label = home.locator('[data-home-hearth="chat_recent"]').getByText("Resume");
+
+  const ink = await label.evaluate((el) => {
+    const probe = el.ownerDocument.createElement("span");
+    probe.style.color = "var(--color-primary)";
+    el.ownerDocument.body.append(probe);
+    const primary = globalThis.getComputedStyle(probe).color;
+    probe.remove();
+    const muted = el.ownerDocument.createElement("span");
+    muted.style.color = "var(--color-muted-foreground)";
+    el.ownerDocument.body.append(muted);
+    const mutedInk = globalThis.getComputedStyle(muted).color;
+    muted.remove();
+    return { own: globalThis.getComputedStyle(el).color, primary, mutedInk };
+  });
+
+  expect(ink.own).not.toBe(ink.primary);
+  expect(ink.own).toBe(ink.mutedInk);
 });
 
 // ── RED-FIRST (#102 review F12/F15/P1-1): the credit line's register, size and NAME LENGTH ──────────
@@ -252,8 +294,6 @@ test("#102-F12 the hero credit line is caps micro-caps at the label step, with S
   // The appositive is dropped: "Calamity, Doomblade of the Ninth Epoch" reads "Calamity" here. It is the
   // room's cast at credit length, not the character library's index.
   await expect(credit).toBeVisible();
-  // …and the STAMP is its own span, so a long cast clips without taking the recency with it.
-  await expect(hero.getByText(HERO_STAMP)).toBeVisible();
 
   const type = await credit.evaluate((el) => {
     const style = globalThis.getComputedStyle(el);
@@ -272,28 +312,12 @@ test("#102-F12 the hero credit line is caps micro-caps at the label step, with S
   expect(Number.parseFloat(type.size)).toBeGreaterThanOrEqual(11);
 });
 
-// ── RED-FIRST (#102 review, RULED question): the hero's cast is ART, not a roster ───────────────────
-test("#102-RULED the hero cast strip is SQUARE portrait art, not the chat-list circle", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS });
-
-  const home = await mount(<ChatRecentsTileStory />);
-  const seat = home.locator('[data-home-hearth="chat_long"] [data-slot="avatar-stack-item"]').first();
-
-  const radius = await seat.evaluate((el) => {
-    const probe = el.ownerDocument.createElement("span");
-    probe.style.borderRadius = "var(--radius-base)";
-    el.ownerDocument.body.append(probe);
-    const portraitStep = globalThis.getComputedStyle(probe).borderTopLeftRadius;
-    probe.remove();
-    const own = globalThis.getComputedStyle(el);
-    return { own: own.borderTopLeftRadius, portraitStep, width: own.width, height: own.height };
-  });
-  // The mock's `.fire .faces img{border-radius:var(--radius-base)}` — the PORTRAIT step, against the base
-  // `.faces img{border-radius:full}` every other strip keeps.
-  expect(radius.own).toBe(radius.portraitStep);
-  // …and it is genuinely a rounded RECT, not a circle wearing a token name.
-  expect(Number.parseFloat(radius.own)).toBeLessThan(Number.parseFloat(radius.width) / 2);
-});
+// The #102-RULED "the hero cast strip is SQUARE portrait art" pin was DELETED on the 2026-08-17 rail sweep
+// with the strip it described (P2-5/P2-6: the same cast was already spelled out in the credit line, and at
+// a 64px cover crop the faces were unreadable). The ruling it recorded — hero art is square, chats-list art
+// is circular — has no live subject on this surface any more; the chats-list circle stays pinned by
+// `tests/client/features/chat/surfaces/chat-list-surface.ct.tsx`. `P2-6` above is the arm that now keeps a
+// strip from silently coming back.
 
 test("opening a recent selects the chat AND moves the rail to chats — assert the STORE", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT]) });
@@ -310,7 +334,7 @@ test("the trailing action jumps to the chats section", async ({ mount, page }) =
   await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsPairStory />);
-  await home.getByRole("button", { name: "All chats →" }).click();
+  await home.getByRole("button", { name: "All chats" }).click();
 
   await expect(home.locator("output")).toHaveText("section=chats");
 });
@@ -324,7 +348,7 @@ test("the rows are real LIST ITEMS, and the trailing action sits inside its own 
   // A `role="list"` whose children are generic divs announces as an empty list to AT (side-eye F4).
   await expect(alsoOpen.getByRole("list").getByRole("listitem")).toHaveCount(1);
   // …and "All chats →" is announced under that block's heading instead of standing alone as an arrow.
-  await expect(alsoOpen.getByRole("button", { name: "All chats →" })).toBeVisible();
+  await expect(alsoOpen.getByRole("button", { name: "All chats" })).toBeVisible();
 });
 
 // Home polish, held: the side-eye receipt was `img "Game chat"` announced as a BARE SIBLING in
@@ -350,62 +374,17 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
   await expect(home.locator('[data-slot="list-row-actions"]')).toHaveCount(0);
 });
 
-// ── RED-FIRST (stickler 2026-08-16 F1): the SUB-MINUTE recency arm never reads "now ago" ────────────
-// The hero's credit line composed `formatRelativeCompact(when)` — which returns the WORD "now" for any
-// span under a minute — with a literal " ago", so the most common post-chat state ("you just sent a
-// message, then opened home") rendered "· last turn now ago" (the credit voice uppercases it to
-// "NOW AGO"). The fix is the kit's sentence form `formatRelativeAgo`, which reads "just now" sub-minute.
-// Asserted through the RENDERED stamp text (the credit voice's uppercase is CSS, so the DOM string is
-// what the sentence composes), not the new API — this compiles and fails against the old composition.
-test("F1 a room whose last turn is seconds old reads 'just now', never 'now ago'", async ({ mount, page }) => {
-  // Freeze the page clock so the component's "now" and the message time agree deterministically — no
-  // ambient Date.now() (test-determinism gate; Spine-Testing §3). A zero-span read exercises the sub-minute arm.
-  await page.clock.setFixedTime(FROZEN_AT_MS);
-  const recent = makeChatSummary({
-    id: "chat_recent",
-    title: "The Ashen Spire",
-    participantNames: ["Wren"],
-    participantCharacterIds: ["char_wren"],
-    lastMessageAt: FROZEN_AT_MS,
-  });
-  await routeTrpc(page, { "chat.listChats": chatListResponder([recent]), "character.list": CHARACTERS });
-
-  const home = await mount(<ChatRecentsTileStory />);
-  const stamp = home.locator('[data-home-hearth="chat_recent"]').getByText(HERO_STAMP);
-
-  await expect(stamp).toBeVisible();
-  await expect(stamp).toHaveText("· last turn just now");
-  await expect(stamp).not.toContainText("now ago");
-});
-
-// ── RED-FIRST (#147): the cast strip RESERVES its settled width, so the column beside it never re-lays ──
-// Measured on the live shell 2026-08-17/18: the hero's strip is `null` until `character.list` resolves, and
-// `character.list` lands on its OWN clock (the tile suspends on `chat.listChats` first). So the hero painted
-// with no strip, then the strip appeared and shoved the whole text column right — `[data-slot=card-root]
-// moved 76px,0px` for a one-seat room, 148px for three (64px hero avatar + a 36px step per extra seat + the
-// 12px Row gap), logged as `[cls] shift … unexpected` on every cold section load. The room's SEAT COUNT is on
-// the chat row from the first frame; only the FACES need the character read. `trpcHold` pins the un-landed
-// arm as a stable state instead of trying to catch the flash, and the assertion is the RENDERED x of the room
-// title — the affordance, not the new API — so it compiles and fails against the old source.
-test("#147 the hero's cast strip is born at its settled width — the title does not move when the portraits land", async ({ mount, page }) => {
-  const characters = trpcHold();
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": characters });
-
-  const home = await mount(<ChatRecentsTileStory />);
-  const hero = home.locator('[data-home-hearth="chat_long"]');
-  const title = hero.getByText("A grand adventure");
-  await expect(title).toBeVisible();
-  // The deterministic barrier: the portrait read is in flight and HELD, so the un-landed arm is settled.
-  await characters.requested;
-  const held = await title.evaluate((el) => Math.round(el.getBoundingClientRect().x));
-
-  characters.release(CHARACTERS);
-  // The seats landing is the settled arm's own affordance — two cards, two faces.
-  await expect(hero.locator('[data-slot="avatar-stack-item"]')).toHaveCount(2);
-  const landed = await title.evaluate((el) => Math.round(el.getBoundingClientRect().x));
-
-  expect(landed).toBe(held);
-});
+// The stickler-F1 "just now, never now ago" pin lived on the hero's recency STAMP, which the 2026-08-17
+// rail sweep deleted (P2-6 — the masthead sentence one line above rendered the same instant). The ruling it
+// guards is unchanged and still pinned where the sentence now lives alone:
+// `tests/client/features/chat/components/home-masthead-body.ct.tsx` ("F1 the masthead reads 'You left off
+// just now'"). Nothing on this tile composes a relative time any more.
+//
+// The #147 HERO arm ("the cast strip is born at its settled width") went the same way: its subject was the
+// strip, and the tile body no longer issues the `character.list` read at all — the arm's own `trpcHold`
+// barrier could never resolve, which is exactly how a test outlives its defect. The row twin below still
+// pins the mechanism where portraits are still read. The hero's half is now the count assertion in the
+// `P2-6` test above: zero avatar stacks, so there is nothing left that can arrive late and shove a column.
 
 // ── RED-FIRST (#147, the row twin): a list row's leading slot is sized by the SEAT COUNT ───────────────
 // Same defect one weight down: an also-open row rendered ONE 32px initials blob while the character read was

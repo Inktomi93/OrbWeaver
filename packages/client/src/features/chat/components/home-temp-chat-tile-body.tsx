@@ -100,8 +100,11 @@ export function HomeTempChatTileBody(): ReactElement {
         {/* SECONDARY, not primary (CD3 re-ruled 2026-08-16, owner pick on #102). This button used to be
             home's ONE accent element. The focal moved to the resume-room hero — the complaint under
             review was that the live rooms were not the loudest thing on the page, and a page whose only
-            accent made a room that deletes itself in a day was exactly that complaint. */}
-        <Button intent="secondary" onClick={startTempChat}>
+            accent made a room that deletes itself in a day was exactly that complaint.
+            …AND `sm`, which is what the shelf's OTHER peer-rank CTA already was (side-eye rail sweep
+            P3-16): this rendered 169×34 beside databank's 171×32 text-link, two registers for two controls
+            of identical rank in one column. Both are `secondary`/`sm` now. */}
+        <Button intent="secondary" onClick={startTempChat} size="sm">
           <Icon icon={Plus} size="sm" />
           Start a temp chat
         </Button>

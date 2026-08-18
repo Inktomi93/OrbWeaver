@@ -26,7 +26,7 @@ export const buddyDormantTile: HomeTileContribution = {
   order: BUDDY_TILE_ORDER,
   body: {
     dormant: {
-      reason: "domain/buddy (not in the retro tree) · the agent-role connection",
+      reason: "Not started yet, and there is no date to promise.",
       teaser: "Your companion — the agent-role connection that reacts to what you and your characters do, in its own voice.",
     },
   },

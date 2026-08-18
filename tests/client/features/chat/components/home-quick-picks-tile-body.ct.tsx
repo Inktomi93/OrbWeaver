@@ -4,16 +4,40 @@
 //
 // These assertions MOVED here from `chat-landing-surface.ct.tsx` when the launcher moved to home.
 
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterSummary, makeTagFixture } from "../../character/fixtures.ts";
 import { ChatQuickPicksTileStory } from "../_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt" });
 const CHAR_PAGE = { items: [ARIA, BOLT], nextCursor: null };
+/** The two-line GLOSS of the long-name fixture below, matched by its head so the clamp can do its work. */
+const LONG_GLOSS = /^An immortal/u;
+
+/** The `chat.startChat` response the launcher awaits — the same shape `use-start-chat.ct.tsx` serves (a
+ *  full `ChatDetail` under `chat`, because the seam seeds `chat.getChat` with it). */
+function startChatResult(id: string): { chat: Record<string, unknown>; opening: null } {
+  return {
+    chat: {
+      id,
+      title: "A new room",
+      participants: [],
+      anchorPersonaId: null,
+      cast: [],
+      group: DEFAULT_GROUP_CONFIG,
+      temporary: false,
+      viewerIsHost: true,
+      roomOverrides: {},
+      background: null,
+      rpg: null,
+    },
+    opening: null,
+  };
+}
 
 test("renders the character faces inside the tile frame", async ({ mount, page }) => {
   await routeTrpc(page, { "character.list": CHAR_PAGE });
@@ -24,17 +48,31 @@ test("renders the character faces inside the tile frame", async ({ mount, page }
   await expect(tile.getByText("Start with")).toBeVisible();
   await expect(tile.getByText("Aria")).toBeVisible();
   await expect(tile.getByText("Bolt")).toBeVisible();
-  await expect(tile.getByRole("button", { name: "All characters →" })).toBeVisible();
+  await expect(tile.getByRole("button", { name: "All characters" })).toBeVisible();
 });
 
-test("picking a face seeds a draft AND moves the rail to chats — assert the STORE", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": CHAR_PAGE });
+// ── RED-FIRST (rail sweep P2-7): the rail moves ONCE, after the room exists ─────────────────────────
+// The handler moved the rail BEFORE awaiting `startChat`, which unmounted home with the pressed cell
+// inside it and left `activeElement` on `<body>` — so the room that swapped in afterwards declined to take
+// focus (the guarded `useFocusOnMount` cannot tell that swap from a cold load) and a keyboard user was left
+// with no focus at all. Asserted through the affordances: the pressed cell is STILL the focused element
+// while the mutation is in flight (it was gone), and the rail arrives when the room does.
+test("P2-7 picking a face keeps focus on the cell until the room exists, then moves the rail — assert the STORE", async ({ mount, page }) => {
+  const started = trpcHold();
+  await routeTrpc(page, { "character.list": CHAR_PAGE, "chat.startChat": started });
 
   const home = await mount(<ChatQuickPicksTileStory />);
   const probe = home.locator("output");
   await expect(probe).not.toHaveText("section=chats");
 
-  await home.getByText("Bolt").click();
+  const cell = home.getByRole("button", { name: "Bolt" });
+  await cell.press("Enter");
+  // The deterministic barrier: the create is in flight and HELD, so the mid-flight arm is a settled state.
+  await started.requested;
+  await expect(probe).not.toHaveText("section=chats");
+  await expect(cell).toBeFocused();
+
+  started.release(startChatResult("chat_bolt"));
   await expect(probe).toHaveText("section=chats");
 });
 
@@ -42,7 +80,7 @@ test("the trailing action jumps to the characters section", async ({ mount, page
   await routeTrpc(page, { "character.list": CHAR_PAGE });
 
   const home = await mount(<ChatQuickPicksTileStory />);
-  await home.getByRole("button", { name: "All characters →" }).click();
+  await home.getByRole("button", { name: "All characters" }).click();
 
   await expect(home.locator("output")).toHaveText("section=characters");
 });
@@ -68,6 +106,74 @@ test("each row carries an HONEST tagline off the summary it already reads — pi
   await expect(tile.getByText("noir")).toBeVisible();
   await expect(tile.getByText("Bare")).toBeVisible();
   await expect(tile.getByText("bare_handle")).toHaveCount(0);
+});
+
+// ── RED-FIRST (rail sweep P2-8/P3-19): the cell's NAME is the character, the pitch is its DESCRIPTION ──
+// The cell had no `aria-label`, so its name came from its own text content and AT read the two lines as one
+// run-on string with no separator — the live receipt was `button "Calamity, Doomblade of the Ninth EpochA
+// legendary, apocalypse-forged…"`. A name that long is also why every cell resolved by DOM PATH in a
+// `snap --map`. Asserted through the accessible name/description pair, which is exactly the affordance.
+test("P2-8 a quick-pick is named by the character alone, with its pitch as the DESCRIPTION", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": {
+      items: [
+        makeCharacterSummary({ id: "char_pitch", name: "Calamity, Doomblade of the Ninth Epoch", elevatorPitch: "A legendary, apocalypse-forged blade" }),
+      ],
+      nextCursor: null,
+    },
+  });
+
+  const home = await mount(<ChatQuickPicksTileStory />);
+  const cell = home.getByRole("listitem").getByRole("button");
+
+  await expect(cell).toHaveAccessibleName("Calamity, Doomblade of the Ninth Epoch");
+  await expect(cell).toHaveAccessibleDescription("A legendary, apocalypse-forged blade");
+});
+
+// ── RED-FIRST (rail sweep P2-9/P3-18): the name outranks its gloss, and neither cuts mid-word ─────────
+// The two lines were `label` over `gloss prose` — 13px over 13px, the entity and a sentence about it at the
+// same step — and both were `truncate`, which rendered "Morgatha, the Undy…" (not a name) and
+// "A legendary, apocal…" (not a pitch). The name is a ramp step up and both lines clamp to two WRAPPED
+// lines. Asserted on resolved geometry/type, never a px literal.
+test("P2-9 the cell's name is a step above its gloss, and both wrap instead of cutting mid-word", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": {
+      items: [
+        makeCharacterSummary({
+          id: "char_long",
+          name: "Morgatha, the Undying Dark",
+          elevatorPitch: "An immortal, bureaucratically-minded necromancer with a filing system",
+        }),
+      ],
+      nextCursor: null,
+    },
+  });
+
+  const home = await mount(<ChatQuickPicksTileStory />);
+  const cell = home.getByRole("listitem").getByRole("button");
+  const name = cell.getByText("Morgatha, the Undying Dark");
+  const gloss = cell.getByText(LONG_GLOSS);
+
+  const type = await name.evaluate((el) => {
+    const style = globalThis.getComputedStyle(el);
+    const probe = el.ownerDocument.createElement("span");
+    probe.style.fontSize = "var(--text-title)";
+    el.ownerDocument.body.append(probe);
+    const titleStep = globalThis.getComputedStyle(probe).fontSize;
+    probe.remove();
+    return { size: style.fontSize, titleStep, whiteSpace: style.whiteSpace, clamp: style.webkitLineClamp };
+  });
+  const glossSize = await gloss.evaluate((el) => globalThis.getComputedStyle(el).fontSize);
+
+  // The `promoted` voice resolves the TITLE step — the relation, read off the token, not a hardcoded 16.
+  expect(type.size).toBe(type.titleStep);
+  expect(Number.parseFloat(type.size)).toBeGreaterThan(Number.parseFloat(glossSize));
+  // …and the name WRAPS (the Button base is `whitespace-nowrap`; a nowrap line in a clamp box overflows
+  // with no ellipsis at all, which is why this was `truncate` before).
+  expect(type.whiteSpace).toBe("normal");
+  expect(type.clamp).toBe("2");
+  // The gloss gets the same two-line budget — the room exists, and a 20-character cut taught nothing.
+  await expect(gloss).toHaveCSS("-webkit-line-clamp", "2");
 });
 
 test("the cells are real LIST ITEMS inside the list — a role=list of generic divs announces empty", async ({ mount, page }) => {
@@ -101,7 +207,7 @@ test("the tile's trailing action lives INSIDE the tile's own named region — '�
 
   const home = await mount(<ChatQuickPicksTileStory />);
 
-  await expect(home.getByRole("region", { name: "Start with" }).getByRole("button", { name: "All characters →" })).toBeVisible();
+  await expect(home.getByRole("region", { name: "Start with" }).getByRole("button", { name: "All characters" })).toBeVisible();
 });
 
 test("an empty library renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {

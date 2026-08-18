@@ -18,7 +18,7 @@ export const automationDormantTile: HomeTileContribution = {
   order: AUTOMATION_TILE_ORDER,
   body: {
     dormant: {
-      reason: "automation.stream through the SSE multiplex (stage 4 — a sanctioned doorway, not a stub)",
+      reason: "Half built: your rooms already carry the channel it will speak over, the panel is what is left.",
       teaser: "Rules that fire on your rooms — quick-reply chips, the fire log, and the budget panel, live over the rooms socket.",
     },
   },

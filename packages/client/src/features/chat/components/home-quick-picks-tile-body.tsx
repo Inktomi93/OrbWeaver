@@ -17,6 +17,7 @@ import { Grid, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { useStartChat, useTRPC } from "#data";
 import { setActiveSection } from "#state";
 
@@ -27,10 +28,21 @@ const QUICK_PICKS_LIMIT = 6;
 
 export function HomeQuickPicksTileBody(): ReactElement {
   const trpc = useTRPC();
-  // Creating the room is chat intent; moving the rail to chats is what makes it VISIBLE.
+  /** The per-render id SCOPE for the cells' caption elements (each cell suffixes its own character id) —
+   *  one hook at the top of the component, never one per row inside the map. */
+  const captionScope = useId();
+  // ONE NAVIGATION, AFTER THE ROOM EXISTS (side-eye rail sweep P2-7). This handler used to move the rail
+  // to chats BEFORE awaiting `startChat`, and that early move is what dropped focus on `<body>`: home
+  // unmounted with the pressed cell inside it, the chats section painted its LANDING surface, and the room
+  // then swapped IN PLACE when the mutation landed — a swap whose guarded `useFocusOnMount` declines by
+  // design, because `activeElement` is already `<body>` and that is indistinguishable from a cold load. A
+  // keyboard user pressing Enter on a face was left with no focus at all, while Resume and the chat rows
+  // (which navigate ONCE, synchronously, with their control still mounted) land in the room title.
+  // `useStartChat` already calls `setActiveSection("chats")` after the row exists, so the section change
+  // now happens with the cell still focused: `SectionContent`'s layout effect moves focus to the content
+  // anchor, and the room surface's own mount hook takes it from there.
   const { startChat } = useStartChat();
   const startChatWith = (characterId: CharacterId): void => {
-    setActiveSection("chats");
     void startChat({ characterIds: [characterId] });
   };
   const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT }));
@@ -71,16 +83,28 @@ export function HomeQuickPicksTileBody(): ReactElement {
           .map((tag) => tag.name)
           .join(" · ");
         const caption = character.elevatorPitch ?? (tagLine === "" ? null : tagLine);
+        // ONE `useId` at the top of the component, suffixed by the row's own id — never a hook in a map
+        // body. The character id is unique within the page by construction, so the pair is unique.
+        const captionId = `${captionScope}${character.id}`;
         return (
           // `role="listitem"` rides a layout-primitive WRAPPER, never the Button: an interactive element
           // assigned a non-interactive role is a lie to AT (and eslint's own
           // `no-interactive-element-to-noninteractive-role`). Same shape the recents list uses.
           <Stack key={character.id} role="listitem">
             <Button
+              // THE NAME IS THE CHARACTER, THE PITCH IS THE DESCRIPTION (side-eye rail sweep P2-8/P3-19).
+              // The cell's name came from its own text content, so AT read the name and the caption as ONE
+              // run-on string — "Calamity, Doomblade of the Ninth EpochA legendary, apocalypse-forged…" —
+              // because adjacent inline nodes concatenate with no separator. It is also what left these six
+              // cells resolvable only by DOM PATH in a `snap --map`: a name that long is unique by accident
+              // and unusable by anyone. The name is the FULL name (the visible line clamps; the NAME never
+              // does), and the pitch rides `aria-describedby`, which is what a description is for.
+              aria-label={character.name}
               className="flex-col items-stretch gap-tight text-left"
               intent="ghost"
               onClick={(): void => startChatWith(castId<CharacterId>(character.id))}
               size="media"
+              {...(caption === null ? {} : { "aria-describedby": captionId })}
             >
               <Avatar
                 fallbackDelay={0}
@@ -91,11 +115,17 @@ export function HomeQuickPicksTileBody(): ReactElement {
               >
                 {initialsFor(character.name)}
               </Avatar>
-              {/* `block truncate`, NOT `line-clamp-1` (measured on the 2000px stage receipt): the Button
-                  base is `whitespace-nowrap`, and a nowrap line inside a `-webkit-box` clamp overflows
-                  its cell with no ellipsis at all — "Calamity, Doomblade of the Ninth Epoch" ran straight
-                  over the neighbouring face. An inline span cannot truncate either, hence `block`. */}
-              <Text as="span" className="block truncate text-foreground" voice="label">
+              {/* THE NAME IS A STEP ABOVE ITS GLOSS (side-eye rail sweep P2-9/P3-18). It was `label` over a
+                  `gloss prose` caption — 13px over 13px, two identical lines where one is the entity and
+                  the other is a sentence about it — so the shelf read as a wall of paragraphs. `promoted`
+                  is the ui voice for exactly this relation (the `title` step, the same one `ListRow`
+                  resolves for a promoted row).
+                  AND IT WRAPS RATHER THAN CUTTING MID-WORD: `truncate` rendered "Morgatha, the Undy…",
+                  which is not a name. Two lines of `line-clamp` break at word boundaries, and
+                  `whitespace-normal` is load-bearing — the Button base is `whitespace-nowrap`, and a nowrap
+                  line inside a `-webkit-box` clamp overflows its cell with no ellipsis at all (measured on
+                  the 2000px stage receipt, which is why this was `block truncate` before). */}
+              <Text as="span" className="line-clamp-2 whitespace-normal text-foreground" voice="promoted">
                 {character.name}
               </Text>
               {/* `prose`, NOT the bare gloss (side-eye 2026-08-16 F15). Six of the seven interactive text
@@ -103,9 +133,11 @@ export function HomeQuickPicksTileBody(): ReactElement {
                   carrying a whole pitch sentence. `prose` is the sanctioned LENGTH modifier — it lifts the
                   step to `label` and relaxes the leading and changes nothing else, so the caption is still
                   unmistakably the gloss voice, just legible at sentence length. Rendered only when a
-                  caption exists (#119) — no line beats a slug. */}
+                  caption exists (#119) — no line beats a slug.
+                  TWO LINES, not one truncated one (P3-18): the shelf has the vertical room, and a pitch cut
+                  at ~20 characters mid-word ("A legendary, apocal…") taught nothing about the character. */}
               {caption === null ? null : (
-                <Text as="span" className="block truncate" prose={true} voice="gloss">
+                <Text as="span" className="line-clamp-2 whitespace-normal" id={captionId} prose={true} voice="gloss">
                   {caption}
                 </Text>
               )}

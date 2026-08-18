@@ -32,8 +32,9 @@ export interface TextProps extends ComponentProps<"p">, VariantProps<typeof text
  * Feature code passes `voice` (density-pass-spec.md §2.3 — kicker · label · datum · gloss, plus `hero`
  * for THE number, `monogram` for a decorative display glyph, `reading` for the CONTENT prose itself,
  * `credit` for the cast/age line under a focal item, and
- * the two PROMOTION voices `masthead` (a surface's one opening sentence, display step, sans — `hero`'s
- * prose twin) and `focal` (the one item promoted above its siblings, headline step)): the voice grammar
+ * the three PROMOTION voices `masthead` (a surface's one opening sentence, display step, sans — `hero`'s
+ * prose twin), `focal` (the one item promoted above its siblings, headline step) and `promoted` (the name
+ * of ONE item in a shelf of them, title step — `ListRow`'s `titleStep="promoted"` as a voice)): the voice grammar
  * is what makes a surface's hierarchy
  * legible instead of uniformly loud. `size`/`weight`/`tone`/`transform` are the ui-package-internal axes a
  * voice is BUILT from; the `density-tier` gate (arm A3) ratchets their remaining feature call sites down.

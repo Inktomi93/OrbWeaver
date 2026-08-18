@@ -387,6 +387,38 @@ test("VOICE: `masthead` / `focal` / `reading` open the three steps a feature cou
   expect(reading.color).toBe(resolved.prose);
 });
 
+test("VOICE: `promoted` is the TITLE step — the name of one item in a shelf, a step above its own gloss", async ({ mount }) => {
+  // Added by the 2026-08-17 rail sweep (P2-9/P3-18). Home's character shelf rendered each cell as `label`
+  // over `gloss prose` — 13px over 13px, the entity and a sentence about it at the same step — and a
+  // feature cannot spell the 16px title step any other way (`size="title"` is one of the four internal axes
+  // the A3 arm reds at a feature call site). The pin that matters is that it is the TITLE step and STRICTLY
+  // above the gloss step beneath it: a "tidy-up" collapsing it onto `label` would reopen the finding
+  // silently.
+  const mounted = await mount(
+    <div>
+      <Text data-testid="promoted" as="span" voice="promoted">
+        Morgatha, the Undying Dark
+      </Text>
+      <Text data-testid="promoted-gloss" as="span" prose={true} voice="gloss">
+        An immortal, bureaucratically-minded necromancer
+      </Text>
+    </div>,
+  );
+  const titleStep = await mounted.evaluate((root) => {
+    const probe = root.ownerDocument.createElement("div");
+    root.ownerDocument.body.append(probe);
+    probe.style.fontSize = "var(--text-title)";
+    const px = getComputedStyle(probe).fontSize;
+    probe.remove();
+    return px;
+  });
+  const name = await mounted.getByTestId("promoted").evaluate((el) => getComputedStyle(el).fontSize);
+  const gloss = await mounted.getByTestId("promoted-gloss").evaluate((el) => getComputedStyle(el).fontSize);
+
+  expect(name).toBe(titleStep);
+  expect(Number.parseFloat(name)).toBeGreaterThan(Number.parseFloat(gloss));
+});
+
 test("VOICE: `credit` is the mock's micro-caps register AT THE LABEL STEP, never the micro step", async ({ mount }) => {
   // Added by the #102 review (F12 + F15). The hero's cast/age line wanted the mock's mono UPPERCASE
   // tracked register, which a feature cannot spell (`transform` is an A3-red internal axis) — AND it sits

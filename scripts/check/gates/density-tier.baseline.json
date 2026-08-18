@@ -3,7 +3,6 @@
   "packages/client/src/features/app-shell/components/section-context-host.tsx": 4,
   "packages/client/src/features/app-shell/components/shell-topbar.tsx": 2,
   "packages/client/src/features/app-shell/components/you-sheet.tsx": 4,
-  "packages/client/src/features/app-shell/surfaces/app-shell.tsx": 2,
   "packages/client/src/features/auth/components/login-local-form.tsx": 2,
   "packages/client/src/features/auth/surfaces/account-surface.tsx": 3,
   "packages/client/src/features/auth/surfaces/login-surface.tsx": 8,

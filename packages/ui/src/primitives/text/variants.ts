@@ -100,6 +100,16 @@ export const textVariants = tv({
       // decided you came for: home's resume-room hero. It is the type half of the CD3 focal (the other
       // half is the stripe + the rationed ::before glow); a surface with two of these has no focal at all.
       focal: "font-sans text-headline leading-headline tracking-tight font-semibold text-foreground",
+      // THE NAME OF ONE ITEM IN A SHELF OF ITEMS (added 2026-08-17, side-eye rail sweep P2-9/P3-18). The
+      // `title` step (16px), semibold, which no CONTENT voice reached: `label` is the step for the name of
+      // a datum and `focal` is the headline step reserved for the ONE entry a surface promotes above its
+      // siblings — so a grid of character cells, each with a name over a gloss, had only `label` left and
+      // rendered its name and its caption as two identical 13px lines. It is the same step `ListRow`
+      // resolves for `titleStep="promoted"`, which is exactly the relation this names: a row/cell whose
+      // title IS a surface's content rather than a directory entry. A feature cannot spell it otherwise —
+      // `size="title"` is one of the four @orb/ui-internal axes the density A3 arm reds at a feature call
+      // site — so the choice was a voice or an exemption.
+      promoted: "font-sans text-title leading-title tracking-normal font-semibold text-foreground",
       // The DECORATIVE DISPLAY GLYPH (added S6): a single-letter mark an immersive chat row skin paints on
       // its own band/tile fill — aria-hidden ornament, not prose. None of the four CONTENT voices fits it
       // (each would shrink a glyph whose entire job is to BE large), and the alternative at the call site

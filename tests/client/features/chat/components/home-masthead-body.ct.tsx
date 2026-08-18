@@ -17,6 +17,10 @@ import { chatListResponder, makeChatSummary } from "../fixtures.ts";
 
 /** The masthead's subtitle sentence — the one line whose whole job is "how long has it been". */
 const LEFT_OFF = /^You left off/u;
+/** The ROOM NAME the sentence used to end with. It moved out on the 2026-08-17 rail sweep (P2-6): the hero
+ *  island directly below is titled with that room, so the page said it twice inside 90px. This sentence
+ *  keeps the INSTANT (its whole job); the hero keeps the room. */
+const ROOM_NAME_IN_SENTENCE = /in The /u;
 
 test("F1 the masthead reads 'You left off just now', never 'now ago', for a seconds-old room", async ({ mount, page }) => {
   // Freeze the page clock so the component's "now" and the message time agree deterministically — no
@@ -29,8 +33,10 @@ test("F1 the masthead reads 'You left off just now', never 'now ago', for a seco
   const subtitle = home.getByText(LEFT_OFF);
 
   await expect(subtitle).toBeVisible();
-  await expect(subtitle).toHaveText("You left off just now in The Ashen Spire.");
+  await expect(subtitle).toHaveText("You left off just now.");
   await expect(subtitle).not.toContainText("now ago");
+  // …and it does NOT name the room — the hero island below is the one thing that does (rail sweep P2-6).
+  await expect(subtitle).not.toHaveText(ROOM_NAME_IN_SENTENCE);
 });
 
 // ── FENCE (#150, owner-observed live 2026-08-17): the sentence reads the CONVERSATION clock ──────────
@@ -57,7 +63,7 @@ test("#150 the subtitle ages the room by its last MESSAGE, not by the chat row's
 
   const subtitle = (await mount(<ChatMastheadTileStory />)).getByText(LEFT_OFF);
 
-  await expect(subtitle).toHaveText("You left off 1h ago in The Rust Lecture.");
+  await expect(subtitle).toHaveText("You left off 1h ago.");
   await expect(subtitle).not.toContainText("2w");
 });
 

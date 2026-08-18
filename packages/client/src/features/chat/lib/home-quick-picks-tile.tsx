@@ -4,6 +4,7 @@
 
 import { Button } from "@orb/ui/button";
 import { Users } from "@orb/ui/icons";
+import { TrailingArrow } from "#components";
 import type { HomeTileContribution } from "#state";
 import { setActiveSection } from "#state";
 import { HomeQuickPicksTileBody } from "../components/home-quick-picks-tile-body.tsx";
@@ -21,8 +22,12 @@ const QUICK_PICKS_SKELETON_ROWS = 6;
  *  The settled box is a constant at the shelf's primary 3-column mount (fixed 136px cells, not N data
  *  rows), so it declares the measurement through `skeletonBlock` instead of the nearest whole row; the row
  *  count above stays as the fill-count fallback. Re-measure with the same probe if the cell size, the cell
- *  anatomy or `QUICK_PICKS_LIMIT` changes. */
-const QUICK_PICKS_SKELETON_BLOCK_PX = 321;
+ *  anatomy or `QUICK_PICKS_LIMIT` changes.
+ *  RE-MEASURED 2026-08-17 (rail sweep P2-9/P3-18): the cell's anatomy changed — its name went up a ramp
+ *  step (the `promoted` voice) and both its lines clamp to two WRAPPED lines instead of truncating — so the
+ *  settled box grew. 331 is the re-measurement, taken the way this note demands: the `#177` first-boot CT
+ *  (`home-surface.ct.tsx`) reported the residual as `chat.quickPicks moved 10.19px` against the old 321. */
+const QUICK_PICKS_SKELETON_BLOCK_PX = 331;
 
 export const chatQuickPicksTile: HomeTileContribution = {
   id: "chat.quickPicks",
@@ -46,8 +51,10 @@ export const chatQuickPicksTile: HomeTileContribution = {
   skeletonBlock: QUICK_PICKS_SKELETON_BLOCK_PX,
   skeletonRows: QUICK_PICKS_SKELETON_ROWS,
   action: (
+    // The arrow is DECORATIVE (rail sweep P3-14) — the name is "All characters".
     <Button intent="ghost" onClick={(): void => setActiveSection("characters")} size="sm">
-      All characters →
+      All characters
+      <TrailingArrow />
     </Button>
   ),
   body: () => <HomeQuickPicksTileBody />,

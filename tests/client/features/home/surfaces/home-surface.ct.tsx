@@ -23,7 +23,9 @@ import {
 } from "../_ct-stories.tsx";
 
 const TEASER_RE = /Your companion/u;
-const REASON_RE = /waiting on: domain\/buddy/u;
+/** The doorway's STATE LINE. It was the tracked developer citation ("waiting on: domain/buddy (not in the
+ *  retro tree)") until the 2026-08-17 rail sweep (P1-3) — user-voice copy now, and no "waiting on:" prefix. */
+const REASON_RE = /^Not started yet/u;
 const DUPLICATE_ID_RE = /duplicate contributor id "same"/u;
 
 // ── #129 first-boot fixtures — a POPULATED house, because that is the shape a declaration is derived
@@ -306,7 +308,12 @@ test("a DORMANT tile RECEDES: a muted-gloss teaser, and the dev citation a mono/
   expect(teaser.color).not.toBe(teaser.foreground);
   expect(reason.size).toBeLessThanOrEqual(teaser.size);
   expect(reason.family.toLowerCase()).toContain("mono");
-  expect(Number.parseFloat(reason.alpha)).toBeLessThan(1);
+  // RED-FIRST (rail sweep P1-3): the state line carries NO alpha. `opacity-60` over the already-muted ink
+  // measured **3.68:1** on the live surface — under the 4.5 floor — and the design-audit's own contrast
+  // walker could not see it (it does not compose ancestor opacity, so it scored the line as opaque). The
+  // mono face alone carries the separation now, which costs no contrast. This inverts the assertion that
+  // used to stand here (`alpha < 1`), deliberately.
+  expect(Number.parseFloat(reason.alpha)).toBe(1);
 });
 
 test("the grid aligns tiles to START — a short tile never stretches to its row-mate's height", async ({ mount }) => {

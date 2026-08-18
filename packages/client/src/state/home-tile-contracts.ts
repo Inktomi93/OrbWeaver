@@ -32,8 +32,16 @@ export type HomeTileRegion = (typeof HOME_TILE_REGIONS)[number];
  *  IOU: it names what must land first AND what the thing will be, and it never fakes a spinner, a
  *  skeleton, or a disabled button. */
 export interface DormantDoorway {
-  /** The tracked reason — non-empty, names what must land first (gate-checked, the `content:{planned}`
-   *  discipline one level down). Rendered as the tile's quiet mono line ("waiting on: …"). */
+  /** WHAT IS STILL MISSING, IN THE USER'S OWN TERMS — non-empty, and it still names what must land
+   *  first (the `content:{planned}` discipline one level down), just spelled for the person reading it.
+   *
+   *  IT IS NOT A REPO CITATION ANY MORE (side-eye rail sweep P1-3, 2026-08-17). This line shipped as the
+   *  tracked developer reason rendered verbatim at a user — "domain/buddy (not in the retro tree)",
+   *  "automation.stream through the SSE multiplex (stage 4 — a sanctioned doorway, not a stub)" — on the
+   *  product's landing surface, in the two places a first-time visitor is most likely to look for what is
+   *  coming. A doorway's whole job is to be honest about an absence; naming a module path is honest to the
+   *  wrong audience. Say what they get and roughly when, and say it warm and direct (the ratified product
+   *  voice). Rendered as the tile's quiet mono line under the teaser. */
   readonly reason: string;
   /** The one-line user-facing promise the tile renders. Never "coming soon" with no subject. */
   readonly teaser: string;

@@ -50,7 +50,23 @@ export function SectionJumpRail({ siblings }: { readonly siblings: readonly Home
         // `aria-label` (it would replace the visible word and break label-in-name / voice control) and
         // deliberately not `aria-description` (a draft attribute the button role does not support, which
         // `jsx-a11y/role-supports-aria-props` reds).
-        <Button intent="secondary" key={def.id} onClick={(): void => setActiveSection(def.id)} shape="pill" size="sm" title={def.placeholder.description}>
+        // THE NAME IS A VERB PHRASE (side-eye rail sweep P3-19). The pill's name was its bare visible word,
+        // which COLLIDES with the rail nav's own `aria-label="Chats"` one region over: two buttons, one
+        // name, on one screen. AT reads them identically, "click Chats" is ambiguous to voice control, and
+        // a `snap --map` could mint no unique semantic selector for any of the seven — all of them fell
+        // back to a DOM PATH, which is what "20 of 58 entries resolve only by DOM path" was mostly made of.
+        // `Go to <label>` CONTAINS the visible word (WCAG 2.5.3 label-in-name holds, and voice control
+        // still matches on it) and says what activation does, which is the same shape the hero's
+        // `Resume <room>` takes. The gloss stays on `title`, i.e. the DESCRIPTION, where it was.
+        <Button
+          aria-label={`Go to ${def.rail.label}`}
+          intent="secondary"
+          key={def.id}
+          onClick={(): void => setActiveSection(def.id)}
+          shape="pill"
+          size="sm"
+          title={def.placeholder.description}
+        >
           <Icon icon={def.rail.icon} size="sm" />
           {def.rail.label}
           {typeof def.content === "function" ? null : (

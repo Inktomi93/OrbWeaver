@@ -15,6 +15,7 @@
 import { Button } from "@orb/ui/button";
 import { MessagesSquare } from "@orb/ui/icons";
 import { useQuery } from "@tanstack/react-query";
+import { TrailingArrow } from "#components";
 import { useTRPC } from "#data";
 import type { HomeTileContribution } from "#state";
 import { setActiveSection } from "#state";
@@ -48,8 +49,11 @@ export const chatAlsoOpenTile: HomeTileContribution = {
     return page === undefined || page.items.length > 1;
   },
   action: (
+    // The arrow is DECORATIVE (rail sweep P3-14): the button's accessible name is "All chats", not
+    // "All chats →" — a glyph is not part of an affordance's name.
     <Button intent="ghost" onClick={(): void => setActiveSection("chats")} size="sm">
-      All chats →
+      All chats
+      <TrailingArrow />
     </Button>
   ),
   body: () => <HomeAlsoOpenTileBody />,
