@@ -78,7 +78,9 @@ export function AddRow({ ariaLabel, placeholder, actions, leading, trailing, pen
               fire(actions[0]);
             }
           }}
-          className="h-control-sm min-w-0 flex-1"
+          // No height here: Input's default `layout="field"` arm already IS `h-control-sm` (#169 — the
+          // duplicate was invisible to `ui-size-via-variant` while its value class rejected hyphens).
+          className="min-w-0 flex-1"
         />
         {trailing}
       </Row>

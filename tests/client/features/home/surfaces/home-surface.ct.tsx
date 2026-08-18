@@ -361,8 +361,10 @@ test("#129 the shipped first boot reserves the grid a FULL page settles into", a
   const home = await mount(<HomeShippedFirstBootStory />);
   await Promise.all([chats.requested, characters.requested, settings.requested, documents.requested, health.requested]);
   const grid = home.locator("[data-home-grid]");
-  // Every tile is on its DECLARED reservation: no box memory exists for any id on a first-ever boot.
-  await expect(grid.locator("[data-tile-reserved]")).toHaveCount(0);
+  // Every tile is on its DECLARED reservation: no box MEMORY exists for any id on a first-ever boot.
+  // Scoped to the source (#177): a declared px box writes the same `data-tile-reserved` attribute the
+  // measured one does, so a bare presence check here would stop meaning "first boot".
+  await expect(grid.locator('[data-tile-reserve-source="measured"]')).toHaveCount(0);
   await expect(grid.locator("[aria-busy]").first()).toBeVisible();
   const reserved = (await grid.boundingBox())?.height ?? 0;
   // The tolerance below, read off the RENDERED bars while they are still up — never a literal: a skeleton
@@ -392,6 +394,66 @@ test("#129 the shipped first boot reserves the grid a FULL page settles into", a
   // skeleton row's pitch — below that the declaration cannot be made truer (a row is the smallest unit the
   // reservation is spelled in), above it the grid visibly re-flows behind the veil.
   expect(Math.abs(reserved - settled)).toBeLessThanOrEqual(rowPitch);
+});
+
+// ── #177 the PER-TILE reservation, which the page total above cannot see ────────────────────────────
+// The assertion above is a SUM, and the three declarations it sums were wrong in opposite directions —
+// so a 2.6px page residual was hiding a +16.5 / −6.75 / −17.4 spread that a reader watches happen. Every
+// one of those three tiles has a settled height that is a CONSTANT (a two-line heading block, a
+// fixed-cell face grid at its primary mount, a button over one gloss line), so each is reservable EXACTLY
+// and the row-count pitch (~48px) is the only thing that was stopping it. They now declare
+// `HomeTileContribution.skeletonBlock` — a measured px box on the same seam the remembered box uses.
+//
+// The tiles NOT listed here keep `skeletonRows` on purpose: `chat.recents` / `chat.alsoOpen` /
+// `databank.documents` settle into N rows of whatever came back, so no static number is right for both a
+// full and a sparse library (the ruling above — reserve the fullest page, accept the shrink).
+const EXACTLY_RESERVED_TILES = ["chat.masthead", "chat.quickPicks", "chat.tempChat"] as const;
+/** Sub-pixel layout rounding only — the declarations are integers against fractional settled boxes. */
+const EXACT_RESERVATION_EPSILON_PX = 1;
+
+test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no residual first-boot shift", async ({ mount, page }) => {
+  const chats = trpcHold();
+  const characters = trpcHold();
+  const settings = trpcHold();
+  const documents = trpcHold();
+  const health = trpcHold();
+  await stubDatabank(page, {
+    "chat.listChats": chats,
+    "chat.reapTemporaryChats": { reaped: 0 },
+    "character.list": characters,
+    "databank.bankHealth": health,
+    "databank.list": documents,
+    "settings.getUserSettings": settings,
+  });
+
+  const home = await mount(<HomeShippedFirstBootStory />);
+  await Promise.all([chats.requested, characters.requested, settings.requested, documents.requested, health.requested]);
+  const grid = home.locator("[data-home-grid]");
+  await expect(grid.locator("[aria-busy]").first()).toBeVisible();
+  const reserved = await Promise.all(EXACTLY_RESERVED_TILES.map(async (id) => (await home.locator(`[data-home-tile="${id}"]`).boundingBox())?.height ?? 0));
+
+  chats.release(chatListResponder(FIRST_BOOT_ROOMS)({ limit: RECENTS_LIMIT }));
+  characters.release(characterListResponder(FIRST_BOOT_FACES)({ limit: QUICK_PICKS_FACES }));
+  settings.release({ config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_first_boot" });
+  documents.release(FIRST_BOOT_BANK);
+  health.release(FIRST_BOOT_HEALTH);
+
+  // SETTLED, never "no longer busy": barrier on rendered content from every held tile first.
+  await expect(grid.locator('[data-home-hearth="chat_boot_0"]')).toBeVisible();
+  await expect(grid.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(grid.getByText("Start a temp chat")).toBeVisible();
+  await expect(grid.getByText("Doc 0", { exact: true })).toBeVisible();
+  await expect(grid.locator("[aria-busy]")).toHaveCount(0);
+  const settled = await Promise.all(EXACTLY_RESERVED_TILES.map(async (id) => (await home.locator(`[data-home-tile="${id}"]`).boundingBox())?.height ?? 0));
+
+  const drift = Object.fromEntries(EXACTLY_RESERVED_TILES.map((id, i) => [id, Number(((settled[i] ?? 0) - (reserved[i] ?? 0)).toFixed(2))]));
+  expect(
+    reserved.every((h) => h > 0),
+    `every measured tile must exist while reading: ${JSON.stringify(drift)}`,
+  ).toBe(true);
+  for (const [id, delta] of Object.entries(drift)) {
+    expect(Math.abs(delta), `${id} moved ${String(delta)}px between its reserved box and its settled one`).toBeLessThanOrEqual(EXACT_RESERVATION_EPSILON_PX);
+  }
 });
 
 test("a duplicate tile id THROWS at door construction — the seam never silently shadows a tile", () => {

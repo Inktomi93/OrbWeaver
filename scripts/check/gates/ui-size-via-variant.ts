@@ -13,12 +13,35 @@
 // scale in the merger's THEME, so a call-site size resolves LAST-WINS and reliably DEFEATS the sealed box.
 // Unresolvable then, silently overriding now — the ruling ("sizes are variant axes") holds in both regimes,
 // and this gate is now the only thing standing between a feature and a broken seal.
-//   OPEN HOLE, filed as follow-up (#146 lane receipt): the `min-w-*`/`max-w-*`/`max-h-*` exclusion below was
-// written as a FALSE-POSITIVE fence under the old regime, where such a class could not win anyway. Under
-// the new one it can: `rpg-hud-rail.tsx`'s cell carried a `min-w-0` that was inert only on stylesheet order
-// and would have deleted `TabsTab`'s sealed `min-w-touch-target` — measured 39.09px against a 44px floor.
-// That instance was fixed in the #146 lane and the tree was swept for its siblings; WIDENING this gate is
-// its own lane, because a gate lands on a fixed tree.
+//   THE HYPHEN HOLE, closed at #169 (the widening lane, and the bigger half of what it found). This gate's
+// `SIZE_UTILITY_RE` value class was `[a-z0-9./]+` — with NO hyphen — so it only ever matched a SINGLE-SEGMENT
+// value. Every multi-segment sealed token in this repo therefore walked straight past it: `h-control-sm`,
+// `size-avatar-md`, `size-glyph-lg`, `min-h-touch-target`, `min-h-control-md`. Probed live before the fix
+// (a scratch file under `packages/client/src/features/`, `pnpm check`'s scoped runner): `<Button
+// className="h-control">` FLAGGED, `<Button className="h-control-sm">` and `<Button className="size-avatar-md">`
+// did NOT. That is essentially every sealed control size the primitives are built from, invisible to the one
+// gate standing between a feature and a broken seal, while `CUSTOM_TOKEN_VALUE_RE` (which DOES allow hyphens,
+// two lines down) made the code read as though the case were handled. Adding `-` to the value class surfaced
+// SEVEN live hits in `packages/client` — including the `face-strip.tsx` `min-h-control-md` that LIMIT 1 below
+// already named as a known live hit — all of them fixed in the same commit per FIX-AT-LANDING.
+//
+//   STILL OPEN — the `min-w-*`/`max-w-*`/`max-h-*` fence, RE-MEASURED at #169 and deliberately NOT widened.
+// The follow-up premise was that this exclusion is now wholly wrong, because a call-site `min-w-0` can defeat
+// a seal under the #146 merge regime (`rpg-hud-rail.tsx`'s cell vs `TabsTab`'s `min-w-touch-target` — measured
+// 39.09px against a 44px floor, fixed in the #146 lane). The receipt is real; the blanket widening is not the
+// fix. MEASURED, `node scripts/check/scoped.ts --scope 'packages/client/src/**'`:
+//   · blanket widen (add the three axes to `SIZE_UTILITY_RE`) → 85 hits, ~70 of them `min-w-0` and ~10
+//     `max-h-40|48|64|96` — the standard flex-truncation release and scroll-box ceiling, on primitives that
+//     seal nothing on that axis. "Fix at landing" there means inventing a max-height variant on Text.
+//   · axis-aware widen (in scope only where the target's own `@orb/ui` source DIRECTORY declares that axis)
+//     → 24 hits, and hand-review found ZERO demonstrable seal defeats among them: `TabsList` inherits the
+//     seal `TabsTab` declares (directory granularity, not slot); `Button`'s only `min-w-touch-target` is on
+//     an `after:` PSEUDO-ELEMENT (`variants.ts` `inline` arm), which a root `min-w-0` cannot touch; `Field`'s
+//     is on its `labelBlock` SLOT, not the root the className lands on.
+// So a precise predicate needs BOTH slot-awareness (tag → the variants slot its className composes) and
+// variant-prefix awareness (`after:`/`hover:` classes are not root seals). That is a gate-MECHANISM project,
+// not a regex widening, and it was escalated rather than half-shipped — an allowlist of 24 reason-less rows
+// is exactly the "red is negotiable" debt parking GATE-AUTHORING.md §4.8 forbids.
 //
 // Deliberately OUT of scope (the false-positive fence): `max-w-*` / `min-w-*` / `max-h-*` layout
 // CONSTRAINTS; `min-h-0` (the flex-child overflow release, the height twin of `min-w-0`);
@@ -66,7 +89,7 @@
 //
 // LIMIT 2 — THE `(--var)` HOLE, OWNED BY NEITHER GATE. Tailwind v4's CSS-VARIABLE SHORTHAND — `w-(--foo)`,
 //   `size-(--foo)`, `h-(--foo)` — is matched by NOTHING here (`SIZE_UTILITY_RE`'s value class is
-//   `[a-z0-9./]+`; a paren value never matches) AND is deliberately PASSED by the sibling gate
+//   `[a-z0-9./-]+`; a paren value never matches) AND is deliberately PASSED by the sibling gate
 //   `no-arbitrary-tw-values` (its `TOKEN_DRIVEN_RE` exempts `var(`/`--`/`calc(` bodies as token-driven).
 //   So it is a size utility on a sealed primitive that BOTH gates believe the other one holds — the exact
 //   shape that makes a rule look enforced while being unenforceable. Do NOT read this gate's green as
@@ -126,8 +149,10 @@ const UI_SPECIFIER_RE = /^@orb\/ui(?:\/|$)/u;
  *  incident, it is the WORSE one: the plain form resolves by stylesheet order (a coin flip), the `!` form
  *  wins by force and makes the primitive's variant unreachable. */
 const IMPORTANT_MODIFIER_RE = /^!|!$/gu;
-/** The scoped box utilities (terminal segment): h / min-h / size / w with a plain (non-bracket) value. */
-const SIZE_UTILITY_RE = /^(?<util>h|min-h|size|w)-(?<val>[a-z0-9./]+)$/u;
+/** The scoped box utilities (terminal segment): h / min-h / size / w with a plain (non-bracket) value.
+ *  The value class carries `-` since #169 — see the HYPHEN HOLE note in the header; without it every
+ *  multi-segment sealed token (`h-control-sm`, `size-avatar-md`, `min-h-touch-target`) walked past. */
+const SIZE_UTILITY_RE = /^(?<util>h|min-h|size|w)-(?<val>[a-z0-9./-]+)$/u;
 /** Values that are LAYOUT decisions, not box sizes — never flagged. Viewport units + intrinsic keywords. */
 const KEYWORD_VALUE_RE = /^(?:full|fit|min|max|screen|[sld]v[hw])$/u;
 const FRACTION_VALUE_RE = /^\d+\/\d+$/u;
@@ -312,6 +337,20 @@ export const gate: GateDescriptor = {
       why: "a custom-token (`h-control`) and a numeric (`w-40`) size utility — tailwind-merge can't classify the custom token, so the override resolves by stylesheet order",
     },
     {
+      // The HYPHEN arm (#169): a MULTI-SEGMENT custom token. `h-control` flagged for two years while
+      // `h-control-sm` — the actual spelling of every sealed control height — did not.
+      files: 'import { Button } from "@orb/ui/button";\nexport const G = <Button className="h-control-sm">x</Button>;\n',
+      at: "packages/client/src/features/x/hyphen.tsx",
+      expect: { token: "h-control-sm" },
+      why: "a multi-segment sealed token (`h-control-sm`) — the value class carries `-` since #169; without it every real seal spelling was invisible",
+    },
+    {
+      files: 'import { Avatar } from "@orb/ui/avatar";\nexport const G = <Avatar className="size-avatar-md" />;\n',
+      at: "packages/client/src/features/x/hyphensize.tsx",
+      expect: { token: "size-avatar-md" },
+      why: "the `size` shorthand with a multi-segment token — the same hole, on the axis the F2 incident used",
+    },
+    {
       files: 'import { Input } from "@orb/ui/input";\nexport const G = <Input className="focus:h-9" />;\n',
       at: "packages/client/src/features/x/variantpfx.tsx",
       why: "a variant-prefixed size utility (focus:h-9) — the terminal segment still flags",
@@ -367,6 +406,13 @@ export const gate: GateDescriptor = {
       files: 'import { Row } from "@orb/ui/layout";\nexport const G = <Row className="h-full w-fit" />;\n',
       at: "packages/client/src/features/x/keywords.tsx",
       why: "keyword values (full/fit) are proportional layout, not box sizes — passes",
+    },
+    {
+      // The hyphen widening must not swallow the min/max fence (#169 re-measured it and left it in place —
+      // see the header): a hyphenated CONSTRAINT token is still out of scope, on any axis.
+      files: 'import { Button } from "@orb/ui/button";\nexport const G = <Button className="min-w-touch-target max-w-cq-md max-h-control-sm">x</Button>;\n',
+      at: "packages/client/src/features/x/hyphenfence.tsx",
+      why: "min-w/max-w/max-h stay OUT of scope after the #169 hyphen widening — the fence is an axis fence, not a value-shape one",
     },
     {
       files:

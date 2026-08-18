@@ -67,6 +67,39 @@ test.describe("coarse pointer — the touch floor", () => {
     await expect(button).toHaveCSS("padding-left", "0px");
     await expect(button).toHaveCSS("padding-right", "0px");
   });
+
+  // The `icon` arm's SMALLER step (#169), added when the credentials role-status dot's call-site
+  // `size-control-sm p-0` came off a `size="sm"` button. SITE PARITY, the `glyph-*` precedent: the retired
+  // class string is mounted beside the arm that replaced it and the two PAINTED boxes are compared, so a
+  // "geometry-preserving" claim is a measurement rather than a reading of the source. `tests/` is scanned
+  // by Tailwind (playwright/index.css `@source "../tests"`), so the retired string really compiles.
+  test("icon-sm paints the SAME box as the `size-control-sm p-0` className it retired, and is a square", async ({ mount, page }) => {
+    await mount(
+      <div style={{ display: "flex", width: 240 }}>
+        <Button className="size-control-sm p-0" intent="ghost" size="sm">
+          <span data-testid="old-icon-sm" style={{ display: "block", height: 8, width: 8 }} />
+        </Button>
+        <Button intent="ghost" size="icon-sm">
+          <span data-testid="new-icon-sm" style={{ display: "block", height: 8, width: 8 }} />
+        </Button>
+      </div>,
+    );
+    const read = (testId: string): Promise<{ readonly width: string; readonly height: string; readonly padding: string }> =>
+      page.getByTestId(testId).evaluate((child) => {
+        const el = child.parentElement as HTMLElement;
+        const box = el.getBoundingClientRect();
+        const s = getComputedStyle(el);
+        return {
+          width: box.width.toFixed(1),
+          height: box.height.toFixed(1),
+          padding: `${s.paddingTop} ${s.paddingRight} ${s.paddingBottom} ${s.paddingLeft}`,
+        };
+      });
+    const [before, after] = await Promise.all([read("old-icon-sm"), read("new-icon-sm")]);
+    expect(after, "the arm must repaint the retired className's box exactly").toStrictEqual(before);
+    expect(Number(after.width), "icon-sm is a SQUARE, which is the whole reason it is not `sm`").toBeCloseTo(Number(after.height), 1);
+    expect(after.padding).toBe("0px 0px 0px 0px");
+  });
 });
 
 // `media` is the CONTENT-SIZED arm: the child (a portrait/media element) defines the box, so the visible

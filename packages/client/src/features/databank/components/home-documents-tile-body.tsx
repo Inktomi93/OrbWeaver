@@ -142,10 +142,13 @@ export function HomeDocumentsTileBody(): ReactElement {
               // will happen — the chip's own text is a count, which is a fine LABEL and a terrible verb.
               <Button
                 aria-label={`Show the ${chip.label} documents in your databank`}
-                // `min-h-touch-target` is the POINTER-CONDITIONAL token (44px coarse / 28px fine), not a
-                // media variant a feature may not spell: the chip's own box is ~24px, which is a fine
-                // target for a mouse and an unhittable one for a thumb.
-                className="min-h-touch-target p-0"
+                // The tap floor is `size="sm"`'s own `h-control-sm`, which is ≥ `--spacing-touch-target`
+                // at BOTH pointer classes by construction (44/44 coarse, 32/28 fine — theme.css's
+                // `@media (pointer: fine)` block). The `min-h-touch-target` that used to sit here could
+                // therefore never bind; it read as the thing holding the floor up while the sealed height
+                // already did (#169 — invisible to `ui-size-via-variant` until its value class learned
+                // about hyphens). `p-0` stays: the Badge inside is the whole visible chip.
+                className="p-0"
                 intent="ghost"
                 key={chip.phase}
                 onClick={(): void => showPhase(chip.phase)}

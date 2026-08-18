@@ -55,8 +55,11 @@ export function RoleStatusDot({ state, source, onScrollToKeys }: RoleStatusDotPr
   const dot = <Text as="span" aria-hidden={true} className={`size-2 shrink-0 rounded-full ${TONE_CLASS[tone]}`} />;
 
   if (tone === "needs-key") {
+    // `size="icon-sm"` IS `size-control-sm p-0` — the square this used to spell at the call site over
+    // `size="sm"` (#169: a multi-segment token, invisible to `ui-size-via-variant` until that gate's value
+    // class learned about hyphens). Same box at both pointer classes, named on the primitive.
     return (
-      <Button intent="ghost" size="sm" aria-label={label} title={label} className="size-control-sm shrink-0 p-0" onClick={onScrollToKeys}>
+      <Button intent="ghost" size="icon-sm" aria-label={label} title={label} className="shrink-0" onClick={onScrollToKeys}>
         {dot}
       </Button>
     );
