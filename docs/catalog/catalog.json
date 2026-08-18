@@ -439,13 +439,14 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "ca661c33dafddc5383e744a68ec571e98462ecf9be3763837d9777ec95776748",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "be81d08a67be762f325d1013b06dddb0af8df1c35e178190ec928e548cfebd09",
+        "verifiedCommit": "c7c06a89143f96407d0a58c2e386726d83ec91d9",
+        "verifiedAt": "2026-08-18",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+          "ct-poll-schedule-and-paint row + 209->210 count added by #142 (c7c06a891, lane gate-hardening) — orchestrator re-read the delta in full at restamp; the row matches the landed gate's three arms and declared limits"
         ],
         "claims": [
           {
@@ -460,7 +461,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
