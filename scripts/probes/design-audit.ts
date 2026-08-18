@@ -25,6 +25,15 @@
  * (scripts/probes/design-audit-checks.ts, unit-tested at tests/tooling/design-audit.test.ts).
  * The browser never decides pass/fail.
  *
+ * CONTRAST HAS A PIXEL PATH (issue #218). A DOM ancestor walk cannot see a fixed art layer painting over
+ * the base it resolves — the app's wallpaper photo sits between <body>'s near-black background and every
+ * translucent reading plate, and trusting the walk put 28 false P1 contrast findings on one chat
+ * transcript (3.16:1 reported where the real composite is 4.94:1). The walker now says "unresolved"
+ * instead of fabricating, and `resolvePixelBackdrops` settles those from ONE viewport screenshot
+ * (perimeter-ring median, _kit/pixel-backdrop.ts — the same arithmetic snap's --contrast uses, now in one
+ * home so the two instruments cannot disagree about what is behind a glyph). What cannot be sampled — an
+ * off-screen box, a failed shot — is printed as NO VERDICT and judged by nothing.
+ *
  * USAGE
  *   pnpm stack start                                   # once; design-audit is then a fast loop
  *   pnpm design-audit /                                # audit the home route
@@ -60,6 +69,8 @@ import { writeFile } from "node:fs/promises";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
+import type { Page } from "@playwright/test";
+import sharp from "sharp";
 import type { AppearancePatch } from "./_kit/appearance.ts";
 import {
   APPEARANCE_VALUE_FLAGS,
@@ -76,8 +87,9 @@ import type { Viewport } from "./_kit/flags.ts";
 import { parseViewport } from "./_kit/flags.ts";
 import type { NavMethod } from "./_kit/nav.ts";
 import { runNav } from "./_kit/nav.ts";
+import { clampBoxToImage, ringBackdropOfRegion } from "./_kit/pixel-backdrop.ts";
 import { print, printResult } from "./_kit/result.ts";
-import type { Finding, RawSamples, Severity } from "./design-audit-checks.ts";
+import type { ContrastInput, Finding, RawSamples, Severity } from "./design-audit-checks.ts";
 import { checkScriptErrors, collectFindings, isAtOrAboveSeverity, isValidSeverity } from "./design-audit-checks.ts";
 import { COLLECT_SAMPLES_JS } from "./design-audit-walker.ts";
 
@@ -339,6 +351,77 @@ async function navigateAndReveal(page: AuditPage, opts: Args, url: string): Prom
   }
 }
 
+// ── Pixel-sampled backdrops (issue #218) ─────────────────────────────────────
+//
+// THE WALKER CANNOT SEE WHAT IS NOT AN ANCESTOR. Its resolveBackdrop now says "unresolved" instead of
+// fabricating one (a 0.65-alpha reading plate resolved against the near-black BODY base — past the fixed
+// wallpaper photo painting over it — and reported 3.16:1 on 28 transcript nodes where the real composite
+// is 4.94:1). Only PIXELS can answer that, so the runner settles each unresolved sample here, from ONE
+// viewport screenshot taken at the same scroll position the samples were read at: a per-element clip shot
+// (snap's shape, for its single target) would be one screenshot per text node.
+//
+// `scale: "css"` keeps image pixels 1:1 with CSS pixels under --mobile's DPR3, so a walker box indexes the
+// buffer directly. An element whose box is off-screen, or a shot/decode that fails, gets NO VERDICT — the
+// refusal is printed and written to the report, never a fabricated color (the #211 posture).
+type BackdropRefusal = { selector: string; reason: string };
+type PixelPass = { samples: RawSamples; sampled: number; refusals: BackdropRefusal[] };
+
+function isUnresolved(text: ContrastInput): boolean {
+  return text.backdrop.kind === "unresolved";
+}
+
+/** ONE viewport screenshot decoded to raw pixels, or the reason there are none. */
+async function viewportPixels(page: Page): Promise<{ data: Buffer; info: { width: number; height: number; channels: number } } | { error: string }> {
+  try {
+    const shot: Buffer = await page.screenshot({ animations: "disabled", scale: "css" });
+    const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });
+    return { data, info };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
+async function resolvePixelBackdrops(page: Page, samples: RawSamples): Promise<PixelPass> {
+  const pending = samples.texts.filter(isUnresolved);
+  if (pending.length === 0) {
+    return { samples, sampled: 0, refusals: [] };
+  }
+  const raw = await viewportPixels(page);
+  if ("error" in raw) {
+    // No pixels at all: every pending sample is a refusal, and the report says why once.
+    return {
+      samples,
+      sampled: 0,
+      refusals: pending.map((t) => ({ selector: t.selector, reason: `pixel sample unavailable (${raw.error})` })),
+    };
+  }
+  const refusals: BackdropRefusal[] = [];
+  let sampled = 0;
+  const texts = samples.texts.map((text) => {
+    if (!isUnresolved(text)) {
+      return text;
+    }
+    // Painted over: sampling the box would measure the OCCLUDER's pixels, which is how the first run of
+    // this path reported 1.33:1 on a paragraph under the topbar (snap refuses the same case as OCCLUDED).
+    if (text.occludedBy !== undefined && text.occludedBy !== null) {
+      refusals.push({ selector: text.selector, reason: `painted over by ${text.occludedBy}` });
+      return text;
+    }
+    const region = text.box === undefined ? null : clampBoxToImage(text.box, raw.info.width, raw.info.height);
+    if (region === null) {
+      refusals.push({ selector: text.selector, reason: text.box === undefined ? "walker sample carries no box" : "box is off-screen" });
+      return text;
+    }
+    sampled += 1;
+    return {
+      ...text,
+      backdrop: { kind: "flat", color: ringBackdropOfRegion(raw.data, raw.info.width, raw.info.channels, region) },
+      backdropMethod: "pixel-sample",
+    } satisfies ContrastInput;
+  });
+  return { samples: { ...samples, texts }, sampled, refusals };
+}
+
 // ── Reporting ─────────────────────────────────────────────────────────────────
 
 function countBySeverity(findings: readonly Finding[]): Record<Severity, number> {
@@ -361,6 +444,31 @@ function navVerdict(navError: string | null, actionsFailed: number): string {
     return "ERROR";
   }
   return actionsFailed > 0 ? "ACTIONS-FAILED" : "OK";
+}
+
+// Refusals are printed but do NOT redden the run: unlike snap's single requested measurement, this scan
+// censuses every text node on the page, most of them scrolled out of the viewport, so an off-screen box is
+// the normal case and not a failure. What must never happen is a SILENT drop — a reviewer reading a clean
+// contrast table is entitled to know which nodes the instrument declined to judge, and why.
+const REFUSAL_PRINT_CAP = 12;
+
+function printBackdropRefusals(refusals: readonly BackdropRefusal[]): void {
+  if (refusals.length === 0) {
+    return;
+  }
+  const byReason = new Map<string, number>();
+  for (const r of refusals) {
+    byReason.set(r.reason, (byReason.get(r.reason) ?? 0) + 1);
+  }
+  const summary = [...byReason].map(([reason, n]) => `${n} ${reason}`).join(" · ");
+  print(`NO VERDICT   ${refusals.length} text node(s) over an unresolvable backdrop, not pixel-samplable: ${summary}`);
+  for (const r of refusals.slice(0, REFUSAL_PRINT_CAP)) {
+    print(`             ${r.selector}`);
+  }
+  if (refusals.length > REFUSAL_PRINT_CAP) {
+    print(`             … ${refusals.length - REFUSAL_PRINT_CAP} more (full list in the report json)`);
+  }
+  print("");
 }
 
 function printFindingsTable(findings: readonly Finding[]): void {
@@ -405,11 +513,14 @@ async function main(): Promise<number> {
   });
 
   const { navError, actionsFailed, samples } = await navigateAndReveal(session.page, opts, url);
+  // Backdrops the DOM walk could not resolve are settled from real pixels BEFORE the browser closes —
+  // the sampler needs the page still on screen at the scroll position the samples were read at.
+  const pixels = samples === null ? { samples: null, sampled: 0, refusals: [] as BackdropRefusal[] } : await resolvePixelBackdrops(session.page, samples);
   await session.browser.close();
 
   // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe
   // session's pageerror capture is wired from nav start (_kit/browser.ts wirePage).
-  const findings = samples === null ? [] : collectFindings(samples);
+  const findings = pixels.samples === null ? [] : collectFindings(pixels.samples);
   findings.push(...checkScriptErrors(session.pageErrors));
   const counts = countBySeverity(findings);
   // An action that failed means the scan happened on the WRONG surface — that is a red run, not a clean
@@ -430,6 +541,8 @@ async function main(): Promise<number> {
         navError,
         findings,
         counts,
+        pixelSampledBackdrops: pixels.sampled,
+        backdropRefusals: pixels.refusals,
       },
       null,
       2,
@@ -442,6 +555,7 @@ async function main(): Promise<number> {
   }
   print(`report       ${outPath}`);
   print("");
+  printBackdropRefusals(pixels.refusals);
   printFindingsTable(findings);
 
   printResult("design-audit", [
@@ -454,6 +568,8 @@ async function main(): Promise<number> {
     ["actions", opts.actions.length],
     ["actions-failed", actionsFailed],
     ["pointer", opts.device === null ? "fine" : "coarse"],
+    ["px-backdrops", pixels.sampled],
+    ["no-verdict", pixels.refusals.length],
     ["nav", navVerdict(navError, actionsFailed)],
     ["out", outPath],
   ]);

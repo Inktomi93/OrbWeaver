@@ -325,10 +325,64 @@ export const COLLECT_SAMPLES_JS = `(async () => {
   // this exact bug already (its 1.11-vs-2.6 false FAIL) and composites; these two instruments must not
   // disagree about what is behind a glyph. It stayed invisible only because the rgb-regex sampler could
   // not parse an oklab tint in the first place.
+
+  // AN ANCESTOR WALK CANNOT SEE A PAINT LAYER THAT IS NOT AN ANCESTOR (issue #218 — 28 false P1s on one
+  // transcript). The app paints its wallpaper as a FIXED, contentless, pointer-events-none sibling
+  // ([data-slot=theme-background-layer], plus a scrim over it) that covers the viewport and sits between
+  // <body>'s own near-black background and everything the shell renders. Walking a 0.65-alpha reading plate
+  // down to that body base composited rgb(160,157,155) and reported 3.16:1 — against a color no pixel on
+  // screen has; the real composite over the photo measures 4.94:1. The walker cannot know what a photo
+  // paints, so the honest move is to say so and let the Node side sample real pixels (design-audit.ts,
+  // resolvePixelBackdrops) — the same posture snap's --contrast takes, and the reason it disagreed by
+  // 1.6x with this instrument on the app's most important reading surface.
+  //
+  // A PAINT LAYER here is deliberately narrow: positioned (fixed/absolute), visibly painted (a background
+  // image or any non-zero background alpha), and CONTENTLESS. The contentless test is what keeps a chrome
+  // panel — a topbar, a drawer, a dialog — out of this census: those OCCLUDE text rather than back it, and
+  // "the topbar is over this glyph" is a different refusal (snap owns it as OCCLUDED). A fixed layer is
+  // viewport-anchored, so it backs EVERY element that resolves through it, in view or not; an absolutely
+  // positioned one is document-anchored and only matters where it geometrically intersects.
   var OPAQUE_MIN_ALPHA = 0.999;
+  var paintLayerCensus = null;
+  function paintLayers() {
+    if (paintLayerCensus !== null) return paintLayerCensus;
+    paintLayerCensus = [];
+    var candidates = document.querySelectorAll("*");
+    for (var pl = 0; pl < candidates.length; pl += 1) {
+      var lel = candidates[pl];
+      var ls = getComputedStyle(lel);
+      var fixed = ls.position === "fixed";
+      if (!fixed && ls.position !== "absolute") continue;
+      if ((lel.textContent || "").trim() !== "") continue;
+      var lbg = parseRgb(ls.backgroundColor);
+      var painted = (ls.backgroundImage && ls.backgroundImage !== "none") || (lbg !== null && lbg.a > 0);
+      if (!painted || !isVisible(lel)) continue;
+      paintLayerCensus.push({ el: lel, fixed: fixed, rect: lel.getBoundingClientRect() });
+    }
+    return paintLayerCensus;
+  }
+  // Is the opaque background found at baseNode actually what the eye sees behind el, or does a paint
+  // layer sit on top of it? Only layers INSIDE the base's subtree count (a layer outside it paints under
+  // the base's own background, not over it), and never one that contains el — that one is an ancestor
+  // and the walk already accounted for it.
+  function paintLayerOver(baseNode, el, elRect) {
+    var census = paintLayers();
+    for (var pi = 0; pi < census.length; pi += 1) {
+      var layer = census[pi];
+      if (layer.el === el || layer.el.contains(el)) continue;
+      if (!baseNode.contains(layer.el) || layer.el === baseNode) continue;
+      if (!layer.fixed) {
+        var lr = layer.rect;
+        if (!(lr.left < elRect.right && lr.right > elRect.left && lr.top < elRect.bottom && lr.bottom > elRect.top)) continue;
+      }
+      return layer.el;
+    }
+    return null;
+  }
   function resolveBackdrop(el) {
     var node = el;
     var layers = [];
+    var elRect = el.getBoundingClientRect();
     while (node) {
       var style = getComputedStyle(node);
       var bgImage = style.backgroundImage;
@@ -344,17 +398,59 @@ export const COLLECT_SAMPLES_JS = `(async () => {
         if (bg.a >= OPAQUE_MIN_ALPHA) {
           var acc = { r: bg.r, g: bg.g, b: bg.b };
           for (var li = layers.length - 1; li >= 0; li -= 1) acc = compositeOver(layers[li], acc);
+          var over = paintLayerOver(node, el, elRect);
+          // fallback is the number the old code returned. It is NOT a verdict — the contrast family
+          // refuses it — but the non-verdict consumers (the dark-glow tell) still need a best-effort
+          // backdrop, and returning null there would silently drop findings this change never judged.
+          if (over !== null) return { kind: "unresolved", reason: "paint-layer-over-base", fallback: acc };
           return { kind: "flat", color: acc };
         }
         layers.push(bg);
       }
       node = node.parentElement;
     }
-    // No opaque base anywhere in the chain — the walker has no pixel sampler, so it keeps the historical
-    // white assumption, with any translucent layers painted over it.
+    // No opaque base anywhere in the chain. The old code fabricated WHITE here and passed text that may be
+    // painted over anything at all; snap refuses this exact case. Report it as unresolved so the pixel
+    // sampler decides, and carry the historical white composite as the non-verdict fallback.
     var white = { r: 255, g: 255, b: 255 };
     for (var wi = layers.length - 1; wi >= 0; wi -= 1) white = compositeOver(layers[wi], white);
-    return { kind: "flat", color: white };
+    return { kind: "unresolved", reason: "no-opaque-base", fallback: white };
+  }
+
+  // WHO OWNS THE PIXELS AT THIS BOX (snap's occluderOf, #211 — same test, same vocabulary, because the two
+  // instruments must not disagree about what is behind a glyph). An unresolved backdrop is settled by
+  // sampling the element's real pixels back in Node, and sampling a box that fixed chrome is painted over
+  // measures the CHROME: the first pixel-sampling run of this walker reported 1.33:1 on a paragraph sitting
+  // under the 48px topbar, which is the same false-verdict class #211 fixed in snap. Only carried for
+  // unresolved samples — an opaque ancestor background is a css fact that occlusion cannot change.
+  function describeNode(n) {
+    var slot = n.getAttribute ? n.getAttribute("data-slot") : null;
+    var cls = typeof n.className === "string" && n.className ? "." + n.className.trim().split(/\\s+/).slice(0, 2).join(".") : "";
+    return n.tagName.toLowerCase() + (n.id ? "#" + n.id : "") + (slot ? "[data-slot=" + slot + "]" : "") + cls;
+  }
+  // elementFromPoint is BLIND to a pointer-events:none subtree, so its silence there means "I cannot tell",
+  // not "occluded" — keep the sample rather than refuse a verdict it deserves.
+  function pointerTransparent(n) {
+    var p = n;
+    while (p) {
+      if (getComputedStyle(p).pointerEvents === "none") return true;
+      p = p.parentElement;
+    }
+    return false;
+  }
+  function occluderOf(el) {
+    if (pointerTransparent(el)) return null;
+    var r = el.getBoundingClientRect();
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    // The VISIBLE box's centre — a half-scrolled element must not be judged by an off-screen point.
+    var x = (Math.max(0, r.left) + Math.min(vw, r.right)) / 2;
+    var y = (Math.max(0, r.top) + Math.min(vh, r.bottom)) / 2;
+    if (x < 0 || y < 0 || x >= vw || y >= vh) return null;
+    var hit = document.elementFromPoint(x, y);
+    if (hit === null) return null;
+    if (hit === el || el.contains(hit) || hit.contains(el)) return null;
+    return describeNode(hit);
   }
 
   function loadNaturalSize(url) {
@@ -406,13 +502,20 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     var fontWeight = fwRaw === "bold" ? 700 : fwRaw === "normal" ? 400 : Number(fwRaw) || 400;
     var textHidden = isVisuallyHidden(el);
     if (color && !textHidden) {
+      // The VIEWPORT-coordinate box rides along for one reason: an "unresolved" backdrop is settled back in
+      // Node by sampling the element's real pixels out of one screenshot, and a sample needs a box. It is
+      // carried on every text sample rather than only the unresolved ones so the sample shape stays uniform.
+      var textRect = el.getBoundingClientRect();
+      var textBackdrop = resolveBackdrop(el);
       texts.push({
         selector: describe(el),
         color: { r: color.r, g: color.g, b: color.b },
-        backdrop: resolveBackdrop(el),
+        backdrop: textBackdrop,
         fontSizePx: fontSizePx,
         fontWeight: fontWeight,
         foregroundOpacity: accumulatedOpacity(el),
+        box: { x: textRect.x, y: textRect.y, width: textRect.width, height: textRect.height },
+        occludedBy: textBackdrop.kind === "unresolved" ? occluderOf(el) : null,
       });
     }
 
@@ -850,7 +953,10 @@ export const COLLECT_SAMPLES_JS = `(async () => {
       selector: describe(sgel),
       boxShadow: bs === "none" ? "" : bs,
       textShadow: ts === "none" ? "" : ts,
-      backdropColor: sgBackdrop.kind === "flat" ? sgBackdrop.color : null,
+      // The dark-glow tell is not a contrast VERDICT — it only asks "is this backdrop dark?" — so it keeps
+      // reading the best-effort composite for an unresolved backdrop. Refusing here would silently drop
+      // glow findings on every surface with a fixed art layer, which this change never judged.
+      backdropColor: sgBackdrop.kind === "flat" ? sgBackdrop.color : sgBackdrop.kind === "unresolved" ? sgBackdrop.fallback : null,
     });
   }
 

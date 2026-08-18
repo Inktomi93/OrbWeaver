@@ -213,3 +213,34 @@ export function WalkerNeighbourButtonsStory(): ReactElement {
     </div>
   );
 }
+
+/** The PAINT-LAYER stage (issue #218): the shape the live chat transcript wears. An opaque near-black base,
+ *  a FIXED contentless wallpaper layer painting over it (invisible to a DOM ancestor walk — it is a sibling,
+ *  not an ancestor), and a 0.65-alpha reading plate on top. Walking the plate down to the base composites a
+ *  color no pixel on screen has: the live surface reported 3.16:1 on 28 nodes whose real composite over the
+ *  photo is 4.94:1. The plate line here must therefore get NO contrast verdict from the DOM walk alone —
+ *  only the runner's pixel sample may judge it.
+ *
+ *  The opaque card is the control: its own base contains no paint layer, so it is still an ordinary
+ *  css-resolved backdrop and its (genuinely poor) contrast must still fire. Without it the fix would be
+ *  indistinguishable from muting the rule. */
+export function WalkerPaintLayerStory(): ReactElement {
+  return (
+    <div style={{ backgroundColor: "rgb(15, 12, 10)", minHeight: 400, padding: 24, position: "relative", width: 520 }}>
+      <div
+        aria-hidden="true"
+        style={{ backgroundImage: "linear-gradient(rgb(232, 226, 214), rgb(198, 190, 176))", inset: 0, pointerEvents: "none", position: "fixed" }}
+      />
+      <div style={{ backgroundColor: "rgba(24, 20, 16, 0.65)", padding: 16, position: "relative" }}>
+        <p data-testid="plate-line" style={{ color: "rgb(86, 75, 59)", fontSize: 15 }}>
+          the reading plate is translucent, so this line is painted over the wallpaper — not over the base beneath it
+        </p>
+      </div>
+      <div style={{ backgroundColor: "rgb(24, 24, 28)", marginTop: 16, padding: 16, position: "relative" }}>
+        <p data-testid="card-line" style={{ color: "rgb(74, 74, 80)", fontSize: 14 }}>
+          this line sits on an opaque card with nothing painting over it, and reads about 2:1
+        </p>
+      </div>
+    </div>
+  );
+}
