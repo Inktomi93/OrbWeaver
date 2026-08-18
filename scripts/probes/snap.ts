@@ -25,7 +25,14 @@
  *                                          # --out names the PNG (reports/snaps/<out>.png) — and the
  *                                          # trace/har/--json manifest, so it is NOT ignored in a
  *                                          # text-only run; but with --text/--no-shot no image is
- *                                          # written and snap says so (ARG WARNING, exit unchanged)
+ *                                          # written and snap says so (ARG WARNING, exit unchanged).
+ *                                          # A PATH-SHAPED --out (absolute, or ./ ../) is a FILE
+ *                                          # DESTINATION, not a base name: `--out /tmp/x.png` writes
+ *                                          # exactly /tmp/x.png (+ /tmp/x.json for --json). It used to
+ *                                          # be joined under reports/ AND re-suffixed
+ *                                          # (reports/snaps/tmp/x.png.png) while still exiting 0.
+ *                                          # Trace/HAR/baseline stay in their reports/<kind>/ family,
+ *                                          # keyed by the basename.
  *   pnpm snap / --key Tab --key Tab --eval 'document.activeElement.outerHTML.slice(0,120)'
  *                                          # KEYBOARD WALK. `--key <KeyName>` with NO `=` sends the key
  *                                          # to the page keyboard WITHOUT changing focus, so N of them
@@ -343,6 +350,10 @@
  *   `git rev-parse --git-common-dir`), so a lane's stage is visible from main and vice versa. Against a LIVE
  *   stage owned by ANOTHER checkout, --isolated at the SAME commit reuses it read-only; a rebuild, --fresh or
  *   --dirty REFUSES and names the owner rather than killing a sibling's stack.
+ *   A COLD stage's first call sees vite discover + re-bundle its deps, aborting the
+ *   `/node_modules/.vite/deps/*.js` requests already in flight. Those are reported under their own heading
+ *   and counted as `vite-dep-churn`, never as `failed-req` (isViteDepChurn) — they used to red-exit the
+ *   first `--isolated --fresh` snap, which is exactly the call a lane makes when it trusts nothing else.
  *   First-boot cost: one `git worktree add` (or, for --dirty, an rsync) + `pnpm install` (shared store →
  *   cheap) + a stack boot; the stage then stays WARM across snap calls. A new HEAD sha auto-rebuilds the
  *   commit-pinned stage (the stale one is torn down); --dirty always re-syncs instead. A ref/tree predating
@@ -357,14 +368,16 @@ import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
-import { artifactDir, routeSlug } from "./_kit/artifacts.ts";
+import { artifactDir, artifactFile, artifactFilePath, artifactKey, routeSlug } from "./_kit/artifacts.ts";
 import type { CapturedConsole, CapturedRequest, LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "./_kit/browser.ts";
 import { buildUrl, DEFAULT_BASE, DEFAULT_DEBUG_TOKEN, launchProbeSession, settle } from "./_kit/browser.ts";
 import { resolveFfmpeg } from "./_kit/ffmpeg.ts";
 import type { FixtureTarget } from "./_kit/fixture.ts";
 import { defaultFixtureUsers, fixtureRefusalLine, fixtureStatus, loginFixtureUser, resolveFixtureTarget, resolveFixtureUsers } from "./_kit/fixture.ts";
 import type { Viewport } from "./_kit/flags.ts";
-import { parseGotoTarget, parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "./_kit/flags.ts";
+import { parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "./_kit/flags.ts";
+import type { NavMethod } from "./_kit/nav.ts";
+import { buildNavScript } from "./_kit/nav.ts";
 import type { ResultPair } from "./_kit/result.ts";
 import { print, printResult } from "./_kit/result.ts";
 import { ensureStage, stageStatus, teardownStage } from "./_kit/snap-stage.ts";
@@ -485,11 +498,9 @@ type Step = StepAction & { page: number };
 // (window.__orb.nav). `target` is the raw flag value; the kind picks the __orb.nav method. These are
 // INTERLEAVED with the interaction steps in one argv-ordered queue (see SnapAction) — a nav in the middle
 // of a chain runs where it was written, not before the chain.
-type NavAction =
-  | { kind: "goto"; target: string; page: number }
-  | { kind: "open-chat"; target: string; page: number }
-  | { kind: "open-character"; target: string; page: number }
-  | { kind: "context-tab"; target: string; page: number };
+// The kind axis IS `_kit/nav.ts`'s NavMethod — one importable union for every probe, so a new nav verb
+// lands in one place and every probe's dispatch fails to compile until it is handled.
+type NavAction = { kind: NavMethod; target: string; page: number };
 
 /** ONE argv-ordered queue of everything that DRIVES the page before capture: bridge navigations,
  *  interaction steps, and `--eval` expressions, tagged by which they are. A flat command reads as
@@ -589,7 +600,8 @@ export type Args = {
   watchMs: number;
   /** --watch tick interval (ms). Default 1000. */
   watchEveryMs: number;
-  /** Output basename override (reports/snaps/<out>.png). Defaults to the route slug. */
+  /** Output basename override (reports/snaps/<out>.png), or — when path-shaped (absolute / `./` / `../`) —
+   *  the exact file to write. Defaults to the route slug. Resolution lives in _kit/artifacts.ts. */
   out: string | null;
   viewport: Viewport;
   /** localStorage seeds applied BEFORE navigation (`--ls key=value`, repeatable). */
@@ -1590,26 +1602,9 @@ async function driveStep(page: Page, step: Step): Promise<number> {
 // runs after that click, against whatever the click produced.
 // __orb is dev-only (installAgentDebugHandle gates on IS_DEV) — a prod/old build with no bridge fails
 // the action with a clear reason rather than silently no-op'ing.
-const NAV_METHOD: Record<Exclude<NavAction["kind"], "goto">, string> = {
-  "open-chat": "openChat",
-  "open-character": "openCharacter",
-  "context-tab": "contextTab",
-};
-
-// The in-page bridge call. --goto's target is a namespaced string the app doesn't understand directly
-// (`settings:appearance`, `modal:theme`, or a bare section id) — DECODE it in Node via parseGotoTarget
-// (unit-tested, _kit/flags.ts) to the right __orb.nav method, then emit a call to just that method. All
-// other kinds map 1:1. Returns the NavResult shape.
-function buildNavScript(action: NavAction): string {
-  const method = action.kind === "goto" ? parseGotoTarget(action.target).method : NAV_METHOD[action.kind];
-  const arg = JSON.stringify(action.kind === "goto" ? parseGotoTarget(action.target).arg : action.target);
-  return `(async () => {
-    const nav = window.__orb && window.__orb.nav;
-    if (!nav) return { ok: false, reason: "__orb.nav unavailable (not a dev build?)" };
-    return await nav.${method}(${arg});
-  })()`;
-}
-
+// The in-page bridge call itself lives in _kit/nav.ts — ONE spelling shared with design-audit,
+// motion-audit and perf-meter (a probe that reaches a surface differently is a probe measuring a
+// different surface). snap keeps its own driver below for the argv-ordered queue's printing/settle rules.
 type NavResultShape = { ok: boolean; reason?: string };
 
 // One nav action + its settle. Returns the failure count (0 or 1); each failure prints + reddens exit.
@@ -1622,7 +1617,7 @@ async function driveNav(page: Page, action: NavAction): Promise<number> {
   let result: NavResultShape;
   try {
     await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
-    result = (await page.evaluate(buildNavScript(action))) as NavResultShape;
+    result = (await page.evaluate(buildNavScript(action.kind, action.target))) as NavResultShape;
   } catch (e) {
     print(`NAV FAILED  ${action.kind} ${action.target}: ${errorMessage(e)}`);
     return 1;
@@ -2978,12 +2973,21 @@ export function selectConsoleMessagesForReport(
   return { messages: selected.map(({ message }) => message), omitted: messages.length - selected.length };
 }
 
-function printCaptureLog(session: SessionCounts, failed: CapturedRequest[]): void {
+function printRequestLines(requests: readonly CapturedRequest[]): void {
+  for (const r of requests) {
+    print(`  ${r.method.padEnd(METHOD_PAD)} ${r.type.padEnd(TYPE_PAD)} ${r.status ?? "—"} ${r.failed ?? ""} ${r.url}`);
+  }
+}
+
+function printCaptureLog(session: SessionCounts, failed: CapturedRequest[], viteChurn: readonly CapturedRequest[] = []): void {
   if (failed.length > 0) {
     print("\n--- failed requests ---");
-    for (const r of failed) {
-      print(`  ${r.method.padEnd(METHOD_PAD)} ${r.type.padEnd(TYPE_PAD)} ${r.status ?? "—"} ${r.failed ?? ""} ${r.url}`);
-    }
+    printRequestLines(failed);
+  }
+  // Printed, never counted against the run — see isViteDepChurn.
+  if (viteChurn.length > 0) {
+    print(`\n--- vite dep-optimizer churn (${viteChurn.length}, NOT a failure — cold-stage re-bundle aborts, re-requested and served) ---`);
+    printRequestLines(viteChurn);
   }
   if (session.consoleLines.length > 0) {
     const selected = selectConsoleMessagesForReport(session.consoleMessages);
@@ -3360,6 +3364,43 @@ export function isSandboxTraceNoise(entry: CapturedConsole): boolean {
   return entry.type === "error" && SANDBOX_TRACE_NOISE_RE.test(entry.line.replace(CONSOLE_TYPE_PREFIX_RE, ""));
 }
 
+/** HARNESS-INDUCED failed request, not the app's (issue #148 item 3): on a COLD vite server the first page
+ *  load discovers dependencies, re-bundles them, and ABORTS the in-flight `/node_modules/.vite/deps/*.js`
+ *  requests the page had already started — 3-4 `net::ERR_ABORTED` on the first call after
+ *  `--isolated --fresh`, never on a warm stage. The browser re-requests every one of them and the page
+ *  loads correctly; nothing is broken and nothing is missing.
+ *
+ *  So it is excluded from the failed-request VERDICT (it red-exited every first cold-stage snap, which is
+ *  precisely the call a lane makes when it has nothing else to trust) but never dropped: the report prints
+ *  these lines under their own heading, the JSON manifest keeps them in `viteDepChurn`, and the RESULT line
+ *  counts them under `vite-dep-churn`.
+ *
+ *  NARROW BY CONSTRUCTION: an ABORT only, and only on the optimizer's own path. A 404/500 on a dep, or an
+ *  abort anywhere else, stays a failure — those are real. */
+const VITE_DEPS_PATH_RE = /\/(?:node_modules\/)?\.vite\/deps\//u;
+const REQUEST_ABORTED = "net::ERR_ABORTED";
+
+export function isViteDepChurn(request: CapturedRequest): boolean {
+  return request.failed === REQUEST_ABORTED && (request.status ?? 0) < HTTP_ERROR_STATUS_MIN && VITE_DEPS_PATH_RE.test(request.url);
+}
+
+/** Split a context's requests into the ones that DECIDE the run and the vite-optimizer churn that only
+ *  gets reported. One home, so every snap path (single, scenario, --contexts) judges identically. */
+export function partitionFailedRequests(requests: Iterable<CapturedRequest>): {
+  readonly failed: CapturedRequest[];
+  readonly viteChurn: CapturedRequest[];
+} {
+  const failed: CapturedRequest[] = [];
+  const viteChurn: CapturedRequest[] = [];
+  for (const request of requests) {
+    if (request.failed === null && (request.status ?? 0) < HTTP_ERROR_STATUS_MIN) {
+      continue;
+    }
+    (isViteDepChurn(request) ? viteChurn : failed).push(request);
+  }
+  return { failed, viteChurn };
+}
+
 function consoleFailureCounts(messages: readonly CapturedConsole[], strict: boolean): ConsoleFailureCounts {
   const errors = messages.filter((entry) => entry.type === "error" && !isSandboxTraceNoise(entry)).length;
   const warnings = strict ? messages.filter((entry) => entry.type === "warning").length : 0;
@@ -3414,6 +3455,9 @@ type SnapManifest = {
     readonly pageErrors: readonly string[];
   };
   readonly failedRequests: CapturedRequest[];
+  /** Vite dep-optimizer aborts, kept for the record and excluded from the verdict (isViteDepChurn).
+   *  Absent when there were none — a warm stage never produces any. */
+  readonly viteDepChurn?: readonly CapturedRequest[];
   readonly captures: readonly CaptureOutcome[];
   /** Watch-only timeline. Present when --watch ran; ticks remain durable even when terminal output dedupes them. */
   readonly watch?: {
@@ -3433,8 +3477,10 @@ type SnapManifest = {
   };
 };
 
+// The manifest is the SHOT'S sibling: for a bare `--out home` that is reports/snaps/home.json exactly as
+// before; for a path-shaped `--out /tmp/x.png` it is /tmp/x.json, next to the pixels it describes.
 async function writeManifest(name: string, manifest: SnapManifest): Promise<string> {
-  const path = join(await artifactDir("snaps"), `${name}.json`);
+  const path = await artifactFile("snaps", name, ".json");
   await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   return path;
 }
@@ -3582,12 +3628,15 @@ async function writeManifestIfRequested(opts: Args, name: string, input: Manifes
 
 async function snap(opts: Args): Promise<number> {
   const { url, name } = snapDestination(opts);
-  const out = join(await artifactDir("snaps"), `${name}.png`);
+  // `name` may be a PATH the caller chose (`--out /tmp/shot.png`): the shot lands exactly there, while the
+  // kind-dir siblings (trace/HAR/baseline) key off its sanitized basename and stay under reports/.
+  const out = await artifactFile("snaps", name, ".png");
+  const key = artifactKey(name);
   // Whether we write a PNG. --no-shot/--text suppress it, but --baseline/--diff
   // need pixels to compare, and --shot-of is itself a shot — so those force it on.
   const produceShot = shouldProduceShot(opts);
   const totalPages = opts.pages;
-  const session = await launchSnapSession(opts, name, { pages: totalPages });
+  const session = await launchSnapSession(opts, key, { pages: totalPages });
 
   const plan: ShotPlan = { url, out, produceShot };
   const outcomes = await capturePages(session, opts, plan);
@@ -3595,18 +3644,18 @@ async function snap(opts: Args): Promise<number> {
   // --watch: a timed series on PAGE 0 after everything settled (a streaming turn reflow, transient states).
   const watchTicks = opts.watchMs > 0 ? await runWatchSeries(session.pages[0] as Page, opts, pageOut(out, 0, totalPages)) : [];
   extendEvidenceThroughWatch(outcomes, session);
-  const failed = [...session.requests.values()].filter((r) => r.failed !== null || (r.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
+  const { failed, viteChurn } = partitionFailedRequests(session.requests.values());
   for (const outcome of outcomes) {
     const ctx: ReportCtx = { ...plan, out: pageOut(out, outcome.pageIndex, totalPages), failed, totalPages };
     printPageReport(sessionForEvidence(session, [outcome]), outcome, opts, ctx);
   }
   printWatchBlock(watchTicks);
   printCheckpointScope(session, evidenceSession);
-  printCaptureLog(evidenceSession, failed);
+  printCaptureLog(evidenceSession, failed, viteChurn);
   printCropNote(opts, { ...plan, failed, totalPages });
   printProbeMotionWarning(opts);
   // Baseline/diff compares PAGE 0's shot (the canonical surface); multi-page baselines aren't a use case yet.
-  const { diffPairs, ssimFailed } = await runBaselineOrDiff(opts, pageOut(out, 0, totalPages), name);
+  const { diffPairs, ssimFailed } = await runBaselineOrDiff(opts, pageOut(out, 0, totalPages), key);
 
   const totals = outcomeTotals(outcomes);
   const evidenceFailures = evidenceFailureCounts(outcomes);
@@ -3624,7 +3673,7 @@ async function snap(opts: Args): Promise<number> {
     diff: Number(ssimFailed),
   });
   const red = hasSnapFailure(failureSummary);
-  const artifacts = await finishSession(session, red, name, opts.failureEvidence);
+  const artifacts = await finishSession(session, red, key, opts.failureEvidence);
   const manifestPath = await writeManifestIfRequested(opts, name, {
     status: red ? "fail" : "pass",
     target: { url, name },
@@ -3649,6 +3698,7 @@ async function snap(opts: Args): Promise<number> {
       : {}),
     pageErrors: session.pageErrors,
     failedRequests: failed,
+    ...(viteChurn.length === 0 ? {} : { viteDepChurn: viteChurn }),
     captures: outcomes,
     ...(watchTicks.length === 0 ? {} : { watch: { totalMs: opts.watchMs, intervalMs: opts.watchEveryMs, ticks: watchTicks } }),
   });
@@ -3685,6 +3735,7 @@ async function snap(opts: Args): Promise<number> {
     ["steps-failed", totals.steps],
     ["page-errors", evidenceSession.pageErrors.length],
     ["failed-req", failed.length],
+    ["vite-dep-churn", viteChurn.length],
     ["deadcss", totals.deadCss],
     ["emptycss", totals.emptyCss],
     ...diffPairs,
@@ -3746,7 +3797,13 @@ async function captureScenarioCheckpoints(
   let priorUrl: string | null = null;
   for (const checkpoint of checkpoints) {
     const destination = snapDestination(checkpoint);
-    const plan: ShotPlan = { url: destination.url, out: join(snapsDir, `${destination.name}.png`), produceShot: shouldProduceShot(checkpoint) };
+    // Same --out contract as the single-shot path: a checkpoint that names a PATH writes there (the
+    // scenario's own checkpoint names are slugs and stay under reports/snaps/).
+    const plan: ShotPlan = {
+      url: destination.url,
+      out: artifactFilePath(snapsDir, destination.name, ".png"),
+      produceShot: shouldProduceShot(checkpoint),
+    };
     plans.push(plan);
     const keepLivePage = HTTP_URL_RE.test(plan.url) && plan.url === priorUrl;
     const consoleStart = session.consoleMessages.length;
@@ -3775,6 +3832,7 @@ type ScenarioReportArgs = {
   readonly plans: readonly ShotPlan[];
   readonly evidenceRanges: readonly ScenarioEvidenceRange[];
   readonly failedRequests: CapturedRequest[];
+  readonly viteChurn: readonly CapturedRequest[];
 };
 
 function scenarioCheckpointSession(session: ProbeSession, outcome: CaptureOutcome, range: ScenarioEvidenceRange): SessionCounts {
@@ -3823,7 +3881,7 @@ function printScenarioReports(args: ScenarioReportArgs): void {
   }
   const evidenceSession = sessionForEvidence(session, outcomes);
   printCheckpointScope(session, evidenceSession);
-  printCaptureLog(evidenceSession, failedRequests);
+  printCaptureLog(evidenceSession, failedRequests, args.viteChurn);
 }
 
 async function snapScenario(opts: Args): Promise<number> {
@@ -3851,11 +3909,11 @@ async function snapScenario(opts: Args): Promise<number> {
   const { outcomes, plans, evidenceRanges } = await captureScenarioCheckpoints(session, checkpoints);
   const evidenceConsole = consoleForEvidence(session.consoleMessages, outcomes);
   const evidencePageErrors = pageErrorsForEvidence(session.pageErrors, outcomes);
-  const failedRequests = [...session.requests.values()].filter((request) => request.failed !== null || (request.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
+  const { failed: failedRequests, viteChurn } = partitionFailedRequests(session.requests.values());
   const failureSummary = scenarioFailureSummary(outcomes, session, failedRequests, opts.strictConsole);
   const red = hasSnapFailure(failureSummary);
   const artifacts = await finishSession(session, red, spec.name, opts.failureEvidence);
-  printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests });
+  printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests, viteChurn });
   const manifestPath = await writeManifestIfRequested(opts, spec.name, {
     status: red ? "fail" : "pass",
     target: { url: scenarioPath, name: spec.name },
@@ -3872,6 +3930,7 @@ async function snapScenario(opts: Args): Promise<number> {
     pageErrors: session.pageErrors,
     ...(opts.checkpoint ? { evidence: { scope: "checkpoint" as const, console: evidenceConsole, pageErrors: evidencePageErrors } } : {}),
     failedRequests,
+    ...(viteChurn.length === 0 ? {} : { viteDepChurn: viteChurn }),
     captures: outcomes,
     scenario: {
       checkpoints: evidenceRanges.map((range, index) => ({
@@ -3895,6 +3954,7 @@ async function snapScenario(opts: Args): Promise<number> {
     ["trace", artifacts.traces[0] ?? "none"],
     ["har", artifacts.hars[0] ?? "none"],
     ["json", manifestPath ?? "none"],
+    ["vite-dep-churn", viteChurn.length],
   ]);
   return red ? 1 : 0;
 }
@@ -3918,6 +3978,15 @@ const MATRIX_VARIANTS: readonly MatrixVariant[] = [
   { id: "mobile-dark-reduced", device: MOBILE_DEVICE, viewport: DEFAULT_VIEWPORT, colorScheme: "dark", reducedMotion: true },
 ];
 
+/** One matrix variant's `--out`, with the suffix INSIDE any extension the base carries: a path-shaped
+ *  `--out /tmp/home.png` must produce /tmp/home-desktop-dark-motion.png, not …png-desktop-dark-motion.png.
+ *  A bare base has no extension and is suffixed exactly as before. */
+export function variantOut(baseName: string, variantId: string): string {
+  const ext = extname(baseName);
+  const stem = ext === "" ? baseName : baseName.slice(0, -ext.length);
+  return `${stem}-${variantId}${ext}`;
+}
+
 async function snapMatrix(opts: Args): Promise<number> {
   const baseName = opts.out ?? (opts.scenario === null ? routeSlug(opts.route) : routeSlug(basename(opts.scenario, extname(opts.scenario))));
   let failures = 0;
@@ -3925,7 +3994,7 @@ async function snapMatrix(opts: Args): Promise<number> {
     const runArgs: Args = {
       ...opts,
       matrix: false,
-      out: `${baseName}-${variant.id}`,
+      out: variantOut(baseName, variant.id),
       device: variant.device,
       viewport: variant.viewport,
       colorScheme: variant.colorScheme,
@@ -3982,20 +4051,20 @@ type ContextReportArgs = {
 // One context's report section + its running request/error totals — factored out of snapContexts to
 // keep that function's cognitive complexity under the gate. A single params object dodges the
 // too-many-positional-params rule while keeping every field self-documenting at the call site.
-function reportOneContext(args: ContextReportArgs, i: number): { readonly failedReq: number; readonly pageErrors: number } {
+function reportOneContext(args: ContextReportArgs, i: number): { readonly failedReq: number; readonly pageErrors: number; readonly viteChurn: number } {
   const { opts, session, outcomes, users, plan, out, totalContexts } = args;
   const ctxSession = session.contexts[i] as (typeof session.contexts)[number];
   const outcome = outcomes[i] as CaptureOutcome;
   const evidenceSession = sessionForEvidence(ctxSession, [outcome]);
-  const failed = [...ctxSession.requests.values()].filter((r) => r.failed !== null || (r.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
+  const { failed, viteChurn } = partitionFailedRequests(ctxSession.requests.values());
   const ctx: ReportCtx = { ...plan, out: contextOut(out, i, totalContexts), failed, totalPages: totalContexts, label: "CONTEXT" };
   print(`\nuser         ${users[i]?.handle} (context ${i})`);
   printPageReport(evidenceSession, outcome, opts, ctx);
   printCheckpointScope(ctxSession, evidenceSession);
-  printCaptureLog(evidenceSession, failed);
+  printCaptureLog(evidenceSession, failed, viteChurn);
   printCropNote(opts, ctx);
   printProbeMotionWarning(opts);
-  return { failedReq: failed.length, pageErrors: evidenceSession.pageErrors.length };
+  return { failedReq: failed.length, pageErrors: evidenceSession.pageErrors.length, viteChurn: viteChurn.length };
 }
 
 async function captureContexts(session: ProbeSession, opts: Args, plan: ShotPlan, totalContexts: number): Promise<CaptureOutcome[]> {
@@ -4015,21 +4084,26 @@ async function captureContexts(session: ProbeSession, opts: Args, plan: ShotPlan
   return outcomes;
 }
 
-function reportContexts(args: ContextReportArgs): { readonly failedRequests: number; readonly pageErrors: number } {
+function reportContexts(args: ContextReportArgs): { readonly failedRequests: number; readonly pageErrors: number; readonly viteChurn: number } {
   let pageErrors = 0;
   let failedRequests = 0;
+  let viteChurn = 0;
   for (let index = 0; index < args.totalContexts; index += 1) {
     const totals = reportOneContext(args, index);
     failedRequests += totals.failedReq;
     pageErrors += totals.pageErrors;
+    viteChurn += totals.viteChurn;
   }
-  return { failedRequests, pageErrors };
+  return { failedRequests, pageErrors, viteChurn };
 }
 
 async function snapContexts(opts: Args, users: readonly FixtureUser[], target: FixtureTarget): Promise<number> {
   const url = buildUrl(opts.base, opts.route);
   const name = opts.out ?? routeSlug(opts.route);
-  const out = join(await artifactDir("snaps"), `${name}.png`);
+  // Same naming contract as `snap()`: a path-shaped --out routes the shot; the kind-dir siblings key off
+  // its basename.
+  const out = await artifactFile("snaps", name, ".png");
+  const key = artifactKey(name);
   const produceShot = shouldProduceShot(opts);
   const totalContexts = users.length;
 
@@ -4038,7 +4112,7 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[], target: F
     return 1;
   }
 
-  const session = await launchSnapSession(opts, name, {
+  const session = await launchSnapSession(opts, key, {
     contexts: totalContexts,
     contextCookies: cookies,
     cookieDomain: new URL(opts.base).hostname,
@@ -4062,7 +4136,7 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[], target: F
     strictConsole: opts.strictConsole,
   });
   const red = hasSnapFailure(failureSummary);
-  const artifacts = await finishSession(session, red, name, opts.failureEvidence);
+  const artifacts = await finishSession(session, red, key, opts.failureEvidence);
   const manifestPath = await writeManifestIfRequested(opts, name, {
     status: red ? "fail" : "pass",
     target: { url, name },
@@ -4078,9 +4152,10 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[], target: F
     console: allConsole,
     pageErrors: allPageErrors,
     ...(opts.checkpoint ? { evidence: { scope: "checkpoint" as const, console: allEvidenceConsole, pageErrors: allEvidencePageErrors } } : {}),
-    failedRequests: session.contexts.flatMap((context) =>
-      [...context.requests.values()].filter((request) => request.failed !== null || (request.status ?? 0) >= HTTP_ERROR_STATUS_MIN),
-    ),
+    failedRequests: session.contexts.flatMap((context) => partitionFailedRequests(context.requests.values()).failed),
+    ...(reportTotals.viteChurn === 0
+      ? {}
+      : { viteDepChurn: session.contexts.flatMap((context) => partitionFailedRequests(context.requests.values()).viteChurn) }),
     captures: outcomes,
   });
   const mapSummary = mapOutputSummary(opts.map, outcomes);
@@ -4113,6 +4188,7 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[], target: F
     ["steps-failed", totals.steps],
     ["page-errors", reportTotals.pageErrors],
     ["failed-req", reportTotals.failedRequests],
+    ["vite-dep-churn", reportTotals.viteChurn],
     ["deadcss", totals.deadCss],
     ["emptycss", totals.emptyCss],
   ]);

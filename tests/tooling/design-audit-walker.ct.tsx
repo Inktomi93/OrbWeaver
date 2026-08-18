@@ -12,8 +12,10 @@
 // buttons must still measure as sub-targets.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { Finding, RawSamples } from "../../scripts/probes/design-audit-checks.ts";
+import { collectFindings } from "../../scripts/probes/design-audit-checks.ts";
 import { COLLECT_SAMPLES_JS } from "../../scripts/probes/design-audit-walker.ts";
-import { WalkerNeighbourButtonsStory, WalkerSliderCompositeStory } from "./_ct-stories.tsx";
+import { WalkerCapsTrackingStory, WalkerDuplicateSlotStory, WalkerNeighbourButtonsStory, WalkerSliderCompositeStory } from "./_ct-stories.tsx";
 
 interface TapTarget {
   readonly selector: string;
@@ -69,4 +71,53 @@ test("two genuine neighbours stay sub-targets — the widening is per composite,
   for (const testid of ["neighbour-a", "neighbour-b"]) {
     expect(smallestSide(targets, testid), `${testid} must still measure as a sub-target`).toBeLessThan(FINE_POINTER_FLOOR);
   }
+});
+
+/** The walker's whole raw sample set for the mounted stage. */
+async function samplesOf(page: Page): Promise<RawSamples> {
+  return (await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples;
+}
+
+// ── A finding must be LOCATABLE (issue #148 item 5) ──────────────────────────────────────────────
+// `data-slot` names a COMPONENT KIND, not an element: one live audit returned six findings all reading
+// `[data-slot=text]` plus one `[data-slot=button]` — nobody could tell them apart, let alone find them, so
+// two real text-overflow defects were unforwardable. An anchor is only an anchor if it resolves to ONE node.
+test("a selector the walker reports resolves to exactly one element, even when data-slot repeats", async ({ mount, page }) => {
+  await mount(<WalkerDuplicateSlotStory />);
+  const samples = await samplesOf(page);
+
+  const reported = samples.textStyles.filter((t) => t.tag === "span").map((t) => t.selector);
+  expect(reported.length, `expected the walker to censuse both spans — saw ${JSON.stringify(reported)}`).toBe(2);
+  expect(new Set(reported).size, `both spans reported the SAME selector ${JSON.stringify(reported[0])} — neither can be found`).toBe(2);
+  const counts = await Promise.all(reported.map(async (selector) => ({ selector, count: await page.locator(selector).count() })));
+  for (const { selector, count } of counts) {
+    expect(count, `${selector} does not name exactly one element`).toBe(1);
+  }
+});
+
+// ── The ratified micro-caps voice is not a tracking defect (issue #148 item 4) ────────────────────
+// 0.08em on caps IS the density-spec §2.3 label voice. The rule already exempted `text-transform:
+// uppercase`; it could not see caps that were TYPED, which render identically — so the kicker voice was
+// flagged wherever the caps came from the content instead of the stylesheet.
+function trackingFindings(samples: RawSamples): Finding[] {
+  return collectFindings(samples).filter((f) => f.rule === "wide-tracking");
+}
+
+test("wide-tracking exempts the ratified caps kicker — typed caps as well as transformed", async ({ mount, page }) => {
+  await mount(<WalkerCapsTrackingStory />);
+  const findings = trackingFindings(await samplesOf(page));
+
+  const flagged = findings.map((f) => f.selector);
+  expect(flagged, `the caps kicker voice must not be a tracking finding — got ${JSON.stringify(flagged)}`).not.toContain("[data-testid=kicker-transformed]");
+  expect(flagged, `typed caps render the same pixels as transformed caps — got ${JSON.stringify(flagged)}`).not.toContain("[data-testid=kicker-literal]");
+});
+
+test("wide-tracking still fires on sentence-case running text — the exemption is caps, not tracking", async ({ mount, page }) => {
+  await mount(<WalkerCapsTrackingStory />);
+  const findings = trackingFindings(await samplesOf(page));
+
+  expect(
+    findings.map((f) => f.selector),
+    "0.08em on ordinary prose is the defect this rule exists for and must survive the exemption",
+  ).toContain("[data-testid=tracked-prose]");
 });

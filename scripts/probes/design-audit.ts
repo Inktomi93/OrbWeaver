@@ -15,6 +15,11 @@
  *     type-ramp legibility floors, tracking/leading/caps/justify/line-length, skipped headings,
  *     font + type-scale censuses, repeated container text, bounce easing, layout transitions.
  *
+ * EVERY finding carries a LOCATABLE selector: a path built up to the nearest anchor that resolves to ONE
+ * node. `data-slot` names a component KIND, so a bare `[data-slot=text]` named six findings at once and
+ * located none of them (2026-08-17) — the walker now counts candidate anchors and climbs past ambiguous or
+ * re-minted-per-render ones. Paste a finding's selector into the page and you get exactly its element.
+ *
  * Objective + fixture-tested — the walker (scripts/probes/design-audit-walker.ts) only gathers
  * raw facts in-page; all severity/threshold decisions happen back in Node via `collectFindings`
  * (scripts/probes/design-audit-checks.ts, unit-tested at tests/tooling/design-audit.test.ts).
@@ -27,6 +32,9 @@
  *                                                       # reveal a surface before auditing (repeatable)
  *   pnpm design-audit / --wait 800                     # settle ms after the last action (default 500)
  *   pnpm design-audit / --out home                     # reports/design-audit/home.json
+ *   pnpm design-audit / --out /tmp/lane/home.json      # a PATH-SHAPED --out (absolute, or ./ ../) is the
+ *                                                       # exact file to write, not a name to file under
+ *                                                       # reports/ (_kit/artifacts.ts owns that contract)
  *   pnpm design-audit / --viewport 1920x1080           # default 1280x800
  *   pnpm design-audit / --mobile                       # iPhone 14 Pro Max: 430x932, DPR3, TOUCH +
  *                                                       # pointer:coarse. THE TAP-TARGET FLOOR IS
@@ -49,14 +57,15 @@
  * ignored line, because a typo'd flag silently scans the wrong surface and reports it clean.
  */
 import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
-import { artifactDir, routeSlug } from "./_kit/artifacts.ts";
+import { artifactFile, routeSlug } from "./_kit/artifacts.ts";
 import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
 import type { Viewport } from "./_kit/flags.ts";
-import { parseGotoTarget, parseViewport } from "./_kit/flags.ts";
+import { parseViewport } from "./_kit/flags.ts";
+import type { NavMethod } from "./_kit/nav.ts";
+import { runNav } from "./_kit/nav.ts";
 import { print, printResult } from "./_kit/result.ts";
 import type { Finding, RawSamples, Severity } from "./design-audit-checks.ts";
 import { checkScriptErrors, collectFindings, isAtOrAboveSeverity, isValidSeverity } from "./design-audit-checks.ts";
@@ -77,8 +86,6 @@ const EXIT_MISUSE = 2;
 
 /** One pre-audit action, in argv order: a DOM click or a dev-bridge navigation. */
 type AuditAction = { kind: "click"; selector: string } | { kind: "nav"; method: NavMethod; target: string };
-
-type NavMethod = "goto" | "open-chat" | "open-character" | "context-tab";
 
 type Args = {
   route: string;
@@ -182,7 +189,8 @@ Environment:
 
 Verdict:
   --fail-on <P0|P1|P2|P3>   exit 1 at this severity or worse (default ${DEFAULT_FAIL_ON})
-  --out <name>              reports/design-audit/<name>.json
+  --out <name|path>         reports/design-audit/<name>.json — or, path-shaped (absolute / ./ ../),
+                            that exact file
 
 Exit: 0 clean · 1 findings or nav error · 2 CLI misuse.`;
 
@@ -249,27 +257,9 @@ type CaptureOutcome = { navError: string | null; actionsFailed: number; samples:
 
 type AuditPage = Awaited<ReturnType<typeof launchProbeSession>>["page"];
 
-// The bridge methods the app exposes (packages/client agent-bridge) — same set snap drives. `--goto`'s
-// target is namespaced (`settings:<cat>` / `modal:<slot>` / a bare section id) and decoded here.
-const NAV_BRIDGE_METHOD: Record<Exclude<NavMethod, "goto">, string> = {
-  "open-chat": "openChat",
-  "open-character": "openCharacter",
-  "context-tab": "contextTab",
-};
-
-function buildNavScript(action: Extract<AuditAction, { kind: "nav" }>): string {
-  const goto = action.method === "goto" ? parseGotoTarget(action.target) : null;
-  const method = goto === null ? NAV_BRIDGE_METHOD[action.method as Exclude<NavMethod, "goto">] : goto.method;
-  const arg = JSON.stringify(goto === null ? action.target : goto.arg);
-  return `(async () => {
-    const nav = window.__orb && window.__orb.nav;
-    if (!nav) return { ok: false, reason: "__orb.nav unavailable (not a dev build?)" };
-    return await nav.${method}(${arg});
-  })()`;
-}
-
 /** One action + its settle. Returns 1 on failure (printed, and the audit's verdict reddens) — a scan of
- *  the WRONG surface is worse than no scan, so an action that didn't land is never silent. */
+ *  the WRONG surface is worse than no scan, so an action that didn't land is never silent. The nav arm is
+ *  the shared bridge vocabulary (_kit/nav.ts), identical to snap's and the two motion probes'. */
 async function driveAction(page: AuditPage, action: AuditAction, waitMs: number): Promise<number> {
   try {
     if (action.kind === "click") {
@@ -277,10 +267,9 @@ async function driveAction(page: AuditPage, action: AuditAction, waitMs: number)
       await loc.waitFor({ state: "visible", timeout: CLICK_TIMEOUT_MS });
       await loc.click({ timeout: CLICK_TIMEOUT_MS });
     } else {
-      await page.locator("html[data-app-ready]").waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS });
-      const result = (await page.evaluate(buildNavScript(action))) as { ok: boolean; reason?: string };
+      const result = await runNav(page, action.method, action.target);
       if (!result.ok) {
-        print(`NAV FAILED    ${action.method} ${action.target}: ${result.reason ?? "rejected"}`);
+        print(`NAV FAILED    ${action.method} ${action.target}: ${result.reason}`);
         return 1;
       }
     }
@@ -374,8 +363,9 @@ async function main(): Promise<number> {
     return EXIT_MISUSE;
   }
   const url = buildUrl(opts.base, opts.route);
-  const name = opts.out ?? routeSlug(opts.route);
-  const outPath = join(await artifactDir("design-audit"), `${name}.json`);
+  // `--out` names an artifact BASE under reports/design-audit/ — or, when it is path-shaped, the exact
+  // file to write (_kit/artifacts.ts owns that contract for every probe).
+  const outPath = await artifactFile("design-audit", opts.out ?? routeSlug(opts.route), ".json");
 
   const session = await launchProbeSession({
     headless: true,

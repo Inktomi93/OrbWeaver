@@ -53,26 +53,63 @@ export const COLLECT_SAMPLES_JS = `(async () => {
   // fifteen buttons under fifteen different parents all reported the identical
   // button.group:nth-of-type(1) in one audit and none of them could be found. Build a PATH up to the
   // nearest stable anchor (id / data-testid / data-slot / body) instead.
+  //
+  // AN ANCHOR IS ONLY AN ANCHOR IF IT RESOLVES TO ONE NODE (2026-08-17, issue #148 item 5). data-slot
+  // names a component KIND, not an element: a live tracker-panel audit returned six findings reading
+  // [data-slot=text] and one [data-slot=button], indistinguishable from each other and from the dozens
+  // of untouched twins — two real text-overflow defects went unforwardable. Every candidate anchor is now
+  // COUNTED in the document (memoized per selector) and only used when it matches exactly once; otherwise
+  // the walk keeps climbing and the slot rides along as a qualifier on the local step.
   // (NB: this whole module body is a template LITERAL — no backticks, no dollar-brace, ever.)
   var DESCRIBE_MAX_STEPS = 6;
+  // A class/attribute value safe to paste into a selector unescaped. Tailwind mints plenty that are not
+  // ("w-1/2", "h-[3px]") — an unescaped one produces a selector that THROWS instead of finding nothing.
+  var CSS_IDENT_RE = /^-?[A-Za-z_][A-Za-z0-9_-]*$/;
+  // React/Base UI GENERATED ids (useId: "«r6a»", ":r6a:", and Base UI's "base-ui-_r_6a_") are unique but
+  // RE-MINTED every mount — a path anchored on one resolves to nothing in the next session, which is a
+  // finding a reviewer cannot re-open. Climb past them to something structural.
+  var VOLATILE_ID_RE = /(«r[0-9a-z]+»|:r[0-9a-z]+:|_r_[0-9a-z]+_)/i;
+  var anchorMatchCounts = {};
+  function matchCount(sel) {
+    var known = anchorMatchCounts[sel];
+    if (known !== undefined) return known;
+    var n = 0;
+    try { n = document.querySelectorAll(sel).length; } catch (e) { n = 0; }
+    anchorMatchCounts[sel] = n;
+    return n;
+  }
+  function attrSel(name, value) {
+    return "[" + name + "=" + (CSS_IDENT_RE.test(value) ? value : JSON.stringify(value)) + "]";
+  }
   function localStep(el) {
     var tag = el.tagName ? el.tagName.toLowerCase() : "node";
-    var cls = el.classList && el.classList.length > 0 ? "." + el.classList[0] : "";
+    var cls = el.classList && el.classList.length > 0 && CSS_IDENT_RE.test(el.classList[0]) ? "." + el.classList[0] : "";
+    var slotAttr = el.getAttribute ? el.getAttribute("data-slot") : null;
+    var slot = slotAttr ? attrSel("data-slot", slotAttr) : "";
     var idx = 0;
     var sib = el;
     while (sib) {
       if (sib.tagName === el.tagName) idx += 1;
       sib = sib.previousElementSibling;
     }
-    return tag + cls + ":nth-of-type(" + idx + ")";
+    return tag + cls + slot + ":nth-of-type(" + idx + ")";
   }
   function anchorOf(el) {
     if (!el.getAttribute) return null;
-    if (el.id) return "#" + el.id;
+    if (el.id && !VOLATILE_ID_RE.test(el.id)) {
+      var idSel = "#" + el.id;
+      if (matchCount(idSel) === 1) return idSel;
+    }
     var testId = el.getAttribute("data-testid");
-    if (testId) return "[data-testid=" + testId + "]";
+    if (testId) {
+      var testSel = attrSel("data-testid", testId);
+      if (matchCount(testSel) === 1) return testSel;
+    }
     var slot = el.getAttribute("data-slot");
-    if (slot) return "[data-slot=" + slot + "]";
+    if (slot) {
+      var slotSel = attrSel("data-slot", slot);
+      if (matchCount(slotSel) === 1) return slotSel;
+    }
     return null;
   }
   function describe(el) {
@@ -240,6 +277,10 @@ export const COLLECT_SAMPLES_JS = `(async () => {
       lineHeightPx: Number.isNaN(lineH) ? null : lineH,
       letterSpacingPx: Number.isNaN(letterS) ? 0 : letterS,
       textTransform: style.textTransform || "",
+      // RENDERED caps, whichever way they were authored: a label typed "SESSION SUMMARY" paints the same
+      // pixels as one transformed to caps, and the tracking rule judges pixels (issue #148 item 4).
+      // Cased letters only — digits/punctuation/CJK carry no case and must not read as "caps".
+      capsText: /[A-Za-z\\u00C0-\\u024F]/.test(direct) && direct === direct.toUpperCase(),
       textAlign: style.textAlign || "",
       hyphens: style.hyphens || style.webkitHyphens || "",
       rectWidth: rect.width,

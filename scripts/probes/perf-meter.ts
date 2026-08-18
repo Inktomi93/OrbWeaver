@@ -14,6 +14,15 @@
  * Output: a per-step console table + reports/perf-meter/<out>.json with the raw entries, so
  * repetition-decay questions ("is the 8th open slower than the 1st?") are a column scan.
  *
+ * SPA NAVIGATION (2026-08-17 — issue #148): `--goto` / `--open-chat` / `--open-character` / `--context-tab`
+ * are STEPS like any other, dispatched in argv order through the app's dev nav bridge (window.__orb.nav,
+ * the same vocabulary snap/design-audit/motion-audit drive). Before this, the probe could only click, so a
+ * surface behind a room — the chat context panel needs 2+ hops — was structurally unmeasurable and its
+ * throttled input numbers could not be taken at all. Being real steps, they are MEASURED: the long tasks
+ * and layout shifts of opening a room land in that step's own window, which is usually the number you came
+ * for. An unknown flag is a hard error (exit 2): a typo'd nav flag silently meters the landing page.
+ *   pnpm perf-meter / --open-chat latest --context-tab rpg.game --click '[data-slot=tracker-toggle]'
+ *
  * USAGE
  *   pnpm stack start
  *   pnpm perf-meter / --click '[data-testid=drawer-toggle]' --pause 700 \
@@ -28,13 +37,15 @@
  *          the function-level "WHO burned that long task" answer the per-step table can't give)
  */
 import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
-import { artifactDir } from "./_kit/artifacts.ts";
+import { artifactFile } from "./_kit/artifacts.ts";
 import { buildUrl, DEFAULT_BASE, launchProbeSession, settle } from "./_kit/browser.ts";
 import type { Viewport } from "./_kit/flags.ts";
 import { parseViewport, splitLastEq } from "./_kit/flags.ts";
+import type { NavMethod } from "./_kit/nav.ts";
+import { NAV_FLAG_METHOD, NAV_FLAGS, runNav } from "./_kit/nav.ts";
 import type { ResultPair } from "./_kit/result.ts";
 import { print, printResult } from "./_kit/result.ts";
 
@@ -58,6 +69,7 @@ const MS_PAD_5 = 5;
 const MS_PAD_6 = 6;
 const SHIFT_DECIMALS = 4;
 const MS_PAD_3 = 3;
+const EXIT_MISUSE = 2;
 
 type Step =
   | { readonly kind: "click" | "jsclick" | "hover"; readonly selector: string }
@@ -69,6 +81,7 @@ type Step =
       readonly dy: number;
       readonly count: number;
     }
+  | { readonly kind: "nav"; readonly method: NavMethod; readonly target: string }
   | { readonly kind: "pause"; readonly ms: number };
 
 type Args = {
@@ -80,6 +93,8 @@ type Args = {
   cycles: number;
   cpuProfile: boolean;
   steps: Step[];
+  /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
+  errors: string[];
 };
 
 /** The wheel-family flags (--wheel/--wheelburst) split out of parseStepFlag purely to keep its
@@ -111,6 +126,11 @@ function parseWheelFlag(flag: string, rest: string[], steps: Step[]): boolean {
 
 /** The step-producing flags. Returns false when `flag` isn't one of them. */
 function parseStepFlag(flag: string, rest: string[], steps: Step[]): boolean {
+  const navMethod = NAV_FLAG_METHOD[flag];
+  if (navMethod !== undefined) {
+    steps.push({ kind: "nav", method: navMethod, target: rest.shift() ?? "" });
+    return true;
+  }
   if (flag === "--pause") {
     steps.push({ kind: "pause", ms: Number(rest.shift() ?? String(DEFAULT_PAUSE_MS)) });
     return true;
@@ -159,7 +179,72 @@ function parseScalarFlag(flag: string, rest: string[], args: Args): boolean {
   return false;
 }
 
-function parseArgs(argv: string[]): Args {
+// Every flag this CLI knows, and which of them consume the next token. Used ONLY by the misuse scan.
+const VALUE_FLAGS = new Set([
+  ...NAV_FLAGS,
+  "--click",
+  "--jsclick",
+  "--hover",
+  "--fill",
+  "--wheel",
+  "--wheelburst",
+  "--pause",
+  "--base",
+  "--out",
+  "--settle",
+  "--viewport",
+  "--cycles",
+]);
+const BOOLEAN_FLAGS = new Set(["--cpuprofile"]);
+
+const PERF_METER_HELP = `perf-meter — per-step interaction responsiveness
+
+Usage:
+  pnpm perf-meter [route] [flags]
+
+Steps (ONE argv-ordered tape; each gets its own measurement window):
+  --click/--jsclick/--hover <sel>   --fill "sel=value"   --pause <ms>
+  --wheel "sel=dy"   --wheelburst "sel=dy:n"
+  --goto <section|settings:cat|modal:slot>   --open-chat <id|title|latest|current>
+  --open-character <id|name>   --context-tab <tab>
+
+Run:
+  --base <url> · --viewport <WxH> · --settle <ms> · --cycles <n> · --out <name> · --cpuprofile
+
+Exit: 0 clean · 1 step failure / page error · 2 CLI misuse.`;
+
+/** Argv is scanned for misuse BEFORE a browser boots (snap/design-audit's strict-CLI posture). An unknown
+ *  flag used to be silently skipped, so a typo'd step metered the landing page and reported it clean. */
+function scanArgv(argv: readonly string[]): string[] {
+  const errors: string[] = [];
+  let routeCount = 0;
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index] as string;
+    if (!token.startsWith("-")) {
+      routeCount += 1;
+      continue;
+    }
+    if (BOOLEAN_FLAGS.has(token)) {
+      continue;
+    }
+    if (!VALUE_FLAGS.has(token)) {
+      errors.push(`unknown flag ${token}`);
+      continue;
+    }
+    const value = argv[index + 1];
+    if (value === undefined || value.startsWith("--")) {
+      errors.push(`${token} requires a value`);
+      continue;
+    }
+    index += 1;
+  }
+  if (routeCount > 1) {
+    errors.push(`expected at most one route, got ${routeCount}`);
+  }
+  return errors;
+}
+
+export function parsePerfArgs(argv: string[]): Args {
   const args: Args = {
     route: "/",
     base: DEFAULT_BASE,
@@ -169,6 +254,7 @@ function parseArgs(argv: string[]): Args {
     cycles: 1,
     cpuProfile: false,
     steps: [],
+    errors: scanArgv(argv),
   };
   const rest = [...argv];
   while (rest.length > 0) {
@@ -315,7 +401,21 @@ async function markStep(page: PageHandle, idx: number, label: string): Promise<v
 
 /** Dispatch ONE non-pause step, marking it first so its window starts at dispatch (throws on
  *  locator/timeout failure — counted by the caller, same contract as record.ts). */
+async function dispatchNavStep(page: PageHandle, idx: number, step: Extract<Step, { kind: "nav" }>): Promise<void> {
+  await markStep(page, idx, `${step.method} ${step.target}`);
+  const result = await runNav(page, step.method, step.target);
+  if (!result.ok) {
+    // Same contract as a failed locator: THROW, so the caller counts it and the run reddens. A nav that
+    // did not land means every later step measured a different surface.
+    throw new Error(`nav ${step.method} ${step.target} rejected: ${result.reason}`);
+  }
+}
+
 async function dispatchStep(page: PageHandle, idx: number, step: Exclude<Step, { kind: "pause" }>): Promise<void> {
+  if (step.kind === "nav") {
+    await dispatchNavStep(page, idx, step);
+    return;
+  }
   if (step.kind === "wheel" || step.kind === "wheelburst") {
     const loc = page.locator(step.selector).first();
     await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
@@ -350,6 +450,14 @@ async function dispatchStep(page: PageHandle, idx: number, step: Exclude<Step, {
   }
 }
 
+/** What a step ACTS ON, for a failure line: a selector for the DOM steps, the nav target for a nav step. */
+function stepSubject(step: Step): string {
+  if ("selector" in step) {
+    return step.selector;
+  }
+  return step.kind === "nav" ? step.target : "";
+}
+
 async function runSteps(page: PageHandle, steps: readonly Step[]): Promise<number> {
   let failures = 0;
   let idx = 0;
@@ -367,8 +475,9 @@ async function runSteps(page: PageHandle, steps: readonly Step[]): Promise<numbe
     } catch (e) {
       failures += 1;
       idx += 1;
-      const selector = "selector" in step ? step.selector : "";
-      print(`STEP FAILED  ${step.kind} ${selector}: ${errorMessage(e)}`);
+      // A nav step names its TARGET where the others name a selector — the failing line must say which.
+      const subject = stepSubject(step);
+      print(`STEP FAILED  ${step.kind} ${subject}: ${errorMessage(e)}`);
     }
   }
   return failures;
@@ -431,8 +540,15 @@ function printTable(reports: readonly StepReport[]): void {
 }
 
 async function main(): Promise<number> {
-  const opts = parseArgs(process.argv.slice(2));
-  const outDir = await artifactDir("perf-meter");
+  const opts = parsePerfArgs(process.argv.slice(2));
+  if (opts.errors.length > 0) {
+    for (const message of opts.errors) {
+      print(`ARG ERROR    ${message}`);
+    }
+    print("");
+    print(PERF_METER_HELP);
+    return EXIT_MISUSE;
+  }
   const url = buildUrl(opts.base, opts.route);
 
   const session = await launchProbeSession({
@@ -463,7 +579,7 @@ async function main(): Promise<number> {
   let profilePath: string | null = null;
   if (cdp !== null) {
     const { profile } = (await cdp.send("Profiler.stop")) as { profile: unknown };
-    profilePath = join(outDir, `${opts.out}.cpuprofile`);
+    profilePath = await artifactFile("perf-meter", opts.out, ".cpuprofile");
     await writeFile(profilePath, JSON.stringify(profile));
   }
 
@@ -473,7 +589,8 @@ async function main(): Promise<number> {
   await session.browser.close();
 
   const reports = buildReports(data);
-  const outPath = join(outDir, `${opts.out}.json`);
+  // `--out` names a base under reports/perf-meter/ — or, path-shaped, the exact file (_kit/artifacts.ts).
+  const outPath = await artifactFile("perf-meter", opts.out, ".json");
   await writeFile(outPath, JSON.stringify({ args: opts, reports, raw: data, pageErrors }, null, 2));
 
   print(`URL      ${url}`);
@@ -511,10 +628,15 @@ async function main(): Promise<number> {
   return failures > 0 || pageErrors.length > 0 ? 1 : 0;
 }
 
-void main().then(
-  (code) => process.exit(code),
-  (err: unknown) => {
-    print(`perf-meter failed: ${errorMessage(err)}`);
-    process.exit(1);
-  },
-);
+// CLI entry guard (the snap.ts convention): importing this module for its pure exports — `parsePerfArgs`,
+// which tests/tooling/perf-meter.test.ts pins — must never launch a browser.
+const cliEntry = process.argv[1];
+if (cliEntry !== undefined && import.meta.url === pathToFileURL(cliEntry).href) {
+  void main().then(
+    (code) => process.exit(code),
+    (err: unknown) => {
+      print(`perf-meter failed: ${errorMessage(err)}`);
+      process.exit(1);
+    },
+  );
+}

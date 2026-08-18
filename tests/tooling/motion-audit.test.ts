@@ -5,7 +5,7 @@
 // gated number, making "journey under 0.1" unreachable by any app fix short of changing the virtualizer.
 // This file's home is tests/tooling/ per core/Spine-Testing.md §2 (a test of a scripts/ tool); the browser
 // half — that a virtualized-tagged shift really does move only raw — is tests/client/lib/motion-stats.ct.tsx.
-import { clsOverBudget, clsTotals } from "../../scripts/probes/motion-audit.ts";
+import { clsOverBudget, clsTotals, parseMotionArgs } from "../../scripts/probes/motion-audit.ts";
 import { expect, test } from "../support/fixtures.ts";
 
 /** The in-page snapshot fields the verdict reads. Typed off the probe's own parameter so the fixture can
@@ -46,4 +46,37 @@ test("a page bundle predating the split (no virtualized fields) keeps the OLD ve
 test("no snapshot at all (no __orb bridge) is zeros, not NaN", () => {
   expect(clsTotals(null)).toEqual({ raw: 0, virtualized: 0, budgeted: 0 });
   expect(clsOverBudget(null)).toBe(false);
+});
+
+// ── The REACH queue (issue #148 item 1) ─────────────────────────────────────────────────────────────
+// The probe could only click, so any surface behind a room was structurally unauditable. The queue reaches;
+// `--selector` still measures.
+
+test("nav and click flags queue in TRUE argv order, and --selector stays the measured interaction", () => {
+  const args = parseMotionArgs(["/", "--open-chat", "latest", "--context-tab", "rpg.game", "--click", "[data-slot=more]", "--selector", "[data-slot=toggle]"]);
+
+  expect(args.errors).toEqual([]);
+  expect(args.reach).toEqual([
+    { kind: "nav", method: "open-chat", target: "latest" },
+    { kind: "nav", method: "context-tab", target: "rpg.game" },
+    { kind: "click", selector: "[data-slot=more]" },
+  ]);
+  expect(args.selector).toBe("[data-slot=toggle]");
+});
+
+test("a typo'd nav flag is CLI misuse, never a silent audit of the landing page", () => {
+  // The whole reason the strict scan exists: `--open-caht` used to print "(ignored)" and return a
+  // smoothness verdict for home under the name of the room the caller asked for.
+  // The unknown flag's orphaned VALUE then reads as a second route — same cascade design-audit's scan
+  // produces, and both lines are true.
+  expect(parseMotionArgs(["/", "--open-caht", "latest"]).errors).toEqual(["unknown flag --open-caht", "expected at most one route, got 2"]);
+  expect(parseMotionArgs(["/", "--context-tab", "--selector", "x"]).errors).toEqual(["--context-tab requires a value"]);
+  expect(parseMotionArgs(["/", "/second"]).errors).toEqual(["expected at most one route, got 2"]);
+});
+
+test("a bare run still has an empty reach queue — entry motion stays the default subject", () => {
+  const args = parseMotionArgs(["/"]);
+  expect(args.errors).toEqual([]);
+  expect(args.reach).toEqual([]);
+  expect(args.route).toBe("/");
 });

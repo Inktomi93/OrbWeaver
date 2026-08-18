@@ -534,6 +534,10 @@ export type TextStyleInput = {
   readonly lineHeightPx: number | null;
   readonly letterSpacingPx: number;
   readonly textTransform: string;
+  /** The element's own text RENDERS as caps — typed that way, not just `text-transform: uppercase`.
+   *  Optional because this type also describes samples from an older walker string (a CT pinning a
+   *  historical sample set); absent reads as "not caps", i.e. the pre-#148 behavior. */
+  readonly capsText?: boolean;
   readonly textAlign: string;
   readonly hyphens: string;
   readonly rectWidth: number;
@@ -651,13 +655,22 @@ function checkAllCaps(input: TextStyleInput): Finding | null {
   };
 }
 
+/** Is this text SET IN CAPS as the reader sees it? Wide tracking is the ratified partner of the micro-caps
+ *  label voice (tracking.micro 0.08em + text.micro + weight 600 + caps, density spec §2.3), so the caps
+ *  exemption must key on the RENDERED result. Keying it on `text-transform` alone — the rule as born — read
+ *  a kicker whose caps were TYPED as running text and flagged the ratified voice itself (issue #148 item 4;
+ *  measured 4× on one panel). Long caps passages remain covered: that is `all-caps-body`'s job. */
+function rendersAsCaps(input: TextStyleInput): boolean {
+  return input.textTransform === "uppercase" || input.capsText === true;
+}
+
 function checkTracking(input: TextStyleInput): Finding[] {
   if (input.directTextLen <= TRACKING_TEXT_MIN || input.fontSizePx <= 0 || input.letterSpacingPx === 0) {
     return [];
   }
   const findings: Finding[] = [];
   const trackingEm = input.letterSpacingPx / input.fontSizePx;
-  if (input.textTransform !== "uppercase" && trackingEm > WIDE_TRACKING_EM) {
+  if (!rendersAsCaps(input) && trackingEm > WIDE_TRACKING_EM) {
     findings.push({
       rule: "wide-tracking",
       severity: "P3",
