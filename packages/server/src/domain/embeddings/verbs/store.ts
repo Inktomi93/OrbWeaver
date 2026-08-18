@@ -24,6 +24,7 @@ import type {
 import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import {
+  existingCaptionedRow,
   existingCharacterHash,
   existingChunkHash,
   existingDigestHash,
@@ -78,11 +79,28 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Pr
   return { outcome: "written", contentHash: hash };
 }
 
+/** Is the stored row for this lens already current for these bytes? The raw lens is a pure hash question; the
+ *  captioned lens additionally requires its facet breakdown (see the call site). */
+async function isImageLensCurrent(ctx: EmbeddingsContext, p: ImageRawStoreParams | ImageCaptionedStoreParams, hash: string): Promise<boolean> {
+  if (p.lens === "image-raw") {
+    return (await existingImageHash(ctx.db, p.assetId, p.lens, p.model)) === hash;
+  }
+  const row = await existingCaptionedRow(ctx.db, p.assetId, p.model);
+  return row !== undefined && row.hash === hash && row.hasFacets;
+}
+
 /** image-raw / image-captioned → `image_embeddings` (both lenses coexist per `(asset, model, lens)`;
  *  `force` bypasses the staleness short-circuit — PD-53 bulk re-index). */
 async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | ImageCaptionedStoreParams): Promise<StoreResult> {
   const hash = contentHash(p.content);
-  if (p.force !== true && (await existingImageHash(ctx.db, p.assetId, p.lens, p.model)) === hash) {
+  // THE CAPTIONED LENS IS CURRENT ONLY WHEN IT ALSO CARRIES ITS FACET BREAKDOWN (issue #164). `content_hash`
+  // covers the BYTES, and the bytes did not change when the VL breakdown landed on 2026-08-18 — so a
+  // hash-only short-circuit answers `noop` for every pre-existing captioned row and no backfill can ever
+  // reach them without `force` (which would pointlessly re-embed the raw lens for the whole box too). The
+  // sweep's own pre-check in `verbs/embed-assets` uses the identical two-condition test; keeping the rule in
+  // both places would be two homes for one currency definition, so this IS that home and the sweep's
+  // pre-check is only an early-out that avoids loading bytes.
+  if (p.force !== true && (await isImageLensCurrent(ctx, p, hash))) {
     return { outcome: "noop", contentHash: hash };
   }
   // Skip-don't-write on an empty caption (the summarizer returned nothing): content_hash covers bytes only,

@@ -64,10 +64,16 @@ const STRIPE: CSSProperties = {
 const GLOW =
   "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:opacity-30 before:shadow-glow before:content-['']";
 
-/** A family whose facet labelling produced nothing to say — the server's `"mixed"` fallback, derived from
- *  the fields that produce it rather than by matching that sentinel string across the wire. */
+/** A family whose VISUAL labelling produced nothing to say, derived from the fields that produce a label
+ *  rather than by matching a sentinel string across the wire.
+ *
+ *  THE CARD-TEXT FIELDS ARE NOT PART OF THIS TEST any more (issue #164). `genre`/`tone` describe a card's
+ *  WRITING; they used to be the label's last-resort fallback, which is how the family grouped precisely by
+ *  its members' MISSING art came to be called "melancholic fantasy". They still ride the payload as context
+ *  chips for the Archetypes tab, but a family with story facets and no visual ones has nothing to say about
+ *  how it LOOKS — which is the only thing this plate claims. */
 function isUnlabelled(family: VisualFamily): boolean {
-  return family.artStyle === null && family.mood === null && family.tone === null && family.genre === null;
+  return family.artStyle === null && family.mood === null && family.palette === null;
 }
 
 function memberNames(family: VisualFamily): string {

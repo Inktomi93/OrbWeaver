@@ -56,7 +56,14 @@ describe("index contribution", () => {
   test("source=image drives ONLY the asset pass; force defaults to false", async () => {
     const { embeddings, index } = build();
     const result = await index.run(ctx, { source: "image" }, vi.fn(), sig());
-    expect(embeddings.embedAssets).toHaveBeenCalledWith({ ownerId: OWNER_ID, force: false, signal: expect.any(AbortSignal) });
+    // `onProgress` is the pass's N-of-M sink (issue #166 rider 3) — matched by shape, since the closure
+    // itself is the contribution's own and has no stable identity to assert against.
+    expect(embeddings.embedAssets).toHaveBeenCalledWith({
+      ownerId: OWNER_ID,
+      force: false,
+      signal: expect.any(AbortSignal),
+      onProgress: expect.any(Function),
+    });
     expect(embeddings.embedCorpus).not.toHaveBeenCalled();
     expect(result).toEqual({ embedded: 2, skipped: 0 });
   });

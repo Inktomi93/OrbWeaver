@@ -37,7 +37,11 @@ function MapBody(): ReactElement {
     return (
       <CorpusDistillEmptyState
         title="No map yet"
-        description="The semantic map projects your distilled, indexed cards. Distill your library, then come back."
+        // TRUTH-REPAIR (#164's rider from the #154 lane): the projection is a PCA over CARD EMBEDDINGS —
+        // `corpusProjection` reads the index, not `character_summaries`. Distillation only colours the points
+        // by genre; a fully indexed, undistilled library still has a map. Saying "distill your library, then
+        // come back" sent a user to the wrong pass to fix an empty chart.
+        description="The semantic map projects your indexed cards. Run the image and card index, then come back — distilling colours the points by genre."
       />
     );
   }

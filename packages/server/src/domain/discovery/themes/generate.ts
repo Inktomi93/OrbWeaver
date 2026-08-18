@@ -182,6 +182,16 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   const seed = opts.seed ?? DEFAULT_SEED;
   const all = await readOwnedDigestVectors(db, opts.ownerId);
   const solo = all.filter((r) => !r.isGroup);
+  // NO INPUT ⇒ REFUSE BEFORE THE REPLACE (issue #166). This pass is an ATOMIC REPLACE: `replaceAll` deletes
+  // the scope's `theme_clusters` (CASCADE takes the assignments) and reinserts what it just computed. With an
+  // empty digest plane it therefore deleted every existing cluster and inserted nothing — a run that reported
+  // `succeeded {scanned: 0, written: 0}` while DESTROYING the previous pass's output. A digest-less corpus is
+  // not "themes with no members", it is a pass whose input does not exist yet; the caller turns
+  // `digestsRead: 0` into the stated refusal. Deliberately BEFORE `buildDrafts` so no summarize call is spent
+  // either.
+  if (solo.length === 0) {
+    return { ownersProcessed: 0, clustersWritten: 0, digestsAssigned: 0, digestsRead: all.length };
+  }
   const { drafts, owners } = buildDrafts(solo, opts, seed);
   const names = await nameDrafts(drafts, deps.summarize);
   const computedAt = deps.now();
@@ -218,6 +228,7 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
     ownersProcessed: owners.size,
     clustersWritten: clusterRows.length,
     digestsAssigned: assignRows.length,
+    digestsRead: all.length,
   };
 }
 

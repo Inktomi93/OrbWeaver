@@ -211,6 +211,10 @@ export interface EmbedPassParams {
   /** Scope to one owner; `null` = every owner. Rows themselves stay owner-less — this only narrows which
    *  producers the pass reads. */
   readonly ownerId: UserId | null;
+  /** Per-item position, for the caller's progress surface: called after each item with how many of the
+   *  enumerated total are done. Absent = a silent pass (every non-workload caller). The pass is the ONLY
+   *  place that knows its denominator — the workload wrapper enumerates nothing (issue #166 rider 3). */
+  readonly onProgress?: ((done: number, total: number) => void) | undefined;
 }
 
 export interface HubScoreUpdate {

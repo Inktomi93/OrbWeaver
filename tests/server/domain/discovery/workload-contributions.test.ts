@@ -25,11 +25,13 @@ type Contributions = ReturnType<typeof createDiscoveryWorkloadContributions>;
 
 /** A fake discovery service — every verb a `vi.fn` returning the domain's RICHER stats shape, so a test
  *  asserts the contribution's projection down to `AnalyticsResult`, not a pass-through. */
-function fakeDiscovery(distill: DistillOverride = {}): Discovery {
+function fakeDiscovery(distill: DistillOverride = {}, themes: ThemesOverride = {}): Discovery {
   // The contributions read ONLY the counts fields off each verb's stats — a full DiscoveryService factory
   // FABRICATION-OK: would state far more than these five run bodies touch.
   return {
-    computeThemes: vi.fn(async () => ({ digestsAssigned: 10, clustersWritten: 5 })),
+    // `digestsRead` is the pass's REFUSAL signal (issue #166) — the contribution branches on it, so the fake
+    // has to carry it or every test here silently exercises the `undefined` path.
+    computeThemes: vi.fn(async () => ({ digestsAssigned: 10, clustersWritten: 5, digestsRead: 10, ...themes })),
     distillCharacters: vi.fn(async () => ({ scanned: 8, distilled: 8, failed: 0, skipped: 0, tagsStaged: 0, ...distill })),
     computeCooccurrence: vi.fn(async () => ({ charKeywordsWritten: 6, pairsWritten: 4 })),
     computeDuplicatePairs: vi.fn(async () => ({ charactersScanned: 7, pairsWritten: 1 })),
@@ -41,6 +43,9 @@ function fakeDiscovery(distill: DistillOverride = {}): Discovery {
 /** The distill stats a test wants the fake pass to report (the sweep's counts are what the progress line
  *  reads — a skipped/name-only card has no other reader). */
 type DistillOverride = Partial<{ scanned: number; distilled: number; failed: number; skipped: number; tagsStaged: number }>;
+
+/** The theme stats a test wants the fake pass to report — `digestsRead: 0` is the digest-less corpus. */
+type ThemesOverride = Partial<{ digestsAssigned: number; clustersWritten: number; digestsRead: number }>;
 
 /** One recorded terminal-fan emit (the `corpusRecomputed` freshness plane). */
 interface UserEventCall {
@@ -54,8 +59,9 @@ const BULK_OWNERS: readonly UserId[] = [castId<UserId>("user_alpha"), castId<Use
 function build(
   settings: UserSettings = DEFAULT_USER_SETTINGS,
   distill: DistillOverride = {},
+  themes: ThemesOverride = {},
 ): { readonly discovery: Discovery; readonly contributions: Contributions; readonly userEvents: UserEventCall[] } {
-  const discovery = fakeDiscovery(distill);
+  const discovery = fakeDiscovery(distill, themes);
   const userEvents: UserEventCall[] = [];
   const contributions = createDiscoveryWorkloadContributions({
     discovery,
@@ -94,6 +100,28 @@ describe("compute-themes", () => {
     const { discovery, contributions } = build(withKnobs({ computeThemesK: 7 }));
     await contributions[0].run(ctx, { k: 3 }, vi.fn(), sig());
     expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, k: 3 });
+  });
+
+  // ── issue #166: a zero-input run STATES its reason instead of reporting a green nothing ────────────
+  test("NO DIGESTS: the result carries `emptyReason`, not a bare 0-written success", async () => {
+    // Observed live: `{scanned: 0, written: 0}` under a green Succeeded, rendered as "0 rows · 0 written".
+    // A pass that could not run at all is indistinguishable, in that line, from one that ran and found
+    // nothing — and only one of those is fixed by running the memory backfill.
+    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, { digestsAssigned: 0, clustersWritten: 0, digestsRead: 0 });
+    const result = await contributions[0].run(ctx, {}, vi.fn(), sig());
+    expect(result).toEqual({ scanned: 0, written: 0, emptyReason: "no-digests" });
+  });
+
+  test("NO DIGESTS: the progress line names the fix, not just the state", async () => {
+    const { contributions } = build(DEFAULT_USER_SETTINGS, {}, { digestsRead: 0, digestsAssigned: 0, clustersWritten: 0 });
+    const report = vi.fn();
+    await contributions[0].run(ctx, {}, report, sig());
+    expect(report).toHaveBeenCalledWith({ message: "no memory digests to cluster — run the memory backfill first" });
+  });
+
+  test("a real run carries NO emptyReason — the discriminator is for refusals only", async () => {
+    const { contributions } = build();
+    expect(await contributions[0].run(ctx, {}, vi.fn(), sig())).toEqual({ scanned: 10, written: 5 });
   });
 });
 

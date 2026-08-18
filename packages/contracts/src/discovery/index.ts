@@ -52,10 +52,29 @@ export type ComputeThemesWorkloadParams = z.infer<typeof computeThemesWorkloadPa
 export const findDuplicatesWorkloadParams = z.object({ threshold: z.number().min(0).max(1).optional() });
 export type FindDuplicatesWorkloadParams = z.infer<typeof findDuplicatesWorkloadParams>;
 
-/** What every discovery analytics pass reports: rows examined, rows written. */
+/**
+ * Why a pass wrote nothing — the honest-accounting discriminator (issue #166).
+ *
+ * A ZERO IS NOT A SUCCESS SENTENCE. `compute-themes` clusters MEMORY DIGESTS, and a library with none ran to
+ * `succeeded` with `{scanned: 0, written: 0}` and a result line reading "0 rows · 0 written" — a pass that
+ * could not run at all, reported as one that ran and found nothing. Typed rather than a free-text note so the
+ * client's copy is an exhaustive `Record` over this union (§5.5) instead of a server-authored sentence
+ * crossing the wire.
+ *
+ * `no-digests` — the input plane is empty: memory has never been backfilled (or memory is disabled).
+ * `no-cards` — the owner's library has nothing to read yet.
+ */
+export const ANALYTICS_EMPTY_REASONS = ["no-digests", "no-cards"] as const;
+export type AnalyticsEmptyReason = (typeof ANALYTICS_EMPTY_REASONS)[number];
+export const analyticsEmptyReasonSchema = z.enum(ANALYTICS_EMPTY_REASONS);
+
+/** What every discovery analytics pass reports: rows examined, rows written, and — when it wrote nothing
+ *  because its INPUT was empty rather than because there was nothing to change — why. */
 export interface AnalyticsResult {
   readonly scanned: number;
   readonly written: number;
+  /** Present ONLY on a pass that refused for want of input. Absent on a real zero-change run. */
+  readonly emptyReason?: AnalyticsEmptyReason;
 }
 
 // The PROSE-1 discovery slot table (the three whole side-generation system prompts) — `#prose` imports it

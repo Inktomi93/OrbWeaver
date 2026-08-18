@@ -20,6 +20,9 @@ const AUDITED: CorpusAnalysisInput = {
   arcThemes: 0,
   duplicateCharacters: 0,
   duplicateChats: 0,
+  // The audited instance HAD run the dedup pass — which is what makes its zero a result. Issue #164 item 4
+  // is the other case, pinned below: the same zero from a pass that never ran is a different sentence.
+  duplicatesEverRan: true,
 };
 
 function stageDatum(input: CorpusAnalysisInput, id: string): string {
@@ -133,6 +136,15 @@ describe("the readiness rail — a measurement or an honest 'not run', never a b
   test("near-duplicates at zero is a RESULT, not an absence — it reads 'none found'", () => {
     expect(stageDatum(AUDITED, "duplicates")).toBe("none found");
     expect(stageDatum({ ...AUDITED, duplicateCharacters: 2, duplicateChats: 1 }, "duplicates")).toBe("3 found");
+  });
+
+  test("…but only once the pass has RUN: an un-run dedup reads 'not run', never the reassuring zero (#164)", () => {
+    // The owner read "none found" on a 327-card imported library and took it for a defect. It was not — the
+    // `find-duplicates` pass had simply never run (it later found 30 pairs). Two zeros, two different
+    // actions, and this rail's whole contract is that a zero is a state a reader can act on.
+    expect(stageDatum({ ...AUDITED, duplicatesEverRan: false }, "duplicates")).toBe("not run");
+    // A pass that never ran cannot have found anything, so the un-run arm outranks a stale count too.
+    expect(stageDatum({ ...AUDITED, duplicatesEverRan: false, duplicateChats: 4 }, "duplicates")).toBe("not run");
   });
 
   test("every stage carries a datum and none of them is a bare zero", () => {

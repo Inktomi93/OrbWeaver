@@ -54,7 +54,7 @@ import { Container, Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Heading, Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
@@ -116,6 +116,14 @@ function CorpusHomeBody(): ReactElement {
   const { data: unused } = useSuspenseQuery(trpc.discovery.unusedCharacters.queryOptions());
   const { data: routing } = useSuspenseQuery(trpc.discovery.modelRouting.queryOptions());
   const [theme, setTheme] = useState<ThemeSelection | null>(null);
+  // HAS THE NEAR-DUP PASS EVER FINISHED? (issue #164 item 4.) A zero from a pass that ran is "none found";
+  // a zero from a pass that has never run is "not run", and the rail printed the first for both — the owner
+  // reasonably read "none found" on a 327-card ST library as a defect, when the pass simply had not run yet.
+  // The queue is the only place that knows, and `workloads.list` with `{}` is the SAME input the invitation's
+  // hook already holds, so this is a cache hit rather than a second question. NON-suspending: an unresolved
+  // queue must not hold the whole surface, and its honest pre-answer is the conservative "not run".
+  const runs = useQuery(trpc.workloads.list.queryOptions({}));
+  const duplicatesEverRan = (runs.data ?? []).some((row) => row.kind === "find-duplicates" && row.status === "succeeded");
 
   const state = deriveCorpusAnalysisState({
     characters: home.coverage.characters,
@@ -125,6 +133,7 @@ function CorpusHomeBody(): ReactElement {
     arcThemes: home.topArcThemes.length,
     duplicateCharacters: home.duplicateCounts.characters,
     duplicateChats: home.duplicateCounts.chats,
+    duplicatesEverRan,
   });
 
   if (state.phase === "empty") {

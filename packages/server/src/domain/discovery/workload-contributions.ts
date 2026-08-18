@@ -79,6 +79,15 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
           const k = params.k ?? settings.workloads.computeThemesK ?? DEFAULT_THEME_K;
           report({ message: `computing ${k} themes` });
           const stats = await deps.discovery.computeThemes({ k, ownerId: ctx.ownerId });
+          // THE INPUT PLANE IS MEMORY DIGESTS, NOT DISTILLED CARDS — and a digest-less run must SAY so
+          // (issue #166). It used to return a bare `{scanned: 0, written: 0}`, which the runs console renders
+          // as "0 rows · 0 written" under a green Succeeded: a pass that could not run reported as one that
+          // ran. The reason rides the RESULT, not a progress line, because the progress line is gone the
+          // moment the row terminals and the durable answer is what a user comes back to.
+          if (stats.digestsRead === 0) {
+            report({ message: "no memory digests to cluster — run the memory backfill first" });
+            return { scanned: 0, written: 0, emptyReason: "no-digests" };
+          }
           return { scanned: stats.digestsAssigned, written: stats.clustersWritten };
         } finally {
           await announceCorpus(deps, ctx);
@@ -94,13 +103,22 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       run: async (ctx, _params, report, signal): Promise<AnalyticsResult> => {
         try {
           report({ message: "distilling character summaries" });
-          const stats = await deps.discovery.distillCharacters({ signal, ...(ctx.ownerId !== null ? { ownerId: ctx.ownerId } : {}) });
+          const stats = await deps.discovery.distillCharacters({
+            signal,
+            ...(ctx.ownerId !== null ? { ownerId: ctx.ownerId } : {}),
+            // N-of-M (issue #166 rider 3) — the pass counts the cards, this turns each position into a row.
+            onProgress: (done, total) => {
+              report({ message: `distilling character summaries — ${done} of ${total}`, current: done, total });
+            },
+          });
           // `AnalyticsResult` carries scanned/written only, so the SKIPPED cards (name-only — nothing to
           // summarize but a name) would vanish between `scanned` and `written` with no account of themselves.
           // The final progress line is their reader: it says what the sweep declined to invent, and names the
           // fix. A count nobody can read is the same silence the on-demand refusal exists to end.
           report({ message: distillProgressMessage(stats) });
-          return { scanned: stats.scanned, written: stats.distilled };
+          // An EMPTY LIBRARY is not a zero-change distill (issue #166's honest-accounting family): nothing was
+          // scanned because there is nothing to scan, and the result says which.
+          return stats.scanned === 0 ? { scanned: 0, written: 0, emptyReason: "no-cards" } : { scanned: stats.scanned, written: stats.distilled };
         } finally {
           await announceCorpus(deps, ctx);
         }

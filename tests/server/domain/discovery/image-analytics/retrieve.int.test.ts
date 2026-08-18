@@ -25,6 +25,7 @@ async function seedAvatarChar(
     tone?: string;
     artStyle?: string;
     mood?: string;
+    shotType?: string;
   },
 ): Promise<CharacterId> {
   const asset = args.assetId ?? (await seedAsset(db, `asset_${args.id}`, args.ownerId));
@@ -50,7 +51,7 @@ async function seedAvatarChar(
       computedAt: FROZEN_AT,
     });
   }
-  if (args.artStyle !== undefined || args.mood !== undefined) {
+  if (args.artStyle !== undefined || args.mood !== undefined || args.shotType !== undefined) {
     await seedImageEmbedding(db, {
       id: `img_cap_${args.id}`,
       assetId: asset,
@@ -60,6 +61,7 @@ async function seedAvatarChar(
       captionMeta: {
         ...(args.artStyle !== undefined ? { artStyle: args.artStyle } : {}),
         ...(args.mood !== undefined ? { mood: args.mood } : {}),
+        ...(args.shotType !== undefined ? { shotType: args.shotType } : {}),
       },
     });
   }
@@ -136,8 +138,58 @@ describe("visualArchetypes", () => {
 
     const arch = await svcFor(db).visualArchetypes(owner, 2);
     expect(arch).toHaveLength(2);
-    expect(arch.map((a) => a.label).sort()).toEqual(["anime · moody", "painterly · serene"]);
+    // ONE term is enough when it is already distinctive: each style holds its whole cluster and half the
+    // corpus, so its lift is 2 and nothing else needs to be said. The label GROWS a second term only to
+    // break a tie (pinned below) — a label that always concatenates is a list, not a name.
+    expect(arch.map((a) => a.label).sort()).toEqual(["anime", "painterly"]);
     expect(arch.find((a) => a.artStyle === "anime")?.size).toBe(3);
+    // The card-text facets ride along as CONTEXT, and are provably NOT the label.
+    expect(arch.find((a) => a.artStyle === "anime")?.genre).toBe("fantasy");
+  });
+
+  // ── issue #164: the two defects the owner receipted ────────────────────────────────────────────────
+  test("A VISUAL FAMILY IS NEVER NAMED FROM CARD TEXT — with no breakdown it says so instead", async () => {
+    // THE SMOKING GUN, reproduced: the family whose members are grouped precisely BY their missing art was
+    // rendering "melancholic fantasy" — the mode of its members' card-text genre/tone — because the label
+    // fell through `[tone, genre]` whenever the caption facets were null. They were ALWAYS null: nothing
+    // produced them until the VL breakdown landed. A cluster with no visual reading has nothing to say
+    // about how it looks, and saying so is the only honest name.
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await Promise.all(
+      Array.from({ length: 4 }, (_, i) =>
+        seedAvatarChar(db, { id: `noart_${i}`, ownerId: owner, avatarVec: vec(1, i * 0.001), genre: "fantasy", tone: "melancholic" }),
+      ),
+    );
+
+    const arch = await svcFor(db).visualArchetypes(owner, 1);
+    expect(arch).toHaveLength(1);
+    expect(arch[0]?.label).toBe("unanalysed portraits");
+    // The card-text reading still rides the payload — it is context, and context is not a name.
+    expect(arch[0]?.genre).toBe("fantasy");
+    expect(arch[0]?.tone).toBe("melancholic");
+  });
+
+  test("TWO FAMILIES NEVER WEAR THE SAME LABEL — a tie qualifies rather than repeating", async () => {
+    // The live defect: three of eight families rendered the identical "wholesome slice-of-life", because a
+    // 46-member cluster's MODE in a corpus that is 30% one value IS that value. Here both clusters share
+    // their art style and mood outright, so a mode-based labeller emits one string twice; the lift labeller
+    // discards the facets the corpus already has everywhere and names each family by what it has MORE of.
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await Promise.all([
+      ...Array.from({ length: 3 }, (_, i) =>
+        seedAvatarChar(db, { id: `close_${i}`, ownerId: owner, avatarVec: vec(1, i * 0.001), artStyle: "anime", mood: "cheerful", shotType: "close-up" }),
+      ),
+      ...Array.from({ length: 3 }, (_, i) =>
+        seedAvatarChar(db, { id: `wide_${i}`, ownerId: owner, avatarVec: vec(i * 0.001, 1), artStyle: "anime", mood: "cheerful", shotType: "wide" }),
+      ),
+    ]);
+
+    const labels = (await svcFor(db).visualArchetypes(owner, 2)).map((a) => a.label);
+    expect(labels).toHaveLength(2);
+    expect(new Set(labels).size).toBe(2);
+    expect(labels.toSorted()).toEqual(["close-up", "wide"]);
   });
 
   // The member slice carries the portrait hash on the WIRE (issue #134) — this read clusters BY the avatar,
