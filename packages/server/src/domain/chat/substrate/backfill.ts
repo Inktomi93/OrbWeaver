@@ -170,7 +170,15 @@ async function planAllBuckets(
       await planOneChat(ctx, deps, chatId, sweep);
     } catch (err) {
       sweep.failed += 1;
-      getLog().error({ err, chatId }, "memory backfill: chat FAILED during plan and was skipped (unexpected error)");
+      // The CAUSE rides as scalar fields, not only inside the serialized `err` (#165): the dev stack's
+      // pretty stream renders the message line and the object separately, and two whole 895-chat runs were
+      // read as "no exception logged" because the stack block below the line was never scrolled to. `err`
+      // still rides for the stack; these three are what a one-line read needs. Metadata only — an error
+      // MESSAGE from a provider/db is a shape, never RP content (the logs-are-metadata doctrine holds).
+      getLog().error(
+        { err, chatId, phase: "plan", errName: err instanceof Error ? err.name : typeof err, errMessage: err instanceof Error ? err.message : String(err) },
+        "memory backfill: chat FAILED during plan and was skipped (unexpected error)",
+      );
     }
   }
   return sweep;

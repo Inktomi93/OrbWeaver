@@ -8,17 +8,24 @@ import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { logger } from "@orb/server/foundation/observability";
 import { beforeEach, describe, vi } from "vitest";
 import type { ResolveBackfillMemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
 import { backfillGroupCharacters, backfillMemory } from "../../../../../packages/server/src/domain/chat/substrate/backfill.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize, seedTurns } from "../memory/_support.ts";
 
 /** A memory-config resolver that leaves the host's memory ENABLED (empty partial ⇒ the baked floor, `mixC`),
  *  so the sweep builds exactly as the pre-#54 baked-defaults path did (the enumeration assertions below). */
 const enabledMemory: ResolveBackfillMemoryConfig = () => Promise.resolve({});
+
+/** A named error class so the plan-failure log spec can assert the CLASS reached the line (the live #165
+ *  cause was a `ProviderError` whose name was invisible in the pretty single-line read). */
+class ProviderLikeError extends Error {
+  override readonly name = "ProviderLikeError";
+}
 
 let db: Db;
 beforeEach(async () => {
@@ -298,6 +305,66 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     expect(counts.segments.scanned).toBe(1);
     expect(counts.digests.scanned).toBe(3);
+  });
+
+  // #165 END-TO-END: the shape that burned a 120s embed timeout per chat — a room whose aged-out block is a
+  // single huge pasted message. The sweep must PLAN it, write its SEGMENT, and digest it in the same pass
+  // (the window clamp that makes the embed itself survivable lives in the vLLM surface, pinned by its own
+  // unit spec + a live engine receipt; here the DOMAIN half is pinned: a giant block is planned, not skipped).
+  test("a chat with a huge (over-window-shaped) block plans end to end — segments AND digests are written (#165)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const room = await seedChat(db, "room_huge");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+    await seedTurns(db, room, aria, 3);
+    // seq 4: the 200k-char message class the live corpus's worst block was made of.
+    await seedMessage(db, room, 4, { characterId: aria, content: "she watched the harbour lights blur into the rain. ".repeat(4000) });
+
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, maxTier: 1 });
+
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
+
+    expect(counts.failed).toBe(0);
+    expect(counts.segments.changed).toBe(2); // 4 turns / blockSize 2
+    expect(counts.digests.changed).toBeGreaterThan(0);
+    // The huge block's segment carries its verbatim span (the recall pointer back to canon).
+    expect(store.segments.map((s) => s.blockIdx).sort((a, b) => a - b)).toEqual([0, 1]);
+    expect(store.segments.at(-1)?.text.length).toBeGreaterThan(100_000);
+  });
+
+  // #165: the live 895-chat run logged `chat FAILED during plan and was skipped (unexpected error)` and the
+  // ops read of the pretty single-line stream never reached the serialized `err` block, so the failure was
+  // undiagnosable from the log at a glance for two whole runs. The CAUSE now rides as scalar fields on the
+  // line itself — phase + error name + message — next to the (still-serialized) `err`.
+  test("the plan-failure log carries the CAUSE on the line: phase + error name + message (#165)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const c1 = await seedCharacter(db, host, "c1");
+    const c2 = await seedCharacter(db, host, "c2");
+    const room = await seedChat(db, "room");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "c1", characterId: c1 });
+    await seedParticipant(db, { chatId: room, key: "c2", characterId: c2 });
+    const ctx = makeChatContext(db, {
+      mintSyntheticGroupCharacter: () => Promise.reject(new ProviderLikeError("vllm embed request exceeded the 120000ms bound")),
+    });
+    const spy = vi.spyOn(logger, "error");
+
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, enabledMemory);
+
+    expect(counts.failed).toBe(1);
+    const fields = spy.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(fields).toMatchObject({
+      chatId: room,
+      phase: "plan",
+      errName: "ProviderLikeError",
+      errMessage: "vllm embed request exceeded the 120000ms bound",
+    });
+    // The serialized error object still rides (the stack is the deep receipt) — the scalars are additive.
+    expect(fields["err"]).toBeInstanceOf(Error);
   });
 });
 

@@ -6,6 +6,10 @@
 // The ops are the SAME chat-ctx-bound sweeps compose already built; only their home changed. The one
 // cross-domain reach — the PD-139(b) old-embed-space reclaim — is an INJECTED op at chat's door
 // (`purgeMemoryVectors`), which is exactly what the retired hub existed to avoid building.
+//
+// A memory sweep with ANY per-chat failure is a FAILED workload (#165): the tally throws rather than
+// returns, and the reclaim is suppressed on the same condition — an incomplete sweep neither succeeded nor
+// re-derived the corpus into the active embed space.
 
 import type { BackfillPassResult, MemoryBackfillResult } from "@orb/contracts/chat";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
@@ -35,8 +39,21 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
         // abort — the space stays a strict superset (never a gap); the rerun reclaims it. (`enumerationScope`
         // is the WORKLOAD ROW's scope, not a chat owner — chats stay membership-scoped, D18.)
         const enumerationScope = ctx.ownerId;
-        if (enumerationScope === null && !signal.aborted) {
+        // `counts.failed === 0` joins the BULK + not-aborted conditions for the SAME reason (#165): a sweep
+        // that skipped chats did not re-derive the whole corpus into the active embed space, so reclaiming
+        // the old space would delete vectors nothing replaced.
+        if (enumerationScope === null && !signal.aborted && counts.failed === 0) {
           await deps.purgeMemoryVectors();
+        }
+        // HONEST ACCOUNTING (#165, the #156 family): a per-chat skip is a chat whose memory silently did not
+        // build. Returning the tally landed `succeeded` on a run that skipped every chat it touched, so the
+        // tally now FAILS the row — the sweep is `idempotent-restart`, so everything durable already landed
+        // and the rerun resumes from it. Zero failures is still the only success.
+        if (counts.failed > 0) {
+          throw new Error(
+            `memory backfill: ${counts.failed} chat${counts.failed === 1 ? "" : "s"} FAILED during the sweep and were skipped (see the error log for each cause); ` +
+              `${counts.segments.changed} segments + ${counts.digests.changed} digests did build`,
+          );
         }
         return counts;
       },

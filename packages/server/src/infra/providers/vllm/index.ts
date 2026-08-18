@@ -173,7 +173,16 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
     // (the contract's role methods are awaitable — the custom-byo `inspect` precedent; the surface's own
     // guard used to be inside an async body and every caller expects a rejection).
     runChatTurn: async (req: ChatRequest): Promise<ChatResult> => await chat(toVllmChatRequest(req)),
-    embed: createVllmEmbed({ client, embedDim, chunkSize, concurrency: embedConcurrency, requestTimeoutMs: env.VLLM_EMBED_REQUEST_TIMEOUT_MS }),
+    embed: createVllmEmbed({
+      client,
+      embedDim,
+      chunkSize,
+      concurrency: embedConcurrency,
+      requestTimeoutMs: env.VLLM_EMBED_REQUEST_TIMEOUT_MS,
+      // The window the embed engine is LAUNCHED with (`--max-model-len`) — one home, so the client-side
+      // clamp (#165) can never drift from what the engine will accept.
+      maxInputTokens: env.VLLM_EMBED_MAX_MODEL_LEN,
+    }),
     rerank: createVllmRerank({ client }),
     imageEmbed: createVllmImageEmbed({ client, embedDim, concurrency: embedConcurrency }),
     summarize: createVllmSummarize({

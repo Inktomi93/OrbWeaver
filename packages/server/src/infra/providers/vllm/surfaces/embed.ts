@@ -1,15 +1,57 @@
-// The vLLM text-embed role surface (Qwen3-VL-Embedding): filters empty inputs to null, wraps survivors in
-// the ChatML conversation, chunks + dispatches with bounded concurrency, then MRL-truncates + L2-normalizes
-// each vector onto its caller position. Requests the OpenAI `dimensions` param; if a pooling combo rejects
-// it, retries full-dim and truncates+renormalizes client-side.
+// The vLLM text-embed role surface (Qwen3-VL-Embedding): filters empty inputs to null, CLAMPS each survivor
+// to the engine's context window (see THE WINDOW GUARD below — #165), wraps them in the ChatML conversation,
+// chunks + dispatches with bounded concurrency, then MRL-truncates + L2-normalizes each vector onto its
+// caller position. Requests the OpenAI `dimensions` param; if a pooling combo rejects it, retries full-dim
+// and truncates+renormalizes client-side.
 
+import { estimateTokens } from "@orb/kit/tokens";
+import { getLog } from "#foundation/observability";
 import type { EmbedRequest, EmbedResult } from "../../contract/index.ts";
 import type { VllmEngineClient } from "../engine/index.ts";
 import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toEmbedPrompt, truncateToDim } from "../engine/index.ts";
 
-// vLLM rejects over-long input with HTTP 400 by default; `-1` tells it to truncate using its own tokenizer.
-const TRUNCATE_TO_MODEL_MAX = -1;
 const DIMENSIONS_REJECTED_RE = /dimensions/i;
+
+// THE WINDOW GUARD IS CLIENT-SIDE (#165). This surface used to send `truncate_prompt_tokens: -1` and let the
+// engine cut an over-long prompt with its own tokenizer. Probed live against the box's embed engine
+// (Qwen3-VL-Embedding-2B, max_model_len 8192) on 2026-08-17, that knob is worse than the 400 it was added to
+// avoid: a 43,340-char input sent WITH it never returns (>30s probe; the production bound is 120s and the
+// engine logs no request at all — zero GPU activity), while the SAME input sent WITHOUT it is refused in
+// 21ms with an honest "maximum context length is 8192 tokens" 400. That hang WAS the memory backfill's
+// ~2-minute-per-chat plan failure: `generateSegments` embeds a whole aged-out block verbatim, and the seven
+// chats whose blocks ran 36k–200k chars each burned one 120s timeout.
+//
+// So: clamp here, and ask the engine for NOTHING. The clamp keeps the request inside the window (no 400 in
+// practice), and if the estimate ever undershoots the engine's real tokenizer the request fails FAST and
+// LOUD instead of pinning a worker for two minutes — the failure mode we can afford.
+
+/** Tokens held back for the ChatML scaffold `toEmbedPrompt` wraps every input in (system instruction + the
+ *  four role markers ≈ 30 estimated tokens) plus slack for tokenizer disagreement on the clamp boundary. */
+const PROMPT_SCAFFOLD_RESERVE_TOKENS = 64;
+
+/**
+ * Clamp `text` to at most `maxTokens` by the canonical estimator (`@orb/kit/tokens` — the one home; never a
+ * local chars-per-token re-roll). Cuts on CODEPOINTS, so an astral character (emoji, some CJK) can never be
+ * split into a lone surrogate the tokenizer then chokes on. Returns the input unchanged when it already fits.
+ */
+function clampToTokenBudget(text: string, maxTokens: number): string {
+  if (maxTokens <= 0 || estimateTokens(text) <= maxTokens) {
+    return text;
+  }
+  const codepoints = Array.from(text);
+  // Binary search the longest fitting prefix — `estimateTokens` is monotonic in prefix length.
+  let fits = 0;
+  let over = codepoints.length;
+  while (fits < over) {
+    const mid = Math.ceil((fits + over) / 2);
+    if (estimateTokens(codepoints.slice(0, mid).join("")) <= maxTokens) {
+      fits = mid;
+    } else {
+      over = mid - 1;
+    }
+  }
+  return codepoints.slice(0, fits).join("");
+}
 
 // Whole-request cap so a warming/wedged engine can't hang boot-time embedding forever; a trip maps to a
 // retryable ProviderError so the catch-up sweep re-embeds once the engine is up. Correct only because
@@ -28,6 +70,9 @@ export interface VllmEmbedDeps {
   readonly chunkSize: number;
   readonly concurrency: number;
   readonly requestTimeoutMs: number;
+  /** The embed engine's context window — the SAME value that launches it (`--max-model-len`), injected from
+   *  `env.VLLM_EMBED_MAX_MODEL_LEN` in `createVllmBackend` so the clamp and the engine can't drift. */
+  readonly maxInputTokens: number;
 }
 
 interface OpenAiEmbeddingsResponse {
@@ -50,27 +95,38 @@ async function embedChunk(
     model,
     input: texts,
     dimensions: dim,
-    truncate_prompt_tokens: TRUNCATE_TO_MODEL_MAX,
   };
   try {
     return await client.enginePost<OpenAiEmbeddingsResponse>("embed", "/v1/embeddings", withDim, signal);
   } catch (err) {
     // Some vLLM/pooling combos reject `dimensions` — fall back to full-dim + client-side truncation.
     if (err instanceof Error && DIMENSIONS_REJECTED_RE.test(err.message)) {
-      const noDim = { model, input: texts, truncate_prompt_tokens: TRUNCATE_TO_MODEL_MAX };
+      const noDim = { model, input: texts };
       return await client.enginePost<OpenAiEmbeddingsResponse>("embed", "/v1/embeddings", noDim, signal);
     }
     throw err;
   }
 }
 
-function selectInputs(inputs: readonly string[], instruction: string): KeptInput[] {
+/** Keep the non-empty inputs (position preserved) and wrap each in the cookbook ChatML prompt, clamped to the
+ *  engine window (see THE WINDOW GUARD above). A clamp is LOGGED — a silently shortened embed would quietly
+ *  change what a vector means. */
+function selectInputs(inputs: readonly string[], instruction: string, maxInputTokens: number, model: string): KeptInput[] {
+  const budget = maxInputTokens - PROMPT_SCAFFOLD_RESERVE_TOKENS;
   const kept: KeptInput[] = [];
   for (let i = 0; i < inputs.length; i += 1) {
     const text = inputs[i] ?? "";
-    if (text.trim().length > 0) {
-      kept.push({ index: i, prompt: toEmbedPrompt(text, instruction) });
+    if (text.trim().length === 0) {
+      continue;
     }
+    const clamped = clampToTokenBudget(text, budget);
+    if (clamped.length !== text.length) {
+      getLog().warn(
+        { provider: true, backend: "vllm", event: "provider.embed-clamped", model, index: i, chars: text.length, clampedToChars: clamped.length, budget },
+        "vllm embed: input exceeds the engine window — clamped to fit (the tail is not embedded)",
+      );
+    }
+    kept.push({ index: i, prompt: toEmbedPrompt(clamped, instruction) });
   }
   return kept;
 }
@@ -97,7 +153,7 @@ export function createVllmEmbed(deps: VllmEmbedDeps): (req: EmbedRequest) => Pro
     const signal = embedRequestSignal(req.signal, deps.requestTimeoutMs);
     const instruction = req.instruction ?? (req.inputType === "query" ? QUERY_INSTRUCTION : DOC_INSTRUCTION);
 
-    const kept = selectInputs(inputs, instruction);
+    const kept = selectInputs(inputs, instruction, deps.maxInputTokens, req.model);
     const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(inputs.length).fill(null);
     if (kept.length === 0) {
       return { vectors, model: req.model, usage: { promptTokens: null, totalTokens: null } };
