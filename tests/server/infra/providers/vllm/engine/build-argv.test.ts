@@ -25,6 +25,8 @@ const FLOOR = {
   VLLM_GEN_GPU_UTIL_SINGLE: 0.5,
   VLLM_POOLING_MAX_PIXELS: 1_843_200,
   VLLM_GEN_MAX_PIXELS: 4_194_304,
+  VLLM_GEN_VIDEO_FPS: 4,
+  VLLM_GEN_VIDEO_MAX_FRAMES: 512,
   VLLM_SLEEP_MODE: true,
   VLLM_DEBUG_REQUESTS: false,
   VLLM_SHUTDOWN_TIMEOUT_S: 0,
@@ -178,7 +180,7 @@ describe("buildEngineArgv snapshots", () => {
         "--mm-processor-cache-type",
         "shm",
         "--mm-processor-kwargs",
-        "{"max_pixels": 4194304}",
+        "{"max_pixels": 4194304, "fps": 4, "max_frames": 512}",
         "--disable-access-log-for-endpoints",
         "/health,/metrics,/ping",
         "--enable-request-id-headers",
@@ -235,6 +237,16 @@ describe("buildEngineArgv — settings-overridden config changes the flags", () 
   test("an admin gpu-util override changes --gpu-memory-utilization", () => {
     const config = resolveEngineLaunchConfig(FLOOR, { genGpuUtilMulti: 0.35 });
     expect(flagVal(buildEngineArgv("gen", config, CTX), "--gpu-memory-utilization")).toBe("0.35");
+  });
+
+  test("gen --mm-processor-kwargs is ONE blob carrying max_pixels + the video sampling density", () => {
+    // fps/max_frames are launch-time-only in vLLM 0.26 (per-request kwargs never reach the video
+    // sampler), so this flag is the single home of video density; a second --mm-processor-kwargs
+    // occurrence would shadow the first.
+    const config = resolveEngineLaunchConfig(FLOOR, undefined);
+    const argv = buildEngineArgv("gen", config, CTX);
+    expect(argv.filter((a) => a === "--mm-processor-kwargs")).toHaveLength(1);
+    expect(flagVal(argv, "--mm-processor-kwargs")).toBe('{"max_pixels": 4194304, "fps": 4, "max_frames": 512}');
   });
 });
 
