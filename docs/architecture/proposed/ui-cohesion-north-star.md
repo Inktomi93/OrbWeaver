@@ -1,7 +1,7 @@
 ---
 kind: program
 status: active
-updated: 2026-07-16
+updated: 2026-08-18
 ---
 
 # UI Cohesion — North Star (ledger D66)
@@ -195,8 +195,10 @@ Source of truth: `contracts/settings` `AppearanceSettings` + `features/settings/
   region hairlines — `.shell-grid[data-elevation="ramp"] .shell-panel-header { border-block-end: none }`
   already exists at `shell.css:85`, so new chrome styled via `.shell-panel-header` inherits it for
   free), `blurSurfaces` multi-select (glass), `blurStrength`, `surfaceTexture`, `enableThemeColorization`.
-- **Background image:** kind/fit/`backgroundDim`/`backgroundBlur`; with an image the no-fill chat
-  styles back their chrome with `chromeBacking` scrims — keep all of it.
+- **Background image:** kind/fit/`backgroundDim`/`backgroundBlur`; with an image EVERY skin's
+  attribution row backs its chrome with the shared `nameRowFrame` scrim (`RowSkin.chromeBacking` was
+  deleted 2026-08-18, #167 — a per-skin opt-in cannot implement a legibility guarantee; the five
+  bubble-family skins measured 1.6:1 over art).
 - **Message chrome:** `messageActions hover/expanded` (a PREF, schema default `hover`), metadata
   toggles `showTimestamps` (default true) / `showMessageId/showModelIcon/showTokenCount/`
   `showLLMReasoningIcon` (default false), `autoFixMarkdown`. `showGenerationTimer` is schema-only and
