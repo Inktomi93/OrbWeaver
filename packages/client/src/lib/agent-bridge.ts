@@ -8,6 +8,16 @@
 // presence alone and is unaffected); the value is `""` for a real settle and `"degraded"` when the ceiling
 // fired with reads still in flight. A waiter that only checks presence still never hangs; an INSTRUMENT is
 // obliged to read the value before calling its capture settled.
+//
+// READINESS IS JUDGED AGAINST ROUTE RESOLUTION, NOT THE CLOCK (issue #145). The settle check reads an idle
+// query cache, and an idle cache means THREE things, not two: the reads drained · they have not started ·
+// the component that owns them has not mounted at all. The third is the whole of #145 — `/`'s component is
+// `lazyRouteComponent(() => import("../compose/authed-app.tsx"))`, ~4.9 MB of feature graph, and on a cold
+// `snap --isolated` stage vite takes longer than the 3s grace to serve it. The grace fired against a router
+// still in its pending component, the flag went up SETTLED with an EMPTY query cache, and every instrument
+// screenshotted the boot glyph and reported a clean wait. So the no-reads-at-all arm is now gated on route
+// resolution AND its grace window STARTS at resolution: "this app has no initial reads" is only claimable
+// once the route that would have issued them is actually mounted.
 
 import type { ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
@@ -36,7 +46,18 @@ const READY_DEGRADED = "degraded";
  *  `markReady` is its resolver, called from the settle check. */
 const { promise: ready, resolve: markReady } = Promise.withResolvers<void>();
 
-export function installAppReadySignal(queryClient: QueryClient): void {
+/** The readiness signal's view of ROUTE RESOLUTION — a narrow port, not the router itself: `lib/` is the
+ *  floor tier and may not reach up into `routes/`. A route is RESOLVING from a navigation's start until its
+ *  `beforeLoad` guard, loader and lazy component chunk have all landed; the app's adapter is
+ *  `routeResolution` in `routes/router.tsx`. A host with no router (a CT story) supplies its own. */
+export interface RouteResolution {
+  /** Is a route still resolving right now? While TRUE, an idle query cache proves nothing. */
+  readonly isResolving: () => boolean;
+  /** Fire `onChange` whenever resolution state may have changed; returns the unsubscribe. */
+  readonly subscribe: (onChange: () => void) => () => void;
+}
+
+export function installAppReadySignal(queryClient: QueryClient, routeResolution: RouteResolution): void {
   const el = document.documentElement;
   const cache = queryClient.getQueryCache();
   let settled = false;
@@ -56,9 +77,16 @@ export function installAppReadySignal(queryClient: QueryClient): void {
   // Track it instead: once ANY fetch has been observed, an idle cache is a real settle.
   let sawFetch = false;
   let graced = false;
+  let graceTimer: ReturnType<typeof setTimeout> | null = null;
   const check = (): void => {
     if (queryClient.isFetching() > 0) {
       sawFetch = true;
+      return;
+    }
+    // A route still resolving has not MOUNTED the component that owns the initial reads, so its idle cache
+    // carries no information at all — neither arm below may fire (issue #145). The 20s ceiling still covers
+    // a route that never resolves, and it hands over `degraded`, which is the truth about that capture.
+    if (routeResolution.isResolving()) {
       return;
     }
     // Idle with no read ever seen is only "ready" once the grace has passed — the genuine no-initial-reads
@@ -79,10 +107,27 @@ export function installAppReadySignal(queryClient: QueryClient): void {
   // "Loading your corpus…" and read as a product defect: a five-deep Suspense waterfall on a cold stage
   // simply takes longer than 3s. The grace now only unlocks the no-reads-at-all arm; it never overrides an
   // in-flight one.
-  setTimeout(() => {
-    graced = true;
+  //
+  // AND ITS WINDOW STARTS AT ROUTE RESOLUTION (issue #145), not at install: measured from install it expired
+  // while the router was still fetching `/`'s lazy component chunk, and the very next cache tick after that
+  // chunk landed found an idle cache with `graced` already true — the flag went up SETTLED before a single
+  // read had been issued. Armed from resolution, the 3s is what it always claimed to be: an app that has
+  // MOUNTED its route and still issued no read genuinely has none.
+  const armGrace = (): void => {
+    if (graceTimer !== null || routeResolution.isResolving()) {
+      return;
+    }
+    graceTimer = setTimeout(() => {
+      graced = true;
+      check();
+    }, READY_GRACE_MS);
+  };
+  const unsubscribeRoute = routeResolution.subscribe(() => {
+    armGrace();
     check();
-  }, READY_GRACE_MS);
+  });
+  void ready.finally(unsubscribeRoute);
+  armGrace();
   // The ceiling still guarantees "never hang a waiter", but it tells the truth about what it is handing over:
   // reads are STILL in flight, so the flag goes up as `degraded` and anything reading the value knows the
   // capture is mid-flight rather than settled.

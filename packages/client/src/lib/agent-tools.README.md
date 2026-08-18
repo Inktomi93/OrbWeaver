@@ -66,6 +66,10 @@ it instead of network-idle, which hangs on the never-idle SSE connection:
 - snap: waits on it by DEFAULT (graceful — a page that never sets it falls through)
 - A 3s grace settles a genuine no-read boot; a 20s ceiling marks the flag `degraded` when reads never
   drain, so a waiter cannot hang or mistake a timeout for a clean settle.
+- The grace window starts at ROUTE RESOLUTION, not at install (#145): while the router is still resolving
+  a route — including fetching `/`'s lazy `compose/authed-app.tsx` chunk — an idle cache means "the reads
+  have not started", never "there are none". snap additionally reds a `settled` flag over an EMPTY query
+  cache (`dataless`): the app never reached its data layer, so the capture is a boot placeholder.
 
 ## Console channels
 
