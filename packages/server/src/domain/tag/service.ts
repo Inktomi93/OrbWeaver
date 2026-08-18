@@ -1,4 +1,4 @@
-// domain/tag — COMPOSITION ROOT. Wires the 11 verbs over the injected `TagContext`. ZERO logic: it only calls
+// domain/tag — COMPOSITION ROOT. Wires the 12 verbs over the injected `TagContext`. ZERO logic: it only calls
 // the verb factories and assembles the `TagService` (the `attach` factory returns the junction trio). The
 // `TagContext` (db + the injected `newTagId` seam + chat's `requireParticipant` gate) is built at the entry
 // composition root and passed in — tag sideways-imports nothing (domain-no-cross-feature).
@@ -10,6 +10,7 @@ import { createAttachChatTagByName } from "./verbs/attach-chat-tag-by-name.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createDetachCardTagByName } from "./verbs/detach-card-tag-by-name.ts";
 import { createList } from "./verbs/list.ts";
+import { createListFilterVocabulary } from "./verbs/list-filter-vocabulary.ts";
 import { createListPendingSuggestions } from "./verbs/list-pending-suggestions.ts";
 import { createListWithUsage } from "./verbs/list-with-usage.ts";
 import { createMerge } from "./verbs/merge.ts";
@@ -27,6 +28,7 @@ export function createTagService(ctx: TagContext): TagService {
     removeTag: createRemove(ctx),
     mergeTags: createMerge(ctx),
     listTagsWithUsage: createListWithUsage(ctx),
+    listTagFilterVocabulary: createListFilterVocabulary(ctx),
     listPendingSuggestions: createListPendingSuggestions(ctx),
     pruneUnusedTags: createPrune(ctx),
     setTagOrder: createSetOrder(ctx),

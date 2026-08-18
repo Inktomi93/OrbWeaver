@@ -3,7 +3,7 @@
 // chat-tag junction additionally routes through the injected `requireParticipant` since chats have no owner.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
+import type { TagFilterVocabularyEntry, TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ChatId, TagId } from "@orb/kit/ids";
@@ -17,6 +17,7 @@ import type {
   DetachCardTagByNameParams,
   DetachTagParams,
   ListPendingSuggestionsParams,
+  ListTagFilterVocabularyParams,
   ListTagsParams,
   ListTagsWithUsageParams,
   MergeTagsParams,
@@ -54,6 +55,11 @@ export interface TagService {
    *  self-merge (equal ids) is a `DomainOperationError`. */
   readonly mergeTags: (params: MergeTagsParams) => Promise<void>;
   readonly listTagsWithUsage: (params: ListTagsWithUsageParams) => Promise<TagWithUsage[]>;
+  /** The character library's filter-chip vocabulary: every owned tag projected to id/name/isHiddenOnCard/
+   *  character-count, ranked most-used-first. A PROJECTION of the same rollup {@link listTagsWithUsage}
+   *  serves the management screen, split off because that read shipped 433KB of five-junction rows to paint
+   *  eight chips (side-eye 2026-08-18 P2-6). Same owner scoping, same row set, four columns. */
+  readonly listTagFilterVocabulary: (params: ListTagFilterVocabularyParams) => Promise<TagFilterVocabularyEntry[]>;
   /** Enumerate the owner's staged (`status:'pending'`) character-tag suggestions — the Accept/Reject review
    *  queue. `characterId` narrows to one editor's suggestions; absent = the whole pending inbox. Read-only:
    *  Accept = `attachTag(status:'accepted')`, Reject = `detachTag`. */
