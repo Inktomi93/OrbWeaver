@@ -6,7 +6,7 @@
 // not in any component logic, so a minimal DOM with the same classes/attributes/slots reproduces it
 // exactly.
 
-import type { BlurSurface } from "@orb/contracts/settings";
+import type { BlurSurface, SurfaceTexture } from "@orb/contracts/settings";
 import type { ThemeDensity } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ReactElement } from "react";
@@ -24,6 +24,12 @@ export interface ShellCascadeFixtureProps {
   /** The active section stamped on `.shell-grid` (WS3 reading-surface backing). Left off ⇒ the immersive
    *  transparent path (the Chats/no-section case); a non-`chats` value gets the reading-surface backing. */
   readonly section?: string;
+  /** `data-texture` on the root — the grain overlay's own gate (#138 asserts the contrast arm drops it). */
+  readonly surfaceTexture?: SurfaceTexture;
+  /** `data-theme` on the root. The palette must be a variable in a cascade fixture: a per-surface tint
+   *  assertion that only ever runs on the default palette cannot tell "mixes --color-popover" apart from
+   *  "happens to equal the dark popover value" (#138's modal-tint pin runs on light too). */
+  readonly dataTheme?: string | null;
 }
 
 /**
@@ -42,10 +48,12 @@ export function ShellCascadeFixture({
   fontScale = 1,
   messageRole = "assistant",
   section,
+  surfaceTexture = "none",
+  dataTheme = null,
 }: ShellCascadeFixtureProps): ReactElement {
   useAppearanceRootEffects({
     fontScale,
-    dataTheme: null,
+    dataTheme,
     blurSurfaces,
     shadowEffects: false,
     // Schema defaults (@orb/contracts/settings appearanceSchema) — the cascade-contract fixture isn't
@@ -60,7 +68,7 @@ export function ShellCascadeFixture({
       justify: false,
     },
     themeColorization: false,
-    surfaceTexture: "none",
+    surfaceTexture,
   });
   return (
     <div

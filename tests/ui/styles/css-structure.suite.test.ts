@@ -192,7 +192,7 @@ test("blur-surface selectors stay in sync with BLUR_SURFACES across all three ha
       css: clientGlobalsCss,
       anchor: "@media (prefers-reduced-transparency: reduce) {",
     },
-    { label: "client globals.css prefers-contrast: high block", css: clientGlobalsCss, anchor: "@media (prefers-contrast: high) {" },
+    { label: "client globals.css prefers-contrast: more block", css: clientGlobalsCss, anchor: "@media (prefers-contrast: more) {" },
   ];
   // THREE, not four: shell.css's mobile arm used to carry a fourth (the blur kill-switch). It was
   // deleted at #135 — it re-declared these selectors at identical specificity in the sheet the bundle
@@ -240,6 +240,37 @@ test("client globals.css: the reduced-transparency arm sits BELOW the glass bloc
   // the old hand-listed arm missed) paints its own tint at full strength.
   expect(reduceBlock).toContain("--blur-fill-chrome: 100%");
   expect(reduceBlock).toContain("--blur-fill-dense: 100%");
+});
+
+// #138: the contrast arm had been spelled `prefers-contrast: high` — the WebKit-era value MQ5 renamed
+// to `more` — so it matched in no browser we ship to and had never rendered. Two things must stay true
+// now that it does: the value stays MQ5-correct, and its opacity half goes through the same fill knob
+// #137 established instead of re-spelling a per-surface fill (the hand-written one flattened both modal
+// slots to --color-sidebar and missed .shell-main). Only the rendered pin (app-shell.ct.tsx's #138
+// block) can see the cascade; this test guards the SPELLING and the mechanism, which text can see.
+test("client globals.css: the contrast arm uses the MQ5 value `more` and drives the fill tokens (never a hand-written fill)", () => {
+  const css = readFileSync(CLIENT_GLOBALS_CSS_PATH, "utf8");
+  const rules = css.replace(COMMENT_RE, "");
+  expect(rules.includes("prefers-contrast: high"), "`high`/`low` are the WebKit-era values — MQ5 spells them `more`/`less`, and only `more` ever matches").toBe(
+    false,
+  );
+  expect(rules, "the contrast arm must exist").toContain("@media (prefers-contrast: more) {");
+  // The alpha half is a SEPARATE query carrying the exact negation of the reduce arm, so a user with
+  // BOTH preferences keeps reduced-transparency's 100% — decided by condition, never by source order.
+  expect(rules, "the contrast alpha arm must yield to reduced-transparency by CONDITION").toContain(
+    "@media (prefers-contrast: more) and (not (prefers-reduced-transparency: reduce)) {",
+  );
+  const alphaArm = findAnchoredBlock(
+    rules,
+    "@media (prefers-contrast: more) and (not (prefers-reduced-transparency: reduce)) {",
+    "client globals.css contrast alpha arm",
+  );
+  expect(alphaArm).toContain("--blur-fill-chrome: 92%");
+  expect(alphaArm).toContain("--blur-fill-dense: 92%");
+  // The defect the knob replaced: a hand-written 92% mix on four selectors, tinted --color-sidebar even
+  // for the two modal slots the glass rule tints --color-popover.
+  const contrastArm = findAnchoredBlock(rules, "@media (prefers-contrast: more) {", "client globals.css prefers-contrast: more block");
+  expect(contrastArm.includes("background-color"), "the contrast arm must not re-spell a surface fill — drive --blur-fill-* instead").toBe(false);
 });
 
 // The ONE viewport breakpoint, across every site that hand-writes it (#135). `dimension.shell-breakpoint`

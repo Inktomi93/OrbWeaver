@@ -153,16 +153,49 @@ body {
   }
 }
 
-/* prefers-contrast: high → stronger border + more opacity, never less legible.
- * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */
-@media (prefers-contrast: high) {
+/* prefers-contrast: more → stronger borders + more opacity, never less legible.
+ *
+ * THE VALUE USED TO BE `high`, WHICH MATCHES NOTHING, SO THIS BLOCK HAD NEVER ONCE RENDERED (#138).
+ * `high`/`low` are the WebKit-era spelling; Media Queries 5 renamed the values to
+ * `no-preference | more | less | custom`, and Chromium/Firefox only ever report `more`. Probed live in
+ * the CT browser: under `emulateMedia({ contrast: "more" })`, `(prefers-contrast: more)` matches and
+ * `(prefers-contrast: high)` does NOT (asserted, app-shell.ct.tsx's #138 block). Respelling it is
+ * behaviour-ENABLING — every rule below starts firing for high-contrast users — which is why it ships
+ * with a rendered pin instead of as a one-word edit.
+ *
+ * THE OPACITY HALF IS THE GLASS'S OWN FILL KNOB, NOT A HAND-WRITTEN FILL (the #137 mechanism). This
+ * block used to re-spell the glass recipe as `background-color: color-mix(in oklab, var(--color-sidebar)
+ * 92%, transparent)` across four selectors, which carried three defects that only a rendered block can
+ * have: it flattened BOTH modal slots from `--color-popover` (what the glass rule 60 lines up actually
+ * mixes) to `--color-sidebar`, a copy-paste of the panel/composer lines above it; it missed
+ * `.shell-main`'s reading-surface glass, the same hand-listing hole #137 found in the reduce arm; and it
+ * was scoped by neither the breakpoint nor `@supports`, so on a phone — where no glass is emitted at all
+ * (#135) — it would have REPLACED an opaque surface's own fill with a 92% mix, i.e. ADDED transparency
+ * to answer a request for contrast. Driving `--blur-fill-chrome`/`--blur-fill-dense` (one consumer each:
+ * the @supports block) fixes all three by construction — every surface stays tinted as itself, every
+ * glass rule is covered, and nothing outside the glass is touched. Defaults are 70%/88%, so both moves
+ * are a raise; the bubbles' 88% → 92% is the "more opacity" half of this block's own promise, which the
+ * hand-written arm only ever delivered as a border.
+ *
+ * BOTH PREFERENCES SET ⇒ REDUCED-TRANSPARENCY WINS THE ALPHA (100%, not 92%). Stated as a CONDITION,
+ * never as source order: `not (prefers-reduced-transparency: reduce)` is the exact negation of the arm
+ * above, so the two are mutually exclusive by construction and no future reorder can flip the answer
+ * (the #137 arm's own tie-on-source-order is the cautionary precedent, one screen up). The negated form
+ * rather than `(prefers-reduced-transparency: no-preference)` is deliberate: an unknown feature query is
+ * false, so the `no-preference` spelling would silently drop the contrast fix in a browser that knows
+ * `prefers-contrast` but not `prefers-reduced-transparency` (Safari < 17).
+ *
+ * `less` and `custom` are deliberately unhandled: `less` asks for the opposite of this block, and
+ * `custom` means the user's own colour set is already in force (forced-colors territory, not ours).
+ *
+ * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts
+ * Rendered pin: tests/client/features/app-shell/surfaces/app-shell.ct.tsx (#138 block — contrast vs
+ * no-preference, the modal's popover tint, both-preferences, and the grain drop). */
+@media (prefers-contrast: more) {
   html[data-blur-panels] .shell-panel,
   html[data-blur-composer] [data-slot="composer"],
   html[data-blur-modals] [data-slot="dialog-popup"],
-  html[data-blur-modals] [data-slot="alert-dialog-popup"] {
-    border-width: 2px;
-    background-color: color-mix(in oklab, var(--color-sidebar) 92%, transparent);
-  }
+  html[data-blur-modals] [data-slot="alert-dialog-popup"],
   html[data-blur-messages] [data-slot="message-bubble"] {
     border-width: 2px;
   }
@@ -170,6 +203,14 @@ body {
   html[data-texture="grain"] .shell-grid::after,
   html[data-texture="grain"] [data-slot="card-root"]::after {
     display: none;
+  }
+}
+
+/* The alpha half, in its own query so the reduce arm above keeps the alpha when both are set. */
+@media (prefers-contrast: more) and (not (prefers-reduced-transparency: reduce)) {
+  :root {
+    --blur-fill-chrome: 92%;
+    --blur-fill-dense: 92%;
   }
 }
 
