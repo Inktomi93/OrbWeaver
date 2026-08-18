@@ -137,6 +137,14 @@ export interface MemoryPassCounts {
   readonly skipped: number;
 }
 
+/** The SEGMENT pass's fold — {@link MemoryPassCounts} plus the blocks whose verbatim transcript does not fit
+ *  the embed model's window. Those are skipped WHOLE and counted here, never truncated into a vector that
+ *  claims a seq-span it never read (owner ruling, #165); the count rides the sweep result + the workload
+ *  progress copy so a skipped block is a recorded fact, never a silent gap in memory. */
+export interface SegmentPassCounts extends MemoryPassCounts {
+  readonly skippedOverWindow: number;
+}
+
 /** One presence interval of a character in a chat (the join/leave WITNESSING horizon — core/Knowledge-Cluster.md §4 /
  *  inv 12). `joinSeq` = the `messages.seq` at which the character became present; `leftSeq` = the seq at which
  *  it left (exclusive — present for `seq ∈ [joinSeq, leftSeq)`), or `null` when still present. A kick→re-add

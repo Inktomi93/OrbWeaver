@@ -236,6 +236,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const counts = await backfillMemory(ctx, { signal: ac.signal }, enabledMemory);
     expect(counts).toEqual({
       segments: { scanned: 0, changed: 0 },
+      segmentsSkippedOverWindow: 0,
       digests: { scanned: 0, changed: 0 },
       failed: 0,
     });
@@ -307,18 +308,18 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect(counts.digests.scanned).toBe(3);
   });
 
-  // #165 END-TO-END: the shape that burned a 120s embed timeout per chat — a room whose aged-out block is a
-  // single huge pasted message. The sweep must PLAN it, write its SEGMENT, and digest it in the same pass
-  // (the window clamp that makes the embed itself survivable lives in the vLLM surface, pinned by its own
-  // unit spec + a live engine receipt; here the DOMAIN half is pinned: a giant block is planned, not skipped).
-  test("a chat with a huge (over-window-shaped) block plans end to end — segments AND digests are written (#165)", async () => {
+  // #165 END-TO-END, under the owner ruling ("if we are skimping out on messages that's a no go since this
+  // feeds the memory system"): the chat shape that burned a 120s embed timeout — a room whose aged-out block
+  // is one huge pasted dump. The healthy blocks build; the oversized block is SKIPPED WHOLE and the sweep
+  // RESULT names it, so the gap is a stated fact the Jobs row can render, never a silent hole.
+  test("a chat with an over-window block: the rest builds, the huge block is skipped and NAMED in the result (#165)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const room = await seedChat(db, "room_huge");
     await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
     await seedTurns(db, room, aria, 3);
-    // seq 4: the 200k-char message class the live corpus's worst block was made of.
+    // seq 4: the 200k-char message class the live corpus's worst block was made of (a code-dump chat).
     await seedMessage(db, room, 4, { characterId: aria, content: "she watched the harbour lights blur into the rain. ".repeat(4000) });
 
     const sum = fakeSummarize();
@@ -329,11 +330,14 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
 
     expect(counts.failed).toBe(0);
-    expect(counts.segments.changed).toBe(2); // 4 turns / blockSize 2
+    // Block 0 (turns 1-2) builds; block 1 (turn 3 + the dump) is over the window.
+    expect(counts.segments.changed).toBe(1);
+    expect(counts.segmentsSkippedOverWindow).toBe(1);
+    expect(store.segments.map((s) => s.blockIdx)).toEqual([0]);
+    // NOTHING truncated — no stored segment carries any part of the oversized block.
+    expect(store.segments.every((s) => !s.text.includes("harbour lights"))).toBe(true);
+    // The chat still builds everything it CAN: its digest buckets are unaffected by the segment skip.
     expect(counts.digests.changed).toBeGreaterThan(0);
-    // The huge block's segment carries its verbatim span (the recall pointer back to canon).
-    expect(store.segments.map((s) => s.blockIdx).sort((a, b) => a - b)).toEqual([0, 1]);
-    expect(store.segments.at(-1)?.text.length).toBeGreaterThan(100_000);
   });
 
   // #165: the live 895-chat run logged `chat FAILED during plan and was skipped (unexpected error)` and the

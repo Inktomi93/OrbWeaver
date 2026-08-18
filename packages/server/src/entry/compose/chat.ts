@@ -967,6 +967,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     summarize: input.roleClients.summarize,
     // A thunk over the live getter — never the value: reading it here would bake the boot resolution.
     summarizerContextTokens: () => input.roleClients.summarizerContextTokens,
+    // The embed engine's launch window (`--max-model-len`) — the SAME single home the vLLM embed surface's
+    // belt clamp reads, so the segment build's skip boundary and the wire's last-resort cut can't disagree.
+    embedContextTokens: () => env.VLLM_EMBED_MAX_MODEL_LEN,
     memorySummarizer: input.settings.getEffectiveConfig().memorySummarizer,
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).

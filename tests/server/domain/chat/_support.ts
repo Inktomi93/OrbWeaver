@@ -433,6 +433,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     applyStatsDelta: () => undefined,
     summarize: notStubbed,
     summarizerContextTokens: () => 32_000,
+    // The embed window the segment build measures each verbatim block against (#165). The production floor
+    // (env.VLLM_EMBED_MAX_MODEL_LEN) so a test block only trips the skip when it is genuinely huge.
+    embedContextTokens: () => 8192,
     memorySummarizer: {},
     // The emit-op CONTRACT (PD-24): the op OWNS the commit of the producer's co-statements (the verb hands
     // them UNEXECUTED). The default fake honors that half (executes them; drops the event) so a membership

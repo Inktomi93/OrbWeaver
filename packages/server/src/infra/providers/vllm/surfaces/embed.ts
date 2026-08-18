@@ -24,6 +24,14 @@ const DIMENSIONS_REJECTED_RE = /dimensions/i;
 // So: clamp here, and ask the engine for NOTHING. The clamp keeps the request inside the window (no 400 in
 // practice), and if the estimate ever undershoots the engine's real tokenizer the request fails FAST and
 // LOUD instead of pinning a worker for two minutes — the failure mode we can afford.
+//
+// THE CLAMP IS A BELT, NOT A POLICY (owner ruling, #165): truncating MEMORY-FEEDING content is a no-go —
+// "if we are skimping out on messages that's a no go since this feeds the memory system". The memory
+// segment build therefore never reaches this clamp: it measures each verbatim block against the same window
+// (`blockFitsEmbedWindow`) and SKIPS an oversized block whole, recorded. What survives here is the last
+// resort for every OTHER caller (already-chunked databank text, the window-capped card projection, queries),
+// where a head-clamped vector beats a hung worker. A clamp on a memory input would be a bug upstream, which
+// is why the clamp LOGS every time it fires.
 
 /** Tokens held back for the ChatML scaffold `toEmbedPrompt` wraps every input in (system instruction + the
  *  four role markers ≈ 30 estimated tokens) plus slack for tokenizer disagreement on the clamp boundary. */

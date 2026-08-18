@@ -83,7 +83,7 @@ export function fakeContributions(): WorkloadContributions {
       assets: { backfillAvatars: stub({ scanned: 0, linked: 0 }), collectGarbage: stub({ scanned: 0, reclaimed: 0 }), fsck: stub({}) } as never,
     }),
     ...createChatWorkloadContributions({
-      backfillMemory: stub({ segments: { scanned: 0, changed: 0 }, digests: { scanned: 0, changed: 0 }, failed: 0 }),
+      backfillMemory: stub({ segments: { scanned: 0, changed: 0 }, segmentsSkippedOverWindow: 0, digests: { scanned: 0, changed: 0 }, failed: 0 }),
       backfillGroupCharacters: stub({ scanned: 0, changed: 0 }),
       purgeMemoryVectors: stub(undefined),
     }),
