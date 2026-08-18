@@ -5,6 +5,7 @@
 // only ever calls `client.enginePost` (never a sibling surface).
 
 import type { ModelId } from "@orb/kit/ids";
+import { estimateTokens } from "@orb/kit/tokens";
 import { cosineSim } from "@orb/kit/vector-math";
 import { createVllmEmbed } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
@@ -18,8 +19,11 @@ const TIMEOUT_ABORT_RE = /aborted/i;
 
 interface PostCall {
   readonly path: string;
-  readonly body: { input: string[]; dimensions?: number };
+  readonly body: { input: string[]; dimensions?: number } & Record<string, unknown>;
 }
+
+// The engine window used by the clamp specs — small so a spec input can exceed it without a megabyte fixture.
+const TEST_WINDOW_TOKENS = 200;
 
 // A recording fake: returns a fixed 4-dim raw vector per input; optionally rejects the FIRST `dimensions`
 // request (to exercise the MRL fallback). `engineStream` is unused by embed (asserts surface isolation).
@@ -69,7 +73,7 @@ function need<T>(value: T | undefined): T {
 describe("createVllmEmbed", () => {
   test("filters empty/whitespace to null, preserves order, carries the request model", async () => {
     const { client } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000, maxInputTokens: TEST_WINDOW_TOKENS });
     const res = await embed({ credential: CRED, model: MODEL, input: ["hi", "", "  ", "yo"] });
 
     expect(res.vectors).toHaveLength(4);
@@ -82,7 +86,7 @@ describe("createVllmEmbed", () => {
 
   test("L2-normalizes each vector (cosine with itself ≈ 1)", async () => {
     const { client } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000, maxInputTokens: TEST_WINDOW_TOKENS });
     const res = await embed({ credential: CRED, model: MODEL, input: "solo" });
 
     const vec = nonNull(res.vectors[0] ?? null);
@@ -92,7 +96,7 @@ describe("createVllmEmbed", () => {
 
   test("honors MRL `dimensions`: truncates to the leading coords + re-normalizes, and sends the dim", async () => {
     const { client, calls } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000, maxInputTokens: TEST_WINDOW_TOKENS });
     const res = await embed({ credential: CRED, model: MODEL, input: "x", dimensions: 2 });
 
     const vec = nonNull(res.vectors[0] ?? null);
@@ -103,7 +107,7 @@ describe("createVllmEmbed", () => {
 
   test("falls back to a full-dim request (then client-side truncation) when the engine rejects `dimensions`", async () => {
     const { client, calls } = fakeClient({ failDimOnce: true });
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000, maxInputTokens: TEST_WINDOW_TOKENS });
     const res = await embed({ credential: CRED, model: MODEL, input: "x", dimensions: 2 });
 
     // First call carried `dimensions` (rejected); the retry dropped it; result still produced.
@@ -115,7 +119,7 @@ describe("createVllmEmbed", () => {
 
   test("chunks the batch and aggregates usage across chunks", async () => {
     const { client, calls } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 2, concurrency: 4, requestTimeoutMs: 120_000 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 2, concurrency: 4, requestTimeoutMs: 120_000, maxInputTokens: TEST_WINDOW_TOKENS });
     const res = await embed({
       credential: CRED,
       model: MODEL,
@@ -132,7 +136,7 @@ describe("createVllmEmbed", () => {
 
   test("wraps each input in the cookbook ChatML prompt before sending", async () => {
     const { client, calls } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000, maxInputTokens: TEST_WINDOW_TOKENS });
     await embed({ credential: CRED, model: MODEL, input: "hello", inputType: "query" });
 
     const sent = need(need(calls[0]).body.input[0]);
@@ -144,12 +148,67 @@ describe("createVllmEmbed", () => {
 
   test("an all-empty batch returns all-null vectors without calling the engine", async () => {
     const { client, calls } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000, maxInputTokens: TEST_WINDOW_TOKENS });
     const res = await embed({ credential: CRED, model: MODEL, input: ["", "  "] });
 
     expect(calls).toHaveLength(0);
     expect(res.vectors).toEqual([null, null]);
     expect(res.usage).toEqual({ promptTokens: null, totalTokens: null });
+  });
+
+  // #165, PROVEN LIVE against the box's embed engine (Qwen3-VL-Embedding-2B, max_model_len 8192): an input
+  // over the window sent WITH `truncate_prompt_tokens: -1` HANGS (>30s probe, 120s in production — the memory
+  // backfill's ~2min-per-chat plan failure), while the SAME input sent WITHOUT that field is refused in 21ms
+  // with an honest 400. The knob that existed to avoid the 400 bought an unbounded hang instead, so the
+  // window guard moves CLIENT-side and the request no longer asks the engine to truncate.
+  test("clamps an over-window input to the engine window before dispatch (#165)", async () => {
+    const { client, calls } = fakeClient();
+    const embed = createVllmEmbed({
+      client,
+      embedDim: 4,
+      chunkSize: 128,
+      concurrency: 4,
+      requestTimeoutMs: 120_000,
+      maxInputTokens: TEST_WINDOW_TOKENS,
+    });
+    const huge = "the quick brown fox jumps over the lazy dog. ".repeat(400); // ≈4.4k tokens
+    await embed({ credential: CRED, model: MODEL, input: huge });
+
+    const sent = need(need(calls[0]).body.input[0]);
+    expect(estimateTokens(sent)).toBeLessThanOrEqual(TEST_WINDOW_TOKENS);
+    // Clamped, not dropped: the head of the text still rides (and the ChatML scaffold survives the cut).
+    expect(sent).toContain("<|im_start|>system");
+    expect(sent).toContain("the quick brown fox");
+  });
+
+  test("leaves an in-window input byte-identical (the clamp is not a rewrite)", async () => {
+    const { client, calls } = fakeClient();
+    const embed = createVllmEmbed({
+      client,
+      embedDim: 4,
+      chunkSize: 128,
+      concurrency: 4,
+      requestTimeoutMs: 120_000,
+      maxInputTokens: TEST_WINDOW_TOKENS,
+    });
+    await embed({ credential: CRED, model: MODEL, input: "a short line" });
+
+    expect(need(need(calls[0]).body.input[0])).toContain("a short line<|im_end|>");
+  });
+
+  test("never asks the engine to truncate — an over-window request must fail FAST, never hang (#165)", async () => {
+    const { client, calls } = fakeClient();
+    const embed = createVllmEmbed({
+      client,
+      embedDim: 4,
+      chunkSize: 128,
+      concurrency: 4,
+      requestTimeoutMs: 120_000,
+      maxInputTokens: TEST_WINDOW_TOKENS,
+    });
+    await embed({ credential: CRED, model: MODEL, input: "hello" });
+
+    expect(need(calls[0]).body).not.toHaveProperty("truncate_prompt_tokens");
   });
 
   // A warming/wedged engine accepts the socket but never answers. Pre-fix the surface passed the caller's
@@ -171,6 +230,7 @@ describe("createVllmEmbed", () => {
       chunkSize: 128,
       concurrency: 4,
       requestTimeoutMs: 50,
+      maxInputTokens: TEST_WINDOW_TOKENS,
     });
     await expect(embed({ credential: CRED, model: MODEL, input: "hello" })).rejects.toThrow(TIMEOUT_ABORT_RE);
   });

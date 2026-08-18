@@ -16,10 +16,11 @@ const T0 = 1_700_000_000_000;
 const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () => T0 };
 const bulkCtx: WorkloadRunContext = { ...ctx, ownerId: null };
 const sig = (): AbortSignal => new AbortController().signal;
+const FAILED_CHATS_RE = /7 chat/;
 
-function build(): { readonly deps: ChatWorkloadDeps; readonly contributions: ReturnType<typeof createChatWorkloadContributions> } {
+function build(failed = 0): { readonly deps: ChatWorkloadDeps; readonly contributions: ReturnType<typeof createChatWorkloadContributions> } {
   const deps: ChatWorkloadDeps = {
-    backfillMemory: vi.fn(async () => ({ segments: { scanned: 4, changed: 2 }, digests: { scanned: 6, changed: 3 }, failed: 0 })),
+    backfillMemory: vi.fn(async () => ({ segments: { scanned: 4, changed: 2 }, digests: { scanned: 6, changed: 3 }, failed })),
     backfillGroupCharacters: vi.fn(async () => ({ scanned: 5, changed: 1 })),
     purgeMemoryVectors: vi.fn(async () => undefined),
   };
@@ -44,6 +45,24 @@ describe("memory-backfill", () => {
   test("a SINGULAR per-owner run does NOT purge (a model change is box-level)", async () => {
     const { deps, contributions } = build();
     await contributions[0].run(ctx, {}, vi.fn(), sig());
+    expect(deps.purgeMemoryVectors).not.toHaveBeenCalled();
+  });
+
+  // #165/#156 (the vacuous-success family): the 895-chat run that skipped every chat on an embed timeout
+  // still landed `succeeded` because the sweep RETURNS its failure tally instead of failing on it. A skip is
+  // a chat whose memory silently did not build — the row must read FAILED, and the progress copy already
+  // names the count, so the throw carries it too.
+  test("a sweep with per-chat failures FAILS the workload (a skipped-with-error run must never read as success)", async () => {
+    const { contributions } = build(7);
+    const report = vi.fn();
+    await expect(contributions[0].run(ctx, {}, report, sig())).rejects.toThrow(FAILED_CHATS_RE);
+    // The progress line still landed first, so the Jobs row keeps the full counts next to the failure.
+    expect(report).toHaveBeenCalledWith({ message: expect.stringContaining("7 chats FAILED") });
+  });
+
+  test("a BULK sweep with failures does NOT purge the old embed space (the corpus was not fully re-derived)", async () => {
+    const { deps, contributions } = build(7);
+    await expect(contributions[0].run(bulkCtx, {}, vi.fn(), sig())).rejects.toThrow();
     expect(deps.purgeMemoryVectors).not.toHaveBeenCalled();
   });
 
