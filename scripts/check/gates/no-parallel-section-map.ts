@@ -132,7 +132,9 @@ function readVocabs(project: Project): readonly Vocab[] {
 /** The sanctioned homes for a vocab-keyed map: the vocabulary tuple + door (shell-store/main.tsx, shared
  *  by both vocabs) and the vocab's own co-located definition files. */
 function isAllowlisted(repoRelPath: string, vocab: Vocab): boolean {
-  return repoRelPath.endsWith("/state/shell-store.ts") || repoRelPath.endsWith("/state/section-ids.ts") || isDoorFile(repoRelPath) || vocab.isDefFile(repoRelPath);
+  return (
+    repoRelPath.endsWith("/state/shell-store.ts") || repoRelPath.endsWith("/state/section-ids.ts") || isDoorFile(repoRelPath) || vocab.isDefFile(repoRelPath)
+  );
 }
 
 /** A parallel vocab map = an object literal whose NAMED keys are ALL vocab ids, ≥2 of them. Requiring

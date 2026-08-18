@@ -3,8 +3,8 @@
 // router's notFound), deliberately unlike the stored-section heal whose miss arm is the born default.
 
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
 import { isSectionId, RETIRED_SECTION_HEAL, resolveSectionPath, SECTION_IDS } from "../../../packages/client/src/state/section-ids.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("resolveSectionPath", () => {
   test("resolves every live section id to itself — the path spelling IS the section id", () => {

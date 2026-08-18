@@ -16,5 +16,6 @@ export type {
   ResolvedMemoryConfig,
   SegmentChunk,
   SegmentPassCounts,
+  SummarizerBudget,
   WitnessInterval,
 } from "../contract/memory.ts";

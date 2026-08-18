@@ -11,7 +11,7 @@ import {
   SUMMARIZER_CONTEXT_FLOOR,
 } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/token-guard.ts";
 import { renderTranscript } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript.ts";
-import type { MsgRow } from "../../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import type { MsgRow, SummarizerBudget } from "../../../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const aria = castId<CharacterId>("character_aria");
@@ -19,6 +19,12 @@ const names: RowMacroNameContext = {
   characterNamesById: new Map([[aria, { name: "Aria" }]]),
   personaNamesById: new Map<PersonaId, RowPersonaName>(),
 };
+
+/** The token-guard budget under test — the output reserve is the production default at every call site, so
+ *  only the context + system-prompt halves vary per case. */
+function budget(contextTokens: number, systemPromptTokens: number): SummarizerBudget {
+  return { contextTokens, systemPromptTokens, outputReserveTokens: DEFAULT_OUTPUT_RESERVE_TOKENS };
+}
 
 function row(seq: number, content: string): MsgRow {
   return {
@@ -35,24 +41,24 @@ function row(seq: number, content: string): MsgRow {
 describe("memory/build/substrate/token-guard", () => {
   test("a block that fits the budget is returned unchanged", () => {
     const rows = [row(1, "hello"), row(2, "there")];
-    expect(fitBlockToBudget(rows, names, 32_000, 100, DEFAULT_OUTPUT_RESERVE_TOKENS)).toEqual(rows);
+    expect(fitBlockToBudget(rows, names, budget(32_000, 100))).toEqual(rows);
   });
 
   test("trim-to-fit drops the OLDEST messages until the transcript fits (never truncates the tail)", () => {
     const rows = [row(1, "a".repeat(4000)), row(2, "short")];
     // A budget that fits "Aria: short" but not the giant oldest message ⇒ the oldest is dropped.
-    const fitted = fitBlockToBudget(rows, names, 1100, 0, DEFAULT_OUTPUT_RESERVE_TOKENS);
+    const fitted = fitBlockToBudget(rows, names, budget(1100, 0));
     expect(fitted).not.toBeNull();
     expect(fitted?.map((r) => r.seq)).toEqual([2]);
   });
 
   test("skip-and-flag: when even the newest single message overflows, returns null (no silent truncation)", () => {
     const rows = [row(1, "a".repeat(4000)), row(2, "b".repeat(4000))];
-    expect(fitBlockToBudget(rows, names, 64, 0, DEFAULT_OUTPUT_RESERVE_TOKENS)).toBeNull();
+    expect(fitBlockToBudget(rows, names, budget(64, 0))).toBeNull();
   });
 
   test("a non-positive budget (system prompt + reserve exceed the context) returns null", () => {
-    expect(fitBlockToBudget([row(1, "x")], names, 100, 5000, DEFAULT_OUTPUT_RESERVE_TOKENS)).toBeNull();
+    expect(fitBlockToBudget([row(1, "x")], names, budget(100, 5000))).toBeNull();
   });
 
   test("the §10 context floor is a positive constant the build's soft-warning compares against", () => {
