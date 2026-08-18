@@ -123,6 +123,82 @@ export function WalkerAccentBorderStory(): ReactElement {
   );
 }
 
+/** The SCREEN-READER-ONLY stage: the app-wide `sr-only` posture the shell skip link wears, measured off the
+ *  live surface (snap --eval, 2026-08-18) — `position:absolute; overflow:hidden; clip-path:inset(50%);
+ *  white-space:nowrap`, where the 1px width loses to the control's own padding, so the box is 26x32 with
+ *  clientWidth 24 and a nowrap scrollWidth of 70. That reads as a 46px text spill and a 26px tap target, and
+ *  both minted P1 on EVERY surface (the shell renders the skip link everywhere), which is what made
+ *  `--fail-on P1` unusable. Three arms carry the discriminator:
+ *   - the two canonical hidden spellings, modern `clip-path` and legacy `clip`, which must go quiet;
+ *   - the REVEALED arm (`focus-visible:not-sr-only` — clip-path:none, overflow:visible), which is an
+ *     ordinary button and must still be judged;
+ *   - visible controls with the same overflow and the same small box, which must still fire — the skip is a
+ *     state test, not an exemption.
+ *  The nameless hidden button is the fourth: a screen-reader-only control lives or dies by its name, so the
+ *  a11y lens must keep seeing what the paint and geometry lenses drop.
+ *
+ *  ONE DELIBERATE DIVERGENCE FROM THE LIVE MEASUREMENT: the stubs carry 6px of horizontal padding, not the
+ *  live control's 12px, so the box is 12x32 rather than 26x32. The live tap-target P1 was minted against the
+ *  COARSE floor (32px) on a mobile-emulated audit; a CT page is a fine pointer, where the floor is 24px and a
+ *  26px box clears it — so the faithful width would make the tap-target arm a fence that cannot fail, which
+ *  is not a proof. The width is the only thing narrowed; the hidden STATE under test is byte-identical. */
+export function WalkerScreenReaderOnlyStory(): ReactElement {
+  const srOnly = {
+    boxSizing: "border-box",
+    height: 32,
+    overflow: "hidden",
+    padding: "0 6px",
+    position: "absolute",
+    whiteSpace: "nowrap",
+    width: 1,
+  } as const;
+  return (
+    <div style={{ padding: 24, position: "relative", width: 400 }}>
+      <button data-testid="sr-skip-modern" style={{ ...srOnly, clipPath: "inset(50%)", top: 0 }} type="button">
+        Skip to content
+      </button>
+      <button data-testid="sr-skip-legacy" style={{ ...srOnly, clip: "rect(0px, 0px, 0px, 0px)", top: 40 }} type="button">
+        Skip to content
+      </button>
+      <button data-testid="sr-nameless" style={{ ...srOnly, clipPath: "inset(50%)", top: 80 }} type="button" />
+      <div data-testid="sr-live-region" style={{ clipPath: "inset(50%)", height: 20, overflow: "hidden", position: "absolute", top: 120, width: 1 }}>
+        <div data-testid="sr-nested-line" style={{ whiteSpace: "nowrap" }}>
+          saved three minutes ago
+        </div>
+      </div>
+      {/* The shell shape: the skip link's box sits UNDER the surface's own painted content, so a pointer at
+          its centre reaches that content, never the link. Without a cover the walker's composite probe
+          credits a lone control with its wrapper's extent (its own declared limit) and the sub-target
+          reading never appears — the stage would be a fence that cannot fail. */}
+      <div style={{ backgroundColor: "rgb(18, 18, 22)", height: 150, insetInlineStart: 0, position: "absolute", top: 0, width: 400, zIndex: 1 }}>
+        <button data-testid="visible-subtarget" style={{ height: 20, marginTop: 60, width: 20 }} type="button">
+          x
+        </button>
+      </div>
+      <button
+        data-testid="revealed-skip"
+        style={{
+          boxSizing: "border-box",
+          clipPath: "none",
+          height: 32,
+          overflow: "visible",
+          padding: "0 12px",
+          position: "absolute",
+          top: 160,
+          whiteSpace: "nowrap",
+          width: 60,
+        }}
+        type="button"
+      >
+        Skip to content
+      </button>
+      <div data-testid="visible-overflow" style={{ marginTop: 200, overflow: "hidden", whiteSpace: "nowrap", width: 60 }}>
+        the reply that never came
+      </div>
+    </div>
+  );
+}
+
 /** The control stage: two GENUINE neighbours — separate small buttons sharing a row. The widened
  *  ownership rule must NOT credit either one with the other's space; both stay sub-target. */
 export function WalkerNeighbourButtonsStory(): ReactElement {

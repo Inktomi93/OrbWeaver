@@ -579,7 +579,9 @@ export type TextStyleInput = {
   readonly interactive: boolean;
   /** Inside pre/code/kbd/samp/var/svg/aria-hidden — exempt from type floors. */
   readonly codeContext: boolean;
-  /** ≤2px box — screen-reader-only text; exempt from everything here. */
+  /** Screen-reader-only text — exempt from everything here (it paints no pixels to judge). Either
+   *  shape: a clipped visually-hidden state (`clip-path: inset(50%)` / `clip: rect(0,0,0,0)` over a
+   *  clipping overflow — the `sr-only` posture, which keeps a FULL-SIZE box), or a ≤2px plumbing box. */
   readonly srOnly: boolean;
 };
 
