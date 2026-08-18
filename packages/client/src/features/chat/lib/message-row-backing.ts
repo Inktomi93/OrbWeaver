@@ -60,4 +60,9 @@ export const BG_PHOTO_CHROME_SCRIM =
 // the chip is visually taller than the text, occupies the same vertical extent, and the measured row
 // height does not move. There is deliberately NO horizontal padding: the name row already spans the
 // content column, and an `-mx-*` would push the chip past the 75ch reading measure (globals.css).
-export const STICKY_ATTRIBUTION_CHROME = "-my-row sticky top-0 z-raised rounded-card bg-scrim py-row backdrop-blur-sm";
+// `z-(--z-raised)`, NOT `z-raised` (side-eye #102, 2026-08-17). `--z-raised` is a plain custom property in
+// `theme.css`, not a `--z-index-*` theme namespace entry, so Tailwind generates NO `z-raised` utility for it
+// — the class shipped here for #113 was inert, the sticky chip had `z-index: auto`, and `snap` reported it as
+// DEAD CSS on every drive. The arbitrary-property spelling is the one every other consumer uses (the tabs
+// primitive's `z-(--z-raised)`), and it is what actually raises the chip above the prose scrolling under it.
+export const STICKY_ATTRIBUTION_CHROME = "-my-row sticky top-0 z-(--z-raised) rounded-card bg-scrim py-row backdrop-blur-sm";

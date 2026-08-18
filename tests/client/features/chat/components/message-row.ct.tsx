@@ -1063,6 +1063,17 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     );
     await expect(stuck.locator(NAME_ROW)).toHaveCSS("position", "sticky");
     await expect(stuck.locator(NAME_ROW)).toHaveCSS("top", "0px");
+    // …AND IT IS ACTUALLY RAISED (side-eye #102, 2026-08-17). The chrome shipped `z-raised`, which
+    // generates NO utility — `--z-raised` is a plain custom property, not a `--z-index-*` theme entry —
+    // so the class was inert, `snap` reported it as dead CSS on every drive, and the chip stuck at
+    // `z-index: auto` over the prose it exists to sit above. Asserted as the resolved TOKEN, so this
+    // cannot go green on any spelling that fails to resolve.
+    const raised = await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => ({
+      z: getComputedStyle(el).zIndex,
+      token: getComputedStyle(document.documentElement).getPropertyValue("--z-raised").trim(),
+    }));
+    expect(raised.token).not.toBe("");
+    expect(raised.z).toBe(raised.token);
     // The chip is unconditional here (not wallpaper-gated) — it backs the row's own prose scrolling under it.
     await expect.poll(async () => await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
     // LAYOUT-NEUTRAL: `py-row` is cancelled by `-my-row`, so the virtualizer's measured extent cannot move

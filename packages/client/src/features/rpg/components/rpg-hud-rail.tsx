@@ -16,7 +16,7 @@ import { Separator } from "@orb/ui/separator";
 import { TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { HIDE_AT_COARSE, RPG_RAIL_WRAP } from "#components";
+import { HIDE_AT_COARSE, RPG_RAIL_WRAP, RPG_RAIL_WRAPPED_EDGE_BAR_OFF } from "#components";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
 import { cellDomId } from "../lib/hud-cell-id.ts";
 
@@ -42,6 +42,18 @@ const CELL_ARIA_STRIP = { role: undefined, "aria-selected": undefined } as const
  *      holds the view — so a rail without the selection claims no state at all.
  *    · the VIEWPORT panel is `role="region"` named by its cell: a `tabpanel` with no tab in the document is
  *      a dangling promise, and a named region is what it actually is.
+ *  ACTIVATION IS MANUAL ON BOTH RAILS (side-eye #102, 2026-08-17) — arrows move FOCUS, Enter/Space selects.
+ *  `@orb/ui`'s `TabsList` seals `activateOnFocus={true}` (automatic activation, the ARIA tabs pattern's
+ *  default for a CHEAP panel swap) and this is the one consumer that must not take it, so the rail passes
+ *  the Base UI prop through. The panels behind these ten cells are not cheap: each is a query-backed rpg
+ *  surface, and MEASURED, a keyboard user crossing the game rail with two ArrowRights committed two
+ *  selections and mounted six query-backed panels on the way to the one they wanted (208ms on the slow
+ *  keydown). The a11y pattern permits either mode and names exactly this as the reason to choose manual:
+ *  "if the panel's content is not preloaded, use manual activation". It costs one keystroke at the
+ *  destination and buys a rail you can traverse without firing every tab you pass. Base UI activates a
+ *  cell from its `onClick`, and the cell is a native `<button>`, so Enter/Space keep working with no
+ *  key handler of our own — the ONE prop is the whole change.
+ *
  *  Rejected: `aria-owns`-ing one conceptual tablist across both rails — it announces a 10-tab group whose
  *  arrow keys stop dead at the rail boundary (the composites are per-list, with the viewport between them)
  *  and costs both rail NAMES; a worse contract than the one it fixes.
@@ -55,10 +67,14 @@ const CELL_ARIA_STRIP = { role: undefined, "aria-selected": undefined } as const
 /** The cells' active bar faces INWARD, toward the viewport between the rails: the GAME rail (above) marks
  *  its bottom edge, the ADMIN rail (below) its top. A marker on the outside edge dangles against the panel
  *  frame instead of binding the rail to the content it selects. (The rail's own TRACK border is gone from
- *  both rails — each kicker's hairline rule is that rail's edge now, one line and not two.) */
+ *  both rails — each kicker's hairline rule is that rail's edge now, one line and not two.)
+ *
+ *  "INWARD" IS A CLAIM ABOUT A ONE-ROW RAIL, so the bar stands down in the state where the claim stops
+ *  holding: `RPG_RAIL_WRAPPED_EDGE_BAR_OFF` (its own note carries the 272px measurement and the mechanism).
+ *  In the wrapped arm a first-row cell's bottom edge is the seam above row TWO, not the viewport. */
 const CELL_EDGE_CLASSES: Readonly<Record<"top" | "bottom", string>> = {
-  top: "border-b-2 border-transparent data-active:border-primary",
-  bottom: "border-t-2 border-transparent data-active:border-primary",
+  top: `border-b-2 border-transparent data-active:border-primary ${RPG_RAIL_WRAPPED_EDGE_BAR_OFF}`,
+  bottom: `border-t-2 border-transparent data-active:border-primary ${RPG_RAIL_WRAPPED_EDGE_BAR_OFF}`,
 };
 
 /** THE OWNERSHIP TREATMENT (§4's last two rows — half of the F6 defect-1 fix). The rail holding the
@@ -130,9 +146,17 @@ const RAIL_WRAP_MIN_CELLS = 5;
 /** THE RAIL BLOCK'S OWN LEAD — the separation it buys ABOVE its kicker (#102 variant A's measured anatomy).
  *  Only the GAME rail needs it: it follows the band, whose satellite row ends `spacing-row` (8px) above,
  *  and 8px alone is the proximity the deleted echo lost on — the kicker has to sit FURTHER from the
- *  medallions than from its own cells. `spacing-tight` on top of the band's own padding puts the label
- *  ~12px under the orbs and 4px over the tabs: 3:1 the right way. The ADMIN rail follows the GROUND, which
- *  is empty space by construction, so it buys nothing. */
+ *  medallions than from its own cells. `spacing-tight` on top of the band's own padding and the HUD
+ *  column's own `gap-block` seam puts the label 24px under the orbs and 4px over the tabs: 6:1 the right
+ *  way. The ADMIN rail follows the GROUND, which is empty space by construction, so it buys nothing.
+ *
+ *  TRUTH-REPAIR (side-eye #102, 2026-08-17): this note read "~12px under the orbs … 3:1" until today. That
+ *  12 was the MOCKUP'S PROJECTION and was never the shipped number — the rendered pass measured 24.0px
+ *  above and 4.0px below, i.e. 6:1, and the CT that pins it has asserted `above >= below * 3` (a floor, not
+ *  the value) since the kicker landed. The extra 12 is the HUD column's seam, which `rpg-hud.tsx` only
+ *  started DECLARING today; the lead this constant buys is still the 4px `tight` step on top of it. The
+ *  shipped-and-verified geometry is 24/4 — the projection is kept here so the next reader does not
+ *  "restore" a number the pane never rendered. */
 const RAIL_LEAD_CLASSES: Readonly<Record<"top" | "bottom", string>> = { top: "pt-tight", bottom: "" };
 
 /** One rail: its OWN labelled a11y group + roving-focus row, cells as equal columns so the rail reads as a
@@ -170,9 +194,14 @@ export function RpgHudRail({
   const ownership = owns ? "owning" : "receded";
   return (
     <Stack data-slot="rpg-hud-rail" data-owns={owns} gap="tight" className={`min-w-0 shrink-0 ${RAIL_LEAD_CLASSES[edge]}`}>
-      {/* The kicker is INSET to the band's inline rhythm while the rail itself stays full-bleed — the rail
-          is the pane's floor and reaches its edges (§5.2), a word floating against them does not. */}
-      <Row gap="field" align="center" aria-hidden={true} data-slot="rpg-hud-rail-kicker" className="px-block">
+      {/* The kicker's WORD is INSET to the band's inline rhythm; its RULE is not. The rail is the pane's
+          floor and reaches its edges (§5.2), a word floating against them does not — but the header's own
+          claim is that this hairline IS the rail's edge, and `px-block` inset the `Separator` too, so the
+          "edge" stopped 12px short of the cells below it (side-eye #102, MEASURED at the 272px floor: the
+          kicker row spans the full 271px while the rule ends a block short of the full-bleed cell row).
+          `ps-block` insets the START only: the word keeps the band's rhythm and the rule runs out to the
+          rail's own end edge, which is the line the header has always described. */}
+      <Row gap="field" align="center" aria-hidden={true} data-slot="rpg-hud-rail-kicker" className="ps-block">
         <Text as="span" voice="kicker" className="min-w-0 truncate">
           {kicker}
           {/* THE SELECTION HALF STANDS DOWN AT A COARSE POINTER (the echo's side-eye 2026-08-07 finding 2,
@@ -181,8 +210,19 @@ export function RpgHudRail({
               is not — that is the part the old echo dropped entirely and this arm keeps. It is a nested
               `Text` and not a raw span (a feature may not paint a raw element — `no-restricted-syntax`),
               carrying the SAME voice so the two halves stay one typographic line; its own `data-slot`
-              replaces the primitive's, which is what keeps the outer line the kicker's only `text` slot. */}
-          {selection === null ? null : <Text as="span" voice="kicker" data-slot="rpg-hud-rail-selection" className={HIDE_AT_COARSE}>{` · ${selection}`}</Text>}
+              replaces the primitive's, which is what keeps the outer line the kicker's only `text` slot.
+
+              IT STANDS ONE AXIS QUIETER THAN THE NAME (side-eye #102, 2026-08-17). Measured, the two halves
+              were byte-identical on all five computed axes — 10.5px / 600 / 0.84px tracking / the same
+              muted ink / the same caps — so "GAME STATE · STATUS" read as one flat string rather than a
+              group NAME followed by what it currently holds. The regular weight is the ONE axis that moves:
+              size, tracking, colour and casing stay the kicker's, so the two halves are still one
+              typographic line and the breadcrumb still reads left to right. `font-normal` and not
+              `weight="regular"` because the `weight` variant is declared BEFORE `voice` and the voice's own
+              `font-semibold` wins that merge — the className is the only spelling that lands. */}
+          {selection === null ? null : (
+            <Text as="span" voice="kicker" data-slot="rpg-hud-rail-selection" className={`font-normal ${HIDE_AT_COARSE}`}>{` · ${selection}`}</Text>
+          )}
         </Text>
         <Separator className="flex-1" />
       </Row>
@@ -192,6 +232,9 @@ export function RpgHudRail({
           // composite's one-tab-stop-plus-arrows behaviour is exactly a toolbar's contract, and it is the
           // only container role here that does not imply a selection this rail may not be holding.
           role="toolbar"
+          // MANUAL ACTIVATION — arrows MOVE, Enter/Space SELECTS (side-eye #102, 2026-08-17). See the
+          // ARIA-model block above `cellDomId` for why this rail overrides the primitive's seal default.
+          activateOnFocus={false}
           aria-label={ariaLabel}
           className={`grid min-w-0 w-full auto-cols-fr grid-flow-col gap-field ${tabs.length >= RAIL_WRAP_MIN_CELLS ? RAIL_WRAP_CLASS : ""} border-y-0 ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
         >
@@ -263,8 +306,17 @@ function RpgHudCell({
       {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}
     >
       {tab.icon !== undefined ? <Icon icon={tab.icon} size="sm" className={crowned ? CROWN_OWNERSHIP_CLASSES[ownership] : ""} /> : null}
-      {/* voice=gloss for the grammar; text-inherit so the cell's own state color (data-active accent) wins. */}
-      <Text as="span" voice="gloss" data-slot="rpg-hud-cell-caption" className="max-w-full truncate text-inherit">
+      {/* voice=LABEL, not `gloss` (side-eye #102, 2026-08-17): this caption is the pane's PRIMARY NAVIGATION,
+          and `gloss` is the 10.5px `micro` step — under the 11px readable floor at BOTH pointers, on all ten
+          cells. It was the largest single block of undersized interactive text left in the panel, and the
+          #102 home leg had already driven sub-11px interactive text 7→0 on the same grounds (the `credit`
+          voice's own note states the rule: caps/tracking carry a register, the STEP carries legibility).
+          `label` is the 13px step and is what the word IS — the name of one datum, the cell it labels. The
+          rail absorbs the wider caption without clipping: below the `xs` container step it already wraps to
+          rows of three, and at or above it `RPG_RAIL_WRAP`'s `minmax(max-content,1fr)` tracks scroll rather
+          than ellipsize, which is the degradation that arm exists for. text-inherit so the cell's own state
+          color (data-active accent) still wins. */}
+      <Text as="span" voice="label" data-slot="rpg-hud-cell-caption" className="max-w-full truncate text-inherit">
         {tab.label}
       </Text>
       {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER, not flush in it (side-eye
