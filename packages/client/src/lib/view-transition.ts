@@ -2,6 +2,11 @@
 // commits — our pane swaps are reducer state changes at a constant `/`, so the router literally
 // cannot drive them (UI-Lib-TanStack-Router.md C#3); this util is the one legal wrapper. Respects
 // `prefers-reduced-motion` once here so no call site re-derives the check.
+// WHAT the transition captures is NOT decided here — it is CSS, and it lives in ONE block in
+// `features/app-shell/surfaces/shell.css` ("THE VIEW TRANSITION IS SCOPED TO THE CONTENT PANE", #176):
+// the document root opts OUT of capture and `.shell-content` is the single named region, so a swap
+// cross-fades content while the shell's chrome keeps its own FLIP/transform motion. Read that block
+// before adding a `view-transition-name` anywhere — a second name is a second captured region.
 // DOM access rides `globalThis` with self-contained structural types (not the `dom` lib): the node
 // typecheck lane (vitest `test:types`) follows imports into this file through the lib barrel, and
 // the root tsconfig deliberately has no `dom` lib — browser reality is unchanged, the types are

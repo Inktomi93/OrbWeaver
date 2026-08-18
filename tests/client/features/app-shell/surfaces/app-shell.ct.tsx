@@ -1236,6 +1236,84 @@ test("#151 the LIST-track FLIP IS still armed on the same swap when motion is al
   await expect(page.locator(".shell-grid")).toHaveAttribute("data-list-flip", "out");
 });
 
+// ── #176 (the FULL-MOTION half of the same sighting): the swap captures the CONTENT PANE, not the page ─
+// `withViewTransition` captured the UA's default `root` name — the whole document — so
+// `::view-transition-old(root)` was a frozen full-viewport image of the OLD page painted over the live
+// one for the transition's whole duration. The shell's chrome does not stay put across this swap (home
+// declares no LIST pane, chats does), so the frozen copy and the live one disagreed by a panel width:
+// MEASURED per-frame on the live stack 2026-08-18 (every running animation paused and seeked, then
+// photographed) at t=100ms of home→chats the frame carried TWO topbars — two ⌘K chips, two bells, the old
+// "Home" title over the new list band. The fix names exactly one region (`.shell-content`) and opts the
+// document root OUT of capture — see shell.css "THE VIEW TRANSITION IS SCOPED TO THE CONTENT PANE".
+//
+// THIS IS A DEFECT PROOF, NOT A FENCE: it reads the browser's OWN compositor state (which
+// `::view-transition-*` pseudo-elements the UA built for this transition) and is red against the old
+// stylesheet, which builds `(root)` and no `(orb-section-content)`. What it deliberately does NOT claim
+// is the PIXEL verdict — a CT cannot photograph a mid-transition frame without racing the compositor, so
+// the two-headers receipt is the live per-frame capture cited above, and this pins the mechanism that
+// produced it. Observed at `transition.ready` (plus one frame later), which is the one instant the API
+// makes deterministic — a rAF sampler would race a 220ms window.
+test("#176 full motion: the section swap captures the CONTENT pane only — the document root is never snapshotted", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "no-preference"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+  await page.addInitScript(() => {
+    // FABRICATION-OK: a browser-context probe slot, written and read in this test alone.
+    const bag = globalThis as unknown as { __vtNames: string[] };
+    bag.__vtNames = [];
+    const original = document.startViewTransition.bind(document);
+    const record = (): void => {
+      for (const animation of document.getAnimations()) {
+        // `pseudoElement` lives on KeyframeEffect, not on the AnimationEffect base — a UA-generated
+        // view-transition animation is a KeyframeEffect whose pseudoElement names its ::view-transition-*.
+        const effect = animation.effect;
+        const pseudo = effect instanceof KeyframeEffect ? effect.pseudoElement : null;
+        if (pseudo !== null && pseudo.startsWith("::view-transition") && !bag.__vtNames.includes(pseudo)) {
+          bag.__vtNames.push(pseudo);
+        }
+      }
+    };
+    document.startViewTransition = (callbackOptions?: StartViewTransitionOptions | ViewTransitionUpdateCallback): ViewTransition => {
+      const transition = original(callbackOptions);
+      transition.ready
+        .then(() => {
+          record();
+          requestAnimationFrame(record);
+        })
+        .catch(() => undefined);
+      return transition;
+    };
+  });
+  await page.reload();
+
+  const shell = await mount(<AppShellStory />);
+  const grid = page.locator(".shell-grid");
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+
+  // The reported repro, both ways: chats→home drops the LIST track, home→chats brings it back. Each leg
+  // is barriered on the SETTLED section attribute, never on a mid-flight state.
+  await shell.getByRole("button", { name: "Home" }).click();
+  await expect(grid).toHaveAttribute("data-section", "home");
+  await shell.getByRole("button", { name: "Chats" }).click();
+  await expect(grid).toHaveAttribute("data-section", "chats");
+  // …and one deeper swap, whose content pane is a different subtree again.
+  await shell.getByRole("button", { name: "Characters" }).click();
+  await expect(grid).toHaveAttribute("data-section", "characters");
+
+  // Read ONCE (never poll a shared array — a poll drains the samples it is judging).
+  // FABRICATION-OK: reads back the probe slot installed above.
+  const names = await page.evaluate(() => (globalThis as unknown as { __vtNames: string[] }).__vtNames);
+  expect(names.length, "the swap must actually run a View Transition under full motion — an empty probe proves nothing").toBeGreaterThan(0);
+  expect(
+    names.filter((name) => name.includes("(root)")),
+    `the document root must not be captured, or its frozen snapshot paints the old chrome over the new — got ${names.join(", ")}`,
+  ).toEqual([]);
+  expect(names, "the content pane must be the captured region — the swap still has to animate").toContain("::view-transition-group(orb-section-content)");
+});
+
 // ── RED-FIRST (#170): a per-chat background paints INSIDE its room and nowhere else ──────────────────
 // Owner, live 2026-08-18: "the chat's background is sticky and following me" — with no global background
 // set, the last-visited room's wallpaper dressed every other section, and survived a reload. The cause is

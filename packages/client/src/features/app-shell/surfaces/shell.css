@@ -766,11 +766,55 @@
   flex: none;
 }
 
+/* ── THE VIEW TRANSITION IS SCOPED TO THE CONTENT PANE (#176 · guide §2 "page/route/section" · §3.7) ──
+ * `withViewTransition` (packages/client/src/lib/view-transition.ts) is the one wrapper every section /
+ * chat / character swap runs through, and it captured the UA's DEFAULT `root` name — the WHOLE document.
+ * The shell's persistent chrome does NOT stay put across a swap: home declares no LIST pane and chats
+ * does, so `.shell-main` (topbar included) starts a panel-width further in. MEASURED on the live stack
+ * 2026-08-18 (every running animation paused and seeked to a fixed `currentTime`, then photographed):
+ * with the root captured, `::view-transition-old(root)` is a frozen 1440x900 image of the OLD document
+ * painted over the live one, so at t=100ms of a home→chats swap the frame carried TWO topbars — two ⌘K
+ * chips, two notification bells, the old "Home" title over the new list band, the old hero over the new
+ * roster — and again, mirrored, on the way back.
+ *
+ * THE ROOT IS NOT THE THING THAT CHANGES. Every persistent region already owns hand-measured,
+ * compositor-only motion of its own: the content column's push is a FLIP (see "THE PANEL PUSH IS A FLIP"
+ * above), the panels slide on `transform`, the scrim fades — all on `--shell-motion`/`--shell-ease`. A
+ * root snapshot cannot join that motion; it paints a still frame OVER it. So the document root opts out
+ * of capture entirely and exactly ONE region is named: the content pane, which is the surface a swap
+ * actually replaces. Chrome keeps its own motion, content cross-fades, and nothing is painted twice.
+ * (The alternative — naming rail/topbar/panels instead — was rejected on the same evidence: it hands
+ * those regions' geometry to the UA's group morph, which would then run BESIDE the FLIP and the panel
+ * slide that already own it, and it still leaves the old CONTENT painted at the old column's x.)
+ *
+ * ONE NAME, ONE ELEMENT: `.shell-content` is a single element per snapshot (a duplicate name aborts the
+ * whole transition — `withViewTransition` swallows the resulting AbortError and the update still lands,
+ * so the failure mode is a hard cut, never a broken swap).
+ *
+ * CO-MOTION, VIA THE SAME TWO TOKENS. The `::view-transition-*` pseudos are children of the DOCUMENT
+ * root, so they never inherit `.shell-grid`'s `--shell-motion`/`--shell-ease` — they are given the same
+ * `--motion-base`/`--ease-out-expo` those two alias, which is what keeps the content group's morph from
+ * shearing against the FLIP moving the chrome around it.
+ *
+ * REDUCED MOTION needs nothing here: `withViewTransition` starts no transition at all under
+ * `motionIsReduced()` (guide §3.9 — REMOVE, not shorten). */
+:root {
+  view-transition-name: none;
+}
+
 .shell-content {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
   display: flex;
+  view-transition-name: orb-section-content;
+}
+
+::view-transition-group(orb-section-content),
+::view-transition-old(orb-section-content),
+::view-transition-new(orb-section-content) {
+  animation-duration: var(--motion-base);
+  animation-timing-function: var(--ease-out-expo);
 }
 .shell-region-fill {
   flex: 1 1 auto;
