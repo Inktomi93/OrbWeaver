@@ -255,6 +255,19 @@ test("every tile is a REGION named by its own real h2 — home is navigable by h
   await expect(page.getByRole("region", { name: "Third tile" })).toHaveAttribute("data-home-tile", "z-third");
 });
 
+// ── #188 N-3 — the band's hairline is DRAWING, not structure ─────────────────────────────────────────
+// `Separator` seals Base UI's real `role="separator"`, so every kicker band donated an UNNAMED separator
+// stop to the a11y tree: an AT walk of the live landing hit 10 of them, seven from these bands, each
+// announcing nothing a user can act on between blocks that already name themselves with an h2. The rule
+// paints identically either way; only the stop goes.
+test("#188 a tile band's rule is DECORATIVE — no unnamed separator stops between home's blocks", async ({ mount, page }) => {
+  const home = await mount(<HomeTileOrderStory />);
+
+  // The rule still PAINTS (the band is a kicker + a hairline, chrome diet CD1) — this is not a delete.
+  await expect(home.locator('[data-slot="separator"]')).toHaveCount(3);
+  await expect(page.getByRole("separator")).toHaveCount(0);
+});
+
 // ── RENDERED fidelity against the mock (docs/design/mocks/home-section/home.html) ───────────────────
 
 test("a DORMANT doorway wears a DASHED RULE — not-built-yet, at a fraction of a dashed card's weight", async ({ mount }) => {

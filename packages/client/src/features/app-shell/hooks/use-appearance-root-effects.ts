@@ -16,6 +16,7 @@
 
 import type { BlurSurface, SurfaceTexture } from "@orb/contracts/settings";
 import { useLayoutEffect } from "react";
+import { REDUCED_MOTION_ATTR } from "#state";
 
 const BLUR_SURFACE_ATTR: Record<BlurSurface, string> = {
   panels: "data-blur-panels",
@@ -90,7 +91,15 @@ export function useAppearanceRootEffects(params: {
     // Written as the literal "true"/"false" the CSS floor selects on (`[data-reduced-motion="true"]`) rather
     // than as presence: the OFF arm must still be a value, because the shell rendered it as one and a bare
     // presence attribute would match `[data-reduced-motion]` selectors that mean something else.
-    root.setAttribute("data-reduced-motion", String(reducedMotion));
+    //
+    // THIS IS THE SECOND WRITER, NOT THE FIRST (#188 N-1): `main.tsx` replays this device's remembered
+    // answer onto <html> before React mounts, because the shell cannot stamp until it has mounted and
+    // cannot be right until `getUserSettings` resolves — and the boot veil animates a beat before either.
+    // The handoff is safe in ONE direction only, which is why `useAppearance` seeds the SAME hint into its
+    // pending arm: an unresolved read that fell back to the schema default would land here as `false` and
+    // un-stamp the replay. The attribute name is imported rather than re-spelled so the two writers cannot
+    // drift.
+    root.setAttribute(REDUCED_MOTION_ATTR, String(reducedMotion));
     return (): void => {
       root.style.removeProperty("--font-scale");
       root.style.removeProperty("--blur-strength");
@@ -107,7 +116,7 @@ export function useAppearanceRootEffects(params: {
       root.removeAttribute("data-justify-body-text");
       root.removeAttribute("data-theme-colorization");
       root.removeAttribute("data-texture");
-      root.removeAttribute("data-reduced-motion");
+      root.removeAttribute(REDUCED_MOTION_ATTR);
     };
   }, [fontScale, dataTheme, blurSurfaces, shadowEffects, blurStrength, reading, themeColorization, surfaceTexture, reducedMotion]);
 }

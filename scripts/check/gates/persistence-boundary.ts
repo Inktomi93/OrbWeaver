@@ -56,6 +56,13 @@ const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
     "content will occupy on the next boot (F14 boot-CLS: the tiles grew out of a fixed 3-row skeleton and " +
     "pushed the grid down +189px). A measurement of THIS device's viewport, never a user preference — " +
     "syncing one device's pixel heights to another would reserve the wrong box (§12.1)",
+  "reduced-motion":
+    "the BOOT HINT for the synced `appearance.reducedMotion` pref (#188 N-1) — a CACHE over the confirmed " +
+    "server row, the `character-card`/`preset-config` precedent, never its home. The pref stays in the " +
+    "user_settings blob and the server value always wins; this exists only because the root " +
+    "`data-reduced-motion` flag cannot be stamped until `getUserSettings` resolves, and the boot veil " +
+    "animates (measured: two over-budget frames) ~1.2s before that. Read synchronously before React mounts, " +
+    "written back only from the authoritative read, and an absent entry stamps NOTHING",
   "config-group-open":
     "which Configuration-roster GROUPS are expanded — a per-device working posture (a wide screen holds two libraries open where a laptop holds one), never a preference a user expects to follow them across devices; the `character-library` browse-prefs precedent (§12.1). Groups start COLLAPSED by owner ruling, so an absent entry is the honest default, not a lost setting",
   "tag-library":

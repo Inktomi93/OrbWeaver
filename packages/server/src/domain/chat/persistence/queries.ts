@@ -277,8 +277,8 @@ function memberHiddenBodyGuard(): SQL | undefined {
  *
  *  TWO DEVIATIONS, both deliberate and both visible to the user as MORE results rather than fewer:
  *  • The message arm matches the newest message's RAW body, while the rendered `lastMessagePreview` is that
- *    body run through `projectBodyForPreview` (hidden-class + structured spans dropped, flattened, ~120
- *    chars). So a hit can land on a room whose visible snippet does not contain the term. HIDDEN-CLASS bytes
+ *    body run through `projectBodyForPreview` (hidden-class + structured spans dropped, flattened, capped
+ *    at `PREVIEW_MAX_CHARS`). So a hit can land on a room whose visible snippet does not contain the term. HIDDEN-CLASS bytes
  *    are the one exception, and they are gated the other way — see {@link memberHiddenBodyGuard}.
  *  • The name arm matches CHARACTER seats only. Human display names live in the identity publics table, and
  *    THE HEADER LAW OF THIS FILE reserves `users` for the verb layer — resolving a human's name here would

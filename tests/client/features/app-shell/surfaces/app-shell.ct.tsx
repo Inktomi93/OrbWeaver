@@ -14,7 +14,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/shell-store.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterSummary } from "../../character/fixtures.ts";
 import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { ShellCascadeFixture } from "../_cascade-fixtures.tsx";
@@ -2157,6 +2157,59 @@ test("#188 the app's reduced-motion pref floors an animation OUTSIDE the shell g
   await expect.poll(async () => (await durations()).outside, { intervals: [20, 50, 100] }).toBeLessThanOrEqual(FLOORED_ANIMATION_S);
 });
 
+// ── #188 N-1 — the pref must be answered at BOOT, not ~1.2s into it ──────────────────────────────────
+// `data-reduced-motion` can only be right once `settings.getUserSettings` resolves, and the boot veil
+// weaves + drops frames a beat before that — so the app's own reduced-motion setting loses the boot race
+// on every visit. The fix persists the last authoritative answer per device and replays it before React
+// mounts (`main.tsx` → `stampReducedMotionHint`), which only holds if the shell's own stamp does not
+// CLOBBER it back to the schema default while the read is still in flight. That clobber is what these
+// pin, at the seam a CT can actually see: the settings read is HELD open (`trpcHold`), so "unresolved"
+// is an indefinitely stable rendered state, never a flash.
+const REDUCED_MOTION_ATTR = "data-reduced-motion";
+/** The device-local boot hint's blob (`createPersistedStore("reduced-motion")`, legacy/unbound key). */
+const REDUCED_MOTION_HINT_BLOB = JSON.stringify({ state: { reducedMotion: true }, version: 1 });
+
+test("#188 a device that remembers reducedMotion=ON keeps the flag stamped while getUserSettings is still in flight", async ({ mount, page }) => {
+  await page.addInitScript({
+    content: `try { localStorage.setItem("orb:reduced-motion", ${JSON.stringify(REDUCED_MOTION_HINT_BLOB)}); } catch { /* storage disabled */ }`,
+  });
+  await page.reload();
+  const settings = trpcHold();
+  await routeTrpc(page, { "settings.getUserSettings": settings });
+  await mount(<AppShellStory />);
+  // The barrier is the HELD request, not a timer: past this the shell has mounted and its root effect has
+  // run with an unresolved read, which is exactly the window the boot veil animates in.
+  await settings.requested;
+  await expect
+    .poll(async () => page.evaluate((attr) => document.documentElement.getAttribute(attr), REDUCED_MOTION_ATTR), { intervals: [20, 50, 100] })
+    .toBe("true");
+});
+
+test("#188 CONTROL: a device with NO hint is not stamped ON by the pending read — the pref is remembered, never guessed", async ({ mount, page }) => {
+  const settings = trpcHold();
+  await routeTrpc(page, { "settings.getUserSettings": settings });
+  await mount(<AppShellStory />);
+  await settings.requested;
+  await expect
+    .poll(async () => page.evaluate((attr) => document.documentElement.getAttribute(attr), REDUCED_MOTION_ATTR), { intervals: [20, 50, 100] })
+    .not.toBe("true");
+});
+
+// ── #188 N-8 — WCAG 2.5.3 Label in Name, read the way axe reads it ───────────────────────────────────
+// The prior ruling on this chip (§13.10, in app-shell.tsx) put the WORD "jump" in the name so the one
+// word on the button was speakable. axe's `label-content-name-mismatch` still failed it on the live
+// landing (Lighthouse, 2026-08-18): 2.5.3 wants the WHOLE visible label inside the name, and this
+// button's visible label is the chip plus the word. The pin reads the rendered text rather than
+// restating it, so a copy change on either side cannot drift them apart silently.
+test("#188 the ⌘K chip's accessible name CONTAINS its visible label verbatim (WCAG 2.5.3)", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellStory />);
+  const chip = page.locator('header.shell-topbar [data-slot="button"]').filter({ hasText: "jump" }).first();
+  const visible = ((await chip.innerText()) ?? "").replaceAll(/\s+/gu, " ").trim();
+  expect(visible).toBe("⌘K jump");
+  await expect(chip).toHaveAccessibleName(new RegExp(`^${visible.replaceAll("⌘", "\\u2318")}`, "u"));
+});
+
 // STRAY-FILE-DROP GUARD. A file dropped outside any dropzone navigates the tab to that file — the app is
 // replaced by a PNG and the session (open chat, in-flight turn, unsaved drafts) goes with it. The shell
 // cancels the browser default for FILE drags nothing else handled, and says where files DO go; a real
@@ -2628,7 +2681,7 @@ test.describe("the mobile topbar at 320px, coarse pointer", () => {
   test("P1: the desktop-shaped trail affordances shed on a phone and the command modal keeps a home in the You sheet", async ({ mount, page }) => {
     const shell = await mount(<AppShellMobileRuleStory section="chats" />);
     // ⌘K and focus mode are gone from the phone row (the budget) …
-    await expect(page.getByRole("button", { name: "Jump to… — the command menu" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "⌘K jump — the command menu" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: FOCUS_TOGGLE_RE })).toHaveCount(0);
     // … and the command modal is still REACHABLE, as a named row in the You sheet.
     await shell.getByRole("button", { name: "You", exact: true }).click();

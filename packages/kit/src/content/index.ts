@@ -1039,18 +1039,49 @@ export function projectBodyForSummary(content: string): string {
     .join("");
 }
 
-/** The default preview width — one truncated list-row line (`ChatSummary.lastMessagePreview`). */
-export const PREVIEW_MAX_CHARS = 120;
+/**
+ * The default preview width (`ChatSummary.lastMessagePreview`).
+ *
+ * IT IS A TWO-LINE BUDGET, not a list-row line (#188 N-2, 2026-08-17). 120 was sized for the chats-list
+ * row, which shows the preview on ONE CSS-truncated line — but the SAME field is the home hero's scent
+ * line, rendered into a 644px `line-clamp-2` measure, and 120 chars filled barely one of those two lines:
+ * the hero showed a server-truncated "…she's und…" with ~420px of its own measure empty, because a
+ * character cap the renderer cannot see had already cut the string. The budget is the WIDEST consumer's,
+ * and the narrow one clips in CSS (a one-line row truncates the same either way, and the string is one
+ * cheap field on a list a user is already waiting for). Raising it is what lets `line-clamp-2` do the
+ * visual cut, which is the only cutter that knows the rendered width.
+ */
+export const PREVIEW_MAX_CHARS = 240;
 
 /** The truncation marker: a single-char ellipsis, so the budget stays a character count. */
 const PREVIEW_ELLIPSIS = "…";
+
+/**
+ * How much of the budget a WORD-BOUNDARY cut has to keep before it is worth taking. A preview is prose
+ * read at a glance, so a cut lands between words ("…she's under" not "…she's und") — but a line with no
+ * space in its last 40% is one long token (a URL, an unspaced script), and boundary-cutting that throws
+ * most of the line away. Below the floor the cut is HARD, which is what the budget always did.
+ */
+const PREVIEW_WORD_BOUNDARY_FLOOR = 0.6;
+
+/** Cut `flat` to `maxChars` INCLUDING the ellipsis, on a word boundary when one sits inside the floor. */
+function truncatePreview(flat: string, maxChars: number): string {
+  if (flat.length <= maxChars) {
+    return flat;
+  }
+  // The whitespace run collapse above leaves " " as the only boundary character in a flattened preview.
+  const head = flat.slice(0, maxChars - 1);
+  const boundary = head.lastIndexOf(" ");
+  const cut = boundary >= Math.floor(head.length * PREVIEW_WORD_BOUNDARY_FLOOR) ? head.slice(0, boundary) : head;
+  return `${cut.trimEnd()}${PREVIEW_ELLIPSIS}`;
+}
 
 /** Markdown INLINE emphasis / inline-code markers (asterisk, underscore, tilde, backtick). Dropped whole
  *  (the wrapped text survives): a glance line reads the words, never the syntax. */
 const PREVIEW_INLINE_MARKERS_RE = /[*_~`]+/g;
 
 /** A markdown LINK / image ref (`[label](target)`, a leading `!` for an image) — collapsed to its label, so
- *  a preview never spends its 120 chars on a URL. Nested brackets are not matched (a degrade, not a parse:
+ *  a preview never spends its budget on a URL. Nested brackets are not matched (a degrade, not a parse:
  *  the leftover literal is still plain text). */
 const PREVIEW_LINK_RE = /!?\[([^\]]*)\]\([^)]*\)/g;
 
@@ -1073,7 +1104,8 @@ const PREVIEW_WHITESPACE_RE = /\s+/g;
  * `unknown-directive` spans carry no glanceable prose (a `[card: …]` stub or a raw fence would spend the whole
  * line on chrome). What remains is markdown-FLATTENED — inline emphasis/code markers dropped, links collapsed
  * to their label, leading block markers and code-fence lines removed, every whitespace run collapsed to one
- * space — then trimmed and truncated with a single-char ellipsis. Empty (a body that was all structure) ⇒
+ * space — then trimmed and truncated with a single-char ellipsis, on a WORD BOUNDARY (`truncatePreview`).
+ * Empty (a body that was all structure) ⇒
  * `""`; the caller decides what an empty preview means.
  */
 export function projectBodyForPreview(content: string, maxChars: number = PREVIEW_MAX_CHARS): string {
@@ -1093,5 +1125,5 @@ export function projectBodyForPreview(content: string, maxChars: number = PREVIE
     .replace(PREVIEW_INLINE_MARKERS_RE, "")
     .replace(PREVIEW_WHITESPACE_RE, " ")
     .trim();
-  return flat.length <= maxChars ? flat : `${flat.slice(0, maxChars - 1).trimEnd()}${PREVIEW_ELLIPSIS}`;
+  return truncatePreview(flat, maxChars);
 }

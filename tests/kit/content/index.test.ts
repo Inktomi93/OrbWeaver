@@ -779,4 +779,36 @@ describe("projectBodyForPreview", () => {
     expect(projectBodyForPreview("a".repeat(PREVIEW_MAX_CHARS))).toBe("a".repeat(PREVIEW_MAX_CHARS));
     expect(projectBodyForPreview("one two three", 8)).toBe("one two…");
   });
+
+  // ── #188 N-2 — the cut lands BETWEEN WORDS, and the budget is the widest consumer's ──────────────
+  // The same field is the chats-list row's one CSS-truncated line AND home's two-line `line-clamp-2`
+  // hero. At 120 the hero rendered a server-severed "…she's und…" with ~420px of its own measure empty:
+  // a character cap cannot know the rendered width, so the server budget has to be the WIDEST slot's and
+  // the narrow ones cut in CSS. Mid-word is the other half — a scent line is prose read at a glance.
+  test("a long line cuts on a WORD BOUNDARY, never mid-word", () => {
+    const body = `${"word ".repeat(60)}undertow of the whole thing`;
+    const preview = projectBodyForPreview(body);
+    expect(preview.endsWith("…")).toBe(true);
+    // Everything before the ellipsis is whole words: the char before it is not a letter cut in half, i.e.
+    // the string the renderer receives ends where the author's word ended.
+    expect(preview.slice(0, -1)).toBe("word ".repeat(47).trimEnd());
+    expect(preview.length).toBeLessThanOrEqual(PREVIEW_MAX_CHARS);
+  });
+
+  test("the budget serves the TWO-LINE hero, not the one-line row — a 200-char line survives whole", () => {
+    const line =
+      "She's under the ice again, and the lamp she carries is the only thing the dark has not yet taken " +
+      "from her, though the cold is doing its patient work.";
+    expect(line.length).toBeGreaterThan(120);
+    expect(line.length).toBeLessThanOrEqual(PREVIEW_MAX_CHARS);
+    expect(projectBodyForPreview(line)).toBe(line);
+  });
+
+  test("a line with NO boundary inside the floor is HARD-cut — a boundary cut would throw the line away", () => {
+    // One unspaced token after a two-char head: cutting at that space would return "an…" and lose the line.
+    const body = `an ${"x".repeat(400)}`;
+    const preview = projectBodyForPreview(body);
+    expect(preview).toHaveLength(PREVIEW_MAX_CHARS);
+    expect(preview.startsWith("an x")).toBe(true);
+  });
 });
