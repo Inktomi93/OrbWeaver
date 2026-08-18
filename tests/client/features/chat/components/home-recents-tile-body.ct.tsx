@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
 
@@ -45,6 +45,15 @@ const CHARACTERS = {
 /** The SECOND room, so the pair has both arms: a hero AND an also-open list under it. `lastMessageAt` is
  *  older than the fixture default, which is what makes RECENT the one you would resume. */
 const OLDER = makeChatSummary({ id: "chat_older", title: "The quiet ledger", participantNames: ["Wren"], lastMessageAt: 1 });
+/** An also-open room with TWO character seats — the row arm of #147: two seats is where the leading slot
+ *  grows from one portrait to a stack, i.e. where a late-landing character read used to move the text. */
+const PAIR_ROOM = makeChatSummary({
+  id: "chat_pair",
+  title: "The quiet ledger",
+  participantNames: ["Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
+  participantCharacterIds: ["char_calamity", "char_morgatha"],
+  lastMessageAt: 1,
+});
 
 test("renders the HERO room in its own block, and the also-open list in a SECOND peer block", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
@@ -367,6 +376,56 @@ test("F1 a room whose last turn is seconds old reads 'just now', never 'now ago'
   await expect(stamp).toBeVisible();
   await expect(stamp).toHaveText("· last turn just now");
   await expect(stamp).not.toContainText("now ago");
+});
+
+// ── RED-FIRST (#147): the cast strip RESERVES its settled width, so the column beside it never re-lays ──
+// Measured on the live shell 2026-08-17/18: the hero's strip is `null` until `character.list` resolves, and
+// `character.list` lands on its OWN clock (the tile suspends on `chat.listChats` first). So the hero painted
+// with no strip, then the strip appeared and shoved the whole text column right — `[data-slot=card-root]
+// moved 76px,0px` for a one-seat room, 148px for three (64px hero avatar + a 36px step per extra seat + the
+// 12px Row gap), logged as `[cls] shift … unexpected` on every cold section load. The room's SEAT COUNT is on
+// the chat row from the first frame; only the FACES need the character read. `trpcHold` pins the un-landed
+// arm as a stable state instead of trying to catch the flash, and the assertion is the RENDERED x of the room
+// title — the affordance, not the new API — so it compiles and fails against the old source.
+test("#147 the hero's cast strip is born at its settled width — the title does not move when the portraits land", async ({ mount, page }) => {
+  const characters = trpcHold();
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": characters });
+
+  const home = await mount(<ChatRecentsTileStory />);
+  const hero = home.locator('[data-home-hearth="chat_long"]');
+  const title = hero.getByText("A grand adventure");
+  await expect(title).toBeVisible();
+  // The deterministic barrier: the portrait read is in flight and HELD, so the un-landed arm is settled.
+  await characters.requested;
+  const held = await title.evaluate((el) => Math.round(el.getBoundingClientRect().x));
+
+  characters.release(CHARACTERS);
+  // The seats landing is the settled arm's own affordance — two cards, two faces.
+  await expect(hero.locator('[data-slot="avatar-stack-item"]')).toHaveCount(2);
+  const landed = await title.evaluate((el) => Math.round(el.getBoundingClientRect().x));
+
+  expect(landed).toBe(held);
+});
+
+// ── RED-FIRST (#147, the row twin): a list row's leading slot is sized by the SEAT COUNT ───────────────
+// Same defect one weight down: an also-open row rendered ONE 32px initials blob while the character read was
+// in flight and an `AvatarStack` after it, so a two-seat room's text column moved 18px right per extra seat
+// (`[data-slot=list-row-content] moved 18px,0px`, three of them in one recorded shift).
+test("#147 an also-open row's leading slot is sized by the seat count — the row text does not move when the portraits land", async ({ mount, page }) => {
+  const characters = trpcHold();
+  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, PAIR_ROOM]), "character.list": characters });
+
+  const home = await mount(<ChatRecentsPairStory />);
+  const row = home.locator('[data-home-tile="chat.alsoOpen"] [data-slot="list-row-content"]').first();
+  await expect(row).toBeVisible();
+  await characters.requested;
+  const held = await row.evaluate((el) => Math.round(el.getBoundingClientRect().x));
+
+  characters.release(CHARACTERS);
+  await expect(home.locator('[data-home-tile="chat.alsoOpen"] [data-slot="avatar-stack-item"]')).toHaveCount(2);
+  const landed = await row.evaluate((el) => Math.round(el.getBoundingClientRect().x));
+
+  expect(landed).toBe(held);
 });
 
 test("an empty chats list renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {

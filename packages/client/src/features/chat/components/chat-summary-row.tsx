@@ -18,7 +18,7 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
-import { AvatarStack } from "@orb/ui/avatar-stack";
+import { AvatarStack, avatarStackInlineSize } from "@orb/ui/avatar-stack";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Star, Swords } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -67,8 +67,47 @@ const STACK_SLOTS = 4;
  *
  *  `md` (32px) is THE list-row portrait size across every LIST pane — the mock's single row rhythm
  *  (`.row .av{width:32px}`). The chats panes ran 24px and the character library 40px, so the two dense
- *  instrument lists scanned at different pitches (side-eye P2-5). */
+ *  instrument lists scanned at different pitches (side-eye P2-5).
+ *
+ *  THE SLOT IS SIZED BY THE SEAT COUNT, THE FACES ARE NOT (#147). Which faces this slot can paint depends on
+ *  `character.list`, which resolves on its own clock — so a two-seat room rendered one 32px blob, then a
+ *  50px stack, and every row's text column was re-laid the moment the character read landed (measured on the
+ *  live shell: `[data-slot=list-row-content] moved 18px,0px` per extra seat, `[cls] unexpected` on every cold
+ *  load). The COUNT is on the chat row from the first frame, so the slot is born at its settled width and the
+ *  portraits land into it. Unresolved seats still paint NO face — `chatPortraits` drops them on purpose,
+ *  because an unnamed avatar would be a blank chip claiming a person. */
 function RowLeading({
+  chatId,
+  portraits,
+  seatCount,
+  title,
+}: {
+  readonly chatId: ChatId;
+  readonly portraits: readonly ChatRowPortrait[];
+  /** The room's character seats (`participantCharacterIds.length`) — the settled slot budget. */
+  readonly seatCount: number;
+  readonly title: string;
+}): ReactElement {
+  // At least one slot: an empty-cast room still paints the hue-seeded initials blob below.
+  const reserved = avatarStackInlineSize(Math.min(Math.max(seatCount, 1), STACK_SLOTS), "md");
+  return (
+    <Row align="center" className="shrink-0" style={{ minInlineSize: reserved }}>
+      {portraits.length >= 2 ? (
+        <AvatarStack
+          items={portraits.map((seat) => ({ name: seat.name, ...(seat.hash === null ? {} : { src: blobUrl(seat.hash) }) }))}
+          max={STACK_SLOTS}
+          size="md"
+        />
+      ) : (
+        <RowLeadingSingle chatId={chatId} portraits={portraits} title={title} />
+      )}
+    </Row>
+  );
+}
+
+/** A single seat's portrait, or nothing resolved at all (a departed/foreign seat, a portrait-less character,
+ *  a character list that hasn't landed) — the initials blob is the honest fallback. */
+function RowLeadingSingle({
   chatId,
   portraits,
   title,
@@ -77,17 +116,6 @@ function RowLeading({
   readonly portraits: readonly ChatRowPortrait[];
   readonly title: string;
 }): ReactElement {
-  if (portraits.length >= 2) {
-    return (
-      <AvatarStack
-        items={portraits.map((seat) => ({ name: seat.name, ...(seat.hash === null ? {} : { src: blobUrl(seat.hash) }) }))}
-        max={STACK_SLOTS}
-        size="md"
-      />
-    );
-  }
-  // A single seat's portrait, or nothing resolved at all (a departed/foreign seat, a portrait-less
-  // character, a character list that hasn't landed) — the initials blob is the honest fallback.
   const hash = portraits[0]?.hash ?? null;
   // exactOptionalPropertyTypes: omit `src` entirely when there's no portrait so Avatar takes its fallback.
   const avatarSrc = hash === null ? {} : { src: blobUrl(hash) };
@@ -200,7 +228,7 @@ export function ChatSummaryRow({
           }
         : {})}
       clickable={true}
-      leading={<RowLeading chatId={chat.id} portraits={portraits} title={title} />}
+      leading={<RowLeading chatId={chat.id} portraits={portraits} seatCount={chat.participantCharacterIds.length} title={title} />}
       onClick={(): void => onSelect(chat.id)}
       selected={selected}
       subtitle={subtitle}
