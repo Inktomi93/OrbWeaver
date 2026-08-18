@@ -63,7 +63,7 @@ import { useResetPreset, useSetDefaultPreset } from "../hooks/use-preset-mutatio
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { resolvedForLabel } from "../lib/effective-knobs.ts";
 import { presetDraftStore } from "../lib/preset-draft-store.ts";
-import { seedConfig, validatePresetProse } from "../lib/preset-editor-model.ts";
+import { seedConfig, validatePresetConfig } from "../lib/preset-editor-model.ts";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import type { ViewContentProps } from "../lib/preset-view-content.tsx";
 import { viewContent } from "../lib/preset-view-content.tsx";
@@ -87,7 +87,7 @@ const PresetForm = createAutosaveEntityForm<PromptConfig>({
   // header carries the why. `onDynamic` is the slot `revalidateLogic()` drives (the factory sets it).
   options: {
     validators: {
-      onDynamic: ({ value }: { value: PromptConfig }): { fields: Record<string, string> } | undefined => validatePresetProse(value),
+      onDynamic: ({ value }: { value: PromptConfig }): { fields: Record<string, string> } | undefined => validatePresetConfig(value),
     },
   },
 });
@@ -170,7 +170,6 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             capability={capability}
             capabilityError={capabilityError}
             effective={effectiveQuery.data ?? undefined}
-            customParameterKeys={Object.keys(preset.config.customParameters ?? {})}
             reset={reset}
             onRevealSection={onRevealSection}
           />
@@ -206,7 +205,6 @@ interface PresetEditorBodyProps {
   /** The capability read's thrown error object, `null` while it is still PENDING (§F-02). */
   readonly capabilityError: ReadFailure | null;
   readonly effective: EffectiveProfileRow | undefined;
-  readonly customParameterKeys: readonly string[];
   readonly reset: ReturnType<typeof useResetPreset>;
   readonly onRevealSection?: (() => void) | undefined;
 }
@@ -221,7 +219,6 @@ function PresetEditorBody({
   capability,
   capabilityError,
   effective,
-  customParameterKeys,
   reset,
   onRevealSection,
 }: PresetEditorBodyProps): ReactElement {
@@ -255,7 +252,6 @@ function PresetEditorBody({
     capability,
     capabilityError,
     effective,
-    customParameterKeys,
     presetId,
     attachable: !isSystemDefault,
     onRevealSection,

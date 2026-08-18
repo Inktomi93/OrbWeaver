@@ -36,6 +36,7 @@ import type { AppFormInstance } from "#forms";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
+import { CustomParametersEditor } from "./custom-parameters-editor.tsx";
 import { KnobRow } from "./knob-row.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
@@ -44,7 +45,6 @@ export interface ParamsLimitsProps {
   readonly form: AppForm;
   readonly capability: ModelCapability | undefined;
   readonly effective: EffectiveProfileRow | undefined;
-  readonly customParameterKeys: readonly string[];
 }
 
 const DYNAMIC_CONTEXT_ITEMS: SelectItems<string> = [
@@ -53,14 +53,14 @@ const DYNAMIC_CONTEXT_ITEMS: SelectItems<string> = [
   { value: "hook", label: "Deliver at the message tail (cache-safe)" },
 ];
 
-export function ParamsLimits({ form, capability, effective, customParameterKeys }: ParamsLimitsProps): ReactElement {
+export function ParamsLimits({ form, capability, effective }: ParamsLimitsProps): ReactElement {
   return (
     <>
       {/* No capability ⇒ OUTPUT is absent with its two sibling clusters, under the deck's ONE gate note
           (side-eye F-02: three per-cluster notes printed the same sentence three times). */}
       {capability === undefined ? null : <OutputCluster capability={capability} effective={effective} form={form} />}
       <ContextCluster form={form} />
-      <AdvancedCluster customParameterKeys={customParameterKeys} form={form} />
+      <AdvancedCluster form={form} />
     </>
   );
 }
@@ -273,7 +273,7 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
 }
 
 /** ADVANCED (§4 cluster 6) — the deck's ONE collapsed disclosure: the genuinely rare escape hatches. */
-function AdvancedCluster({ form, customParameterKeys }: { readonly form: AppForm; readonly customParameterKeys: readonly string[] }): ReactElement {
+function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <Collapsible>
       <CollapsibleTrigger>
@@ -320,33 +320,13 @@ function AdvancedCluster({ form, customParameterKeys }: { readonly form: AppForm
               )}
             </form.Subscribe>
           </FieldLayout>
-          <CustomParametersRow keys={customParameterKeys} />
+          <CustomParametersEditor form={form} />
           <Text voice="gloss">
             `advanced.claudeEnv` is deliberately editor-less — it is a config-tier escape hatch for the agent-sdk process environment, not a generation knob.
           </Text>
         </Stack>
       </CollapsiblePanel>
     </Collapsible>
-  );
-}
-
-/** D7 — the read-only presence row for `customParameters`: a server-only passthrough that CHANGES THE
- *  WIRE. Editing stays out (it is the bring-your-own-key escape hatch by design), but an invisible stored
- *  blob that alters generation fails the no-silent-knobs bar.
- *
- *  The gloss names the CONNECTION the way the Connections pane names it (`connections-model.ts`
- *  SOURCE_LABELS) — the same one vocabulary the `custom_parameters_ignored` warning toast now speaks
- *  (side-eye INFRA-WARN-DEAF P3-2). "custom-BYO" appears on no screen the user can reach. */
-function CustomParametersRow({ keys }: { readonly keys: readonly string[] }): ReactElement {
-  if (keys.length === 0) {
-    return <Text voice="gloss">No custom parameters are stored on this preset.</Text>;
-  }
-  return (
-    <Row align="center" gap="field">
-      <Text voice="label">Custom parameters</Text>
-      <Text voice="datum">{keys.join(" · ")}</Text>
-      <Text voice="gloss">sent verbatim only on a Custom OpenAI-compatible connection; OpenRouter ignores them</Text>
-    </Row>
   );
 }
 

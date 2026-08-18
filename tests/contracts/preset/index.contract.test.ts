@@ -17,6 +17,7 @@ import {
   guidedActionConfigSchema,
   guidedActionsSchema,
   importStChatCompletionPreset,
+  isVllmBeltOwnedParameterKey,
   MAX_INJECTION_TEMPLATE_LENGTH,
   NARRATOR_MAIN_PROMPT_TEMPLATE,
   PRESET_SCHEMA_KIND,
@@ -42,6 +43,7 @@ import {
   userIntentSchema,
   userMacroSchema,
   userMacroValuesSchema,
+  VLLM_BELT_OWNED_PARAMETER_KEYS,
 } from "@orb/contracts/preset";
 import { PRESET_PROSE_SLOT_IDS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { expect, test } from "../../support/fixtures.ts";
@@ -533,6 +535,15 @@ test("customParametersSchema strips __proto__ (Zod) and accepts a clean overlay"
 test("customParametersSchema rejects a `constructor` key (top level and nested)", () => {
   expect(customParametersSchema.safeParse({ constructor: { evil: true } }).success).toBe(false);
   expect(customParametersSchema.safeParse({ nested: { prototype: { evil: true } } }).success).toBe(false);
+});
+
+test("the vLLM belt denylist is EXACTLY the six keys infra owns (D143a) — both readers ask this one list", () => {
+  // The vllm surface drops these before the merge and the preset editor warns on them at authoring time; a
+  // member added or removed here silently changes BOTH the wire and what the editor promises.
+  expect([...VLLM_BELT_OWNED_PARAMETER_KEYS]).toEqual(["truncate_prompt_tokens", "truncation_side", "stream", "stream_options", "model", "messages"]);
+  expect(VLLM_BELT_OWNED_PARAMETER_KEYS.every((key) => isVllmBeltOwnedParameterKey(key))).toBe(true);
+  // A sampler that RIDES the escape hatch is not belt-owned — the whole point of the list being narrow.
+  expect(isVllmBeltOwnedParameterKey("dry_multiplier")).toBe(false);
 });
 
 // ── Serde: parsePresetFile (STRICT) vs parsePromptConfig (LENIENT) ───────────────────────────────
