@@ -19,7 +19,7 @@
 // the honest form of the `CharacterCardTileStory` note, not a departure from it: that story takes plain
 // strings because its ids come from a fixture's display data, not from a mint.
 
-import { useInvalidation, useTRPC } from "@orb/client/data";
+import { useInvalidation, useOpenRefinery, useTRPC } from "@orb/client/data";
 import type { PayloadLaneProps, ReviewEntry, RewriteLaneProps } from "@orb/client/features/refinery";
 import {
   AcceptReview,
@@ -44,7 +44,6 @@ import {
   useRefinerySession,
   useRefinerySessions,
   useRunRefineryStage,
-  useStartRefinerySession,
   useUpdateRefinerySession,
 } from "@orb/client/features/refinery";
 import { clearRefinerySelection, selectRefinerySession, setRefineryViewedRun } from "@orb/client/state";
@@ -76,7 +75,9 @@ function RefineryDataProbe({ sessionId, characterId }: RefineryDataStoryProps): 
   const session = useRefinerySession(sessionId);
   const runs = useRefineryRuns(sessionId);
 
-  const start = useStartRefinerySession(deps);
+  // The START door is the SHARED flow now (`#data`'s `useOpenRefinery`) — one resume-or-mint rule behind
+  // all three of the product's doors (#157). The probe drives it through the same seam the surfaces do.
+  const { openRefinery } = useOpenRefinery();
   const update = useUpdateRefinerySession(deps);
   const remove = useDeleteRefinerySession(deps);
   const runStage = useRunRefineryStage(deps);
@@ -95,7 +96,7 @@ function RefineryDataProbe({ sessionId, characterId }: RefineryDataStoryProps): 
       <p data-testid="roster">{`rows=${sessions.data?.length ?? "…"}`}</p>
       <p data-testid="session">{`status=${session.data?.status ?? "…"}`}</p>
       <p data-testid="runs">{`runs=${runs.data?.length ?? "…"}`}</p>
-      <button type="button" onClick={(): void => start.mutate({ characterId })}>
+      <button type="button" onClick={(): void => void openRefinery(characterId).catch(() => undefined)}>
         start session
       </button>
       {/* The FRESHNESS DRIVER, exercised through the real seam. Every refinery write is `busDriven` now —
@@ -442,6 +443,7 @@ export function LaneRunControlStory({ stage, running, width }: LaneRunControlSto
         contextTokens={8000}
         hasRun={true}
         onRun={(): void => undefined}
+        blocked={null}
         onScopeOpen={(): void => undefined}
         running={running}
         stage={stage}
@@ -502,6 +504,9 @@ export function RewriteLaneStory({ entries, empty = false }: RewriteLaneStoryPro
       behind={null}
       decided={decided}
       entries={entries}
+      // The island's own CT is about its accept anatomy, so it mounts in the state the workbench gives it
+      // whenever a score exists — carrying the focal (`lib/workbench-lanes.ts` decides it in production).
+      focal={true}
       onBackToLatest={(): void => undefined}
       onDecide={(index, decision): void => setDecided((prev) => prev.map((d, i) => (i === index ? decision : d)))}
       run={empty ? null : run}

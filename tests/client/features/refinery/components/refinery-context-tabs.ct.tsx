@@ -98,6 +98,8 @@ function baseRoutes(): TrpcRoutes {
 
 // The describe field's placeholder — hoisted (biome `useTopLevelRegex`).
 const DESCRIBE_PLACEHOLDER = /rating 1-10, a mood enum/;
+/** The Scope row's note, which names scope's ONE editing home (#158 item 1). */
+const SCOPE_HOME_NOTE = /Changed on the workbench/;
 
 /** The "Change" action inside the Setup row whose kicker is `rowLabel` — each row is one `Card`
  *  (`data-slot="card-root"`), so scoping by the card carrying the unique kicker names exactly one button. */
@@ -125,7 +127,40 @@ test("#81 P2 — every Setup action names the row it acts on, so no two controls
   expect(new Set(names).size).toBe(names.length);
   // …and each still STARTS with the word it visibly shows (WCAG 2.5.3 label-in-name — a voice-control user
   // saying "click Change" must still land on one of these, and the row is what disambiguates it).
-  expect(names).toEqual(["View Original card", "Change Scope", "Change Score schema", "Change Analyze schema"]);
+  //
+  // "Change Scope" LEFT THIS SET on 2026-08-17 (#158 item 1). It is not that the name became ambiguous —
+  // it is that the row stopped being an editor: scope had TWO independently-editable homes on one screen
+  // (here and the workbench masthead), the owner ruled one home, and the workbench won on the tree's
+  // evidence (`session-masthead.tsx`'s header records the argument). The row survives as a READOUT naming
+  // the door, the same shape Guidance and Stage modes already had — so this set is the pane's remaining
+  // editors, and the derivation the pin is actually about is unchanged.
+  expect(names).toEqual(["View Original card", "Change Score schema", "Change Analyze schema"]);
+});
+
+// ── ONE HOME PER CONCEPT (#158 items 1-2, owner-ruled 2026-08-17) ────────────────────────────────────
+
+test("Setup states the scope but does not EDIT it — one editable home, and the row says where the other one is", async ({ mount, page }) => {
+  await routeTrpc(page, baseRoutes());
+  await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  const setup = page.getByTestId(testId("refinerySetupTab"));
+  await expect(setup).toBeVisible();
+
+  // The readout is still here — the pane's job is saying what is in force.
+  await expect(setup.getByText("Scope", { exact: true })).toBeVisible();
+  // …with NO editor of its own, and with the one home named rather than merely absent (a row that just
+  // loses its button reads as unfinished; that is P1-8's second arm).
+  await expect(rowChangeButton(page, "Scope")).toHaveCount(0);
+  await expect(setup.getByText(SCOPE_HOME_NOTE)).toBeVisible();
+});
+
+test("PROMPT FIT is not restated here — the per-stage budget lives beside the verb whose budget it is", async ({ mount, page }) => {
+  await routeTrpc(page, baseRoutes());
+  await mount(<SetupTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  const setup = page.getByTestId(testId("refinerySetupTab"));
+  await expect(setup).toBeVisible();
+  // It printed `≈ N/M tok` from the SCORE stage's input estimate alone, beside `LaneRunControl`'s
+  // per-stage `in ≈ … · out ≈ …` on the same screen — a third of one datum, in a second home.
+  await expect(setup.getByText("Prompt fit", { exact: true })).toHaveCount(0);
 });
 
 test("the Setup tab reaches custom-ANALYZE authoring — a stage the single old door never offered", async ({ mount, page }) => {

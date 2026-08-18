@@ -1,7 +1,23 @@
-// The no-selection TEACHING state (the empty-states mock, frame 1 + FORK J): the section's own promise
-// sentence, the three-step teaching row, and the character door. "Nothing is written until you accept"
-// is stated up front — the feature's safety story. On a phone this composition reflows to one column
-// (container-driven; the shell owns the macro flip).
+// The refinery LANDING (the empty-states mock, frame 1 + FORK J): the section's promise sentence, the
+// PICKER, and the three-step teaching row under it. "Nothing is written until you accept" is stated up
+// front — the feature's safety story. On a phone this composition reflows to one column (container-driven;
+// the shell owns the macro flip).
+//
+// ── THE PICKER IS THE LANDING'S JOB (owner ruling, 2026-08-17, #157) ─────────────────────────────────
+// Verbatim: "the landing for that is wasted" — and, on the walk that produced it, "I have to go allll the
+// way down going over a bunch of other stuff to pick a character". This composition used to open on the
+// promise sentence, a BUTTON that revealed a picker, and the teaching row; the picker itself was a
+// conditional card BELOW all of it, so the primary act of the whole surface was two presses and a scroll
+// away. The picker is now first, mounted open, with the teaching material following it. What that costs,
+// stated rather than hidden: the reveal button is gone, so the landing always pays for the
+// `character.list` read — which the resume decision's roster read was already paying for on the same
+// paint, and which is what makes the full-library browse (#157's scope add) reachable at all.
+//
+// THE PENDING GATE MOVED INTO THE DECISION, NOT ONTO A CONTROL. `starting` used to also carry "the roster
+// the resume-vs-mint check reads has not landed", which disabled the door in the pane's own first frames —
+// a dead-looking primary at cold open, i.e. the sibling of the defect #157 is about. `useOpenRefinery`
+// awaits that roster at CLICK time instead, so the only thing left to say here is that a start is already
+// in flight, and the pane says it in words rather than by greying its one affordance.
 //
 // ── NO 01/02/03 MARKERS — THE MOCK LOSES THIS ONE (owner ruling, board 2026-08-09) ───────────────────
 // The empty-states mock draws each step behind a big `01`/`02`/`03` numeral (docs/design/mocks/refinery/
@@ -22,24 +38,20 @@
 // as data. The COPY is untouched: every `name`/`detail` string below is the praised mock text verbatim.
 
 import type { CharacterId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { EmptyState } from "@orb/ui/empty-state";
 import type { LucideIcon } from "@orb/ui/icons";
 import { ChartColumn, ChevronRight, Gauge, Icon, Pencil } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
 import { CharacterPicker } from "#components";
 import { testId } from "#lib";
 
 export interface TeachingStateProps {
   readonly onStart: (characterId: CharacterId) => void;
-  /** The start act is UNAVAILABLE, so the door is inert. Two reasons reach it, and the caller owns which:
-   *  a start is already in flight, or the caller cannot yet decide resume-vs-mint for a pick (the roster
-   *  its resume check reads has not landed — `RefineryStartPane`). Either way pressing would be a no-op or
-   *  a wrong write, and a live-looking control that does neither is the defect the disable exists for. */
+  /** A start is already in flight. The picker stays MOUNTED and readable — this states what is happening
+   *  above it rather than greying the surface's one affordance (header). A second pick while the first is
+   *  in flight is swallowed here, so the busy line is the whole of what the user needs told. */
   readonly starting: boolean;
 }
 
@@ -61,18 +73,36 @@ const STEPS: readonly TeachingStep[] = [
 ];
 
 export function TeachingState({ onStart, starting }: TeachingStateProps): ReactElement {
-  const [picking, setPicking] = useState(false);
   return (
     <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" padding="section">
-      <EmptyState
-        action={
-          <Button disabled={starting} onClick={(): void => setPicking(true)} size="md">
-            Pick a character
-          </Button>
-        }
-        description="Pick a character to start. Nothing is written to the card until you accept a rewrite field by field."
-        title="Score → rewrite → analyze a card without drifting from your original"
-      />
+      <Stack align="center" className="max-w-(--reading-measure)" gap="tight">
+        {/* `text-center` on BOTH lines, not just the gloss: the Stack centres each child as a BLOCK, so a
+            two-line heading at the reading measure sat left-aligned above a centred sentence — two
+            different axes in one four-line block (measured in the CT shot at 1280px). */}
+        <Heading className="text-center" level={2} voice="masthead">
+          Score → rewrite → analyze a card without drifting from your original
+        </Heading>
+        <Text className="text-center" voice="gloss">
+          Pick a character to start. Nothing is written to the card until you accept a rewrite field by field.
+        </Text>
+      </Stack>
+      {/* THE LANDING'S JOB (header). Mounted open, first, and full-library — `CharacterPicker` walks the
+          whole keyset now, so this is the same browse the characters section offers, not its first page. */}
+      <Card className="w-full max-w-(--reading-measure)">
+        <Stack gap="row" padding="block">
+          <Text voice="kicker">{starting ? "Opening the session…" : "Start from a character"}</Text>
+          <CharacterPicker
+            emptyText="No characters match."
+            label="Start a refinery session"
+            onSelect={(id): void => {
+              if (!starting) {
+                onStart(id);
+              }
+            }}
+            placeholder="Search characters…"
+          />
+        </Stack>
+      </Card>
       {/* WRAPS. `Row` is a non-wrapping flex row, and this composition is centred — so at the phone
           CONTENT pane (measured: 358px against a 448px row) the cells hung off BOTH edges and the Score
           cell's left half was CUT AWAY by the pane. That predates the redraw (the numeral cells had the
@@ -101,22 +131,6 @@ export function TeachingState({ onStart, starting }: TeachingStateProps): ReactE
           </Row>
         ))}
       </Row>
-      {picking ? (
-        <Card>
-          <Stack gap="row" padding="block">
-            <Text voice="kicker">Start from a character</Text>
-            <CharacterPicker
-              emptyText="No characters match."
-              label="Start a refinery session"
-              onSelect={(id): void => {
-                setPicking(false);
-                onStart(id);
-              }}
-              placeholder="Search characters…"
-            />
-          </Stack>
-        </Card>
-      ) : null}
     </Stack>
   );
 }

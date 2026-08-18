@@ -15,6 +15,7 @@ import {
   useHuskReaper,
   useInvalidation,
   useOnlineStatus,
+  useOpenRefinery,
   usePromptMacroSuggestions,
   useSessionRecovery,
   useSettingsViewerView,
@@ -24,7 +25,7 @@ import {
 } from "@orb/client/data";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, renderMessageForDisplay, toNotice } from "@orb/client/lib";
-import { activeDurableLocalUserId, enterCreatedChat, goToLanding, useActiveChatId, useActiveSection } from "@orb/client/state";
+import { activeDurableLocalUserId, enterCreatedChat, goToLanding, useActiveChatId, useActiveSection, useSelectedRefinerySessionId } from "@orb/client/state";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
@@ -760,6 +761,34 @@ export function StartChatStory({ characterIds = [] }: { readonly characterIds?: 
   return (
     <CtDataProviders>
       <StartChatProbe characterIds={characterIds} />
+    </CtDataProviders>
+  );
+}
+
+// ── ENTER-A-REFINERY-SESSION (the ONE flow behind #157's three doors) ──────────────────────────────
+
+/** `useOpenRefinery` — the ONE client seam for entering a refinery session on a card. The probe fires it
+ *  and publishes exactly what a caller can observe: the session pointer it landed on, the section it
+ *  switched to, and its in-flight flag. The resume-vs-mint DECISION is invisible in those three, which is
+ *  the point — the CT reads it off the wire (`refinery.startSession`'s call count) beside them. */
+function OpenRefineryProbe({ characterId }: { readonly characterId: CharacterId }): ReactElement {
+  const { openRefinery, isPending } = useOpenRefinery();
+  const sessionId = useSelectedRefinerySessionId();
+  const activeSection = useActiveSection();
+  return (
+    <div>
+      <output data-testid="open-refinery-state">{`session=${sessionId ?? "none"} section=${activeSection} pending=${String(isPending)}`}</output>
+      <button type="button" onClick={(): void => void openRefinery(characterId).catch(() => undefined)}>
+        open refinery
+      </button>
+    </div>
+  );
+}
+
+export function OpenRefineryStory({ characterId }: { readonly characterId: CharacterId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <OpenRefineryProbe characterId={characterId} />
     </CtDataProviders>
   );
 }

@@ -77,6 +77,8 @@ export { useGatedQuery } from "./use-gated-query.ts";
 export { useHuskReaper } from "./use-husk-reaper.ts";
 export { useInvalidation } from "./use-invalidation.ts";
 export { useOnlineStatus } from "./use-online-status.ts";
+export type { UseOpenRefineryResult } from "./use-open-refinery.ts";
+export { useOpenRefinery } from "./use-open-refinery.ts";
 export { usePromptMacroSuggestions } from "./use-prompt-macro-suggestions.ts";
 export { useSessionRecovery } from "./use-session-recovery.ts";
 export { useSettingsViewerView } from "./use-settings-viewer-view.ts";

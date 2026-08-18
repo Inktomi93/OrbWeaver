@@ -17,6 +17,7 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
@@ -72,6 +73,11 @@ export function RunControlsCard({ sessionId, guidance, running, canIterate, onMa
           </Button>
           {apply}
         </Row>
+        {/* A GATE WITH NO REASON IS HALF THE DEFECT (#158 item 4's law, applied to the bar's own gated
+            verb). Iterate has always been correctly disabled before an analyze exists — `iterate.ts`
+            refuses it — but it said so nowhere, so the button read as arbitrarily dead. Same sentence
+            register as the lanes' `blocked` line, and it is a STATE, never a reserved row. */}
+        {canIterate || running ? null : <Text voice="gloss">Iterate refines against the latest analysis — run analyze first.</Text>}
       </Stack>
     </Card>
   );

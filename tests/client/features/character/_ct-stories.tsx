@@ -9,6 +9,7 @@
 
 import { useTRPC } from "@orb/client/data";
 import {
+  CharacterActionsMenu,
   CharacterAppearanceTab,
   CharacterBulkBar,
   CharacterCardTile,
@@ -20,7 +21,14 @@ import {
 } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
-import { clearCharacterSelection, selectCharacter, useActiveChatId, useActiveSection, useSectionRegistry } from "@orb/client/state";
+import {
+  clearCharacterSelection,
+  selectCharacter,
+  useActiveChatId,
+  useActiveSection,
+  useSectionRegistry,
+  useSelectedRefinerySessionId,
+} from "@orb/client/state";
 import type { CharacterHandle, CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -357,6 +365,45 @@ function CharactersScreenHarness(): ReactElement {
       <div data-testid="content-region" style={{ flex: 1, minWidth: 0 }}>
         {content()}
       </div>
+    </div>
+  );
+}
+
+// ── The CONTEXT actions menu, with its CROSS-SECTION door (#157's third door) ────────────────────────
+
+export interface CharacterActionsMenuStoryProps {
+  /** The card the menu acts on — the same id "Open in Refinery" must carry across the section boundary.
+   *  A PLAIN string (CT-serializable; see the header) and deliberately NOT spelled `characterId`, which is
+   *  a branded NAME POSITION the `brand-in-name-position` gate owns — the `deepLinkCharacterId` prop below
+   *  set that precedent for exactly this reason. `castId` runs inside the story component. */
+  readonly menuCharacterId: string;
+}
+
+/**
+ * `CharacterActionsMenu` on the REAL data tier + toast channel, with the two facts a cross-section jump
+ * produces rendered as text a CT can read: which section is active, and which refinery session is open.
+ * Both come off the shared state seam the flow writes (`#data`'s `useOpenRefinery`), which is the whole
+ * point — the character feature never imports the refinery feature, so the only observable a CT can hold
+ * it to is the shell-level outcome.
+ */
+export function CharacterActionsMenuStory({ menuCharacterId }: CharacterActionsMenuStoryProps): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <CharacterActionsMenu characterId={castId<CharacterId>(menuCharacterId)} />
+        <RefineryJumpReadout />
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
+function RefineryJumpReadout(): ReactElement {
+  const section = useActiveSection();
+  const sessionId = useSelectedRefinerySessionId();
+  return (
+    <div>
+      <p data-testid="active-section">{`section=${section}`}</p>
+      <p data-testid="refinery-session">{`session=${sessionId ?? "none"}`}</p>
     </div>
   );
 }

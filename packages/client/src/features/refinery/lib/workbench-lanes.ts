@@ -17,6 +17,27 @@
 //     invented here: analyze carries `sourceRunId` = THE REWRITE IT JUDGED (`run-stage.ts`'s own comment,
 //     "the edge that makes 'which rewrite was this verdict about?' answerable"), and `createdAt` orders
 //     the ledger. Nothing new is asked of the engine.
+//   • BLOCKED — why the server would REFUSE this stage right now, in the user's words, or null. Added
+//     2026-08-17 (#158 item 4: "Run rewrite" and "Run analyze" painted at full enabled weight while their
+//     own captions stated a precondition).
+//
+// THE GATE IS THE SERVER'S, RE-DERIVED — NOT A RULE THIS FILE INVENTS. `assertStageReady`
+// (`domain/refinery/verbs/run-stage.ts`) refuses exactly one cold case: an analyze with no rewrite. A cold
+// REWRITE WITH NO SCORE IS LEGAL — `dispatchRewrite` passes `prior.score?.payload ?? null` and the rewrite
+// simply runs ungrounded. That matters because the issue's screenshot showed BOTH buttons beside captions
+// claiming a precondition, and only one of those captions was true: the rewrite's said "once a score
+// exists", which is advice the domain does not enforce. Disabling the rewrite here would have been the
+// client imposing a stricter contract than the domain's — the tier-collapse class this repo exists to
+// prevent — so the CAPTION was fixed (`payload-lane.tsx` / `rewrite-lane.tsx`) and only analyze is gated.
+// If `assertStageReady` ever gains a rule, THIS derivation is its coupled site.
+//
+// THE FOCAL FOLLOWS THE NEXT ACTION (#158 item 5, CD3: one focal, and it points where the user should go).
+// The accent island used to be nailed to the REWRITE lane, so at round 0 — where nothing has run — the one
+// emphasised box on the canvas was a stage whose lane says "nothing settled yet". The recommendation, not
+// the gate, decides it: at round 0 score AND rewrite are both runnable, and the pipeline's own teaching
+// ("Score → rewrite → analyze") says to score first, so the focal starts on SCORE and moves to the rewrite
+// island the moment a score exists — from which point the accept work IS the decision the user came for.
+// ANALYZE is never the focal: it is a verdict readout, not a step the user is being sent to.
 
 import type { RefineryStage } from "@orb/contracts/refinery";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -38,6 +59,14 @@ export interface LaneView {
    *  the lane is current. Never shown for a lane the user deliberately walked back to (the chip already
    *  says "superseded", and a pin is a choice, not a staleness). */
   readonly behind: string | null;
+  /** Why the SERVER would refuse this stage right now, in the user's words — null when it is runnable.
+   *  The lane's run verb renders disabled with exactly this sentence beside it, so the canvas never paints
+   *  an enabled-looking control that the domain would reject (header: the rule is re-derived from
+   *  `assertStageReady`, never invented here). */
+  readonly blocked: string | null;
+  /** This lane carries the surface's ONE focal treatment — the stripe + glow (CD3). Derived, never
+   *  configured: it is the stage the user should go to next (header). */
+  readonly focal: boolean;
 }
 
 /** The pins a sibling pane or the user's own walk put on the ledger. */
@@ -105,6 +134,14 @@ function analyzeBehind(analyze: RunView | null, rewrite: RunView | null): string
   return "judged an earlier rewrite";
 }
 
+/** The ANALYZE stage's server-side precondition, restated for a reader: `assertStageReady` throws
+ *  `RefineryStageNotReadyError` for an analyze with no rewrite in the session. It is keyed off the LATEST
+ *  rewrite, not the lane's shown run — walking the rewrite lane back to an older run does not un-run the
+ *  stage, and a gate that flipped on a view-back pin would be lying about the server. */
+function analyzeBlocked(latestRewrite: RunView | undefined): string | null {
+  return latestRewrite === undefined ? "Run a rewrite first — analyze judges a rewrite against your original." : null;
+}
+
 /** The three lanes + the rewrite the accept work targets, derived from the ledger and the pins. */
 export function workbenchLanesOf(allRuns: readonly RunView[], pins: LanePins, flight: LaneFlight): WorkbenchLanes {
   const latest = latestByStage(allRuns);
@@ -124,11 +161,14 @@ export function workbenchLanesOf(allRuns: readonly RunView[], pins: LanePins, fl
   const rewriteNote = rewrite.viewingBack ? null : rewriteBehind(rewrite.run, latest.get("score"));
   const analyzeNote = analyze.viewingBack ? null : analyzeBehind(analyze.run, rewrite.run);
   const targetRewrite = armedRewrite ?? rewrite.run;
+  // The ONE focal, off the LATEST ledger rather than the lanes' shown runs: a view-back pin is a look, not
+  // a change of what the user should do next (header).
+  const focalStage: RefineryStage = latest.get("score") === undefined ? "score" : "rewrite";
 
   return {
-    score: { stage: "score", ...score, behind: null },
-    rewrite: { stage: "rewrite", ...rewrite, behind: rewriteNote },
-    analyze: { stage: "analyze", ...analyze, behind: analyzeNote },
+    score: { stage: "score", ...score, behind: null, blocked: null, focal: focalStage === "score" },
+    rewrite: { stage: "rewrite", ...rewrite, behind: rewriteNote, blocked: null, focal: focalStage === "rewrite" },
+    analyze: { stage: "analyze", ...analyze, behind: analyzeNote, blocked: analyzeBlocked(latest.get("rewrite")), focal: false },
     rewriteRun: targetRewrite,
     armedRewrite,
     rewriteRunId: targetRewrite === null ? null : targetRewrite.id,

@@ -41,6 +41,12 @@ export interface LaneRunControlProps {
   readonly running: boolean;
   /** Any call is in flight — a second concurrent run is not offered while one is working. */
   readonly busy: boolean;
+  /** Why the SERVER would refuse this stage right now, in the user's words — null when it is runnable.
+   *  Non-null disables the verb AND prints this line beside it (#158 item 4). A gate with no reason is
+   *  half the defect: "Run analyze" painted at full enabled weight while its own caption stated the
+   *  precondition it ignored, and a control that is merely greyed tells the user nothing about how to
+   *  un-grey it. Derived in `lib/workbench-lanes.ts` off the domain's `assertStageReady`, never here. */
+  readonly blocked: string | null;
   readonly onRun: () => void;
   readonly onScopeOpen: () => void;
 }
@@ -114,7 +120,7 @@ function RunningHairline(): ReactElement {
   );
 }
 
-export function LaneRunControl({ stage, stagePre, contextTokens, hasRun, running, busy, onRun, onScopeOpen }: LaneRunControlProps): ReactElement {
+export function LaneRunControl({ stage, stagePre, contextTokens, hasRun, running, busy, blocked, onRun, onScopeOpen }: LaneRunControlProps): ReactElement {
   const { outputOver, inputOver } = overBudgetOf(stagePre, contextTokens);
   return (
     <Stack data-lane-run={stage} gap="tight">
@@ -124,11 +130,14 @@ export function LaneRunControl({ stage, stagePre, contextTokens, hasRun, running
       <Row align="center" className="flex-wrap" gap="field">
         {stagePre === undefined ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} warn={outputOver || inputOver} />}
         <Row className="flex-1 justify-end" gap="field">
-          <Button aria-busy={running} disabled={busy} intent="secondary" onClick={onRun} size="sm">
+          <Button aria-busy={running} disabled={busy || blocked !== null} intent="secondary" onClick={onRun} size="sm">
             {hasRun ? `Re-run ${stage}` : `Run ${stage}`}
           </Button>
         </Row>
       </Row>
+      {/* THE REASON RIDES WITH THE DISABLE (the prop's own note). A `title` would not do: it is
+          pointer-only, and this sentence is the whole of how a user learns what to press instead. */}
+      {blocked === null ? null : <Text voice="gloss">{blocked}</Text>}
       {running ? <RunningHairline /> : null}
       {(outputOver || inputOver) && stagePre !== undefined ? (
         <PreflightWarn onScopeOpen={onScopeOpen} outputOver={outputOver} stage={stage} stagePre={stagePre} />

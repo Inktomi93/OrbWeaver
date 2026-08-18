@@ -12,12 +12,11 @@ import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
 import { setRefineryArmedRewrite, setRefineryViewedRun, useRefineryArmedRewriteId, useRefineryViewedRunId } from "#state";
 import { useRunRefineryStage, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
-import { useRefineryPreflight, useRefinerySchemas } from "../hooks/use-refinery-schemas.ts";
+import { useRefinerySchemas } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
 import { RunsTab, SetupTab, VersionsTab } from "./context-tabs.tsx";
 import type { SchemaEditorDialogProps } from "./schema-editor-dialog.tsx";
 import { SchemaEditorDialog } from "./schema-editor-dialog.tsx";
-import { ScopeEditorDialog } from "./scope-editor-dialog.tsx";
 
 export function RunsTabBody({ state }: { state: RefineryContextState }): ReactElement {
   const runs = useRefineryRuns(state.sessionId);
@@ -39,7 +38,6 @@ export function RunsTabBody({ state }: { state: RefineryContextState }): ReactEl
 }
 
 type SessionView = NonNullable<ReturnType<typeof useRefinerySession>["data"]>;
-type PreflightView = ReturnType<typeof useRefineryPreflight>["data"];
 type SchemaSummaries = ReturnType<typeof useRefinerySchemas>["data"];
 
 /** A custom stage config's display name out of the library roster (or its missing-row honest state). */
@@ -81,27 +79,12 @@ function stageModesLineOf(view: SessionView): string {
   return `score ${scoreMode} · rewrite ${view.stageConfig.rewrite.mode} · analyze ${analyzeMode}`;
 }
 
-function fitLineOf(preflight: PreflightView): string | null {
-  const inputFit = preflight?.stages.find((s) => s.stage === "score");
-  if (inputFit === undefined) {
-    return null;
-  }
-  const ceiling = preflight?.contextTokens === null || preflight?.contextTokens === undefined ? "" : ` / ${preflight.contextTokens}`;
-  return `≈ ${inputFit.inputEstimate}${ceiling} tok`;
-}
-
-/** BOTH over-budget verdicts, exactly as the run bar derives them (P2: "prompt-fit two homes, CONTEXT
- *  drops the ⚠" — this pane read `inputEstimate` alone, so a run whose OUTPUT blew its ceiling read as
- *  fine here and warned one pane over). Same two facts, same threshold, one word. */
-function fitWarnOf(preflight: PreflightView): boolean {
-  const stage = preflight?.stages.find((s) => s.stage === "score");
-  if (stage === undefined) {
-    return false;
-  }
-  const outputOver = stage.maxOutputTokens !== null && stage.outputEstimate > stage.maxOutputTokens;
-  const contextTokens = preflight?.contextTokens ?? null;
-  return outputOver || (contextTokens !== null && stage.inputEstimate > contextTokens);
-}
+// PROMPT FIT LEFT THIS PANE (#158 item 2, 2026-08-17 — the one-home ruling). `fitLineOf`/`fitWarnOf` used
+// to derive a `≈ N/M tok` line here from the SCORE stage's slice alone, beside `LaneRunControl`'s per-stage
+// `in ≈ … · out ≈ …` on the same screen. It was never a second copy of one datum so much as a third of one:
+// the lane prints both directions and both ceilings, per stage, next to the verb whose budget it is. The
+// `fitWarn` half existed only to stop the two homes DISAGREEING (side-eye P2, "CONTEXT drops the ⚠");
+// deleting the second home closes that for good rather than keeping the two in sync forever.
 
 /** The scope row's readout — the selected fields, with the greeting slots spelled out when the
  *  selection narrows them (the roster line the row previously did not carry at all). */
@@ -116,12 +99,9 @@ function scopeLineOf(view: SessionView): string {
 export function SetupTabBody({ state }: { state: RefineryContextState }): ReactElement | null {
   const trpc = useTRPC();
   const session = useRefinerySession(state.sessionId);
-  const preflight = useRefineryPreflight(state.sessionId);
   const schemas = useRefinerySchemas();
-  const character = useGatedQuery(session.data?.characterId ?? null, (id) => trpc.character.get.queryOptions({ characterId: id }));
   const invalidation = useInvalidation();
   const updateSession = useUpdateRefinerySession({ trpc, invalidation });
-  const [scopeOpen, setScopeOpen] = useState(false);
   // The schema editor is opened AT A STAGE (score / analyze) and possibly over an existing row to EDIT.
   // `null` = closed. Conditionally mounted (not an always-mounted `open` bool) so switching stage/target
   // gives the dialog fresh internal state — its description/schemaText seed from `editing` at mount only.
@@ -139,26 +119,18 @@ export function SetupTabBody({ state }: { state: RefineryContextState }): ReactE
       <SetupTab
         analyzeSchemaLine={stageSchemaLineOf(customNameOf(view.stageConfig.analyze, schemas.data))}
         anchorLine={`Pinned at session start · ${view.originalCard.greetings.length} greetings`}
-        fitLine={fitLineOf(preflight.data)}
-        fitWarn={fitWarnOf(preflight.data)}
         guidance={view.guidance}
         onEditSchema={openSchemaEditor}
-        onEditScope={(): void => setScopeOpen(true)}
         onViewOriginal={(): void => setRefineryViewedRun(null)}
         scopeLine={scopeLineOf(view)}
         scoreSchemaLine={stageSchemaLineOf(customNameOf(view.stageConfig.score, schemas.data))}
         stageModesLine={stageModesLineOf(view)}
       />
-      {character.data !== undefined ? (
-        <ScopeEditorDialog
-          card={character.data}
-          onOpenChange={setScopeOpen}
-          onSave={(selection): void => updateSession.mutate({ sessionId: state.sessionId, patch: { selection } })}
-          open={scopeOpen}
-          score={null}
-          selection={view.selection}
-        />
-      ) : null}
+      {/* THE SECOND SCOPE EDITOR LEFT WITH ITS ROW (#158 item 1). This body used to mount its OWN
+          `ScopeEditorDialog` — with `score={null}`, so it could not show the score-informed hints
+          CONTENT's copy does — beside CONTENT's, which is the "two independently-editable homes inches
+          apart" the issue is about. The workbench keeps the door; this pane keeps the readout. The card
+          read (`character.get`) went with it: it was here only to feed that dialog. */}
       {schemaEditor !== null ? (
         <SchemaEditorDialog
           editing={schemaEditor.editing}
