@@ -74,6 +74,8 @@ import { parseViewport } from "./_kit/flags.ts";
 import type { NavMethod } from "./_kit/nav.ts";
 import { runNav } from "./_kit/nav.ts";
 import { print, printResult } from "./_kit/result.ts";
+import type { ThemeRequest } from "./_kit/theme.ts";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "./_kit/theme.ts";
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_WINDOW_MS = 2500;
@@ -111,6 +113,9 @@ type Args = {
    *  dev account STORES `appearance.reducedMotion:true`, so without this every number here described an app
    *  whose own setting had frozen the animations being measured. null = the account's real state. */
   appearance: AppearancePatch | null;
+  /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
+   *  `settings.getUserSettings` response (never written — _kit/theme.ts). null = the account's own theme. */
+  theme: ThemeRequest | null;
   /** CLI misuse collected without side effects; any entry means exit 2 before a browser boots. */
   errors: string[];
 };
@@ -164,6 +169,9 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--full-motion": (a) => {
     a.appearance = mergeAppearancePatches(a.appearance, FULL_MOTION_PATCH);
   },
+  "--theme": (a, rest) => {
+    applyThemeFlag(a, parseThemeFlag(rest.shift() ?? ""));
+  },
 };
 
 // Flags that consume the next token. A missing value used to swallow the following flag silently.
@@ -179,6 +187,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--window",
   "--viewport",
   ...APPEARANCE_VALUE_FLAGS,
+  ...THEME_VALUE_FLAGS,
 ]);
 
 const MOTION_AUDIT_HELP = `motion-audit — the smoothness ground-truth harness
@@ -198,6 +207,8 @@ Environment:
   --base <url> · --url <full-url> · --viewport <WxH> · --vnc (headful) · --no-throttle
 
 ${appearanceHelpBlock()}
+
+${themeHelpBlock()}
   A motion verdict owes BOTH arms: bare (the account's real state — does the floor hold?) and
   --full-motion (is the nice stuff good?). This probe's browser-level reducedMotion:false is the OS
   media query only; it does NOT turn the app's own setting back on.
@@ -248,6 +259,7 @@ export function parseMotionArgs(argv: string[]): Args {
     vnc: false,
     throttle: true,
     appearance: null,
+    theme: null,
     errors: scanArgv(argv),
   };
   const rest = [...argv];
@@ -503,6 +515,7 @@ async function main(): Promise<number> {
     colorScheme: null,
     reducedMotion: false, // the OS media query — a motion probe wants the REAL animations
     appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
+    theme: opts.theme,
     localStorage: [],
   });
   const { page } = session;

@@ -10,8 +10,8 @@ import { fileURLToPath } from "node:url";
 import {
   appearancePresetNames,
   applyAppearanceFlag,
-  applyAppearanceToBody,
-  deepMergeAppearance,
+  applySettingsToBody,
+  deepMergeSettings,
   FULL_MOTION_PATCH,
   loadAppearancePreset,
   mergeAppearancePatches,
@@ -35,13 +35,13 @@ function appearanceOf(body: unknown, index = 0): Record<string, unknown> {
 }
 
 test("the patch is a DEEP merge: named keys win, unnamed keys keep the account's real value", () => {
-  const merged = deepMergeAppearance({ reducedMotion: true, density: "comfortable", chatWidthPct: 50 }, { reducedMotion: false });
+  const merged = deepMergeSettings({ reducedMotion: true, density: "comfortable", chatWidthPct: 50 }, { reducedMotion: false });
 
   expect(merged).toEqual({ reducedMotion: false, density: "comfortable", chatWidthPct: 50 });
 });
 
 test("arrays and scalars REPLACE wholesale — an appearance list is a set the caller states, not appends to", () => {
-  const merged = deepMergeAppearance({ blurSurfaces: ["panels", "composer", "modals"] }, { blurSurfaces: [] });
+  const merged = deepMergeSettings({ blurSurfaces: ["panels", "composer", "modals"] }, { blurSurfaces: [] });
 
   expect(merged).toEqual({ blurSurfaces: [] });
 });
@@ -67,18 +67,30 @@ test("only the settings element of a batch is rewritten; its siblings are byte-i
   const others = { result: { data: { items: [1, 2] } } };
   const body = [others, envelope({ reducedMotion: true, density: "comfortable" })];
 
-  const patched = applyAppearanceToBody(body, 1, { reducedMotion: false });
+  const patched = applySettingsToBody(body, 1, { appearance: { reducedMotion: false } });
 
   expect(patched.applied).toBe(true);
   expect(appearanceOf(patched.body, 1)).toEqual({ reducedMotion: false, density: "comfortable" });
   expect((patched.body as unknown[])[0]).toBe(others);
 });
 
+test("the merge lands at CONFIG level without disturbing the config's other axes", () => {
+  // The shim now patches `config` (appearance AND theme ride one interception, #225) — a run that names only
+  // appearance must leave `config.theme` exactly as the server sent it, or every theme-less run silently
+  // re-selects the default theme.
+  const body = [{ result: { data: { config: { appearance: { density: "comfortable" }, theme: { selectedThemeId: "theme_abc" } } } } }];
+
+  const patched = applySettingsToBody(body, 0, { appearance: { density: "compact" } });
+
+  const config = (patched.body as [{ result: { data: { config: Record<string, unknown> } } }])[0].result.data.config;
+  expect(config).toEqual({ appearance: { density: "compact" }, theme: { selectedThemeId: "theme_abc" } });
+});
+
 test("a response that is not the settings envelope is passed through, reported as NOT applied", () => {
   // An error result / a moved schema must never be replaced with a fabricated config the app never sent.
   const error = [{ error: { message: "UNAUTHORIZED" } }];
 
-  expect(applyAppearanceToBody(error, 0, { reducedMotion: false })).toEqual({ body: error, applied: false });
+  expect(applySettingsToBody(error, 0, { appearance: { reducedMotion: false } })).toEqual({ body: error, applied: false });
 });
 
 test("unparseable JSON and a non-object are CLI misuse, never a silent no-op", () => {

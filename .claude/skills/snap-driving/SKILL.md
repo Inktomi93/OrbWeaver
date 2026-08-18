@@ -182,8 +182,9 @@ audits spent months judging an app whose own setting had frozen the animations t
   row — a second metadata line's worth of geometry). An unknown name is ARG ERROR listing the valid ones.
   `--appearance` composes OVER a preset (preset first, then the patch; later keys win).
 - **That file is the ONE home for curated appearance points.** New coverage = a new PROFILE there, with
-  its `why`. Never a new flag: the CLI carries exactly `--appearance` / `--appearance-preset` /
-  `--full-motion`, by owner ruling.
+  its `why`. Never a new flag for an appearance point: on this axis the CLI carries exactly
+  `--appearance` / `--appearance-preset` / `--full-motion`, by owner ruling. (`--theme` in §5c is a
+  DIFFERENT settings axis, not an appearance point — owner-filed as #225.)
 - **BOTH ARMS OR IT IS HALF AN ANSWER.** A motion/visual verdict owes the bare run (the owner's real
   state — does the floor hold?) AND `--full-motion` / `--appearance-preset maximal` (is the nice stuff
   good?). A full-battery surface pass drives bare + `maximal` at minimum; transcript/chat surfaces add
@@ -193,6 +194,29 @@ audits spent months judging an app whose own setting had frozen the animations t
   `environment.appearance`, so a manifest states which arm it measured.
 - `--file` (static mock) REFUSES them: a local HTML file makes no settings request. Scenario checkpoints
   refuse them too — one shared browser context, so the shim goes on the OUTER command.
+
+## §5c The ACTIVE THEME is its own axis — `--theme` (light-arm coverage off carried rooms)
+
+`--appearance` reaches `config.appearance` only. The app's ACTIVE THEME is a different settings key
+(`config.theme.selectedThemeId`, read by `use-selected-theme` → `settings.getTheme` → app-shell), so
+before #225 "score this surface under the Light theme" meant WRITING the owner's settings, and
+theme-polarity coverage rode only on chat rooms whose card carries a theme.
+
+- **`--theme <name|id>`** renders as if that theme were selected — seeds `Hearth` | `Mocha` | `Light`,
+  or any of your own themes, by name (case-insensitive) or id. **`--theme none`** = no selection (the
+  shipped Hearth default a fresh account sees).
+- Same non-mutating contract as the appearance shim: the run patches only the SELECTION over the real
+  `settings.getUserSettings` response, the app then fetches the REAL theme row itself, and nothing is
+  written. Same four probes (`snap`, `design-audit`, `motion-audit`, `perf-meter`); `--json` records it
+  under `environment.theme`; `--file` and scenario checkpoints refuse it for the same reasons.
+- The name is resolved against the account's OWN `settings.listThemes`, so a typo prints
+  `THEME SHIM WARNING` on stderr with the real list and the run renders YOUR theme — read stderr before
+  trusting a theme arm's verdict.
+- **THIRD axis, not a synonym.** `--dark`/`--light` emulate the OS color scheme; `--appearance` is the
+  app's appearance settings; `--theme` is the app's palette selection. They compose.
+- **Take a theme arm on a NON-CARRIED surface** (Home, Configuration, Analytics…). Inside a chat room
+  whose CARD carries a theme, `<html>` has NO `data-theme` and the room's `ThemeScope` governs — a
+  pretended app theme is invisible there BY DESIGN (D44 §12 takeover), not a broken shim.
 
 ## §6 Scenario, matrix, watch (recipes: `reference/recipes.md`)
 
