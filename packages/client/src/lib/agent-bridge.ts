@@ -221,7 +221,7 @@ export interface OrbNavHandle {
   readonly contextTab: (name: string) => NavResult;
   /** Switch to the Chats section + make an existing chat active by chat id OR exact display title, OR one of
    *  the sentinels reported by `capabilities().chatPositions`:
-   *    · `"first"`/`"latest"` — the chat LIST's top row (`listChats` is newest-updated-first, so both
+   *    · `"first"`/`"latest"` — the chat LIST's top row (`listChats` is newest-CONVERSATION-first, so both
    *      spellings name the most recent LISTED chat). Rejects on an empty list.
    *    · `"current"` — the ACTIVE room, read off the session's active-chat pointer with no list query in the
    *      path. Use this, not `latest`, right after creating a room: a fresh room is an unlisted husk until

@@ -43,7 +43,7 @@ const CHARACTER_NAV_PAGE_LIMIT = CHARACTER_LIST_MAX_LIMIT;
 // rather than claiming the chat does not exist.
 const CHAT_NAV_PAGE_LIMIT = CHAT_LIST_MAX_LIMIT;
 // `openChat` targets that name a POSITION in the LIST instead of a chat: both mean its top row (see the
-// arm's comment — `listChats` is newest-updated-first, so top row === most recent).
+// arm's comment — `listChats` is newest-CONVERSATION-first, so top row === most recent).
 const CHAT_LIST_POSITION_IDS = ["first", "latest"] as const;
 const CHAT_LIST_POSITION_SENTINELS = new Set<string>(CHAT_LIST_POSITION_IDS);
 // The SESSION sentinel — the room the shell is showing right now, read off the active-chat pointer and
@@ -115,7 +115,8 @@ async function resolveListedChat(idOrTitle: string, trpc: Trpc, queryClient: Que
   }
   const chats = page.items;
   // POSITIONAL sentinels — "open whatever chat is on top" without first learning an id. `listChats`
-  // returns newest-updated-first and the list surface renders that order unsorted, so the top ROW and
+  // returns newest-CONVERSATION-first (#150 — the room you last spoke in, not the row last written) and
+  // the list surface renders that order unsorted, so the top ROW and
   // the most-RECENT chat are the same row; both spellings resolve to it (a caller reaching for "latest"
   // and one reaching for "first" mean the same thing here, and inventing a difference would be a lie).
   // Reserved words by design: a chat literally titled "first"/"latest" is reachable by its id.

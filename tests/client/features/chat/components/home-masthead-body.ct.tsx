@@ -33,6 +33,34 @@ test("F1 the masthead reads 'You left off just now', never 'now ago', for a seco
   await expect(subtitle).not.toContainText("now ago");
 });
 
+// ── FENCE (#150, owner-observed live 2026-08-17): the sentence reads the CONVERSATION clock ──────────
+// The live symptom was "You left off 2w ago" over a room somebody had spoken in an hour earlier. The defect
+// was SERVER-side ordering (the list sorted on `chats.updated_at` while every row displays
+// `lastMessageAt ?? updatedAt`), and this arm is the client half of that contract, pinned where a user reads
+// it: given a row whose row-stamp is two weeks old and whose last message is an hour old, the sentence says
+// ONE HOUR. It passes pre-fix — `chatSummaryRowView` always preferred `lastMessageAt` — and it is here so a
+// "simplification" to `updatedAt` on this side cannot silently re-open the same sentence.
+const HOUR_MS = 3_600_000;
+const FORTNIGHT_MS = 14 * 24 * HOUR_MS;
+
+test("#150 the subtitle ages the room by its last MESSAGE, not by the chat row's stamp", async ({ mount, page }) => {
+  await page.clock.setFixedTime(FROZEN_AT_MS);
+  const talked = makeChatSummary({
+    id: "chat_talked",
+    title: "The Rust Lecture",
+    participantNames: ["Wren"],
+    lastMessageAt: FROZEN_AT_MS - HOUR_MS,
+    // The row itself has not been written in a fortnight — a turn does not touch it.
+    updatedAt: FROZEN_AT_MS - FORTNIGHT_MS,
+  });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([talked]) });
+
+  const subtitle = (await mount(<ChatMastheadTileStory />)).getByText(LEFT_OFF);
+
+  await expect(subtitle).toHaveText("You left off 1h ago in The Rust Lecture.");
+  await expect(subtitle).not.toContainText("2w");
+});
+
 // ── RED-FIRST (review 2026-08-17 F3): the COUNT is the server census, never the page ─────────────────
 // The heading counted `items.length` and appended "and more" whenever that equalled `RECENTS_LIMIT` (8) —
 // a page size, not a total. So the sentence lied in BOTH directions at the page boundary: a user with

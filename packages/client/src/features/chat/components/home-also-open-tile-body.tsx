@@ -1,5 +1,8 @@
-// The "Also open" HOME tile body — the rooms you did NOT come back for, at list weight under the hearth
-// hero (program #102, mockup variant C's second `.block`).
+// The "Other rooms" HOME tile body — the rooms you did NOT come back for, at list weight under the hearth
+// hero (program #102, mockup variant C's second `.block`). It shipped titled "Also open" and was retitled
+// by owner ruling 2026-08-17 (#150): rooms have no open/closed state, so that title named a property this
+// product does not model. The file name and the `chat.alsoOpen` id keep the original spelling — see the
+// contribution's header.
 //
 // WHY IT IS ITS OWN TILE AND NOT A BAND INSIDE THE RECENTS TILE (side-eye 2026-08-16 F6/F13). It shipped as
 // a `<Section kicker>` nested in the recents body, which made it an `h3` inside the region named "Pick up
@@ -46,8 +49,8 @@ export function HomeAlsoOpenTileBody(): ReactElement {
     // `role="list"` needs `listitem` CHILDREN or the rows are generic to AT and the list announces empty —
     // the shared row's root is a plain div, so the role rides a layout-primitive wrapper (a literal <li>
     // would be invalid HTML under a div[role=list]). The list is NOT named here any more: the tile frame's
-    // own `h2` names the region this list is the whole content of, and a second "Also open" on the list
-    // itself made AT say the name twice in a row.
+    // own `h2` names the region this list is the whole content of, and a second copy of that name on the
+    // list itself made AT say it twice in a row.
     <Stack gap="tight" role="list">
       {alsoOpen.map((chat, index) => (
         // THE MOCK RULES A HAIRLINE BETWEEN ROOMS (side-eye F14 — `.also a{border-top:1px solid}` with

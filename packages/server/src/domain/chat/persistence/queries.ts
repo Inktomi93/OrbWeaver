@@ -356,28 +356,54 @@ function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | 
   );
 }
 
-/** The membership-scoped library list — the chats the user is a present member of, newest-updated first,
- *  KEYSET-PAGED. Archived excluded unless `includeArchived`; temporary chats are always hidden (they persist
- *  so turns can run, but never surface in the library — `reapTemporaryChats` sweeps them once expired).
+/** THE ONE RECENCY CLOCK of the chat library (#150, owner-observed live 2026-08-17) — a room's newest
+ *  message time, falling back to its row stamp when it has no message: `coalesce(max(created_at), updated_at)`.
  *
- *  The order is `(updated_at DESC, id DESC)` and the cursor rides BOTH: `chats.updated_at` is a millisecond
- *  stamp a bulk import writes identically across hundreds of rows, so an `updated_at`-only keyset would skip
- *  or repeat whole runs at the page seam. Callers get `limit + 0` rows — the verb decides `nextCursor` from
- *  a full page, so this never over-reads. */
+ *  IT IS THE DISPLAY KEY, IN SQL. The list used to ORDER BY `chats.updated_at` while every surface DISPLAYS
+ *  `lastMessageAt ?? updatedAt` — two clocks that disagree in BOTH directions, because `updated_at` is a
+ *  row-modification stamp and nothing more: appending a message does not write the chat row (so the freshest
+ *  conversation sank to 4th), while a metadata touch does (so a room whose last line was two weeks old led
+ *  the list, and the home hero honestly rendered "you left off 2w ago" over it). Sorting on this expression
+ *  makes "the top row is the most recent conversation" true BY CONSTRUCTION rather than by a coincidence of
+ *  write paths — and it leaves `updated_at` honest as what it is.
+ *
+ *  IT MIRRORS {@link loadChatMessageStats}'S PREDICATE EXACTLY, selected-variant join included: that read is
+ *  where `ChatSummary.lastMessageAt` comes from, so any divergence here would sort a list by a number no row
+ *  in it shows (a slot whose selected variant is gone must move neither the stamp nor the sort). The
+ *  verb-level test that pins `items` non-increasing in `lastMessageAt ?? updatedAt` is the enforcer of that
+ *  agreement. */
+function chatRecencySql(db: Db): SQL<number> {
+  return sql<number>`coalesce((${db
+    .select({ at: max(messages.createdAt) })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.chatId, chats.id))}), ${chats.updatedAt})`;
+}
+
+/** The membership-scoped library list — the chats the user is a present member of, newest-CONVERSATION
+ *  first, KEYSET-PAGED. Archived excluded unless `includeArchived`; temporary chats are always hidden (they
+ *  persist so turns can run, but never surface in the library — `reapTemporaryChats` sweeps them once expired).
+ *
+ *  The order is `({@link chatRecencySql} DESC, id DESC)` and the cursor rides BOTH — hence the `recencyAt`
+ *  each row carries out, which is the cursor's own field: the sort key is an EXPRESSION, so a caller cannot
+ *  re-derive it from the row's columns, and the tail is not unique on its own (a bulk import stamps hundreds
+ *  of rows identically, and a keyset without a unique tail silently skips or repeats rows at the page seam).
+ *  Callers get `limit + 0` rows — the verb decides `nextCursor` from a full page, so this never over-reads. */
 export async function listMemberChats(
   db: Db,
   userId: UserId,
   opts: MemberChatFilter & { readonly limit: number; readonly cursor?: ChatListCursor | undefined },
-): Promise<ChatRow[]> {
+): Promise<(ChatRow & { recencyAt: number })[]> {
   const cursor = opts.cursor;
+  const recencyAt = chatRecencySql(db);
   const rows = await db
-    .select(chatRowSelection)
+    .select({ ...chatRowSelection, recencyAt })
     .from(chats)
     .innerJoin(chatParticipants, memberChatScope(db, userId, opts))
-    .where(cursor === undefined ? undefined : or(lt(chats.updatedAt, cursor.updatedAt), and(eq(chats.updatedAt, cursor.updatedAt), lt(chats.id, cursor.id))))
-    .orderBy(desc(chats.updatedAt), desc(chats.id))
+    .where(cursor === undefined ? undefined : or(lt(recencyAt, cursor.recencyAt), and(eq(recencyAt, cursor.recencyAt), lt(chats.id, cursor.id))))
+    .orderBy(desc(recencyAt), desc(chats.id))
     .limit(opts.limit);
-  return rows.map(toChatRow);
+  return rows.map(({ recencyAt: at, ...row }) => ({ ...toChatRow(row), recencyAt: at }));
 }
 
 /** The library list's CENSUS — how many chats match the same scope the page above is a window into. A real

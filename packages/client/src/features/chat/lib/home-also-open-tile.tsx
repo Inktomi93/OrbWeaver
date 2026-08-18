@@ -1,6 +1,13 @@
-// Chat's "Also open" HOME tile contribution — the second of chat's two hearth blocks (program #102's
+// Chat's "Other rooms" HOME tile contribution — the second of chat's two hearth blocks (program #102's
 // mockup, side-eye 2026-08-16 F6/F13). One file + one array member at the door, exactly like every other
 // tile; the WHY of the split lives in `home-also-open-tile-body.tsx`.
+//
+// IT SHIPPED AS "Also open" AND WAS RETITLED (owner ruling 2026-08-17, #150). A room has no open/closed
+// state in this product — nothing opens one and nothing closes one — so the old title named a property the
+// model does not have, and the honest reading of the block is "the rest of your rooms". The FILE, the
+// contribution id (`chat.alsoOpen`) and the `data-home-tile` hook keep the old spelling on purpose: they are
+// wire vocabulary that every CT and story selector is written against, and renaming an id to match a label
+// is how a rename becomes a migration.
 //
 // It carries the "All chats →" link that used to sit on the pick-up band, which is where the mock draws it
 // and where it stops sharing a line with the "Chats" jump pill.
@@ -23,7 +30,7 @@ const ALSO_OPEN_SKELETON_ROWS = RECENTS_LIMIT - 1;
 
 export const chatAlsoOpenTile: HomeTileContribution = {
   id: "chat.alsoOpen",
-  title: "Also open",
+  title: "Other rooms",
   icon: MessagesSquare,
   order: ALSO_OPEN_TILE_ORDER,
   region: "hearth",

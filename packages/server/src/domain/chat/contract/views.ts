@@ -58,7 +58,9 @@ export interface ChatSummary {
   readonly archived: boolean;
   /** The fork-lineage pointer (D27) — null for a root chat. */
   readonly parentChatId: ChatId | null;
-  /** The seq/timestamp of the newest message (null for an empty just-created chat). */
+  /** The timestamp of the newest message (null for an empty just-created chat). With `updatedAt` it IS the
+   *  list's sort key — every surface renders `lastMessageAt ?? updatedAt` and `listChats` orders on exactly
+   *  that expression in SQL (#150), so the row on top is the room whose stamp is the freshest. */
   readonly lastMessageAt: number | null;
   readonly messageCount: number;
   /** The list row's SCENT line: the newest visible message flattened to ONE line of plain text
@@ -97,7 +99,8 @@ export interface ChatSummary {
   readonly updatedAt: number;
 }
 
-/** One KEYSET page of the caller's chat library (`listChats`) — newest-updated first, filtered by the
+/** One KEYSET page of the caller's chat library (`listChats`) — newest-CONVERSATION first (ordered on the
+ *  clock the rows DISPLAY, `lastMessageAt ?? updatedAt`; #150), filtered by the
  *  request's `characterId`/`includeArchived`. Mirrors the `items`/`nextCursor` shape of `character`'s own
  *  `ListCharactersResult` and ADDS the census.
  *

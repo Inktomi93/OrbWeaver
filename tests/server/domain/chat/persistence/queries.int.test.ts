@@ -127,7 +127,9 @@ describe("persistence/queries — chat-row reads (D18 membership scope)", () => 
     expect(await loadChatRow(db, castId<ChatId>("chat_nope"))).toBeUndefined();
   });
 
-  test("listMemberChats: present membership only, archived gated, newest-updated first", async () => {
+  // No messages anywhere in this fixture, so every room's recency clock IS its `updated_at` — this arm is
+  // about the SCOPE (membership + archived), and it pins the fallback leg of the sort while it is at it.
+  test("listMemberChats: present membership only, archived gated, newest first", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const other = await seedUser(db, castId<Handle>("other"));
     const a = await seedChat(db, "a", { updatedAt: 100 });
@@ -144,6 +146,59 @@ describe("persistence/queries — chat-row reads (D18 membership scope)", () => 
 
     const withArchived = await listMemberChats(db, me, { includeArchived: true, limit: TEST_PAGE_LIMIT });
     expect(withArchived.map((c) => c.id)).toStrictEqual([archived, b, a]);
+  });
+
+  // ONE RECENCY CLOCK (#150, owner-observed live 2026-08-17). The list sorted by `chats.updated_at` while
+  // every row DISPLAYS `lastMessageAt ?? updatedAt`, and the two disagree in both directions: a turn does not
+  // write the chat row (so the freshest conversation sank), and a metadata touch does (so a two-week-old room
+  // led the home hero saying "you left off 2w ago"). The sort key IS the display key now — see
+  // `chatRecencySql`.
+  test("listMemberChats sorts by CONVERSATIONAL recency: a fresher message outranks a newer non-message touch", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    // `touched` carries the live shape exactly: a 2026-08 metadata write bumped its row stamp above every
+    // other room while its last line was said two weeks earlier.
+    const talked = await seedChat(db, "talked", { updatedAt: 1000 });
+    const touched = await seedChat(db, "touched", { updatedAt: 5000 });
+    await seedParticipant(db, { chatId: talked, key: "t", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: touched, key: "u", userId: me, role: "host" });
+    await seedMessage(db, talked, 1, { role: "user", content: "tonight", createdAt: 9000 });
+    await seedMessage(db, touched, 1, { role: "user", content: "a fortnight ago", createdAt: 2000 });
+
+    expect((await listMemberChats(db, me, { limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toStrictEqual([talked, touched]);
+  });
+
+  test("listMemberChats falls back to `updated_at` for a room with no messages — it never floats and never drops", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const talked = await seedChat(db, "talked", { updatedAt: 1000 });
+    // Started (not a husk) but never sent in: its only clock IS the row stamp.
+    const silent = await seedChat(db, "silent", { updatedAt: 3000 });
+    const stale = await seedChat(db, "stale", { updatedAt: 5000 });
+    await seedParticipant(db, { chatId: talked, key: "t", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: silent, key: "s", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: stale, key: "x", userId: me, role: "host" });
+    await seedMessage(db, talked, 1, { role: "user", content: "tonight", createdAt: 9000 });
+    await seedMessage(db, stale, 1, { role: "user", content: "long ago", createdAt: 2000 });
+
+    // 9000 (message) · 3000 (row stamp, no message) · 2000 (message, NOT its 5000 row stamp).
+    expect((await listMemberChats(db, me, { limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toStrictEqual([talked, silent, stale]);
+  });
+
+  test("listMemberChats: a slot whose SELECTED variant is gone does not set the sort clock (the display predicate, exactly)", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    // The row stamps are deliberately INVERTED against the conversational answer, so this arm fails both
+    // ways: on the old `updated_at` sort AND on a recency expression that forgot the selected-variant join.
+    const orphaned = await seedChat(db, "orphaned", { updatedAt: 6000 });
+    const other = await seedChat(db, "other", { updatedAt: 1000 });
+    await seedParticipant(db, { chatId: orphaned, key: "o", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: other, key: "p", userId: me, role: "host" });
+    await seedMessage(db, orphaned, 1, { role: "user", content: "counted", createdAt: 2000 });
+    const gone = await seedMessage(db, orphaned, 2, { role: "assistant", content: "not counted", createdAt: 8000 });
+    await db.update(messages).set({ selectedVariantId: null }).where(eq(messages.id, gone.messageId));
+    await seedMessage(db, other, 1, { role: "user", content: "newer", createdAt: 4000 });
+
+    // `loadChatMessageStats` reports 2000 for `orphaned` (the selected-variant join), so the SORT must agree —
+    // otherwise the row that leads the list shows an older stamp than the row under it.
+    expect((await listMemberChats(db, me, { limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toStrictEqual([other, orphaned]);
   });
 
   test("loadForkChildren returns the parent's fork children", async () => {

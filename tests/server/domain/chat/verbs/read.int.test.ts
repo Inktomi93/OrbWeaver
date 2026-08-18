@@ -272,6 +272,84 @@ describe("read — listings (membership-scoped, D18)", () => {
   });
 });
 
+// ONE RECENCY CLOCK (#150) — the invariant the whole home surface rests on, asserted where a consumer sees
+// it: `items` is non-increasing in the value the rows DISPLAY (`lastMessageAt ?? updatedAt`). This is the
+// named enforcer for the agreement between `chatRecencySql` (the sort) and `loadChatMessageStats` (the
+// stamp): a divergence in either spelling sorts the library by a number no row in it shows, which is exactly
+// how the home hero came to say "you left off 2w ago" over a room somebody had spoken in an hour earlier.
+describe("read — listChats orders by the clock its rows DISPLAY (#150)", () => {
+  test("the room with the freshest MESSAGE leads, even when another room's row stamp is newer", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const talked = await seedRoom("talked", me);
+    const touched = await seedRoom("touched", me);
+    const silent = await seedRoom("silent", me);
+    // `touched` is the live shape: a NON-message write bumped its row stamp above everything while its last
+    // line is a fortnight old. `talked` carries tonight's turn under an untouched row stamp (a turn does not
+    // write the chat row). `silent` has no message at all.
+    await db.update(chatsTable).set({ updatedAt: 5000 }).where(eq(chatsTable.id, touched));
+    await db.update(chatsTable).set({ updatedAt: 1000 }).where(eq(chatsTable.id, talked));
+    await db.update(chatsTable).set({ updatedAt: 3000 }).where(eq(chatsTable.id, silent));
+    await seedMessage(db, talked, 1, { role: "user", authorUserId: me, content: "tonight", createdAt: 9000 });
+    await seedMessage(db, touched, 1, { role: "user", authorUserId: me, content: "a fortnight ago", createdAt: 2000 });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const { items } = await listChats({ principal: principal(me) });
+
+    expect(items.map((c) => c.id)).toStrictEqual([talked, silent, touched]);
+    // …and the HERO's own stamp is the fresh one, so the sentence the masthead builds off `items[0]` reads
+    // the same instant that put it on top.
+    expect(items[0]?.lastMessageAt).toBe(9000);
+    // The list is non-increasing in the DISPLAYED clock — sort key === display key, over the whole page.
+    const shown = items.map((c) => c.lastMessageAt ?? c.updatedAt);
+    expect(shown).toStrictEqual([...shown].sort((a, b) => b - a));
+  });
+
+  test("a new message re-sorts the room to the top on the NEXT read — no chat-row write required", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const behind = await seedRoom("behind", me);
+    const ahead = await seedRoom("ahead", me);
+    await seedMessage(db, behind, 1, { role: "user", authorUserId: me, content: "older", createdAt: 1000 });
+    await seedMessage(db, ahead, 1, { role: "user", authorUserId: me, content: "newer", createdAt: 2000 });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    expect((await listChats({ principal: principal(me) })).items.map((c) => c.id)).toStrictEqual([ahead, behind]);
+
+    // The turn path appends canon and does NOT touch `chats.updated_at` — the whole reason the old sort lied.
+    await seedMessage(db, behind, 2, { role: "assistant", content: "just now", createdAt: 3000 });
+    expect((await listChats({ principal: principal(me) })).items.map((c) => c.id)).toStrictEqual([behind, ahead]);
+  });
+
+  test("the keyset pages across the recency clock — every room exactly once, in one non-increasing run", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const stamps = [9000, 2000, 7000, 4000, 6000];
+    const rooms: ChatId[] = [];
+    for (const [index, at] of stamps.entries()) {
+      // biome-ignore lint/performance/noAwaitInLoops: a keyset walk is sequential by definition, and these rooms are seeded in a fixed order so the page seams are deterministic.
+      const room = await seedRoom(`keyset${String(index)}`, me);
+      // biome-ignore lint/performance/noAwaitInLoops: same — the message stamp is what this arm pages across.
+      await seedMessage(db, room, 1, { role: "user", authorUserId: me, content: `line ${String(index)}`, createdAt: at });
+      rooms.push(room);
+    }
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const walked: ChatId[] = [];
+    const shown: number[] = [];
+    let cursor: ChatListCursor | undefined;
+    let pages = 0;
+    do {
+      // biome-ignore lint/performance/noAwaitInLoops: page N+1's cursor IS page N's answer.
+      const page = await listChats({ principal: principal(me), limit: 2, ...(cursor === undefined ? {} : { cursor }) });
+      walked.push(...page.items.map((c) => c.id));
+      shown.push(...page.items.map((c) => c.lastMessageAt ?? c.updatedAt));
+      cursor = page.nextCursor ?? undefined;
+      pages += 1;
+    } while (cursor !== undefined && pages <= rooms.length);
+
+    expect(new Set(walked).size).toBe(rooms.length);
+    expect(shown).toStrictEqual([9000, 7000, 6000, 4000, 2000]);
+  });
+});
+
 describe("read — listChats PAGING, projection + search (the 872-chat class)", () => {
   /** N rooms hosted by `me`, all stamped the SAME `updatedAt` — the shape a bulk import writes, and the one
    *  an `updated_at`-only keyset silently skips or repeats rows across. */
