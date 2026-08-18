@@ -67,7 +67,7 @@ const VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT = 0.1;
 // for the int8 weights + usable KV; the 0.9/card sum is bought back by pooling going enforce-eager (kills
 // the graph overshoot arm on the small engines). If first boot OOMs: drop gen 0.8 → 0.75 before touching
 // the pooling floors, and re-measure — that retune IS the verification step.
-const VLLM_GEN_GPU_UTIL_MULTI_DEFAULT = 0.8;
+const VLLM_GEN_GPU_UTIL_MULTI_DEFAULT = 0.6;
 const VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT = 0.5;
 // --mm-processor-kwargs max_pixels caps: pooling engines (embed/rerank) at the reference 1.84M-px vision
 // regime; the gen VL engine at its 4.2M-px cap. ONE home for the two literals the shell hand-carried.
