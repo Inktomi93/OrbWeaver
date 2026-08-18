@@ -59,8 +59,10 @@
 //     the same muted ink; only weight differed, 600 vs 400). On a CHAT selection it read "CHAT · MEMBERS"
 //     8px under the coin with the rail it named 524px further down the pane.
 //   · THE BUDGET OBJECTION WAS ANSWERED ON ITS OWN TERMS, not overruled. The second kicker row is PAID FOR
-//     by deleting the echo line and its gap: the mockup lands 341.7px of chrome against today's 347.0px, a
-//     5.3px saving (reproduced in CT at the same 383×800 geometry — see the "PAYS FOR ITSELF" test).
+//     by deleting the echo line and its gap: measured in CT at the same 383×800 geometry, chrome is 346.0px
+//     against the echo era's 347.0px — a wash by construction (echo 13.1px + 8px gap out; kicker 13.1px +
+//     4px gap + 4px lead in), CT-pinned at ≤347 (the "PAYS FOR ITSELF" test). The mockup's projected 341.7px
+//     (−5.3) came from its hand-built 49px cells vs the app's real 50.1px — the projection, not the receipt.
 // So the echo's MECHANISM survives and its ambiguity dies: the sentence prints ON the rail it describes.
 // At a coarse pointer, where the echo used to be dropped whole, the kicker keeps the NAME and sheds only
 // the "· Selection" half — the part a phone still needs, at no cost to the rail it already pays for.
