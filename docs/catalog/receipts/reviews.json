@@ -969,6 +969,32 @@
         "git log --oneline -1 -- docs/reviews/misc/2026-08-18-silent-reader-audit.md: 0efa54de9 (lane silent-readers)"
       ],
       "summary": "Point-in-time audit: the caption class is bounded to the 13 open JSON columns; findings F1-F5 triaged to issues; open-json-column-key-parity gate proposed (design only)."
+    },
+    {
+      "path": "docs/reviews/misc/2026-08-18-reading-surface-forensics.md",
+      "assignedSha256": "fb678897f2cce5de18ca0f58379a066bc40f49a05e246cff0a1b68e89025d6c2",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "fb678897f2cce5de18ca0f58379a066bc40f49a05e246cff0a1b68e89025d6c2",
+      "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
+      "verifiedAt": "2026-08-18",
+      "evidence": [
+        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 \u2014 the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
+        "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
+      ],
+      "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
+      "claims": [
+        {
+          "claim": "Mutable follow-up tracked in GitHub issue #204 (the fix design+build).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#204"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
