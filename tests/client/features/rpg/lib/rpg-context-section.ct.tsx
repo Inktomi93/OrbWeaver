@@ -2308,15 +2308,23 @@ function resolvedToken(page: Page, token: string): Promise<string> {
   }, token);
 }
 
-test("HUD-1 §4: the admin rail is a TAB GROUP — its own name on screen, in the kicker voice, as the rail's edge", async ({ mount, page }) => {
+test("HUD-1 §4 (#102 variant A): BOTH rails are TAB GROUPS — each wears its own name on screen, as the rail's edge", async ({ mount, page }) => {
   // F6 defect 3: the meta strip read as an action bar because nothing said it was a second set of TABS of
   // the same panel. The fix is the rail's own NAME, visible — and its hairline rule IS the rail's top edge,
   // so naming the group costs one line and not a second divider.
+  //
+  // AND THE GAME RAIL WEARS IT TOO (owner pick on #102, 2026-08-17). HUD-1 gave the kicker to the admin
+  // rail alone on the grounds that the band's echo already named the game rail; the mockup measured that
+  // echo binding 1:2.5 toward the MEDALLIONS and up to 524px from the rail it named, so the name moved
+  // down onto its group and the echo was deleted. Two kickers, one anatomy, asserted on both.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const kicker = component.locator('[data-slot="rpg-hud-rail-kicker"]');
+  const kickers = component.locator('[data-slot="rpg-hud-rail-kicker"]');
+  await expect(kickers).toHaveCount(2);
+  const kicker = kickers.nth(1);
   await expect(kicker).toBeVisible();
   await expect(kicker).toContainText("Chat");
+  await expect(kickers.nth(0)).toContainText("Game state");
 
   const caption = kicker.locator('[data-slot="text"]');
   const [transform, size, micro] = await Promise.all([
@@ -2328,15 +2336,17 @@ test("HUD-1 §4: the admin rail is a TAB GROUP — its own name on screen, in th
   expect(transform).toBe("uppercase");
   expect(size).toBeCloseTo(micro, 0);
 
-  // The kicker's rule replaces the rail's own track: one line at the rail's top edge, never two.
+  // The kicker's rule replaces the rail's own track: one line at the rail's edge, never two. Both rails
+  // are kicker'd now, so NEITHER draws the `TabsList` border it would otherwise carry.
   const adminList = component.getByRole("toolbar", { name: "Chat" });
   const gameList = component.getByRole("toolbar", { name: "Game state" });
   await expect.poll(() => adminList.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("0px");
-  await expect.poll(() => gameList.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderBottomWidth))).toBeGreaterThan(0);
-  // …and the rule the kicker draws instead is really painted (a Separator that failed to lay out would
+  await expect.poll(() => gameList.evaluate((el) => getComputedStyle(el).borderBottomWidth)).toBe("0px");
+  // …and the rule each kicker draws instead is really painted (a Separator that failed to lay out would
   // leave an unbounded word floating over the rail with every other assertion green).
-  const ruleWidth = (await kicker.locator('[data-slot="separator"]').boundingBox())?.width ?? 0;
-  expect(ruleWidth).toBeGreaterThan(0);
+  const ruleWidths = await kickers.locator('[data-slot="separator"]').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
+  expect(ruleWidths).toHaveLength(2);
+  expect(ruleWidths.every((width) => width > 0)).toBe(true);
 });
 
 test("HUD-1 §4: HOST-ONLY cells wear the crown gold at rest — and only at rest", async ({ mount, page }) => {
@@ -2414,27 +2424,120 @@ test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the se
   await expect.poll(() => captionColor(gameList, "Quests", "Quests"), { intervals: [20, 50, 100, 200] }).toBe(recededCaption);
 });
 
-test("HUD-1 §7.3: the band's LAST line ECHOES the selection — named rail, named tab, announced by neither", async ({ mount, page }) => {
+/** The rail Stack that owns a named toolbar — the kicker and the cells are siblings inside it, so the
+ *  block, not the list, is what a proximity measurement has to be taken against. */
+function railBlock(component: Locator, page: Page, railName: string): Locator {
+  return component.locator('[data-slot="rpg-hud-rail"]').filter({ has: page.getByRole("toolbar", { name: railName }) });
+}
+
+test("#102 variant A: the OWNING rail names the selection in its OWN kicker — the floating band echo is gone", async ({ mount, page }) => {
+  // THE RE-RULE (owner pick on #102, 2026-08-17). HUD-1 §7.3 put this sentence in the band's last line; the
+  // tracker mockup measured it 8px under the medallion row and 20px above the rail it named — 1:2.5 the
+  // WRONG way — and with a CHAT tab selected it read "CHAT · MEMBERS" 524px above the rail it meant. The
+  // MECHANISM survives (the owning rail names the winner in one kicker line); it prints ON that rail now.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const echo = component.locator('[data-slot="rpg-hud-echo"]');
-  const band = component.locator('[data-slot="rpg-hud-band"]');
+  // The band's floating line is DELETED, not duplicated — half a migration is the rot.
+  await expect(component.locator('[data-slot="rpg-hud-echo"]')).toHaveCount(0);
 
-  await expect(echo).toHaveText("Game state · Status");
-  // It reads as the mock's kicker (caps) and it is the band's LAST line — the echo sits below the composite
-  // it annotates, never floating above it.
-  await expect.poll(() => echo.evaluate((el) => getComputedStyle(el).textTransform)).toBe("uppercase");
-  const [echoBox, headerBox] = await Promise.all([echo.boundingBox(), band.locator('[data-slot="rpg-takeover-header"]').boundingBox()]);
-  if (echoBox === null || headerBox === null) {
-    throw new Error("expected the band's composite and its echo to be laid out");
-  }
-  expect(echoBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height);
+  const gameKicker = railBlock(component, page, "Game state").locator('[data-slot="rpg-hud-rail-kicker"]');
+  const chatKicker = railBlock(component, page, "Chat").locator('[data-slot="rpg-hud-rail-kicker"]');
 
-  // It is a VISUAL aid, not a second announcement: the rails already tell AT what is selected.
-  await expect(echo).toHaveAttribute("aria-hidden", "true");
+  // The landing is `rpg.status` — the GAME rail owns, so the GAME kicker carries the selection and the
+  // quiet rail carries only its own name.
+  await expect(gameKicker).toHaveText("Game state · Status");
+  await expect(chatKicker).toHaveText("Chat");
+  // It reads as the mock's kicker (caps), same voice the admin rail has worn since HUD-1…
+  await expect.poll(() => gameKicker.locator('[data-slot="text"]').evaluate((el) => getComputedStyle(el).textTransform)).toBe("uppercase");
+  // …and it is a VISUAL aid, not a second announcement: the rails already tell AT what is selected.
+  await expect(gameKicker).toHaveAttribute("aria-hidden", "true");
 
+  // Cross the split and the sentence MOVES — it is never printed by a rail that does not own the view.
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "This chat" }).click();
-  await expect(echo).toHaveText("Chat · This chat");
+  await expect(chatKicker).toHaveText("Chat · This chat");
+  await expect(gameKicker).toHaveText("Game state");
+});
+
+test("#102 variant A: the game kicker binds DOWNWARD — 4px above its own cells, further from the medallions", async ({ mount, page }) => {
+  // THE MEASURED DEFECT, inverted. Live at a 383px panel the echo sat 8.0px under the satellite row and
+  // 20.0px above the game rail (1:2.5 pointing UP at the orbs, which wear the same 10.5px caps voice).
+  // Variant A's anatomy: `gap-tight` (4px) between the kicker and its cells, and the rail block buys
+  // `spacing-tight` of its own above the kicker so the label lands ~12px below the medallions — 3:1 the
+  // right way. 383×800 is the LIVE panel geometry the mockup was measured at.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory width={383} height={800} />);
+  const satellites = component.locator('[data-slot="rpg-band-satellites"]');
+  await expect(satellites).toBeVisible();
+
+  const gameRail = railBlock(component, page, "Game state");
+  const gameKicker = gameRail.locator('[data-slot="rpg-hud-rail-kicker"]');
+  await expect(gameKicker).toBeVisible();
+
+  const [satBox, bandBox, kickerBox, cellsBox, tight] = await Promise.all([
+    satellites.boundingBox(),
+    component.locator('[data-slot="rpg-hud-band"]').boundingBox(),
+    gameKicker.boundingBox(),
+    component.getByRole("toolbar", { name: "Game state" }).boundingBox(),
+    page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-tight")) * 16),
+  ]);
+  if (satBox === null || bandBox === null || kickerBox === null || cellsBox === null) {
+    throw new Error("expected the band, its satellites and the game rail's kicker + cells to be laid out");
+  }
+  const below = cellsBox.y - (kickerBox.y + kickerBox.height);
+  const above = kickerBox.y - (satBox.y + satBox.height);
+  // The gap BELOW is the `tight` step, resolved from the document — never a px literal at the call site.
+  expect(below).toBeCloseTo(tight, 0);
+  // The rail block's LEAD is the same `tight` step over the band's own bottom edge — that is the one thing
+  // this file controls; everything between the orbs and the band's edge is the header composite's padding.
+  // The rail block's own LEAD — the `tight` step it buys above its kicker, which is the one gap this
+  // component controls. (MEASURED: band bottom 209.5 → rail top 221.5 is 12px of pre-existing column gap
+  // that predates this change; the lead is the 4px on top of it, and the two together are why the label
+  // reads as the rail's rather than the medallions'.)
+  const railTop = (await gameRail.boundingBox())?.y ?? 0;
+  expect(kickerBox.y - railTop).toBeCloseTo(tight, 0);
+  expect(railTop).toBeGreaterThan(bandBox.y + bandBox.height - 1);
+  // …so the binding ratio comes out at least 3:1 the RIGHT way, inverting the live 8:20 that pointed UP at
+  // the medallions. (MEASURED here: 24.0 above · 4.0 below = 6:1, against the mockup's projected 12:4.)
+  expect(above).toBeGreaterThanOrEqual(below * 3);
+
+  // CD1/CD2 (density-pass-spec §3.2): a read-only grouping's name is a caps label + a hairline rule and
+  // NOTHING ELSE — the kicker adds no box to the panel.
+  const box = await gameKicker.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { border: style.borderTopWidth + style.borderBottomWidth, radius: style.borderRadius, background: style.backgroundColor };
+  });
+  expect(box.border).toBe("0px0px");
+  expect(box.radius).toBe("0px");
+  expect(box.background).toBe("rgba(0, 0, 0, 0)");
+});
+
+test("#102 variant A: the second kicker PAYS FOR ITSELF — the HUD's chrome does not grow", async ({ mount, page }) => {
+  // The header's recorded objection to a second kicker was VERTICAL BUDGET (§7.1 caps chrome at 30%), and
+  // the owner pick answers it on its own terms rather than overruling it: the deleted echo line and its
+  // 8px gap pay for the kicker row. MEASURED in this story at exactly the live panel's 383×800 — chrome
+  // (band + both rails) was 347.0px with the band echo, matching the live measurement to the tenth, and is
+  // 346.0px with the rail kicker. The ratchet is the pre-change number: the swap may not cost height.
+  // DEVIATION, receipted: the mockup projected 341.7px (−5.3px). The real delta is −1.0px, because the
+  // arrangement is a WASH by construction — echo 13.1 + its 8px gap out, kicker 13.1 + a 4px gap + the
+  // rail block's 4px lead in — and the mockup's extra 4px came from its hand-built 49px cells against the
+  // app's 50.1px ones. The claim that survives is the one that answers the objection: it does not grow.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory width={383} height={800} />);
+  // SETTLED, not in-flight: the band renders behind a QueryBoundary whose `fallback={null}` collapses it,
+  // and a chrome measured mid-query is a measurement of the fallback.
+  await expect(component.locator('[data-slot="rpg-band-satellites"]')).toBeVisible();
+  await expect(component.locator('[data-slot="rpg-hud-rail"]')).toHaveCount(2);
+  const rails = await component.locator('[data-slot="rpg-hud-rail"]').all();
+  expect(rails).toHaveLength(2);
+  const [bandBox, ...railBoxes] = await Promise.all([
+    component.locator('[data-slot="rpg-hud-band"]').boundingBox(),
+    ...rails.map((rail) => rail.boundingBox()),
+  ]);
+  if (bandBox === null) {
+    throw new Error("expected the band to be laid out");
+  }
+  const chrome = bandBox.height + railBoxes.reduce((total, box) => total + (box?.height ?? 0), 0);
+  expect(chrome).toBeLessThanOrEqual(347);
 });
 
 // ── HUD-1 H3, THE WAYSTONE COMPACT + THE VERTICAL BUDGET (F6 defect 4's second half) ─────────────────
@@ -2510,9 +2613,10 @@ test("HUD-1 §7.1 (AMENDED): the AMBIENT-SET band's chrome stays inside the SET 
   // the arm the panel actually lands on — a game with a scene set, the DEFAULT — was unguarded, and it
   // measured 41.2% against a law written as a flat ≤30%. §7.1 is amended to a two-arm law because the single
   // arm is unsatisfiable here without deleting the composite: at this reference the two rails alone cost
-  // 116.375px, leaving 153.6px of the 270px ceiling — and the SET band's floor is 18px of padding + the
-  // 120px stone row + 8px + the 13px echo ≈ 159px with ZERO satellites. The only way under is to shrink the
-  // stone below the focal step F16 grew it to, which is the signature element the amendment protects.
+  // 116.375px (2026-08-17: ~137px, both rails kicker'd under #102 variant A), leaving ~134px of the 270px
+  // ceiling — and the SET band's floor is 18px of padding + the 120px stone row ≈ 138px with ZERO
+  // satellites. The only way under is to shrink the stone below the focal step F16 grew it to, which is the
+  // signature element the amendment protects.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverReferenceStory />);
   const region = component.locator("[data-context-region]");
@@ -2890,8 +2994,9 @@ test("GLYPHFIX: at the 272px floor the tracker-def row's SWATCH and its three gl
 // Journal were all unusable, and opening the weather picker painted its chips entirely outside the strip.
 //
 // The pane is composed for the phone now instead of hidden into it: the satellite orbs (whose numbers are
-// tracker rows in Status) and the `aria-hidden` selection echo stand down at a coarse pointer, and the six
-// game cells stay ONE scrollable row. This fences the BUDGET, not the pixel — the assertion is the share of
+// tracker rows in Status) stand down at a coarse pointer, each rail's kicker sheds its selection half while
+// keeping the group's name (#102 variant A — the band's floating echo used to be dropped whole here), and
+// the six game cells stay ONE scrollable row. This fences the BUDGET, not the pixel — the assertion is the share of
 // the pane the reading surface gets, so it survives a token retune of the band's padding.
 //
 // The heights are the PRODUCTION panes, not story convenience: 464 is what a 320×568 phone leaves after the
@@ -2919,11 +3024,13 @@ test.describe("coarse HUD budget", () => {
         const paneEl = el.closest(".shell-panel") as HTMLElement;
         const panel = paneEl.querySelector('[data-slot="tabs-panel"]:not([hidden])') as HTMLElement | null;
         const rails = Array.from(paneEl.querySelectorAll<HTMLElement>('[data-slot="rpg-hud-rail"]'));
+        const gameCells = rails[0]?.querySelector<HTMLElement>('[role="toolbar"]') ?? null;
         return {
           pane: paneEl.getBoundingClientRect().height,
           band: el.getBoundingClientRect().height,
           panel: panel === null ? 0 : panel.getBoundingClientRect().height,
           gameRail: rails[0] === undefined ? 0 : rails[0].getBoundingClientRect().height,
+          gameCells: gameCells === null ? 0 : gameCells.getBoundingClientRect().height,
         };
       });
 
@@ -2933,7 +3040,13 @@ test.describe("coarse HUD budget", () => {
       // …and the band is no longer the majority shareholder of a phone pane (227/464 ≈ 0.49 before).
       expect(measured.band / measured.pane).toBeLessThan(0.35);
       // The game rail is ONE row of cells, not two: 105px of two-row wrap became ~50px of scrollable row.
-      expect(measured.gameRail).toBeLessThan(70);
+      // The fence is on the CELLS, which is the thing the wrap doubled — the rail BLOCK now also carries
+      // the kicker row the owner pick keeps at coarse (#102 variant A), and folding a deliberate 20px of
+      // NAME into a fence written against a 55px second cell row would let a real wrap regression hide
+      // inside the allowance. Both are pinned: the cells stay one row, and the block's non-cell chrome
+      // stays under a cell row (measured 70.25 total against 50.25 of cells).
+      expect(measured.gameCells).toBeLessThan(70);
+      expect(measured.gameRail - measured.gameCells).toBeLessThan(measured.gameCells);
     });
 
     test(`@${pane.width}: every game tab is still REACHABLE — the single row scrolls, it does not clip`, async ({ mount, page }) => {
@@ -2953,6 +3066,20 @@ test.describe("coarse HUD budget", () => {
             .map((node) => node.textContent ?? ""),
         );
       expect(clipped).toEqual([]);
+    });
+
+    test(`@${pane.width}: the rail keeps its NAME at coarse and drops only the SELECTION half`, async ({ mount, page }) => {
+      // The deleted echo was dropped ENTIRELY at a coarse pointer, so the phone pane had no name for either
+      // rail at all. The kicker keeps the half a phone still needs — the group's NAME — and sheds the
+      // datum, whose referent is a thumb's width away on this column (#102 variant A, owner pick 2026-08-17).
+      await stubTakeover(page);
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+
+      const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
+      const gameKicker = railBlock(component, page, "Game state").locator('[data-slot="rpg-hud-rail-kicker"]');
+      await expect(gameKicker).toBeVisible();
+      await expect(gameKicker).toContainText("Game state");
+      await expect(component.locator('[data-slot="rpg-hud-rail-selection"]').first()).toBeHidden();
     });
   }
 });
@@ -3077,15 +3204,17 @@ test.describe("coarse game rail focus ring", () => {
   });
 });
 
-// The fine-pointer pane is untouched: the band keeps its satellite orbs and its echo, because a desktop
-// dock has the vertical budget the phone does not. This is what makes the fix an ARRANGEMENT, not a
-// deletion — the same data, composed for the column it is in.
-test("a fine pointer keeps the band's satellites and its selection echo", async ({ mount, page }) => {
+// The fine-pointer pane is untouched: the band keeps its satellite orbs, and the owning rail's kicker
+// carries the full sentence — name AND selection — because a desktop dock has the vertical budget the
+// phone does not. This is what makes the fix an ARRANGEMENT, not a deletion — the same data, composed for
+// the column it is in.
+test("a fine pointer keeps the band's satellites and the owning rail's FULL kicker sentence", async ({ mount, page }) => {
   await stubTakeover(page);
 
   const component = await mount(<RpgTakeoverStory height={720} width={360} />);
   await expect(component.locator('[data-slot="rpg-band-satellites"]')).toBeVisible();
-  await expect(component.locator('[data-slot="rpg-hud-echo"]')).toBeVisible();
+  await expect(railBlock(component, page, "Game state").locator('[data-slot="rpg-hud-rail-kicker"]')).toHaveText("Game state · Status");
+  await expect(component.locator('[data-slot="rpg-hud-rail-selection"]')).toBeVisible();
 });
 
 // ── The per-actor TRACKER-EXCEPTIONS editor (host grants/revokes, tracked-field-unification §5.1) ──────────
