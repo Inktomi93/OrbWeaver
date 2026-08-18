@@ -14,6 +14,7 @@ import { nearestSegments, ownedChatIds } from "../persistence/digest-rows.ts";
 import { resolveSegmentDisplay } from "../persistence/display.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, SNIPPET_CHARS } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { collapseSegmentChunks } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 
 interface DiscoverCandidate {
@@ -123,7 +124,10 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
       return [];
     }
 
-    const sorted: DiscoverCandidate[] = pool
+    // Collapse each block's chunk rows to its best-scoring one FIRST (#172 — a block is N rows now). Evidence
+    // and `matchCount` are per SCENE: two chunks of one block are the same scene, and counting them twice
+    // would inflate a character's rank on the strength of one long message.
+    const sorted: DiscoverCandidate[] = collapseSegmentChunks([...pool].sort((a, b) => a.distance - b.distance))
       .map((s) => ({
         id: blockSlot(s.chatId, s.blockIdx),
         chatId: s.chatId,

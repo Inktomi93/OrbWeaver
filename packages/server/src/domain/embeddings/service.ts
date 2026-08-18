@@ -18,12 +18,14 @@ import { createPruneMemoryBlocks } from "./verbs/prune-memory-blocks.ts";
 import { createPurgeDocumentVectors } from "./verbs/purge-document-vectors.ts";
 import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors.ts";
 import { createStore } from "./verbs/store.ts";
+import { createStoreSegments } from "./verbs/store-segments.ts";
 import { createWriteHubScores } from "./verbs/write-hub-scores.ts";
 
 export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsService {
   const store = createStore(ctx);
   return {
     store,
+    storeSegments: createStoreSegments(ctx),
     writeHubScores: createWriteHubScores(ctx),
     clearTable: createClearTable(ctx),
     embedCorpus: createEmbedCorpus(ctx, { store }),

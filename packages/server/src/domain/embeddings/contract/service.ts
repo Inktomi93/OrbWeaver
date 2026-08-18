@@ -24,6 +24,7 @@ import type {
   OwnerChunkCountsParams,
   PruneDocumentChunksParams,
   PruneMemoryBlocksParams,
+  SegmentStoreParams,
   StoreParams,
   WriteHubScoresParams,
 } from "./params.ts";
@@ -73,9 +74,21 @@ export interface EmbeddingsContext {
 }
 
 export interface EmbeddingsService {
-  /** The only vector inserter. Hash-gates on `(key, model)` — a matched `content_hash` is a noop; else embeds,
-   *  asserts the vector matches the declared space `dim`, and upserts. Never touches `hub_score`. */
+  /** The only vector inserter for the single-item lenses. Hash-gates on `(key, model)` — a matched
+   *  `content_hash` is a noop; else embeds, asserts the vector matches the declared space `dim`, and upserts.
+   *  Never touches `hub_score`. Verbatim SEGMENTS go through {@link storeSegments} instead. */
   readonly store: (params: StoreParams) => Promise<StoreResult>;
+  /**
+   * The verbatim-segment write path — a BATCH, because segments are the one lens whose producer has the whole
+   * corpus's work in hand at once (#172, the owner batching ruling: "batch by phase, toss it all at vLLM, its
+   * scheduler can handle it"). It hash-gates every chunk on `(chatId, blockIdx, chunkIdx, model)`, embeds ALL
+   * the survivors in ONE call — no client-side throttle or round-robin; the provider surface owns how that
+   * lands on the wire — and then upserts each row. Results are index-aligned to the input.
+   *
+   * A one-element call is the live post-turn path; the corpus sweep passes every chat's pending chunks at
+   * once, which is what turns the segment phase from N serialized embeds into one saturated flood.
+   */
+  readonly storeSegments: (params: readonly SegmentStoreParams[]) => Promise<readonly StoreResult[]>;
   /** The only path that writes `hub_score` — the discovery → embeddings seam. Takes pre-computed scores. */
   readonly writeHubScores: (params: WriteHubScoresParams) => Promise<WriteHubScoresResult>;
   /** Maintenance: wipe a primary vector table (plain `DELETE FROM`). */

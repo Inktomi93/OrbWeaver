@@ -230,7 +230,16 @@ export const chatDigests = sqliteTable(
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // chat_segments — the VERBATIM chat-block lens (the raw transcript a digest hit resolves back to). Keyed
-// `(chatId, blockIdx)`; carries the seq-span back to canon. FK chats CASCADE; NO ownerId (D20).
+// `(chatId, blockIdx, chunkIdx)`; carries the seq-span back to canon. FK chats CASCADE; NO ownerId (D20).
+//
+// WHY `chunk_idx` (#172, the owner ruling behind it): a block whose verbatim transcript exceeds the EMBED
+// model's window cannot be embedded whole, and it must NOT be truncated — "if we are skimping out on
+// messages that's a no go since this feeds the memory system" (#165). So an oversized block becomes N
+// in-budget CHUNKS, each its own row with its own honest `(seq_start, seq_end)` span, losing nothing. The
+// common case is a single chunk 0 covering the whole block; the corpus's pathological case (a coding-helper
+// chat's 177k–200k-char single message) becomes a handful. Consequences a reader must know: a `(chat, block)`
+// is now a ROW SET, not a row — the recall span filter and discovery's block grid aggregate min/max across a
+// block's chunks, and search collapses a block's chunk hits to its best-scoring one.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const chatSegments = sqliteTable(
@@ -245,10 +254,18 @@ export const chatSegments = sqliteTable(
       .references(() => chats.id, { onDelete: "cascade" }),
     // The block index within the chat.
     blockIdx: integer("block_idx").notNull(),
-    // The seq-span this verbatim block covers (the pointer back to `messages` canon).
+    // The chunk index WITHIN the block (0 for the overwhelming majority — one chunk covers the whole block).
+    // A block too big for the embed window is chunked rather than truncated (see the header); the chunks of
+    // one block are consecutive from 0, so `max(chunk_idx)+1` is the block's chunk count.
+    // No DEFAULT deliberately: every inserter states the chunk it wrote, so a coupled writer that forgot
+    // the column fails loudly instead of silently colliding on chunk 0.
+    chunkIdx: integer("chunk_idx").notNull(),
+    // The seq-span THIS CHUNK covers (the pointer back to `messages` canon). Chunks cut at message
+    // boundaries wherever possible, so the span is honest per row; a single message bigger than the window
+    // is split into pieces that all carry that one message's seq (the finest honest granularity there is).
     seqStart: integer("seq_start").notNull(),
     seqEnd: integer("seq_end").notNull(),
-    // The verbatim transcript of the block (§2a) — stored + embedded; the ground truth a digest hit resolves
+    // The verbatim transcript of the chunk (§2a) — stored + embedded; the ground truth a digest hit resolves
     // back to, returned directly so cross-chat reads never re-read N chats' canon per hit. NOT NULL.
     text: text("text").notNull(),
     // The native vector (F32_BLOB(1024)) — the verbatim lens embedding.
@@ -263,10 +280,11 @@ export const chatSegments = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // One verbatim segment per (chat, block, model) — the idempotent-upsert key. `model` is in the key
-    // (PD-104) so a `(model, dim)` change writes a NEW space additively rather than overwriting the old
-    // one in place; the old space is reclaimed by the purge+reindex path. Uniform with all 5 producers.
-    uniqueIndex("chat_segments_chat_block_unique").on(t.chatId, t.blockIdx, t.model),
+    // One verbatim segment per (chat, block, CHUNK, model) — the idempotent-upsert key. `chunk_idx` joined
+    // the key with #172 (a block over the embed window becomes N chunks, never a truncated row). `model` is
+    // in the key (PD-104) so a `(model, dim)` change writes a NEW space additively rather than overwriting
+    // the old one in place; the old space is reclaimed by the purge+reindex path. Uniform with all 5 producers.
+    uniqueIndex("chat_segments_chat_block_chunk_unique").on(t.chatId, t.blockIdx, t.chunkIdx, t.model),
   ],
 );
 

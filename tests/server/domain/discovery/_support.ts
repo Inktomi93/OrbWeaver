@@ -380,6 +380,8 @@ export async function seedChatSegment(
     readonly chatId: ChatId;
     readonly embedding: Float32Array;
     readonly blockIdx?: number;
+    /** The chunk within the block (#172) — defaults to 0, the single-chunk case. */
+    readonly chunkIdx?: number;
     readonly seqStart?: number;
     readonly seqEnd?: number;
     readonly text?: string;
@@ -391,6 +393,7 @@ export async function seedChatSegment(
     id: castId(overrides.id),
     chatId: overrides.chatId,
     blockIdx: overrides.blockIdx ?? 0,
+    chunkIdx: overrides.chunkIdx ?? 0,
     seqStart: overrides.seqStart ?? 0,
     seqEnd: overrides.seqEnd ?? 1,
     text: overrides.text ?? `segment ${overrides.id}`,

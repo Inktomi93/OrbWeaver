@@ -34,3 +34,68 @@ export function estimateTokens(text: string): number {
   }
   return Math.ceil(printableAscii / CHARS_PER_TOKEN) + other;
 }
+
+/** The longest CODEPOINT prefix of `text` that fits `maxTokens` — the shared search {@link clampToTokenBudget}
+ *  and {@link splitToTokenBudget} both cut on. `estimateTokens` is monotonic in prefix length, so a binary
+ *  search is exact. Cutting on codepoints (never UTF-16 units) means an astral character — an emoji, some CJK
+ *  — can never be split into a lone surrogate the model's tokenizer then chokes on. */
+function longestFittingPrefix(codepoints: readonly string[], maxTokens: number): number {
+  let fits = 0;
+  let over = codepoints.length;
+  while (fits < over) {
+    const mid = Math.ceil((fits + over) / 2);
+    if (estimateTokens(codepoints.slice(0, mid).join("")) <= maxTokens) {
+      fits = mid;
+    } else {
+      over = mid - 1;
+    }
+  }
+  return fits;
+}
+
+/**
+ * Clamp `text` to at most `maxTokens` — the HEAD survives, the tail is dropped. Returns the input unchanged
+ * when it already fits, and `""` when `maxTokens <= 0`.
+ *
+ * A clamp LOSES content, so it belongs only where the input is transient (a scoring pass, a query, an
+ * already-chunked body). Content that FEEDS MEMORY is chunked instead — {@link splitToTokenBudget} — because a
+ * vector built from the head of a block claims a span it never read (owner ruling, #165).
+ */
+export function clampToTokenBudget(text: string, maxTokens: number): string {
+  if (maxTokens <= 0) {
+    return "";
+  }
+  if (estimateTokens(text) <= maxTokens) {
+    return text;
+  }
+  const codepoints = Array.from(text);
+  return codepoints.slice(0, longestFittingPrefix(codepoints, maxTokens)).join("");
+}
+
+/**
+ * Split `text` into consecutive pieces that each fit `maxTokens`, LOSING NOTHING: concatenating the result
+ * reproduces the input exactly. The lossless twin of {@link clampToTokenBudget} — this is what memory-feeding
+ * content gets (a 200k-char message becomes N in-budget pieces, each an honest verbatim span).
+ *
+ * Greedy head-first, cutting on codepoints. Empty input ⇒ `[]`; `maxTokens <= 0` ⇒ `[]` (no piece could ever
+ * fit, and the caller must treat an empty result as "this cannot be chunked" rather than as "nothing to do").
+ */
+export function splitToTokenBudget(text: string, maxTokens: number): string[] {
+  if (maxTokens <= 0 || text.length === 0) {
+    return [];
+  }
+  if (estimateTokens(text) <= maxTokens) {
+    return [text];
+  }
+  const codepoints = Array.from(text);
+  const pieces: string[] = [];
+  let cursor = 0;
+  while (cursor < codepoints.length) {
+    const rest = codepoints.slice(cursor);
+    // At least one codepoint always advances: a single codepoint estimates to 1 token, and maxTokens >= 1.
+    const take = Math.max(1, longestFittingPrefix(rest, maxTokens));
+    pieces.push(rest.slice(0, take).join(""));
+    cursor += take;
+  }
+  return pieces;
+}

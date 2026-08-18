@@ -88,6 +88,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const ctx = makeChatContext(db, {
       summarize: fakeSummarize().fn,
       embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
       mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
     });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
@@ -123,7 +124,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 });
 
     const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
@@ -164,6 +165,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const ctx = makeChatContext(db, {
       summarize: fakeSummarize().fn,
       embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
       mintSyntheticGroupCharacter: async ({ ownerId }) => {
         await db
           .insert(characters)
@@ -308,11 +310,11 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect(counts.digests.scanned).toBe(3);
   });
 
-  // #165 END-TO-END, under the owner ruling ("if we are skimping out on messages that's a no go since this
-  // feeds the memory system"): the chat shape that burned a 120s embed timeout — a room whose aged-out block
-  // is one huge pasted dump. The healthy blocks build; the oversized block is SKIPPED WHOLE and the sweep
-  // RESULT names it, so the gap is a stated fact the Jobs row can render, never a silent hole.
-  test("a chat with an over-window block: the rest builds, the huge block is skipped and NAMED in the result (#165)", async () => {
+  // #165 END-TO-END, now under the ruled arm built in #172: the chat shape that burned a 120s embed timeout —
+  // a room whose aged-out block is one huge pasted dump. Nothing is skipped and nothing is truncated: the
+  // oversized block CHUNKS, and every message body survives ("if we are skimping out on messages that's a no
+  // go since this feeds the memory system").
+  test("a chat with an over-window block: the huge block CHUNKS and the whole room builds (#172)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const room = await seedChat(db, "room_huge");
@@ -324,20 +326,79 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, maxTier: 1 });
 
     const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
 
     expect(counts.failed).toBe(0);
-    // Block 0 (turns 1-2) builds; block 1 (turn 3 + the dump) is over the window.
-    expect(counts.segments.changed).toBe(1);
-    expect(counts.segmentsSkippedOverWindow).toBe(1);
-    expect(store.segments.map((s) => s.blockIdx)).toEqual([0]);
-    // NOTHING truncated — no stored segment carries any part of the oversized block.
-    expect(store.segments.every((s) => !s.text.includes("harbour lights"))).toBe(true);
-    // The chat still builds everything it CAN: its digest buckets are unaffected by the segment skip.
+    expect(counts.segmentsSkippedOverWindow).toBe(0); // nothing was too big to chunk
+    // Block 0 (turns 1-2) is one chunk; block 1 (turn 3 + the dump) is several — and the dump is IN them.
+    const block1 = store.segments.filter((s) => s.blockIdx === 1);
+    expect(block1.length).toBeGreaterThan(1);
+    expect(counts.segments.changed).toBe(1 + block1.length);
+    expect(block1.some((s) => s.text.includes("harbour lights"))).toBe(true);
+    // The chat still builds everything it CAN: its digest buckets are unaffected.
     expect(counts.digests.changed).toBeGreaterThan(0);
+  });
+
+  // THE SEGMENT FLOOD (#172, owner batching ruling: "batch by phase … toss it all at vLLM, its scheduler can
+  // handle it"). Every chat's pending chunks reach the write path in ONE call — the per-chat interleaved
+  // embed the sweep used to do is exactly what starved the engine's continuous batcher.
+  test("the segment phase submits the WHOLE corpus's chunks as ONE batch, not one per chat", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    for (const name of ["room_a", "room_b", "room_c"]) {
+      // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
+      const room = await seedChat(db, name);
+      await seedParticipant(db, { chatId: room, key: `${name}_h`, userId: host, role: "host" });
+      await seedParticipant(db, { chatId: room, key: `${name}_c`, characterId: aria });
+      await seedTurns(db, room, aria, 4);
+    }
+
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, maxTier: 1 });
+
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
+
+    expect(counts.segments.scanned).toBe(3);
+    // 3 chats × 2 blocks = 6 chunks, submitted ONCE — a per-chat loop would read [2, 2, 2].
+    expect(store.segmentBatchSizes).toEqual([6]);
+    expect(counts.failed).toBe(0);
+    expect(counts.segments.changed).toBe(6);
+    // …and length-sorted, so similar-length sequences pack into the engine's batch with less padding waste.
+    expect(store.segments.map((s) => s.text.length)).toEqual([...store.segments.map((s) => s.text.length)].sort((a, b) => a - b));
+  });
+
+  // The flood is ONE call for the whole corpus, so a poisoned chunk would take the entire sweep down with it
+  // unless the phase is isolated like every other one (#41). It is: counted as a failure, logged with the
+  // cause as scalars (#165), and the DIGEST half still builds — the self-heal re-offers every chunk next pass.
+  test("a FAILING segment flood is isolated: counted, logged, and the digest phases still build", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const room = await seedChat(db, "room_poison");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+    await seedTurns(db, room, aria, 4);
+
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const spy = vi.spyOn(logger, "error");
+    const ctx = makeChatContext(db, {
+      summarize: sum.fn,
+      embeddingsStore: store.store,
+      embeddingsStoreSegments: () => Promise.reject(new Error("engine down")),
+    });
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, maxTier: 1 });
+
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
+
+    expect(counts.failed).toBe(1);
+    expect(counts.segments.changed).toBe(0);
+    expect(counts.digests.changed).toBeGreaterThan(0); // the digest half is untouched by the segment failure
+    expect(spy.mock.calls.some((c) => (c[0] as { phase?: string } | undefined)?.phase === "segments")).toBe(true);
   });
 
   // #165: the live 895-chat run logged `chat FAILED during plan and was skipped (unexpected error)` and the

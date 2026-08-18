@@ -139,6 +139,52 @@ describe("backfillMsgMidAt", () => {
     expect(await msgMidAtOf(db, "arc_1")).toBe(1700); // seq 7 — the arc-wide position-median
   });
 
+  // #172: a verbatim block is N CHUNK rows once it exceeds the embed window, so the block grid this fold
+  // reads must AGGREGATE (min start, max end) per block. Reading chunk rows one-by-one would leave the last
+  // one written in the grid slot and silently shrink the arc's span.
+  test("a CHUNKED tier-0 block contributes its WHOLE span to the arc fold, not one chunk's", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedHostedChat(db, "chat_1", owner);
+    await seedChatDigest(db, { id: "arc_c", chatId: chat, embedding: vec(1), tier: 1, blockIdx: 0, contentHash: "h_arc_c" });
+    // Blocks 0..2 are single-chunk; block 3 is THREE chunks covering seq 12..15 between them.
+    await Promise.all(
+      [0, 1, 2].map((b) =>
+        seedChatSegment(db, {
+          id: `segment_c_b${b}`,
+          chatId: chat,
+          embedding: vec(1),
+          blockIdx: b,
+          seqStart: b * 4,
+          seqEnd: b * 4 + 3,
+          contentHash: `seg_c_b${b}`,
+        }),
+      ),
+    );
+    await Promise.all(
+      [0, 1, 2].map((c) =>
+        seedChatSegment(db, {
+          id: `segment_c_b3_c${c}`,
+          chatId: chat,
+          embedding: vec(1),
+          blockIdx: 3,
+          chunkIdx: c,
+          seqStart: 12 + c,
+          seqEnd: 13 + c,
+          contentHash: `seg_c_b3_c${c}`,
+        }),
+      ),
+    );
+    await seedAssignedCluster(db, { clusterId: "cluster_arc_c", ownerId: owner, digestId: "arc_c", level: "arc" });
+    await Promise.all(Array.from({ length: 16 }, (_, seq) => seedMessage(db, { id: `m${seq}`, chatId: chat, seq, createdAt: 1000 + seq * 100 })));
+
+    const stats = await backfillMsgMidAt(db, tier0RangeOf);
+    expect(stats.stamped).toBe(1);
+    // The arc still spans seq 0..15 (block 3's whole chunk set), so the median is seq 7 — identical to the
+    // unchunked case above. A per-chunk grid would have ended the arc at seq 13 or 14 and moved the stamp.
+    expect(await msgMidAtOf(db, "arc_c")).toBe(1700);
+  });
+
   test("a tier-k arc spans a PARTIAL cover (gap blocks) over the blocks that exist", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");

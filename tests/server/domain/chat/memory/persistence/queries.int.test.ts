@@ -92,11 +92,26 @@ describe("memory/persistence/queries", () => {
     expect((await loadDigestHashes(db, chatId, aria)).get("0:0")).toBe("ego");
   });
 
-  test("loadSegmentHashes maps blockIdx → content hash", async () => {
+  test("loadSegmentHashes maps `blockIdx:chunkIdx` → content hash (a block is a ROW SET, #172)", async () => {
     const chatId = await seedChat(db, "s");
     await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 16, contentHash: "s0" });
+    await seedSegment(db, { chatId, blockIdx: 1, chunkIdx: 0, seqStart: 17, seqEnd: 17, contentHash: "s1c0" });
+    await seedSegment(db, { chatId, blockIdx: 1, chunkIdx: 1, seqStart: 17, seqEnd: 17, contentHash: "s1c1" });
     const map = await loadSegmentHashes(db, chatId);
-    expect(map.get(0)).toBe("s0");
+    expect(map.get("0:0")).toBe("s0");
+    // The two chunks of block 1 are DISTINCT gate entries — the per-chunk key is what lets a half-written
+    // block self-heal (a missing chunk has no row, so nothing skips it).
+    expect(map.get("1:0")).toBe("s1c0");
+    expect(map.get("1:1")).toBe("s1c1");
+  });
+
+  test("loadSegmentSpans folds a chunked block to its WHOLE span (min start, max end)", async () => {
+    const chatId = await seedChat(db, "spans");
+    await seedSegment(db, { chatId, blockIdx: 0, chunkIdx: 0, seqStart: 1, seqEnd: 4 });
+    await seedSegment(db, { chatId, blockIdx: 0, chunkIdx: 1, seqStart: 5, seqEnd: 8 });
+    const spans = await loadSegmentSpans(db, chatId);
+    // Reading one arbitrary chunk would shrink the witnessing window and hide real digests.
+    expect(spans.get(0)).toEqual({ seqStart: 1, seqEnd: 8 });
   });
 
   test("loadDigestsForScope orders tier-asc, blockIdx-asc; the tier filter narrows", async () => {

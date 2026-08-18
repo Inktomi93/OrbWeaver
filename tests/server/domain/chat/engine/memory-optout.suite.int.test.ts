@@ -104,6 +104,7 @@ async function groupHarness(): Promise<{
     findSyntheticGroupCharacter: () => Promise.resolve({ characterId: synthetic }),
     summarize: summarize.fn,
     embeddingsStore: store.store,
+    embeddingsStoreSegments: store.storeSegments,
   });
   const engine = createTurnEngine(ctx, {
     emit: (): Promise<void> => Promise.resolve(),

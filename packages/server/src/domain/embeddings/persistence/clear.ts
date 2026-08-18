@@ -7,7 +7,7 @@
 import type { Db } from "@orb/db";
 import { characterEmbeddings, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
-import { and, eq, gte, ne, or } from "drizzle-orm";
+import { and, eq, gte, ne, notInArray, or } from "drizzle-orm";
 import type { VectorTable } from "../contract/params.ts";
 
 function assertNever(value: never): never {
@@ -105,13 +105,36 @@ export async function pruneChatDigests(db: Db, chatId: ChatId, scopedCharacterId
 }
 
 /** The `chat_segments` twin of {@link pruneChatDigests}. Segments are single-tier and chat-wide (NOT
- *  scope-keyed — `chat_segments` is `(chatId, blockIdx)`), so the shrink is one ceiling: every block beyond
- *  `keepBlockCount` indexes canon rows that are no longer ingested. A stale segment is worse than dead
- *  weight — it carries a `(seqStart, seqEnd)` span the recall witnessing filter resolves digests through. */
-export async function pruneChatSegments(db: Db, chatId: ChatId, keepBlockCount: number): Promise<number> {
+ *  scope-keyed), so the BLOCK shrink is one ceiling: every block beyond `keepBlockCount` indexes canon rows
+ *  that are no longer ingested. A stale segment is worse than dead weight — it carries a `(seqStart, seqEnd)`
+ *  span the recall witnessing filter resolves digests through.
+ *
+ *  SINCE #172 a block is a ROW SET (chunks), so there is a SECOND ceiling: a block that used to need 5 chunks
+ *  and now needs 2 (its content shrank, or the embed window grew) would strand chunks 2-4, still recallable
+ *  and still claiming spans. `chunkCounts` carries the per-block ceiling for every block whose count is not
+ *  1 — including `0` for a block past the pathological ceiling, which reclaims its whole set. Every block NOT
+ *  listed holds exactly one chunk, so `chunkIdx >= 1` is stale there; that is what keeps this DELETE at
+ *  `1 + |exceptions|` terms instead of one per block. */
+export async function pruneChatSegments(
+  db: Db,
+  chatId: ChatId,
+  keepBlockCount: number,
+  chunkCounts: readonly { readonly blockIdx: number; readonly chunkCount: number }[],
+): Promise<number> {
+  const exceptions = chunkCounts.map((c) => and(eq(chatSegments.blockIdx, c.blockIdx), gte(chatSegments.chunkIdx, c.chunkCount)));
+  const singleChunkBlocks =
+    chunkCounts.length === 0
+      ? gte(chatSegments.chunkIdx, 1)
+      : and(
+          gte(chatSegments.chunkIdx, 1),
+          notInArray(
+            chatSegments.blockIdx,
+            chunkCounts.map((c) => c.blockIdx),
+          ),
+        );
   const rows = await db
     .delete(chatSegments)
-    .where(and(eq(chatSegments.chatId, chatId), gte(chatSegments.blockIdx, keepBlockCount)))
+    .where(and(eq(chatSegments.chatId, chatId), or(gte(chatSegments.blockIdx, keepBlockCount), singleChunkBlocks, ...exceptions)))
     .returning({ id: chatSegments.id });
   return rows.length;
 }

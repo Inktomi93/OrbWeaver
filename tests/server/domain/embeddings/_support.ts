@@ -63,9 +63,11 @@ export interface FakeRoleClients extends RoleClients {
 
 /** A recording fake `RoleClients` — deterministic vectors at `EMBED_DIM`, a fixed caption from `summarize`. */
 export function makeRoleClients(): FakeRoleClients {
-  const embed: Mock<RoleClients["embed"]> = vi.fn<RoleClients["embed"]>(() =>
+  // ONE vector per input, index-aligned — the real contract's shape, and load-bearing since the segment write
+  // path batches (#172): a fake that always returned a single vector would fail every item past the first.
+  const embed: Mock<RoleClients["embed"]> = vi.fn<RoleClients["embed"]>((input) =>
     Promise.resolve({
-      vectors: [fakeVector(EMBED_DIM, 1)],
+      vectors: (typeof input === "string" ? [input] : input).map((_, i) => fakeVector(EMBED_DIM, i + 1)),
       model: EMBED_MODEL,
       usage: { promptTokens: null, totalTokens: null },
     }),

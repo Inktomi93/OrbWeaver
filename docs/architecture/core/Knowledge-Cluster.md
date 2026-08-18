@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-18
 ---
 
 # Knowledge cluster — the producer → store → consumer boundary
@@ -32,9 +32,12 @@ implementations with no owner.
 1. **ONE vector write path.** Every insert/update on the six vector tables (`character_embeddings` ·
    `image_embeddings` · `chat_digests` · `chat_segments` · `chat_digest_speakers` · `document_chunks` —
    the set the `vector-scope-derived` gate pins) lives in
-   `embeddings/persistence/queries.ts`, reached only via `embeddings.store` (+ `writeHubScores`, inv 3).
-   Producers (card/avatar/segment/digest) are *lens arms* of `store`, never inserters. `content_hash` is
-   the staleness gate: identical hash ⇒ `noop` before the embed runs.
+   `embeddings/persistence/queries.ts`, reached only via `embeddings.store` / `embeddings.storeSegments`
+   (+ `writeHubScores`, inv 3). Producers (card/avatar/digest) are *lens arms* of `store`, never inserters;
+   the VERBATIM segment lens is the one BATCH arm (`storeSegments`, #172) because its producer holds the whole
+   corpus's work at once and a block over the embed window becomes N chunks — same persistence file, same hash
+   gate, same space tripwire, one embed flood instead of one awaited embed per block. `content_hash` is the
+   staleness gate: identical hash ⇒ `noop` before the embed runs.
 2. **Two cosine access patterns, two owners — never mixed.** Top-k retrieval = `search` only (the
    `vector_distance_cos` SQL appears solely in `search/persistence/`). All-pairs in-RAM analytics =
    `discovery` only (`@orb/kit/vector-math.pairwiseCosine`). `memory` holds ZERO cosine of either kind —

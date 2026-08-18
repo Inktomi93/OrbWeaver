@@ -53,6 +53,7 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
       findSyntheticGroupCharacter: () => Promise.resolve({ characterId: synthetic }),
       summarize: fakeSummarize().fn,
       embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
     });
 
     // ── BUILD: exactly the engine's §3a group path — resolve the bucket key, then digest under it. ──

@@ -4,8 +4,12 @@
 // `SpaceMismatchError`) → upsert (never touches `hub_score`).
 //
 // The `switch (params.lens)` is exhaustive (the `assertNever` default arm): a new lens fails tsc until its
-// arm is added. `segment`/`digest` carry a precomputed `contentHash` (memory folds it; not recomputed
-// here). There is no principal/ownership check — the substrate FKs to its producer only.
+// arm is added. `digest` carries a precomputed `contentHash` (memory folds it; not recomputed here). There is
+// no principal/ownership check — the substrate FKs to its producer only.
+//
+// The `segment` lens is NOT an arm here: verbatim segments are written in BATCHES (`store-segments.ts`, #172)
+// so the corpus sweep can submit one embed flood instead of one awaited embed per block. Same hash gate, same
+// space tripwire, same single write path — a batch shape, because its producer holds a batch of work.
 
 import type { EmbeddingsContext } from "../context.ts";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
@@ -15,7 +19,6 @@ import type {
   DocumentChunkStoreParams,
   ImageCaptionedStoreParams,
   ImageRawStoreParams,
-  SegmentStoreParams,
   StoreParams,
 } from "../contract/params.ts";
 import type { StoreResult } from "../contract/results.ts";
@@ -25,11 +28,9 @@ import {
   existingChunkHash,
   existingDigestHash,
   existingImageHash,
-  existingSegmentHash,
   replaceDigestSpeakers,
   upsertCharacterEmbedding,
   upsertChatDigest,
-  upsertChatSegment,
   upsertDocumentChunk,
   upsertImageEmbedding,
 } from "../persistence/queries.ts";
@@ -111,31 +112,6 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
   return { outcome: "written", contentHash: hash };
 }
 
-/** segment → `chat_segments` (the verbatim lens). `contentHash` is precomputed by memory; `text` is both
- *  the embed input and the stored body. */
-async function storeSegment(ctx: EmbeddingsContext, p: SegmentStoreParams): Promise<StoreResult> {
-  const hash = p.contentHash;
-  if ((await existingSegmentHash(ctx.db, p.chatId, p.blockIdx, p.model)) === hash) {
-    return { outcome: "noop", contentHash: hash };
-  }
-  const vector = firstVector((await ctx.roleClients.embed(p.text)).vectors, p.lens, p.model);
-  assertSpace(p.model, p.dim, vector);
-  await upsertChatSegment(ctx.db, {
-    id: ctx.newChatSegmentId(),
-    chatId: p.chatId,
-    blockIdx: p.blockIdx,
-    seqStart: p.seqStart,
-    seqEnd: p.seqEnd,
-    text: p.text,
-    embedding: vector,
-    contentHash: hash,
-    model: p.model,
-    dim: p.dim,
-    now: ctx.now(),
-  });
-  return { outcome: "written", contentHash: hash };
-}
-
 /** digest → `chat_digests` (the distilled lens). `contentHash` is precomputed by memory; the distilled
  *  `text` is the embed input, the stored body, and `{{memory}}`. */
 async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promise<StoreResult> {
@@ -208,8 +184,6 @@ export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] 
       case "image-raw":
       case "image-captioned":
         return storeImage(ctx, params);
-      case "segment":
-        return storeSegment(ctx, params);
       case "digest":
         return storeDigest(ctx, params);
       case "chunk":

@@ -78,7 +78,7 @@ describe("memory/build/digests", () => {
     await seedTurns(db, chatId, aria, 4);
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
     const counts = await generateDigests(ctx, {
       scope: sharedScope(chatId),
@@ -122,6 +122,7 @@ describe("memory/build/digests", () => {
     const ctx = makeChatContext(db, {
       summarize: sum.fn,
       embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
       resolveChatProse: () =>
         Promise.resolve({
           "chat.memory.digestSystem": { text: "HOST DIGEST RULES", baseVersion: 1 },
@@ -168,7 +169,7 @@ describe("memory/build/digests", () => {
     await seedTurns(db, chatId, aria, 2);
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
     await generateDigests(ctx, { scope: sharedScope(chatId), config: { blockSize: 2, verbatimWindow: 0 } });
 
@@ -190,7 +191,7 @@ describe("memory/build/digests", () => {
     await seedTurns(db, chatId, aria, 8); // blockSize 2 → 4 tier-0 blocks in one pass
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
     await generateDigests(ctx, {
       scope: sharedScope(chatId),
@@ -209,7 +210,7 @@ describe("memory/build/digests", () => {
     await seedTurns(db, chatId, aria, 4); // maxSeq 4
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
     // cutoff = 4 − 2 = 2 → only seq 1-2 (block 0) is aged out; seq 3-4 stays in the protected tip.
     await generateDigests(ctx, {
@@ -224,7 +225,7 @@ describe("memory/build/digests", () => {
     await seedTurns(db, chatId, aria, 4);
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 } as const;
 
     await generateDigests(ctx, { scope: sharedScope(chatId), config: cfg });
@@ -285,7 +286,7 @@ describe("memory/build/digests", () => {
     await seedTurns(db, chatId, aria, 4);
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
     const counts = await generateDigests(ctx, {
       scope: sharedScope(chatId),
       config: { mode: "off" },
@@ -299,7 +300,7 @@ describe("memory/build/digests", () => {
     await seedTurns(db, chatId, aria, 6); // blockSize 2 → blocks 0 (seq 1-2), 1 (seq 3-4), 2 (seq 5-6)
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
     // aria joined at seq 3 → block 0 (seq 1-2) is pre-join → NOT witnessed → no digest in aria's bucket.
     await generateDigests(ctx, {
@@ -315,7 +316,7 @@ describe("memory/build/digests", () => {
     await seedTurns(db, chatId, aria, 8); // blockSize 2 → blocks 0(1-2) 1(3-4) 2(5-6) 3(7-8)
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
     // aria: present seq 1-4 (blocks 0,1), KICKED at seq 5 (leftSeq exclusive), RE-ADDED at seq 7 (block 3).
     // Two participant rows = two witnessing intervals; block 2 (seq 5-6) is the kicked gap → NOT witnessed.
@@ -348,7 +349,7 @@ describe("memory/build/digests", () => {
     await seedParticipant(db, { chatId, key: "aria_ep2", characterId: aria, joinSeq: 7, leftSeq: null });
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
     await generateDigests(ctx, {
       scope: sharedScope(chatId), // GROUP_CHAR bucket, witnessing omitted
@@ -367,6 +368,7 @@ describe("memory/build/digests", () => {
     const ctx = makeChatContext(db, {
       summarize: sum.fn,
       embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
       summarizerContextTokens: () => 64, // far too small — even one message overflows
     });
 
@@ -405,7 +407,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     await seedTurns(db, chatId, aria, 2); // all inside the verbatim window → nothing aged out
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
     const counts = await generateDigests(ctx, {
       scope: sharedScope(chatId),
       config: { blockSize: 2, verbatimWindow: 8, fanOut: 4, maxTier: 1 },
@@ -525,7 +527,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
       characterNamesById: new Map([[aria, { name: "Aria" }]]),
       personaNamesById: new Map([[mara, { name: "Mara", description: "" }]]),
     };
-    await generateDigests(makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store }), {
+    await generateDigests(makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments }), {
       scope: sharedScope(chatId),
       config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 },
       macroNames,
@@ -601,7 +603,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     });
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const counts = await generateDigests(makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store }), {
+    const counts = await generateDigests(makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments }), {
       scope: sharedScope(chatId),
       config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 },
     });
@@ -615,7 +617,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     await seedTurns(db, chatId, aria, 6); // blockSize 2 → 3 tier-0 blocks; fanOut 4 needs 4 → no tier-1 yet
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    await generateDigests(makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store }), {
+    await generateDigests(makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments }), {
       scope: sharedScope(chatId),
       config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 2 },
     });
@@ -634,7 +636,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     }
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    await generateDigests(makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store }), {
+    await generateDigests(makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments }), {
       scope: sharedScope(chatId),
       config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 2 },
     });
@@ -661,6 +663,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     const ctx = makeChatContext(db, {
       summarize: sum.fn,
       embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
       summarizerContextTokens: () => 6000, // above the floor, but the giant oldest message overflows it
       log: (e) => entries.push(e),
     });
@@ -686,6 +689,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     const ctx = makeChatContext(db, {
       summarize: sum.fn,
       embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
       summarizerContextTokens: () => 3000, // below the floor (4096) but the tiny block still fits the budget
       log: (e) => entries.push(e),
     });

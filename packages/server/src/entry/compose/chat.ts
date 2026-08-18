@@ -1060,37 +1060,42 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       };
     },
     embeddingsStore: async (params) => {
-      if (params.lens === "digest") {
-        await input.embeddings.store({
-          kind: "chat-block",
-          lens: "digest",
-          chatId: params.key.chatId,
-          scopedCharacterId: params.key.scopedCharacterId,
-          isGroup: params.isGroup,
-          tier: params.key.tier,
-          blockIdx: params.key.blockIdx,
-          text: params.text,
-          topicAnchor: params.topicAnchor,
-          keywords: params.keywords,
-          speakerCharacterIds: params.speakerCharacterIds,
-          contentHash: params.contentHash,
-          model: input.roleClients.embedModel,
-          dim: env.VLLM_EMBED_DIM,
-        });
-        return;
-      }
       await input.embeddings.store({
         kind: "chat-block",
-        lens: "segment",
-        chatId: params.chatId,
-        blockIdx: params.blockIdx,
-        seqStart: params.seqStart,
-        seqEnd: params.seqEnd,
+        lens: "digest",
+        chatId: params.key.chatId,
+        scopedCharacterId: params.key.scopedCharacterId,
+        isGroup: params.isGroup,
+        tier: params.key.tier,
+        blockIdx: params.key.blockIdx,
         text: params.text,
+        topicAnchor: params.topicAnchor,
+        keywords: params.keywords,
+        speakerCharacterIds: params.speakerCharacterIds,
         contentHash: params.contentHash,
         model: input.roleClients.embedModel,
         dim: env.VLLM_EMBED_DIM,
       });
+    },
+    // The SEGMENT half is a BATCH op (#172): memory hands over every pending chunk — one chat's on the live
+    // path, the whole corpus's on the sweep — and embeddings submits them to the engine as ONE flood. The
+    // space tag (`model`/`dim`) is stamped here, the same single home the digest arm above reads.
+    embeddingsStoreSegments: async (params) => {
+      await input.embeddings.storeSegments(
+        params.map((p) => ({
+          kind: "chat-block" as const,
+          lens: "segment" as const,
+          chatId: p.chatId,
+          blockIdx: p.blockIdx,
+          chunkIdx: p.chunkIdx,
+          seqStart: p.seqStart,
+          seqEnd: p.seqEnd,
+          text: p.text,
+          contentHash: p.contentHash,
+          model: input.roleClients.embedModel,
+          dim: env.VLLM_EMBED_DIM,
+        })),
+      );
     },
     // The SHRINK half of the same seam: memory stores every block that exists, then reclaims the ones that
     // stopped existing. Straight pass-through of the two lens arms — the DELETE itself lives in embeddings
@@ -1105,7 +1110,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         });
         return;
       }
-      await input.embeddings.pruneMemoryBlocks({ lens: "segment", chatId: params.chatId, keepBlockCount: params.keepBlockCount });
+      await input.embeddings.pruneMemoryBlocks({
+        lens: "segment",
+        chatId: params.chatId,
+        keepBlockCount: params.keepBlockCount,
+        chunkCounts: params.chunkCounts,
+      });
     },
     // DB6: absent ⇒ the field stays unset ⇒ GATHER skips the databank branch (byte-identical no-op).
     ...(input.gatherDatabank !== undefined ? { gatherDatabank: input.gatherDatabank } : {}),

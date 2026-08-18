@@ -4,7 +4,7 @@
 // caller position. Requests the OpenAI `dimensions` param; if a pooling combo rejects it, retries full-dim
 // and truncates+renormalizes client-side.
 
-import { estimateTokens } from "@orb/kit/tokens";
+import { clampToTokenBudget } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import type { EmbedRequest, EmbedResult } from "../../contract/index.ts";
 import type { VllmEngineClient } from "../engine/index.ts";
@@ -18,12 +18,14 @@ const DIMENSIONS_REJECTED_RE = /dimensions/i;
 // avoid: a 43,340-char input sent WITH it never returns (>30s probe; the production bound is 120s and the
 // engine logs no request at all — zero GPU activity), while the SAME input sent WITHOUT it is refused in
 // 21ms with an honest "maximum context length is 8192 tokens" 400. That hang WAS the memory backfill's
-// ~2-minute-per-chat plan failure: `generateSegments` embeds a whole aged-out block verbatim, and the seven
-// chats whose blocks ran 36k–200k chars each burned one 120s timeout.
+// ~2-minute-per-chat plan failure: `generateSegments` embedded a whole aged-out block verbatim, and the seven
+// chats whose blocks ran 36k–200k chars each burned one 120s timeout. (The rerank surface reproduced the
+// identical failure on its own engine — #173.)
 //
-// So: clamp here, and ask the engine for NOTHING. The clamp keeps the request inside the window (no 400 in
-// practice), and if the estimate ever undershoots the engine's real tokenizer the request fails FAST and
-// LOUD instead of pinning a worker for two minutes — the failure mode we can afford.
+// So: clamp here (`@orb/kit/tokens.clampToTokenBudget` — the one home for the cut), and ask the engine for
+// NOTHING. The clamp keeps the request inside the window (no 400 in practice), and if the estimate ever
+// undershoots the engine's real tokenizer the request fails FAST and LOUD instead of pinning a worker for
+// two minutes — the failure mode we can afford.
 //
 // THE CLAMP IS A BELT, NOT A POLICY (owner ruling, #165): truncating MEMORY-FEEDING content is a no-go —
 // "if we are skimping out on messages that's a no go since this feeds the memory system". The memory
@@ -36,30 +38,6 @@ const DIMENSIONS_REJECTED_RE = /dimensions/i;
 /** Tokens held back for the ChatML scaffold `toEmbedPrompt` wraps every input in (system instruction + the
  *  four role markers ≈ 30 estimated tokens) plus slack for tokenizer disagreement on the clamp boundary. */
 const PROMPT_SCAFFOLD_RESERVE_TOKENS = 64;
-
-/**
- * Clamp `text` to at most `maxTokens` by the canonical estimator (`@orb/kit/tokens` — the one home; never a
- * local chars-per-token re-roll). Cuts on CODEPOINTS, so an astral character (emoji, some CJK) can never be
- * split into a lone surrogate the tokenizer then chokes on. Returns the input unchanged when it already fits.
- */
-function clampToTokenBudget(text: string, maxTokens: number): string {
-  if (maxTokens <= 0 || estimateTokens(text) <= maxTokens) {
-    return text;
-  }
-  const codepoints = Array.from(text);
-  // Binary search the longest fitting prefix — `estimateTokens` is monotonic in prefix length.
-  let fits = 0;
-  let over = codepoints.length;
-  while (fits < over) {
-    const mid = Math.ceil((fits + over) / 2);
-    if (estimateTokens(codepoints.slice(0, mid).join("")) <= maxTokens) {
-      fits = mid;
-    } else {
-      over = mid - 1;
-    }
-  }
-  return codepoints.slice(0, fits).join("");
-}
 
 // Whole-request cap so a warming/wedged engine can't hang boot-time embedding forever; a trip maps to a
 // retryable ProviderError so the catch-up sweep re-embeds once the engine is up. Correct only because

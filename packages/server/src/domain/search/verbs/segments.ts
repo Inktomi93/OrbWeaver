@@ -7,6 +7,11 @@
 // `(chatId, blockIdx)`). To form a real `BlockKey` (inv 8: ALWAYS a real `CharacterId`, never `''`/NULL) the
 // hit is stamped `tier: 0` + the caller's egocentric `scopedCharacterId`. That POV is REQUIRED — absent ⇒ a
 // typed `SearchError(SCOPE_REQUIRED)` (flag-don't-fake; we never mint an empty-string sentinel).
+//
+// A BLOCK IS N ROWS (#172): an over-window block is stored as multiple in-budget CHUNKS, so the scan's pool
+// can hold several rows of one block. A hit is keyed by BLOCK, so the pool collapses to each block's
+// best-scoring chunk (`collapseSegmentChunks`) before hits are formed — the chunk that matched is the one
+// that scored, and one scene never returns twice under the same id.
 
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SEARCH_SCOPE_REQUIRED, SearchError } from "../contract/errors.ts";
@@ -16,7 +21,7 @@ import type { SearchService } from "../contract/service.ts";
 import { nearestSegments } from "../persistence/digest-rows.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
-import { blockKeyStr } from "../substrate/dedupe.ts";
+import { blockKeyStr, collapseSegmentChunks } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 
 export function createSegments(ctx: SearchContext): SearchService["segments"] {
@@ -47,7 +52,17 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
       limit: params.candidates === undefined ? SCOPED_POOL_K : params.candidates.length,
     });
 
-    const ranked = pool
+    // A block is N chunk ROWS since #172 (an over-window block is chunked, never truncated), and a
+    // `SegmentSearchHit` is keyed by BLOCK — so the pool collapses to each block's best-scoring chunk before
+    // it becomes hits. Without this, one scene returns twice under the same `blockKeyStr` id.
+    const ranked = collapseSegmentChunks(
+      [...pool].sort(
+        compareCslsBy(
+          (c) => c.distance,
+          (c) => c.hubScore,
+        ),
+      ),
+    )
       .filter((r) => 1 - r.distance >= params.minScore)
       .map((r) => {
         const blockKey = { chatId: r.chatId, tier: 0, blockIdx: r.blockIdx, scopedCharacterId };

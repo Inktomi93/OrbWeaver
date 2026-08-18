@@ -597,6 +597,7 @@ CREATE TABLE `chat_segments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
 	`block_idx` integer NOT NULL,
+	`chunk_idx` integer NOT NULL,
 	`seq_start` integer NOT NULL,
 	`seq_end` integer NOT NULL,
 	`text` text NOT NULL,
@@ -609,7 +610,7 @@ CREATE TABLE `chat_segments` (
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `chat_segments_chat_block_unique` ON `chat_segments` (`chat_id`,`block_idx`,`model`);--> statement-breakpoint
+CREATE UNIQUE INDEX `chat_segments_chat_block_chunk_unique` ON `chat_segments` (`chat_id`,`block_idx`,`chunk_idx`,`model`);--> statement-breakpoint
 CREATE TABLE `document_chunks` (
 	`id` text PRIMARY KEY NOT NULL,
 	`document_id` text NOT NULL,

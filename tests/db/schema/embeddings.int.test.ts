@@ -203,6 +203,7 @@ test("no vector table carries an ownerId column (D20 — owner-scope derives fro
     id: castId<ChatSegmentId>("chat_segment_no_owner"),
     chatId,
     blockIdx: 0,
+    chunkIdx: 0,
     seqStart: 0,
     seqEnd: 15,
     text: "verbatim transcript",
@@ -327,6 +328,7 @@ test("chat_segments round-trips its verbatim `text` transcript", async () => {
     id,
     chatId,
     blockIdx: 0,
+    chunkIdx: 0,
     seqStart: 0,
     seqEnd: 7,
     text: "Alice: meet me at the docks.\nBob: I'll bring the relic.",
@@ -337,6 +339,26 @@ test("chat_segments round-trips its verbatim `text` transcript", async () => {
   });
   const rows = await db.select().from(chatSegments).where(eq(chatSegments.id, id));
   expect(rows[0]?.text).toBe("Alice: meet me at the docks.\nBob: I'll bring the relic.");
+});
+
+// #172: a block over the embed model's window is CHUNKED, never truncated — so `(chat, block)` must admit
+// more than one row, and the upsert key must key off the chunk. Both halves are asserted here: two chunks of
+// one block coexist, and a re-write of the SAME chunk collides (the idempotent upsert target).
+test("chat_segments admits N chunks per (chat, block) and keys uniqueness off chunk_idx", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, { id: "chat_chunks" });
+  const base = { chatId, blockIdx: 3, seqStart: 10, seqEnd: 11, embedding: rampVector(), model: MODEL, dim: DIM };
+  await db.insert(chatSegments).values({ ...base, id: castId<ChatSegmentId>("chat_segment_c0"), chunkIdx: 0, text: "chunk 0", contentHash: "h0" });
+  await db.insert(chatSegments).values({ ...base, id: castId<ChatSegmentId>("chat_segment_c1"), chunkIdx: 1, text: "chunk 1", contentHash: "h1" });
+  expect(await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId))).toHaveLength(2);
+
+  let caught: unknown;
+  try {
+    await db.insert(chatSegments).values({ ...base, id: castId<ChatSegmentId>("chat_segment_c1_dup"), chunkIdx: 1, text: "again", contentHash: "h1" });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined(); // (chat_id, block_idx, chunk_idx, model) is UNIQUE
 });
 
 test("chat_digests.text is NOT NULL — a digest write missing its body is rejected", async () => {
@@ -494,6 +516,7 @@ test("deleting a chat CASCADEs its digests, segments, and digest-speaker rows", 
     id: castId<ChatSegmentId>("chat_segment_casc"),
     chatId,
     blockIdx: 0,
+    chunkIdx: 0,
     seqStart: 0,
     seqEnd: 15,
     text: "verbatim transcript",

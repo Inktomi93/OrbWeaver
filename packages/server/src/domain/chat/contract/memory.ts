@@ -137,12 +137,24 @@ export interface MemoryPassCounts {
   readonly skipped: number;
 }
 
-/** The SEGMENT pass's fold — {@link MemoryPassCounts} plus the blocks whose verbatim transcript does not fit
- *  the embed model's window. Those are skipped WHOLE and counted here, never truncated into a vector that
- *  claims a seq-span it never read (owner ruling, #165); the count rides the sweep result + the workload
- *  progress copy so a skipped block is a recorded fact, never a silent gap in memory. */
+/** The SEGMENT pass's fold — {@link MemoryPassCounts} plus the blocks that could not be CHUNKED into the embed
+ *  model's window at all (a block past the pathological ceiling, `MAX_SEGMENT_CHUNKS_PER_BLOCK`). Those are
+ *  skipped WHOLE and counted here, never truncated into a vector that claims a seq-span it never read (owner
+ *  ruling, #165); an ordinary oversized block is CHUNKED and loses nothing (#172). The count rides the sweep
+ *  result + the workload progress copy so a skipped block is a recorded fact, never a silent gap in memory. */
 export interface SegmentPassCounts extends MemoryPassCounts {
   readonly skippedOverWindow: number;
+}
+
+/** ONE in-budget piece of a verbatim block (#172) — a `chat_segments` row. `chunkIdx` is its position within
+ *  the block (0 for the overwhelming majority: one chunk covers the whole block); `(seqStart, seqEnd)` is the
+ *  HONEST span of messages the `text` contains — chunks cut at message boundaries, and a single message
+ *  bigger than the window yields pieces that all carry that one message's seq. */
+export interface SegmentChunk {
+  readonly chunkIdx: number;
+  readonly seqStart: number;
+  readonly seqEnd: number;
+  readonly text: string;
 }
 
 /** One presence interval of a character in a chat (the join/leave WITNESSING horizon — core/Knowledge-Cluster.md §4 /

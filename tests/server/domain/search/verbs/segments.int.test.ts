@@ -47,6 +47,25 @@ describe("segments", () => {
     expect(hits[0]?.blockKey.scopedCharacterId).toBe(char);
   });
 
+  // #172: a block over the embed window is stored as N CHUNK rows. A hit is keyed by BLOCK, so the scan
+  // collapses a block's chunks to its best-scoring one — otherwise one scene comes back twice under the same
+  // `blockKeyStr` id, and every downstream collapse/dedupe reasons over a duplicate.
+  test("collapses a chunked block to its BEST-scoring chunk — one scene, one hit", async () => {
+    const db = await freshDb();
+    const { chat, char } = await seedOwnerChatChar(db);
+    // Block 0 is two chunks: chunk 1 is the near match, chunk 0 is orthogonal to the query.
+    await seedChatSegment(db, { chatId: chat, blockIdx: 0, chunkIdx: 0, embedding: vec(0, 1), text: "the far chunk" });
+    await seedChatSegment(db, { chatId: chat, blockIdx: 0, chunkIdx: 1, embedding: vec(1), text: "the matching chunk" });
+    await seedChatSegment(db, { chatId: chat, blockIdx: 1, embedding: vec(0, 0, 1), text: "another block" });
+
+    const svc = makeSearch(db, { embedVector: () => vec(1) });
+    const hits = await svc.segments(opts(chat, char));
+
+    expect(hits.filter((h) => h.blockKey.blockIdx === 0)).toHaveLength(1);
+    expect(hits[0]?.text).toBe("the matching chunk"); // the chunk that MATCHED is the one that represents it
+    expect(new Set(hits.map((h) => h.blockKey.blockIdx)).size).toBe(hits.length); // no duplicate block keys
+  });
+
   test("throws SCOPE_REQUIRED without an egocentric scopedCharacterId", async () => {
     const db = await freshDb();
     const { chat } = await seedOwnerChatChar(db);

@@ -399,6 +399,9 @@ interface SeedSegmentOverrides {
   readonly id?: string;
   readonly chatId: ChatId;
   readonly blockIdx: number;
+  /** The chunk within the block (#172) — defaults to 0, the single-chunk case. A multi-chunk block is what
+   *  the verbatim scan's collapse-to-best-chunk behaviour is asserted against. */
+  readonly chunkIdx?: number;
   readonly text?: string;
   readonly embedding: Float32Array;
   readonly hubScore?: number | null;
@@ -408,16 +411,18 @@ interface SeedSegmentOverrides {
 
 /** Insert a `chat_segments` row (the verbatim lens `segments`/`corpus` scan). */
 export async function seedChatSegment(db: Db, o: SeedSegmentOverrides): Promise<ChatSegmentId> {
-  const id = castId<ChatSegmentId>(o.id ?? `chat_segment_${o.chatId}_${o.blockIdx}`);
+  const chunkIdx = o.chunkIdx ?? 0;
+  const id = castId<ChatSegmentId>(o.id ?? `chat_segment_${o.chatId}_${o.blockIdx}_${chunkIdx}`);
   await db.insert(chatSegments).values({
     id,
     chatId: o.chatId,
     blockIdx: o.blockIdx,
+    chunkIdx,
     seqStart: o.blockIdx * 10,
     seqEnd: o.blockIdx * 10 + 9,
     text: o.text ?? "verbatim transcript",
     embedding: o.embedding,
-    contentHash: o.contentHash ?? `segment_hash_${o.chatId}_${o.blockIdx}`,
+    contentHash: o.contentHash ?? `segment_hash_${o.chatId}_${o.blockIdx}_${chunkIdx}`,
     hubScore: o.hubScore ?? null,
     model: o.model ?? EMBED_MODEL,
     dim: VECTOR_DIM,

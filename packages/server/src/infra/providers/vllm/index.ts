@@ -183,7 +183,8 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
       // clamp (#165) can never drift from what the engine will accept.
       maxInputTokens: env.VLLM_EMBED_MAX_MODEL_LEN,
     }),
-    rerank: createVllmRerank({ client }),
+    // Same single-home discipline as embed above: the window the RERANK engine is launched with (#173).
+    rerank: createVllmRerank({ client, maxInputTokens: env.VLLM_RERANK_MAX_MODEL_LEN }),
     imageEmbed: createVllmImageEmbed({ client, embedDim, concurrency: embedConcurrency }),
     summarize: createVllmSummarize({
       client,

@@ -174,6 +174,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         id: castId<ChatSegmentId>(`chat_segment_${blockIdx}`),
         chatId,
         blockIdx,
+        chunkIdx: 0,
         seqStart: blockIdx * 2,
         seqEnd: blockIdx * 2 + 1,
         text: `block ${blockIdx}`,
@@ -188,10 +189,63 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
     // A stale segment is worse than dead weight: recall resolves a digest hit's witnessing through its
     // `(seqStart, seqEnd)` span, so a span pointing at rows that are no longer ingested mis-maps a live hit.
-    const result = await svc.pruneMemoryBlocks({ lens: "segment", chatId, keepBlockCount: 1 });
+    const result = await svc.pruneMemoryBlocks({ lens: "segment", chatId, keepBlockCount: 1, chunkCounts: [] });
 
     expect(result.rowsDeleted).toBe(2);
     const left = await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId));
     expect(left.map((s) => s.blockIdx)).toEqual([0]);
+  });
+
+  // #172: a block is a ROW SET now, so the shrink has a SECOND ceiling. A block that needed 4 chunks and now
+  // needs 2 (its content shrank, or the embed window grew) would otherwise strand two rows that are still
+  // recallable and still claiming seq-spans — exactly the leak the block ceiling exists to close, one level
+  // down. `chunkCounts` lists only the blocks whose count is not 1; everything else keeps chunk 0 alone.
+  test("segments: the per-block CHUNK ceiling reclaims a re-chunked block's stranded rows", async () => {
+    const db = await freshDb();
+    await seedUser(db, { handle: castId<Handle>("owner") });
+    const chatId = await seedChat(db);
+    const rows: { blockIdx: number; chunkIdx: number }[] = [
+      { blockIdx: 0, chunkIdx: 0 },
+      { blockIdx: 1, chunkIdx: 0 },
+      { blockIdx: 1, chunkIdx: 1 },
+      { blockIdx: 1, chunkIdx: 2 },
+      { blockIdx: 1, chunkIdx: 3 },
+      { blockIdx: 2, chunkIdx: 0 },
+      { blockIdx: 2, chunkIdx: 1 },
+    ];
+    for (const r of rows) {
+      // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
+      await upsertChatSegment(db, {
+        id: castId<ChatSegmentId>(`chat_segment_${r.blockIdx}_${r.chunkIdx}`),
+        chatId,
+        blockIdx: r.blockIdx,
+        chunkIdx: r.chunkIdx,
+        seqStart: r.blockIdx * 10 + r.chunkIdx,
+        seqEnd: r.blockIdx * 10 + r.chunkIdx,
+        text: `block ${r.blockIdx} chunk ${r.chunkIdx}`,
+        embedding: fakeVector(EMBED_DIM, 1),
+        contentHash: `hs${r.blockIdx}_${r.chunkIdx}`,
+        model: EMBED_MODEL,
+        dim: EMBED_DIM,
+        now: NOW,
+      });
+    }
+
+    const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
+    // Block 0 keeps its single chunk (unlisted ⇒ exactly 1); block 1 re-chunked 4 → 2; block 2 is past the
+    // pathological ceiling this pass (chunkCount 0) so its whole row set goes.
+    const result = await svc.pruneMemoryBlocks({
+      lens: "segment",
+      chatId,
+      keepBlockCount: 3,
+      chunkCounts: [
+        { blockIdx: 1, chunkCount: 2 },
+        { blockIdx: 2, chunkCount: 0 },
+      ],
+    });
+
+    expect(result.rowsDeleted).toBe(4); // block 1 chunks 2+3, block 2 chunks 0+1
+    const left = await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId));
+    expect(left.map((s) => `${s.blockIdx}:${s.chunkIdx}`).sort()).toEqual(["0:0", "1:0", "1:1"]);
   });
 });

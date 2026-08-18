@@ -479,6 +479,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
       return rows[0]?.ownerId === ownerId;
     },
     embeddingsStore: notStubbed,
+    embeddingsStoreSegments: notStubbed,
     // Default = the REAL prune against the seeded vector tables (the `verifyPersonaOwned` precedent), not a
     // stub: the shrink reclaim is a CORRECTNESS step of every build pass, so a memory test that fakes it
     // would prove the build while silently exempting the half that deletes. It calls the same
@@ -488,7 +489,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
         await pruneChatDigests(db, params.chatId, params.scopedCharacterId, params.keepPerTier);
         return;
       }
-      await pruneChatSegments(db, params.chatId, params.keepBlockCount);
+      await pruneChatSegments(db, params.chatId, params.keepBlockCount, params.chunkCounts);
     },
     searchDigests: notStubbed,
     searchCorpus: notStubbed,

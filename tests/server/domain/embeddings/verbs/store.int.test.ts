@@ -8,7 +8,7 @@
 //   • both image lenses (`image-raw` pure-visual + `image-captioned` joint-VL) coexist per asset, caption
 //     persisted only on the captioned lens.
 
-import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
+import { characterEmbeddings, chatDigestSpeakers, chatDigests, documentChunks, imageEmbeddings } from "@orb/db";
 import type { ChatDigestId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
@@ -316,65 +316,10 @@ describe("store — image lenses (image_embeddings)", () => {
   });
 });
 
-describe("store — chat-block lenses (segment / digest)", () => {
+// The `segment` lens is NOT a `store` arm — verbatim segments are written in BATCHES (#172); their tests live
+// beside the verb, at `store-segments.int.test.ts`.
+describe("store — the chat-block digest lens", () => {
   const digestText = "[Alice, Bob — the docks] Alice agreed to smuggle the relic.\nkeywords: Alice, relic";
-  const segmentText = "Alice: meet me at the docks.\nBob: I'll bring the relic.";
-
-  test("segment persists the verbatim text + seq-span; the PRECOMPUTED contentHash gates (no recompute)", async () => {
-    const db = await freshDb();
-    const h = makeStoreHarness(db);
-    const svc = createEmbeddingsService(h.ctx);
-    const chatId = await seedChat(db);
-
-    const result = await svc.store({
-      kind: "chat-block",
-      lens: "segment",
-      chatId,
-      blockIdx: 3,
-      seqStart: 24,
-      seqEnd: 31,
-      text: segmentText,
-      contentHash: "precomputed-seg-hash",
-      model: EMBED_MODEL,
-      dim: EMBED_DIM,
-    });
-
-    expect(result.outcome).toBe("written");
-    // the store does NOT recompute — it returns memory's precomputed hash verbatim.
-    expect(result.contentHash).toBe("precomputed-seg-hash");
-    expect(h.roleClients.embed).toHaveBeenCalledWith(segmentText);
-    const rows = await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId));
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.text).toBe(segmentText);
-    expect(rows[0]?.seqStart).toBe(24);
-    expect(rows[0]?.seqEnd).toBe(31);
-    expect(rows[0]?.contentHash).toBe("precomputed-seg-hash");
-    expect(rows[0]?.hubScore).toBeNull();
-  });
-
-  test("an unchanged segment hash is a noop — no re-embed, no second row", async () => {
-    const db = await freshDb();
-    const h = makeStoreHarness(db);
-    const svc = createEmbeddingsService(h.ctx);
-    const chatId = await seedChat(db);
-    const params = {
-      kind: "chat-block",
-      lens: "segment",
-      chatId,
-      blockIdx: 0,
-      seqStart: 1,
-      seqEnd: 8,
-      text: segmentText,
-      contentHash: "seg-h",
-      model: EMBED_MODEL,
-      dim: EMBED_DIM,
-    } as const;
-
-    expect((await svc.store(params)).outcome).toBe("written");
-    expect((await svc.store(params)).outcome).toBe("noop");
-    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
-    expect(await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId))).toHaveLength(1);
-  });
 
   test("digest persists text + the §2b facets keyed by the real-CharacterId scope; hub_score untouched", async () => {
     const db = await freshDb();
