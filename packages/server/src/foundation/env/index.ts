@@ -55,8 +55,8 @@ const VLLM_RERANK_MAX_MODEL_LEN_DEFAULT = 8192;
 // graph overshoot is what the 08-10 measurements below caught), rerank re-homed to GPU1 so each card
 // carries exactly ONE pooling tenant beside its gen half. Topology: GPU0 = embed(0.1)+gen(0.8) · GPU1 =
 // gen(0.8)+rerank(0.1) — 0.9/card sum, deliberate. ⚠ UNVERIFIED until the first boot on this config.
-const VLLM_EMBED_GPU_UTIL_DEFAULT = 0.15;
-const VLLM_RERANK_GPU_UTIL_MULTI_DEFAULT = 0.15;
+const VLLM_EMBED_GPU_UTIL_DEFAULT = 0.14;
+const VLLM_RERANK_GPU_UTIL_MULTI_DEFAULT = 0.14;
 const VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT = 0.1;
 // GEN HISTORY (keep — each number is paid tuition): 0.28 was the ComfyUI-coexistence floor (1.38x
 // concurrency = ONE in-flight request; ComfyUI left, gen took the VRAM). 0.60 then OOM'd on vLLM 0.26
