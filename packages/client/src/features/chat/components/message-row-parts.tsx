@@ -1,7 +1,6 @@
 // message-row.tsx's render helpers, split out to stay under the component-size cap. No state of its
 // own — every export is a pure (args) => ReactElement/ReactNode the row calls with already-resolved data.
 
-import { blobPortraitUrl, blobUrl } from "@orb/contracts/assets";
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
@@ -20,6 +19,7 @@ import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { BG_PHOTO_CHROME_PLATE, STICKY_ATTRIBUTION_CHROME } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
+import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
 import { CompactSummaryPeek } from "./compact-summary-peek.tsx";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
 import { MessageActionsRow } from "./message-actions-row.tsx";
@@ -58,17 +58,6 @@ export function renderRowReasoning(args: {
   // read identically before and after commit.
   const text = renderMessageForDisplay(raw, args.renderContext, args.message.characterId, args.message.personaId);
   return <ReasoningBlock reasoning={text} thinking={false} label={SETTLED_REASONING_LABEL} showIcon={args.showLLMReasoningIcon} />;
-}
-
-// exactOptionalPropertyTypes idiom: omit `src` rather than pass undefined.
-function avatarSrcProp(avatarHash: string | null): { src?: string } {
-  return avatarHash === null ? {} : { src: blobUrl(avatarHash) };
-}
-
-const RIPPLE_PORTRAIT_REQUEST_WIDTH = 200;
-
-function avatarPortraitSrcProp(avatarHash: string | null): { src?: string } {
-  return avatarHash === null ? {} : { src: blobPortraitUrl(avatarHash, RIPPLE_PORTRAIT_REQUEST_WIDTH) };
 }
 
 /** Null when Tide's trains take over — each paragraph gets its own MessageContent call. */
