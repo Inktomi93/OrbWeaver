@@ -21,6 +21,7 @@ import {
   WalkerDimmedContrastStory,
   WalkerDuplicateSlotStory,
   WalkerNeighbourButtonsStory,
+  WalkerPaintLayerStory,
   WalkerScreenReaderOnlyStory,
   WalkerSliderCompositeStory,
   WalkerTranslucentTintStory,
@@ -253,4 +254,29 @@ test("the a11y lens keeps seeing what the paint lens drops — a nameless sr-onl
     selectorsFor(findings, "aria-name"),
     `a screen-reader-only control lives or dies by its name — got ${JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`))}`,
   ).toContain("[data-testid=sr-nameless]");
+});
+
+// ── A fixed art layer is not visible to an ancestor walk (issue #218) ─────────────────────────────
+// The app paints its wallpaper as a FIXED, contentless sibling over the near-black body base, and the chat
+// transcript's reading plate is 65% translucent. Compositing the plate onto that base produced
+// rgb(160,157,155) — a color no pixel on screen has — and 28 P1 contrast findings on one transcript at
+// 3.16:1 where snap's pixel sample reads 4.94:1. The walker's own law is that these two instruments must
+// not disagree about what is behind a glyph, so the walk must now REFUSE rather than fabricate: the runner
+// (design-audit.ts) settles an unresolved backdrop from real pixels, or says NO VERDICT out loud.
+test("text over a translucent plate with a fixed art layer behind it gets NO css-resolved contrast verdict", async ({ mount, page }) => {
+  await mount(<WalkerPaintLayerStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const onLine = findings.filter((f) => f.selector === "[data-testid=plate-line]");
+  expect(onLine, `the DOM walk cannot know what the wallpaper paints — every verdict here is fabricated: ${JSON.stringify(onLine)}`).toEqual([]);
+});
+
+test("an opaque card with nothing painting over it is still judged — the refusal is not a mute", async ({ mount, page }) => {
+  await mount(<WalkerPaintLayerStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  expect(
+    selectorsFor(findings, "contrast"),
+    `rgb(74,74,80) on rgb(24,24,28) is ~2:1 and its base carries no paint layer — got ${JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`))}`,
+  ).toContain("[data-testid=card-line]");
 });

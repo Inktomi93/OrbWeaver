@@ -189,6 +189,48 @@ test("a gradient with a TRANSLUCENT stop refuses (indeterminate P1) instead of t
   expect(finding?.value).toContain("translucent");
 });
 
+// ── the backdrop the walk could not resolve (issue #218) ─────────────────────
+// A DOM ancestor walk cannot see a fixed art layer painting over the base it finds. The old resolver
+// composited a 0.65-alpha reading plate onto the app's near-black BODY base and reported 3.16:1 on 28
+// transcript nodes whose real composite — over the wallpaper photo — is 4.94:1. `unresolved` is the
+// walker saying it cannot know: the runner settles it from real pixels, or refuses out loud. Nothing may
+// mint a ratio from `fallback`.
+
+const UNRESOLVED_OVER_ART: Backdrop = { kind: "unresolved", reason: "paint-layer-over-base", fallback: { r: 160, g: 157, b: 155 } };
+
+test("an UNRESOLVED backdrop yields NO contrast verdict — not even from its fallback", () => {
+  // fallback rgb(160,157,155) against this text is the exact 3.16:1 the false P1s were minted from.
+  const finding = checkContrast({
+    selector: "[data-slot=message-bubble] em",
+    color: { r: 86, g: 75, b: 59 },
+    backdrop: UNRESOLVED_OVER_ART,
+    fontSizePx: 15,
+    fontWeight: 400,
+  });
+  expect(finding, "a backdrop nothing on screen is painted must produce no finding at all").toBeNull();
+});
+
+test("an UNRESOLVED backdrop is not a gray-on-color verdict either", () => {
+  expect(
+    checkGrayOnColor({
+      selector: ".line",
+      color: { r: 128, g: 128, b: 128 },
+      backdrop: { kind: "unresolved", reason: "no-opaque-base", fallback: { r: 30, g: 60, b: 210 } },
+      fontSizePx: 14,
+      fontWeight: 400,
+    }),
+  ).toBeNull();
+});
+
+test("a PIXEL-SAMPLED backdrop is judged for contrast but never for gray-on-color", () => {
+  // The runner rewrites an unresolved sample to `flat` from the real pixels. A luminance ratio is exactly
+  // what pixels prove; "use a darker shade of the background's own hue" is advice about an AUTHORED color,
+  // and run against the median of a wallpaper photo it minted five P2s about a photograph.
+  const sampled = { selector: ".over-art", color: { r: 128, g: 128, b: 128 }, fontSizePx: 14, fontWeight: 400, backdropMethod: "pixel-sample" } as const;
+  expect(checkGrayOnColor({ ...sampled, backdrop: { kind: "flat", color: SATURATED_BLUE } })).toBeNull();
+  expect(checkContrast({ ...sampled, backdrop: { kind: "flat", color: { r: 150, g: 150, b: 150 } } })?.rule).toBe("contrast");
+});
+
 // ── gray-on-color (impeccable) ───────────────────────────────────────────────
 
 const SATURATED_BLUE: Rgb = { r: 30, g: 60, b: 210 };
