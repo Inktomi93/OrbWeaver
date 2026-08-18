@@ -174,9 +174,12 @@ export interface ParsedChat {
    *  rather than stringified into a shape no reader could interpret. Null when the chat records none. */
   readonly variables: Record<string, string> | null;
   /** ST's CHAT-BOUND persona pick — `chat_metadata.pinnedPersona`, whose value is a persona display NAME
-   *  (corpus-driven: 71 of 1,097 chats, `"Nate"` ×63 / `"Ashley"` ×8, 71/71 strings). It is the only signal of
-   *  who the user was on those chats, because ST wrote the header `user_name` as the literal sentinel
-   *  `"unused"` on all 71 — so the import mapper resolves THIS first and falls back to `userName`.
+   *  (corpus-driven: 71 of 1,097 chats, `"Nate"` ×63 / `"Ashley"` ×8, 71/71 strings). ST wrote the header
+   *  `user_name` as the literal sentinel `"unused"` on all 71, so this is their only HEADER-level signal — but
+   *  the sentinel is NOT the pin's tell, and reading it that way cost ~500 unattributed rooms: `"unused"`
+   *  appears on 569 of 1,083 transcripts, 498 of which carry no pin either (re-measured 2026-08-18). The
+   *  import mapper resolves THIS first, falls back to `userName`, and then to the USER TURNS' own `name`
+   *  stamps — the full ordering + its receipts live in `domain/import/substrate/chat-input.ts`.
    *
    *  DELIBERATELY NOT the same field as ST's own upstream `chat_metadata.persona` (SillyTavern
    *  `public/scripts/personas.js`), whose value is an AVATAR FILENAME rather than a name and which appears on

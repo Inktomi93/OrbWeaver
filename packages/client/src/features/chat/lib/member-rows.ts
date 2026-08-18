@@ -1,19 +1,29 @@
 // The MEMBERS-panel row MODEL (FINAL-Chat-Tab-Redesign §7.1 — the Roster+People merge): the
-// source-agnostic row views both surfaces project into (committed roster / draft founding cards),
-// the roving-focus + action-seam prop contracts, and the accessible-name derivation. Pure — no JSX
-// (the row shell is components/member-row.tsx; the canonical action home is member-row-menu.tsx).
+// source-agnostic row views both surfaces project into (committed roster / draft founding cards), the
+// PROJECTIONS that build them off a `ParticipantView[]`, the roving-focus + action-seam prop contracts, and
+// the accessible-name derivation. Pure — no JSX (the row shell is components/member-row.tsx; the canonical
+// action home is member-row-menu.tsx).
+//
+// THE PROJECTIONS LIVE HERE, not in the tab body, and that is now load-bearing: a human's row must render
+// their IN-ROOM identity — the persona they are playing — and must never re-render their login handle as a
+// SECOND identity beside it. Under AUTH_MODE=oidc that handle is an email address, and the row used to print
+// it twice (`email · email`) in the owner's own Members tab (#162, 2026-08-17: "it just shows my email").
+// `MemberPersonRow` therefore carries NO handle field at all: the resolution happens in {@link toPersonRows},
+// where the `ParticipantView` still exists, so no row shape a renderer can reach can duplicate one.
 
-import type { HandoffOffer, JoinHistoryVisibility } from "@orb/contracts/chat";
-import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { CastEntry, HandoffOffer, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
+import { buildCastAvatarMaps, buildCastNameContext } from "@orb/contracts/chat";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 
-/** A PEOPLE (human) row view — projected by the surface from `ParticipantView` (+ `pendingHostUserId`). */
+/** A PEOPLE (human) row view — projected by {@link toPersonRows} from `ParticipantView`. */
 export interface MemberPersonRow {
   readonly kind: "person";
   /** Stable row key (the participant id) — the roving-focus registry key. */
   readonly key: string;
   readonly userId: UserId;
+  /** The seat's IN-ROOM identity: the persona this human is playing, else the room-neutral floor. NEVER a
+   *  login handle — see the file header. Derived once, in {@link toPersonRows}. */
   readonly displayName: string;
-  readonly handle: Handle | null;
   readonly isHost: boolean;
   /** The viewer's own seat ("you" marker + the Leave action home). */
   readonly isViewer: boolean;
@@ -89,4 +99,85 @@ export function rowAccessibleName(row: MemberPersonRow | MemberCastRow): string 
     return `${row.displayName} — ${role}${you}${nominated}${history}`;
   }
   return `${row.displayName} — character${row.disabled ? ", muted" : ""}`;
+}
+
+/** What the committed roster hands the two projections below. `cast` is the chat's own member-gated CAST
+ *  producer (`ChatDetail.cast`, D137) — the ONE place a client can resolve a seat's `activePersonaId` into
+ *  the persona's name and portrait, with no second name-resolver invented here. */
+export interface MemberRowSources {
+  readonly participants: readonly ParticipantView[];
+  readonly cast: readonly CastEntry[];
+  readonly viewerUserId: UserId | null;
+  readonly pendingHostUserId: UserId | null;
+  /** The live turn's voiced speaker (`turnStarted.speakerCharacterId`) — never a token read (§7.1). */
+  readonly respondingCharacterId: CharacterId | null;
+}
+
+/**
+ * THE HUMAN-SEAT PROJECTION — and the one home of "what is this human called in this room".
+ *
+ * The room renders the PERSONA, because that is what a human IS here (`Spine-Identity-and-Auth`: the pin is
+ * the anchor `{{user}}`, the active persona is per-participant). The persona name is resolved from the seat's
+ * own `activePersonaId` against the chat's cast producer — deliberately NOT from `ParticipantView.displayName`,
+ * even though the server's rule already collapses persona-then-handle into that field: the collapsed value
+ * cannot tell a caller WHICH arm it took, and the losing arm is a raw login handle.
+ *
+ * A seat holding NO persona falls back to `ParticipantView.displayName` — which, on an account with no display
+ * name, is the server's handle fallback, and under `AUTH_MODE=oidc` that handle is an email address. That is
+ * deliberate and SCOPED (orchestrator ruling 2026-08-18): rendering the best label actually on the wire beats
+ * rendering a placeholder for a real person, and the durable fix is a display-name column on `users` populated
+ * from the OIDC claims — auth-adjacent schema work filed separately. What #162 killed here is the DUPLICATE:
+ * the row also appended ` · ${handle}`, so the owner's every seat read `email · email`.
+ *
+ * A seat with a null `userId` is skipped — `MemberPersonRow.userId` is what every membership action (kick,
+ * hand-off, history-visibility) addresses, so a row without one could render but never act.
+ */
+export function toPersonRows(sources: MemberRowSources): MemberPersonRow[] {
+  const { personaNamesById } = buildCastNameContext(sources.cast);
+  const { personaAvatarsById } = buildCastAvatarMaps(sources.cast);
+  const rows: MemberPersonRow[] = [];
+  // leftSeq === null is the present-and-contributing predicate — a kicked/left human keeps a historical row
+  // but must not render as a room member.
+  for (const p of sources.participants) {
+    if (p.kind !== "human" || p.leftSeq !== null || p.userId === null) {
+      continue;
+    }
+    const persona = p.activePersonaId === null ? undefined : personaNamesById.get(p.activePersonaId);
+    const personaAvatar = p.activePersonaId === null ? undefined : personaAvatarsById.get(p.activePersonaId);
+    rows.push({
+      kind: "person",
+      key: p.id,
+      userId: p.userId,
+      displayName: persona?.name ?? p.displayName,
+      isHost: p.role === "host",
+      isViewer: sources.viewerUserId !== null && p.userId === sources.viewerUserId,
+      // The persona's own portrait when they are playing one — the same `cast-only` precedence the transcript's
+      // user rows use (`CAST_KIND_POLICY.persona.avatar`); a persona has no participant avatar plane.
+      avatarHash: personaAvatar ?? p.avatarHash,
+      pendingNominee: sources.pendingHostUserId !== null && p.userId === sources.pendingHostUserId,
+      historyVisibility: p.joinHistoryVisibility,
+    });
+  }
+  return rows;
+}
+
+/** THE CHARACTER-SEAT PROJECTION — the room's cast, in roster order. */
+export function toCastRows(sources: MemberRowSources): MemberCastRow[] {
+  const rows: MemberCastRow[] = [];
+  for (const p of sources.participants) {
+    if (p.kind !== "character" || p.characterId === null) {
+      continue;
+    }
+    rows.push({
+      kind: "cast",
+      key: p.id,
+      characterId: p.characterId,
+      displayName: p.displayName,
+      disabled: p.disabled,
+      talkativeness: p.talkativeness,
+      avatarHash: p.avatarHash,
+      responding: sources.respondingCharacterId !== null && p.characterId === sources.respondingCharacterId,
+    });
+  }
+  return rows;
 }

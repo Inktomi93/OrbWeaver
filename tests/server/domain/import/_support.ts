@@ -242,6 +242,9 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
         variantsImported: args.chats.reduce((n, c) => n + c.messages.reduce((v, m) => v + m.variants.length, 0), 0),
         branchesLinked: 0,
         realConversationWritten,
+        // The DOUBLE never dedups, so it never reaches the skip arm that heals — the real op's heal is proven
+        // against a real db in `tests/server/domain/chat/persistence/import-write.int.test.ts`.
+        chatsPersonaHealed: 0,
       });
     },
     bulkImportPersonas: (args) => {

@@ -22,6 +22,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory } from "../_ct-stories.tsx";
 
 const NATE_HOST_RE = /Nate — host/u;
+const ARIA_CAST_RE = /Aria — character/u;
 const BUDDY_MEMBER_RE = /Buddy — member/u;
 
 // `multiHumanCapable` now reads from `/api/auth/config` (not a prop), so the People-tab cases stub the
@@ -75,6 +76,9 @@ function character(key: string): Record<string, unknown> {
 function chatDetail(role: ParticipantRole, roomOverrides: Record<string, string> = {}, characters: readonly Record<string, unknown>[] = []): unknown {
   return {
     participants: [human(role), ...characters],
+    // `ChatDetail.cast` is server-populated on every getChat; a tab that resolves a seat's persona through it
+    // (the Members tab) reads an empty producer as "this seat plays nobody", never as a crash.
+    cast: [],
     roomOverrides,
     viewerIsHost: role === "host",
   };
@@ -128,7 +132,10 @@ function emptyTrace(): Record<string, unknown> {
 }
 
 // A PRESENT human seat with the fields the People tab renders (multi-human invites lane):
-// `leftSeq: null` is load-bearing — `resolveHumanParticipants` keeps only present seats.
+// `leftSeq: null` is load-bearing — the projection keeps only present seats. `activePersonaId` is equally
+// load-bearing now: a human row renders the PERSONA it is playing, resolved against the room's cast producer
+// (#162). The `handle` stays on the WIRE stub, spelled as an EMAIL exactly as an OIDC install ships it,
+// because the point of the change is that no row can render it as a second identity beside the name.
 function humanSeat(id: string, displayName: string, role: ParticipantRole): Record<string, unknown> {
   return {
     id: `participant_${id}`,
@@ -136,18 +143,25 @@ function humanSeat(id: string, displayName: string, role: ParticipantRole): Reco
     role,
     userId: `user_${id}`,
     characterId: null,
+    activePersonaId: `persona_${id}`,
     displayName,
-    handle: displayName.toLowerCase(),
+    handle: `${displayName.toLowerCase()}@example.test`,
     avatarHash: null,
     leftSeq: null,
   };
 }
 
+/** The persona CAST entry a {@link humanSeat} is playing — what turns its `activePersonaId` into a name. */
+function personaEntry(id: string, name: string): Record<string, unknown> {
+  return { kind: "persona", id: `persona_${id}`, name, description: "", avatarHash: null };
+}
+
 // A `ChatDetail` stub for the People-tab cases — carries the server-resolved `viewerIsHost` (the
-// invite-controls gate; NOT the first-seat proxy the older tabs still use).
+// invite-controls gate; NOT the first-seat proxy the older tabs still use) and the room's cast producer.
 function multiHumanChat(viewerIsHost: boolean, humans: readonly Record<string, unknown>[]): unknown {
   return {
     participants: [...humans, character("aria")],
+    cast: humans.map((h) => personaEntry(String(h["userId"]).replace("user_", ""), String(h["displayName"]))),
     roomOverrides: {},
     viewerIsHost,
   };
@@ -162,9 +176,10 @@ test("host sees the consolidated tabs (This chat · Preview)", async ({ mount, p
 
   const component = await mount(<ChatContextPanelStory />);
 
-  // Overrides + Injections + Group consolidated into ONE "This chat" tab (panel-redesign): the strip is now
-  // This chat · Preview (Members gated out in this solo chat). Overrides + Injections are no longer their
-  // own tabs — they are SECTIONS inside "This chat".
+  // Overrides + Injections + Group consolidated into ONE "This chat" tab (panel-redesign): the strip is
+  // Members · This chat · Preview. Overrides + Injections are no longer their own tabs — they are SECTIONS
+  // inside "This chat". (Members leads the declared order, so it is also the DEFAULT tab; a host always has
+  // it now — #162's floor-zero ruling — hence the explicit click before asserting this tab's body.)
   await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Settings" })).toHaveCount(0);
   await expect(component.getByRole("tab", { name: "Overrides" })).toHaveCount(0);
@@ -172,11 +187,18 @@ test("host sees the consolidated tabs (This chat · Preview)", async ({ mount, p
   await expect(component.getByRole("tab", { name: "Group" })).toHaveCount(0);
   await expect(component.getByRole("tab", { name: "Preview" })).toBeVisible();
   // Field overrides + Injections are SECTIONS inside the tab, with real h3s.
+  await component.getByRole("tab", { name: "This chat" }).click();
   await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
 });
 
-test("host in a SOLO (1-character) chat sees no Members tab (D16 size-gate)", async ({ mount, page }) => {
+// RULING CHANGED (#162, owner 2026-08-17). This case used to assert the OPPOSITE — "host in a SOLO
+// (1-character) chat sees no Members tab (D16 size-gate)" — because the Cast section demanded >=2
+// characters. That floor is what produced the owner's live complaint: the Members tab is the room's ROSTER
+// surface, and in a 1:1 room it rendered nothing but their own People row ("now it just shows my email").
+// A room with a cast has a roster; the tab shows it. (There is no "size-gate" clause in the D-ledger — the
+// old rule lived only in this title and a one-line roster.ts comment.)
+test("host in a SOLO (1-character) chat GETS the Members tab — its cast is its roster (#162)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host", {}, [character("aria")]),
     "chat.listChatInjections": () => [],
@@ -185,9 +207,39 @@ test("host in a SOLO (1-character) chat sees no Members tab (D16 size-gate)", as
 
   const component = await mount(<ChatContextPanelStory />);
 
-  // Preview stays (host-only, not group-gated); Members is hidden — the Cast section needs ≥2
-  // characters and the People section needs a multi-human install with >1 human (§7).
   await expect(component.getByRole("tab", { name: "Preview" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Members" })).toBeVisible();
+  await component.getByRole("tab", { name: "Members" }).click();
+  await expect(page.getByTestId("members-panel").getByRole("button", { name: ARIA_CAST_RE })).toBeVisible();
+});
+
+// The floor is ZERO for a HOST (owner ruling 2026-08-18): the Members tab is the room's one roster home in
+// every state, so a cast-less room gets the tab with a load-bearing empty state instead of a hidden tab.
+test("a HOST with NO cast still gets the Members tab — the empty state IS the add door", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("host", {}, []),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+    "character.list": () => ({ items: [], nextCursor: null }),
+  });
+
+  const component = await mount(<ChatContextPanelStory />);
+
+  await component.getByRole("tab", { name: "Members" }).click();
+  const panel = page.getByTestId("members-panel");
+  await expect(panel).toContainText("No characters in this chat yet");
+  await expect(panel.getByRole("button", { name: "Add a character" })).toBeVisible();
+});
+
+test("a MEMBER with no cast and no People arm still has no Members tab (nothing to show, nothing to do)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("member", {}, []),
+    "chat.listChatInjections": () => [],
+  });
+
+  const component = await mount(<ChatContextPanelStory />);
+
+  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Members" })).toHaveCount(0);
 });
 
@@ -255,8 +307,13 @@ test("NOT multi-human capable → no People section anywhere (single-user render
   const component = await mount(<ChatContextPanelStory />);
 
   await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
-  // One character + one human, no capability ⇒ no Members tab at all (both sections empty).
-  await expect(component.getByRole("tab", { name: "Members" })).toHaveCount(0);
+  // The Members tab EXISTS (it is the room's roster — one character is seated), but the whole PEOPLE half is
+  // absent on a single-user install: no People section, and therefore no invite door anywhere.
+  await component.getByRole("tab", { name: "Members" }).click();
+  const panel = page.getByTestId("members-panel");
+  await expect(panel.locator('[data-slot="members-cast"]')).toBeVisible();
+  await expect(panel.locator('[data-slot="members-people"]')).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "Invite people" })).toHaveCount(0);
 });
 
 test("capable HOST: Members lists the humans (host chip) and the invite dialog mints by handle", async ({ mount, page }) => {
@@ -456,6 +513,8 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
   });
 
   const component = await mount(<ChatContextPanelStory />);
+  // Members leads the strip and is the default tab for a host (#162), so name the tab under test.
+  await component.getByRole("tab", { name: "This chat" }).click();
   // Field overrides are collapse-until-needed rows — expand Scenario, then edit it.
   await component.getByRole("button", { name: "Scenario" }).click();
   await component.getByLabel("Scenario", { exact: true }).fill("A rainy dock.");
@@ -481,6 +540,7 @@ test("the Field-overrides section has NO author's-note field — only the three 
   });
 
   const component = await mount(<ChatContextPanelStory />);
+  await component.getByRole("tab", { name: "This chat" }).click();
   // The three surviving collapse rows are reachable…
   await expect(component.getByRole("button", { name: "Main prompt" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Post-history" })).toBeVisible();

@@ -11,25 +11,21 @@
 // never suspends on its own account — it degrades to a neutral title until the cache populates.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { ParticipantView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
 import { Icon, Users } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
-import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
-import { Separator } from "@orb/ui/separator";
+import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useAuthConfig, useTRPC } from "#data";
+import { useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
-import { deriveChatTitle, testId } from "#lib";
+import { deriveChatTitle } from "#lib";
 import { revealContextPanel } from "#state";
-import { filterCharacters, membersTabJustified } from "../lib/roster.ts";
-import { AddMemberPopover } from "./add-member-popover.tsx";
+import { filterCharacters } from "../lib/roster.ts";
 
 export interface ChatHeaderSurfaceProps {
   readonly chatId: ChatId;
@@ -39,16 +35,9 @@ type CharacterParticipant = ReturnType<typeof filterCharacters>[number];
 
 interface CommittedIdentity {
   readonly cast: readonly CharacterParticipant[];
-  /** Every present seat (humans + characters) — the roster the solo-chat entry popover lists. */
-  readonly participants: readonly ParticipantView[];
-  readonly viewerIsHost: boolean;
   readonly title: string;
+  /** Every PRESENT seat, humans + characters — the number on the roster chip. */
   readonly memberCount: number;
-  /** True when the roster is a GROUP (justifies the Members context tab — `membersTabJustified`, the same
-   *  predicate chats-section.tsx's members `when` uses). The members ENTRY always renders now (every chat
-   *  has a roster); this only decides whether the entry opens the Members TAB (group) or the compact
-   *  roster popover (solo) — Context-Panel-Program CP-1 owner ruling 2026-07-25. */
-  readonly membersJustified: boolean;
 }
 
 /** The committed chat's identity (avatars/title/member-count), read from the shared `getChat` query
@@ -58,23 +47,15 @@ interface CommittedIdentity {
 function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  const { data: authConfig } = useAuthConfig();
   const participants = chat?.participants ?? [];
-  const present = participants.filter((p) => p.leftSeq === null);
   const cast = filterCharacters(participants);
-  // Hoisted to a binding: the members gate below needs it, and an object-literal property is not in
-  // scope for its siblings.
-  const viewerIsHost = chat?.viewerIsHost === true;
   return {
     cast,
-    participants: present,
-    viewerIsHost,
     title: deriveChatTitle(
       chat?.title ?? null,
       cast.map((c) => c.displayName),
     ),
-    memberCount: present.length,
-    membersJustified: membersTabJustified(participants, authConfig?.multiHumanCapable === true, viewerIsHost),
+    memberCount: participants.filter((p) => p.leftSeq === null).length,
   };
 }
 
@@ -92,19 +73,12 @@ function ChatIdentityCluster({ avatars, title }: { readonly avatars: ReactNode; 
 }
 
 export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElement {
-  const { cast, participants, viewerIsHost, title, memberCount, membersJustified } = useCommittedIdentity(chatId);
+  const { cast, title, memberCount } = useCommittedIdentity(chatId);
 
   return (
     <Row gap="row" align="center" className="min-w-0">
       <ChatIdentityCluster avatars={<CastAvatars cast={cast} />} title={title} />
-      <ChatRosterEntry
-        chatId={chatId}
-        memberCount={memberCount}
-        membersJustified={membersJustified}
-        participants={participants}
-        cast={cast}
-        viewerIsHost={viewerIsHost}
-      />
+      <ChatRosterEntry memberCount={memberCount} />
     </Row>
   );
 }
@@ -136,92 +110,21 @@ function openMembersTab(): void {
   revealContextPanel("members" satisfies ChatContextTabId);
 }
 
-/** The topbar members entry — the ONE roster doorway (chat-header §2/§9, one home). It ALWAYS renders now
- *  (every chat has a roster). On a GROUP it opens the Members context tab (unchanged behavior). On a SOLO
- *  chat (no Members tab to open) it opens a compact roster popover: the present seats + the host-only
- *  "Add a character" affordance that turns the solo chat into a group (owner ruling 2026-07-25). */
-function ChatRosterEntry({
-  chatId,
-  memberCount,
-  membersJustified,
-  participants,
-  cast,
-  viewerIsHost,
-}: {
-  readonly chatId: ChatId;
-  readonly memberCount: number;
-  readonly membersJustified: boolean;
-  readonly participants: readonly ParticipantView[];
-  readonly cast: readonly CharacterParticipant[];
-  readonly viewerIsHost: boolean;
-}): ReactElement {
-  // GROUP: the entry opens the Members context tab.
-  if (membersJustified) {
-    return <RosterChipButton count={memberCount} onClick={openMembersTab} />;
-  }
-
-  // SOLO: no Members tab exists, so the entry is a compact roster popover instead of a dead tab link.
-  return (
-    <Popover>
-      <PopoverTrigger render={<RosterChipButton count={memberCount} />} />
-      <PopoverPopup>
-        <SoloRosterMenu chatId={chatId} participants={participants} cast={cast} viewerIsHost={viewerIsHost} />
-      </PopoverPopup>
-    </Popover>
-  );
-}
-
-/** The solo-chat roster popover body: the present seats (avatar + name) + the host-only add-character
- *  affordance (the cast-bar "+" flow, reused). Adding a second character converts the solo chat to a
- *  group via the existing `chat.addCharacterToChat` machinery — no bespoke conversion path. */
-function SoloRosterMenu({
-  chatId,
-  participants,
-  cast,
-  viewerIsHost,
-}: {
-  readonly chatId: ChatId;
-  readonly participants: readonly ParticipantView[];
-  readonly cast: readonly CharacterParticipant[];
-  readonly viewerIsHost: boolean;
-}): ReactElement {
-  return (
-    <Stack gap="row" className="min-w-56" data-testid={testId("soloRosterMenu")}>
-      <Text as="span" size="micro" tone="muted" transform="caps">
-        In this chat
-      </Text>
-      <Stack gap="field">
-        {participants.map((p) => (
-          <RosterSeatRow key={p.id} participant={p} />
-        ))}
-      </Stack>
-      {viewerIsHost ? (
-        <>
-          <Separator />
-          <Row gap="field" align="center" className="min-w-0">
-            <AddMemberPopover chatId={chatId} existingCharacterIds={cast.map((c) => c.characterId)} />
-            <Text as="span" size="label" tone="muted">
-              Add a character
-            </Text>
-          </Row>
-        </>
-      ) : null}
-    </Stack>
-  );
-}
-
-function RosterSeatRow({ participant }: { readonly participant: ParticipantView }): ReactElement {
-  const hueSeed = participant.kind === "character" && participant.characterId !== null ? participant.characterId : participant.id;
-  return (
-    <Row gap="field" align="center" className="min-w-0">
-      <Avatar size="sm" fallbackDelay={0} hueSeed={hueSeed} {...(participant.avatarHash === null ? {} : { src: blobUrl(participant.avatarHash) })}>
-        {initialsFor(participant.displayName)}
-      </Avatar>
-      <Text as="span" size="label" weight="medium" className="min-w-0 truncate">
-        {participant.displayName}
-      </Text>
-    </Row>
-  );
+/**
+ * The topbar members entry — the ONE roster doorway (chat-header §2/§9). It always renders (every committed
+ * room has a roster) and it always opens the Members context tab.
+ *
+ * SUPERSESSION (#162, owner-ruled 2026-08-18). It used to FORK: a group opened the Members tab, and a SOLO
+ * chat opened a compact `SoloRosterMenu` popover here — the present seats plus a host-only "Add a character"
+ * (owner ruling 2026-07-25). That popover existed for one reason: the Members tab was SIZE-GATED and did not
+ * exist for a 1:1 room, so the roster had nowhere else to live. The size gate is what produced the owner's
+ * "Chat Members lost detail" report, and it is gone (`lib/roster.ts::membersTabJustified` — the floor is now
+ * zero for a host, and the tab carries the cast, the add-character door and the invite door in one place).
+ * With one roster surface for every room state, a second one in the topbar is not a fallback, it is a fork —
+ * so the popover, its seat rows and their imports were deleted here rather than left beside the new home.
+ */
+function ChatRosterEntry({ memberCount }: { readonly memberCount: number }): ReactElement {
+  return <RosterChipButton count={memberCount} onClick={openMembersTab} />;
 }
 
 function CastAvatars({ cast }: { readonly cast: readonly CharacterParticipant[] }): ReactElement | null {

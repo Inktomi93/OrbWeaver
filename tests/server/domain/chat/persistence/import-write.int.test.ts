@@ -26,7 +26,7 @@ import { describe } from "vitest";
 import type { ChatImportContext } from "../../../../../packages/server/src/domain/chat/contract/import.ts";
 import { createBulkImportChats } from "../../../../../packages/server/src/domain/chat/persistence/import-write.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { seedCharacter, seedUser } from "../../../../support/factories/index.ts";
+import { seedCharacter, seedPersona, seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
@@ -202,6 +202,89 @@ describe("createBulkImportChats", () => {
     expect(again.chatsImported).toBe(0);
     expect(again.chatsSkipped).toBe(1);
     expect(await db.select().from(chats)).toHaveLength(1);
+    expect(again.chatsPersonaHealed).toBe(0);
+  });
+
+  // ── the dedup-skip arm's HEAL (owner ruling 2026-08-17, #163) ─────────────────────────────────────────
+  //
+  // The importer is idempotent by importHash, so a corpus imported BEFORE the mapper could resolve its user
+  // persona would stay unattributed forever. The ordinary re-run is the repair path: the skip arm fills the
+  // three persona planes — and ONLY where they are still NULL, because everything it touches is editable
+  // after the import and a re-run is not authority over a choice a human made later.
+
+  /** The three persona planes of one room, as the heal sees them. */
+  async function personaPlanes(db: Db): Promise<{ anchor: string | null; seat: string | null; userTurns: (string | null)[] }> {
+    const [chat] = await db.select({ anchorPersonaId: chats.anchorPersonaId }).from(chats);
+    const seats = await db.select({ kind: chatParticipants.kind, activePersonaId: chatParticipants.activePersonaId }).from(chatParticipants);
+    const rows = await db.select({ role: messages.role, seq: messages.seq, personaId: messages.personaId }).from(messages);
+    return {
+      anchor: chat?.anchorPersonaId ?? null,
+      seat: seats.find((s) => s.kind === "human")?.activePersonaId ?? null,
+      userTurns: rows
+        .filter((r) => r.role === "user")
+        .sort((a, b) => a.seq - b.seq)
+        .map((r) => r.personaId),
+    };
+  }
+
+  test("a re-import HEALS an already-imported room that landed with no persona (anchor + host seat + user turns)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const persona = await seedPersona(db, { ownerId: owner.id, name: "Nate" });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+
+    // The FIRST import is the corpus's history: the mapper could not resolve a persona, so all three planes
+    // landed null.
+    await op({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl")] });
+    expect(await personaPlanes(db)).toEqual({ anchor: null, seat: null, userTurns: [null] });
+
+    // The SAME transcript, re-run once the mapper resolves its persona: dedup-skipped, but healed.
+    const attributed = chatInput("Aria.jsonl", { anchorPersonaId: persona.id });
+    const healed = await op({
+      ownerId: owner.id,
+      characterId: character.id,
+      chats: [{ ...attributed, messages: attributed.messages.map((m) => (m.role === "user" ? { ...m, personaId: persona.id } : m)) }],
+    });
+
+    // The STORED planes lead: this is the user-visible defect (a room whose Members tab and whose user turns
+    // name nobody), and the reported count is only its receipt.
+    expect(await personaPlanes(db)).toEqual({ anchor: persona.id, seat: persona.id, userTurns: [persona.id] });
+    expect(healed.chatsImported).toBe(0);
+    expect(healed.chatsSkipped).toBe(1);
+    expect(healed.chatsPersonaHealed).toBe(1);
+    // The heal writes no new canon — one room, still.
+    expect(await db.select().from(chats)).toHaveLength(1);
+  });
+
+  test("the heal NEVER overwrites a persona already on the row, and is a no-op on a second run", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const chosen = await seedPersona(db, { ownerId: owner.id, name: "Chosen" });
+    const imported = await seedPersona(db, { ownerId: owner.id, name: "Imported" });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+
+    // The room landed already attributed (or the owner picked its persona afterwards).
+    await op({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl", { anchorPersonaId: chosen.id })] });
+
+    const again = await op({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl", { anchorPersonaId: imported.id })] });
+    expect(again.chatsPersonaHealed).toBe(0);
+    expect((await personaPlanes(db)).anchor).toBe(chosen.id);
+    expect((await personaPlanes(db)).seat).toBe(chosen.id);
+  });
+
+  test("a re-run that still resolves NO persona heals nothing (unmatched stays unattributed — owner ruling)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+
+    await op({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl")] });
+    const again = await op({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl")] });
+
+    expect(again.chatsPersonaHealed).toBe(0);
+    expect(await personaPlanes(db)).toEqual({ anchor: null, seat: null, userTurns: [null] });
   });
 
   test("branch resolution — a child links parentChatId by the parent's source filename", async () => {

@@ -14,9 +14,9 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { tokenizeContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { BulkImportChats, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 
@@ -84,23 +84,99 @@ function assertSeatedSpeakers(ci: BulkImportChatInput, primary: CharacterId): vo
   }
 }
 
-/** Pre-fetch the `importHash`es this character already has, scoped through the character-seat junction. */
-async function loadExistingHashes(db: Db, characterId: CharacterId, hashes: readonly string[]): Promise<Record<string, true>> {
-  const seen: Record<string, true> = {};
+/** What a pre-existing import of one `importHash` looks like to the dedup gate: the room it landed as, and
+ *  whether that room still has NO anchor persona (the heal's gate — see {@link healPersonaAttribution}). */
+interface ExistingImport {
+  readonly chatId: ChatId;
+  readonly anchorPersonaId: PersonaId | null;
+}
+
+/** Pre-fetch the `importHash`es this character already has, scoped through the character-seat junction. Keyed
+ *  by hash → the room it is, because the dedup branch no longer only SKIPS: it heals the room's persona
+ *  attribution when this run can resolve one and the stored room never got one. */
+async function loadExistingImports(db: Db, characterId: CharacterId, hashes: readonly string[]): Promise<Record<string, ExistingImport>> {
+  const seen: Record<string, ExistingImport> = {};
   if (hashes.length === 0) {
     return seen;
   }
   const rows = await db
-    .select({ importHash: chats.importHash })
+    .select({ id: chats.id, importHash: chats.importHash, anchorPersonaId: chats.anchorPersonaId })
     .from(chats)
     .innerJoin(chatParticipants, eq(chatParticipants.chatId, chats.id))
     .where(and(eq(chatParticipants.characterId, characterId), inArray(chats.importHash, [...hashes])));
   for (const r of rows) {
-    if (r.importHash !== null) {
-      seen[r.importHash] = true;
+    if (r.importHash !== null && seen[r.importHash] === undefined) {
+      seen[r.importHash] = { chatId: r.id, anchorPersonaId: r.anchorPersonaId };
     }
   }
   return seen;
+}
+
+/**
+ * The DEDUP-SKIP arm's HEAL (owner ruling 2026-08-17): back-fill persona attribution onto a room that was
+ * already imported without it.
+ *
+ * WHY IT CANNOT BE A RE-IMPORT. The importer is idempotent by `chats.importHash`, so once a transcript has
+ * landed, a re-run skips it forever — a corpus imported while the mapper could not yet resolve its persona
+ * (the `user_name: "unused"` majority, healed by the per-turn `name` signal the mapper now reads) would stay
+ * unattributed for good, and the only alternatives are a wipe or a bespoke maintenance pass. So the ordinary
+ * re-run IS the heal path, and it is re-runnable by construction: every statement below is guarded on the
+ * column still being NULL.
+ *
+ * WHY ONLY WHERE NULL. `anchorPersonaId` / `activePersonaId` / `messages.personaId` are all owner-editable
+ * after the import (the room's playing-as pin, a seat's active persona, an edited turn). An import re-run is
+ * not authority over a choice a human made later — it only fills the blanks it left. That guard is what makes
+ * this safe to run on every subsequent import, forever.
+ *
+ * The three planes are the same three the fresh write sets, so a healed room is indistinguishable from one
+ * imported today: the room's pin, the HOST SEAT's active persona (scoped to `ownerId` — a member's seat is
+ * their own business), and each user slot, matched by `seq` (which the fresh write assigns as the input
+ * index, so `ci.messages[i]` ↔ `seq = i` is exact, not a heuristic).
+ */
+function healPersonaAttribution(ctx: ChatImportContext, existing: ExistingImport, ownerId: UserId, ci: BulkImportChatInput): BatchStmt[] {
+  const { db } = ctx;
+  const anchor = ci.anchorPersonaId;
+  // Gated twice — the stored room must still be anchor-less AND this run must have resolved a persona for it —
+  // so an ordinary re-import of an already-attributed corpus produces ZERO statements.
+  if (anchor === null || existing.anchorPersonaId !== null) {
+    return [];
+  }
+  const stmts: BatchStmt[] = [
+    batchStmt(
+      db
+        .update(chats)
+        .set({ anchorPersonaId: anchor })
+        .where(and(eq(chats.id, existing.chatId), isNull(chats.anchorPersonaId))),
+    ),
+    batchStmt(
+      db
+        .update(chatParticipants)
+        .set({ activePersonaId: anchor })
+        .where(
+          and(
+            eq(chatParticipants.chatId, existing.chatId),
+            eq(chatParticipants.kind, "human"),
+            eq(chatParticipants.userId, ownerId),
+            isNull(chatParticipants.activePersonaId),
+          ),
+        ),
+    ),
+  ];
+  for (const [seq, m] of ci.messages.entries()) {
+    const personaId = m.role === "user" ? m.personaId : null;
+    if (personaId === null) {
+      continue;
+    }
+    stmts.push(
+      batchStmt(
+        db
+          .update(messages)
+          .set({ personaId })
+          .where(and(eq(messages.chatId, existing.chatId), eq(messages.seq, seq), eq(messages.role, "user"), isNull(messages.personaId))),
+      ),
+    );
+  }
+  return stmts;
 }
 
 /** The founding roster for an imported chat (host human + every seated character); `joinSeq=0` (born here).
@@ -266,6 +342,13 @@ function messageStatements(args: MessageStatementsArgs): {
     }
   }
   return { stmts, variantIds };
+}
+
+/** Append one room's heal statements to the run's pool; `1` when that room contributed any (the per-CHAT
+ *  heal count), `0` when it had nothing to heal. */
+function collectInto(pool: BatchStmt[], stmts: readonly BatchStmt[]): number {
+  pool.push(...stmts);
+  return stmts.length > 0 ? 1 : 0;
 }
 
 /** Commit one chat's statements as ONE atomic `db.batch`. */
@@ -452,18 +535,24 @@ async function planOneChat(args: Omit<OneChatArgs, "existingAssetIds" | "narrato
   return buildChatStatements({ ...args, existingAssetIds, narratorCharacterId });
 }
 
-/** Dup-skips by `chats.importHash`, commits each chat as ONE `db.batch`, then resolves branch parents. */
+/** The run's two whole-input gates, BEFORE any write: EVERY id this run could seat or attribute — the
+ *  primary, every chat's extra roster, every slot's named speaker — must be the caller's, and every named
+ *  speaker must be seated in its own room. A foreign or unseated id anywhere refuses the whole run rather
+ *  than landing a partially-correct room. */
+async function assertImportPreconditions(db: Db, ownerId: UserId, characterId: CharacterId, input: readonly BulkImportChatInput[]): Promise<void> {
+  await assertOwnedCharacters(db, ownerId, everyReferencedCharacter(characterId, input));
+  for (const ci of input) {
+    assertSeatedSpeakers(ci, characterId);
+  }
+}
+
+/** Dup-skips by `chats.importHash` (healing the skipped room's persona attribution — see
+ *  {@link healPersonaAttribution}), commits each fresh chat as ONE `db.batch`, then resolves branch parents. */
 export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
   return async ({ ownerId, characterId, chats: input }): Promise<BulkImportChatsResult> => {
     const { db } = ctx;
-    // EVERY id this run could seat or attribute — the primary, every chat's extra roster, and every slot's
-    // named speaker — ownership-gated in ONE pass before any write. A foreign id anywhere refuses the whole
-    // run rather than landing a partially-correct room.
-    await assertOwnedCharacters(db, ownerId, everyReferencedCharacter(characterId, input));
-    for (const ci of input) {
-      assertSeatedSpeakers(ci, characterId);
-    }
-    const existing = await loadExistingHashes(
+    await assertImportPreconditions(db, ownerId, characterId, input);
+    const existing = await loadExistingImports(
       db,
       characterId,
       input.map((c) => c.importHash),
@@ -474,17 +563,28 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
     let chatsSkipped = 0;
     let messagesImported = 0;
     let variantsImported = 0;
+    let chatsPersonaHealed = 0;
     let realConversationWritten = false;
     const pendingParents: PendingParent[] = [];
+    /** The dedup-skip arm's accumulated heal — committed once, after the loop. */
+    const healStmts: BatchStmt[] = [];
 
     for (const ci of input) {
-      if (existing[ci.importHash] === true) {
+      const already = existing[ci.importHash];
+      if (already !== undefined) {
         chatsSkipped += 1;
-        continue; // true idempotent skip — the messages were written on the first import
+        // The skip arm HEALS (see `healPersonaAttribution`). Its statements ACCUMULATE and commit once after
+        // the loop rather than per chat: every one of them is a NULL-guarded UPDATE against a row that
+        // already exists, so there is nothing for a per-chat boundary to protect, and a corpus-wide repair
+        // pass would otherwise open one transaction per room.
+        chatsPersonaHealed += collectInto(healStmts, healPersonaAttribution(ctx, already, ownerId, ci));
+        continue;
       }
-      existing[ci.importHash] = true; // a second byte-identical file later in THIS run skips too
 
       const chatId = ctx.newChatId();
+      // A second byte-identical file later in THIS run skips too — and it has nothing to heal, since the row
+      // it would heal is the one this very run is about to write WITH whatever persona the mapper resolved.
+      existing[ci.importHash] = { chatId, anchorPersonaId: ci.anchorPersonaId };
       // biome-ignore lint/performance/noAwaitInLoops: per-chat by construction — the preconditions resolve against THIS chat's freshly minted id, at the same granularity as the atomic commit below.
       const { stmts, identity } = await planOneChat({ ctx, chatId, ci, ownerId, characterId });
       if (ci.parentRef !== null) {
@@ -501,6 +601,9 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
       }
     }
 
+    if (healStmts.length > 0) {
+      await commitChatBatch(db, healStmts);
+    }
     const branchesLinked = await resolveBranches(db, characterId, pendingParents);
     return {
       written,
@@ -510,6 +613,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
       variantsImported,
       branchesLinked,
       realConversationWritten,
+      chatsPersonaHealed,
     };
   };
 }

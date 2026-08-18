@@ -235,6 +235,51 @@ test("the People header 'Invite people' action fires (host)", async ({ mount }) 
   await expect(component.locator(LAST_ACTION)).toHaveText("invite");
 });
 
+// ── #162: the roster is BOTH member kinds, and it never renders a login handle ──────────────────────────
+//
+// Owner, live on an AUTH_MODE=oidc install (2026-08-17): "Chat Members lost detail/function … now it just
+// shows my email and invite people only shows a way to invite other humans when its supposed to be a shared
+// feature to add more characters or add people into it."
+
+test("a human row renders IDENTITY ONLY — no login handle beside the name", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} />);
+  const people = component.locator('[data-slot="members-people"]');
+
+  await expect(people.getByRole("button", { name: "Riley — host, you" })).toBeVisible();
+  // The row body used to append ` · ${handle}` — a raw login handle, an EMAIL under OIDC. The projection no
+  // longer even carries one, so the People section's whole text is names + state chips.
+  await expect(people).not.toContainText("·");
+  await expect(people).not.toContainText("@");
+});
+
+test("a SOLO-character room still renders its Cast section (the >=2 floor hid the whole roster)", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory soloCast={true} />);
+
+  await expect(component.locator('[data-slot="members-cast"]')).toBeVisible();
+  await expect(component.getByRole("button", { name: "Aria — character" })).toBeVisible();
+});
+
+test("the Cast header carries the ADD-CHARACTER door — the roster's other add arm", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory soloCast={true} withAddCharacter={true} />);
+  const cast = component.locator('[data-slot="members-cast"]');
+
+  await cast.getByRole("button", { name: "Add a character" }).click();
+  await expect(component.locator(LAST_ACTION)).toHaveText("add-character");
+});
+
+test("with NO cast the section survives for its add door and states the empty room honestly", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory emptyCast={true} withAddCharacter={true} />);
+  const cast = component.locator('[data-slot="members-cast"]');
+
+  await expect(cast).toContainText("No characters in this chat yet");
+  await expect(cast.getByRole("button", { name: "Add a character" })).toBeVisible();
+});
+
+test("a viewer with no add door and no cast sees no Cast section at all", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory emptyCast={true} />);
+  await expect(component.locator('[data-slot="members-cast"]')).toHaveCount(0);
+});
+
 test("Talkativeness… opens the anchored popover; the slider commits on release", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory />);
 

@@ -80,16 +80,24 @@ function buildVariantColumns(m: ParsedChatMessage): {
   return { variants: alternates, selectedIdx: mesIdx };
 }
 
-/** A user turn credits the pre-resolved chat persona; other roles carry no persona. The parsed row's DECLARED
- *  kind (D129) rides through unchanged — the serde already resolved it (`extra.type`, defaulting to `standard`
- *  for a plain ST transcript), and re-deriving it here would be a second, divergeable answer. */
-function toMessageInput(m: ParsedChatMessage, createdAt: number, chatPersonaId: PersonaId | null): BulkImportMessageInput {
+/** A user turn credits its OWN stamped persona when that name resolves, else the room's anchor; other roles
+ *  carry no persona. Per-turn first because ST stamps the sender's name at SEND time, so a transcript where
+ *  the author switched persona mid-chat is the one place the two answers differ — and there the line's own
+ *  stamp is the true one. The parsed row's DECLARED kind (D129) rides through unchanged — the serde already
+ *  resolved it (`extra.type`, defaulting to `standard` for a plain ST transcript), and re-deriving it here
+ *  would be a second, divergeable answer. */
+function toMessageInput(
+  m: ParsedChatMessage,
+  createdAt: number,
+  chatPersonaId: PersonaId | null,
+  personaByUserName: ReadonlyMap<string, PersonaId>,
+): BulkImportMessageInput {
   const { variants, selectedIdx } = buildVariantColumns(m);
   return {
     role: m.role,
     kind: m.kind,
     createdAt,
-    personaId: m.role === "user" ? chatPersonaId : null,
+    personaId: m.role === "user" ? (turnPersonaId(m, personaByUserName) ?? chatPersonaId) : null,
     variants,
     selectedIdx,
   };
@@ -226,25 +234,52 @@ export function disambiguateChatTitles(inputs: readonly BulkImportChatInput[]): 
 
 // ── the anchor persona (§5.7 — ST's chat-bound persona pick) ─────────────────────────────────────────────
 //
-// orb has ONE seat, `chats.anchorPersonaId`, and ST offers TWO signals for it. The header `user_name` is the
-// ambient persona at save time; `chat_metadata.pinnedPersona` is the author's explicit chat-bound pick. The
-// PIN WINS, for two independent reasons: ST's own resolver prefers the chat lock over the ambient persona
-// (`public/scripts/personas.js` — "Using locked persona"), and on the real corpus the ambient signal is not
-// even present on a pinned chat (71/71 pinned chats carry the literal sentinel `user_name: "unused"`, so
-// those chats had NO anchor and NO user-turn attribution before this).
+// orb has ONE seat, `chats.anchorPersonaId`, and ST offers THREE signals for it, resolved in this order:
+//   1. `chat_metadata.pinnedPersona` — the author's explicit chat-bound pick. It WINS because ST's own
+//      resolver prefers the chat lock over the ambient persona (`public/scripts/personas.js` — "Using locked
+//      persona").
+//   2. the header `user_name` — the ambient persona at save time.
+//   3. THE USER TURNS' OWN `name` STAMP — the first one that resolves. ST writes every line's `name` with its
+//      sender's display name at send time, so a user turn IS a record of who wrote it.
 //
-// An UNRESOLVABLE pin — a name no persona in this run or library carries — resolves to NOTHING and is
-// REPORTED. It never near-matches, and it never blocks the chat: ST likewise drops a dangling lock and falls
-// back to the ambient persona, so `user_name` is still consulted underneath.
+// SIGNAL 3 IS THE LOAD-BEARING ONE ON A REAL CORPUS, and its absence is the bug this ordering was rebuilt to
+// fix (owner-observed 2026-08-17, measured against the owner's ST snapshot 2026-08-18). Of 1,083 transcripts,
+// **569 write the header `user_name` as the literal sentinel `"unused"`** and only 71 carry a pin — so signals
+// 1+2 alone leave ~500 chats with no anchor and no user-turn attribution at all (the live corpus showed 417 of
+// 895 imported rooms unattributed). Of those "unused" chats, **468 carry a resolvable persona name on their
+// user turns** (Nate ×438 · Ashley ×21 · Ash ×10 · Liam Calhoun ×4 · Yuki ×3). The earlier note here — that
+// `"unused"` is the pinned chats' tell — was true and MISLEADING: the sentinel is far more common than the pin.
+//
+// EVERY signal is a best-effort EXACT (case/whitespace-insensitive) NAME match against the personas this run
+// imported (owner ruling 2026-08-17: match, never guess, and NEVER fling the currently-active orb persona at
+// an imported chat). An UNRESOLVABLE name resolves to NOTHING; an unresolvable PIN is additionally REPORTED.
+// It never near-matches, and it never blocks the chat: ST likewise drops a dangling lock and falls back to the
+// ambient persona, so the later signals are still consulted underneath.
+//
+// DELIBERATELY STILL UNREAD: `chat_metadata.persona`, whose value is an avatar FILENAME rather than a name (4
+// corpus chats, 2 of them otherwise unattributed). That is a second key space, and the serde's own header
+// records the ruling — it stays unread rather than half-resolved until a filename→persona map crosses this
+// seam.
 
-/** Lowercased name → the run's persona-id key. One spelling, so the pin and `user_name` can never key
- *  differently. */
+/** Lowercased name → the run's persona-id key. One spelling, so the pin, `user_name` and a turn's own stamp
+ *  can never key differently. */
 function personaKey(name: string | null): string | undefined {
   const key = name?.trim().toLowerCase();
   return key !== undefined && key.length > 0 ? key : undefined;
 }
 
-/** The chat's anchor persona: the chat-bound PIN first, then the header `user_name`, then none. */
+/** The persona a single USER turn's own `name` stamp names, or null (a non-user row, an unstamped row, or a
+ *  name no imported persona carries). Signal 3 — see the section header. */
+function turnPersonaId(m: ParsedChatMessage, personaByUserName: ReadonlyMap<string, PersonaId>): PersonaId | null {
+  if (m.role !== "user") {
+    return null;
+  }
+  const key = personaKey(m.speakerName ?? null);
+  return (key === undefined ? undefined : personaByUserName.get(key)) ?? null;
+}
+
+/** The chat's anchor persona: the chat-bound PIN, then the header `user_name`, then the first USER turn whose
+ *  own `name` stamp resolves, then none. */
 function resolveAnchorPersona(pc: ParsedChat, personaByUserName: ReadonlyMap<string, PersonaId>): PersonaId | null {
   const pinned = personaKey(pc.pinnedPersonaName);
   const byPin = pinned === undefined ? undefined : personaByUserName.get(pinned);
@@ -252,7 +287,17 @@ function resolveAnchorPersona(pc: ParsedChat, personaByUserName: ReadonlyMap<str
     return byPin;
   }
   const ambient = personaKey(pc.userName);
-  return (ambient === undefined ? undefined : personaByUserName.get(ambient)) ?? null;
+  const byAmbient = ambient === undefined ? undefined : personaByUserName.get(ambient);
+  if (byAmbient !== undefined) {
+    return byAmbient;
+  }
+  for (const m of pc.messages) {
+    const byTurn = turnPersonaId(m, personaByUserName);
+    if (byTurn !== null) {
+      return byTurn;
+    }
+  }
+  return null;
 }
 
 /**
@@ -306,7 +351,7 @@ function chatShell(
     // runtime column is derived (re-folded from per-variant deltas) and is deliberately NOT seeded.
     variableValues: pc.variables,
     isRealConversation: pc.bucket === "real_conversation",
-    messages: pc.messages.map((m) => toMessageInput(m, m.sendDate ?? created, chatPersonaId)),
+    messages: pc.messages.map((m) => toMessageInput(m, m.sendDate ?? created, chatPersonaId, deps.personaByUserName)),
   };
 }
 

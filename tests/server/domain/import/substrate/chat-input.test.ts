@@ -178,3 +178,76 @@ describe("the imported chat's display title", () => {
     expect(input.title).toBe("Tavern Night — May 7, 2025");
   });
 });
+
+// ── the ANCHOR PERSONA's three signals (owner ruling 2026-08-17, #163) ───────────────────────────────────
+//
+// A room's playing-as is resolved best-effort FROM THE TRANSCRIPT, never from whatever persona happens to be
+// active in orb. The mapper's own section header carries the corpus receipts; this pins the ORDER, the
+// per-turn arm, and the two refusals (no near-match; nothing rather than a guess).
+
+const NATE = castId<PersonaId>("persona_nate");
+const ASHLEY = castId<PersonaId>("persona_ashley");
+const PERSONAS = new Map<string, PersonaId>([
+  ["nate", NATE],
+  ["ashley", ASHLEY],
+]);
+const WITH_PERSONAS = { ...DEPS, personaByUserName: PERSONAS };
+
+/** One ST transcript with an explicit header `user_name` + per-line `name` stamps on its USER turns. */
+function transcript(args: { readonly userName: string; readonly pinned?: string; readonly turnNames: readonly (string | null)[] }): CollectedChat {
+  const header = JSON.stringify({
+    user_name: args.userName,
+    character_name: "Emily Singleton",
+    create_date: "2025-5-7 @22h 52m 11s 856ms",
+    chat_metadata: args.pinned === undefined ? {} : { pinnedPersona: args.pinned },
+  });
+  const lines = args.turnNames.map((name) =>
+    JSON.stringify({ is_user: true, mes: "hi", send_date: "May 7, 2025 10:52pm", ...(name === null ? {} : { name }) }),
+  );
+  const parsed = parseChatJsonl([header, ...lines, ""].join("\n"), { fileName: "u.jsonl", charDirName: "Emily Singleton" });
+  if (parsed === null) {
+    throw new Error("fixture parse failed");
+  }
+  return { parsed, importedFrom: "u.jsonl", importHash: "hash-u" };
+}
+
+describe("the anchor persona — ST's three signals, in order", () => {
+  test("the chat-bound PIN wins over the header user_name (ST's own 'locked persona' precedence)", () => {
+    expect(buildBulkImportChatInput(transcript({ userName: "Ashley", pinned: "Nate", turnNames: ["Ashley"] }), WITH_PERSONAS).anchorPersonaId).toBe(NATE);
+  });
+
+  test("the header user_name resolves when there is no pin", () => {
+    expect(buildBulkImportChatInput(transcript({ userName: "Ashley", turnNames: [null] }), WITH_PERSONAS).anchorPersonaId).toBe(ASHLEY);
+  });
+
+  // THE #163 DEFECT. 569 of the owner's 1,083 transcripts write the sentinel `"unused"` as their header
+  // `user_name` and only 71 carry a pin, so header-only resolution left ~500 rooms with no playing-as and
+  // every user turn unattributed — while 468 of those same rooms stamp a resolvable persona name on their
+  // user turns.
+  test('a `user_name: "unused"` transcript resolves from the USER TURNS\' own name stamps', () => {
+    const input = buildBulkImportChatInput(transcript({ userName: "unused", turnNames: ["Nate", "Nate"] }), WITH_PERSONAS);
+    expect(input.anchorPersonaId).toBe(NATE);
+    expect(input.messages.map((m) => m.personaId)).toEqual([NATE, NATE]);
+  });
+
+  test("an unstamped leading turn does not stop the scan — the FIRST resolvable stamp anchors the room", () => {
+    expect(buildBulkImportChatInput(transcript({ userName: "unused", turnNames: [null, "Ashley"] }), WITH_PERSONAS).anchorPersonaId).toBe(ASHLEY);
+  });
+
+  test("a turn credits its OWN persona when the author switched mid-chat; the anchor stays the first", () => {
+    const input = buildBulkImportChatInput(transcript({ userName: "unused", turnNames: ["Nate", "Ashley"] }), WITH_PERSONAS);
+    expect(input.anchorPersonaId).toBe(NATE);
+    expect(input.messages.map((m) => m.personaId)).toEqual([NATE, ASHLEY]);
+  });
+
+  test("NOTHING is guessed: an unmatched name anywhere leaves the room unattributed (owner ruling)", () => {
+    const input = buildBulkImportChatInput(transcript({ userName: "unused", turnNames: ["Nyako"] }), WITH_PERSONAS);
+    expect(input.anchorPersonaId).toBeNull();
+    expect(input.messages[0]?.personaId).toBeNull();
+  });
+
+  test("matching is case/whitespace-insensitive, and still never a near-match", () => {
+    expect(buildBulkImportChatInput(transcript({ userName: "unused", turnNames: ["  NATE "] }), WITH_PERSONAS).anchorPersonaId).toBe(NATE);
+    expect(buildBulkImportChatInput(transcript({ userName: "unused", turnNames: ["Nathan"] }), WITH_PERSONAS).anchorPersonaId).toBeNull();
+  });
+});

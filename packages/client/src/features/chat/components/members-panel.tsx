@@ -19,6 +19,13 @@ export interface MembersPanelProps extends MemberRowActions {
   readonly people: readonly MemberPersonRow[];
   readonly cast: readonly MemberCastRow[];
   readonly onInvitePeople?: (() => void) | undefined;
+  /** The CAST section header's add door — the character half of the roster's one add/invite affordance
+   *  (#162: the tab offered a way to invite humans and no way to add a character, though "add more characters
+   *  or add people into it" is one feature). A rendered SLOT rather than a callback because the committed
+   *  surface's door is an anchored Popover picker (`AddMemberPopover`) that must own its own trigger; the
+   *  panel stays source-agnostic and simply gives it the header seat. Absent ⇒ a non-host view, where the
+   *  section is a read-only list exactly as before. */
+  readonly castAction?: ReactElement | undefined;
 }
 
 const TYPEAHEAD_RESET_MS = 700;
@@ -174,6 +181,9 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   );
 
   const showPeople = people.length > 0 || onInvitePeople !== undefined;
+  // The Cast section renders whenever the room HAS a cast, or whenever this viewer can give it one — the
+  // People section's own rule, so the add door can never be the thing its own empty state hides.
+  const showCast = cast.length > 0 || props.castAction !== undefined;
 
   return (
     <Stack gap="row" className="h-full min-h-0" data-testid={testId("membersPanel")}>
@@ -199,12 +209,15 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
             </Stack>
           ) : null}
 
-          {cast.length > 0 ? (
+          {showCast ? (
             <Stack gap="row" data-slot="members-cast">
-              <Text as="span" voice="kicker">
-                Cast
-              </Text>
-              {cast.map(rowProps)}
+              <Row gap="field" align="center" justify="between">
+                <Text as="span" voice="kicker">
+                  Cast
+                </Text>
+                {props.castAction ?? null}
+              </Row>
+              {cast.length === 0 ? <Text>No characters in this chat yet — add one to give the room a cast.</Text> : cast.map(rowProps)}
             </Stack>
           ) : null}
         </Stack>

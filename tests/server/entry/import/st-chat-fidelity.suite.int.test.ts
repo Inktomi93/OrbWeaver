@@ -18,7 +18,7 @@
 // title date are fixed literals rather than host-zone-dependent.
 
 import type { Db } from "@orb/db";
-import { chatInjections, chats, messages, messageVariants, ownerStats } from "@orb/db";
+import { chatInjections, chatParticipants, chats, messages, messageVariants, ownerStats } from "@orb/db";
 import type {
   AssetId,
   CharacterId,
@@ -317,6 +317,33 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     const row = (await db.select().from(chats))[0];
     expect(row?.anchorPersonaId).toBe(nate);
     // …and the user turn is attributed to it, which is the whole point of an anchor.
+    const userRows = await db.select({ role: messages.role, personaId: messages.personaId }).from(messages).orderBy(asc(messages.seq));
+    expect(userRows.filter((m) => m.role === "user").map((m) => m.personaId)).toEqual([nate]);
+  });
+
+  // §5.7 THIRD SIGNAL — the USER TURNS' own `name` stamp (#162/#163, owner-observed 2026-08-17, re-measured
+  // against the owner's whole ST snapshot 2026-08-18). The pin recovers 71 chats; the sentinel covers 569 of
+  // 1,083, so ~500 rooms had NO anchor and NO user-turn attribution from the two header signals alone — and
+  // on the live corpus 417 of 895 imported rooms were sitting unattributed. ST stamps every line's `name`
+  // with its sender at SEND time, and 468 of those sentinel chats carry a resolvable persona name there
+  // (Nate ×438 · Ashley ×21 · Ash ×10 · Liam Calhoun ×4 · Yuki ×3). This is the DB-mediated proof that the
+  // signal reaches all three columns: the room's pin, the host seat's active persona, and the user slot.
+  test("§5.7 — a sentinel-header chat with NO pin resolves from its USER TURNS' own name stamps", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
+    const { id: nate } = await seedPersona(db, { ownerId: owner.id, name: "Nate" });
+    const personas = new Map<string, PersonaId>([["nate", nate]]);
+    // The majority corpus shape: the sentinel header, no pin, and the persona named only on the user line.
+    const stamped = stChatBytes()
+      .replace('"user_name":"Nate"', '"user_name":"unused"')
+      .replace('{"is_user":true,"mes":"Hi Emily!"', '{"is_user":true,"name":"Nate","mes":"Hi Emily!"');
+
+    await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: stamped }], personas });
+
+    expect((await db.select().from(chats))[0]?.anchorPersonaId).toBe(nate);
+    const seats = await db.select({ kind: chatParticipants.kind, activePersonaId: chatParticipants.activePersonaId }).from(chatParticipants);
+    expect(seats.find((s) => s.kind === "human")?.activePersonaId).toBe(nate);
     const userRows = await db.select({ role: messages.role, personaId: messages.personaId }).from(messages).orderBy(asc(messages.seq));
     expect(userRows.filter((m) => m.role === "user").map((m) => m.personaId)).toEqual([nate]);
   });

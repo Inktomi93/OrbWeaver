@@ -33,19 +33,19 @@ import { CommittedSettingsTab } from "../components/settings-context-tab.tsx";
 import { useChatContextState } from "../hooks/use-chat-context-state.ts";
 import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
 import { useChatsSelectionTitle } from "./chats-selection-title.ts";
-import { castSectionVisible, membersTabJustified, resolveIsGroupChat } from "./roster.ts";
+import { membersTabJustified, resolveIsGroupChat } from "./roster.ts";
 
 function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
   return {
     chatId: s.chatId,
     chat: {
       participants: s.participants,
+      cast: s.cast,
       viewerUserId: s.viewerUserId,
       pendingHostUserId: s.pendingHostUserId,
     },
     isHost: s.isHost,
     multiHumanCapable: s.multiHumanCapable,
-    castVisible: castSectionVisible(s.participants),
   };
 }
 

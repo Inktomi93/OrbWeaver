@@ -31,6 +31,7 @@ export function useChatContextState(): ChatContextState | null {
     phase: "committed",
     chatId,
     participants: chat.participants,
+    cast: chat.cast,
     viewerUserId: chat.viewerUserId,
     pendingHostUserId: chat.pendingHostUserId,
     roomOverrides: chat.roomOverrides,

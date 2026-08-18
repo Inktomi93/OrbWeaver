@@ -101,7 +101,6 @@ export const TEST_IDS = {
   membersPanel: "members-panel",
   invitePeopleButton: "invite-people-button",
   inviteDialog: "invite-dialog",
-  soloRosterMenu: "solo-roster-menu",
   inviteHandleInput: "invite-handle-input",
   inviteSubmit: "invite-submit",
   inviteCopyLink: "invite-copy-link",

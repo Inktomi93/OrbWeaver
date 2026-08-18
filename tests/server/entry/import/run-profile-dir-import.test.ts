@@ -317,6 +317,7 @@ function fakes(): Fakes {
       variantsImported: 0,
       branchesLinked: 0,
       realConversationWritten: imported > 0 && args.chats.some((c) => c.isRealConversation),
+      chatsPersonaHealed: 0,
     });
   };
 
