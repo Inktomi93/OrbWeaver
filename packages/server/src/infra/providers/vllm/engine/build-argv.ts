@@ -185,7 +185,8 @@ function embedArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[]
     config.embedModel,
     "--runner",
     "pooling",
-    "--enforce-eager",
+    // enforce-eager REMOVED 2026-08-18 (owner): the 122B-gen era needed every MiB; the 27B W8A8 leaves
+    // headroom, and CUDA graphs buy real pooling throughput. Paired with the util bump in env defaults.
     "--hf_overrides",
     '{"is_matryoshka": true}',
     "--chat-template",
@@ -214,7 +215,7 @@ function rerankArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[
     config.rerankModel,
     "--runner",
     "pooling",
-    "--enforce-eager",
+    // enforce-eager removed with the embed arm's (same 2026-08-18 ruling).
     "--host",
     LOOPBACK_HOST,
     "--port",
