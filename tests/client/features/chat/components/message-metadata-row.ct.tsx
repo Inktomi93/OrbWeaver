@@ -26,21 +26,20 @@ test("every toggle off: the row renders nothing (no empty shell)", async ({ moun
   await expect(component.locator(ROW)).toHaveCount(0);
 });
 
-test("model toggle on + a model present: only the model datum shows, no separator", async ({ mount }) => {
+// #167: the MODEL credit left this row for the action cluster (message-actions-row.tsx, pinned in
+// message-row.ct.tsx). `showModelIcon` on must therefore produce NOTHING here — including no empty shell,
+// which is exactly the regression an "it moved" change leaves behind if the item list still branches.
+test("model toggle on: this row renders nothing — the credit moved to the action cluster (#167)", async ({ mount }) => {
   const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showModelIcon: true }} />);
-  await expect(component.locator('[data-slot="message-metadata-model"]')).toHaveText("qwen3-vl");
-  await expect(component.locator('[data-slot="message-metadata-tokens"]')).toHaveCount(0);
-  // A single datum has no `·` — separators are BETWEEN items only.
-  await expect(component.locator(ROW)).not.toContainText(SEP);
+  await expect(component.locator('[data-slot="message-metadata-model"]')).toHaveCount(0);
+  await expect(component.locator(ROW)).toHaveCount(0);
 });
 
-test("an absolute local model path renders only its basename while retaining the exact identity as a title", async ({ mount }) => {
-  const model = "/media/models/quantized/Qwen3.6-27B-W8A8";
-  const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showModelIcon: true }} message={{ model }} />);
-  const datum = component.locator('[data-slot="message-metadata-model"]');
-
-  await expect(datum).toHaveText("Qwen3.6-27B-W8A8");
-  await expect(datum).toHaveAttribute("title", model);
+test("token toggle on + the datum present: only the token datum shows, no separator", async ({ mount }) => {
+  const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showTokenCount: true }} />);
+  await expect(component.locator('[data-slot="message-metadata-tokens"]')).toBeVisible();
+  // A single datum has no `·` — separators are BETWEEN items only.
+  await expect(component.locator(ROW)).not.toContainText(SEP);
 });
 
 test("token toggle on but the datum ABSENT (null tokens): stays empty — presence gates, not just the toggle", async ({ mount }) => {
@@ -60,8 +59,8 @@ test("token count FALLS BACK to input tokens when there's no output (never fabri
 });
 
 test("two datums on: both render with exactly one `·` separator between them", async ({ mount }) => {
-  const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showModelIcon: true, showTokenCount: true }} />);
-  await expect(component.locator('[data-slot="message-metadata-model"]')).toBeVisible();
+  const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showMessageId: true, showTokenCount: true }} />);
+  await expect(component.locator('[data-slot="message-metadata-id"]')).toBeVisible();
   await expect(component.locator('[data-slot="message-metadata-tokens"]')).toBeVisible();
   // One separator glyph — between the two, never leading/trailing.
   const seps = component.locator(`${ROW} [aria-hidden="true"]`);

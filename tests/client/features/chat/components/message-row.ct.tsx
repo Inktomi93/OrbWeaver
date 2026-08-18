@@ -260,7 +260,7 @@ test("showInChatAvatars=false hides the avatar image but KEEPS the speaker name"
 // on each message", so with avatars off a multi-speaker room must still name EVERY turn — the single-row
 // pin above cannot see two consecutive turns running together unattributed, which is what a reader in a
 // group room would actually be hurt by. Runs across the three non-immersive modes because the skin table
-// is where a per-mode chrome suppression would land (`chromeBacking` is already per-mode).
+// is where a per-mode chrome suppression would land (the skin table owns every per-mode chrome decision).
 //
 // HONEST LABEL: this is a FENCE, not a defect proof. It passes against the pre-fix source too — the
 // behaviour was already correct, and side-eye 2026-08-16's "the fallback never renders" was read off a
@@ -727,14 +727,18 @@ test("without a bg image, flat stays truly flat — no scrim, no blur (don't scr
   expect(backdrop).toBe("none");
 });
 
-// ── Chrome (name + action-icon row) backing over a bg photo (side-eye P1 follow-up) ────────────────
-// The name/actions row is a sibling ABOVE the bubble, so in the no-fill modes it floated on the raw
-// photo — the interactive action icons hit 1.83:1 (WCAG 1.4.11). Those three modes now back it with the
-// same `in-data-[has-bg-image]:` scrim + blur, as its own rounded chip.
+// ── THE ATTRIBUTION GUARANTEE over a bg photo (#167, owner-observed live 2026-08-18) ───────────────
+// The name/actions row is a sibling ABOVE the bubble in EVERY mode (~8px gap, never on the fill), so no
+// mode's bubble fill backs it. The 2026-07-09 follow-up scoped its chip to the no-fill modes anyway
+// (`RowSkin.chromeBacking`), which left the speaker name, the timestamp beside it and the action icons
+// floating on the raw photo in the five bubble-family skins — measured live in the owner's room at
+// 1.63:1 for the timestamp, and the USER row ("Traveler") is the one with no fill anywhere near it.
+// The floor is a GUARANTEE, so it is pinned here as one: ALL EIGHT skins, BOTH roles.
 const ACTIONS_ROW = '[data-slot="message-actions-row"]';
+const ALL_CHAT_STYLES = ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const;
 
-for (const style of ["flat", "hush", "document"] as const) {
-  test(`${style} over a bg image: the action row's nearest backdrop is the scrim chip, not the raw photo`, async ({ mount }) => {
+for (const style of ALL_CHAT_STYLES) {
+  test(`${style} over a bg image: the ASSISTANT name row's nearest backdrop is the scrim chip, not the raw photo`, async ({ mount }) => {
     const component = await mount(
       <div data-has-bg-image="">
         <MessageRowStory chatStyle={style} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
@@ -758,27 +762,154 @@ for (const style of ["flat", "hush", "document"] as const) {
     // A backed CHIP (rounded), not a full-bleed band.
     expect(Number.parseFloat(radius)).toBeGreaterThan(0);
   });
+
+  test(`${style} over a bg image: the USER name row is backed too (the row the live defect showed naked)`, async ({ mount }) => {
+    const component = await mount(
+      <div data-has-bg-image="">
+        <MessageRowStory
+          chatStyle={style}
+          messageRole="user"
+          personaId={NATE_PERSONA_ID}
+          personas={[{ id: NATE_PERSONA_ID, name: "Nate" }]}
+          metadataVisibility={meta({ showTimestamps: true })}
+        />
+      </div>,
+    );
+    const nameRow = component.locator(NAME_ROW);
+    // The name AND the timestamp beside it — the two the live receipt measured at 16.57:1 / 1.63:1 — are
+    // both inside this one backed box.
+    await expect(nameRow.locator(ATTRIBUTION)).toContainText("Nate");
+    await expect(nameRow.locator(TIMESTAMP)).toHaveCount(1);
+    const { bg, backdrop } = await nameRow.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
+    });
+    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(nameRow, "--color-scrim")));
+    expect(backdrop).not.toBe("none");
+  });
 }
 
-test("without a bg image, the chrome row carries NO chip (unchanged) — flat", async ({ mount }) => {
-  const component = await mount(<MessageRowStory chatStyle="flat" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
-  const nameRow = component.locator(NAME_ROW);
-  const { bg, backdrop } = await nameRow.evaluate((el) => {
-    const cs = getComputedStyle(el);
-    return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
-  });
-  expect(bg).toBe(TRANSPARENT);
-  expect(backdrop).toBe("none");
-});
-
-test("a FILLED mode (echo) does NOT chip its chrome — scoped to the no-fill modes (bubble anchors it)", async ({ mount }) => {
-  const component = await mount(
+test("the two backings STACK without doubling the box: a sticky row over art measures like the same row un-stuck", async ({ mount }) => {
+  // #113's layout-neutrality invariant, now that the wallpaper chip lands on EVERY row (#167): the sticky
+  // verdict arrives AFTER the virtualizer measures the row, so if turning it on changed the row's outer
+  // extent the reflow would land on exactly the tall rows the pin exists to help. Both backings bring
+  // `py-row`, and only one `-my-row` cancels — the measurement is the only honest check of that arithmetic.
+  const bare = await mount(
     <div data-has-bg-image="">
-      <MessageRowStory chatStyle="echo" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
+      <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
     </div>,
   );
-  const bg = await component.locator(NAME_ROW).evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(bg).toBe(TRANSPARENT);
+  const bareHeight = await bare.locator(NAME_ROW).evaluate((el: HTMLElement) => el.getBoundingClientRect().height);
+  await bare.unmount();
+
+  const stuck = await mount(
+    <div data-has-bg-image="">
+      <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} stickyAttribution={true} />
+    </div>,
+  );
+  const stuckRow = stuck.locator(NAME_ROW);
+  await expect(stuckRow).toHaveCSS("position", "sticky");
+  const stuckOuter = await stuckRow.evaluate((el: HTMLElement) => {
+    const cs = getComputedStyle(el);
+    return el.getBoundingClientRect().height + Number.parseFloat(cs.marginTop) + Number.parseFloat(cs.marginBottom);
+  });
+  expect(Math.abs(stuckOuter - bareHeight)).toBeLessThan(1);
+});
+
+for (const style of ["flat", "bubble"] as const) {
+  test(`without a bg image, ${style}'s chrome row carries NO chip (don't scrim what doesn't need it)`, async ({ mount }) => {
+    const component = await mount(<MessageRowStory chatStyle={style} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
+    const nameRow = component.locator(NAME_ROW);
+    const { bg, backdrop } = await nameRow.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
+    });
+    expect(bg).toBe(TRANSPARENT);
+    expect(backdrop).toBe("none");
+  });
+}
+
+// ── THE MODEL CREDIT rides the reveal cluster and prints a NAME (#167, owner ruling 2026-08-18) ─────
+// It used to be a datum in the metadata row printing the RAW identifier — for a self-hosted engine that
+// is a 106-character absolute weights path, parked under every reply and measured at 1.59:1 over the
+// owner's background art. Same `showModelIcon` gate, new home: the row's hover/focus reveal cluster,
+// printed through `@orb/kit/model-name` with the full identifier on `title` only when the derivation
+// shortened it.
+const MODEL_SLOT = '[data-slot="message-metadata-model"]';
+const LOCAL_WEIGHTS_PATH = "/media/inktomi/Data/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
+const LOCAL_WEIGHTS_DISPLAY_RE = /Huihui-ThinkingCap-Qwen3\.6-27B-abliterated · W8A8/u;
+const HOSTED_MODEL_RE = /claude-sonnet-5/u;
+const ANY_TITLE_RE = /./u;
+
+test("showModelIcon on: the credit renders INSIDE the action cluster, and the metadata row carries none", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      metadataVisibility={meta({ showModelIcon: true, showTokenCount: true })}
+    />,
+  );
+  await expect(component.locator(`${ACTIONS_ROW} ${MODEL_SLOT}`)).toHaveCount(1);
+  // The transcript's own flow keeps the machine facts it still owns (tokens) and loses the credit.
+  await expect(component.locator(`${METADATA_ROW} ${MODEL_SLOT}`)).toHaveCount(0);
+  await expect(component.locator(`${METADATA_ROW} ${TOKENS_SLOT}`)).toHaveCount(1);
+});
+
+test("a local weights path credits its DISPLAY NAME, with the exact identity kept on title", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      model={LOCAL_WEIGHTS_PATH}
+      metadataVisibility={meta({ showModelIcon: true })}
+    />,
+  );
+  const credit = component.locator(`${ACTIONS_ROW} ${MODEL_SLOT}`);
+  await expect(credit).toHaveText(LOCAL_WEIGHTS_DISPLAY_RE);
+  // Never the host's directory tree on the line; never lost either.
+  await expect(credit).not.toContainText("/media/");
+  await expect(credit).toHaveAttribute("title", LOCAL_WEIGHTS_PATH);
+});
+
+test("a hosted route that derives to itself gets NO title (the #115 stutter rule)", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      model="claude-sonnet-5"
+      metadataVisibility={meta({ showModelIcon: true })}
+    />,
+  );
+  const credit = component.locator(`${ACTIONS_ROW} ${MODEL_SLOT}`);
+  await expect(credit).toHaveText(HOSTED_MODEL_RE);
+  await expect(credit).not.toHaveAttribute("title", ANY_TITLE_RE);
+});
+
+test("showModelIcon off: nothing is credited anywhere in the row (the toggle still gates it)", async ({ mount }) => {
+  const off = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} metadataVisibility={meta({})} />,
+  );
+  await expect(off.locator(MODEL_SLOT)).toHaveCount(0);
+});
+
+test("a row with no model at all (a greeting/draft): the toggle is on and still nothing is credited", async ({ mount }) => {
+  const noModel = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      model={null}
+      metadataVisibility={meta({ showModelIcon: true })}
+    />,
+  );
+  await expect(noModel.locator(MODEL_SLOT)).toHaveCount(0);
 });
 
 // ── A3 hidden-at-rest reveal is NOT the Wave-1 opacity-0-in-flow starve (measured no-op) ────────────

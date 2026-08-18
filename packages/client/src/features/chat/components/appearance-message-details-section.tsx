@@ -88,7 +88,11 @@ function MessageDetailsBody({ sectionId, session }: { readonly sectionId: string
           {(field): ReactElement => <field.SwitchField label="Show message ID" description="The message's stable id, for scripting/reference." />}
         </form.AppField>
         <form.AppField name="showModelIcon">
-          {(field): ReactElement => <field.SwitchField label="Show model" description="Which model generated the message, when known." />}
+          {/* #167 — the credit moved from the metadata row into the message's hover/focus action cluster,
+              so the description says WHERE to look; a toggle whose effect is invisible at rest reads broken. */}
+          {(field): ReactElement => (
+            <field.SwitchField label="Show model" description="Credits the model that generated the message, in its actions row on hover." />
+          )}
         </form.AppField>
         <form.AppField name="showTokenCount">
           {(field): ReactElement => <field.SwitchField label="Show token count" description="The message's token usage, when known." />}

@@ -123,6 +123,16 @@ function resolveMessageFooter(
   );
 }
 
+/** THE MODEL CREDIT RIDES THE ACTION CLUSTER NOW (#167, owner ruling 2026-08-18), not the metadata row: it
+ *  is an attribution ABOUT the reply, and at rest the transcript owes the reader prose — a raw weights path
+ *  sat under every message as the loudest low-contrast thing on an art background. Same gate as before
+ *  (`showModelIcon`, the "Show model" appearance toggle, default off); a row with no model (a
+ *  greeting/draft) credits nothing. A bare helper, not inlined, so the row body stays under the
+ *  cognitive-complexity ceiling. */
+function resolveModelCredit(message: MessageView, visibility: MessageMetadataVisibility): string | null {
+  return visibility.showModelIcon ? message.model : null;
+}
+
 const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
   showTimestamps: false,
   showMessageId: false,
@@ -263,6 +273,7 @@ export function MessageRow({
 
   // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
   const footerContributions = resolveMessageFooter(surfaceContributors, message);
+  const modelCredit = resolveModelCredit(message, metadataVisibility);
 
   return (
     // The boundary divider is a sibling before the article, never nested inside role="article".
@@ -286,9 +297,8 @@ export function MessageRow({
               attribution,
               message,
               showTimestamp: metadataVisibility.showTimestamps,
-              chromeBacking: skin.chromeBacking,
               stickyAttribution,
-              actions: renderRowActions({ editing, selecting, message, onChatForked, messageActions, viewerIsHost }),
+              actions: renderRowActions({ editing, selecting, message, onChatForked, messageActions, viewerIsHost, modelCredit }),
             })}
             {renderRowBubble({
               role,

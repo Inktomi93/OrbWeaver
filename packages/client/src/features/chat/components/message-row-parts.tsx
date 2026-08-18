@@ -18,7 +18,7 @@ import { cn, renderMessageForDisplay } from "#lib";
 
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
-import { STICKY_ATTRIBUTION_CHROME } from "../lib/message-row-backing.ts";
+import { BG_PHOTO_CHROME_SCRIM, STICKY_ATTRIBUTION_CHROME } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
 import { CompactSummaryPeek } from "./compact-summary-peek.tsx";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
@@ -273,15 +273,15 @@ function renderRowIdentity(args: { readonly attribution: RowAttribution; readonl
  *  is keyed off exactly this element: a ghost with its own hand-spelled name row would be a second home
  *  that silently stops inheriting the next fix to this one.
  *
- *  Two INDEPENDENT backings can land on it and they stack: `chromeBacking` (the skin's wallpaper-gated
- *  scrim, no-fill modes only) and `STICKY_ATTRIBUTION_CHROME` (#113 — pin + chip, any mode, only for a row
- *  the virtualizer measured as taller than the scrollport). */
-function nameRowFrame(args: {
-  readonly identity: ReactNode;
-  readonly actions: ReactNode;
-  readonly chromeBacking: string | undefined;
-  readonly stickyAttribution: boolean;
-}): ReactElement {
+ *  Two INDEPENDENT backings land on it and they stack:
+ *   · `BG_PHOTO_CHROME_SCRIM` — the wallpaper-gated legibility chip. UNCONDITIONAL here since #167: the
+ *     speaker name and its timestamp are a GUARANTEE over any art in any skin, and the name row is above
+ *     the bubble box in every mode, so no mode's fill can back it (the old per-skin `RowSkin.chromeBacking`
+ *     opt-in left both roles naked in the five bubble-family skins — see message-row-backing.ts for the
+ *     reversal and its live receipt). Self-gated on the shell's `data-has-bg-image`: no wallpaper, no chip.
+ *   · `STICKY_ATTRIBUTION_CHROME` (#113) — pin + chip, any mode, only for a row the virtualizer measured
+ *     as taller than the scrollport. It is the row's one RAISED layer (z-order: message-row-backing.ts). */
+function nameRowFrame(args: { readonly identity: ReactNode; readonly actions: ReactNode; readonly stickyAttribution: boolean }): ReactElement {
   return (
     <Row
       justify="between"
@@ -289,7 +289,7 @@ function nameRowFrame(args: {
       gap="field"
       data-slot="message-name-row"
       data-sticky={args.stickyAttribution ? "" : undefined}
-      className={cn(args.chromeBacking, args.stickyAttribution && STICKY_ATTRIBUTION_CHROME)}
+      className={cn(BG_PHOTO_CHROME_SCRIM, args.stickyAttribution && STICKY_ATTRIBUTION_CHROME)}
     >
       {args.identity}
       {args.actions}
@@ -303,14 +303,12 @@ export function renderRowNameRow(args: {
   readonly attribution: RowAttribution;
   readonly message: MessageView;
   readonly showTimestamp: boolean;
-  readonly chromeBacking: string | undefined;
   readonly stickyAttribution: boolean;
   readonly actions: ReactNode;
 }): ReactElement {
   return nameRowFrame({
     identity: renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp }),
     actions: args.actions,
-    chromeBacking: args.chromeBacking,
     stickyAttribution: args.stickyAttribution,
   });
 }
@@ -328,11 +326,7 @@ export function renderRowNameRow(args: {
  *  is deliberately NOT given a second accessible home (no `role="article"`/`aria-label` on the ghost, the
  *  way the settled row has one): the region is not `aria-atomic`, so the name enters the announcement
  *  stream exactly ONCE, when the row appears, and every later delta announces only the delta. */
-export function renderGhostNameRow(args: {
-  readonly attribution: RowAttribution | undefined;
-  readonly chromeBacking: string | undefined;
-  readonly stickyAttribution: boolean;
-}): ReactElement | null {
+export function renderGhostNameRow(args: { readonly attribution: RowAttribution | undefined; readonly stickyAttribution: boolean }): ReactElement | null {
   const attribution = args.attribution;
   if (attribution === undefined || attribution.name === null) {
     return null;
@@ -344,7 +338,6 @@ export function renderGhostNameRow(args: {
       </Row>
     ),
     actions: null,
-    chromeBacking: args.chromeBacking,
     stickyAttribution: args.stickyAttribution,
   });
 }
@@ -357,11 +350,22 @@ export function renderRowActions(args: {
   readonly messageActions: "expanded" | "hover" | undefined;
   /** WIREBTN — gates the kebab's host-only "View wire trace…" item (see `MessageActionsRow`). */
   readonly viewerIsHost: boolean | undefined;
+  /** #167 — the raw model identifier this reply is credited to, already gated by the `showModelIcon`
+   *  appearance toggle upstream; null ⇒ no credit. The cluster derives its DISPLAY name. */
+  readonly modelCredit: string | null;
 }): ReactNode {
   if (args.editing || args.selecting) {
     return null;
   }
-  return <MessageActionsRow message={args.message} onChatForked={args.onChatForked} messageActions={args.messageActions} viewerIsHost={args.viewerIsHost} />;
+  return (
+    <MessageActionsRow
+      message={args.message}
+      onChatForked={args.onChatForked}
+      messageActions={args.messageActions}
+      viewerIsHost={args.viewerIsHost}
+      modelCredit={args.modelCredit}
+    />
+  );
 }
 
 // TWO STRIPS, ONE SLOT (chat-creation-draft-mode-replacement.md §4.8/F6, R3). A row in the GREETING WINDOW
