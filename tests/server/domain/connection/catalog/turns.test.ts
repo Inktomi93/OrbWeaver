@@ -124,3 +124,32 @@ describe("behavior-neutrality — non-anthropic + static arms resolve to the non
     expect(t?.explicitPromptCache).toBe(false);
   });
 });
+
+// ── THE vLLM ARM — D143 errs-open + the 2026-08-18 live measurements ────────────────────────────────
+// The vllm source is the ONE arm that does NOT inherit the fail-closed `TURNS_FLOOR`: its wire is OUR engine
+// serving OUR vendored template, both measured (see `VLLM_TURNS`'s receipts in `catalog/turns.ts`). The pins
+// are per-FIELD rather than one `toEqual`, so a future field lands here as a deliberate decision.
+describe("vLLM turns — the measured, err-open cell (D143)", () => {
+  const vllm = (model: string): Turns => resolveModelCapability(model, "vllm", "chat-completions").turns;
+
+  test("NO strict floor: the user's preset picks role handling on this wire (the preset note derives away)", () => {
+    expect(vllm("Qwen/Qwen3-8B")?.roleHandlingFloor).toBe("none");
+  });
+
+  test("mid-conversation system + mid-history system rows are both TRUE (tokenize + generation probes)", () => {
+    expect(vllm("Qwen/Qwen3-8B")?.midConversationSystem).toBe(true);
+    expect(vllm("Qwen/Qwen3-8B")?.historySystemRows).toBe(true);
+  });
+
+  test("assistantPrefill stays FALSE — the template appends its own assistant header after the last row", () => {
+    expect(vllm("Qwen/Qwen3-8B")?.assistantPrefill).toBe(false);
+  });
+
+  test("the cell is vllm-ONLY: every other static/synthesized arm keeps the fail-closed floor", () => {
+    // The err-open posture is a fact about OUR engine + OUR template, not about openai-compat wires at large.
+    expect(resolveModelCapability("some-model", "custom_openai", "chat-completions").turns?.roleHandlingFloor).toBe("strict");
+    expect(resolveModelCapability("some-model", "custom_openai", "chat-completions").turns?.historySystemRows).toBe(false);
+    expect(resolveModelCapability("bge-m3", "local-light", "chat-completions").turns?.midConversationSystem).toBe(false);
+    expect(compat("qwen/qwen3-32b")?.historySystemRows).toBe(false);
+  });
+});

@@ -194,13 +194,19 @@ export const modelCapabilitySchema = z.object({
        *  shipping history rows as system on the strength of a tail-tested bit is the category error the
        *  capability axis exists to prevent (D69).
        *
-       *  The ONE consumer is the D129(B) narrator mapping: a `narrator`-kind canon row (which stays
-       *  `role:'assistant'` in CANON forever — canon is provider-independent) DELIVERS as a wire `system` row
-       *  where this is true. Read through {@link acceptsHistorySystemRows}, never re-spelled per consumer.
+       *  TWO consumers, both asking this one question (where may a `system` row sit INSIDE the history?):
+       *  (1) the D129(B) narrator mapping — a `narrator`-kind canon row (which stays `role:'assistant'` in
+       *  CANON forever — canon is provider-independent) DELIVERS as a wire `system` row where this is true;
+       *  (2) the depth \> 0 arm of the injection splice (`assembly/injections`) — an author's note or a
+       *  depth-N world-info entry authored `role:'system'` rides at its depth as a real `system` row instead
+       *  of demoting to the `[Note from system: …]` user framing. Read through
+       *  {@link acceptsHistorySystemRows}, never re-spelled per consumer.
        *
-       *  FAIL-CLOSED: `false` everywhere until a live wire probe measures it per (model × wire-shape)
-       *  — `pnpm probe:history-system-rows` (`scripts/probes/history-system-rows.ts`), the same
-       *  measure-then-declare seam `tools.silencesProse` rides. Never a model-name regex (D69). */
+       *  FAIL-CLOSED: `false` until a live wire probe measures it per (model × wire-shape) —
+       *  `pnpm probe:history-system-rows` (`scripts/probes/history-system-rows.ts`), the same
+       *  measure-then-declare seam `tools.silencesProse` rides. Never a model-name regex (D69). Measured
+       *  `true` on the vLLM arm 2026-08-18 (the receipts live on `catalog/turns.ts::VLLM_TURNS`); every other
+       *  arm is still unmeasured and therefore false. */
       historySystemRows: z.boolean(),
       /** The model/wire floor for adjacent-same-role handling; the user knob may go stricter, never looser. */
       roleHandlingFloor: roleHandlingSchema,
@@ -226,10 +232,11 @@ export function coEmitsProseWithTools(capability: ModelCapability): boolean {
 }
 
 /** MAY this wire carry `system` rows INSIDE the delivered history (mid-array, not the tail channel)? The ONE
- *  home of the mid-history system read (`capability.turns.historySystemRows`) — the D129(B) narrator mapping's
- *  only gate. Absent `turns` ⇒ `TURNS_FLOOR` ⇒ false: a model whose cell was never measured delivers narrator
- *  rows assistant-voiced, exactly as every model does today (D68 fail-closed — absence means the behavior does
- *  not engage, never a guessed default).
+ *  home of the mid-history system read (`capability.turns.historySystemRows`) — the gate for BOTH the D129(B)
+ *  narrator mapping and the depth \> 0 system-injection delivery. Absent `turns` ⇒ `TURNS_FLOOR` ⇒ false: a
+ *  model whose cell was never measured delivers narrator rows assistant-voiced and demotes a mid-history
+ *  system note, exactly as every unmeasured wire does (D68 fail-closed — absence means the behavior does not
+ *  engage, never a guessed default).
  *
  *  Homed in `contracts` beside {@link coEmitsProseWithTools} for the same reason: the SHAPE dispatch reads it
  *  and any future consumer must read the identical fact rather than re-spell `turns?.historySystemRows`. */

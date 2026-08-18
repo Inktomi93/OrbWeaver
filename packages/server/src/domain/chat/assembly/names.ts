@@ -36,9 +36,10 @@ import type { NamesBehavior } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
-/** The delivered wire-row role axis. `system` rows exist only as capability-kept depth-0 injections
- *  (`turns.midConversationSystem`) — they are the operator/system channel, not a speaker, so every
- *  names mode passes them through untouched (no prefix, no completion `name`). */
+/** The delivered wire-row role axis. `system` rows exist only as capability-kept injections — at the tail
+ *  (`turns.midConversationSystem`) or mid-array (`turns.historySystemRows`) — plus a D129(B) narrator row on
+ *  that same mid-array bit. All of them are the operator/system channel, not a speaker, so every names mode
+ *  passes them through untouched (no prefix, no completion `name`). */
 type WireRole = MessageRole;
 
 /** The two axes beyond mode/speakers, bundled so the signature stays inside the parameter budget. NOT

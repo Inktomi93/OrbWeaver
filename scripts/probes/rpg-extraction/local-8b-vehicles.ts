@@ -657,9 +657,14 @@ async function runGame(arm: string, runIndex: number): Promise<{ turns: TurnRow[
 
     // DELIVERY, exactly as production ships it to a local model: the reminder is an `in_chat` injection at
     // DEPTH 0 — which is *after* the new user turn (`assembly/injections.ts:87`) — with `role:"system"`.
-    // A local vLLM model carries `TURNS_FLOOR` (`midConversationSystem:false`), so the splice DEMOTES it to
-    // a user row with the visible `[Note from system: …]` framing (`:44`), and the adjacent-same-role squash
-    // then merges it into the player's own turn with a blank line (`role-squash.ts:45`). One user message.
+    // At the time this spike ran, a local vLLM model carried `TURNS_FLOOR` (`midConversationSystem:false`),
+    // so the splice DEMOTED it to a user row with the visible `[Note from system: …]` framing (`:44`), and
+    // the adjacent-same-role squash merged it into the player's own turn with a blank line
+    // (`role-squash.ts:45`). One user message — and that is the shape reproduced below, deliberately frozen
+    // so this probe's measured numbers stay comparable.
+    // SUPERSEDED IN PRODUCTION (2026-08-18, #201/D143): the vllm arm now declares `VLLM_TURNS`
+    // (`midConversationSystem:true`), so the live delivery of this same reminder is a REAL trailing system
+    // row. Re-run this probe against that shape before quoting its numbers as current.
     // (An earlier revision of this probe delivered it as its own system row BEFORE the user turn — the 8B
     // then emitted a bare tool call and ZERO prose on every folded turn. Wrong shape, wrong answer.)
     const base: WireMessage[] = [{ role: "system", content: PERSONA }];

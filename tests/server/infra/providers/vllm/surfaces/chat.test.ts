@@ -535,6 +535,34 @@ describe("createVllmChat — the belt denylist (the one hard fence)", () => {
     expect(seen).toContain("custom_parameters_ignored");
   });
 
+  // THE MID-TURN SYSTEM ROW ON THE WIRE (#201). A FENCE, not a defect proof: this surface already passes
+  // `system` through (`HISTORY_ROLES` carries it and `toMessages` maps `turn.role` verbatim) — the demote
+  // that hid it happened upstream in SHAPE. The fence is what makes the two halves one provable path: SHAPE
+  // now emits the row at its depth (`shape.test.ts`), and this pins that the surface delivers it AT THAT
+  // INDEX rather than hoisting it into the head system message — the hoist being exactly what most
+  // chat-completions clients do, and what the /tokenize probe proved this template does not need.
+  test("a MID-ARRAY system history row reaches the body at its position (never hoisted into the head prompt)", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(
+      chatReq({
+        history: [
+          { role: "user", content: [{ type: "text", text: "u1" }] },
+          { role: "assistant", content: [{ type: "text", text: "a1" }] },
+          { role: "system", content: [{ type: "text", text: "GM note" }] },
+          { role: "user", content: [{ type: "text", text: "u2" }] },
+        ],
+      }),
+    );
+    expect(read()?.["messages"]).toEqual([
+      { role: "system", content: "you are terse" },
+      { role: "user", content: "u1" },
+      { role: "assistant", content: "a1" },
+      { role: "system", content: "GM note" },
+      { role: "user", content: "u2" },
+    ]);
+  });
+
   // The Layer-2 prototype-pollution belt (`server/kit/custom-parameters.deepMergeRequestBody`) must still be
   // in the path — routing through it rather than spreading is what keeps the two-layer defense real.
   test("prototype-pollution keys are neutralized by the merge belt", async () => {

@@ -131,6 +131,14 @@ function agentRowText(m: TurnMessage): string {
  * canon (a non-injection system row, if one ever existed) is NOT reachable here — the splice only ever emits
  * depth-0 system at/after the last canon assistant, so the run we find is always the injection band. Exported
  * for bridge tests only — not a composition surface.
+ *
+ * THAT LAST CLAIM IS NOW CAPABILITY-CONDITIONAL, and the condition holds on this wire (2026-08-18, #201).
+ * SHAPE can also emit a MID-ARRAY system row — a depth \> 0 system injection, or a D129(B) narrator row — but
+ * both are gated on `turns.historySystemRows`, which is declared ONLY by the vLLM arm (`VLLM_TURNS`) and by no
+ * agent-sdk arm (every anthropic cell is `false`, and only a live probe may flip one). This walk-back would
+ * lift a mid-array run out of position if one ever reached it, so a future arm declaring `historySystemRows`
+ * on the agent-sdk wire-shape MUST come here first — the enforcer is the capability cell, and this is the
+ * coupling it protects.
  */
 /**
  * THE TRIGGER BINDING — which persona id prompt-config `{{user}}` (the assemble ctx's ACTIVE persona)
