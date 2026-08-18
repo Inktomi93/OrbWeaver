@@ -63,9 +63,11 @@ export interface ChatSummary {
    *  that expression in SQL (#150), so the row on top is the room whose stamp is the freshest. */
   readonly lastMessageAt: number | null;
   readonly messageCount: number;
-  /** The list row's SCENT line: the newest visible message flattened to ONE line of plain text
+  /** The SCENT line: the newest visible message flattened to plain text
    *  (`@orb/kit/content::projectBodyForPreview` — hidden-class spans + structured spans dropped, markdown
-   *  flattened, ~120 chars). `null` when there is nothing this CALLER may see: an empty chat, a body that was
+   *  flattened, word-boundary-capped at `PREVIEW_MAX_CHARS`). The budget is the WIDEST consumer's — home's
+   *  two-line hero, not the one-line chats-list row that clips it in CSS (#188 N-2). `null` when there is
+   *  nothing this CALLER may see: an empty chat, a body that was
    *  all structure, or — the member-visibility arm — a viewer whose D16 history floor sits ABOVE the newest
    *  row (their whole readable window is empty, so a preview would be the one surface leaking pre-join canon).
    *  Per-caller by construction: the floor is resolved from the viewer's own participant row, never stamped. */

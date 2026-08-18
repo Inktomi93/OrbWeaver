@@ -18,6 +18,7 @@ import {
   __resetComposerDrafts,
   __resetPresetSection,
   __resetPresetSelection,
+  __resetReducedMotionHint,
   __resetTagFilter,
   activeChatId,
   COMPOSER_DRAFT_CAP,
@@ -48,6 +49,7 @@ import {
   publishContextTabIds,
   publishContextTabs,
   readComposerDraft,
+  rememberReducedMotionHint,
   reportSectionSaveStatus,
   requestComposerFocus,
   revealContextPanel,
@@ -81,6 +83,7 @@ import {
   setPanelMode,
   setPresetEditorView,
   setTagSortMode,
+  stampReducedMotionHint,
   subscribeHuskAbandoned,
   toggleCollectionGroup,
   toggleFavoritesOnly,
@@ -112,6 +115,7 @@ import {
   useOpenOverlayPanel,
   usePanelOverride,
   usePresetEditorView,
+  useReducedMotionHint,
   useSectionListIsScreen,
   useSectionRegistry,
   useSelectedAnalyticsCharacterId,
@@ -1010,6 +1014,32 @@ export function TagLibraryProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setTagSortMode("used")}>
         sort used
+      </button>
+    </div>
+  );
+}
+
+/** ReducedMotionHintProbe — the #188 boot replay, at the tier a CT can see it: the probe calls
+ *  `stampReducedMotionHint()` in RENDER (the real caller is `main.tsx`, before React exists at all), so the
+ *  page's <html> carries whatever this device remembered before anything else paints. It renders both the
+ *  remembered value and the resulting root attribute, because "the hint said ON" and "the flag reached the
+ *  document" are two different claims and only the second one silences an animation. */
+export function ReducedMotionHintProbe(): ReactElement {
+  stampReducedMotionHint();
+  const hint = useReducedMotionHint();
+  return (
+    <div>
+      <output>{`hint=${String(hint)} attr=${document.documentElement.getAttribute("data-reduced-motion") ?? "absent"}`}</output>
+      {/* `rememberReducedMotionHint` is what the SERVER value writes back (useAppearance calls it the moment
+          `getUserSettings` resolves); the buttons stand in for that authoritative landing. */}
+      <button type="button" onClick={(): void => rememberReducedMotionHint(true)}>
+        server says on
+      </button>
+      <button type="button" onClick={(): void => rememberReducedMotionHint(false)}>
+        server says off
+      </button>
+      <button type="button" onClick={(): void => __resetReducedMotionHint()}>
+        forget device
       </button>
     </div>
   );

@@ -87,7 +87,11 @@ export function chatRowQualifiers(chats: readonly ChatSummaryItem[]): readonly s
 
 /** Title fallback · subtitle · last-activity epoch for one chat summary. The subtitle is the SCENT line when
  *  the server resolved one (`lastMessagePreview` — the newest message this caller may see, already stripped +
- *  flattened + capped server-side): a chat with history says what was last said, which is what the row is for.
+ *  flattened + WORD-BOUNDARY capped server-side): a chat with history says what was last said, which is what
+ *  the row is for. The server budget is the widest consumer's (home's two-line hero, #188 N-2) and every
+ *  narrower slot cuts in CSS — so no consumer re-truncates this string in JS: a character count cannot know
+ *  the rendered width, which is exactly how the hero ended up showing "…she's und…" with half its measure
+ *  empty.
  *  Falling back (an empty chat, or a viewer whose history floor hides everything) it keeps the identity line —
  *  the participant names, or the message count when the title ALREADY is the names (never print them twice). */
 export function chatSummaryRowView(chat: ChatSummaryItem): { readonly title: string; readonly subtitle: string; readonly when: number } {

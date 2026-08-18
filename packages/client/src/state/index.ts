@@ -199,6 +199,13 @@ export {
   useRecentModels,
 } from "./recent-models-store.ts";
 export {
+  __resetReducedMotionHint,
+  REDUCED_MOTION_ATTR,
+  rememberReducedMotionHint,
+  stampReducedMotionHint,
+  useReducedMotionHint,
+} from "./reduced-motion-hint.ts";
+export {
   clearRefinerySelection,
   refinerySectionSelection,
   selectRefinerySession,

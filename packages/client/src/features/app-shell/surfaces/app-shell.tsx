@@ -108,9 +108,16 @@ function CommandChip({ modalId, show }: { readonly modalId: ModalSlotId | undefi
               size="sm"
               // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the button READS "⌘K jump", so
               // "jump" must be in the name — "Command menu" alone made the one word on the button
-              // unspeakable. Both vocabularies are carried, stable-first, so
-              // `getByRole("button", { name: "Command menu" })` still resolves it.
-              aria-label="Jump to… — the command menu"
+              // unspeakable. Both vocabularies are carried, so `getByRole("button", { name: /command
+              // menu/ })` still resolves it.
+              //
+              // THE VISIBLE TEXT IS NOW THE NAME'S PREFIX, VERBATIM (axe `label-content-name-mismatch`,
+              // Lighthouse 2026-08-18). "Jump to… — the command menu" carried the WORD but not the STRING:
+              // 2.5.3 is satisfied only when the whole visible label is contained in the name, and this
+              // button's visible label is the chip AND the word ("⌘K jump"). A voice-control user reading
+              // the chip out loud gets a match either way now, and the trailing clause still says what
+              // activating it does.
+              aria-label="⌘K jump — the command menu"
               onClick={(): void => {
                 if (modalId !== undefined) {
                   openModal(modalId);

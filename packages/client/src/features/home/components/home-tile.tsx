@@ -98,7 +98,12 @@ function TileBand({
       <Heading id={headingId} level={2} voice="kicker">
         {tile.title}
       </Heading>
-      <Separator className="flex-1" />
+      {/* DECORATIVE (rail re-pass N-3). The rule is the band's drawing, not its structure — the region is
+          already named by the `h2` beside it — but `Separator` seals Base UI's real `role="separator"`, so
+          seven bands put seven UNNAMED separator stops in the a11y tree of one screen (a home walk hit 10).
+          `aria-hidden` on the primitive drops the stop and paints identically; the rule is never the only
+          carrier of a boundary here, so nothing announced is lost. */}
+      <Separator aria-hidden={true} className="flex-1" />
       {trailing}
     </Row>
   );

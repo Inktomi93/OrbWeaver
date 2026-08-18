@@ -33,7 +33,7 @@ import { createRoot } from "react-dom/client";
 import { TRPCProvider } from "#data";
 import { BootVeil } from "#features/app-shell";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createToastNotify } from "#lib";
-import { activeChatId, activeDurableLocalUserId } from "#state";
+import { activeChatId, activeDurableLocalUserId, stampReducedMotionHint } from "#state";
 import { buildAgentNav } from "./agent-nav/index.ts";
 import { buildAgentRpg } from "./agent-rpg/index.ts";
 import { buildAgentSeed } from "./agent-seed/index.ts";
@@ -80,6 +80,14 @@ function reportClientError(error: Error, ownerStack: string | null): void {
     // A failed error report must never itself throw — there is nowhere left to report that to.
   });
 }
+
+// BEFORE THE FIRST RENDER, ON PURPOSE (#188 N-1). The app's own reduced-motion pref is a synced setting,
+// so the shell can only stamp `<html data-reduced-motion>` once `settings.getUserSettings` resolves — and
+// the boot veil weaves, animates and (measured) drops two over-budget frames ~1.2s before that. This
+// replays THIS DEVICE's remembered answer off localStorage synchronously, so a user who asked for no
+// motion is answered by the first frame; the server value reconciles the moment it lands and always wins,
+// and a device that has never seen the pref ON stamps nothing (`#state` reduced-motion-hint).
+stampReducedMotionHint();
 
 const rootEl = document.getElementById("root");
 if (rootEl === null) {
