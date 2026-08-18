@@ -8,7 +8,7 @@ import { REFINERY_STAGE_PAYLOADS, REFINERY_STAGES } from "@orb/contracts/refiner
 import { projectJsonSchema, RENDER_HINT_KEY } from "@orb/kit/json-schema";
 import { BUILTIN_STAGE_HINTS } from "../../../../../packages/client/src/features/refinery/lib/builtin-hints.ts";
 import type { PlanField } from "../../../../../packages/client/src/features/refinery/lib/render-plan.ts";
-import { buildRenderPlan, formatLabel } from "../../../../../packages/client/src/features/refinery/lib/render-plan.ts";
+import { buildRenderPlan, dangerBelowOf, formatLabel } from "../../../../../packages/client/src/features/refinery/lib/render-plan.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const KNOWN_WIDGETS = new Set(["gauge", "stat", "chip-enum", "text", "prose", "boolean", "bullets", "number-list", "rows", "section", "const", "union"]);
@@ -99,6 +99,25 @@ test("hints ELEVATE, never carry: a malformed hint heals to structure; a hintles
     tones: { cozy: "good", tense: "bad" },
     verdict: false,
   });
+});
+
+test("the danger threshold rides the SCHEMA'S OWN bounds — a /5 scale and a 0-100 axis each split at their own midpoint", () => {
+  // The valence line cannot be a constant: the same renderer draws a 1-10 score, a 1-5 vibe rating and a
+  // 0-100 axis, and a hardcoded "below 5" would call a 4/5 a failure while letting a 12/100 pass.
+  const plan = buildRenderPlan({
+    type: "object",
+    properties: {
+      score: { type: "integer", minimum: 1, maximum: 10 },
+      vibe: { type: "integer", minimum: 1, maximum: 5 },
+      axis: { type: "number", minimum: 0, maximum: 100 },
+    },
+    required: ["score", "vibe", "axis"],
+  });
+  const gaugeOf = (key: string): Extract<PlanField["widget"], { kind: "gauge" }> =>
+    plan.fields.find((f) => f.key === key)?.widget as Extract<PlanField["widget"], { kind: "gauge" }>;
+  expect(dangerBelowOf(gaugeOf("score"))).toBe(5.5);
+  expect(dangerBelowOf(gaugeOf("vibe"))).toBe(3);
+  expect(dangerBelowOf(gaugeOf("axis"))).toBe(50);
 });
 
 test("array<object> plans the fixed ROW anatomy: short strings/enums head, the bounded number scores, prose bodies", () => {

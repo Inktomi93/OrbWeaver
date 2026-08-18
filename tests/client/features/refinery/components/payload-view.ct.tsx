@@ -30,6 +30,74 @@ const SCORE_PAYLOAD = {
   summary: "A solid card with a thin backstory.",
 };
 
+/** What a meter's fill actually PAINTED, beside the two intent tokens it is allowed to be. Both sides are
+ *  resolved from the live stylesheet through a real attached node (a detached element computes to ""), so
+ *  this compares against `--color-primary` / `--color-destructive` as the theme resolved them — never a
+ *  hardcoded rgb literal. */
+async function fillIntentOf(page: Page, scope: string): Promise<{ painted: string; primary: string; destructive: string }> {
+  return await page.evaluate((selector) => {
+    const fill = document.querySelector(`${selector} [data-slot="fill"]`);
+    if (fill === null) {
+      throw new Error(`no meter fill under ${selector}`);
+    }
+    const probe = document.createElement("div");
+    document.body.append(probe);
+    const resolve = (token: string): string => {
+      probe.style.color = getComputedStyle(document.documentElement).getPropertyValue(token);
+      return getComputedStyle(probe).color;
+    };
+    const result = {
+      painted: getComputedStyle(fill).backgroundColor,
+      primary: resolve("--color-primary"),
+      destructive: resolve("--color-destructive"),
+    };
+    probe.remove();
+    return result;
+  }, scope);
+}
+
+// ── SCORE VALENCE (side-eye 2026-08-17, finding a) ───────────────────────────────────────────────────
+// A score is a VERDICT, not a magnitude: the Meter has shipped `dangerBelow` since it was minted and the
+// refinery passed it at neither the hero nor the per-field site, so a 2/10 painted the identical accent
+// fill as a 10/10. The line is the midpoint of the SCHEMA'S OWN bounds (this renderer runs over custom
+// schemas — a 1-5 vibe rating, a 0-100 axis — so an absolute threshold would be right for the built-ins
+// and wrong for everything else).
+
+test("a FAILING score paints the danger intent and a strong one does not — the gauge carries valence, not just magnitude", async ({ mount, page }) => {
+  await mount(<PayloadViewStory payload={{ ...SCORE_PAYLOAD, overallScore: 2 }} stage="score" />);
+  const low = await fillIntentOf(page, '[data-testid="refinery-hero-gauge"]');
+  expect(low.painted, "2/10 paints the danger token").toBe(low.destructive);
+  // The per-field assay row's own bar agrees on the same rule: 8 is over the line, 4 is under it.
+  const bars = await page.locator('[data-field="fieldScores"] [data-slot="fill"]').evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
+  expect(bars, "one bar per assay row").toHaveLength(2);
+  expect(bars[0], "8/10 keeps the accent").toBe(low.primary);
+  expect(bars[1], "4/10 takes the danger token").toBe(low.destructive);
+});
+
+test("a STRONG score keeps the accent — the swap is a verdict, not a decoration every score wears", async ({ mount, page }) => {
+  await mount(<PayloadViewStory payload={{ ...SCORE_PAYLOAD, overallScore: 9 }} stage="score" />);
+  const high = await fillIntentOf(page, '[data-testid="refinery-hero-gauge"]');
+  expect(high.painted, "9/10 keeps the accent").toBe(high.primary);
+});
+
+test("the NOT-SCORED-YET hero rests on the accent, never on danger — an unrun stage is not a failing one", async ({ mount, page }) => {
+  // The hero's shape always renders (this file's own "empty values are load-bearing" law) with the meter
+  // parked at `min` — which is below any midpoint, so an unguarded threshold would paint "not run yet" red.
+  await mount(<PayloadViewStory payload={{ summary: "Not scored yet." }} stage="score" />);
+  const resting = await fillIntentOf(page, '[data-testid="refinery-hero-gauge"]');
+  expect(resting.painted).toBe(resting.primary);
+});
+
+test("the assay rows are DATUM ROWS, not cards — hairline-separated, no box per number (chrome diet CD1/CD2)", async ({ mount, page }) => {
+  await mount(<PayloadViewStory payload={SCORE_PAYLOAD} stage="score" />);
+  const assay = page.locator('[data-field="fieldScores"]');
+  await expect(page.getByTestId("refinery-assay-row")).toHaveCount(2);
+  // The box is gone: six single numbers wearing bordered, padded cards was ~82px apiece in a 240px rail.
+  await expect(assay.locator('[data-slot="card-root"]'), "no card chrome inside the assay block").toHaveCount(0);
+  // …and the rows are still SEPARATED — a hairline between siblings, which is what the lane's rails use.
+  await expect(assay.locator('[data-slot="separator"]'), "one hairline between the two rows").toHaveCount(1);
+});
+
 test("the SCORE mock anatomy derives: hero gauge with docked summary, assay rows with the score bar, bullet improvements — no raw JSON", async ({
   mount,
   page,

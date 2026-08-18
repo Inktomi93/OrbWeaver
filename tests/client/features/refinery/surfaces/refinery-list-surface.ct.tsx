@@ -16,6 +16,8 @@ import { makeRefinerySessionSummary } from "../fixtures.ts";
 const ITERATION_READOUT = /iteration 3/;
 /** The verdict word the subtitle's lead chip prints. */
 const VERDICT_ACCEPT = /Accept/;
+/** What a never-analyzed session says instead of wearing a chip (side-eye 2026-08-17, finding c). */
+const NOT_ANALYZED = /not analyzed/;
 
 /** Two start stamps a day apart — a same-card pair the readout must differ (P2 a11y). */
 const STARTED_EARLIER = 1_700_000_000_000;
@@ -111,6 +113,26 @@ test("the row folds the readout into its accessible DESCRIPTION — a screen rea
   await expect(row).toHaveAccessibleName("Zephyrine Vale");
   await expect(row).toHaveAccessibleDescription(ITERATION_READOUT);
   await expect(row).toHaveAccessibleDescription(VERDICT_ACCEPT);
+});
+
+test("a session with NO verdict wears no chip at all — the state is stated in the quiet subtitle, not shouted over the row's name", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "refinery.listSessions": (): unknown[] => [
+      makeRefinerySessionSummary({ characterName: "Zephyrine Vale", name: null, iterationCount: 3, latestVerdict: null }),
+    ],
+    "character.list": emptyCharacterPage,
+  });
+  await mount(<RefineryRosterStory />);
+
+  const row = page.getByRole("button", { name: "Zephyrine Vale" });
+  await expect(row).toBeVisible();
+  // The absent arm carries NO tone chip: `RefineryChip` always stamps `data-tone`, so its absence under
+  // this row is the rendered proof that a filled, uppercase pill is no longer drawn for "not run yet".
+  await expect(row.locator("[data-tone]"), "no verdict chip on a session that was never analyzed").toHaveCount(0);
+  // …and the fact is not LOST with the chip — it is spoken in the row's description, in the same register
+  // as the iteration and the stamp beside it, and in the user's terms rather than the wire field's.
+  await expect(row).toHaveAccessibleDescription(NOT_ANALYZED);
+  await expect(row).toHaveAccessibleName("Zephyrine Vale");
 });
 
 test("two sessions on ONE card are distinguishable — the start stamp differs them, name and all (P2 a11y)", async ({ mount, page }) => {

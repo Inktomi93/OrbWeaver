@@ -19,6 +19,7 @@
 // pane at the 3-pane / mobile container width.
 
 import type { RefinerySelection } from "@orb/contracts/refinery";
+import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
@@ -41,7 +42,14 @@ export interface SessionMastheadProps {
   readonly onEditScope: () => void;
 }
 
+/** The full model identifier, when the readable derivation changed it — `null` when a hosted id derives to
+ *  itself, so the credit line's `title` never repeats what is already on screen (#115's stutter rule). */
+function modelTitleOf(model: string | null): string | null {
+  return model === null || modelDisplayName(model) === model ? null : model;
+}
+
 export function SessionMasthead({ cardName, status, applied, anchoredAt, model, round, selection, onEditScope }: SessionMastheadProps): ReactElement {
+  const modelTitle = modelTitleOf(model);
   return (
     <Stack data-testid={testId("refineryMasthead")} gap="field">
       <Text voice="kicker">Refinery · workbench</Text>
@@ -51,9 +59,15 @@ export function SessionMasthead({ cardName, status, applied, anchoredAt, model, 
         </Heading>
         <RefineryChip tone={status === "active" ? "info" : "neutral"}>{status}</RefineryChip>
         <RefineryChip tone="neutral">{applied ? "applied · snapshot taken" : "draft — the live card is untouched"}</RefineryChip>
-        <Text as="span" voice="credit">
+        {/* THE CREDIT LINE NAMES THE MODEL, IT DOES NOT PRINT ITS PATH (side-eye 2026-08-17, finding b).
+            A local connection's `model` is an absolute weights path — the 106-character shape
+            `@orb/kit/model-name` exists for (#115) — and inlining it raw wrapped this line onto a second
+            row under the card's name, in caps mono, as the loudest thing on the masthead after the title.
+            The full identifier is not lost: it rides the line's `title`, and only when the derivation
+            actually shortened it (the #115 stutter rule the context tab's economics line already uses). */}
+        <Text as="span" voice="credit" {...(modelTitle === null ? {} : { title: modelTitle })}>
           anchored {timeLib.formatRelativeAgo(anchoredAt)}
-          {model === null ? "" : ` · ${model}`} · round {round}
+          {model === null ? "" : ` · ${modelDisplayName(model)}`} · round {round}
         </Text>
         <Row className="flex-1 justify-end">
           <Button intent="secondary" onClick={onEditScope} size="sm">

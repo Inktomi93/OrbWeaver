@@ -288,6 +288,19 @@ export function buildRenderPlan(schema: Record<string, unknown>, overlay: HintOv
   return { fields: fieldsOf(schema, "#", overlay, true) };
 }
 
+/** THE VALENCE THRESHOLD a bounded number is DANGER below (side-eye 2026-08-17, finding a) — the one home
+ *  every gauge on the surface reads, hero and assay row alike. A score is a VERDICT, not a magnitude: a
+ *  2/10 painting the same accent fill as a 10/10 is the gauge saying nothing, and the Meter has always
+ *  shipped the swap (`dangerBelow` → the danger intent token) with only the assay row passing it.
+ *
+ *  The line is the MIDPOINT OF THE SCHEMA'S OWN BOUNDS, which is why it lives HERE and takes a widget: the
+ *  renderer runs over custom schemas it has never seen (a 1-5 vibe rating, a 0-100 axis), so an absolute
+ *  number would be right for the built-ins and wrong for everything else. Pure and data-independent, like
+ *  everything else in this file — it reads the PLAN, never a payload. */
+export function dangerBelowOf(widget: Extract<RenderWidget, { kind: "gauge" }>): number {
+  return widget.min + (widget.max - widget.min) / 2;
+}
+
 /** Does this union arm's widget FIT the value, broadly? Presentation dispatch only — the lifted zod
  *  already discriminated at the parse seam, so this never validates, it picks which arm's dress renders
  *  (`PayloadView`'s union block asks; the FIRST fitting arm wins). */
