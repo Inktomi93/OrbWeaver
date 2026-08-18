@@ -50,10 +50,13 @@ export interface GreetingSwipeStripProps {
   readonly variants: readonly string[];
   /** The currently shown greeting text (the row's content) — the strip derives its position from it. */
   readonly current: string;
+  /** #221 — the row-owned wallpaper backing, threaded exactly as `SwipeStrip` takes it: the two strips
+   *  share one slot and one chrome, so they cannot differ on whether that chrome is legible over art. */
+  readonly backingClass?: string | undefined;
 }
 
 /** The `n / m` greeting-alternate counter + prev/next for a seeded greeting row. */
-export function GreetingSwipeStrip({ chatId, messageId, variants, current }: GreetingSwipeStripProps): ReactElement {
+export function GreetingSwipeStrip({ chatId, messageId, variants, current, backingClass }: GreetingSwipeStripProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const step = useSetSeededGreeting({ trpc, invalidation });
@@ -74,7 +77,7 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current }: Gre
   };
 
   return (
-    <Row gap="field" align="center" data-slot="greeting-swipe-strip">
+    <Row gap="field" align="center" data-slot="greeting-swipe-strip" className={backingClass}>
       <Button
         intent="ghost"
         size="icon"

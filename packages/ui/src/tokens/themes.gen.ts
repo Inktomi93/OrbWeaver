@@ -29,7 +29,7 @@ export const SEED_THEME_VALUE_SETS = {
       "--color-sidebar-accent": "oklch(0.9 0.012 70)",
       "--color-sidebar-border": "oklch(0.2 0.01 60 / 0.1)",
       "--color-backdrop": "oklch(0.3 0.01 60 / 0.4)",
-      "--color-reading-plate": "oklch(0.942 0.004 75 / 0.65)",
+      "--color-reading-plate": "oklch(0.942 0.004 75 / 0.921)",
       "--color-user-bubble": "oklch(0.93 0.02 60)",
       "--color-user-bubble-foreground": "oklch(0.25 0.02 60)",
       "--color-ai-bubble": "oklch(0.97 0.006 60)",

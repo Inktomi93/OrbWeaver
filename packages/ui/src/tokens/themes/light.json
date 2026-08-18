@@ -1,5 +1,5 @@
 {
-  "$description": "Light seed-theme VALUE-SET (UI-Architecture §3, D42/D44 §12.1). A light [data-theme] palette override consumed by tokens.build.ts, which emits it into src/styles/theme.css as `[data-theme=\"light\"] {…}` (with `color-scheme: light` so native controls/scrollbars flip) — NOT hand-written CSS. Only EMITTED-class colors (THEME_SCOPE_EMIT_VARS) plus color.backdrop may appear; the set is validated at build time (exact path coverage · paths exist in tokens.json · every $value is oklch()). reading-plate MUST equal derive(background) per THEME_DERIVATION.readingPlate — pinned by palette-contrast.suite.test.ts. Edit here + run `pnpm --filter @orb/ui tokens:build`.",
+  "$description": "Light seed-theme VALUE-SET (UI-Architecture §3, D42/D44 §12.1). A light [data-theme] palette override consumed by tokens.build.ts, which emits it into src/styles/theme.css as `[data-theme=\"light\"] {…}` (with `color-scheme: light` so native controls/scrollbars flip) — NOT hand-written CSS. Only EMITTED-class colors (THEME_SCOPE_EMIT_VARS) plus color.backdrop may appear; the set is validated at build time (exact path coverage · paths exist in tokens.json · every $value is oklch()). reading-plate MUST equal derive(background) per THEME_DERIVATION.readingPlate, at the POLARITY-DERIVED alpha readingPlateAlpha(background) — 0.921 for this light base, not the 0.65 dark floor, because a light plate's composite over dark art is what fails AA (#217) — pinned by palette-contrast.suite.test.ts. Edit here + run `pnpm --filter @orb/ui tokens:build`.",
   "$colorScheme": "light",
   "color": {
     "background": { "$value": "oklch(0.98 0.004 75)" },
@@ -25,7 +25,7 @@
     "sidebar-accent": { "$value": "oklch(0.9 0.012 70)" },
     "sidebar-border": { "$value": "oklch(0.2 0.01 60 / 0.1)" },
     "backdrop": { "$value": "oklch(0.3 0.01 60 / 0.4)" },
-    "reading-plate": { "$value": "oklch(0.942 0.004 75 / 0.65)" },
+    "reading-plate": { "$value": "oklch(0.942 0.004 75 / 0.921)" },
     "user-bubble": { "$value": "oklch(0.93 0.02 60)" },
     "user-bubble-foreground": { "$value": "oklch(0.25 0.02 60)" },
     "ai-bubble": { "$value": "oklch(0.97 0.006 60)" },

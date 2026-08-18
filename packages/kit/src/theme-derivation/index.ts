@@ -36,7 +36,9 @@
  *  retired scrim's dark value off the Hearth base to the digit (0.158 − 0.038 = 0.120); `alpha` 0.65 is
  *  the MEASURED floor (live A/B 2026-08-18: 0.65 turned the failing carried-light room's dialogue
  *  1.32→6.79 and body 1.14→14.33 while the dark-art room stayed 12.06/13.60 and visually identical),
- *  pinned by the plate-floor proof in `palette-contrast.suite.test.ts`. */
+ *  pinned by the plate-floor proof in `palette-contrast.suite.test.ts`. `alpha` is the FLOOR the
+ *  polarity-aware {@link readingPlateAlpha} starts from, no longer the emitted value for every palette
+ *  (#217 — read that function's contract for the algebra and for `inkReferenceRatio`). */
 export const THEME_DERIVATION = {
   fgPivotL: 0.62,
   fgSteepness: 1000,
@@ -46,7 +48,7 @@ export const THEME_DERIVATION = {
   mutedLMax: 0.82,
   borderAlpha: 0.14,
   inputAlpha: 0.12,
-  readingPlate: { deltaL: -0.038, alpha: 0.65 },
+  readingPlate: { deltaL: -0.038, alpha: 0.65, inkReferenceRatio: 6 },
   ramp: {
     sidebar: -0.026,
     surfaceRaised: 0.027,
@@ -262,6 +264,86 @@ export function derivedForeground(surface: Oklch): Oklch {
 /** One neutral ramp surface: the base with only L shifted (hue + chroma held), as the clamp emits. */
 export function rampSurface(base: Oklch, deltaL: number): Oklch {
   return { l: clamp01(base.l + deltaL), c: base.c, h: base.h };
+}
+
+/** The sRGB grey whose WCAG relative luminance is `target` — the inverse of {@link relativeLuminance} for a
+ *  neutral (the three luma weights sum to 1, so a grey's luminance IS its linear channel value). Spelled
+ *  against the WCAG transfer function, not the sRGB one, so it round-trips this file's own luminance. */
+function greyWithLuminance(target: number): Rgb {
+  const linear = clamp01(target);
+  const encoded =
+    linear <= WCAG_LINEAR_THRESHOLD / GAMMA_LINEAR_SLOPE ? linear * GAMMA_LINEAR_SLOPE : GAMMA_SCALE * linear ** (1 / GAMMA_EXPONENT) - GAMMA_OFFSET;
+  const channel = clamp01(encoded) * SRGB_MAX;
+  return { r: channel, g: channel, b: channel };
+}
+
+/** The alpha grid the emitted plate snaps to — three decimals, the precision a CSS alpha slot needs. */
+const PLATE_ALPHA_STEP = 0.001;
+const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) / PLATE_ALPHA_STEP);
+
+/**
+ * THE READING PLATE'S ALPHA for a base surface — polarity-aware, derived, never designed (#217).
+ *
+ * WHY IT CANNOT BE ONE NUMBER. The plate is translucent, so the surface the transcript's ink actually
+ * lands on is `plate·α + art·(1−α)` — the ART is in the composite, and art is arbitrary
+ * (`BACKGROUND_DIM_MIN` is 0, so raw pixels are legal). Which art is the WORST case is a function of the
+ * plate's POLARITY, and the intuition runs backwards: a LIGHT plate carries DARK inks, so the composite
+ * is worst when the art DARKENS it ⇒ BLACK art; a DARK plate carries LIGHT inks ⇒ WHITE art. Measured
+ * live 2026-08-18 (`reports/design/rescore-chats-2026-08-18.md`): at the flat 0.65 the light-palette
+ * done-bar room read narration 3.48:1 / dialogue 4.09:1 over the bright wallpaper regions and 4.94/5.39
+ * over the dark ones — the same ink, the same alpha, the scroll position deciding the verdict.
+ *
+ * THE REFERENCE INK, and why it is not AA itself. The §7a clamp (`proseInkLightness`) guarantees an ink
+ * clears AA_NORMAL against the BASE. That floor is unreachable on the plate at ANY alpha: the plate is
+ * `deltaL` darker than the base, so even at α = 1 an ink sitting exactly on 4.5 vs the base measures
+ * ~4.1 vs the plate — preserving the base guarantee would need `deltaL` to move to 0, i.e. the plate to
+ * BE the base, which deletes the token. The achievable floor is
+ * `4.5 × (baseLuminance + 0.05) / (plateLuminance + 0.05)`
+ * — measured 5.04–5.25 across the realistic light bases — so the derivation
+ * must name a reference ABOVE it. It protects `inkReferenceRatio` (6:1 vs the base) — OWNER-RULED
+ * 2026-08-18 off the table below, the knob being a legibility-vs-art trade nobody else may set: the
+ * legibility of the LEAST legible ink orb SHIPS (the light palette's speaker, 6.02:1), pinned by
+ * `palette-contrast.suite.test.ts` so the reference cannot rot away from the shipped palettes. The
+ * alphas that buys, and their cost in art: ref 6 → α 0.921 · ref 5.5 → 0.960 · ref 5.2 → 0.985 ·
+ * ref 5.0 → 1 (an opaque plate, no window at all).
+ *
+ * THE STATED RESIDUAL: an ink between AA_NORMAL and `inkReferenceRatio` against its own base is legible
+ * on the plate over ordinary art and is NOT guaranteed over the worst legal art. It is a real case, not
+ * a hypothetical — the owner's own done-bar card (harvested live 2026-08-18: base `oklch(0.98 0.004 78)`,
+ * speaker `oklch(0.53 0.14 58)` = 5.20:1) sits there, and reads 3.90 over the plate over pure black
+ * while measuring 5.51 in the room. Its three FILED inks are the ones this closes: dialogue 3.38→6.81,
+ * narration 2.98→6.01, prose-body 5.15→10.37. Moving the residual is a `deltaL` question, not an alpha
+ * one — an owner fork, not a retune.
+ *
+ * THE DARK ARM KEEPS THE MEASURED FLOOR, and that is an owner ruling, not an oversight. D144(d): "Inks
+ * are guaranteed vs their BASE, not worst-case art pixels — closing that would move the sacred dark
+ * rooms (owner-adjacent, refused)", restated by #217 as the fix's hard constraint. The dark plates carry
+ * the same defect over BRIGHT art (measured at 0.65: hearth speaker 2.51, mocha speaker 2.50) and
+ * closing it needs α 0.86 — exactly the sacred-room move that was refused. So a dark base returns the
+ * floor unchanged and the dark rooms do not move a pixel BY CONSTRUCTION.
+ *
+ * Returns a 3-decimal alpha in `[readingPlate.alpha, 1]`: the smallest one at which the reference ink
+ * clears AA_NORMAL over the plate composited on the worst legal art. No art is ever sampled (#106).
+ */
+export function readingPlateAlpha(base: Oklch): number {
+  const plateAlphaFloor = THEME_DERIVATION.readingPlate.alpha;
+  if (base.l <= THEME_DERIVATION.fgPivotL) {
+    return plateAlphaFloor;
+  }
+  const plate = oklchToSrgb(rampSurface(base, THEME_DERIVATION.readingPlate.deltaL));
+  const baseLuminance = relativeLuminance(oklchToSrgb(base));
+  // A light base ⇒ the reference ink is the DARK one `inkReferenceRatio` below it, and the worst art is
+  // black. (The dark arm returned above; it would mirror both.)
+  const referenceInk = greyWithLuminance((baseLuminance + CONTRAST_OFFSET) / THEME_DERIVATION.readingPlate.inkReferenceRatio - CONTRAST_OFFSET);
+  const worstArt: Rgb = { r: 0, g: 0, b: 0 };
+  for (let step = 0; step < PLATE_ALPHA_STEPS; step += 1) {
+    const alpha = plateAlphaFloor + step * PLATE_ALPHA_STEP;
+    if (wcagContrastRatio(referenceInk, compositeSrgb(plate, alpha, worstArt)) >= AA_NORMAL_RATIO) {
+      // Re-round: 0.65 + n×0.001 accumulates binary-float dust that would reach the CSS literal.
+      return Math.round(alpha / PLATE_ALPHA_STEP) * PLATE_ALPHA_STEP;
+    }
+  }
+  return 1;
 }
 
 /**
