@@ -1,6 +1,7 @@
 // domain/discovery/contract/params — the dispatch axes + verb input shapes for discovery's compute/read surface.
 
 import type { DuplicateRelation } from "@orb/contracts/discovery";
+import type { ImageFacetMetaKey } from "@orb/contracts/embeddings";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 
 // ── ThemeLevel (the clustering-level dispatch axis) ───────────────────────────
@@ -36,6 +37,9 @@ export interface DistillCharactersOptions {
   readonly characterId?: CharacterId;
   readonly ownerId?: UserId;
   readonly signal?: AbortSignal | undefined;
+  /** Per-card position for the caller's progress surface (`done`, `total`). The PASS owns the denominator —
+   *  the workload wrapper never reads the target list — so N-of-M can only originate here (issue #166). */
+  readonly onProgress?: ((done: number, total: number) => void) | undefined;
 }
 
 /** Options for the `computeChatDuplicatePairs` recompute (the chat near-dup arm). */
@@ -86,25 +90,40 @@ export interface SimilarityGraphOptions {
 }
 
 // ── ImageFacetKey (the caption-facet dispatch axis) ───────
-/** The caption facets a `charactersByImageFacet` drill can pivot on. `tag`/`exposedPart` are list facets
- *  (json_each membership); the rest are scalar (json_extract equality). */
-export const IMAGE_FACET_KEYS = [
-  "artStyle",
-  "rating",
-  "shotType",
-  "cameraAngle",
-  "gender",
-  "coverage",
-  "bodyType",
-  "chestSize",
-  "skinTone",
-  "outfitType",
-  "clothingState",
-  "nudityLevel",
-  "tag",
-  "exposedPart",
-] as const;
-export type ImageFacetKey = (typeof IMAGE_FACET_KEYS)[number];
+/**
+ * The VL breakdown facet a `charactersByImageFacet` drill pivots on, keyed by the STORED `caption_meta`
+ * property it reads. The vocabulary itself is `@orb/contracts/embeddings` (the write side owns it, both
+ * domains read it), and this is the ONE map between the stored key and the drill's public name — a
+ * `Record` over `ImageFacetMetaKey`, so a facet added to the breakdown schema with no drill name here is a
+ * tsc error rather than a silently un-drillable column (§5.5).
+ *
+ * The two SET facets take a singular drill name because the drill selects ONE value out of the set
+ * (`tag: "cat ears"`), while the tally names the array it counts.
+ */
+export const IMAGE_FACET_DRILL_KEY = {
+  artStyle: "artStyle",
+  palette: "palette",
+  mood: "mood",
+  rating: "rating",
+  shotType: "shotType",
+  cameraAngle: "cameraAngle",
+  gender: "gender",
+  coverage: "coverage",
+  bodyType: "bodyType",
+  chestSize: "chestSize",
+  skinTone: "skinTone",
+  outfitType: "outfitType",
+  clothingState: "clothingState",
+  nudityLevel: "nudityLevel",
+  exposedParts: "exposedPart",
+  tags: "tag",
+} as const satisfies Record<ImageFacetMetaKey, string>;
+
+export type ImageFacetKey = (typeof IMAGE_FACET_DRILL_KEY)[ImageFacetMetaKey];
+
+/** The drill names, for the transport enum. DERIVED — never re-spelled (that second list is exactly how the
+ *  old twelve-key tuple drifted from the fourteen paths the reader used). */
+export const IMAGE_FACET_KEYS: readonly ImageFacetKey[] = Object.values(IMAGE_FACET_DRILL_KEY);
 
 // ── cooccurrence (keyword×keyword co-occurrence within a tier-0 digest's keywords[]) ────────────────────
 /** Options for the `computeCooccurrence` recompute. `hubFraction` drops a keyword present in more than this

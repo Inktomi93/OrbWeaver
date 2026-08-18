@@ -1,6 +1,6 @@
 // The Corpus CONTEXT "Archetypes" tab — the two clustering views. `archetypes` are k-means clusters of
 // card embeddings labelled from distilled facets (writing archetypes); `visualArchetypes` are the same
-// over avatar vectors labelled by caption art-style/mood (art archetypes). A shared `k` knob (cluster
+// over avatar vectors, labelled from the VL image breakdown by LIFT (art archetypes). A shared `k` knob (cluster
 // count) re-clusters both in place; each cluster's size is charted as a bar-list, with its label, headline
 // facets, and member slice below. Read-only analytics.
 //
@@ -27,11 +27,16 @@
 // also the read the Corpus CONTENT surface already suspends on, so opening this tab after that surface is a
 // cache hit rather than a second question.
 //
-// ART ARCHETYPES RIDE THE SAME GATE, deliberately. Their labels prefer the avatar CAPTION facets
-// (art-style/mood, from the image index) and fall back through the distilled genre/tone — so on the audited
-// instance they were "mixed" too. Splitting them onto a second signal would put two different invitations on
-// one 420px tab; one door, one sentence, and the caption-labelled case reappears the moment either pass has
-// run. If a library ever has captions but no distillation, the art half simply returns with real labels.
+// ART ARCHETYPES RIDE THE SAME GATE, deliberately — and the reason has now MOVED (issue #164, 2026-08-18).
+// The original reason was that art labels "fall back through the distilled genre/tone", so on an undistilled
+// library they were "mixed" too. That fallback is GONE: a visual family is named from the VL image breakdown
+// by lift, and never from card text — labelling a portrait cluster with the writing's genre was the defect
+// (the family grouped by its members' missing art was called "melancholic fantasy"). The hypothetical the old
+// note ended on — "if a library ever has captions but no distillation, the art half simply returns with real
+// labels" — is now the ordinary case. The gate stays anyway, on its OTHER stated reason, which survives
+// intact: splitting the two halves onto separate signals would put two different invitations on one 420px
+// tab, and the #154 ruling is one door and one sentence. What an undistilled-but-analysed library loses here
+// is only the CONTEXT chips; the CONTENT surface's family map renders the visual labels ungated.
 
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Badge } from "@orb/ui/badge";

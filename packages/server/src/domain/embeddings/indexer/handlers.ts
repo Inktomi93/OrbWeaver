@@ -5,7 +5,7 @@
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import { getLog } from "#foundation/observability";
 import type { EmbeddingsIndexerContext } from "../contract/service.ts";
-import { generateAvatarCaption } from "./caption.ts";
+import { analyzeAvatarImage } from "./caption.ts";
 
 /** `character.updated` → re-embed the card text (`store(kind='card', lens='card-text')`). Idempotent: the
  *  store verb hash-gates, so a no-op edit is a cheap noop (no re-embed). */
@@ -65,14 +65,16 @@ export async function onAssetCreated(ctx: EmbeddingsIndexerContext, event: Asset
     model,
     dim: ctx.imageEmbedDim,
   });
-  const caption = await generateAvatarCaption(ctx.roleClients, bytes);
+  // ONE vision call yields the caption AND the grammar-enforced facet breakdown (issue #164) — the row is
+  // born analysed, so the catch-up sweep never has to revisit it.
+  const analysis = await analyzeAvatarImage(ctx.roleClients, bytes);
   await ctx.store({
     kind: "avatar",
     lens: "image-captioned",
     assetId: event.assetId,
     content: bytes,
-    caption,
-    captionMeta: { model: ctx.roleClients.summarizerModel },
+    caption: analysis.caption,
+    captionMeta: analysis.captionMeta,
     model,
     dim: ctx.imageEmbedDim,
   });

@@ -16,6 +16,7 @@
 //     the poison row exists for), so a renderer that finds no readable field returns `null` and falls back.
 // The phrase builders therefore take `unknown`: the blob is a persisted boundary, not a value this build made.
 
+import type { AnalyticsEmptyReason } from "@orb/contracts/discovery";
 import type { WorkloadKind, WorkloadResultByKind } from "@orb/contracts/workloads";
 
 /** What a succeeded row says when no renderer can speak for its result. */
@@ -67,8 +68,23 @@ type WorkloadResultRenderer<K extends WorkloadKind> = (result: WorkloadResultByK
 const indexSummary: WorkloadResultRenderer<"index"> = (result) =>
   summarize([tally(result.embedded, "embedded"), tallyIfAny(result.skipped, "already up to date")]);
 
-/** The five discovery analytics passes: rows read, rows written. */
-const analyticsSummary: WorkloadResultRenderer<"compute-themes"> = (result) => summarize([count(result.scanned, "row"), tally(result.written, "written")]);
+/**
+ * Why an analytics pass wrote nothing, in the user's terms — an exhaustive `Record` over the contract's own
+ * union (§5.5), so a new reason is a tsc error here rather than a silent fall-through to "0 rows · 0 written".
+ *
+ * THE SENTENCE NAMES THE FIX, not just the state. A pass that could not run is only useful if the row says
+ * what would let it run (issue #166: `compute-themes` reported a green "0 rows · 0 written" for a corpus with
+ * no memory digests at all, and nothing on the row hinted that the missing input was memory).
+ */
+const ANALYTICS_EMPTY_COPY: Record<AnalyticsEmptyReason, string> = {
+  "no-digests": "No memory digests to read — run the memory backfill first",
+  "no-cards": "No characters to read yet",
+};
+
+/** The five discovery analytics passes: rows read, rows written — or the stated refusal when the pass had no
+ *  input at all (which is NOT the same event as a run that changed nothing). */
+const analyticsSummary: WorkloadResultRenderer<"compute-themes"> = (result) =>
+  result.emptyReason === undefined ? summarize([count(result.scanned, "row"), tally(result.written, "written")]) : ANALYTICS_EMPTY_COPY[result.emptyReason];
 
 /** A maintenance sweep: what it looked at, what it touched, and whether it was allowed to touch anything. */
 const maintenanceSummary: WorkloadResultRenderer<"assets-gc"> = (result) =>

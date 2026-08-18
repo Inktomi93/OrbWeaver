@@ -25,6 +25,8 @@ const VIEWER = { userId: "user_me", globalRole: "user", handle: "me" };
 const RUN_DOOR = /Run the understanding pass/;
 const RETRY_DOOR = /Try the understanding pass again/;
 const FAILURE_REASON = /the summarizer connection refused/;
+const MEMORY_OFF_NOTE = /Story themes need chat memory, which is off/;
+const MEMORY_SWITCH = /Turn on memory/;
 
 /** A `workloads.list` row, in the shape the card reads it (id · kind · status · owner · progress · error). */
 function row(over: Record<string, unknown> = {}): Record<string, unknown> {
@@ -46,15 +48,22 @@ function row(over: Record<string, unknown> = {}): Record<string, unknown> {
   };
 }
 
+/** The user-settings read the chain branches on — memory ON unless a test says otherwise (issue #166: with
+ *  memory off there are no digests, so the pass has no themes stage to enqueue and says so). */
+function settings(memoryEnabled: boolean): Record<string, unknown> {
+  return { userId: VIEWER.userId, schemaVersion: 1, updatedAt: 1, config: { memory: { enabled: memoryEnabled } } };
+}
+
 async function stub(page: Page, routes: TrpcRoutes = {}): Promise<TrpcRecorder> {
   return await routeTrpc(page, {
     "sessions.me": VIEWER,
     "workloads.list": [],
+    "settings.getUserSettings": settings(true),
     ...routes,
   });
 }
 
-test("the door ENQUEUES the pass — distill, then themes chained on it — rather than opening Settings", async ({ mount, page }) => {
+test("the door ENQUEUES the pass — distill, then the backfill, then themes chained on it", async ({ mount, page }) => {
   let minted = 0;
   const recorder = await stub(page, {
     "workloads.start": () => {
@@ -72,12 +81,39 @@ test("the door ENQUEUES the pass — distill, then themes chained on it — rath
 
   await door.click();
 
-  await expect.poll(() => recorder.count("workloads.start")).toBe(2);
-  const [first, second] = recorder.inputs("workloads.start") as { input: { kind: string }; dependsOn?: string[] }[];
+  // THREE rows, not two (issue #166). `compute-themes` clusters MEMORY DIGESTS, so distill is not its input
+  // at all — the shipped chain gated themes on distill and then ran it over a digest plane nobody had filled,
+  // which "succeeded" at zero written. The backfill is the stage that actually produces its input.
+  await expect.poll(() => recorder.count("workloads.start")).toBe(3);
+  const [first, second, third] = recorder.inputs("workloads.start") as { input: { kind: string }; dependsOn?: string[] }[];
   expect(first?.input.kind).toBe("distill-characters");
-  expect(second?.input.kind).toBe("compute-themes");
-  // The CHAIN is the engine's gate, not a client loop: themes waits on the distill row's id.
+  expect(second?.input.kind).toBe("memory-backfill");
+  expect(third?.input.kind).toBe("compute-themes");
+  // The CHAIN is the engine's gate, not a client loop: each row waits on the one before it.
   expect(second?.dependsOn).toEqual(["workload_start_1"]);
+  expect(third?.dependsOn).toEqual(["workload_start_2"]);
+});
+
+test("MEMORY OFF: the pass enqueues distill ALONE, says why, and offers the switch", async ({ mount, page }) => {
+  // The honest-admission arm (#166 / #156's law). Queueing a themes row that can only refuse — or worse,
+  // "succeed" at zero — is the vacuous success this whole issue is about. The card states the missing stage
+  // BEFORE the click, so the promise it makes is the one it keeps.
+  const recorder = await stub(page, {
+    "settings.getUserSettings": settings(false),
+    "workloads.start": () => ({ id: "workload_start_1" }),
+  });
+  const component = await mount(<CorpusUnderstandingInvitationStory />);
+
+  const door = component.getByRole("button", { name: RUN_DOOR });
+  await expect(door).toBeVisible();
+  await expect(component.getByText(MEMORY_OFF_NOTE)).toBeVisible();
+  await expect(component.getByRole("button", { name: MEMORY_SWITCH })).toBeVisible();
+
+  await door.click();
+
+  await expect.poll(() => recorder.count("workloads.start")).toBe(1);
+  const [only] = recorder.inputs("workloads.start") as { input: { kind: string } }[];
+  expect(only?.input.kind).toBe("distill-characters");
 });
 
 test("a live run replaces the door with its own progress state and never double-enqueues", async ({ mount, page }) => {

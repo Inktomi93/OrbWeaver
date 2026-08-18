@@ -6,8 +6,9 @@
 // domain-substrate-mediates-subsystems — the composition point is this file, never a verb-to-verb import).
 
 import type { EmbeddingsContext } from "./context.ts";
+import type { AvatarAnalysis } from "./contract/results.ts";
 import type { EmbeddingsService } from "./contract/service.ts";
-import { generateAvatarCaption } from "./indexer/caption.ts";
+import { analyzeAvatarImage } from "./indexer/caption.ts";
 import { createClearTable } from "./verbs/clear-table.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
 import { createCountDocumentChunksByOwner } from "./verbs/count-document-chunks-by-owner.ts";
@@ -31,7 +32,7 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     embedCorpus: createEmbedCorpus(ctx, { store }),
     embedAssets: createEmbedAssets(ctx, {
       store,
-      caption: (bytes): Promise<string> => generateAvatarCaption(ctx.roleClients, bytes),
+      analyze: (bytes): Promise<AvatarAnalysis> => analyzeAvatarImage(ctx.roleClients, bytes),
     }),
     purgeMemoryVectors: createPurgeMemoryVectors(ctx),
     pruneDocumentChunks: createPruneDocumentChunks(ctx),

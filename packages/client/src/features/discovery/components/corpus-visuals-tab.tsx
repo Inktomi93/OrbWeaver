@@ -1,7 +1,11 @@
 // The Corpus CONTEXT "Visuals" tab — the avatar-lens analytics grouped in one home. `portraitAlignment`
 // is the corpus-wide portrait↔card fit (summary stats + the worst-matched art, each row drilling to its
-// dossier); `imageFacets` is the caption-facet explorer (pick a facet → its distribution as a bar-list),
+// dossier); `imageFacets` is the VL-breakdown explorer (pick a facet → its distribution as a bar-list),
 // and picking a value drives `charactersByImageFacet` to the avatars carrying it. Read-only analytics.
+//
+// `total` IS THE ANALYSED COUNT, NOT THE CAPTIONED ONE (issue #164). This tab printed a confident "79 images"
+// over fourteen empty bar-lists because the two were one number; they are now separate, and the gap between
+// them is a statable coverage state rather than a silent contradiction.
 
 import { Badge } from "@orb/ui/badge";
 import { BarList } from "@orb/ui/bar-list";
@@ -39,6 +43,8 @@ interface FacetView {
 }
 const FACET_VIEWS = [
   { key: "artStyle", label: "Art style", pick: (f): ImageFacets["artStyles"] => f.artStyles },
+  { key: "palette", label: "Palette", pick: (f): ImageFacets["artStyles"] => f.palettes },
+  { key: "mood", label: "Mood", pick: (f): ImageFacets["artStyles"] => f.moods },
   { key: "rating", label: "Rating", pick: (f): ImageFacets["artStyles"] => f.ratings },
   { key: "shotType", label: "Shot type", pick: (f): ImageFacets["artStyles"] => f.shotTypes },
   {
@@ -137,7 +143,14 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
   return (
     <Section heading="Visual facets">
       {facets.total === 0 ? (
-        <Text voice="gloss">No captioned avatars to explore yet.</Text>
+        // TWO DIFFERENT NOTHINGS (issue #164). `captioned > 0, total === 0` is a real corpus whose avatars were
+        // described before the breakdown pass existed — the fix is a re-run of the image index, and saying so
+        // is the difference between an empty state and a door. `captioned === 0` is simply an unindexed library.
+        <Text voice="gloss">
+          {facets.captioned === 0
+            ? "No captioned avatars to explore yet."
+            : `${facets.captioned.toString()} avatars are captioned but not yet broken down — re-run the image index to read them.`}
+        </Text>
       ) : (
         <Stack gap="block" data-testid={testId("corpusFacetDrill")}>
           <Row gap="block" className="flex-wrap">

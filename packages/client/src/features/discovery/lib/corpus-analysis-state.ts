@@ -69,6 +69,9 @@ export interface CorpusAnalysisInput {
   readonly arcThemes: number;
   readonly duplicateCharacters: number;
   readonly duplicateChats: number;
+  /** Has the near-duplicate pass ever succeeded? Zero pairs means two entirely different things depending on
+   *  this, and the rail used to print the reassuring one for both (issue #164 item 4). */
+  readonly duplicatesEverRan: boolean;
 }
 
 // The locale is FIXED for the same reason the preset surface fixes its own (`preset/lib/format-count.ts`):
@@ -102,6 +105,14 @@ function spelledInline(count: number, one: string, many = `${one}s`): string {
 /** `3 characters` / `1 character` — the DATUM form (rail rows, figures), always numeric. */
 function plural(count: number, one: string, many = `${one}s`): string {
   return `${formatCount(count)} ${count === 1 ? one : many}`;
+}
+
+/** The near-dup rail reading — three states, not two (see the stage's own comment). */
+function duplicatesDatum(everRan: boolean, found: number): string {
+  if (!everRan) {
+    return "not run";
+  }
+  return found === 0 ? "none found" : `${formatCount(found)} found`;
 }
 
 function sum(values: readonly number[]): number {
@@ -205,9 +216,12 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
     {
       id: "duplicates",
       label: "Near-duplicates",
-      // "none found" is a RESULT, not an absence: the duplicate pass runs off the same index the families
-      // do, so a zero here is a measurement the moment there is anything to measure.
-      datum: nearDuplicates === 0 ? "none found" : `${formatCount(nearDuplicates)} found`,
+      // "none found" IS A RESULT — but only once the pass has produced one (issue #164 item 4). The old line
+      // read `nearDuplicates === 0 ? "none found"`, which stated a measurement for a pass that had never run:
+      // the owner read "none found" on a 327-card imported library and reasonably took it for a defect. It
+      // was not; `find-duplicates` simply had not run yet (it later found 30 pairs). The rail's whole
+      // contract is "a zero must be a state a reader can act on", and those two zeros need different actions.
+      datum: duplicatesDatum(input.duplicatesEverRan, nearDuplicates),
       done: nearDuplicates > 0,
     },
   ];

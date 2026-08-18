@@ -59,8 +59,19 @@ export function createEmbeddingsWorkloadContributions(deps: EmbeddingsWorkloadDe
             skipped += result.skipped;
           }
           if (params.source === "image" || params.source === "all") {
-            report({ message: force ? "re-embedding assets (force)" : "embedding assets" });
-            const result = await deps.embeddings.embedAssets({ ownerId: ctx.ownerId, force, signal });
+            const label = force ? "re-embedding assets (force)" : "analysing avatars";
+            report({ message: label });
+            // N-of-M (issue #166 rider 3): the pass owns the denominator, so it hands each position back and
+            // this is the only place that can turn it into a progress row. Without it a 350-image VL sweep
+            // showed one sentence and an indeterminate bar for its whole runtime.
+            const result = await deps.embeddings.embedAssets({
+              ownerId: ctx.ownerId,
+              force,
+              signal,
+              onProgress: (done, total) => {
+                report({ message: `${label} — ${done} of ${total}`, current: done, total });
+              },
+            });
             embedded += result.embedded;
             skipped += result.skipped;
           }

@@ -56,11 +56,14 @@ const STRIPE: CSSProperties = {
 const GLOW =
   "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:opacity-30 before:shadow-glow before:content-['']";
 
+/** `Progress` takes Base UI's 0–100 scale (its default `max`); the hook reports a 0–1 fraction. */
+const PERCENT = 100;
+
 export function CorpusUnderstandingInvitation(): ReactElement {
   const titleId = useId();
   const pass = useUnderstandingPass();
   // The live tail for whichever run currently holds the floor; a null id detaches the room.
-  useUnderstandingPassTail(pass.liveRunId, pass.onLiveMessage);
+  useUnderstandingPassTail(pass.liveRunId, pass.onLiveProgress);
   return (
     <Card aria-labelledby={titleId} className={GLOW} data-corpus-focal="invitation" role="group" style={STRIPE}>
       {/* The action column drops UNDER the prose at a narrow pane rather than squeezing the reading line:
@@ -73,10 +76,9 @@ export function CorpusUnderstandingInvitation(): ReactElement {
           </Heading>
           {/* Capped on the PARAGRAPH, never on the page (the `reading` voice's own contract). */}
           <Text className="max-w-(--reading-measure)" voice="reading">
-            {pass.running
-              ? "Distill characters is running, then Compute themes follows on it. Every panel on this page fills in as the results land — you can leave this screen, the pass keeps going."
-              : "Everything you have written lives here, but until the understanding pass runs your library can only tell you its shape, not its story. This runs Distill characters, then Compute themes — both read the same portrait and card embeddings the families already use, and every panel on this page fills in."}
+            {passProse(pass)}
           </Text>
+          {pass.memoryDisabled ? <MemoryOffNote /> : null}
           <UnderstandingPassProgress pass={pass} />
         </Stack>
         <Stack className="shrink-0" gap="tight">
@@ -96,15 +98,50 @@ export function CorpusUnderstandingInvitation(): ReactElement {
   );
 }
 
+/**
+ * The invitation's paragraph, which has to state the CHAIN TRUTHFULLY (issue #166).
+ *
+ * The shipped copy said the two jobs "both read the same portrait and card embeddings the families already
+ * use". That was false in the way that matters: `Compute themes` clusters MEMORY DIGESTS — the summaries of
+ * your chats — and reads neither portraits nor cards. A user with no chat history therefore read a promise
+ * the pass could not keep, and the run reported success having written nothing. The copy now names each
+ * stage's actual input, and when memory is off it says which stage is absent instead of implying it ran.
+ */
+function passProse(pass: UnderstandingPassView): string {
+  if (pass.running) {
+    return pass.memoryDisabled
+      ? "Distill characters is running. Every panel on this page fills in as the results land — you can leave this screen, the pass keeps going."
+      : "Distill characters is running, then Memory backfill, then Compute themes. Every panel on this page fills in as the results land — you can leave this screen, the pass keeps going.";
+  }
+  return pass.memoryDisabled
+    ? "Everything you have written lives here, but until the understanding pass runs your library can only tell you its shape, not its story. This runs Distill characters, which reads every card into a genre, a tone and a pitch."
+    : "Everything you have written lives here, but until the understanding pass runs your library can only tell you its shape, not its story. This runs Distill characters over your cards, then Memory backfill over your chats, then Compute themes over those chat summaries — and every panel on this page fills in.";
+}
+
+/** Story themes are built from chat summaries, so with memory off the pass genuinely cannot produce them.
+ *  Saying so — with the switch — is the honest alternative to enqueueing a stage that would refuse. */
+function MemoryOffNote(): ReactElement {
+  return (
+    <Row align="center" data-slot="understanding-pass-memory-off" gap="field">
+      <Text voice="gloss">Story themes need chat memory, which is off — this pass will read your cards only.</Text>
+      <Button intent="ghost" onClick={(): void => openSettingsTo("chat-behavior", "memory")} size="sm">
+        Turn on memory
+      </Button>
+    </Row>
+  );
+}
+
 /** The run's own state under the prose: the live stage + its latest line while it runs, the last failure's
- *  reason when it did not finish. Neither is a NUMBER — these two kinds report sentences (see the hook). */
+ *  reason when it did not finish. */
 function UnderstandingPassProgress({ pass }: { readonly pass: UnderstandingPassView }): ReactElement | null {
   if (pass.running) {
     return (
       <Stack data-slot="understanding-pass-progress" gap="tight">
-        {/* Indeterminate by construction: neither pass reports a count, so a bar with a number would be
-            inventing one. `aria-live` is the Progress primitive's own. */}
-        <Progress label={pass.stage ?? "Working"} showValue={false} value={null} />
+        {/* DETERMINATE WHEN THE PRODUCER COUNTS, indeterminate when it does not (issue #166). A stage that
+            enumerates its work reports `current`/`total` and gets a real bar; an atomic k-means reports a
+            sentence and keeps the indeterminate one, because a bar with an invented number is worse than no
+            bar at all. `aria-live` is the Progress primitive's own. */}
+        <Progress label={pass.stage ?? "Working"} showValue={pass.fraction !== null} value={pass.fraction === null ? null : pass.fraction * PERCENT} />
         {pass.detail === null ? null : <Text voice="gloss">{pass.detail}</Text>}
       </Stack>
     );
@@ -114,7 +151,10 @@ function UnderstandingPassProgress({ pass }: { readonly pass: UnderstandingPassV
   }
   return (
     <Text className="text-destructive" data-slot="understanding-pass-failure" voice="gloss">
-      {`The last understanding pass stopped: ${pass.failure}`}
+      {/* A CRASH IS NOT A REFUSAL. `worker_died` means the run never came back — the row has no reason of its
+          own to quote, and telling a user "stopped: undefined" is how a failure state reads as a bug in the
+          message rather than in the run. It was only visible in Settings → Jobs before issue #166. */}
+      {pass.failureWasCrash ? "The last understanding pass stopped unexpectedly — run it again." : `The last understanding pass stopped: ${pass.failure}`}
     </Text>
   );
 }

@@ -47,6 +47,60 @@ describe("embedAssets — the bulk image sweep", () => {
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.assetId));
     expect(rows.map((r) => r.lens).sort()).toEqual(["image-captioned", "image-raw"]);
     expect(rows.find((r) => r.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
+    // The SAME call also produced the structured breakdown (issue #164) — a caption without facets is the
+    // state the whole visual-families pipeline starved on.
+    expect(rows.find((r) => r.lens === "image-captioned")?.captionMeta).toMatchObject({ artStyle: "anime", palette: "warm", mood: "cheerful" });
+  });
+
+  // ── issue #164: the facet backfill's run door ──────────────────────────────────────────────────────
+  test("A CAPTIONED-BUT-UNANALYSED ROW IS WORK, not a skip — the backfill is resumable without `force`", async () => {
+    // The 2026-08-18 boundary in one test. Every pre-existing captioned row carries the bytes' hash and a
+    // `caption_meta` of `{model}` only. A hash-ONLY currency test declares all of them current, so
+    // `index {source:"image"}` skips the entire corpus and the facet columns stay empty forever — the only
+    // way through would be `force`, which needlessly re-embeds both lenses for every asset on the box.
+    const db = await freshDb();
+    const seeded = await seedOneAsset(db);
+    const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes });
+    const svc = createEmbeddingsService(h.ctx);
+    await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+    // Roll the captioned row back to the pre-breakdown shape, exactly as it exists on the live box.
+    await db
+      .update(imageEmbeddings)
+      .set({ captionMeta: { model: "qwen3-summarize-test" } })
+      .where(eq(imageEmbeddings.lens, "image-captioned"));
+    h.roleClients.summarize.mockClear();
+
+    const rerun = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+
+    expect(rerun).toEqual({ embedded: 1, skipped: 0 });
+    expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
+    const captioned = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.lens, "image-captioned"));
+    expect(captioned).toHaveLength(1);
+    expect(captioned[0]?.captionMeta).toMatchObject({ artStyle: "anime" });
+  });
+
+  test("…and once analysed it skips again — the backlog drains rather than looping", async () => {
+    const db = await freshDb();
+    const seeded = await seedOneAsset(db);
+    const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes });
+    const svc = createEmbeddingsService(h.ctx);
+    await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+    h.roleClients.summarize.mockClear();
+
+    expect(await svc.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 0, skipped: 1 });
+    expect(h.roleClients.summarize).not.toHaveBeenCalled();
+  });
+
+  test("the sweep reports N-of-M positions (issue #166 rider 3)", async () => {
+    const db = await freshDb();
+    const seeded = await seedOneAsset(db);
+    const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes });
+    const svc = createEmbeddingsService(h.ctx);
+    const positions: [number, number][] = [];
+
+    await svc.embedAssets({ ownerId: null, force: false, signal: signal(), onProgress: (done, total) => positions.push([done, total]) });
+
+    expect(positions).toEqual([[1, 1]]);
   });
 
   test("RESUMABLE + caption economy: a rerun skips BEFORE the summarize/imageEmbed calls", async () => {

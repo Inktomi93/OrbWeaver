@@ -2,7 +2,7 @@
 // summarize, owner derivation via host, solo-only filtering (esoteric #13), and the content-collapse +
 // full-space-size invariant (esoteric #3).
 
-import { digestThemeAssignments, themeClusters } from "@orb/db";
+import { chatDigests, digestThemeAssignments, themeClusters } from "@orb/db";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -159,5 +159,44 @@ describe("computeThemes", () => {
     expect(stats.ownersProcessed).toBe(1);
     expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, a))).toHaveLength(1);
     expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, b))).toHaveLength(1); // NOT wiped by A's singular run
+  });
+
+  // ── issue #166: a digest-less run is a REFUSAL, not a zero-written success ─────────────────────────
+  //
+  // This pass is an ATOMIC REPLACE. With an empty digest plane it still ran the replace: delete every cluster
+  // in scope, insert nothing — so a corpus with memory disabled (or simply never backfilled) had its previous
+  // themes DESTROYED by a run that reported `succeeded {scanned: 0, written: 0}`. Two separate defects in one
+  // path, so they are pinned separately: the destruction here, the copy in the contribution's own suite.
+  test("NO DIGESTS: the pass refuses BEFORE the atomic replace — existing clusters survive", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedHostedChat(db, "chat_1", owner);
+    await seedChatDigest(db, { id: "d1", chatId: chat, embedding: vec(1, 0), blockIdx: 0 });
+    await seedChatDigest(db, { id: "d2", chatId: chat, embedding: vec(1, 0.02), blockIdx: 1 });
+    const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
+    await svc.computeThemes({ k: 1 });
+    expect(await db.select().from(themeClusters)).toHaveLength(1);
+
+    // The digests go away (a memory purge, a chat delete) and the pass runs again with nothing to read.
+    await db.delete(chatDigests);
+    const stats = await svc.computeThemes({ k: 1 });
+
+    // THE POINT, asserted FIRST because it is the durable damage: the previous pass's output is still
+    // there. An empty input is not an instruction to delete.
+    expect(await db.select().from(themeClusters)).toHaveLength(1);
+    expect(stats.clustersWritten).toBe(0);
+    expect(stats.digestsRead).toBe(0);
+  });
+
+  test("NO DIGESTS: the pass spends no summarize call either", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_a");
+    const summarize = makeSummarizeRecorder([]);
+    const svc = createDiscoveryService(makeDiscoveryHarness(db, { summarize }).ctx);
+
+    const stats = await svc.computeThemes({ k: 2 });
+
+    expect(stats).toMatchObject({ ownersProcessed: 0, clustersWritten: 0, digestsAssigned: 0, digestsRead: 0 });
+    expect(summarize.calls).toHaveLength(0);
   });
 });

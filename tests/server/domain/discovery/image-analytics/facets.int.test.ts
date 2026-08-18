@@ -138,4 +138,54 @@ describe("imageFacets + charactersByImageFacet", () => {
     const armor = await svcFor(db).charactersByImageFacet(owner, "tag", "armor");
     expect(armor.map((m) => m.name)).toEqual(["Aria"]);
   });
+
+  // ── issue #164: the reader had fourteen facet paths and no producer at all ─────────────────────────
+  test("PALETTE AND MOOD ARE REAL FACETS — the two the visual labeler reads were never tallied", async () => {
+    // These two keys were read by `visualArchetypes` and by NOTHING else: they had no tally, no drill, and
+    // no writer. Their absence is why every visual family fell through to a card-text label.
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await seedPortraitChar(db, {
+      id: "a",
+      ownerId: owner,
+      name: "Aria",
+      cardVec: vec(1, 0),
+      avatarVec: vec(1, 0),
+      captionMeta: { palette: "warm", mood: "cheerful" },
+    });
+
+    const facets = await svcFor(db).imageFacets(owner);
+    expect(facets.palettes).toEqual([{ value: "warm", count: 1 }]);
+    expect(facets.moods).toEqual([{ value: "cheerful", count: 1 }]);
+    expect((await svcFor(db).charactersByImageFacet(owner, "mood", "cheerful")).map((m) => m.name)).toEqual(["Aria"]);
+  });
+
+  test("`total` COUNTS BREAKDOWNS, NOT CAPTIONS — a provenance-only row is captioned, not analysed", async () => {
+    // The live tell: `imageFacets` answered `total: 79` with all fourteen distributions EMPTY, because both
+    // write sites stored `caption_meta: {model}` and the tally counted any non-null meta. A confident count
+    // over nothing is the wall-of-nothing the corpus empty states exist to delete.
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await seedPortraitChar(db, {
+      id: "old",
+      ownerId: owner,
+      name: "Old",
+      cardVec: vec(1, 0),
+      avatarVec: vec(1, 0),
+      captionMeta: { model: "qwen3-vl-test" },
+    });
+    await seedPortraitChar(db, {
+      id: "new",
+      ownerId: owner,
+      name: "New",
+      cardVec: vec(0, 1),
+      avatarVec: vec(0, 1),
+      captionMeta: { model: "qwen3-vl-test", artStyle: "anime" },
+    });
+
+    const facets = await svcFor(db).imageFacets(owner);
+    expect(facets.captioned).toBe(2);
+    expect(facets.total).toBe(1);
+    expect(facets.artStyles).toEqual([{ value: "anime", count: 1 }]);
+  });
 });

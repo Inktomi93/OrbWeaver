@@ -89,6 +89,11 @@ const UNANALYSED: TrpcRoutes = {
   "discovery.themes": [],
   "discovery.topKeywords": [],
   "discovery.themeDrift": [],
+  // The chain reads BOTH of these now (issue #166): memory's switch decides whether the pass has a themes
+  // stage at all, and the queue is what tells the readiness rail whether the dedup pass has ever RUN — a zero
+  // from a pass that never ran is "not run", not "none found".
+  "settings.getUserSettings": { userId: "user_me", schemaVersion: 1, updatedAt: 1, config: { memory: { enabled: true } } },
+  "workloads.list": [],
 };
 
 /** …and the same library after both passes ran — the control for every absence below. */
@@ -196,7 +201,9 @@ test("UN-ANALYSED: the invitation holds the focal and the family map renders qui
   // ONE door on the screen, and it names the two jobs by the picker's own labels. NO ELLIPSIS since #155:
   // the button RUNS the pass now (it used to open the Settings → Jobs picker, and the ellipsis said so).
   await expect(component.getByRole("button", { name: "Run the understanding pass" })).toHaveCount(1);
-  await expect(component.getByText("This runs Distill characters, then Compute themes", { exact: false })).toBeVisible();
+  // The prose names each stage's REAL input (issue #166): themes clusters chat summaries, not cards, and the
+  // old copy claimed both jobs "read the same portrait and card embeddings".
+  await expect(component.getByText("then Memory backfill over your chats, then Compute themes over those chat summaries", { exact: false })).toBeVisible();
   await expect(component.getByRole("button", { name: "Run the passes again" })).toHaveCount(0);
 });
 
@@ -227,8 +234,11 @@ test("THE THIN IN-BETWEEN: distilled but no story themes — the map takes the f
   await expect(page.locator("[data-corpus-focal]")).toHaveCount(1);
 
   // Graceful degradation is not silence: the rail names the pass that has not run, with its real partial.
+  // TWO rows read "not run" now — story themes AND near-duplicates, whose zero used to print the reassuring
+  // "none found" for a pass that had never run (issue #164 item 4) — so the count is the assertion.
   await expect(component.getByText("Story themes & keywords")).toBeVisible();
-  await expect(component.getByText("not run")).toBeVisible();
+  await expect(component.getByText("not run")).toHaveCount(2);
+  await expect(component.getByText("none found")).toHaveCount(0);
   await expect(component.getByText("3 of 10")).toBeVisible();
   // …and the story-theme BLOCK is simply absent rather than printing its own zero note.
   await expect(component.getByRole("heading", { name: "Story themes", exact: true })).toHaveCount(0);

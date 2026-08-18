@@ -68,7 +68,7 @@ export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailPr
 /** The quiet re-run door — and, while a pass is live, that run's state in the rail's own register. */
 function CorpusReadinessRerun(): ReactElement {
   const pass = useUnderstandingPass();
-  useUnderstandingPassTail(pass.liveRunId, pass.onLiveMessage);
+  useUnderstandingPassTail(pass.liveRunId, pass.onLiveProgress);
   if (pass.running) {
     return (
       <Stack data-slot="readiness-rerun-running" gap="tight">
@@ -89,8 +89,11 @@ function CorpusReadinessRerun(): ReactElement {
           All jobs in Settings → Jobs
         </Button>
       ) : (
-        <Text className="text-destructive" voice="gloss">
-          {`The last pass stopped: ${pass.failure}`}
+        // A DIED run and a FAILED run are different sentences (issue #166 rider 3): `worker_died` carries no
+        // reason of its own, so quoting `pass.failure` printed "stopped: undefined" — a failure state that
+        // reads as a broken message rather than a run to retry. It was visible only in Settings → Jobs.
+        <Text className="text-destructive" data-slot="readiness-rerun-failure" voice="gloss">
+          {pass.failureWasCrash ? "The last pass stopped unexpectedly — run it again." : `The last pass stopped: ${pass.failure}`}
         </Text>
       )}
     </Stack>

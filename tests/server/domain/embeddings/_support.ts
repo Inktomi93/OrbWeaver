@@ -3,13 +3,15 @@
 // determinism (frozen clock + seeded ids, composed from tests/support) and the sanctioned "fake at the edges,
 // inject at the root" doctrine (testing §3):
 //   • `roleClients` — a recording FAKE of the `@orb/contracts/role-clients` bundle: `embed`/`imageEmbed`
-//     return a deterministic vector of `EMBED_DIM`; `summarize` returns a fixed caption. Each is a typed
+//     return a deterministic vector of `EMBED_DIM`; `summarize` returns the fixed avatar BREAKDOWN json
+//     (`TEST_IMAGE_BREAKDOWN`) the one vision call is guided-decoded into. Each is a typed
 //     `vi.fn` so tests assert calls + override with `mockResolvedValueOnce` (the dim-mismatch / embed-fail
 //     cases). It is a real injected op, NOT an internal-module mock.
 //   • `loadCardText` / `loadAssetBytes` — recording fakes for the indexer's canon re-readers.
 // Seeds the FK parents (`users` → `characters` / `assets`) directly — a fixture may read/write `users` (the
 // `no-direct-users-read` gate scopes only `packages/server/src/domain`).
 
+import type { ImageBreakdown } from "@orb/contracts/embeddings";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { assets, characters, chats, documents } from "@orb/db";
@@ -44,6 +46,36 @@ export const EMBED_MODEL = "qwen3-embed-test";
 export const IMAGE_EMBED_MODEL = "qwen3-vl-test";
 const SUMMARIZER_MODEL = "qwen3-summarize-test";
 export const TEST_CAPTION = "a deterministic test caption";
+
+/**
+ * The avatar-analysis reply the fake summarize returns — the FULL breakdown, because that is what the one
+ * vision call now asks for (issue #164). A stub that returns only prose makes `runStructuredTurn` fail, the
+ * analysis degrade to skip-don't-write, and the captioned row silently never appear: the whole image half of
+ * this domain's suite goes red for a reason that has nothing to do with what it is testing.
+ *
+ * Every scalar facet is required by the grammar, so this object is the SHAPE, not a sample of it — it is
+ * `satisfies ImageBreakdown`, which makes a facet added to the contract a tsc error here rather than a
+ * runtime parse failure in eight integration tests.
+ */
+const TEST_IMAGE_BREAKDOWN = {
+  caption: TEST_CAPTION,
+  artStyle: "anime",
+  palette: "warm",
+  mood: "cheerful",
+  rating: "safe",
+  shotType: "portrait",
+  cameraAngle: "eye-level",
+  gender: "female",
+  coverage: "fully-covered",
+  bodyType: "average",
+  chestSize: "medium",
+  skinTone: "fair",
+  outfitType: "casual",
+  clothingState: "intact",
+  nudityLevel: "none",
+  exposedParts: [],
+  tags: ["test", "portrait", "fixture"],
+} as const satisfies ImageBreakdown;
 
 /** A deterministic, non-zero `dim`-length vector (the `seed` distinguishes distinct embeds). */
 export function fakeVector(dim: number = EMBED_DIM, seed = 1): Float32Array<ArrayBuffer> {
@@ -83,7 +115,7 @@ export function makeRoleClients(): FakeRoleClients {
   );
   const summarize: Mock<RoleClients["summarize"]> = vi.fn<RoleClients["summarize"]>(() =>
     Promise.resolve({
-      items: [{ text: TEST_CAPTION, usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
+      items: [{ text: JSON.stringify(TEST_IMAGE_BREAKDOWN), usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
       model: SUMMARIZER_MODEL,
     }),
   );

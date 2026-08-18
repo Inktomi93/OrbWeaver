@@ -66,6 +66,10 @@ export interface ThemeComputeStats {
   readonly ownersProcessed: number;
   readonly clustersWritten: number;
   readonly digestsAssigned: number;
+  /** Memory digests the pass READ (its actual input plane), group rooms included. `0` is the pass's refusal
+   *  signal — the caller turns it into a stated "no digests" result rather than a 0-written success, and the
+   *  pass itself skips the atomic replace so nothing existing is destroyed (issue #166). */
+  readonly digestsRead: number;
 }
 
 // ── distill (character summaries + staged tag suggestions) ───────────────────────────
@@ -449,10 +453,17 @@ export interface PortraitAlignmentReport {
   readonly characters: PortraitAlignment[];
 }
 
-/** The caption-derived visual facet distributions over the owner's current-avatar corpus. */
+/** The VL-breakdown facet distributions over the owner's current-avatar corpus. */
 export interface ImageFacets {
+  /** Avatars carrying an actual breakdown — the denominator every distribution below is over. */
   readonly total: number;
+  /** Avatars carrying a caption, analysed or not. `captioned > total` is the honest "captioned before the
+   *  breakdown pass existed" coverage state; the two were conflated until issue #164, which is how a
+   *  confident "79 images" printed above fourteen empty bar-lists. */
+  readonly captioned: number;
   readonly artStyles: FacetCount[];
+  readonly palettes: FacetCount[];
+  readonly moods: FacetCount[];
   readonly ratings: FacetCount[];
   readonly shotTypes: FacetCount[];
   readonly cameraAngles: FacetCount[];

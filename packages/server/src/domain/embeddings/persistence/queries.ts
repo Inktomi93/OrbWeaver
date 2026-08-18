@@ -26,8 +26,12 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { HubScoreUpdate, VectorTable } from "../contract/params.ts";
+import type { ExistingCaptionedRow } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
+
+/** The lens whose row carries the caption + its facet breakdown (the other lens is pure pixels). */
+const IMAGE_CAPTION_LENS: ImageLens = "image-captioned";
 
 /** The stored `content_hash` for `(characterId, model)`, or `undefined` when no row exists yet. */
 export async function existingCharacterHash(db: Db, characterId: CharacterId, model: string): Promise<string | undefined> {
@@ -47,6 +51,18 @@ export async function existingImageHash(db: Db, assetId: AssetId, lens: ImageLen
     .where(and(eq(imageEmbeddings.assetId, assetId), eq(imageEmbeddings.model, model), eq(imageEmbeddings.lens, lens)))
     .limit(LIMIT_ONE);
   return rows[0]?.hash;
+}
+
+/** The captioned-lens row for `(assetId, model)` — hash + facet presence — or `undefined` when none exists. */
+export async function existingCaptionedRow(db: Db, assetId: AssetId, model: string): Promise<ExistingCaptionedRow | undefined> {
+  const rows = await db
+    .select({ hash: imageEmbeddings.contentHash, captionMeta: imageEmbeddings.captionMeta })
+    .from(imageEmbeddings)
+    .where(and(eq(imageEmbeddings.assetId, assetId), eq(imageEmbeddings.model, model), eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS)))
+    .limit(LIMIT_ONE);
+  const row = rows[0];
+  // Provenance-only (`{model}`) is NOT a breakdown — any other key means the analysis ran.
+  return row === undefined ? undefined : { hash: row.hash, hasFacets: row.captionMeta !== null && Object.keys(row.captionMeta).some((key) => key !== "model") };
 }
 
 /** The persistence-internal arg bundle for {@link upsertCharacterEmbedding} (file-local). */

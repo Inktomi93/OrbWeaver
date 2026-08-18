@@ -185,6 +185,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
     now: deps.now(),
     sampleOpts,
     system: distillSystem,
+    ...(opts.onProgress !== undefined ? { onProgress: opts.onProgress } : {}),
   });
   // The on-demand card produced nothing usable (double schema failure, or a provider fault on its retry —
   // `parseOneDistill` contains both). Nothing was committed, so there is no partial state to reconcile: the
@@ -221,7 +222,14 @@ async function buildDistillWrites(
   deps: DistillCharactersDeps,
   ready: readonly DistillTarget[],
   items: readonly { readonly text: string }[],
-  meta: { readonly db: Db; readonly model: string; readonly now: number; readonly sampleOpts: SummarizeOptions; readonly system: string },
+  meta: {
+    readonly db: Db;
+    readonly model: string;
+    readonly now: number;
+    readonly sampleOpts: SummarizeOptions;
+    readonly system: string;
+    readonly onProgress?: ((done: number, total: number) => void) | undefined;
+  },
 ): Promise<{ stmts: BatchItem<"sqlite">[]; stagedLabels: StagedLabel[]; failed: number }> {
   // The RESOLVED PASS — the sampling posture + the resolved system prose, carried together so a retry can
   // never re-resolve either and drift from the batch call.
@@ -234,6 +242,10 @@ async function buildDistillWrites(
     // biome-ignore lint/performance/noAwaitInLoops: bounded-concurrency waves — each wave's per-card retries run in parallel, then the loop advances; that IS the concurrency bound.
     const waveParsed = await Promise.all(wave.map((target, j) => parseOneDistill(deps, target, items[i + j]?.text ?? "", pass)));
     parsed.push(...waveParsed);
+    // The WAVE is the only real progress tick this pass has: the summarize call is one batched round-trip
+    // (nothing to count inside it), and parsing is where the per-card retries actually spend time. Reporting
+    // it turns a multi-minute indeterminate bar into `120 of 313` (issue #166 rider 3).
+    meta.onProgress?.(parsed.length, ready.length);
   }
   const stmts: BatchItem<"sqlite">[] = [];
   const stagedLabels: StagedLabel[] = [];
