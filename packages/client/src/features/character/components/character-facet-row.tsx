@@ -14,7 +14,7 @@ import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
 
 export interface CharacterFacetRowProps {
@@ -32,6 +32,15 @@ export interface CharacterFacetRowProps {
 
 export function CharacterFacetRow({ facet, selected, filled, preview, focusOnMount, onSelect }: CharacterFacetRowProps): ReactElement {
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const previewId = useId();
+  // WHICH LINE-2 IS WORTH ANNOUNCING. An EMPTY row's line 2 is `facet.subtitle` — a real gloss ("Injected
+  // after history, just before the reply.") that tells a screen-reader user what the facet DOES, so it is
+  // the button's description. A FILLED row's line 2 is a CSS-truncated echo of the field body itself
+  // (1283 characters on Description, ~2000 on Example messages): demoting that from the NAME to the
+  // DESCRIPTION would only move the wall, so it drops out of the accessible tree entirely — `ListRow`'s
+  // own `subtitleDecorative` rule for exactly this shape ("a truncated mono preview of a 600-character
+  // template body"). The row still announces "Personality, button"; the prose is one activation away.
+  const showsPreview = filled && preview !== null;
   useEffect(() => {
     if (focusOnMount) {
       buttonRef.current?.focus();
@@ -44,14 +53,30 @@ export function CharacterFacetRow({ facet, selected, filled, preview, focusOnMou
     : "rounded-card border border-border border-l-2 border-l-transparent";
   return (
     <Row gap="row" align="center" padding="row" data-selected={selected ? "" : undefined} data-filled={filled ? "" : undefined} className={rowClass}>
-      <Button ref={buttonRef} intent="ghost" size="sm" className="min-w-0 flex-1 justify-start text-left" onClick={(): void => onSelect(facet.id)}>
+      {/* THE NAME IS THE LABEL, THE BODY IS A DESCRIPTION (side-eye 2026-08-18 P1-2). Both spans used to be
+          bare content of the button, so its accessible NAME was label + the whole preview — the Description
+          row measured 1283 characters, Example messages ~2000, read out as the name of a control with
+          nothing saying what activating it does (WCAG 2.4.6 / 4.1.2). This is the pattern the LIST rows one
+          component over already ship (`aria-label` + `aria-describedby`; the Lighthouse
+          label-content-name-mismatch flag on it is a false positive — retraction R2), and the visible label
+          is the whole accessible name, so voice control still works (WCAG 2.5.3). */}
+      <Button
+        ref={buttonRef}
+        aria-describedby={showsPreview ? undefined : previewId}
+        aria-label={facet.label}
+        intent="ghost"
+        size="sm"
+        className="min-w-0 flex-1 justify-start text-left"
+        onClick={(): void => onSelect(facet.id)}
+      >
         {/* The LABEL keeps its full width (shrink-0); only the preview/subtitle truncates — a filled
-            row must never ellipsize "Personality" down to "P…" to fit its own preview. */}
-        <Text size="body" weight="medium" className="shrink-0">
+            row must never ellipsize "Personality" down to "P…" to fit its own preview. `aria-hidden`
+            because it IS the button's aria-label; repeating it as content would double the name. */}
+        <Text aria-hidden={true} size="body" weight="medium" className="shrink-0">
           {facet.label}
         </Text>
-        <Text size="micro" tone="muted" className="truncate">
-          {filled && preview !== null ? preview : facet.subtitle}
+        <Text aria-hidden={showsPreview ? true : undefined} id={previewId} size="micro" tone="muted" className="truncate">
+          {showsPreview ? preview : facet.subtitle}
         </Text>
       </Button>
 

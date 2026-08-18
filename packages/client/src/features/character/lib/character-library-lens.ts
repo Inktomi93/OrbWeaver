@@ -7,7 +7,7 @@
 // ones that were quietly wrong while the library filtered a ≤150-row client window, and each of them is
 // worth a test that does not need a mounted pane.
 
-import type { TagWithUsage } from "@orb/contracts/tag";
+import type { TagFilterVocabularyEntry } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import type { ActiveTagFilterState, TagFilterEntry } from "#lib";
 
@@ -42,7 +42,7 @@ export function resultCountLabel(loaded: number, totalCount: number | null): str
  * {@link tagVocabulary} pins an ACTIVE hidden tag into the chip row: known ⟺ named, one authority, so a chip
  * can never say "Deleted tag" about an id that is still narrowing the list.)
  */
-export function knownTagIds(library: readonly TagWithUsage[]): ReadonlySet<TagId> {
+export function knownTagIds(library: readonly TagFilterVocabularyEntry[]): ReadonlySet<TagId> {
   return new Set(library.map((tag) => tag.id));
 }
 
@@ -78,9 +78,11 @@ export function tagIdsInState(entries: readonly TagFilterEntry[], state: ActiveT
     .toSorted((a, b) => a.localeCompare(b));
 }
 
-/** The tag-filter chip vocabulary — the OWNER'S tag library (`tag.listTagsWithUsage`), ranked MOST-USED
- *  FIRST (ties alphabetical), hidden-on-card tags dropped, and tags no character carries dropped too (a
- *  chip that can only ever empty the list is not a filter, it is a trap).
+/** The tag-filter chip vocabulary — the OWNER'S tag library (`tag.listTagFilterVocabulary`), hidden-on-card
+ *  tags dropped, and tags no character carries dropped too (a chip that can only ever empty the list is not
+ *  a filter, it is a trap). MOST-USED FIRST, ties alphabetical — and that ranking is now the SERVER's
+ *  (`listOwnedTagFilterVocabulary` sorts; this filter is order-preserving), so the rank has one author
+ *  instead of a client re-sort of a server order.
  *
  *  IT USED TO BE DERIVED FROM THE LOADED ROWS, and that was the dead-filter defect (design doc D1): the
  *  vocabulary GREW as pages arrived, and an active filter whose tag was on no loaded row rendered NO CHIP at
@@ -117,10 +119,7 @@ export function vocabularyPanelTags(tags: readonly LibraryChipTag[], tagFilter: 
   return matched.toSorted((a, b) => Number(active.has(b.id)) - Number(active.has(a.id)));
 }
 
-export function tagVocabulary(library: readonly TagWithUsage[], tagFilter: readonly TagFilterEntry[]): readonly LibraryChipTag[] {
+export function tagVocabulary(library: readonly TagFilterVocabularyEntry[], tagFilter: readonly TagFilterEntry[]): readonly LibraryChipTag[] {
   const activeIds = new Set(tagFilter.map((entry) => entry.id));
-  return library
-    .filter((tag) => activeIds.has(tag.id) || (!tag.isHiddenOnCard && tag.usage.characters > 0))
-    .toSorted((a, b) => b.usage.characters - a.usage.characters || a.name.localeCompare(b.name))
-    .map((tag) => ({ id: tag.id, name: tag.name }));
+  return library.filter((tag) => activeIds.has(tag.id) || (!tag.isHiddenOnCard && tag.characters > 0)).map((tag) => ({ id: tag.id, name: tag.name }));
 }

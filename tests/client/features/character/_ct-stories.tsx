@@ -124,12 +124,18 @@ export function CharacterCardTileStory({
 
 // ── Editor surface story (§6 — the CONTENT editor; data layer, trpc stubbed at the network) ─────────
 
+export interface CharacterEditorSurfaceStoryProps {
+  /** Pin the editor's width — the save bar and the suggestion rail are both width-sensitive (side-eye
+   *  2026-08-18 P1-4 / P2-5 measured both at a 430px phone). Omitted = the desk width. */
+  readonly width?: number;
+}
+
 /** The §6 character editor over the real data layer (`character.get` + `chat.listChats` stubbed by
  *  routeTrpc). Fixed to one id so the CT drives the whole hero + tabs + save-bar. */
-export function CharacterEditorSurfaceStory(): ReactElement {
+export function CharacterEditorSurfaceStory({ width = 720 }: CharacterEditorSurfaceStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 640, width: 720 }}>
+      <div style={{ height: 640, width }}>
         <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
       </div>
     </CtDataProviders>

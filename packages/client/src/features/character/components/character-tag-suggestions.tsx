@@ -85,17 +85,33 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
 }
 
 /** One pending suggestion — a `ghost` chip (no fill at all: CD3 reserves fill for the ACCEPTED tags) at the
- *  micro type size, carrying the same accept/dismiss pair the strip has always had. The TrackerChip idiom:
- *  the quiet is carried by the Text voice inside the badge, not by a per-feature skin. No per-chip sparkle:
- *  a dozen of them read as decoration, and the one on "Suggest tags" already names the producer. */
+ *  micro type size. The TrackerChip idiom: the quiet is carried by the Text voice inside the badge, not by a
+ *  per-feature skin. No per-chip sparkle: a dozen of them read as decoration, and the one on "Suggest tags"
+ *  already names the producer.
+ *
+ *  ONE CONTROL PER VERB, AND THE NAME IS THE ACCEPT TARGET (side-eye 2026-08-18 P2-5). The chip used to
+ *  carry the name plus TWO `size="icon"` buttons, which at a coarse pointer are 44-48px boxes BY TOKEN
+ *  (D62 P1, the touch floor — law, and not something a chip may shave). Two of them per chip ran the chips
+ *  125-236px wide, so eleven of them could not pack a 382px phone column: measured row fills 164 · 330 ·
+ *  211 · 193 · 236 · 372 · 333 · 177 of 382 — a median row ~55% full, 588px tall, 63% of the viewport,
+ *  above the card's actual content. It read as a layout bug because geometrically it was one.
+ *
+ *  The fix is COUNT, not size: the accept verb moves onto the chip's own body (a ghost button whose
+ *  accessible name is `Accept <tag>`, carrying the ✓ so the affordance is still legible), leaving ONE
+ *  trailing dismiss. Both verbs survive, both keep the full touch floor, and every chip sheds an entire
+ *  control box. This is NOT a re-litigation of D113(4b) — the cap ruling stands, every suggestion still
+ *  renders; the block is simply allowed to pack. */
 function SuggestionChip({ name, onAccept, onReject }: { readonly name: string; readonly onAccept: () => void; readonly onReject: () => void }): ReactElement {
   return (
-    <Badge intent="neutral" tone="ghost" size="sm">
-      <Text as="span" size="micro" tone="muted">
-        {name}
-      </Text>
-      <Button type="button" size="icon" intent="ghost" aria-label={`Accept ${name}`} onClick={onAccept}>
+    // `px-0 py-0`: the chip is now nothing BUT its two controls, each of which already carries the coarse
+    // touch box, so the badge's own `px-row py-field` was padding around padding — 14px of chip height and
+    // 16px of width per chip, ×11, for a border the outline already draws.
+    <Badge intent="neutral" tone="ghost" size="sm" className="px-0 py-0">
+      <Button type="button" size="sm" intent="ghost" aria-label={`Accept ${name}`} className="min-w-0 max-w-full" onClick={onAccept}>
         <Icon icon={Check} size="xs" />
+        <Text as="span" size="micro" tone="muted" className="min-w-0 truncate">
+          {name}
+        </Text>
       </Button>
       <Button type="button" size="icon" intent="ghost" aria-label={`Dismiss ${name}`} onClick={onReject}>
         <Icon icon={X} size="xs" />

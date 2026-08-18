@@ -35,6 +35,9 @@ export interface MergeTagsParams extends TagActorParams {
 
 export interface ListTagsWithUsageParams extends TagActorParams {}
 
+/** The character-library filter-chip vocabulary read — the same owner scoping, a narrower projection. */
+export interface ListTagFilterVocabularyParams extends TagActorParams {}
+
 /** The pending-suggestion review read. `characterId` narrows to one editor's suggestions; absent = the
  *  owner's whole pending inbox. */
 export interface ListPendingSuggestionsParams extends TagActorParams {

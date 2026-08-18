@@ -19,6 +19,7 @@ import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
+import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories.tsx";
@@ -540,4 +541,141 @@ test("no absolutely-positioned box escapes the character editor's scroller (the 
   await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Aria Nightshade");
 
   expect(await readPhantomScrollers(page)).toEqual([]);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE 2026-08-18 SIDE-EYE PASS (rail sweep 3/9, reports/design/rail-characters-2026-08-18.md).
+
+/** The phone the review measured both editor findings at. */
+const PHONE_PX = 430;
+/** The character's name at that width, and the five letters it was clipped to. */
+const HERO_NAME = "Aria Nightshade";
+/** An unfilled facet row's gloss is any authored sentence — the claim is that one is ANNOUNCED, not which. */
+const ANY_TEXT = /./u;
+/** The OWN LOOK badge, and the tab name that never existed. */
+const OWN_LOOK_RE = /carries its own look/u;
+const APPEARANCE_TAB_RE = /Appearance tab/u;
+
+// P1-2 — every facet row's Button carried the whole field BODY as its accessible name: the Description
+// row measured 1,283 characters, Example messages ~2,000, announced as the NAME of a control with nothing
+// saying what activating it does (WCAG 2.4.6 / 4.1.2). The correct pattern already shipped one component
+// over (the list rows' aria-label + aria-describedby; Lighthouse's mismatch flag on it is a FALSE POSITIVE
+// — the review's retraction R2 — so the list rows are deliberately untouched).
+test("P1-2 a FILLED facet row is named by its LABEL, not by the field body it previews", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue(HERO_NAME);
+
+  // The row whose preview is a paragraph of the card's own prose.
+  const row = component.getByRole("button", { name: "Description", exact: true });
+  await expect(row).toHaveAccessibleName("Description");
+  // The preview is still on screen — this is a NAMING fix, not a content one.
+  await expect(component.getByText(CARD.description ?? "")).toBeVisible();
+  // …and it is not the row's DESCRIPTION either: a 1,283-character description only moves the wall.
+  await expect(row).toHaveAccessibleDescription("");
+});
+
+test("P1-2 an EMPTY facet row keeps its gloss as the DESCRIPTION — the one line worth announcing", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  // An UNFILLED facet on this card (the fixture authors name/description/systemPrompt/exampleMessages).
+  const row = component.getByRole("button", { name: "Note at depth", exact: true });
+  await expect(row).toHaveAccessibleName("Note at depth");
+  // The gloss tells a screen-reader user what the facet DOES; it is short, authored, and not an echo.
+  await expect(row).toHaveAccessibleDescription(ANY_TEXT);
+});
+
+// P1-4 — at 430px the save bar rendered `Sabin…  Character  1257 total · 1017 permanent  Saved`: the name
+// got 54px (of a 90px string) while the diagnostic got 231px, 54% of the viewport. The title was the one
+// box allowed to yield because every trailing sibling was `shrink-0`.
+test("P1-4 on a phone the save bar prints the NAME whole — the census takes its own line", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory width={PHONE_PX} />);
+  const title = component.locator('[data-slot="save-bar-title"]');
+  await expect(title).toHaveText(HERO_NAME);
+
+  // Not clipped — the whole point. (`scrollWidth > clientWidth` is what "Sabin…" looked like.)
+  const clipped = await title.evaluate((el: Element) => el.scrollWidth > el.clientWidth);
+  expect(clipped).toBe(false);
+
+  // The census is not hidden, abbreviated or behind a tap — it moved to its own full-width line BELOW the
+  // identity, which is what makes both readable at once.
+  const meta = component.locator('[data-slot="save-bar-meta"]');
+  await expect(meta.getByText(TOKEN_SPLIT_RE)).toBeVisible();
+  const [titleBox, metaBox] = await Promise.all([title.boundingBox(), meta.boundingBox()]);
+  expect(metaBox?.y ?? 0).toBeGreaterThan(titleBox?.y ?? 0);
+});
+
+test("P1-4 at desk width the census stays INLINE — the wrap is a narrow arm, not the new normal", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  const title = component.locator('[data-slot="save-bar-title"]');
+  const meta = component.locator('[data-slot="save-bar-meta"]');
+  await expect(meta.getByText(TOKEN_SPLIT_RE)).toBeVisible();
+  const [titleBox, metaBox] = await Promise.all([title.boundingBox(), meta.boundingBox()]);
+  // Same LINE: the two boxes overlap vertically (they are baseline- vs centre-aligned, so their tops are
+  // near but not equal) and the census sits to the RIGHT of the name, never under it.
+  expect(metaBox?.y ?? 0).toBeLessThan((titleBox?.y ?? 0) + (titleBox?.height ?? 0));
+  expect(metaBox?.x ?? 0).toBeGreaterThan(titleBox?.x ?? 0);
+});
+
+// P2-5 — the suggestion block was 588px on a 932px phone (63% of the viewport), in 8 ragged rows whose
+// median fill was ~55%, because every chip carried TWO 44px coarse icon buttons and ran 125-236px wide.
+// This is GEOMETRY, not the D113(4b) cap ruling: every suggestion still renders.
+test.describe("P2-5 suggestion chips at a coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("the chips PACK — one control per verb, both still at the touch floor", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await routeSuggestions(page);
+    const component = await mount(<CharacterEditorSurfaceStory width={PHONE_PX} />);
+    const block = component.locator('[data-slot="character-tag-suggestions"]');
+    await expect(component.getByRole("button", { name: ACCEPT_BUTTON_RE })).toHaveCount(SUGGESTION_NAMES.length);
+
+    // THE TOUCH FLOOR IS LAW (D62 P1) — the fix is the control COUNT, never a shaved target. Both verbs
+    // are read from the live token, not a literal 44.
+    const floor = await touchFloorPx(page);
+    const accept = await component.getByRole("button", { name: `Accept ${FIRST_SUGGESTION}` }).boundingBox();
+    const dismiss = await component.getByRole("button", { name: `Dismiss ${FIRST_SUGGESTION}` }).boundingBox();
+    expect(accept?.height ?? 0).toBeGreaterThanOrEqual(floor);
+    expect(dismiss?.height ?? 0).toBeGreaterThanOrEqual(floor);
+    expect(dismiss?.width ?? 0).toBeGreaterThanOrEqual(floor);
+
+    // ROW FILL is the finding, stated directly: group the chips by their top edge and measure how much of
+    // the block's width each row actually spends. The review measured a ~55% median over 8 rows.
+    const fill = await block.evaluate((el: Element) => {
+      const chips = [...el.querySelectorAll('[data-slot="badge"]')].map((node) => node.getBoundingClientRect());
+      const rows = new Map<number, number>();
+      for (const box of chips) {
+        rows.set(Math.round(box.top), (rows.get(Math.round(box.top)) ?? 0) + box.width);
+      }
+      const width = el.getBoundingClientRect().width;
+      const spent = [...rows.values()].map((sum) => sum / width).toSorted((a, b) => a - b);
+      return { rows: rows.size, median: spent[Math.floor(spent.length / 2)] ?? 0, height: el.getBoundingClientRect().height };
+    });
+    // MEASURED on this fixture (12 suggestions, 430px, coarse): median row fill 0.71 over 6 rows, block
+    // height 380px — against 0.55 over 8 rows and 588px before. Both fences sit BELOW the measurement, so
+    // they fence the CLASS of defect (a rail that cannot pack) rather than a pixel that a token retune moves.
+    expect(fill.median).toBeGreaterThan(0.65);
+    // …and the block stops owning two thirds of the phone.
+    expect(fill.height).toBeLessThan(450);
+  });
+});
+
+// P2-7 — the surface's ONE help pointer named a tab that does not exist. The CONTEXT tabs are
+// Field / Links / Options (`characters-section.tsx`), the theme editor lives under Options, and the
+// Settings modal DOES have an "Appearance" category — so anyone who followed the old sentence landed in
+// the wrong surface entirely.
+test("P2-7 the OWN LOOK badge points at the tab that actually holds the theme editor", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.get": () => ({ ...CARD, themeOverride: { primary: "#ff8800" } }),
+    "chat.listChats": chatListResponder([]),
+    "character.update": () => CARD,
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const badge = component.getByRole("img", { name: OWN_LOOK_RE });
+  await expect(badge).toHaveAccessibleName("This card carries its own look — edit it in the Options tab.");
+  // The name a user could follow to nowhere.
+  await expect(component.getByText(APPEARANCE_TAB_RE)).toHaveCount(0);
 });

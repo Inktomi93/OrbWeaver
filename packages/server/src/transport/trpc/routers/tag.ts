@@ -36,6 +36,12 @@ export const tagRouter = t.router({
 
   listTagsWithUsage: authedProcedure.query(({ ctx }) => ctx.services.tag.listTagsWithUsage({ principal: ctx.auth })),
 
+  // The character library's filter-chip vocabulary — the same owned rows as listTagsWithUsage, projected to
+  // the four fields a chip reads. Split off because the rail was paying 433KB of five-junction management
+  // rows to paint eight chips (side-eye 2026-08-18 P2-6). No input: the vocabulary is keyless, so cycling a
+  // chip never re-keys (and never refetches) it.
+  listTagFilterVocabulary: authedProcedure.query(({ ctx }) => ctx.services.tag.listTagFilterVocabulary({ principal: ctx.auth })),
+
   // The Accept/Reject review queue: the owner's STAGED (`pending`) character-tag suggestions (PD-40 distill +
   // import staged card tags). `characterId` narrows to one editor's suggestions; absent = the whole inbox.
   listPendingSuggestions: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>().optional() }).optional()).query(({ ctx, input }) =>

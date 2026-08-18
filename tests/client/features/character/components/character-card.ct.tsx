@@ -3,9 +3,19 @@
 // aria-current, the sibling star + Chat actions (disjoint from the body — no nested interactive), and the
 // §4.6 bulk-mode checkbox that toggles selection instead of opening the editor.
 //
-// The star is now the shared `RowToggleAction` under owner ruling D11 (list-pane-projection §12): it
-// announces as a toggle (`aria-pressed`), and its REST posture reverses what this card shipped —
-// pressed keeps its pixels, unpressed rests hidden and reveals with the row.
+// The star is the shared `RowToggleAction` under owner ruling D11 (list-pane-projection §12): it announces
+// as a toggle (`aria-pressed`). Its REST posture is D11's MARKER form since 2026-08-18 (side-eye P1-3): the
+// toggle is ALWAYS reveal-gated and the pressed state is carried at rest by the title-line ★ in
+// `ListRow.markers` — which is what leaves the trailing cluster entirely hover-revealed, and therefore
+// floatable. D11's invariant (pressed state visible at rest) is met in the marker slot; the two never paint
+// together.
+//
+// THE CLUSTER FLOATS OUTSIDE BULK MODE. `actionsFloat` lifts it out of flow at the row's inline end on FINE
+// pointers, so the name keeps the row's full width at rest — and the arm is deliberately INERT at rest
+// (`pointer-events-none` on the wrapper AND its children, restored on the row's hover/:focus-within), which
+// is why the action tests below reveal the row before clicking. That inertness is the ruled behaviour for
+// the float arm specifically (an invisible control sitting ON the title text must not be hit-testable); an
+// IN-FLOW cluster keeps its live hit target, which is what bulk mode's checkbox relies on.
 
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -76,9 +86,10 @@ test("clicking the row body fires onSelect (opens the editor)", async ({ mount }
 
 test("the Chat action fires onChat with the character id — a sibling, not nested", async ({ mount }) => {
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
-  // No hover step: this row's cluster is IN FLOW, so the CTA keeps a live hit target while hidden. A bare
-  // `.click()` reaching it is the regression guard — the library→chat seam deadlocked for 30s when the
-  // reveal made the control conditionally hit-testable.
+  // REVEAL FIRST: the cluster floats now (P1-3), and the float arm is inert at rest by construction — the
+  // hidden controls sit ON the title text, so a hit test there must reach the row, not a control nobody can
+  // see. Hovering the ROW restores `pointer-events` on the whole cluster; that is the seam this step pins.
+  await component.locator('[data-slot="list-row-root"]').hover();
   await component.getByRole("button", { name: "Chat with Aria Nightshade", exact: true }).click();
   await expect(component.getByTestId("chatted-id")).toHaveText("char_ct_story");
   // The action is OUTSIDE the body button — it does NOT also open the editor (disjoint elements).
@@ -87,6 +98,7 @@ test("the Chat action fires onChat with the character id — a sibling, not nest
 
 test("the star chip fires onToggleStar (immediate flag toggle)", async ({ mount }) => {
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={false} />);
+  await component.locator('[data-slot="list-row-root"]').hover();
   await component.getByRole("button", { name: "Star Aria Nightshade", exact: true }).click();
   await expect(component.getByTestId("starred-id")).toHaveText("char_ct_story");
 });
@@ -104,11 +116,29 @@ test("D11 retrofit: an UNSTARRED star rests hidden (revealed on hover/focus), re
   await expect(star).toHaveClass(REVEAL_ON_FOCUS);
 });
 
-test("D11 retrofit: a STARRED star keeps its rest pixels — the marker earns them by carrying state", async ({ mount }) => {
+test("D11 marker form: a STARRED row shows its ★ at rest on the TITLE LINE, and the toggle stays gated", async ({ mount }) => {
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={true} />);
+  // The pressed state is visible at rest — in the marker slot, inside the text column, where it costs the
+  // width it is worth instead of pinning a 114px trailing strip (side-eye 2026-08-18 P1-3).
+  const marker = component.locator('[data-slot="list-row-markers"]').getByLabel("Starred");
+  await expect(marker).toBeVisible();
   const star = component.getByRole("button", { name: "Unstar Aria Nightshade", exact: true });
   await expect(star).toHaveAttribute("aria-pressed", "true");
-  await expect(star).toHaveCSS("opacity", "1");
+  // The control that SETS it is reveal-gated at rest — the row never paints two stars.
+  await expect(star).toHaveCSS("opacity", "0");
+});
+
+test("D11 marker form: the ★ marker YIELDS on reveal, by visibility — the title line cannot reflow", async ({ mount }) => {
+  const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={true} />);
+  const marker = component.locator('[data-slot="list-row-markers"]').getByLabel("Starred");
+  const titleRow = component.locator('[data-slot="list-row-title-row"]');
+  const restBox = await titleRow.boundingBox();
+  await component.locator('[data-slot="list-row-root"]').hover();
+  await expect(component.getByRole("button", { name: "Unstar Aria Nightshade", exact: true })).toHaveCSS("opacity", "1");
+  // `visibility`, never `display`: the marker's box survives, so the hover boundary cannot slide under a
+  // stationary pointer (the measured ~85 crossings/sec oscillator, packages/client/src/components/row-reveal.ts).
+  await expect(marker).toHaveCSS("visibility", "hidden");
+  await expect.poll(() => titleRow.boundingBox()).toEqual(restBox);
 });
 
 test("§4.4 progressive disclosure: the Chat CTA rests hidden, wired to reveal on hover + focus-within", async ({ mount }) => {
@@ -161,23 +191,23 @@ test("P0 regression: the reveal swap does not move the row's layout (the hover-o
   await expect.poll(() => body.boundingBox()).toEqual(restBox);
 });
 
-test("P1 regression: the revealed metadata is legible and NEVER overlaps the action buttons", async ({ mount }) => {
+// SUPERSEDED PREMISE, RESTATED (side-eye 2026-08-18 P1-3). This used to assert the revealed metadata never
+// OVERLAPS the buttons — true only while the cluster reserved an in-flow strip, which is precisely the
+// 114px the newer finding reclaims for the name. The 2026-08-18 review asks for the overlay explicitly
+// ("overlay the action cluster on hover/focus, an end-cap over the subtitle line"). What survives is the
+// half that was actually about legibility: the revealed line is a real line, and the glyphs that cover its
+// tail sit on an OPAQUE backdrop, never directly on text.
+test("P1 regression: the revealed metadata is a legible line, and the floated cluster paints its own backdrop", async ({ mount }) => {
   const component = await mount(<CharacterCardTileStory handle={castId<CharacterHandle>("mara-soul-check")} name="Mara" />);
   // Reveal deterministically via keyboard focus (group-focus-within) — :focus-within is reliable in CT
   // where :hover is not; focusing the row BODY (the reveal lives in its content column) triggers the swap.
   await component.locator('[data-slot="list-row-body"]').focus();
   const revealBox = await component.locator('[data-slot="list-row-subtitle-reveal"]').boundingBox();
-  const starBox = await component.getByRole("button", { name: "Star Mara", exact: true }).boundingBox();
-  const chatBox = await component.getByRole("button", { name: "Chat with Mara", exact: true }).boundingBox();
-
-  const revealWidth = revealBox?.width ?? 0;
-  const revealRight = (revealBox?.x ?? 0) + revealWidth;
   // Legible — a real line, not the ~12px sliver the bleed regression squeezed it to.
-  expect(revealWidth).toBeGreaterThan(60);
-  // No overlap: the reveal lives in the content column, the buttons in `actions` — its right edge is at or
-  // left of each button's left edge (a null button box fails via -Infinity, never a skipped assertion).
-  expect(revealRight).toBeLessThanOrEqual(starBox?.x ?? Number.NEGATIVE_INFINITY);
-  expect(revealRight).toBeLessThanOrEqual(chatBox?.x ?? Number.NEGATIVE_INFINITY);
+  expect(revealBox?.width ?? 0).toBeGreaterThan(60);
+
+  const clusterFill = await component.locator('[data-slot="list-row-actions"]').evaluate((el: Element) => getComputedStyle(el).backgroundColor);
+  expect(clusterFill).not.toBe("rgba(0, 0, 0, 0)");
 });
 
 test("bulk mode: the row body toggles selection (not open-editor) and shows a checkbox", async ({ mount }) => {
@@ -197,6 +227,8 @@ test("bulk mode: the row body toggles selection (not open-editor) and shows a ch
 // unwrapped V3 card the import door already accepts.
 test("§12 the kebab's Export card submenu links BOTH formats to the owner-gated route", async ({ mount, page }) => {
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
+  // The floated cluster is inert at rest (P1-3) — reach the kebab the way a user does.
+  await component.locator('[data-slot="list-row-root"]').hover();
   await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
   await page.getByRole("menuitem", { name: "Export card" }).click();
 
