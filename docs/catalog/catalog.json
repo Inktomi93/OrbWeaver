@@ -420,9 +420,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 347,
-      "bytes": 162247,
-      "sha256": "d386db440154a5b6b9359ba48a7458feea0dbe496ef15b067f5c19f32028c1b0",
+      "lines": 348,
+      "bytes": 163299,
+      "sha256": "2ab950ebf7aef60d2be6532c4c5980a71001c1f50c2d5a81df69c92e676ae3b2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -435,19 +435,20 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "d386db440154a5b6b9359ba48a7458feea0dbe496ef15b067f5c19f32028c1b0",
+        "assignedSha256": "2ab950ebf7aef60d2be6532c4c5980a71001c1f50c2d5a81df69c92e676ae3b2",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "d386db440154a5b6b9359ba48a7458feea0dbe496ef15b067f5c19f32028c1b0",
-        "verifiedCommit": "d706b2dd2c4f199b746fd68ef8d9306c9262d091",
+        "verifiedSha256": "2ab950ebf7aef60d2be6532c4c5980a71001c1f50c2d5a81df69c92e676ae3b2",
+        "verifiedCommit": "a19e64e49dfe35a1514690e21e62f068bccefdfa",
         "verifiedAt": "2026-08-19",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
           "ct-poll-schedule-and-paint row + 209->210 count added by #142 (c7c06a891, lane gate-hardening) — orchestrator re-read the delta in full at restamp; the row matches the landed gate's three arms and declared limits",
-          "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green"
+          "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green",
+          "re-attested at a19e64e49 (lane barrier-fixup): the ct-story-single-import row (8adfee2c4) had landed as an escaped \\| behind a stray blank line, so enforcement-registry-parity read the gate as unregistered; re-homed it as a real ACTIVE-table row. Count 214 unchanged (matches 214 active descriptors). Structure single-pass clean; scoped check:docs green"
         ],
         "claims": [
           {
@@ -10528,6 +10529,60 @@
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
         ],
         "summary": "Chat-creation draft mode → instant-create — cost inventory, research, design, migration: full content read against frozen tree; landed-state record retained as historical evidence."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/chat-video-input.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 202,
+      "bytes": 15222,
+      "sha256": "a9b4d916b41ca24be8b0f06b7166496da2ba06fb575eb2702bf061fc10360162",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-19"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/chat-video-input.md",
+        "assignedSha256": "a9b4d916b41ca24be8b0f06b7166496da2ba06fb575eb2702bf061fc10360162",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "a9b4d916b41ca24be8b0f06b7166496da2ba06fb575eb2702bf061fc10360162",
+        "verifiedCommit": "0b05fed84ebad49f9f45e1210768d3dc9d919896",
+        "verifiedAt": "2026-08-19",
+        "evidence": [
+          "docs/design/chat-video-input.md:1 (design; full read at the merged tree, lane barrier-fixup)",
+          "git log --oneline -1 -- docs/design/chat-video-input.md: 0b05fed84 feat(chat): video input end-to-end — gif/mp4/webm to the VL model, D45 image wire finished (#317)",
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        ],
+        "summary": "Chat video input (#317) — gif/mp4/webm to the VL model, finishing the D45 image wire: full content read against the merged tree; the design-of-record for a shipped feature, retained as active design. Code and ledger remain authoritative for implementation.",
+        "claims": [
+          {
+            "claim": "The wire model adds a `video` ChatContentPart union member (not a flag), reusing the D51 asset ref; media kind is classified at the resolve seam (video/* and animated gif → video). Mutable follow-up tracked in GitHub issue #317.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/contracts/src/chat/bus.ts:46"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/compose/resolve-image-ref.ts:26"
+              },
+              {
+                "kind": "issue",
+                "target": "#317"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },
