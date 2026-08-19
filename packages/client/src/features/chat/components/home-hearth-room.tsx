@@ -26,6 +26,22 @@
 // same instant twice, 90px apart). The strip is deleted and the stamp is the masthead's alone; the cast
 // line is the island's ONE cast rendering and no longer truncates, because nothing shares its row.
 //
+// …AND THE ROOM'S ART CAME BACK AS A BLEED (#205, owner-ruled 2026-08-18: "Hero gets its room's art"),
+// which READS as a reversal of P2-5 above and is not one. What P2-5 deleted was a 3-face 64px cover-crop
+// STRIP: art rendered as a DATUM, at a size where the datum was illegible, restating a cast the credit
+// line already spells out. This is art as CHROMA — one portrait, `aria-hidden`, at the island's far edge,
+// naming nobody and counting nothing — and the fact-once rule it was deleted under is untouched (the
+// credit line is still the island's ONE cast rendering). The finding it answers is the opposite one: the
+// island had no colour at all, so the character photo grid across the shelf won every cold eye on the
+// landing, and the space beyond the excerpt's reading measure sat dead.
+// The reading-surface rule is kept GEOMETRICALLY, not by taste: this column is capped at
+// `--reading-measure` and the band begins at that same measure plus a padding clearance, so no ink is
+// ever over art and the D144 plate family is deliberately NOT invoked — a plate backs text that sits on
+// art, and here none does. Neither half works alone; the band's own header (`@orb/ui/art-bleed`) states
+// the contract from the other side. The one composition
+// cost is stated plainly: the trailing "Resume →" hint now ends at the reading measure instead of at the
+// island's far edge, because that edge is the art's.
+//
 // A11y follows the `ListRow clickable` model rather than inventing one: the island is the operable thing
 // (`Card interactive` — role=button + Enter/Space) and the excerpt + the cast line ride
 // `aria-describedby`. A heading inside a button is not addressable by AT, so the title is
@@ -37,6 +53,7 @@
 // the same reason every other arrow on home is: a glyph is not part of an affordance's name.
 
 import type { ChatId } from "@orb/kit/ids";
+import { ArtBleed } from "@orb/ui/art-bleed";
 import { Badge } from "@orb/ui/badge";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
@@ -60,7 +77,18 @@ type HearthChat = Parameters<typeof chatSummaryRowView>[0];
 const GLOW =
   "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:opacity-60 before:shadow-glow before:transition-opacity before:duration-(--motion-base) before:ease-out-expo before:content-[''] hover:before:opacity-100";
 
-export function HomeHearthRoom({ chat, onResume }: { readonly chat: HearthChat; readonly onResume: (chatId: ChatId) => void }): ReactElement {
+export function HomeHearthRoom({
+  chat,
+  onResume,
+  artSrc,
+}: {
+  readonly chat: HearthChat;
+  readonly onResume: (chatId: ChatId) => void;
+  /** The room's own art for the edge bleed (#205) — the first seat that HAS a portrait, resolved by the
+   *  tile body. `undefined` (no seats, no portraits, or the shared portrait read has not landed) renders
+   *  no layer at all, never a placeholder: an empty art band is a hole where a picture was promised. */
+  readonly artSrc?: string | undefined;
+}): ReactElement {
   const { title, subtitle } = chatSummaryRowView(chat);
   const titleId = useId();
   const scentId = useId();
@@ -85,13 +113,25 @@ export function HomeHearthRoom({ chat, onResume }: { readonly chat: HearthChat; 
       interactive={true}
       onClick={(): void => onResume(chat.id)}
     >
-      {/* ONE COLUMN, NO ART. The cast strip is gone (rail sweep P2-5/P2-6): three 64px cover-CROPS of
-          portraits are illegible at that size, and every seat in them was already spelled out, in order,
-          in the credit line two rows below — the island rendered its cast twice and its recency twice
-          (the masthead sentence directly above carries the age). What the hero owes is the room's NAME,
-          the line you left on, who is in it, and one affordance. So the column IS the island now, which
-          also retires the `@md` stack-vs-row split the strip forced at a narrow pane. */}
-      <Stack className="min-w-0" gap="row">
+      {/* THE ROOM'S ART, AS A BLEED — decoration, never a datum (#205, owner-ruled). It is `aria-hidden`
+          and carries no name, no seat and no count, so the P2-6 rule this island was rebuilt on ("it
+          carries each fact ONCE") is intact: the cast is still rendered exactly once, by the credit line
+          below. The layer paints ABOVE the card fill and BELOW the content (both are positioned, so the
+          later sibling wins) — a negative z-index would put it behind the card's own background and paint
+          nothing. The band is `@orb/ui`'s `ArtBleed` — the kit is the only painter (UI-Arch §1.1), and
+          the geometry that makes "faded to clean surface before the prose" a guarantee rather than a hope
+          lives with the primitive, beside the `--reading-measure` cap this column takes below. */}
+      {artSrc === undefined ? null : <ArtBleed src={artSrc} />}
+      {/* ONE COLUMN, AND THE ART IS NOT IN IT. The cast STRIP is still gone (rail sweep P2-5/P2-6): three
+          64px cover-CROPS of portraits are illegible at that size, and every seat in them was already
+          spelled out, in order, in the credit line two rows below — the island rendered its cast twice and
+          its recency twice (the masthead sentence directly above carries the age). #205 does not restore
+          that strip and does not re-render any fact; it gives the island CHROMA at its far edge. What the
+          hero owes is still the room's NAME, the line you left on, who is in it, and one affordance.
+          `max-w-(--reading-measure)` caps the whole column, not just the excerpt: it is what keeps every
+          ink — including the trailing "Resume →", which used to ride the island's far edge — out of the
+          art band, and it is the same measure the band starts at. */}
+      <Stack className="relative min-w-0 max-w-(--reading-measure)" gap="row">
         <Row gap="row">
           {/* CLAMPED, NEVER TRUNCATED (side-eye F7). At the 430px coarse mount `truncate` rendered
               "Example — …" — the one string on the surface that says WHICH room you are resuming, ellipsed

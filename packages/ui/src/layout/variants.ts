@@ -137,6 +137,23 @@ export const gridVariants = tv({
       // step is a raw container width because the container scale stops at @7xl (80rem) and this shape's
       // second breath is measurably later than that.
       lead: "grid-cols-1 @4xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-[1.5fr_1.05fr]",
+      // `lead`'s SECOND BREATH, taken all the way to EVEN (added 2026-08-18, #226). Same landing/reading
+      // shape and the same two required tracks — it differs only in what the >=100rem step resolves to,
+      // and it exists because `lead`'s 1.5fr/1.05fr leaves a rail whose own content is WIDTH-DRIVEN
+      // stranded a whole block short of the lead column. Measured on home's shipped registry (the
+      // width x appearance matrix in tests/client/features/home/surfaces/home-column-balance.ct.tsx):
+      // the rail's fixed-cell shelf drops from 3-per-row to 6-per-row and its footnote pair goes 2-up, so
+      // the two columns' feet come from 180px/192px/228px apart to 11px/3px/11px at a 1920/2560 pane —
+      // i.e. the rail stops being the thing that decides the page's height. `grid-cols-2` (a real
+      // `minmax(0,1fr)` pair) rather than `1fr 1fr`, so neither track is floored at its content's
+      // min-content width — the same trap `lead` needs `min-w-0` children to survive.
+      //
+      // It is a SEPARATE ARM, not a retune of `lead`, because `lead` has two other consumers
+      // (discovery's corpus home, config's welcome hearth) whose content is not width-driven the way a
+      // face shelf is; changing the value under them would be a shared-value change with no measurement
+      // behind it. Reach for `leadEven` when the RAIL carries reflowing cell grids, `lead` when it
+      // carries prose.
+      leadEven: "grid-cols-1 @4xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-2",
       // FIXED cells, variable COUNT (added 2026-08-16, program #102). `cell` is auto-FIT + `1fr`, so extra
       // width makes each cell BIGGER; a portrait shelf measured 250px faces at a 2000px viewport and read
       // as a gallery instead of a shelf you reach into. `auto-fill` at a fixed track spends surplus width

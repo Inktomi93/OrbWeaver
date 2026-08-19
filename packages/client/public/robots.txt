@@ -1,0 +1,15 @@
+# Orbweaver is a self-hosted, single-tenant application behind authentication — there is no public
+# surface to index, and every path a crawler could reach is either the SPA shell or an API that will
+# refuse it. So the honest directive is a whole-origin disallow, not a curated allowlist.
+#
+# WHY THIS FILE EXISTS AT ALL (#194). Without it a request for /robots.txt fell through to the SPA
+# history fallback and was answered with index.html — a crawler reading 45 lines of HTML as robots
+# syntax, which is a WORSE answer than no file (it is a malformed policy rather than an absent one).
+# Lighthouse SEO scored it 0/1 on exactly that.
+#
+# It lives in `public/` rather than in a serve config because that is the ONE home that answers in both
+# front doors: vite serves `public/` at the origin root ahead of its SPA fallback in dev, and `vite build`
+# copies it into the bundle where the server's own static handler answers it before the history fallback
+# (entry/http/spa.ts serves real files first — the fallback is `Accept: text/html` only).
+User-agent: *
+Disallow: /
