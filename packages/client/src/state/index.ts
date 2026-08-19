@@ -82,13 +82,14 @@ export {
   setChatListCharacterFilter,
   useChatListCharacterFilter,
 } from "./chat-list-filter-store.ts";
-export type { ChatStreamApi, TurnSlot } from "./chat-stream.ts";
+export type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream.ts";
 export {
   __setFrameSchedulerForTest,
   chatStream,
   isLiveTurnPhase,
   subscribeTurnSlot,
   subscribeUserMessageCommitted,
+  useRecallState,
   useSwipeTargetMessageId,
   useTurnCommittedMessageId,
   useTurnPhase,

@@ -54,9 +54,10 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
   expect(isChatBusEventType("messageHidden")).toBe(true);
   expect(isChatBusEventType("turnAccepted")).toBe(true);
   expect(isChatBusEventType("roomEntityChanged")).toBe(true);
-  // 22 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`, the pre-arbitration `turnAccepted`,
-  // the entity→room bridge's `roomEntityChanged`) + 6 WI variants.
-  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(28);
+  expect(isChatBusEventType("memoryRecall")).toBe(true);
+  // 23 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`, the pre-arbitration `turnAccepted`,
+  // the entity→room bridge's `roomEntityChanged`, the #313 `memoryRecall`) + 6 WI variants.
+  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(29);
 });
 
 // THE LIVE-ONLY LANE (entity→room bridge §3.4). The two subsets must PARTITION the union: a member that is
@@ -64,7 +65,7 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
 // arbitrarily. `DurableChatBusEvent` is what the db CHECK derives from, so a drift here is a row shape the
 // schema would reject at runtime.
 test("LIVE_ONLY_CHAT_EVENT_TYPES partitions the union — durable ∪ live-only = every member, ∩ = ∅", () => {
-  expect([...LIVE_ONLY_CHAT_EVENT_TYPES]).toEqual(["roomEntityChanged", "chatDeleted"]);
+  expect([...LIVE_ONLY_CHAT_EVENT_TYPES]).toEqual(["roomEntityChanged", "chatDeleted", "memoryRecall"]);
   const all = Object.keys(CHAT_BUS_EVENT_TYPES);
   const liveOnly = new Set<string>(LIVE_ONLY_CHAT_EVENT_TYPES);
   // Every live-only member is a REAL union member (a typo'd tuple entry would silently narrow nothing).

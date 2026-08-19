@@ -40,12 +40,27 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
     // arbitration that fires `turnStarted` only once it completes. `speakerCharacterId` is null on accept;
     // `turnStarted` re-opens the same pending slot with the resolved speaker once arbitration picks one.
     case "turnAccepted":
+      // A NEW turn is starting — clear the recall axis to idle BEFORE its pre-provider recall runs (#313), so
+      // the brain-icon starts clean and a memory-OFF turn shows idle, never the prior turn's stale count.
+      // turnAccepted fires before assembly/recall, so this always precedes the turn's own `memoryRecall` events.
+      deps.stream.resetRecall(event.chatId);
+      deps.stream.beginTurn(event.chatId, {
+        intent: event.intent,
+        speakerCharacterId: event.speakerCharacterId,
+        targetMessageId: event.targetMessageId,
+      });
+      return;
     case "turnStarted":
       deps.stream.beginTurn(event.chatId, {
         intent: event.intent,
         speakerCharacterId: event.speakerCharacterId,
         targetMessageId: event.targetMessageId,
       });
+      return;
+    // The pre-provider `{{memory}}` recall phase (#313) — the header brain-icon's live feed. Its own store
+    // axis, invalidates nothing (no canon changed): recalling → recalled:N, or absent = idle.
+    case "memoryRecall":
+      deps.stream.setRecallPhase(event.chatId, event.phase, event.count);
       return;
     case "reasoningStreamDone":
       return; // display affordance only; the slot keeps buffering until terminal

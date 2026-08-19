@@ -133,10 +133,14 @@ import { buildWorldInfo } from "./world-info.ts";
  *    • `roomEntityChanged` = CHURN. A bulk import touching N seated entities fans N×rooms of it, and each
  *      tick cancels+restarts every open member's in-flight refetch — the exact storm W8 was built for.
  *    • `chatDeleted` = a TERMINAL, one per room ever. There is no storm to contain, and silencing even its
- *      first tick would leave an open device pointed at a room that is gone until the bulk scope exits. */
+ *      first tick would leave an open device pointed at a room that is gone until the bulk scope exits.
+ *    • `memoryRecall` = a bounded PHASE PAIR (#313), at most one recalling→recalled per scoped speaker per
+ *      turn. Its recalling→recalled transition IS the header brain-icon's signal — coalescing would drop the
+ *      "recalling…" tell (the hang indicator) — and a turn is never a bulk fan, so there is no storm to contain. */
 const QUIET_COALESCABLE = {
   roomEntityChanged: true,
   chatDeleted: false,
+  memoryRecall: false,
 } as const satisfies Record<LiveOnlyChatEventType, boolean>;
 
 /** Reconstruct the effective engine POSTURE from the two boot facts compose receives (lossless: lifecycle

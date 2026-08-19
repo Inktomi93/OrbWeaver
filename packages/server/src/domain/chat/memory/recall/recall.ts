@@ -61,6 +61,11 @@ export async function recallMemory(ctx: ChatContext, args: RecallArgs): Promise<
       slice: { mode: cfg.mode, queryText: null, queryEmbedded: false, poolSize: 0, candidateCount: 0, note: "mode off", verdicts, rendered: [], scored: null },
     });
   }
+  // The header brain-icon's live feed (#313): memory is ON, so the pre-provider recall WINDOW opens NOW —
+  // stamped BEFORE the digest load + any embed/scan/rerank so the "recalling…" state covers the whole
+  // latency the viewer perceives as a hang. `finish` stamps the matching "recalled" (count) at the one exit.
+  // Placed after the `off` early-return so memory-off never emits (an absent event is the idle icon, not a lie).
+  ctx.emitRecallPhase?.({ type: "memoryRecall", chatId: scope.chatId, phase: "recalling", count: null });
 
   // The shared (group-char) bucket ∪ the speaker's own bucket; one read when the speaker IS the group char.
   const own = await loadDigestsForScope(ctx.db, scope.chatId, scope.scopedCharacterId);
@@ -186,6 +191,12 @@ function finish(
     ...(slice.note !== null ? { note: slice.note } : {}),
   });
   ctx.recordRecall?.({ chatId: args.scope.chatId, scopedCharacterId: args.scope.scopedCharacterId, trace: slice });
+  // The header brain-icon's live feed (#313): close the "recalling" window opened in `recallMemory` with the
+  // surfaced count. Gated on a non-off mode so it PAIRS the "recalling" that fired — the `off` path never
+  // opened one, so it never closes one (an absent event is the idle icon, never a lying "recalled 0").
+  if (p.mode !== "off") {
+    ctx.emitRecallPhase?.({ type: "memoryRecall", chatId: args.scope.chatId, phase: "recalled", count: slice.surfaced });
+  }
   return { text: env.text, trace: slice };
 }
 

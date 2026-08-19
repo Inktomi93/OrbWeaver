@@ -132,6 +132,15 @@ export type TurnIntent = (typeof TURN_INTENTS)[number];
 export const TURN_ABORT_REASONS = ["user", "error", "stale"] as const;
 export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
 
+/** The pre-provider `{{memory}}` recall phase the header brain-icon reflects (the `memoryRecall` bus member).
+ *  `"recalling"` is stamped the instant recall begins for a turn (memory on) — the embed → cosine → CSLS →
+ *  optional rerank window that runs BEFORE the provider streams, so it doubles as the "is my request hanging?"
+ *  tell; `"recalled"` carries the surfaced count once that window closes. Memory OFF emits neither (the icon
+ *  stays idle — an absent event, never a lying "recalled 0"). One home; the member below derives its `phase`
+ *  from this tuple. */
+export const MEMORY_RECALL_PHASES = ["recalling", "recalled"] as const;
+export type MemoryRecallPhase = (typeof MEMORY_RECALL_PHASES)[number];
+
 /** The `DomainOperationError.code` a lock-loss / cancel / fault turn abort surfaces to an AWAITING caller —
  *  the wire-vocabulary home the client keys on off a tRPC error's `data.reason` (the seat-refusal precedent:
  *  reason codes live ONCE in contracts, and the server's `CHAT_OP_CODES` derives this literal). A turn that
@@ -319,6 +328,18 @@ export type ChatBusEvent =
   // path DEPTH, not attribution: no caller id, no secret (the allowlist bans those, not a counter). 0 = a
   // human-plane turn (the `TurnPrep.automationDepth` default).
   | { type: "turnAborted"; chatId: ChatId; intent: TurnIntent; reason: TurnAbortReason; automationDepth: number }
+  // ── Pre-provider MEMORY RECALL phase (the header brain-icon's live feed; #313) ──────────────
+  // The one signal that surfaces the `{{memory}}` recall WINDOW to a viewer: `phase:"recalling"` the instant
+  // recall starts for a turn (memory on), `phase:"recalled"` with the surfaced `count` once it closes. Stamped
+  // at the SINGLE recall convergence (`domain/chat/memory/recall/recall.ts::finish` + its start), so both the
+  // round-level and the per-speaker witnessed recall feed it with no second emit site. Memory OFF emits
+  // NEITHER — an absent event is the idle icon, never a lying "recalled 0". Allowlist-clean (Part III inv §11):
+  // a branded id, an enum phase, and a plain-scalar count — it carries NO digest content or scores (that detail
+  // is host-only and stays off the room-public bus; the header popover reads it from the host-gated assembly
+  // preview). LIVE-ONLY (see LIVE_ONLY_CHAT_EVENT_TYPES): the phase is EPHEMERAL per-turn state — replaying a
+  // stale "recalling" from a prior subscription would be a lie, and there is nothing to persist.
+  // `count` is null on `"recalling"` (not known yet) and the surfaced block count on `"recalled"`.
+  | { type: "memoryRecall"; chatId: ChatId; phase: MemoryRecallPhase; count: number | null }
   // ── Turn warning (domain-originated; e.g. image parts dropped for a non-vision model, D45) ──
   | { type: "warning"; chatId: ChatId; code: ChatWarningCode }
   // ── World-info ACTIVATION (which entries FIRED during this turn's assembly — distinct from the
@@ -388,6 +409,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   turnStarted: true,
   turnCompleted: true,
   turnAborted: true,
+  memoryRecall: true,
   warning: true,
   worldInfoActivated: true,
   personaSwitched: true,
@@ -422,14 +444,19 @@ export function isChatBusEventType(t: string): t is ChatBusEvent["type"] {
  *  the heal is the attach synthesis), and a mandatory seat in the client's `NON_DURABLE_EXEMPT` set (a
  *  non-advancing seq is dropped by the seq guard otherwise).
  *
- *  THE TWO MEMBERS JOIN FOR DIFFERENT REASONS, and both are stated so a third is classified rather than
+ *  THE THREE MEMBERS JOIN FOR DIFFERENT REASONS, and each is stated so a fourth is classified rather than
  *  guessed: `roomEntityChanged` is live-only as an ECONOMY (a durable row per seated room per card edit buys
  *  nothing — the heal is the attach synthesis); `chatDeleted` is live-only by PHYSICS (its log row cascades
  *  away with the very chat it announces, so it was never replayable at all — design §4 / R1-4a), and being
  *  append-free is precisely what lets its two producers DELETE FIRST and fan only what `RETURNING` proves
- *  gone. Only `roomEntityChanged` is quiet-coalescable (`transport/trpc/quiet-fanout.ts`): a room death is
- *  one terminal event per room, never a storm, and silencing it would strand an open room on a dead chat. */
-export const LIVE_ONLY_CHAT_EVENT_TYPES = ["roomEntityChanged", "chatDeleted"] as const;
+ *  gone; `memoryRecall` is live-only by SEMANTICS (#313) — it is an EPHEMERAL per-turn phase feeding the
+ *  header brain-icon, so replaying a stale "recalling" from a prior subscription would be a lie, and there is
+ *  no state to persist (the icon idles from an absent event). Only `roomEntityChanged` is quiet-coalescable
+ *  (`transport/trpc/quiet-fanout.ts`): a room death is one terminal event per room, never a storm, and
+ *  silencing it would strand an open room on a dead chat — and `memoryRecall` must NOT coalesce either, since
+ *  its "recalling"→"recalled" transition IS the signal (its volume is already bounded: at most one pair per
+ *  scoped speaker per turn). */
+export const LIVE_ONLY_CHAT_EVENT_TYPES = ["roomEntityChanged", "chatDeleted", "memoryRecall"] as const;
 export type LiveOnlyChatEventType = (typeof LIVE_ONLY_CHAT_EVENT_TYPES)[number];
 
 /** A `ChatBusEvent` that MAY be appended to the durable `chat_events` log — the union minus the live-only

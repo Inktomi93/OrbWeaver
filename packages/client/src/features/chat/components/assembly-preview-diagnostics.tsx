@@ -8,20 +8,13 @@
 //
 // Host-only by inheritance: it renders data from the two `requireHost` reads the panel already made.
 
-import type {
-  AssembleTrace,
-  MemoryRecallCandidate,
-  MemoryRecallVerdict,
-  ShapeBreakpointDecision,
-  ShapeRowSource,
-  ShapeTrace,
-  ShapeTraceRow,
-} from "@orb/contracts/chat";
+import type { AssembleTrace, ShapeBreakpointDecision, ShapeRowSource, ShapeTrace, ShapeTraceRow } from "@orb/contracts/chat";
 import { Badge } from "@orb/ui/badge";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { MemoryRecallDetail } from "./memory-recall-detail.tsx";
 
 /** The instrument's section voice (the mock's `.kicker`): micro-caps, muted — a panel-width heading, never the
  *  `Section` default title size, which at the 17rem floor shouts louder than the data it labels. */
@@ -66,7 +59,7 @@ export function AssemblyPreviewDiagnostics({
           ) : null}
           <TraceSummary trace={trace} />
           <WorldInfoActivated activated={trace.worldInfoActivated} />
-          <MemoryRecall recall={trace.memoryRecall} />
+          <MemoryRecallDetail recall={trace.memoryRecall} />
           <ShapeTraceSummary trace={shapeTrace} />
           <WireRows rows={shapeTrace.rows} />
         </Stack>
@@ -156,90 +149,6 @@ function WorldInfoActivated({ activated }: { readonly activated: AssembleTrace["
         </Stack>
       )}
     </Section>
-  );
-}
-
-/** The human label per recall verdict (`MemoryRecallVerdict`) — a mapped-type Record, so a widened axis fails
- *  `tsc` here (§5.5). Written as the ANSWER to "why is this block here / not here", not as the internal
- *  stage name: a host reads "still in the live history", never "live-window". */
-const RECALL_VERDICT_LABEL: Record<MemoryRecallVerdict, string> = {
-  admitted: "surfaced",
-  "below-floor": "below the score floor",
-  "bridge-covered": "covered by a higher tier",
-  "mode-excluded": "not eligible in this mode",
-  "live-window": "still in the live history",
-  unwitnessed: "not witnessed by this speaker",
-};
-
-/** WHAT MEMORY FETCHED AND WHY (#250) — the recall slice of the assembly trace: the query it matched on, the
- *  pool it chose from, and every surfaced block with the score it was admitted on, followed by the top rejects
- *  with the reason each lost. The `{{memory}}` twin of {@link WorldInfoActivated}: before this, the ONLY
- *  observable fact about a turn's memory was the single `Memory` badge on the Trace section, which says that
- *  something was included and nothing about what or why.
- *
- *  `null` ⇒ recall never ran for this assembly (a hand-built context) — distinct from a recall that surfaced
- *  nothing, which renders its own counts and reason. */
-function MemoryRecall({ recall }: { readonly recall: AssembleTrace["memoryRecall"] }): ReactElement {
-  if (recall === null) {
-    return (
-      <Section heading={<Kicker>Memory recall</Kicker>}>
-        <Text>Memory recall did not run for this assembly.</Text>
-      </Section>
-    );
-  }
-  return (
-    <Section heading={<Kicker>{`Memory recall — ${recall.surfaced} of ${recall.poolSize} surfaced`}</Kicker>}>
-      <Stack gap="field">
-        <TraceLine label="Mode" value={recall.mode} />
-        <TraceLine label="Pool → candidates → surfaced" value={`${recall.poolSize} → ${recall.candidateCount} → ${recall.surfaced}`} />
-        {recall.note === null ? null : <TraceLine label="Result" value={recall.note} />}
-        {recall.queryText === null ? null : (
-          <Stack gap="row">
-            <Text voice="label">{recall.queryEmbedded ? "Query (embedded)" : "Query"}</Text>
-            <Text className="whitespace-pre-wrap" voice="datum">
-              {recall.queryText}
-            </Text>
-          </Stack>
-        )}
-        {recall.candidates.length === 0 ? (
-          <Text>No memory blocks were considered.</Text>
-        ) : (
-          <Stack gap="row" role="list">
-            {recall.candidates.map((candidate) => (
-              <RecallCandidateLine candidate={candidate} key={`${candidate.scopedCharacterId}:${candidate.tier}:${candidate.blockIdx}`} />
-            ))}
-          </Stack>
-        )}
-      </Stack>
-    </Section>
-  );
-}
-
-/** `relevance` is cosine similarity in 0..1; the readout is a percentage, which is the only unit a host has
- *  any intuition for ("83% match"). The rank SCORE is deliberately not rendered — it is CSLS-adjusted and
- *  lower-is-closer, so printing it beside a percentage would put two opposite scales on one line. */
-const RELEVANCE_PERCENT = 100;
-
-/** One considered block: `tier.block` leads (its stable identity), the verdict + score trail it. A SURFACED
- *  block wears the badge — the same "this one is noteworthy" weight the wire rows use — because the question
- *  the section answers is which blocks made it. */
-function RecallCandidateLine({ candidate }: { readonly candidate: MemoryRecallCandidate }): ReactElement {
-  const rank = candidate.rank === undefined ? "" : `#${candidate.rank + 1} `;
-  const label = RECALL_VERDICT_LABEL[candidate.verdict];
-  return (
-    <Row align="baseline" data-slot="memory-recall-candidate" gap="block" justify="between" role="listitem">
-      <Text voice="datum">{`${rank}tier ${candidate.tier} · block ${candidate.blockIdx}`}</Text>
-      <Row align="baseline" className="shrink-0" gap="field">
-        {candidate.verdict === "admitted" ? (
-          <Badge intent="info" size="sm">
-            {label}
-          </Badge>
-        ) : (
-          <Text voice="gloss">{label}</Text>
-        )}
-        {candidate.relevance === undefined ? null : <Text voice="gloss">{`${Math.round(candidate.relevance * RELEVANCE_PERCENT)}% match`}</Text>}
-      </Row>
-    </Row>
   );
 }
 

@@ -65,6 +65,41 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     expect(out).toBe(joinBlocks(facet("[s0]", "a"), facet("[s1]", "b")));
   });
 
+  // #313 — the header brain-icon's live feed. A memory-ON recall opens the "recalling" window BEFORE it
+  // works and closes it with the surfaced count; a memory-OFF recall fires NEITHER (an absent event is the
+  // idle icon, never a lying "recalled 0"). The phase is stamped at the ONE recall convergence, so both the
+  // round-level and the per-speaker recall feed it.
+  test("#313 memory ON emits recalling → recalled:N; memory OFF emits nothing", async () => {
+    const emitted: { phase: string; count: number | null }[] = [];
+    const emitRecallPhase = (event: { phase: string; count: number | null }): void => {
+      emitted.push({ phase: event.phase, count: event.count });
+    };
+
+    const onChatId = await seedChat(db, "recallphase_on");
+    await seedDigest(db, { chatId: onChatId, tier: 0, blockIdx: 0, topicAnchor: "[s0]", keywords: ["a"] });
+    await seedDigest(db, { chatId: onChatId, tier: 0, blockIdx: 1, topicAnchor: "[s1]", keywords: ["b"] });
+    await recallMemory(makeChatContext(db, { emitRecallPhase }), {
+      scope: sharedScope(onChatId),
+      groupCharacterId: GROUP_CHAR,
+      config: { mode: "mixA" },
+    });
+    // recalling first (count null, before any work), then recalled with the surfaced block count (both tier-0).
+    expect(emitted).toEqual([
+      { phase: "recalling", count: null },
+      { phase: "recalled", count: 2 },
+    ]);
+
+    emitted.length = 0;
+    const offChatId = await seedChat(db, "recallphase_off");
+    await seedDigest(db, { chatId: offChatId, tier: 0, blockIdx: 0 });
+    await recallMemory(makeChatContext(db, { emitRecallPhase }), {
+      scope: sharedScope(offChatId),
+      groupCharacterId: GROUP_CHAR,
+      config: { mode: "off" },
+    });
+    expect(emitted).toEqual([]);
+  });
+
   // THE END-TO-END SHRINK PIN (stickler 2026-08-08 leg-2 refutation). The recall seam is where the defect was
   // actually payable: hiding a trailing span removed those rows from the prompt AND from the ingest set, but
   // the digest already summarized FROM them survived in `chat_digests` — blocks are keyed `(tier, blockIdx)`
