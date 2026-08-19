@@ -43,7 +43,7 @@ import { testId } from "#lib";
 import { selectChat, selectCorpusCharacter, setActiveSection } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import type { EvidenceRoom } from "../lib/corpus-result-text.ts";
-import { chatSubtitle, evidenceScent, groupEvidenceByPassage, roomNumberingHint, snippetForDisplay } from "../lib/corpus-result-text.ts";
+import { chatSubtitle, evidenceScent, groupEvidenceByPassage, roomNumberingHint, sharedRooms, snippetForDisplay } from "../lib/corpus-result-text.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 
@@ -106,6 +106,11 @@ export function CharacterHitRow({
 export function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
   const passages = groupEvidenceByPassage(hit.segments, hit.name);
   const rooms = new Set(hit.segments.map((segment) => segment.chatId)).size;
+  // ONE ROOM SAID ONCE (side-eye corpus re-pass #3, P3-D). The ordinary case is three passages out of the
+  // SAME room, which printed the identical door three times under one character. When the doors are true of
+  // every passage they lift out of the evidence and sit under the group; otherwise each passage keeps its
+  // own, because a door that is not true of every passage cannot be hoisted without lying.
+  const shared = sharedRooms(passages);
   return (
     <Stack gap="field" role="listitem">
       <ListRow
@@ -124,13 +129,22 @@ export function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactEle
         {passages.map((passage) => (
           <Stack gap="tight" key={passage.snippet}>
             <Text voice="gloss">“{passage.snippet}”</Text>
-            <Row className="flex-wrap" gap="field">
-              {passage.rooms.map((room) => (
-                <RoomDoor key={room.chatId} room={room} />
-              ))}
-            </Row>
+            {shared === null ? (
+              <Row className="flex-wrap" gap="field">
+                {passage.rooms.map((room) => (
+                  <RoomDoor key={room.chatId} room={room} />
+                ))}
+              </Row>
+            ) : null}
           </Stack>
         ))}
+        {shared === null ? null : (
+          <Row className="flex-wrap" gap="field">
+            {shared.map((room) => (
+              <RoomDoor key={room.chatId} room={room} />
+            ))}
+          </Row>
+        )}
       </Stack>
     </Stack>
   );

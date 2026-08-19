@@ -26,6 +26,31 @@ test("renders a canvas even under prefers-reduced-motion", async ({ mount, page 
   await expect(component.locator("canvas")).toBeVisible();
 });
 
+// ── A PERCENTAGE HEIGHT HAS TO REACH THE CANVAS (side-eye corpus re-pass #3, P2-A) ────────────────────
+// `height="100%"` landed on the ECharts <div> while the wrapper stayed `height: auto`, so the percentage
+// resolved against an auto-height parent — which CSS treats as `auto` — and echarts fell to its own floor.
+// The measured symptom: a 100px strip of semantic map inside a 693px panel. The host below is the shape
+// every real caller has (LabeledChartFrame is a flex column with a definite height), and the assertion is
+// the CANVAS, not the wrapper: the wrapper was tall the whole time, which is why the map tab's own
+// dead-foot test stayed green while the plot was a strip.
+const PERCENT_HOST_PX = 400;
+/** How much of a definite-height flex host a `height="100%"` chart must actually take. Not 100%: the host
+ *  in production also carries a heading and a key, and this one carries the sibling below. */
+const PERCENT_FILL_RATIO = 0.6;
+
+test("a percentage height reaches the CANVAS, not just the wrapper (P2-A)", async ({ mount }) => {
+  const component = await mount(
+    <div style={{ display: "flex", flexDirection: "column", height: PERCENT_HOST_PX, width: 320 }}>
+      <Chart height="100%" label="Widget usage" option={BASIC_OPTION} />
+    </div>,
+  );
+  const canvas = component.locator("canvas");
+  await expect(canvas).toBeVisible();
+  await expect
+    .poll(async () => (await canvas.boundingBox())?.height ?? 0, { intervals: [20, 50, 100, 200] })
+    .toBeGreaterThanOrEqual(PERCENT_HOST_PX * PERCENT_FILL_RATIO);
+});
+
 /** The mounted container's starting width — the canvas must adopt it, and then leave it. */
 const INITIAL_CONTAINER_PX = 300;
 
