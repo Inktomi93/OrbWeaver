@@ -251,6 +251,33 @@
   animation: shell-list-panel-in var(--shell-motion) var(--shell-ease);
 }
 
+/* ── THE REDUCED-MOTION SETTLE (#262) — the FLIP's physics without the FLIP ───────────────────────────
+ * A FLIP is a MOTION mechanism, so #151 correctly stopped arming it for a user who asked for less motion,
+ * and the track just resized in one frame. That frame is a REAL recorded layout shift, and it lands on
+ * exactly those users: MEASURED on the merged tree 2026-08-19 (`pnpm perf-meter --goto <section>`,
+ * reports/perf-meter/scls-*) presets 0.2032 · characters 0.2333 · corpus 0.2295 against 0.0112 · 0.0038 · 0
+ * with motion on — 2.3x the 0.1 budget, one entry, one source: `div.shell-main`, x 56 -> 363.
+ *
+ * These two declarations are the FLIP keyframes' `from` corner, held as a STATIC value: same distance
+ * (`--list-track-docked`, so the #242 squeeze is cancelled here too), same element, and NO animation, NO
+ * transition, NO duration. `use-list-track-flip.ts` drops the attribute after exactly one painted frame, so
+ * `.shell-main` shows its old column for that frame and its new one after — one instant cut, nothing
+ * interpolating, nothing for the compositor to hold pending (the #151 failure needed an ANIMATION to be
+ * pending; there is none here). The browser scores it at zero for the reason the block above documents with
+ * its own positive control: the held frame's visual start position is unchanged, and releasing a transform
+ * is not layout instability.
+ *
+ * NOT A REINSTATED FLIP, and it must not become one: a duration or a transition-property on these rules
+ * puts motion back in front of the user who switched it off. The reduced-motion floor (@orb/ui globals.css,
+ * `transition-property: none`) would kill a transition anyway — which is precisely why the mechanism is a
+ * one-frame attribute and not a CSS timing declaration. */
+.shell-grid[data-list-settle="in"] .shell-main {
+  translate: calc(-1 * var(--list-track-docked)) 0;
+}
+.shell-grid[data-list-settle="out"] .shell-main {
+  translate: var(--list-track-docked) 0;
+}
+
 /* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
  * SAME DOM into the mobile bottom tab bar (no twin blocks). The flex-column layout lives on .shell-rail
  * itself now (the old .shell-rail-desktop wrapper is gone). */
@@ -904,6 +931,11 @@
   .shell-grid[data-list-flip] .shell-main,
   .shell-grid[data-list-flip] .shell-panel[data-panel-side="list"] {
     animation: none;
+  }
+  /* …and the reduced-motion SETTLE (#262) is cancelled here for the same reason and by the same argument:
+   * the hook is regime-blind, so on a phone its one-frame hold would translate a column that never moved. */
+  .shell-grid[data-list-settle] .shell-main {
+    translate: none;
   }
   /* The SAME rail DOM reflows into the bottom tab bar: the column becomes a row, the nav-group / footer
    * wrappers collapse (display:contents) so their buttons flow into the row directly, desktop-only chrome

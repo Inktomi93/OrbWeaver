@@ -31,9 +31,11 @@ interface VtGlobals {
  * "This user has asked for no motion" — the OS preference OR the app's own `data-reduced-motion` pref,
  * which the shell stamps on `.shell-grid` (a setting beyond the OS one). ONE home for the pair, because a
  * caller that checks only the OS half silently ignores half its users: `withViewTransition` skips the
- * crossfade on it, and `useListTrackFlip` skips the counter-translate on it (#151 — a FLIP whose duration
- * the reduced-motion CSS floor collapses to ~0 does not become "instant", it becomes a one-to-two-frame
- * hold of its `from` corner, i.e. the whole content column painted a panel-width out of place).
+ * crossfade on it, and `useListTrackFlip` skips the ANIMATED FLIP on it (#151 — a FLIP whose duration the
+ * reduced-motion CSS floor collapses to ~0 does not become "instant", it becomes a one-to-two-frame hold of
+ * its `from` corner, i.e. the whole content column painted a panel-width out of place). What it stamps on
+ * this arm instead is the zero-duration SETTLE (#262): the same counter-translate held for one frame, which
+ * is not motion and is not a recorded layout shift either.
  */
 export function motionIsReduced(): boolean {
   const g = globalThis as VtGlobals;
