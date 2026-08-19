@@ -392,17 +392,18 @@
     },
     {
       "path": "docs/design/home-tile-promotion.md",
-      "assignedSha256": "7d0b82f70054c2cf526f9164ee16f2868d0240acb51c4d92b6495db78366bce0",
+      "assignedSha256": "92154f2e5d0680b5683d07d0f377a9d25ba51f593e70fd30d670cb050f8cd129",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "7d0b82f70054c2cf526f9164ee16f2868d0240acb51c4d92b6495db78366bce0",
-      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "92154f2e5d0680b5683d07d0f377a9d25ba51f593e70fd30d670cb050f8cd129",
+      "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
+      "verifiedAt": "2026-08-19",
       "evidence": [
         "docs/design/home-tile-promotion.md:1 (design; open — owner decision pending)",
         "git log --oneline -1 -- docs/design/home-tile-promotion.md: 24f99e257 feat(databank): the bank is walkable past its first page",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green"
       ],
       "summary": "Conditional HOME-tile promotion (the databank `useOrder` follow-up): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [
@@ -1114,17 +1115,18 @@
     },
     {
       "path": "docs/design/staleness-and-session-freshness.md",
-      "assignedSha256": "8033416d081174e1be3ba55f5e4afdb4121f330fefd342d0997de6aa4ddfc68f",
+      "assignedSha256": "c85327f983450c6a794bf81b764c146c2e1d8df0ca84087bdcdb7265eec6fd07",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "8033416d081174e1be3ba55f5e4afdb4121f330fefd342d0997de6aa4ddfc68f",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "c85327f983450c6a794bf81b764c146c2e1d8df0ca84087bdcdb7265eec6fd07",
+      "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
+      "verifiedAt": "2026-08-19",
       "evidence": [
         "docs/design/staleness-and-session-freshness.md:1 (design; active)",
         "git log --oneline -1 -- docs/design/staleness-and-session-freshness.md: 786fe372c feat(bridge): chatDeleted goes live-only — R1-4a closed, quiet coalescer spans both planes, SEATED-red gate arm",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green"
       ],
       "summary": "Staleness & session freshness — diagnosis + design + game plan: full content read against frozen tree; landed-state record retained as historical evidence."
     },

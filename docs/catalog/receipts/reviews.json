@@ -938,10 +938,10 @@
         "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md authored+full-read this session (stickler research: corpus consolidation, Observatory vs Wing; owner picked Observatory V1 on #159)",
         "git log --oneline -1 -- docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md: d29355b19 docs(reviews): the corpus consolidation proposal (#159)"
       ],
-      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 \u2014 awaiting detailed-mockup sign-off (#159), nothing builds before it.",
+      "summary": "Stickler consolidation proposal for corpus/analytics/tags (List|Content|Context Observatory design); owner picked Observatory V1 — awaiting detailed-mockup sign-off (#159), nothing builds before it.",
       "claims": [
         {
-          "claim": "Owner picked Observatory V1; detailed mockups gate any build \u2014 mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
+          "claim": "Owner picked Observatory V1; detailed mockups gate any build — mutable follow-up tracked in GitHub issue #159 (mockups) and #160 (dead artifact rows, held for the design).",
           "evidence": [
             {
               "kind": "issue",
@@ -980,7 +980,7 @@
       "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
       "verifiedAt": "2026-08-18",
       "evidence": [
-        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 \u2014 the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
+        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 — the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
         "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
       ],
       "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
@@ -1009,7 +1009,7 @@
         "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md:1-194 full read at merge",
         "stickler F1 fixed at e0f8512f8 (opaque corrected ink, close-the-loop test); F2/F3 truth-repaired at 0f6b3eb4d; issue #204"
       ],
-      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) \u2014 all resolved at merge.",
+      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) — all resolved at merge.",
       "claims": [
         {
           "claim": "F1 (translucent-ink fixed point) is fixed: the corrected emission is opaque and re-judged.",
@@ -1064,10 +1064,58 @@
           ]
         }
       ],
-      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation \u2014 R1-R5 costed options for the owner pick.",
+      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation — R1-R5 costed options for the owner pick.",
       "evidence": [
         "docs/reviews/misc/2026-08-18-corpus-forensics.md:1-660 full read at merge",
         "driven live 2026-08-18: 5/5 retrieval checks, wire harvest via /api/trpc, csls.ts A/B receipt"
+      ]
+    },
+    {
+      "path": "docs/reviews/misc/2026-08-19-lens-triage-210.md",
+      "assignedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
+      "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
+      "verifiedAt": "2026-08-19",
+      "evidence": [
+        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session — lane lens-triage #210; 70 hits classified with path:line receipts)",
+        "pnpm check:docs (2026-08-19: green)"
+      ],
+      "summary": "Contract-field-liveness lens triage: 57 live, 11 intentional-dormant, 2 defects (card serde import-fidelity), 0 dead; lens-improvement notes.",
+      "claims": [
+        {
+          "claim": "creator_notes_multilingual is promoted-then-never-folded: cardFromJson reads creator_notes only, so multilingual-only notes are destroyed on import.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/kit/serde/card/index.ts:216"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/kit/serde/card/index.ts:290"
+            }
+          ]
+        },
+        {
+          "claim": "use_regex is validated then discarded, and its justifying comment is false: world-info compiles keys with RegExp.escape (literal matching).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/kit/src/world-info/index.ts:90"
+            }
+          ]
+        },
+        {
+          "claim": "The lens discards same-file readers via a whole-file path filter, producing 8 false \"only occurrence\" hits.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "scripts/codemods/ast.ts:4638"
+            }
+          ]
+        }
       ]
     }
   ]
