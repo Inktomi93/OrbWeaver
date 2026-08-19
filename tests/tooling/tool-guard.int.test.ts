@@ -325,6 +325,11 @@ const ROWS: Row[] = [
   ["advisory", "advisory", 'git add -A && git commit -m "x" '],
   ["advisory", "advisory", "git commit --no-verify -m x -- docs"],
   ["ask", "rm-rf-unsafe", "rm -rf packages/client/src/features/old-thing"],
+  // ---- rg -r/--replace glued to a shorthand cluster: DENY (silently REPLACES text, no error) ----
+  ["deny", "rg-replace-mangle", "rg -rln foo ."],
+  ["pass", null, "rg -n foo ."],
+  ["pass", null, "rg --files-with-matches foo ."],
+  ["pass", null, 'rg -r "replacement" foo .'],
   // ---- MUST-PASS: the false-positive traps ----
   ["pass", null, 'git commit -m "fix the pnpm check pipe that ate our exit code"'],
   ["pass", null, 'git commit -m "docs(board): pnpm verify --push 17/17 green" -- docs'],
