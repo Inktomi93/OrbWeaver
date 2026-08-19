@@ -53,7 +53,7 @@ export function CorpusHomeSkeleton(): ReactElement {
         <Skeleton className="h-3 w-1/6" />
         <Skeleton className="h-8 w-2/3" />
       </Stack>
-      <Grid className="items-start" cols="leadEarly" gap="gutter">
+      <Grid cols="leadEarly" gap="gutter">
         <Card className="min-w-0">
           <Stack gap="row">
             <Skeleton className="h-4 w-1/3" />

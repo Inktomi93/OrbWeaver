@@ -13,7 +13,6 @@ export type {
   MemoryRecallRecord,
   MemoryRecallRecorder,
   MemoryRecallResult,
-  MemoryRecallSink,
   MemoryScope,
   MsgRow,
   ParsedDigest,
