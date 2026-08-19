@@ -7,7 +7,9 @@ import {
   compositeSrgb,
   oklchToSrgb,
   proseInkLightness,
+  READING_BAND_ALPHA,
   srgbToOklch,
+  THEME_DERIVATION,
   wcagContrastRatio,
 } from "../../../../packages/kit/src/theme-derivation/index.ts";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
@@ -193,6 +195,39 @@ test("a picked background emits --color-reading-plate as base + readingPlate.del
   expect(clampThemeTokens({ accent: "#abc" }).vars["--color-reading-plate"]).toBeUndefined();
 });
 
+// ── #241: the sticky attribution BAND emission — the plate's colour at alpha 1, and the CLOSE-THE-LOOP
+// judgement (D144c): the guarantee is not "we spelled a 1", it is that the two EMITTED values are the
+// same colour and differ only in alpha. Read the emissions, don't re-derive them. ──
+const BAND_RE = /^oklch\(from (?<origin>.+) calc\(l \+ (?<delta>[-\d.]+)\) c h \/ (?<alpha>[\d.]+)\)$/u;
+
+test("a picked background emits --color-reading-band as the SAME derivation at alpha 1 — no step against the plate", () => {
+  const bands: ReadonlyArray<readonly [label: string, background: string]> = [
+    ["the carried LIGHT room (#217)", "oklch(0.98 0.004 78)"],
+    ["a DARK base (the sacred rooms)", "oklch(0.158 0.006 60)"],
+    ["a base neither reader resolves", "rebeccapurple"],
+  ];
+  for (const [label, background] of bands) {
+    const { vars } = clampThemeTokens({ background });
+    const band = BAND_RE.exec(vars["--color-reading-band"] ?? "");
+    const plate = BAND_RE.exec(vars["--color-reading-plate"] ?? "");
+    expect(band?.groups, `${label}: the band is emitted in the derived form`).toBeDefined();
+    expect(plate?.groups, `${label}: the plate is emitted in the derived form`).toBeDefined();
+    // The colour half: same origin, same L shift, and the shift is the PLATE's, not a second constant.
+    expect(band?.groups?.["origin"], `${label}: the band derives off the same base`).toBe(plate?.groups?.["origin"]);
+    expect(Number(band?.groups?.["delta"]), `${label}: the band takes the plate's deltaL`).toBe(THEME_DERIVATION.readingPlate.deltaL);
+    expect(Number(band?.groups?.["delta"]), `${label}: …which is the plate's own`).toBe(Number(plate?.groups?.["delta"]));
+    // The alpha half: opaque, and spelled EXPLICITLY (an omitted slot would inherit the origin's).
+    expect(Number(band?.groups?.["alpha"]), `${label}: the band is opaque (#168 untouched)`).toBe(READING_BAND_ALPHA);
+  }
+  // Non-vacuity: on the arm the ruling was filed over, the plate is NOT opaque — so "same colour, different
+  // alpha" is a real claim and not two identical strings.
+  expect(Number(BAND_RE.exec(clampThemeTokens({ background: "oklch(0.158 0.006 60)" }).vars["--color-reading-plate"] ?? "")?.groups?.["alpha"])).toBeLessThan(
+    READING_BAND_ALPHA,
+  );
+  // No base ⇒ no band, exactly like the plate: a DERIVATION, never a default.
+  expect(clampThemeTokens({ accent: "#abc" }).vars["--color-reading-band"]).toBeUndefined();
+});
+
 // ── #204 §7a: the prose-ink clamp — the four author-picked inks judged against the picked base. ──
 test("a SENSIBLE authored ink passes through BYTE-IDENTICAL (the no-op-where-the-card-was-sensible arm)", () => {
   // Birdie's real palette: dialogue L 0.4 on base L 0.98 clears AA (~8.5:1) — the clamp must not move it.
@@ -340,6 +375,7 @@ test("the ambient base NEVER emits and NEVER overrides a CARRIED background (the
   const inkOnly = clampThemeTokens({ narrationColor: ST_DARK_INK }, LIGHT_SEED_BASE);
   expect(inkOnly.vars["--color-background"]).toBeUndefined();
   expect(inkOnly.vars["--color-reading-plate"]).toBeUndefined();
+  expect(inkOnly.vars["--color-reading-band"]).toBeUndefined();
   expect(inkOnly.vars["--color-sidebar"]).toBeUndefined();
   expect(inkOnly.vars["--color-foreground"]).toBeUndefined();
   expect(inkOnly.colorScheme).toBeUndefined();

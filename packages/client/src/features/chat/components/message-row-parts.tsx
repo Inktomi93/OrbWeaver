@@ -275,7 +275,8 @@ function renderRowIdentity(args: { readonly attribution: RowAttribution; readonl
  *
  *  The sticky chip SUPERSEDES the wallpaper one because an opaque fill is a strict superset of a
  *  translucent plate, and both spell the same property: applied together,
- *  `in-data-[has-bg-image]:bg-reading-plate` outranks a plain `bg-card` on specificity, so over ART —
+ *  `in-data-[has-bg-image]:bg-reading-plate` outranks a plain `bg-reading-band` on specificity (the two
+ *  are the same COLOUR since #241 — but not the same ALPHA, which is the whole ruling), so over ART —
  *  the exact mount #168's live receipt came from — the band would stay translucent and keep showing the
  *  prose scrolling under it. Layout neutrality is unchanged by the swap: over art both arms carry one
  *  `py-row`, and without art the sticky arm's own `-my-row` cancels its `py-row` (pinned by the
