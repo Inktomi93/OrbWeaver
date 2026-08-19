@@ -134,6 +134,66 @@ describe("createVllmChat", () => {
     expect(deltas).toContainEqual({ kind: "reasoning", text: "thinking" });
   });
 
+  // ── D45 wire mapping (the multimodal send this surface owed since the pipeline half landed) ──
+  test("a user turn carrying an image part rides the wire as a content-part ARRAY with image_url (D45)", async () => {
+    const rec = recordingClient();
+    const chat = createVllmChat({ client: rec.client, now: clock() });
+    await chat(
+      chatReq({
+        history: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "what is this?" },
+              { type: "image", url: "data:image/png;base64,AAAA" },
+            ],
+          },
+        ],
+      }),
+    );
+    const messages = rec.read()?.["messages"] as { role: string; content: unknown }[];
+    const user = messages.find((m) => m.role === "user");
+    expect(user?.content).toEqual([
+      { type: "text", text: "what is this?" },
+      // biome-ignore lint/style/useNamingConvention: the OpenAI-compatible multimodal wire field name.
+      { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } },
+    ]);
+  });
+
+  test("a video part rides as video_url — vLLM's multimodal extension, sampled by the engine's launch kwargs (#317)", async () => {
+    const rec = recordingClient();
+    const chat = createVllmChat({ client: rec.client, now: clock() });
+    await chat(
+      chatReq({
+        history: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "watch this" },
+              { type: "video", url: "data:video/mp4;base64,BBBB" },
+            ],
+          },
+        ],
+      }),
+    );
+    const messages = rec.read()?.["messages"] as { role: string; content: unknown }[];
+    const user = messages.find((m) => m.role === "user");
+    expect(user?.content).toEqual([
+      { type: "text", text: "watch this" },
+      // biome-ignore lint/style/useNamingConvention: the OpenAI-compatible multimodal wire field name.
+      { type: "video_url", video_url: { url: "data:video/mp4;base64,BBBB" } },
+    ]);
+  });
+
+  test("a text-only user turn stays PLAIN-STRING content (byte-stable — prefix caches key on it)", async () => {
+    const rec = recordingClient();
+    const chat = createVllmChat({ client: rec.client, now: clock() });
+    await chat(chatReq());
+    const messages = rec.read()?.["messages"] as { role: string; content: unknown }[];
+    const user = messages.find((m) => m.role === "user");
+    expect(user?.content).toBe("hi");
+  });
+
   test("emits min_p in the wire body when the user set minP (D68-A)", async () => {
     let sentBody: Record<string, unknown> | undefined;
     const client: VllmEngineClient = {

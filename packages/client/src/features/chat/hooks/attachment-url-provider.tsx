@@ -12,6 +12,7 @@ import type { AssetId, ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useTRPC } from "#data";
+import type { ResolvedAttachment } from "./attachment-url-context.tsx";
 import { AttachmentUrlContext, assetIdsInContent } from "./attachment-url-context.tsx";
 
 export interface AttachmentUrlProviderProps {
@@ -31,6 +32,8 @@ export function AttachmentUrlProvider({ chatId, content, children }: AttachmentU
     ...trpc.assets.resolveChatBlobRefs.queryOptions({ chatId, assetIds }),
     enabled: assetIds.length > 0,
   });
-  const map: ReadonlyMap<AssetId, string> = new Map((query.data ?? []).map((ref) => [ref.assetId, blobUrl(ref.hash)] as const));
+  const map: ReadonlyMap<AssetId, ResolvedAttachment> = new Map(
+    (query.data ?? []).map((ref) => [ref.assetId, { url: blobUrl(ref.hash), mime: ref.mime }] as const),
+  );
   return <AttachmentUrlContext value={map}>{children}</AttachmentUrlContext>;
 }

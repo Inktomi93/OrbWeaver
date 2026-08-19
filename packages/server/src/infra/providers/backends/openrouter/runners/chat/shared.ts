@@ -3,6 +3,7 @@
 // SDK→kit stream-chunk reshaper. Pure data shaping — no transport, no clock.
 
 import type {
+  ChatContentItems,
   ChatContentText,
   ChatFormatJsonSchemaConfig,
   ChatFunctionTool,
@@ -104,7 +105,30 @@ function toolResultMessages(content: readonly ChatContentPart[]): ChatMessages[]
   return out;
 }
 
-// A text-less assistant tool-call turn is kept (the calls ARE its content).
+/** The D45/#317 multimodal user content: the SDK's camelCase content-part array when the turn carries
+ *  image/video parts (`ChatContentImage`/`ChatContentVideo` — the SDK's outbound schema renames to the
+ *  snake wire; both accept data: URLs per the SDK source), else the PLAIN STRING (byte-stable request
+ *  bodies — the cache-breakpoint placer and the prompt cache both key on string content). */
+function userContent(content: readonly ChatContentPart[]): string | ChatContentItems[] {
+  if (!content.some((part) => part.type === "image" || part.type === "video")) {
+    return chatHistoryText(content);
+  }
+  const items: ChatContentItems[] = [];
+  for (const part of content) {
+    if (part.type === "text") {
+      items.push({ type: TEXT_BLOCK_TYPE, text: part.text });
+    } else if (part.type === "image") {
+      items.push({ type: "image_url", imageUrl: { url: part.url } });
+    } else if (part.type === "video") {
+      items.push({ type: "video_url", videoUrl: { url: part.url } });
+    }
+    // tool parts ride the message-level toolCalls / tool-role seams, never the content array.
+  }
+  return items;
+}
+
+// A text-less assistant tool-call turn is kept (the calls ARE its content); a media-carrying user turn is
+// kept even when its text is empty (the parts ARE its content).
 // A `system` row is a capability-kept mid-conversation system injection (`turns.midConversationSystem`)
 // — delivered as a REAL system message on this wire (legal OpenAI vocab), never coerced to user.
 function nonToolMessage(turn: ChatHistoryMessage): ChatMessages | null {
@@ -112,19 +136,24 @@ function nonToolMessage(turn: ChatHistoryMessage): ChatMessages | null {
   if (turn.role === "system") {
     return text.trim().length > 0 ? { role: SYSTEM_ROLE, content: text } : null;
   }
-  const toolCalls = turn.role === "assistant" ? historyToolCalls(turn.content) : undefined;
-  if (text.trim().length === 0 && toolCalls === undefined) {
+  const name = turn.name !== undefined ? { name: turn.name } : {};
+  if (turn.role === "assistant") {
+    const toolCalls = historyToolCalls(turn.content);
+    if (text.trim().length === 0 && toolCalls === undefined) {
+      return null;
+    }
+    return {
+      role: "assistant",
+      content: text,
+      ...(toolCalls !== undefined ? { toolCalls } : {}),
+      ...name,
+    };
+  }
+  const content = userContent(turn.content);
+  if (typeof content === "string" && content.trim().length === 0) {
     return null;
   }
-  const name = turn.name !== undefined ? { name: turn.name } : {};
-  return turn.role === "assistant"
-    ? {
-        role: "assistant",
-        content: text,
-        ...(toolCalls !== undefined ? { toolCalls } : {}),
-        ...name,
-      }
-    : { role: "user", content: text, ...name };
+  return { role: "user", content, ...name };
 }
 
 // Filters empty-content turns FIRST so the cache-breakpoint offset-from-end still lines up.

@@ -10,10 +10,18 @@ import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createContext, use } from "react";
 
-const EMPTY: ReadonlyMap<AssetId, string> = new Map<AssetId, string>();
+/** One resolved inline attachment: the `blobUrl` + the stored mime (#317 — the media block picks the
+ *  element off it: `video/*` renders a native `<video>`, everything else the `<img>` path). */
+export interface ResolvedAttachment {
+  readonly url: string;
+  readonly mime: string;
+}
 
-/** The row-scoped `assetId → blobUrl` map for inline attachments (default empty for a provider-less mount). */
-export const AttachmentUrlContext = createContext<ReadonlyMap<AssetId, string>>(EMPTY);
+const EMPTY: ReadonlyMap<AssetId, ResolvedAttachment> = new Map<AssetId, ResolvedAttachment>();
+
+/** The row-scoped `assetId → {blobUrl, mime}` map for inline attachments (default empty for a
+ *  provider-less mount). */
+export const AttachmentUrlContext = createContext<ReadonlyMap<AssetId, ResolvedAttachment>>(EMPTY);
 
 /** The distinct `asset:<id>` refs in a body (the ONE ref grammar — `tokenizeContent`, never a regex). */
 export function assetIdsInContent(content: string): AssetId[] {
@@ -28,8 +36,8 @@ export function assetIdsInContent(content: string): AssetId[] {
   return [...ids].map((id) => castId<AssetId>(id));
 }
 
-/** The resolved `blobUrl` for one inline attachment (#67), or `undefined` while unresolved / provider-less
- *  (→ the row renders the placeholder). Consumed by `MessageMediaBlock`'s asset arm. */
-export function useAttachmentUrl(assetId: AssetId): string | undefined {
+/** The resolved `{blobUrl, mime}` for one inline attachment (#67/#317), or `undefined` while unresolved /
+ *  provider-less (→ the row renders the placeholder). Consumed by `MessageMediaBlock`'s asset arm. */
+export function useAttachmentUrl(assetId: AssetId): ResolvedAttachment | undefined {
   return use(AttachmentUrlContext).get(assetId);
 }

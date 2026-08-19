@@ -10,7 +10,7 @@ import { z } from "zod";
 /** The kinds of binary we content-address. `card` = a character-card PNG (also the avatar); `avatar` =
  *  a persona avatar; `export` = a future generated export (unwired in v1); `generated` = a model-generated
  *  image from a chat turn; `gallery` = a curated gallery image; `attachment` = a user-attached inline
- *  chat image; `document` = a databank source document's original bytes; `background` = a user-uploaded
+ *  chat image or video (mp4/webm/gif, #317); `document` = a databank source document's original bytes; `background` = a user-uploaded
  *  decorative app background (PD-131 — pinned by the `appearance.backgroundAssetId` JSON field, GC-rooted
  *  via the settings live-source scan, NOT an FK column); `plugin` = an installed plugin's bundle bytes.
  *  The db `assets.kind` enum derives from this tuple. */
@@ -156,12 +156,14 @@ export const resolveBlobRefsParamsSchema = z.object({
 /** @public twin: resolveBlobRefsParamsSchema — the live `resolveBlobRefs` tRPC input (cross-package PUBLIC). */
 export type ResolveBlobRefsParams = z.infer<typeof resolveBlobRefsParamsSchema>;
 
-/** One resolved `(assetId, hash)` pair. Only the caller's own assets come back; a foreign/gone id is
- *  simply absent (no leak).
+/** One resolved `(assetId, hash, mime)` triple. Only the caller's own assets come back; a foreign/gone id
+ *  is simply absent (no leak). `mime` rides so the render side can pick the element (`video/*` → a native
+ *  `<video>`, everything else `<img>`) without a second lookup — the same asset-owned media-kind fact the
+ *  provider wire classifies on (#317).
  *
  *  TYPO class-B demotion (see {@link AssetListItem}): infer-only, never parsed — an output shape. It is
- *  the identity slice of a listed asset, so it DERIVES rather than re-spelling `assetId`/`hash`. */
-export type AssetBlobRef = Pick<AssetListItem, "assetId" | "hash">;
+ *  the identity slice of a listed asset, so it DERIVES rather than re-spelling `assetId`/`hash`/`mime`. */
+export type AssetBlobRef = Pick<AssetListItem, "assetId" | "hash" | "mime">;
 
 /** `resolveChatBlobRefs` wire params — the chat-scoped sibling of {@link resolveBlobRefsParamsSchema}
  *  so a co-participant (not just the owner) can render an inline attachment. The server resolves a pair

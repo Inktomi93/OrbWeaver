@@ -106,7 +106,10 @@ import { fileLoaded } from "../pass.ts";
  *  banned in features), `Skeleton` (mimics the content it stands in for), `ThemeScope` (a token-scope
  *  wrapper box), `CrossfadeImage` (media geometry — aspectRatio prop + call-site box, the D44 media
  *  primitive). A SIZED control primitive (button/tabs/select/input/badge/…) is never exempt. */
-const UNSIZED_BOX_SPECIFIERS = new Set(["@orb/ui/layout", "@orb/ui/skeleton", "@orb/ui/theme-scope", "@orb/ui/crossfade-image"]);
+// `background-video` joined 2026-08-19 (#317): its variants base is literally `h-full w-full object-cover`
+// ("fills its positioned parent") — geometry is the call site's datum by design, the same rationale as
+// CrossfadeImage (its sibling in the composer's attachment-preview thumbs).
+const UNSIZED_BOX_SPECIFIERS = new Set(["@orb/ui/layout", "@orb/ui/skeleton", "@orb/ui/theme-scope", "@orb/ui/crossfade-image", "@orb/ui/background-video"]);
 
 /** Sanctioned survivors: file → reason a call-site size utility on a @orb/ui element is CORRECT there
  *  (not debt). Both-directions ratchet — a stale row (no scoped hit left in the file) is itself RED

@@ -12,7 +12,7 @@ import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
 import type { ChatCompletionStreamChunk, MapTurnContext, StreamDelta } from "../../backends/kit/index.ts";
 import {
   buildOpenAiSamplingFields,
-  chatHistoryText,
+  chatHistoryOpenAiContent,
   effortToOpenAIReasoning,
   IDLE_TIMEOUT_MS,
   mapChatCompletionToTurnResult,
@@ -29,6 +29,7 @@ import type {
   ChatHistoryMessage,
   ChatResult,
   HistoryRole,
+  OpenAiRawContentPart,
   ResolvedChatKnobs,
   ResolvedReasoning,
   ResolvedWarning,
@@ -77,7 +78,10 @@ export interface VllmChatDeps {
 
 interface WireMessage {
   readonly role: HistoryRole | "system";
-  readonly content: string;
+  /** Plain string for a text-only turn (byte-stable — the prefix cache keys on it); the OpenAI-compatible
+   *  content-part array when the turn carries image/video parts (D45/#317 — `video_url` is vLLM's
+   *  documented multimodal extension, sampled by the engine's launch-time `fps`/`max_frames` kwargs). */
+  readonly content: string | OpenAiRawContentPart[];
   readonly name?: string;
   readonly tool_calls?: readonly Record<string, unknown>[];
   readonly tool_call_id?: string;
@@ -107,16 +111,17 @@ function wireToolResults(content: readonly ChatContentPart[]): WireMessage[] {
   return out;
 }
 
-// null when empty; a text-less assistant tool-call turn is kept — the calls ARE its content.
+// null when empty; a text-less assistant tool-call turn is kept — the calls ARE its content — and a
+// media-carrying turn is kept even when its text is empty (the parts ARE its content).
 function wireTurnMessage(turn: ChatHistoryMessage): WireMessage | null {
-  const text = chatHistoryText(turn.content);
+  const content = chatHistoryOpenAiContent(turn.content);
   const toolCalls = turn.role === "assistant" ? wireToolCalls(turn.content) : [];
-  if (text.trim().length === 0 && toolCalls.length === 0) {
+  if (typeof content === "string" && content.trim().length === 0 && toolCalls.length === 0) {
     return null;
   }
   return {
     role: turn.role,
-    content: text,
+    content,
     ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
     ...(turn.name !== undefined ? { name: turn.name } : {}),
   };
@@ -260,6 +265,11 @@ function leavesThinkOpen(content: string): boolean {
 function prefillMode(capability: ModelCapability, messages: readonly WireMessage[]): PrefillMode {
   const last = messages.at(-1);
   if (!acceptsAssistantPrefill(capability) || last === undefined || last.role !== "assistant" || last.tool_calls !== undefined) {
+    return "none";
+  }
+  // An assistant row is always string content (media parts are user-attachment-only, D45/#317) — the
+  // narrow is for the type; a hypothetical array row simply doesn't prefill.
+  if (typeof last.content !== "string") {
     return "none";
   }
   return leavesThinkOpen(last.content) ? "open-think" : "content";

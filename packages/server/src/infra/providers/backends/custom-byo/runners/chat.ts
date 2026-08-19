@@ -30,7 +30,7 @@ import type { ChatCompletionStreamChunk, OpenAiSamplingInput, StreamReduceOption
 import {
   applyIncludeExclude,
   buildOpenAiSamplingFields,
-  chatHistoryText,
+  chatHistoryOpenAiContent,
   effortToOpenAIReasoning,
   mapChatCompletionToTurnResult,
   parseOpenAiSse,
@@ -263,15 +263,20 @@ function rawToolResultMessages(content: readonly ChatContentPart[]): Record<stri
   return out;
 }
 
+// The D45/#317 multimodal projection is TOTAL here even though today's BYO capability declares no `input`
+// (both engine gates fail ⇒ no media parts arrive): a future BYO profile that declares vision/video needs
+// no runner change, and a translator that silently flattens a part it was handed is the defect class this
+// wire-mapping wave exists to kill. Media rides the shared openai-compat raw parts; text-only turns stay
+// plain-string (byte-stable bodies).
 function rawTurnMessage(turn: ChatHistoryMessage): Record<string, unknown> | null {
-  const text = chatHistoryText(turn.content);
+  const content = chatHistoryOpenAiContent(turn.content);
   const toolCalls = turn.role === "assistant" ? rawHistoryToolCalls(turn.content) : [];
-  if (text.trim().length === 0 && toolCalls.length === 0) {
+  if (typeof content === "string" && content.trim().length === 0 && toolCalls.length === 0) {
     return null;
   }
   return {
     role: turn.role,
-    content: text,
+    content,
     ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
     ...(turn.name !== undefined ? { name: turn.name } : {}),
   };

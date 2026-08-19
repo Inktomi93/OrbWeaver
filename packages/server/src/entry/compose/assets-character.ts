@@ -186,7 +186,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
       const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
       const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
       const rows = await db
-        .selectDistinct({ assetId: assetsTable.id, hash: assetsTable.hash })
+        .selectDistinct({ assetId: assetsTable.id, hash: assetsTable.hash, mime: assetsTable.mime })
         .from(assetsTable)
         .innerJoin(messageAssets, eq(messageAssets.assetId, assetsTable.id))
         .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
