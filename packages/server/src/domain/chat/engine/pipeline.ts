@@ -21,7 +21,7 @@ import type {
   ToolCallRecord,
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
-import { acceptsHistorySystemRows, coEmitsProseWithTools } from "@orb/contracts/connection";
+import { acceptsAssistantPrefill, acceptsHistorySystemRows, coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -78,6 +78,11 @@ interface RunTurnPipelineArgs {
   readonly chatId: ChatId;
   /** A synthetic trailing user turn (regen/continue); null for a plain send. */
   readonly appendUserTurn?: string | null | undefined;
+  /** `true` ⇒ {@link RunTurnPipelineArgs.appendUserTurn} is the CONTINUATION FALLBACK (the continue verb's
+   *  nudge), kept only for wires that cannot continue a delivered assistant row — dropped here when this turn's
+   *  prefill verdict is honored, so a continue delivers the partial row for the model to extend. See
+   *  `TurnPrep.appendUserTurnIsContinuationFallback`. */
+  readonly appendUserTurnIsContinuationFallback?: boolean | undefined;
   readonly groupNudge?: string | null | undefined;
   /** The per-speaker two-axis SHAPE, set by the group round driver. Absent falls back to the
    *  single-speaker core's pinned default (per-speaker/merged/no fold). */
@@ -477,6 +482,38 @@ async function applyDynamicTransform(args: RunTurnPipelineArgs, built: Assembled
   return dynamic === built.dynamic ? built : { ...built, dynamic };
 }
 
+/** Does THIS turn deliver a trailing assistant row for the model to continue? Two independent facts: the
+ *  model/wire capability (read through the contracts helper — the ONE spelling, shared with the vLLM surface
+ *  that must also send its wire's continuation flags) AND whether tools ride this turn.
+ *
+ *  PREFILL IS SUPPRESSED BY TOOLS (ST `addAssistantPrefix`'s `hasAnyTools` shape). A prefill deliberately ends
+ *  the prompt on an assistant row for the model to continue; wire tools ask it to STOP and emit a call.
+ *  Shipping both tells the model to do two incompatible things with the same turn end, and ST refuses the
+ *  combination outright rather than find out what a given provider does with it.
+ *
+ *  Not hypothetical: `turns.assistantPrefill` is true for `anthropic/claude-opus-4-5`, `claude-haiku-4-5` and
+ *  (since 2026-08-19) the local vLLM arm, and a FOLDED rpg game attaches 6 terminal tools to the character
+ *  turn — so those models shipped prefill+tools together on every game turn until this gate. Both tool
+ *  channels count: `attachedToolNames` (the executed/recursed set) and `terminalTools` (the R1 folded set,
+ *  attached `tool_choice:"auto"` and never recursed). */
+function honorsAssistantPrefill(args: RunTurnPipelineArgs): boolean {
+  return acceptsAssistantPrefill(args.connection.capability) && !turnCarriesTools(args);
+}
+
+/** SHAPE's synthetic trailing user row: the caller's, minus a CONTINUATION FALLBACK the prefill verdict makes
+ *  wrong. A continue's nudge is the fallback spelling of "keep going" for a wire that cannot continue its own
+ *  trailing row; where prefill IS honored, shipping it defeats the mechanism twice — the tail makes the
+ *  delivered array end on USER (nothing left to continue), and it asks the model to write a NEW message
+ *  resuming the old one instead of extending the row it already started. Only a tail the VERB declared a
+ *  fallback is droppable: the recovery pass's narrative ask (`recover-narrative`) and the impersonate/response
+ *  nudges are real instructions and clear the flag. */
+function shapeTail(args: RunTurnPipelineArgs, prefillHonored: boolean): string | null {
+  if (prefillHonored && args.appendUserTurnIsContinuationFallback === true) {
+    return null;
+  }
+  return args.appendUserTurn ?? null;
+}
+
 /** Executes one single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration of
  *  injected ops; persists nothing. */
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
@@ -512,9 +549,13 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     user: userSpeakerName(ctx.activePersona),
     assistant: args.shape?.speakerName ?? ctx.character.name,
   };
+  // THE TURN'S PREFILL VERDICT — one value, two readers: SHAPE (keep an assistant@depth-0 injection at depth 0
+  // and skip the continuation nudge) and {@link shapeTail} (drop the continue verb's fallback row).
+  const prefillHonored = honorsAssistantPrefill(args);
+
   const shaped = shapeTurn({
     canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES, promptHistoryEnv(ctx, args)) : [],
-    appendUserTurn: args.appendUserTurn ?? null,
+    appendUserTurn: shapeTail(args, prefillHonored),
     injections: inChatInjections,
     output: args.shape?.output ?? "per-speaker",
     cardScope: args.shape?.cardScope ?? "merged",
@@ -524,18 +565,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     groupNudge: args.groupNudge ?? null,
     // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
     // against the model's roleHandlingFloor.
-    // PREFILL IS SUPPRESSED BY TOOLS (ST `addAssistantPrefix`'s `hasAnyTools` shape). A prefill deliberately
-    // ends the prompt on an assistant row for the model to continue; wire tools ask it to STOP and emit a
-    // call. Shipping both tells the model to do two incompatible things with the same turn end, and ST
-    // refuses the combination outright rather than find out what a given provider does with it.
-    //
-    // Not hypothetical here: `capability.turns.assistantPrefill` is true for `anthropic/claude-opus-4-5` and
-    // `claude-haiku-4-5` (pinned in tests/.../catalog/turns.test.ts), and a FOLDED rpg game attaches 6
-    // terminal tools to the character turn — so those two models shipped prefill+tools together on every
-    // game turn. The Sonnet-5 path this was investigated on has prefill false, which is why it never
-    // surfaced. Both tool channels count: `attachedToolNames` (the executed/recursed set) and
-    // `terminalTools` (the R1 folded set, attached `tool_choice:"auto"` and never recursed).
-    assistantPrefill: args.connection.capability.turns?.assistantPrefill === true && !turnCarriesTools(args),
+    assistantPrefill: prefillHonored,
     // midConversationSystem gates the depth-0 system-injection delivery: a declaring model gets a REAL
     // system wire row; the TURNS_FLOOR default demotes to the visible `[Note from system: …]` user note.
     midConversationSystem: args.connection.capability.turns?.midConversationSystem === true,

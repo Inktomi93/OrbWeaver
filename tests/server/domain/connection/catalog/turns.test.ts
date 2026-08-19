@@ -141,8 +141,13 @@ describe("vLLM turns — the measured, err-open cell (D143)", () => {
     expect(vllm("Qwen/Qwen3-8B")?.historySystemRows).toBe(true);
   });
 
-  test("assistantPrefill stays FALSE — the template appends its own assistant header after the last row", () => {
-    expect(vllm("Qwen/Qwen3-8B")?.assistantPrefill).toBe(false);
+  // RE-MEASURED 2026-08-19 (#287): the old `false` was honest against the OLD template — the render closed the
+  // trailing assistant block and appended a fresh `<|im_start|>assistant` header, so a delivered prefill row
+  // became a completed prior turn. The prefill-forge template (86ecb0f24) added the continuation arm and the
+  // `/tokenize` re-measure flipped the fact; the receipts (both arms, verbatim render tails) live on
+  // `VLLM_TURNS`. This bit is what authorizes the surface to send `continue_final_message`.
+  test("assistantPrefill is TRUE — the vendored template continues a delivered trailing-assistant row", () => {
+    expect(vllm("Qwen/Qwen3-8B")?.assistantPrefill).toBe(true);
   });
 
   test("the cell is vllm-ONLY: every other static/synthesized arm keeps the fail-closed floor", () => {

@@ -6,7 +6,7 @@
 // this surface takes {@link VllmChatRequest}, so the state is unrepresentable here.
 
 import type { ModelCapability } from "@orb/contracts/connection";
-import { EFFORT_LEVELS } from "@orb/contracts/connection";
+import { EFFORT_LEVELS, TURNS_FLOOR } from "@orb/contracts/connection";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -421,6 +421,91 @@ describe("createVllmChat — reasoning (the per-request thinking door)", () => {
   });
 });
 
+// ── THE PREFILL DOOR (#287, 2026-08-19) ─────────────────────────────────────────────────────────────
+// On this wire a delivered trailing-assistant row is NOT self-executing: the vendored template closes it and
+// appends a fresh assistant header unless the request carries `continue_final_message` + a false
+// `add_generation_prompt` (both /tokenize arms measured on the gen engine — receipts on `VLLM_TURNS`). So the
+// capability flip is only half the feature; these pin the half that lives here.
+const PREFILL_CAP = makeModelCapability({
+  reasoning: VLLM_REASONING,
+  sampling: VLLM_SAMPLING,
+  output: { maxTokens: { min: 1, max: 4096 } },
+  context: { window: 32_768 },
+  turns: { ...TURNS_FLOOR, assistantPrefill: true, roleHandlingFloor: "none" },
+});
+const NO_PREFILL_CAP = makeModelCapability({
+  reasoning: VLLM_REASONING,
+  sampling: VLLM_SAMPLING,
+  output: { maxTokens: { min: 1, max: 4096 } },
+  context: { window: 32_768 },
+  turns: { ...TURNS_FLOOR },
+});
+const assistantTail = (text: string): VllmChatRequest["history"] => [
+  { role: "user", content: [{ type: "text", text: "tell me about the rain" }] },
+  { role: "assistant", content: [{ type: "text", text }] },
+];
+
+describe("createVllmChat — the assistant-prefill continuation pair", () => {
+  test("a delivered assistant tail on a prefill-capable model sends the PAIR (continue + no generation prompt)", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ capability: PREFILL_CAP, history: assistantTail("The rain fell") }));
+    expect(read()?.["continue_final_message"]).toBe(true);
+    expect(read()?.["add_generation_prompt"]).toBe(false);
+  });
+
+  // The common arm, and the one that must stay byte-identical: SHAPE's ends-on-user invariant means almost
+  // every turn lands here, and a stray pair would fold the next turn into the previous message.
+  test("a user tail sends NEITHER flag, even on a prefill-capable model", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ capability: PREFILL_CAP }));
+    expect(read()).not.toHaveProperty("continue_final_message");
+    expect(read()).not.toHaveProperty("add_generation_prompt");
+  });
+
+  // The descriptor is the authority (D143 — capability here varies per CHECKPOINT): a model whose cell says
+  // the template cannot continue must not get the pair, whatever the array shape says.
+  test("a capability that does NOT honor prefill sends neither flag on the same assistant tail", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ capability: NO_PREFILL_CAP, history: assistantTail("The rain fell") }));
+    expect(read()).not.toHaveProperty("continue_final_message");
+  });
+
+  // MEASURED 2026-08-19 (two seed-pinned live completions): flags + thinking returns `content: null` with the
+  // whole continuation in `reasoning_content` — an empty reply. The prefill wins and the drop is LOUD (D41).
+  test("a CONTENT prefill drops the thinking kwargs, loudly, and keeps the continuation", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    const res = await chat(chatReq({ capability: PREFILL_CAP, history: assistantTail("The rain fell"), params: { effort: "low" } }));
+    expect(read()).not.toHaveProperty("chat_template_kwargs");
+    expect(read()?.["continue_final_message"]).toBe(true);
+    expect(res.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "reasoning_dropped_for_prefill" }));
+  });
+
+  // The OTHER door the vendored template was built for: a prefill that leaves `<think>` OPEN is a thinking
+  // STEER, the parser's reasoning-first assumption is correct, and the kwargs must ride untouched.
+  test("an OPEN-think prefill keeps the thinking kwargs (the steer door) and never warns", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    const res = await chat(
+      chatReq({ capability: PREFILL_CAP, history: assistantTail("<think>\nStay terse — the strangest thing I saw was"), params: { effort: "low" } }),
+    );
+    expect(templateKwargs(read())?.["enable_thinking"]).toBe(true);
+    expect(read()?.["continue_final_message"]).toBe(true);
+    expect(res.events).not.toContainEqual(expect.objectContaining({ code: "reasoning_dropped_for_prefill" }));
+  });
+
+  // A CLOSED think block followed by prose is a content prefill, not a steer — last-index, never a count.
+  test("a closed think block followed by prose is CONTENT (thinking still drops)", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ capability: PREFILL_CAP, history: assistantTail("<think>\nbrief\n</think>\n\nThe rain fell"), params: { effort: "low" } }));
+    expect(read()).not.toHaveProperty("chat_template_kwargs");
+  });
+});
+
 // ── customParameters ON the LOCAL engine — owner word 2026-08-18, AMENDING the 2026-07-24 BYOK-only
 // ruling of commit 20ac4154c). vLLM JOINS the escape hatch: capability here varies per checkpoint and is not
 // reliably detectable, so the posture is trust-the-user, err open, and let the engine refuse. OpenRouter's
@@ -483,7 +568,19 @@ describe("createVllmChat — customParameters reaches the wire (the 2026-08-18 a
 // unbounded hang that burned 120s timeouts in production, and it was removed from the embed + rerank surfaces
 // at the cost of two incidents. A preset must not be able to put it back.
 describe("createVllmChat — the belt denylist (the one hard fence)", () => {
-  const beltKeys = ["truncate_prompt_tokens", "truncation_side", "stream", "stream_options", "model", "messages"];
+  // The last two joined 2026-08-19 with the assistant-prefill flip: the surface decides the continuation pair
+  // from the capability + the delivered tail, and on the no-prefill arm it emits NEITHER key — so precedence
+  // has nothing to collide with and a preset value would ride unopposed into a broken render.
+  const beltKeys = [
+    "truncate_prompt_tokens",
+    "truncation_side",
+    "stream",
+    "stream_options",
+    "model",
+    "messages",
+    "continue_final_message",
+    "add_generation_prompt",
+  ];
 
   for (const key of beltKeys) {
     test(`\`${key}\` is DROPPED from customParameters and the drop is loud`, async () => {
