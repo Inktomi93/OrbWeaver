@@ -107,7 +107,22 @@ export function synthesizeAnthropicTurns(id: string, wireShape: WireShape): Turn
 }
 
 /** The non-caching `turns` cell — TURNS_FLOOR with an explicit `strict` floor (fail-closed for every
- *  non-anthropic family + the static arms). */
+ *  non-anthropic family + the static arms).
+ *
+ *  `assistantPrefill: false` HERE IS UNMEASURED-FALSE, and the 2026-08-19 audit (issue #287 item 4) leaves it
+ *  that way deliberately. This ONE cell serves every non-anthropic OpenRouter model (gemini/openai/llama/…),
+ *  `local-light`, `custom_openai` and the cold `max-pro-sub` fallback, so it cannot carry a per-model truth:
+ *  flipping it would claim the capability for every model that lands here, and D69 bans deriving it from the
+ *  id. What OpenRouter publishes is PLATFORM support, not per-upstream honoring — "OpenRouter supports asking
+ *  models to complete a partial response … include a message with `role: "assistant"` at the end of your
+ *  `messages` array" (openrouter.ai/docs/api_reference/overview §"Assistant prefill", read 2026-08-19) — and
+ *  the anthropic arm right above is the standing proof that honoring is per-MODEL even inside one platform
+ *  (opus-4.5/haiku-4.5 continue a prefill on the openai-compat shape; every newer Claude does not).
+ *
+ *  So a flip needs the same thing the vLLM and anthropic cells have: a render/wire measurement per
+ *  (model × wire-shape). A gemini row does not exist to flip — google models resolve through
+ *  `synthesizeOpenRouter`'s non-anthropic arm into this cell — so the unit of work is a per-model probe plus
+ *  a refinement function beside {@link anthropicPrefill}, not an edit here. */
 export const NON_CACHING_TURNS: Turns = { ...TURNS_FLOOR };
 
 /** THE vLLM `turns` CELL — the ONE arm that does not inherit the fail-closed floor, because it is the ONE
@@ -143,16 +158,47 @@ export const NON_CACHING_TURNS: Turns = { ...TURNS_FLOOR };
  *  Group narration is one generation voicing the whole cast, i.e. the assistant's own output voice. The
  *  measurement is honored; it answers where a system row may SIT, never which rows ARE system.
  *
- *  `assistantPrefill: false` — measured too, and it stays false: the same `/tokenize` render appends the
- *  template's OWN `<|im_start|>assistant` header (plus the empty `<think>` block) after the last message, so
- *  a delivered trailing-assistant row becomes a completed prior turn rather than a prefix the model continues.
- *  Prefill on this wire is a different mechanism (`continue_final_message`/`add_generation_prompt`), not this
- *  bit — err-open never means claiming a capability the render disproves.
+ *  `assistantPrefill: true` — RE-MEASURED 2026-08-19, same `/tokenize` discipline, same engine. It was
+ *  honestly `false` UNTIL the prefill-forge template landed (86ecb0f24): on the OLD template the render
+ *  appended the template's own `<|im_start|>assistant` header after the last message, so a delivered
+ *  trailing-assistant row became a completed prior turn rather than a prefix the model continues, and the
+ *  cell said so. That template is gone; the vendored one it replaced it with has a continuation arm
+ *  (`scripts/dev/qwen3_gen_thinking_serve.jinja` :240), and the bit follows the render, not its own history.
+ *
+ *  THE TWO ARMS, verbatim tails of the 2026-08-19 `/tokenize` renders (3 rows: system, user,
+ *  assistant "The rain fell"):
+ *    • WITHOUT the flags (`add_generation_prompt` at its default `true`) — 35 tokens, THE FENCE:
+ *      `…<|im_start|>assistant\nThe rain fell<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n`
+ *      — closed, plus a fresh header. That is the render the old receipt recorded, and it is exactly what a
+ *      GROUP round still needs (a historical assistant-last conversation must open a NEW turn), so the fence
+ *      is not collateral damage of the flip: it is the untouched default arm.
+ *    • WITH `continue_final_message: true` + `add_generation_prompt: false` — 30 tokens, OPEN:
+ *      `…<|im_start|>assistant\n<think>\n\n</think>\n\nThe rain fell` — one assistant block, no `<|im_end|>`,
+ *      no fresh header. The model continues the row it was handed.
+ *  The template's OTHER door (`chat_template_kwargs: {"assistant_prefill": true}`) renders byte-identically
+ *  (30 tokens); the surface takes the STANDARD flags because we build the request and the kwarg door exists
+ *  for static bodies that cannot set them.
+ *
+ *  THE `<think></think>` SCAFFOLD IS THE TEMPLATE'S, NOT OURS, and it is why a CONTENT prefill works with
+ *  thinking off: this checkpoint EOSes an assistant turn that lacks a think block, so the template injects an
+ *  EMPTY CLOSED one ahead of the prefill content. Measured with the thinking kwargs on too (56 tokens — the
+ *  reasoning-effort instruction joins the system block): the scaffold is still emitted CLOSED, so a content
+ *  prefill does not reopen reasoning — which is also why the vLLM chat surface DROPS the thinking kwargs on a
+ *  content prefill (told to think, the qwen3 reasoning parser swallows the whole continuation into the
+ *  reasoning channel and the reply comes back empty; measured the same day, two seed-pinned turns). Every
+ *  claim in this block is executable: `tests/e2e/vllm-prefill-render.live.int.test.ts` (live-gated by
+ *  `E2E_LIVE=1`) re-runs both render arms and both channel arms against the live gen engine.
+ *
+ *  WHAT THE BIT AUTHORIZES: SHAPE keeps an assistant\@depth-0 injection at depth 0 and skips the continuation
+ *  nudge, and — because continuation on this wire is a REQUEST FIELD rather than an array shape — the vLLM
+ *  chat surface sends the flag pair when the delivered array ends on an assistant row
+ *  (`infra/providers/vllm/surfaces/chat.ts`). Delivering the row WITHOUT the pair would be the old fence with
+ *  extra steps: silent, no error, the prefill folded into history.
  *
  *  `explicitPromptCache: false` — unchanged: vLLM's prefix cache is automatic, with no per-block breakpoint
  *  to place. */
 export const VLLM_TURNS: Turns = {
-  assistantPrefill: false,
+  assistantPrefill: true,
   midConversationSystem: true,
   historySystemRows: true,
   roleHandlingFloor: "none",

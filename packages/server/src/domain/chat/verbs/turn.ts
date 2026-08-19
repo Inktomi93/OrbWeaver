@@ -1989,6 +1989,11 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       // RENDERED (macro path parity): continue carries no `{{person}}` today; the registry render is a safe no-op
       // that substitutes any `{{user}}/{{char}}` an edited/ST-imported continue nudge holds.
       appendUserTurn: nudgeOf(assembleContext, "continueNudge", macroRegistry !== null ? { registry: macroRegistry } : {}),
+      // The continue nudge is the FALLBACK spelling of "keep going" for a wire that cannot continue the
+      // model's own trailing row. On a wire that CAN (`turns.assistantPrefill`), the pipeline drops it and
+      // delivers the partial assistant row itself — the model extends the actual sentence instead of being
+      // asked, as a user, to write a new message that resumes it.
+      appendUserTurnIsContinuationFallback: true,
       persist: { mode: "continue", targetMessageId: messageId },
       ...(shape !== undefined ? { shape } : {}),
     });

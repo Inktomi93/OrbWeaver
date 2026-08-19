@@ -537,10 +537,22 @@ test("customParametersSchema rejects a `constructor` key (top level and nested)"
   expect(customParametersSchema.safeParse({ nested: { prototype: { evil: true } } }).success).toBe(false);
 });
 
-test("the vLLM belt denylist is EXACTLY the six keys infra owns (D143a) — both readers ask this one list", () => {
+test("the vLLM belt denylist is EXACTLY the eight keys infra owns (D143a) — both readers ask this one list", () => {
   // The vllm surface drops these before the merge and the preset editor warns on them at authoring time; a
   // member added or removed here silently changes BOTH the wire and what the editor promises.
-  expect([...VLLM_BELT_OWNED_PARAMETER_KEYS]).toEqual(["truncate_prompt_tokens", "truncation_side", "stream", "stream_options", "model", "messages"]);
+  // The last two joined with the 2026-08-19 assistant-prefill flip: the surface decides the continuation pair
+  // from the capability + the assembled tail, and on the (common) no-prefill arm it emits NEITHER key — so
+  // precedence has nothing to win the collision with and a preset value would ride unopposed.
+  expect([...VLLM_BELT_OWNED_PARAMETER_KEYS]).toEqual([
+    "truncate_prompt_tokens",
+    "truncation_side",
+    "stream",
+    "stream_options",
+    "model",
+    "messages",
+    "continue_final_message",
+    "add_generation_prompt",
+  ]);
   expect(VLLM_BELT_OWNED_PARAMETER_KEYS.every((key) => isVllmBeltOwnedParameterKey(key))).toBe(true);
   // A sampler that RIDES the escape hatch is not belt-owned — the whole point of the list being narrow.
   expect(isVllmBeltOwnedParameterKey("dry_multiplier")).toBe(false);

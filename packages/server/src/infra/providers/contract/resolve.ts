@@ -30,6 +30,14 @@ export const WARNING_CODES = [
   // — the model reads a failed tool result as an ordinary one. Dropped-and-loud (D41), never encoded onto a
   // wire that has no field for it. Emitted from the OR chat runners.
   "tool_result_error_dropped",
+  // The turn delivered a CONTENT prefill (a trailing assistant row the local engine's template continues) and
+  // the preset ALSO asked for thinking — mutually exclusive on this wire, measured 2026-08-19 on the gen
+  // engine: the template answers a content prefill with an already-CLOSED `<think></think>` scaffold (the
+  // model cannot reason), while vLLM's qwen3 reasoning parser, told `enable_thinking:true`, classifies the
+  // whole continuation as reasoning until a `</think>` that never comes — `content: null`, an empty reply, the
+  // turn refused. So the prefill wins and the thinking kwargs are dropped, loudly (D41). A THINKING prefill
+  // (the delivered row leaves a `<think>` open) keeps them: there the parser's assumption is correct.
+  "reasoning_dropped_for_prefill",
 ] as const;
 export type WarningCode = (typeof WARNING_CODES)[number];
 
