@@ -22,10 +22,16 @@
 // TRUNCATION-ROBUST OUTPUT: a reader who sees only the first ~15 lines (the head banner) OR only the last
 // ~15 lines (the tail block) can determine PASS/FAIL and that reports/verify.json is authoritative.
 //
+// CHRONOLOGICAL STAGE TRANSCRIPT: a stage's stdout and stderr are captured INTERLEAVED, in arrival order
+// (`captureProcess`), so the END of reports/verify/<stage>.log — and the failureExcerpt cut from it — is
+// the END OF THE RUN. Concatenating whole streams instead (the pre-#259 `stdout + stderr`) put the tail
+// of STDERR last: for `tests:node` that was pnpm's `$ …` banner plus node ExperimentalWarnings, while
+// playwright's CT verdict sat mid-file — a real CT failure read as a silent death for three diagnoses.
+//
 // EXIT CONTRACT (§3.3): 0 clean · 1 violations · 2 tool error · 3 misuse. Run exit = max severity over
 // stages. A whole-only stage the scope can't run is DEFERRED with a printed notice, unless --strict-scope
 // makes it a refusal.
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -367,6 +373,62 @@ function resolveBin(root: string, cmd: string): string {
 
 const EXCERPT_LINES = 8; // failure excerpt: the last N non-blank output lines (where tools print the verdict).
 
+/** What a stage's child process left behind: its exit status (null = signal-killed, the tool-error arm)
+ *  and ONE chronological transcript of both streams. */
+export type Capture = {
+  readonly status: number | null;
+  readonly transcript: string;
+};
+
+/** Run a stage's command, capturing stdout+stderr as ONE transcript in ARRIVAL order — the ordering a
+ *  terminal shows, so the TAIL of the transcript is the tail of the RUN.
+ *
+ *  Was `spawnSync` + `stdout + stderr` (whole-stream CONCATENATION), which broke the gate's legibility in
+ *  exactly the way #259 hunted: for a compound stage (`tests:node` = vitest && playwright-ct) the end of
+ *  the transcript was the end of STDERR — pnpm's `$ …` banner, node's ExperimentalWarnings, a vite asset
+ *  advisory — while the verdict (playwright's CT SUMMARY naming the one failing test) sat MID-FILE. Both
+ *  reports/verify.json's failureExcerpt and a human's `tail` of reports/verify/tests-node.log therefore
+ *  reported warning noise, and a real CT failure read as a silent death (2026-08-18, three misdiagnoses).
+ *
+ *  Async spawn also has NO maxBuffer: spawnSync's ~1 MiB default does not truncate, it TERMINATES the
+ *  child (SIGTERM + ENOBUFS) — a chattier gate run than the one measured (193 KB) would have converted
+ *  this presentation bug into an actual mid-suite kill. */
+export async function captureProcess(
+  argv: readonly [string, ...string[]],
+  opts: { readonly cwd: string; readonly env: Record<string, string | undefined>; readonly verbose: boolean },
+): Promise<Capture> {
+  const [cmd, ...args] = argv;
+  return await new Promise<Capture>((resolve) => {
+    const chunks: string[] = [];
+    const child = spawn(cmd, args, { cwd: opts.cwd, shell: false, env: opts.env });
+    const verbose = opts.verbose;
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      chunks.push(chunk);
+      if (verbose) {
+        process.stdout.write(chunk);
+      }
+    });
+    child.stderr.on("data", (chunk: string) => {
+      chunks.push(chunk);
+      if (verbose) {
+        process.stderr.write(chunk);
+      }
+    });
+    // A spawn failure (ENOENT on the bin) never emits `close` with a status — surface it AS a tool error
+    // (status null ⇒ every classifier returns 2) with the reason in the transcript, never a silent 0.
+    child.on("error", (err: Error) => {
+      chunks.push(`\n[verify] spawn failed: ${err.message}\n`);
+      resolve({ status: null, transcript: chunks.join("") });
+    });
+    // `close` (not `exit`) — it fires after BOTH pipes are drained, so no tail chunk is lost.
+    child.on("close", (code: number | null) => {
+      resolve({ status: code, transcript: chunks.join("") });
+    });
+  });
+}
+
 /** The tail of a failed stage's output — the last few non-blank lines, where tsc/biome/vitest/playwright
  *  print their error summary. Lands in reports/verify.json + the tail console block so a bot never has to
  *  open the per-stage log to learn WHY a stage failed. */
@@ -375,7 +437,7 @@ function failureExcerpt(output: string): string {
   return lines.slice(-EXCERPT_LINES).join("\n");
 }
 
-function runOneStage(root: string, stage: StageDef, selection: Selection | undefined, verbose: boolean): StageResult {
+async function runOneStage(root: string, stage: StageDef, selection: Selection | undefined, verbose: boolean): Promise<StageResult> {
   const plan = planStage(stage, selection);
   if (plan.mode === "deferred" || plan.mode === "skipped") {
     return {
@@ -404,19 +466,10 @@ function runOneStage(root: string, stage: StageDef, selection: Selection | undef
   // NO_COLOR is ignored (13 warnings per push run, 2026-07-17); every gate tool honors NO_COLOR alone.
   // biome-ignore lint/style/noProcessEnv: NO_COLOR passthrough to children — greppable plain output, not config.
   const env = { ...process.env, NO_COLOR: "1", ...stage.env };
-  const result = spawnSync(resolveBin(root, cmd), args, {
-    cwd: root,
-    shell: false,
-    encoding: "utf8",
-    env,
-  });
+  const result = await captureProcess([resolveBin(root, cmd), ...args], { cwd: root, env, verbose });
   const durationMs = Date.now() - start;
 
-  const body = `${result.stdout ?? ""}${result.stderr ?? ""}`;
-  if (verbose) {
-    process.stdout.write(result.stdout ?? "");
-    process.stderr.write(result.stderr ?? "");
-  }
+  const body = result.transcript;
   const logFile = logPathFor(stage.name);
   writeFileAtomic(join(root, logFile), `${header}${body}`);
 
@@ -551,7 +604,7 @@ function printHeadBanner(tier: Tier, scope: string): void {
   );
 }
 
-function runTier(root: string, parsed: Parsed): VerifyReport {
+async function runTier(root: string, parsed: Parsed): Promise<VerifyReport> {
   mkdirSync(join(root, "reports", "verify"), { recursive: true });
   printHeadBanner(parsed.tier, parsed.selection?.label ?? "whole");
 
@@ -574,7 +627,10 @@ function runTier(root: string, parsed: Parsed): VerifyReport {
       });
       continue;
     }
-    results.push(runOneStage(root, stage, parsed.selection, parsed.verbose));
+    // Sequential BY DESIGN: stages share the CPU, the reports dir and the console — they run one at a
+    // time in registry order, exactly as the old sync loop ran them. The await IS the ordering.
+    // biome-ignore lint/performance/noAwaitInLoops: serialized stage execution is the contract, not a missed parallelism.
+    results.push(await runOneStage(root, stage, parsed.selection, parsed.verbose));
   }
 
   const exitCode = aggregateExit(results.map((s) => s.exitCode));
@@ -588,7 +644,7 @@ function runTier(root: string, parsed: Parsed): VerifyReport {
   };
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const argv = process.argv.slice(ARGV_START);
   const parsed = parse(argv);
   if ("error" in parsed) {
@@ -600,7 +656,7 @@ function main(): void {
     return;
   }
   const root = process.cwd();
-  const report = runTier(root, parsed);
+  const report = await runTier(root, parsed);
   writeReport(root, report);
   printSummary(report);
   if (parsed.json) {
@@ -615,5 +671,10 @@ function main(): void {
 // helpers; running the file spawns the tier.
 const entry = process.argv[1];
 if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
-  main();
+  // A throw out of the run is the harness ITSELF breaking — exit 2 (tool error, "this run is not a
+  // verdict"), never a bare unhandled rejection whose exit code a caller would misread as a verdict.
+  main().catch((err: unknown) => {
+    process.stderr.write(`verify: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.exit(EXIT_TOOL_ERROR);
+  });
 }
