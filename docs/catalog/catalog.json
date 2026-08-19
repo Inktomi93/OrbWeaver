@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 0,
+    "pending": 1,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -15557,7 +15557,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/misc/2026-08-19-lan-auth-unification.md",
+        "assignedSha256": "935d9748b39bd0752c9fb27fc5cc3b051c37a0278da4f2098fe23c5c42743411",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {

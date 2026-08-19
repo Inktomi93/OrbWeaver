@@ -334,6 +334,142 @@
       ]
     },
     {
+      "path": "docs/reviews/misc/2026-08-18-corpus-forensics.md",
+      "assignedSha256": "ce9054eb4d5ee742c446361ecb3de5d8896cf7e2740bd45fc88806e1ca657a0c",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "ce9054eb4d5ee742c446361ecb3de5d8896cf7e2740bd45fc88806e1ca657a0c",
+      "verifiedCommit": "2ceb7767b1fc3f3c47d0a5a692379c7b04a995f9",
+      "verifiedAt": "2026-08-18",
+      "claims": [
+        {
+          "claim": "Every rendered corpus score is a clamped cosine distance, one seam.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/search/substrate/csls.ts:9"
+            }
+          ]
+        },
+        {
+          "claim": "No chat-navigation call exists in features/discovery.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/state/active-chat-store.ts:139"
+            }
+          ]
+        }
+      ],
+      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation — R1-R5 costed options for the owner pick.",
+      "evidence": [
+        "docs/reviews/misc/2026-08-18-corpus-forensics.md:1-660 full read at merge",
+        "driven live 2026-08-18: 5/5 retrieval checks, wire harvest via /api/trpc, csls.ts A/B receipt"
+      ]
+    },
+    {
+      "path": "docs/reviews/misc/2026-08-18-reading-surface-forensics.md",
+      "assignedSha256": "fb678897f2cce5de18ca0f58379a066bc40f49a05e246cff0a1b68e89025d6c2",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "fb678897f2cce5de18ca0f58379a066bc40f49a05e246cff0a1b68e89025d6c2",
+      "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
+      "verifiedAt": "2026-08-18",
+      "evidence": [
+        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 — the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
+        "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
+      ],
+      "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
+      "claims": [
+        {
+          "claim": "Mutable follow-up tracked in GitHub issue #204 (the fix design+build).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#204"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/misc/2026-08-18-silent-reader-audit.md",
+      "assignedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
+      "disposition": "archive",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
+      "verifiedCommit": "6491b9522f35a5b70643e53fb0603cbe35b571ed",
+      "verifiedAt": "2026-08-18",
+      "evidence": [
+        "docs/reviews/misc/2026-08-18-silent-reader-audit.md authored+full-read this session (owner-ordered #183 reader-no-producer hunt; 754 cols/297 typed fields/2296 contract fields/207 regkeys swept, probe-validated instruments)",
+        "git log --oneline -1 -- docs/reviews/misc/2026-08-18-silent-reader-audit.md: 0efa54de9 (lane silent-readers)"
+      ],
+      "summary": "Point-in-time audit: the caption class is bounded to the 13 open JSON columns; findings F1-F5 triaged to issues; open-json-column-key-parity gate proposed (design only)."
+    },
+    {
+      "path": "docs/reviews/misc/2026-08-19-lan-auth-unification.md",
+      "assignedSha256": "935d9748b39bd0752c9fb27fc5cc3b051c37a0278da4f2098fe23c5c42743411",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/misc/2026-08-19-lens-triage-210.md",
+      "assignedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
+      "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
+      "verifiedAt": "2026-08-19",
+      "evidence": [
+        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session — lane lens-triage #210; 70 hits classified with path:line receipts)",
+        "pnpm check:docs (2026-08-19: green)"
+      ],
+      "summary": "Contract-field-liveness lens triage: 57 live, 11 intentional-dormant, 2 defects (card serde import-fidelity), 0 dead; lens-improvement notes.",
+      "claims": [
+        {
+          "claim": "creator_notes_multilingual is promoted-then-never-folded: cardFromJson reads creator_notes only, so multilingual-only notes are destroyed on import.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/kit/serde/card/index.ts:216"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/kit/serde/card/index.ts:290"
+            }
+          ]
+        },
+        {
+          "claim": "use_regex is validated then discarded, and its justifying comment is false: world-info compiles keys with RegExp.escape (literal matching).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/kit/src/world-info/index.ts:90"
+            }
+          ]
+        },
+        {
+          "claim": "The lens discards same-file readers via a whole-file path filter, producing 8 false \"only occurrence\" hits.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "scripts/codemods/ast.ts:4638"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/misc/marinara-engine-parser-macro-audit.md",
       "assignedSha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
       "disposition": "needs-owner",
@@ -956,47 +1092,6 @@
       ]
     },
     {
-      "path": "docs/reviews/misc/2026-08-18-silent-reader-audit.md",
-      "assignedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
-      "disposition": "archive",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "8f1095e730121a71a51072e3ef52980a516c9b7eb36c29674c949b295e19f540",
-      "verifiedCommit": "6491b9522f35a5b70643e53fb0603cbe35b571ed",
-      "verifiedAt": "2026-08-18",
-      "evidence": [
-        "docs/reviews/misc/2026-08-18-silent-reader-audit.md authored+full-read this session (owner-ordered #183 reader-no-producer hunt; 754 cols/297 typed fields/2296 contract fields/207 regkeys swept, probe-validated instruments)",
-        "git log --oneline -1 -- docs/reviews/misc/2026-08-18-silent-reader-audit.md: 0efa54de9 (lane silent-readers)"
-      ],
-      "summary": "Point-in-time audit: the caption class is bounded to the 13 open JSON columns; findings F1-F5 triaged to issues; open-json-column-key-parity gate proposed (design only)."
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-18-reading-surface-forensics.md",
-      "assignedSha256": "fb678897f2cce5de18ca0f58379a066bc40f49a05e246cff0a1b68e89025d6c2",
-      "disposition": "needs-owner",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "fb678897f2cce5de18ca0f58379a066bc40f49a05e246cff0a1b68e89025d6c2",
-      "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
-      "verifiedAt": "2026-08-18",
-      "evidence": [
-        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 — the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
-        "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
-      ],
-      "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
-      "claims": [
-        {
-          "claim": "Mutable follow-up tracked in GitHub issue #204 (the fix design+build).",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#204"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "path": "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md",
       "assignedSha256": "b42697dc7abaa5890a60bf7f513361d19c5f62caab38ebb4d78fd1de192d771a",
       "disposition": "current",
@@ -1030,89 +1125,6 @@
             {
               "kind": "gate",
               "target": "scripts/check/gates/ui-skin-fragment-purity.ts:35"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-18-corpus-forensics.md",
-      "assignedSha256": "ce9054eb4d5ee742c446361ecb3de5d8896cf7e2740bd45fc88806e1ca657a0c",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "ce9054eb4d5ee742c446361ecb3de5d8896cf7e2740bd45fc88806e1ca657a0c",
-      "verifiedCommit": "2ceb7767b1fc3f3c47d0a5a692379c7b04a995f9",
-      "verifiedAt": "2026-08-18",
-      "claims": [
-        {
-          "claim": "Every rendered corpus score is a clamped cosine distance, one seam.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/server/src/domain/search/substrate/csls.ts:9"
-            }
-          ]
-        },
-        {
-          "claim": "No chat-navigation call exists in features/discovery.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/state/active-chat-store.ts:139"
-            }
-          ]
-        }
-      ],
-      "summary": "Corpus product forensics (#244 escalation): retrieval verified 5/5 relevant; the surface truncates, mislabels, renders distances as scores, and offers no navigation — R1-R5 costed options for the owner pick.",
-      "evidence": [
-        "docs/reviews/misc/2026-08-18-corpus-forensics.md:1-660 full read at merge",
-        "driven live 2026-08-18: 5/5 retrieval checks, wire harvest via /api/trpc, csls.ts A/B receipt"
-      ]
-    },
-    {
-      "path": "docs/reviews/misc/2026-08-19-lens-triage-210.md",
-      "assignedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
-      "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
-      "verifiedAt": "2026-08-19",
-      "evidence": [
-        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session — lane lens-triage #210; 70 hits classified with path:line receipts)",
-        "pnpm check:docs (2026-08-19: green)"
-      ],
-      "summary": "Contract-field-liveness lens triage: 57 live, 11 intentional-dormant, 2 defects (card serde import-fidelity), 0 dead; lens-improvement notes.",
-      "claims": [
-        {
-          "claim": "creator_notes_multilingual is promoted-then-never-folded: cardFromJson reads creator_notes only, so multilingual-only notes are destroyed on import.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/server/src/kit/serde/card/index.ts:216"
-            },
-            {
-              "kind": "code",
-              "target": "packages/server/src/kit/serde/card/index.ts:290"
-            }
-          ]
-        },
-        {
-          "claim": "use_regex is validated then discarded, and its justifying comment is false: world-info compiles keys with RegExp.escape (literal matching).",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/kit/src/world-info/index.ts:90"
-            }
-          ]
-        },
-        {
-          "claim": "The lens discards same-file readers via a whole-file path filter, producing 8 false \"only occurrence\" hits.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "scripts/codemods/ast.ts:4638"
             }
           ]
         }
