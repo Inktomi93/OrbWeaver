@@ -7,6 +7,7 @@
 // at MODULE INIT — writing localStorage after mount would prove nothing about a boot.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { AppearanceBootHintProbe } from "./_ct-stories.tsx";
 
 /** The store's own key (`createPersistedStore("appearance-boot")`) on a browser with no identity bound. */
@@ -17,10 +18,7 @@ function blob(state: Record<string, unknown>): string {
 }
 
 /** Seed the device's remembered answers BEFORE the page's modules run, then boot into them. */
-async function seed(
-  page: { addInitScript: (s: { content: string }) => Promise<void>; reload: () => Promise<unknown> },
-  state: Record<string, unknown>,
-): Promise<void> {
+async function seed(page: Page, state: Record<string, unknown>): Promise<void> {
   await page.addInitScript({
     content: `try { localStorage.setItem(${JSON.stringify(HINT_KEY)}, ${JSON.stringify(blob(state))}); } catch { /* storage disabled */ }`,
   });
