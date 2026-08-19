@@ -79,9 +79,10 @@ test("listAttachments surfaces the character binding (reverse view)", async () =
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
 
   const before = await h.service.listAttachments({ principal: principalFor(owner), id: document.id });
-  expect(before.characterIds).toEqual([]);
+  expect(before.characters).toEqual([]);
 
   await h.service.attachToCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
   const after = await h.service.listAttachments({ principal: principalFor(owner), id: document.id });
-  expect(after).toEqual({ global: false, chatIds: [], characterIds: [characterId] });
+  // NAMED (#276): the card's own name rides the reverse view, so the CONTEXT roster needs no second read.
+  expect(after).toEqual({ global: false, chats: [], characters: [{ id: characterId, name: expect.any(String) }] });
 });

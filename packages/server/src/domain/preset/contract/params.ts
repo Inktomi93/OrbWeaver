@@ -81,6 +81,14 @@ export interface ResolveEffectiveParams {
   readonly id: PresetId;
 }
 
+/** Read one readable preset's BACKWARD bindings (#279). Carries the whole `Principal` for the same reason
+ *  `ResolveEffectiveParams` does — its work is done by an injected op (`resolvePresetUsage`) whose room half
+ *  is membership-scoped and therefore principal-shaped, with no caller-supplied user id to aim elsewhere. */
+export interface ListPresetUsageParams {
+  readonly principal: Principal;
+  readonly id: PresetId;
+}
+
 /** Import ONE orb-native preset FILE into the caller's library. `fileText` is the file's UTF-8 JSON text —
  *  an `orb.preset` file IS text, so the door hands the verb exactly what the user picked (the verb's own
  *  first act is a UTF-8 decode; base64 would only round-trip the same bytes). */

@@ -4,9 +4,12 @@
 //   EVERYWHERE  — the ONE write this panel owns. Global attach is OWNER authority, so it lives on the
 //                 document; per-chat attach is HOST authority and lives in the chat panel. The write lives
 //                 where the authority lives (§2.1's carried rule — legacy's own file header states it).
-//   ACTIVE IN   — read-only chips off `listAttachments` (global · N chats · N characters). A COUNT, not a
-//                 roster: naming other people's rooms here would be a scope leak, and the chat-side rack is
-//                 where a room's own membership is governed.
+//   ACTIVE IN   — the named roster off `listAttachments`, each row a door (`databank-active-in.tsx`). It
+//                 shipped as two integer COUNTS while the wire carried ids and no names; the scope
+//                 constraint that forced that (D18 — a `chat_documents` row outlives its attacher's seat)
+//                 is unchanged and is now enforced ON THE WIRE by the injected `resolveVisibleRooms`, so
+//                 what arrives here is already only the rooms this reader may open. That component's
+//                 header carries the fork in full.
 //   RETRIEVAL   — a POINTER, never a duplicate. How many passages get pulled and how close a match must be
 //                 is the landed retrieval-knobs settings section, and this spec does not touch it; saying so
 //                 here is what stops the library growing a second copy of those knobs.
@@ -24,7 +27,6 @@
 // boundary's generic failure, because "someone deleted this" is a state, not an error.
 
 import type { DocumentId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FileText, Icon, SlidersHorizontal } from "@orb/ui/icons";
@@ -37,6 +39,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import { openSettingsTo, useSelectedDocumentId } from "#state";
 import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_CONTEXT_EMPTY } from "../lib/databank-copy.ts";
+import { ActiveInSection } from "./databank-active-in.tsx";
 
 export function DatabankContextBody(): ReactElement {
   const documentId = useSelectedDocumentId();
@@ -179,68 +182,6 @@ function EverywhereSection({ documentId, name }: { readonly documentId: Document
           }}
         />
       </Row>
-    </Section>
-  );
-}
-
-/** One scope's chip, or nothing when that scope is empty — pluralized by its own count. Split out because
- *  three inline count-and-pluralize ternaries in one component is what tripped the complexity ceiling. */
-function ScopeChip({ count, singular, plural }: { readonly count: number; readonly singular: string; readonly plural: string }): ReactElement | null {
-  if (count === 0) {
-    return null;
-  }
-  return (
-    <Badge intent="neutral" size="sm" tone="soft">
-      {count === 1 ? `1 ${singular}` : `${String(count)} ${plural}`}
-    </Badge>
-  );
-}
-
-/**
- * Read-only provenance: WHERE this document is switched on. Non-suspending — the panel's own two reads
- * already resolved, and a slow junction read must not blank the toggle above it.
- *
- * ── THE COUNT-VS-ROSTER FORK, RESOLVED (side-eye 2026-08-19 P1; orchestrator ruling, same day) ──
- * The file header's ruling — a COUNT, not a roster — STANDS, and its reasoning is why. Chats carry no
- * `ownerId` (D18) and `attachToChat` is host-gated, so a `chat_documents` row OUTLIVES the attacher's
- * seat: naming rooms straight off this wire would tell an ex-host that a room they can no longer open
- * still exists and still feeds on their document. That is a real constraint, not a shrug.
- *
- * What the review was right about was the PROMISE, not these chips: the no-selection copy used to offer to
- * show "WHICH chats and characters it already feeds" and then paid in two integers. The copy downgraded
- * (`databank-copy.ts`) so the pane offers what it delivers.
- *
- * The roster is not refused, it is UNBUILT: it needs `listAttachments` to return names, which needs the
- * leak-safe read chat already exposes to regex (`resolveVisibleRooms`, `entry/compose/regex.ts`) injected
- * into databank as well. Filed as its own item — not a layout change.
- */
-function ActiveInSection({ documentId }: { readonly documentId: DocumentId }): ReactElement {
-  const trpc = useTRPC();
-  const attachments = useQuery(trpc.databank.listAttachments.queryOptions({ id: documentId }));
-
-  const chats = attachments.data?.chatIds.length ?? 0;
-  const characters = attachments.data?.characterIds.length ?? 0;
-  const everywhere = attachments.data?.global === true;
-  const nowhere = !everywhere && chats === 0 && characters === 0;
-
-  return (
-    <Section kicker="Active in">
-      {attachments.isPending ? (
-        <Text voice="gloss">Checking…</Text>
-      ) : (
-        <Row align="center" gap="field">
-          {everywhere ? (
-            <Badge intent="success" size="sm" tone="soft">
-              Every chat
-            </Badge>
-          ) : null}
-          <ScopeChip count={chats} plural="chats" singular="chat" />
-          <ScopeChip count={characters} plural="characters" singular="character" />
-          {/* Never render nothing: "no attachments" is a real, common state and a blank block reads as a
-              failed load (empty states are load-bearing). */}
-          {nowhere ? <Text voice="gloss">Nowhere yet — it only feeds chats you attach it to.</Text> : null}
-        </Row>
-      )}
     </Section>
   );
 }
