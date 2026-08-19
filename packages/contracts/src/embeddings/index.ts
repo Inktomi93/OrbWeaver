@@ -131,9 +131,6 @@ export const IMAGE_FACET_NATURE_BY_KEY = {
 
 export type ImageFacetMetaKey = keyof typeof IMAGE_FACET_NATURE_BY_KEY;
 
-/** The keys in declaration order — iteration order for the tally, and the enum the drill narrows. */
-export const IMAGE_FACET_META_KEYS = Object.keys(IMAGE_FACET_NATURE_BY_KEY) as readonly ImageFacetMetaKey[];
-
 const MIN_IMAGE_TAGS = 3;
 const MAX_IMAGE_TAGS = 8;
 
@@ -167,10 +164,6 @@ export const imageBreakdownSchema = z.object({
   tags: z.array(z.string()).min(MIN_IMAGE_TAGS).max(MAX_IMAGE_TAGS),
 });
 export type ImageBreakdown = z.infer<typeof imageBreakdownSchema>;
-
-/** The facet half of a breakdown — what lands in `caption_meta` beside `model` (the caption itself has its
- *  own column). */
-export type ImageBreakdownFacets = Omit<ImageBreakdown, "caption">;
 
 /** A stored `caption_meta` blob, read back from a column that outlives any one build: `model` has always been
  *  there, every facet is OPTIONAL because the 2026-08-18 backfill boundary means older rows carry none, and

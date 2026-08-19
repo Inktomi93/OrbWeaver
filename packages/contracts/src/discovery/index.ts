@@ -66,7 +66,6 @@ export type FindDuplicatesWorkloadParams = z.infer<typeof findDuplicatesWorkload
  */
 export const ANALYTICS_EMPTY_REASONS = ["no-digests", "no-cards"] as const;
 export type AnalyticsEmptyReason = (typeof ANALYTICS_EMPTY_REASONS)[number];
-export const analyticsEmptyReasonSchema = z.enum(ANALYTICS_EMPTY_REASONS);
 
 /** What every discovery analytics pass reports: rows examined, rows written, and — when it wrote nothing
  *  because its INPUT was empty rather than because there was nothing to change — why. */

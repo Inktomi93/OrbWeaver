@@ -42,6 +42,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
   // (`message-wire-trigger` USED to sit here, covered by variant-wire-viewer.ct. WIREBTN deleted the
   //  component: the wire trace is a kebab item on `message-actions-row` now, whose `open` state must live
   //  outside the menu popup — so there is nothing left to split out, and nothing left to waive.)
+  "message-row-divider": {
+    coveredBy: "message-row",
+    why: "the context-boundary divider is a size-cap split of message-row-parts (one renderer, one consumer); message-row.ct drives the divider's show/label/compact-summary arms on real rows.",
+  },
   "chat-list-row": {
     coveredBy: "chat-list-surface",
     why: "the row is the list surface's split-out unit (projection L0); chat-list-surface.ct drives portrait/snippet/star/game-marker arms and the RowToggleAction star mutation on real rows.",
