@@ -19,7 +19,8 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { dedupeByEvidence } from "../lib/corpus-result-text.ts";
-import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
+import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, isNearestOnly, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
+import { percent } from "../lib/corpus-vocabulary.ts";
 import { CharacterHitRow, DigestHitRow, DiscoverHitRow, ImageHitRow } from "./corpus-hit-rows.tsx";
 
 type UnifiedResult = inferOutput<Trpc["search"]["search"]>;
@@ -83,9 +84,17 @@ function UnifiedResults({ query, over, label }: { readonly query: string; readon
     return <NoMatches label={label} query={trimmed} lexical={false} />;
   }
 
+  // COSINE ALWAYS ANSWERS (side-eye corpus re-pass #3, P2-B). `zzqqxwvfoobarbaz` returned twenty rows and
+  // the live region announced them as results: the surface structurally could not reach a "nothing here is
+  // close" state, because a nearest-neighbour engine has no empty arm. It says so now instead — and it says
+  // it WITHOUT hiding a row, which the measurement beside `CORPUS_NEAREST_ONLY_BELOW` is the receipt for.
+  const relevances = relevancesOf(shown);
+  const nearestOnly = isNearestOnly(over, relevances);
+
   return (
     <>
-      <ResultsStatus count={shown.hits.length} label={label} />
+      <ResultsStatus count={shown.hits.length} label={label} nearestOnly={nearestOnly} />
+      {nearestOnly ? <NearestOnlyBanner best={Math.max(...relevances)} /> : null}
       <Stack
         aria-label={`Search results — ${label}`}
         className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
@@ -103,12 +112,46 @@ function UnifiedResults({ query, over, label }: { readonly query: string; readon
  *  shared `Autocomplete`'s, which counts SUGGESTIONS — so a screen reader heard "2 results" over twenty
  *  rendered hits, and "0 results" while resting over a 200-row catalog. This one counts what the list
  *  actually renders, and names the target so two targets' counts can't be confused for one number. */
-function ResultsStatus({ count, label }: { readonly count: number; readonly label: string }): ReactElement {
+function ResultsStatus({ count, label, nearestOnly }: { readonly count: number; readonly label: string; readonly nearestOnly: boolean }): ReactElement {
+  const noun = count === 1 ? "result" : "results";
   return (
     <Text as="span" className="sr-only" role="status">
-      {`${count} ${count === 1 ? "result" : "results"} in ${label}`}
+      {/* A LISTENER GETS THE SAME CAVEAT THE READER GETS (P2-B). The banner below is visual; announcing
+          "20 results" beside it would tell a screen-reader user the opposite of what the screen says. */}
+      {nearestOnly ? `${count} nearest ${noun} in ${label} — nothing matched strongly` : `${count} ${noun} in ${label}`}
     </Text>
   );
+}
+
+/** THE HONEST BANNER OVER A NEAREST-ONLY LIST (P2-B). Degraded, never absolute: the measurement in
+ *  `CORPUS_NEAREST_ONLY_BELOW` shows a low-scoring set can still be the right answer (a coherent off-topic
+ *  query scores BELOW gibberish on the digest index), so this states the ceiling and leaves the reading to
+ *  the reader — the `evidenceScent` voice, which is this surface's spelling for "what exists vs what is
+ *  under it". The percent is the surface's one similarity spelling. */
+function NearestOnlyBanner({ best }: { readonly best: number }): ReactElement {
+  return (
+    <Text data-slot="search-nearest-only" voice="gloss">
+      Nothing matched strongly — these are the nearest, at {percent(best)} or less.
+    </Text>
+  );
+}
+
+/** Every rendered hit's relevance. Per branch on purpose: `hits` is a union of arrays, which cannot be
+ *  mapped as one, and the two targets this surface never requests carry no relevance at all. */
+function relevancesOf(data: UnifiedResult): number[] {
+  if (data.over === "characters") {
+    return data.hits.map((hit) => hit.relevance);
+  }
+  if (data.over === "discover") {
+    return data.hits.map((hit) => hit.relevance);
+  }
+  if (data.over === "digests") {
+    return data.hits.map((hit) => hit.relevance);
+  }
+  if (data.over === "images") {
+    return data.hits.map((hit) => hit.relevance);
+  }
+  return [];
 }
 
 /** The lexical BM25 surface (`search.fields`) — bare id+score hits named against a card-list map. */
@@ -131,7 +174,9 @@ function FieldsResults({ query, label }: { readonly query: string; readonly labe
   const byId = new Map((catalog.data?.items ?? []).map((card) => [card.id, card]));
   return (
     <>
-      <ResultsStatus count={hits.data.length} label={label} />
+      {/* The lexical branch is never "nearest only": BM25 is an unbounded per-query score, not a
+          similarity, so there is no band to compare it against (the same reason its rows print no percent). */}
+      <ResultsStatus count={hits.data.length} label={label} nearestOnly={false} />
       <Stack
         aria-label={`Search results — ${label}`}
         className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"

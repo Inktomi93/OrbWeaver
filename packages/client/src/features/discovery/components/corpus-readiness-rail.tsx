@@ -129,13 +129,32 @@ function CorpusReadinessRerun(): ReactElement {
       {/* AN ERROR IS NOT METADATA (side-eye corpus re-pass #2, P2-7). This rendered at `gloss` — 10.5px, the
           footnote step — which made the failure the SMALLEST text on the surface, quieter than the datum of
           every pass that succeeded. It is a sentence the reader has to act on, so it takes the body step and
-          keeps `text-destructive` for the state. The message itself is the server's, verbatim: the row's
+          kept `text-destructive` for the state — the COLOUR half of that ruling was reversed by re-pass #3
+          and the STEP half still holds; the block below states the fork. The message itself is the server's, verbatim: the row's
           `error` column is durable, so an old row still shows the copy that was live when it FAILED (the C4
           template fix reaches the next run, never the stored text of the last one). */}
+      {/* IT NEEDS TO SAY WHEN (side-eye corpus re-pass #3, P3-F). Five green checks above a red sentence
+          read as CONTRADICTING each other — the rows report the library's current state, the sentence
+          reports one RUN, and nothing on the surface said so. The kicker is the rail's own band vocabulary,
+          which is what makes the two readings sit together instead of arguing.
+
+          AND ONE STEP QUIETER, WHICH IS A FORK WITH THE P2-7 RULING RECORDED ABOVE (stated for the record).
+          P2-7 moved this line off `gloss` because "an error is not metadata" — at 10.5px it was the
+          SMALLEST text on a surface whose failing state it was reporting. Re-pass #3 then measured the
+          opposite end: it out-weighed the five status rows, and CTA-amber plus danger-red read as one warm
+          mass, with the receipt "the CTA is the only warm element in the column". Both are satisfied by
+          moving the axis that P2-7 was not about: the STEP stays a reading step (`label`, 13px — above the
+          footnote register P2-7 rejected, above the interactive floor, and the same step as the stage rows
+          it now sits with), and the COLOUR gives way, because the words already state the case and this
+          file's own header says the state is never carried by hue alone. The one primary door keeps the
+          column's only warm ink. */}
       {pass.failure === null ? null : (
-        <Text className="text-destructive" data-slot="readiness-rerun-failure">
-          {pass.failureWasCrash ? "The last pass stopped unexpectedly — run it again." : `The last pass stopped: ${pass.failure}`}
-        </Text>
+        <Stack data-slot="readiness-rerun-failure" gap="tight">
+          <Text voice="kicker">Last run</Text>
+          <Text className="text-muted-foreground" voice="label">
+            {pass.failureWasCrash ? "The last pass stopped unexpectedly — run it again." : `The last pass stopped: ${pass.failure}`}
+          </Text>
+        </Stack>
       )}
       <Button data-slot="readiness-jobs-door" intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm">
         All jobs in Settings → Jobs

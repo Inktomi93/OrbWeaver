@@ -32,8 +32,10 @@ const POINTS = [
   { characterId: "character_g", name: "Gil", x: 0.7, y: 0.8, genre: null },
 ];
 
-/** The key's rows as text: the swatch renders no text, so a row reads as its genre then its point count. */
-const KEY_ROWS = ["fantasy2", "noir1", "scifi1", "romance1", "Other2"];
+/** The key's rows as text: the swatch renders no text, so a row reads as its genre then its point count.
+ *  SENTENCE-CASED (P3-C): the key printed the distiller's raw token until 2026-08-19, while the section's
+ *  other three facet consumers already spoke through `facetLabel`. The stored value is untouched. */
+const KEY_ROWS = ["Fantasy2", "Noir1", "Scifi1", "Romance1", "Other2"];
 /** The key's accessible name is the chart's own label plus "key" (the primitive composes it). */
 const KEY_NAME = "Corpus semantic map key";
 
@@ -69,6 +71,28 @@ test("the semantic map FILLS its panel instead of leaving a square and a void (P
   }
   const dead = host.y + PANEL_HEIGHT_PX - (plot.y + plot.height);
   expect(dead, `the plot leaves ${Math.round(dead)}px of the panel unused below it`).toBeLessThanOrEqual(DEAD_FOOT_TOLERANCE_PX);
+});
+
+// ── P2-A: THE PLOT IS THE PANEL'S, AND SO IS THE CANVAS ───────────────────────────────────────────────
+// The P3-9 test above measures the FRAME, which is exactly why it stayed green through the regression: the
+// frame was tall while the canvas inside it was a 100px strip (`height="100%"` resolving against an
+// auto-height wrapper — fixed in `packages/ui/src/charts/chart/chart.tsx`). This is the same claim taken to
+// the pixels the reader actually looks at, at the CONTEXT pane's real shape.
+/** The share of the panel the CANVAS must take. Measured after the fix: 557px of this 640px panel (87%),
+ *  the other 83px being the gloss, the frame heading and the genre key — so this floor carries real
+ *  headroom rather than transcribing today's layout. Before the fix the same canvas was 100px. */
+const CANVAS_PANEL_SHARE = 0.5;
+
+test("the semantic map's CANVAS fills the panel, not a 100px strip (P2-A)", async ({ mount, page }) => {
+  await routeTrpc(page, { "discovery.corpusProjection": POINTS });
+  const component = await mount(<CorpusMapTabStory />);
+  await expect(component.getByRole("list", { name: KEY_NAME })).toBeVisible();
+
+  const canvas = component.locator("canvas");
+  await expect(canvas).toBeVisible();
+  await expect
+    .poll(async () => (await canvas.boundingBox())?.height ?? 0, { intervals: [20, 50, 100, 200] })
+    .toBeGreaterThanOrEqual(PANEL_HEIGHT_PX * CANVAS_PANEL_SHARE);
 });
 
 test("no genre is named twice — the key cannot hand two rows the same swatch", async ({ mount, page }) => {

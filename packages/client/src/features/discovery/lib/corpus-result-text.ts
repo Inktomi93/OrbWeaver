@@ -83,6 +83,34 @@ export function groupEvidenceByPassage(segments: readonly EvidenceSegment[], cas
   return [...byPassage.values()];
 }
 
+/**
+ * THE ROOM THAT IS TRUE OF THE WHOLE HIT, SAID ONCE (side-eye corpus re-pass #3, P3-D).
+ *
+ * The common case on a normal library is the opposite of the duplicated-room case {@link
+ * groupEvidenceByPassage} exists for: three passages out of ONE room, which renders the same door three
+ * times under one character. The echo is cosmetic, and so is this — the grouping is NOT inverted back (that
+ * trade was already measured and lost, see above); the renderer simply lifts the door out when it says the
+ * same thing under every passage.
+ *
+ * Returns that shared room list only when EVERY passage carries the identical set (order-insensitive) and
+ * there is more than one passage to share it — otherwise null, and the doors stay with their evidence,
+ * because a door that is not true of every passage cannot be hoisted without lying about where a passage
+ * came from.
+ */
+export function sharedRooms(passages: readonly EvidencePassage[]): readonly EvidenceRoom[] | null {
+  const first = passages[0];
+  if (first === undefined || passages.length < 2) {
+    return null;
+  }
+  const keyOf = (passage: EvidencePassage): string =>
+    passage.rooms
+      .map((room) => room.chatId)
+      .toSorted((a, b) => a.localeCompare(b))
+      .join("|");
+  const key = keyOf(first);
+  return passages.every((passage) => keyOf(passage) === key) ? first.rooms : null;
+}
+
 /** The trailing ` (2)` an import writes when two rooms claim one name (`import/substrate/chat-input.ts`'s
  *  `disambiguateChatTitles`) — the only producer of this form besides a person typing it. */
 const NUMBERED_ROOM = /\s\(\d+\)$/;
