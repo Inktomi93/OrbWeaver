@@ -62,8 +62,10 @@ export interface ForwardJwtVerifier {
 export interface ResolveDeps {
   verifyForwardJwt?: ForwardJwtVerifier;
   oidcStore?: OidcTransactionStore;
-  /** Raw TCP peer socket address for the forward-header unsigned trusted-proxy gate — never a spoofable
-   *  X-Forwarded-For/X-Real-IP header. Absent means the unsigned path fails closed. */
+  /** Raw TCP peer socket address — never a spoofable X-Forwarded-For/X-Real-IP header. TWO gates read it:
+   *  the forward-header unsigned trusted-proxy gate (`modes/forward-header.ts`) and, since #298 f2, the
+   *  LOOPBACK gate on the un-credentialed owner fallback (`ownerFallbackAllowed`, `dispatch.ts`). Absent
+   *  means BOTH fail closed. */
   peerIp?: string;
   config?: AuthConfig;
 }

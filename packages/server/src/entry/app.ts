@@ -15,13 +15,14 @@ import { castId } from "@orb/kit/ids";
 import type { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { ResponseMeta } from "@trpc/server/http";
+import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ExportService } from "#domain/export";
 
 import { env } from "#foundation/env";
 import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
-import { observability, observabilityErrorHandler, registerDebugRoutes } from "#foundation/observability";
+import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
 import { fleetCapacitySnapshot } from "#infra/providers";
@@ -62,11 +63,65 @@ const MS_PER_SECOND = 1000;
 const TRPC_ENDPOINT = "/api/trpc";
 const TRPC_MOUNT = "/api/trpc/*";
 const PAYLOAD_TOO_LARGE = 413;
+const UNSUPPORTED_MEDIA_TYPE = 415;
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
 // tRPC bodies are JSON (a batched call's inputs + params). 1 MiB is generous for that; oversized binary
 // rides the upload/import routes with their own larger caps. Bounds a malicious oversized mutation body.
 const TRPC_BODY_MAX_BYTES = BYTES_PER_MIB;
+
+// The ONE content-type a tRPC mutation may carry, and the bound on how much of a rejected one reaches the
+// log ring (the header is attacker-controlled and header-size-bounded, not length-bounded by us).
+const TRPC_JSON_MEDIA_TYPE = "application/json";
+const REJECTED_CONTENT_TYPE_LOG_CHARS = 64;
+
+/**
+ * Does this request select tRPC's JSON content-type handler? A media-type PREFIX test, mirroring
+ * `jsonContentTypeHandler.isMatch` in `@trpc/server`'s `resolveResponse` verbatim — the belt's accept-set
+ * must be exactly the set that reaches the JSON parser, or it would refuse a legal `; charset=utf-8` the
+ * handler would have parsed. Lowercased first, which can only make the belt STRICTER than tRPC's
+ * case-sensitive matcher: a mixed-case `Multipart/Form-Data` is refused here and matches no tRPC handler
+ * either, while a mixed-case `Application/JSON` passes the belt and then meets tRPC's own 415.
+ */
+function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
+  return contentType?.toLowerCase().startsWith(TRPC_JSON_MEDIA_TYPE) === true;
+}
+
+/**
+ * THE CSRF CONTENT-TYPE BELT (#300 leg 5, spine invariant #9). A tRPC mutation is POST-only
+ * (`TYPE_ACCEPTED_METHOD_MAP`; the mount grants no `allowMethodOverride`), and `@trpc/server` 11.18's
+ * `getContentTypeHandler` accepts THREE content-types — `application/json`, `multipart/form-data` and
+ * `application/octet-stream` — dispatching the latter two as `type:"mutation"`. `multipart/form-data` is
+ * CORS-SIMPLE: an ordinary cross-site `<form>` POST reaches this mount with no preflight and no CORS grant
+ * at all. The tRPC auth gate keys its CSRF check on `via === "cookie"` (`transport/trpc/trpc.ts`) and
+ * deliberately exempts the loopback-owner `fallback` arm so the un-cookied dev tooling keeps working — so
+ * wherever `AUTH_FALLBACK=owner` is live (every `single-user` box, every dev stack, any break-glass
+ * session) a page in the box's own browser could drive an input-less destructive mutation AS THE OWNER.
+ * Proven behaviorally before this belt existed: `tag.pruneUnusedTags` ran and returned 200.
+ *
+ * Refusing here rather than widening that gate to `via !== "header"` is deliberate: this closes multipart
+ * AND octet-stream on EVERY via arm at once, and it keeps the un-cookied loopback tooling (curl harvests,
+ * `multi-user-seed`) working — it already sends JSON without an `x-orb-csrf` header. What the tRPC gate
+ * then rests on is one physics claim, stated so it can be re-checked: `application/json` is NOT a
+ * CORS-simple content-type, so a cross-site page cannot make the browser send one without a preflight this
+ * app never answers (it mounts no CORS middleware).
+ *
+ * GET is untouched — it carries no content-type, and tRPC's method map admits GET for queries and
+ * subscriptions only. A bare 415 with no body mirrors the body-limit belt: no legitimate client reaches it,
+ * and the refusal still carries `X-Request-Id` (observability is mounted above this).
+ */
+const trpcJsonOnly: MiddlewareHandler = (c, next) => {
+  const contentType = c.req.header("content-type");
+  if (c.req.method !== "POST" || selectsTrpcJsonHandler(contentType)) {
+    return next();
+  }
+  securityEvent(
+    "trpc_content_type_rejected",
+    { contentType: contentType?.slice(0, REJECTED_CONTENT_TYPE_LOG_CHARS) ?? null, path: c.req.path },
+    "security: tRPC POST rejected — content-type is not application/json",
+  );
+  return Promise.resolve(c.body(null, UNSUPPORTED_MEDIA_TYPE));
+};
 
 /**
  * The tRPC `responseMeta` hook: on a TOO_MANY_REQUESTS response, surface the throttle hint from the
@@ -210,6 +265,10 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // Mounted after auth so the request-user read at the end of this middleware sees the already-resolved
   // principal, without widening the span to include auth's own resolvePrincipal latency.
   app.use("*", observability);
+
+  // The CSRF content-type belt — the whole WHY lives on `trpcJsonOnly` above. FIRST of the two mount belts,
+  // so a refused non-JSON POST is never buffered at all.
+  app.use(TRPC_MOUNT, trpcJsonOnly);
 
   // Cap tRPC JSON bodies (1 MiB) before the handler buffers them. Returns a bare 413 rather than throwing
   // an HTTPException (which the app's observability onError would flatten to a 500 — an ugly shape for a
