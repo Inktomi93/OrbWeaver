@@ -9,7 +9,8 @@
 // re-parents the rest of the row.
 //
 // So the pin is structural (zero `p` inside any button) PLUS the a11y contract the row already owed: the
-// name is the facet label alone and an EMPTY row's subtitle is its description (the 2026-08-18 P1-2 fix).
+// name is the facet label alone and an EMPTY row's subtitle is its description (the 2026-08-18 P1-2 fix) —
+// PLUS, since #254, that a filled row and an empty one do not announce identically.
 // Driven through the editor surface story because the row is a feature-internal leaf — the front door
 // exports the surface, and the rows a user actually sees are the ones worth asserting.
 
@@ -20,11 +21,15 @@ import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterEditorSurfaceStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail } from "../fixtures.ts";
 
+/** Hoisted out of the fixture because its LENGTH is what a filled row announces (#254) — reading it back
+ *  off `CARD` would be `string | null` and the count assertions would go vacuous on a `?? ""`. */
+const DESCRIPTION = "A wandering cartographer with a sharp tongue.";
+
 // Description FILLED (its row renders the preview line), Personality left empty (its row renders the
 // subtitle line as the button's description) — one mount covers both of the row's two arms.
 const CARD = makeCharacterDetail({
   name: "Aria Nightshade",
-  description: "A wandering cartographer with a sharp tongue.",
+  description: DESCRIPTION,
 });
 
 async function routeEditor(page: Page): Promise<void> {
@@ -52,7 +57,51 @@ test("the facet row still announces the label as its name and the subtitle as an
   const filled = component.getByRole("button", { name: "Description", exact: true });
   await expect(filled).toBeVisible();
 
-  // EMPTY row: the gloss is the DESCRIPTION, still resolved through aria-describedby.
+  // EMPTY row: the gloss is the DESCRIPTION, still resolved through aria-describedby — now behind the
+  // fill state, which LEADS the description (#254).
   const empty = component.getByRole("button", { name: "Personality", exact: true });
-  await expect(empty).toHaveAccessibleDescription("A summary of traits and temperament.");
+  await expect(empty).toHaveAccessibleDescription("Empty A summary of traits and temperament.");
+});
+
+/** The empty row's description must LEAD with the state, before the facet's gloss. */
+const LEADS_WITH_EMPTY = /^Empty\b/;
+/** The filled row's description must never carry the authored prose back in (`DESCRIPTION`'s noun). */
+const CARD_PROSE = /cartographer/;
+
+// #254 — the a11y half of the decorative-preview fix. Making the filled row's preview line `aria-hidden`
+// (it was a 1283-character accessible NAME) took the last announced difference between a filled row and an
+// empty one with it: both read "Description, button". The visible difference — preview text vs the muted
+// "Add…" — is invisible to a screen reader on BOTH sides. So the two states must differ in the accessible
+// DESCRIPTION, in a terse state + magnitude that never restores the wall.
+test("a filled facet row and an empty one announce distinguishable descriptions", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  // FILLED: state + magnitude, never the body. `DESCRIPTION` is 45 characters.
+  const filled = component.getByRole("button", { name: "Description", exact: true });
+  await expect(filled).toHaveAccessibleDescription(`Filled, ${DESCRIPTION.length} characters`);
+  // …and the description is NOT the prose — the whole point of the decorative preview.
+  await expect(filled).not.toHaveAccessibleDescription(CARD_PROSE);
+
+  // EMPTY: says so, in front of the gloss that says what the facet is for.
+  const empty = component.getByRole("button", { name: "Personality", exact: true });
+  await expect(empty).toHaveAccessibleDescription(LEADS_WITH_EMPTY);
+});
+
+// The aria-snapshot receipt: the two ROWS as an assistive tech reads them, side by side, so a change that
+// flattens them back into one announcement is a visible diff rather than a silent regression. Scoped to the
+// two rows — an `ariaSnapshot` of the whole surface would churn on every editor edit. The snapshot is taken
+// of the row (the button's parent) rather than the button, because the state text is a SIBLING of the
+// button: `aria-describedby` is a name-computation relationship, not a tree containment one, so it does not
+// show up under the button node.
+test("aria snapshot: filled vs empty facet rows read differently", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const filledRow = component.getByRole("button", { name: "Description", exact: true }).locator("xpath=..");
+  const emptyRow = component.getByRole("button", { name: "Personality", exact: true }).locator("xpath=..");
+  await expect(filledRow).toBeVisible();
+
+  expect(await filledRow.ariaSnapshot()).toContain(`Filled, ${DESCRIPTION.length} characters`);
+  expect(await emptyRow.ariaSnapshot()).toContain("Empty");
 });
