@@ -81,7 +81,11 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, backi
     // Sized to its content like its twin (#228): the two strips share one slot and one chrome, so a plate
     // that spans the whole message width on one of them and hugs the chevrons on the other would be the
     // drift this pair's threading exists to prevent.
-    <Row gap="field" align="center" data-slot="greeting-swipe-strip" className={cn("w-fit", backingClass)}>
+    //
+    // TRAILING-EDGE ALIGNED (#312), for the same reason and by the same lever as `SwipeStrip`: the two
+    // strips share one slot, so they cannot differ on which edge the chevrons pack to. `self-end` places
+    // the chip under the row actions at the content column's right edge instead of at its left-by-omission.
+    <Row gap="field" align="center" data-slot="greeting-swipe-strip" className={cn("w-fit self-end", backingClass)}>
       <Button
         intent="ghost"
         size="icon"
