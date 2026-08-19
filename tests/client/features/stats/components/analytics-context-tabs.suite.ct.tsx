@@ -11,6 +11,7 @@
 // the same `#state` selection the leaderboard writes.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { CharacterId } from "@orb/kit/ids";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { AnalyticsModelsTabStory, AnalyticsPersonasTabStory } from "../_ct-stories.tsx";
 
@@ -86,7 +87,7 @@ test("a model bucket with no accounting renders dashes, not `0 tok · $0.00`", a
 test("the Personas tab narrows its read to the drilled character", async ({ mount, page }) => {
   await routeTrpc(page, {
     "stats.personaUsage": (input: unknown) =>
-      (input as { characterId?: string } | undefined)?.characterId === undefined
+      (input as { characterId?: CharacterId } | undefined)?.characterId === undefined
         ? [personaRow("Alex", 4200), personaRow("Vex", 900)]
         : [personaRow("Alex", 118)],
   });
@@ -101,7 +102,7 @@ test("the Personas tab narrows its read to the drilled character", async ({ moun
 test("with nothing drilled the Personas tab reads the whole library and says so", async ({ mount, page }) => {
   await routeTrpc(page, {
     "stats.personaUsage": (input: unknown) =>
-      (input as { characterId?: string } | undefined)?.characterId === undefined
+      (input as { characterId?: CharacterId } | undefined)?.characterId === undefined
         ? [personaRow("Alex", 4200), personaRow("Vex", 900)]
         : [personaRow("Alex", 118)],
   });
