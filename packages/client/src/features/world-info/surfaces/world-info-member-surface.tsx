@@ -114,7 +114,12 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
             {entries.length === 1 ? "1 entry" : `${entries.length} entries`}
           </Text>
           <Row align="center" gap="field">
-            <Button disabled={backfill.isPending || entries.length === 0} intent="ghost" onClick={onBackfill} size="sm">
+            {/* `secondary`, NOT `ghost` (side-eye 2026-08-19 P2, the zero-resting-affordance class): at
+                ghost this is a transparent, borderless accent word sitting 8px from a filled primary, so
+                the pair read as "one button and a caption" rather than as two verbs of different weight.
+                Secondary is the house's non-primary CHROME — it has a box at rest, and the primary keeps
+                its rank because it is the only filled control in the row. */}
+            <Button disabled={backfill.isPending || entries.length === 0} intent="secondary" onClick={onBackfill} size="sm">
               Backfill titles
             </Button>
             <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">

@@ -2,11 +2,13 @@
 // create verb, and the IMPORT verb (D121-D's band half, now the group band's). All three are hooks because a
 // definition is a module-level value — the host calls each unconditionally, once, per rendered affordance.
 
+import type { BookWithUsage } from "@orb/contracts/world-info";
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import type { CollectionPreviewEntry } from "#lib";
+import { COLLECTION_PREVIEW_LIMIT, notify } from "#lib";
 import { selectCollectionMember } from "#state";
-import { WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
+import { bookScent, WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
 import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mutations.ts";
 
 const NEW_BOOK_NAME = "New book";
@@ -15,6 +17,32 @@ const NEW_BOOK_NAME = "New book";
 export function useWorldInfoCount(): number | undefined {
   const trpc = useTRPC();
   return useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions()).data?.length;
+}
+
+/** One ranked row → the host-facing preview entry. The datum is `bookScent` VERBATIM — the same
+ *  "42 entries · attached ×3" the roster row's subtitle carries — because a book's two facts do not change
+ *  between the glance and the list, and a second spelling here is exactly the drift that single home exists
+ *  to prevent (it also owns the `unattached` word and the entry singular). */
+function previewEntry(book: BookWithUsage): CollectionPreviewEntry {
+  return { label: book.name, detail: bookScent(book) };
+}
+
+/** The welcome hero's chip wall (the `preview` seam): the most ATTACHED books.
+ *
+ *  ATTACHMENT IS THE RANK because it is the one thing that separates a book that is doing work from a book
+ *  you wrote and never wired up — the state `bookScent` calls out as `unattached` on the roster row for the
+ *  same reason. Size does not rank: a 200-entry book attached nowhere is not what the library is FOR.
+ *  Sorted on a COPY: the query's array is react-query cache state.
+ *
+ *  THE SAME CACHED LIST the census and the rows read, so this is a cache hit and never a second request. */
+export function useWorldInfoPreview(): readonly CollectionPreviewEntry[] | undefined {
+  const trpc = useTRPC();
+  const rows = useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions()).data;
+  if (rows === undefined) {
+    return rows;
+  }
+  const mostAttached = [...rows].sort((left, right) => right.usage.total - left.usage.total);
+  return mostAttached.slice(0, COLLECTION_PREVIEW_LIMIT).map(previewEntry);
 }
 
 /** The OPEN member's name for the mobile pushed frame's topbar (the `useMemberTitle` seam) — the SAME

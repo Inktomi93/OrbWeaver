@@ -11,7 +11,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ConfigRosterNarrowStory, ConfigWorkspaceStory } from "../_ct-stories.tsx";
+import { ConfigMobileRosterStory, ConfigRosterNarrowStory, ConfigWorkspaceStory } from "../_ct-stories.tsx";
 
 /** The group bands, by their accessible name — a band is `<disclosure> <icon> LABEL <count>`, so the
  *  name carries the count and only a pattern can address it. */
@@ -28,15 +28,21 @@ const TAG_COUNT = 400;
 /** Every collection's create verb, as one pattern — the door array's whole create vocabulary is
  *  `New tag` / `New script` / `New book`. */
 const ANY_CREATE_VERB = /^New /;
-/** The two launcher CARDS the launcher tests drive, addressed by their BLURB — the accessible name of an
- *  operable card is its own content, and the blurb is the half the roster band does not carry. */
-const TAGS_LAUNCHER = /Color-coded labels/;
-const WORLD_INFO_LAUNCHER = /Keyword-triggered lore/;
+/** The two launcher DOORS the launcher tests drive. SWEPT 2026-08-19 with the accessible-name fork (see
+ *  `config-welcome.tsx`'s `BuiltLibrary` header): the island used to BE the button and was therefore
+ *  addressed by its blurb, which made its accessible name the card's whole ~45-word content. It is now a
+ *  named region containing a real button, so the control is addressed by the verb it performs. */
+const TAGS_LAUNCHER = "Open Tags →";
+const WORLD_INFO_LAUNCHER = "Open World Info →";
 /** The resting DOOR affordance a built library's island carries and a not-yet-built slot does not — the
  *  same text-arrow register home's hearth uses ("Open <library> →"). */
 const ANY_OPEN_DOOR = /^Open /;
 /** The coarse-pointer tap floor (WCAG 2.5.5 / the house `size-control-md` coarse step). */
 const TOUCH_FLOOR_PX = 44;
+/** The phone pane `ConfigMobileRosterStory` mounts at — restated here rather than imported, because a
+ *  `_ct-stories` module may export only components and a width the test does not state is a width it
+ *  cannot hold anyone to. */
+const PHONE_VIEWPORT_PX = 430;
 
 // The workspace mounts all three panes, and TWO of them legitimately offer a collection's create verb: the
 // group BAND (the per-group `+`) and the welcome's LAUNCHER CARD. That is the drawn design, so the CTs
@@ -71,6 +77,15 @@ const FIRST_ROW = "tag-002";
  *  row AND a preview chip. Every use below means the ROW. */
 function firstRow(workspace: Locator): Locator {
   return workspace.locator(ROSTER).getByText(FIRST_ROW);
+}
+
+/** A roster ROW by any text it carries, scoped to the LIST. Every collection now declares a welcome
+ *  preview (side-eye 2026-08-19 P1-2), so the launcher walls print member NAMES and SCENTS for all three
+ *  — "strip ooc" and "42 entries · attached ×3" each match a row AND a chip. Clicking the chip opens the
+ *  collection instead of the member, which is a silent wrong-target, not a failure. Every use below means
+ *  the ROW; it is the `firstRow` rule generalized. */
+function rosterRow(workspace: Locator, text: string): Locator {
+  return workspace.locator(ROSTER).getByText(text);
 }
 
 const SCRIPTS = [
@@ -171,7 +186,7 @@ test("a small group gets NO filter (the affordance is count-driven, not per-coll
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator(ROSTER).getByRole("button", { name: REGEX_BAND }).click();
-  await expect(workspace.getByText("strip ooc")).toBeVisible();
+  await expect(rosterRow(workspace, "strip ooc")).toBeVisible();
   await expect(workspace.getByRole("textbox", { name: "Filter regex scripts" })).toHaveCount(0);
 });
 
@@ -234,8 +249,11 @@ test("a POPULATED collection's launcher sheds the count + create the roster band
 // own name claims: clicking it takes the reader to that library in the LIST, through the same
 // `goToCollection` intent every other cross-surface "manage it over there" door fires.
 //
-// The card's accessible NAME is its own content (label + blurb) — the blurb is what the roster band does not
-// carry, so naming the control by it keeps the one thing this pane adds readable to a screen reader.
+// THE CONTROL IS THE DOOR BUTTON as of 2026-08-19, not the island (the fork is stated in full in
+// `config-welcome.tsx`'s `BuiltLibrary` header): naming the whole island made its accessible name its whole
+// content, ~45 words, which hid the blurb and census inside a label instead of exposing them. The island is
+// a named region; the finding below — a populated launcher must be a real, operable, thumb-sized control —
+// is satisfied by the door, and the island keeps a mirroring pointer click as a convenience.
 test("a POPULATED launcher card is a real control — clicking it opens that collection's group in the LIST", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
@@ -246,17 +264,18 @@ test("a POPULATED launcher card is a real control — clicking it opens that col
   const band = roster.getByRole("button", { name: TAGS_BAND });
   await expect(band).toHaveAttribute("aria-expanded", "false");
 
-  const card = workspace.locator(WELCOME).getByRole("button", { name: TAGS_LAUNCHER });
-  await expect(card).toBeVisible();
-  // A launcher a thumb cannot land on is not a launcher: the card clears the touch floor by a wide margin
-  // (it is a three-line island), and the assertion guards the day someone trims it to a strip.
-  const box = await card.boundingBox();
+  const door = workspace.locator(WELCOME).getByRole("button", { name: TAGS_LAUNCHER });
+  await expect(door).toBeVisible();
+  // A launcher a thumb cannot land on is not a launcher. Measured on the ISLAND, which is still the whole
+  // pointer target (the door's own coarse floor rides `Button`'s `::after` touch-target pseudo and is
+  // therefore invisible to a bounding box — the sealed variant owns that, not this surface).
+  const box = await launcher(workspace, "tags").boundingBox();
   if (box === null) {
     throw new Error("the populated launcher card did not render a box");
   }
   expect(box.height, "the launcher clears the coarse touch floor").toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
 
-  await card.click();
+  await door.click();
   await expect(band).toHaveAttribute("aria-expanded", "true");
   await expect(firstRow(workspace)).toBeVisible();
 });
@@ -285,9 +304,12 @@ test("a POPULATED launcher card carries a resting affordance its inert siblings 
   // One frame, both arms: `tags` is empty (the inert slot), `regex`/`worldInfo` are populated (launchers).
   await expect(launcher(workspace, "worldInfo").getByText(ANY_OPEN_DOOR), "the launchable island names its door at rest").toBeVisible();
   await expect(launcher(workspace, "tags").getByText(ANY_OPEN_DOOR), "the inert slot draws no door").toHaveCount(0);
-  // …and the difference is visible without reading: only the launchable one is an operable island.
-  await expect(launcher(workspace, "worldInfo")).toHaveAttribute("role", "button");
-  await expect(launcher(workspace, "tags")).not.toHaveAttribute("role", "button");
+  // …and the difference is addressable, not only visible: the launchable one is a NAMED REGION carrying a
+  // door control; the inert slot is neither. (Swept 2026-08-19 — the island used to be `role=button`
+  // itself; the fork and its receipts are in `config-welcome.tsx`'s `BuiltLibrary` header.)
+  await expect(launcher(workspace, "worldInfo")).toHaveAttribute("role", "region");
+  await expect(launcher(workspace, "worldInfo").getByRole("button", { name: WORLD_INFO_LAUNCHER })).toBeVisible();
+  await expect(launcher(workspace, "tags")).not.toHaveAttribute("role", "region");
 });
 
 // …AND THE CARD GRID READS IN THE SAME COLUMN AS THE COPY ABOVE IT (side-eye 2026-08-08 P3). The grid had no
@@ -343,13 +365,16 @@ test("an EMPTY collection's launcher keeps its count and create verb — the fir
   const tags = launcher(workspace, "tags");
   await expect(tags.getByText("0")).toBeVisible();
   await expect(tags.getByRole("button", { name: "New tag" })).toBeVisible();
-  // The control, in the same frame: the populated siblings shed theirs. (`getByRole` searches DESCENDANTS,
-  // so a populated card being a button ITSELF does not satisfy this — it still asserts an empty card body.)
-  await expect(launcher(workspace, "regex").getByRole("button")).toHaveCount(0);
-  await expect(launcher(workspace, "worldInfo").getByRole("button")).toHaveCount(0);
-  // …and the EMPTY card is not a launcher: its create button is the affordance, and an interactive card
-  // wrapping a button is the nested-interactive shape the band's own header rules out.
-  await expect(tags).not.toHaveAttribute("role", "button");
+  // The CREATE verb, in the same frame: the populated siblings shed theirs. Stated as the create vocabulary
+  // rather than as "no buttons at all" — since the 2026-08-19 fork a populated island carries exactly one
+  // button, its door, which is not a create verb and never was the thing this test is about.
+  await expect(launcher(workspace, "regex").getByRole("button", { name: ANY_CREATE_VERB })).toHaveCount(0);
+  await expect(launcher(workspace, "worldInfo").getByRole("button", { name: ANY_CREATE_VERB })).toHaveCount(0);
+  await expect(launcher(workspace, "regex").getByRole("button")).toHaveCount(1);
+  // …and the EMPTY card is not a launcher: its create button is the affordance, so it is neither a named
+  // region nor a door — the reader is not offered a way into a library with nothing in it.
+  await expect(tags).not.toHaveAttribute("role", "region");
+  await expect(tags.getByText(ANY_OPEN_DOOR)).toHaveCount(0);
 });
 
 // D121-D's lifecycle anatomy, landed on the group band: IMPORT is host chrome driven by the contribution's
@@ -400,14 +425,14 @@ test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its
 
   // A SCRIPT: the same host, a different owner's editor and a real context body.
   await workspace.locator(ROSTER).getByRole("button", { name: REGEX_BAND }).click();
-  await workspace.getByText("strip ooc").click();
+  await rosterRow(workspace, "strip ooc").click();
   await expect(workspace.getByRole("textbox", { name: "Name" })).toBeVisible();
   await expect(workspace.getByText("Runs in every chat")).toBeVisible();
 
   // A BOOK (R2): the book editor mounts in CONTENT and the activation panel fills CONTEXT — the surfaces the
   // retired rail section owned, framed by the same host as its two siblings.
   await workspace.locator(ROSTER).getByRole("button", { name: WORLD_INFO_BAND }).click();
-  await workspace.getByText("42 entries · attached ×3").click();
+  await rosterRow(workspace, "42 entries · attached ×3").click();
   await expect(workspace.getByRole("heading", { name: "The Ninefold Reach" })).toBeVisible();
   await expect(workspace.getByRole("switch", { name: "Fires in every chat" })).toBeVisible();
 });
@@ -445,7 +470,7 @@ test("a mounted member editor is INSET from the CONTENT region on all four sides
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator(ROSTER).getByRole("button", { name: WORLD_INFO_BAND }).click();
-  await workspace.getByText("42 entries · attached ×3").click();
+  await rosterRow(workspace, "42 entries · attached ×3").click();
   // Barrier on the SETTLED editor — the heading only exists once the book read has landed.
   const heading = workspace.getByRole("heading", { name: "The Ninefold Reach" });
   await expect(heading).toBeVisible();
@@ -479,7 +504,7 @@ test("the editor's PRIMARY action no longer touches the pane boundary", async ({
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator(ROSTER).getByRole("button", { name: WORLD_INFO_BAND }).click();
-  await workspace.getByText("42 entries · attached ×3").click();
+  await rosterRow(workspace, "42 entries · attached ×3").click();
   // `[data-cta]` — the editor's HEADER primary, the one whose right edge the report measured ON the pane
   // boundary. (The empty-list state offers a second "New entry"; that one is not the trailing-edge case.)
   const primary = workspace.locator(CONTENT).getByRole("button", { name: NEW_ENTRY }).and(workspace.locator("[data-cta]"));
@@ -627,4 +652,49 @@ test("the longest group kicker survives the docked pane's real width — no elli
   await expect(kicker).toBeVisible();
   const overflow = await kicker.evaluate((node) => node.scrollWidth - node.clientWidth);
   expect(overflow).toBe(0);
+});
+
+// ── THE PHONE'S TEACHING FRAME (side-eye 2026-08-19 P2) ─────────────────────────────────────────────
+// The welcome carries the best onboarding copy in the app and it is CONTENT, which the mobile one-shell
+// rule makes unreachable: with nothing selected the LIST is the whole screen, and selecting anything
+// arrives at that member's editor. So a 430px screen's entire first impression was three 40px group rows
+// and a void, and the reader was never told what any of this is for.
+//
+// The pin is the RENDERED frame at a phone width, on the settled mobile regime — never a media-query class
+// read. `useMobileViewport` is a published STORE fact (app-shell owns the matchMedia), so the story ships
+// the same two regime buttons the `#state` CTs use and this drives them; the desktop arm is asserted in the
+// same test, because "renders on a phone" is only half the claim — the other half is that the desktop
+// roster, which sits beside the welcome that already says this, is byte-identical to what it was.
+test("the LIST teaches on a phone and stays silent on the desktop", async ({ mount, page }) => {
+  await stub(page);
+  const roster = await mount(<ConfigMobileRosterStory />);
+  await roster.getByRole("button", { name: "reset groups" }).click();
+
+  const frame = roster.locator('[data-slot="config-mobile-teaching"]');
+
+  // DESKTOP FIRST — the regime a CT starts in. Nothing extra over the roster.
+  await roster.getByRole("button", { name: "go desktop" }).click();
+  await expect(frame, "the desktop LIST does not restate the welcome beside it").toHaveCount(0);
+
+  await roster.getByRole("button", { name: "go mobile" }).click();
+  await expect(frame).toBeVisible();
+  // The masthead sentence — the statement the phone could never reach.
+  await expect(frame.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
+  await expect(frame.getByText("Tags label your library.", { exact: false })).toBeVisible();
+  // …and one line per collection, from the contributions' own blurbs — no host string table, so a fourth
+  // collection appears here from the same ONE door row.
+  await expect(frame.getByText("Color-coded labels", { exact: false })).toBeVisible();
+  await expect(frame.getByText("Find/replace that runs on input", { exact: false })).toBeVisible();
+  await expect(frame.getByText("Keyword-triggered lore", { exact: false })).toBeVisible();
+
+  // IT IS ACTUALLY ON THE PHONE'S SCREEN, not merely in the DOM: rendered inside the 430px pane, above the
+  // first group band, with no horizontal overflow.
+  const [frameBox, bandBox] = await Promise.all([frame.boundingBox(), roster.getByRole("button", { name: TAGS_BAND }).boundingBox()]);
+  if (frameBox === null || bandBox === null) {
+    throw new Error("the mobile teaching frame or the first band did not render a box");
+  }
+  expect(frameBox.width, "the frame fits the phone pane").toBeLessThanOrEqual(PHONE_VIEWPORT_PX);
+  expect(frameBox.y + frameBox.height, "the frame leads the roster").toBeLessThanOrEqual(bandBox.y + 1);
+  const overflow = await frame.evaluate((node) => node.scrollWidth - node.clientWidth);
+  expect(overflow, "no sideways scroll on a phone").toBe(0);
 });
