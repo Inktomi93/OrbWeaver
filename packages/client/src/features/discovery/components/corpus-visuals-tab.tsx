@@ -23,6 +23,7 @@ import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter } from "#state";
 import { toBarItems } from "../lib/corpus-charts.ts";
+import { facetLabel, percent } from "../lib/corpus-vocabulary.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 import { ParamSelect } from "./corpus-controls.tsx";
 
@@ -30,7 +31,6 @@ type ImageFacets = inferOutput<Trpc["discovery"]["imageFacets"]>;
 type FacetKey = inferInput<Trpc["discovery"]["charactersByImageFacet"]>["facet"];
 type PortraitReport = inferOutput<Trpc["discovery"]["portraitAlignment"]>;
 
-const ALIGNMENT_PRECISION = 2;
 const WORST_LIMIT = 12;
 const SKELETON_ROW_COUNT = 4;
 const NO_VALUE = "";
@@ -90,10 +90,14 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
         <Text voice="gloss">No portrait↔card alignment computed yet.</Text>
       ) : (
         <Stack gap="block">
+          {/* ONE SIMILARITY VOCABULARY, EVERYWHERE (side-eye corpus re-pass #2, P2-5). These read "Mean fit
+              0.31" and a per-row badge of "0.09" while the dossier one pane over said 25% for the SAME
+              measurement — a portrait↔card cosine. Three scales for one number is three things to learn;
+              the surface has one spelling and it lives in `../lib/corpus-vocabulary.ts`. */}
           <Row gap="block" className="flex-wrap">
             <StatFigure label="Scored" value={report.count.toString()} />
-            <StatFigure label="Mean fit" value={report.mean.toFixed(ALIGNMENT_PRECISION)} />
-            <StatFigure label="Median fit" value={report.median.toFixed(ALIGNMENT_PRECISION)} />
+            <StatFigure label="Mean fit" value={percent(report.mean)} />
+            <StatFigure label="Median fit" value={percent(report.median)} />
           </Row>
           <Text voice="kicker">Worst-matched art</Text>
           <Stack gap="row" role="list">
@@ -107,7 +111,7 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
                 subtitle={[character.artStyle, character.rating].filter((v) => v !== null && v !== "").join(" · ")}
                 actions={
                   <Badge intent="neutral" size="sm">
-                    {character.alignment.toFixed(ALIGNMENT_PRECISION)}
+                    {percent(character.alignment)}
                   </Badge>
                 }
               />
@@ -132,7 +136,11 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
   }));
   const valueItems: SelectItems<string> = [
     { value: NO_VALUE, label: "Drill a value…" },
-    ...rows.map((row) => ({ value: row.value, label: `${row.value} (${row.count})` })),
+    // `none` IS NOT A NAME (P3-4): the VL breakdown writes that token for an image it could not classify,
+    // and it reached the reader as a facet value called "none" — and, on the family plates, as a family of
+    // 21 members with that as its title. The VALUE is untouched (it is what the drill query matches on);
+    // only the label a person reads is projected.
+    ...rows.map((row) => ({ value: row.value, label: `${facetLabel(row.value)} (${row.count})` })),
   ];
 
   const onFacet = (next: string): void => {
@@ -164,7 +172,7 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
               label={view.label}
               items={toBarItems(
                 rows,
-                (row) => row.value,
+                (row) => facetLabel(row.value),
                 (row) => row.count,
               )}
             />

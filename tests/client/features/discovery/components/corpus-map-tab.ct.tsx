@@ -48,6 +48,29 @@ test("the map carries a genre KEY, and every series in it is named", async ({ mo
   await expect(key.getByRole("listitem")).toHaveText(KEY_ROWS);
 });
 
+// ── P3-9: THE PANEL HAS NO DEAD FOOT ─────────────────────────────────────────────────────────────────
+// The plot was `aspect-square`, so at the CONTEXT pane's 420px width it drew a 420px box in a ~640px panel
+// and left ~270px of nothing under its key. The story host is the panel: 420x640, a block box, which is the
+// same shape the real tab body is (`context-tabs-panel.tsx` renders each panel as an overflow scroller, not
+// a flex column) — so the fix has to be one that works without a flex parent, and this mount is the proof.
+/** How much of the panel's height may go unused at the foot. A section gap is the honest allowance. */
+const DEAD_FOOT_TOLERANCE_PX = 32;
+const PANEL_HEIGHT_PX = 640;
+
+test("the semantic map FILLS its panel instead of leaving a square and a void (P3-9)", async ({ mount, page }) => {
+  await routeTrpc(page, { "discovery.corpusProjection": POINTS });
+  const component = await mount(<CorpusMapTabStory />);
+  await expect(component.getByRole("list", { name: KEY_NAME })).toBeVisible();
+
+  const host = await component.boundingBox();
+  const plot = await component.locator("[data-slot=scatter]").boundingBox();
+  if (host === null || plot === null) {
+    throw new Error("the map tab did not render its host or its plot");
+  }
+  const dead = host.y + PANEL_HEIGHT_PX - (plot.y + plot.height);
+  expect(dead, `the plot leaves ${Math.round(dead)}px of the panel unused below it`).toBeLessThanOrEqual(DEAD_FOOT_TOLERANCE_PX);
+});
+
 test("no genre is named twice — the key cannot hand two rows the same swatch", async ({ mount, page }) => {
   await routeTrpc(page, { "discovery.corpusProjection": POINTS });
   const component = await mount(<CorpusMapTabStory />);

@@ -41,6 +41,7 @@ import { useId } from "react";
 import type { Trpc } from "#data";
 import { revealContextPanel } from "#state";
 import { toFaceItems } from "../lib/corpus-faces.ts";
+import { facetLabel } from "../lib/corpus-vocabulary.ts";
 
 type VisualFamily = inferOutput<Trpc["discovery"]["visualArchetypes"]>[number];
 
@@ -112,8 +113,13 @@ function FamilyPlate({ family }: { readonly family: VisualFamily }): ReactElemen
           size="md"
         />
         <Stack className="min-w-0 flex-1" gap="tight">
+          {/* A FAMILY IS NEVER CALLED "none" (side-eye corpus re-pass #2, P3-4). The VL breakdown writes
+              that token for art it could not classify, and the labeller passed it through — the audited
+              library had a 21-member plate titled `none`, over a strip of `?` initials, which reads as a
+              rendering fault rather than as "we could not name this group". `facetLabel` is a DISPLAY
+              projection: the wire value is untouched, and `isUnlabelled` above still decides the arm. */}
           <Text as="span" className="truncate" voice="label">
-            {isUnlabelled(family) ? memberNames(family) : family.label}
+            {isUnlabelled(family) ? memberNames(family) : facetLabel(family.label)}
           </Text>
           <Text as="span" className="truncate" voice="gloss">
             {plateGloss(family)}

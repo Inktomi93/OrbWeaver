@@ -47,17 +47,30 @@ export interface CorpusReadinessRailProps {
 
 export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailProps): ReactElement {
   return (
-    // IT FILLS ITS COLUMN (side-eye corpus re-pass 2026-08-19 §5 "the right column just stops"). The rail is
-    // the second track of the surface's `leadEarly` band, and its height is FIXED by construction — five
-    // stage rows and a button — while the track beside it grows with the family count. At the audited
-    // 1224px pane that left the column ending ~250px above the island's bottom: a two-column composition
-    // whose right side visibly gives up. The fix is distribution, not a count gate — `h-full` takes the
-    // row's height (the grid stretches its tracks) and the stage stack SPREADS its own hairline rows over
-    // it, so the rail ends where the island ends at every width and every stage count.
+    // THE ROWS KEEP THEIR OWN PITCH, AND THE ISLAND OWNS THE LEFTOVER (side-eye corpus re-pass #2,
+    // 2026-08-19 P2-1 — this REVERSES the distribute that landed hours earlier, and both readings are kept).
+    //   THE EARLIER SYMPTOM (still true): the rail's height is fixed by construction — five stage rows and a
+    //     button — while the track beside it grows with the family count, so at a 1224px pane the column
+    //     ended ~250px above the island's foot.
+    //   THE FIX THAT WAS TRIED: `flex-1` + `justify="between"`, spreading the hairline rows over the track.
+    //   WHY IT LOST, MEASURED: pitch 101/101/101/102px for rows whose ink is ~33px — 67% air, uniform, which
+    //     is the generated-UI tell the density spec names — and the failure sentence at the foot got crushed
+    //     against the button. A rail whose rows are three line-heights apart is no longer a rail; the void
+    //     it replaced was the cheaper defect.
+    // So the stage stack is natural again: hairline rows at the tier's own `py-field` pitch, and the column
+    // simply ends where its content does. `h-full` stays — the grid still stretches the track, and a Section
+    // that fills a stretched track costs nothing while keeping the rail's own background band whole.
     <Section className="h-full" data-slot="readiness-rail" kicker="Readiness" level={2}>
-      <Stack className="flex-1" justify="between">
+      <Stack>
         {stages.map((stage) => (
-          <Row align="center" className="border-border border-b py-field last:border-b-0" gap="row" justify="between" key={stage.id}>
+          <Row
+            align="center"
+            className="border-border border-b py-field last:border-b-0"
+            data-slot="readiness-stage"
+            gap="row"
+            justify="between"
+            key={stage.id}
+          >
             <Row className="min-w-0" gap="field">
               <Icon className={stage.done ? "text-primary" : "text-muted-foreground"} icon={stage.done ? Check : Circle} size="xs" />
               <Text as="span" className="min-w-0 truncate" voice="label">
@@ -113,8 +126,14 @@ function CorpusReadinessRerun(): ReactElement {
           jobs door rendered only while `pass.failure === null`, so the ONE branch whose copy sends you to
           the error log was the one branch that deleted the route to it — the recovery affordance vanished
           at precisely the moment it became the point. The message is conditional; the door never is. */}
+      {/* AN ERROR IS NOT METADATA (side-eye corpus re-pass #2, P2-7). This rendered at `gloss` — 10.5px, the
+          footnote step — which made the failure the SMALLEST text on the surface, quieter than the datum of
+          every pass that succeeded. It is a sentence the reader has to act on, so it takes the body step and
+          keeps `text-destructive` for the state. The message itself is the server's, verbatim: the row's
+          `error` column is durable, so an old row still shows the copy that was live when it FAILED (the C4
+          template fix reaches the next run, never the stored text of the last one). */}
       {pass.failure === null ? null : (
-        <Text className="text-destructive" data-slot="readiness-rerun-failure" voice="gloss">
+        <Text className="text-destructive" data-slot="readiness-rerun-failure">
           {pass.failureWasCrash ? "The last pass stopped unexpectedly — run it again." : `The last pass stopped: ${pass.failure}`}
         </Text>
       )}
