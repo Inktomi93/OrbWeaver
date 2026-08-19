@@ -3,10 +3,15 @@
 // store: the §4.5 sort, the §4.3 flat⇄categorized view, the favorites/archived filter chips, the §4.6 bulk
 // flag, the AND-tag filter's add/remove/clear, and the spoiler-blur screen-share toggle. `bulkMode` is
 // transient (not persisted) — verified only as a live transition here (a reload-persistence assertion
-// belongs to the persist factory's own test).
+// belongs to the persist factory's own test). `browseOffset` (#255) is likewise transient — its round trip
+// is proven through the probe's `output` (module state, no hook needed for the getter), and its ABSENCE
+// from the persisted blob is proven against the real localStorage the store wrote (the composer-draft-store
+// posture) — never through a mock.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CharacterLibraryStoreProbe } from "./_ct-stories.tsx";
+
+const STORAGE_KEY = "orb:character-library";
 
 test("sort + view transitions reflect in the read hooks", async ({ mount }) => {
   const probe = await mount(<CharacterLibraryStoreProbe />);
@@ -84,4 +89,30 @@ test("clearCharacterFilters drops favorites + tags in one act, and leaves the ar
   await probe.getByRole("button", { name: "clear filters" }).click();
   await expect(state).toContainText("fav=false archived=true");
   await expect(state).toContainText("tags=none");
+});
+
+// #255: the browse-offset round trip. The getter is a one-shot mount-time READ (never a hook — see the
+// store's own header), so the probe fires it on demand rather than rendering it reactively; that is exactly
+// how the real caller (the list's remount) uses it. `browseOffset` is transient BY DESIGN — a reload is a
+// fresh browse, so the value must never resurrect from a persisted blob (see below).
+test("setCharacterBrowseOffset writes, getCharacterBrowseOffset reads it back on demand", async ({ mount }) => {
+  const probe = await mount(<CharacterLibraryStoreProbe />);
+  await expect(probe.getByText("browseOffset=unread")).toBeVisible();
+
+  await probe.getByRole("button", { name: "set browse offset" }).click();
+  await probe.getByRole("button", { name: "read browse offset" }).click();
+  await expect(probe.getByText("browseOffset=240")).toBeVisible();
+});
+
+test("browseOffset is TRANSIENT — it never reaches the persisted localStorage blob", async ({ mount, page }) => {
+  const probe = await mount(<CharacterLibraryStoreProbe />);
+  await probe.getByRole("button", { name: "set browse offset" }).click();
+  await probe.getByRole("button", { name: "read browse offset" }).click();
+  await expect(probe.getByText("browseOffset=240")).toBeVisible();
+
+  // The write landed in the live store (proven above) but `partialize` excludes it — the persisted blob
+  // must not carry the field at all, the same posture composer-draft-store.ct.tsx proves for its own
+  // transient bound.
+  const stored = await page.evaluate((key) => globalThis.localStorage.getItem(key), STORAGE_KEY);
+  expect(stored ?? "").not.toContain("browseOffset");
 });

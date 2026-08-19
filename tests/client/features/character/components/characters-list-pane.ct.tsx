@@ -373,7 +373,7 @@ test("selecting a character keeps the browse position — Back returns to the ro
   await page.getByTestId("list-band").getByRole("button", { name: "Back to all characters", exact: true }).click();
   await expect(component.getByRole("button", { name: DEEP_NAME, exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: DEEP_NAME, exact: true })).toBeFocused();
-  expect(await scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => scroller.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
 });
 
 // ── THE PICKER'S VIEW CONTROLS SURVIVE 320px (side-eye P2) ───────────────────────────────────────────
