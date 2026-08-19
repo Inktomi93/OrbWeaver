@@ -4,6 +4,14 @@
 // contract §4.3: the app-wide providers live here so no `.ct.tsx` re-wraps them inline.
 //
 // NOT here:
+//   • a `<Toaster />`. The toast PROVIDER is context (zero DOM) and wraps every mount; the VIEWPORT is
+//     DOM, and a harness-owned one double-mounts against every story that renders its own outlet
+//     (`CtToastSurface` mounts the production `AppToaster`; the preset action/rack stories mount
+//     `Toaster`). That made `[data-slot="toast-viewport"]` resolve to TWO nodes — a strict-mode
+//     violation class where the harness copy is always the EMPTY one — and put two live regions named
+//     "Alerts" on the page (#247). The outlet is now owned by whoever needs it: a story that expects a
+//     toast to PAINT renders its own. Forgetting is loud (the toast never appears), where the old
+//     default was silent.
 //   • drawer's DrawerProvider / DrawerVirtualKeyboardProvider — drawer-scoped context, not global
 //     chrome; they stay in the drawer fixture.
 //   • a DirectionProvider — Base UI defaults to `ltr` and no CT exercises RTL, so it would be an
@@ -13,7 +21,7 @@
 
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import { Toaster, ToastProvider } from "@orb/ui/toast";
+import { ToastProvider } from "@orb/ui/toast";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 
@@ -26,7 +34,7 @@ export interface CtProvidersProps {
 /**
  * Stacks the app-wide providers around a mounted component. Toast + Tooltip are context-only (zero
  * DOM), so they wrap every mount transparently — Tooltip delays are pinned to 0 so CT hover/focus
- * assertions open instantly.
+ * assertions open instantly. The toast VIEWPORT is deliberately not here (see the header).
  *
  * ThemeScope is different: it renders a real wrapping `<div>`, which would shift the mount-handle
  * root for every test that reads the mounted element directly (`mount(...).evaluate(...)`). Base
@@ -42,7 +50,6 @@ export function CtProviders({ children, theme }: CtProvidersProps): ReactElement
       <TooltipProvider closeDelay={0} delay={0}>
         {body}
       </TooltipProvider>
-      <Toaster />
     </ToastProvider>
   );
 }

@@ -25,7 +25,7 @@
 // a 6-chat dev DB; 0.24 on the side-eye's fuller one). The settled box is DATA-dependent (N recents, N
 // quick-picks), so it cannot be reserved by a static height without padding short tiles with dead space —
 // the honest reservation is the one this device MEASURED last time: `TileBody` remembers each tile's
-// settled height (`#state` home-tile-box-store, localStorage) and `TileFallback` reserves exactly that
+// settled height (`#state` surface-box-store, localStorage) and `TileFallback` reserves exactly that
 // while the read is in flight.
 //
 // …AND THE FIRST-EVER BOOT IS NOT "NOTHING TO RESERVE" (#92, measured 2026-08-16). This header used to

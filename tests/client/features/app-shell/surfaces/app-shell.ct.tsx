@@ -790,12 +790,25 @@ test("the focus toggle round-trips coherently at every step of the measured repr
   await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
 });
 
+/** The persisted overrides AFTER the store's own first write has landed — the only honest "before" for a
+ *  test whose claim is "this action wrote nothing".
+ *
+ *  MEASURED (#247 lane, 2026-08-19): with no interaction at all, `orb:shell` reads `null` immediately after
+ *  mount and `{}` a beat later — zustand-persist writes on REHYDRATE, not on the action under test. A
+ *  `before` captured off the raw mount therefore races that write, and three tests here were passing only
+ *  because the CT harness happened to mount an extra `<Toaster />` subtree that slowed the commit enough
+ *  for the write to win. That is a flake with a stopwatch in it, not a guarantee. */
+async function settledPersistedOverrides(page: Page): Promise<unknown> {
+  await expect.poll(() => shellPersistedOverrides(page)).not.toBeNull();
+  return shellPersistedOverrides(page);
+}
+
 test("at 48-64rem the focus toggle is NOT pre-pressed by the auto-collapse, and its second click exits (the measured no-op)", async ({ mount, page }) => {
   await page.setViewportSize(NARROW_DESKTOP);
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
   const focusToggle = shell.getByRole("button", { name: FOCUS_TOGGLE_RE });
-  const before = await shellPersistedOverrides(page);
+  const before = await settledPersistedOverrides(page);
 
   // Cold boot at this width: the auto-overlay derivation already resolves BOTH panels collapsed. That is
   // the shell being narrow — NOT the user in focus mode, which is exactly what the old derived label
@@ -875,7 +888,7 @@ test("resolvePanel: the auto-overlay derivation never mutates the persisted pane
   await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
-  const before = await shellPersistedOverrides(page);
+  const before = await settledPersistedOverrides(page);
 
   await page.setViewportSize(NARROW_DESKTOP);
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
@@ -926,7 +939,7 @@ test("the topbar toggle OPENS a narrow-auto-overlayed panel (slide-over + scrim)
   // Closed by default (the correction).
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(scrim).toHaveAttribute("data-visible", "false");
-  const before = await shellPersistedOverrides(page);
+  const before = await settledPersistedOverrides(page);
 
   // A REAL click on the topbar toggle opens the slide-over.
   const toggle = shell.getByRole("button", { name: "Show list panel" });
@@ -957,7 +970,7 @@ test("the ≤64rem detail-panel toggle opens the pane on the FIRST click — a c
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
   const scrim = page.locator(".shell-scrim");
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
-  const before = await shellPersistedOverrides(page);
+  const before = await settledPersistedOverrides(page);
 
   await shell.getByRole("button", { name: "Show detail panel" }).click();
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
@@ -991,7 +1004,7 @@ test("toggleFocus at narrow width closes an open slide-over without writing pane
   await page.setViewportSize(NARROW_DESKTOP);
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
-  const before = await shellPersistedOverrides(page);
+  const before = await settledPersistedOverrides(page);
 
   // Open the narrow auto-overlay slide-over first.
   await shell.getByRole("button", { name: "Show list panel" }).click();
@@ -1013,7 +1026,7 @@ test("Escape closes an open narrow-overlay panel without writing panelOverrides"
   await page.setViewportSize(NARROW_DESKTOP);
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
-  const before = await shellPersistedOverrides(page);
+  const before = await settledPersistedOverrides(page);
 
   await shell.getByRole("button", { name: "Show list panel" }).click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "overlay");

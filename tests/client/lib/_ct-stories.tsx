@@ -223,8 +223,9 @@ export function MotionFlaggersSpaceStory(): ReactElement {
   );
 }
 
-/** A deliberately dirty color transition. Under the global reduced-motion floor it still emits a
- * transition event, but its computed 0.01ms duration makes it non-visible evidence the flagger ignores. */
+/** A deliberately dirty color transition. Under the global reduced-motion floor (`transition-property:
+ * none !important`, #257) the colour change emits no transition at all, so the flagger has nothing to
+ * judge — which is what the reduced-motion spec asserts. */
 export function MotionFlaggersReducedMotionStory(): ReactElement {
   const [active, setActive] = useState(false);
   useEffect(() => {

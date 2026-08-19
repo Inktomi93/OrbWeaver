@@ -20,13 +20,12 @@ const BAND = '[data-slot="notice-band"]';
 const TOAST = '[data-slot="toast-root"]';
 const VIEWPORT = '[data-slot="toast-viewport"]';
 
-/** THE viewport this app's `notify` renders into — the one holding a toast. `playwright/index.tsx` wraps
- *  every mount in its own `<ToastProvider><Toaster/></ToastProvider>`, so a bare `[data-slot=
- *  toast-viewport]` resolves to TWO nodes and every assertion on it is a strict-mode violation. That
- *  harness stack is bound to nobody (`bindNotify` targets the story module's manager) and is therefore
- *  always empty, which is exactly what makes "has a toast" the honest discriminator. */
+/** THE viewport this app's `notify` renders into. `CtToastSurface`'s `AppToaster` is now the ONLY outlet
+ *  on the page — the harness stopped mounting its own always-empty `<Toaster />` in #247 — so this is a
+ *  plain single-node locator. The `.filter({ has: toast })` discriminator that used to be required here
+ *  would now hide a real defect: a viewport that exists but never received the notice. */
 function liveViewport(page: Page): Locator {
-  return page.locator(VIEWPORT).filter({ has: page.locator(TOAST) });
+  return page.locator(VIEWPORT);
 }
 
 test("a published band takes the toast stack out of the overlay plane and into flow", async ({ mount, page }) => {

@@ -34,14 +34,15 @@ interface TapTarget {
   readonly height: number;
 }
 
-// The CT provider tree mounts a toast viewport on every stage; it is harness chrome, not the story.
-const HARNESS_CHROME = "toast-viewport";
-
-/** Run the REAL walker string in the mounted page and return its tap-target census, harness chrome
- *  dropped. */
+/** Run the REAL walker string in the mounted page and return its tap-target census.
+ *
+ *  No harness-chrome filter: the CT provider tree used to mount a toast viewport on every stage, and its
+ *  `toast-viewport` selector had to be dropped from the census. The harness stopped mounting a global
+ *  outlet in #247, and none of these stories renders one, so nothing is filtered — and a filter kept past
+ *  its cause would silently hide a real story control that happened to match. */
 async function tapTargets(page: Page): Promise<readonly TapTarget[]> {
   const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as { readonly tapTargets: readonly TapTarget[] };
-  return samples.tapTargets.filter((t) => !t.selector.includes(HARNESS_CHROME));
+  return samples.tapTargets;
 }
 
 /** The smallest measured side across every censused control whose selector names `match` — the number a

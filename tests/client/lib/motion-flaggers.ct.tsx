@@ -106,7 +106,7 @@ test("a visible non-compositor transition is flagged", async ({ mount, page }) =
   await expect.poll(() => lines.length).toBeGreaterThan(0);
 });
 
-test("the reduced-motion 0.01ms floor does not raise dirty-animation or dropped-frame flags", async ({ mount, page }) => {
+test("the reduced-motion floor does not raise dirty-animation or dropped-frame flags", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const lines: string[] = [];
   page.on("console", (message) => {

@@ -4,8 +4,9 @@
 import { surfaceLabelOf } from "./motion-stats.ts";
 
 const RUNNING_LABEL_CAP = 8;
-// Both the OS and app-level reduced-motion floors collapse effects to 0.01ms. They still emit animation
-// events, but no person can see them and no frame can be dropped "during" them.
+// Both the OS and app-level reduced-motion floors collapse ANIMATIONS to 0.01ms (transitions they
+// remove outright, #257). A 0.01ms animation still emits its events, but no person can see it and no
+// frame can be dropped "during" it.
 const INSTANT_EFFECT_CEILING_MS = 1;
 // TanStack's injected development panel owns its own CSS/motion and is not an Orbweaver surface.
 const EXTERNAL_DEVTOOLS_SELECTOR = '[data-testid^="tsd-"], [aria-label="Open TanStack Devtools"]';

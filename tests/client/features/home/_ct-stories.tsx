@@ -166,7 +166,7 @@ export function HomeSplitPressureStory(): ReactElement {
 // ── The BOOT-CLS reservation (F14) ──────────────────────────────────────────────────────────────────
 // A tile that is still reading is the state that used to move the whole grid: its 3-row skeleton is not
 // the box its content settles at. The frame reserves the height THIS DEVICE measured last time
-// (home-tile-box-store), so this story pre-seeds a remembered box for a tile whose body suspends until
+// (surface-box-store), so this story pre-seeds a remembered box for a tile whose body suspends until
 // the test releases it — the shape of a real boot, where localStorage already holds the last settled box.
 
 let releaseSlowBody: () => void = (): void => undefined;
