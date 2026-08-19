@@ -12,7 +12,6 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type {
   ImageEmbedInput,
   ImageInput,
-  RepetitionDetection,
   RerankDocument,
   RerankQuery,
   ResponseFormat,
@@ -78,7 +77,6 @@ export interface SummarizeRequest extends RoleRequestCommon {
   readonly repetitionPenalty?: number | undefined;
   /** Min-p nucleus floor (vLLM family). */
   readonly minP?: number | undefined;
-  readonly repetitionDetection?: RepetitionDetection | undefined;
 }
 
 /** The `structured` role's request — the one-shot SCHEMA-CONSTRAINED generation PRIMITIVE (owner ruling
@@ -104,7 +102,6 @@ export interface StructuredRequest extends RoleRequestCommon {
   /** Multiplicative repetition penalty (vLLM family; 1 = no penalty). */
   readonly repetitionPenalty?: number | undefined;
   readonly minP?: number | undefined;
-  readonly repetitionDetection?: RepetitionDetection | undefined;
 }
 
 /** The `RoleClients.summarize` CALL options as the SERVER sees them: the isomorphic contracts vocabulary plus

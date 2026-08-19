@@ -374,6 +374,10 @@ export interface ChatComposeResult {
    *  host is resolved from the room, and the four walls (depth/authority/budget/consent) enforce inside the verb
    *  + the engine belts. See {@link RequestTurnOp}. */
   readonly requestTurn: RequestTurnOp;
+  /** Is memory ON for this host (#156)? The admission gate's read, resolved through the SAME
+   *  `resolveMemoryConfig` merge the live turn and the corpus sweep use, so the gate cannot drift from the
+   *  per-host skip it exists to pre-empt. */
+  readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
   /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
     readonly memory: (args: { signal: AbortSignal; ownerId?: UserId | null }) => ReturnType<typeof backfillMemory>;
@@ -1288,6 +1292,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     applyVariableOps: (chatId, ops) => applyStandaloneVariableOps(chatCtx, chatId, ops),
     resolveChatProse,
     requestTurn: chatBundle.requestTurn,
+    isMemoryEnabled: async (hostUserId): Promise<boolean> => (await resolveMemoryConfig(hostUserId)).mode !== "off",
     backfill: {
       memory: (args) => backfillMemory(chatCtx, args, resolveMemoryConfig),
       groupCharacters: (args) => backfillGroupCharacters(chatCtx, args),

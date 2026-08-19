@@ -83,10 +83,7 @@ export interface RoleClientsBinderDeps {
  *  handled at the call site (they route the request / carry cancellation), so they are not projected here. */
 function summarizeSamplerFields(
   opts: SummarizeCallOptions | undefined,
-): Pick<
-  SummarizeRequest,
-  "maxTokens" | "temperature" | "topP" | "topK" | "frequencyPenalty" | "presencePenalty" | "repetitionPenalty" | "minP" | "repetitionDetection"
-> {
+): Pick<SummarizeRequest, "maxTokens" | "temperature" | "topP" | "topK" | "frequencyPenalty" | "presencePenalty" | "repetitionPenalty" | "minP"> {
   return {
     ...(opts?.maxTokens !== undefined ? { maxTokens: opts.maxTokens } : {}),
     ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
@@ -96,7 +93,6 @@ function summarizeSamplerFields(
     ...(opts?.presencePenalty !== undefined ? { presencePenalty: opts.presencePenalty } : {}),
     ...(opts?.repetitionPenalty !== undefined ? { repetitionPenalty: opts.repetitionPenalty } : {}),
     ...(opts?.minP !== undefined ? { minP: opts.minP } : {}),
-    ...(opts?.repetitionDetection !== undefined ? { repetitionDetection: opts.repetitionDetection } : {}),
   };
 }
 

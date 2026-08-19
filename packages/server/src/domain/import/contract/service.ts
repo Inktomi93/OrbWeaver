@@ -63,8 +63,11 @@ type LinkCarriedBooksOp = (args: {
   readonly refs: readonly AttachedBookRef[];
 }) => Promise<{ readonly linked: number; readonly skipped: number }>;
 
-/** Enqueues one memory-backfill workload for the owner, once per import run when a chat was written. */
-type EnqueueImportBackfill = (args: { readonly ownerId: UserId }) => Promise<void>;
+/** Enqueues one memory-backfill workload for the owner, once per import run when a chat was written. Returns
+ *  whether a row actually entered the queue: the workloads door can REFUSE the enqueue (#156 — memory is off
+ *  for this owner, so the sweep could only land a vacuous 0/0), and an already-active run is the benign
+ *  conflict the op swallows. Either way the import succeeds; the caller reports the truth. */
+type EnqueueImportBackfill = (args: { readonly ownerId: UserId }) => Promise<boolean>;
 
 /** Inline post-import stats rollup rebuild. */
 type ReconcileImportStats = (args: { readonly ownerId: UserId }) => Promise<void>;

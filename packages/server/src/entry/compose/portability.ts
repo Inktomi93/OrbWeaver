@@ -63,7 +63,7 @@ export interface PortabilityDeps {
   readonly findPersonaByName: NonNullable<ImportProfileDeps["findPersonaByName"]>;
   readonly attachChatTagByName: NonNullable<ImportProfileDeps["attachChatTagByName"]>;
   readonly importRpgGame: NonNullable<ImportProfileDeps["importRpgGame"]>;
-  readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
+  readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<boolean>;
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
 }

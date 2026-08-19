@@ -96,7 +96,6 @@ test("each callable's result is the matching @orb/contracts/providers shape (par
       await noopRoleClients.summarize(inputs, {
         maxTokens: 256,
         temperature: 0.3,
-        repetitionDetection: { maxPatternSize: 4, minCount: 2 },
       }),
     ),
   ).toEqual(sampleSummarizeResult);

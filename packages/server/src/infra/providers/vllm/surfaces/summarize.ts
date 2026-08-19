@@ -51,7 +51,6 @@ interface BatchRequest {
   readonly presencePenalty: number | undefined;
   readonly repetitionPenalty: number | undefined;
   readonly minP: number | undefined;
-  readonly repetitionDetection: SummarizeRequest["repetitionDetection"];
   readonly signal: AbortSignal | undefined;
 }
 
@@ -103,7 +102,6 @@ async function runBatchItem(args: RunItemArgs): Promise<SummarizeResultItem> {
         repetitionPenalty: req.repetitionPenalty,
         minP: req.minP,
         responseFormat: req.responseFormat,
-        repetitionDetection: req.repetitionDetection,
         signal: req.signal,
       },
       // Capture the LITERAL wire body right before it POSTs (parity with the chat surface); fires only when
@@ -181,7 +179,6 @@ export function createVllmSummarize(deps: VllmSummarizeDeps): (req: SummarizeReq
       presencePenalty: req.presencePenalty,
       repetitionPenalty: req.repetitionPenalty,
       minP: req.minP,
-      repetitionDetection: req.repetitionDetection,
       signal: req.signal,
     });
 }
@@ -203,7 +200,6 @@ export function createVllmStructured(deps: VllmSummarizeDeps): (req: StructuredR
       presencePenalty: req.presencePenalty,
       repetitionPenalty: req.repetitionPenalty,
       minP: req.minP,
-      repetitionDetection: req.repetitionDetection,
       signal: req.signal,
     });
 }

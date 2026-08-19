@@ -109,14 +109,6 @@ export type ImageEmbedInput =
       instruction?: string | undefined;
     };
 
-/** N-gram repetition guard (vLLM family) — stops a degenerate loop before `maxTokens`. Families that
- *  don't honor it drop it (no-op knob doctrine). */
-export interface RepetitionDetection {
-  maxPatternSize: number;
-  minPatternSize?: number | undefined;
-  minCount: number;
-}
-
 /** One summarization task — an independent (system, user) pair so a batch can vary prompts. The
  *  credential-free counterpart of the infra `SummarizeRequestItem`. */
 export interface SummarizeInput {
@@ -150,7 +142,6 @@ export interface SummarizeOptions {
   /** Structured-output constraint (D79) — vLLM enforces via guided decoding, the agent-sdk via its native
    *  output format; a family that can't honor it drops it (no-op knob doctrine). */
   responseFormat?: ResponseFormat | undefined;
-  repetitionDetection?: RepetitionDetection | undefined;
 }
 
 /** Bound-callable role clients — the composition root binds credential + model id ONCE at boot. The

@@ -21,11 +21,13 @@ const FAILED_CHATS_RE = /7 chat/;
 function build(
   failed = 0,
   segmentsSkippedOverWindow = 0,
+  memoryEnabled = true,
 ): { readonly deps: ChatWorkloadDeps; readonly contributions: ReturnType<typeof createChatWorkloadContributions> } {
   const deps: ChatWorkloadDeps = {
     backfillMemory: vi.fn(async () => ({ segments: { scanned: 4, changed: 2 }, digests: { scanned: 6, changed: 3 }, segmentsSkippedOverWindow, failed })),
     backfillGroupCharacters: vi.fn(async () => ({ scanned: 5, changed: 1 })),
     purgeMemoryVectors: vi.fn(async () => undefined),
+    isMemoryEnabled: vi.fn(async () => memoryEnabled),
   };
   return { deps, contributions: createChatWorkloadContributions(deps) };
 }
@@ -78,6 +80,31 @@ describe("memory-backfill", () => {
     const { deps, contributions } = build(7);
     await expect(contributions[0].run(bulkCtx, {}, vi.fn(), sig())).rejects.toThrow();
     expect(deps.purgeMemoryVectors).not.toHaveBeenCalled();
+  });
+
+  // #156 (the vacuous-run family's ADMISSION half, owner-observed): an ST import auto-enqueued this sweep
+  // while memory was DISABLED, the sweep skipped every one of that host's chats (the D36 opt-out, honored on
+  // the corpus sweep since #54), and the Jobs row read "0 segments · 0 digests" as a SUCCESS. The refusal is
+  // at ADMISSION, so no row exists to read.
+  test("REFUSES admission for a singular run whose owner has memory off, naming the reason and the remedy", async () => {
+    const { deps, contributions } = build(0, 0, false);
+    const refusal = await contributions[0].admit?.({ ownerId: OWNER_ID, params: {} });
+    expect(deps.isMemoryEnabled).toHaveBeenCalledWith(OWNER_ID);
+    expect(refusal, "a refusal must be a sentence the person who hit it can act on").toContain("Memory is turned off");
+    expect(refusal).toContain("enable Memory in Settings");
+  });
+
+  test("ADMITS a singular run whose owner has memory on", async () => {
+    const { contributions } = build();
+    expect(await contributions[0].admit?.({ ownerId: OWNER_ID, params: {} })).toBeNull();
+  });
+
+  // A bulk pass sweeps EVERY host, so one host's opt-out says nothing about the box — the per-host skip is
+  // the right instrument there, and refusing the whole pass would strand every enabled host.
+  test("ADMITS the BULK all-owners pass even with memory off, without asking about any single host", async () => {
+    const { deps, contributions } = build(0, 0, false);
+    expect(await contributions[0].admit?.({ ownerId: null, params: {} })).toBeNull();
+    expect(deps.isMemoryEnabled).not.toHaveBeenCalled();
   });
 
   test("an aborted BULK run does NOT purge (the space stays a strict superset)", async () => {

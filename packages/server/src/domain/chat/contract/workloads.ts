@@ -21,4 +21,9 @@ export interface ChatWorkloadDeps {
    *  the active one. The DELETE lives in embeddings/persistence (the ONE vector write path) — this is the
    *  injected op, never a db reach from chat. */
   readonly purgeMemoryVectors: () => Promise<void>;
+  /** Is the memory subsystem ON for this host (#156)? Resolved through the ONE memory-config merge
+   *  (`entry/compose/chat.ts resolveMemoryConfig`: admin defaults ⊕ the host's `memory.enabled` opt-out), so
+   *  the admission gate cannot drift from the sweep's own per-host skip (#54) or from the live turn. Injected
+   *  because settings is not chat's to read — the same seam shape `ResolveBackfillMemoryConfig` uses. */
+  readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
 }

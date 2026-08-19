@@ -23,7 +23,6 @@ export const COLLECT_SAMPLES_JS = `(async () => {
   var TAILWIND_HOVER_TRANSFORM_RE = /^hover:(scale|rotate|translate-x|translate-y|skew-x|skew-y)-/;
   var BG_URL_RE = /url\\((['"]?)(.*?)\\1\\)/;
   var RGB_RE = /rgba?\\(\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*(?:,\\s*([\\d.]+))?\\)/;
-  var COLOR_STOP_RE = /rgba?\\([^)]+\\)|#[0-9a-fA-F]{3,8}/g;
   // Interactive/code contexts for the type-floor checks (impeccable undersized-ui-text).
   var INTERACTIVE_CTX = "a[href],button,summary,label,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=option],[role=checkbox],[role=radio],[role=switch],[tabindex]";
   var CODE_CTX = "pre,code,kbd,samp,var,svg,[aria-hidden='true']";
@@ -281,22 +280,73 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     return probed;
   }
 
-  function hexToRgb(hex) {
-    var h = hex.replace("#", "");
-    var full = h.length === 3 ? h.split("").map(function (c) { return c + c; }).join("") : h.slice(0, 6);
-    var num = Number.parseInt(full, 16);
-    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  // A GRADIENT'S COLOR SPACE IS NOT ITS FORMAT EITHER (issue #189) — the same blindness as probeColor's,
+  // one layer down. The old scanner was a regex over rgb()/hex ONLY, so an oklch-authored gradient (the
+  // only spelling a tokens-only tree produces) yielded ZERO stops, resolveBackdrop fell through to
+  // image-indeterminate, and every glyph over it minted a false P1 text-over-art against a backdrop whose
+  // colors are fully known. Stops now come from the gradient's OWN argument list, and every candidate is
+  // normalized through the same memoized canvas probe as every other color on this walker: a token the
+  // browser understands is a stop, and a prelude the grammar allows instead ("to right", "45deg",
+  // "in oklab", "closest-side at 50% 50%", a bare "40%" color hint) fails both fillStyle sentinels and is
+  // skipped. Splitting at DEPTH ZERO is what keeps a nested stop — color-mix(in oklab, a, b) — one token,
+  // which no flat regex can do. (No backticks in this file: it is one template literal.)
+  var GRADIENT_HEAD_RE = /(?:repeating-)?(?:linear|radial|conic)-gradient\\(/gi;
+  // A stop is "<color> <position>?" — peel positions off the tail until a color remains (or nothing does).
+  var STOP_POSITION_RE = /\\s+[-+]?[0-9.]+[a-z%]*$/i;
+
+  /** Split a gradient's argument list on the commas that are not inside a nested function call. */
+  function splitTopLevelArgs(args) {
+    var parts = [];
+    var depth = 0;
+    var start = 0;
+    for (var ci = 0; ci < args.length; ci += 1) {
+      var ch = args[ci];
+      if (ch === "(") depth += 1;
+      else if (ch === ")") depth -= 1;
+      else if (ch === "," && depth === 0) {
+        parts.push(args.slice(start, ci));
+        start = ci + 1;
+      }
+    }
+    parts.push(args.slice(start));
+    return parts;
   }
 
-  // Stops now KEEP alpha (hex → 1): a translucent stop makes worst-stop contrast math a lie,
-  // so the Node side refuses (image-indeterminate) instead of trusting it.
+  /** The color of one gradient argument, or null when the argument is a direction / shape / bare hint. */
+  function gradientStopColor(segment) {
+    var token = segment.trim();
+    while (token !== "") {
+      var probed = parseRgb(token);
+      if (probed) return probed;
+      var shorter = token.replace(STOP_POSITION_RE, "");
+      if (shorter === token) return null;
+      token = shorter;
+    }
+    return null;
+  }
+
+  // Stops KEEP alpha: a translucent stop makes worst-stop contrast math a lie, so the Node side refuses
+  // (indeterminate) instead of trusting it.
   function parseGradientStops(bgImage) {
     var stops = [];
-    var m;
-    COLOR_STOP_RE.lastIndex = 0;
-    while ((m = COLOR_STOP_RE.exec(bgImage)) !== null) {
-      var rgb = m[0][0] === "#" ? hexToRgb(m[0]) : parseRgb(m[0]);
-      if (rgb) stops.push({ r: rgb.r, g: rgb.g, b: rgb.b, a: rgb.a === undefined ? 1 : rgb.a });
+    var head;
+    GRADIENT_HEAD_RE.lastIndex = 0;
+    while ((head = GRADIENT_HEAD_RE.exec(bgImage)) !== null) {
+      var open = head.index + head[0].length;
+      var depth = 1;
+      var end = open;
+      while (end < bgImage.length && depth > 0) {
+        var c = bgImage[end];
+        if (c === "(") depth += 1;
+        else if (c === ")") depth -= 1;
+        end += 1;
+      }
+      var segments = splitTopLevelArgs(bgImage.slice(open, depth === 0 ? end - 1 : end));
+      for (var si = 0; si < segments.length; si += 1) {
+        var stop = gradientStopColor(segments[si]);
+        if (stop) stops.push({ r: stop.r, g: stop.g, b: stop.b, a: stop.a === undefined ? 1 : stop.a });
+      }
+      GRADIENT_HEAD_RE.lastIndex = end;
     }
     return stops;
   }

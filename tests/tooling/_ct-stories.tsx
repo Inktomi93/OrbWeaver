@@ -244,3 +244,35 @@ export function WalkerPaintLayerStory(): ReactElement {
     </div>
   );
 }
+
+/** The GRADIENT-BACKDROP stage (issue #189): the same color-space blindness that killed the border/contrast
+ *  family, one layer down. A tokens-only tree authors every gradient stop as `oklch(...)`, and the stop
+ *  scanner matched rgb()/hex only — so an oklch gradient yielded ZERO stops, the backdrop walk fell through
+ *  to `image-indeterminate`, and every glyph over it minted a false P1 `text-over-art` against a gradient
+ *  whose colors are fully known. Three arms carry the discriminator:
+ *   - LEGIBLE oklch gradient: near-white text over a dark ramp must mint nothing;
+ *   - ILLEGIBLE oklch gradient: light text over a light ramp must fail as a WORST-STOP ratio (P0), which is
+ *     only reachable once the stops parse — an unparsed gradient reports the indeterminate P1 instead;
+ *   - the rgb-authored twin of the legible arm, the control that was never blind. */
+export function WalkerGradientBackdropStory(): ReactElement {
+  const panel = { marginBottom: 12, padding: 16, width: 340 } as const;
+  return (
+    <div style={{ backgroundColor: "rgb(12, 12, 14)", padding: 24, width: 400 }}>
+      <div style={{ ...panel, backgroundImage: "linear-gradient(oklch(0.19 0.02 260), oklch(0.26 0.03 260))" }}>
+        <p data-testid="oklch-gradient-line" style={{ color: "rgb(240, 240, 245)", fontSize: 15 }}>
+          near-white copy over a dark oklch ramp — legible against every stop
+        </p>
+      </div>
+      <div style={{ ...panel, backgroundImage: "linear-gradient(oklch(0.93 0.04 95), oklch(0.88 0.06 95))" }}>
+        <p data-testid="oklch-gradient-bled" style={{ color: "rgb(232, 232, 236)", fontSize: 15 }}>
+          near-white copy over a near-white oklch ramp — the bled-over-art defect itself
+        </p>
+      </div>
+      <div style={{ ...panel, backgroundImage: "linear-gradient(rgb(24, 24, 34), rgb(38, 38, 52))" }}>
+        <p data-testid="rgb-gradient-line" style={{ color: "rgb(240, 240, 245)", fontSize: 15 }}>
+          the rgb-authored twin of the legible ramp — the arm that always worked
+        </p>
+      </div>
+    </div>
+  );
+}

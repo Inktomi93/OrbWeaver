@@ -23,7 +23,15 @@ import type {
   WorkloadResumePolicy,
   WorkloadRunContext,
 } from "@orb/contracts/workloads";
+import type { UserId } from "@orb/kit/ids";
 import type { z } from "zod";
+
+/**
+ * The `DomainOperationError.code` an enqueue door throws when the OWNING DOMAIN refused the row's admission
+ * (`WorkloadContribution.admit`). One home for the string, because the producer side reads it: an importer
+ * that OFFERS a memory backfill treats the refusal as a normal outcome (#156), not as an import failure.
+ */
+export const WORKLOAD_NOT_ADMISSIBLE = "not_admissible";
 
 /**
  * ONE domain-contributed job. The params/result TYPES are authored in the OWNING domain's contracts module
@@ -48,6 +56,22 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    * interact: a lane decides WHEN a row runs, a key decides WHETHER it may be enqueued at all.
    */
   readonly admissionKey?: (params: WorkloadParamsByKind[K]) => string;
+  /**
+   * The ADMISSION PRECONDITION: may this row be enqueued AT ALL right now (#156)? Returns `null` to admit, or
+   * the REASON — a sentence the person who hit it can act on — to refuse. Evaluated at every enqueue door
+   * (`start`, `retry`) after the owner is resolved, so the refusal happens before a row exists instead of a
+   * run producing a vacuous success.
+   *
+   * WHY THE PRECONDITION LIVES ON THE CONTRIBUTION, exactly like `admissionKey`: only the owning domain knows
+   * when its work is meaningless (the queue spells no domain's vocabulary — D117). The measured case: memory
+   * backfill enqueued while the host has memory DISABLED, which the sweep then skips per-host (#54) and lands
+   * as "0 segments · 0 digests" success. ADMISSION, never execution — a job that structurally cannot produce
+   * anything must not enter the queue.
+   *
+   * `ownerId` is the ROW's enumeration scope (`null` = the bulk all-owners pass), so a per-user precondition
+   * admits a bulk sweep and judges only a singular one. OMIT IT when the kind is always meaningful.
+   */
+  readonly admit?: (args: { readonly ownerId: UserId | null; readonly params: WorkloadParamsByKind[K] }) => Promise<string | null>;
   readonly resume: WorkloadResumePolicy;
   /** The run body — a compose-built closure over the OWNING domain's own verbs. No shared env hub. */
   readonly run: (ctx: WorkloadRunContext, params: WorkloadParamsByKind[K], report: ReportProgress, signal: AbortSignal) => Promise<WorkloadResultByKind[K]>;

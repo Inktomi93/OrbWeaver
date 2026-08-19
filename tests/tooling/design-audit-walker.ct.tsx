@@ -20,6 +20,7 @@ import {
   WalkerCapsTrackingStory,
   WalkerDimmedContrastStory,
   WalkerDuplicateSlotStory,
+  WalkerGradientBackdropStory,
   WalkerNeighbourButtonsStory,
   WalkerPaintLayerStory,
   WalkerScreenReaderOnlyStory,
@@ -279,4 +280,39 @@ test("an opaque card with nothing painting over it is still judged — the refus
     selectorsFor(findings, "contrast"),
     `rgb(74,74,80) on rgb(24,24,28) is ~2:1 and its base carries no paint layer — got ${JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`))}`,
   ).toContain("[data-testid=card-line]");
+});
+
+// ── A gradient's color space is not its format either (issue #189) ────────────────────────────────
+// `parseGradientStops` matched rgb()/hex only, so an oklch-authored gradient — the ONLY spelling a
+// tokens-only tree produces — yielded zero stops, `resolveBackdrop` fell through to `image-indeterminate`,
+// and every glyph over it minted a false P1 `text-over-art` against a backdrop whose colors are fully
+// known. Latent when filed (no such surface on home or the chat room), and the exact sibling of the
+// border/contrast family that 7ad597e6d fixed with the canvas normalizer.
+test("a legible oklch gradient backdrop mints nothing — its stops are known, so there is no art to bleed over", async ({ mount, page }) => {
+  await mount(<WalkerGradientBackdropStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const onLine = findings.filter((f) => f.selector === "[data-testid=oklch-gradient-line]" && (f.rule === "text-over-art" || f.rule === "contrast"));
+  expect(onLine, `near-white copy over a dark oklch ramp reads >13:1 against both stops — every finding here is fiction: ${JSON.stringify(onLine)}`).toEqual(
+    [],
+  );
+});
+
+test("an illegible oklch gradient fails as a WORST-STOP ratio, not as an indeterminate refusal", async ({ mount, page }) => {
+  await mount(<WalkerGradientBackdropStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const bled = findings.find((f) => f.selector === "[data-testid=oklch-gradient-bled]" && f.rule === "text-over-art");
+  const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.severity} ${f.selector} ${f.value}`));
+  expect(bled, `near-white copy on a near-white oklch ramp is the bled-over-art defect — got ${seen}`).toBeDefined();
+  expect(bled?.severity, "a parsed gradient that fails is a P0 verdict; the P1 flavour is the indeterminate refusal").toBe("P0");
+  expect(bled?.value, `the value must name the measured worst stop — an unparsed gradient cannot produce one. got ${seen}`).toContain("worst-stop");
+});
+
+test("the rgb-authored twin stays clean — the normalizer widened the parse, it did not change the math", async ({ mount, page }) => {
+  await mount(<WalkerGradientBackdropStory />);
+  const findings = collectFindings(await samplesOf(page));
+
+  const onLine = findings.filter((f) => f.selector === "[data-testid=rgb-gradient-line]" && (f.rule === "text-over-art" || f.rule === "contrast"));
+  expect(onLine, `the rgb ramp was never blind and its contrast is the same ~14:1 — got ${JSON.stringify(onLine)}`).toEqual([]);
 });

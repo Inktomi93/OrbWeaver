@@ -31,10 +31,9 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
       chats,
     });
 
-    // PD-78 (wired): a chat canon-write always enqueues the downstream index sweep.
-    if (counts.realConversationWritten) {
-      await profile.enqueueBackfill({ ownerId });
-    }
+    // PD-78 (wired): a chat canon-write always OFFERS the downstream index sweep — the workloads door decides
+    // whether it is admissible (#156: memory off ⇒ refused, and the report says so rather than claiming a run).
+    const backfillEnqueued = counts.realConversationWritten && (await profile.enqueueBackfill({ ownerId }));
 
     return {
       characterId: input.characterId,
@@ -43,7 +42,7 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
       messagesImported: counts.messagesImported,
       variantsImported: counts.variantsImported,
       branchesLinked: counts.branchesLinked,
-      backfillEnqueued: counts.realConversationWritten,
+      backfillEnqueued,
       chatsPersonaHealed: counts.chatsPersonaHealed,
       // §5.7: the chat-bound persona picks that named nothing on this install. Computed over the SAME batch
       // the mapper consumed, so the report can never disagree with what was written.

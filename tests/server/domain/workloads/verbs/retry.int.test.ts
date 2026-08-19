@@ -8,7 +8,10 @@ import { describe } from "vitest";
 import { loadRawWorkloadParams } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeService, principal, seedUser, seedWorkloadRow } from "../_support.ts";
+import { fakeContributions, makeService, principal, seedUser, seedWorkloadRow } from "../_support.ts";
+
+/** The chat domain's own refusal sentence (#156) — asserted through the message a caller actually reads. */
+const MEMORY_OFF_RE = /Memory is turned off/;
 
 describe("workloads.retry", () => {
   test("clones a failed row into a fresh queued row (original untouched)", async () => {
@@ -101,5 +104,26 @@ describe("workloads.retry", () => {
     const s = makeService(db);
     const { id: cloneId } = await s.retry({ id, caller: principal("user_alice") });
     expect((await s.get({ id: cloneId, caller: principal("user_alice") })).ownerId).toBe(alice);
+  });
+
+  // Retry IS an enqueue door (#156): a memory backfill retried after memory was turned off would otherwise
+  // walk straight past the gate `start` enforces and land the vacuous 0/0 run again.
+  test("REFUSES the clone when the owning domain no longer admits the kind (memory turned off since the original)", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const id = await seedWorkloadRow(db, { id: "w_mem", kind: "memory-backfill", ownerId: alice, status: "failed" });
+    const s = makeService(db, fakeContributions({ memoryEnabled: false }));
+    await expect(s.retry({ id, caller: principal("user_alice") })).rejects.toThrow(MEMORY_OFF_RE);
+    // Refused at the door: the original stays as the audit trail and no clone exists.
+    expect((await s.list({ caller: principal("user_alice") })).map((r) => r.id)).toEqual([id]);
+  });
+
+  test("clones the same row once memory is back on", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const id = await seedWorkloadRow(db, { id: "w_mem", kind: "memory-backfill", ownerId: alice, status: "failed" });
+    const s = makeService(db, fakeContributions({ memoryEnabled: true }));
+    const { id: cloneId } = await s.retry({ id, caller: principal("user_alice") });
+    expect((await s.get({ id: cloneId, caller: principal("user_alice") })).status).toBe("queued");
   });
 });

@@ -15,7 +15,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
-import { formatCompact, formatMs, formatPercent } from "../lib/analytics-view-model.ts";
+import { formatCompact, formatDurationMs, formatMs, formatPercent } from "../lib/analytics-view-model.ts";
 
 export interface AnalyticsCharacterSurfaceProps {
   readonly characterId: CharacterId;
@@ -96,6 +96,9 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
           <StatFigure label="Spend" value={`$${stats.costUsd.toFixed(2)}`} />
           <StatFigure label="Cache hits" value={formatPercent(stats.cacheHitRate)} />
           <StatFigure label="Reasoning" value={formatPercent(stats.reasoningRate)} />
+          {/* The reasoning WINDOW beside the reasoning RATE (#184) — the per-character half of the same
+              unrendered rollup column. */}
+          <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />
           <StatFigure label="Throughput" value={`${stats.throughputTps.toFixed(1)} t/s`} />
         </Row>
       </Section>
