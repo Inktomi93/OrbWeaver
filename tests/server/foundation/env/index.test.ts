@@ -203,7 +203,7 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   });
 
   // Scope control #2: `deny` is the SSO modes' SECURE default and must stay freely selectable — a fence
-  // that made `deny` feel banned would push a public deploy back onto the origin-gated owner fallback.
+  // that made `deny` feel banned would push a public deploy back onto the peer-gated owner fallback.
   test("AUTH_MODE=oidc + AUTH_FALLBACK=deny boots — deny is the SSO-mode secure default, not a banned value", async () => {
     const { env } = await reimportEnvWith({
       AUTH_MODE: "oidc",
@@ -215,6 +215,55 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
       SESSION_SECRET: VALID_SESSION_SECRET,
     });
     expect(env.AUTH_FALLBACK).toBe("deny");
+  });
+
+  // ── THE SSO-FALLBACK LEAK fence (#298 f2, owner ruling 2026-08-19) ────────────────────────────────────
+  // prod + an SSO mode + AUTH_FALLBACK=owner is a mass SSO bypass: behind a same-host reverse proxy every
+  // request arrives on a loopback socket, which `ownerFallbackAllowed` mints owner for. Boot-fatal in prod
+  // unless AUTH_BREAK_GLASS acknowledges the on-box-recovery exception. The signal is NODE_ENV=production
+  // (a proxy can't be reliably detected at boot); dev is the legit AUTH_FALLBACK=owner home and stays green.
+  const OIDC_REQUIRED = {
+    OIDC_ISSUER: "https://idp.example",
+    OIDC_CLIENT_ID: "client",
+    OIDC_CLIENT_SECRET: "x",
+    OIDC_REDIRECT_URIS: "https://app/api/auth/oidc/callback",
+    SESSION_SECRET: VALID_SESSION_SECRET,
+  } as const;
+
+  test("prod + oidc + AUTH_FALLBACK=owner → boot FAILS (the same-host-proxy SSO bypass)", async () => {
+    await expect(reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "oidc", AUTH_FALLBACK: "owner", ...OIDC_REQUIRED })).rejects.toThrow("SSO BYPASS");
+  });
+
+  test("prod + local + AUTH_FALLBACK=owner → boot FAILS (every SSO mode, not just oidc)", async () => {
+    await expect(reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "local", AUTH_FALLBACK: "owner", SESSION_SECRET: VALID_SESSION_SECRET })).rejects.toThrow(
+      "SSO BYPASS",
+    );
+  });
+
+  test("prod + forward-header + AUTH_FALLBACK=owner → boot FAILS (the third SSO mode bites too)", async () => {
+    await expect(reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "forward-header", AUTH_FALLBACK: "owner" })).rejects.toThrow("SSO BYPASS");
+  });
+
+  test("prod + oidc + AUTH_FALLBACK=deny boots (the secure prod default — the owner logs in via SSO)", async () => {
+    const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "oidc", AUTH_FALLBACK: "deny", ...OIDC_REQUIRED });
+    expect(env.AUTH_FALLBACK).toBe("deny");
+  });
+
+  test("prod + oidc + owner + AUTH_BREAK_GLASS=on boots (the deliberate on-box recovery exception)", async () => {
+    const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "oidc", AUTH_FALLBACK: "owner", AUTH_BREAK_GLASS: "true", ...OIDC_REQUIRED });
+    expect(env.AUTH_FALLBACK).toBe("owner");
+    expect(env.AUTH_BREAK_GLASS).toBe(true);
+  });
+
+  test("DEV + oidc + AUTH_FALLBACK=owner boots (the dev-tooling default — the fence is prod-only)", async () => {
+    const { env } = await reimportEnvWith({ AUTH_MODE: "oidc", AUTH_FALLBACK: "owner", ...OIDC_REQUIRED });
+    expect(env.AUTH_FALLBACK).toBe("owner");
+    expect(env.AUTH_BREAK_GLASS).toBe(false);
+  });
+
+  test("prod + single-user + AUTH_FALLBACK=owner boots (single-user is not an SSO mode — its only credential IS the fallback)", async () => {
+    const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "single-user", AUTH_FALLBACK: "owner" });
+    expect(env.AUTH_MODE).toBe("single-user");
   });
 
   // THE DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09). The rule + its arms are unit-tested in bind.test.ts;
@@ -418,7 +467,7 @@ describe("foundation/env — the .env load (override semantics + parser toleranc
         "export DEFAULT_USER_HANDLE=exported",
         "IMPORT_SKIP_CHARACTERS='Wren, Assistant'",
         'ST_PROFILE_DIR="/tmp/st profiles"',
-        'TRUSTED_LOCAL_HOSTS="a\\nb"',
+        'TRUSTED_PRIVATE_RANGES="a\\nb"',
         "this line is junk with no separator",
         "OWNER_GROUP=admins # inline comment",
         "PORT=9001",
@@ -428,7 +477,7 @@ describe("foundation/env — the .env load (override semantics + parser toleranc
     expect(env.DEFAULT_USER_HANDLE).toBe("exported");
     expect(env.IMPORT_SKIP_CHARACTERS).toBe("Wren, Assistant");
     expect(env.ST_PROFILE_DIR).toBe("/tmp/st profiles");
-    expect(env.TRUSTED_LOCAL_HOSTS).toBe("a\nb");
+    expect(env.TRUSTED_PRIVATE_RANGES).toBe("a\nb");
     expect(env.OWNER_GROUP).toBe("admins");
     expect(env.PORT).toBe(9001);
     expect(env.LOG_LEVEL).toBe("debug");
