@@ -97,7 +97,7 @@ export function RunControlsCard({ sessionId, guidance, running, canIterate, onMa
             verb). Iterate has always been correctly disabled before an analyze exists — `iterate.ts`
             refuses it — but it said so nowhere, so the button read as arbitrarily dead. Same sentence
             register as the lanes' `blocked` line, and it is a STATE, never a reserved row. */}
-        {canIterate || running ? null : <Text voice="gloss">Iterate refines against the latest analysis — run analyze first.</Text>}
+        {canIterate || running ? null : <Text voice="gloss">Iterate refines against the latest analysis. Run analyze first.</Text>}
       </Stack>
     </Card>
   );

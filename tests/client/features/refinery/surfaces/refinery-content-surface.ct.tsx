@@ -177,6 +177,36 @@ function preflight(): unknown {
   };
 }
 
+/** Preflight where the named stages breach the CONTEXT ceiling — the arm whose sentence is stage-neutral
+ *  ("the assembled prompt likely exceeds the model's context"), i.e. the one two lanes can duplicate.
+ *  `maxOutputTokens` stays generous so the output arm, which words itself per stage, does not fire. */
+function preflightOver(over: readonly string[]): unknown {
+  return {
+    contextTokens: 8000,
+    stages: (["score", "rewrite", "analyze"] as const).map((stage) => ({
+      stage,
+      model: "test-model",
+      temperature: null,
+      maxOutputTokens: 4096,
+      inputEstimate: over.includes(stage) ? 12_000 : 2736,
+      outputEstimate: 1490,
+    })),
+  };
+}
+
+/** Preflight where score is over its OUTPUT ceiling and analyze is over the CONTEXT — two different facts,
+ *  so two different sentences, so no hoist. */
+function preflightDiverged(): unknown {
+  return {
+    contextTokens: 8000,
+    stages: [
+      { stage: "score", model: "test-model", temperature: null, maxOutputTokens: 512, inputEstimate: 2736, outputEstimate: 1490 },
+      { stage: "rewrite", model: "test-model", temperature: null, maxOutputTokens: 4096, inputEstimate: 2736, outputEstimate: 1490 },
+      { stage: "analyze", model: "test-model", temperature: null, maxOutputTokens: 4096, inputEstimate: 12_000, outputEstimate: 1490 },
+    ],
+  };
+}
+
 /** The accepts the surface sent, as `routeTrpc` decoded them off the wire. */
 interface ApplyInput {
   readonly accepts: readonly { readonly field: string; readonly greetingIndex?: number }[];
@@ -187,6 +217,8 @@ interface ApplyInput {
 const KEEP_DESCRIPTION = /^Keep description$/;
 const DISCARD_PERSONALITY = /^Discard personality$/;
 const ANY_APPLY_COUNT = /^Apply \d+ kept$/;
+/** Every lane's run verb, in either arm — the set the "one filled control" census is taken over. */
+const RUN_ANY_STAGE = /^(Run|Re-run) (score|rewrite|analyze)$/;
 const BACK_TO_LATEST = /^Back to latest$/;
 
 /** The ledger the surface reads, OLDEST FIRST (the wire's order — the lane fold keeps the last write per
@@ -239,7 +271,8 @@ const BIG_LIBRARY = Array.from({ length: BIG_LIBRARY_SIZE }, (_, i) =>
 );
 /** The LAST card in that library — the one a fixed-limit picker can never reach. */
 const DEEPEST_CARD = `Ward ${String(BIG_LIBRARY_SIZE).padStart(3, "0")}`;
-/** The picker's own tail affordance (`CharacterPicker`) — the keyboard-reachable half of its paging. */
+/** The picker's own tail affordance (`CharacterPicker`) — a real footer BUTTON since the 2026-08-19 pass,
+ *  never an option inside the listbox. */
 const LOAD_MORE = /^Load more characters$/;
 
 /** The landing's reads: the roster the resume check consults, plus the library the picker lists. The four
@@ -376,8 +409,16 @@ test("the landing picker exposes the WHOLE library — a card past the first pag
   // KEYBOARD-reachable to count — a scroll-only tail is unreachable for anyone not using a pointer.
   // Unrolled rather than looped: each press is barriered on the page it landed, so a failure names WHICH
   // page stopped arriving instead of timing out on the tail.
-  const loadMore = page.getByRole("option", { name: LOAD_MORE });
+  //
+  // A `button`, NOT an `option` (side-eye 2026-08-19): the tail used to be a `forceMount`ed `CommandItem`,
+  // i.e. a row inside `role="listbox"` that a screen reader announced as a selectable character and that a
+  // keyboard user could only reach by arrowing past all 100 rows above it. It is a real footer button below
+  // the list now, one Tab from the search box — and the role in this locator is the pin that keeps it there.
+  const loadMore = page.getByRole("button", { name: LOAD_MORE });
   await expect(loadMore).toBeVisible();
+  // The walk STATES ITSELF: how far it has got against the server's own count over the same scope. Without
+  // it "Load more" is a button with no idea how much more, which is what the 3 244px scroll offered.
+  await expect(page.getByText(`Showing 100 of ${BIG_LIBRARY_SIZE}`)).toBeVisible();
   await loadMore.click();
   await expect(page.getByRole("option", { name: "Ward 101" })).toBeVisible();
   await loadMore.click();
@@ -565,6 +606,64 @@ test("the FOCAL moves to the rewrite island once a score has landed — the acce
 
   await expect(page.getByTestId(testId("refineryRewriteLane"))).toHaveAttribute("data-focal", "true");
   await expect(page.locator('[data-lane="score"]')).not.toHaveAttribute("data-focal", "true");
+});
+
+// ── ONE ACT, ONE BODY (side-eye 2026-08-19 P1-4 / P2) ────────────────────────────────────────────────
+
+test("exactly ONE run control on the canvas is filled, and it is the FOCAL lane's — the rest recede", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, { ...baseRoutes(), "refinery.listRuns": emptyLedger });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
+
+  // A `secondary` button paints `bg-transparent`, so "is this one filled?" is the resolved background's
+  // alpha, not a class list — and counting the filled ones across the whole canvas is the claim: §14 is
+  // one loud verb in the work pane, and the CONTEXT ledger's twin of it went ghost (see the Runs tab CT).
+  const filled = await page
+    .getByRole("button", { name: RUN_ANY_STAGE })
+    .evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).backgroundColor !== "rgba(0, 0, 0, 0)").map((node) => node.textContent ?? ""));
+  expect(filled, "one filled run control, on the lane the pipeline says to run").toEqual(["Run score"]);
+  // …and it IS the focal lane's, which is the thing that makes the emphasis mean something.
+  await expect(page.locator('[data-lane="score"]')).toHaveAttribute("data-focal", "true");
+});
+
+test("two stages breaching with the SAME sentence print ONE session-level warning, not the same paragraph twice", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, { ...baseRoutes(), "refinery.preflight": (): unknown => preflightOver(["score", "analyze"]) });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
+
+  // THE DEFECT: the context-overrun sentence is about the SELECTION, so with score and analyze both over
+  // it rendered verbatim in two lanes with two identically-named "Narrow the selection" buttons about one
+  // selection. Once, now — and the button says what it narrows for.
+  await expect(page.getByTestId(testId("refineryPreflightWarn"))).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Narrow the selection for score and analyze" })).toBeVisible();
+  // The ⚠ stays per-lane: that mark is about THIS stage's numbers, and suppressing it would lose the
+  // reason the hoisted paragraph is on screen at all.
+  await expect(page.locator('[data-lane="score"]').getByTestId(testId("refineryFitLine"))).toContainText("⚠");
+});
+
+test("…and stages breaching DIFFERENTLY keep their own warnings, each named for its own stage", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, { ...baseRoutes(), "refinery.preflight": (): unknown => preflightDiverged() });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await expect(page.getByTestId(testId("refineryContent"))).toBeVisible();
+
+  // Divergence is the case where two warnings are two FACTS, so both stay — and neither button is
+  // ambiguous, which was the other half of the finding.
+  await expect(page.getByTestId(testId("refineryPreflightWarn"))).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Narrow the selection for score" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Narrow the selection for analyze" })).toBeVisible();
+});
+
+test("the workbench has a door back to the card it is about", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, baseRoutes());
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await expect(page.getByTestId(testId("refineryMasthead"))).toBeVisible();
+  // The utility question the review asked: the whole surface is about one character and there was no way
+  // to reach it. The name is in the accessible name so the control is unambiguous in a controls list.
+  await expect(page.getByRole("button", { name: "Open card Zephyrine Vale in the Characters section" })).toBeVisible();
 });
 
 test("a per-field KEEP/DISCARD decision drives the apply: only the kept field is sent, and the terminal outcome itemizes it", async ({ mount, page }) => {

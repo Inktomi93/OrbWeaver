@@ -135,7 +135,13 @@ export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrit
     return (
       <EmptyState
         action={
-          <Button onClick={onRunScore} size="sm">
+          // GHOST, and deliberately the quiet twin (side-eye 2026-08-19 P1-4). This ledger's empty state and
+          // the SCORE lane's own run control offered the same act on one screen, and the filled-accent one
+          // was HERE — in the pane that records what happened — while the work pane's verb sat secondary.
+          // §14 is bolder in the work pane, quieter in the ledger; the canvas's one filled run control is the
+          // FOCAL lane's (`workbench-lanes.ts` decides which lane that is). This stays a real door, because
+          // the Runs tab can be open with the workbench scrolled past its lanes.
+          <Button intent="ghost" onClick={onRunScore} size="sm">
             Run score
           </Button>
         }
@@ -163,7 +169,10 @@ export interface SetupTabProps {
   /** The ANALYZE stage's payload schema, named — same convention as `scoreSchemaLine`. */
   readonly analyzeSchemaLine: string;
   readonly scopeLine: string;
-  readonly guidance: string | null;
+  /** WHETHER guidance is in force — never the guidance TEXT (the anti-echo split; see `guidanceLineOf`
+   *  in the body module, and the `Guidance → Edit` bullet below). A `string | null` here is what let the
+   *  verbatim sentence be printed beside the textarea that owns it. */
+  readonly guidanceLine: string;
   readonly onViewOriginal: () => void;
   /** Opens the SCHEMA EDITOR for a specific STAGE (score / analyze) — see the door note on `SetupTab`. The
    *  BODY resolves whether that stage is currently on a custom schema and hands the editor the existing row
@@ -248,7 +257,10 @@ function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: s
  *    second editor is minted here, so #158's ruling is untouched; the row is a remote control for the one
  *    home, which is exactly what the sentence was describing in prose.
  *  - **Guidance → "Edit"** raises the `guidance` door: the run bar's live textarea takes focus and scrolls
- *    into view. Same shape, same reason.
+ *    into view. Same shape, same reason. Its VALUE is now "in force" / "none", not the sentence itself
+ *    (side-eye 2026-08-19): quoting the text here put an authored value in two places on one screen, one
+ *    of them read-only, which is precisely what the section's anti-echo law forbids. The row still states
+ *    real in-force state — that half was never the problem — and the door is what makes it actionable.
  *  - **Stage modes** keeps NO action, because it has no editor anywhere in the app — and its old note was
  *    the emptiest of the three (it named no reachable place at all). It states the modes in force, which
  *    is this tab's whole charter. Building the missing control is a feature, not a polish fix, and is NOT
@@ -260,7 +272,7 @@ export function SetupTab({
   scoreSchemaLine,
   analyzeSchemaLine,
   scopeLine,
-  guidance,
+  guidanceLine,
   onViewOriginal,
   onEditSchema,
   onOpenDoor,
@@ -276,12 +288,7 @@ export function SetupTab({
       <SetupRow action="Change" k="Score schema" onAction={(): void => onEditSchema("score")} v={scoreSchemaLine} />
       <SetupRow action="Change" k="Analyze schema" onAction={(): void => onEditSchema("analyze")} v={analyzeSchemaLine} />
       <SetupRow k="Stage modes" v={stageModesLine} />
-      <SetupRow
-        action="Edit"
-        k="Guidance"
-        onAction={(): void => onOpenDoor("guidance")}
-        v={guidance === null || guidance.length === 0 ? "none — every stage runs unsteered" : `"${guidance}"`}
-      />
+      <SetupRow action="Edit" k="Guidance" onAction={(): void => onOpenDoor("guidance")} v={guidanceLine} />
     </Stack>
   );
 }
@@ -344,7 +351,10 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
   }
   return (
     <Stack data-testid={testId("refineryVersionsTab")} gap="tight">
-      <Text voice="gloss">Restoring changes the LIVE card only — the session still compares against its own pinned original.</Text>
+      {/* NOT "the LIVE card" (side-eye 2026-08-19 P3; the #104 precedent, verbatim: caps mid-sentence is
+          "the one place the app raises its voice at the reader"). The contrast is real and survives in
+          words — the live card against the session's pinned original — and the sentence carries it. */}
+      <Text voice="gloss">Restoring changes the live card only. The session still compares against its own pinned original.</Text>
       {rows.map((snapshot) => {
         const klass = classOf(snapshot);
         return (

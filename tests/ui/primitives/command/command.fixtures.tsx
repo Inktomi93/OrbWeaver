@@ -43,6 +43,36 @@ export function CommandPaletteStory(): ReactElement {
   );
 }
 
+/** A list long enough that most of its rows are OUTSIDE the bounded viewport — the shape the character
+ *  picker mounts (a walked page of 100+ options) and the one `orb-skip-offscreen` exists for. */
+const LONG_LIST = Array.from({ length: 60 }, (_, i) => `row ${String(i + 1).padStart(2, "0")}`);
+
+/**
+ * A BOUNDED command list of 60 rows — the mount that can tell "render-skipped" apart from "unmounted".
+ * Every row is in the DOM (cmdk resolves arrow-roving, its filter sort and Enter through
+ * `querySelectorAll` over the mounted `[cmdk-item]`s), and the ones below the fold skip layout and paint.
+ * The CT walks the keyboard to a row that starts off-screen and selects it.
+ */
+export function LongCommandListStory(): ReactElement {
+  const [selected, setSelected] = useState("");
+  return (
+    <div>
+      <Command label="Long list">
+        <CommandInput aria-label="Search rows" placeholder="Search rows…" />
+        <CommandList className="max-h-40">
+          <CommandEmpty>No matching rows.</CommandEmpty>
+          {LONG_LIST.map((row) => (
+            <CommandItem key={row} onSelect={setSelected} value={row}>
+              {row}
+            </CommandItem>
+          ))}
+        </CommandList>
+      </Command>
+      <p data-testid="selected">{selected}</p>
+    </div>
+  );
+}
+
 const SOURCE = [
   { id: "a1", name: "alpha" },
   { id: "b2", name: "bravo" },

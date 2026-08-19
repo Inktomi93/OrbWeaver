@@ -4,7 +4,8 @@
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CommandPaletteStory, DerivedItemsStory } from "./command.fixtures.tsx";
+import type { Page } from "@playwright/test";
+import { CommandPaletteStory, DerivedItemsStory, LongCommandListStory } from "./command.fixtures.tsx";
 
 test("typing filters the item list", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
@@ -111,6 +112,55 @@ test("the root wears the popover token", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
   const root = page.locator('[data-slot="command-root"]');
   await expect(root).toHaveCSS("background-color", TOKENS["color.popover"].value);
+});
+
+// ── THE SEARCH BOX HAS A REST→FOCUS DELTA (side-eye 2026-08-19, refinery P2) ─────────────────────────
+// cmdk's input is `bg-transparent outline-none` inside a wrapper whose only mark is a bottom hairline, so
+// across all six picker consumers and ⌘K a keyboard user could not see where the caret was. The ring goes
+// on the ROOT under `:focus-within` — cmdk's rows never take DOM focus, so "focus is in this panel" and
+// "the box is focused" are one state. Asserted as the RESOLVED box-shadow, never a class list: a variant
+// that stops applying is invisible to a className check, which is the whole failure mode here.
+
+/** The bounded story's row count, and the row that is unambiguously below its fold. */
+const LONG_LIST_SIZE = 60;
+const OFFSCREEN_ROW = `row ${LONG_LIST_SIZE}`;
+
+function rootShadow(page: Page): Promise<string> {
+  return page.locator('[data-slot="command-root"]').evaluate((node) => getComputedStyle(node).boxShadow);
+}
+
+test("focus inside the command panel paints a ring — and at rest there is none", async ({ mount, page }) => {
+  await mount(<CommandPaletteStory />);
+  const atRest = await rootShadow(page);
+
+  await page.getByRole("combobox").focus();
+  const focused = await rootShadow(page);
+  expect(focused, "the focused panel paints a real ring").not.toBe("none");
+  expect(focused, "…and it is a DELTA, not the resting paint").not.toBe(atRest);
+});
+
+test("a long list keeps every row MOUNTED and merely skips painting the off-screen ones — cmdk still roves to them", async ({ mount, page }) => {
+  await mount(<LongCommandListStory />);
+
+  // MOUNTED, all 60: cmdk resolves arrow-roving, its filter sort and Enter through `querySelectorAll` over
+  // the mounted `[cmdk-item]`s, so virtualization would break the keyboard model outright. This is why the
+  // seal skips PAINT instead of unmounting.
+  await expect(page.getByRole("option")).toHaveCount(LONG_LIST_SIZE);
+  const skipped = await page
+    .getByRole("option")
+    .first()
+    .evaluate((node) => getComputedStyle(node).contentVisibility);
+  expect(skipped, "the rows carry the render-skip recipe").toBe("auto");
+
+  // …and the keyboard still reaches the LAST row, which starts far below the fold, and selects it. `End`
+  // is cmdk's own jump through the mounted set (`X(V().length - 1)`) — the exact mechanism the skip must
+  // not disturb, and a row that had been unmounted would simply not be in that walk.
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.press("End");
+  await expect(page.getByRole("option", { name: OFFSCREEN_ROW })).toHaveAttribute("aria-selected", "true");
+  await input.press("Enter");
+  await expect(page.getByTestId("selected")).toHaveText(OFFSCREEN_ROW);
 });
 
 test("filters correctly when the parent re-renders and passes a freshly-DERIVED item array (the real consumer shape)", async ({ mount, page }) => {
