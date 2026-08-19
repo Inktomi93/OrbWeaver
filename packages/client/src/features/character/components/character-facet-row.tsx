@@ -25,21 +25,27 @@ export interface CharacterFacetRowProps {
   readonly filled: boolean;
   /** A short preview of the authored content for a filled row, or `null` when empty (shows "Add…"). */
   readonly preview: string | null;
+  /** The TERSE fill state this row announces ("Empty" / "Filled, 1283 characters"), computed by the list.
+   *  It exists because the visible fill cues are both out of the accessible tree — see the describedby
+   *  comment below (#254). Never the body itself: a state, a count, or a field name. */
+  readonly fillSummary: string;
   /** Restore keyboard focus to this row's button on mount (set by the list for the facet Back just returned from). */
   readonly focusOnMount: boolean;
   readonly onSelect: (id: CharacterCardFacet["id"]) => void;
 }
 
-export function CharacterFacetRow({ facet, selected, filled, preview, focusOnMount, onSelect }: CharacterFacetRowProps): ReactElement {
+export function CharacterFacetRow({ facet, selected, filled, preview, fillSummary, focusOnMount, onSelect }: CharacterFacetRowProps): ReactElement {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const previewId = useId();
+  const fillSummaryId = useId();
   // WHICH LINE-2 IS WORTH ANNOUNCING. An EMPTY row's line 2 is `facet.subtitle` — a real gloss ("Injected
   // after history, just before the reply.") that tells a screen-reader user what the facet DOES, so it is
   // the button's description. A FILLED row's line 2 is a CSS-truncated echo of the field body itself
   // (1283 characters on Description, ~2000 on Example messages): demoting that from the NAME to the
   // DESCRIPTION would only move the wall, so it drops out of the accessible tree entirely — `ListRow`'s
   // own `subtitleDecorative` rule for exactly this shape ("a truncated mono preview of a 600-character
-  // template body"). The row still announces "Personality, button"; the prose is one activation away.
+  // template body"). The row announces "Personality, button, Filled, 44 characters" — the label, then the
+  // `fillSummary` state line below; the prose itself is one activation away.
   const showsPreview = filled && preview !== null;
   useEffect(() => {
     if (focusOnMount) {
@@ -62,7 +68,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, focusOnMou
           is the whole accessible name, so voice control still works (WCAG 2.5.3). */}
       <Button
         ref={buttonRef}
-        aria-describedby={showsPreview ? undefined : previewId}
+        aria-describedby={showsPreview ? fillSummaryId : `${fillSummaryId} ${previewId}`}
         aria-label={facet.label}
         intent="ghost"
         size="sm"
@@ -85,6 +91,18 @@ export function CharacterFacetRow({ facet, selected, filled, preview, focusOnMou
           {showsPreview ? preview : facet.subtitle}
         </Text>
       </Button>
+
+      {/* THE FILL STATE, SPOKEN (#254). Both cues that tell a SIGHTED user filled from empty are out of the
+          accessible tree: the filled row's preview line is `aria-hidden` (above — it is a 1283-character
+          body, not a name), and the empty row's "Add…" is inert `Text` beside the button. So the two states
+          announced identically ("Description, button" either way) — the a11y half of the decorative-preview
+          fix, not a regression of it. This span restores the DISTINCTION without restoring the wall: a
+          terse state + a magnitude ("Empty" / "Filled, 44 characters"), never the body. It rides
+          `aria-describedby` rather than the name so voice control still matches the visible label (WCAG
+          2.5.3), and it leads the description so the state is heard before the empty row's gloss. */}
+      <Text as="span" className="sr-only" id={fillSummaryId}>
+        {fillSummary}
+      </Text>
 
       {filled ? null : (
         <Text size="micro" tone="muted">

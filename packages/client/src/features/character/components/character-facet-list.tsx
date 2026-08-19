@@ -88,6 +88,47 @@ function facetPreview(id: CharacterCardFacet["id"], values: CharacterCardFormVal
   }
 }
 
+/** What a screen reader hears for a facet with nothing in it. Terse by design — the row's visible "Add…"
+ *  in words, not a second gloss (the subtitle already says what the facet DOES). */
+const EMPTY_SUMMARY = "Empty";
+
+/** A filled TEXT facet's magnitude. Plain digits, deliberately UNGROUPED: this string is only ever spoken,
+ *  a screen reader groups the number itself, and `.toLocaleString()` is banned repo-wide (`no-raw-intl-time`)
+ *  — so the three hand-rolled thousands-groupers on the tree stay at three. "Filled," leads because bare
+ *  "44 characters" is ambiguous on a screen whose other nouns are character CARDS. */
+function textFillSummary(raw: string): string {
+  const length = raw.trim().length;
+  return length === 0 ? EMPTY_SUMMARY : `Filled, ${length} ${length === 1 ? "character" : "characters"}`;
+}
+
+/** The TERSE fill state a screen reader hears for a facet row (#254) — the filled/empty distinction the
+ *  decorative preview took away. Kept in sync with `facetFilled` (same non-empty definition, one string per
+ *  arm); the two METADATA facets say what they hold instead of a character count, because their preview is
+ *  already metadata rather than a body. NEVER the authored prose itself — that is what the preview line is
+ *  for, and why it left the accessible tree. */
+function facetFillSummary(id: CharacterCardFacet["id"], values: CharacterCardFormValues, attachedRegexCount: number): string {
+  switch (id) {
+    case "regexScripts":
+      return attachedRegexCount === 0 ? EMPTY_SUMMARY : `Filled, ${attachedRegexCount} ${attachedRegexCount === 1 ? "script" : "scripts"} attached`;
+    case "provenance": {
+      const set = [values.creator.trim() === "" ? null : "creator", values.cardVersion.trim() === "" ? null : "version"].filter(
+        (part): part is string => part !== null,
+      );
+      return set.length === 0 ? EMPTY_SUMMARY : `Filled, ${set.join(" and ")} set`;
+    }
+    case "depthPrompt":
+      return textFillSummary(values.depthPromptText);
+    case "description":
+    case "personality":
+    case "scenario":
+    case "exampleMessages":
+    case "systemPrompt":
+    case "postHistoryInstructions":
+    case "creatorNotes":
+      return textFillSummary(values[id]);
+  }
+}
+
 export function CharacterFacetList({ form, characterId, selectedFacetId, focusFacetId, onSelect }: CharacterFacetListProps): ReactElement {
   const trpc = useTRPC();
   // D121-E: the regex facet's row cue reads the ATTACHED junction, not the draft. `useQuery` (not
@@ -112,6 +153,7 @@ export function CharacterFacetList({ form, characterId, selectedFacetId, focusFa
                     facet={facet}
                     selected={facet.id === selectedFacetId}
                     filled={facetFilled(facet.id, values, attachedRegexCount)}
+                    fillSummary={facetFillSummary(facet.id, values, attachedRegexCount)}
                     preview={facetPreview(facet.id, values, attachedRegexCount)}
                     focusOnMount={facet.id === focusFacetId}
                     onSelect={onSelect}

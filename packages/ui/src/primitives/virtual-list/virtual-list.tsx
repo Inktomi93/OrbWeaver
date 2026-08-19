@@ -35,6 +35,15 @@ export interface VirtualListProps<T> {
    * bottom on append" seam. Respects prefers-reduced-motion itself.
    */
   readonly scrollToIndex?: number;
+  /**
+   * Where the list starts scrolled, in px — the BROWSE-CONTEXT seam for a pane that unmounts and comes
+   * back (a master list whose slot swaps to a detail view: #255). Read ONCE, at mount, by the virtualizer
+   * itself, so the restored window is what renders on the FIRST paint — an imperative `scrollTop` write
+   * after mount would paint the top of the list and then jump. Later changes to the value are ignored on
+   * purpose: once mounted, the live scroll position is the USER's, and re-applying a stale offset mid-scroll
+   * would fight them. Distinct from `scrollToIndex`, which is an ongoing imperative pin, not a restore.
+   */
+  readonly initialScrollOffset?: number;
   /** Fires when the rendered window's last index comes within `endApproachRows` of the tail. */
   readonly onEndApproach?: () => void;
   /** Tail-proximity threshold in rows for `onEndApproach`. @defaultValue 8 */
@@ -77,6 +86,7 @@ export function VirtualList<T>({
   rangeExtractor,
   renderItem,
   scrollToIndex,
+  initialScrollOffset,
   onEndApproach,
   endApproachRows = DEFAULT_END_APPROACH_ROWS,
   className,
@@ -103,6 +113,10 @@ export function VirtualList<T>({
     // exactOptionalPropertyTypes: a bare key here would widen lanes: number (no | undefined) and fail tsc.
     ...(lanes === undefined ? {} : { lanes }),
     ...(rangeExtractor === undefined ? {} : { rangeExtractor }),
+    // `initialOffset` is virtual-core's own restore seam: it seeds the virtualizer's scroll state BEFORE the
+    // first render, so the correct window is the first thing painted. Omitted (not passed as `undefined`)
+    // under exactOptionalPropertyTypes.
+    ...(initialScrollOffset === undefined ? {} : { initialOffset: initialScrollOffset }),
     directDomUpdates: true,
     // Transform mode breaks position:fixed descendants (iframe/media rows) — position writes top.
     directDomUpdatesMode: "position",

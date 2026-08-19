@@ -6,6 +6,7 @@ import {
   DerivedItemsList,
   EndApproachList,
   FadeEdgeList,
+  InitialOffsetList,
   LanesList,
   OverscanList,
   ScrollToIndexList,
@@ -120,6 +121,16 @@ test("scrollToIndex pins the last item into view (end-aligned) once the prop is 
   await expect(component.getByText("Item 299", { exact: true })).toHaveCount(0);
   await component.getByTestId("pin-to-end").click();
   await expect(component.getByText("Item 299", { exact: true })).toBeVisible();
+});
+
+// #255: the browse-restore seam. Unlike `scrollToIndex` this needs NO gesture and NO prop change — the deep
+// window is what mounts, which is the whole contract (a pane that comes back must not paint the top first).
+test("initialScrollOffset mounts the list already scrolled to that offset", async ({ mount }) => {
+  const component = await mount(<InitialOffsetList itemCount={300} offsetPx={4000} />);
+  // The row at 4000px / 40px rows is Item 100; Item 0 is far above the window and not rendered at all.
+  await expect(component.getByText("Item 100", { exact: true })).toBeVisible();
+  await expect(component.getByText("Item 0", { exact: true })).toHaveCount(0);
+  expect(await component.locator('[data-slot="virtual-list-scroll"]').evaluate((el) => el.scrollTop)).toBe(4000);
 });
 
 test("onEndApproach fires when the rendered window is within endApproachRows of the tail", async ({ mount }) => {

@@ -253,6 +253,25 @@ export function EndApproachList({ itemCount, endApproachRows }: { readonly itemC
   );
 }
 
+/** `initialScrollOffset`: the seal starts scrolled THERE, on the first paint — the browse-restore seam
+ *  (#255). Distinguished from `scrollToIndex` by needing no gesture and no prop change: the window at mount
+ *  is already the deep one. */
+export function InitialOffsetList({ itemCount, offsetPx }: { readonly itemCount: number; readonly offsetPx: number }): ReactElement {
+  const items = makeItems(itemCount);
+  return (
+    <div style={{ height: 200 }}>
+      <VirtualList
+        items={items}
+        getItemKey={(item): string => item.id}
+        estimateSize={(): number => 40}
+        initialScrollOffset={offsetPx}
+        renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
+        className="h-full"
+      />
+    </div>
+  );
+}
+
 /** `aria-label` passthrough onto the `role="list"` scroll container. */
 export function AriaLabelList({ itemCount, ariaLabel }: { readonly itemCount: number; readonly ariaLabel: string }): ReactElement {
   const items = makeItems(itemCount);
