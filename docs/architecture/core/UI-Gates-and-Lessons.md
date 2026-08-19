@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-18
 ---
 
 # UI-Gates-and-Lessons
@@ -30,6 +30,33 @@ The two FORM rows are 2 of the six editor obligations the factories bake — the
 **Doc TS snippets use method-shorthand (`get(id): Def`)** — biome's `useConsistentMethodSignatures` rejects
 it on house style. Write property-style: `readonly get: (id: Id) => Def`. Same shape; never copy a doc
 snippet verbatim into code.
+
+### 7a. The silent-paint traps — CSS/layout facts whose only symptom is wrong pixels
+
+Each of these compiles, typechecks, and passes every gate; the failure is geometry or paint nobody
+asserted. They are stated here because no gate can carry them and every one cost a rendered-verification
+round.
+
+| Trap | The law |
+| - | - |
+| A Tailwind class assembled from a template literal (`` `not-has-[${MARK}]:hidden` ``) | NEVER generated — the scanner reads whole literals only. Spell variant classes whole. Same class: `inset-block-0`/`inset-inline-end-0` are not utilities at all (use `inset-y-0`/`end-0`) — both compile to nothing, silently. |
+| A call-site `className` "overriding" a size built from a CUSTOM token (`size-control-md`) | tailwind-merge does not classify custom-token utilities, so BOTH classes survive and cascade order decides. The fix is a real variant in `@orb/ui`, never a call-site class. |
+| `tailwind-variants`' twMerge config | Module-level mutable state primed by the FIRST `tv()` call (`createTV` does not prime it) — own one config, or import order decides merge behavior. |
+| `position: fixed` with `auto` insets | Takes the element's STATIC position — a mobile overlay inherits its desktop grid slot and paints off-screen while every `data-*`/aria attribute reads correct. Spell the insets; assert the measured box, never the mode attribute. |
+| A child carrying `flex:*`/`min-h-0` under a parent that computes non-flex | The PARENT lost its `display:flex` — the child's declaration is inert. Fix the parent; never stack workarounds in the child. Latent behind small content: the first long list exposes it. |
+| `min-width: min-content` on a truncating flex child | Does not tame it — nowrap text's min-content IS the full string. Floor the SIBLING and let the truncating side take the remainder. |
+| `background-color: revert` in author CSS | Rolls the whole author origin back to the UA default (TRANSPARENT) — not to "the rule below". To fall back to a surface's own background, don't emit the overriding declaration (scope its rival instead). |
+| A radius on a zero-border, transparent control | Differentiates NOTHING at rest — a radius axis is invisible without a drawn edge. Check border/background at rest before treating radius as a cue. |
+| A persistent state ring beside the house `FOCUS_RING` | Use `inset-ring-*` (`--tw-inset-ring-shadow`) — a different box-shadow layer than `ring-*`, so state and focus COMPOSE instead of clobbering one variable. |
+| `ScrollArea.Content` | Carries INLINE `min-width: fit-content` — no class can win. Flex-wrap children never wrap inside it; use the seal's `wrapContent` axis. |
+| A `mask-image` scroll fade | Clips the element's box-shadow (the mask box IS the border box). Popup surfaces use the `background-attachment: local/scroll` gradient recipe instead. |
+| A `length >= N` count gate near an ellipsis/truncate class | A count may gate a DENSITY choice (a fold, a wrap); it must never stand in for a FIT guarantee. Track sizing + `overflow` (`minmax(max-content,1fr)` + `overflow-x-auto`) answers "does the word fit" exactly and applies UNCONDITIONALLY. |
+| A display floor ("don't show a list of one") | Gates RENDERING only. The moment the only door to a verb lives inside the gated surface it is an ACCESS rule — walk what verbs live only in there, and render the surface with an empty state that carries the door (`features/chat/lib/roster.ts` records three paid instances). |
+| A two-column layout void whose SHORT SIDE flips with viewport width | Cannot be fixed by moving content between columns. Measure BOTH ends of the width range first; the fix is structural self-balancing. |
+| A View Transition with NO `view-transition-name` | Is a frozen full-page SCREENSHOT over the live page — chrome that moves during the swap ghosts by construction. Name only what changes; the tell is `::view-transition-group(root)` computing full-viewport. |
+| `prefers-reduced-motion` | Does NOT make an animation instant — a fresh animation is held pending at `currentTime` 0 for a frame or two, so a from-value FLIP paints the full-distance corner. SKIP the FLIP under reduced motion, never shorten it. |
+| Every 34px icon button | Becomes 44–48px at `pointer: coarse` — three of them is a third of a 320px row. The tax is an unbudgeted WIDTH cost, and a fine-pointer viewport (the default) can never see it. |
+| Feature-owned inline SVG | Paints with `currentColor` + numeric opacity attributes only: the compose-only keystone bans `className`/`style` on raw intrinsics, and CSS `var(--token)` is INERT inside an SVG presentation attribute. An accent-colored diagram forces an `@orb/ui` primitive. |
 
 ## 8. The gates (physics + lint belts)
 

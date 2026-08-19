@@ -202,3 +202,25 @@ Every lane, without being told per-brief:
   `restore`. Red-first receipts run new pins against the UNMODIFIED source before any fix.
 - **@orb/ui primitives drop `data-testid`** (slot-only seal); ECharts `BarList` is a canvas —
   text assertions speak for the frame, not the bars.
+- **Probe the instrument before you trust its zero — and before you design around it.** A search,
+  gate, or in-page sampler that reports nothing owes a PLANTED POSITIVE CONTROL in the same
+  invocation; a bare zero is "I couldn't measure", never "it isn't there". Two samplers that are
+  dead on this tree by construction: an `rgb(...)` regex (computed style passes `oklch` through
+  VERBATIM) and anything reading `getComputedStyle`/`elementFromPoint` to see a `mask-image`
+  (a mask is PAINT — only framebuffer sampling sees it).
+- **Seeded rows are never verification evidence, and a per-user-scoped empty read is evidence about
+  WHICH PRINCIPAL asked** — not about whether the data exists. Verify against model-populated /
+  real-principal state, and say which principal your receipt was taken as.
+- **Type floors run BOTH programs.** Per-package `types:packages` is structurally blind to `tests/`
+  and `scripts/`; `types:graph` (`node scripts/ts7.cjs --noEmit -p tsconfig.json`) is the program
+  that sees them. A lane changing a shared VALUE (enum member, wire field, user-facing label) also
+  owes the behavioral suites that assert the literal — `pnpm check` is static and runs no tests.
+- **Never run a whole-tree baseline/snapshot REGENERATOR on a shared or multi-lane tree** (the
+  fabrication baseline, suppressions, `drizzle generate`): it recomputes from the WHOLE working
+  tree and bakes a sibling's in-flight edits into your committed baseline. Hand-edit the single
+  row, or use the gate's own escape marker (line-adjacent, like `biome-ignore`).
+- **Read your own diff before you commit.** An Edit inserting a declaration directly above another
+  lands BETWEEN that declaration and its JSDoc, silently re-parenting the doc block — invisible to
+  biome, tsc, the gates and the suites. Anchor insertions on the opening `/**`, and read
+  `git show --stat` on your own commit (it is also what catches an unstaged deliverable and a
+  `Bin` byte-count on a `.ts`/`.tsx` = a NUL slipped into a template literal).
