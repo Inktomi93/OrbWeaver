@@ -14,6 +14,8 @@ import { AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
 const COMPUTED_AT = 1_750_000_000_000;
 /** A four-digit year — the tell that the `title=` carries the ABSOLUTE stamp, whatever the runner's locale. */
 const ABSOLUTE_STAMP = /\d{4}/;
+/** The exact failure mode #296 covers: a field-name drift leaves the rendered value literally "undefined". */
+const RENDERED_UNDEFINED = /undefined/i;
 
 const OVERVIEW = {
   tokensIn: 1000,
@@ -42,10 +44,12 @@ const WRAPPED = {
   costUsd: 1.25,
   genTimeMs: 90_000,
   topCharacter: null,
-  // `longestStreakDays` is the CONTRACT's spelling (rhythm-figures.tsx:18). The stub said `longestStreak`
-  // and the Rhythm band rendered "undefinedd" through every green run — a test double whose shape doesn't
-  // match the contract hides the very field it is meant to exercise.
-  temporal: { activeDays: 4, currentStreak: 2, longestStreakDays: 3, busiestDay: null, byDayOfWeek: [0, 0, 0, 0, 0, 0, 0] },
+  // `longestStreakDays` and `dayOfWeek` are the CONTRACT's spellings (`TemporalStats`,
+  // packages/server/src/domain/stats/contract/views.ts). The stub previously said `longestStreak` (the
+  // Rhythm band rendered "undefinedd" through every green run) and separately `byDayOfWeek` (a field the
+  // contract has never had) — a test double whose shape doesn't match the contract hides the very field
+  // it is meant to exercise. #296.
+  temporal: { activeDays: 4, longestStreakDays: 3, busiestDay: null, dayOfWeek: [0, 0, 0, 0, 0, 0, 0] },
 };
 
 const MOMENTUM = { latestMonth: null, prevMonth: null, rising: [], falling: [] };
@@ -101,6 +105,29 @@ test("the Economics band renders the reasoning WINDOW beside the reasoning rate"
   await expect(figure.locator('[data-slot="stat-figure-value"]')).toHaveText("45.0s");
   // The rate is a DIFFERENT question (how often it reasons) and must survive beside the duration.
   await expect(component.locator('[data-slot="stat-figure"]', { hasText: "Reasoning" }).first()).toBeVisible();
+});
+
+// ── The Rhythm band renders the fixture's real values, never `undefined` (#296) ─────────────────────
+// A test double whose field names drift from the `TemporalStats` contract renders "undefinedd" through
+// every green run — the double passes, the surface silently lies. Pin the actual rendered text so a
+// future drift (contract rename, stub typo) fails HERE instead of in a screenshot nobody looked at.
+test("the Rhythm band renders the WRAPPED.temporal fixture's real values, never 'undefined'", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => MOMENTUM,
+  });
+
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
+
+  const activeDays = component.locator('[data-slot="stat-figure"]', { hasText: "Active days" });
+  await expect(activeDays.locator('[data-slot="stat-figure-value"]')).toHaveText("4");
+
+  const streak = component.locator('[data-slot="stat-figure"]', { hasText: "Longest streak" });
+  await expect(streak.locator('[data-slot="stat-figure-value"]')).toHaveText("3d");
+  await expect(streak.locator('[data-slot="stat-figure-value"]')).not.toHaveText(RENDERED_UNDEFINED);
 });
 
 // ── The readout states what it is a readout OF (side-eye rail-analytics 2026-08-19) ────────────────
