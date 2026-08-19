@@ -2,6 +2,7 @@
 // (browseCharacters) + the facet dropdowns (characterFacets). Content-only, no engagement/usage counts.
 // Owner scope derives via a characters join (character_summaries keeps no ownerId), never a caller-supplied owner.
 
+import type { BrowseSort } from "@orb/contracts/discovery";
 import { BROWSE_DEFAULT_LIMIT } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";
@@ -41,7 +42,7 @@ function afterCursor(cursor: BrowseCursor): ReturnType<typeof or> {
 }
 
 /** The boundary of the page just served — `null` at the tail, where a short page proves there is no next. */
-function nextCursorFor(sort: "recent" | "name", rows: readonly BrowseCharacter[], pageSize: number): BrowseCursor | null {
+function nextCursorFor(sort: BrowseSort, rows: readonly BrowseCharacter[], pageSize: number): BrowseCursor | null {
   const last = rows.at(-1);
   if (last === undefined || rows.length < pageSize) {
     return null;

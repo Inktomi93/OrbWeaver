@@ -1,6 +1,6 @@
 import type { AutocompletePositionerProps as BasePositionerProps, AutocompleteRootProps as BaseRootProps } from "@base-ui/react/autocomplete";
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
-import type { ReactElement, ReactNode, Ref } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, formatSuggestionCount, usePortalContainer } from "#lib";
 import { Icon, X } from "#primitives/icons";
@@ -75,7 +75,7 @@ export interface AutocompleteProps extends AutocompletePassthrough {
    * omnibox, whose surface focuses the search field when the section mounts (side-eye corpus re-pass
    * 2026-08-19, C7 — focus used to land on a `tabIndex={-1}` wrapper div and the omnibox cost 18 tab stops).
    */
-  inputRef?: Ref<HTMLInputElement>;
+  inputRef?: BaseRootProps<string>["inputRef"];
   /** Additional id(s) describing the input — merges with `<Field>`'s own wiring when composed. */
   "aria-describedby"?: string;
   /** Accessible name for the clear button. @defaultValue "Clear" */
