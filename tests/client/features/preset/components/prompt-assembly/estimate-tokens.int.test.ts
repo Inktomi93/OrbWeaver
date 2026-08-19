@@ -57,3 +57,62 @@ test("plain marker (chat_history) contributes 0 — no author text of its own", 
   };
   expect(estimateSectionTokens(section)).toBe(0);
 });
+
+// ── comments cost zero tokens (#302): a `{{// … }}` comment never reaches the prompt, so the estimate
+// the author sees must exclude it — the number matches what's actually sent. ──
+
+test("a mid-text comment does not count toward a literal section's estimate", () => {
+  const withComment: PromptSection = {
+    type: "literal",
+    id: "c1",
+    name: "c1",
+    role: "system",
+    content: "abcdefgh{{// this comment would add many tokens if it were counted}}",
+    enabled: true,
+  };
+  const withoutComment: PromptSection = { ...withComment, content: "abcdefgh" };
+  // "abcdefgh" = 8 chars ⇒ 2 tokens; the comment must add nothing.
+  expect(estimateSectionTokens(withComment)).toBe(2);
+  expect(estimateSectionTokens(withComment)).toBe(estimateSectionTokens(withoutComment));
+});
+
+test("a whole-line comment does not count toward a literal section's estimate", () => {
+  const withComment: PromptSection = {
+    type: "literal",
+    id: "c2",
+    name: "c2",
+    role: "system",
+    content: "{{// pick exactly one of the samplers below}}\nabcdefgh",
+    enabled: true,
+  };
+  // After the comment is stripped: "\nabcdefgh" = newline (1, non-ASCII path counts \n as other=1) + 8/4.
+  const stripped: PromptSection = { ...withComment, content: "\nabcdefgh" };
+  expect(estimateSectionTokens(withComment)).toBe(estimateSectionTokens(stripped));
+});
+
+test("a comment adjacent to a real macro is excluded, the macro's own text still counts", () => {
+  const withComment: PromptSection = {
+    type: "literal",
+    id: "c3",
+    name: "c3",
+    role: "system",
+    content: "{{char}}{{// hidden note about char}} greets you",
+    enabled: true,
+  };
+  const withoutComment: PromptSection = { ...withComment, content: "{{char}} greets you" };
+  expect(estimateSectionTokens(withComment)).toBe(estimateSectionTokens(withoutComment));
+});
+
+test("a comment in a custom marker template is excluded from its estimate", () => {
+  const withComment: PromptSection = {
+    type: "marker",
+    id: "c4",
+    name: "c4",
+    marker: "main_prompt",
+    role: "system",
+    enabled: true,
+    template: "You are helpful.{{// author-only reminder, never sent}}",
+  };
+  const withoutComment: PromptSection = { ...withComment, template: "You are helpful." };
+  expect(estimateSectionTokens(withComment)).toBe(estimateSectionTokens(withoutComment));
+});
