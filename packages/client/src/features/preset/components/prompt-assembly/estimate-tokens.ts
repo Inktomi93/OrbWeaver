@@ -1,9 +1,14 @@
 // Token-estimate seam for the Assembly rack + summary strip — pure, node-safe. The `~token` figure a
 // section row displays is a UI hint only: the ONE `@orb/kit/tokens` estimator over the section's author
 // text, never a server call or a macro resolution against live chat data.
+//
+// Comments (`{{// … }}`) are stripped before counting (`stripComments`, the ONE macro parser): a
+// non-LLM-visible comment never reaches the assembled prompt, so it must never count toward the estimate
+// either — the number the author sees matches what is actually sent (#302).
 
 import type { MarkerType, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
+import { stripComments } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 
 /** A templated marker is exactly a key of `DEFAULT_MARKER_TEMPLATES` (an unset `template` is absent, so
@@ -26,7 +31,8 @@ function estimatableText(section: PromptSection): string {
   return custom ?? DEFAULT_MARKER_TEMPLATES[section.marker];
 }
 
-/** The `~token` estimate a rack row / strip shows for one section (chars/4 over its author text). */
+/** The `~token` estimate a rack row / strip shows for one section (chars/4 over its author text, with
+ *  `{{// … }}` comments stripped — they cost zero tokens because they never reach the prompt). */
 export function estimateSectionTokens(section: PromptSection): number {
-  return estimateTokens(estimatableText(section));
+  return estimateTokens(stripComments(estimatableText(section)));
 }

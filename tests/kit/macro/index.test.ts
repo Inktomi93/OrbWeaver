@@ -9,6 +9,7 @@ import {
   parseMacros,
   processMacros,
   SimpleMacroRegistry,
+  stripComments,
 } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -78,6 +79,51 @@ test("parseMacros strips a comment macro entirely, depth-aware", () => {
     { type: "text", value: "a" },
     { type: "text", value: "b" },
   ]);
+});
+
+// ── comments never reach the prompt (#302, requirement 1) ──────────────────────────────────────
+
+test("processMacros never emits a comment's text — the owner's multi-line, nested example", () => {
+  // The owner's confirmed syntax: `{{// Enable only one out of the list … }}`, here spanning multiple
+  // lines AND wrapping a real `{{…}}` inside the comment body (depth-aware close scan) so it can't leak.
+  const rendered = processMacros("before {{// Enable only one\n{{char}} out of the list }}after", opts());
+  expect(rendered).toBe("before after");
+});
+
+// ── stripComments: the pure comment-strip the preset token estimate counts over (#302, requirement 2) ──
+
+test("stripComments removes a mid-text comment, leaving the rest verbatim", () => {
+  expect(stripComments("Hello{{// note}}World")).toBe("HelloWorld");
+});
+
+test("stripComments removes a whole-line comment token (surrounding newlines survive)", () => {
+  expect(stripComments("line1\n{{// a standalone comment}}\nline3")).toBe("line1\n\nline3");
+});
+
+test("stripComments leaves an adjacent real macro's bytes untouched", () => {
+  expect(stripComments("{{char}}{{// hidden}} says hi")).toBe("{{char}} says hi");
+});
+
+test("stripComments is depth-aware — a nested {{…}} inside the comment doesn't end it early", () => {
+  expect(stripComments("a{{// note {{char}} more }}b")).toBe("ab");
+});
+
+test("stripComments removes a multi-line comment whole", () => {
+  expect(stripComments("X{{// multi\nline\ncomment}}Y")).toBe("XY");
+});
+
+test("stripComments does NOT strip a backslash-escaped opener (it is literal, never a comment)", () => {
+  // Matches the engine: `\{{` drops the backslash and the `{{…}}` is literal text, so the token count
+  // it feeds must KEEP these bytes (an escaped comment is visible content the author chose to show).
+  expect(stripComments("\\{{// not a comment}}")).toBe("{{// not a comment}}");
+});
+
+test("stripComments preserves an unclosed comment verbatim (engine degrade-don't-throw)", () => {
+  expect(stripComments("keep {{// unclosed to EOF")).toBe("keep {{// unclosed to EOF");
+});
+
+test("stripComments is identity when there is no comment", () => {
+  expect(stripComments("plain {{char}} and {{user}} text")).toBe("plain {{char}} and {{user}} text");
 });
 
 test("a backslash-escaped opener renders as literal braces (not expanded)", () => {
