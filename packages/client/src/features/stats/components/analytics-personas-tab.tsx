@@ -1,6 +1,12 @@
 // The Analytics CONTEXT "Personas" tab — which of your personas you play as. Reads `personaUsage`
 // (a live per-persona GROUP BY: chats, messages, tokens, last-used) rendered as a ranked message-count
 // bar-list + per-persona detail rows. Read-only analytics.
+//
+// THE SCOPED TAB (side-eye rail-analytics 2026-08-19 P1b). `personaUsage` is a live canon GROUP BY, not a
+// rollup read, so unlike Models and Time it CAN honour the CONTEXT band's drilled face: the drilled
+// character narrows the chat set, and the tab's numbers become that character's. §4.2 CONTEXT-follows-
+// CONTENT is the law here — labelling would have been the fallback for a verb that can't scope, and this
+// one can. Ownership is unchanged either way (`personas.owner_id`), so the id is a projection filter.
 
 import { BarList } from "@orb/ui/bar-list";
 import { Section, Stack } from "@orb/ui/layout";
@@ -10,7 +16,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
-import { formatCompact, personaBarItems } from "../lib/analytics-view-model.ts";
+import { useSelectedAnalyticsCharacterId } from "#state";
+import { formatCompact, formatTokens, personaBarItems } from "../lib/analytics-view-model.ts";
 
 export function AnalyticsPersonasTab(): ReactElement {
   return (
@@ -25,10 +32,17 @@ export function AnalyticsPersonasTab(): ReactElement {
 
 function PersonasBody(): ReactElement {
   const trpc = useTRPC();
-  const { data: personas } = useSuspenseQuery(trpc.stats.personaUsage.queryOptions());
+  const drilled = useSelectedAnalyticsCharacterId();
+  const { data: personas } = useSuspenseQuery(trpc.stats.personaUsage.queryOptions(drilled === null ? {} : { characterId: drilled }));
 
   return (
     <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsPersonasTab")}>
+      {/* The tab states which question it answered — the same duty the two unscopable tabs discharge with
+          a library notice, discharged here by naming the narrower scope it actually applied. */}
+      <Text voice="gloss" role="note" data-slot="analytics-scope">
+        {drilled === null ? "Across every chat in your library." : "Only the chats with the character you opened."}
+      </Text>
+
       <Section heading="Messages by persona">
         <BarList items={personaBarItems(personas)} label="Messages by persona" valueFormatter={formatCompact} />
       </Section>
@@ -45,7 +59,7 @@ function PersonasBody(): ReactElement {
                 subtitle={`${formatCompact(persona.chatCount)} chats · ${formatCompact(persona.messageCount)} messages${persona.lastUsedAt === null ? "" : ` · last used ${timeLib.formatRelative(persona.lastUsedAt)}`}`}
                 actions={
                   <Text voice="gloss" className="whitespace-nowrap font-mono">
-                    {formatCompact(persona.tokensOut)} tok
+                    {formatTokens(persona.tokensOut)}
                   </Text>
                 }
               />

@@ -1271,7 +1271,14 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "stats.timeseries": "self-scoped by principal.userId",
   "stats.byModel": "self-scoped by principal.userId",
   "stats.freshness": "self-scoped by principal.userId",
-  "stats.personaUsage": "self-scoped by principal.userId",
+  // Takes an OPTIONAL `characterId` (the analytics CONTEXT drill, 2026-08-19) — but it is a PROJECTION
+  // filter inside an already self-scoped read, not a lookup key: the rows come from `personas.owner_id =
+  // principal.userId` and the id only narrows WHICH of the caller's own chats are counted. A foreign id
+  // can therefore only ever SHRINK the caller's own answer to zero, never widen it to a stranger's — so
+  // there is no leak-free-NOT_FOUND behaviour to probe. Proven directly in
+  // tests/server/domain/stats/persistence/rollups.int.test.ts ("another owner's characterId returns the
+  // caller's roster at zero, never their data").
+  "stats.personaUsage": "self-scoped by principal.userId; the optional characterId narrows the caller's OWN chats and cannot widen the read",
   "stats.wrapped": "self-scoped by principal.userId",
   "stats.temporal": "self-scoped by principal.userId",
   "stats.activityHeatmap": "self-scoped by principal.userId",

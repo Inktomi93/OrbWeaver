@@ -21,7 +21,18 @@ import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection } from "#state";
 import { RhythmFigures } from "../components/rhythm-figures.tsx";
 import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recompute-stats.ts";
-import { formatCompact, formatDurationMs, formatMs, formatPercent, formatSignedDelta, momentumBarItems } from "../lib/analytics-view-model.ts";
+import {
+  formatCompact,
+  formatCount,
+  formatDurationMs,
+  formatMonthLabel,
+  formatMs,
+  formatPercent,
+  formatSignedDelta,
+  formatUsd,
+  momentumBarItems,
+  UNRECORDED_NOTE,
+} from "../lib/analytics-view-model.ts";
 
 export function AnalyticsOverviewSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -62,7 +73,10 @@ function OverviewBody(): ReactElement {
   return (
     <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
       <Row align="center" justify="between" gap="row">
-        <Text voice="gloss">{freshness.computedAt === null ? "Not computed yet" : `Updated ${timeLib.formatRelative(freshness.computedAt)}`}</Text>
+        {/* ONE time vocabulary in this column: relative in the text, the exact stamp in `title=` (P2e). */}
+        <Text voice="gloss" {...(freshness.computedAt === null ? {} : { title: timeLib.formatDateTime(freshness.computedAt) })}>
+          {freshness.computedAt === null ? "Not computed yet" : `Updated ${timeLib.formatRelative(freshness.computedAt)}`}
+        </Text>
         <RecomputeButton />
       </Row>
 
@@ -75,9 +89,16 @@ function OverviewBody(): ReactElement {
             <StatFigure label="Replies" value={formatCompact(wrapped.replies)} />
             <StatFigure label="Swipes" value={formatCompact(wrapped.swipes)} />
             <StatFigure label="Forked chats" value={formatCompact(wrapped.forkedChats)} />
-            <StatFigure label="Spend" value={`$${wrapped.costUsd.toFixed(2)}`} />
+            <StatFigure label="Spend" value={formatUsd(wrapped.costUsd)} />
             <StatFigure label="Time generating" value={formatDurationMs(wrapped.genTimeMs)} />
           </Row>
+          {/* THE DEFINITIONS, STATED (P2d/P3d). "Words" is your turns PLUS the replies — one definition,
+              here and on the drill, where it used to silently mean assistant-only. The swipe words sit
+              beside "Swipes" and are NOT in it, which is the exact pair that read as a contradiction. */}
+          <Text voice="gloss">
+            Words counts your turns and the replies you kept; the {formatCompact(overview.swipeWords)} words in swipes you didn't keep are not included.{" "}
+            {UNRECORDED_NOTE}
+          </Text>
           {wrapped.topCharacter === null ? null : (
             <ListRow
               leading={<Icon icon={Crown} size="sm" />}
@@ -96,21 +117,31 @@ function OverviewBody(): ReactElement {
       <RhythmFigures temporal={temporal} />
 
       <Section heading="Economics">
-        <Row gap="block" className="flex-wrap">
-          <StatFigure label="Tokens in" value={formatCompact(overview.tokensIn)} />
-          <StatFigure label="Tokens out" value={formatCompact(overview.tokensOut)} />
-          <StatFigure label="Avg gen" value={formatMs(overview.avgGenMs)} />
-          <StatFigure label="p50 gen" value={formatMs(overview.p50GenMs)} />
-          <StatFigure label="p90 gen" value={formatMs(overview.p90GenMs)} />
-          <StatFigure label="Avg TTFT" value={formatMs(overview.avgTtftMs)} />
-          <StatFigure label="Throughput" value={`${overview.throughputTps.toFixed(1)} t/s`} />
-          <StatFigure label="Cache hits" value={formatPercent(overview.cacheHitRate)} />
-          <StatFigure label="Reasoning" value={formatPercent(overview.reasoningRate)} />
-          {/* The reasoning WINDOW beside the reasoning RATE (#184): the rollups have carried `reasoningMs`
-              on three tables and three views with no reader at all, so the number a user's thinking models
-              produce had nowhere to land. Same duration voice as "Time generating" above. */}
-          <StatFigure label="Time reasoning" value={formatDurationMs(overview.reasoningMs)} />
-        </Row>
+        <Stack gap="block">
+          <Row gap="block" className="flex-wrap">
+            <StatFigure label="Tokens in" value={formatCount(overview.tokensIn)} />
+            <StatFigure label="Tokens out" value={formatCount(overview.tokensOut)} />
+            <StatFigure label="Avg gen" value={formatMs(overview.avgGenMs)} />
+            <StatFigure label="p50 gen" value={formatMs(overview.p50GenMs)} />
+            <StatFigure label="p90 gen" value={formatMs(overview.p90GenMs)} />
+            <StatFigure label="Avg TTFT" value={formatMs(overview.avgTtftMs)} />
+            <StatFigure label="Throughput" value={`${overview.throughputTps.toFixed(1)} t/s`} />
+            {/* THE DENOMINATOR IS IN THE LABEL (P1a/P3d). "Cache hits" alone read 100% on every backend
+                that reports cache READS but not cache WRITES — the old ratio's denominator was the two
+                cache columns, so it could only ever be 1 or 0. Against input tokens it answers the
+                question the tile asks, and it says which question that is. */}
+            <StatFigure label="Cache hits (of input)" value={formatPercent(overview.cacheHitRate)} />
+            <StatFigure label="Reasoning (of replies)" value={formatPercent(overview.reasoningRate)} />
+            {/* The reasoning WINDOW beside the reasoning RATE (#184): the rollups have carried `reasoningMs`
+                on three tables and three views with no reader at all, so the number a user's thinking models
+                produce had nowhere to land. Same duration voice as "Time generating" above. */}
+            <StatFigure label="Time reasoning" value={formatDurationMs(overview.reasoningMs)} />
+          </Row>
+          <Text voice="gloss">
+            Cache hits is the share of the tokens you sent that the provider served from its prompt cache; Reasoning is the share of replies and swipes that
+            produced a thinking pass. {UNRECORDED_NOTE}
+          </Text>
+        </Stack>
       </Section>
 
       <Section heading="Momentum">
@@ -118,8 +149,11 @@ function OverviewBody(): ReactElement {
           <Text voice="gloss">Not enough recent activity to compare months yet.</Text>
         ) : (
           <Stack gap="block">
+            {/* Month NAMES, not the `YYYY-MM` sort key — the raw form put a second time vocabulary in a
+                column that otherwise speaks in relative phrases (P2e). Deliberately absolute: the pair is
+                the two most-recent months WITH ACTIVITY, which need not be anywhere near now. */}
             <Text voice="gloss">
-              {momentum.prevMonth} → {momentum.latestMonth}
+              {momentum.prevMonth === null ? "" : formatMonthLabel(momentum.prevMonth)} → {formatMonthLabel(momentum.latestMonth)}
             </Text>
             <Row gap="section" className="flex-wrap items-start">
               <MomentumColumn label="Rising" rows={rising} sign={1} />

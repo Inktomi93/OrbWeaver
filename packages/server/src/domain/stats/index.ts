@@ -16,6 +16,7 @@ export type {
   CharacterStatsView,
   DailyPoint,
   LatencyStats,
+  LeaderboardPage,
   LeaderboardRow,
   ModelStatRow,
   OwnerStatsView,
