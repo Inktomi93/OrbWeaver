@@ -17,8 +17,17 @@ export const DATABANK_INGEST_GLOSS =
   "Upload a file, paste text, or pull in a page — its contents get indexed so the most relevant passages feed into your chats as they happen.";
 
 /** CONTEXT with no document open. Names what the pane WILL show — never the word "Details" (the band
- *  already says that) and never a section-less "select something" (side-eye F-12). */
+ *  already says that) and never a section-less "select something" (side-eye F-12).
+ *
+ *  THE PROMISE IS A COUNT, NOT A ROSTER (side-eye 2026-08-19 P1). It used to say "…to see WHICH chats and
+ *  characters it already feeds", over a pane that renders two dead count Badges. A promise of names paid in
+ *  integers is worse than either half alone: the reader arrives at "3 chats" believing the pane failed,
+ *  rather than reading the number it actually offers. The COUNT is what `databank.listAttachments` can
+ *  honestly serve today — its wire is `{ global, chatIds, characterIds }` (ids, no names), and the roster
+ *  the old sentence promised is blocked on a real read, not on layout (see `databank-context-body.tsx`'s
+ *  ACTIVE IN note for the scope constraint and what a named roster would cost). So the sentence downgrades
+ *  to the pane's real contract; the roster promise comes back the day the read does. */
 export const DATABANK_CONTEXT_EMPTY = {
   title: "Where a document fires",
-  description: "Open a document to switch it on everywhere, and to see which chats and characters it already feeds.",
+  description: "Open a document to switch it on everywhere, and to see how many chats and characters it reaches.",
 } as const;

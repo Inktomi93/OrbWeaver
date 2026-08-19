@@ -18,6 +18,8 @@ import { INGEST_PHASES, STALE_INGEST_MS } from "@orb/contracts/databank";
 // `formatBytes` moved to `@orb/kit/strings` when the per-chat rack became its THIRD consumer (it was
 // spelled here and, byte-identically, inside `@orb/ui/file-dropzone`). Same function, one home.
 import { formatBytes } from "@orb/kit/strings";
+import type { LucideIcon } from "@orb/ui/icons";
+import { AlertTriangle } from "@orb/ui/icons";
 
 const ORIGIN_LABELS: Record<DocOrigin, string> = {
   upload: "Upload",
@@ -82,25 +84,42 @@ export function ingestPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" |
   return IN_FLIGHT_WORD[counted] !== null && now - doc.updatedAt >= STALE_INGEST_MS ? "stalled" : counted;
 }
 
+/** What a phase's chip renders: its label, its `@orb/ui/badge` intent, and an optional leading glyph. */
+interface IngestBadge {
+  readonly label: string;
+  readonly intent: "success" | "warning" | "neutral" | "danger";
+  /** A leading `@orb/ui/icons` glyph, or `null` for a text-only chip — see the THIRD DIFFERENTIATOR note. */
+  readonly glyph: LucideIcon | null;
+}
+
 /** The `@orb/ui/badge` intent + label per ingest phase — a mapped-type Record dispatch (a new phase without
  *  a badge fails tsc; §5.5 exhaustiveness). */
-const INGEST_BADGES: Record<IngestPhase, { readonly label: string; readonly intent: "success" | "warning" | "neutral" | "danger" }> = {
+const INGEST_BADGES: Record<IngestPhase, IngestBadge> = {
   // WARNING, not neutral (side-eye 2026-08-08 P3): "Empty" is not the absence of a state, it is a FAILED
   // extraction — a scanned PDF that will never feed a chat no matter how long you wait. Neutral filed it
   // beside "nothing to report" and it read as a shrug; the user has to act (re-upload a text PDF, or paste
   // the text) or the document is dead weight. It stops short of `danger`, which is reserved for the job
   // that WEDGED — this one completed, honestly, with nothing in it.
-  empty: { label: "Empty", intent: "warning" },
-  indexing: { label: "Queued", intent: "warning" },
-  embedding: { label: "Indexing", intent: "warning" },
-  ready: { label: "Ready", intent: "success" },
+  //
+  // ── THE THIRD DIFFERENTIATOR (side-eye 2026-08-19 P2, a FORK with the ruling above) ──
+  // The 08-08 ruling is NOT reversed: `Empty` stays `warning`, and the reasoning it records is still the
+  // reason. What 08-19 measured is a different defect on top of it — `Empty` and `Indexing` resolve to the
+  // IDENTICAL amber (same fg, same bg), so "act now, this is dead" and "wait, this is working" are one
+  // pixel value distinguished only by a 10.5px word. Reverting `Empty` to neutral would satisfy the new
+  // finding by re-committing the old one. A glyph is the axis neither ruling spends: the chip keeps its
+  // amber, and only the arm that asks the user to DO something carries a mark.
+  empty: { label: "Empty", intent: "warning", glyph: AlertTriangle },
+  indexing: { label: "Queued", intent: "warning", glyph: null },
+  embedding: { label: "Indexing", intent: "warning", glyph: null },
+  ready: { label: "Ready", intent: "success", glyph: null },
   // DANGER, not warning: `Queued` and `Indexing` say "wait", and a user who has been waiting deserves the
   // one chip that says "this will not finish on its own". Reindex is the repair, on the row's own kebab.
-  stalled: { label: "Stalled", intent: "danger" },
+  // No glyph: `danger` is already its own hue, so the mark would be decoration rather than a distinction.
+  stalled: { label: "Stalled", intent: "danger", glyph: null },
 };
 
-/** The badge (intent + label) for an ingest phase (the row chip + the detail header chip). */
-export function ingestBadge(phase: IngestPhase): { readonly label: string; readonly intent: "success" | "warning" | "neutral" | "danger" } {
+/** The badge (intent + label + glyph) for an ingest phase (the row chip + the detail header chip). */
+export function ingestBadge(phase: IngestPhase): IngestBadge {
   return INGEST_BADGES[phase];
 }
 
@@ -149,11 +168,31 @@ export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
   return `Still ${word} — Reindex can restart a stuck job.`;
 }
 
+/**
+ * The passage count as a ROW states it — ONE home, because the list row and the detail readout print the
+ * same fact and used to print it in two vocabularies ("12 passages" beside "Chunks 12/12 embedded").
+ *
+ * A PASSAGE IS AN EMBEDDED CHUNK (`@orb/contracts/databank`'s own phase note: `ready` = every chunk
+ * embedded, and `BankHealthView.passages` is documented as "chunks a chat can actually retrieve"). This
+ * used to print `chunkCount`, which is the chunks that EXIST — so a document mid-embed with 22 of 39
+ * embedded read "39 passages", overstating its reach by 77% at exactly the moment the number is moving and
+ * the user is watching it (side-eye 2026-08-19 P2). The bank-health line was fixed for this same
+ * overstatement on 2026-08-08 ("286 of 1,170 passages indexed"); the row kept the old reading.
+ *
+ * So: both numbers while they differ, one number once they cannot. That is the same shape the health line
+ * settled on, and it is why a partially-embedded row now says what a complete one does not have to.
+ */
+export function passageCount(doc: Pick<DocumentView, "chunkCount" | "embeddedCount">): string {
+  if (doc.embeddedCount < doc.chunkCount) {
+    return `${String(doc.embeddedCount)} / ${String(doc.chunkCount)} passages`;
+  }
+  return doc.chunkCount === 1 ? "1 passage" : `${String(doc.chunkCount)} passages`;
+}
+
 /** The library-row subtitle: provenance · size · passage count (e.g. "Upload · 24.5 KB · 12 passages"). A
- *  document with no passages yet reads "0 passages" — the `Queued` chip carries the in-flight signal. */
+ *  document with nothing embedded yet reads "0 passages" — the `Queued` chip carries the in-flight signal. */
 export function documentSubtitle(doc: DocumentView): string {
-  const passages = doc.chunkCount === 1 ? "1 passage" : `${doc.chunkCount} passages`;
-  return `${originLabel(doc.origin)} · ${formatBytes(doc.byteSize)} · ${passages}`;
+  return `${originLabel(doc.origin)} · ${formatBytes(doc.byteSize)} · ${passageCount(doc)}`;
 }
 
 // ── The bank-wide ingest health (the HOME tile, D-7) ────────────────────────────────────────────────
