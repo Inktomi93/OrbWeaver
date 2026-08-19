@@ -47,26 +47,6 @@ export function AnalyticsOverviewSurfaceStory(): ReactElement {
 
 /** The Analytics CONTEXT tab bodies over the real data layer. The width is the CONTEXT panel's, which is
  *  where their rows and charts are actually narrow. */
-export function AnalyticsModelsTabStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ height: 640, width: 420 }}>
-        <AnalyticsModelsTab />
-      </div>
-    </CtDataProviders>
-  );
-}
-
-export function AnalyticsPersonasTabStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ height: 640, width: 420 }}>
-        <AnalyticsPersonasTab />
-      </div>
-    </CtDataProviders>
-  );
-}
-
 export function AnalyticsTimeTabStory(): ReactElement {
   return (
     <CtDataProviders>
@@ -99,7 +79,7 @@ function AnalyticsListHeaderHarness(): ReactElement {
 
 export interface AnalyticsContextHeaderStoryProps {
   /** `true` seeds a leaderboard drill (the header names the character); `false` clears it (neutral). */
-  readonly drilled: boolean;
+  readonly drilled?: boolean;
 }
 
 /** The analytics CONTEXT-band identity (P4): a drilled leaderboard character names the band (avatar +
@@ -140,12 +120,12 @@ function WithDrill({ drilled, children }: { readonly drilled: boolean; readonly 
 
 export interface AnalyticsTabStoryProps {
   /** `true` seeds a leaderboard drill — the state each CONTEXT tab must answer for honestly. */
-  readonly drilled: boolean;
+  readonly drilled?: boolean;
 }
 
 /** The CONTEXT "Models" tab in either drill state (P1b): the model rollup has no character axis, so the
  *  drilled arm must say so and must NOT render a second, owner-scoped copy of CONTENT's latency quartet. */
-export function AnalyticsModelsTabStory({ drilled }: AnalyticsTabStoryProps): ReactElement {
+export function AnalyticsModelsTabStory({ drilled = false }: AnalyticsTabStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <WithDrill drilled={drilled}>
@@ -159,7 +139,7 @@ export function AnalyticsModelsTabStory({ drilled }: AnalyticsTabStoryProps): Re
 
 /** The CONTEXT "Personas" tab in either drill state (P1b): `personaUsage` is a live canon GROUP BY, so
  *  the drilled arm SCOPES (it does not merely caption). */
-export function AnalyticsPersonasTabStory({ drilled }: AnalyticsTabStoryProps): ReactElement {
+export function AnalyticsPersonasTabStory({ drilled = false }: AnalyticsTabStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <WithDrill drilled={drilled}>

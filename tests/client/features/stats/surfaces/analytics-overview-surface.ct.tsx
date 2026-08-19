@@ -220,12 +220,10 @@ test("Rising and Falling share ONE value scale and read as different intents (P1
   // …and the two columns are not the same picture in the same paint.
   expect(fallingBand.dominantColor).not.toBe(risingBand.dominantColor);
 });
-})
 
 /** Park the `stats.reconcile` response until the returned release fires; everything else falls through to
  *  routeTrpc. Registered AFTER routeTrpc (later routes run first), the `route.fallback()` precedent. */
-async
-function holdReconcile(page: Page): Promise<() => void> {
+async function holdReconcile(page: Page): Promise<() => void> {
   // Definite-assignment: the executor runs synchronously, so `release` is bound before the route is added.
   let release!: () => void;
   const parked = new Promise<void>((resolve) => {

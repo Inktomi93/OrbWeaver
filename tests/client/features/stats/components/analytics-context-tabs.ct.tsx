@@ -108,5 +108,7 @@ test("with nothing drilled the Personas tab reads the whole library and says so"
   const component = await mount(<AnalyticsPersonasTabStory drilled={false} />);
 
   await expect(component.getByText("Across every chat in your library.")).toBeVisible();
-  await expect(component.getByText("Vex")).toBeVisible();
+  // Scoped to the persona LIST: charts' P1e a11y work added a visually-hidden <table> whose <th>Vex</th>
+  // also matches getByText — the list is role=list, the a11y table is role=table (side-eye P2c×P1e seam).
+  await expect(component.getByRole("list", { name: "Personas" }).getByText("Vex")).toBeVisible();
 });
