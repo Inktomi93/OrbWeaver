@@ -13,5 +13,8 @@ export type { ViewerView } from "./contract/views.ts";
 export { createOidcStore } from "./persistence/oidc-store.ts";
 export { createSessionsService } from "./service.ts";
 // Exported so entry's boot owner-seed and the login-derived role path can never fork.
-export { ownerHandles } from "./substrate/role-policy.ts";
+// `groupRoleGovernanceActive` rides out for the same no-fork reason: entry's OIDC claim mapper asks THIS
+// predicate — never a second env read — whether an absent `groups` claim is a normal shape or a
+// silently-disabled control (#140).
+export { groupRoleGovernanceActive, ownerHandles } from "./substrate/role-policy.ts";
 export { createTokenHasher } from "./tokens/tokens.ts";

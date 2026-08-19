@@ -510,6 +510,141 @@ describe("OIDC groups-claim parsing (A4 — array | joined-string | single-strin
   });
 });
 
+// #140 — THE GROUPS-CLAIM ARRIVAL RECEIPT. Until this line existed the provisioning path logged handle +
+// externalId and never the claim that decides the ROLE, so "does authentik's `groups` actually ride the
+// token?" was unobservable on the box (the 2026-08-09 authentik crosscheck's open residual #2). It has to
+// live in the MAPPER: `ResolvedIdentity.groups` is a `string[]`, so by the time `provisionIdentity` sees it
+// "the IdP emitted nothing" and "the IdP emitted an empty list" are the same value — and only the first is a
+// misconfiguration. Observability only: every assertion below also pins that the identity is unchanged.
+describe("OIDC groups-claim ARRIVAL observability (#140)", () => {
+  const claims: OidcClaimMap = { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" };
+
+  /** The bindings of the one `oidc_groups_claim` info line this mapper call emitted. */
+  function arrivalLine(raw: Record<string, unknown>, claimMap: OidcClaimMap = claims): Record<string, unknown> {
+    const spy = vi.spyOn(logger, "info");
+    identityFromClaims(raw, claimMap);
+    const call = spy.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "oidc_groups_claim");
+    if (call === undefined) {
+      throw new Error("no oidc_groups_claim line was emitted");
+    }
+    return call[0] as Record<string, unknown>;
+  }
+
+  test("a PRESENT groups claim logs the group NAMES + the configured claim name (the arrival receipt)", () => {
+    const line = arrivalLine({ preferred_username: "alice", sub: "sub-alice", groups: ["Orb Admins", "eng"] });
+    expect(line["groupsClaimPresent"]).toBe(true);
+    expect(line["groupsClaim"]).toBe("groups"); // names the KNOB (OIDC_GROUPS_CLAIM), not just the symptom
+    expect(line["groupsClaimShape"]).toBe("array");
+    expect(line["groups"]).toEqual(["Orb Admins", "eng"]);
+    expect(line["groupCount"]).toBe(2);
+    expect(line["handle"]).toBe("alice");
+  });
+
+  test("an ABSENT groups claim is logged AS ABSENT — the fact the crosscheck could not observe", () => {
+    const line = arrivalLine({ preferred_username: "alice", sub: "sub-alice" });
+    expect(line["groupsClaimPresent"]).toBe(false);
+    expect(line["groupsClaimShape"]).toBe("undefined");
+    expect(line["groups"]).toEqual([]);
+    expect(line["groupCount"]).toBe(0);
+  });
+
+  // The distinction the whole line exists for: both of these reach `provisionIdentity` as `groups: []`.
+  test("an EMPTY-array claim is PRESENT, not absent (distinguishable only here)", () => {
+    const line = arrivalLine({ preferred_username: "alice", sub: "sub-alice", groups: [] });
+    expect(line["groupsClaimPresent"]).toBe(true);
+    expect(line["groupsClaimShape"]).toBe("array");
+    expect(line["groups"]).toEqual([]);
+  });
+
+  test("the arrival line follows the CONFIGURED claim name, not a hardcoded `groups`", () => {
+    const line = arrivalLine(
+      { preferred_username: "dave", sub: "sub-dave", user: { memberOf: ["Orb Admins"] }, groups: ["decoy-must-be-ignored"] },
+      { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "user.memberOf", emailClaim: "email" },
+    );
+    expect(line["groupsClaim"]).toBe("user.memberOf");
+    expect(line["groups"]).toEqual(["Orb Admins"]);
+  });
+
+  // BOUNDING. The claim is external, unvalidated text on the UNAUTHENTICATED login path: one login must not
+  // be able to flood the log ring. The true size still rides as `groupCount`, so `groups.length < groupCount`
+  // is the tell that the list was capped.
+  test("an absurd group list is BOUNDED in the log line while groupCount stays truthful", () => {
+    const many = Array.from({ length: 500 }, (_, i) => `g${i}`);
+    const line = arrivalLine({ preferred_username: "alice", sub: "sub-alice", groups: many });
+    expect(line["groupCount"]).toBe(500);
+    expect(line["groups"]).toHaveLength(32);
+  });
+
+  test("an absurdly LONG group name is truncated in the log line", () => {
+    const line = arrivalLine({ preferred_username: "alice", sub: "sub-alice", groups: ["x".repeat(4096)] });
+    expect((line["groups"] as string[])[0]).toHaveLength(64);
+  });
+});
+
+// #140 — THE SILENTLY-DISABLED-CONTROL SIGNAL (the same class as #34's `oidc_subject_claim_missing`). With
+// group governance ACTIVE, a login that carries no usable groups claim is not a quiet edge case: under
+// OIDC_ADMIN_GROUPS nobody is ever granted admin AND an existing group-derived admin is demoted by the
+// login re-derive; under OIDC_ALLOWED_GROUPS the fail-closed gate denies EVERY login. Both read as "the IdP
+// is broken" with nothing naming the cause. Gated on governance so a box that never configured groups is
+// silent — the false-positive controls below are as load-bearing as the positive ones.
+describe("OIDC groups-claim missing → securityEvent when group governance is ACTIVE (#140)", () => {
+  const claims: OidcClaimMap = { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" };
+
+  /** The bindings of the `oidc_groups_claim_missing` warn, or undefined when it did not fire. */
+  function missingWarn(raw: Record<string, unknown>): Record<string, unknown> | undefined {
+    const spy = vi.spyOn(logger, "warn");
+    identityFromClaims(raw, claims);
+    const call = spy.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "oidc_groups_claim_missing");
+    return call?.[0] as Record<string, unknown> | undefined;
+  }
+
+  test("ABSENT claim + OIDC_ADMIN_GROUPS set ⇒ securityEvent naming the misconfigured knob", () => {
+    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    const warn = missingWarn({ preferred_username: "alice", sub: "sub-alice" });
+    expect(warn?.["security"]).toBe(true);
+    expect(warn?.["groupsClaim"]).toBe("groups");
+    expect(warn?.["handle"]).toBe("alice");
+    expect(warn?.["groupsClaimShape"]).toBe("undefined");
+  });
+
+  test("ABSENT claim + OIDC_ALLOWED_GROUPS set ⇒ fires too (that gate denies EVERY login without groups)", () => {
+    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    expect(missingWarn({ preferred_username: "alice", sub: "sub-alice" })).toBeDefined();
+  });
+
+  // A property mapping emitting the wrong TYPE is the same silently-disabled control as emitting nothing —
+  // `normalizeGroups` yields [] for both, so the gate/derivation sees no groups either way.
+  test("a claim of the WRONG TYPE + governance active ⇒ fires, and names the shape it got", () => {
+    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    const warn = missingWarn({ preferred_username: "alice", sub: "sub-alice", groups: 42 });
+    expect(warn?.["groupsClaimShape"]).toBe("number");
+  });
+
+  // THE FALSE-POSITIVE CONTROLS. A user genuinely in zero groups is not a misconfiguration, and a box that
+  // never configured group governance has nothing to report — either firing here makes the signal a
+  // per-login siren nobody reads.
+  test("an EMPTY-array claim + governance active is SILENT (a user in no groups is legitimate)", () => {
+    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    expect(missingWarn({ preferred_username: "alice", sub: "sub-alice", groups: [] })).toBeUndefined();
+  });
+
+  test("an ABSENT claim with governance INACTIVE is SILENT (no groups configured ⇒ nothing is disabled)", () => {
+    vi.stubEnv("OIDC_ADMIN_GROUPS", undefined);
+    vi.stubEnv("OIDC_ALLOWED_GROUPS", undefined);
+    expect(missingWarn({ preferred_username: "alice", sub: "sub-alice" })).toBeUndefined();
+  });
+
+  test("OBSERVABILITY ONLY — the identity is byte-identical with the signal firing", () => {
+    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    expect(identityFromClaims({ preferred_username: "alice", sub: "sub-alice" }, claims)).toEqual({
+      externalId: "sub-alice",
+      handle: "alice",
+      groups: [],
+      email: null,
+    });
+  });
+});
+
 describe("OIDC route registration", () => {
   test("OIDC routes present only when oidc deps are supplied", () => {
     const rec = recordingSessions();

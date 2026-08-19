@@ -24,7 +24,8 @@ import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
 import { authorizationCodeGrant, buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
 import type { RevokedSessionsSummary } from "#domain/sessions";
-import { securityEvent } from "#foundation/observability";
+import { groupRoleGovernanceActive } from "#domain/sessions";
+import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcTransaction } from "#infra/auth";
 import { hasCsrfHeader, MIN_PASSWORD_LENGTH, SESSION_COOKIE_NAME } from "#infra/auth";
 import { clientIp } from "#infra/network";
@@ -721,6 +722,63 @@ function normalizeGroups(raw: unknown, separator: string): string[] {
   return [];
 }
 
+/**
+ * The RAW groups-claim value's shape, as one greppable word — `undefined`/`null` (the IdP emitted nothing at
+ * this claim path), `array`, `string`, or whatever else a misconfigured property mapping produced. A TYPE
+ * name only: no claim VALUE and no other claim ever reaches a log line through here.
+ */
+function groupsClaimShape(raw: unknown): string {
+  if (Array.isArray(raw)) {
+    return "array";
+  }
+  return raw === null ? "null" : typeof raw;
+}
+
+/**
+ * Whether the raw groups claim carries a value shape {@link normalizeGroups} can read — an array or a
+ * string. `undefined`/`null` means the IdP emitted NOTHING at the configured claim path; any other type is a
+ * broken property mapping. An EMPTY array/string is USABLE: a user legitimately in no groups is not a
+ * misconfiguration, and treating it as one would make the signal a per-login siren.
+ */
+function groupsClaimIsUsable(raw: unknown): boolean {
+  return Array.isArray(raw) || typeof raw === "string";
+}
+
+/**
+ * #140 — THE ARRIVAL RECEIPT FOR THE `groups` CLAIM. Until this line existed the provisioning path logged
+ * handle + externalId and never the claim that decides the ROLE, so "does authentik's `groups` actually ride
+ * the token?" was unobservable on the box (the 2026-08-09 authentik crosscheck's open residual #2) — and
+ * absence was indistinguishable from "present and empty" by the time it reached `provisionIdentity`, which
+ * only ever sees the normalized `string[]`. THIS is the one place both facts are still in hand.
+ *
+ * One INFO line per OIDC login: the configured claim NAME (the knob to fix), whether a usable value arrived,
+ * its raw shape, and the bounded group NAMES (`groupsLogFields` — names only; the ID token and the raw claim
+ * object are never logged).
+ *
+ * Plus a securityEvent when the claim is UNUSABLE **and group governance is ACTIVE** — the same
+ * silently-disabled-control class as `oidc_subject_claim_missing` (#34). With `OIDC_ADMIN_GROUPS` set that
+ * login derives `user` for everyone (no admin is ever granted, and an existing group-derived admin is
+ * DEMOTED by the login re-derive); with `OIDC_ALLOWED_GROUPS` set the fail-closed gate denies EVERY login.
+ * Both read as "the IdP is broken" with nothing naming the cause. Gated on governance being active so a box
+ * that never configured groups stays silent. OBSERVABILITY ONLY — the identity returned is byte-identical.
+ */
+function reportGroupsClaimArrival(raw: unknown, groups: readonly string[], claimName: string, handle: Handle): void {
+  const usable = groupsClaimIsUsable(raw);
+  const shape = groupsClaimShape(raw);
+  getLog().info(
+    { event: "oidc_groups_claim", handle, groupsClaim: claimName, groupsClaimPresent: usable, groupsClaimShape: shape, ...groupsLogFields(groups) },
+    usable ? "auth: OIDC groups claim arrived" : "auth: OIDC groups claim ABSENT — the IdP emitted no usable value at this claim path",
+  );
+  if (usable || !groupRoleGovernanceActive()) {
+    return;
+  }
+  securityEvent(
+    "oidc_groups_claim_missing",
+    { handle, groupsClaim: claimName, groupsClaimShape: shape },
+    "security: group governance is ACTIVE (OIDC_ADMIN_GROUPS/OIDC_ALLOWED_GROUPS) but this login carried NO usable groups claim — no group can grant admin (and a group-derived admin is demoted on this login), and OIDC_ALLOWED_GROUPS denies everyone; point OIDC_GROUPS_CLAIM at a claim the IdP emits (authentik: `groups` rides the `profile` scope — check the provider's property mapping)",
+  );
+}
+
 /** Resolve a claim name that may be a dot-path (e.g. `user.memberOf`) against the claims object. A flat
  *  name is a single-key lookup; the walk short-circuits to `undefined` at any non-object segment. */
 function readClaimPath(claims: { readonly [claim: string]: unknown }, path: string): unknown {
@@ -763,21 +821,29 @@ export function identityFromClaims(
     // warning here would drown the real signal in noise from probes and misdirected requests.
     return null;
   }
+  // Branded ONCE here, so the two observability calls below and the returned identity all speak about the
+  // same `Handle` and no `string` sits in a name position (`brand-in-name-position`).
+  const handle = castId<Handle>(username);
   const rawUid = readClaimPath(claims, claimMap.uidClaim);
   const uid = typeof rawUid === "string" && rawUid.length > 0 ? rawUid : null;
   if (uid === null) {
     securityEvent(
       "oidc_subject_claim_missing",
-      { handle: username, uidClaim: claimMap.uidClaim },
+      { handle, uidClaim: claimMap.uidClaim },
       "security: an OIDC login carried no stable subject — OIDC_UID_CLAIM names a claim this IdP does not emit, so every login provisions externalId=null and the bind-once account-takeover guard cannot fire; point OIDC_UID_CLAIM at a claim the IdP emits (`sub` is required by OIDC Core)",
     );
   }
-  const groups = normalizeGroups(readClaimPath(claims, claimMap.groupsClaim), groupsSeparator);
+  const rawGroups = readClaimPath(claims, claimMap.groupsClaim);
+  const groups = normalizeGroups(rawGroups, groupsSeparator);
+  // #140 — the claim's ARRIVAL (or its absence) is recorded HERE, the last point at which "the IdP emitted
+  // nothing" and "the IdP emitted an empty list" are still distinguishable; `ResolvedIdentity.groups` folds
+  // both to `[]`.
+  reportGroupsClaimArrival(rawGroups, groups, claimMap.groupsClaim, handle);
   const rawEmail = readClaimPath(claims, claimMap.emailClaim);
   const email = typeof rawEmail === "string" && rawEmail.length > 0 ? rawEmail : null;
   return {
     externalId: uid === null ? null : castId<ExternalId>(uid),
-    handle: castId<Handle>(username),
+    handle,
     groups,
     email,
   };
