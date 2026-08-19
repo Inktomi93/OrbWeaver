@@ -77,6 +77,8 @@ import {
   setChatListCharacterFilter,
   setComposerDraft,
   setContextTab,
+  setCorpusSearchQuery,
+  setCorpusSearchTarget,
   setDatabankPhaseFilter,
   setFocusMode,
   setMobileViewport,
@@ -106,6 +108,8 @@ import {
   useComposerDraft,
   useComposerFocusRequest,
   useContextTab,
+  useCorpusSearchQuery,
+  useCorpusSearchTargetId,
   useDatabankPhaseFilter,
   useErroredSaveSections,
   useFavoritesOnly,
@@ -702,6 +706,29 @@ export function CorpusSelectionProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => clearCorpusSelection()}>
         clear corpus selection
+      </button>
+    </div>
+  );
+}
+
+/** CorpusSearchProbe — renders the corpus-SEARCH store's two read hooks as text plus buttons that fire its
+ *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
+ *  assert what the omnibox depends on: the query and the target are remembered independently of any
+ *  component, which is what survives the rail bounce. */
+export function CorpusSearchProbe(): ReactElement {
+  const query = useCorpusSearchQuery();
+  const target = useCorpusSearchTargetId();
+  return (
+    <div>
+      <output>{`q=${query === "" ? "none" : query} target=${target === "" ? "none" : target}`}</output>
+      <button type="button" onClick={(): void => setCorpusSearchQuery("forest")}>
+        set corpus query
+      </button>
+      <button type="button" onClick={(): void => setCorpusSearchTarget("digests")}>
+        set corpus target
+      </button>
+      <button type="button" onClick={(): void => setCorpusSearchQuery("")}>
+        clear corpus query
       </button>
     </div>
   );

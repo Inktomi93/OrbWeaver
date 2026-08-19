@@ -33,7 +33,7 @@ export {
   usePortalContainer,
 } from "./portal-container.ts";
 export { prefersReducedMotionNow, scrollBehavior } from "./reduced-motion-now.ts";
-export { formatResultCount } from "./result-count.ts";
+export { formatResultCount, formatSuggestionCount } from "./result-count.ts";
 export { SCRIM, SCRIM_BASE } from "./scrim.ts";
 export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO } from "./selection-control.ts";
 export { sinHash } from "./sin-hash.ts";
