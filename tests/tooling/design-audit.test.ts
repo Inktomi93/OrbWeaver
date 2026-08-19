@@ -544,6 +544,19 @@ test("leading below the ratified floor fires tight-leading; AT the floor (leadin
   expect(atFloor.map((f) => f.rule)).not.toContain("tight-leading");
 });
 
+// #233, home-delta 2026-08-18: three of the reading arm's findings were THIS false positive, and the
+// finding printed its own refutation ("line-height 1.25× (floor 1.25)"). At --font-scale 1.25 the body
+// step computes to 13.125px and Chrome hands back a TRUNCATED line-height string ("16.4062px", not
+// 16.40625) — 16.4062 / 13.125 = 1.2499657, a hair under the floor. The numbers below are the measured
+// ones, not a synthetic epsilon: the fix must swallow Chrome's truncation and nothing wider.
+test("a Chrome-truncated computed line-height AT the floor does not fire tight-leading (#233 float FP)", () => {
+  const truncated = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 13.125, lineHeightPx: 16.4062 });
+  expect(truncated.map((f) => f.rule)).not.toContain("tight-leading");
+  // …and the epsilon stays a rounding allowance, not a weakened floor: genuinely tight leading still fires.
+  const genuinelyTight = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 13.125, lineHeightPx: 13.125 * 1.24 });
+  expect(genuinelyTight.map((f) => f.rule)).toContain("tight-leading");
+});
+
 test("justified text without hyphens fires; hyphens:auto passes", () => {
   expect(checkTextStyle({ ...TEXT_STYLE_BASE, textAlign: "justify" }).map((f) => f.rule)).toContain("justified-text");
   expect(checkTextStyle({ ...TEXT_STYLE_BASE, textAlign: "justify", hyphens: "auto" }).map((f) => f.rule)).not.toContain("justified-text");
