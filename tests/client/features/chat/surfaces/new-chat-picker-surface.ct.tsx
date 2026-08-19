@@ -44,6 +44,28 @@ test("the confirm item's label reflects the multi-select count", async ({ mount,
   await expect(page.getByText("Start chat with 2 characters")).toBeVisible();
 });
 
+// #334 — THE START AFFORDANCE IS A PERSISTENT FOOTER BUTTON, not a list option. The owner selected a
+// character deep in the scrolling list and had "nowhere to click to start": the enabled "Start" affordance
+// used to live in the picker's `leadingGroup`, which cmdk renders INSIDE the scrolling `CommandList`, so a
+// pick made past the fold scrolled the only Start control out of reach. Asserted by ROLE — `button`, not
+// cmdk's `option` — so this is a defect proof against the old shape, not a build error: on the old source
+// the Start control is `role="option"` and these `getByRole("button", …)` queries find nothing.
+test("the Start affordance is a persistent, role=button control — disabled at 0, enabled once a character is picked (#334)", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": charPage });
+
+  const component = await mount(<NewChatPickerStory />);
+  // Discoverable before it is usable: the button is rendered and teaching, but disabled, at zero selection.
+  const startBefore = component.getByRole("button", { name: "Pick a character to start" });
+  await expect(startBefore).toBeVisible();
+  await expect(startBefore).toBeDisabled();
+
+  await component.getByText("Aria").click();
+
+  const startAfter = component.getByRole("button", { name: "Start chat with 1 character" });
+  await expect(startAfter).toBeVisible();
+  await expect(startAfter).toBeEnabled();
+});
+
 test("the search input filters the character rows", async ({ mount, page }) => {
   await routeTrpc(page, { "character.list": characterListResponder([ARIA, BOLT]) });
 
@@ -148,6 +170,19 @@ test("the Start click MINTS THE ROOM — the picker fires chat.startChat and lan
   await expect(rename).not.toHaveAttribute("aria-disabled", "true");
 
   await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("the persistent Start button mints the room with the PICKED cast (#334)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, CREATED_ROOM_ROUTES);
+
+  const component = await mount(<CreateOnStartClickStory />);
+  await component.getByText("Aria").click();
+
+  // Click the FOOTER button (role=button), the affordance that stays in view after a pick — not the row.
+  await component.getByRole("button", { name: "Start chat with 1 character" }).click();
+
+  await expect(component.getByTestId(testId("composer"))).toBeVisible();
+  await expect.poll(() => trpc.lastInput("chat.startChat"), { intervals: [20, 50, 100] }).toMatchObject({ characterIds: ["char_aria"] });
 });
 
 test("temporary intent survives the dev Strict Mode mount probe and reaches chat.startChat", async ({ mount, page }) => {

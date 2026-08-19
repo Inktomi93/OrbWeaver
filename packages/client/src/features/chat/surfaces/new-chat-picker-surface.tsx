@@ -2,8 +2,16 @@
 // chat survives only as an explicit "Blank chat" pick. The searchable character list is the shared
 // `CharacterPicker` composite (cmdk-based — not createCollectionSurface, it's not virtualized and cmdk owns
 // search/filtering/keyboard nav for free). Multi-select keeps the palette open on select and toggles a
-// trailing check per row, with a "Start chat with N" confirm item and a "Blank chat" escape hatch in the
-// picker's leading group.
+// trailing check per row.
+//
+// THE START/BLANK ACTIONS LIVE IN A PERSISTENT FOOTER, NOT INSIDE THE SCROLLING LIST (#334). They used to
+// be a `CommandGroup` handed to the picker's `leadingGroup` — which cmdk renders INSIDE the `CommandList`,
+// so once the user scrolled down the character list to pick someone, the (now-enabled) "Start" affordance
+// had scrolled off the top and there was nowhere left to click to begin. The actions are now real
+// `<Button>`s in a footer BELOW the picker: the character list scrolls INSIDE the picker's own max-height
+// region, so the footer never moves, and `sticky bottom-0` pins it in view even when the modal body itself
+// scrolls on a short viewport. The "Start" button stays rendered but DISABLED at zero selection (teaching
+// "Pick a character to start"), so the affordance is discoverable before it is usable.
 //
 // THE START CLICK MINTS THE ROOM (chat-creation-draft-mode-replacement.md §4.1, fork F1(a)). It used to write
 // client state and hand a "draft" — a rowless room backed by a whole parallel client runtime — to the chat
@@ -21,7 +29,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
-import { CommandGroup, CommandItem } from "@orb/ui/command";
+import { Button } from "@orb/ui/button";
 import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -97,23 +105,6 @@ export function NewChatPicker(): ReactElement {
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}
         label="Choose characters"
-        leadingGroup={
-          <CommandGroup heading="Start">
-            <CommandItem
-              disabled={selectedCount === 0 || isPending}
-              keywords={["start", "chat", "group"]}
-              onSelect={(): void => found([...selected])}
-              value="__start__"
-            >
-              <Icon icon={MessagesSquare} size="sm" />
-              {startLabel}
-            </CommandItem>
-            <CommandItem disabled={isPending} keywords={["blank", "assistant", "solo"]} onSelect={(): void => found([])} value="__blank__">
-              <Icon icon={Plus} size="sm" />
-              Blank chat
-            </CommandItem>
-          </CommandGroup>
-        }
         listClassName="max-h-96"
         onEscape={dismiss}
         onSelect={toggle}
@@ -121,6 +112,19 @@ export function NewChatPicker(): ReactElement {
         rowsHeading="Characters"
         skeletonCount={SKELETON_ROW_COUNT}
       />
+      {/* PERSISTENT ACTION FOOTER (#334). Below the picker's own scrolling list, so a pick made deep in the
+          list still has the Start action in view. `sticky bottom-0` keeps it pinned when the modal body
+          scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
+      <Row align="center" className="sticky bottom-0 border-border border-t bg-popover" gap="field" justify="end" padding="block">
+        <Button disabled={isPending} intent="ghost" onClick={(): void => found([])}>
+          <Icon icon={Plus} size="sm" />
+          Blank chat
+        </Button>
+        <Button disabled={selectedCount === 0 || isPending} intent="primary" onClick={(): void => found([...selected])}>
+          <Icon icon={MessagesSquare} size="sm" />
+          {startLabel}
+        </Button>
+      </Row>
     </Stack>
   );
 }
