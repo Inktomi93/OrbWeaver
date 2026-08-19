@@ -607,8 +607,24 @@ export const customParametersSchema: z.ZodType<CustomParameters> = z.record(z.st
  *  Why each: `truncate_prompt_tokens` turns an over-window request into an unbounded hang, so the window
  *  guard is client-side; `truncation_side` is a second opinion about a cut the belt owns; the surface
  *  hardcodes `stream` and reads usage off `stream_options`; `model` is the resolved connection's identity
- *  (window math, cost attribution, catalog) and `messages` is the assembled canon history. */
-export const VLLM_BELT_OWNED_PARAMETER_KEYS = ["truncate_prompt_tokens", "truncation_side", "stream", "stream_options", "model", "messages"] as const;
+ *  (window math, cost attribution, catalog) and `messages` is the assembled canon history.
+ *
+ *  `continue_final_message` / `add_generation_prompt` joined the list 2026-08-19 with the assistant-prefill
+ *  flip: they are the PAIR the surface sends to continue a delivered trailing-assistant row, decided from the
+ *  model's capability AND the assembled array's tail. Precedence alone would not hold them — on the far
+ *  commoner arm (no prefill) the modeled body emits NEITHER key, so a preset value would ride unopposed and
+ *  either fold the next turn into the previous message or, with both flags true, be refused by vLLM outright.
+ *  A user who wants a prefill writes an assistant-role injection at depth 0; the wire mechanics are ours. */
+export const VLLM_BELT_OWNED_PARAMETER_KEYS = [
+  "truncate_prompt_tokens",
+  "truncation_side",
+  "stream",
+  "stream_options",
+  "model",
+  "messages",
+  "continue_final_message",
+  "add_generation_prompt",
+] as const;
 
 const VLLM_BELT_OWNED_PARAMETER_KEY_SET: ReadonlySet<string> = new Set<string>(VLLM_BELT_OWNED_PARAMETER_KEYS);
 

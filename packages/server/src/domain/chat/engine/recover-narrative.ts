@@ -104,6 +104,11 @@ export async function resolveTurnNarrative(args: {
     // A regen/continue turn already carries a synthetic trailing user row; the ask is APPENDED to it rather
     // than replacing it, or the recovery pass would silently drop the instruction that shaped the turn.
     appendUserTurn: appendAsk(pipelineArgs.appendUserTurn, ask),
+    // …and the merged tail is NO LONGER a droppable continuation fallback: it now carries this pass's own
+    // narrative ask. Pass 1 rode tools (that is the recovery gate), so the prefill verdict was suppressed and
+    // the tail survived; pass 2 drops the tools, which would flip the verdict and — without this clear —
+    // silently delete the ask that is the entire point of the re-run.
+    appendUserTurnIsContinuationFallback: false,
   });
 
   onRecoveryOutcome(recovery);

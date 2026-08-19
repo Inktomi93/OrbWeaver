@@ -47,6 +47,7 @@ import { driveRound } from "../../../../packages/server/src/domain/chat/engine/r
 import { loadWitnessHorizons } from "../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { resolveModelCapability } from "../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
@@ -169,6 +170,15 @@ function realEngine(database: Db, surfaceFactory: SurfaceFactory, requests: Turn
 async function driveRow(opts: {
   promptConfig: PromptConfig;
   intent: TurnRequest["intent"];
+  /** The resolved model capability the round runs under. Default: the `TURNS_FLOOR` cell with a `none`
+   *  role-handling floor (the names-behavior rows' baseline). The prefill rows pass the REAL vLLM catalog
+   *  cell, so they read the shipped descriptor rather than a hand-written literal. */
+  capability?: ResolvedConnection["capability"];
+  kind?: TurnRequest["kind"];
+  /** The synthetic trailing user row (a continue's nudge) + whether it is the DROPPABLE continuation
+   *  fallback — the pair the continue verb sets. */
+  appendUserTurn?: string;
+  appendUserTurnIsContinuationFallback?: boolean;
 }): Promise<Captured & { canon: readonly { role: string; content: string; model: string | null }[] }> {
   const intent: TurnRequest["intent"] = {
     ...opts.intent,
@@ -205,12 +215,14 @@ async function driveRow(opts: {
         ...testConnection(),
         // `turns` is optional on ModelCapability, so build the override on the exported floor rather
         // than spreading a possibly-absent cell.
-        capability: { ...testConnection().capability, turns: { ...TURNS_FLOOR, roleHandlingFloor: "none" } },
+        capability: opts.capability ?? { ...testConnection().capability, turns: { ...TURNS_FLOOR, roleHandlingFloor: "none" } },
       },
       triggeredBy: HOST,
       runAsUserId: HOST,
-      kind: "auto",
+      kind: opts.kind ?? "auto",
       intent,
+      ...(opts.appendUserTurn !== undefined ? { appendUserTurn: opts.appendUserTurn } : {}),
+      ...(opts.appendUserTurnIsContinuationFallback !== undefined ? { appendUserTurnIsContinuationFallback: opts.appendUserTurnIsContinuationFallback } : {}),
     },
     group: DEFAULT_GROUP_CONFIG,
     speakers: [{ ref: { kind: "character", characterId: ARIA }, name: "Aria" }],
@@ -442,6 +454,66 @@ describe("TASK-24 four-layer round-trip fidelity (deterministic, real buildBody 
     expect(assembleContentText(turnRequest.history).join("\n")).toContain("well met, traveler");
     expect(wireText).toContain("well met, traveler");
     expect(canon.some((r) => r.content.includes("well met, traveler"))).toBe(true);
+  });
+
+  // ── THE ASSISTANT-PREFILL CONTINUATION (#287) ────────────────────────────────────────────────────────
+  // The four-layer harness is the right home: this is a claim about ASSEMBLE and WIRE agreeing, and the only
+  // way to see both is to drive the real engine into the real surface. The capability is the SHIPPED vLLM
+  // catalog cell (`resolveModelCapability`), never a literal — so the row REDs on the pre-#287 tree, where the
+  // cell said `assistantPrefill:false` and a continue could only be spelled as a trailing user nudge.
+  //
+  // The seeded chat ends on Aria's assistant row, which is exactly a continue's starting shape.
+  const continueNudgeText = "[Continue the previous message.]";
+  const vllmCapability = resolveModelCapability(TEST_MODEL, "vllm", "chat-completions");
+
+  test("continue on the vLLM cell delivers the assistant tail VERBATIM (no nudge row) + the wire carries the continuation pair", async () => {
+    const { turnRequest, wireBody } = await driveRow({
+      promptConfig: DEFAULT_PROMPT_CONFIG,
+      intent: {},
+      capability: vllmCapability,
+      kind: "continue",
+      appendUserTurn: continueNudgeText,
+      appendUserTurnIsContinuationFallback: true,
+    });
+    // ASSEMBLE — the shaped history ends on the assistant row the model must extend…
+    expect(turnRequest.history.at(-1)?.role).toBe("assistant");
+    // …and the nudge is GONE, not merely out of the way: a trailing `[Continue…]` user row asks for a NEW
+    // message, which is the behavior the prefill exists to replace.
+    expect(assembleContentText(turnRequest.history).some((t) => t.includes(continueNudgeText))).toBe(false);
+    // WIRE — the delivered array ends on assistant AND carries the pair that makes the template continue it.
+    const msgs = wireMessages(wireBody);
+    expect(msgs.at(-1)?.role).toBe("assistant");
+    expect(msgs.at(-1)?.content).toContain("well met, traveler");
+    expect(wireBody["continue_final_message"]).toBe(true);
+    expect(wireBody["add_generation_prompt"]).toBe(false);
+  });
+
+  test("the SAME continue on an unmeasured (TURNS_FLOOR) cell keeps the nudge row and sends NO flags — the fallback still works", async () => {
+    const { turnRequest, wireBody } = await driveRow({
+      promptConfig: DEFAULT_PROMPT_CONFIG,
+      intent: {},
+      kind: "continue",
+      appendUserTurn: continueNudgeText,
+      appendUserTurnIsContinuationFallback: true,
+    });
+    expect(turnRequest.history.at(-1)?.role).toBe("user");
+    expect(assembleContentText(turnRequest.history).some((t) => t.includes(continueNudgeText))).toBe(true);
+    expect(wireMessages(wireBody).at(-1)?.role).toBe("user");
+    expect(wireBody["continue_final_message"]).toBeUndefined();
+  });
+
+  // A tail the verb did NOT declare a fallback (the impersonate/response nudges, the recovery pass's narrative
+  // ask) is a real instruction and survives on EVERY wire, prefill-capable or not.
+  test("a NON-fallback trailing user row survives on the prefill-capable cell (only the declared fallback drops)", async () => {
+    const { turnRequest, wireBody } = await driveRow({
+      promptConfig: DEFAULT_PROMPT_CONFIG,
+      intent: {},
+      capability: vllmCapability,
+      kind: "generate",
+      appendUserTurn: "[Write Aria's reply.]",
+    });
+    expect(turnRequest.history.at(-1)?.role).toBe("user");
+    expect(wireBody["continue_final_message"]).toBeUndefined();
   });
 
   // ── openrouter chat-completions ──────────────────────────────────────────────────────────────────────
