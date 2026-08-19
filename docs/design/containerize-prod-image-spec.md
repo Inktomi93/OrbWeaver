@@ -369,9 +369,20 @@ no `peerIp` so the fallback cannot even mint there — a SECOND independent belt
 recovery — that is the point. On the box: set `AUTH_FALLBACK=owner` + `AUTH_BREAK_GLASS=true` (the flag is
 mandatory — without it the prod SSO+owner combo is boot-fatal), restart, then `curl http://127.0.0.1:8788/...`
 authenticates as owner over the loopback socket. Revert both knobs when done. `AUTH_BREAK_GLASS` unlocks the
-boot guard only; it does NOT itself enable the fallback (`AUTH_FALLBACK=owner` does). Tertiary path if the
-owner wants a durable credential instead: `AUTH_MODE=local` with `LOCAL_INITIAL_PASSWORD` and log in over the
-HTTPS origin. Documented at the seam (`entry/auth/seam.ts`, the `via:"fallback"` arm).
+boot guard only; it does NOT itself enable the fallback (`AUTH_FALLBACK=owner` does).
+
+> **CRITICAL — STOP OR BYPASS THE FRONT PROXY while break-glass is active.** If a same-host reverse proxy that
+> connects to the app over `127.0.0.1` is still running, break-glass does NOT limit owner to the on-box
+> operator: EVERY request the proxy forwards arrives on a loopback socket, so every LAN/internet user behind
+> that proxy is minted owner — the full #298 hole, reopened for the whole network, for as long as the flag is
+> set. Do the recovery through a path that reaches the app WITHOUT the proxy's loopback hop: stop the proxy
+> (or its orbweaver site-block) first, OR curl the app's loopback listener directly from an on-box shell while
+> the proxy is down. This is exactly why break-glass is a brief, on-box, proxy-off procedure — never a knob
+> left flipped on a live public deployment.
+
+Tertiary path if the owner wants a durable credential instead: `AUTH_MODE=local` with `LOCAL_INITIAL_PASSWORD`
+and log in over the HTTPS origin (no fallback, no proxy caveat). Documented at the seam
+(`entry/auth/seam.ts`, the `via:"fallback"` arm).
 
 **`.env` interaction — how ONE image runs dev=owner and prod=deny (ties to #301):** `AUTH_MODE` lives in
 `.env`, which `foundation/env` loads with **`override:true`** (the `.env` value WINS over a process export —
