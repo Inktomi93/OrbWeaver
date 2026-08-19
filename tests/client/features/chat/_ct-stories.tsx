@@ -1512,10 +1512,16 @@ export function ChatRoomSurfaceStory(): ReactElement {
  *  every `max-w-(--width-shell-content)` computes to `none`, i.e. the defect is unreachable on the stage.
  *  `chatWidthPct` is the shipped default so the clamp reads as production does. */
 export function ChatRoomTrackStory({ paneWidth }: { readonly paneWidth: number }): ReactElement {
+  // Typed via intersection, not an `as CSSProperties` cast on the literal (no-test-fabrication):
+  // this csstype version does not admit --custom-property keys natively.
+  const paneStyle: CSSProperties & { "--width-shell-content": string } = {
+    width: paneWidth,
+    "--width-shell-content": "clamp(680px, 50dvw, 100dvw)",
+  };
   return (
     <CtDataProviders>
       <SocketHost>
-        <div data-testid="room-pane" style={{ width: paneWidth, "--width-shell-content": "clamp(680px, 50dvw, 100dvw)" }}>
+        <div data-testid="room-pane" style={paneStyle}>
           <ChatRoomHarness />
         </div>
       </SocketHost>
