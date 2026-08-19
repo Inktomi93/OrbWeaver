@@ -25,7 +25,13 @@ export const COLLECT_SAMPLES_JS = `(async () => {
   var RGB_RE = /rgba?\\(\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*(?:,\\s*([\\d.]+))?\\)/;
   // Interactive/code contexts for the type-floor checks (impeccable undersized-ui-text).
   var INTERACTIVE_CTX = "a[href],button,summary,label,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=option],[role=checkbox],[role=radio],[role=switch],[tabindex]";
-  var CODE_CTX = "pre,code,kbd,samp,var,svg,[aria-hidden='true']";
+  // NO \`[aria-hidden='true']\` here, deliberately (issue #253): this is the GRAPHIC/CODE exemption — text
+  // whose glyphs are data (a code span) or geometry (an svg label) and which the type ramp does not govern.
+  // aria-hidden is an ACCESSIBILITY-TREE fact and says nothing about pixels; carrying it in this selector
+  // silently exempted every decorative-but-RENDERED string from the type floors, and three live findings
+  // (wide-tracking, line-length, undersized-ui-text on the facet preview) vanished from the scan the day
+  // #230 marked that preview aria-hidden — while it still painted at 10.5px / 0.84px tracking / 1,283 chars.
+  var CODE_CTX = "pre,code,kbd,samp,var,svg";
   // Sanctioned radial-glow carriers (owner effect axes — ui/src/styles/globals.css): the
   // empty-state aura, the media-grid pointer spotlight, the brand loader glow.
   var SANCTIONED_GLOW_SEL = "[data-slot='empty-state-decoration'],[data-slot='media-grid-cell'],.orb-weave-glow";
@@ -541,8 +547,17 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     if (!node.textContent || node.textContent.trim().length === 0) continue;
     var el = node.parentElement;
     if (!el || seenTextEls.has(el)) continue;
-    if (el.closest("[aria-hidden='true']") || isDevChrome(el)) continue;
+    // THE VISUAL FAMILY DOES NOT SKIP aria-hidden (issue #253). Pixels do not care about the
+    // accessibility tree: an aria-hidden paragraph still renders at its size, its tracking and its measure,
+    // and a sighted user reads every one of them. This collector feeds ONLY visual verdicts — contrast and
+    // gray-on-color off \`texts\`, the type/leading/tracking/line-length family off \`textStyles\` — so the
+    // gating here is visibility and geometry alone. Every NAME/target/repeat family keeps its own
+    // aria-hidden skip (the tap-target census, the interactive census, the repeat-group census below),
+    // which is where the attribute genuinely decides the verdict. The flag rides along so a future
+    // a11y-flavoured rule over these samples can exclude it explicitly rather than by omission.
+    if (isDevChrome(el)) continue;
     if (!isVisible(el)) continue;
+    var ariaHidden = !!el.closest("[aria-hidden='true']");
     seenTextEls.add(el);
     textEls.push(el);
     var style = getComputedStyle(el);
@@ -566,6 +581,7 @@ export const COLLECT_SAMPLES_JS = `(async () => {
         foregroundOpacity: accumulatedOpacity(el),
         box: { x: textRect.x, y: textRect.y, width: textRect.width, height: textRect.height },
         occludedBy: textBackdrop.kind === "unresolved" ? occluderOf(el) : null,
+        ariaHidden: ariaHidden,
       });
     }
 
@@ -608,6 +624,7 @@ export const COLLECT_SAMPLES_JS = `(async () => {
       // Screen-reader-only text, either shape: the CLIPPED state (isVisuallyHidden — the real
       // \`sr-only\` posture, which keeps a full-size box) or a sub-2px plumbing box.
       srOnly: textHidden || (rect.width <= 2 && rect.height <= 2),
+      ariaHidden: ariaHidden,
     });
 
     // page censuses (impeccable overused-font/flat-type-hierarchy recipe, family list rebound
@@ -678,9 +695,52 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     });
   }
 
-  // ── interactive elements: tap targets + accessible names ────────────────
+  // ── interactive elements: tap targets + accessible names + action doors ──
   var tapTargets = [];
   var accessibleNames = [];
+  // issue #252 — the RUNTIME half of the dual-home detector. The static gate (duplicate-action-doors)
+  // censuses tRPC call sites per rail section and is blind by construction to a REGISTRY-RENDERED action:
+  // one call site behind N rendered slots, which is exactly how the founding "new chat lives in three
+  // places" complaint escapes it. This census is the other lens: the same (role, accessible name) offered
+  // more than once on one rendered plane. Both together close the class — the static arm catches one verb
+  // under N different labels, this arm catches one label rendered N times from one verb.
+  var actionDoors = [];
+  // PER-DATUM REPETITION IS THE WHOLE FALSE-POSITIVE CLASS: twelve "Open" buttons in a chat list are twelve
+  // different chats, not twelve doors to one action. The discriminator is STRUCTURAL PATH, not a twin-sibling
+  // count — a twin count keyed on tag+class calls two bare wrapper divs a list (measured: it swallowed every
+  // door on a three-door stage). Per-datum instances are rendered by ONE piece of code, so their paths from
+  // the root are IDENTICAL; genuinely separate homes (a hero CTA, a rail button, a topbar glyph) are reached
+  // by DIFFERENT paths. So the door carries its path and the Node side groups on distinctness — the same
+  // structural-signature grouping the repeated-container-text census already uses, one level up.
+  // Positional nth-of-type is deliberately absent: it is what would make two list rows look like two homes.
+  var DOOR_PATH_MAX = 12;
+  var structuralSig = function (el) {
+    var cls = String(el.getAttribute("class") || "").trim().split(/\\s+/).filter(Boolean).sort().join(".");
+    var slot = el.getAttribute("data-slot");
+    return el.tagName.toLowerCase() + (slot ? "@" + slot : "") + (cls ? "." + cls : "");
+  };
+  var doorPath = function (el) {
+    var parts = [];
+    var levels = 0;
+    for (var anc = el; anc && anc !== document.body && levels < DOOR_PATH_MAX; anc = anc.parentElement, levels += 1) {
+      parts.push(structuralSig(anc));
+    }
+    return parts.join("<");
+  };
+  // The accessible name as a COMPARISON KEY, not as a WCAG computation: case-folded, whitespace-collapsed,
+  // and stripped of trailing punctuation, so "New chat" / "new chat" / "New chat…" are one door.
+  var doorNameKey = function (name) {
+    return String(name || "").replace(/\\s+/g, " ").trim().toLowerCase().replace(/[.\\u2026:;,!?]+$/, "");
+  };
+  var IMPLICIT_ROLES = { a: "link", button: "button", summary: "button", select: "combobox", textarea: "textbox" };
+  var doorRole = function (el) {
+    var explicit = el.getAttribute("role");
+    if (explicit) return explicit.trim().toLowerCase();
+    var tag = el.tagName.toLowerCase();
+    if (tag === "input") return "input:" + String(el.getAttribute("type") || "text").toLowerCase();
+    if (tag === "a") return el.hasAttribute("href") ? "link" : "generic";
+    return IMPLICIT_ROLES[tag] || "generic";
+  };
   var interactiveEls = document.querySelectorAll(INTERACTIVE_SELECTOR);
   var labelledbyText = function (el) {
     var attr = el.getAttribute("aria-labelledby") || "";
@@ -806,6 +866,18 @@ export const COLLECT_SAMPLES_JS = `(async () => {
       title: iel.getAttribute("title"),
       altText: altTextOf(iel),
     });
+
+    // A DOOR is an offered, NAMED, non-per-datum control. Unnamed controls are the aria-name rule's
+    // finding, not this one, and an off-screen or clipped-stub control is offered to nobody.
+    var doorName = doorNameKey(iel.getAttribute("aria-label") || labelledbyText(iel) || (iel.textContent || "") || iel.getAttribute("title") || altTextOf(iel));
+    if (doorName.length > 0 && inVisualViewport(irect) && !hiddenStub) {
+      actionDoors.push({
+        selector: describe(iel),
+        role: doorRole(iel),
+        name: doorName,
+        path: doorPath(iel),
+      });
+    }
   }
 
   var mainLandmarkPresent = document.querySelector("main, [role='main']") !== null;
@@ -1383,6 +1455,7 @@ export const COLLECT_SAMPLES_JS = `(async () => {
     images: images,
     tapTargets: tapTargets,
     accessibleNames: accessibleNames,
+    actionDoors: actionDoors,
     mainLandmarkPresent: mainLandmarkPresent,
     tabIndexes: tabIndexes,
     zIndexes: zIndexes,
