@@ -35,7 +35,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
 import type { ClaimChatOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -256,10 +256,14 @@ export async function seedMessage(
  *  closes over the current test's db. */
 export function makeLoadParticipantViews(db: Db): (chatId: ChatId) => Promise<readonly ParticipantView[]> {
   return async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
+    // SEAT ORDER, like production's `loadRoster` (joinSeq, then id) — not insertion order. `ChatSummary`'s
+    // `participantPortraits` is rendered IN SEAT ORDER (#192), so a double that answered in insertion order
+    // would let a real ordering regression pass.
     const rows = await db
       .select()
       .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
+      .where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)))
+      .orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id));
     return rows.map((r) => ({
       id: r.id,
       chatId: r.chatId,

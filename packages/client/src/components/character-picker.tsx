@@ -70,10 +70,12 @@ export interface CharacterPickerProps {
   readonly placeholder: string;
   /** Empty-list copy shown when nothing matches. */
   readonly emptyText: string;
-  /** Fired with the character's branded id on select. The display NAME rides along: a consumer that has to
-   *  echo the choice back (a filter chip, a breadcrumb) would otherwise re-read the library to find out what
-   *  it just picked — and would guess wrong for anyone outside its own page of it. */
-  readonly onSelect: (id: CharacterId, name: string) => void;
+  /** Fired with the character's branded id on select. The display NAME and PORTRAIT ride along: a consumer
+   *  that has to echo the choice back (a filter chip, a face on a strip) would otherwise re-read the library
+   *  to find out what it just picked — and would guess wrong for anyone outside its own page of it. The row
+   *  already has both; handing them over is what let the chats pane retire its whole-library portrait map
+   *  (#192). A handler that wants only the id/name simply declares fewer parameters. */
+  readonly onSelect: (id: CharacterId, name: string, avatarHash: string | null) => void;
   /** Character ids to exclude from the list (e.g. current roster members). */
   readonly excludeIds?: readonly CharacterId[];
   /** Trailing per-row check for multi-select modes; omit for single-select (no adornment). */
@@ -188,7 +190,7 @@ function CharacterPickerBody({
 
 interface CharacterPickerRowProps {
   readonly character: CharacterListItem;
-  readonly onSelect: (id: CharacterId, name: string) => void;
+  readonly onSelect: (id: CharacterId, name: string, avatarHash: string | null) => void;
   readonly isSelected?: (id: CharacterId) => boolean;
 }
 
@@ -197,7 +199,7 @@ function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPicker
   const id = castId<CharacterId>(character.id);
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (
-    <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id, character.name)} value={character.id}>
+    <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id, character.name, character.avatarHash)} value={character.id}>
       <Row align="center" className="min-w-0 flex-1" gap="row">
         <Avatar fallbackDelay={0} hueSeed={character.id} shape="square" size="sm" {...avatarSrc}>
           {initialsFor(character.name)}

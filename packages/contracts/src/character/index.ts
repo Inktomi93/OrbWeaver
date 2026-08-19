@@ -267,8 +267,12 @@ export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 // a 320-character library — the chats list simply stopped resolving portraits past the hundredth card, with
 // nothing anywhere saying so. The router now REFUSES an over-ceiling ask (a wire-level BAD_REQUEST naming
 // the bound), so an ask that cannot be served fails where it is written instead of being answered wrong.
-// 500 is the ceiling those lookup callers need; the right long-term shape for them is a read that carries
-// the seats it is about (a chat row naming its own portraits) rather than a whole-library map.
+// 500 is the ceiling those lookup callers needed. THE CHAT-ROW ONE IS GONE (#192, 2026-08-18): the shape
+// this comment prescribed — a read that carries the seats it is about — is what `ChatSummary` now does
+// (`participantPortraits`, resolved by the roster read the list projection already runs), and the chats
+// list, the character projection and both home tiles stopped fetching a whole-library map to decorate six
+// rows. Any REMAINING caller asking for 500 is on the same clock: a lookup map is the wrong shape, and the
+// row it decorates is where the datum belongs.
 export const CHARACTER_LIST_DEFAULT_LIMIT = 50;
 export const CHARACTER_LIST_MAX_LIMIT = 500;
 

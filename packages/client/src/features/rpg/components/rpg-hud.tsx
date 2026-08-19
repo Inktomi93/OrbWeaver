@@ -69,15 +69,25 @@
 // The grammar is the four VOICES + the tier map (§7.4, density S1): every text here passes `voice`, never a
 // size/weight/tone triple, so the pane's hierarchy is declared rather than negotiated per call site.
 
+import type { ChatId } from "@orb/kit/ids";
 import { Stack, Surface } from "@orb/ui/layout";
 import { Tabs, TabsPanel } from "@orb/ui/tabs";
 import type { ReactElement } from "react";
+import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#data";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
-import { useActiveChatId } from "#state";
+import { rememberSurfaceBox, useActiveChatId, useSurfaceBox } from "#state";
 import { cellDomId } from "../lib/hud-cell-id.ts";
 import { RpgHeaderBand } from "./rpg-header-band.tsx";
 import { RpgHudRail } from "./rpg-hud-rail.tsx";
+
+/** The box-memory key for the HUD's waystone band (#149) — one band, one remembered height per device. */
+const RPG_HUD_BAND_BOX = "rpg.hud.band";
+/** The FIRST-EVER-open estimate, in CSS px: the top of the band's MEASURED range (side-eye-tracker
+ *  2026-08-17 put the async growth at ~120-192px). Deliberately the top, not the middle — an over-tall
+ *  reservation shrinks when the read lands, and #129-R1 ruled a shrink beats a push. From the second open
+ *  on, this device's own measurement replaces it. */
+const RPG_HUD_BAND_FIRST_OPEN_PX = 192;
 
 export interface RpgHudProps {
   readonly view: ContextRegionView;
@@ -190,14 +200,60 @@ export function RpgHud({ view }: RpgHudProps): ReactElement {
  *  selection moved onto the rail that holds it, where its referent is 4px away instead of 20-524px. */
 function RpgHudBand(): ReactElement | null {
   const chatId = useActiveChatId();
+  const reserved = useSurfaceBox(RPG_HUD_BAND_BOX);
   if (chatId === null) {
     return null;
   }
   return (
     <Stack data-slot="rpg-hud-band" gap="row" className="shrink-0 border-t-2 border-primary/55 px-block py-row">
-      <QueryBoundary fallback={null} renderError={(): null => null}>
-        <RpgHeaderBand chatId={chatId} />
+      <QueryBoundary fallback={<RpgHudBandReservation reserved={reserved} />} renderError={(): null => null}>
+        <RpgHudBandBody chatId={chatId} />
       </QueryBoundary>
+    </Stack>
+  );
+}
+
+/** THE BAND'S RESERVATION (#149). `rpg.getTrackerView` is a suspending read behind this band's own boundary,
+ *  and the fallback used to be `null` — so the band was a bare 2px rule until the tracker landed and then
+ *  grew ~120-192px, shoving the rail and every tab body down. MEASURED by side-eye-tracker 2026-08-17: a
+ *  `nonVirtualizedCls` contribution of 0.1143 on room open, and at a coarse pointer
+ *  `[cls] shift 0.1056 unexpected … OVER BUDGET` — the one over-budget unexpected shift on the surface.
+ *
+ *  The box is DATA-dependent (how many trackers, orbs and cast chips this game carries), so it cannot be a
+ *  static token without either lying about the height or padding every small band. Two sources, in order:
+ *  the height this device MEASURED last time the band settled (the home-tile box-memory mechanism —
+ *  localStorage, read synchronously, so it is already in the first commit), then a first-ever-open
+ *  ESTIMATE at the top of the measured range. The estimate deliberately over-reserves: a too-tall
+ *  reservation SHRINKS when the read lands, and #129-R1 ruled a shrink beats a push. */
+function RpgHudBandReservation({ reserved }: { readonly reserved: number | null }): ReactElement {
+  const box = reserved ?? RPG_HUD_BAND_FIRST_OPEN_PX;
+  return (
+    <Stack
+      aria-hidden={true}
+      data-slot="rpg-hud-band-reservation"
+      data-band-reserve-source={reserved === null ? "estimate" : "measured"}
+      // A runtime measurement, not a design value — there is no token for "the height this game's waystone
+      // happened to occupy". `overflow: clip` so a stale-too-small memory cannot be pushed open by the
+      // settled band paints into it.
+      style={{ blockSize: `${Math.round(box)}px`, overflow: "clip" }}
+    />
+  );
+}
+
+/** The settled band, wrapped so it REMEMBERS the box it occupies for the next open (#149). It mounts only
+ *  once the tracker read has resolved (it is the boundary's child), so the first measurement is already the
+ *  settled geometry — the home-tile `TileBody` precedent, same store. */
+function RpgHudBandBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (el !== null) {
+      rememberSurfaceBox(RPG_HUD_BAND_BOX, el.getBoundingClientRect().height);
+    }
+  });
+  return (
+    <Stack ref={bodyRef}>
+      <RpgHeaderBand chatId={chatId} />
     </Stack>
   );
 }

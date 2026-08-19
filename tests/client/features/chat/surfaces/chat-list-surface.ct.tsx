@@ -6,8 +6,10 @@
 // field narrows via the SERVER query; the active row paints `aria-current`; the per-row kebab opens the
 // actions menu; an empty list shows its own state; and a deep scroll never evicts the head page.
 //
-// Also pins F7 (visual-blech audit): a real participant PORTRAIT resolved off `participantCharacterIds` ×
-// the character list, the initials fallback when nothing resolves, and the star/archived state markers.
+// Also pins F7 (visual-blech audit): a real participant PORTRAIT, the initials fallback when a seat has
+// none, and the star/archived state markers. The portraits ride the ROW now (#192,
+// `ChatSummary.participantPortraits`) — there is no whole-library `character.list` map to resolve them
+// against, which is why the fixtures below carry seats rather than a character catalogue.
 //
 // NOTE (mirrors the other surface CTs): `trpc.chat.listChats` is stubbed at the NETWORK (routeTrpc) — the
 // tRPC proxy builds the path structurally, so the CT runs regardless of the transport verb landing.
@@ -16,13 +18,15 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
 import { ChatListSurfaceStory } from "../_ct-stories.tsx";
-import { chatListResponder, makeChatSummary } from "../fixtures.ts";
+import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 
+const ARIA_SEAT = makeSeatPortrait("char_aria", "Aria Nightshade", "hash_aria");
 const ADVENTURE = makeChatSummary({
   id: "chat_adventure",
   title: "A grand adventure",
   participantNames: ["Aria Nightshade"],
   participantCharacterIds: ["char_aria"],
+  participantPortraits: [ARIA_SEAT],
 });
 const UNTITLED = makeChatSummary({
   id: "chat_untitled",
@@ -47,9 +51,11 @@ const GROUP = makeChatSummary({
   title: "The Crimson Court",
   participantNames: ["Aria Nightshade", "Sera", "Niko"],
   participantCharacterIds: ["char_aria", "char_sera", "char_niko"],
+  participantPortraits: [ARIA_SEAT, makeSeatPortrait("char_sera", "Sera"), makeSeatPortrait("char_niko", "Niko")],
 });
 
-// The character library the portrait map resolves against: Aria has a face, the faceless one doesn't.
+// The character library the OVERFLOW PICKER lists (`FaceStrip`'s "filter by another character" tile). It no
+// longer feeds any portrait: since #192 a row's faces are on the row.
 const CHARACTERS = {
   items: [
     { id: "char_aria", name: "Aria Nightshade", avatarHash: "hash_aria" },
@@ -97,7 +103,9 @@ test("renders each chat row (title + participant names), with a fallback title/s
   const component = await mount(<ChatListSurfaceStory />);
 
   await expect(component.getByText("A grand adventure")).toBeVisible();
-  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+  // Scoped to the ROWS: since #192 the faces strip above them resolves off the same chat page, so it prints
+  // her caption too — the assertion is about the row's identity line, not about who else says her name.
+  await expect(component.locator(LIST_ROW_ROOT).getByText("Aria Nightshade")).toBeVisible();
   // The null-title / empty-roster row falls back to honest placeholders.
   await expect(page.getByText("Untitled chat")).toBeVisible();
   await expect(page.getByText("No characters")).toBeVisible();
@@ -248,7 +256,14 @@ test("D3 a MULTI-SEAT room leads with an AvatarStack (shared, not one member's f
 test("a chat whose participants own no portrait falls back to initials (no broken image element)", async ({ mount, page }) => {
   await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
   await routeTrpc(page, {
-    "chat.listChats": chatListResponder([makeChatSummary({ id: "chat_faceless", title: "Faceless chat", participantCharacterIds: ["char_faceless"] })]),
+    "chat.listChats": chatListResponder([
+      makeChatSummary({
+        id: "chat_faceless",
+        title: "Faceless chat",
+        participantCharacterIds: ["char_faceless"],
+        participantPortraits: [makeSeatPortrait("char_faceless", "Faceless")],
+      }),
+    ]),
     "character.list": CHARACTERS,
   });
 
@@ -390,8 +405,9 @@ test("the SCENT line wins the subtitle and stays ONE truncated line; the GAME ma
   await expect(component.getByText("The Ashfell run")).toBeVisible();
 
   // The snippet REPLACES the participants line on a chat with history; the plain row keeps its identity line.
+  // Counted over the ROWS: the faces strip prints her caption as well (see the row-scoped note above).
   await expect(component.getByText("The door gives way", { exact: false })).toBeVisible();
-  await expect(component.getByText("Aria Nightshade", { exact: true })).toHaveCount(1);
+  await expect(component.locator(LIST_ROW_ROOT).getByText("Aria Nightshade", { exact: true })).toHaveCount(1);
   // done ≠ rendered: the long snippet must actually be clipped to one line, not wrap the row open.
   const subtitle = component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" }).locator(SUBTITLE);
   const clipping = await subtitle.evaluate((el) => {
@@ -584,6 +600,7 @@ function rosterChats(): readonly ReturnType<typeof makeChatSummary>[] {
       title: `Thread ${index}`,
       participantNames: [rosterName(index)],
       participantCharacterIds: [`char_f${index}`],
+      participantPortraits: [makeSeatPortrait(`char_f${index}`, rosterName(index))],
     }),
   );
 }

@@ -111,9 +111,13 @@ export function renderRowBubble(args: {
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
+  /** #245 — EDIT mode: the bubble stops hugging (`w-fit`, D66 N3) and fills the column the row holds open
+   *  (`MessageRow`'s reservation is the other half); a hugging editor snapped a short reply's box narrower. */
+  readonly editing: boolean;
 }): ReactElement {
   // Hide-from-AI dims the row (still user-visible — the toggle holds it out of assembly only).
-  const bubbleClassName = cn(args.skin.inner(args.role), args.message.excludedFromPrompt && "opacity-50", args.decoration?.className) ?? "";
+  const bubbleClassName =
+    cn(args.skin.inner(args.role), args.editing && "w-full", args.message.excludedFromPrompt && "opacity-50", args.decoration?.className) ?? "";
   const body =
     args.trainParagraphs === null ? (
       renderSingleBubble({

@@ -9,7 +9,7 @@ import { databankDocumentsTile } from "@orb/client/features/databank";
 import { automationDormantTile, buddyDormantTile, HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
-import { rememberHomeTileBox, useActiveSection } from "@orb/client/state";
+import { rememberSurfaceBox, useActiveSection } from "@orb/client/state";
 import { Button } from "@orb/ui/button";
 import { BrainCircuit, Clock, MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
@@ -192,7 +192,7 @@ const RESERVE_TILES: readonly HomeTileContribution[] = [
 
 // Seeded at MODULE scope — "this device measured `slow` at 420px last boot", the state a real boot reads
 // out of localStorage before the first render (never a side effect inside render).
-rememberHomeTileBox("slow", RESERVED_TILE_PX);
+rememberSurfaceBox("slow", RESERVED_TILE_PX);
 
 /** The reserving frame: `slow` suspends (skeleton in a 420px box) until the "Settle" button releases it;
  *  `below` sits under it in the grid and is the tile that used to be pushed down. */

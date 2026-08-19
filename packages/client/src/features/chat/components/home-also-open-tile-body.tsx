@@ -26,8 +26,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { selectChatFromList, setActiveSection } from "#state";
-import { useChatPortraitMap } from "../hooks/use-chat-portrait-map.ts";
-import { chatPortraits } from "../lib/chat-summary-row.ts";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
 import { RECENTS_LIMIT } from "./home-recents-tile-body.tsx";
 
@@ -41,8 +39,6 @@ function openRecent(chatId: ChatId): void {
 export function HomeAlsoOpenTileBody(): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
-  // Portraits are decoration and ride the same non-blocking shared read the hero and both chats panes use.
-  const characterById = useChatPortraitMap();
   const alsoOpen = page.items.slice(1);
 
   return (
@@ -62,7 +58,7 @@ export function HomeAlsoOpenTileBody(): ReactElement {
           <ChatSummaryRow
             chat={chat}
             onSelect={openRecent}
-            portraits={chatPortraits(chat.participantCharacterIds, characterById)}
+            portraits={chat.participantPortraits}
             // The ramp's `title` step, which had no other call site on this surface (F8): these rows ARE
             // home's content, not a directory of it, and the mock assigns them 16px.
             titleStep="promoted"

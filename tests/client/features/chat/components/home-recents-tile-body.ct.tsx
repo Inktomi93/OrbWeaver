@@ -11,9 +11,20 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { ChatRecentsHeroArtStory, ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
-import { chatListResponder, makeChatSummary } from "../fixtures.ts";
+import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 
-const RECENT = makeChatSummary({ id: "chat_recent", title: "A grand adventure", participantNames: ["Wren"], participantCharacterIds: ["char_wren"] });
+// Since #192 a room's faces ride the ROW (`ChatSummary.participantPortraits`), so a seat is a fixture
+// field rather than an entry in a character-library stub the surface had to fetch and index.
+const WREN_SEAT = makeSeatPortrait("char_wren", "Wren");
+const CALAMITY_SEAT = makeSeatPortrait("char_calamity", "Calamity, Doomblade of the Ninth Epoch");
+const MORGATHA_SEAT = makeSeatPortrait("char_morgatha", "Morgatha, the Undying Dark");
+const RECENT = makeChatSummary({
+  id: "chat_recent",
+  title: "A grand adventure",
+  participantNames: ["Wren"],
+  participantCharacterIds: ["char_wren"],
+  participantPortraits: [WREN_SEAT],
+});
 const GAME = makeChatSummary({ id: "chat_game", title: "The Ashfell run", participantNames: ["Wren"], isGame: true });
 /** The row's description also carries its subtitle + stamp, so match the marker's datum WITHIN it. */
 const GAME_MARKER_DATUM = /Game chat/u;
@@ -29,16 +40,8 @@ const LONG_CAST = makeChatSummary({
   title: "A grand adventure",
   participantNames: ["Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
   participantCharacterIds: ["char_calamity", "char_morgatha"],
+  participantPortraits: [CALAMITY_SEAT, MORGATHA_SEAT],
 });
-/** The character library the hero's cast strip resolves against — WITHOUT it `chatPortraits` returns [] and
- *  the hero renders no strip at all, so every assertion about the strip would pass vacuously. */
-const CHARACTERS = {
-  items: [
-    { id: "char_calamity", name: "Calamity, Doomblade of the Ninth Epoch", avatarHash: null },
-    { id: "char_morgatha", name: "Morgatha, the Undying Dark", avatarHash: null },
-    { id: "char_wren", name: "Wren", avatarHash: null },
-  ],
-};
 /** The SECOND room, so the pair has both arms: a hero AND an also-open list under it. `lastMessageAt` is
  *  older than the fixture default, which is what makes RECENT the one you would resume. */
 const OLDER = makeChatSummary({ id: "chat_older", title: "The quiet ledger", participantNames: ["Wren"], lastMessageAt: 1 });
@@ -49,6 +52,7 @@ const PAIR_ROOM = makeChatSummary({
   title: "The quiet ledger",
   participantNames: ["Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
   participantCharacterIds: ["char_calamity", "char_morgatha"],
+  participantPortraits: [CALAMITY_SEAT, MORGATHA_SEAT],
   lastMessageAt: 1,
 });
 
@@ -224,7 +228,7 @@ test("#102 RAMP: the hero title is the HEADLINE step — strictly larger than an
 // "Sabine Veyra"` — the room name five times over, and a name that is a NOUN on the one control the
 // landing surface exists to offer. Asserted through the accessible name, which is the affordance.
 test("#102-F5 the hero is named 'Resume <room>', arrow and all art excluded", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]), "character.list": CHARACTERS });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_recent"]');
@@ -243,7 +247,7 @@ test("#102-F5 the hero is named 'Resume <room>', arrow and all art excluded", as
 // "You left off 2w ago in …". Asserted through what is RENDERED — a thumbnail strip and a stamp string —
 // so it compiles and fails against the old source.
 test("P2-6 the hero has NO thumbnail strip and NO recency stamp — one cast rendering, no duplicated instant", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_long"]');
@@ -285,7 +289,7 @@ test("P3-17 the hero's Resume label is not painted as a link", async ({ mount, p
 
 // ── RED-FIRST (#102 review F12/F15/P1-1): the credit line's register, size and NAME LENGTH ──────────
 test("#102-F12 the hero credit line is caps micro-caps at the label step, with SHORT cast names", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_long"]');
@@ -381,32 +385,29 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
 // just now'"). Nothing on this tile composes a relative time any more.
 //
 // The #147 HERO arm ("the cast strip is born at its settled width") went the same way: its subject was the
-// STRIP, which is still deleted. (The body does issue `character.list` again as of #205 — the shared
-// non-blocking read now feeds the hero's aria-hidden art BLEED — but nothing about that read can move a
-// text column: the bleed is absolutely positioned decoration, so a late arrival paints, it never pushes.
-// The `#205 … no ink over art` geometry test below is what keeps that true.) The row twin below still pins
-// the mechanism where portraits are read into LAYOUT. The hero's half is the count assertion in the `P2-6`
-// test above: zero avatar stacks, so there is nothing left that can arrive late and shove a column.
+// STRIP, which is still deleted. The hero's remaining half is the count assertion in the `P2-6` test above:
+// zero avatar stacks, so there is nothing left that can arrive late and shove a column.
 
-// ── RED-FIRST (#147, the row twin): a list row's leading slot is sized by the SEAT COUNT ───────────────
-// Same defect one weight down: an also-open row rendered ONE 32px initials blob while the character read was
-// in flight and an `AvatarStack` after it, so a two-seat room's text column moved 18px right per extra seat
-// (`[data-slot=list-row-content] moved 18px,0px`, three of them in one recorded shift).
-test("#147 an also-open row's leading slot is sized by the seat count — the row text does not move when the portraits land", async ({ mount, page }) => {
+// ── #147 (the row twin) AS #192 SETTLED IT: there is no second read to be late ─────────────────────────
+// The defect: an also-open row rendered ONE 32px initials blob while a whole-library `character.list` was in
+// flight and an `AvatarStack` after it, so a two-seat room's text column moved 18px right per extra seat
+// (`[data-slot=list-row-content] moved 18px,0px`, three of them in one recorded shift). #147 fixed it by
+// sizing the slot off the seat COUNT, which the row already carried. #192 removed the second clock entirely:
+// the seats ride the row. So the pin is now the STRONGER claim — the stack paints from the chat page alone,
+// with `character.list` held open forever, and the row is at its settled width in that state. A regression
+// that reintroduces a portrait read would hang here rather than merely shifting.
+test("#147/#192 an also-open row's faces come from the CHAT page — held-open character.list, settled width anyway", async ({ mount, page }) => {
   const characters = trpcHold();
   await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, PAIR_ROOM]), "character.list": characters });
 
   const home = await mount(<ChatRecentsPairStory />);
   const row = home.locator('[data-home-tile="chat.alsoOpen"] [data-slot="list-row-content"]').first();
   await expect(row).toBeVisible();
-  await characters.requested;
-  const held = await row.evaluate((el) => Math.round(el.getBoundingClientRect().x));
-
-  characters.release(CHARACTERS);
+  // The two-seat room's stack is THERE while the character read is still pending — its faces never depended
+  // on it. (`trpcHold` is never released: nothing in this pane may wait on that read.)
   await expect(home.locator('[data-home-tile="chat.alsoOpen"] [data-slot="avatar-stack-item"]')).toHaveCount(2);
-  const landed = await row.evaluate((el) => Math.round(el.getBoundingClientRect().x));
-
-  expect(landed).toBe(held);
+  const settled = await row.evaluate((el) => Math.round(el.getBoundingClientRect().x));
+  expect(settled).toBeGreaterThan(0);
 });
 
 test("an empty chats list renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {
@@ -427,21 +428,21 @@ test("an empty chats list renders a TEACHING empty state with an action, not a b
 // under), and that the "faded to clean surface before the prose" half is GEOMETRY — the band starts where
 // the content column is capped, so nothing has to be trusted about a gradient's alpha.
 
-/** A library whose seats HAVE portraits — without a hash the hero has nothing to bleed and every art
- *  assertion would pass vacuously against a room that simply has no art. */
-const CHARACTERS_WITH_ART = {
-  items: [
-    { id: "char_wren", name: "Wren", avatarHash: "hash_wren_portrait" },
-    { id: "char_calamity", name: "Calamity, Doomblade of the Ninth Epoch", avatarHash: "hash_calamity_portrait" },
-    { id: "char_morgatha", name: "Morgatha, the Undying Dark", avatarHash: null },
-  ],
-};
+/** The same room with a seat that HAS a portrait — without a hash the hero has nothing to bleed and every
+ *  art assertion would pass vacuously against a room that simply has no art. */
+const LONG_CAST_WITH_ART = makeChatSummary({
+  id: "chat_long",
+  title: "A grand adventure",
+  participantNames: ["Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
+  participantCharacterIds: ["char_calamity", "char_morgatha"],
+  participantPortraits: [{ ...CALAMITY_SEAT, avatarHash: "hash_calamity_portrait" }, MORGATHA_SEAT],
+});
 /** The FIRST seat's hash — the room's art is its first seat that has one, the same "one room, one face"
  *  rule the shared summary row applies to a single-avatar chat. */
 const FIRST_SEAT_HASH = /hash_calamity_portrait/u;
 
 test("#205 the hero wears its room's art as a bleed — and it is DECORATION: aria-hidden, no cast datum", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS_WITH_ART });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
 
   const home = await mount(<ChatRecentsHeroArtStory />);
   const art = home.locator('[data-slot="art-bleed"]');
@@ -458,7 +459,7 @@ test("#205 the hero wears its room's art as a bleed — and it is DECORATION: ar
 });
 
 test("#205 the bleed starts where the prose stops — NO ink over art, at either width", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS_WITH_ART });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
 
   const home = await mount(<ChatRecentsHeroArtStory />);
   await expect(home.locator('[data-slot="art-bleed"]')).toBeAttached();
@@ -483,8 +484,8 @@ test("#205 the bleed starts where the prose stops — NO ink over art, at either
 });
 
 test("#205 a room whose cast has NO portrait renders no band at all — never an empty art slot", async ({ mount, page }) => {
-  // `CHARACTERS` is the same library with every `avatarHash` null.
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS });
+  // `LONG_CAST` is the same room with every seat's `avatarHash` null.
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]) });
 
   const home = await mount(<ChatRecentsHeroArtStory />);
   await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();
@@ -495,7 +496,7 @@ test("#205 a NARROW island keeps its whole width for the prose — the bleed is 
   // The 720px story pane, i.e. the arm the ruling calls "mobile untouched". There is no media query doing
   // this: `inset-inline-start: min(100%, var(--reading-measure))` collapses the band the moment the island
   // is narrower than the measure, so the phone arm and the docked-narrow arm are the same guarantee.
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]), "character.list": CHARACTERS_WITH_ART });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();

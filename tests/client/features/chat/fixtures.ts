@@ -127,9 +127,11 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
 }
 
 /** The `chat.listChats` row shape (ChatSummary — packages/server/src/domain/chat/contract/views.ts).
- *  A plain client read-model literal (see the header); `participantNames` is names-only, while
- *  `participantCharacterIds` is what the row resolves its PORTRAIT from (F7). Ids are plain strings —
- *  the wire shape routeTrpc fulfills. */
+ *  A plain client read-model literal (see the header); `participantNames` is names-only,
+ *  `participantCharacterIds` is the reverse "every chat you've had with them" read, and
+ *  `participantPortraits` is what the row PAINTS its leading slot from (F7 + #192 — the seats ride the row
+ *  now; there is no character-library read to stub for a portrait). Ids are plain strings — the wire shape
+ *  routeTrpc fulfills. */
 export interface ChatSummaryFixture {
   readonly id: string;
   readonly title: string | null;
@@ -140,6 +142,11 @@ export interface ChatSummaryFixture {
   readonly messageCount: number;
   readonly participantNames: readonly string[];
   readonly participantCharacterIds: readonly string[];
+  /** The row's own character seats, in seat order — the leading portrait / AvatarStack (#192). Branded,
+   *  unlike the plain-string `participantCharacterIds` beside it: `characterId` is a NAME POSITION the ids
+   *  gate reads, and a fixture that declares it `string` is the same compile-time hole in a test that it
+   *  would be in a source file. Build one with {@link makeSeatPortrait} rather than a bare literal. */
+  readonly participantPortraits: readonly { readonly characterId: CharacterId; readonly name: string; readonly avatarHash: string | null }[];
   /** The server-resolved scent line (null = nothing this caller may see). */
   readonly lastMessagePreview: string | null;
   /** The rpg game marker (`metadata.rpg` presence). */
@@ -147,6 +154,16 @@ export interface ChatSummaryFixture {
   readonly viewerRole: ParticipantRole;
   readonly createdAt: number;
   readonly updatedAt: number;
+}
+
+/** ONE seat on a chat row (`ChatSummary.participantPortraits`) — the branded id minted from a plain
+ *  fixture string, so a CT names its characters the way it always has. */
+export function makeSeatPortrait(
+  id: string,
+  name: string,
+  avatarHash: string | null = null,
+): { characterId: CharacterId; name: string; avatarHash: string | null } {
+  return { characterId: castId<CharacterId>(id), name, avatarHash };
 }
 
 /** A fully-valid `ChatSummary` literal — the chats-list row. */
@@ -161,6 +178,7 @@ export function makeChatSummary(overrides: Partial<ChatSummaryFixture> = {}): Ch
     messageCount: 4,
     participantNames: ["Aria Nightshade"],
     participantCharacterIds: [],
+    participantPortraits: [],
     lastMessagePreview: null,
     isGame: false,
     viewerRole: "host",

@@ -91,9 +91,14 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
   };
 
   return (
-    <Stack gap="field" data-slot="message-edit-textarea">
+    // `w-full` on both boxes is the other half of #245's footprint: the bubble keeps the width it had in
+    // read mode (`renderSingleBubble`'s reservation) and the editor FILLS it. Without it the `Textarea`'s
+    // native `field-sizing: content` sizes to the raw text — which is exactly how a two-word reply's box
+    // snapped 107px narrower the moment the reader clicked Edit.
+    <Stack gap="field" data-slot="message-edit-textarea" className="w-full">
       <Textarea
         ref={textareaRef}
+        className="w-full"
         aria-label="Edit message"
         value={text}
         onChange={(e): void => setMessageEditDraft(message.id, e.target.value)}
