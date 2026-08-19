@@ -453,21 +453,72 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "bf61b8e018bce8a76cd87d9e0098c486833cc49dfeab4298f9d6688ad2e71597",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "8c7a0fec8247851dbc374f05d9ec2d60803dfe880c80b06622c05daad10c745c",
+      "verifiedCommit": "fd71a395d129d21e26e47cdd657cdf0faf5bb3d0",
+      "verifiedAt": "2026-08-19",
       "evidence": [
-        "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; re-attested after #298 f2 / #300 / #301 merged at 6ef448dd6)",
+        "invariants #1/#7/#8/#9/#10 re-derived against packages/server/src: the loopback-peer fallback gate, the three enabled gates, the CSRF arms, and the two provisionIdentity callers",
+        "vitest: tests/server/infra/auth/dispatch.test.ts + tests/server/entry/debug-gate.suite.test.ts + tests/server/foundation/env/index.test.ts (127 passed, 2026-08-19)",
+        "REPAIRED at fd71a395d: invariant #9's multipart census was short one route, and its tRPC preflight premise is FALSE for @trpc/server 11.18 (recorded in-doc as an OPEN finding)"
       ],
       "claims": [
         {
-          "claim": "Auth seam mint.",
+          "claim": "The un-credentialed owner fallback is admitted by the raw LOOPBACK TCP peer, never the client-supplied Host header, and the seam READS users.role instead of stamping it.",
           "evidence": [
             {
               "kind": "code",
-              "target": "packages/server/src/entry/auth/seam.ts:304"
+              "target": "packages/server/src/infra/auth/dispatch.ts:52"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/auth/index.ts:53"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/auth/seam.ts:198"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/auth/dispatch.test.ts:39"
+            }
+          ]
+        },
+        {
+          "claim": "CSRF is split by content-type physics: the four CORS-simple byte-ingest routes gate on via !== header, while tRPC keys on cookie only.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/http/upload.ts:88"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/http/import-tree.ts:101"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/http/import-chat.ts:142"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/http/import.ts:69"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/transport/trpc/trpc.ts:132"
+            }
+          ]
+        },
+        {
+          "claim": "Every external identity reaches the users table through provisionIdentity; the production caller census is exactly two.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/http/auth-routes.ts:642"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/auth/seam.ts:201"
             }
           ]
         }
@@ -588,17 +639,35 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "9f98b97d70bd74052932239964e1c2bd94c92f82e507fc0fdd141d0243fb26b6",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "c6dccb253d4a3799d571634d6c936562df2d26c00419f259afe5f35f5bc39b6f",
+      "verifiedCommit": "fd71a395d129d21e26e47cdd657cdf0faf5bb3d0",
+      "verifiedAt": "2026-08-19",
       "evidence": [
-        "docs/architecture/core/Tier-3-Infra.md:1 (full read; header/status evaluated)",
-        "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "docs/architecture/core/Tier-3-Infra.md:1 (full read, 2026-08-19; re-attested after #298 f2 merged at 6ef448dd6)",
+        "infra/auth surface re-derived in full (dispatch/index/contract/csrf/host/config/modes) plus infra/network ingress + ip-ranges",
+        "vitest: tests/server/infra/auth/dispatch.test.ts (10 passed, 2026-08-19)",
+        "REPAIRED at fd71a395d: the 'origin gate reads Host' and 'single-user's fallback is unconditional' esoterica were pre-#298-f2; the ResolvedIdentity and per-request-signal shapes were restated from contract.ts"
       ],
       "claims": [
         {
-          "claim": "SecretBox adapter.",
+          "claim": "infra/auth is the db-free verification executor: the peer-gated fallback predicate plus an IdentityResolution envelope that carries no userId and no role.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/auth/dispatch.ts:52"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/auth/contract.ts:76"
+            },
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/identity/index.ts:35"
+            }
+          ]
+        },
+        {
+          "claim": "SecretBox carries the AAD and never derives it.",
           "evidence": [
             {
               "kind": "code",
