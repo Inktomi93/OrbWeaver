@@ -41,7 +41,12 @@ export const statsRouter = t.router({
 
   freshness: authedProcedure.query(({ ctx }) => ctx.services.stats.freshness(ctx.auth.userId)),
 
-  personaUsage: authedProcedure.query(({ ctx }) => ctx.services.stats.personaUsage(ctx.auth.userId)),
+  // `characterId` is a PROJECTION filter, not an access decision: the read is scoped by
+  // `personas.owner_id = principal.userId` regardless, so an id the caller does not own matches no chats
+  // and returns the roster at zero — there is nothing here to IDOR.
+  personaUsage: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>().optional() }).optional())
+    .query(({ ctx, input }) => ctx.services.stats.personaUsage(ctx.auth.userId, { characterId: input?.characterId })),
 
   wrapped: authedProcedure.query(({ ctx }) => ctx.services.stats.wrapped(ctx.auth.userId)),
 

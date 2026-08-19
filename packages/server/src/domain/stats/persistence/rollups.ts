@@ -13,11 +13,11 @@ import { characterStats, characters, dailyStats, modelStats, ownerStats } from "
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
-import type { LeaderboardOpts, TimeseriesOpts } from "../contract/params.ts";
+import type { LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "../contract/params.ts";
 import type {
   CharacterStatsView,
   DailyPoint,
-  LeaderboardRow,
+  LeaderboardPage,
   ModelStatRow,
   OwnerStatsView,
   PersonaUsageRow,
@@ -25,7 +25,7 @@ import type {
   TemporalStats,
   WrappedSummary,
 } from "../contract/views.ts";
-import { cacheHitRate, deriveExtra, reasoningRate, throughputTps } from "../substrate/rates.ts";
+import { cacheHitRate, deriveExtra, reasoningRate, recordedCost, recordedTokens, throughputTps } from "../substrate/rates.ts";
 import { modelLatencyKey, readLatency, readModelLatencies } from "./latency.ts";
 
 // The ceiling is the shared `STATS_LIST_MAX_LIMIT` (`@orb/contracts/stats` — the transport `.max()`
@@ -51,8 +51,8 @@ export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsV
     userWords: row.userWords,
     assistantWords: row.assistantWords,
     swipeWords: row.swipeWords,
-    tokensIn: row.tokensIn,
-    tokensOut: row.tokensOut,
+    tokensIn: recordedTokens(row.tokensIn, row.assistantTurns + row.swipes),
+    tokensOut: recordedTokens(row.tokensOut, row.assistantTurns + row.swipes),
     totalGenTimeMs: row.genTimeMs,
     ...latency,
     reasoningRate: reasoningRate(row.reasoningGenerations, row.assistantTurns + row.swipes),
@@ -91,8 +91,8 @@ export async function readCharacter(db: Db, ownerId: UserId, characterId: Charac
     userWords: c.userWords,
     assistantWords: c.assistantWords,
     swipeWords: c.swipeWords,
-    tokensIn: c.tokensIn,
-    tokensOut: c.tokensOut,
+    tokensIn: recordedTokens(c.tokensIn, c.assistantTurns + c.swipes),
+    tokensOut: recordedTokens(c.tokensOut, c.assistantTurns + c.swipes),
     totalGenTimeMs: c.genTimeMs,
     ...latency,
     reasoningRate: reasoningRate(c.reasoningGenerations, c.assistantTurns + c.swipes),
@@ -109,16 +109,18 @@ export async function readCharacter(db: Db, ownerId: UserId, characterId: Charac
       forkedChats: c.forkedChats,
       variantMessages: c.variantMessages,
       maxContextTokens: null,
+      tokensIn: c.tokensIn,
       tokensOut: c.tokensOut,
       totalGenTimeMs: c.genTimeMs,
       activeIdxSum: c.activeIdxSum,
       assistantTurns: c.assistantTurns,
       assistantWords: c.assistantWords,
+      swipes: c.swipes,
     }),
   };
 }
 
-export async function readLeaderboard(db: Db, ownerId: UserId, opts: LeaderboardOpts = {}): Promise<LeaderboardRow[]> {
+export async function readLeaderboard(db: Db, ownerId: UserId, opts: LeaderboardOpts = {}): Promise<LeaderboardPage> {
   const sort = opts.sort ?? "assistantTurns";
   const limit = Math.min(opts.limit ?? DEFAULT_LIMIT, STATS_LIST_MAX_LIMIT);
   // Mapped Record — a new LeaderboardSort member is a `tsc` error if its arm is missing (exhaustive-dispatch).
@@ -136,19 +138,32 @@ export async function readLeaderboard(db: Db, ownerId: UserId, opts: Leaderboard
     .where(eq(characters.ownerId, ownerId))
     .orderBy(desc(col))
     .limit(limit);
-  return rows.map(({ cs, name }) => ({
-    characterId: cs.characterId,
-    name,
-    chats: cs.chats,
-    userTurns: cs.userTurns,
-    assistantTurns: cs.assistantTurns,
-    swipes: cs.swipes,
-    tokensOut: cs.tokensOut,
-    totalGenTimeMs: cs.genTimeMs,
-    reasoningRate: reasoningRate(cs.reasoningGenerations, cs.assistantTurns + cs.swipes),
-    firstChatAt: cs.firstChatAt,
-    lastActivityAt: cs.lastActivityAt,
-  }));
+  // The RANKED population, not the library: the same JOIN + owner predicate as the page above, uncapped.
+  // Without it a consumer can only print `rows.length`, which silently becomes the cap (D: "ANALYTICS 50").
+  const total =
+    (
+      await db.all<{ n: number }>(sql`
+    SELECT COUNT(*) AS n FROM character_stats cs
+    JOIN characters c ON c.id = cs.character_id
+    WHERE c.owner_id = ${ownerId}
+  `)
+    )[0]?.n ?? 0;
+  return {
+    total: Number(total),
+    rows: rows.map(({ cs, name }) => ({
+      characterId: cs.characterId,
+      name,
+      chats: cs.chats,
+      userTurns: cs.userTurns,
+      assistantTurns: cs.assistantTurns,
+      swipes: cs.swipes,
+      tokensOut: recordedTokens(cs.tokensOut, cs.assistantTurns + cs.swipes),
+      totalGenTimeMs: cs.genTimeMs,
+      reasoningRate: reasoningRate(cs.reasoningGenerations, cs.assistantTurns + cs.swipes),
+      firstChatAt: cs.firstChatAt,
+      lastActivityAt: cs.lastActivityAt,
+    })),
+  };
 }
 
 export async function readTimeseries(db: Db, ownerId: UserId, opts: TimeseriesOpts = {}): Promise<DailyPoint[]> {
@@ -214,8 +229,8 @@ export async function readByModel(db: Db, ownerId: UserId, opts: { limit?: numbe
       provider: r.provider,
       generations: r.generations,
       charactersUsedWith: reach[key] ?? 0,
-      tokensIn: r.tokensIn,
-      tokensOut: r.tokensOut,
+      tokensIn: recordedTokens(r.tokensIn, r.generations),
+      tokensOut: recordedTokens(r.tokensOut, r.generations),
       totalGenTimeMs: r.genTimeMs,
       avgGenMs: latency.avgGenMs,
       avgTtftMs: latency.avgTtftMs,
@@ -223,9 +238,9 @@ export async function readByModel(db: Db, ownerId: UserId, opts: { limit?: numbe
       p90TtftMs: latency.p90TtftMs,
       reasoningRate: reasoningRate(r.reasoningGenerations, r.generations),
       throughputTps: throughputTps(r.tokensOut, r.genTimeMs),
-      costUsd: r.costUsd,
+      costUsd: recordedCost(r.costUsd, r.tokensIn + r.tokensOut, r.generations),
       reasoningMs: r.reasoningMs,
-      cacheHitRate: cacheHitRate(r.cacheReadTokens, r.cacheWriteTokens),
+      cacheHitRate: cacheHitRate(r.cacheReadTokens, r.cacheWriteTokens, r.tokensIn),
     };
   });
 }
@@ -241,8 +256,17 @@ export async function readFreshness(db: Db, ownerId: UserId): Promise<StatsFresh
 
 /** Per-persona usage. A persona is "used" by a chat when it's the chat's anchor persona or a participant's
  *  active persona. Served live (a cheap GROUP BY) so a just-created persona shows immediately. The two
- *  usage sources are union-deduped to a (persona, chat) set so messages join once. */
-export async function readPersonaUsage(db: Db, ownerId: UserId): Promise<PersonaUsageRow[]> {
+ *  usage sources are union-deduped to a (persona, chat) set so messages join once.
+ *
+ *  `opts.characterId` narrows the CHAT SET to the chats that character takes part in — the CONTEXT panel's
+ *  drilled state, which used to render these LIBRARY numbers under the drilled character's face. The narrow
+ *  rides `persona_chats` (both usage arms at once) rather than the outer WHERE, so a persona with no chats
+ *  WITH that character still appears at zero rather than vanishing from the roster. */
+export async function readPersonaUsage(db: Db, ownerId: UserId, opts: PersonaUsageOpts = {}): Promise<PersonaUsageRow[]> {
+  const characterId = opts.characterId;
+  // Ownership is NOT delegated to this predicate — `personas.owner_id` already scopes every row, and the
+  // chat set is reached through the owner's own personas. An unowned id simply matches no chat.
+  const narrow = characterId === undefined ? sql`` : sql`AND ch.id IN (SELECT cp2.chat_id FROM chat_participants cp2 WHERE cp2.character_id = ${characterId})`;
   const rows = await db.all<{
     personaId: PersonaId;
     name: string;
@@ -254,13 +278,13 @@ export async function readPersonaUsage(db: Db, ownerId: UserId): Promise<Persona
     WITH persona_chats AS (
       SELECT p.id AS persona_id, ch.id AS chat_id, ch.updated_at AS updated_at
       FROM personas p JOIN chats ch ON ch.anchor_persona_id = p.id
-      WHERE p.owner_id = ${ownerId}
+      WHERE p.owner_id = ${ownerId} ${narrow}
       UNION
       SELECT p.id AS persona_id, cp.chat_id AS chat_id, ch.updated_at AS updated_at
       FROM personas p
       JOIN chat_participants cp ON cp.active_persona_id = p.id
       JOIN chats ch ON ch.id = cp.chat_id
-      WHERE p.owner_id = ${ownerId}
+      WHERE p.owner_id = ${ownerId} ${narrow}
     )
     SELECT p.id AS personaId, p.name AS name,
            COUNT(DISTINCT pc.chat_id) AS chatCount,
@@ -282,7 +306,7 @@ export async function readPersonaUsage(db: Db, ownerId: UserId): Promise<Persona
     name: r.name,
     chatCount: Number(r.chatCount),
     messageCount: Number(r.messageCount),
-    tokensOut: Number(r.tokensOut),
+    tokensOut: recordedTokens(Number(r.tokensOut), Number(r.messageCount)),
     lastUsedAt: r.lastUsedAt ?? null,
   }));
 }
@@ -337,7 +361,7 @@ export async function readWrapped(db: Db, ownerId: UserId): Promise<WrappedSumma
     return null;
   }
   const [leaderboard, days] = await Promise.all([readLeaderboard(db, ownerId, { sort: "assistantTurns", limit: 1 }), dailyActivity(db, ownerId)]);
-  const top = leaderboard[0];
+  const top = leaderboard.rows[0];
   const temporal = temporalFrom(days);
   return {
     firstChatAt: o.firstChatAt,

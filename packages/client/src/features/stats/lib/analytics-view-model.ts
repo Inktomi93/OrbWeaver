@@ -3,6 +3,13 @@
 // free of React and tRPC, so the non-trivial shaping (duration buckets, hour-of-day aggregation,
 // weekday labelling) is unit-testable without a mounted surface. Params are inline structural shapes
 // (the FacetChips precedent) so the lib never re-spells a stats contract type.
+//
+// THE NULLABLE FAMILY IS THE HONESTY SEAM (side-eye rail-analytics 2026-08-19). `null` off a stats verb
+// means UNRECORDED, never zero (server `substrate/rates.ts`), and every formatter here that can receive
+// one renders the em dash — the shape `formatMs` has always had, extended to counts, costs and rates.
+// @orb/ui takes PRE-FORMATTED strings by design ("no Intl/number logic in ui"), so the provenance
+// decision cannot live in `StatFigure`; it lives in the data and dies here, one layer below the tile.
+// A `?? 0` on the way into one of these is the exact defect the seam exists to stop.
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { BarListItem } from "@orb/ui/bar-list";
@@ -11,6 +18,9 @@ import type { HistogramBucket } from "@orb/ui/histogram";
 
 /** Sun..Sat, index 0 = Sunday — matches the server's `dayOfWeek` / heatmap row ordering. */
 export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+/** Jan..Dec, index 0 = January — the momentum band's `YYYY-MM` → prose map. */
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] as const;
 
 /** The leaderboard sort axes — ids MIRROR the server `LEADERBOARD_SORTS` tuple
  * (domain/stats/contract/params), the wire enum `leaderboard.sort` validates against; labels are the
@@ -38,10 +48,20 @@ const PERCENT = 100;
 const SECONDS_PRECISION = 1;
 const COMPACT_PRECISION = 1;
 const USD_PRECISION = 2;
+/** Below this the two-decimal form is all zeros — the threshold the sub-cent arm switches at. */
+const SUB_CENT = 0.01;
+const SUB_CENT_PRECISION = 4;
 const HOURS_PER_DAY = 24;
+/** How many trailing id characters a duplicate-name disambiguator shows. */
+const SHORT_REF_LEN = 4;
 /** Length of the `YYYY-` prefix dropped to leave `MM-DD`. */
 const YEAR_PREFIX_LEN = 5;
 const EM_DASH = "—";
+
+/** THE GLOSSARY SLOT (side-eye rail-analytics 2026-08-19: zero definitions across 27 metrics). One
+ *  sentence, one home, rendered under every band that can show an em dash — a reader who meets `—` where
+ *  they expected a number needs to be told it means "never measured", not "measured zero". */
+export const UNRECORDED_NOTE = "A dash means the figure was never recorded — imported histories and agent-sdk turns carry no token or cost accounting.";
 
 /** A human duration: `340ms` · `1.2s` · `3m 20s` · `2h 5m`. */
 export function formatDurationMs(ms: number): string {
@@ -82,14 +102,39 @@ function trimZero(fixed: string, suffix: string): string {
   return `${fixed.endsWith(".0") ? fixed.slice(0, -2) : fixed}${suffix}`;
 }
 
-/** A USD figure to cents: `$1.23`. */
-export function formatUsd(n: number): string {
+/** A nullable count — `—` when the metric was never recorded (an ST-imported or agent-sdk rollup carries
+ *  no token accounting at all, and a `0 tok` there asserts a measurement that never happened). */
+export function formatCount(n: number | null): string {
+  return n === null ? EM_DASH : formatCompact(n);
+}
+
+/** A token count WITH its unit, or a bare `—` — the trailing-meta form the dense rows use. The unit rides
+ *  inside so an unrecorded row reads `—` and not the nonsense `— tok`. */
+export function formatTokens(n: number | null): string {
+  return n === null ? EM_DASH : `${formatCompact(n)} tok`;
+}
+
+/** A USD figure: `—` unrecorded · `$1.23` · `$0.0037` below a cent. The sub-cent arm exists because a
+ *  library of 50 rows all reading `$0.00` against a `$0.037` total says every model was free; two extra
+ *  digits are what make the rows differ from each other and sum to something. */
+export function formatUsd(n: number | null): string {
+  if (n === null) {
+    return EM_DASH;
+  }
+  if (n > 0 && n < SUB_CENT) {
+    return `$${n.toFixed(SUB_CENT_PRECISION)}`;
+  }
   return `$${n.toFixed(USD_PRECISION)}`;
 }
 
-/** A 0..1 rate as a whole percent: `0.45` → `45%`. */
-export function formatPercent(rate: number): string {
-  return `${Math.round(rate * PERCENT)}%`;
+/** A 0..1 rate as a whole percent: `0.45` → `45%`; `—` when the rate has no measurement behind it, and
+ *  `<1%` for a real-but-tiny rate that would otherwise round to the `0%` that reads as "never". */
+export function formatPercent(rate: number | null): string {
+  if (rate === null) {
+    return EM_DASH;
+  }
+  const whole = Math.round(rate * PERCENT);
+  return whole === 0 && rate > 0 ? "<1%" : `${whole}%`;
 }
 
 /** A signed integer delta for a momentum bar-end label: `+5` · `-3` · `0`. */
@@ -125,25 +170,55 @@ export function activityHeatmapMatrix(matrix: readonly (readonly number[])[]): H
   };
 }
 
-/** `2026-07-13` → `07-13` for a compact daily-axis label. */
-export function formatDayLabel(day: string): string {
-  return day.length > YEAR_PREFIX_LEN ? day.slice(YEAR_PREFIX_LEN) : day;
+/** `2026-07-13` → `07-13`, EXCEPT the first bucket of a year, which keeps its full `2026-01-04` — a
+ *  ~1,100-day axis otherwise wraps `11-22 → 01-24` with no mark that a year turned over (side-eye P2f).
+ *  `prevDay` is the preceding point in series order; absent (the first bucket) counts as a crossing. */
+export function formatDayLabel(day: string, prevDay?: string): string {
+  const crossesYear = prevDay === undefined || day.slice(0, YEAR_PREFIX_LEN) !== prevDay.slice(0, YEAR_PREFIX_LEN);
+  return crossesYear || day.length <= YEAR_PREFIX_LEN ? day : day.slice(YEAR_PREFIX_LEN);
 }
 
 /** Daily points → an assistant-turn histogram in date order. */
 export function dailyTurnBuckets(points: readonly { readonly day: string; readonly assistantTurns: number }[]): HistogramBucket[] {
-  return points.map((point) => ({
-    label: formatDayLabel(point.day),
+  return points.map((point, index) => ({
+    label: formatDayLabel(point.day, points[index - 1]?.day),
     count: point.assistantTurns,
   }));
 }
 
 /** Daily points → an output-token histogram in date order. */
 export function dailyTokenBuckets(points: readonly { readonly day: string; readonly tokensOut: number }[]): HistogramBucket[] {
-  return points.map((point) => ({
-    label: formatDayLabel(point.day),
+  return points.map((point, index) => ({
+    label: formatDayLabel(point.day, points[index - 1]?.day),
     count: point.tokensOut,
   }));
+}
+
+/** `2026-07` → `July 2026` — the momentum band's month pair. The wire form is a machine `YYYY-MM` sort
+ *  key, and printing it raw put a second time vocabulary in a column that otherwise speaks in relative
+ *  phrases ("Updated 4h ago"). Data-anchored, so it deliberately does NOT become "last month": the pair
+ *  is the two most-recent months WITH ACTIVITY, which may be nowhere near wall-clock now. */
+export function formatMonthLabel(month: string): string {
+  const [year, monthIndex] = month.split("-");
+  const name = MONTH_NAMES[Number(monthIndex) - 1];
+  return name === undefined || year === undefined ? month : `${name} ${year}`;
+}
+
+/** Display names for a leaderboard page, keyed by character id: a name shared by two or more characters
+ *  gets a stable short id ref appended (`Mira (#k3f9)`), everyone else is untouched. Two identically
+ *  named characters were indistinguishable in the row, in its accessible name, and in the crown callout —
+ *  so "your top character" and "the falling one" could not be told apart. The ref is the ID's tail rather
+ *  than an ordinal because an ordinal changes under every sort. */
+export function disambiguatedNames(rows: readonly { readonly characterId: CharacterId; readonly name: string }[]): Record<string, string> {
+  const seen: Record<string, number> = {};
+  for (const row of rows) {
+    seen[row.name] = (seen[row.name] ?? 0) + 1;
+  }
+  const out: Record<string, string> = {};
+  for (const row of rows) {
+    out[row.characterId] = (seen[row.name] ?? 0) > 1 ? `${row.name} (#${row.characterId.slice(-SHORT_REF_LEN)})` : row.name;
+  }
+  return out;
 }
 
 /** Per-model rows → ranked generation-count bars. */

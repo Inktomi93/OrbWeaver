@@ -44,6 +44,7 @@ describe("readOverview", () => {
     await seedOwnerStats(db, ownerId, {
       assistantTurns: 3,
       swipes: 1,
+      tokensIn: 200,
       tokensOut: 2000,
       genTimeMs: 1000,
       reasoningGenerations: 1,
@@ -54,9 +55,24 @@ describe("readOverview", () => {
     expect(o?.totalGenTimeMs).toBe(1000); // genTimeMs column → totalGenTimeMs view field
     expect(o?.throughputTps).toBe(2000); // 2000 tokensOut / (1000ms / 1000)
     expect(o?.reasoningRate).toBe(0.25); // 1 / (3 + 1)
-    expect(o?.cacheHitRate).toBe(0.75); // 30 / (30 + 10)
+    // The share of INPUT tokens served from cache — NOT read/(read+write), which was 1.0 on every backend
+    // that reports reads but not writes (P1a). 30 / 200.
+    expect(o?.cacheHitRate).toBe(0.15);
     // Latency percentiles are on-read; no canon here → null.
     expect(o?.avgTtftMs).toBeNull();
+  });
+
+  // THE READ TELLS ABSENCE FROM ZERO (P1a/P2a). An imported library produces exactly this row: real
+  // replies and swipes, no usage columns at all. It used to read `100%` cache, `0 tok`, `$0.00`.
+  test("an imported-shaped rollup — turns but no usage — reads UNRECORDED, not zero", async () => {
+    await seedOwnerStats(db, ownerId, { assistantTurns: 1187, swipes: 7526, genTimeMs: 900_000 });
+    const o = await readOverview(db, ownerId);
+    expect(o?.tokensIn).toBeNull();
+    expect(o?.tokensOut).toBeNull();
+    expect(o?.costUsd).toBeNull();
+    expect(o?.cacheHitRate).toBeNull();
+    // Word counts are NOT usage — they are computed from the text, so they stay real numbers.
+    expect(o?.assistantWords).toBe(0);
   });
 });
 
@@ -75,8 +91,10 @@ describe("readCharacter / readLeaderboard owner-scoping (D23 — no ownerId on c
     expect(await readCharacter(db, ownerId, theirs)).toBeNull();
 
     const board = await readLeaderboard(db, ownerId);
-    expect(board).toHaveLength(1);
-    expect(board[0]?.characterId).toBe(mine);
+    expect(board.rows).toHaveLength(1);
+    expect(board.rows[0]?.characterId).toBe(mine);
+    // The census counts MY ranked characters only — the other owner's is not in it.
+    expect(board.total).toBe(1);
   });
 
   test("leaderboard sorts by the requested column", async () => {
@@ -85,9 +103,30 @@ describe("readCharacter / readLeaderboard owner-scoping (D23 — no ownerId on c
     await seedCharacterStats(db, a, { assistantTurns: 1, swipes: 9 });
     await seedCharacterStats(db, b, { assistantTurns: 5, swipes: 1 });
     const byTurns = await readLeaderboard(db, ownerId, { sort: "assistantTurns" });
-    expect(byTurns[0]?.characterId).toBe(b);
+    expect(byTurns.rows[0]?.characterId).toBe(b);
     const bySwipes = await readLeaderboard(db, ownerId, { sort: "swipes" });
-    expect(bySwipes[0]?.characterId).toBe(a);
+    expect(bySwipes.rows[0]?.characterId).toBe(a);
+  });
+
+  // "ANALYTICS 50" read as a census of a 328-character library (P2g). `rows.length` on a capped page IS
+  // the cap, so the page carries the population it was cut from and the band states a relationship.
+  test("the page carries the UNCAPPED ranked total beside the capped rows", async () => {
+    await Promise.all(
+      [1, 2, 3, 4, 5].map(async (n) => {
+        const id = await seedCharacter(db, ownerId, { id: `character_${n}`, name: `C${n}` });
+        await seedCharacterStats(db, id, { assistantTurns: n });
+      }),
+    );
+    const page = await readLeaderboard(db, ownerId, { limit: 2 });
+    expect(page.rows).toHaveLength(2);
+    expect(page.total).toBe(5);
+  });
+
+  test("a leaderboard row with turns but no usage reports UNRECORDED tokens", async () => {
+    const c = await seedCharacter(db, ownerId, { id: "character_q", name: "Q" });
+    await seedCharacterStats(db, c, { assistantTurns: 892, swipes: 3213 });
+    const page = await readLeaderboard(db, ownerId);
+    expect(page.rows[0]?.tokensOut).toBeNull();
   });
 });
 
@@ -127,6 +166,30 @@ describe("readByModel", () => {
     expect(rows[0]?.generations).toBe(3);
     expect(rows[0]?.charactersUsedWith).toBe(1); // reach from canon
   });
+
+  // The per-model half of P1a/P2a: 50 model rows all reading `0 tok · $0.00` while none of them had
+  // accounting at all — every one of those is an imported bucket, and the read now says so.
+  test("a model bucket with generations but no usage reports UNRECORDED tokens, cost and cache rate", async () => {
+    await seedModelStats(db, ownerId, { model: "imported", provider: "openrouter", generations: 26_636 });
+    const rows = await readByModel(db, ownerId);
+    expect(rows[0]?.tokensIn).toBeNull();
+    expect(rows[0]?.tokensOut).toBeNull();
+    expect(rows[0]?.costUsd).toBeNull();
+    expect(rows[0]?.cacheHitRate).toBeNull();
+  });
+
+  test("a model bucket with cache reads reports the share of INPUT tokens, not 100%", async () => {
+    await seedModelStats(db, ownerId, {
+      model: "opus",
+      provider: "openrouter",
+      generations: 3,
+      tokensIn: 1_664_309,
+      tokensOut: 1748,
+      cacheReadTokens: 32_217,
+      cacheWriteTokens: 0,
+    });
+    expect((await readByModel(db, ownerId))[0]?.cacheHitRate).toBeCloseTo(0.019_36, 5);
+  });
 });
 
 describe("readFreshness", () => {
@@ -164,6 +227,46 @@ describe("readPersonaUsage (D18 — anchor persona OR a participant's active per
     expect(rows[0]?.messageCount).toBe(1);
     expect(rows[0]?.tokensOut).toBe(7);
     expect(rows[0]?.lastUsedAt).toBe(T0 + 500);
+  });
+
+  // P1b: the CONTEXT panel names the drilled character, so the tab that CAN narrow to them must.
+  // personaUsage is a live canon GROUP BY (unlike the model/daily rollups), so it can.
+  test("characterId narrows the chat set to that character's chats", async () => {
+    const persona = await seedPersona(db, ownerId, { name: "Hero" });
+    const a = await seedCharacter(db, ownerId, { id: "character_a", name: "A" });
+    const b = await seedCharacter(db, ownerId, { id: "character_b", name: "B" });
+    const chatA = await seedChat(db, a, { id: "chat_a", anchorPersonaId: persona, updatedAt: T0 + 100 });
+    const chatB = await seedChat(db, b, { id: "chat_b", anchorPersonaId: persona, updatedAt: T0 + 200 });
+    await seedMessage(db, { chatId: chatA, seq: 1, role: "assistant", characterId: a, variants: [{ content: "a", tokensOut: 3 }] });
+    await seedMessage(db, { chatId: chatB, seq: 1, role: "assistant", characterId: b, variants: [{ content: "b", tokensOut: 11 }] });
+
+    const all = await readPersonaUsage(db, ownerId);
+    expect(all[0]?.chatCount).toBe(2);
+    expect(all[0]?.messageCount).toBe(2);
+
+    const scoped = await readPersonaUsage(db, ownerId, { characterId: b });
+    expect(scoped[0]?.chatCount).toBe(1);
+    expect(scoped[0]?.messageCount).toBe(1);
+    expect(scoped[0]?.tokensOut).toBe(11);
+    // The persona stays in the roster at zero rather than vanishing when it never met that character.
+    expect(scoped).toHaveLength(1);
+  });
+
+  // A characterId the caller does not own is a PROJECTION miss, never a leak: the read is scoped by
+  // personas.owner_id, so a foreign id can only ever narrow the caller's OWN chats to none.
+  test("another owner's characterId returns the caller's roster at zero, never their data", async () => {
+    const persona = await seedPersona(db, ownerId, { name: "Hero" });
+    const mine = await seedCharacter(db, ownerId, { id: "character_mine", name: "Mine" });
+    const chatId = await seedChat(db, mine, { anchorPersonaId: persona });
+    await seedMessage(db, { chatId, seq: 1, role: "assistant", characterId: mine, variants: [{ content: "hi", tokensOut: 5 }] });
+    const other = await seedUser(db, "user_other", "user");
+    const theirs = await seedCharacter(db, other, { id: "character_theirs", name: "Theirs" });
+
+    const rows = await readPersonaUsage(db, ownerId, { characterId: theirs });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.name).toBe("Hero");
+    expect(rows[0]?.chatCount).toBe(0);
+    expect(rows[0]?.messageCount).toBe(0);
   });
 });
 

@@ -9,14 +9,19 @@ import { describe } from "vitest";
 import {
   activityHeatmapMatrix,
   byModelBarItems,
+  dailyTokenBuckets,
   dailyTurnBuckets,
+  disambiguatedNames,
   formatCompact,
+  formatCount,
   formatDayLabel,
   formatDurationMs,
+  formatMonthLabel,
   formatMs,
   formatPeak,
   formatPercent,
   formatSignedDelta,
+  formatTokens,
   formatUsd,
   momentumBarItems,
   personaBarItems,
@@ -79,9 +84,86 @@ describe("scalar formatters", () => {
     expect(formatSignedDelta(-3)).toBe("-3");
     expect(formatSignedDelta(0)).toBe("0");
   });
-  test("formatDayLabel drops the YYYY- prefix", () => {
-    expect(formatDayLabel("2026-07-13")).toBe("07-13");
-    expect(formatDayLabel("07-13")).toBe("07-13");
+});
+
+// THE HONESTY SEAM (side-eye rail-analytics 2026-08-19 P1a/P2a/P3b). `null` off a stats verb means
+// UNRECORDED; a formatter that turns it into `0` asserts a measurement that never happened.
+describe("the nullable formatter family renders unrecorded as an em dash", () => {
+  test("formatCount", () => {
+    expect(formatCount(null)).toBe("—");
+    expect(formatCount(0)).toBe("0");
+    expect(formatCount(1200)).toBe("1.2k");
+  });
+  test("formatTokens carries its unit INSIDE, so an absent figure is not `— tok`", () => {
+    expect(formatTokens(null)).toBe("—");
+    expect(formatTokens(1200)).toBe("1.2k tok");
+  });
+  test("formatUsd: unrecorded is a dash, a measured zero is $0.00", () => {
+    expect(formatUsd(null)).toBe("—");
+    expect(formatUsd(0)).toBe("$0.00");
+  });
+  // 50 model rows all read `$0.00` against a $0.0377 library total: every per-row cost was under a cent,
+  // where two decimals can only ever print zero. Below a cent the figure keeps four, so the rows differ
+  // from each other and from a genuine nothing. At or above a cent the ordinary money form returns.
+  test("formatUsd shows four decimals below a cent, so sub-cent rows differ from each other and from 0", () => {
+    expect(formatUsd(0.0001)).toBe("$0.0001");
+    expect(formatUsd(0.0042)).toBe("$0.0042");
+    expect(formatUsd(0.01)).toBe("$0.01");
+    expect(formatUsd(0.037_678_5)).toBe("$0.04");
+  });
+  test("formatPercent: unrecorded is a dash, and a real-but-tiny rate is not rounded down to `never`", () => {
+    expect(formatPercent(null)).toBe("—");
+    expect(formatPercent(0)).toBe("0%");
+    expect(formatPercent(0.001)).toBe("<1%");
+    // The live cache figure that used to render "100%": 32,217 read of 1,664,309 input tokens.
+    expect(formatPercent(0.019_36)).toBe("2%");
+  });
+});
+
+// A ~1,100-day axis wrapped `11-22 → 01-24` with nothing marking the year turning over (P2f).
+describe("formatDayLabel keeps the year at a crossing", () => {
+  test("drops the YYYY- prefix within a year", () => {
+    expect(formatDayLabel("2026-07-13", "2026-07-12")).toBe("07-13");
+    expect(formatDayLabel("07-13", "07-12")).toBe("07-13");
+  });
+  test("the FIRST bucket of a series keeps its year (nothing precedes it to imply one)", () => {
+    expect(formatDayLabel("2026-07-13")).toBe("2026-07-13");
+  });
+  test("the first bucket of a NEW year keeps its year", () => {
+    expect(formatDayLabel("2027-01-02", "2026-12-31")).toBe("2027-01-02");
+  });
+});
+
+// `2026-07 → 2026-08` was a machine sort key printed beside relative phrases like "Updated 4h ago" (P2e).
+describe("formatMonthLabel", () => {
+  test("names the month", () => {
+    expect(formatMonthLabel("2026-07")).toBe("July 2026");
+    expect(formatMonthLabel("2026-01")).toBe("January 2026");
+  });
+  test("an unparseable month passes through rather than rendering `undefined`", () => {
+    expect(formatMonthLabel("nonsense")).toBe("nonsense");
+    expect(formatMonthLabel("2026-13")).toBe("2026-13");
+  });
+});
+
+// Two identically named characters were indistinguishable in the row AND in its accessible name (P3a).
+describe("disambiguatedNames", () => {
+  test("a shared name gets a stable id ref on BOTH twins; unique names are untouched", () => {
+    const names = disambiguatedNames([
+      { characterId: castId<CharacterId>("character_aaaak3f9"), name: "Mira" },
+      { characterId: castId<CharacterId>("character_bbbbq7x2"), name: "Mira" },
+      { characterId: castId<CharacterId>("character_ccccm1p4"), name: "Iris" },
+    ]);
+    expect(names["character_aaaak3f9"]).toBe("Mira (#k3f9)");
+    expect(names["character_bbbbq7x2"]).toBe("Mira (#q7x2)");
+    expect(names["character_ccccm1p4"]).toBe("Iris");
+  });
+  test("the ref is the id tail, not an ordinal — so it survives a re-sort", () => {
+    const rows = [
+      { characterId: castId<CharacterId>("character_aaaak3f9"), name: "Kate" },
+      { characterId: castId<CharacterId>("character_bbbbq7x2"), name: "Kate" },
+    ];
+    expect(disambiguatedNames(rows)["character_aaaak3f9"]).toBe(disambiguatedNames([...rows].reverse())["character_aaaak3f9"]);
   });
 });
 
@@ -157,7 +239,20 @@ describe("chart-family row adapters", () => {
     expect(items[0]).toEqual({ id: "p1", label: "Alex", value: 12 });
   });
   test("dailyTurnBuckets shortens the day label and carries the turn count", () => {
-    const buckets = dailyTurnBuckets([{ day: "2026-07-13", assistantTurns: 8 }]);
-    expect(buckets[0]).toEqual({ label: "07-13", count: 8 });
+    const buckets = dailyTurnBuckets([
+      { day: "2026-07-13", assistantTurns: 8 },
+      { day: "2026-07-14", assistantTurns: 3 },
+    ]);
+    // The FIRST bucket anchors the series with its year; the rest ride the short form.
+    expect(buckets[0]).toEqual({ label: "2026-07-13", count: 8 });
+    expect(buckets[1]).toEqual({ label: "07-14", count: 3 });
+  });
+  test("the bucket builders pass the PREVIOUS day through, so a year crossing is marked mid-series", () => {
+    const buckets = dailyTokenBuckets([
+      { day: "2026-12-30", tokensOut: 1 },
+      { day: "2026-12-31", tokensOut: 2 },
+      { day: "2027-01-01", tokensOut: 3 },
+    ]);
+    expect(buckets.map((b) => b.label)).toEqual(["2026-12-30", "12-31", "2027-01-01"]);
   });
 });

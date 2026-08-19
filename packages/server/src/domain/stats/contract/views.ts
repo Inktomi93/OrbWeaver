@@ -1,11 +1,18 @@
 // domain/stats/contract/views — wire shapes the stats read service returns. Percentiles are never a
 // stored column (invariant #6) — the *GenMs/*TtftMs fields are computed on read.
+//
+// `number | null` ON THIS SURFACE MEANS UNRECORDED, NEVER ZERO (substrate/rates.ts). The rollup columns
+// are NOT NULL integers, so a read that returns a bare number cannot distinguish "measured 0" from
+// "nothing was ever written here" — and the analytics surfaces printed the second as the first
+// (`0 tok`, `$0.00`, `Cache hits 100%`). Every field that can be genuinely unmeasured is nullable, and
+// its renderer owes an em dash. Do not "simplify" one back to a non-null number with a `?? 0`.
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 
 export interface ExtraStats {
   reasoningMs: number;
-  costUsd: number;
+  /** `null` when the generations behind this rollup recorded no usage at all (ST imports / agent-sdk). */
+  costUsd: number | null;
   cacheReadTokens: number;
   cacheWriteTokens: number;
   forkedChats: number;
@@ -14,7 +21,8 @@ export interface ExtraStats {
   throughputTps: number;
   avgSwipeDepth: number;
   swipeRate: number;
-  cacheHitRate: number;
+  /** Share of INPUT tokens served from the prompt cache; `null` when the row carries no cache accounting. */
+  cacheHitRate: number | null;
   avgReplyWords: number;
 }
 
@@ -28,8 +36,9 @@ export interface OwnerStatsView extends ExtraStats {
   userWords: number;
   assistantWords: number;
   swipeWords: number;
-  tokensIn: number;
-  tokensOut: number;
+  /** `null` when no generation behind this rollup recorded usage (see the file header). */
+  tokensIn: number | null;
+  tokensOut: number | null;
   totalGenTimeMs: number;
   avgGenMs: number | null;
   p50GenMs: number | null;
@@ -56,11 +65,22 @@ export interface LeaderboardRow {
   userTurns: number;
   assistantTurns: number;
   swipes: number;
-  tokensOut: number;
+  tokensOut: number | null;
   totalGenTimeMs: number;
   reasoningRate: number;
   firstChatAt: number | null;
   lastActivityAt: number | null;
+}
+
+/** A BOUNDED page of leaderboard rows plus the census it was cut from. The rows are capped (50 by
+ *  default, 200 max), so a consumer that prints `rows.length` as a census states a falsehood the moment
+ *  the library is larger than the cap — the list band read "ANALYTICS 50" against a 328-character
+ *  library. `total` is the number of the owner's characters that HAVE a rollup row, i.e. exactly the
+ *  population these rows rank; it is deliberately not the library character count (a character never
+ *  played has no rank to be 328th of). */
+export interface LeaderboardPage {
+  rows: LeaderboardRow[];
+  total: number;
 }
 
 export interface DailyPoint {
@@ -81,8 +101,8 @@ export interface ModelStatRow {
   generations: number;
   /** Distinct characters generated for; model_stats is character-less, so this is a separate GROUP BY. */
   charactersUsedWith: number;
-  tokensIn: number;
-  tokensOut: number;
+  tokensIn: number | null;
+  tokensOut: number | null;
   totalGenTimeMs: number;
   avgGenMs: number | null;
   avgTtftMs: number | null;
@@ -90,9 +110,9 @@ export interface ModelStatRow {
   p90TtftMs: number | null;
   reasoningRate: number;
   throughputTps: number;
-  costUsd: number;
+  costUsd: number | null;
   reasoningMs: number;
-  cacheHitRate: number;
+  cacheHitRate: number | null;
 }
 
 export interface StatsFreshness {
@@ -107,7 +127,7 @@ export interface PersonaUsageRow {
   name: string;
   chatCount: number;
   messageCount: number;
-  tokensOut: number;
+  tokensOut: number | null;
   lastUsedAt: number | null;
 }
 
@@ -129,7 +149,7 @@ export interface WrappedSummary {
   swipes: number;
   genTimeMs: number;
   reasoningMs: number;
-  costUsd: number;
+  costUsd: number | null;
   avgSwipeDepth: number;
   swipeRate: number;
   throughputTps: number;
