@@ -2,11 +2,18 @@
 // exception to "persistence is queries only": commits an imported card's embedded character_book as
 // world_books + world_entries + the primary character_books attach.
 //
-// Re-import: an existing primary book is edited in place (header update + full entry delete+reinsert),
-// keeping the same worldBookId + attach. No primary -> create book + entries + primary attach. One
-// db.batch per book; db.transaction() is banned (the :memory: trap).
+// Same-character re-import: an existing primary book is edited in place (header update + full entry
+// delete+reinsert), keeping the same worldBookId + attach.
+//
+// CENTRAL DEDUP (owner ruling 2026-08-19, issue #303 — "one source of books"): when the character has no
+// primary yet, the embedded book is CONTENT-matched against the owner's existing library BEFORE minting
+// (`substrate/book-dedup`, the regex `planCardLift` shape). A match LINKS this character to the existing
+// world_books row (a fresh primary character_books attach); no book is duplicated. Only a genuinely new
+// book mints a fresh row + entries. This is the FALLBACK channel — the reference channel (`linkCarriedBooks`,
+// PD-144) resolves first and, when it links, the caller skips the embedded book entirely. One db.batch per
+// book; db.transaction() is banned (the :memory: trap).
 
-import type { BulkImportLorebookResult } from "@orb/contracts/world-info";
+import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, worldBooks, worldEntries } from "@orb/db";
@@ -15,7 +22,9 @@ import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "../contract/book-dedup.ts";
 import type { AttachOwnedBooksByName, BulkImportLorebook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import.ts";
+import { findDuplicateBook } from "../substrate/book-dedup.ts";
 
 /** The FK would fail-closed anyway, but the explicit check gives a typed DomainNotFoundError. */
 async function assertOwnedCharacter(db: Db, ownerId: UserId, characterId: CharacterId): Promise<void> {
@@ -59,6 +68,74 @@ function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book:
   );
 }
 
+/** The incoming embedded book projected onto the dedup shape. `metadata` is SCHEMA-PARSED here so its
+ *  canonical key matches the stored form (`entryStmts` stores `entryMetadataSchema.parse(raw)`); miss that
+ *  and a re-encoded identical book fails to match. `keys` collapse is deferred to the pure normalizer. */
+function toDedupBook(book: BulkImportLorebookInput): DedupBook {
+  return {
+    name: book.name,
+    entries: book.entries.map(
+      (e): DedupLoreEntry => ({
+        title: e.title,
+        description: e.description,
+        content: e.content,
+        keys: e.keys,
+        enabled: e.enabled,
+        priority: e.priority,
+        ignoreBudget: e.ignoreBudget,
+        metadata: e.metadata === null ? null : entryMetadataSchema.parse(e.metadata),
+      }),
+    ),
+  };
+}
+
+/** The owner's books that share the incoming book's NAME, each with its entries, as dedup candidates. Name is
+ *  part of the content key, so a differently-named book can never match — filtering to same-name candidates is
+ *  a pure read optimization. Owner-scoped in the WHERE (a foreign book is never a candidate — cross-tenant
+ *  gate). Two reads (books, then their entries) grouped in memory; `world_entries` metadata is the stored
+ *  schema-parsed blob, so it is comparable to `toDedupBook`'s parsed side without re-parsing. */
+async function loadOwnedBooksByNameForDedup(db: Db, ownerId: UserId, name: string): Promise<DedupCandidateBook[]> {
+  const books = await db
+    .select({ id: worldBooks.id, name: worldBooks.name })
+    .from(worldBooks)
+    .where(and(eq(worldBooks.ownerId, ownerId), eq(worldBooks.name, name)));
+  if (books.length === 0) {
+    return [];
+  }
+  const bookIds = books.map((b) => b.id);
+  const entries = await db
+    .select({
+      worldBookId: worldEntries.worldBookId,
+      title: worldEntries.title,
+      description: worldEntries.description,
+      content: worldEntries.content,
+      keys: worldEntries.keys,
+      enabled: worldEntries.enabled,
+      priority: worldEntries.priority,
+      ignoreBudget: worldEntries.ignoreBudget,
+      metadata: worldEntries.metadata,
+    })
+    .from(worldEntries)
+    .where(inArray(worldEntries.worldBookId, bookIds));
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local grouping of candidate entries by book for the content-dedup planner (the DECISION lives in substrate/book-dedup).
+  const byBook = new Map<WorldBookId, DedupLoreEntry[]>();
+  for (const e of entries) {
+    const list = byBook.get(e.worldBookId) ?? [];
+    list.push({
+      title: e.title,
+      description: e.description,
+      content: e.content,
+      keys: e.keys,
+      enabled: e.enabled,
+      priority: e.priority,
+      ignoreBudget: e.ignoreBudget,
+      metadata: e.metadata,
+    });
+    byBook.set(e.worldBookId, list);
+  }
+  return books.map((b) => ({ id: b.id, name: b.name, entries: byBook.get(b.id) ?? [] }));
+}
+
 /** @throws {@link DomainNotFoundError} when the target character isn't the caller's. */
 // @owner-scope-write-ok: `existingBookId` is not caller input — it is the PRIMARY book attached to a character
 // this function just proved the caller owns (`assertOwnedCharacter`), and every path that can create that
@@ -80,6 +157,15 @@ export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImpor
       ];
       await db.batch(batchMany(stmts));
       return { worldBookId: existingBookId, entryCount: book.entries.length, replaced: true };
+    }
+
+    // CENTRAL DEDUP (#303): before minting, link to an existing content-equivalent book the owner already
+    // holds ("one source of books"). The primary seat is free here (no existing primary above), so the match
+    // attaches as `primary`; onConflictDoNothing keeps a re-link idempotent.
+    const duplicateId = findDuplicateBook(toDedupBook(book), await loadOwnedBooksByNameForDedup(db, ownerId, book.name));
+    if (duplicateId !== null) {
+      await db.insert(characterBooks).values({ characterId, worldBookId: duplicateId, role: "primary", createdAt: at }).onConflictDoNothing();
+      return { worldBookId: duplicateId, entryCount: book.entries.length, replaced: false };
     }
 
     const bookId = ctx.newBookId();
