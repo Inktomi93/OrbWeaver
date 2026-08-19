@@ -17,11 +17,12 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors.ts";
 import type { SearchScope, UnifiedSearchParams } from "../contract/params.ts";
-import type { DigestSearchHit, SegmentSearchHit, UnifiedSearchResult } from "../contract/results.ts";
+import type { DigestSourceHit, SegmentSearchHit, UnifiedSearchResult } from "../contract/results.ts";
 import type { SearchService } from "../contract/service.ts";
 import { nearestDigests, ownedChatIds } from "../persistence/digest-rows.ts";
+import { resolveCharacterDisplay, resolveChatDisplay } from "../persistence/display.ts";
 import { OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { blockKeyStr } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
@@ -61,7 +62,7 @@ interface DigestScanArgs {
  *  characters-join belt — a foreign chat/character yields nothing). `chatId` narrows to one chat;
  *  `speakerCharacterId` is the by-character cross-chat OR-branch (scoped-producer OR present-as-speaker);
  *  `scopedCharacterId` narrows to one egocentric POV. Consumes SCOPE_INSTRUCTIONS for embed + rerank. */
-async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<DigestSearchHit[]> {
+async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<DigestSourceHit[]> {
   const embedded = await ctx.roleClients.embed(args.query, {
     inputType: "query",
     instruction: SCOPE_INSTRUCTIONS.digests.query,
@@ -106,12 +107,28 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<Dig
   const ordered = args.rerank
     ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`, ranked, ctx.roleClients.rerank, ranked.length)
     : ranked;
-  return ordered.slice(0, args.topN).map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
+  const top = ordered.slice(0, args.topN);
+  // The DESTINATION vocabulary (R1a), resolved for the SURVIVORS only — the same rank-then-enrich shape
+  // discover uses, so an 80-row pool never pays for 60 display joins it throws away.
+  const [chatDisplays, characterDisplays] = await Promise.all([
+    resolveChatDisplay(ctx.db, [...new Set(top.map((c) => c.blockKey.chatId))]),
+    resolveCharacterDisplay(ctx.db, args.ownerId, [...new Set(top.map((c) => c.blockKey.scopedCharacterId))]),
+  ]);
+  const titleByChat = new Map(chatDisplays.map((d) => [d.chatId, d.title]));
+  const nameByCharacter = new Map(characterDisplays.map((d) => [d.characterId, d.name]));
+  return top.map((c) => ({
+    blockKey: c.blockKey,
+    score: c.score,
+    relevance: relevanceOf(c.distance),
+    text: c.sourceText,
+    chatTitle: titleByChat.get(c.blockKey.chatId) ?? null,
+    scopedCharacterName: nameByCharacter.get(c.blockKey.scopedCharacterId) ?? null,
+  }));
 }
 
 /** digests honors all three scopes, ALL owner-belted: `chat` → one chat; `character` → the cross-chat
  *  OR-branch; `owner` → every owner digest. */
-async function dispatchDigests(ctx: SearchContext, params: UnifiedSearchParams): Promise<DigestSearchHit[]> {
+async function dispatchDigests(ctx: SearchContext, params: UnifiedSearchParams): Promise<DigestSourceHit[]> {
   const { scope, ownerId, query, topN, rerank } = params;
   const base = { ownerId, query, topN, rerank: rerank === true };
   switch (scope.kind) {

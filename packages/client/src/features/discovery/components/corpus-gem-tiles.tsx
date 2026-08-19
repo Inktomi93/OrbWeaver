@@ -64,7 +64,12 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
 
   return (
     <Section kicker="Invested, but quiet" level={2}>
-      <Text voice="gloss">Lifetime totals per character — most tokens returned, least recently opened.</Text>
+      {/* THE GLOSS NAMES THE ACTUAL RANK (corpus forensics §6). It used to read "most tokens returned, least
+          recently opened" — neither of which was the sort: the primary key was message count, and the "quiet"
+          term was a tie-break on an integer with no ties, so it never fired and the headline gem was the
+          character played six hours ago. The verb now ranks the CONJUNCTION (volume × how long quiet), and
+          this line says so in the shelf's own words. */}
+      <Text voice="gloss">Lifetime totals per character — the most played, longest left alone.</Text>
       {/* auto-fit at the 16rem tile floor: a wider pane shows MORE tiles, never wider ones. `role="list"`
           needs real `listitem` CHILDREN or the cells are generic to AT and the list announces empty. */}
       <Grid aria-label="Invested but quiet characters" cols="auto" gap="row" role="list">

@@ -10,7 +10,7 @@ import type { SearchHit } from "../contract/results.ts";
 import type { SearchService } from "../contract/service.ts";
 import { nearestCharacters } from "../persistence/nearest.ts";
 import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
-import { compareCslsBy, cslsAdjust, rerankPoolByScores } from "../substrate/csls.ts";
+import { compareCslsBy, cslsAdjust, relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 
 export function createKnn(ctx: SearchContext): SearchService["knn"] {
@@ -49,6 +49,6 @@ export function createKnn(ctx: SearchContext): SearchService["knn"] {
     const ordered =
       params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), ctx.roleClients.rerank, topN) : ranked;
 
-    return ordered.slice(0, topN).map((c) => ({ characterId: c.characterId, score: c.score }));
+    return ordered.slice(0, topN).map((c) => ({ characterId: c.characterId, score: c.score, relevance: relevanceOf(c.distance) }));
   };
 }

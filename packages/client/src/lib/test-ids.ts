@@ -121,10 +121,12 @@ export const TEST_IDS = {
   corpusListSurface: "corpus-list-surface",
   corpusSearchTarget: "corpus-search-target",
   corpusSearchResults: "corpus-search-results",
-  corpusSearchHit: "corpus-search-hit",
+  // NO per-ROW key here (2026-08-18). `corpusSearchHit` and `corpusBrowseRow` both sat on a `<ListRow>`,
+  // which builds its body from named props and forwards no rest props — so both matched ZERO nodes in the
+  // rendered DOM and every probe keyed on them was a silent no-op. A row is addressed by its role and
+  // accessible name, which is also how a user meets it; a marker a primitive drops is worse than none.
   corpusDiscoverEvidence: "corpus-discover-evidence",
   corpusBrowseView: "corpus-browse-view",
-  corpusBrowseRow: "corpus-browse-row",
   /** The add-document dialog's scrape arm submit — the FORM-body dialog's own button (FormSubmitButton
    *  requires a registered key; the other two arms are plain buttons reachable by their labels). */
   databankScrapeSubmit: "databank-scrape-submit",
@@ -144,7 +146,6 @@ export const TEST_IDS = {
   corpusVisualsTab: "corpus-visuals-tab",
   corpusFacetDrill: "corpus-facet-drill",
   corpusKeywordExplorer: "corpus-keyword-explorer",
-  corpusThemesDrill: "corpus-themes-drill",
   corpusSearchSuggest: "corpus-search-suggest",
   analyticsListSurface: "analytics-list-surface",
   analyticsLeaderboardRow: "analytics-leaderboard-row",

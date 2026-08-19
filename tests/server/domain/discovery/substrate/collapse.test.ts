@@ -1,7 +1,7 @@
 // Unit: content-hash collapse (esoteric #3) — one min-id rep per hash, stable rep order, repOf back-mapping.
 
 import { describe } from "vitest";
-import { collapseByHash } from "../../../../../packages/server/src/domain/discovery/substrate/collapse.ts";
+import { collapseByHash, collapsedPairCount } from "../../../../../packages/server/src/domain/discovery/substrate/collapse.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 interface Row {
@@ -40,5 +40,57 @@ describe("collapseByHash", () => {
     );
     expect(reps).toHaveLength(1);
     expect(repOf).toEqual([0, 0, 0]);
+  });
+});
+
+describe("collapsedPairCount — the near-duplicate finder's blind spot, as a number", () => {
+  test("counts the pairs the collapse removes, and nothing else", () => {
+    // Two identical + three identical + one alone: C(2,2)=1 and C(3,2)=3 pairs the all-pairs scan can
+    // never see, because only one representative per hash survives to be scanned.
+    const rows: Row[] = [
+      { id: "a", hash: "h1" },
+      { id: "b", hash: "h1" },
+      { id: "c", hash: "h2" },
+      { id: "d", hash: "h2" },
+      { id: "e", hash: "h2" },
+      { id: "f", hash: "h3" },
+    ];
+    expect(
+      collapsedPairCount(
+        rows,
+        (r) => r.hash,
+        (r) => r.id,
+      ),
+    ).toBe(4);
+  });
+
+  test("a library with no identical cards has no blind spot", () => {
+    const rows: Row[] = [
+      { id: "a", hash: "h1" },
+      { id: "b", hash: "h2" },
+    ];
+    expect(
+      collapsedPairCount(
+        rows,
+        (r) => r.hash,
+        (r) => r.id,
+      ),
+    ).toBe(0);
+  });
+
+  test("one card embedded in two spaces is ONE card, not a duplicate of itself", () => {
+    // The read is per (character, model) row, so the same card appears twice under the same hash. Counting
+    // rows instead of entities would invent a duplicate for every card in a second embedding space.
+    const rows: Row[] = [
+      { id: "a", hash: "h1" },
+      { id: "a", hash: "h1" },
+    ];
+    expect(
+      collapsedPairCount(
+        rows,
+        (r) => r.hash,
+        (r) => r.id,
+      ),
+    ).toBe(0);
   });
 });

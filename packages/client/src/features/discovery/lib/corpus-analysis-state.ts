@@ -29,7 +29,7 @@ type CorpusAnalysisPhase = (typeof CORPUS_ANALYSIS_PHASES)[number];
 
 /** One row of the readiness rail — a pass, what it has produced, and whether it has produced anything. */
 export interface CorpusReadinessStage {
-  readonly id: "families" | "distilled" | "storyThemes" | "duplicates";
+  readonly id: "families" | "distilled" | "storyThemes" | "keywords" | "duplicates";
   readonly label: string;
   /** The right-hand mono reading. Always a MEASUREMENT or the honest `not run`, never a bare `0`. */
   readonly datum: string;
@@ -67,8 +67,15 @@ export interface CorpusAnalysisInput {
   readonly distilled: number;
   readonly sceneThemes: number;
   readonly arcThemes: number;
+  /** Keyword profiles are their OWN pass (`compute-cooccurrence`), which is NOT in the understanding-pass
+   *  chain — so it needs its own datum and its own ran/not-run, exactly like the near-dup row. */
+  readonly keywords: number;
+  readonly keywordsEverRan: boolean;
   readonly duplicateCharacters: number;
   readonly duplicateChats: number;
+  /** Pairs the near-dup pass CANNOT see: byte-identical cards collapse to one representative before its
+   *  all-pairs scan, so exact duplicates — the ones a reader most wants found — are structurally excluded. */
+  readonly identicalCharacterPairs: number;
   /** Has the near-duplicate pass ever succeeded? Zero pairs means two entirely different things depending on
    *  this, and the rail used to print the reassuring one for both (issue #164 item 4). */
   readonly duplicatesEverRan: boolean;
@@ -107,12 +114,27 @@ function plural(count: number, one: string, many = `${one}s`): string {
   return `${formatCount(count)} ${count === 1 ? one : many}`;
 }
 
-/** The near-dup rail reading — three states, not two (see the stage's own comment). */
-function duplicatesDatum(everRan: boolean, found: number): string {
+/**
+ * The near-dup rail reading. Three states for the PASS (not run · none found · N found), plus the pass's
+ * structural BLIND SPOT stated beside its result rather than folded into it (corpus forensics §5.2).
+ *
+ * The rail read "Near-duplicates — 1 found" while the Similarity tab one click away opened with two
+ * cosine-1.00 same-name pairs: the finder scans content-hash-collapsed representatives, so byte-identical
+ * cards can never form a pair. Both numbers are true and they answer different questions, so the row says
+ * both — and the identical count stands ALONE when the pass has never run, because "2 identical copies" is
+ * something we know from the cards themselves and does not depend on a pass at all.
+ */
+function duplicatesDatum(everRan: boolean, found: number, identical: number): string {
+  const passPart = passDatum(everRan, found, `${formatCount(found)} found`);
+  return identical === 0 ? passPart : `${passPart} · ${formatCount(identical)} identical`;
+}
+
+/** The shared three-state reading of a pass: it has not run · it ran and found nothing · what it found. */
+function passDatum(everRan: boolean, found: number, foundLabel: string): string {
   if (!everRan) {
     return "not run";
   }
-  return found === 0 ? "none found" : `${formatCount(found)} found`;
+  return found === 0 ? "none found" : foundLabel;
 }
 
 function sum(values: readonly number[]): number {
@@ -209,9 +231,19 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
     },
     {
       id: "storyThemes",
-      label: "Story themes & keywords",
+      // "& keywords" IS GONE from this label (corpus forensics §9.1). The row read `storyThemes` alone, so it
+      // marked the keyword pass DONE on the theme pass's evidence — while `topKeywords` was empty, the
+      // dossier printed "No keyword profile computed yet.", and the rail is the surface's ONE designated home
+      // for what has not run. Two passes, two rows.
+      label: "Story themes",
       datum: storyThemes === 0 ? "not run" : `${plural(storyThemes, "theme")} computed`,
       done: storyThemes > 0,
+    },
+    {
+      id: "keywords",
+      label: "Keywords",
+      datum: passDatum(input.keywordsEverRan, input.keywords, plural(input.keywords, "keyword")),
+      done: input.keywords > 0,
     },
     {
       id: "duplicates",
@@ -221,8 +253,8 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
       // the owner read "none found" on a 327-card imported library and reasonably took it for a defect. It
       // was not; `find-duplicates` simply had not run yet (it later found 30 pairs). The rail's whole
       // contract is "a zero must be a state a reader can act on", and those two zeros need different actions.
-      datum: duplicatesDatum(input.duplicatesEverRan, nearDuplicates),
-      done: nearDuplicates > 0,
+      datum: duplicatesDatum(input.duplicatesEverRan, nearDuplicates, input.identicalCharacterPairs),
+      done: nearDuplicates > 0 || input.identicalCharacterPairs > 0,
     },
   ];
 

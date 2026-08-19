@@ -13,7 +13,7 @@ import type { ImageSearchHit } from "../contract/results.ts";
 import type { SearchService } from "../contract/service.ts";
 import { nearestImages } from "../persistence/image-nearest.ts";
 import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
-import { rerankPoolByScores } from "../substrate/csls.ts";
+import { relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 
 export function createImages(ctx: SearchContext): SearchService["images"] {
@@ -48,6 +48,7 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
     const ordered =
       params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), ctx.roleClients.rerank, topN) : ranked;
 
-    return ordered.slice(0, topN).map((r) => ({ assetId: r.assetId, score: r.score, lens, caption: r.caption }));
+    // `score` here IS the raw distance (the CSLS skip above), so the readout derives from it directly.
+    return ordered.slice(0, topN).map((r) => ({ assetId: r.assetId, score: r.score, relevance: relevanceOf(r.score), lens, caption: r.caption }));
   };
 }
