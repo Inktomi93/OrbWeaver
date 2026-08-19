@@ -22,6 +22,7 @@ import { nearestSegments } from "../persistence/digest-rows.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
 import { blockKeyStr, collapseSegmentChunks } from "../substrate/dedupe.ts";
+import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 
 export function createSegments(ctx: SearchContext): SearchService["segments"] {
@@ -38,7 +39,7 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
       throw new SearchError(SEARCH_EMPTY_QUERY, "segments requires a queryText to embed + scan");
     }
 
-    const embedded = await ctx.roleClients.embed(text, { inputType: "query" });
+    const embedded = await ctx.roleClients.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.segments.query });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -85,7 +86,10 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
     // Same retrieveK top-K cut + rerankTo mixC cut as the digest lens (one wire — `MemoryQueryOptions`): keep
     // the head of the CSLS-ranked pool, and in mixC cap the reranked result to rerankTo.
     const retrieved = ranked.slice(0, params.retrieveK);
-    const ordered = params.mode === "mixC" ? await applyRerank(text, retrieved, ctx.roleClients.rerank, params.rerankTo) : retrieved;
+    const ordered =
+      params.mode === "mixC"
+        ? await applyRerank(`${SCOPE_INSTRUCTIONS.segments.rerank}\n${text}`, retrieved, ctx.roleClients.rerank, params.rerankTo)
+        : retrieved;
 
     return ordered.map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
   };

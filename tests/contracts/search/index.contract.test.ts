@@ -70,7 +70,6 @@ test("MemoryQueryOptions pins first-class scope.chat + optional candidates:Block
     scope: { chat: SAMPLE_CHAT_ID },
     candidates: [candidate],
     mode: "mixC",
-    verbatimWindow: 2,
     keywordMatch: true,
     recencyBias: 0,
     minScore: 0.2,
@@ -89,7 +88,6 @@ test("MemoryQueryOptions pins first-class scope.chat + optional candidates:Block
   const fullPool: MemoryQueryOptions = {
     scope: { chat: SAMPLE_CHAT_ID },
     mode: "mixA",
-    verbatimWindow: 4,
     keywordMatch: false,
     recencyBias: 0.5,
     minScore: 0,
@@ -107,7 +105,6 @@ test("MemoryQueryOptions carries the egocentric queryText + scopedCharacterId (h
     queryText: "Alice: where did we hide the relic?",
     scopedCharacterId: SAMPLE_CHARACTER_ID,
     mode: "mixC",
-    verbatimWindow: 2,
     keywordMatch: true,
     recencyBias: 0,
     minScore: 0.2,
@@ -121,7 +118,6 @@ test("MemoryQueryOptions carries the egocentric queryText + scopedCharacterId (h
   const ownerWide: MemoryQueryOptions = {
     scope: { chat: SAMPLE_CHAT_ID },
     mode: "tiered",
-    verbatimWindow: 4,
     keywordMatch: false,
     recencyBias: 0,
     minScore: 0,

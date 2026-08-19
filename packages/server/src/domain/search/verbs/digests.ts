@@ -4,8 +4,10 @@
 // optional rerank to rerankTo (mode mixC). No membership derivation: the caller already holds the authorized
 // chat. retrieveK is the "top retrieveK" retrieval count (the cosine-ranked, floor-passing pool cut to its
 // head — and the pool the mixC cross-encoder reranks); rerankTo is the mixC keep-count after that rerank.
-// FLAG[PD-35]: recencyBias + verbatimWindow are accepted on params but NOT applied here — verbatimWindow
-// is memory's pre-call query-assembly knob, and recencyBias's blend formula is undecided.
+// The embed + rerank carry the digests SCOPE_INSTRUCTIONS (#330 P3) — the SAME conditioning the corpus digest
+// scan uses (`verbs/search.ts` digestScan); an instruction-aware family (Qwen3-VL) sharpens on it, a text-only
+// one drops it (the no-op-knob doctrine), so the within-chat recall path is no longer the weaker sibling.
+// FLAG[PD-35]: recencyBias is accepted on params but NOT applied here — its blend formula is undecided (#321).
 
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
@@ -16,6 +18,7 @@ import { nearestDigests } from "../persistence/digest-rows.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { blockKeyStr } from "../substrate/dedupe.ts";
+import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 
 const MIN_TERM_LEN = 3;
@@ -44,7 +47,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
       throw new SearchError(SEARCH_EMPTY_QUERY, "digests requires a queryText to embed + scan");
     }
 
-    const embedded = await ctx.roleClients.embed(text, { inputType: "query" });
+    const embedded = await ctx.roleClients.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.digests.query });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -88,7 +91,12 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
     // The "top retrieveK" retrieval cut: keep the head of the CSLS-ranked, floor-passing pool. In mixC this is
     // the candidate pool the cross-encoder reranks, then rerankTo caps the reranked result.
     const retrieved = ranked.slice(0, params.retrieveK);
-    const ordered = params.mode === "mixC" ? await applyRerank(text, retrieved, ctx.roleClients.rerank, params.rerankTo) : retrieved;
+    // Instruction-aware rerankers key off the scope <Instruct> prefix; text-only families ignore it (the same
+    // shape the corpus digest scan uses — #330 P3).
+    const ordered =
+      params.mode === "mixC"
+        ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${text}`, retrieved, ctx.roleClients.rerank, params.rerankTo)
+        : retrieved;
 
     // `relevance` is the same `1 − distance` this verb's own minScore floor already compares against — one
     // definition of "how close is this", never a second.

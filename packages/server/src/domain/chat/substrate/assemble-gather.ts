@@ -26,6 +26,7 @@ import type { ForeignInputs } from "../contract/foreign.ts";
 import type { MemoryRecallInputs, MsgRow } from "../contract/memory.ts";
 import type { GuidedSteer } from "../contract/params.ts";
 import { recallMemory } from "../memory/recall/recall.ts";
+import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "../memory/recall/window.ts";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";
 import { resolveHostTierRegexScripts } from "./regex-tier.ts";
 import { foldChain } from "./runtime-variables.ts";
@@ -168,6 +169,22 @@ function pickMacroRegistries(
   };
 }
 
+/** The recall query window (#330 P2): the committed recent rows PLUS the pending user message as the newest
+ *  `user` row. Recall runs pre-persist, so without this the mixB/mixC query is the PREVIOUS turn's tail and the
+ *  turn's own most-relevant text never contributes. A top-level pure helper so its branch stays OUTSIDE
+ *  `gatherAssembleContext`'s cognitive-complexity budget (the `p6Fields` precedent). Absent pending text (a
+ *  preview / aux turn) ⇒ the committed rows unchanged. */
+function recallRecentWindow(recentRows: readonly MsgRow[], pendingUserText: string | undefined, triggerUserId: UserId | null | undefined): readonly MsgRow[] {
+  if (pendingUserText === undefined) {
+    return recentRows;
+  }
+  const newestSeq = recentRows.at(-1)?.seq ?? 0;
+  return [
+    ...recentRows,
+    { seq: newestSeq + 1, role: "user", kind: "standard", characterId: null, authorUserId: triggerUserId ?? null, personaId: null, content: pendingUserText },
+  ];
+}
+
 /** Map a persisted `chat_injections` row → the `ChatInjection` wire shape (omit `order` when null). */
 function toChatInjection(row: Awaited<ReturnType<typeof loadChatInjections>>[number]): ChatInjection {
   return {
@@ -242,19 +259,31 @@ async function gatherMemory(
 }
 
 /** The recall live-window cutoff seq = the PREVIOUS turn's canon fit boundary: the newest ASSISTANT row's
- *  stored `contextBoundaryMessageId` resolved to its seq. `undefined` when no assistant row carries a boundary
- *  stamp (a fresh chat, or the last turn dropped nothing → null stamp) — then recall applies no live-window
- *  trim. A stamped boundary id whose target isn't in canon (edited/deleted since) also yields `undefined`. */
+ *  stored `contextBoundaryMessageId` resolved to its seq. Three outcomes (#333 — the inversion this fixes):
+ *   • NO completed assistant turn (a fresh chat) → `undefined`: there is no fit boundary yet AND no aged-out
+ *     digest exists to trim, so recall applies no live-window filter (moot).
+ *   • A completed turn whose boundary stamp is NULL → {@link LIVE_WINDOW_FULL_HISTORY_CUTOFF}: `null` means the
+ *     fit trimmed NOTHING — `fitHistoryToWindow` returns `earliestKeptMessageId: null` when the WHOLE history is
+ *     kept (`keepFrom === 0`) or when there is no window ceiling. In BOTH the entire history was sent, so every
+ *     digest's scene is verbatim and EVERY digest must drop. This is the owner's live bug: a 20k chat inside a
+ *     32k window trimmed nothing, and the old `undefined` here made `filterPool` recall EVERY scene the model
+ *     already reads in full.
+ *   • A resolvable boundary → its seq (the partial-trim case: recall only digests strictly below it).
+ *  A stamped boundary whose target isn't in canon anymore (edited/deleted since) fails toward DROP-ALL
+ *  (conservative — never re-inject a scene that might still be verbatim), not pass-all. */
 function resolveLiveWindowCutoffSeq(canon: readonly MessageView[]): number | undefined {
   // Every assistant canon row is a real generation carrying a fit-pass stamp (D124 retired the rpg
   // state-anchor slot, which was an assistant ROW with no stamp — letting it answer here silently disabled
   // the recall live-window trim for the rest of the game).
   const lastAssistant = canon.findLast((m) => m.role === "assistant");
-  const boundaryId = lastAssistant?.contextBoundaryMessageId ?? null;
-  if (boundaryId === null) {
-    return;
+  if (lastAssistant === undefined) {
+    return; // no completed generation → no boundary and no aged digests → no live-window trim
   }
-  return canon.find((m) => m.id === boundaryId)?.seq;
+  const boundaryId = lastAssistant.contextBoundaryMessageId ?? null;
+  if (boundaryId === null) {
+    return LIVE_WINDOW_FULL_HISTORY_CUTOFF; // the whole history was sent → every digest is in-window → drop all
+  }
+  return canon.find((m) => m.id === boundaryId)?.seq ?? LIVE_WINDOW_FULL_HISTORY_CUTOFF; // stale boundary → conservative drop-all
 }
 
 /**
@@ -343,6 +372,10 @@ export async function gatherAssembleContext(
   const lastUserMessage = eligible.findLast((m) => m.role === "user")?.content;
   const lastCharMessage = eligible.findLast((m) => m.role === "assistant")?.content;
 
+  // #330 P2 — the recall query INCLUDES the current user message (recall runs pre-persist). See
+  // `recallRecentWindow`; absent pending text ⇒ the committed rows unchanged.
+  const recallRecent = recallRecentWindow(recentRows, args.pendingUserText, args.triggerUserId);
+
   const [memory, databank] = await Promise.all([
     gatherMemory(
       ctx,
@@ -351,7 +384,7 @@ export async function gatherAssembleContext(
         runAsUserId,
         castCharacterIds,
         foreign,
-        recent: recentRows,
+        recent: recallRecent,
         names: cast.names,
         liveWindowCutoffSeq: resolveLiveWindowCutoffSeq(canon),
       },

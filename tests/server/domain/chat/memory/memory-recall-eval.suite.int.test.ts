@@ -371,6 +371,31 @@ describe("recall knobs — each proven by a control that FLIPS the outcome (#311
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// #330 P7 — the {{memory}} TEXT injects in CHRONOLOGICAL order for the embedding modes, while the trace keeps
+// RETRIEVAL rank. A rank-ordered "story so far" reads as scrambled chronology to the model.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+describe("mixB injection order — chronological TEXT, rank-ordered trace (#330 P7)", () => {
+  test("a later block that RANKS first is injected AFTER the earlier decoy it outscored", async () => {
+    // "sheltering from bad weather" → storm (block 4) target, bath (block 0) decoy: storm ranks first, both clear
+    // the 0.05 floor. Retrieval rank is [4, 0]; chronological injection must be [0, 4].
+    const { text, trace } = await recallMemory(evalContext(), {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      recent: [msg(100, "sheltering from bad weather")],
+      names: new Map<CharacterId, string>(),
+      config: { mode: "mixB", fanOut: 2, queryWindow: 4, minScore: 0.05 },
+    });
+    // The trace keeps RETRIEVAL rank — storm (4) first, bath decoy (0) second.
+    expect(admitted(trace)).toEqual([4, 0]);
+    // …but the injected TEXT reads oldest→newest: the bath scene (block 0) precedes the storm (block 4).
+    const bathAt = text.indexOf("[the bath house]");
+    const stormAt = text.indexOf("[the storm]");
+    expect(bathAt).toBeGreaterThanOrEqual(0);
+    expect(stormAt).toBeGreaterThan(bathAt);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 // #314 — VALIDITY BOUNDARIES. These guards already exist; the coverage proves them by pinning the EXACT flip
 // point of each — the boundary case on one side is excluded, one step over is included. (The build-side
 // content-admission threshold the owner asked about is a separate finding — see the lane report; there is no

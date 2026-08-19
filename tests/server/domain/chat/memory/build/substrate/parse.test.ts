@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { parseDigest, renderDigestFacets } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/parse.ts";
+import { parseDigest } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/parse.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
 describe("memory/build/substrate/parse", () => {
@@ -32,10 +32,18 @@ describe("memory/build/substrate/parse", () => {
     expect(parseDigest("\n\n\n")).toEqual({ topicAnchor: "", facts: "", keywords: [] });
   });
 
-  test("renderDigestFacets composes anchor + keywords; handles each absent", () => {
-    expect(renderDigestFacets({ topicAnchor: "[a]", keywords: ["k1", "k2"] })).toBe("[a]\nkeywords: k1, k2");
-    expect(renderDigestFacets({ topicAnchor: "[a]", keywords: [] })).toBe("[a]");
-    expect(renderDigestFacets({ topicAnchor: null, keywords: ["k"] })).toBe("keywords: k");
-    expect(renderDigestFacets({ topicAnchor: null, keywords: [] })).toBe("");
+  // #330 P5 — the real corpus row: the model appended `Keywords:` INLINE after the final fact sentence rather
+  // than on its own line, and the old `^\s*keywords:` anchor lost the whole block's keywords (1 in 26 measured).
+  test("an INLINE `Keywords:` after a fact sentence still yields the keyword list, keeping the fact prefix", () => {
+    const d = parseDigest("[Mara — the kitchen]\nBess wraps a gift for Sam. Keywords: Mara, Sam, gift");
+    expect(d.topicAnchor).toBe("[Mara — the kitchen]");
+    expect(d.facts).toBe("Mara wraps a gift for Sam.");
+    expect(d.keywords).toEqual(["Mara", "Sam", "gift"]);
+  });
+
+  test("a fact that merely MENTIONS `keywords:` mid-body does not steal the real trailing keyword list", () => {
+    const d = parseDigest("[x]\nThey argued about the keywords: draft.\nMore fallout followed.\nKeywords: argument, draft");
+    expect(d.facts).toBe("They argued about the keywords: draft.\nMore fallout followed.");
+    expect(d.keywords).toEqual(["argument", "draft"]);
   });
 });
