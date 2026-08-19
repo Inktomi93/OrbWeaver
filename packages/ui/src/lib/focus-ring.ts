@@ -16,6 +16,13 @@ export const FOCUS_RING_ON_POPOVER = "focus-visible:ring-2 focus-visible:ring-ri
 
 export const FOCUS_RING_WITHIN = "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background";
 
+// _WITHIN_INSET is _WITHIN's moat-less form, for a wrapper that is ITSELF a surface (the command panel:
+// its own border + `bg-popover`) and whose host tone VARIES by consumer — the six pickers drop the same
+// Command root into a Popover, a Dialog and a plain content Card, so no single `ring-offset-*` colour is
+// right for all of them and an offset moat would paint the wrong tone somewhere (the north-star PP3 trap
+// this module's header names). The ring hugs the panel's own edge instead, which needs no host knowledge.
+export const FOCUS_RING_WITHIN_INSET = "focus-within:ring-2 focus-within:ring-ring focus-within:ring-inset";
+
 export const FOCUS_RING_HAS =
   "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background";
 

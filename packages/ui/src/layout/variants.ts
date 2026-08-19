@@ -124,6 +124,15 @@ export const gridVariants = tv({
       // narrow pane, so the row answers to the pane it lives in; an ancestor `<Container>` is required
       // (an element cannot query itself).
       pair: "grid-cols-1 @md:grid-cols-2",
+      // `pair`'s THREE-column sibling, same contract and same reason (added 2026-08-19, the refinery
+      // teaching flow). Three cells that are ONE sequence — Score → Rewrite → Analyze — must be equal
+      // bases: as a wrapping flex row of content-sized cards they measured 279/384/482px, i.e. the three
+      // steps of one pipeline drawn as a staircase, with the longest sentence claiming the most emphasis.
+      // Auto-fit cannot express it (a track holding a short cell collapses, which is the staircase again);
+      // an explicit 3 makes each step exactly a third of the row. Container-queried, `pair`'s precedent:
+      // below the step the cells stack to one column rather than crushing three sentences into thirds of a
+      // phone. Requires an ancestor `<Container>` — an element cannot query itself.
+      triple: "grid-cols-1 @md:grid-cols-3",
       // A DOMINANT LEAD column beside a companion RAIL (added 2026-08-16, program #102 — the landing/
       // reading shape). Every arm above is auto-FIT: equal tracks, count chosen by width. This one is
       // deliberately UNEQUAL and its two tracks are both required — a lead column you read and a rail you

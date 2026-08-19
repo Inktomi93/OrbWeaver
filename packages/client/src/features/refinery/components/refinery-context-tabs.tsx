@@ -6,6 +6,8 @@
 
 import type { RefinerySchemaStage, RefineryStageConfig } from "@orb/contracts/refinery";
 import type { RefinerySchemaId } from "@orb/kit/ids";
+// The masthead chips' OWN label derivation (`lib/render-plan.ts`) — see `scopeLineOf`: the two readouts of
+// one selection share this or they drift back into two vocabularies.
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
@@ -14,6 +16,7 @@ import { requestRefineryWorkbenchDoor, setRefineryArmedRewrite, setRefineryViewe
 import { useRunRefineryStage, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefinerySchemas } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
+import { scopeChipLabelOf } from "../lib/render-plan.ts";
 import { RunsTab, SetupTab, VersionsTab } from "./context-tabs.tsx";
 import type { SchemaEditorDialogProps } from "./schema-editor-dialog.tsx";
 import { SchemaEditorDialog } from "./schema-editor-dialog.tsx";
@@ -87,13 +90,31 @@ function stageModesLineOf(view: SessionView): string {
 // deleting the second home closes that for good rather than keeping the two in sync forever.
 
 /** The scope row's readout — the selected fields, with the greeting slots spelled out when the
- *  selection narrows them (the roster line the row previously did not carry at all). */
+ *  selection narrows them (the roster line the row previously did not carry at all).
+ *
+ *  ONE VOCABULARY (side-eye 2026-08-19 P2). This printed the RAW WIRE NAMES — a user was shown
+ *  `exampleMessages` and `creatorNotes` — while the masthead's chips, four inches away and describing the
+ *  same selection, printed the human labels. Two homes are allowed to state one fact in two registers
+ *  (this row is a readout, those chips are the state beside its editor); they are not allowed to speak two
+ *  languages about it. `scopeChipLabelOf` is the chips' OWN derivation, so the two cannot drift again. */
 function scopeLineOf(view: SessionView): string {
   const { fields, greetingIndexes } = view.selection;
   if (fields.length === 0) {
-    return "nothing selected — a run has nothing to work on";
+    return "nothing selected, so a run has nothing to work on";
   }
-  return fields.map((f) => (f === "greetings" && greetingIndexes !== undefined ? `greetings ${greetingIndexes.join(",")}` : f)).join(" · ");
+  return fields.map((field) => scopeChipLabelOf(field, greetingIndexes)).join(" · ");
+}
+
+/** The guidance row's readout — whether guidance is IN FORCE, never the sentence itself.
+ *
+ *  THE ANTI-ECHO LAW, APPLIED TO THE ONE ROW THAT BROKE IT (side-eye 2026-08-19; the law is stated at
+ *  `lib/refinery-section.tsx:5-7` — "no tab restates CONTENT's payload; every row carries its action").
+ *  This row used to print the user's guidance text verbatim in quotes, which is the exact string the
+ *  workbench's own textarea holds live and editable on the same screen — a second home for an authored
+ *  value, one of them read-only. The split kept here is the smallest honest one: the TEXT lives where it
+ *  is edited (CONTENT), and this pane states that it exists and takes you there (the `guidance` door). */
+function guidanceLineOf(guidance: string | null): string {
+  return guidance === null || guidance.length === 0 ? "none, so every stage runs unsteered" : "in force on every stage";
 }
 
 export function SetupTabBody({ state }: { state: RefineryContextState }): ReactElement | null {
@@ -119,7 +140,7 @@ export function SetupTabBody({ state }: { state: RefineryContextState }): ReactE
       <SetupTab
         analyzeSchemaLine={stageSchemaLineOf(customNameOf(view.stageConfig.analyze, schemas.data))}
         anchorLine={`Pinned at session start · ${view.originalCard.greetings.length} greetings`}
-        guidance={view.guidance}
+        guidanceLine={guidanceLineOf(view.guidance)}
         onEditSchema={openSchemaEditor}
         // #171 — the doors: this pane READS scope and guidance and now knocks on the workbench control
         // that owns each, instead of printing a sentence naming it. The request travels the same

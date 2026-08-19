@@ -355,6 +355,24 @@
   content: none;
 }
 
+/* OFF-SCREEN RENDER SKIP for a long, fully-mounted list row (`commandVariants.item`). Tailwind ships no
+ * `content-visibility` utility and the property needs a companion `contain-intrinsic-size` to be honest,
+ * so the pair is one named class here rather than two arbitrary values at a call site (the tokens-only
+ * rule) — the same shape as the hairline above, which owns both halves of its own contract.
+ *
+ * WHY NOT VIRTUALIZATION for the picker this exists for: cmdk resolves arrow-roving, its filter sort and
+ * Enter through `querySelectorAll` over the MOUNTED `[cmdk-item]` rows and re-parents them to sort, so
+ * unmounting off-screen rows breaks the keyboard model outright (cmdk@1.1.1 dist). `content-visibility:
+ * auto` skips only LAYOUT AND PAINT: the row stays in the DOM, in the a11y tree, focusable, findable by
+ * find-in-page, and `scrollIntoView` renders it on arrival — which is the whole set of mechanisms cmdk
+ * and a screen reader depend on. `auto` on the intrinsic size means the browser REMEMBERS each row's
+ * last rendered height, so the token below is only ever the first-paint estimate and a taller row (an
+ * avatar row) does not permanently mis-size the scrollbar. */
+.orb-skip-offscreen {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--spacing-control-sm);
+}
+
 /* Streaming ghost-row affordances (chat feature `ghost-message-row.tsx`). Two @keyframes a Tailwind
  * transition can't express: a three-dot "typing" pulse for the pending (pre-first-token) window, and
  * the block-caret blink riding the streamed text tail. Homed here (ui's unlayered floor) rather than
