@@ -293,3 +293,54 @@ test("size=inline steps the radius one below the pill", async ({ mount }) => {
   expect(await radius("flow")).toBe(inset);
   expect(await radius("flow")).toBeLessThan(await radius("pill"));
 });
+
+// ── side-eye 2026-08-19 N-1: A BLOCK CHILD SPLITS AN INLINE BOX ────────────────────────────────────
+// `size="inline"` is `display:inline`, and Tailwind's preflight blockifies every `svg`. So the icon+label
+// chip the primitive's own doc invites ("compose a leading <Icon> as the first child") BREAKS on this arm:
+// the block glyph splits the inline box in two, the mark lands alone on its own line, and the row grows
+// ~74%. It is width-independent and structural — no `whitespace-nowrap` can reach it, because it is not a
+// wrap. Measured on the databank list's `Empty` chip (28.25px against its 16.25px `Queued` sibling).
+// Asserted as the GEOMETRY, never the class: the glyph chip's box must match its glyph-less sibling's, and
+// the mark must sit ON the same line as the word it marks.
+test("size=inline keeps a leading glyph ON the line — it does not split the inline box", async ({ mount }) => {
+  const run = await mount(
+    <p style={{ fontSize: "13px", lineHeight: "20px" }}>
+      <Badge data-testid="marked" intent="warning" size="inline" tone="soft">
+        {/* A RAW 12px svg, not `<Icon>`: playwright-ct rewrites a CT file's named component imports into
+            generated consts and a second one here collides ("Identifier … has already been declared"). The
+            mechanism under test is the ELEMENT — Tailwind's preflight blockifies every `svg`, whatever
+            renders it — so the raw glyph is the faithful subject, not a stand-in. */}
+        <svg aria-hidden={true} height="12" viewBox="0 0 12 12" width="12">
+          <path d="M6 0 12 12H0z" />
+        </svg>
+        Empty
+      </Badge>{" "}
+      <Badge data-testid="plain" intent="warning" size="inline" tone="soft">
+        Queued
+      </Badge>
+    </p>,
+  );
+  const box = (testid: string): Promise<{ height: number; top: number }> =>
+    run.getByTestId(testid).evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return { height: rect.height, top: rect.top };
+    });
+  const marked = await box("marked");
+  const plain = await box("plain");
+  // The chip carrying a mark is the same line-box height as the chip that carries none.
+  expect(marked.height).toBeCloseTo(plain.height, 1);
+  // …and the mark rides beside its word rather than above it: the glyph's own box sits inside the chip's.
+  const glyph = await run.getByTestId("marked").evaluate((el) => {
+    const svg = el.querySelector("svg")?.getBoundingClientRect();
+    const range = el.ownerDocument.createRange();
+    const text = [...el.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+    if (svg === undefined || text === undefined) {
+      return null;
+    }
+    range.selectNodeContents(text);
+    const label = range.getBoundingClientRect();
+    return { labelCenter: label.top + label.height / 2, svgCenter: svg.top + svg.height / 2 };
+  });
+  expect(glyph).not.toBeNull();
+  expect(Math.abs((glyph?.svgCenter ?? 0) - (glyph?.labelCenter ?? 0))).toBeLessThan(2);
+});

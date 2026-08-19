@@ -52,7 +52,18 @@ export const badgeVariants = tv({
       // with holes in it. `select-text` is declared on the SIZE axis, so tailwind-merge's `select` group
       // resolves it over the base. Pinned by a Selection read in
       // tests/client/features/preset/components/macro-text.ct.tsx.
-      inline: "inline select-text rounded-inset",
+      // …and a FIFTH thing, which the F-6 fix could not have foreseen and side-eye N-1 (2026-08-19)
+      // measured: `display:inline` is an inline box, and Tailwind's PREFLIGHT blockifies every `svg`. A
+      // block child SPLITS an inline box in two — so the icon+label chip this primitive's own doc invites
+      // ("compose a leading <Icon> as the first child") put the mark alone on its own line and grew the row
+      // ~74% (31px against its glyph-less sibling's 18px, measured on the databank list's `Empty` chip). It
+      // is not a wrap — `whitespace-nowrap` cannot reach it — and it is width-independent. So the arm
+      // re-inlines its own glyph: `inline-block` puts the mark back IN the line box, `align-middle` centres
+      // it on the x-height rather than dropping it to the baseline (an `xs` glyph on a 13px run then fits
+      // inside the run's own inline box, so the line rhythm is still arithmetically unchanged), and
+      // `me-field` is the gap the base's `gap-field` cannot supply here — `gap` is a flex property and this
+      // arm is deliberately not a flex box. Pinned by geometry in tests/ui/primitives/badge/badge.ct.tsx.
+      inline: "inline select-text rounded-inset [&>svg]:me-field [&>svg]:inline-block [&>svg]:align-middle",
     },
   },
   compoundVariants: [

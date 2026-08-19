@@ -119,7 +119,14 @@ export function AddDocumentBody(): ReactElement {
             70-84px — under the pointer, with the strip the user is aiming at as the thing that moved. The
             dialog's centring is the shell's and app-wide; what is local is the swapped region, so it
             reserves the tallest arm's height and the strip above it stops travelling. A floor, not a fixed
-            height: an arm that grows (a validation line, a revealed field) still grows downward. */}
+            height: an arm that grows (a validation line, a revealed field) still grows downward.
+
+            AND THE FLOOR IS SPENT, NOT PADDED (side-eye 2026-08-19 N-2 — this pin's own regression). The
+            reserved height landed BELOW each arm's in-body footer, so the two shorter arms drew 225px /
+            254px of nothing under Cancel — 36-41% of a first-run dialog, which reads as a failed render.
+            Each arm FILLS the reserved region (`flex-1`) and hangs its footer off the bottom (`mt-auto`),
+            so the height is constant, the strip still holds one y, and the footer sits on the floor
+            instead of floating above it. */}
         <Stack className="min-h-96" gap="block">
           {bodies[mode]}
         </Stack>
@@ -177,7 +184,8 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
   };
 
   return (
-    <Stack gap="block">
+    // `flex-1` + the footer's `mt-auto`: the arm spends the region's reserved height (N-2).
+    <Stack className="flex-1" gap="block">
       <Field error={error} label="File">
         {/* The cap is the DEPLOYMENT's, read live (§2.2) — the dropzone also prints it as its own hint. */}
         <FileDropzone accept={UPLOAD_ACCEPT} loading={loading} maxSizeBytes={caps.databankUpload} onFilesSelected={onFilesSelected} success={success} />
@@ -187,7 +195,7 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
           shipped with no footer at all: the dialog had ZERO buttons besides the three mode toggles, so its
           only exit was Esc or the backdrop, while both sibling arms offered a labelled way out. A dismiss is
           not part of the submit; it is owed by every arm. */}
-      <Row gap="field" justify="end">
+      <Row className="mt-auto" gap="field" justify="end">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
       </Row>
     </Stack>
@@ -220,14 +228,14 @@ function PasteBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement 
   };
 
   return (
-    <Stack gap="block">
+    <Stack className="flex-1" gap="block">
       <Field label="Name">
         <Input onValueChange={setName} placeholder="e.g. House Valeroth — bloodlines" value={name} />
       </Field>
       <Field label="Text">
         <Textarea onChange={(event): void => setText(event.target.value)} placeholder="Paste or write the content to index…" rows={8} value={text} />
       </Field>
-      <Row gap="field" justify="end">
+      <Row className="mt-auto" gap="field" justify="end">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <Button disabled={!canCreate} intent="primary" loading={create.isPending} onClick={onSubmit} type="button">
           Add
@@ -274,7 +282,7 @@ function LinkBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
   const { form } = useScrapeForm({ entityId: "databank-scrape", serverValues: undefined, save });
 
   return (
-    <Stack gap="block">
+    <Stack className="flex-1" gap="block">
       <form.AppField name="source">{(field): ReactElement => <field.SelectField items={SCRAPER_OPTIONS} label="Source" />}</form.AppField>
       <form.AppField name="url">{(field): ReactElement => <field.TextField label="Link" placeholder="https://…" />}</form.AppField>
       {/* The caption language is a REVEAL, not a required field: the server defaults it, and it means
@@ -299,7 +307,7 @@ function LinkBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
           Couldn't fetch that link. Check the address (and the caption language for YouTube), then try again.
         </Text>
       ) : null}
-      <Row gap="field" justify="end">
+      <Row className="mt-auto" gap="field" justify="end">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>
           {(urlEmpty): ReactElement => (

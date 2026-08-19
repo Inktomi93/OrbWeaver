@@ -8,14 +8,17 @@ import { describe } from "vitest";
 import {
   bankHealth,
   bankHealthLine,
+  characterCount,
   documentSubtitle,
   INGEST_POLL_MS,
   ingestBadge,
+  ingestEmptyHint,
   ingestPhase,
   ingestPollInterval,
   ingestStallHint,
   isIngestInFlight,
   passageCount,
+  passageTally,
   showsPhaseChip,
 } from "../../../../../packages/client/src/features/databank/lib/databank-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -272,8 +275,47 @@ describe("the row subtitle + byte format", () => {
   // shape `bankHealthLine` already settled on for the same overstatement on 2026-08-08.
   test("a PARTIALLY embedded document states both numbers, never the chunk count alone", () => {
     expect(documentSubtitle(doc({ chunkCount: 39, embeddedCount: 22 }))).toBe("Upload · 24.5 KB · 22 / 39 passages");
-    // The detail readout is the SAME string — one number, one vocabulary, both panes.
+    // The detail readout is the SAME arithmetic — one number, one vocabulary, both panes.
     expect(passageCount(doc({ chunkCount: 39, embeddedCount: 22 }))).toBe("22 / 39 passages");
     expect(passageCount(doc())).toBe("12 passages");
+  });
+});
+
+// THE LABEL CARRIES THE UNIT (side-eye 2026-08-19 N-3). A column headed "Passages" printing "12 passages"
+// says the noun twice; a scent line with no label cannot drop it. Same arithmetic, two renderings — and one
+// number convention, so a four-digit count reads as a quantity rather than an id.
+describe("passageTally / characterCount — the readout's numbers", () => {
+  test("the tally is the count with the noun left off, in both the settled and the mid-embed arm", () => {
+    expect(passageTally(doc())).toBe("12");
+    expect(passageTally(doc({ chunkCount: 39, embeddedCount: 22 }))).toBe("22 / 39");
+    expect(passageTally(doc({ chunkCount: 1, embeddedCount: 1 }))).toBe("1");
+  });
+
+  test("thousands group — the same convention the bank-health line has printed since 2026-08-08", () => {
+    expect(passageTally(doc({ chunkCount: 1200, embeddedCount: 1170 }))).toBe("1,170 / 1,200");
+    expect(characterCount(doc())).toBe("4,200");
+    expect(characterCount(doc({ charCount: 0 }))).toBe("0");
+  });
+
+  test("…and the SUBTITLE keeps the noun — the row has no label to carry it", () => {
+    expect(documentSubtitle(doc())).toContain("12 passages");
+  });
+});
+
+// EMPTY NAMED A STATE AND OFFERED NOTHING (side-eye 2026-08-19 N-5). Reindex is the STALL hint's repair and
+// is the wrong advice here — re-extracting the same image-only bytes returns the same nothing — so the two
+// remedies are separate functions and, because `empty` is terminal by arithmetic, mutually exclusive.
+describe("ingestEmptyHint — the failed extraction's own remedy", () => {
+  test("only the empty phase carries it", () => {
+    expect(ingestEmptyHint(doc({ charCount: 0, chunkCount: 0, embeddedCount: 0 }))).toContain("re-upload a text PDF");
+    expect(ingestEmptyHint(doc())).toBeNull();
+    expect(ingestEmptyHint(doc({ chunkCount: 0, embeddedCount: 0 }))).toBeNull();
+    expect(ingestEmptyHint(doc({ chunkCount: 39, embeddedCount: 22 }))).toBeNull();
+  });
+
+  test("it never collides with the stall hint — an empty document can never be stalled", () => {
+    const empty = doc({ charCount: 0, chunkCount: 0, embeddedCount: 0, updatedAt: AT - FIVE_MINUTES * 100 });
+    expect(ingestStallHint(empty, AT)).toBeNull();
+    expect(ingestEmptyHint(empty)).not.toBeNull();
   });
 });

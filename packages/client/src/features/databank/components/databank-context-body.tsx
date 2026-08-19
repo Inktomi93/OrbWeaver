@@ -43,7 +43,13 @@ export function DatabankContextBody(): ReactElement {
   // The shell mounts a `single` body UNCONDITIONALLY and hands it no result — only the body can read its own
   // selection — so the no-selection arm is rendered HERE, from the same copy the definition declares.
   if (documentId === null) {
-    return <EmptyState description={DATABANK_CONTEXT_EMPTY.description} icon={<Icon icon={FileText} size="lg" />} title={DATABANK_CONTEXT_EMPTY.title} />;
+    // NO HERO GLYPH ON THIS ARM (side-eye 2026-08-19 N-4). On a first run all three panes are empty at once
+    // and all three printed the SAME `FileText` at `lg` — one screen, one glyph, three times, which reads as
+    // a template rather than three answers. Of the three this is the one to drop: the LIST's glyph names the
+    // thing you do not have yet (and sits over the Add that fixes it) and CONTENT's is the section's own
+    // welcome, while a 320px CONTEXT rail's no-selection arm is a CAPTION for a panel, not a hero — its
+    // title and sentence carry it. The other two keep theirs; the repetition is what goes.
+    return <EmptyState description={DATABANK_CONTEXT_EMPTY.description} title={DATABANK_CONTEXT_EMPTY.title} />;
   }
   return (
     // The shell wraps a `tabs` context in a boundary but NOT a `single` body (section-context-host), so this
@@ -78,7 +84,11 @@ export function DatabankContextHeader(): ReactElement {
 /** The document is GONE — deleted here or on another device while its context was open. A designed state,
  *  not a failure: there is nothing to retry, and the next step is picking another row. */
 function DocumentGone(): ReactElement {
-  return <EmptyState description="This document was deleted. Pick another on the left." icon={<Icon icon={FileText} size="lg" />} title="Document not found" />;
+  // "from the list", never "on the left" (side-eye 2026-08-19 N-10): the LIST pane is a docked column, a
+  // slide-over or collapsed, and on a phone the panes stack — the direction is wrong more often than right.
+  return (
+    <EmptyState description="This document was deleted. Pick another from the list." icon={<Icon icon={FileText} size="lg" />} title="Document not found" />
+  );
 }
 
 /** Is this the server saying the document no longer exists? Keyed on the STRUCTURED tRPC code, never message

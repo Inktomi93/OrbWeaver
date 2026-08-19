@@ -24,11 +24,38 @@ const INGEST_GLOSS_TAIL = "passages feed into your chats as they happen";
 /** The buttonless invitation the CONTENT welcome used to end on (the two-Add-doors trim). */
 const ADD_ANOTHER_INVITE = "or add another";
 
+/** The side-agnostic pointer, and the directional one it replaced (top-level — `useTopLevelRegex`). */
+const FROM_THE_LIST = /from the list/u;
+const DIRECTIONAL_COPY = /on the left/u;
+
+/** The Details readout as label→value PAIRS, read off the rendered grid. A pair, never a bare value: the
+ *  workspace story also mounts the LIST, whose rows print the same numbers inside their scent lines. */
+function readout(page: import("@playwright/test").Page): Promise<readonly (readonly [string, string])[]> {
+  return page.evaluate(() => {
+    const pane = document.querySelector('[data-slot="databank-content"]');
+    const labels = ["Origin", "Type", "Size", "Characters", "Passages", "Added", "Updated", "Source"];
+    const pairs: [string, string][] = [];
+    for (const name of labels) {
+      const label = [...(pane?.querySelectorAll("p,span") ?? [])].find((el) => el.textContent?.trim() === name && el.children.length === 0);
+      const value = label?.nextElementSibling?.textContent?.trim();
+      if (value !== undefined) {
+        pairs.push([name, value]);
+      }
+    }
+    return pairs;
+  });
+}
+
 test("CONTENT with nothing open TEACHES what the bank is — never a blank pane", async ({ mount, page }) => {
   await stubDatabank(page);
   const content = await mount(<DatabankDetailStory />);
 
   await expect(content.getByText("Your databank")).toBeVisible();
+  // SIDE-AGNOSTIC (side-eye 2026-08-19 N-10, the chat landing's own correction carried here): the LIST pane
+  // is a docked column, a slide-over or collapsed, and on a phone the panes stack — a sentence that points
+  // "left" is wrong more often than it is right.
+  await expect(content.getByText(FROM_THE_LIST)).toBeVisible();
+  await expect(content.getByText(DIRECTIONAL_COPY)).toHaveCount(0);
 });
 
 // THE SAME SENTENCE MUST NOT PRINT TWICE AT REST (side-eye 2026-08-19 taste). The one-home copy fix of
@@ -91,8 +118,13 @@ test("the detail states its metadata, keeps its Ready chip, and offers Reindex",
   // ONE VOCABULARY, BOTH PANES (side-eye 2026-08-19 P2). The row two panes left says "12 passages"; this
   // readout said "Chunks · 12 / 12 embedded" — one number under two names, which reads as two facts.
   await expect(workspace.getByText("Passages", { exact: true })).toBeVisible();
-  await expect(workspace.getByText("12 passages", { exact: true })).toBeVisible();
   await expect(workspace.getByText("Chunks", { exact: true })).toHaveCount(0);
+  // …AND THE LABEL CARRIES THE UNIT (side-eye 2026-08-19 N-3): the value is the number, not "12 passages"
+  // under a column headed Passages. Read as the label→value PAIR, so it cannot pass on a stray "12"
+  // elsewhere on the page, and with the feature's one number convention on the four-digit one.
+  const pairs = await readout(page);
+  expect(pairs).toContainEqual(["Characters", "4,200"]);
+  expect(pairs).toContainEqual(["Passages", "12"]);
 
   await workspace.getByRole("button", { name: "Reindex" }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "document", documentId: READY_DOC.id } });
@@ -132,9 +164,14 @@ test("the detail keeps a MEASURE at a desktop-wide pane — it does not spread w
 // A MEASURE CAPS THE WORST CASE; IT DOES NOT TIE THE PAIR (side-eye 2026-08-19 P2). The 08-03 measure above
 // is REFINED, not overturned: inside it, `justify="between"` still spent the whole row, so "Origin" and its
 // own value sat 382-475px apart at the real desktop pane and the eye crossed a hand-span to read one datum.
-// The label now takes a fixed column (`--width-label-col`) and the value starts beside it, so the gap is
-// gone by CONSTRUCTION rather than by being small enough at one measured width. Asserted as the LARGEST gap
-// across every row, at the widest real host — a per-row check would pass on the short labels alone.
+// The label now takes a COLUMN and the value starts beside it, so the gap is gone by CONSTRUCTION rather
+// than by being small enough at one measured width. Asserted as the LARGEST gap across every row, at the
+// widest real host — a per-row check would pass on the short labels alone.
+//
+// THE COLUMN IS `max-content` NOW (side-eye 2026-08-19 N-7): the first spelling borrowed the knob-row's
+// 152px CONTROL token, which for ~62px readout labels left ~90px of nothing inside every row — the same gap
+// one size smaller. The ruling is unchanged (one column, every value at one x); only the number moves, so
+// this test keeps its shape and tightens its ceiling to the grid's own gap.
 test("every readout row ties its label to its value — no gap to cross at any width", async ({ mount, page }) => {
   await stubDatabank(page);
   const wide = await mount(<DatabankDetailWideStory />);
@@ -145,22 +182,46 @@ test("every readout row ties its label to its value — no gap to cross at any w
     const pane = document.querySelector('[data-slot="databank-content"]');
     const labels = ["Origin", "Type", "Size", "Characters", "Passages", "Added", "Updated"];
     let worst = 0;
+    let widest = 0;
+    let narrowest = Number.POSITIVE_INFINITY;
+    const xs = new Set<number>();
     for (const name of labels) {
       const label = [...(pane?.querySelectorAll("p,span") ?? [])].find((el) => el.textContent?.trim() === name && el.children.length === 0);
       const value = label?.nextElementSibling;
       if (label === undefined || value === null || value === undefined) {
-        return { gap: Number.POSITIVE_INFINITY, missing: name };
+        return { gap: Number.POSITIVE_INFINITY, missing: name, slack: 0, valueXs: 0 };
       }
-      worst = Math.max(worst, value.getBoundingClientRect().left - label.getBoundingClientRect().right);
+      // The label's TEXT, not its BOX. A fixed-width column puts its slack INSIDE the box, so a box-edge
+      // measurement reads ~6px while the eye crosses the whole column — which is exactly how the 152px
+      // control token passed this test for a day (side-eye 2026-08-19 N-7).
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      const text = range.getBoundingClientRect();
+      worst = Math.max(worst, value.getBoundingClientRect().left - text.right);
+      widest = Math.max(widest, text.width);
+      narrowest = Math.min(narrowest, text.width);
+      xs.add(Math.round(value.getBoundingClientRect().left));
     }
-    return { gap: worst, missing: null };
+    const grid = pane?.querySelector('[class*="grid-cols"]');
+    if (grid === null || grid === undefined) {
+      // NOT a grid ⇒ there is no shared track, so there is no irreducible cost to compare against and the
+      // pin has nothing to say — which is itself the failure (a stack of rows is the shape N-7 replaced).
+      return { gap: worst, missing: "the readout grid", slack: 0, valueXs: xs.size };
+    }
+    const columnGap = Number.parseFloat(getComputedStyle(grid).columnGap);
+    // What ONE shared column costs by construction: the shortest label's row carries the difference to the
+    // longest, plus the grid's own gap. Anything ABOVE this is track slack — the defect.
+    return { gap: worst, missing: null, slack: widest - narrowest + columnGap, valueXs: xs.size };
   });
 
   expect(worstGap.missing).toBeNull();
-  // The label column is 152px (`--width-label-col`), so the widest label ("Characters") leaves the smallest
-  // slack and the shortest ("Size") the largest — all of it INSIDE one column, i.e. well under the 382px
-  // the finding measured and under the column itself.
-  expect(worstGap.gap).toBeLessThan(152);
+  // Every value still starts at ONE x — the property the column exists for, and the one a per-row
+  // `max-content` would quietly lose.
+  expect(worstGap.valueXs).toBe(1);
+  // …and the column is exactly its content: the worst row's gap is the irreducible cost of sharing a track
+  // (longest label − shortest + the grid gap), with NO slack on top. Derived rather than a number, so a
+  // relabelling or a gap retune cannot rot it — and a fixed 152px control column fails it by ~90px.
+  expect(worstGap.gap).toBeLessThanOrEqual(worstGap.slack + 1);
 });
 
 // CD1 (section.tsx's own doc): a read-only grouping gets the micro-caps kicker + a hairline rule, not the
