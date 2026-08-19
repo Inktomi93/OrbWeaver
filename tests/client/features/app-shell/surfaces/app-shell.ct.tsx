@@ -1359,6 +1359,83 @@ test("#151 the LIST-track FLIP IS still armed on the same swap when motion is al
   await expect(page.locator(".shell-grid")).toHaveAttribute("data-list-flip", "out");
 });
 
+// ── #262: skipping the FLIP was right; letting the RAW SHIFT through was the unexamined half ────────
+// The #151 fix above stopped ARMING the FLIP under reduced motion — correct, a FLIP is a motion mechanism
+// — and the track then just resized in one frame. That is a real, recorded layout shift, and it lands on
+// exactly the users who asked for less motion: `pnpm perf-meter --goto <section>` on the merged tree
+// (2026-08-19, live main WITH the #257 reduced-motion floor) measured presets 0.2032 · characters 0.2333 ·
+// corpus 0.2295 on the reduced-motion arm against 0.0112 · 0.0038 · 0 with motion on, and analytics — the
+// one section whose swap changes no LIST track — 0 on both. Source attribution, single entry, single node:
+// `div.shell-main`, x 56→363 (`reports/perf-meter/scls-*`).
+//
+// THE FIX IS NOT A FLIP. `data-list-settle` holds `.shell-main` at its OLD column for exactly ONE painted
+// frame — no duration, no easing, no interpolation, nothing to perceive as movement — and the release is a
+// transform change, which the browser does not score. So the swap still reads as one instant cut (the
+// reduced-motion contract) and the cut stops being scored as instability.
+//
+// THIS IS THE DEFECT PROOF, not a fence: run against the pre-#262 hook it measures ~0.2 here (recorded red
+// before the fix: 0.2295 on this mount — the live corpus number to four places), and the < 0.1 CWV
+// ceiling is the issue's own done bar.
+// `hadRecentInput` is deliberately NOT filtered, for the reason the sibling shift test states: a click
+// drives this swap, so the field metric would drop every entry and the assertion would pass against a
+// fully broken shell.
+test("#262 reduced motion: the section swap records no meaningful layout shift", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "reduce"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const main = page.locator(".shell-main");
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  const readX = (): Promise<number> => main.evaluate((el) => Math.round(el.getBoundingClientRect().x));
+  const startX = await readX();
+  // Installed AFTER the mount settles, so boot/data-arrival shifts are never attributed to the swap.
+  await page.evaluate(() => {
+    // FABRICATION-OK: a browser-context probe slot, written and read in this test alone.
+    const bag = globalThis as unknown as { __settleShift: number };
+    bag.__settleShift = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        bag.__settleShift += (entry as PerformanceEntry & { value: number }).value;
+      }
+    }).observe({ type: "layout-shift" });
+  });
+
+  // Home is the one section declaring NO list pane, so the track genuinely disappears — the same swap the
+  // #151 pair drives, and the one perf-meter scores in the other direction.
+  await shell.getByRole("button", { name: "Home" }).click();
+  await expect(listPanel).not.toHaveAttribute("data-panel-mode", "docked");
+  // BARRIER ON THE SETTLED COLUMN, never on the mode attribute: the settle holds the OLD x for a frame by
+  // design, so a total read before `.shell-main` reaches its new column would judge a swap still in flight.
+  await expect.poll(readX).not.toBe(startX);
+  const endX = await readX();
+  expect(Math.abs(endX - startX), `the track must really change — start ${startX}, end ${endX}`).toBeGreaterThan(100);
+
+  // Then two more frames plus the observer's own delivery hop, so the entry this test exists to catch has
+  // certainly landed. A bare `expect.poll(<total>).toBeLessThan(0.1)` would pass on its FIRST read against a
+  // fully broken shell, because the total starts at 0 — the pass must not be a race the assertion can win.
+  await page.evaluate(
+    async () =>
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 100)));
+      }),
+  );
+  // FABRICATION-OK: reads back the probe slot installed above.
+  const total = await page.evaluate(() => (globalThis as unknown as { __settleShift: number }).__settleShift);
+  expect(total, `the reduced-motion swap must stay inside the CWV budget — scored ${total}`).toBeLessThan(0.1);
+
+  // Hand the page back in the file's baseline media state — the overrides outlive this test.
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "no-preference"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+});
+
 // ── #176 (the FULL-MOTION half of the same sighting): the swap captures the CONTENT PANE, not the page ─
 // `withViewTransition` captured the UA's default `root` name — the whole document — so
 // `::view-transition-old(root)` was a frozen full-viewport image of the OLD page painted over the live

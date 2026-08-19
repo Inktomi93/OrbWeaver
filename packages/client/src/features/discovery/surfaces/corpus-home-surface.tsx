@@ -246,7 +246,9 @@ function CorpusHomeBody(): ReactElement {
         <Grid className="items-start" cols="leadEarly" gap="gutter">
           <Stack className="min-w-0" gap="section">
             {mapIsFocal ? null : <CorpusUnderstandingInvitation />}
-            <CorpusFamilyMap families={families} focal={mapIsFocal} />
+            {/* `totalDistilled` is the ARCHETYPES TAB's own gate signal (#154) — the door's viability is the
+                destination's fact, so it travels down rather than being guessed at here (A7). */}
+            <CorpusFamilyMap canOpenFamilies={catalog.totalDistilled > 0} families={families} focal={mapIsFocal} />
           </Stack>
           <Stack className="min-w-0" gap="section">
             <CorpusReadinessRail showRerun={mapIsFocal} stages={state.stages} />

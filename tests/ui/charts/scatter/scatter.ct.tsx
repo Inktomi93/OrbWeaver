@@ -45,6 +45,44 @@ test("renders the empty state instead of a chart when every series is empty", as
   await expect(component.getByRole("img")).toHaveCount(0);
 });
 
+// ── THE DOM KEY (`legend`) — side-eye corpus re-pass B5 ────────────────────────────────────────────────
+// A categorical plot whose meaning is COLOUR is unreadable without a decoder, and a decoder drawn INTO the
+// canvas is pixels: not readable-out, not zoomable, not selectable. So the key is DOM, it lives here (ui
+// owns the palette, and a feature may not paint a raw element), and it carries the words — the swatch is
+// aria-hidden decoration.
+
+test("legend renders one named row per series, with its point count", async ({ mount }) => {
+  const component = await mount(<Scatter label="Semantic map" legend={true} series={SERIES} />);
+  const key = component.getByRole("list", { name: "Semantic map key" });
+  await expect(key).toBeVisible();
+  // The swatch contributes no text, so a row reads as its name then its count.
+  await expect(key.getByRole("listitem")).toHaveText(["fantasy1", "noir1"]);
+});
+
+test("legend swatches take DIFFERENT palette stops, in series order", async ({ mount }) => {
+  const component = await mount(<Scatter label="Semantic map" legend={true} series={SERIES} />);
+  const swatches = component.locator('[data-slot="scatter-legend-item"] > span[aria-hidden="true"]');
+  await expect(swatches).toHaveCount(2);
+  // The VALUES are not asserted (tokens resolve to oklch and a theme may retint them) — what must hold is
+  // that two series never share a stop, which is the whole claim a key makes.
+  const fills = await swatches.evaluateAll((nodes) => nodes.map((n) => globalThis.getComputedStyle(n).backgroundColor));
+  expect(fills[0], "a swatch with no resolved fill decodes nothing").not.toBe("");
+  expect(fills[0]).not.toBe(fills[1]);
+});
+
+test("no legend by default — the key is opt-in", async ({ mount }) => {
+  const component = await mount(<Scatter label="Semantic map" series={SERIES} />);
+  await expect(component.locator("canvas")).toBeVisible();
+  await expect(component.locator('[data-slot="scatter-legend"]')).toHaveCount(0);
+});
+
+test("an EMPTY plot draws no key — there is nothing to decode", async ({ mount }) => {
+  // One mount per test: playwright-ct binds the fixture to a single component tree.
+  const component = await mount(<Scatter label="Semantic map" legend={true} series={[{ name: "fantasy", points: [] }]} />);
+  await expect(component.getByText("No data yet.")).toBeVisible();
+  await expect(component.locator('[data-slot="scatter-legend"]')).toHaveCount(0);
+});
+
 test("clicking a point fires onPointClick with that point's opaque id", async ({ mount }) => {
   let clicked: string | null = null;
   const component = await mount(

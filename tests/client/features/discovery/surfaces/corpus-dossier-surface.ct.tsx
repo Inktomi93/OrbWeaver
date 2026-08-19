@@ -39,6 +39,11 @@ const QUESTION = "What drives them?";
 // Hoisted (biome useTopLevelRegex): the quality readout's two locators, matched by their leading copy.
 const SCORE_READOUT = /Refinery score:/;
 const NOT_SCORED = /Not scored yet/;
+/** B8/U3 locators, hoisted for the same reason. */
+const REFINERY_DOOR = /Open the Refinery/;
+const RAW_COSINE = /cosine/;
+const NO_KEYWORD_PROFILE = /No keyword profile/;
+const SORT_STATED = /Closest first/;
 
 test("a GROUNDED answer badges the model's own claim", async ({ mount, page }) => {
   await routeDossier(page, {
@@ -140,4 +145,52 @@ test("an UNSCORED card renders the designed empty state, naming the sweep as its
   await expect(empty).toBeVisible();
   await expect(empty).toContainText("library score sweep");
   await expect(component.getByText(SCORE_READOUT)).toHaveCount(0);
+  // …AND THE SENTENCE CARRIES ITS DOOR (side-eye corpus re-pass B8). It named two verbs beside zero
+  // controls — a section that exists only to say what you cannot do from here.
+  await expect(component.getByRole("button", { name: REFINERY_DOOR })).toBeVisible();
+});
+
+// ── THE DOSSIER'S EMPTY-SECTION SPRAWL AND ITS TWO NUMBER VOCABULARIES (side-eye corpus re-pass B8/U3) ──
+
+test("a dossier with NO keyword profile renders no Keywords section at all", async ({ mount, page }) => {
+  await routeDossier(page, IDLE_ANSWER);
+  const component = await mount(<CorpusDossierSurfaceStory />);
+
+  // SETTLED barrier: a section that IS always present on a resolved dossier.
+  await expect(component.getByRole("heading", { name: "Card quality" })).toBeVisible();
+  // The readiness rail is the ONE place this section of the app says what has not run; a heading plus
+  // "No keyword profile computed yet." one drill deeper is the same true nothing printed twice.
+  await expect(component.getByRole("heading", { name: "Keywords" })).toHaveCount(0);
+  await expect(component.getByText(NO_KEYWORD_PROFILE)).toHaveCount(0);
+});
+
+test("the portrait readout speaks the surface's ONE similarity vocabulary — a percent, not a raw cosine", async ({ mount, page }) => {
+  await routeDossier(page, IDLE_ANSWER, { ...DOSSIER, portrait: { avatarHash: "aaaa1111", alignment: 0.25 } });
+  const component = await mount(<CorpusDossierSurfaceStory />);
+
+  await expect(component.getByRole("heading", { name: "Portrait alignment" })).toBeVisible();
+  await expect(component.getByText("Card ↔ art match: 25%")).toBeVisible();
+  // The shipped spelling: an engineer's unit with no scale, beside neighbours quoted in whole percents.
+  await expect(component.getByText(RAW_COSINE)).toHaveCount(0);
+});
+
+test("the neighbour list STATES ITS SORT — the printed percent is not the rank (U3)", async ({ mount, page }) => {
+  // The live shape: the best match by the printed number sits at position 9, because the ORDER is search's
+  // hub-adjusted CSLS rank and the readout is the raw cosine. Two true numbers, one column.
+  await routeDossier(page, IDLE_ANSWER, {
+    ...DOSSIER,
+    similar: [
+      { characterId: "character_olivette", name: "Olivette", score: 0, relevance: 0.66, avatarHash: null, genre: null, tone: null, elevatorPitch: null },
+      { characterId: "character_gunnhildr", name: "Gunnhildr", score: 0.02, relevance: 0.74, avatarHash: null, genre: null, tone: null, elevatorPitch: null },
+    ],
+  });
+  const component = await mount(<CorpusDossierSurfaceStory />);
+
+  await expect(component.getByRole("heading", { name: "Similar characters" })).toBeVisible();
+  // Both numbers still render, in the server's rank order — the fix is not a re-sort.
+  await expect(component.getByText("66%")).toBeVisible();
+  await expect(component.getByText("74%")).toBeVisible();
+  // …and the list says what its order MEANS, so a bigger number below a smaller one reads as a rule
+  // rather than a bug. Before this, nothing on the surface distinguished the two.
+  await expect(component.getByText(SORT_STATED)).toBeVisible();
 });
