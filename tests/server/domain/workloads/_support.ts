@@ -40,7 +40,7 @@ export const T0 = 1_700_000_000_000;
 /** The kind-keyed contribution registry a test drives the engine/verbs through — it is the params VALIDATOR
  *  the verbs + the row read path use, so every test touching a workload row needs one. Assembled the way
  *  `entry/compose` assembles the real one: every owning domain's factory over a stub dep frame. */
-export function fakeContributions(): WorkloadContributions {
+export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {}): WorkloadContributions {
   const stub = <T>(value: T): ReturnType<typeof vi.fn<() => Promise<T>>> => vi.fn(async () => value);
   // Only the contributions' PARAMS SCHEMAS matter here (the verbs + the row read path validate against
   // them); their run bodies are pinned at each domain's own mirror. Every dep below is a stub frame.
@@ -86,6 +86,9 @@ export function fakeContributions(): WorkloadContributions {
       backfillMemory: stub({ segments: { scanned: 0, changed: 0 }, segmentsSkippedOverWindow: 0, digests: { scanned: 0, changed: 0 }, failed: 0 }),
       backfillGroupCharacters: stub({ scanned: 0, changed: 0 }),
       purgeMemoryVectors: stub(undefined),
+      // The #156 admission precondition's read — the ONE dep here whose VALUE matters to a verb test, since
+      // `memory-backfill` refuses enqueue when memory is off for the row's owner.
+      isMemoryEnabled: stub(opts.memoryEnabled ?? true),
     }),
     // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
     ...createDatabankWorkloadContributions({

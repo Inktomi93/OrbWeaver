@@ -10,12 +10,13 @@
 // `maxContextTokens` was dropped on the live path (F6). If any of those regress, `toEqual` drifts.
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
+import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { characterStats, dailyStats, messageVariants, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
@@ -427,5 +428,87 @@ describe("engine stats — gen-time is populated on the live path (F2)", () => {
     expect(owner?.genTimeMs).toBeGreaterThan(0);
     expect(owner?.genSamples).toBe(1);
     expect(model?.genTimeMs).toBeGreaterThan(0);
+  });
+});
+
+// ── THE REASONING WINDOW REACHES THE ROW AND BOTH WRITERS (#184) ─────────────────────────────────────
+// `message_variants.metadata.$.reasoning_duration` had exactly ONE producer — the SillyTavern import — while
+// three live readers rolled it into `reasoning_ms` on three tables. Measured on the owner's corpus:
+// 3,151 of 87,904 variants carried the key and every one of them was imported, so a user's own
+// reasoning-heavy turns were worth 0ms in their own stats. This drives a REAL turn whose scripted stream
+// reasons for a known window and asserts (a) the persisted row carries the key, (b) the live delta rolled it
+// up, and (c) a rebuild from that canon agrees — the same two-writer gate the rest of this suite enforces.
+describe("engine stats — the live turn stamps the reasoning window (#184)", () => {
+  const reasoningWindowMs = 400;
+
+  test("a streamed reasoning turn persists metadata.reasoning_duration and both writers roll it into reasoning_ms", async () => {
+    // The clock advances ONLY between the reasoning delta and the first answer token, so the measured window
+    // is exactly reasoningWindowMs — a deterministic stand-in for a model that thought that long.
+    let t = FROZEN_AT;
+    const thinkingTurn: RunChatTurn = () =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.resolve();
+        yield { kind: "reasoning", text: "weighing the options" };
+        t += reasoningWindowMs;
+        yield { kind: "text", text: "a considered reply" };
+        yield {
+          kind: "final",
+          economics: {
+            content: "a considered reply",
+            reasoning: "weighing the options",
+            tokensIn: 10,
+            tokensOut: 20,
+            costUsd: 0.5,
+            contextWindow: 1000,
+            model: "gpt",
+            provider: "openrouter",
+          },
+        };
+      })();
+
+    const deltas: StatsDelta[] = [];
+    const ctx = makeChatContext(db, {
+      now: () => t,
+      runChatTurn: thinkingTurn as never,
+      applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
+        deltas.push(delta);
+      },
+    });
+    const engine = createTurnEngine(ctx, {
+      emit: (): Promise<void> => Promise.resolve(),
+      debitBudget: (): Promise<void> => Promise.resolve(),
+      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+      holder: "replica-1",
+      lockTtlMs: 60_000,
+      generateSegments: async () => ({ written: 0, skipped: 0 }),
+      generateDigests: async () => ({ written: 0, skipped: 0 }),
+      loadWitnessHorizons,
+      recallMemory,
+      runCompaction: stubRunCompaction,
+    });
+
+    await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId }));
+
+    // (a) THE ROW — the half that had no live producer at all.
+    const variant = (await db.select().from(messageVariants))[0];
+    expect(variant?.metadata, "the live turn must write the key the three stats readers extract").toEqual({
+      [VARIANT_METADATA_REASONING_MS_KEY]: reasoningWindowMs,
+    });
+
+    // (b) THE LIVE WRITER — the delta the turn recorded.
+    const batch: BatchStmt[] = [];
+    for (const delta of deltas) {
+      applyStatsDelta(batch, db, delta);
+    }
+    await db.batch(batchMany(batch));
+    const live = await snapshotRollups(db, HOST);
+    expect(live.owner).toMatchObject({ reasoningMs: reasoningWindowMs });
+    expect(live.models[0]).toMatchObject({ reasoningMs: reasoningWindowMs });
+
+    // (c) THE REBUILD — reconcile from the engine-produced canon reads the same number off the same column.
+    await wipeRollups(db);
+    await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT + 5000).now });
+    const reconciled = await snapshotRollups(db, HOST);
+    expect(reconciled.owner).toMatchObject({ reasoningMs: reasoningWindowMs });
   });
 });

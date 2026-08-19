@@ -448,9 +448,6 @@ export interface AssembleContext {
    *  it needs them all). The frame each block opens with differs by arm (`assembly/assemble` memberHeadingSlot):
    *  a merged turn's co-speakers are bystanders, a narrator turn's are its voices. */
   coSpeakers?: AssembleCharacter[] | undefined;
-  /** The identity of the per-speaker turn's active character — drives the `cardScope: "scoped"` egocentric
-   *  history fold. Absent (merged / narrator / solo) ⇒ no fold. */
-  activeSpeakerCharacterId?: CharacterId | null | undefined;
   /** The turn's model-facing prose overrides (PROSE-1 §4.3) — the ROOM HOST's user-tier blob and the
    *  resolved PRESET's blob, composed by home at `buildAssembleContext` (`composeProse`; disjoint by the
    *  one-home law, so this stays a two-rung resolution and never a cascade). The BUILD walk + SHAPE splice

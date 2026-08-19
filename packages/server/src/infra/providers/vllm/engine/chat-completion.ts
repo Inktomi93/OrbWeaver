@@ -2,7 +2,7 @@
 // gen-engine consumers (summarize, etc.) shape requests onto. Lives at engine-level since a surface may
 // not import a sibling surface. Vision messages carry `images` as `image_url` data-URI content parts.
 
-import type { ImageInput, RepetitionDetection, ResponseFormat } from "@orb/contracts/role-clients";
+import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import { scrubWireSchema } from "@orb/kit/json-schema";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { VllmEngineClient } from "./client.ts";
@@ -34,8 +34,6 @@ export interface VllmChatCompletionRequest {
   /** Structured output (D79) — vLLM enforces via guided decoding; `cleanJsonSchema` strips the annotations a
    *  strict endpoint chokes on (the vLLM-internal quirk, never a second projection rule). */
   readonly responseFormat?: ResponseFormat | undefined;
-  /** N-gram repetition guard — stops a degenerate loop before `maxTokens`. */
-  readonly repetitionDetection?: RepetitionDetection | undefined;
   readonly signal?: AbortSignal | undefined;
 }
 
@@ -73,18 +71,6 @@ async function toWireMessage(m: VllmChatMessage): Promise<{ role: string; conten
   return { role: m.role, content: parts };
 }
 
-const MIN_PATTERN_DEFAULT = 1;
-
-function repetitionBlock(rd: RepetitionDetection): Record<string, number> {
-  // biome-ignore-start lint/style/useNamingConvention: vLLM wire field names (snake_case).
-  return {
-    max_pattern_size: rd.maxPatternSize,
-    min_pattern_size: rd.minPatternSize ?? MIN_PATTERN_DEFAULT,
-    min_count: rd.minCount,
-  };
-  // biome-ignore-end lint/style/useNamingConvention: vLLM wire field names (snake_case).
-}
-
 interface ChatCompletionsUsage {
   readonly prompt_tokens?: number;
   readonly completion_tokens?: number;
@@ -107,7 +93,6 @@ function buildBody(req: VllmChatCompletionRequest, messages: unknown): Record<st
     ...(req.presencePenalty !== undefined ? { presence_penalty: req.presencePenalty } : {}),
     ...(req.repetitionPenalty !== undefined ? { repetition_penalty: req.repetitionPenalty } : {}),
     ...(req.minP !== undefined ? { min_p: req.minP } : {}),
-    ...(req.repetitionDetection !== undefined ? { repetition_detection: repetitionBlock(req.repetitionDetection) } : {}),
     ...(req.responseFormat !== undefined
       ? {
           response_format: {

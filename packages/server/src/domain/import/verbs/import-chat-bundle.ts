@@ -305,7 +305,9 @@ async function writeBundle(args: {
     characterId: cast.primary,
     chats: [toChatInput({ bundle, cast, personaIdByName, filename, importHash: sha256Hex(bytes) })],
   });
-  // PD-78, the same clause `importChats` runs: a chat canon-write always enqueues the downstream index sweep.
+  // PD-78, the same clause `importChats` runs: a chat canon-write always OFFERS the downstream index sweep,
+  // and the workloads door decides whether it is admissible (#156). This arm reports no enqueue flag, so the
+  // verdict is simply not read here.
   if (result.realConversationWritten) {
     await profile.enqueueBackfill({ ownerId: ctx.ownerId });
   }

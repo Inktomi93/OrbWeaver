@@ -375,9 +375,9 @@ function deps(
       }
       return Promise.resolve({ worldBookId: castId<WorldBookId>("wb_00000000000000000000000000"), entryCount: book.entries.length, replaced });
     },
-    enqueueBackfill: ({ ownerId }): Promise<void> => {
+    enqueueBackfill: ({ ownerId }): Promise<boolean> => {
       f.backfills.push(ownerId);
-      return Promise.resolve();
+      return Promise.resolve(true);
     },
     reconcileImportStats: () => Promise.resolve(),
     now: () => NOW,

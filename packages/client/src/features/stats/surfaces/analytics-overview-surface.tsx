@@ -106,6 +106,10 @@ function OverviewBody(): ReactElement {
           <StatFigure label="Throughput" value={`${overview.throughputTps.toFixed(1)} t/s`} />
           <StatFigure label="Cache hits" value={formatPercent(overview.cacheHitRate)} />
           <StatFigure label="Reasoning" value={formatPercent(overview.reasoningRate)} />
+          {/* The reasoning WINDOW beside the reasoning RATE (#184): the rollups have carried `reasoningMs`
+              on three tables and three views with no reader at all, so the number a user's thinking models
+              produce had nowhere to land. Same duration voice as "Time generating" above. */}
+          <StatFigure label="Time reasoning" value={formatDurationMs(overview.reasoningMs)} />
         </Row>
       </Section>
 

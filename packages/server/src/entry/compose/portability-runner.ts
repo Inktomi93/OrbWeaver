@@ -13,7 +13,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import { DomainConflictError } from "@orb/kit/errors";
+import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import type { PersonaId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -32,6 +32,7 @@ import { createApplyImportedAppearance, createImportTheme } from "#domain/settin
 import { reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
+import { WORKLOAD_NOT_ADMISSIBLE } from "#domain/workloads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
 import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "../../transport/trpc/index.ts";
@@ -128,9 +129,21 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
   // (not two independent enqueues) is deliberate — embeddings never run mid-import, and the chat memory pass
   // does not compete with the character pass for the embed engine.
   type ImportOwnerOp = (args: { readonly ownerId: UserId }) => Promise<void>;
-  const enqueueImportBackfill: ImportOwnerOp = async ({ ownerId }) => {
+  // Returns whether the memory pass actually entered the queue. The workloads door can REFUSE it (#156 —
+  // this owner has memory off, so the sweep skips every one of their chats and could only land a vacuous
+  // 0/0 success): a refusal is a normal outcome of importing with memory off, never an import failure, so it
+  // is reported rather than thrown. The character `index` pass is unconditional — it is what memory recall
+  // would search, and it stands on its own.
+  const enqueueImportBackfill = async ({ ownerId }: { readonly ownerId: UserId }): Promise<boolean> => {
     const embedChars = await startEmbed(ownerId, { kind: "index", params: { source: "text" } });
-    await startEmbed(ownerId, { kind: "memory-backfill", params: {} }, embedChars);
+    try {
+      return (await startEmbed(ownerId, { kind: "memory-backfill", params: {} }, embedChars)) !== undefined;
+    } catch (err) {
+      if (err instanceof DomainOperationError && err.code === WORKLOAD_NOT_ADMISSIBLE) {
+        return false;
+      }
+      throw err;
+    }
   };
   const reconcileImportStats: ImportOwnerOp = async ({ ownerId }) => {
     await reconcileStats(db, { ownerId, now });

@@ -18,7 +18,7 @@ import type { WorkloadRowAnyKind } from "../contract/workload-row.ts";
 import { isActiveKindUniqueViolation } from "../persistence/constraints.ts";
 import { insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
 import { isVisibleToCaller } from "../substrate/authorize.ts";
-import { activeConflictMessage, resolveAdmissionKey } from "../substrate/params.ts";
+import { activeConflictMessage, assertAdmissible, resolveAdmissionKey } from "../substrate/params.ts";
 
 const ENTITY = "workload";
 
@@ -51,6 +51,13 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
       ctx.requireOwner(params.caller);
     }
     const clone = await resolveCloneParams(ctx, contributions, original);
+    // Retry IS an enqueue door, so it asks the owning domain the same precondition `start` asks (#156) — a
+    // memory backfill retried after memory was turned off would otherwise walk straight past the gate and
+    // land the vacuous run again. DECLARED LIMIT: a POISON row is skipped, because a precondition takes the
+    // kind's PARSED params and a poison row has none; surfacing it for repair is the whole point of retry.
+    if (!original.poison) {
+      await assertAdmissible(contributions, original.kind, original.params, original.ownerId);
+    }
     const id = ctx.newWorkloadId();
     const now = ctx.now();
     try {

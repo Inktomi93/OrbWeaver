@@ -7,7 +7,10 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeService, principal, seedUser } from "../_support.ts";
+import { fakeContributions, makeService, principal, seedUser } from "../_support.ts";
+
+/** The chat domain's own refusal sentence (#156) — asserted through the message a caller actually reads. */
+const MEMORY_OFF_RE = /Memory is turned off/;
 
 describe("workloads.start — enqueue + conflict", () => {
   test("enqueues a queued row (singular, system caller)", async () => {
@@ -340,5 +343,57 @@ describe("workloads.start — the per-(kind, owner, source) singular lock", () =
     // Both are live, un-conflicted, under their OWN slots.
     const rows = await s.list({ caller: principal("user_alice") });
     expect(rows.map((r) => r.status)).toEqual(["queued", "queued"]);
+  });
+});
+
+// ── The OWNING DOMAIN's admission precondition (#156) ─────────────────────────────────────────────
+// Owner-observed: an ST import auto-enqueued `memory-backfill` while memory was DISABLED, the sweep skipped
+// every one of that host's chats (the D36 opt-out), and Jobs showed "0 segments · 0 digests" as a SUCCESS.
+// The queue spells no domain's vocabulary, so chat declares the precondition and the door enforces it —
+// ADMISSION, never execution: a job that structurally cannot produce anything gets no row at all.
+describe("workloads.start — the owning domain's admission precondition", () => {
+  test("REFUSES a memory-backfill for an owner whose memory is off, with the domain's own sentence", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const s = makeService(db, fakeContributions({ memoryEnabled: false }));
+    await expect(
+      s.start({ input: { kind: "memory-backfill", params: {} }, caller: principal("user_alice"), mode: "singular", ownerId: alice }),
+    ).rejects.toThrow(MEMORY_OFF_RE);
+    // The point of gating at ADMISSION: no row exists to read as a vacuous success.
+    expect(await s.list({ caller: principal("user_alice") })).toEqual([]);
+  });
+
+  test("ADMITS the same run once memory is on", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const s = makeService(db, fakeContributions({ memoryEnabled: true }));
+    const { id } = await s.start({ input: { kind: "memory-backfill", params: {} }, caller: principal("user_alice"), mode: "singular", ownerId: alice });
+    expect((await s.get({ id, caller: principal("user_alice") })).status).toBe("queued");
+  });
+
+  test("a kind that declares NO precondition is unaffected by a refusing sibling", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const s = makeService(db, fakeContributions({ memoryEnabled: false }));
+    const { id } = await s.start({
+      input: { kind: "index", params: { source: "text" } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: alice,
+    });
+    expect((await s.get({ id, caller: principal("user_alice") })).status).toBe("queued");
+  });
+
+  test("the BULK all-owners pass is still admitted with memory off (one host's opt-out is not the box's)", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_owner_box", "owner");
+    const s = makeService(db, fakeContributions({ memoryEnabled: false }));
+    const { id } = await s.start({
+      input: { kind: "memory-backfill", params: {} },
+      caller: principal("user_owner_box", "owner"),
+      mode: "bulk",
+      ownerId: null,
+    });
+    expect((await s.get({ id, caller: principal("user_owner_box", "owner") })).ownerId).toBeNull();
   });
 });

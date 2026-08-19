@@ -25,6 +25,18 @@ const SEQ_MIN = 0;
  *  callers) references, homed HERE so the wire ceiling and the backstop never drift. */
 export const CHAT_MESSAGE_LIST_MAX_LIMIT = 100;
 
+/** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's REASONING TIME in ms.
+ *
+ *  The column is an OPEN blob (`Record<string, unknown>`), so no type binds its writers to its readers — the
+ *  exact shape that let this key be READ by three sites while only the ST import ever WROTE it (#184; the
+ *  same column already cost one nested-shape fidelity bug, `server/kit/serde/chat` §variantMetadata). One
+ *  home for the string is the cheapest binding available: the live turn's writer
+ *  (`domain/chat/engine/engine.ts`) and the live stats mirror (`domain/chat/substrate/stats-delta.ts`) both
+ *  spell it from here. DECLARED LIMIT: the two SQL readers in `domain/stats/write/rebuild-from-canon.ts`
+ *  address it as a JSON PATH inside a `sql` template, where an interpolated value would bind as a
+ *  PARAMETER rather than a path literal — those two sites cite this constant in a comment instead. */
+export const VARIANT_METADATA_REASONING_MS_KEY = "reasoning_duration";
+
 /** The `messages` SLOT (D26): identity + attribution + selection ONLY — NO content, NO economics. A swipe
  *  APPENDs a `message_variants` row and `selectVariant` flips `selectedVariantId` (a pointer move, never a
  *  content copy). Attribution (`authorUserId`/`characterId`/`personaId`) is slot-level — a swipe never

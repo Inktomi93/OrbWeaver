@@ -197,7 +197,11 @@ interface GenRow {
   reasoningDur: number | null;
 }
 
-/** metadata.reasoning_duration as non-negative rounded ms, or 0 when absent/invalid. */
+/** metadata.reasoning_duration as non-negative rounded ms, or 0 when absent/invalid.
+ *  THE PATH LITERAL: `'$.reasoning_duration'` in the two queries below is the ONE key
+ *  `VARIANT_METADATA_REASONING_MS_KEY` (`@orb/contracts/chat`) names — spelled inline because an
+ *  interpolated value inside a `sql` template binds as a PARAMETER, not as a JSON path. Its live producer is
+ *  the turn engine (#184); the ST import writes the same key on the import path. */
 function reasoningMsOf(r: GenRow): number {
   const d = Number(r.reasoningDur);
   return Number.isFinite(d) && d > 0 ? Math.round(d) : 0;
