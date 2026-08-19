@@ -594,8 +594,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 501,
-      "bytes": 244471,
-      "sha256": "56f328c79860e5ae543da844fb3d4e5325084d9d4a50069238993c97ffc76259",
+      "bytes": 246276,
+      "sha256": "bf49c42a17f793f23f3353a719e214cf7e9cee0bc36d9dd8688e66a2af756181",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -608,13 +608,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "a16f699ece2bb0e0d180198f9fec6362a324598235d01a0db51e57bf01ccaa00",
+        "assignedSha256": "bf49c42a17f793f23f3353a719e214cf7e9cee0bc36d9dd8688e66a2af756181",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "56f328c79860e5ae543da844fb3d4e5325084d9d4a50069238993c97ffc76259",
-        "verifiedCommit": "2db99025c50459844ead1230dd1599e1b63b1c00",
-        "verifiedAt": "2026-08-18",
+        "verifiedSha256": "bf49c42a17f793f23f3353a719e214cf7e9cee0bc36d9dd8688e66a2af756181",
+        "verifiedCommit": "7543ca4bbe808687be80aa59be8b1531d8ebdca2",
+        "verifiedAt": "2026-08-19",
         "evidence": [
           "docs/architecture/core/Core-Path-Registry.md:1-533 full read; D139-D141 standing rulings and next-free range reconciled",
           "GitHub issues #1, #4, and #63 corroborate the work-control, program-sprint, and comment-diet rulings",
@@ -623,7 +623,8 @@
           "D142 minted (born chat default = vllm x chat-completions, #196/28731d4f4) + D135(B) present-tense clause truth-repaired",
           "D143 minted (vllm errs-open posture + customParameters amendment, #197)",
           "D143 rider: VLLM_TURNS measured cell (#200/#201, 56a979d44)",
-          "D129(B)+D143-rider truth-repair: narrator system-delivery REVERSED (#203, 7bb5e3e4f)"
+          "D129(B)+D143-rider truth-repair: narrator system-delivery REVERSED (#203, 7bb5e3e4f)",
+          "re-attested 2026-08-19: #243 rider sha inserted at merge (7543ca4bb)"
         ],
         "claims": [
           {
