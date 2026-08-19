@@ -76,6 +76,11 @@ const STALLED_DOC = {
   updatedAt: NOW - WEDGED_AGO_MS,
 };
 
+/** The room + card the READY document is attached to — exported because the CONTEXT pane's doors are proven
+ *  by the id they navigate to, not by the label they print. */
+export const ATTACHED_ROOM = "chat_00000000000000000001";
+export const ATTACHED_CHARACTER = "character_0000000000000000001";
+
 export const SOURCE_TEXT = "HOUSE VALEROTH — the elder line, seated at Duskwater since the Compact.";
 
 /** The four-phase bank every databank CT reads unless it overrides the route. Named because the LIST and the
@@ -176,7 +181,16 @@ export async function stubDatabank(page: Page, over: TrpcRoutes = {}, bank: read
       const row = bank.find((d) => d.id === id) ?? READY_DOC;
       return { ...row, ...(includeText === true ? { extractedText: SOURCE_TEXT } : {}) };
     },
-    "databank.listAttachments": () => ({ global: true, chatIds: ["chat_00000000000000000001"], characterIds: [] }),
+    // NAMED, the way the verb answers since #276: rooms arrive already membership-filtered (the server drops
+    // what the caller may not see), carrying the client title chain's INPUTS — `title` null here on purpose,
+    // so the pane has to run `deriveChatTitle` over the cast rather than print a server-side name. The room
+    // the caller was kicked from is not modelled as a field: it is simply not in this array, which is the
+    // whole point of the leak-safe read.
+    "databank.listAttachments": () => ({
+      global: true,
+      chats: [{ id: ATTACHED_ROOM, title: null, participantNames: ["Azarael"], at: NOW }],
+      characters: [{ id: ATTACHED_CHARACTER, name: "Duskwater Warden" }],
+    }),
     "databank.reindex": () => ({ workloadId: "workload_0000000000000000001" }),
     "databank.attachGlobal": () => null,
     "databank.detachGlobal": () => null,

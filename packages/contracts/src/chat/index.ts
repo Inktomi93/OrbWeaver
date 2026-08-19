@@ -14,6 +14,8 @@
 //   • listing.ts        — the `listChats` KEYSET cursor (`chatListCursorSchema`)
 //   • bulk-import.ts    — the chat-owned bulk-import op shapes (D34)
 //   • prose.ts          — the PROSE-1 app-tier slot table (the side-generation prompts' shipped defaults)
+//   • visible-rooms.ts  — the leak-safe reverse-room read every usage roster shares (`VisibleRoomRef` +
+//                         `ResolveVisibleRoomsOp`, D18)
 //
 // LAWS honored across these modules:
 //   • Turn identity (D19): a wire shape that carries turn attribution uses `triggeredBy`/`runAsUserId`,
@@ -254,3 +256,6 @@ export {
   TALKATIVENESS_DEFAULT,
   talkativenessSchema,
 } from "./roster.ts";
+// The leak-safe reverse-room read (D18) — one shape + one op type for every library that keeps a chat-scope
+// attachment junction (regex scripts · databank documents · the rpg GM preset).
+export type { ResolveVisibleRoomsOp, VisibleRoomRef } from "./visible-rooms.ts";

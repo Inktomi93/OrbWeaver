@@ -1,7 +1,12 @@
-// entry/compose/regex — the REVERSE-roster ROOM filter (`resolveVisibleRooms`, REGROSTER). Rooms carry no
-// `ownerId` (D18), so "which of these rooms may this caller see" is chat's membership data and is answered
-// HERE, at the seam, exactly like the sibling `resolveRoomDisplayPolicy`. The domain verb's own suite stubs
-// this op; this is the arm that runs the REAL join, end to end through `buildRegex().regex.listScriptUsage`.
+// entry/compose/regex — the REVERSE-roster ROOM filter (`resolveVisibleRooms`, REGROSTER) as REGEX RECEIVES
+// IT. Rooms carry no `ownerId` (D18), so "which of these rooms may this caller see" is chat's membership
+// data and is answered at the composition root, like the sibling `resolveRoomDisplayPolicy`. The domain
+// verb's own suite stubs the op; this is the arm that runs the REAL join, end to end through
+// `buildRegex().regex.listScriptUsage`.
+//
+// THE FILTER ITSELF IS NO LONGER REGEX'S (2026-08-19): it moved to `compose/visible-rooms.ts` when databank
+// and preset became its second and third consumers, and that file has its own suite for the engine's
+// properties. This file stays as the WIRING proof — that regex's roster is still fed by it, unchanged.
 //
 // THE LOAD-BEARING PROPERTIES:
 //   • PRESENT membership only — a room the caller has LEFT keeps its `chat_regex_scripts` row, and naming it

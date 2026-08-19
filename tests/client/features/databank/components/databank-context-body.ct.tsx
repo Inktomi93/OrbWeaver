@@ -5,11 +5,12 @@
 //     shell and handed no result, so this arm is the body's own to render;
 //   · it owns the OWNER-scoped `Everywhere` write (per-chat attach is HOST authority and lives in the chat
 //     panel — the write lives where the authority lives);
-//   · it states WHERE the document is active, as counts rather than a roster of other people's rooms.
+//   · it states WHERE the document is active as a NAMED roster of doors — and the leak that once forced two
+//     bare counts is closed on the WIRE (chat's `resolveVisibleRooms`), not by hiding names in the client.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DatabankContextStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
-import { READY_DOC, stubDatabank } from "../fixtures.ts";
+import { ATTACHED_CHARACTER, ATTACHED_ROOM, READY_DOC, stubDatabank } from "../fixtures.ts";
 
 /** The row body opens a document — matched loosely because the row's accessible name carries its scent
  *  line as well as its title (top-level so the pattern is compiled once). */
@@ -18,6 +19,11 @@ const CRIMSON_ROW = /The Crimson Court/;
 /** The downgraded promise, and the roster promise it replaced (top-level — compiled once, `useTopLevelRegex`). */
 const COUNT_PROMISE = /how many chats and characters it reaches/u;
 const ROSTER_PROMISE = /which chats and characters it already feeds/u;
+
+/** The two Active-in DOORS, by the name a reader meets them under — the room is titled by its CAST (the
+ *  fixture's room carries no authored title, which is the point), the card by its own name. */
+const ROOM_DOOR = /Azarael/;
+const CARD_DOOR = /Duskwater Warden/;
 
 test("CONTEXT with nothing open says what the pane WILL show (its own words, F-12)", async ({ mount, page }) => {
   await stubDatabank(page);
@@ -28,19 +34,19 @@ test("CONTEXT with nothing open says what the pane WILL show (its own words, F-1
   await expect(context.getByText("Select something to see its details here.")).toHaveCount(0);
 });
 
-// THE PROMISE MATCHES THE PAYMENT (side-eye 2026-08-19 P1). The no-selection copy offered to show "WHICH
-// chats and characters it already feeds" over a pane that renders two count Badges and no names — a promise
-// of a roster paid in integers, which reads as a broken pane rather than as the count it does offer. The
-// roster is not refused, it is unbuilt: `databank.listAttachments` returns ids and no names, and naming
-// ROOMS needs chat's leak-safe `resolveVisibleRooms` (an ex-host's `chat_documents` row outlives their
-// seat, D18). So the sentence states the count. This pins the pairing dead from BOTH ends — the promise
-// word is gone AND the counts still render — so a future edit cannot restore half of it silently.
-test("the CONTEXT promise is a COUNT, never a roster it cannot pay (P1)", async ({ mount, page }) => {
+// THE PROMISE MATCHES THE PAYMENT — STILL, IN THE OTHER DIRECTION (#276, superseding side-eye 2026-08-19
+// P1's arm of it). P1 measured a promise of names ("WHICH chats and characters it already feeds") paid in
+// two integer Badges, and the copy correctly downgraded to the count while the roster was blocked on a read
+// that did not exist. The read exists now — `databank.listAttachments` returns NAMED rooms (already
+// membership-filtered by chat's leak-safe `resolveVisibleRooms`, D18) and named characters — so the promise
+// goes back up WITH the payment, and this pin flips with it: the invariant was never "say count", it was
+// "the sentence and the pane agree". Both ends stay pinned, so half of either state cannot land alone.
+test("the CONTEXT promise is a ROSTER, and the pane pays it (#276)", async ({ mount, page }) => {
   await stubDatabank(page);
   const context = await mount(<DatabankContextStory />);
 
-  await expect(context.getByText(COUNT_PROMISE)).toBeVisible();
-  await expect(context.getByText(ROSTER_PROMISE)).toHaveCount(0);
+  await expect(context.getByText(ROSTER_PROMISE)).toBeVisible();
+  await expect(context.getByText(COUNT_PROMISE)).toHaveCount(0);
 });
 
 // THE FIRST-RUN TRI-PANE SAID ONE THING THREE TIMES (side-eye 2026-08-19 N-4). On an empty bank all three
@@ -76,10 +82,52 @@ test("the activation body owns the Everywhere write and states where the documen
   const toggle = workspace.getByRole("switch", { name: "Stop feeding The Crimson Court to every chat" });
   await expect(toggle).toBeVisible();
   await expect(workspace.getByText("Every chat", { exact: true })).toBeVisible();
-  await expect(workspace.getByText("1 chat", { exact: true })).toBeVisible();
+  // NAMES, not "1 chat": the room is named by the client's ONE title chain off the cast the wire carries
+  // (the fixture's room has no authored title, so a server-side name would read "Untitled chat" here).
+  await expect(workspace.getByRole("button", { name: ROOM_DOOR })).toBeVisible();
+  await expect(workspace.getByRole("button", { name: CARD_DOOR })).toBeVisible();
+
+  // GEOMETRY AT THE NARROWEST REAL MOUNT (the 320px CONTEXT rail this story renders at): a door is a glyph +
+  // a truncating title + a `shrink-0` recency stamp, which is exactly the cluster shape that overflows its
+  // pane when the title refuses to give. Measured, not assumed — a clipped row is invisible to every other
+  // assertion here.
+  const overflow = await page.evaluate(() => {
+    const button = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Azarael"));
+    if (button === undefined) {
+      return { fits: false, why: "no door" };
+    }
+    const pane = button.closest("[data-slot='surface']") ?? button.parentElement;
+    return {
+      fits: button.scrollWidth <= button.clientWidth + 1 && (pane === null || button.getBoundingClientRect().right <= pane.getBoundingClientRect().right + 1),
+      why: `${button.scrollWidth}/${button.clientWidth}`,
+    };
+  });
+  expect(overflow.fits, `the room door overflows the 320px rail (scroll/client ${overflow.why})`).toBe(true);
 
   await toggle.click();
   await expect.poll(() => trpc.lastInput("databank.detachGlobal"), { intervals: [20, 50, 100] }).toEqual({ documentId: READY_DOC.id });
+});
+
+// THE ACTIVE-IN ROWS ARE DOORS (#276). The block shipped as two dead integers, and the pane's own header
+// recorded WHY the roster was unbuilt rather than refused: naming rooms straight off `chat_documents` would
+// name rooms the reader was kicked out of (D18 — a junction row outlives its attacher's seat). The wire is
+// leak-safe now, so the names are exactly the rooms this reader can still open — and a row you can open is
+// a row that should open. Asserted at the STORE ACTIONS both doors write (section + the selected id), never
+// at a rendered echo: this story mounts neither a chats section nor a characters section.
+test("an Active-in row OPENS the room / the card it names (#276)", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  const probe = workspace.getByRole("status");
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await expect(workspace.getByRole("heading", { name: "Active in" })).toBeVisible();
+
+  await workspace.getByRole("button", { name: ROOM_DOOR }).click();
+  await expect(probe).toContainText("section=chats");
+  await expect(probe).toContainText(`chat=${ATTACHED_ROOM}`);
+
+  await workspace.getByRole("button", { name: CARD_DOOR }).click();
+  await expect(probe).toContainText("section=characters");
+  await expect(probe).toContainText(`character=${ATTACHED_CHARACTER}`);
 });
 
 // THE RETRIEVAL POINTER IS A DOOR (side-eye 2026-08-19 P2). It used to spell "Settings → Chat behavior →

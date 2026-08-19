@@ -1,0 +1,90 @@
+// The Presets CONTEXT panel's BACKWARD BINDINGS — "what is using this preset" (#279; UI-Arch §4.2's
+// per-section grid names this section's CONTEXT arm "usage/bindings", and until now the panel was a forward
+// readout only: everything it showed was what the preset SETS, nothing was what depends on it).
+//
+// IT IS NOT VIEW-PROJECTED, and that is deliberate against §7's projection pin. The five readouts project
+// because what the eye needs depends on which HAND is active (params / prompt / actions / data /
+// transforms). "What breaks if I change this" is true of every hand — it is a property of the preset, not
+// of the view — so it sits under whichever panel is showing, once, rather than five times.
+//
+// ── WHAT A BINDING IS, RE-DERIVED (the shape of this block IS the finding) ──────────────────────────
+// A CHAT DOES NOT CARRY A PRESET. There is no `chats.preset_id` and no preset in `chats.metadata`; a room
+// generates under its HOST's active pick. So the honest block is two rows, not the roster the issue
+// imagined:
+//   • YOUR ACTIVE PRESET — the binding for ordinary rooms, and it is a SETTING, so it is stated as one.
+//     Listing "every chat you host" underneath would restate the chats list without adding a fact.
+//   • GM VOICE — `rpg_games.gmPresetId`, the one per-room preset override, as named doors into those rooms.
+//     Membership-filtered on the server (D18 — the caller may have left a table; `resolveVisibleRooms` drops
+//     rooms they can no longer open, with no residue), and named by the client's ONE title chain.
+// There is NO connection/role row: a role binds a MODEL through a connection, and nothing in the connection
+// domain references a preset. Rendering an empty "roles" group would invent a binding class.
+
+import type { VisibleRoomRef } from "@orb/contracts/chat";
+import type { ChatId, PresetId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
+import { Icon, MessagesSquare } from "@orb/ui/icons";
+import { Section, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+import { useTRPC } from "#data";
+import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
+import { selectChat, setActiveSection } from "#state";
+
+export function UsageReadout({ presetId }: { readonly presetId: PresetId }): ReactElement {
+  const trpc = useTRPC();
+  const usage = useQuery(trpc.preset.listUsage.queryOptions({ id: presetId }));
+
+  const rooms = usage.data?.gmRooms ?? [];
+  const isDefault = usage.data?.isUserDefault === true;
+
+  return (
+    <Section data-slot="preset-usage" kicker="Used by">
+      {usage.data === undefined ? (
+        <Text voice="gloss">Checking…</Text>
+      ) : (
+        <Stack gap="row">
+          <Text voice="gloss">
+            {isDefault
+              ? "Your active preset — every chat you host generates with it, unless a game points its GM voice somewhere else."
+              : "Not your active preset. A chat only reaches it through the GM voice of a game below."}
+          </Text>
+          {rooms.length === 0 ? null : <GmRooms rooms={rooms} />}
+        </Stack>
+      )}
+    </Section>
+  );
+}
+
+/** The rooms whose GM voice redirects here, as doors. `rowQualifiers` runs over the WHOLE set (rooms titled
+ *  by their cast collide legitimately), which is why the stamps are computed here and not per row. */
+function GmRooms({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): ReactElement {
+  const stamps = rowQualifiers(
+    rooms.map((room) => ({ name: deriveChatTitle(room.title, room.participantNames), at: room.at })),
+    timeLib.formatRelativeCompact,
+    timeLib.formatDateTime,
+  );
+  return (
+    <Stack gap="tight">
+      <Text voice="label">{rooms.length === 1 ? "GM voice in 1 game" : `GM voice in ${String(rooms.length)} games`}</Text>
+      {rooms.map((room, index) => (
+        <Button className="w-full justify-start" intent="ghost" key={room.id} onClick={(): void => openChat(room.id)} size="sm" type="button">
+          <Icon icon={MessagesSquare} size="xs" />
+          <Text as="span" className="min-w-0 truncate" voice="label">
+            {deriveChatTitle(room.title, room.participantNames)}
+          </Text>
+          <Text as="span" className="shrink-0" voice="datum">
+            {stamps[index] ?? ""}
+          </Text>
+        </Button>
+      ))}
+    </Stack>
+  );
+}
+
+/** Section first, then the room — the house spelling for a cross-section room door (`notification-bell`,
+ *  the corpus omnibox, the databank Active-in roster), so CONTENT is already on chats when the id lands. */
+function openChat(chatId: ChatId): void {
+  setActiveSection("chats");
+  selectChat(chatId);
+}
