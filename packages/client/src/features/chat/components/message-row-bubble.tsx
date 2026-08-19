@@ -69,7 +69,12 @@ export function renderSingleBubble(args: {
           <Stack
             aria-hidden="true"
             data-slot="message-edge-tile"
-            className="absolute inset-y-0 right-0 w-(--immersive-echo-feather) items-end justify-center pe-block"
+            // The tile IS the art pane on the no-image path, so it takes the pane's own fixed width and the
+            // same side the portrait would (#212-3) — pixel-identical geometry between the two arms.
+            className={cn(
+              "absolute inset-y-0 w-(--immersive-echo-art-width) justify-center",
+              edgeTile.side === "left" ? "left-0 items-start ps-block" : "right-0 items-end pe-block",
+            )}
             style={edgeTile.style}
           >
             {/* The Echo tile's feathered letter — the same decorative `monogram` voice, sized past the

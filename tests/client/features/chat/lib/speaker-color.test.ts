@@ -15,10 +15,15 @@ test("different keys produce different colors (in the common case)", () => {
   expect(colorForCharacter("char_alice")).not.toEqual(colorForCharacter("char_bob"));
 });
 
-test("every role token gets the same single hue (a flat per-speaker tint)", () => {
+// The SPEECH tokens share the hue; NARRATION is not the hash's to colour (#212-5). This test used to
+// assert `narrationColor === speaker` — it pinned the defect: the row's ThemeScope wrote that hash into
+// `--color-narration`, so every `<em>` narration run rendered in the speaker's dialogue ink and the
+// speech/emphasis distinction collapsed. The token is absent now, so the palette's own narration ink
+// survives (an authored card override still wins — that path never came through here).
+test("the hash colours SPEECH only — speaker and dialogue share a hue, narration is not emitted", () => {
   const tokens = colorForCharacter("char_alice");
   expect(tokens.dialogueColor).toBe(tokens.speaker);
-  expect(tokens.narrationColor).toBe(tokens.speaker);
+  expect(Object.keys(tokens).toSorted()).toEqual(["dialogueColor", "speaker"]);
 });
 
 test("the generated color is a fixed-lightness/chroma OKLCH string", () => {

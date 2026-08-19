@@ -2,8 +2,18 @@
 // eight-appearance dispatch (bubble/flat/document + the 5 §B.2 immersive modes) — the table covers
 // EXACTLY the render-side chatStyle vocabulary (so a new member can't ship unpainted), each skin emits
 // the role-correct token utilities, and the Phase-4 additions (avatarTreatment/bubbleDecoration/
-// bubbleLayout) resolve per §B.2's mandate: hide-user-portrait (a `kind !== "character"` row never gets
-// bled/banner art) and each mode's OWN mechanic.
+// bubbleLayout) resolve per each mode's OWN mechanic.
+//
+// ⚑ A RECORDED RULING WAS PARTIALLY REVERSED HERE, and the fork is stated rather than hidden. This header
+// used to read "§B.2's mandate: hide-user-portrait (a `kind !== \"character\"` row never gets bled/banner
+// art)", and the tests below pinned it for echo (null decoration) and ripple (icon-left). The 2026-08-18
+// skin-parity pass measured the consequence against the owner's own reference renders: ripple's user rows
+// rendered as `bubble` and echo's took no decoration at all, so half of every transcript was not in the
+// skin the reader chose ("ripple/echo are half-built", #212-4/-5; the references give BOTH roles the card
+// and the art, mirrored to the outer edge per role). The new symptom is satisfied for echo + ripple; the
+// old mechanism is preserved everywhere it was not measured wrong — WHISPER's band stays character-only
+// (its user row was at parity), hush's stripe stays chrome-for-every-kind, and the kind-gating MECHANISM
+// (a decorator that reads `args.kind`) is untouched: only the answers for two skins changed.
 
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
@@ -16,7 +26,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 /** A `bubbleDecoration` argument builder — the two no-image FALLBACK fields (`hueSeed`/`initial`, the
  *  owner-ruled first-class tile inputs) default to fixed test values; a case overrides what it asserts. */
 function decoArgs(kind: BubbleDecorationArgs["kind"], avatarHash: string | null, extra?: Partial<BubbleDecorationArgs>): BubbleDecorationArgs {
-  return { kind, avatarHash, hueSeed: "char_alice", initial: "AL", ...extra };
+  return { kind, avatarHash, hueSeed: "char_alice", initial: "AL", showInChatAvatars: true, ...extra };
 }
 
 test("the skin table covers exactly the chatStyle vocabulary", () => {
@@ -53,7 +63,7 @@ test("the 3 clean modes + hush/tide never special-case avatar art (icon-left alw
   }
 });
 
-test("echo/whisper keep the plain icon-left chip (their art is a bubbleDecoration, not an avatarTreatment); ripple welds", () => {
+test("echo/whisper keep the plain icon-left chip (their art is a bubbleDecoration, not an avatarTreatment); ripple welds BOTH roles", () => {
   // Echo/Whisper's bled/banner art is a SEPARATE, independently kind-gated `bubbleDecoration` (below) —
   // the sibling `<Avatar>` chip stays "icon-left" for every mode but Ripple (the file header: Moonlit's
   // own preview screenshots show the chip ALONGSIDE the bubble art, not replaced by it).
@@ -63,23 +73,49 @@ test("echo/whisper keep the plain icon-left chip (their art is a bubbleDecoratio
     expect(skin.avatarTreatment("persona"), name).toBe("icon-left");
     expect(skin.avatarTreatment(null), name).toBe("icon-left");
   }
+  // Ripple welds the portrait for every IDENTITY (#212-4 — a persona row used to fall back to the chip,
+  // i.e. to `bubble`); an unattributed row has no identity to weld and keeps the chip path.
   const ripple = MESSAGE_ROW_SKINS.ripple;
   expect(ripple.avatarTreatment("character")).toBe("sticky-portrait");
-  expect(ripple.avatarTreatment("persona")).toBe("icon-left");
+  expect(ripple.avatarTreatment("persona")).toBe("sticky-portrait");
   expect(ripple.avatarTreatment(null)).toBe("icon-left");
 });
 
-test("echo's bled decoration requests the sharp-cropped 2:3 portrait, pads text clear of it, and never paints the viewer's own", () => {
+test("echo's art pane sits OUTSIDE the prose measure, is sized to the pane (never `cover`), and mirrors per role", () => {
   const echo = MESSAGE_ROW_SKINS.echo;
   const painted = echo.bubbleDecoration?.(decoArgs("character", "abababab"));
   // The sharp `portrait` variant (not the raw original) — the reading-surface fix.
   expect(painted?.style?.backgroundImage).toContain("/api/blob/abababab?v=portrait&w=");
-  // Text is padded clear of the art zone with the SAME token that drives the fade — one number, not two.
-  expect(painted?.style?.paddingRight).toBe("var(--immersive-echo-feather)");
+  // THE MEASURE FIX (#212-2): the bubble grows by the art pane's FIXED width, so the prose keeps the
+  // band's floor. The old shape spent 55% of the box on padding and rendered 28 chars/line.
+  expect(painted?.className).toBe("max-w-[calc(var(--reading-measure-min)+var(--immersive-echo-art-width)+var(--spacing-block))]");
+  expect(painted?.style?.paddingRight).toBe("var(--immersive-echo-art-width)");
+  // THE CROP FIX (#212-3): the art layer is sized to the PANE and anchored to its top outer corner. Sized
+  // `cover` against the whole bubble it was a 4.94x upscale cropped past the subject on a long turn.
+  expect(painted?.style?.backgroundSize).toBe("100% 100%, var(--immersive-echo-art-width) auto");
+  expect(painted?.style?.backgroundPosition).toBe("0 0, right top");
   // The with-image path carries NO fallback tile.
   expect(painted?.edgeTile).toBeUndefined();
-  // Hide-user-portrait: a persona (the viewer's own) row never bleeds art, imaged or not.
-  expect(echo.bubbleDecoration?.(decoArgs("persona", "abababab"))).toBeNull();
+  // THE USER ROW IS DECORATED NOW (#212-5, reversing hide-user-portrait for this skin — see the header):
+  // same geometry, mirrored to the row's own outer edge.
+  const own = echo.bubbleDecoration?.(decoArgs("persona", "abababab"));
+  expect(own?.style?.paddingLeft).toBe("var(--immersive-echo-art-width)");
+  expect(own?.style?.paddingRight).toBeUndefined();
+  expect(own?.style?.backgroundPosition).toBe("0 0, left top");
+  // An unattributed row still has no identity to paint.
+  expect(echo.bubbleDecoration?.(decoArgs(null, "abababab"))).toBeNull();
+});
+
+test("the avatars-off reader gets NO identity art in any immersive skin (owner ruling 2026-08-18, #212-6)", () => {
+  // One concept, one behaviour: `showInChatAvatars` used to govern the chip in six skins, ripple's whole
+  // portrait, and NOTHING at all in echo/whisper — so turning avatars off still left two of eight modes
+  // dominated by character art. Chrome that is not art of anybody (hush/whisper's speaker stripe) survives.
+  const off = { showInChatAvatars: false } as const;
+  expect(MESSAGE_ROW_SKINS.echo.bubbleDecoration?.(decoArgs("character", "abababab", off))).toBeNull();
+  const whisperOff = MESSAGE_ROW_SKINS.whisper.bubbleDecoration?.(decoArgs("character", "abababab", off));
+  expect(whisperOff?.headerBand).toBeUndefined();
+  expect(whisperOff?.style?.borderTopColor).toBe("var(--color-speaker)");
+  expect(MESSAGE_ROW_SKINS.hush.bubbleDecoration?.(decoArgs("character", null, off))?.style?.borderLeftColor).toBe("var(--color-speaker)");
 });
 
 test("echo's no-image character row paints the first-class FALLBACK tile (owner ruling 2026-07-09), not nothing", () => {
@@ -88,8 +124,11 @@ test("echo's no-image character row paints the first-class FALLBACK tile (owner 
   // The tile IS the art source now — the mode no longer degrades to a plain bubble for an imageless
   // character. Reading geometry is IDENTICAL to the with-image case (same padding-right token).
   expect(fallback).not.toBeNull();
-  expect(fallback?.style?.paddingRight).toBe("var(--immersive-echo-feather)");
+  expect(fallback?.style?.paddingRight).toBe("var(--immersive-echo-art-width)");
   expect(fallback?.edgeTile?.initial).toBe("AL");
+  // The tile IS the art pane, so it names the same side the portrait would take.
+  expect(fallback?.edgeTile?.side).toBe("right");
+  expect(echo.bubbleDecoration?.(decoArgs("persona", null))?.edgeTile?.side).toBe("left");
   // The tile field is the entity's DETERMINISTIC hue (seeded off the id, matching the chip everywhere).
   expect(fallback?.edgeTile?.style.backgroundColor).toBe(avatarFallbackHueColor("char_alice"));
   // No portrait <img> in the tile fallback — it's a flat hue field feathered into the bubble.

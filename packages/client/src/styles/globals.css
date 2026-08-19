@@ -320,8 +320,28 @@ html[data-shadow] [data-slot="message-bubble"] {
  * not red one. The harness now loads this sheet too, in the production order, and the cap is pinned by
  * `tests/client/styles/reading-measure.suite.ct.tsx` (computed max-width vs `--reading-measure` resolved
  * in the column's own font, plus a cap-on/cap-off A/B). The rendered measurement on the isolated stage
- * (`pnpm snap --isolated`) remains the whole-app receipt. */
+ * (`pnpm snap --isolated`) remains the whole-app receipt.
+ *
+ * THE ch RESOLVES IN THE PROSE FONT (#213). `ch` is font-relative to the element it is declared on, and
+ * this column inherited the app's 1rem — while the prose inside it renders at `--text-body` (0.9375rem).
+ * A ratified 75ch cap therefore fitted ~85 real characters per line (measured 81 on the owner's flat room,
+ * 686px of column against a 7.87px average glyph). Setting the column's OWN font-size to the prose size is
+ * what makes the token mean what it says; it changes no rendered type, because every child that carries
+ * text declares its own size (the bubble re-states this identical expression, the name row rides
+ * `--text-label`, the metadata/pager chrome ride their `Text` voices).
+ *
+ * THE BAND'S OTHER END IS *NOT* A `min-width` HERE, and that is a measured call, not an omission (#213).
+ * This column is `flex-1` inside the row body, so it already takes every pixel the pane leaves — it is
+ * never squeezed below the floor by anything in the transcript. What DOES eat the line is (a) an immersive
+ * skin's decoration, which is fenced by `--reading-measure-min` at its own site (echo's box is
+ * `measure-min + art-width`, message-row-variants.ts — the art lives OUTSIDE the prose measure), and (b) a
+ * CONTENT pane narrower than the floor itself (measured 509px at list+context docked, where the column IS
+ * the pane). A `min-width` cannot help (b): the percentage resolves against the row body, which also holds
+ * the avatar gutter, so the floor would spill the column out of its own pane — strictly worse than a short
+ * line. Holding the floor there is a shell-grid question (how narrow a docked panel may push the content
+ * pane), reported as a fork rather than faked here. */
 [data-slot="message-content-column"] {
+  font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
   max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
 }
 
