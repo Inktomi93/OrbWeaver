@@ -20,16 +20,23 @@
 // `character.list.infiniteQueryOptions` walk the library surface runs, with the same no-`maxPages` ruling
 // (windowing evicts head pages unrecoverably; the DOM cost here is bounded by the list's own max-height).
 //
-// THE TAIL AFFORDANCE IS A FOOTER, NOT AN OPTION (side-eye 2026-08-19, refinery P2). `onScroll` fetches
-// the next page as the list bottoms out, which is what a pointer user expects — but a scroll-only tail is
-// unreachable by keyboard, so the paging control has to exist as something. It used to be a `forceMount`ed
-// `CommandItem`: a `role="option"` at 10.5px sitting at row 101 of a 3 244px scroll, announced to a screen
-// reader as a selectable character and reachable only by arrowing past every row above it. It is now a real
-// `<Button>` in a footer BELOW the listbox — one Tab from the search box at any scroll position, out of the
-// options collection entirely — beside the honest count (`totalCount` is a real server COUNT over the same
-// scope this page windows, so "showing N of M" states the walk instead of leaving the user to guess).
-// The footer also carries CLEAR: a search that matches nothing left "No characters match." as the whole
-// pane, with the only way out being to hand-delete the term you typed.
+// THE TAIL LOADS ON NAVIGATION, WITH NO BUTTON (owner ruling 2026-08-19, #334 Bug 2 — supersedes the
+// footer-button ruling below). This ruling SURVIVES; its INPUT changed. The a11y concern the footer button
+// answered — a scroll-only tail is unreachable by keyboard — is now delivered by KEYBOARD-NAV-TRIGGERS-LOAD
+// instead of a control the user has to Tab to and click:
+//   · `onScroll` fetches the next page as the list bottoms out (the pointer path, unchanged);
+//   · `<KeyboardTailLoader>` fetches it when cmdk's roving highlight (Arrow/Page/Home/End) reaches the last
+//     loaded row — the STATE signal, so the tail is reachable by keyboard without depending on cmdk's
+//     `scrollIntoView({block:"nearest"})` happening to fire `onScroll`.
+// The owner OVERRODE the button: keyboard users navigate the list or search, and a visible "Load more"
+// control pointer users never click (the fetch already fires on scroll) reads as confusing dead chrome.
+// PRIOR RULING (kept for provenance, no longer the shape): "THE TAIL AFFORDANCE IS A FOOTER, NOT AN OPTION"
+// (side-eye 2026-08-19, refinery P2) — the paging control was moved out of the listbox into a real footer
+// `<Button>` because as a `forceMount`ed `CommandItem` it announced to a screen reader as a selectable
+// character at row 101 of a deep scroll. That button is now removed.
+// The footer REMAINS for the honest count (`totalCount` is a real server COUNT over the same scope this page
+// windows, so "showing N of M" states the walk) and for CLEAR: a search that matches nothing left "No
+// characters match." as the whole pane, with the only way out being to hand-delete the term you typed.
 //
 // OWNER RULING: lives client-shared (NOT @orb/ui — it wires #data/#state client seams). Named `CharacterPicker`
 // (not the spec's generic "EntityPicker"): both consumers pick characters and the row is character-shaped
@@ -41,14 +48,14 @@ import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, useActiveCommandValue } from "@orb/ui/command";
 import { Check, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, UIEvent } from "react";
-import { useDeferredValue, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnSwap } from "#lib";
@@ -181,9 +188,15 @@ function CharacterPickerBody({
         {leadingGroup}
         {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
       </CommandList>
+      {/* The KEYBOARD path to the tail (no button — owner ruling 2026-08-19). Inside `<Command>` so it can
+          read cmdk's active-item state; renders nothing. Fires the next-page load the moment the roving
+          highlight reaches the last loaded row, so arrowing/Page-Down-ing to the bottom pulls more without a
+          control pointer users never click. */}
+      <KeyboardTailLoader lastLoadedValue={candidates.at(-1)?.id} onReachLast={fetchMore} />
       {/* THE FOOTER (header). Outside `CommandList` on purpose — inside it, every child is a member of a
           `role="listbox"`, which is what made the old paging control announce as a character. Rendered only
-          when it has something to say: an exhausted walk with no search is a footer about nothing. */}
+          when it has something to say: an exhausted walk with no search is a footer about nothing. Carries
+          the honest count and CLEAR — the tail load itself is now keyboard/scroll-driven, no button. */}
       {hasNextPage || term !== "" ? (
         <Row align="center" className="border-border border-t" gap="row" padding="row">
           <Text as="span" voice="gloss">
@@ -202,16 +215,34 @@ function CharacterPickerBody({
                 Clear search
               </Button>
             )}
-            {hasNextPage ? (
-              <Button aria-busy={isFetching} intent="secondary" onClick={fetchMore} size="sm">
-                {isFetching ? "Loading more…" : "Load more characters"}
-              </Button>
-            ) : null}
           </Row>
         </Row>
       ) : null}
     </Command>
   );
+}
+
+interface KeyboardTailLoaderProps {
+  /** The `value` (character id) of the LAST loaded row, in the server walk order. `undefined` on an empty
+   *  list. When cmdk's roving highlight lands here, the next page is asked for. */
+  readonly lastLoadedValue: string | undefined;
+  /** The guarded next-page fetch (a no-op while a page is in flight or the walk is exhausted). */
+  readonly onReachLast: () => void;
+}
+
+/** The keyboard tail-load, as a child of `<Command>` so it can read cmdk's active-item state. Renders
+ *  nothing. cmdk moves the highlight with Arrow/Page/Home/End and only `scrollIntoView({block:"nearest"})`s
+ *  it — which fires the list's `onScroll` (the pointer tail-load) ONLY when the move actually scrolls the
+ *  container. Loading on the STATE signal instead makes the tail reachable by keyboard with no dependence on
+ *  scroll physics — the replacement for the removed "Load more" button (owner ruling 2026-08-19). */
+function KeyboardTailLoader({ lastLoadedValue, onReachLast }: KeyboardTailLoaderProps): null {
+  const active = useActiveCommandValue();
+  useEffect(() => {
+    if (lastLoadedValue !== undefined && active === lastLoadedValue) {
+      onReachLast();
+    }
+  }, [active, lastLoadedValue, onReachLast]);
+  return null;
 }
 
 interface CharacterPickerRowProps {
