@@ -8,8 +8,9 @@
 //   • CD3 BY COUNT. Exactly one `[data-corpus-focal]` element in EVERY phase. Two would mean the surface
 //     has no focal (density-pass-spec.md §3.2), and that is a defect no assertion on either island alone
 //     can see.
-//   • THE FOCAL TREATMENT BY COMPUTED VALUE, against the RESOLVED token — never a class list. An authored
-//     `before:shadow-glow` string stays green through a visual regression; a measured stripe width does not.
+//   • THE FOCAL TREATMENT BY COMPUTED VALUE — never a class list. An authored `before:shadow-glow` string
+//     stays green through a visual regression; a measured ::before opacity and box-shadow do not. (The
+//     carrier changed at #244 P2-1 — the accent stripe was a banned `side-tab` — and the claim did not.)
 //   • THE PORTRAIT ON THE PAYLOAD AND ITS DEGRADATION. `ArchetypeMember.avatarHash` (issue #134) carries the
 //     face, so the plates draw from `visualArchetypes` alone — no `portraitAlignment` join, and that verb is
 //     deliberately UNSTUBBED here so a re-introduced second read renders nothing and fails. One family member
@@ -169,19 +170,6 @@ async function stub(page: Page, shape: TrpcRoutes): Promise<TrpcRecorder> {
   return routeTrpc(page, shape);
 }
 
-/** Resolve a CSS custom property against the live document, so an assertion never hardcodes a px. */
-function resolvedToken(page: Page, token: string): Promise<string> {
-  return page.evaluate((name) => {
-    const probe = document.createElement("div");
-    probe.style.borderInlineStartStyle = "solid";
-    probe.style.borderInlineStartWidth = `var(${name})`;
-    document.body.append(probe);
-    const value = globalThis.getComputedStyle(probe).borderInlineStartWidth;
-    probe.remove();
-    return value;
-  }, token);
-}
-
 test("UN-ANALYSED: the invitation holds the focal and the family map renders quiet beneath it", async ({ mount, page }) => {
   await stub(page, UNANALYSED);
   const component = await mount(<CorpusContentStory />);
@@ -207,7 +195,7 @@ test("UN-ANALYSED: the invitation holds the focal and the family map renders qui
   await expect(component.getByRole("button", { name: "Run the passes again" })).toHaveCount(0);
 });
 
-test("ANALYSED: the map reclaims the focal, the invitation is gone, and the rail keeps the quiet re-run", async ({ mount, page }) => {
+test("ANALYSED: the map reclaims the focal, the invitation is gone, and the rail keeps the re-run door", async ({ mount, page }) => {
   await stub(page, ANALYSED);
   const component = await mount(<CorpusContentStory />);
   await expect(component.getByRole("heading", { level: 1 })).toHaveText("Ten characters, distilled into one story theme.");
@@ -258,21 +246,28 @@ test("AN EMPTY LIBRARY is not an un-analysed one: no invitation, no focal island
   await expect(component.getByRole("button", { name: "Run the understanding pass" })).toHaveCount(0);
 });
 
-test("THE FOCAL IS PAINTED, not merely marked: the stripe measures the RESOLVED token", async ({ mount, page }) => {
+// SUPERSEDED CARRIER, SAME CLAIM (#244 P2-1). This test used to assert the focal island painted a
+// `--immersive-stripe-width` accent border-left, measured against the resolved token. That stripe is GONE:
+// on a rounded Card it is `design-audit`'s `side-tab` — a §6 ABSOLUTE ban — and it was carrying the focal
+// signal only because the sanctioned ::before ring beside it had been dimmed to `opacity: 0.3` (effective
+// ring alpha 0.12). The claim is unchanged and still the one that matters — THE FOCAL IS PAINTED, not
+// merely marked — so it is re-pinned on the carrier that is allowed to make it, at the strength that makes
+// it visible. The geometry half (no single-edge accent) lives in `surfaces/corpus-home-surface.ct.tsx`,
+// which measures both phases at the real pane width.
+test("THE FOCAL IS PAINTED, not merely marked: the sanctioned ring carries it at full strength", async ({ mount, page }) => {
   await stub(page, UNANALYSED);
   const component = await mount(<CorpusContentStory />);
   await expect(component.getByRole("heading", { name: "Read your library back to you." })).toBeVisible();
 
-  const expected = await resolvedToken(page, "--immersive-stripe-width");
   const island = page.locator('[data-corpus-focal="invitation"]');
   const painted = await island.evaluate((el) => {
     const style = globalThis.getComputedStyle(el);
     const halo = globalThis.getComputedStyle(el, "::before");
-    return { width: style.borderInlineStartWidth, color: style.borderInlineStartColor, shadow: halo.boxShadow };
+    return { start: style.borderInlineStartWidth, end: style.borderInlineEndWidth, opacity: halo.opacity, shadow: halo.boxShadow };
   });
-  expect(painted.width, "the focal island paints the speaker stripe at the resolved token width").toBe(expected);
-  expect(painted.color, "…in a real colour, not the initial transparent").not.toBe("rgba(0, 0, 0, 0)");
-  expect(painted.shadow, "…and the rationed glow rides the sanctioned ::before carrier").not.toBe("none");
+  expect(painted.shadow, "the rationed glow rides the sanctioned ::before carrier").not.toBe("none");
+  expect(painted.opacity, "…at the token's own strength — 0.3 is what made it invisible enough to need a banned stripe").toBe("1");
+  expect(painted.start, "…and no accent side-tab survives on the rounded island").toBe(painted.end);
 });
 
 test("THE PORTRAIT ON THE PAYLOAD: a member carrying a hash draws its blob; a null one draws initials", async ({ mount, page }) => {
