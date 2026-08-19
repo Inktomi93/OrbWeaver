@@ -348,7 +348,21 @@ export type ChatBusEvent =
 
 /** Valid bus discriminators, derived from the union. The `satisfies Record<ChatBusEvent["type"], true>`
  *  makes `tsc` error if a member is added without a matching entry — keeping the replay guard exhaustive
- *  (the durable log is untyped JSON; corrupt/legacy rows are filtered against this set before re-emit). */
+ *  (the durable log is untyped JSON; corrupt/legacy rows are filtered against this set before re-emit).
+ *
+ *  ADDING A MEMBER IS A COUPLED-SITE CHANGE — the union + this map are the two `tsc` forces the rest, and
+ *  the rest fail at RUNTIME or in a suite nobody associates with the change:
+ *    • `packages/db/src/schema/chat.ts` — the `chat_events.type` CHECK constraint DERIVES from this map
+ *      minus `LIVE_ONLY_CHAT_EVENT_TYPES`, so the live schema drifts from the committed baseline and
+ *      `schema-baseline-parity` reds until the baseline is regenerated.
+ *    • the client's central invalidation seam (`packages/client/src/data/invalidation.ts`) + the landing
+ *      switch (`data/bus/apply-chat-bus-event.ts`) — a member with no filter row is a wire that reaches the
+ *      device and refreshes nothing.
+ *    • the `bus-coverage` gate — the member needs a server emit site or a cited DEFERRED entry (declared,
+ *      never emitted, is dead wire), and the contract test asserts this map's exact SIZE.
+ *    • a NON-DURABLE member (never appended to `chat_events`) must also join `NON_DURABLE_EXEMPT` in
+ *      `data/bus/chat-event-seq-guard.ts`, or the seq dedup drops it forever; a DURABLE turn-lifecycle
+ *      member must NOT (it replays from zero on subscription churn and needs the seq guard). */
 export const CHAT_BUS_EVENT_TYPES = {
   delta: true,
   messageCommitted: true,

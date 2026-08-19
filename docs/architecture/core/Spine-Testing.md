@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-18
 ---
 
 # Orbweaver — Spine: Testing (one centralized tree, suffix-selected lanes, Playwright for browser)
@@ -118,8 +118,69 @@ tested.
 Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playwright lanes, neither in `pnpm check`:
 
 - **Component — Playwright CT** (`@playwright/experimental-ct-react`): `*.ct.tsx` at the mirror, `playwright-ct.config.ts`, `pnpm test:ct`. Mount wraps the component in `CtProviders` (`tests/support/ct/ct-providers.tsx` — the production provider stack: fresh `QueryClient` per mount with `retry:false`, real tRPC over `httpLink`, the real toaster). tRPC is stubbed at the **network** boundary with Playwright `page.route` (the `tests/support/ct/route-trpc.ts` helpers) — **NOT MSW**: CT runs the test in node and the component in the browser, so node-side `vi.fn` closures can't run in the browser worker. Story wrappers (`_ct-stories.tsx`) hold the components CT mounts (CT only mounts from a non-test module).
+
 - **e2e** — `*.spec.ts` under `tests/e2e/`, `playwright.config.ts`, `pnpm e2e`: the full running stack.
+
 - **Locator priority:** `getByRole` ≫ `getByLabel` ≫ `getByPlaceholder` ≫ `getByText` ≫ … ≫ `getByTestId` (last resort, never for buttons/inputs). **Real timers in form tests** (fake timers drift against React 19's scheduler + debounce — assert with Playwright's auto-retrying `expect`).
+  **The CT harness's own physics** — each of these produces a green, a hang, or a timeout that reads like a
+  product defect. They belong to the RUNNER, not to any component:
+
+- **`mount()` is once per test** (a second call throws "container that already has a React root") — a prop
+  matrix is N tests or one mount + `component.update()`. **The locator `mount()` returns IS the fixture
+  root**, so `mounted.getByTestId(<the root's own id>)` searches DESCENDANTS, matches nothing, and fails as
+  a 30s TIMEOUT rather than an assertion diff.
+
+- **A `.ct.tsx` may import only COMPONENTS from its story module.** A mixed value export breaks the CT
+  transform with `Identifier … already declared` + a bogus "No tests found"; shared constants live in a
+  non-story fixtures module. `@orb/ui/icons` (mixed component+glyph exports) cannot be imported in a
+  `.ct.tsx` at all — put the JSX in a `.fixtures.tsx`.
+
+- **A story mounting a suspending component MUST wrap it in the production `QueryBoundary`** — a bare mount
+  is a silent infinite mount/refetch loop (no thrown error, just a hang). Read the component's production
+  mount site and copy its boundary wiring.
+
+- **CT serves PRODUCTION React and runs NO React Compiler pass** (both deliberate): StrictMode's
+  double-invoke is unreachable — reproduce double-lifecycle edges with a keyed remount — and a CT red that
+  "the compiler would have memoized away" is a REAL defect, fixed at the source (identity), never with a
+  manual memo.
+
+- **The CT `QueryClient` is bare** — no `MutationCache.onError` → `errorToast`/`notify` seam. Mutation-error
+  COPY is unobservable in a CT; prove the mapper with a unit test, or render the error inline.
+
+- **`page.addInitScript` never fires** (the `page` fixture has already navigated) — install pre-mount
+  instrumentation with `page.evaluate` BEFORE `mount()`.
+
+- **CDP media emulation LEAKS across tests in a file**, and `page.emulateMedia` does NOT clear a feature it
+  doesn't model — every emulation caller states the TOTAL media state in one call, including explicit
+  `no-preference` for the features it does not exercise.
+
+- **`getComputedStyle` on a DETACHED element returns `""`**, not resolved defaults — a sentinel read off a
+  fresh `createElement` silently inverts every comparison against it. Attach the probe, then remove it.
+
+- **Timing reads are measurements, not barriers.** `expect.poll` drains the caller's own intervals array and
+  abandons its timeout tail; a computed value read across a transition lands MID-INTERPOLATION (assert a
+  range, or read atomically in one `evaluate`); a layout-shift entry needs a PAINTED previous position. A
+  transient window (a lying "Saved" during a debounce) needs a recorded TRANSCRIPT (a `MutationObserver`
+  started before the interaction), never a poll that races it.
+
+- **Prove an ABSENCE with a round-trip barrier, never a monotonic counter** (a poll passes on a transited
+  value); `page.waitForTimeout` is gate-banned. And barrier on a SETTLED rendered state — a node-side
+  request count is not a browser-side settle.
+
+- **A stub at the seam under test is a tautology.** A fixed-array responder passes every FILTER test while
+  the filter is wrong: a CT proving a server-side lens uses an INPUT-AWARE responder (it filters/sorts by
+  the request it received) so a lens that ignores its input goes red. Whatever a CT fakes, something else
+  (an `.int` test through the real verb, or a live drive) owns that seam's truth.
+
+- **A source-neuter "bite proof" lies for a bare `@orb/*` import** — vite's `optimizeDeps` serves a
+  PREBUNDLED copy that clearing `playwright/.cache` does not invalidate. Relative-path (`_*-stories`)
+  imports compile fresh; for bare-import wiring tests, prove the bite with in-test rendered pre/post
+  controls.
+
+- **Lane invocation** (the whole-tree `pnpm test:ct` is the orchestrator's instrument on a quiesced tree):
+  `rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts <paths>`. A CT report with
+  ONE suite means the BUNDLE FAILED TO BUILD, not that the named spec failed.
+
 - **`pnpm test` runs the NODE lanes only — it does NOT run CT.** A new/changed shared provider or registry
   Context throws in EVERY story that mounts the component without wrapping it, and `pnpm test` stays GREEN
   while the CT lane is red. Any wave touching a CT-mounted component, a shared provider, or a registry

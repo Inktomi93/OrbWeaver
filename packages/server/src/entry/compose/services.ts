@@ -10,6 +10,26 @@
 // portability/runner. settings' effective-config cache is warmed before the backend-registry (it sources the
 // admin-resolved vllmConcurrency).
 //
+// LANDING A NEW DOMAIN IS ONE CHANGE ACROSS SIX SITES — the first two are the only ones `tsc` forces:
+// the `Services` type + its build here, the domain's own `entry/compose/<name>.ts` seam, the tRPC router
+// registration, the domain's `DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES` row if it carries a non-template root file
+// (`scripts/check/gates/feature-structure.ts`), its `BASELINE_RIDER_PRODUCERS` entry removed the moment the
+// real producer lands (`scripts/check/gates/db-structure.ts` — the row is self-staling), and a PROBED-or-
+// EXEMPT classification for every new procedure in `tests/server/transport/cross-tenant-sweep.suite.int.test.ts`
+// (its completeness guard enumerates the live router, so the sweep grows with it).
+//
+// TWO STANDING HAZARDS AT THIS SEAM, both silent:
+//   • A STUBBED op rots. A predicate wired here as `() => Promise.resolve(false)` "until domain X exists"
+//     stays false after X lands — every verb-level test still passes (they inject their own fake), and only
+//     a composed-real integration test through `createServices` proves the seam. Wiring a new domain
+//     therefore SWEEPS this file for stub ops naming it. The same shape one level down: an injected-op
+//     mapping that copies request fields one-by-one silently DROPS a field the op's request type gained,
+//     and an optional field cannot red an explicit copy — widen the mapping in the same change.
+//   • An injected op that reads TENANT-SCOPED data must either take the caller and gate inside, or be
+//     WRAPPED here with the gate before any read (the `extractQuiet` precedent — a leak-free
+//     `DomainNotFoundError` first). An op whose params cannot carry a caller can never check membership,
+//     so every future caller silently inherits an unfenced read.
+//
 // THREE late-bind / forward-ref threads this keystone owns (each breaks a genuine construction cycle; the
 // pattern is documented at each holder below): `materializeBackgroundOp` (rebound once assets is live),
 // `enqueueEmbedReindex` (bound once workloads exists), `resolveViewerVisibility` (getter threaded into imagery
