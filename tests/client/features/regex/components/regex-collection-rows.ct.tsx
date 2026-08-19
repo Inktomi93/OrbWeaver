@@ -20,6 +20,8 @@ const BAND = /Regex scripts/;
 const STRIP_ACTIONS = /Actions for strip ooc/;
 /** The bulk delete confirm's body — the CASCADE, which is the consequence the roster cannot show. */
 const BULK_DELETE_CASCADE = /removes them from every preset, character, and room/;
+/** The single-row kebab delete confirm's body (singular voice) — config-delete #271's converged affordance. */
+const ROW_DELETE_CASCADE = /removes it from every preset, character, and room/;
 
 /** A fixed edit stamp for every fixture row — the assertions below read the "edited …" PREFIX, never the
  *  relative text, so the suite is not coupled to the wall clock. */
@@ -101,6 +103,22 @@ test("Export asks the SERVER for the file — the same bytes a backup carries", 
   await group.getByRole("button", { name: STRIP_ACTIONS }).click();
   await page.getByRole("menuitem", { name: "Export" }).click();
   await expect.poll(() => trpc.lastInput("regex.exportScript"), { intervals: [20, 50, 100] }).toEqual({ scriptId: STRIP["id"] });
+});
+
+// THE ROW KEBAB'S DELETE IS THE DECLARED PER-ROW AFFORDANCE (config-delete #271) — the same place world-info
+// and tags now home it, and the editor's own Delete button was removed for it. This pins the whole gesture:
+// kebab → Delete → the ConfirmDialog names the cascade → accept fires removeScript once.
+test("the kebab Delete confirms with the cascade, then fires removeScript", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  const group = await mount(<RegexLibraryGroupStory />);
+  await openGroup(page, group);
+
+  await group.getByRole("button", { name: STRIP_ACTIONS }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await expect(page.getByText(ROW_DELETE_CASCADE)).toBeVisible();
+  await page.getByRole("button", { name: "Delete", exact: true }).last().click();
+  await expect.poll(() => trpc.lastInput("regex.removeScript"), { intervals: [20, 50, 100] }).toEqual({ scriptId: STRIP["id"] });
 });
 
 test("the BAND carries the import door, named for what it takes", async ({ mount, page }) => {
