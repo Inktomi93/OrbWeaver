@@ -196,3 +196,25 @@ export function getRequestUserId(): UserId | undefined {
 export function securityEvent(event: string, fields: Record<string, unknown> = {}, message?: string): void {
   getLog().warn({ security: true, event, ...fields }, message ?? `security: ${event}`);
 }
+
+// An IdP `groups` claim is EXTERNAL, unvalidated text arriving on the unauthenticated login path, so what
+// reaches a log line is bounded on both axes — a misconfigured (or hostile) property mapping must not be
+// able to flood the ring buffer or the aggregator with one login.
+const LOG_GROUP_NAMES_MAX = 32;
+const LOG_GROUP_NAME_CHARS_MAX = 64;
+
+/**
+ * THE ONE rendering of an IdP `groups` claim into log bindings, shared by the OIDC claim mapper (entry) and
+ * the SSO upsert (`domain/sessions`) so the two can never drift: `groups` = the bounded group NAMES,
+ * `groupCount` = the true pre-bound size (so `groups.length < groupCount` is the tell that it was capped).
+ *
+ * Group NAMES are exactly the observable an operator needs — which group granted `admin`, which one failed
+ * the `OIDC_ALLOWED_GROUPS` gate — and are org structure, not credentials. The ID token, the raw claim
+ * object, and every other claim stay OUT: this takes the already-normalized name list and nothing else.
+ */
+export function groupsLogFields(groups: readonly string[]): { readonly groups: string[]; readonly groupCount: number } {
+  return {
+    groups: groups.slice(0, LOG_GROUP_NAMES_MAX).map((name) => name.slice(0, LOG_GROUP_NAME_CHARS_MAX)),
+    groupCount: groups.length,
+  };
+}

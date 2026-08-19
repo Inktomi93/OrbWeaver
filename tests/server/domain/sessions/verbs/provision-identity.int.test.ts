@@ -573,6 +573,104 @@ describe("sessions.provisionIdentity — UPDATE role policy", () => {
   });
 });
 
+// #140 — DOES THE GROUP GATE ACTUALLY ENGAGE? `reDeriveRoleOnLogin()` is unit-pinned in
+// substrate/role-policy.test.ts, but a pure predicate returning `true` proves nothing about the VERB: the
+// matrix below drives fixture claims through `provisionIdentity` itself, which is the code an owner's live
+// login runs. Three claim states × the configured knob:
+//   groups PRESENT + MATCHING   → elevation (and it BEATS a stored role, in both directions)
+//   groups PRESENT + NON-MATCH  → no elevation / demotion (OIDC_ADMIN_GROUPS) · DENY (OIDC_ALLOWED_GROUPS)
+//   groups ABSENT               → the configured fallback: `user` under OIDC_ADMIN_GROUPS (so a broken
+//                                 property mapping DEMOTES every group-derived admin), DENY under the
+//                                 fail-closed OIDC_ALLOWED_GROUPS.
+// The owner arm is covered by the D17 exemption describe above and is deliberately NOT re-derived here.
+describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#140 matrix)", () => {
+  test("PRESENT + MATCHING on an UPDATE ⇒ ELEVATION (an existing `user` row is promoted to admin)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] })));
+    expect(first.role).toBe("user");
+    const elevated = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng", "Orb Admins"] })));
+    expect(elevated.userId).toBe(first.userId);
+    expect(elevated.role).toBe("admin");
+    expect(elevated.identityChanged).toBe(true); // the other devices re-read the viewer
+    const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
+    expect(row?.role).toBe("admin"); // the ELEVATION is persisted, not just reported
+  });
+
+  // D65: "when group governance is active, roles RE-DERIVE from groups each login (a `setRole` grant to a
+  // non-group-member is wiped next login)". The IdP is the source of truth while it governs — a manual grant
+  // that outlived it would be a permanent privilege the operator's group config cannot revoke.
+  test("PRESENT + NON-MATCHING wipes a manual `setRole` admin grant on the next login (D65)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] })));
+    await db.update(users).set({ role: "admin" }).where(eq(users.id, first.userId)); // an out-of-band grant
+    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] })));
+    expect(again.role).toBe("user");
+    expect((await db.select().from(users).where(eq(users.id, first.userId)))[0]?.role).toBe("user");
+  });
+
+  // THE SILENT-BREAKAGE ARM. An authentik property mapping that stops emitting `groups` looks like nothing
+  // at all: every login still succeeds, and every group-derived admin quietly becomes a `user`. This is
+  // exactly why the mapper's `oidc_groups_claim_missing` securityEvent exists (entry/http/auth-routes).
+  test("ABSENT groups + OIDC_ADMIN_GROUPS ⇒ the fallback is `user` — an existing admin is DEMOTED", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    const admin = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
+    expect(admin.role).toBe("admin");
+    const claimGone = asProvisioned(await svc.provisionIdentity(identity({ groups: [] })));
+    expect(claimGone.role).toBe("user");
+    expect((await db.select().from(users).where(eq(users.id, admin.userId)))[0]?.role).toBe("user");
+  });
+
+  test("ABSENT groups + OIDC_ALLOWED_GROUPS ⇒ DENIED (fail-closed; the gate cannot be dodged by omission)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    const before = await rowCount();
+    expect((await svc.provisionIdentity(identity({ groups: [] }))).outcome).toBe("denied");
+    expect(await rowCount()).toBe(before);
+  });
+
+  // Governance OFF is the control: with neither var set the SAME claim states must move nothing, or every
+  // deployment that never configured groups silently inherits IdP-driven role churn.
+  test("governance INACTIVE ⇒ the same claim states change no role (the gate is genuinely opt-in)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    vi.stubEnv("OIDC_ADMIN_GROUPS", undefined);
+    vi.stubEnv("OIDC_ALLOWED_GROUPS", undefined);
+    vi.stubEnv("RE_DERIVE_ROLE_ON_LOGIN", undefined);
+    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
+    expect(first.role).toBe("user"); // no configured group grants anything
+    await db.update(users).set({ role: "admin" }).where(eq(users.id, first.userId));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: [] })));
+    expect(again.role).toBe("admin"); // the manual grant SURVIVES — removal does not auto-demote
+  });
+});
+
+// #140 — the groups that DECIDED the role ride the provisioning log lines. Before this the path logged
+// handle + externalId only, so a login-time demotion was un-auditable (you could see the role move and never
+// see what moved it) and the fail-closed deny named the gate without naming what the identity carried.
+describe("sessions.provisionIdentity — the groups claim is on the log line (#140)", () => {
+  test("the provisioned line carries the group NAMES + a truthful groupCount", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    const spy = vi.spyOn(logger, "info");
+    await svc.provisionIdentity(identity({ groups: ["Orb Admins", "eng"] }));
+    const line = spy.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["handle"] === "alice");
+    expect(line?.["groups"]).toEqual(["Orb Admins", "eng"]);
+    expect(line?.["groupCount"]).toBe(2);
+  });
+
+  test("the OIDC_ALLOWED_GROUPS deny names the groups the identity DID carry (the diagnosis half)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    const spy = vi.spyOn(logger, "warn");
+    expect((await svc.provisionIdentity(identity({ groups: ["outsiders"] }))).outcome).toBe("denied");
+    const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
+    expect(bindings["groups"]).toEqual(["outsiders"]);
+    expect(bindings["handle"]).toBe("alice");
+  });
+});
+
 // A1 — the JIT admission gate is a CALLER-resolved boolean (`allowJitProvision`), NOT an env read in the
 // verb: the verb is mode-agnostic and the oidc callback passes OIDC_SIGNUP while forward-header passes the
 // default (true). When false, a NEW identity (no existing row) is refused; the box OWNER by policy is exempt;
