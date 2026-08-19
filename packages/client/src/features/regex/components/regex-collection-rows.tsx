@@ -1,8 +1,7 @@
 // The regex collection's ROWS — the OWNER half of the config-rail seam (F-5).
 //
-// The row anatomy is the LANDED one: name · scent subtitle · the global-scope switch as the row's own
-// trailing control, because "runs in every chat" is a property OF THE ROW. Clicking the row opens the script
-// in CONTENT (never a stacked editor Dialog).
+// The row anatomy: name · a glyph-led scent subtitle · the kebab. Clicking the row opens the script in
+// CONTENT (never a stacked editor Dialog).
 //
 // TWO THINGS ARRIVED WITH REGX2, and both are the row's own to render (C-4 puts band chrome in the host and
 // leaves everything inside the row area here):
@@ -13,26 +12,42 @@
 //    `onRename` is optional for exactly this, the `onDuplicate` precedent).
 //  · BULK MODE. While it is on, the trailing cluster IS a checkbox and the row's click toggles selection
 //    instead of opening the editor — the `character-card` bulk shape, so "act on the things I checked" reads
-//    the same everywhere. The per-row global switch and the kebab are suppressed: a mode where a stray click
-//    on a switch silently edits a row you meant to check is worse than no mode.
+//    the same everywhere. The kebab is suppressed while it runs.
 //
-// THE RESERVED CLUSTER IS 2 SLOTS, and it is the LIST's count, not any row's: the state toggle and the
-// kebab, both rest-visible/real. It was 1 while the row had no kebab (side-eye 2026-08-03 P1 — reserving the
-// §12.2 maximum spent 88px of a 290px row on two DEAD boxes while script names truncated at 128px). Two LIVE
-// slots is not that defect: the rule is that a row reserves what its list declares, and the list now
-// declares two. Bulk mode renders one and the spacer pads the second, so the checkbox column lands at the
-// same x the switch does and the list keeps its scan column across the mode flip.
+// ── THE GLOBAL SWITCH LEFT THIS ROW (side-eye 2026-08-19 P1/P2, orchestrator-ruled fork) ────────────────
+// It used to be the row's own trailing control, on the reasoning that "runs in every chat" is a property OF
+// THE ROW. Two measurements ended that. (a) The 48×32 switch and the kebab together were 42% of a 290px row
+// while the text column measured 133px at the both-open pane — 27 of 33 roster texts clipped, and the
+// pattern and edit stamp were unreachable at every width. (b) `regex-context-body.tsx` renders the SAME
+// setting under "Where it runs", so one screen carried two live switches for one fact, ~990px apart, with
+// no confirm and no undo — the duplicate-action-door lens confirmed it, and a reviewer flipped one by
+// accident while driving the pane.
+//
+// THE PRIOR RULING RECORDED HERE SURVIVES, IT IS ITS INPUT THAT CHANGED. The rule was and is "a row
+// reserves what its LIST declares" (side-eye 2026-08-03 P1 — reserving the §12.2 maximum spent 88px of a
+// 290px row on two DEAD boxes while script names truncated at 128px). Two live slots satisfied it while the
+// list declared two. The list now declares ONE, because the global attach left the resting row; that is a
+// change of DECLARATION, not a reversal of the rule, and the reserved strip still pads to it so the bulk
+// checkbox lands at exactly the x the kebab does and the list keeps its scan column across the mode flip.
+// The setting's one home is now the CONTEXT panel — see `regex-context-body.tsx`.
+//
+// AND THE FREED WIDTH GOES TO THE SCENT (ruled fork 2): the subtitle LEADS with the find pattern
+// (`regexRowScent`), and the six pipeline stages ride the subtitle's own lead slot as glyphs carrying their
+// labels (`REGEX_PLACEMENT_GLYPHS`) instead of 396-572px of prose.
 //
 // Two render arms by size, the tag-collection shape: the sealed `VirtualList` in a bounded box past
-// COLLECTION_LARGE_GROUP (with the host's filter), a plain stack below it.
+// COLLECTION_LARGE_GROUP (with the host's filter), a LABELLED list below it — `role="list"` + `listitem`
+// children, the tag collection's own small-arm spelling. It used to be a bare `Stack` of buttons, so the
+// one roster arm that is not a `VirtualList` announced no item count and no boundaries at all while its two
+// siblings did (side-eye 2026-08-19 P2).
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
+import type { RegexPlacement } from "@orb/kit/regex";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Download, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
-import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -40,7 +55,18 @@ import type { ReactElement } from "react";
 import { LibraryRow } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, downloadTextFile, notify, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
+import {
+  COLLECTION_LARGE_GROUP,
+  COLLECTION_WINDOW_MAX_HEIGHT,
+  downloadTextFile,
+  notify,
+  REGEX_PLACEMENT_GLYPHS,
+  REGEX_PLACEMENT_LABELS,
+  regexPlacementStages,
+  regexRowScent,
+  regexScriptTitle,
+  timeLib,
+} from "#lib";
 import {
   clearCollectionSelection,
   clearRegexBulkSelection,
@@ -49,7 +75,7 @@ import {
   useRegexBulkActive,
   useRegexBulkSelectedIds,
 } from "#state";
-import { useAttachRegexGlobal, useDetachRegexGlobal, useDuplicateRegexScript, useRemoveRegexScript } from "../hooks/use-regex-library.ts";
+import { useDuplicateRegexScript, useRemoveRegexScript } from "../hooks/use-regex-library.ts";
 import { RegexBulkBar } from "./regex-bulk-bar.tsx";
 
 /** One row's height guess for the windowed arm — the MEASURED height at the real 290px roster mount (name +
@@ -57,16 +83,15 @@ import { RegexBulkBar } from "./regex-bulk-bar.tsx";
  *  how many rows the first frame windows. */
 const ESTIMATED_ROW_PX = 52;
 
-/** How many §12.2 cluster slots THIS list reserves per row: the state toggle and the kebab (see the header). */
-const REGEX_CLUSTER_SLOTS = 2;
+/** How many §12.2 cluster slots THIS list reserves per row: ONE — the kebab at rest, the bulk checkbox
+ *  while bulk mode runs. It declared two while the global switch lived here (see the header). */
+const REGEX_CLUSTER_SLOTS = 1;
 
 export function RegexCollectionRows({ view }: { readonly view: CollectionListView }): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const client = useTRPCClient();
   const { data: scripts } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
-  const { data: globals } = useSuspenseQuery(trpc.regex.listGlobal.queryOptions());
-  const globalIds = new Set(globals.map((row) => row.id));
   const duplicate = useDuplicateRegexScript({ trpc, invalidation });
   const remove = useRemoveRegexScript({ trpc, invalidation });
   const bulkActive = useRegexBulkActive();
@@ -104,7 +129,6 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
   const renderRow = (script: RegexScriptRow): ReactElement => (
     <RegexCollectionRow
       bulkActive={bulkActive}
-      isGlobal={globalIds.has(script.id)}
       key={script.id}
       onDelete={onDelete}
       onDuplicate={onDuplicate}
@@ -141,7 +165,18 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
         />
       );
     }
-    return <Stack gap="tight">{filtered.map(renderRow)}</Stack>;
+    // LIST SEMANTICS ARE EXPLICIT HERE (side-eye 2026-08-19 P2), the tag collection's own small-arm
+    // spelling: the sibling arm above is a `VirtualList`, which announces "list, N items" of its own, so a
+    // bare `Stack` of buttons made ONE library speak two a11y grammars depending only on its size.
+    return (
+      <Stack aria-label="Regex scripts" gap="tight" role="list">
+        {filtered.map((script, index) => (
+          <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={script.id} role="listitem">
+            {renderRow(script)}
+          </Stack>
+        ))}
+      </Stack>
+    );
   })();
 
   const checkedIds = Object.keys(selectedIds);
@@ -158,7 +193,6 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
 
 interface RegexCollectionRowProps {
   readonly script: RegexScriptRow;
-  readonly isGlobal: boolean;
   readonly selected: boolean;
   readonly bulkActive: boolean;
   readonly onSelect: () => void;
@@ -167,9 +201,18 @@ interface RegexCollectionRowProps {
   readonly onExport: (id: RegexScriptId) => void;
 }
 
-function RegexCollectionRow({ script, isGlobal, selected, bulkActive, onSelect, onDuplicate, onDelete, onExport }: RegexCollectionRowProps): ReactElement {
+function RegexCollectionRow({ script, selected, bulkActive, onSelect, onDuplicate, onDelete, onExport }: RegexCollectionRowProps): ReactElement {
   const checked = useIsRegexScriptSelected(script.id);
   const title = regexScriptTitle(script);
+  // The glyph strip is OMITTED, not emptied, for a script that runs nowhere: `ListRow` puts a literal space
+  // between a present lead and the scent (the accname-concatenation guard), so an empty-but-present lead
+  // would prepend a stray space to every such row's subtitle. `regexRowScent` says "runs nowhere" in words
+  // for exactly that state, which is the state that needs words rather than a strip of zero marks.
+  const stages = regexPlacementStages(script.placement);
+  const scent = {
+    subtitle: regexRowScent(script, timeLib.formatRelative),
+    ...(stages.length === 0 ? {} : { subtitleLead: <RegexPlacementGlyphs stages={stages} /> }),
+  };
 
   if (bulkActive) {
     return (
@@ -181,8 +224,8 @@ function RegexCollectionRow({ script, isGlobal, selected, bulkActive, onSelect, 
         // list two "you are here" marks.
         selected={checked}
         stateToggle={<Checkbox aria-label={`Select ${title}`} checked={checked} onCheckedChange={(): void => toggleRegexScriptSelected(script.id)} />}
-        subtitle={regexScriptScent(script, timeLib.formatRelative)}
         title={title}
+        {...scent}
       />
     );
   }
@@ -205,33 +248,37 @@ function RegexCollectionRow({ script, isGlobal, selected, bulkActive, onSelect, 
       actionsReserved={REGEX_CLUSTER_SLOTS}
       onSelect={onSelect}
       selected={selected}
-      stateToggle={<GlobalScopeSwitch isGlobal={isGlobal} script={script} />}
-      subtitle={regexScriptScent(script, timeLib.formatRelative)}
       title={title}
+      {...scent}
     />
   );
 }
 
-/** The GLOBAL scope switch — the one scope this library owns (preset/character/room attach from their own
- *  pickers). The accessible name is the row's own name plus what the switch does, so a screen-reader user
- *  hears "strip ooc runs in every chat", never a bare "switch". */
-function GlobalScopeSwitch({ script, isGlobal }: { readonly script: RegexScriptRow; readonly isGlobal: boolean }): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const attach = useAttachRegexGlobal({ trpc, invalidation });
-  const detach = useDetachRegexGlobal({ trpc, invalidation });
-
+/**
+ * THE PIPELINE STAGES A SCRIPT BITES ON, as the subtitle's LEAD (ruled fork 2, side-eye 2026-08-19 P1).
+ *
+ * A script bites on a SET, so the strip draws every member, in pipeline order — never one of them, and
+ * never a count standing in for the set. The glyphs are the shared `REGEX_PLACEMENT_GLYPHS` presentation
+ * of the SAME `RegexPlacement` map the labels key off, and each carries its own label as its accessible
+ * name, so the set survives verbatim for a screen reader while costing ~16px each instead of the 396-572px
+ * the words wanted in a 133px column.
+ *
+ * The strip rides `subtitleLead` (not `markers`): a variable-width mark on the TITLE line steals the name's
+ * width on exactly the rows that carry one, which is the defect this whole pass exists to close. The
+ * subtitle line has the slack the title line does not (`ListRow.subtitleLead`, the databank precedent).
+ *
+ * The EMPTY set never reaches here — the caller omits the slot rather than rendering an empty strip (a
+ * strip of zero glyphs is indistinguishable from one that failed to load, and it would still cost the
+ * separator space `ListRow` puts after a present lead).
+ */
+function RegexPlacementGlyphs({ stages }: { readonly stages: readonly RegexPlacement[] }): ReactElement {
   return (
-    <Switch
-      aria-label={`${regexScriptTitle(script)} runs in every chat`}
-      checked={isGlobal}
-      onCheckedChange={(checked): void => {
-        if (checked) {
-          void attach.mutateAsync({ scriptId: script.id });
-        } else {
-          void detach.mutateAsync({ scriptId: script.id });
-        }
-      }}
-    />
+    // `as="span"`: this renders INSIDE the subtitle's own span, so the wrapper must be phrasing content.
+    // `title` is the sighted reader's version of what the glyph labels already say to a screen reader.
+    <Text as="span" className="inline-flex items-center gap-tight align-middle" title={stages.map((stage) => REGEX_PLACEMENT_LABELS[stage]).join(" · ")}>
+      {stages.map((stage) => (
+        <Icon icon={REGEX_PLACEMENT_GLYPHS[stage]} key={stage} label={REGEX_PLACEMENT_LABELS[stage]} size="xs" />
+      ))}
+    </Text>
   );
 }

@@ -22,8 +22,16 @@ export interface ConfigContentSurfaceProps {
 
 export function ConfigContentSurface({ collections }: ConfigContentSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
   const selection = useCollectionSelection();
+  // THIS PANE STANDS DOWN WHEN NOTHING IS SELECTED (side-eye 2026-08-19 ARIA). Both Configuration surfaces
+  // called `useFocusOnMount` on their own root and CONTENT mounts SECOND, so arriving in the section put a
+  // keyboard user on the welcome — last in the DOM, past the roster they came to read — and the roster's own
+  // call was overwritten every time. Which pane wins has to be a DECISION, not effect-order roulette: with
+  // nothing selected the LIST is the surface the reader arrived for, and the moment a member IS open this
+  // pane is where they asked to be, so it takes focus again. The `enabled` flag is the character screen's
+  // precedent (`character-editor-surface.tsx`), and it keeps the gate satisfied — the surface still manages
+  // its own arrival focus, it simply knows when the arrival is not its.
+  useFocusOnMount(surfaceRef, selection !== null);
   return (
     // THE CONTENT PANE OWNS THE SCROLL, once, for every collection: the shell's own CONTENT region
     // (`.shell-content` / `.shell-region-fill`) is a bounded flex box with NO overflow, so a member editor

@@ -11,7 +11,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ConfigRosterNarrowStory, ConfigWorkspaceStory } from "../_ct-stories.tsx";
+import { ConfigRosterDefaultStory, ConfigRosterNarrowStory, ConfigSectionArrivalStory, ConfigWorkspaceStory } from "../_ct-stories.tsx";
 
 /** The group bands, by their accessible name — a band is `<disclosure> <icon> LABEL <count>`, so the
  *  name carries the count and only a pattern can address it. */
@@ -37,6 +37,10 @@ const WORLD_INFO_LAUNCHER = /Keyword-triggered lore/;
 const ANY_OPEN_DOOR = /^Open /;
 /** The coarse-pointer tap floor (WCAG 2.5.5 / the house `size-control-md` coarse step). */
 const TOUCH_FLOOR_PX = 44;
+/** The global-scope switch, by what it does — the accessible name is `<script name> runs in every chat`. */
+const GLOBAL_SWITCH = /runs in every chat/i;
+/** Any non-empty accessible name — a labelled list is the claim, whichever noun the collection uses. */
+const ANY_NAME = /\S/;
 
 // The workspace mounts all three panes, and TWO of them legitimately offer a collection's create verb: the
 // group BAND (the per-group `+`) and the welcome's LAUNCHER CARD. That is the drawn design, so the CTs
@@ -73,13 +77,15 @@ function firstRow(workspace: Locator): Locator {
   return workspace.locator(ROSTER).getByText(FIRST_ROW);
 }
 
-const SCRIPTS = [
-  {
-    id: "regex_script_stripooc",
-    name: "strip ooc",
-    findRegex: "/^\\s*ooc:.*$/gim",
+/** One regex fixture row — the shape `regex.listScripts` returns. */
+function scriptRow(over: {
+  readonly id: string;
+  readonly name: string;
+  readonly findRegex: string;
+  readonly placement: readonly string[];
+}): Record<string, unknown> {
+  return {
     replaceString: "",
-    placement: ["AI_OUTPUT"],
     enabled: true,
     markdownOnly: false,
     promptOnly: false,
@@ -88,8 +94,35 @@ const SCRIPTS = [
     // A fixed edit stamp (X-16's `RegexScriptRow.updatedAt`) — the wall clock never reaches a fixture.
     updatedAt: 1_760_000_000_000,
     substituteRegex: "none",
-  },
+    ...over,
+  };
+}
+
+// THE NAMES ARE REALISTIC LENGTHS ON PURPOSE (side-eye 2026-08-19 P1). The old single fixture was
+// "strip ooc" — nine characters, which fits any column and therefore proved nothing about a pane whose
+// measured title column was 133px. A regex library's real names are sentences ("Format dialogue quotes"),
+// and the whole finding is that they render as ellipses.
+const SCRIPTS = [
+  scriptRow({ id: "regex_script_stripooc", name: "strip ooc", findRegex: "/^\\s*ooc:.*$/gim", placement: ["AI_OUTPUT"] }),
+  scriptRow({
+    id: "regex_script_quotes0001",
+    name: "Format dialogue quotes",
+    findRegex: '/"([^"]+)"/g',
+    placement: ["AI_OUTPUT", "DISPLAY", "PROMPT_HISTORY"],
+  }),
+  scriptRow({ id: "regex_script_asides00001", name: "Trim narrator asides", findRegex: "/\\(.*?\\)/g", placement: ["USER_INPUT"] }),
 ];
+
+/** The roster row TITLE spans, scoped to one collection's group — the span `truncate` acts on. */
+function rowTitles(roster: Locator, collectionId: string): Locator {
+  return roster.locator(`[data-collection="${collectionId}"] [data-slot="list-row-title"]`);
+}
+
+/** Every rendered node's own overflow (`scrollWidth - clientWidth`). `truncate` is SILENT — the only honest
+ *  question about a clipped label is whether the text needed more room than its box gave it. */
+function overflows(nodes: Locator): Promise<number[]> {
+  return nodes.evaluateAll((spans) => spans.map((span) => span.scrollWidth - span.clientWidth));
+}
 
 const BOOK = {
   id: "world_book_reach000001",
@@ -627,4 +660,206 @@ test("the longest group kicker survives the docked pane's real width — no elli
   await expect(kicker).toBeVisible();
   const overflow = await kicker.evaluate((node) => node.scrollWidth - node.clientWidth);
   expect(overflow).toBe(0);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE ROSTER ROW'S OWN WIDTH (side-eye 2026-08-19 P1 + the two pre-ruled forks). Measured live on the
+// owner's corpus: at the both-open 272px pane the text column was 133px against subtitles needing
+// 396-572px — 27 of 33 roster texts clipped, and the pattern + edit stamp were NEVER visible at any width.
+// The ruled fix is two moves: the global-scope SWITCH leaves the resting row for the CONTEXT panel that
+// already renders it, and the freed width goes to the scent (pattern leads, channels become glyphs).
+//
+// BOTH ENDS OF THE RANGE, always — a point measurement never proves a range property. 271px is the pane's
+// content box with BOTH side panels open (`--dimension-panel` clamps at 17rem); 307px is the default
+// docked state a reader arrives in.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Expand the regex group in a roster-only story and settle on its rows. */
+async function openRegexRows(roster: Locator): Promise<void> {
+  await roster.getByRole("button", { name: "reset groups" }).click();
+  await roster.getByRole("button", { name: REGEX_BAND }).click();
+  await expect(roster.getByText("Format dialogue quotes")).toBeVisible();
+}
+
+/** The width claim itself, so the two mounts assert the identical thing: every script NAME and the band's
+ *  own KICKER render whole. (Spelled as a helper rather than a `for` over the two story COMPONENTS —
+ *  playwright-ct rewrites imported components into generated consts, and a component referenced both in
+ *  JSX and as an array value is declared twice: `SyntaxError: Identifier … has already been declared`.) */
+async function rosterOverflows(roster: Locator): Promise<readonly number[]> {
+  await openRegexRows(roster);
+  const titles = rowTitles(roster, "regex");
+  await expect(titles).toHaveCount(SCRIPTS.length);
+  const kicker = roster.getByText("Regex scripts", { exact: true });
+  await expect(kicker).toBeVisible();
+  return [...(await overflows(titles)), ...(await overflows(kicker))];
+}
+
+/** One zero per script NAME plus one for the band's own KICKER — the whole roster, rendered whole. */
+const NOTHING_CLIPS = [...SCRIPTS.map(() => 0), 0];
+
+test("nothing in the roster clips with BOTH panels open (271px)", async ({ mount, page }) => {
+  await stub(page);
+  const overflow = await rosterOverflows(await mount(<ConfigRosterNarrowStory />));
+  expect(overflow, "every script name and the band's own name render whole, not as ellipses").toEqual(NOTHING_CLIPS);
+});
+
+test("nothing in the roster clips at the docked default (307px)", async ({ mount, page }) => {
+  await stub(page);
+  const overflow = await rosterOverflows(await mount(<ConfigRosterDefaultStory />));
+  expect(overflow, "every script name and the band's own name render whole, not as ellipses").toEqual(NOTHING_CLIPS);
+});
+
+// FORK 2: THE PATTERN LEADS THE SCENT. The old subtitle spelled every pipeline stage in words first
+// ("history sent to the model · rendered transcript · model output · …"), so the two data that actually
+// tell two rows apart — the find pattern and the edit stamp — were pushed past the ellipsis at EVERY pane
+// width. The stages are still said, as glyphs carrying their own accessible names, in the subtitle's lead
+// slot; the words they replace cost 396-572px of a 133px column.
+/** The scent line of the three-stage fixture row — the widest scent this library draws. */
+function busiestScent(roster: Locator): Locator {
+  return roster
+    .locator('[data-collection="regex"] [data-slot="list-row-root"]')
+    .filter({ hasText: "Format dialogue quotes" })
+    .locator('[data-slot="list-row-subtitle"]');
+}
+
+test("a roster row's scent LEADS with the find pattern, and the stages ride as named glyphs", async ({ mount, page }) => {
+  await stub(page);
+  const roster = await mount(<ConfigRosterNarrowStory />);
+  await openRegexRows(roster);
+
+  const subtitle = busiestScent(roster);
+  // The VISIBLE text, not the source: the pattern is the first thing after the glyph lead.
+  await expect(subtitle).toContainText('/"([^"]+)"/g');
+  await expect(subtitle, "the stage names no longer spend the line").not.toContainText("history sent to the model");
+  // …and the stages are still ANNOUNCED — the glyphs carry the labels the words used to, all three of them
+  // (a script bites on a SET, and a strip that showed one of them would say less than the words did).
+  await expect(subtitle.getByLabel("History sent to the model")).toBeVisible();
+  await expect(subtitle.getByLabel("Rendered transcript")).toBeVisible();
+  await expect(subtitle.getByLabel("Model output")).toBeVisible();
+});
+
+// …AND THE WHOLE LINE FITS THE PANE THE READER ARRIVES IN. Scoped to the DEFAULT docked width on purpose,
+// and DEMOTED from a both-widths claim by measurement: at the both-open 271px the busiest scent — three
+// glyphs, a 12-character pattern and a relative stamp — still overruns by 30px, and every remaining byte
+// on that line is load-bearing (the pattern is X-15/X-16's discriminator for two authored rows, the stamp
+// is X-16's for two just-created ones). What the fix owed and delivers is that the PATTERN LEADS, so the
+// clipped end is now the tail rather than everything; the report's own receipt bar was the unclipped
+// TITLE, which holds at both widths above.
+test("the busiest scent fits the docked default pane (307px) whole", async ({ mount, page }) => {
+  await stub(page);
+  const roster = await mount(<ConfigRosterDefaultStory />);
+  await openRegexRows(roster);
+
+  expect(await overflows(busiestScent(roster)), "the stage words used to want 396-572px of a 133px column").toEqual([0]);
+});
+
+// FORK 1: ONE SETTING, ONE HOME. The "runs in every chat" switch rendered in the LIST row AND in the
+// CONTEXT panel's "Where it runs" header — two live controls for one fact, 990px apart on one screen, with
+// no confirm and no undo behind the row's copy (the reviewer flipped one by accident driving the pane).
+// The panel keeps it; the row loses it, which is also where the P1's 48px comes from.
+//
+// The duplicate-action-door lens is BLIND at the default collapsed-context state, so this pin drives the
+// state where the defect exists: a member OPEN and the CONTEXT pane mounted.
+test("the global-scope switch has exactly ONE home — the CONTEXT panel, never the roster row", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  await workspace.locator(ROSTER).getByRole("button", { name: REGEX_BAND }).click();
+  await workspace.getByText("Format dialogue quotes").click();
+  // Barrier on the SETTLED context arm — the panel only exists once the usage read has landed.
+  await expect(workspace.getByText("Runs in every chat")).toBeVisible();
+
+  const switches = workspace.getByRole("switch", { name: GLOBAL_SWITCH });
+  await expect(switches, "one setting, one control").toHaveCount(1);
+  await expect(workspace.locator(ROSTER).getByRole("switch"), "the resting roster row carries no switch").toHaveCount(0);
+});
+
+// …AND NO OTHER CONTROL HAS TWO HOMES ON THIS PLANE EITHER. This is the duplicate-action-door lens'
+// grouping (`design-audit-checks.ts`: bucket every door by `role|name`, keep the buckets spanning
+// structurally distinct homes) re-spelled in the CT browser, for the reason the report itself names — the
+// lens is BLIND at the default collapsed-context state, and the state where the defect lives (a member
+// OPEN, the CONTEXT pane mounted) is unreachable on an isolated snap stage, whose thin boot db carries no
+// regex scripts at all. The three panes are the "structurally distinct homes" axis: repeated controls
+// WITHIN the roster are one component per row, which the lens deduplicates by path and this deduplicates
+// by pane.
+const PANES = [ROSTER, CONTENT, '[data-slot="ct-config-context-pane"]'] as const;
+
+test("no control on the Configuration plane is offered from two of its three panes", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  await workspace.locator(ROSTER).getByRole("button", { name: REGEX_BAND }).click();
+  await workspace.getByText("Format dialogue quotes").click();
+  await expect(workspace.getByText("Runs in every chat")).toBeVisible();
+
+  // ONE round trip: the census is a pure DOM read, and doing it per-locator would be N awaits in a loop.
+  const twoHomed = await workspace.evaluate((root: HTMLElement, panes: readonly string[]) => {
+    const census = new Map<string, Set<string>>();
+    for (const pane of panes) {
+      for (const door of root.querySelectorAll<HTMLElement>(`${pane} button, ${pane} [role="switch"]`)) {
+        const name = door.getAttribute("aria-label") ?? door.textContent?.trim() ?? "";
+        if (name === "") {
+          continue;
+        }
+        const key = `${door.getAttribute("role") ?? door.tagName.toLowerCase()}|${name}`;
+        census.set(key, (census.get(key) ?? new Set<string>()).add(pane));
+      }
+    }
+    return [...census].filter(([, homes]) => homes.size > 1).map(([key, homes]) => `${key} @ ${[...homes].join(" AND ")}`);
+  }, PANES);
+  expect(twoHomed, "one verb, one home per plane").toEqual([]);
+});
+
+// THE ROSTER SPEAKS ONE A11Y GRAMMAR (side-eye 2026-08-19 P2). The regex rows were bare buttons in a
+// `Stack` — no list role, so a screen-reader user got no item count and no boundaries, while the tag
+// collection's own small arm announces "list, N items". The world-info small arm had the identical hole;
+// it is invisible on the owner's corpus (59 books window into the `VirtualList` arm, which announces a
+// list of its own), which is why it needed a small-list fixture rather than a live drive.
+for (const [collectionId, band, count] of [
+  ["regex", REGEX_BAND, SCRIPTS.length],
+  ["worldInfo", WORLD_INFO_BAND, BOOKS.length],
+] as const) {
+  test(`the ${collectionId} small-list arm is a LABELLED list with listitem rows`, async ({ mount, page }) => {
+    await stub(page);
+    const workspace = await mount(<ConfigWorkspaceStory />);
+    await workspace.getByRole("button", { name: "reset groups" }).click();
+
+    await workspace.locator(ROSTER).getByRole("button", { name: band }).click();
+    const group = workspace.locator(ROSTER).locator(`[data-collection="${collectionId}"]`);
+    const list = group.getByRole("list");
+    await expect(list).toHaveCount(1);
+    await expect(list).toHaveAccessibleName(ANY_NAME);
+    await expect(list.getByRole("listitem")).toHaveCount(count);
+  });
+}
+
+// THE BAND'S ACCESSIBLE NAME IS ITS LABEL AND ITS COUNT, UNGLUED (side-eye 2026-08-19 ARIA). The count is
+// a sibling span with no separator, so the accname computation concatenated it onto the label and the
+// disclosure announced "Regex scripts3" — one token, and a number a screen reader reads as part of a name.
+// The visible kicker keeps its micro-caps voice; only the announced name is spelled out.
+test("a group band's disclosure announces its label and its count as separate words", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  const roster = workspace.locator(ROSTER);
+  await expect(roster.getByRole("button", { name: `Regex scripts, ${String(SCRIPTS.length)}`, exact: true })).toBeVisible();
+  await expect(roster.getByRole("button", { name: `World Info, ${String(BOOKS.length)}`, exact: true })).toBeVisible();
+});
+
+// ARRIVING IN THE SECTION LANDS IN THE LIST (side-eye 2026-08-19 ARIA). Both panes called
+// `useFocusOnMount` on their own root and CONTENT mounts second, so a keyboard user arriving with NOTHING
+// selected landed in the empty content region — last in the DOM, past the roster they came to read. The
+// corpus P2-4 precedent, same mechanism, same vehicle: the bounce is what a rail switch does, and
+// `useFocusOnMount` deliberately declines on a cold load, so only a bounce can see this.
+test("arriving with nothing selected lands focus in the LIST, not in CONTENT", async ({ mount, page }) => {
+  await stub(page);
+  const section = await mount(<ConfigSectionArrivalStory />);
+
+  await section.getByRole("button", { name: "Leave Configuration" }).click();
+  await section.getByRole("button", { name: "Back to Configuration" }).click();
+
+  await expect(section.locator(ROSTER)).toBeFocused();
 });

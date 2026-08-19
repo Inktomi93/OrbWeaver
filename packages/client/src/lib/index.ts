@@ -67,7 +67,16 @@ export { bindNotify, notify, toNotice } from "./notify.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";
 export { isProbeMode } from "./probe-mode.ts";
 export { withUserMacros } from "./prompt-macros.ts";
-export { REGEX_PLACEMENT_ITEMS, REGEX_PLACEMENT_LABELS, regexPlacementStep, regexScriptScent, regexScriptTitle } from "./regex-placement-labels.ts";
+export {
+  REGEX_PLACEMENT_GLYPHS,
+  REGEX_PLACEMENT_ITEMS,
+  REGEX_PLACEMENT_LABELS,
+  regexPlacementStages,
+  regexPlacementStep,
+  regexRowScent,
+  regexScriptScent,
+  regexScriptTitle,
+} from "./regex-placement-labels.ts";
 export type { ContributorRegistry, Registry } from "./registry.ts";
 export { createContributorRegistry, createRegistry } from "./registry.ts";
 export type {

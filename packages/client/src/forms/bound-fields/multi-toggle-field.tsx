@@ -42,7 +42,17 @@ export function MultiToggleField(props: MultiToggleFieldProps): ReactElement {
         aria-label={props.label}
       >
         {props.items.map((item) => (
-          <Toggle key={item.value} value={item.value} aria-label={item.label}>
+          // `intent="outline"` — THE RESTING HAIRLINE (side-eye 2026-08-19 P2). The `neutral` default paints
+          // no edge and no fill until pressed, which is right for a toolbar toggle you already know is a
+          // control; in a FORM it is not. Measured on the regex editor's `Runs on` field: the unselected
+          // chips ("History sent to the model", "Rendered transcript") were muted text on the group's own
+          // muted panel, and read as captions describing the field rather than as the options they are —
+          // every other bound field in the app renders a box. `outline` is the arm minted for exactly this
+          // ("must read as the same class of thing as the chips beside it"), and its
+          // `data-pressed:border-transparent` keeps the SELECTED chip a fill rather than a fill wearing a
+          // spare outline. Stated here rather than per call site for the reason that arm's own comment
+          // gives: a skin decided per call site is how one rail becomes two.
+          <Toggle key={item.value} value={item.value} aria-label={item.label} intent="outline">
             {item.label}
           </Toggle>
         ))}

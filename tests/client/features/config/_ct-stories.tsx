@@ -12,6 +12,7 @@ import type { CollectionContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import { __resetCollectionGroupOpen, clearCollectionSelection } from "@orb/client/state";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { ConfigContextBody, ConfigContextHeader } from "../../../../packages/client/src/features/config/components/config-context-body.tsx";
 import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
 import { ConfigRosterSurface } from "../../../../packages/client/src/features/config/surfaces/config-roster-surface.tsx";
@@ -43,6 +44,62 @@ export function ConfigRosterNarrowStory(): ReactElement {
       </button>
       <div style={{ overflow: "hidden", width: NARROW_ROSTER_PX }}>
         <ConfigRosterSurface collections={collections} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The roster's content box at the DEFAULT docked LIST pane — the state a reader arrives in (CONTEXT
+ *  collapsed, LIST docked), measured on the live app at 307px. The narrow story above is the OTHER end of
+ *  the range (both panes open); a row-width fix has to hold at BOTH, because a point measurement never
+ *  proves a range property. */
+const DEFAULT_ROSTER_PX = 307;
+
+export function ConfigRosterDefaultStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <button
+        type="button"
+        onClick={(): void => {
+          __resetCollectionGroupOpen();
+          clearCollectionSelection();
+        }}
+      >
+        reset groups
+      </button>
+      <div style={{ overflow: "hidden", width: DEFAULT_ROSTER_PX }}>
+        <ConfigRosterSurface collections={collections} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** ARRIVING IN THE WHOLE SECTION — the LIST roster and the CONTENT region mounting TOGETHER on a BOUNCE,
+ *  which is what a rail switch does. `useFocusOnMount` deliberately declines on a COLD load (activeElement
+ *  is `<body>`), so a plain mount cannot see this at all; and a roster-only mount has no competitor, so it
+ *  cannot see it either. CONTENT mounts second here, exactly as the shell mounts it — the one arrangement
+ *  in which "the content pane steals the section's arrival focus" exists. (The corpus
+ *  `CorpusSectionArrivalStory` precedent, re-spelled for this workspace.) */
+export function ConfigSectionArrivalStory(): ReactElement {
+  const [inConfig, setInConfig] = useState(true);
+  return (
+    <CtDataProviders>
+      <button type="button" onClick={(): void => setInConfig((here) => !here)}>
+        {inConfig ? "Leave Configuration" : "Back to Configuration"}
+      </button>
+      <div style={{ display: "flex", height: 640, width: 900 }}>
+        {inConfig ? (
+          <>
+            <div style={{ width: 330 }}>
+              <ConfigRosterSurface collections={collections} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <ConfigContentSurface collections={collections} />
+            </div>
+          </>
+        ) : (
+          <p>Another section</p>
+        )}
       </div>
     </CtDataProviders>
   );

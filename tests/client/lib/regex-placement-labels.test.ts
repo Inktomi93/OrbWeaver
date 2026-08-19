@@ -1,12 +1,22 @@
 // The regex script LIST vocabulary — the one home both list surfaces (the library rows and the shared
-// picker) read their subtitle from. Pure, so it tests in node: the relative formatter is INJECTED, which
+// picker) read their subtitle from, in the TWO projections that home now serves: the picker's full phrase
+// and the roster row's glyph-led one. Pure, so it tests in node: the relative formatter is INJECTED, which
 // is exactly what keeps this deterministic (no wall clock reaches the assertion).
 //
 // The load-bearing property is X-16's: `Add script` mints every row named "New script" with an empty
 // pattern, so the two authored discriminators (stage + pattern) are byte-identical across a freshly-filled
 // library and the EDIT STAMP is the only thing that tells them apart.
 
-import { regexPlacementStep, regexScriptScent, regexScriptTitle } from "@orb/client/lib";
+import {
+  REGEX_PLACEMENT_GLYPHS,
+  REGEX_PLACEMENT_LABELS,
+  regexPlacementStages,
+  regexPlacementStep,
+  regexRowScent,
+  regexScriptScent,
+  regexScriptTitle,
+} from "@orb/client/lib";
+import { REGEX_PLACEMENTS } from "@orb/kit/regex";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -54,6 +64,56 @@ describe("regexScriptScent", () => {
 
   test("the stages read in PIPELINE order, not in the order the author picked them", () => {
     expect(regexScriptScent(script({ placement: ["AI_OUTPUT", "USER_INPUT"] }), relative)).toContain("your message · model output");
+  });
+});
+
+// THE ROSTER ROW'S OWN PROJECTION (side-eye 2026-08-19 P1, ruled fork 2). Same vocabulary, same order, same
+// elision, same stamp — the stage NAMES lift out to the glyph strip because the roster row renders in a
+// 271-307px pane and the picker above renders in a dialog. What must NOT drift is the pair: whatever the
+// glyph strip drops from the words, the words must not also drop.
+describe("regexRowScent", () => {
+  test("the PATTERN leads — the two data that tell two rows apart are first, not past the ellipsis", () => {
+    expect(regexRowScent(script(), relative)).toBe(`\\(ooc\\) · edited T${String(BORN)}`);
+  });
+
+  test("a disabled row still leads with `off`", () => {
+    expect(regexRowScent(script({ enabled: false }), relative)).toBe(`off · \\(ooc\\) · edited T${String(BORN)}`);
+  });
+
+  test("an empty placement set is said in WORDS — a strip of zero glyphs cannot say it", () => {
+    expect(regexRowScent(script({ placement: [] }), relative)).toBe(`runs nowhere · \\(ooc\\) · edited T${String(BORN)}`);
+  });
+
+  test("no stage name reaches the line — that is the whole width fix", () => {
+    const scent = regexRowScent(script({ placement: ["AI_OUTPUT", "PROMPT_HISTORY", "DISPLAY"] }), relative);
+    for (const label of Object.values(REGEX_PLACEMENT_LABELS)) {
+      expect(scent).not.toContain(label.toLowerCase());
+    }
+  });
+
+  test("X-16 survives the split: two just-added rows still differ ONLY by their stamp", () => {
+    const blank = { findRegex: "", placement: [] } as const;
+    const first = regexRowScent(script({ ...blank, updatedAt: BORN }), relative);
+    const second = regexRowScent(script({ ...blank, updatedAt: BORN + 1 }), relative);
+    expect(first.replace(`T${String(BORN)}`, "")).toBe(second.replace(`T${String(BORN + 1)}`, ""));
+    expect(first).not.toBe(second);
+  });
+});
+
+describe("regexPlacementStages / REGEX_PLACEMENT_GLYPHS", () => {
+  test("the strip draws the whole SET, in pipeline order — never one member, never a count", () => {
+    expect(regexPlacementStages(["DISPLAY", "USER_INPUT", "AI_OUTPUT"])).toEqual(["USER_INPUT", "AI_OUTPUT", "DISPLAY"]);
+  });
+
+  test("every placement has a glyph AND a label — the glyph strip drops nothing the words carried", () => {
+    for (const placement of REGEX_PLACEMENTS) {
+      expect(REGEX_PLACEMENT_GLYPHS[placement], placement).toBeTruthy();
+      expect(REGEX_PLACEMENT_LABELS[placement], placement).toBeTruthy();
+    }
+  });
+
+  test("the glyphs are DISTINCT — a strip where two stages draw the same mark says less than it looks", () => {
+    expect(new Set(Object.values(REGEX_PLACEMENT_GLYPHS)).size).toBe(REGEX_PLACEMENTS.length);
   });
 });
 
