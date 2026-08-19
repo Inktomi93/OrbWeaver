@@ -11,9 +11,6 @@ export interface AuthConfig {
   fallback: "owner" | "deny";
   defaultHandle: string;
   verifyForwardJwt: boolean;
-  /** Extra hostnames trusted as a local origin for the owner fallback; the public FQDN must never appear here. */
-  trustedLocalHosts: readonly string[];
-  trustedPrivateRanges: readonly string[];
   forwardUserHeader?: string;
   forwardGroupsHeader?: string;
   forwardUidHeader?: string;

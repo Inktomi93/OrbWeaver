@@ -55,8 +55,6 @@ export function authConfigFromEnv(): AuthConfig {
     fallback: env.AUTH_FALLBACK,
     defaultHandle: env.DEFAULT_USER_HANDLE,
     verifyForwardJwt: env.FORWARD_AUTH_VERIFY_JWT,
-    trustedLocalHosts: parseHostList(env.TRUSTED_LOCAL_HOSTS),
-    trustedPrivateRanges: parseCsv(env.TRUSTED_PRIVATE_RANGES),
     ...(env.FORWARD_AUTH_USER_HEADER !== undefined ? { forwardUserHeader: env.FORWARD_AUTH_USER_HEADER } : {}),
     ...(env.FORWARD_AUTH_GROUPS_HEADER !== undefined ? { forwardGroupsHeader: env.FORWARD_AUTH_GROUPS_HEADER } : {}),
     ...(env.FORWARD_AUTH_UID_HEADER !== undefined ? { forwardUidHeader: env.FORWARD_AUTH_UID_HEADER } : {}),

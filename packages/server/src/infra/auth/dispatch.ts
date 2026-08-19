@@ -1,31 +1,38 @@
 // The AUTH_MODE dispatcher — ONE branch point via the `MODE_RESOLVERS` Record (invariant #4: exhaustive
 // over `AuthConfig["mode"]` — a 5th mode that isn't mapped fails `tsc`). Each resolver produces a pre-row
 // `ResolvedIdentity | null` (NO `userId`, NO `role` — invariant #3); modes never import each other. Plus
-// the origin-gated owner-fallback predicate.
+// the peer-gated owner-fallback predicate.
 //
-// ORIGIN-GATED FALLBACK (load-bearing safety): in any SSO mode the owner fallback is granted ONLY for a
-// LOCAL origin (the raw-LAN-IP path). On the public FQDN an un-credentialed request resolves to nothing
-// (→ 401), making SSO mandatory. WITHOUT this gate, oidc+owner would hand every anonymous public request
-// owner. In `single-user` the ORIGIN test is unconditional — but read that as "unconditional GIVEN
-// `AUTH_FALLBACK=owner`": `resolve` (index.ts) tests `fallback === "owner"` BEFORE ever calling here, so
-// `single-user` + `deny` authenticates nobody. That pair is now boot-fatal (`foundation/env`), because
-// single-user's ONLY credential is this fallback. `isLocalOrigin` reads `Host` (NOT `X-Forwarded-Host`)
-// deliberately — a proxy-rewritten Host can only REMOVE trust, never grant it.
+// PEER-GATED FALLBACK (load-bearing safety, #298 f2 / re-gate 2026-08-19). The un-credentialed owner
+// fallback is granted ONLY when the raw TCP peer is LOOPBACK — the ONE rule across all four modes,
+// `single-user` included. The credential is the unspoofable socket peer, NEVER the client-supplied `Host`
+// header: a `Host:` a caller writes is not a fact about the network, so the old Host/trusted-ranges gate
+// (`isLocalOrigin`) handed owner to anyone who could reach the port and forge `Host: 10.x.x.x` — and a
+// vite/proxy `changeOrigin` could launder a LAN request into a loopback-looking Host and re-open it even
+// after narrowing. Gating on the peer closes both: every proxied request (peer = the docker/Caddy bridge)
+// is denied the fallback, so SSO is mandatory on the FQDN and on any LAN hostname Caddy fronts, while all
+// loopback dev tooling (snap/e2e/curl harvests, the vite proxy's `changeOrigin` path) is unaffected.
+// `resolve` (index.ts) still tests `fallback === "owner"` BEFORE consulting this, so `single-user` + `deny`
+// authenticates nobody (boot-fatal in `foundation/env`, since this fallback is single-user's only
+// credential; a LOOPBACK peer is exactly what keeps that credential — and SSH break-glass — open).
 
-import { DEFAULT_TRUSTED_RANGES, isInRanges } from "#infra/network";
+import { isInRanges } from "#infra/network";
 import type { AuthConfig, ModeResolver } from "./contract.ts";
-import { normalizeHost } from "./host.ts";
 import { resolveForwardHeader } from "./modes/forward-header.ts";
 import { resolveLocal } from "./modes/local.ts";
 import { resolveOidc } from "./modes/oidc.ts";
 import { resolveSingleUser } from "./modes/single-user.ts";
 
-const LOCALHOST = "localhost";
+/** Loopback only — the peer ranges that admit the un-credentialed owner fallback. NOT the wider
+ *  `DEFAULT_TRUSTED_RANGES` (RFC1918/CGNAT/link-local): a private-but-non-loopback peer is a LAN device or
+ *  a proxy hop, and must authenticate. `isInRanges` reduces an IPv4-mapped peer (`::ffff:127.0.0.1`) to its
+ *  v4 value, so it matches `127.0.0.0/8`. */
+const LOOPBACK_RANGES: readonly string[] = ["127.0.0.0/8", "::1/128"];
 
 /**
  * The ONE dispatch point: one entry per `AuthConfig["mode"]`. The mapped-type `Record` makes a missing
  * arm a `tsc` error (invariant #4 — exhaustive dispatch). `single-user` resolves to `null` (the
- * unconditional owner fallback in `resolve` takes over); the cookie modes share the validate path; only
+ * peer-gated owner fallback in `resolve` takes over); the cookie modes share the validate path; only
  * `forward-header` does header/JWT verification.
  */
 export const MODE_RESOLVERS: Record<AuthConfig["mode"], ModeResolver> = {
@@ -36,42 +43,12 @@ export const MODE_RESOLVERS: Record<AuthConfig["mode"], ModeResolver> = {
 };
 
 /**
- * Whether the request's ORIGIN permits the un-credentialed owner fallback. `single-user`: always (the
- * only way in). SSO modes: only on a local origin — the gate that keeps oidc+owner from handing anonymous
- * public requests owner.
- *
- * This answers the ORIGIN question only. The `AUTH_FALLBACK` knob is the caller's (`resolve`, index.ts),
- * which short-circuits on `fallback !== "owner"` before consulting this — so "always" here is never
- * "always" end-to-end.
+ * Whether the request's PEER permits the un-credentialed owner fallback: true iff the raw TCP peer socket
+ * address is loopback — ONE rule for every mode (`single-user` included; there is no origin/mode branch any
+ * more). `undefined` peer (the seam's `isAdmin`, which threads none, or a transport that can't resolve one)
+ * fails closed. The `AUTH_FALLBACK` knob is the caller's (`resolve`, index.ts), which short-circuits on
+ * `fallback !== "owner"` before consulting this.
  */
-export function ownerFallbackAllowed(headers: Headers, config: AuthConfig): boolean {
-  if (config.mode === "single-user") {
-    return true;
-  }
-  return isLocalOrigin(headers, config.trustedLocalHosts, config.trustedPrivateRanges);
-}
-
-/**
- * True when the request targets a trusted local origin: a private/loopback IP literal, `localhost`, or
- * a configured trusted hostname. Reads `Host` (not `X-Forwarded-Host`) deliberately. Fails closed (a
- * hostname that won't parse as an IP → no match → SSO required).
- */
-export function isLocalOrigin(headers: Headers, trustedHosts: readonly string[], extraRanges: readonly string[] = []): boolean {
-  const rawHost = headers.get("host");
-  if (rawHost === null) {
-    return false;
-  }
-  const host = normalizeHost(rawHost);
-  if (host.length === 0) {
-    return false;
-  }
-  if (host === LOCALHOST) {
-    return true;
-  }
-  if (trustedHosts.includes(host)) {
-    return true;
-  }
-  // env-extra CIDRs widen the built-in set without replacing it.
-  const ranges = extraRanges.length > 0 ? [...DEFAULT_TRUSTED_RANGES, ...extraRanges] : DEFAULT_TRUSTED_RANGES;
-  return isInRanges(host, ranges);
+export function ownerFallbackAllowed(peerIp: string | undefined): boolean {
+  return peerIp !== undefined && isInRanges(peerIp, LOOPBACK_RANGES);
 }
