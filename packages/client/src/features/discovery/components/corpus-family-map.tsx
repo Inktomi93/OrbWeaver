@@ -5,9 +5,9 @@
 //
 // IT RENDERS AT TWO WEIGHTS AND THE WEIGHT IS THE WHOLE POINT (CD3, density-pass-spec.md §3.2 — exactly one
 // element per surface may carry accent fill, glow, or elevated shadow at rest):
-//   • `focal` — the one elevated island: a `--color-speaker` stripe plus the rationed `--shadow-glow` on the
-//     sanctioned ::before carrier. Taken once the semantic pass has run and the map has something to be the
-//     map OF.
+//   • `focal` — the one elevated island: the rationed `--shadow-glow` on the sanctioned ::before carrier, at
+//     the token's own strength. Taken once the semantic pass has run and the map has something to be the
+//     map OF. (It also wore an accent border-left until #244 P2-1 — see `GLOW` for why that went.)
 //   • not `focal` — boxless (CD1: a read-only grouping gets a kicker band and a hairline, never a box),
 //     sitting UNDER the invitation that holds the focal while the library is un-analysed.
 // A component that painted the glow unconditionally would put two focals on the surface, which by the
@@ -36,7 +36,7 @@ import { Card } from "@orb/ui/card";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { CSSProperties, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useId } from "react";
 import type { Trpc } from "#data";
 import { revealContextPanel } from "#state";
@@ -48,21 +48,24 @@ type VisualFamily = inferOutput<Trpc["discovery"]["visualArchetypes"]>[number];
  *  the 13rem plate floor; the true member count is always in the gloss, so the strip never has to total. */
 const FAMILY_FACE_SLOTS = 4;
 
-/** The speaker stripe — the same three declarations the immersive chat rows and home's hearth paint
- *  (`message-row-variants` STRIPE_LEFT), inline because a border WIDTH from a non-spacing token has no
- *  utility to ride. */
-const STRIPE: CSSProperties = {
-  borderInlineStartWidth: "var(--immersive-stripe-width)",
-  borderInlineStartStyle: "solid",
-  borderInlineStartColor: "var(--color-speaker)",
-};
-
-/** The rationed accent glow on the sanctioned ::before carrier (home's hearth precedent, verbatim):
+/** The rationed accent glow on the sanctioned ::before carrier (home's hearth precedent):
  *  `design-audit-checks.ts` classifies a chromatic glow on an element's OWN box-shadow as the generated-UI
  *  tell, and `rounded-(--radius-card)` mirrors the radius the Card resolves from `tiers.css` so the halo
- *  tracks the edge it is a halo for. */
+ *  tracks the edge it is a halo for.
+ *
+ *  NO `before:opacity-30`, AND NO STRIPE (#244 P2-1, measured on the shipped default arm). The island used
+ *  to carry BOTH a `--color-speaker` border-left at `--immersive-stripe-width` and this ring dimmed to 30%,
+ *  which is the worst of both: `design-audit` fires `side-tab` (a §6 ABSOLUTE ban — "the most recognizable
+ *  generated-UI tell") and `border-accent-on-rounded` on the border, while the sanctioned ring painted at an
+ *  effective alpha of 0.12 and its halo at 0.054 — i.e. the pattern that is allowed to say "look here" was
+ *  not saying it, and the banned one was doing all the work.
+ *
+ *  THE STRIPE CITE DID NOT TRANSFER. It was justified from `message-row-variants` STRIPE_LEFT — a speaker
+ *  stripe on a FLAT, unrounded message row. Rounded + a thick single-edge accent is precisely the shape the
+ *  ban names. And the 30% came from the config welcome hearth, where it is a RESTING dim that a
+ *  `hover:opacity-75` lifts; this island has no hover arm, so it inherited the dim and never the lift. */
 const GLOW =
-  "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:opacity-30 before:shadow-glow before:content-['']";
+  "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:shadow-glow before:content-['']";
 
 /** A family whose VISUAL labelling produced nothing to say, derived from the fields that produce a label
  *  rather than by matching a sentinel string across the wire.
@@ -167,7 +170,7 @@ export function CorpusFamilyMap({ families, focal }: CorpusFamilyMapProps): Reac
 
   if (focal) {
     return (
-      <Card aria-labelledby={titleId} className={GLOW} data-corpus-focal="familyMap" role="group" style={STRIPE}>
+      <Card aria-labelledby={titleId} className={GLOW} data-corpus-focal="familyMap" role="group">
         {body}
       </Card>
     );

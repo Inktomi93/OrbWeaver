@@ -224,8 +224,14 @@ function CorpusHomeBody(): ReactElement {
 
         {/* `min-w-0` IS THE SPLIT (the home leg's P1-1, paid for once already): a grid TRACK CHILD is
             `min-width:auto`, so a track is floored at its content's min-content width and the declared
-            1.55fr/1fr silently becomes whatever the widest island demands. */}
-        <Grid className="items-start" cols="lead" gap="gutter">
+            1.55fr/1fr silently becomes whatever the widest island demands.
+
+            `leadEarly`, NOT `lead` (#244 P1-2): `lead` breathes at `@4xl` (896px) and this pane measures
+            868.81px in the shipped default view — list docked, context collapsed — so the composition the
+            owner picked was one he had literally never seen, in any appearance arm. The arm carries the
+            same two tracks a step sooner; the container query still stacks them for the three-pane and
+            phone states. */}
+        <Grid className="items-start" cols="leadEarly" gap="gutter">
           <Stack className="min-w-0" gap="section">
             {mapIsFocal ? null : <CorpusUnderstandingInvitation />}
             <CorpusFamilyMap families={families} focal={mapIsFocal} />

@@ -34,27 +34,26 @@
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Icon, Sparkles } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Container, Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
 import { Heading, Text } from "@orb/ui/text";
-import type { CSSProperties, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useId } from "react";
 import { openSettingsTo } from "#state";
 import type { UnderstandingPassView } from "../hooks/use-understanding-pass.ts";
 import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
 
-/** The speaker stripe — the immersive-row / hearth-hero declarations, inline because a border WIDTH from a
- *  non-spacing token has no utility to ride. */
-const STRIPE: CSSProperties = {
-  borderInlineStartWidth: "var(--immersive-stripe-width)",
-  borderInlineStartStyle: "solid",
-  borderInlineStartColor: "var(--color-speaker)",
-};
-
 /** The rationed accent glow on the sanctioned ::before carrier (the hearth-hero precedent: a chromatic glow
- *  on an element's OWN box-shadow is the generated-UI tell `design-audit-checks.ts` classifies). */
+ *  on an element's OWN box-shadow is the generated-UI tell `design-audit-checks.ts` classifies).
+ *
+ *  ONE CARRIER, AT FULL STRENGTH (#244 P2-1). This island carried the same accent border-left + 30%-dimmed
+ *  ring as the family map, and goes the same way for the same reasons — the stripe is `design-audit`'s
+ *  `side-tab` (a §6 absolute ban) plus `border-accent-on-rounded` on a rounded Card, and the dim came from
+ *  the config hearth where a hover lifts it back. The two focal islands MUST agree: they are the same slot
+ *  in two phases of one surface, and a treatment that changed between them would read as a different kind
+ *  of thing rather than the same page after a pass ran. */
 const GLOW =
-  "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:opacity-30 before:shadow-glow before:content-['']";
+  "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:shadow-glow before:content-['']";
 
 /** `Progress` takes Base UI's 0–100 scale (its default `max`); the hook reports a 0–1 fraction. */
 const PERCENT = 100;
@@ -65,35 +64,43 @@ export function CorpusUnderstandingInvitation(): ReactElement {
   // The live tail for whichever run currently holds the floor; a null id detaches the room.
   useUnderstandingPassTail(pass.liveRunId, pass.onLiveProgress);
   return (
-    <Card aria-labelledby={titleId} className={GLOW} data-corpus-focal="invitation" role="group" style={STRIPE}>
-      {/* The action column drops UNDER the prose at a narrow pane rather than squeezing the reading line:
-          a paragraph capped at its measure beside a button that never shrinks is how a 360px pane ends up
-          rendering four words a line. */}
-      <Row align="start" className="flex-col @lg:flex-row" gap="block" justify="between">
-        <Stack className="min-w-0" gap="row">
-          <Heading id={titleId} level={2} voice="focal">
-            {pass.running ? "Reading your library back to you." : "Read your library back to you."}
-          </Heading>
-          {/* Capped on the PARAGRAPH, never on the page (the `reading` voice's own contract). */}
-          <Text className="max-w-(--reading-measure)" voice="reading">
-            {passProse(pass)}
-          </Text>
-          {pass.memoryDisabled ? <MemoryOffNote /> : null}
-          <UnderstandingPassProgress pass={pass} />
-        </Stack>
-        <Stack className="shrink-0" gap="tight">
-          {pass.running ? null : (
-            <Button data-slot="understanding-pass-run" disabled={pass.starting} intent="primary" onClick={pass.start}>
-              <Icon icon={Sparkles} size="sm" />
-              {pass.failure === null ? "Run the understanding pass" : "Try the understanding pass again"}
+    <Card aria-labelledby={titleId} className={GLOW} data-corpus-focal="invitation" role="group">
+      {/* THE ISLAND IS ITS OWN QUERY CONTEXT. `@lg` below has to mean "this island is 32rem wide", and an
+          element cannot query itself — without a `Container` here the nearest `@container` is the SURFACE,
+          so the moment the surface split into two tracks (#244 P1-2) the island shrank to 508px while its
+          own query still read the 868px pane and kept the two columns. Measured: the prose column fell to
+          ~230px, four words a line, beside a `shrink-0` action column — exactly the failure the comment
+          below describes, arriving from the other direction. */}
+      <Container className="w-full">
+        {/* The action column drops UNDER the prose at a narrow pane rather than squeezing the reading line:
+            a paragraph capped at its measure beside a button that never shrinks is how a 360px pane ends up
+            rendering four words a line. */}
+        <Row align="start" className="flex-col @lg:flex-row" gap="block" justify="between">
+          <Stack className="min-w-0" gap="row">
+            <Heading id={titleId} level={2} voice="focal">
+              {pass.running ? "Reading your library back to you." : "Read your library back to you."}
+            </Heading>
+            {/* Capped on the PARAGRAPH, never on the page (the `reading` voice's own contract). */}
+            <Text className="max-w-(--reading-measure)" voice="reading">
+              {passProse(pass)}
+            </Text>
+            {pass.memoryDisabled ? <MemoryOffNote /> : null}
+            <UnderstandingPassProgress pass={pass} />
+          </Stack>
+          <Stack className="shrink-0" gap="tight">
+            {pass.running ? null : (
+              <Button data-slot="understanding-pass-run" disabled={pass.starting} intent="primary" onClick={pass.start}>
+                <Icon icon={Sparkles} size="sm" />
+                {pass.failure === null ? "Run the understanding pass" : "Try the understanding pass again"}
+              </Button>
+            )}
+            {/* The full runs console is still one click away — it just is not where the work starts any more. */}
+            <Button intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm">
+              {pass.running ? "Watch in Settings → Jobs" : "All jobs in Settings → Jobs"}
             </Button>
-          )}
-          {/* The full runs console is still one click away — it just is not where the work starts any more. */}
-          <Button intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm">
-            {pass.running ? "Watch in Settings → Jobs" : "All jobs in Settings → Jobs"}
-          </Button>
-        </Stack>
-      </Row>
+          </Stack>
+        </Row>
+      </Container>
     </Card>
   );
 }
