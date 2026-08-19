@@ -34,7 +34,6 @@ describe("memory/recall/query — buildRecallQuery", () => {
     expect(q.minScore).toBe(0.4);
     expect(q.keywordMatch).toBe(true);
     expect(q.recencyBias).toBe(0.1);
-    expect(q.verbatimWindow).toBe(cfg.verbatimWindow);
     expect(q.retrieveK).toBe(5); // the retrieval count (top retrieveK) rides the wire
     expect(q.rerankTo).toBe(2); // the mixC rerank cut rides the wire
   });

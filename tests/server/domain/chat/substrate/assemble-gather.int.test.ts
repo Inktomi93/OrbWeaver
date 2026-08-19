@@ -21,7 +21,7 @@ import type { DatabankGatherParams } from "../../../../../packages/server/src/do
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
-import { fakeSearchDigests, GROUP_CHAR, seedDigest } from "../memory/_support.ts";
+import { fakeSearchDigests, GROUP_CHAR, seedDigest, seedSegment } from "../memory/_support.ts";
 
 const MIN_MS = 60_000;
 
@@ -251,6 +251,68 @@ describe("gatherAssembleContext — memory recall (the shared/merged bucket)", (
     expect(search.calls).toHaveLength(1);
     expect(search.calls.at(0)?.scope.chat).toBe(chatId);
     expect(search.calls.at(0)?.scopedCharacterId).toBe(GROUP_CHAR);
+  });
+
+  // #330 P2 (RED-FIRST): recall runs PRE-persist, so the committed rows are the PREVIOUS turn's tail — the
+  // current user message must still reach the mixB/mixC query. OLD: the query was built from the committed
+  // `recentRows` only (here empty), so `queryText` was "".
+  test("the recall query INCLUDES the pending user message (#330 P2)", async () => {
+    const { host, chatId, aria } = await seedRoom("recall_pending");
+    await seedCharacter(db, host, "group");
+    await seedDigest(db, { chatId: castId(chatId), scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: 0 });
+    const search = fakeSearchDigests([]);
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      findSyntheticGroupCharacter: () => Promise.resolve({ characterId: GROUP_CHAR }),
+      searchDigests: search.fn,
+    });
+
+    await gatherAssembleContext(
+      ctx,
+      {
+        chatId: castId(chatId),
+        runAsUserId: host,
+        model: "m",
+        castCharacterIds: [aria],
+        personaIds: [],
+        triggerUserId: host,
+        pendingUserText: "where is the hidden relic",
+      },
+      foreignOf({ memoryConfig: { mode: "mixB" } }),
+    );
+
+    expect(search.calls).toHaveLength(1);
+    expect(search.calls.at(0)?.queryText).toContain("where is the hidden relic");
+  });
+
+  // #333 (RED-FIRST): when the last turn sent the WHOLE history (fit trimmed nothing → null boundary stamp),
+  // every past scene is verbatim in the prompt, so EVERY digest must drop. OLD: the null boundary resolved to
+  // `undefined`, which `filterPool` read as "no filter → recall everything" — so the digest was KEPT and scanned.
+  test("a whole-history-fits turn drops every in-window digest — no scan (#333)", async () => {
+    const { host, chatId, aria } = await seedRoom("recall_fullwindow");
+    await seedCharacter(db, host, "group");
+    // A committed user + assistant turn; the assistant's fit boundary is NULL (nothing was trimmed — the default).
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hi" });
+    await seedMessage(db, chatId, 2, { role: "assistant", characterId: aria, content: "hello" });
+    // An aged-out digest for block 0 + its verbatim segment span (so the live-window filter reads its seqStart).
+    await seedDigest(db, { chatId: castId(chatId), scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: 0 });
+    await seedSegment(db, { chatId: castId(chatId), blockIdx: 0, seqStart: 1, seqEnd: 2 });
+    const search = fakeSearchDigests([]);
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      findSyntheticGroupCharacter: () => Promise.resolve({ characterId: GROUP_CHAR }),
+      searchDigests: search.fn,
+    });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [] },
+      foreignOf({ memoryConfig: { mode: "mixB" } }),
+    );
+
+    // The whole conversation is verbatim → the digest's scene is redundant → dropped before any scan.
+    expect(search.calls).toHaveLength(0);
+    expect(out.memory).toBe("");
   });
 
   test("memory-off → empty memory, no embed (the recall early-return)", async () => {

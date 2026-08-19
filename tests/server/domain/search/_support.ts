@@ -72,6 +72,9 @@ export function vec(...components: readonly number[]): Float32Array<ArrayBuffer>
 export interface FakeRoleClientControls {
   /** Map the query string → its embedding (null = the embedder filtered it ⇒ empty-query path). */
   readonly embedVector?: (input: string) => Float32Array<ArrayBuffer> | null;
+  /** Observe every `embed` call's input + opts (the per-task `instruction` a scan conditions with) — the P3
+   *  instruction-parity proof reads the `instruction` off here. Side-effect-only; never changes the vector. */
+  readonly onEmbed?: (input: string | string[], opts?: { readonly inputType?: "query" | "document"; readonly instruction?: string }) => void;
   /** Map the text→image query string → its embedding in the IMAGE space (null = empty-query path). Only
    *  the `kind: "text"` cross-modal path is exercised by the `images` verb. */
   readonly imageEmbedVector?: (input: string) => Float32Array<ArrayBuffer> | null;
@@ -100,7 +103,8 @@ function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients
       }));
 
   return {
-    embed: (input: string | string[]): Promise<EmbedResult> => {
+    embed: (input: string | string[], opts?: { inputType?: "query" | "document"; instruction?: string }): Promise<EmbedResult> => {
+      controls.onEmbed?.(input, opts);
       const inputs = Array.isArray(input) ? input : [input];
       return Promise.resolve({
         vectors: inputs.map((t) => embedVector(t)),

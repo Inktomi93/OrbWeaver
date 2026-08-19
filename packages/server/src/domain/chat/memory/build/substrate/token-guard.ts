@@ -168,3 +168,31 @@ export function fitBlockToBudget(rows: readonly MsgRow[], macroNames: RowMacroNa
   }
   return kept.length > 0 ? kept : null;
 }
+
+/**
+ * Fit a consolidation's child digest BODIES to the summarizer context (#329 P1). A consolidation now feeds the
+ * children's FULL stored three-part digests (anchor · significance-filtered facts · keywords) — not the
+ * anchor+keywords facets it used to, which starved the summarizer of the actual facts and made it confabulate.
+ * `fanOut` full bodies on a SMALL-context summarizer (the "tiny local main, 32k" the header names, or the §10
+ * floor) can overflow, so the combined children are bounded to `contextTokens − systemPrompt − outputReserve`.
+ *
+ * BOUND CHOICE (owner design-watch): truncate PER-CHILD to an equal share of the budget, keeping each child's
+ * HEAD (its anchor + the start of its facts — the most significant material a digest leads with). Truncating a
+ * SUMMARY is honest (the fitBlockToBudget precedent — trimming a summary still yields a summary), unlike a
+ * verbatim segment. The common case (the grounded fanOut-4 grid measures ~1–2k combined) is UNDER budget and
+ * returns the bodies byte-identically, so this fires only on a pathological fanOut / a tiny summarizer. A
+ * non-positive budget ⇒ no room ⇒ the bodies ride unfitted (the caller's §10 below-floor warning already
+ * covers a summarizer that small).
+ */
+export function fitConsolidationChildren(childTexts: readonly string[], tokens: SummarizerBudget): string[] {
+  const budget = tokens.contextTokens - tokens.systemPromptTokens - tokens.outputReserveTokens;
+  if (budget <= 0 || childTexts.length === 0) {
+    return [...childTexts];
+  }
+  const total = childTexts.reduce((sum, t) => sum + estimateTokens(t), 0);
+  if (total <= budget) {
+    return [...childTexts]; // the common case — every child fits; byte-identical
+  }
+  const perChild = Math.floor(budget / childTexts.length);
+  return childTexts.map((t) => (estimateTokens(t) <= perChild ? t : (splitToTokenBudget(t, perChild).at(0) ?? t)));
+}
