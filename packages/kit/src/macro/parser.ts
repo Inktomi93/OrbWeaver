@@ -323,6 +323,41 @@ export function parseMacros(text: string): MacroAST {
   return buildBlocks(flatAst);
 }
 
+// Reconstruct source text from an AST, emitting each node's original bytes — text `value`, a call/block's
+// `raw` open tag, a block's `children` then `closeRaw`. A comment produced NO node at parse (readTag
+// returns `nodes: []`), so what comes back is the source with exactly the comment spans removed and
+// nothing else changed. `raw`/`closeRaw` are always present on parser-built nodes; the `??` fallbacks
+// only fire for hand-built AST nodes (which this file never feeds itself).
+function reconstructWithoutComments(ast: MacroAST): string {
+  let out = "";
+  for (const node of ast) {
+    if (node.type === "text") {
+      out += node.value;
+    } else if (node.type === "macro") {
+      out += node.raw ?? `{{${node.name}}}`;
+    } else {
+      out += node.raw ?? `{{${node.name}}}`;
+      out += reconstructWithoutComments(node.children);
+      out += node.closeRaw ?? `{{/${node.name}}}`;
+    }
+  }
+  return out;
+}
+
+/** Remove every `{{// … }}` comment span from `text`, returning the author text the engine would render
+ *  minus macro RESOLUTION — the transform the preset token estimate strips with so a non-LLM-visible
+ *  comment costs zero tokens (#302). Built on the ONE {@link parseMacros}: a comment produces no AST node,
+ *  so reconstructing source from the AST drops exactly the comments and nothing else. It therefore CANNOT
+ *  drift from the engine's comment recognition — the depth-aware close scan (a nested `{{…}}` inside the
+ *  comment doesn't close it early), the `\{{` escape (an escaped opener is literal, never a comment), and
+ *  the unclosed-comment rescue (a `{{//` with no close is preserved from the `{{` as literal text) all
+ *  resolve identically because they ARE the parser. Non-comment bytes reconstruct verbatim; a comment
+ *  nested INSIDE a macro's args is part of that macro's `raw` and survives, exactly as the unresolved
+ *  engine treats it. */
+export function stripComments(text: string): string {
+  return reconstructWithoutComments(parseMacros(text));
+}
+
 function splitArgs(argStr: string, separator: string): string[] {
   const args: string[] = [];
   let currentArg = "";
