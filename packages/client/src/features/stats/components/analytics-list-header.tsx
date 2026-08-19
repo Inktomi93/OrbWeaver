@@ -15,16 +15,24 @@
 // The verb now returns the ranked `total` beside the page, so a truncated band reads `50 of 328` — the
 // string arm of `ListPaneHeader.count`, minted for exactly this (a page-BOUNDED count that already read
 // `100+` off its own limit). An untruncated band keeps the bare number: `12 of 12` is noise.
+//
+// THE CENSUS ANSWERS OFF THE SAME LENS AS THE ROWS (P2g). The search lives in `analytics-search-store` (the
+// preset-search precedent) precisely so this band — rendered by the shell, in a different part of the tree
+// than the rows — narrows WITH them: under a search, `total` is the MATCH count, so the band reads "3 of 3"
+// / "50 of 120 matches" rather than "50 of 328" beside three rows. The key mirrors the surface's DEFAULT_SORT
+// read exactly (search omitted when empty), so on the rest state the two still share one cached page.
 
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
 import { useTRPC } from "#data";
+import { useAnalyticsSearchQuery } from "#state";
 import { ANALYTICS_DEFAULT_SORT } from "../lib/analytics-view-model.ts";
 
 export function AnalyticsListHeader(): ReactElement {
   const trpc = useTRPC();
-  const { data: page } = useQuery(trpc.stats.leaderboard.queryOptions({ sort: ANALYTICS_DEFAULT_SORT }));
+  const trimmed = useAnalyticsSearchQuery().trim();
+  const { data: page } = useQuery(trpc.stats.leaderboard.queryOptions({ sort: ANALYTICS_DEFAULT_SORT, ...(trimmed === "" ? {} : { search: trimmed }) }));
   const shown = page?.rows.length ?? 0;
   const total = page?.total ?? 0;
 

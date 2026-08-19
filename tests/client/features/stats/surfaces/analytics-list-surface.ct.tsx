@@ -87,3 +87,74 @@ test("switching the sort re-dispatches and re-ranks the rows", async ({ mount, p
   await expect(component.getByText("Bolt")).toBeVisible();
   await expect(component.getByText("Aria Nightshade")).toBeVisible();
 });
+
+// P2c/P1f: the rows are a `<VirtualList>` now, so the pane is a role="list" with role="listitem" children
+// (the primitive owns the chain) rather than the bare role="list" with 50 non-listitem rows the audit
+// flagged. Asserting through the a11y tree, not the implementation.
+test("the leaderboard is an accessible list of listitems (not a bare role=list)", async ({ mount, page }) => {
+  await routeTrpc(page, { "stats.leaderboard": leaderboardResponder });
+  const component = await mount(<AnalyticsListSurfaceStory />);
+
+  await expect(component.getByRole("list", { name: "Character leaderboard" })).toBeVisible();
+  // Every rendered row is a proper listitem — the P2c defect (rows under a bare list, no listitems) is gone.
+  await expect(component.getByRole("listitem")).toHaveCount(2);
+});
+
+// P1f (the perf mechanism, structurally). A 60-row page renders only its windowed slice into the DOM — the
+// section-entry cost of 50+ eager rows is bounded to the visible window, which is also why the tab stops and
+// the a11y tree stay small. A count that is BOTH > 0 and far below 60 is the windowing; the exact number is
+// the viewport's, not asserted.
+test("a large leaderboard renders only a windowed slice of rows (virtualized)", async ({ mount, page }) => {
+  const many = Array.from({ length: 60 }, (_v, i) => ({ ...ARIA, characterId: `char_${i}`, name: `Char ${i}`, assistantTurns: 60 - i }));
+  await routeTrpc(page, { "stats.leaderboard": () => ({ rows: many, total: 328 }) });
+  const component = await mount(<AnalyticsListSurfaceStory />);
+
+  await expect(component.getByText("Char 0")).toBeVisible();
+  const listitems = component.getByRole("listitem");
+  const rendered = await listitems.count();
+  expect(rendered).toBeGreaterThan(0);
+  // The whole page is 60 rows; the DOM holds only the window (plus overscan) — never all 60.
+  expect(rendered).toBeLessThan(30);
+});
+
+// P2g: 50 rows at tabIndex=0 was 50 consecutive tab stops. Roving makes exactly ONE row body tabbable and
+// Arrow keys move focus; the drill stays the row's own click. Asserted through the DOM tab stops.
+test("only one leaderboard row is tabbable (roving), and Arrow keys move focus", async ({ mount, page }) => {
+  await routeTrpc(page, { "stats.leaderboard": leaderboardResponder });
+  const component = await mount(<AnalyticsListSurfaceStory />);
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+
+  const rowBodies = component.locator('[data-slot="list-row-body"]');
+  await expect(rowBodies).toHaveCount(2);
+  // Exactly one tab stop across the whole leaderboard (the roving contract), not one per row.
+  await expect(component.locator('[data-slot="list-row-body"][tabindex="0"]')).toHaveCount(1);
+
+  // Arrow-down from the first row moves focus (and its tab stop) to the second.
+  await rowBodies.first().focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(rowBodies.nth(1)).toBeFocused();
+});
+
+// P2g: the search is a SERVER predicate (the verb pages 50 of a larger total), not a filter over the loaded
+// rows — so a name below the cut is reachable. The responder keys on the decoded `search` input; the CT
+// proves the box drives a fresh, narrowed query.
+test("the LIST search narrows the rows through a fresh server query", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.leaderboard": (input: unknown): unknown => {
+      const needle = ((input as { search?: string } | undefined)?.search ?? "").toLowerCase();
+      const all = [ARIA, BOLT];
+      const rows = needle === "" ? all : all.filter((r) => r.name.toLowerCase().includes(needle));
+      return { rows, total: rows.length };
+    },
+  });
+  const component = await mount(<AnalyticsListSurfaceStory />);
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+  await expect(component.getByText("Bolt")).toBeVisible();
+
+  await component.getByLabel("Search characters").fill("bolt");
+
+  // The narrowed page arrives and Aria drops out — a client-only filter over the loaded 50 could never do
+  // this for a name that was below the page cut.
+  await expect(component.getByText("Bolt")).toBeVisible();
+  await expect(component.getByText("Aria Nightshade")).toHaveCount(0);
+});

@@ -19,6 +19,11 @@ export type LatencyScope = z.infer<typeof latencyScopeSchema>;
 export interface LeaderboardOpts {
   sort?: LeaderboardSort | undefined;
   limit?: number | undefined;
+  /** A name substring to narrow the ranked population — the LIST-pane search that reaches the ranked
+   *  characters past the page cap (the leaderboard is a page of 50 out of a larger ranked total, so a
+   *  named character below the cut is otherwise unreachable). `undefined`/empty ⇒ the whole population.
+   *  Case-insensitive; `total` narrows to the match count so the band's census stays honest. */
+  search?: string | undefined;
 }
 
 export interface TimeseriesOpts {

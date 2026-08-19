@@ -9,7 +9,7 @@ import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { ChartColumn, Crown, Icon } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
@@ -88,7 +88,10 @@ function OverviewBody(): ReactElement {
 
       <Section heading="Year in review">
         <Stack gap="block">
-          <Row gap="block" className="flex-wrap">
+          {/* A real grid, not flex-wrap (side-eye rail-analytics 2026-08-19 Taste): intrinsic-width figures
+              in a `flex-wrap` left uneven voids and arbitrary wraps. `cols="cell"` tiles even 1fr tracks at a
+              fixed column-min, so the column-gap is uniform at every width. */}
+          <Grid cols="cell" gap="block">
             <StatFigure label="Characters" value={formatCompact(wrapped.characters)} />
             <StatFigure label="Chats" value={formatCompact(wrapped.chats)} />
             <StatFigure label="Words" value={formatCompact(wrapped.words)} />
@@ -97,7 +100,7 @@ function OverviewBody(): ReactElement {
             <StatFigure label="Forked chats" value={formatCompact(wrapped.forkedChats)} />
             <StatFigure label="Spend" value={formatUsd(wrapped.costUsd)} />
             <StatFigure label="Time generating" value={formatDurationMs(wrapped.genTimeMs)} />
-          </Row>
+          </Grid>
           {/* THE DEFINITIONS, STATED (P2d/P3d). "Words" is your turns PLUS the replies — one definition,
               here and on the drill, where it used to silently mean assistant-only. The swipe words sit
               beside "Swipes" and are NOT in it, which is the exact pair that read as a contradiction. */}
@@ -124,7 +127,7 @@ function OverviewBody(): ReactElement {
 
       <Section heading="Economics">
         <Stack gap="block">
-          <Row gap="block" className="flex-wrap">
+          <Grid cols="cell" gap="block">
             <StatFigure label="Tokens in" value={formatCount(overview.tokensIn)} />
             <StatFigure label="Tokens out" value={formatCount(overview.tokensOut)} />
             <StatFigure label="Avg gen" value={formatMs(overview.avgGenMs)} />
@@ -142,7 +145,7 @@ function OverviewBody(): ReactElement {
                 on three tables and three views with no reader at all, so the number a user's thinking models
                 produce had nowhere to land. Same duration voice as "Time generating" above. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(overview.reasoningMs)} />
-          </Row>
+          </Grid>
           <Text voice="gloss">
             Cache hits is the share of the tokens you sent that the provider served from its prompt cache; Reasoning is the share of replies and swipes that
             produced a thinking pass. {UNRECORDED_NOTE}
