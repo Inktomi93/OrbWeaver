@@ -9,6 +9,7 @@
 // `IMAGE_LENSES` in `@orb/contracts/embeddings`. Characters have NO fork lineage (D28 snapshots), so only
 // `duplicate_chat_pairs` carries the column; `duplicate_character_pairs` has none.
 
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 export const RELATIONS = ["duplicate", "forked"] as const;
@@ -27,6 +28,45 @@ export const DISCOVERY_LIST_MAX_LIMIT = 500;
  *  is a self-DoS: the verb defaults to 120 highest-degree characters; this caps an over-ask rather than
  *  letting a huge library project a quadratic graph. Generous over the 120 default, bounded for the O(n²). */
 export const DISCOVERY_GRAPH_MAX_NODES = 500;
+
+// ── The distilled-catalog BROWSE page (the corpus LIST pane's rest state) ────────────────────────────
+// KEYSET-PAGED, and that is A8's fix (side-eye corpus re-pass 2026-08-19). The read used to answer ONE
+// truncating array capped at 200: the pane's header printed `CORPUS 313` off `catalog.totalDistilled` while
+// the list below it ended at "Imai" with no load-more, so 113 of the owner's characters were unreachable and
+// nothing on the surface said so. Serving all 313 instead would have fixed today's library and re-broken at
+// the next one — the whole point of the `character.list` keyset is that the payload stops being a function
+// of how much the user owns. So: a page + a cursor + the server's own census, the SAME three fields the
+// character library's collection surface already consumes.
+
+/** `recent` = collected-date descending; `name` = card name ascending. Discovery browse is content-only.
+ *  Homed HERE rather than in the domain (it moved 2026-08-19 with the cursor): the cursor schema below is a
+ *  WIRE shape discriminated on this axis, and re-spelling the two members beside it is exactly the doubling
+ *  §5.5 forbids. The domain re-exports the type. */
+export const BROWSE_SORTS = ["recent", "name"] as const;
+export type BrowseSort = (typeof BROWSE_SORTS)[number];
+export const browseSortSchema = z.enum(BROWSE_SORTS);
+
+/** The browse page size when the caller names none. Small enough that the corpus pane's first paint is one
+ *  short page, large enough that a scroll past it is rare — the `VirtualList` tail-fetch covers the rest. */
+export const BROWSE_DEFAULT_LIMIT = 60;
+
+/** The browse keyset, discriminated by `sort` — a cursor minted under one ordering is REFUSED under
+ *  another rather than silently mis-applied (the `characterListCursorSchema` precedent, which is where this
+ *  shape comes from). `characterId` is the tie-break: `createdAt` and `name` are both non-unique, and a
+ *  keyset on a non-unique column alone drops or repeats rows across the page boundary. */
+export const browseCursorSchema = z.discriminatedUnion("sort", [
+  z.object({
+    sort: z.literal("recent"),
+    createdAt: z.number().int(),
+    characterId: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("name"),
+    name: z.string(),
+    characterId: typeIdSchema(ID_PREFIX.character),
+  }),
+]);
+export type BrowseCursor = z.infer<typeof browseCursorSchema>;
 
 /** The `suggestCharacterTags` REFUSAL discriminator — the card carries no content beyond its `Name:` line,
  *  so there is nothing to distill and any facets would be invented from the name alone. Homed here (not in

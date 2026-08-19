@@ -27,10 +27,15 @@ export function Avatar(props: AvatarProps): ReactElement {
   return (
     <BaseAvatar.Root className={slots.root({ className })} data-slot="avatar-root" {...rest}>
       {src === undefined ? null : (
+        // `decoding="async"` is not polish (side-eye corpus re-pass 2026-08-19, C6): a surface that mounts
+        // sixty avatars in one frame pays every image decode INSIDE that frame by default, which is part of
+        // what a 654ms long frame is made of. Async decoding hands them to the compositor instead — the
+        // fallback already covers the gap before an image resolves, so there is nothing to flash.
         <BaseAvatar.Image
           alt={alt}
           className={slots.image()}
           data-slot="avatar-image"
+          decoding="async"
           height={1}
           onLoadingStatusChange={onLoadingStatusChange}
           src={src}

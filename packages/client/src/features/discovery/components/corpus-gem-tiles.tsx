@@ -43,12 +43,17 @@ import { CharacterAvatar } from "./character-avatar.tsx";
 
 type ForgottenGem = inferOutput<Trpc["discovery"]["forgottenGems"]>[number];
 
-function gemGloss(gem: ForgottenGem): string {
+/** The tile's MAGNITUDES — the two lifetime totals, on their own line so the third fact can have one. */
+function gemMagnitudes(gem: ForgottenGem): string {
   const exchanges = `${formatCount(gem.messageCount)} ${gem.messageCount === 1 ? "exchange" : "exchanges"}`;
-  // "last opened <ago>", never "<stamp> quiet": `formatRelativeAgo` is the kit's ONE sentence-ago form and
-  // returns "just now" for a sub-minute span, so no call site can compose the "now ago" this app has already
-  // shipped once. The band above supplies the "lifetime totals" framing; the row states plain facts.
-  return `${formatCount(gem.tokensOut)} tokens returned · ${exchanges} · last opened ${timeLib.formatRelativeAgo(gem.lastActiveAt)}`;
+  return `${formatCount(gem.tokensOut)} tokens returned · ${exchanges}`;
+}
+
+/** The tile's POINT. "last opened <ago>", never "<stamp> quiet": `formatRelativeAgo` is the kit's ONE
+ *  sentence-ago form and returns "just now" for a sub-minute span, so no call site can compose the "now ago"
+ *  this app has already shipped once. The band above supplies the "lifetime totals" framing. */
+function gemLastOpened(gem: ForgottenGem): string {
+  return `last opened ${timeLib.formatRelativeAgo(gem.lastActiveAt)}`;
 }
 
 export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[] }): ReactElement | null {
@@ -92,8 +97,22 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                   <Text as="span" className="block truncate text-foreground" voice="label">
                     {gem.name}
                   </Text>
-                  <Text as="span" className="block truncate" voice="gloss">
-                    {gemGloss(gem)}
+                  {/* TWO LINES, AND BOTH READABLE (side-eye corpus re-pass 2026-08-19, B1). All three
+                      facts used to ride ONE truncating `gloss` line inside the button: at 10.5px it was
+                      one of 17 `undersized-ui-text` findings (interactive text under the 11px floor), and
+                      what the truncation cut was always the tail — "last opened Nw ago", i.e. the exact
+                      fact the shelf's own subtitle says it ranks by. Shrinking further, or clamping
+                      harder, both keep cutting the point off; the line had to become two.
+                      `prose` is the LENGTH statement that lifts the step to `label` (13px, over the floor)
+                      without leaving the gloss voice, and `lines={2}` reserves the magnitudes' two lines so
+                      the shelf's tiles keep one baseline whatever their names do. The last-opened line is
+                      short enough to survive at the 16rem tile floor and is deliberately LAST — it is the
+                      one the reader came for, and nothing wraps past it. */}
+                  <Text as="span" className="block" lines={2} prose={true} voice="gloss">
+                    {gemMagnitudes(gem)}
+                  </Text>
+                  <Text as="span" className="block truncate" prose={true} voice="gloss">
+                    {gemLastOpened(gem)}
                   </Text>
                 </Stack>
               </Row>

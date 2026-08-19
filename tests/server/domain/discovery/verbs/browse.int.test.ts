@@ -4,6 +4,10 @@
 //   • the facet filters (genre/tone/tag) + the case-insensitive `q` substring narrow in SQL.
 //   • CONTENT-only — the row carries facets + card identity (name/avatar), no engagement counts.
 //   • the sort axis (`recent` = collected-date desc default; `name` = card name asc).
+//   • THE KEYSET (A8, side-eye corpus re-pass 2026-08-19): walking the cursor reaches EVERY row exactly
+//     once in both orderings — including across a tie, which is the seam a naive keyset drops rows at —
+//     `totalCount` counts the filtered scope rather than the page, and a cursor minted under one sort is
+//     refused under the other instead of being applied to the wrong keyset.
 
 import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";
@@ -88,8 +92,12 @@ describe("browseCharacters", () => {
       elevatorPitch: "New hook.",
     });
 
-    const rows = await svcFor(db).browseCharacters(owner);
+    const page = await svcFor(db).browseCharacters(owner);
+    const rows = page.items;
     expect(rows.map((r) => r.name)).toEqual(["Newer", "Older"]);
+    // The census is the whole scope, and a page shorter than the ask has no next.
+    expect(page.totalCount).toBe(2);
+    expect(page.nextCursor).toBeNull();
     expect(rows[0]).toMatchObject({
       name: "Newer",
       genre: "horror",

@@ -21,7 +21,7 @@ import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
@@ -46,8 +46,16 @@ const PICKER_TRACKS = "grid w-full grid-cols-6";
 const PICKER_FIRST_ROW = 3;
 
 export function CorpusListSurface(): ReactElement {
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  // FOCUS LANDS ON THE OMNIBOX, NOT ON A WRAPPER (side-eye corpus re-pass 2026-08-19, C7). This used to
+  // focus the surface root — a `tabIndex={-1}` div — which is a target that announces nothing and puts the
+  // pane's own control one Tab further away than it looks; on the audited walk the omnibox was the 18th
+  // stop. The search IS this surface (its query and target outlive the component precisely because it is
+  // the home you come back to), so it is what a keyboard/SR user should land on when the section mounts.
+  // `useFocusOnMount` still declines on the INITIAL page load (`activeElement === <body>`), so this does
+  // NOT move the start of the tab order past the rail nav on a cold boot — the skip-link/first-Tab
+  // behaviour is unchanged, and only a real rail navigation moves focus here.
+  const omniboxRef = useRef<HTMLInputElement>(null);
+  useFocusOnMount(omniboxRef);
   const query = useCorpusSearchQuery();
   // The axis owns its own default: an unset/stale stored id resolves to the first target.
   const targetId = resolveSearchTarget(useCorpusSearchTargetId()).id;
@@ -55,7 +63,7 @@ export function CorpusListSurface(): ReactElement {
   const searching = deferredQuery.trim() !== "";
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusListSurface")} gap="block">
+    <Stack className="h-full min-h-0" data-testid={testId("corpusListSurface")} gap="block">
       {/* THE PICKER WRAPS ON PURPOSE (side-eye corpus re-pass 2026-08-19 §5). Five content-sized cells in a
           `w-fit` wrapping flex row missed one row by ~2px at the LIST pane's real width: "Memories" dropped
           to a second line, leaving a 99px hole beside "Scenes" and a ragged right edge on the first thing
@@ -77,7 +85,7 @@ export function CorpusListSurface(): ReactElement {
           </Toggle>
         ))}
       </ToggleGroup>
-      <SearchOmnibox query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />
+      <SearchOmnibox inputRef={omniboxRef} query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />
       <Stack className="min-h-0 flex-1">
         {searching ? <CorpusSearchResults query={deferredQuery} targetId={targetId} /> : <CorpusRestState targetId={targetId} />}
       </Stack>
@@ -105,10 +113,13 @@ function SearchOmnibox({
   query,
   deferredQuery,
   onQuery,
+  inputRef,
 }: {
   readonly query: string;
   readonly deferredQuery: string;
   readonly onQuery: (value: string) => void;
+  /** The surface's focus target on mount — see `CorpusListSurface` (C7). */
+  readonly inputRef: RefObject<HTMLInputElement | null>;
 }): ReactElement {
   const trpc = useTRPC();
   const trimmed = deferredQuery.trim();
@@ -123,6 +134,7 @@ function SearchOmnibox({
       <Autocomplete
         aria-label="Search your corpus"
         inline={true}
+        inputRef={inputRef}
         mode="none"
         items={items}
         open={true}

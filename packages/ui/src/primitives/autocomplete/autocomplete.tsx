@@ -1,6 +1,6 @@
 import type { AutocompletePositionerProps as BasePositionerProps, AutocompleteRootProps as BaseRootProps } from "@base-ui/react/autocomplete";
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, formatSuggestionCount, usePortalContainer } from "#lib";
 import { Icon, X } from "#primitives/icons";
@@ -67,6 +67,15 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   emptyText?: ReactNode;
   /** Accessible name for the input (there is no visible label — pair with `<Field>` for one). */
   "aria-label"?: string;
+  /**
+   * A ref to the INPUT element, for a caller that has to move focus to the field itself.
+   *
+   * The seal exposes it because the alternative at the call site is a `querySelector` on this component's
+   * own `data-slot`, i.e. a feature reaching through the seal by string. Its founding caller is the corpus
+   * omnibox, whose surface focuses the search field when the section mounts (side-eye corpus re-pass
+   * 2026-08-19, C7 — focus used to land on a `tabIndex={-1}` wrapper div and the omnibox cost 18 tab stops).
+   */
+  inputRef?: Ref<HTMLInputElement>;
   /** Additional id(s) describing the input — merges with `<Field>`'s own wiring when composed. */
   "aria-describedby"?: string;
   /** Accessible name for the clear button. @defaultValue "Clear" */
@@ -153,6 +162,7 @@ export function Autocomplete({
   sideOffset = POPUP_SIDE_OFFSET,
   container,
   inline = false,
+  inputRef,
   ...rest
 }: AutocompleteProps): ReactElement {
   const portalContainer = usePortalContainer();
@@ -195,6 +205,7 @@ export function Autocomplete({
           data-slot="autocomplete-input"
           id={id}
           placeholder={placeholder}
+          ref={inputRef}
         />
         <BaseAutocomplete.Clear aria-label={clearLabel} className={slots.clear()} data-slot="autocomplete-clear">
           <Icon icon={X} size="sm" />

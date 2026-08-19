@@ -19,6 +19,11 @@ import { testId } from "#lib";
 
 const NONE = "";
 const REDUNDANCY_PRECISION = 2;
+/** The pair pickers read ONE page of the catalog. Pinned to `browseCharacters`'s pre-A8 default so this
+ *  tab's reach is unchanged by that lane (the verb's own default is a smaller first page now that the
+ *  browse list pages). It is still ONE page: a library past this cannot be fully picked from here, which is
+ *  the same truncation A8 fixed for the browse list and is filed as its own follow-up. */
+const PICKER_PAGE = 200;
 
 export function CorpusCompareTab(): ReactElement {
   return (
@@ -33,7 +38,7 @@ export function CorpusCompareTab(): ReactElement {
 
 function CompareBody(): ReactElement {
   const trpc = useTRPC();
-  const { data: catalog } = useSuspenseQuery(trpc.discovery.browseCharacters.queryOptions({}));
+  const { data: catalog } = useSuspenseQuery(trpc.discovery.browseCharacters.queryOptions({ limit: PICKER_PAGE }));
   const [a, setA] = useState(NONE);
   const [b, setB] = useState(NONE);
   const [deep, setDeep] = useState(false);
@@ -42,7 +47,7 @@ function CompareBody(): ReactElement {
   const idA = castId<CharacterId>(a);
   const idB = castId<CharacterId>(b);
 
-  const items: SelectItems<string> = [{ value: NONE, label: "Pick a character" }, ...catalog.map((c) => ({ value: c.characterId, label: c.name }))];
+  const items: SelectItems<string> = [{ value: NONE, label: "Pick a character" }, ...catalog.items.map((c) => ({ value: c.characterId, label: c.name }))];
 
   const onPickA = (value: string): void => {
     setA(value);

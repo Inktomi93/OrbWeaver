@@ -1,6 +1,6 @@
 // domain/discovery/contract/params — the dispatch axes + verb input shapes for discovery's compute/read surface.
 
-import type { DuplicateRelation } from "@orb/contracts/discovery";
+import type { BrowseCursor, BrowseSort, DuplicateRelation } from "@orb/contracts/discovery";
 import type { ImageFacetMetaKey } from "@orb/contracts/embeddings";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 
@@ -63,9 +63,10 @@ export interface DuplicateChatsOptions {
 }
 
 // ── BrowseSort (the browse ordering dispatch axis) ────────────────────────────
-/** `recent` = collected-date descending; `name` = card name ascending. Discovery browse is content-only. */
-export const BROWSE_SORTS = ["recent", "name"] as const;
-export type BrowseSort = (typeof BROWSE_SORTS)[number];
+// The axis and its keyset live in `@orb/contracts/discovery` (moved 2026-08-19 with the A8 paging): the
+// cursor is a WIRE shape discriminated on this union, so the two have to be spelled in one place, and that
+// place is the one both ends can import. Re-exported here so the domain's own callers keep one front door.
+export type { BrowseCursor, BrowseSort } from "@orb/contracts/discovery";
 
 /** The filter/sort/page bag for the owner-scoped `browseCharacters` read. `ownerId` is never here — it is
  *  the resolved principal. */
@@ -76,6 +77,9 @@ export interface BrowseFilter {
   readonly q?: string;
   readonly sort?: BrowseSort;
   readonly limit?: number;
+  /** The keyset boundary of the PREVIOUS page. Its `sort` discriminant must match `sort` — a cursor minted
+   *  under the other ordering is refused, never applied to the wrong keyset. */
+  readonly cursor?: BrowseCursor;
 }
 
 /** Options for the owner-scoped `archetypes` read. `k` forces the cluster count per embedding space. */

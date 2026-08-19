@@ -39,6 +39,15 @@ export function blobUrl(hash: string): string {
   return `${BLOB_ROUTE}/${hash}`;
 }
 
+/** The URL for the `icon` (width-only, any-aspect) variant — the round/square avatar chrome's own rung.
+ *  `?v=` is omitted because `icon` is the route's default variant kind; `width` is snapped SERVER-side to
+ *  the fixed `BLOB_WIDTHS` ladder, so an off-rung ask is served at the next rung up rather than minting a
+ *  new cache entry. Ask for the DEVICE pixels (the CSS box × the DPR you want to be sharp at), never the
+ *  CSS box: a 24px avatar asking for 24 is blurry on every retina display. */
+export function blobIconUrl(hash: string, width: number): string {
+  return `${BLOB_ROUTE}/${hash}?w=${width}`;
+}
+
 /** The URL for the `portrait` (2:3 smart-cropped) variant. A sibling to {@link blobUrl}, not an option
  *  bag on it — existing avatar call sites pass a bare hash and must stay untouched. */
 export function blobPortraitUrl(hash: string, width: number): string {

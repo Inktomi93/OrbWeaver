@@ -83,6 +83,7 @@ import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { CorpusFamilyMap } from "../components/corpus-family-map.tsx";
 import { CorpusGemTiles } from "../components/corpus-gem-tiles.tsx";
 import { KeywordExplorer, StoryThemeDrift } from "../components/corpus-home-charts.tsx";
+import { CorpusHomeSkeleton } from "../components/corpus-home-skeleton.tsx";
 import { CorpusReadinessRail } from "../components/corpus-readiness-rail.tsx";
 import { CorpusUnderstandingInvitation } from "../components/corpus-understanding-invitation.tsx";
 import { deriveCorpusAnalysisState } from "../lib/corpus-analysis-state.ts";
@@ -111,10 +112,9 @@ export function CorpusHomeSurface(): ReactElement {
     // (`corpus-content.tsx`, the Configuration precedent).
     <Surface tier="form">
       <Stack className="outline-none" data-testid={testId("corpusHomeSurface")} ref={surfaceRef} tabIndex={-1}>
-        <QueryBoundary
-          fallback={<Text voice="gloss">Loading your corpus…</Text>}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}
-        >
+        {/* The fallback is the surface's own SHAPE, not a sentence (§5 "loading is a naked sentence in a
+            void") — `corpus-home-skeleton.tsx` carries the why. */}
+        <QueryBoundary fallback={<CorpusHomeSkeleton />} renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}>
           <CorpusHomeBody />
         </QueryBoundary>
       </Stack>
@@ -188,7 +188,15 @@ function CorpusHomeBody(): ReactElement {
     // shell's docked LIST and CONTEXT panels narrow it independently) and no max-width cap centres the page.
     <Container className="w-full">
       <Stack gap="section">
-        <Row align="end" className="flex-wrap" gap="section" justify="between">
+        {/* THE MASTHEAD STACKS BEFORE IT SQUEEZES (side-eye corpus re-pass 2026-08-19, B7). This was one
+            `flex-wrap` Row with a `flex-1 min-w-0` headline beside a `shrink-0` figure column — and
+            `flex-wrap` never fires for a `min-w-0` child, because it has no minimum to overflow with. So at
+            430px the h1 was squeezed into a ~130px column and wrapped to SIX one-word lines while the
+            figures held half the row. The container query is the fix the pane can actually answer to
+            (`corpus-understanding-invitation.tsx`'s own spelling): one column until the surface's
+            `@container` is genuinely wide enough for two, `items-end` only in the two-column arm — a
+            right-aligned figure block under a stacked headline would read as a stray. */}
+        <Row align="start" className="flex-col @2xl:flex-row @2xl:items-end" gap="section" justify="between">
           <Stack className="min-w-0 flex-1" gap="tight">
             <Text as="span" voice="kicker">
               Library understanding
@@ -197,29 +205,33 @@ function CorpusHomeBody(): ReactElement {
               {state.headline}
             </Heading>
           </Stack>
-          {/* The summary readout: ONE `hero` (the voice for THE value, one per surface by law — which is
-              why `deriveCorpusAnalysisState` MOVES it with the phase rather than pinning it to a column)
-              with its companions at datum weight beside it. Never a strip of display-size zeros. */}
-          <Row align="end" className="shrink-0" gap="section">
-            <Stack className="text-right" gap="tight">
-              <Text as="span" voice="hero">
-                {state.hero.value}
-              </Text>
-              <Text as="span" voice="gloss">
-                {state.hero.caption}
-              </Text>
-            </Stack>
-            {state.support.map((figure) => (
-              <Stack className="text-right" gap="tight" key={figure.id}>
-                <Text as="span" voice="datum">
-                  {figure.value}
+          {/* The summary readout: ONE `hero` (the voice for THE value, at most one per surface by law —
+              which is why `deriveCorpusAnalysisState` MOVES it with the phase rather than pinning it to a
+              column) with its companions at datum weight beside it. Never a strip of display-size zeros —
+              and never a number the headline just said, which is why the whole block is absent when the
+              sentence already carries the library's state (§5 `distill`). */}
+          {state.hero === null ? null : (
+            <Row align="end" className="shrink-0" gap="section">
+              <Stack className="text-right" gap="tight">
+                <Text as="span" voice="hero">
+                  {state.hero.value}
                 </Text>
                 <Text as="span" voice="gloss">
-                  {figure.caption}
+                  {state.hero.caption}
                 </Text>
               </Stack>
-            ))}
-          </Row>
+              {state.support.map((figure) => (
+                <Stack className="text-right" gap="tight" key={figure.id}>
+                  <Text as="span" voice="datum">
+                    {figure.value}
+                  </Text>
+                  <Text as="span" voice="gloss">
+                    {figure.caption}
+                  </Text>
+                </Stack>
+              ))}
+            </Row>
+          )}
         </Row>
 
         {/* `min-w-0` IS THE SPLIT (the home leg's P1-1, paid for once already): a grid TRACK CHILD is
