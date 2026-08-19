@@ -26,8 +26,8 @@ import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
+import { renderContextBoundaryDivider } from "./message-row-divider.tsx";
 import {
-  renderContextBoundaryDivider,
   renderRowActions,
   renderRowAvatar,
   renderRowBubble,
