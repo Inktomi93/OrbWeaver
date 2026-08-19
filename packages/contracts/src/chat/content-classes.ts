@@ -10,6 +10,15 @@
 // (D54 axis-home-follows-reachability); the POLICY homes here because it is cross-boundary vocabulary both
 // server (wire seam) and client (render filter) consume.
 //
+// THE TABLE IS NOT THE BEHAVIOR — a wire-plane flip is TWO edits. The reading plane is read from this
+// registry at its projection seam, but the model-wire projection is a per-kind handler dispatch
+// (`WIRE_PART_HANDLERS`/`spanToWirePart`, server `domain/chat/engine/pipeline.ts`): keyed by span kind, so a
+// NEW class cannot build without a handler, but an EDITED row here changes nothing on its own. Flipping a
+// row's `wire` value (e.g. `full` → `drop`) without editing that handler leaves this table describing a
+// projection the pipeline does not perform, and the contract test (which asserts the TABLE) stays green.
+// The pipeline's own binding test is the tie-breaker; edit BOTH, and pin the new behavior with a PIPELINE
+// test (the span's bytes absent from the serialized history) rather than a row assertion.
+//
 // A THIRD dimension exists but is NOT a plane here: the SERVER MEMBER-STRIP (§3.6) applies to the `hidden`
 // class ONLY — hidden-class bytes never reach a non-host member's payload (`domain/chat` substrate
 // `member-visibility`, the trust boundary). `unknown-directive` shares `{hide, full}` (display noise is
