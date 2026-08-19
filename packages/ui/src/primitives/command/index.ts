@@ -19,3 +19,4 @@ export {
   CommandSeparator,
   CommandStatus,
 } from "./command.tsx";
+export { useActiveCommandValue } from "./use-active-command-value.ts";
