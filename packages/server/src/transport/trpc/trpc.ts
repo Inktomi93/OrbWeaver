@@ -117,13 +117,22 @@ export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErro
 // a cookie-authenticated mutation must carry the custom header. The gate keys on Principal.via: a
 // header/fallback request and all queries/subscriptions are exempt.
 //
-// WHY tRPC's belt keys on `cookie` ONLY, unlike the multipart ingest routes' `via !== "header"` (#300): a
-// tRPC mutation requires `Content-Type: application/json`, which is NOT a CORS-"simple" content-type, so a
-// cross-origin `fetch` triggers a preflight the app never grants (no CORS middleware) — a cross-site page
-// therefore cannot drive a tRPC mutation on ANY via arm. So the `fallback` (loopback owner) arm needs no
-// CSRF header here, which is what the un-cookied loopback dev tooling (multi-user-seed, curl harvests)
-// relies on. The multipart routes (upload/import) DO gate fallback because `multipart/form-data` IS
-// CORS-simple (no preflight) — see upload.ts's authCsrfGuard.
+// WHY tRPC's belt keys on `cookie` ONLY, unlike the byte-ingest routes' `via !== "header"` (#300): because
+// `entry/app.ts` refuses every POST to the tRPC mount whose content-type is not `application/json`, and
+// `application/json` is NOT a CORS-"simple" content-type — so a cross-site page cannot make the browser
+// send one without a preflight this app never grants (it mounts no CORS middleware). That leaves the
+// `fallback` (loopback owner) arm safely un-gated here, which is what the un-cookied loopback dev tooling
+// (multi-user-seed, curl harvests) relies on. The byte-ingest routes gate fallback instead because they
+// must ACCEPT `multipart/form-data`, which IS CORS-simple — see upload.ts's authCsrfGuard.
+//
+// THE BELT IS LOAD-BEARING, NOT DEFENCE IN DEPTH. This comment used to justify the `cookie`-only keying by
+// claiming a tRPC mutation "requires application/json"; it does not. `@trpc/server` 11.18's
+// `getContentTypeHandler` also matches `multipart/form-data` and `application/octet-stream` and dispatches
+// both as `type:"mutation"`, and multipart is exactly the CORS-simple type a plain cross-site `<form>` can
+// post. Behaviorally proven at the mount: before the belt, a multipart POST with no `x-orb-csrf` on the
+// fallback arm RAN `tag.pruneUnusedTags` and returned 200 (pin: tests/server/entry/app.test.ts, the
+// content-type-belt describe). Delete or narrow that belt and this gate is open again on every
+// `AUTH_FALLBACK=owner` box.
 const authMiddleware = t.middleware(({ ctx, type, path, next }) => {
   if (ctx.auth === null) {
     securityEvent("auth_required", { path }, "security: unauthenticated request rejected");

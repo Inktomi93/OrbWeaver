@@ -61,6 +61,8 @@ function hit(app: ReturnType<typeof createApp>, req: Request): Promise<Response>
 
 const OK = 200;
 const UNAUTHORIZED = 401;
+const FORBIDDEN = 403;
+const UNSUPPORTED_MEDIA_TYPE = 415;
 const NOT_FOUND = 404;
 const SERVICE_UNAVAILABLE = 503;
 const INTERNAL_ERROR = 500;
@@ -74,6 +76,12 @@ const OWNER: Principal = {
   via: "fallback",
 };
 
+/** The same owner reached over a browser session cookie — the arm the pre-existing tRPC CSRF gate keys on. */
+const COOKIE_OWNER: Principal = { ...OWNER, via: "cookie" };
+
+/** The CSRF-belt probe: `authedProcedure.mutation` with NO input schema, so a cross-site POST needs no body. */
+const PRUNE_URL = "http://localhost/api/trpc/tag.pruneUnusedTags";
+
 /** A fake seam that always resolves the same principal; `onResolve` fires once per resolution (the spy seam
  *  for the "resolve once" pin). */
 function fakeSeam(principal: Principal | null, onResolve?: () => void): AuthSeam {
@@ -86,16 +94,21 @@ function fakeSeam(principal: Principal | null, onResolve?: () => void): AuthSeam
   };
 }
 
+/** The `services` bag the app-assembly slice drives: a real `settings.getEffectiveConfig` slice (the
+ *  auth-meta/join registrars + the tRPC context read it per request; the env-only floor is the honest
+ *  default — discreetLogin/localMultiUser both false) plus whatever one test injects. Absent services are
+ *  deliberate: a route that reaches one throws loudly instead of a stub answering for a domain this slice
+ *  does not own. */
+function testServices(extra: Record<string, unknown> = {}): AppDeps["services"] {
+  // FABRICATION-OK: the app tests exercise only the settings read plus whatever slice a test injects; the other 16 domain services are deliberately absent (their routes are covered by slice tests).
+  return { settings: { getEffectiveConfig: (): EffectiveAppConfig => layer({}) }, ...extra } as unknown as AppDeps["services"];
+}
+
 /** Build `AppDeps` with inert fakes; overrides patch in the per-test seam / getters. The unhit ports are
- *  typed stubs (the routes that would touch them are covered by their own slice tests). `services` carries
- *  a real `settings.getEffectiveConfig` slice — the auth-meta/join registrars + the tRPC context read it
- *  per request (the env-only floor is the honest default: discreetLogin/localMultiUser both false). */
+ *  typed stubs (the routes that would touch them are covered by their own slice tests). */
 function deps(overrides: Partial<AppDeps>): AppDeps {
   const stub = {} as never;
-  // FABRICATION-OK: the app tests exercise only the settings read; the other 16 domain services are deliberately absent (their routes are covered by slice tests).
-  const services = {
-    settings: { getEffectiveConfig: (): EffectiveAppConfig => layer({}) },
-  } as unknown as AppDeps["services"];
+  const services = testServices();
   return {
     now: (): number => FROZEN_NOW,
     db: {} as unknown as Db,
@@ -392,5 +405,105 @@ describe("createApp", () => {
     expect(res.status).toBe(TOO_MANY_REQUESTS);
     expect(res.headers.get("Retry-After")).toBe("2");
     expect(res.headers.get("X-RateLimit-Remaining")).toBe("0");
+  });
+});
+
+// #300 leg 5 / spine invariant #9 — THE tRPC CONTENT-TYPE BELT.
+//
+// The hole this closes, proven through the REAL mount before the belt existed: `@trpc/server` 11.18's
+// `getContentTypeHandler` matches `application/json` AND `multipart/form-data` AND
+// `application/octet-stream`, and dispatches the latter two as `type:"mutation"`. `multipart/form-data` is
+// a CORS-SIMPLE content-type — an ordinary cross-site `<form>` POST needs no preflight and no CORS grant —
+// so the tRPC auth gate's `via === "cookie"` keying (which deliberately exempts the loopback owner
+// `fallback` arm so the un-cookied dev tooling keeps working) left every input-less destructive mutation
+// drivable from any page loaded in the box's own browser wherever `AUTH_FALLBACK=owner` is live: every
+// `single-user` deployment, every dev stack, any break-glass session. `tag.pruneUnusedTags` is the probe
+// because it is `authedProcedure.mutation` with NO input schema — the attacker needs to send no body at all.
+//
+// These pins drive the assembled app end to end (real middleware order, real `appRouter`, real tRPC
+// handler); the spy service records whether the RESOLVER ran, which is the only fact that distinguishes
+// "refused" from "refused after doing the damage".
+describe("createApp: the tRPC mount refuses a non-JSON mutation (CSRF content-type belt)", () => {
+  /** An app whose ONLY live domain service is a `tag` spy: `pruneUnusedTags` (the destructive input-less
+   *  mutation) and `listTags` (the GET-query control) both record their executions. */
+  function spyApp(principal: Principal): { readonly app: ReturnType<typeof createApp>; readonly calls: readonly string[] } {
+    const calls: string[] = [];
+    const tag = {
+      pruneUnusedTags: (): Promise<{ removed: number }> => {
+        calls.push("pruneUnusedTags");
+        return Promise.resolve({ removed: 3 });
+      },
+      listTags: (): Promise<readonly never[]> => {
+        calls.push("listTags");
+        return Promise.resolve([]);
+      },
+    };
+    return { app: createApp(deps({ seam: fakeSeam(principal), services: testServices({ tag }) })), calls };
+  }
+
+  test("multipart/form-data POST on the loopback-owner (via:fallback) arm with NO CSRF header → 415, resolver NEVER runs", async () => {
+    const { app, calls } = spyApp(OWNER);
+    const form = new FormData();
+    form.set("csrf", "not-needed-for-a-simple-request");
+    const res = await hit(app, new Request(PRUNE_URL, { method: "POST", body: form }));
+    // The resolver assertion leads deliberately: it is the fact that separates "refused" from "refused
+    // after the tags were already deleted". Pre-belt this read `["pruneUnusedTags"]` with a 200 status.
+    expect(calls).toEqual([]);
+    expect(res.status).toBe(UNSUPPORTED_MEDIA_TYPE);
+  });
+
+  test("application/octet-stream POST on the via:fallback arm → 415, resolver NEVER runs", async () => {
+    const { app, calls } = spyApp(OWNER);
+    const res = await hit(app, new Request(PRUNE_URL, { method: "POST", headers: { "content-type": "application/octet-stream" }, body: "x" }));
+    expect(calls).toEqual([]);
+    expect(res.status).toBe(UNSUPPORTED_MEDIA_TYPE);
+  });
+
+  // The belt must not be stricter than tRPC's own JSON matcher, which is a media-type PREFIX test — a
+  // `charset` parameter is legal on the wire and a strict string equality would have refused it.
+  test("CONTROL: application/json on the via:fallback arm still runs — the un-cookied loopback dev tooling", async () => {
+    const { app, calls } = spyApp(OWNER);
+    const res = await hit(app, new Request(PRUNE_URL, { method: "POST", headers: { "content-type": "application/json" }, body: "null" }));
+    expect(res.status).toBe(OK);
+    expect(calls).toEqual(["pruneUnusedTags"]);
+  });
+
+  test("CONTROL: `application/json; charset=utf-8` still runs — the belt matches the media type, not the whole header", async () => {
+    const { app, calls } = spyApp(OWNER);
+    const res = await hit(app, new Request(PRUNE_URL, { method: "POST", headers: { "content-type": "application/json; charset=utf-8" }, body: "null" }));
+    expect(res.status).toBe(OK);
+    expect(calls).toEqual(["pruneUnusedTags"]);
+  });
+
+  // The pre-existing gate keeps keying where it always keyed: a cookie-authenticated mutation without the
+  // custom header is 403, header present is 200. The belt is additive, not a replacement.
+  test("CONTROL: the cookie-arm CSRF gate still fires (JSON mutation, no x-orb-csrf → 403)", async () => {
+    const { app, calls } = spyApp(COOKIE_OWNER);
+    const res = await hit(app, new Request(PRUNE_URL, { method: "POST", headers: { "content-type": "application/json" }, body: "null" }));
+    expect(res.status).toBe(FORBIDDEN);
+    expect(calls).toEqual([]);
+  });
+
+  test("CONTROL: the cookie arm WITH x-orb-csrf still runs (the real client's batched write path)", async () => {
+    const { app, calls } = spyApp(COOKIE_OWNER);
+    const res = await hit(
+      app,
+      new Request(`${PRUNE_URL}?batch=1`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-orb-csrf": "1" },
+        body: JSON.stringify({ 0: null }),
+      }),
+    );
+    expect(res.status).toBe(OK);
+    expect(calls).toEqual(["pruneUnusedTags"]);
+  });
+
+  // GET carries no content-type at all and tRPC's method map allows GET for queries/subscriptions ONLY —
+  // so scoping the belt to POST is complete for mutations and inert for reads.
+  test("CONTROL: a GET query is untouched by the belt (no content-type on the request)", async () => {
+    const { app, calls } = spyApp(OWNER);
+    const res = await hit(app, new Request("http://localhost/api/trpc/tag.listTags"));
+    expect(res.status).toBe(OK);
+    expect(calls).toEqual(["listTags"]);
   });
 });
