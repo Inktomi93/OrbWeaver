@@ -6,6 +6,7 @@
 // viewport: the curated four tabs, land-on-CONTENT, and the "You" bottom sheet + its overflow/handoff.
 // Each test gets a fresh page (isolated localStorage) so the store starts default.
 
+import type { BlurSurface } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
@@ -2856,4 +2857,87 @@ test("#231 CONTROL: a device with NO hint is not scaled or themed by the pending
   );
   expect(root.scale).toBe("1");
   expect(root.theme).toBeNull();
+});
+
+// ── #237: the CHROME PANES never got D144's polarity floor ─────────────────────────────────────────
+// Over a room wallpaper the glass paints `.shell-panel` at a FIXED `--blur-fill-chrome` (70%) of its own
+// tint, so 30% of whatever art is behind lands in the pane. Under the DARK arm that measured 8.48:1; the
+// same node under `--theme Light` measured 3.69:1 (pixel-sampled — the css-resolve path says 7.01 and
+// misses it entirely, because the wallpaper is a PAINT layer). It is the same defect class #217 closed
+// for the reading plate: a translucent surface whose alpha was designed, not derived. The fix composites
+// the pane's own tint over `--color-reading-plate` — D144's already-derived, polarity-aware over-art
+// backing — on the LIGHT arm only, so the dark arm stays byte-identical (D144(d): the sacred dark rooms
+// do not move). Both partners of that mix are at or above the plate's derived alpha, so the result is
+// too, by construction — no new number is invented anywhere.
+const OVER_ART_BLUR: readonly BlurSurface[] = ["panels"];
+
+// Hoisted (useTopLevelRegex): the two alpha spellings a computed fill can carry.
+const SLASH_ALPHA = /\/\s*([\d.]+)\s*\)/u;
+const RGBA_ALPHA = /^rgba?\([^)]*,\s*([\d.]+)\s*\)$/u;
+
+/** The alpha of a computed `color(...)`/`oklab(...)`/`rgb(...)` fill — the slash arm, or 1 when opaque. */
+function alphaOf(color: string): number {
+  const slash = SLASH_ALPHA.exec(color);
+  if (slash?.[1] !== undefined) {
+    return Number(slash[1]);
+  }
+  const rgba = RGBA_ALPHA.exec(color);
+  return rgba?.[1] === undefined ? 1 : Number(rgba[1]);
+}
+
+test("#237: over a wallpaper a LIGHT palette's panes take the derived plate floor; the DARK arm does not move", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const dark = await mount(<ShellCascadeFixture blurSurfaces={OVER_ART_BLUR} hasBgImage={true} omitMainRegion={true} />);
+  const darkFill = await bgColorOf(dark.getByTestId("panel-probe"));
+  await dark.unmount();
+  const light = await mount(<ShellCascadeFixture blurSurfaces={OVER_ART_BLUR} dataTheme="light" hasBgImage={true} omitMainRegion={true} />);
+  const lightFill = await bgColorOf(light.getByTestId("panel-probe"));
+  // The LIGHT arm clears the polarity-derived reading-plate alpha for a light base (#217: 0.921 at the
+  // owner-ruled reference ink). Pre-#237 it was the flat 0.7 that produced the 3.69:1 reading.
+  const plateAlpha = await light.getByTestId("panel-probe").evaluate((el) => getComputedStyle(el).getPropertyValue("--color-reading-plate").trim());
+  test.info().annotations.push({ description: `light pane ${lightFill} · plate ${plateAlpha} · dark pane ${darkFill}`, type: "pane-fill" });
+  expect(alphaOf(lightFill)).toBeGreaterThanOrEqual(alphaOf(plateAlpha));
+  // The DARK arm is byte-identical to the pane WITHOUT a wallpaper — the rule cannot touch it at all.
+  await light.unmount();
+  const darkPlain = await mount(<ShellCascadeFixture blurSurfaces={OVER_ART_BLUR} omitMainRegion={true} />);
+  expect(darkFill).toBe(await bgColorOf(darkPlain.getByTestId("panel-probe")));
+});
+
+test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over worst-case (black) art", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  // The ink measured is `--color-muted-foreground`, not the pane's own `color`: the node the delta report
+  // sampled at 3.69:1 is the list pane's TITLE KICKER, and the pane's full-strength foreground was never
+  // the failing one (it survives the fixed 70% fill on its own margin). The floor has to be proven on the
+  // WEAKEST ink the pane paints, or the pin passes on a surface that is still failing where it hurts.
+  //
+  // The wallpaper is a paint layer the shell goes transparent for, so the worst LEGAL art (a pure-black
+  // photo at BACKGROUND_DIM_MIN 0) is reproduced by painting the page behind the transparent grid.
+  await page.evaluate(() => {
+    document.body.style.background = "#000";
+  });
+  const light = await mount(<ShellCascadeFixture blurSurfaces={OVER_ART_BLUR} dataTheme="light" hasBgImage={true} omitMainRegion={true} />);
+  const panel = light.getByTestId("panel-probe");
+  const box = await panel.boundingBox();
+  expect(box, "the pane must be laid out before its fill can be sampled").not.toBeNull();
+  const { x, y, width, height } = box as NonNullable<typeof box>;
+  const landed = await samplePixel(page, Math.floor(x + width / 2), Math.floor(y + height / 2));
+  const ink = await panel.evaluate((el) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) {
+      throw new Error("no 2d context");
+    }
+    ctx.fillStyle = getComputedStyle(el).getPropertyValue("--color-muted-foreground").trim();
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return { b: b ?? 0, g: g ?? 0, r: r ?? 0 };
+  });
+  const ratio = contrastRatio(ink, landed);
+  test.info().annotations.push({
+    description: `${ratio.toFixed(2)}:1 · pane kicker ink rgb(${ink.r},${ink.g},${ink.b}) vs LANDED rgb(${landed.r},${landed.g},${landed.b}) over black art`,
+    type: "pane-contrast",
+  });
+  expect(ratio).toBeGreaterThanOrEqual(4.5);
 });

@@ -199,3 +199,21 @@ test("the CONTEXT band renders neutral chrome, never a second identity cluster",
 
   await expect(component.getByText("Test chat")).toHaveCount(0);
 });
+
+// #239 — THE TRUNCATED ROOM TITLE'S FULL-VALUE AFFORDANCE. At `list:docked, context:docked` the topbar
+// identity title measured clientWidth 141 for scrollWidth 226 (an 85px truncation) with `title` NULL: it
+// ellipsizes correctly, but the full name had NO home in the CONTENT region — the list pane's copy is the
+// only other one, and it disappears the moment the list is collapsed. The affordance is the native
+// tooltip, carrying EXACTLY the visible string (never a re-worded label).
+test("#239: the room title carries its full value as a title attribute", async ({ mount, page }) => {
+  const longTitle = "Example — The Rust Lecture, and What Came After";
+  await routeTrpc(page, {
+    "chat.getChat": () => ({ title: longTitle, participants: [human("host"), character("Birdie")] }),
+    "chat.listMessages": () => makeMessagesPage([]),
+  });
+  const cmp = await mount(<ChatHeaderStory />);
+  const heading = cmp.locator('[data-slot="text"]', { hasText: longTitle }).first();
+  await expect(heading).toHaveAttribute("title", longTitle);
+  // The tooltip is the SAME string the eye sees — a re-worded one would be a second, disagreeing home.
+  expect((await heading.textContent())?.trim()).toBe(longTitle);
+});
