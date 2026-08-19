@@ -151,6 +151,12 @@ test("an UNSCORED card renders the designed empty state, naming the sweep as its
   // …AND THE SENTENCE CARRIES ITS DOOR (side-eye corpus re-pass B8). It named two verbs beside zero
   // controls — a section that exists only to say what you cannot do from here.
   await expect(component.getByRole("button", { name: REFINERY_DOOR })).toBeVisible();
+  // …AND IT IS CAPPED AT THE READING MEASURE (side-eye corpus re-pass #3, P3-E). It was the one paragraph
+  // on this surface at `max-width: none` (78.6ch on a wide pane) while its siblings carried the token. The
+  // assertion is the RESOLVED value rather than the class: a Tailwind arbitrary-property class that never
+  // got generated computes to `none` and looks identical in the source.
+  const measure = await empty.evaluate((el) => globalThis.getComputedStyle(el).maxWidth);
+  expect(measure, "the reading-measure token resolved to a real cap").not.toBe("none");
 });
 
 // ── THE DOSSIER'S EMPTY-SECTION SPRAWL AND ITS TWO NUMBER VOCABULARIES (side-eye corpus re-pass B8/U3) ──

@@ -42,6 +42,52 @@ export const CORPUS_TARGET_REST_HINTS: Record<CorpusSearchTargetId, string> = {
 /** How many hits the omnibox pulls per query — a bounded preview, not the whole ranked pool. */
 export const CORPUS_SEARCH_TOP_N = 20;
 
+/** The unified targets — the ones whose hits carry a `relevance` (the lexical `fields` target's BM25 score
+ *  is not a similarity, so it has no honest band and never gets the banner). */
+type UnifiedTargetId = Extract<CorpusSearchTarget, { kind: "unified" }>["id"];
+
+/**
+ * THE BAND BELOW WHICH A RESULT LIST IS ONLY "THE NEAREST THINGS" (side-eye corpus re-pass #3, P2-B).
+ *
+ * Cosine always answers: `zzqqxwvfoobarbaz` returned twenty rows the surface announced as results, with no
+ * state in which it could say "nothing here is close". These are the numbers that make it able to say it —
+ * MEASURED on the owner's live library (dev tRPC, `search.search`, topN=20, owner scope, 2026-08-19), five
+ * gibberish queries + five topical queries + eight verbatim-passage queries per target:
+ *
+ *   target      gibberish max   coherent-but-absent   present content
+ *   characters  .378–.458       .320–.368             .470–.707
+ *   discover    .396–.493       .372–.446             .515–.565
+ *   digests     .499–.602       .435–.473             .615–.770
+ *   images      .187–.202       —                     .440–.490
+ *
+ * TWO THINGS THAT TABLE PROVES, both of which decided the shape of the fix:
+ *
+ * 1. RELEVANCE IS NOT COMPARABLE ACROSS TARGETS. Gibberish scores .20 against images and .60 against
+ *    digests, so there is no single constant — the threshold is per target or it is wrong somewhere.
+ * 2. A LOW SCORE IS NOT A BAD RESULT, so nothing is ever HIDDEN on this evidence. On digests a coherent
+ *    off-topic query ("quarterly tax filing deadlines", .435–.473) scores BELOW gibberish (.499–.602) —
+ *    query-side hubness: a nonsense embedding lands near the corpus centroid and is mildly close to
+ *    everything. A hard floor calibrated to catch the reported gibberish case would therefore have hidden
+ *    the off-topic case while still letting gibberish through, i.e. it fails on the exact symptom. The
+ *    surface labels instead: every row still renders, under a banner that says what the number means.
+ *
+ * Each value sits in that target's measured gap, between its gibberish ceiling and its present-content
+ * floor. They are display thresholds only — nothing here reaches the server, the ranking, or a stored value.
+ */
+export const CORPUS_NEAREST_ONLY_BELOW: Record<UnifiedTargetId, number> = {
+  characters: 0.46,
+  discover: 0.5,
+  digests: 0.61,
+  images: 0.35,
+};
+
+/** Whether a unified result set is only "the nearest things" — its best hit is no better than what a
+ *  nonsense query scores against this target (see {@link CORPUS_NEAREST_ONLY_BELOW}). An empty list is
+ *  never degraded: it has its own designed empty state. */
+export function isNearestOnly(over: UnifiedTargetId, relevances: readonly number[]): boolean {
+  return relevances.length > 0 && Math.max(...relevances) < CORPUS_NEAREST_ONLY_BELOW[over];
+}
+
 /** How many as-you-type suggestions the typeahead pulls per keystroke — the POOL the display filter draws
  *  from, deliberately wider than what is shown so dropping junk does not empty the list. */
 export const CORPUS_SUGGEST_LIMIT = 8;
